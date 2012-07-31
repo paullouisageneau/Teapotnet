@@ -1,0 +1,6 @@
+.projet
+.cprojet
+.depend
+arcanet
+src/*.o
+
