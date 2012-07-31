@@ -71,41 +71,41 @@ bool ByteStream::readBinary(sint8_t &i)
 
 bool ByteStream::readBinary(sint16_t &i)
 {
-	if(!readData(reinterpret_cast<char*>(&i),2) != 2) return false;
+	if(readData(reinterpret_cast<char*>(&i),2) != 2) return false;
 	fixEndianess16(reinterpret_cast<char*>(i));
 	return true;
 }
 
 bool ByteStream::readBinary(sint32_t &i)
 {
-	if(!readData(reinterpret_cast<char*>(&i),4) != 4) return false;
+	if(readData(reinterpret_cast<char*>(&i),4) != 4) return false;
 	fixEndianess32(reinterpret_cast<char*>(i));
 	return true;
 }
 
 bool ByteStream::readBinary(uint8_t &i)
 {
-	if(!readData(reinterpret_cast<char*>(&i),1) != 1) return false;
+	if(readData(reinterpret_cast<char*>(&i),1) != 1) return false;
 	return true;
 }
 
 bool ByteStream::readBinary(uint16_t &i)
 {
-	if(!readData(reinterpret_cast<char*>(&i),2) != 2) return false;
+	if(readData(reinterpret_cast<char*>(&i),2) != 2) return false;
 	fixEndianess16(reinterpret_cast<char*>(i));
 	return true;
 }
 
 bool ByteStream::readBinary(uint32_t &i)
 {
-	if(!readData(reinterpret_cast<char*>(&i),4) != 4) return false;
+	if(readData(reinterpret_cast<char*>(&i),4) != 4) return false;
 	fixEndianess32(reinterpret_cast<char*>(i));
 	return true;
 }
 
 bool ByteStream::readBinary(float32_t &f)
 {
-	if(!readData(reinterpret_cast<char*>(&f),4) != 4) return false;
+	if(readData(reinterpret_cast<char*>(&f),4) != 4) return false;
 	return true;
 }
 
