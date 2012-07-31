@@ -35,6 +35,8 @@ public:
 	Resource(void);
 	~Resource(void);
 
+	Identifier identifier(void) const;
+
 	virtual Stream *stream(void) const = 0;
 };
 

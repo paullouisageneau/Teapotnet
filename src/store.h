@@ -19,32 +19,31 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+#ifndef ARC_STORE_H
+#define ARC_STORE_H
+
+#include "include.h"
+#include "identifier.h"
 #include "resource.h"
 
 namespace arc
 {
 
-Resource::Resource(void)
+class Store
 {
+public:
+	Store(void);
+	~Store(void);
+
+	void add(Resource *resource);
+	Resource *get(const Identifier &identifier);
+
+protected:
+	std::map<Identifier,Resource*> mResources;
+	std::list<Resource*> mSorted;
+
+};
 
 }
 
-Resource::~Resource(void)
-{
-
-}
-
-Identifier Resource::identifier(void) const
-{
-	Stream *s = stream();
-
-	// TODO: Compute identifier
-	Identifier id = Identifier::Null;
-
-	delete s;
-
-	return id;
-}
-
-}
-
+#endif
