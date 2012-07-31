@@ -1,5 +1,5 @@
-.projet
-.cprojet
+.project
+.cproject
 .depend
 arcanet
 src/*.o
