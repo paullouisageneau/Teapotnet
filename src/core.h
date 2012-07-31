@@ -27,6 +27,7 @@
 #include "thread.h"
 #include "mutex.h"
 #include "signal.h"
+#include "handler.h"
 #include "synchronizable.h"
 
 namespace arc
@@ -46,7 +47,8 @@ protected:
 		void run(void);
 
 	private:
-		Stream *mStream;
+		Stream  *mStream;
+		Handler *mHandler;
 	};
 };
 

@@ -25,7 +25,8 @@ namespace arc
 {
 
 Core::Pipe::Pipe(Stream *stream) :
-	mStream(stream)
+	mStream(stream),
+	mHandler(new Handler)
 {
 
 }
@@ -33,6 +34,7 @@ Core::Pipe::Pipe(Stream *stream) :
 Core::Pipe::~Pipe(void)
 {
 	delete mStream;
+	delete mHandler;
 }
 
 void Core::Pipe::run(void)
