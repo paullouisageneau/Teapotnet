@@ -32,6 +32,8 @@ namespace arc
 class Identifier : public ByteString
 {
 public:
+	static const Identifier Null;
+
 	Identifier(void);
 	~Identifier(void);
 

@@ -24,6 +24,8 @@
 namespace arc
 {
 
+const Identifier Identifier::Null;
+
 Identifier::Identifier(void)
 {
 

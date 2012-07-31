@@ -36,7 +36,8 @@ Handler::~Handler(void)
 
 Identifier Handler::handle(Stream *stream)
 {
-
+	// TODO
+	return Identifier::Null;
 }
 
 }
