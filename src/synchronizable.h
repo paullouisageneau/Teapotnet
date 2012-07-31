@@ -43,8 +43,8 @@ public:
 	void wait(double timeout) const;
 
 private:
-	Mutex mMutex;
-	Signal mSignal;
+	Mutex *mMutex;		// Pointers are used here to keep functions const
+	Signal *mSignal;
 };
 
 class Synchronizer

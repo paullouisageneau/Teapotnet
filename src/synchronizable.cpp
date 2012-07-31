@@ -24,62 +24,65 @@
 namespace arc
 {
 
-Synchronizable::Synchronizable(void)
+Synchronizable::Synchronizable(void) :
+	mMutex(new Mutex),
+	mSignal(new Signal)
 {
 
 }
 
 Synchronizable::~Synchronizable(void)
 {
-
+	delete mMutex;
+	delete mSignal;
 }
 
 void Synchronizable::lock(void) const
 {
-	mMutex.lock();
+	mMutex->lock();
 }
 
 void Synchronizable::unlock(void) const
 {
-	mMutex.unlock();
+	mMutex->unlock();
 }
 
 void Synchronizable::notify(void) const
 {
-	mMutex.lock();
-	mSignal.Launch();
-	mMutex.unlock();
+	mMutex->lock();
+	mSignal->launch();
+	mMutex->unlock();
 }
 
 void Synchronizable::notifyAll(void) const
 {
-	mMutex.lock();
-	mSignal.LaunchAll();
-	mMutex.unlock();
+	mMutex->lock();
+	mSignal->launchAll();
+	mMutex->unlock();
 }
 
 void Synchronizable::wait(void) const
 {
-	mMutex.lock();
+	mMutex->lock();
 	try {
-		mSignal.wait(*mMutex);
+		mSignal->wait(*mMutex);
 	}
 	catch(...)
 	{
-		mMutex.unlock();
+		mMutex->unlock();
 		throw;
 	}
 }
 
 void Synchronizable::wait(double timeout) const
 {
-	mMutex.lock();
+	mMutex->lock();
 	try {
-		mSignal.wait(*mMutex, timeout);
+		mSignal->wait(*mMutex, timeout);
 	}
 	catch(...)
 	{
-		mMutex.unlock();
+		mMutex->unlock();
 		throw;
 	}
 }

@@ -35,8 +35,8 @@ public:
 	Signal(void);
 	virtual ~Signal(void);
 
-	void Launch(void);
-	void LaunchAll(void);
+	void launch(void);
+	void launchAll(void);
 	void wait(Mutex &mutex);			// mutex must be locked
 	bool wait(Mutex &mutex, unsigned timeout);	// mutex must be locked
 

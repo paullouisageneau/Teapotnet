@@ -35,13 +35,13 @@ Signal::~Signal(void)
 	pthread_cond_destroy(&mCond);
 }
 
-void Signal::Launch(void)
+void Signal::launch(void)
 {
 	if(pthread_cond_signal(&mCond))
 		throw Exception("Unable to notify signal");
 }
 
-void Signal::LaunchAll(void)
+void Signal::launchAll(void)
 {
 	if(pthread_cond_broadcast(&mCond))
 		throw Exception("Unable to broadcast signal");
