@@ -28,29 +28,84 @@
 namespace arc
 {
 
-class Thread: virtual public Synchronizable
+class Thread : virtual public Synchronizable
 {
 public:
-	Thread(void);
+	Thread(void);											// start the run() member function on start()
+	template<typename T> Thread(void (*func)(void));		// start func() immediately
+	template<typename T> Thread(void (*func)(T*), T *arg);	// start func(arg) immediately
 	virtual ~Thread(void);
 
 	void start(void);
-	void waitTermination(void) const;
+	void join(void);
 	void terminate(void);
 	bool isRunning(void);
 
-	virtual void run(void) = 0;
-
 protected:
-	void sleep(unsigned time);
+	virtual void run(void);
 
 private:
-	static void *ThreadEntry(void *arg);
-	friend void *ThreadEntry(void *arg);
+	static void *ThreadRun (void *myThread);
+	static void *ThreadCall(void *myWrapper);
+	friend void *ThreadRun (void *myThread);
+	friend void *ThreadCall(void *myWrapper);
+
+	struct Wrapper
+	{
+		Thread *thread;
+		virtual void call(void) = 0;
+	};
+
+	template<typename T>
+	struct VoidWrapper : public Wrapper
+	{
+		void (*func)(void);
+		void call(void);
+	};
+
+	template<typename T>
+		struct ArgWrapper : public Wrapper
+		{
+			void (*func)(T*);
+			T *arg;
+			void call(void);
+		};
+
+	void start(Wrapper *wrapper);
 
 	pthread_t 	mThread;
-	bool		mIsRunning;
+	bool		mRunning;
+	bool		mJoined;
 };
+
+template<typename T> Thread::Thread(void (*func)(void))
+{
+	assert(func != NULL);
+	VoidWrapper<T> *wrapper = new VoidWrapper<T>;
+	wrapper->thread = this;
+	wrapper->func = func;
+	start(wrapper);
+}
+
+template<typename T> Thread::Thread(void (*func)(T*), T *arg)
+{
+	assert(func != NULL);
+	ArgWrapper<T> *wrapper = new ArgWrapper<T>;
+	wrapper->thread = this;
+	wrapper->func = func;
+	wrapper->arg = arg;
+	start(wrapper);
+}
+
+template<typename T> void Thread::VoidWrapper<T>::call(void)
+{
+	func();
+}
+
+template<typename T> void Thread::ArgWrapper<T>::call(void)
+{
+	func(reinterpret_cast<T*>(arg));
+}
 
 }
 

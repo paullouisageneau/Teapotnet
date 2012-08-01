@@ -25,55 +25,88 @@ namespace arc
 {
 
 Thread::Thread(void) :
-		mIsRunning(false)
+		mRunning(false),
+		mJoined(true)
 {	
 
 }
 
 Thread::~Thread(void)
 {
-	if(mIsRunning)
-	{
-		waitTermination();
-	}
+	if(!mJoined) join();
 }
 
 void Thread::start(void)
 {
-	if(pthread_create(&mThread, NULL, &ThreadEntry, reinterpret_cast<void*>(this)) != 0)
+	if(mRunning) return;
+	if(!mJoined) join();
+
+	if(pthread_create(&mThread, NULL, &ThreadRun, reinterpret_cast<void*>(this)) != 0)
 			throw Exception("Thread creation failed");
 }
 
-void Thread::waitTermination(void) const
+void Thread::start(Thread::Wrapper *wrapper)
 {
-	 void *dummy = NULL;
-	 if(mIsRunning) pthread_join(mThread,&dummy);
+	if(mRunning) return;
+	if(!mJoined) join();
+
+	if(pthread_create(&mThread, NULL, &ThreadCall, reinterpret_cast<void*>(wrapper)) != 0)
+				throw Exception("Thread creation failed");
+}
+
+void Thread::join(void)
+{
+	 if(!mJoined)
+	 {
+		 void *dummy = NULL;
+		 pthread_join(mThread, &dummy);
+		 mJoined = true;
+	 }
+
 }
 
 void Thread::terminate(void)
 {
-	pthread_cancel(mThread);
-	mIsRunning = false;
+	if(mRunning)
+	{
+		pthread_cancel(mThread);
+		mRunning = false;
+		mJoined = true;
+	}
 }
 
 bool Thread::isRunning(void)
 {
-	return mIsRunning;
+	return mRunning;
 }
 
-void Thread::sleep(unsigned time)
+void Thread::run(void)
 {
-	unlock();
-	msleep(time);
-	lock();
+	// DUMMY
 }
 
-void *Thread::ThreadEntry(void *arg)
+void *Thread::ThreadRun(void *myThread)
 {
-	Thread *thread = reinterpret_cast<Thread*>(arg);
-	thread->mIsRunning = true;
+	Thread *thread = reinterpret_cast<Thread*>(myThread);
+	thread->lock();
+	thread->mRunning = true;
+	thread->mJoined = false;
 	thread->run();
-	thread->mIsRunning = false;
+	thread->mRunning = false;
+	thread->unlock();
+	pthread_exit(NULL);
+}
+
+void *Thread::ThreadCall(void *myWrapper)
+{
+	Wrapper *wrapper = reinterpret_cast<Wrapper*>(myWrapper);
+	wrapper->thread->lock();
+	wrapper->thread->mRunning = true;
+	wrapper->thread->mJoined = false;
+	wrapper->call();
+	delete wrapper;
+	wrapper->thread->mRunning = false;
+	wrapper->thread->unlock();
 	pthread_exit(NULL);
 }
 
