@@ -39,7 +39,7 @@ void Store::add(Resource *resource)
 	mResources[resource->identifier()] = resource;
 }
 
-Resource *Store::get(Identifier *identifier)
+Resource *Store::get(const Identifier &identifier)
 {
 	std::map<Identifier,Resource*>::iterator it = mResources.find(identifier);
 	if(it != mResources.end()) return it->second;
