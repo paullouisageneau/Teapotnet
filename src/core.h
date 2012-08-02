@@ -23,7 +23,9 @@
 #define ARC_CORE_H
 
 #include "include.h"
+#include "map.h"
 #include "stream.h"
+#include "socket.h"
 #include "thread.h"
 #include "mutex.h"
 #include "signal.h"
@@ -35,21 +37,32 @@ namespace arc
 
 class Core
 {
-	
+public:
+	Core(void);
+	~Core(void);
+
+	void add(Socket *sock);
+
 protected:
 	class Pipe : public Thread
 	{
 	public:
-		Pipe(Stream *stream);
+		Pipe(Core *core, Stream *stream);
 		~Pipe(void);
 
 	protected:
 		void run(void);
 
 	private:
+		Core	*mCore;
 		Stream  *mStream;
 		Handler *mHandler;
 	};
+
+	void add(Pipe *pipe);
+	void remove(Pipe *pipe);
+
+	friend class Pipe;
 };
 
 }

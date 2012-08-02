@@ -64,12 +64,12 @@ private:
 	};
 
 	template<typename T>
-		struct ArgWrapper : public Wrapper
-		{
-			void (*func)(T*);
-			T *arg;
-			void call(void);
-		};
+	struct ArgWrapper : public Wrapper
+	{
+		void (*func)(T*);
+		T *arg;
+		void call(void);
+	};
 
 	void start(Wrapper *wrapper);
 

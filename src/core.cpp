@@ -24,7 +24,35 @@
 namespace arc
 {
 
-Core::Pipe::Pipe(Stream *stream) :
+Core::Core(void)
+{
+
+}
+
+Core::~Core(void)
+{
+
+}
+
+void Core::add(Socket *sock)
+{
+	Pipe *pipe = new Pipe(this,sock);
+	pipe->start();
+	add(pipe);
+}
+
+void Core::add(Pipe *pipe)
+{
+
+}
+
+void Core::remove(Pipe *pipe)
+{
+
+}
+
+Core::Pipe::Pipe(Core *core, Stream *stream) :
+	mCore(core),
 	mStream(stream),
 	mHandler(new Handler)
 {
@@ -39,7 +67,13 @@ Core::Pipe::~Pipe(void)
 
 void Core::Pipe::run(void)
 {
+	String line;
+	while(mStream->readLine(line))
+	{
 
+	}
+
+	mCore->remove(this);
 }
 
 }
