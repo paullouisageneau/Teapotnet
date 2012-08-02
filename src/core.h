@@ -23,7 +23,7 @@
 #define ARC_CORE_H
 
 #include "include.h"
-#include "map.h"
+#include "address.h"
 #include "stream.h"
 #include "socket.h"
 #include "thread.h"
@@ -44,7 +44,7 @@ public:
 	void add(Socket *sock);
 
 protected:
-	class Pipe : public Thread
+	class Pipe : public Thread, public Serializable
 	{
 	public:
 		Pipe(Core *core, Stream *stream);
@@ -59,8 +59,10 @@ protected:
 		Handler *mHandler;
 	};
 
-	void add(Pipe *pipe);
-	void remove(Pipe *pipe);
+	void add(const Address &addr, Pipe *pipe);
+	void remove(const Address &addr, Pipe *pipe);
+
+	Map<Address,Array<Pipe*> > mPipes;
 
 	friend class Pipe;
 };

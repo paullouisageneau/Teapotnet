@@ -22,6 +22,7 @@
 #include "serializable.h"
 #include "string.h"
 #include "bytestring.h"
+#include "exception.h"
 
 namespace arc
 {
@@ -34,6 +35,30 @@ Serializable::Serializable(void)
 Serializable::~Serializable(void)
 {
 
+}
+
+void Serializable::serialize(Stream &s) const
+{
+	// DUMMY
+	throw Unsupported("Object cannot be deserialized");
+}
+
+void Serializable::deserialize(Stream &s)
+{
+	// DUMMY
+	throw Unsupported("Object cannot be deserialized");
+}
+
+void Serializable::serializeBinary(ByteStream &s) const
+{
+	// DUMMY
+	throw Unsupported("Object cannot be serialized to binary");
+}
+
+void Serializable::deserializeBinary(ByteStream &s)
+{
+	// DUMMY
+	throw Unsupported("Object cannot be deserialized from binary");
 }
 
 String Serializable::toString(void) const

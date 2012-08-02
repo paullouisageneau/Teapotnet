@@ -48,6 +48,8 @@ public:
 	bool	readBinary(uint32_t &i);
 	bool	readBinary(float32_t &f);
 
+	template<class T> bool readBinary(T *ptr);
+
 	bool	readInt8(signed int &i);
 	bool	readInt16(signed int &i);
 	bool	readInt32(signed int &i);
@@ -66,6 +68,8 @@ public:
 	void	writeBinary(uint16_t i = 0);
 	void	writeBinary(uint32_t i = 0);
 	void	writeBinary(float32_t f = 0.f);
+
+	template<class T> void writeBinary(const T *ptr);
 
 	void	writeInt8(signed int i = 0);
 	void	writeInt16(signed int i = 0);
@@ -87,6 +91,18 @@ private:
 	void	fixEndianess16(char *data);
 	void	fixEndianess32(char *data);
 };
+
+template<class T>
+bool ByteStream::readBinary(T *ptr)
+{
+	return readBinary(*ptr);
+}
+
+template<class T>
+void ByteStream::writeBinary(const T *ptr)
+{
+	writeBinary(*ptr);
+}
 
 }
 

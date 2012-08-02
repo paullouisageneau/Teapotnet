@@ -63,6 +63,8 @@ public:
 	inline bool	read(float &f) 				{ return readStd(f); }
 	inline bool	read(double &f) 			{ return readStd(f); }
 
+	template<class T> bool read(T *ptr);
+
 	double	readDouble(void);
 	float 	readFloat(void);
 	int 	readInt(void);
@@ -86,6 +88,8 @@ public:
 	inline void	write(unsigned long i) 		{ writeStd(i); }
 	inline void	write(float f) 				{ writeStd(f); }
 	inline void	write(double f) 			{ writeStd(f); }
+
+	template<class T> void write(const T *ptr);
 
 	template<typename T> Stream& operator>>(T &val);
 	template<typename T> Stream& operator<<(const T &val);
@@ -122,6 +126,18 @@ private:
 // Threrefore, it cannot be used in template functions defined here.
 
 class IOException;
+
+template<class T>
+bool Stream::read(T *ptr)
+{
+	return read(*ptr);
+}
+
+template<class T>
+void Stream::write(const T *ptr)
+{
+	write(*ptr);
+}
 
 template<typename T> bool Stream::readStd(T &val)
 {

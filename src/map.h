@@ -88,7 +88,7 @@ V &Map<K,V>::get(const K &key)
 template<typename K, typename V>
 void Map<K,V>::serialize(Stream &s) const
 {
-	for(	typename std::map<K,V>::iterator it = this->begin();
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
 			it != this->end();
 			++it)
 	{
@@ -104,7 +104,7 @@ void Map<K,V>::deserialize(Stream &s)
 	V value;
 	while(s.read(key))
 	{
-		assertIO(s.read(value))
+		assertIO(s.read(value));
 		this->insert(key,value);
 	}
 }
@@ -112,7 +112,7 @@ void Map<K,V>::deserialize(Stream &s)
 template<typename K, typename V>
 void Map<K,V>::serializeBinary(ByteStream &s) const
 {
-	for(	typename std::map<K,V>::iterator it = this->begin();
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
 			it != this->end();
 			++it)
 	{

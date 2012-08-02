@@ -43,6 +43,8 @@ public:
 	void append(const T *array, int size);
 	void fill(const T &value, int n);
 
+	void remove(const T &value);
+
 	void serialize(Stream &s) const;
 	void deserialize(Stream &s);
 	void serializeBinary(ByteStream &s) const;
@@ -87,6 +89,18 @@ template<typename T>
 void Array<T>::fill(const T &value, int n)
 {
 	this->assign(n,value);
+}
+
+template<typename T>
+bool Array<T>::remove(const T &value)
+{
+	for(int i=0; i<this->size(); ++i)
+		if(this->at(i) == value)
+		{
+			this->erase(i);
+			return true;
+		}
+	return false;
 }
 
 template<typename T>

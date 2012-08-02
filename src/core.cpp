@@ -36,19 +36,32 @@ Core::~Core(void)
 
 void Core::add(Socket *sock)
 {
+	assert(sock != NULL);
 	Pipe *pipe = new Pipe(this,sock);
 	pipe->start();
-	add(pipe);
+	add(sock->getRemoteAddress(), pipe);
 }
 
-void Core::add(Pipe *pipe)
+void Core::add(const Address &addr, Core::Pipe *pipe)
 {
+	assert(pipe != NULL);
 
+	if(!mPipes.contains(addr))
+		mPipes.insert(addr, Array<Pipe*>());
+
+	mPipes.get(addr).append(pipe);
 }
 
-void Core::remove(Pipe *pipe)
+void Core::remove(const Address &addr,Pipe *pipe)
 {
+	if(mPipes.contains(addr))
+	{
+		Array<Pipe*> &array = mPipes.get(addr);
+		array.remove(pipe);
+		if(array.empty()) mPipes.erase(addr);
+	}
 
+	delete pipe;
 }
 
 Core::Pipe::Pipe(Core *core, Stream *stream) :
@@ -70,7 +83,7 @@ void Core::Pipe::run(void)
 	String line;
 	while(mStream->readLine(line))
 	{
-
+		// TODO
 	}
 
 	mCore->remove(this);

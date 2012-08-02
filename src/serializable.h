@@ -38,10 +38,10 @@ public:
 	Serializable(void);
 	virtual ~Serializable(void);
 
-	virtual void serialize(Stream &s) const = 0;
-	virtual void deserialize(Stream &s) = 0;
-	virtual void serializeBinary(ByteStream &s) const = 0;
-	virtual void deserializeBinary(ByteStream &s) = 0;
+	virtual void serialize(Stream &s) const;
+	virtual void deserialize(Stream &s);
+	virtual void serializeBinary(ByteStream &s) const;
+	virtual void deserializeBinary(ByteStream &s);
 
 	virtual String toString(void) const;
 	virtual ByteString toBinary(void) const;
