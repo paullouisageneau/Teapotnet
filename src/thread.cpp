@@ -40,6 +40,7 @@ void Thread::start(void)
 {
 	if(mRunning) return;
 	if(!mJoined) join();
+	mJoined = false;
 
 	if(pthread_create(&mThread, NULL, &ThreadRun, reinterpret_cast<void*>(this)) != 0)
 			throw Exception("Thread creation failed");
@@ -49,6 +50,7 @@ void Thread::start(Thread::Wrapper *wrapper)
 {
 	if(mRunning) return;
 	if(!mJoined) join();
+	mJoined = false;
 
 	if(pthread_create(&mThread, NULL, &ThreadCall, reinterpret_cast<void*>(wrapper)) != 0)
 				throw Exception("Thread creation failed");
@@ -90,7 +92,6 @@ void *Thread::ThreadRun(void *myThread)
 	Thread *thread = reinterpret_cast<Thread*>(myThread);
 	thread->lock();
 	thread->mRunning = true;
-	thread->mJoined = false;
 	thread->run();
 	thread->mRunning = false;
 	thread->unlock();
@@ -102,7 +103,6 @@ void *Thread::ThreadCall(void *myWrapper)
 	Wrapper *wrapper = reinterpret_cast<Wrapper*>(myWrapper);
 	wrapper->thread->lock();
 	wrapper->thread->mRunning = true;
-	wrapper->thread->mJoined = false;
 	wrapper->call();
 	delete wrapper;
 	wrapper->thread->mRunning = false;

@@ -23,6 +23,7 @@
 #define ARC_CORE_H
 
 #include "include.h"
+#include "map.h"
 #include "address.h"
 #include "stream.h"
 #include "socket.h"

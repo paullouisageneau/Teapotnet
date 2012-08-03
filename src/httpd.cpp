@@ -75,10 +75,10 @@ void Httpd::Handler::run(void)
 	protocol.trim();
 
 	if(action != "GET" && action != "POST")
-		error(500);
+		error(405);
 
 	if(url.empty() || protocol.empty())
-		error(500);
+		error(400);
 
 	StringMap headers;
 	while(true)
@@ -115,12 +115,70 @@ void Httpd::Handler::run(void)
 		// TODO: read post data
 	}
 
+	if(!headers.contains("Connection"))
+	if(protocol == "HTTP/1.1") headers['Connection'] = 'Keep-Alive';
+	else headers['Connection'] = 'Close';
+
 	process(file, url, headers, get, post);
 }
 
 void Httpd::Handler::error(int code)
 {
-	// TODO
+	StringMap headers;
+	headers["Content-Type"] = "text/html; charset=UTF-8";
+	headers["Connexion"] = "Close";	// TODO
+
+	respond(code, headers);
+}
+
+void Httpd::Handler::respond(int code, StringMap &headers)
+{
+	String message;
+	switch(code)
+	{
+	case 100: message = "Continue";				break;
+	case 200: message = "OK";					break;
+	case 204: message = "No content";			break;
+	case 206: message = "Partial Content";		break;
+	case 301: message = "Moved Permanently"; 	break;
+	case 302: message = "Found";			 	break;
+	case 303: message = "See Other";			break;
+	case 304: message = "Not Modified"; 		break;
+	case 305: message = "Use Proxy"; 			break;
+	case 307: message = "Temporary Redirect"; 	break;
+	case 400: message = "Bad Request"; 			break;
+	case 401: message = "Unauthorized";			break;
+	case 403: message = "Forbidden"; 			break;
+	case 404: message = "Not Found";			break;
+	case 405: message = "Method Not Allowed";	break;
+	case 406: message = "Not Acceptable";		break;
+	case 408: message = "Request Timeout";		break;
+	case 410: message = "Gone";					break;
+	case 413: message = "Request Entity Too Large"; 		break;
+	case 414: message = "Request-URI Too Long";				break;
+	case 416: message = "Requested Range Not Satisfiable";	break;
+	case 500: message = "Internal Server Error";			break;
+	case 501: message = "Not Implemented";					break;
+	case 502: message = "Bad Gateway";						break;
+	case 503: message = "Service Unavailable";				break;
+	case 504: message = "Gateway Timeout";					break;
+	case 505: message = "HTTP Version Not Supported";		break;
+
+	default:
+		if(code < 300) message = "OK";
+		else message = "Error";
+		break;
+	}
+
+	mSock<<"HTTP/1.1 "<<code<<" "<<message<<"\r\n";
+	for(	StringMap::iterator it = headers.begin();
+			it != headers.end();
+			++it)
+	{
+		mSock<<it->first<<": "<<it->second<<"\r\n";
+	}
+
+	mSock<<"\r\n";
 }
 
 void Httpd::Handler::process(	const String &file,
@@ -129,7 +187,7 @@ void Httpd::Handler::process(	const String &file,
 								StringMap &get,
 								StringMap &post)
 {
-	// TODO
+	error(404);
 }
 
 }

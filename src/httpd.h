@@ -48,6 +48,7 @@ private:
 	private:
 		void run(void);
 		void error(int code);
+		void respond(int code, StringMap &headers);
 		void process(	const String &file,
 						const String &url,
 						StringMap &headers,
