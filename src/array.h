@@ -43,7 +43,7 @@ public:
 	void append(const T *array, int size);
 	void fill(const T &value, int n);
 
-	void remove(const T &value);
+	bool remove(const T &value);
 
 	void serialize(Stream &s) const;
 	void deserialize(Stream &s);

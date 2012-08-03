@@ -20,9 +20,17 @@
  *************************************************************************/
 
 #include "main.h"
+#include "httpd.h"
+
+using namespace arc;
 
 int main(int argc, char** argv)
 {
+	// TEST
+	Httpd *httpd = new Httpd(8080);
+	httpd->start();
+	httpd->join();
 	
+	return 0;
 }
 

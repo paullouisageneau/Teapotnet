@@ -25,11 +25,12 @@
 #include "include.h"
 #include "identifier.h"
 #include "synchronizable.h"
+#include "serializable.h"
 
 namespace arc
 {
 
-class Resource : public Synchronizable
+class Resource : public Synchronizable, public Serializable
 {
 public:
 	Resource(void);

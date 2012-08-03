@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "string.h"
+#include "exception.h"
 
 namespace arc
 {
@@ -238,17 +239,26 @@ void String::serialize(Stream &s) const
 
 void String::deserialize(Stream &s)
 {
-	s.read(*this);
+	assertIO(s.read(*this));
 }
 
 void String::serializeBinary(ByteStream &s) const
 {
-	s.writeBinary(*this);
+	const char null = '\0';
+	s.write(data(),size());
+	s.write(&null,1);
 }
 
 void String::deserializeBinary(ByteStream &s)
 {
-	s.readBinary(*this);
+	clear();
+	char chr;
+	assertIO(s.read(&chr,1));
+	while(chr != '\0')
+	{
+		push_back(chr);
+		if(!s.read(&chr,1)) break;
+	}
 }
 
 int String::readData(char *buffer, int size)

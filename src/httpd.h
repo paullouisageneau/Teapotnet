@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "exception.h"
+#include "map.h"
 #include "socket.h"
 #include "serversocket.h"
 #include "thread.h"

@@ -50,8 +50,11 @@ void Core::add(const Address &addr, Core::Pipe *pipe)
 
 void Core::remove(const Address &addr)
 {
-	mPipes.erase(addr);
-	delete pipe;
+	if(mPipes.contains(addr))
+	{
+		delete mPipes.get(addr);
+		mPipes.erase(addr);
+	}
 }
 
 Core::Pipe::Pipe(Core *core, Stream *stream) :
@@ -76,7 +79,7 @@ void Core::Pipe::run(void)
 		// TODO
 	}
 
-	mCore->remove(this);
+	//mCore->remove(this);
 }
 
 }

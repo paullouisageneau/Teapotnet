@@ -28,6 +28,7 @@ namespace arc
 {
 
 class Serializable;
+class ByteString;
 
 class ByteStream
 {
@@ -40,6 +41,7 @@ public:
 
 	void	readBinary(ByteStream &s);
 	bool	readBinary(Serializable &s);
+	bool	readBinary(ByteString &s);
 	bool	readBinary(sint8_t &i);
 	bool	readBinary(sint16_t &i);
 	bool	readBinary(sint32_t &i);
@@ -61,6 +63,7 @@ public:
 
 	void	writeBinary(ByteStream &s);
 	void	writeBinary(const Serializable &s);
+	void	writeBinary(const ByteString &s);
 	void	writeBinary(sint8_t i = 0);
 	void	writeBinary(sint16_t i = 0);
 	void	writeBinary(sint32_t i = 0);

@@ -63,6 +63,23 @@ bool ByteStream::readBinary(Serializable &s)
 	return true;
 }
 
+bool ByteStream::readBinary(ByteString &s)
+{
+	s.clear();
+
+	uint32_t count;
+	if(!readBinary(count)) return false;
+
+	char b;
+	for(uint32_t i=0; i<count; ++i)
+	{
+		if(!readData(&b,1)) return false;
+		s.push_back(b);
+	}
+
+	return true;
+}
+
 bool ByteStream::readBinary(sint8_t &i)
 {
 	if(readData(reinterpret_cast<char*>(&i),1) != 1) return false;
@@ -183,6 +200,15 @@ void ByteStream::writeBinary(ByteStream &s)
 void ByteStream::writeBinary(const Serializable &s)
 {
 	s.serializeBinary(*this);
+}
+
+void ByteStream::writeBinary(const ByteString &s)
+{
+	uint32_t count(s.size());
+	writeBinary(count);
+
+	for(uint32_t i=0; i<count; ++i)
+		writeData(&s.at(i),1);
 }
 
 void ByteStream::writeBinary(sint8_t i)

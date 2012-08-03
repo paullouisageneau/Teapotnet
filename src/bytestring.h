@@ -24,13 +24,14 @@
 
 #include "include.h"
 #include "bytestream.h"
+#include "serializable.h"
 
 #include <deque>
 
 namespace arc
 {
 
-class ByteString : public ByteStream, public std::deque<char>
+class ByteString : public std::deque<char>, public ByteStream, public Serializable
 {
 public:	
 	ByteString(void);
@@ -38,6 +39,16 @@ public:
 	virtual ~ByteString(void);
 
 	void clear(void);
+	void append(char value, int n = 1);
+	void append(const ByteString &bs);
+	void append(const char *array, int size);
+	void fill(char value, int n);
+
+	// Serializable
+	virtual void serialize(Stream &s) const;
+	virtual void deserialize(Stream &s);
+	virtual void serializeBinary(ByteStream &s) const;
+	virtual void deserializeBinary(ByteStream &s);
 
 protected:
 	int readData(char *buffer, int size);

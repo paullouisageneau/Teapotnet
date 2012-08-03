@@ -42,7 +42,7 @@ void Store::add(Resource *resource)
 Resource *Store::get(const Identifier &identifier)
 {
 	Resource *resource;
-	if(mResources.get(resource)) return resource;
+	if(mResources.get(identifier,resource)) return resource;
 	else return NULL;
 }
 

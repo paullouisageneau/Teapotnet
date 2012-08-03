@@ -25,6 +25,7 @@
 #include "include.h"
 #include "identifier.h"
 #include "resource.h"
+#include "map.h"
 
 namespace arc
 {

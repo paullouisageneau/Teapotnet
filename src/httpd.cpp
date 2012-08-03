@@ -68,9 +68,11 @@ void Httpd::Handler::run(void)
 {
 	String action;
 	if(!mSock.readLine(action)) return;
+	String url = action.cut(' ');
+	String protocol = url.cut(' ');
 	action.trim();
-	String url = action.cut(' ').trim();
-	String protocol = url.cut(' ').trim();
+	url.trim();
+	protocol.trim();
 
 	if(action != "GET" && action != "POST")
 		error(500);
@@ -121,11 +123,11 @@ void Httpd::Handler::error(int code)
 	// TODO
 }
 
-void process(	const String &file,
-				const String &url,
-				StringMap &headers,
-				StringMap &get,
-				StringMap &post)
+void Httpd::Handler::process(	const String &file,
+								const String &url,
+								StringMap &headers,
+								StringMap &get,
+								StringMap &post)
 {
 	// TODO
 }

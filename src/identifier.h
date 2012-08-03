@@ -25,6 +25,7 @@
 #include "include.h"
 #include "bytestring.h"
 #include "stream.h"
+#include "serializable.h"
 
 namespace arc
 {

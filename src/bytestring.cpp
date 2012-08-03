@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "bytestring.h"
+#include "exception.h"
 
 namespace arc
 {
@@ -43,6 +44,73 @@ ByteString::~ByteString(void)
 void ByteString::clear(void)
 {
 	clear();
+}
+
+void ByteString::append(char value, int n)
+{
+	for(int i=0; i<n; ++i)
+		push_back(value);
+}
+
+void ByteString::append(const ByteString &bs)
+{
+	insert(end(), bs.begin(), bs.end());
+}
+
+void ByteString::append(const char *array, int size)
+{
+	insert(end(), array, array+size);
+}
+
+void ByteString::fill(char value, int n)
+{
+	assign(n, value);
+}
+
+void ByteString::serialize(Stream &s) const
+{
+	for(int i=0; i<size(); ++i)
+	{
+		std::ostringstream oss;
+		oss.width(2);
+		oss<<std::hex<<unsigned(uint8_t(at(i)));
+	}
+}
+
+void ByteString::deserialize(Stream &s)
+{
+	clear();
+
+	String str;
+	s.read(str);
+	int count = str.size()/2;
+	if(count*2 != str.size())
+		throw InvalidData("Missing character at the end of hexadecimal representation");
+
+	for(int i=0; i<count; ++i)
+	{
+		std::string byte;
+		byte+= str[i*2];
+		byte+= str[i*2+1];
+		std::istringstream iss(byte);
+
+		unsigned value;
+		iss>>std::hex;
+		if(!iss>>value)
+			throw InvalidData("Invalid hexadecimal representation");
+
+		push_back(uint8_t(value));
+	}
+}
+
+void ByteString::serializeBinary(ByteStream &s) const
+{
+	s.writeBinary(*this);
+}
+
+void ByteString::deserializeBinary(ByteStream &s)
+{
+	assertIO(s.readBinary(*this));
 }
 
 int ByteString::readData(char *buffer, int size)
