@@ -85,6 +85,15 @@ void String::implode(const std::list<String> &strings, char separator)
 	}
 }
 
+String String::cut(char separator)
+{
+	int pos = find(separator);
+	if(pos == NotFound) return String();
+	String after = substr(pos+1);
+	resize(pos);
+	return after;
+}
+
 void String::trim(void)
 {
 	int i = 0;
