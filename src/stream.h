@@ -96,6 +96,7 @@ public:
 	Stream &operator<<(Stream &s);
 
 	bool readLine(Stream &output);
+	bool writeLine(Stream &input);
 	bool readUntil(Stream &output, char delimiter);
 	bool readUntil(Stream &output, const String &delimiters, char *found);
 	bool readString(Stream &output, const String &delimiters, const String &ignored, bool skipBefore = false);
@@ -117,9 +118,10 @@ private:
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
 
+	static const String OutputLineDelimiter;
 	static const String LineDelimiters;
-	static const String FieldDelimiters;
 	static const String IgnoredCharacters;
+	static const String FieldDelimiters;
 };
 
 // NB: String is not defined here, as it herits from Stream.
