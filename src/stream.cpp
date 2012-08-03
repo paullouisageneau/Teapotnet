@@ -29,7 +29,7 @@ namespace arc
 // TODO: It depends on the OS (This is OK for Unix and Windows)
 const String Stream::FieldDelimiters = " ,;\t\n";	// MUST contain ' ' and ',' and NOT '.' and ':'
 const String Stream::LineDelimiters = "\n";
-const String Stream::ignoredCharacters = "\r\0";
+const String Stream::IgnoredCharacters = "\r\0";
 const char Stream::Space = ' ';
 
 Stream::Stream(void)
@@ -119,7 +119,7 @@ bool Stream::read(Serializable &s)
 bool Stream::read(String &s)
 {
 	s.clear();
-	return readString(s,FieldDelimiters,ignoredCharacters,true);
+	return readString(s,FieldDelimiters,IgnoredCharacters,true);
 }
 
 bool Stream::read(bool &b)
@@ -200,7 +200,7 @@ void Stream::write(bool b)
 
 bool Stream::readLine(Stream &output)
 {
-	return readString(output,LineDelimiters,ignoredCharacters,false);
+	return readString(output,LineDelimiters,IgnoredCharacters,false);
 }
 
 bool Stream::readUntil(Stream &output, char delimiter)
@@ -250,7 +250,7 @@ bool Stream::readString(Stream &output, const String &delimiters, const String &
 
 bool Stream::readField(Stream &output)
 {
-	return readString(output,FieldDelimiters,ignoredCharacters,true);
+	return readString(output,FieldDelimiters,IgnoredCharacters,true);
 }
 
 bool Stream::parseField(Stream &output, const String &delimiters, char *found)
@@ -268,12 +268,12 @@ bool Stream::parseField(Stream &output, const String &delimiters, char *found)
 			if(!FieldDelimiters.contains(chr))
 			{
 				before = false;
-				if(!ignoredCharacters.contains(chr)) str+= chr;
+				if(!IgnoredCharacters.contains(chr)) str+= chr;
 			}
 		}
 		else {
 			if(LineDelimiters.contains(chr)) throw InvalidData("Unable to parse field in stream");
-			if(!ignoredCharacters.contains(chr)) str+= chr;
+			if(!IgnoredCharacters.contains(chr)) str+= chr;
 		}
 
 		if(!get(chr)) return true;

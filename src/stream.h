@@ -119,7 +119,7 @@ private:
 
 	static const String LineDelimiters;
 	static const String FieldDelimiters;
-	static const String ignoredCharacters;
+	static const String IgnoredCharacters;
 };
 
 // NB: String is not defined here, as it herits from Stream.

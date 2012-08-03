@@ -60,9 +60,9 @@ protected:
 	};
 
 	void add(const Address &addr, Pipe *pipe);
-	void remove(const Address &addr, Pipe *pipe);
+	void remove(const Address &addr);
 
-	Map<Address,Array<Pipe*> > mPipes;
+	Map<Address,Pipe*> mPipes;
 
 	friend class Pipe;
 };

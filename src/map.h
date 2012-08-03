@@ -36,7 +36,7 @@ class Map : public std::map<K,V>, public Serializable
 {
 public:
 	void insert(const K &key, const V &value);
-	bool contains(const K &key);
+	bool contains(const K &key) const;
 	bool get(const K &key, V &value) const;
 	const V &get(const K &key) const;
 	V &get(const K &key);
@@ -47,6 +47,8 @@ public:
 	void deserializeBinary(ByteStream &s);
 };
 
+typedef Map<String,String> StringMap;
+
 template<typename K, typename V>
 void Map<K,V>::insert(const K &key, const V &value)
 {
@@ -54,9 +56,9 @@ void Map<K,V>::insert(const K &key, const V &value)
 }
 
 template<typename K, typename V>
-bool Map<K,V>::contains(const K &key)
+bool Map<K,V>::contains(const K &key) const
 {
-	typename std::map<K,V>::iterator it = this->find(key);
+	typename std::map<K,V>::const_iterator it = this->find(key);
 	return (it != this->end());
 }
 

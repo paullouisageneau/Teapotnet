@@ -45,22 +45,12 @@ void Core::add(Socket *sock)
 void Core::add(const Address &addr, Core::Pipe *pipe)
 {
 	assert(pipe != NULL);
-
-	if(!mPipes.contains(addr))
-		mPipes.insert(addr, Array<Pipe*>());
-
-	mPipes.get(addr).append(pipe);
+	mPipes.insert(addr, pipe);
 }
 
-void Core::remove(const Address &addr,Pipe *pipe)
+void Core::remove(const Address &addr)
 {
-	if(mPipes.contains(addr))
-	{
-		Array<Pipe*> &array = mPipes.get(addr);
-		array.remove(pipe);
-		if(array.empty()) mPipes.erase(addr);
-	}
-
+	mPipes.erase(addr);
 	delete pipe;
 }
 
