@@ -72,7 +72,7 @@ void Httpd::Handler::run(void)
 	String url = action.cut(' ').trim();
 	String protocol = url.cut(' ').trim();
 
-	if(protocol != "GET" && protocol != "POST")
+	if(action != "GET" && action != "POST")
 		error(500);
 
 	if(url.empty() || protocol.empty())
@@ -108,7 +108,7 @@ void Httpd::Handler::run(void)
 	}
 
 	StringMap post;
-	if(protocol == "POST")
+	if(action == "POST")
 	{
 		// TODO: read post data
 	}
