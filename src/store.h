@@ -39,9 +39,8 @@ public:
 	Resource *get(const Identifier &identifier);
 
 protected:
-	std::map<Identifier,Resource*> mResources;
-	std::list<Resource*> mSorted;
-
+	Map<Identifier,Resource*> mResources;
+	std::list<Resource*> mSorted;	// TODO
 };
 
 }
