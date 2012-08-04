@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "html.h"
+#include "exception.h"
 
 namespace arc
 {
@@ -33,6 +34,69 @@ Html::Html(Stream &stream) :
 Html::~Html(void)
 {
 
+}
+
+void Html::raw(const String &str)
+{
+	mStream.write(str);
+}
+
+void Html::text(const String &str)
+{
+	for(int i=0; i<str.size(); ++i)
+	{
+		char chr = str[i];
+		switch(chr)
+		{
+		case '"': 	mStream.write("&quot;");	break;
+		case '\'': 	mStream.write("&apos;");	break;
+		case '<': 	mStream.write("&lt;");		break;
+		case '>': 	mStream.write("&gt;");		break;
+		case '&': 	mStream.write("&amp;");		break;
+		default:	mStream.put(chr);			break;
+		}
+	}
+}
+
+void Html::open(const String &type, String id)
+{
+	assert(!type.empty());
+	String cl = id.cut('.');
+	mStream<<"<"<<type;
+	if(!id.empty()) mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty()) mStream<<" class=\""<<cl<<"\"";
+	mStream<<">\n";
+}
+
+void Html::close(const String &type)
+{
+	assert(!type.empty());
+	mStream<<"</"<<type<<">\n";
+}
+
+void Html::link(	const String &url,
+					const String &txt,
+					String id)
+{
+	String cl = id.cut('.');
+	mStream<<"<a href=\""<<url<<"\"";
+	if(!id.empty()) mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty()) mStream<<" class=\""<<cl<<"\"";
+	mStream<<">";
+	text(txt);
+	mStream<<"</a>\n";
+}
+
+void Html::image(	const String &url,
+					const String &alt,
+					String id)
+{
+	String cl = id.cut('.');
+	mStream<<"<img src=\""<<url<<"\"";
+	if(!alt.empty()) mStream<<" alt=\""<<alt<<"\"";
+	if(!id.empty())  mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty())  mStream<<" class=\""<<cl<<"\"";
+	mStream<<"/>\n";
 }
 
 }

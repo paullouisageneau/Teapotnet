@@ -35,7 +35,19 @@ public:
 	Html(Stream &stream);
 	~Html(void);
 
+	void raw(const String &str);
+	void text(const String &str);
 
+	void open(const String &type, String id = "");
+	void close(const String &type);
+
+	void link(	const String &url,
+				const String &txt,
+				String id = "");
+
+	void image(	const String &url,
+				const String &alt = "",
+				String id = "");
 
 private:
 	Stream &mStream;
