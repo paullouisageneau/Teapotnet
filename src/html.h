@@ -19,90 +19,28 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+#ifndef ARC_HTML_H
+#define ARC_HTML_H
+
+#include "include.h"
+#include "stream.h"
 #include "serializable.h"
-#include "string.h"
-#include "bytestring.h"
-#include "exception.h"
 
 namespace arc
 {
 
-Serializable::Serializable(void)
+class Html
 {
+public:
+	Html(Stream &stream);
+	~Html(void);
+
+
+
+private:
+	Stream &mStream;
+};
 
 }
 
-Serializable::~Serializable(void)
-{
-
-}
-
-void Serializable::serialize(Stream &s) const
-{
-	// DUMMY
-	throw Unsupported("Object cannot be deserialized");
-}
-
-void Serializable::deserialize(Stream &s)
-{
-	// DUMMY
-	throw Unsupported("Object cannot be deserialized");
-}
-
-void Serializable::serializeBinary(ByteStream &s) const
-{
-	// DUMMY
-	throw Unsupported("Object cannot be serialized to binary");
-}
-
-void Serializable::deserializeBinary(ByteStream &s)
-{
-	// DUMMY
-	throw Unsupported("Object cannot be deserialized from binary");
-}
-
-String Serializable::toString(void) const
-{
-	String str;
-	serialize(str);
-	return str;
-}
-
-ByteString Serializable::toBinary(void) const
-{
-	ByteString str;
-	serializeBinary(str);
-	return str;
-}
-
-Serializable::operator String(void) const
-{
-	return toString();
-}
-
-Serializable::operator ByteString(void) const
-{
-	return toBinary();
-}
-
-void Serializable::html(Stream &s) const
-{
-	serialize(s);
-}
-
-std::istream &operator>>(std::istream &is, Serializable &s)
-{
-	std::string stdstr;
-	is>>stdstr;
-	String str(stdstr);
-	s.deserialize(str);
-	return is;
-}
-
-std::ostream &operator<<(std::ostream &os, const Serializable &s)
-{
-	os<<std::string(s.toString());
-	return os;
-}
-
-}
+#endif

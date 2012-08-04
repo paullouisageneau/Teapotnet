@@ -48,6 +48,8 @@ public:
 
 	operator String(void) const;
 	operator ByteString(void) const;
+
+	virtual void html(Stream &s) const;
 };
 
 // WARNING: These operators are not symetric if toString is reimplemented
