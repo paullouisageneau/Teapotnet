@@ -70,10 +70,10 @@ void Httpd::Handler::Request::parse(Stream &stream)
 	clear();
 
 	if(!stream.readLine(method)) return;
+	method.trim();
 	url = method.cut(' ');
 	protocol = url.cut(' ');
 	version = protocol.cut('/');
-	method.trim();
 	url.trim();
 	protocol.trim();
 
