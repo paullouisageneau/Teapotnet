@@ -46,14 +46,24 @@ private:
 		~Handler(void);
 
 	private:
+		struct Request
+		{
+			void parse(Stream &stream);
+			void clear(void);
+
+			String method;
+			String protocol;
+			String version;
+			String file;
+			String url;
+			StringMap headers;
+			StringMap get;
+			StringMap post;
+		};
+
 		void run(void);
-		void error(int code);
-		void respond(int code, StringMap &headers);
-		void process(	const String &file,
-						const String &url,
-						StringMap &headers,
-						StringMap &get,
-						StringMap &post);
+		void respond(int code, StringMap &headers, Request &request, String *message = NULL);
+		void process(Request &request);
 
 		Httpd *mHttpd;
 		Socket mSock;

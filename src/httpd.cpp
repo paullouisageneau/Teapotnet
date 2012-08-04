@@ -61,30 +61,32 @@ Httpd::Handler::Handler(Httpd *httpd, const Socket &sock) :
 
 Httpd::Handler::~Handler(void)
 {
-	mSock.close();
+	if(mSock.isConnected())
+		mSock.close();
 }
 
-void Httpd::Handler::run(void)
+void Httpd::Handler::Request::parse(Stream &stream)
 {
-	String action;
-	if(!mSock.readLine(action)) return;
-	String url = action.cut(' ');
-	String protocol = url.cut(' ');
-	action.trim();
+	clear();
+
+	if(!stream.readLine(method)) return;
+	url = method.cut(' ');
+	protocol = url.cut(' ');
+	version = protocol.cut('/');
+	method.trim();
 	url.trim();
 	protocol.trim();
 
-	if(action != "GET" && action != "POST")
-		error(405);
+	if(url.empty() || protocol != "HTTP")
+		throw 400;
 
-	if(url.empty() || protocol.empty())
-		error(400);
+	if(method != "GET" && method != "HEAD" && method != "POST")
+		throw 405;
 
-	StringMap headers;
 	while(true)
 	{
 		String line;
-		assertIO(mSock.readLine(line));
+		assertIO(stream.readLine(line));
 		if(line.empty()) break;
 
 		String value = line.cut(':');
@@ -93,9 +95,8 @@ void Httpd::Handler::run(void)
 		headers.insert(line,value);
 	}
 
-	String file(url);
+	file = url;
 	String getData = file.cut('?');
-	StringMap get;
 	if(!getData.empty())
 	{
 		std::list<String> exploded;
@@ -109,68 +110,131 @@ void Httpd::Handler::run(void)
 		}
 	}
 
-	StringMap post;
-	if(action == "POST")
+	if(method == "POST")
 	{
 		// TODO: read post data
 	}
-
-	if(!headers.contains("Connection"))
-	if(protocol == "HTTP/1.1") headers['Connection'] = 'Keep-Alive';
-	else headers['Connection'] = 'Close';
-
-	process(file, url, headers, get, post);
 }
 
-void Httpd::Handler::error(int code)
+void Httpd::Handler::Request::clear(void)
 {
-	StringMap headers;
-	headers["Content-Type"] = "text/html; charset=UTF-8";
-	headers["Connexion"] = "Close";	// TODO
-
-	respond(code, headers);
+	method.clear();
+	protocol.clear();
+	file.clear();
+	url.clear();
+	headers.clear();
+	get.clear();
+	post.clear();
 }
 
-void Httpd::Handler::respond(int code, StringMap &headers)
+void Httpd::Handler::run(void)
 {
-	String message;
+	Request request;
+	try {
+		while(true)
+		{
+			request.parse(mSock);
+
+			if(request.headers.contains("Expect")
+					&& request.headers["Expect"].toLower() == "100-continue")
+			{
+				mSock.writeLine("HTTP/1.1 100 Continue\r\n\r\n");
+			}
+
+			process(request);
+
+			if(request.version != "1.1"
+					|| (request.headers.contains("Connection")
+					&& request.headers["Connection"].toLower() == "close"))
+			{
+				break;
+			}
+		}
+	}
+	catch(int code)
+	{
+		StringMap headers;
+		headers["Content-Type"] = "text/html; charset=UTF-8";
+		headers["Connection"] = "Close";
+
+		String message;
+		respond(code, headers, request, &message);
+
+		if(request.method != "HEAD")
+		{
+			mSock<<"<!DOCTYPE html>\r\n";
+			mSock<<"<html><head>\r\n";
+			mSock<<"<title>"<<message<<"</title>\r\n";
+			mSock<<"</head><body>\r\n";
+			mSock<<"<h1>"<<message<<"</h1>\r\n";
+			mSock<<"</body></html>\r\n";
+		}
+	}
+
+	mSock.close();
+}
+
+void Httpd::Handler::respond(int code, StringMap &headers, Request &request, String *message)
+{
+	if(request.version == "1.1" && code >= 200)
+	{
+		if(request.headers.contains("Connection") && request.headers["Connection"].toLower() == "close")
+			headers["Connection"] = "Close";
+		else headers["Connection"] = "Keep-Alive";
+	}
+
+	if(!headers.contains("Date"))
+	{
+		// TODO
+		time_t rawtime;
+		time(&rawtime);
+		struct tm *timeinfo = localtime(&rawtime);
+		char buffer[256];
+		strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S %Z", timeinfo);
+		headers["Date"] = buffer;
+	}
+
+	String msg;
 	switch(code)
 	{
-	case 100: message = "Continue";				break;
-	case 200: message = "OK";					break;
-	case 204: message = "No content";			break;
-	case 206: message = "Partial Content";		break;
-	case 301: message = "Moved Permanently"; 	break;
-	case 302: message = "Found";			 	break;
-	case 303: message = "See Other";			break;
-	case 304: message = "Not Modified"; 		break;
-	case 305: message = "Use Proxy"; 			break;
-	case 307: message = "Temporary Redirect"; 	break;
-	case 400: message = "Bad Request"; 			break;
-	case 401: message = "Unauthorized";			break;
-	case 403: message = "Forbidden"; 			break;
-	case 404: message = "Not Found";			break;
-	case 405: message = "Method Not Allowed";	break;
-	case 406: message = "Not Acceptable";		break;
-	case 408: message = "Request Timeout";		break;
-	case 410: message = "Gone";					break;
-	case 413: message = "Request Entity Too Large"; 		break;
-	case 414: message = "Request-URI Too Long";				break;
-	case 416: message = "Requested Range Not Satisfiable";	break;
-	case 500: message = "Internal Server Error";			break;
-	case 501: message = "Not Implemented";					break;
-	case 502: message = "Bad Gateway";						break;
-	case 503: message = "Service Unavailable";				break;
-	case 504: message = "Gateway Timeout";					break;
-	case 505: message = "HTTP Version Not Supported";		break;
+	case 100: msg = "Continue";				break;
+	case 200: msg = "OK";					break;
+	case 204: msg = "No content";			break;
+	case 206: msg = "Partial Content";		break;
+	case 301: msg = "Moved Permanently"; 	break;
+	case 302: msg = "Found";			 	break;
+	case 303: msg = "See Other";			break;
+	case 304: msg = "Not Modified"; 		break;
+	case 305: msg = "Use Proxy"; 			break;
+	case 307: msg = "Temporary Redirect"; 	break;
+	case 400: msg = "Bad Request"; 			break;
+	case 401: msg = "Unauthorized";			break;
+	case 403: msg = "Forbidden"; 			break;
+	case 404: msg = "Not Found";			break;
+	case 405: msg = "Method Not Allowed";	break;
+	case 406: msg = "Not Acceptable";		break;
+	case 408: msg = "Request Timeout";		break;
+	case 410: msg = "Gone";					break;
+	case 413: msg = "Request Entity Too Large"; 		break;
+	case 414: msg = "Request-URI Too Long";				break;
+	case 416: msg = "Requested Range Not Satisfiable";	break;
+	case 500: msg = "Internal Server Error";			break;
+	case 501: msg = "Not Implemented";					break;
+	case 502: msg = "Bad Gateway";						break;
+	case 503: msg = "Service Unavailable";				break;
+	case 504: msg = "Gateway Timeout";					break;
+	case 505: msg = "HTTP Version Not Supported";		break;
 
 	default:
-		if(code < 300) message = "OK";
-		else message = "Error";
+		if(code < 300) msg = "OK";
+		else msg = "Error";
 		break;
 	}
 
-	mSock<<"HTTP/1.1 "<<code<<" "<<message<<"\r\n";
+	mSock<<"HTTP/";
+	if(request.version == "1.1") mSock<<"1.1";
+	else mSock<<"1.0";
+	mSock<<" "<<code<<" "<<msg<<"\r\n";
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
 			++it)
@@ -179,15 +243,17 @@ void Httpd::Handler::respond(int code, StringMap &headers)
 	}
 
 	mSock<<"\r\n";
+
+	if(message)
+	{
+		message->clear();
+		*message<<code<<" "<<msg;
+	}
 }
 
-void Httpd::Handler::process(	const String &file,
-								const String &url,
-								StringMap &headers,
-								StringMap &get,
-								StringMap &post)
+void Httpd::Handler::process(Request &request)
 {
-	error(404);
+	throw 404;
 }
 
 }

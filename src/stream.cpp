@@ -204,7 +204,7 @@ bool Stream::readLine(Stream &output)
 	return readString(output,LineDelimiters,IgnoredCharacters,false);
 }
 
-bool Stream::writeLine(Stream &input)
+bool Stream::writeLine(const String &input)
 {
 	write(input);
 	write(OutputLineDelimiter);

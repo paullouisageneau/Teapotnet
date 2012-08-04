@@ -96,7 +96,7 @@ public:
 	Stream &operator<<(Stream &s);
 
 	bool readLine(Stream &output);
-	bool writeLine(Stream &input);
+	bool writeLine(const String &input);
 	bool readUntil(Stream &output, char delimiter);
 	bool readUntil(Stream &output, const String &delimiters, char *found);
 	bool readString(Stream &output, const String &delimiters, const String &ignored, bool skipBefore = false);

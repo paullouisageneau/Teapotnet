@@ -101,7 +101,7 @@ void ServerSocket::listen(int port)
 		String service;
 		service << port;
 		if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-			throw NetException("Local binding Address resolution failed for port "+port);
+			throw NetException(String("Local binding Address resolution failed for port ")+String::number(port));
 
 		// Create chunk socket
 		mSock = socket(aiList->ai_family,aiList->ai_socktype,aiList->ai_protocol);
@@ -110,11 +110,11 @@ void ServerSocket::listen(int port)
 
 		// Bind it
 		if(bind(mSock,aiList->ai_addr,aiList->ai_addrlen) != 0)
-			throw NetException("Binding failed on port "+port);
+			throw NetException(String("Binding failed on port ")+String::number(port));
 
 		// Listen
 		if(::listen(mSock, 16) != 0)
-			throw NetException("Listening failed on port "+port);
+			throw NetException(String("Listening failed on port ")+String::number(port));
 
 		/*
 		ctl_t b = 1;
@@ -149,7 +149,7 @@ Socket ServerSocket::accept(void)
 	if(mSock == INVALID_SOCKET) throw NetException("Socket not listening");
 
 	socket_t clientSock = ::accept(mSock, NULL, NULL);
-	if(clientSock == INVALID_SOCKET) throw NetException("Listening socket closed on port "+mPort);
+	if(clientSock == INVALID_SOCKET) throw NetException(String("Listening socket closed on port ")+String::number(mPort));
 	return Socket(clientSock);
 }
 
