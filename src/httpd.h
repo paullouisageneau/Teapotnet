@@ -51,14 +51,14 @@ private:
 			void parse(Stream &stream);
 			void clear(void);
 
-			String method;
-			String protocol;
-			String version;
-			String file;
-			String url;
-			StringMap headers;
-			StringMap get;
-			StringMap post;
+			String method;		// GET, POST, HEAD...
+			String protocol;	// HTTP
+			String version;		// 1.0 or 1.1
+			String file;		// URL without parameters
+			String url;			// Complete URL
+			StringMap headers;	// HTTP headers
+			StringMap get;		// URL parameters
+			StringMap post;		// POST parameters
 		};
 
 		void run(void);

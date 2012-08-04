@@ -120,6 +120,7 @@ void Httpd::Handler::Request::clear(void)
 {
 	method.clear();
 	protocol.clear();
+	version.clear();
 	file.clear();
 	url.clear();
 	headers.clear();
