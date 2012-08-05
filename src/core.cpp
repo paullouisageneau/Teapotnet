@@ -76,7 +76,9 @@ void Core::Pipe::run(void)
 	String line;
 	while(mStream->readLine(line))
 	{
-		// TODO
+		//String location = line.cut(' ');
+		//String &operation = line;
+
 	}
 
 	//mCore->remove(this);
