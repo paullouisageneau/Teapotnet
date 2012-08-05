@@ -35,8 +35,12 @@ public:
 	Html(Stream &stream);
 	~Html(void);
 
+	void header(const String &title = "");
+	void footer(void);
+
 	void raw(const String &str);
 	void text(const String &str);
+	void object(const Serializable &s);
 
 	void open(const String &type, String id = "");
 	void close(const String &type);
@@ -48,6 +52,8 @@ public:
 	void image(	const String &url,
 				const String &alt = "",
 				String id = "");
+
+	Stream &stream(void);
 
 private:
 	Stream &mStream;

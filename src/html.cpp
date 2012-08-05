@@ -36,6 +36,23 @@ Html::~Html(void)
 
 }
 
+void Html::header(const String &title)
+{
+	mStream<<"<!DOCTYPE html>\n";
+	mStream<<"<html>\n";
+	mStream<<"<head>\n";
+	mStream<<"<title>"<<title<<"</title>\n";
+	mStream<<"</head>\n";
+	mStream<<"<body>\n";
+
+}
+
+void Html::footer(void)
+{
+	mStream<<"</body>\n";
+	mStream<<"</html>\n";
+}
+
 void Html::raw(const String &str)
 {
 	mStream.write(str);
@@ -58,6 +75,11 @@ void Html::text(const String &str)
 	}
 }
 
+void Html::object(const Serializable &s)
+{
+	s.html(mStream);
+}
+
 void Html::open(const String &type, String id)
 {
 	assert(!type.empty());
@@ -65,7 +87,7 @@ void Html::open(const String &type, String id)
 	mStream<<"<"<<type;
 	if(!id.empty()) mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) mStream<<" class=\""<<cl<<"\"";
-	mStream<<">\n";
+	mStream<<">";
 }
 
 void Html::close(const String &type)
@@ -97,6 +119,11 @@ void Html::image(	const String &url,
 	if(!id.empty())  mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty())  mStream<<" class=\""<<cl<<"\"";
 	mStream<<"/>\n";
+}
+
+Stream &Html::stream(void)
+{
+	return mStream;
 }
 
 }

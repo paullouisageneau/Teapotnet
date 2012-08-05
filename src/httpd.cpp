@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "httpd.h"
+#include "html.h"
 
 namespace arc
 {
@@ -131,44 +132,34 @@ void Httpd::Handler::Request::clear(void)
 void Httpd::Handler::run(void)
 {
 	Request request;
+
 	try {
-		while(true)
+		request.parse(mSock);
+
+		if(request.headers.contains("Expect")
+				&& request.headers["Expect"].toLower() == "100-continue")
 		{
-			request.parse(mSock);
-
-			if(request.headers.contains("Expect")
-					&& request.headers["Expect"].toLower() == "100-continue")
-			{
-				mSock.writeLine("HTTP/1.1 100 Continue\r\n\r\n");
-			}
-
-			process(request);
-
-			if(request.version != "1.1"
-					|| (request.headers.contains("Connection")
-					&& request.headers["Connection"].toLower() == "close"))
-			{
-				break;
-			}
+			mSock.writeLine("HTTP/1.1 100 Continue\r\n\r\n");
 		}
+
+		process(request);
 	}
 	catch(int code)
 	{
 		StringMap headers;
 		headers["Content-Type"] = "text/html; charset=UTF-8";
-		headers["Connection"] = "Close";
 
 		String message;
 		respond(code, headers, request, &message);
 
 		if(request.method != "HEAD")
 		{
-			mSock<<"<!DOCTYPE html>\r\n";
-			mSock<<"<html><head>\r\n";
-			mSock<<"<title>"<<message<<"</title>\r\n";
-			mSock<<"</head><body>\r\n";
-			mSock<<"<h1>"<<message<<"</h1>\r\n";
-			mSock<<"</body></html>\r\n";
+			Html page(mSock);
+			page.header(message);
+			page.open("h1");
+			page.text(message);
+			page.close("h1");
+			page.footer();
 		}
 	}
 
@@ -178,11 +169,7 @@ void Httpd::Handler::run(void)
 void Httpd::Handler::respond(int code, StringMap &headers, Request &request, String *message)
 {
 	if(request.version == "1.1" && code >= 200)
-	{
-		if(request.headers.contains("Connection") && request.headers["Connection"].toLower() == "close")
-			headers["Connection"] = "Close";
-		else headers["Connection"] = "Keep-Alive";
-	}
+		headers["Connection"] = "Close";
 
 	if(!headers.contains("Date"))
 	{
@@ -254,7 +241,16 @@ void Httpd::Handler::respond(int code, StringMap &headers, Request &request, Str
 
 void Httpd::Handler::process(Request &request)
 {
-	throw 404;
+	StringMap headers;
+	headers["Content-Type"] = "text/html; charset=UTF-8";
+	respond(200, headers, request);
+
+	Html page(mSock);
+	page.header("Test page");
+	page.open("h1");
+	page.text("Hello world !");
+	page.close("h1");
+	page.footer();
 }
 
 }
