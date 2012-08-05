@@ -57,6 +57,7 @@ private:
 			String file;		// URL without parameters
 			String url;			// Complete URL
 			StringMap headers;	// HTTP headers
+			StringMap cookies;	// Cookies
 			StringMap get;		// URL parameters
 			StringMap post;		// POST parameters
 		};

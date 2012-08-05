@@ -26,11 +26,10 @@
 namespace arc
 {
 
-// TODO: It depends on the OS (This is OK for Unix and Windows)
 const String Stream::OutputLineDelimiter = "\r\n";
 const String Stream::LineDelimiters = "\n";
 const String Stream::IgnoredCharacters = "\r\0";
-const String Stream::FieldDelimiters = " ,;\t\n";	// MUST contain ' ' and ',' and NOT '.' and ':'
+const String Stream::FieldDelimiters = " ,;=\t\n";	// MUST contain ' ', '=' and ',' and NOT '.' and ':'
 const char Stream::Space = ' ';
 
 Stream::Stream(void)

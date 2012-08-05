@@ -70,6 +70,7 @@ void Httpd::Handler::Request::parse(Stream &stream)
 {
 	clear();
 
+	// Read first line
 	if(!stream.readLine(method)) return;
 	method.trim();
 	url = method.cut(' ');
@@ -84,6 +85,7 @@ void Httpd::Handler::Request::parse(Stream &stream)
 	if(method != "GET" && method != "HEAD" && method != "POST")
 		throw 405;
 
+	// Read headers
 	while(true)
 	{
 		String line;
@@ -96,6 +98,22 @@ void Httpd::Handler::Request::parse(Stream &stream)
 		headers.insert(line,value);
 	}
 
+	// Read cookies
+	String cookie;
+	if(headers.get("Cookie",cookie))
+	{
+		while(!cookie.empty())
+		{
+			String next = cookie.cut(';');
+			String value = cookie.cut('=');
+			cookie.trim();
+			value.trim();
+			cookies.insert(cookie,value);
+			cookie = next;
+		}
+	}
+
+	// Read URL variables
 	file = url;
 	String getData = file.cut('?');
 	if(!getData.empty())
@@ -111,6 +129,7 @@ void Httpd::Handler::Request::parse(Stream &stream)
 		}
 	}
 
+	// Read post variables
 	if(method == "POST")
 	{
 		// TODO: read post data
@@ -125,6 +144,7 @@ void Httpd::Handler::Request::clear(void)
 	file.clear();
 	url.clear();
 	headers.clear();
+	cookies.clear();
 	get.clear();
 	post.clear();
 }
@@ -136,8 +156,9 @@ void Httpd::Handler::run(void)
 	try {
 		request.parse(mSock);
 
-		if(request.headers.contains("Expect")
-				&& request.headers["Expect"].toLower() == "100-continue")
+		String expect;
+		if(request.headers.get("Expect",expect)
+				&& expect.toLower() == "100-continue")
 		{
 			mSock.writeLine("HTTP/1.1 100 Continue\r\n\r\n");
 		}
@@ -223,11 +244,20 @@ void Httpd::Handler::respond(int code, StringMap &headers, Request &request, Str
 	if(request.version == "1.1") mSock<<"1.1";
 	else mSock<<"1.0";
 	mSock<<" "<<code<<" "<<msg<<"\r\n";
+
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
 			++it)
 	{
-		mSock<<it->first<<": "<<it->second<<"\r\n";
+		std::list<String> lines;
+		it->second.remove('\r');
+		it->second.explode(lines,'\n');
+		for(	std::list<String>::iterator l = lines.begin();
+				l != lines.end();
+				++l)
+		{
+			mSock<<it->first<<": "<<*l<<"\r\n";
+		}
 	}
 
 	mSock<<"\r\n";
@@ -243,14 +273,18 @@ void Httpd::Handler::process(Request &request)
 {
 	StringMap headers;
 	headers["Content-Type"] = "text/html; charset=UTF-8";
+
 	respond(200, headers, request);
 
-	Html page(mSock);
-	page.header("Test page");
-	page.open("h1");
-	page.text("Hello world !");
-	page.close("h1");
-	page.footer();
+	if(request.method != "HEAD")
+	{
+		Html page(mSock);
+		page.header("Test page");
+		page.open("h1");
+		page.text("Hello world !");
+		page.close("h1");
+		page.footer();
+	}
 }
 
 }

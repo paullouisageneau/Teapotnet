@@ -170,6 +170,19 @@ int String::lastIndexOf(const char* c) const
     return pos;
 }
 
+bool String::remove(char chr)
+{
+	bool found = false;
+	for(int i=0; i<this->size();)
+		if(at(i) == chr)
+		{
+			this->erase(i);
+			found = true;
+		}
+		else ++i;
+	return found;
+}
+
 String String::mid(int pos, int n) const
 {
     return this->substr(pos, n);

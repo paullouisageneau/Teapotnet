@@ -94,13 +94,15 @@ void Array<T>::fill(const T &value, int n)
 template<typename T>
 bool Array<T>::remove(const T &value)
 {
-	for(int i=0; i<this->size(); ++i)
+	bool found = false;
+	for(int i=0; i<this->size();)
 		if(this->at(i) == value)
 		{
 			this->erase(i);
-			return true;
+			found = true;
 		}
-	return false;
+		else ++i;
+	return found;
 }
 
 template<typename T>

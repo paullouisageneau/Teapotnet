@@ -94,7 +94,7 @@ void Map<K,V>::serialize(Stream &s) const
 			it != this->end();
 			++it)
 	{
-		s<<it->first<<','<<it->second<<' ';
+		s<<it->first<<'='<<it->second<<' ';
 	}
 }
 

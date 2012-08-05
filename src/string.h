@@ -60,6 +60,8 @@ public:
 	int lastIndexOf(char c) const;
 	int lastIndexOf(const char* c) const;
 
+	bool remove(char chr);
+
 	String mid(int pos, int n = String::npos) const;
 	String left(int pos) const;
 	String right(int pos) const;
