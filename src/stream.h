@@ -99,12 +99,13 @@ public:
 	bool writeLine(const String &input);
 	bool readUntil(Stream &output, char delimiter);
 	bool readUntil(Stream &output, const String &delimiters, char *found);
-	bool readString(Stream &output, const String &delimiters, const String &ignored, bool skipBefore = false);
+	bool readString(Stream &output, const String &delimiters, bool skipBefore = false);
 	bool readField(Stream &output);
 	bool parseField(Stream &output, const String &delimiters, char *found = NULL);
 
 	// TODO: operator !
 
+	static const char NewLine;
 	static const char Space;
 
 protected:
@@ -118,9 +119,8 @@ private:
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
 
-	static const String OutputLineDelimiter;
-	static const String LineDelimiters;
 	static const String IgnoredCharacters;
+	static const String BlankCharacters;
 	static const String FieldDelimiters;
 };
 

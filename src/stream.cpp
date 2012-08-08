@@ -26,10 +26,10 @@
 namespace arc
 {
 
-const String Stream::OutputLineDelimiter = "\r\n";
-const String Stream::LineDelimiters = "\n";
 const String Stream::IgnoredCharacters = "\r\0";
-const String Stream::FieldDelimiters = " ,;=\t\n";	// MUST contain ' ', '=' and ',' and NOT '.' and ':'
+const String Stream::BlankCharacters = " \t";
+const String Stream::FieldDelimiters = ",;=\n";	// MUST contain ' ', '=' and ',' and NOT '.' and ':'
+const char Stream::NewLine = ' ';
 const char Stream::Space = ' ';
 
 Stream::Stream(void)
@@ -119,7 +119,10 @@ bool Stream::read(Serializable &s)
 bool Stream::read(String &s)
 {
 	s.clear();
-	return readString(s,FieldDelimiters,IgnoredCharacters,true);
+	char chr;
+	if(!ignoreWhile(BlankCharacters,&chr)) return false;
+	s+= chr;
+	return readString(s,FieldDelimiters+BlankCharacters,false);
 }
 
 bool Stream::read(bool &b)
@@ -200,13 +203,13 @@ void Stream::write(bool b)
 
 bool Stream::readLine(Stream &output)
 {
-	return readString(output,LineDelimiters,IgnoredCharacters,false);
+	return readString(output,String(NewLine),false);
 }
 
 bool Stream::writeLine(const String &input)
 {
 	write(input);
-	write(OutputLineDelimiter);
+	write(NewLine);
 }
 
 bool Stream::readUntil(Stream &output, char delimiter)
@@ -235,7 +238,7 @@ bool Stream::readUntil(Stream &output, const String &delimiters, char *found)
 	return true;
 }
 
-bool Stream::readString(Stream &output, const String &delimiters, const String &ignored, bool skipBefore)
+bool Stream::readString(Stream &output, const String &delimiters, bool skipBefore)
 {
 	char chr;
 	if(!get(chr)) return false;
@@ -248,7 +251,7 @@ bool Stream::readString(Stream &output, const String &delimiters, const String &
 
 	while(!delimiters.contains(chr))
 	{
-		if(!ignored.contains(chr)) output.write(chr);
+		if(!IgnoredCharacters.contains(chr)) output.write(chr);
 		if(!get(chr)) break;
 	}
 	return true;
@@ -256,7 +259,7 @@ bool Stream::readString(Stream &output, const String &delimiters, const String &
 
 bool Stream::readField(Stream &output)
 {
-	return readString(output,FieldDelimiters,IgnoredCharacters,true);
+	return readString(output,FieldDelimiters,false);
 }
 
 bool Stream::parseField(Stream &output, const String &delimiters, char *found)
@@ -278,7 +281,7 @@ bool Stream::parseField(Stream &output, const String &delimiters, char *found)
 			}
 		}
 		else {
-			if(LineDelimiters.contains(chr)) throw InvalidData("Unable to parse field in stream");
+			if(chr == NewLine) throw InvalidData("Unable to parse field in stream");
 			if(!IgnoredCharacters.contains(chr)) str+= chr;
 		}
 

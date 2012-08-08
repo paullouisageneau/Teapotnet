@@ -74,10 +74,20 @@ Core::Pipe::~Pipe(void)
 void Core::Pipe::run(void)
 {
 	String line;
+	if(!mStream->readLine(line))
+		return;
+
+	String proto;
+	unsigned version;
+	line.read(proto);
+	line.read(version);
+
 	while(mStream->readLine(line))
 	{
-		//String location = line.cut(' ');
-		//String &operation = line;
+		unsigned channel, size;
+		line.read(channel);
+		line.read(size);
+
 
 	}
 
