@@ -37,7 +37,7 @@ public:
 	virtual ~ByteArray(void);
 
 	const char *data(void) const;		// reading position
-	int size(void) const;			// data left
+	int size(void) const;				// data left
 	
 	void clear(void);
 	
@@ -49,8 +49,8 @@ private:
 	char *mData;
 	int mSize;
 	int mLeft;
-	int mreadPos;
-	int mwritePos;
+	int mReadPos;
+	int mWritePos;
 	bool mMustDelete;
 };
 

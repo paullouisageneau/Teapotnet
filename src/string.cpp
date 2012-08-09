@@ -98,11 +98,11 @@ String String::cut(char separator)
 void String::trim(void)
 {
 	int i = 0;
-	while(i < size() && (at(i)==' ' || at(i) == '\t')) ++i;
+	while(i < size() && BlankCharacters.contains(at(i))) ++i;
 	if(i > 0) erase(0,i);
 
 	i = size();
-	while(i > 0 && (at(i-1)==' ' || at(i-1) == '\t')) --i;
+	while(i > 0 && BlankCharacters.contains(at(i-1))) --i;
 	if(i < size()) erase(i);
 }
 

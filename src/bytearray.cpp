@@ -29,8 +29,8 @@ ByteArray::ByteArray(int size) :
 		mData(new char[size]),
 		mSize(size),
 		mLeft(0),
-		mreadPos(0),
-		mwritePos(0),
+		mReadPos(0),
+		mWritePos(0),
 		mMustDelete(true)
 {
 
@@ -40,8 +40,8 @@ ByteArray::ByteArray(char *data, int size) :
 		mData(data),
 		mSize(size),
 		mLeft(0),
-		mreadPos(0),
-		mwritePos(0),
+		mReadPos(0),
+		mWritePos(0),
 		mMustDelete(false)
 {
 
@@ -51,8 +51,8 @@ ByteArray::ByteArray(const ByteArray &array) :
 	mData(array.mData),
 	mSize(array.mSize),
 	mLeft(array.mLeft),
-	mreadPos(array.mreadPos),
-	mwritePos(array.mwritePos),
+	mReadPos(array.mReadPos),
+	mWritePos(array.mWritePos),
 	mMustDelete(false)
 {
 
@@ -65,7 +65,7 @@ ByteArray::~ByteArray(void)
 
 const char *ByteArray::data(void) const
 {
-	return mData+mreadPos;
+	return mData+mReadPos;
 }
 
 int ByteArray::size(void) const
@@ -75,8 +75,8 @@ int ByteArray::size(void) const
 
 void ByteArray::clear(void)
 {
-	mreadPos = 0;
-	mwritePos = 0;
+	mReadPos = 0;
+	mWritePos = 0;
 	mLeft = 0;
 }
 
@@ -84,18 +84,18 @@ int ByteArray::readData(char *buffer, int size)
 {
 	if(mLeft <= 0) return 0;
 	size = std::min(size,mLeft);
-	std::copy(mData+mreadPos, mData+mreadPos+size, buffer);
-	mreadPos+= size;
+	std::copy(mData+mReadPos, mData+mReadPos+size, buffer);
+	mReadPos+= size;
 	mLeft-= size;
 	return size;
 }
 
 void ByteArray::writeData(const char *data, int size)
 {
-	if(mwritePos+size > mSize) throw IOException();
-	std::copy(data, data+size, mData+mwritePos+size);
-	mwritePos+= size;
-	if(mLeft< mwritePos) mLeft = mwritePos;
+	if(mWritePos+size > mSize) throw IOException();
+	std::copy(data, data+size, mData+mWritePos+size);
+	mWritePos+= size;
+	if(mLeft< mWritePos) mLeft = mWritePos;
 }
 
 }

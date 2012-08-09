@@ -78,9 +78,9 @@ void Core::Pipe::run(void)
 		return;
 
 	String proto;
-	unsigned version;
-	line.read(proto);
-	line.read(version);
+	String version;
+	line.readString(proto);
+	line.readString(version);
 
 	while(mStream->readLine(line))
 	{
@@ -88,7 +88,8 @@ void Core::Pipe::run(void)
 		line.read(channel);
 		line.read(size);
 
-
+		// need an half-pipe
+		// or a stream limiter (better) ?
 	}
 
 	//mCore->remove(this);

@@ -71,13 +71,12 @@ void Httpd::Handler::Request::parse(Stream &stream)
 	clear();
 
 	// Read first line
-	if(!stream.readLine(method)) return;
-	method.trim();
-	url = method.cut(' ');
-	protocol = url.cut(' ');
+	String line;
+	if(!stream.readLine(line)) return;
+	line.readString(method);
+	line.readString(url);
+	line.readString(protocol);
 	version = protocol.cut('/');
-	url.trim();
-	protocol.trim();
 
 	if(url.empty() || protocol != "HTTP")
 		throw 400;

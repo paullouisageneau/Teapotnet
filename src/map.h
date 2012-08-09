@@ -94,7 +94,7 @@ void Map<K,V>::serialize(Stream &s) const
 			it != this->end();
 			++it)
 	{
-		s<<it->first<<'='<<it->second<<' ';
+		s<<it->first<<'='<<it->second<<Stream::NewLine;
 	}
 }
 
@@ -102,11 +102,14 @@ template<typename K, typename V>
 void Map<K,V>::deserialize(Stream &s)
 {
 	this->clear();
-	K key;
-	V value;
-	while(s.read(key))
+	String str1;
+	while(s.readField(str1))
 	{
-		assertIO(s.read(value));
+		String str2 = str1.cut('=');
+		K key;
+		V value;
+		str1.read(key);
+		str2.read(value);
 		this->insert(key,value);
 	}
 }

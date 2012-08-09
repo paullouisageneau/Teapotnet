@@ -109,7 +109,7 @@ template<typename T>
 void Array<T>::serialize(Stream &s) const
 {
 	for(int i=0; i<this->size(); ++i)
-		s<<this->at(i)<<' ';
+		s<<this->at(i)<<Stream::NewLine;
 }
 
 template<typename T>
@@ -118,7 +118,9 @@ void Array<T>::deserialize(Stream &s)
 	this->clear();
 	T tmp;
 	while(s.read(tmp))
+	{
 		this->push_back(tmp);
+	}
 }
 
 template<typename T>

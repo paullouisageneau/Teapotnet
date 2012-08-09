@@ -40,11 +40,12 @@ public:
 
 	bool get(char &chr);
 	void put(char chr);
+	char last(void) const;
 
 	bool ignore(int n = 1);
 	bool ignoreUntil(char delimiter);
-	bool ignoreUntil(const String &delimiters, char *found = NULL);
-	bool ignoreWhile(const String &chars, char *found = NULL);
+	bool ignoreUntil(const String &delimiters);
+	bool ignoreWhile(const String &chars);
 
 	void	read(Stream &s);
 	bool	read(Serializable &s);
@@ -95,13 +96,13 @@ public:
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
 
-	bool readLine(Stream &output);
-	bool writeLine(const String &input);
 	bool readUntil(Stream &output, char delimiter);
-	bool readUntil(Stream &output, const String &delimiters, char *found);
+	bool readUntil(Stream &output, const String &delimiters);
 	bool readString(Stream &output, const String &delimiters, bool skipBefore = false);
-	bool readField(Stream &output);
-	bool parseField(Stream &output, const String &delimiters, char *found = NULL);
+	bool readString(Stream &output);	// delimiters = BlankCharacters, output is trimmed
+	bool readField(Stream &output);		// delimiters = FieldDelimiters
+	bool readLine(Stream &output);		// delimiter  = NewLine
+	bool writeLine(const String &input);
 
 	// TODO: operator !
 
@@ -109,8 +110,14 @@ public:
 	static const char Space;
 
 protected:
+	static const String IgnoredCharacters;
+	static const String BlankCharacters;
+	static const String FieldDelimiters;
+
 	virtual int readData(char *buffer, int size) = 0;
 	virtual void writeData(const char *data, int size) = 0;
+
+	char mLast;
 
 private:
 	bool readStdString(std::string &output);
@@ -118,10 +125,6 @@ private:
 
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
-
-	static const String IgnoredCharacters;
-	static const String BlankCharacters;
-	static const String FieldDelimiters;
 };
 
 // NB: String is not defined here, as it herits from Stream.

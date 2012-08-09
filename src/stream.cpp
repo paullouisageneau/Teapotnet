@@ -28,7 +28,7 @@ namespace arc
 
 const String Stream::IgnoredCharacters = "\r\0";
 const String Stream::BlankCharacters = " \t";
-const String Stream::FieldDelimiters = ",;=\n";	// MUST contain ' ', '=' and ',' and NOT '.' and ':'
+const String Stream::FieldDelimiters = ",;\n";	// Must NOT contain '.', '=', and ':'
 const char Stream::NewLine = ' ';
 const char Stream::Space = ' ';
 
@@ -44,7 +44,12 @@ Stream::~Stream(void)
 
 bool Stream::get(char &chr)
 {
-	return readData(&chr,1);
+	if(readData(&mLast,1))
+	{
+		chr = mLast;
+		return true;
+	}
+	else return false;
 }
 
 void Stream::put(char chr)
@@ -52,42 +57,39 @@ void Stream::put(char chr)
 	writeData(&chr,1);
 }
 
+char Stream::last(void) const
+{
+	return mLast;
+}
+
 bool Stream::ignore(int n)
 {
-	char chr;
-	if(!get(chr)) return false;
-	while(--n) if(!get(chr)) return false;
+	if(!get(mLast)) return false;
+	while(--n) if(!get(mLast)) return false;
 	return true;
 }
 
 bool Stream::ignoreUntil(char delimiter)
 {
-	char chr;
-	if(!get(chr)) return false;
-	while(chr != delimiter)
-		if(!get(chr)) return false;
+	if(!get(mLast)) return false;
+	while(mLast != delimiter)
+		if(!get(mLast)) return false;
 	return true;
 }
 
-bool Stream::ignoreUntil(const String &delimiters, char *found)
+bool Stream::ignoreUntil(const String &delimiters)
 {
-	char chr;
-	if(found) *found = '\0';
-	if(!get(chr)) return false;
-	while(!delimiters.contains(chr))
-		if(!get(chr)) return false;
-	if(found) *found = chr;
+	if(!get(mLast)) return false;
+	while(!delimiters.contains(mLast))
+		if(!get(mLast)) return false;
 	return true;
 }
 
-bool Stream::ignoreWhile(const String &chars, char *found)
+bool Stream::ignoreWhile(const String &chars)
 {
-	char chr;
-	if(found) *found = '\0';
-	if(!get(chr)) return false;
-	while(chars.contains(chr))
-		if(!get(chr)) return false;
-	if(found) *found = chr;
+	if(!get(mLast)) return false;
+	while(chars.contains(mLast))
+		if(!get(mLast)) return false;
 	return true;
 }
 
@@ -104,6 +106,7 @@ void Stream::read(Stream &s)
 	if(size <= 0) return;
 	while(size > 0)
 	{
+		mLast = buffer[size-1];
 		s.writeData(buffer,size);
 		size = readData(buffer,BufferSize);
 	}
@@ -119,9 +122,8 @@ bool Stream::read(Serializable &s)
 bool Stream::read(String &s)
 {
 	s.clear();
-	char chr;
-	if(!ignoreWhile(BlankCharacters,&chr)) return false;
-	s+= chr;
+	if(!ignoreWhile(BlankCharacters)) return false;
+	s+= last();
 	return readString(s,FieldDelimiters+BlankCharacters,false);
 }
 
@@ -201,6 +203,56 @@ void Stream::write(bool b)
 	else write("false");
 }
 
+bool Stream::readUntil(Stream &output, char delimiter)
+{
+	if(!get(mLast)) return false;
+	while(mLast != delimiter)
+	{
+		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
+		if(!get(mLast)) break;
+	}
+	return true;
+}
+
+bool Stream::readUntil(Stream &output, const String &delimiters)
+{
+	if(!get(mLast)) return false;
+	while(!delimiters.contains(mLast))
+	{
+		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
+		if(!get(mLast)) break;
+	}
+	return true;
+}
+
+bool Stream::readString(Stream &output, const String &delimiters, bool skipBefore)
+{
+	if(!get(mLast)) return false;
+
+	if(skipBefore)
+	{
+		while(delimiters.contains(mLast))
+			if(!get(mLast)) return false;
+	}
+
+	while(!delimiters.contains(mLast))
+	{
+		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
+		if(!get(mLast)) break;
+	}
+	return true;
+}
+
+bool Stream::readString(Stream &output)
+{
+	return readString(output, BlankCharacters, true);
+}
+
+bool Stream::readField(Stream &output)
+{
+	return readString(output,FieldDelimiters,false);
+}
+
 bool Stream::readLine(Stream &output)
 {
 	return readString(output,String(NewLine),false);
@@ -210,95 +262,6 @@ bool Stream::writeLine(const String &input)
 {
 	write(input);
 	write(NewLine);
-}
-
-bool Stream::readUntil(Stream &output, char delimiter)
-{
-	char chr;
-	if(!get(chr)) return false;
-	while(chr != delimiter)
-	{
-		output.write(chr);
-		if(!get(chr)) break;
-	}
-	return true;
-}
-
-bool Stream::readUntil(Stream &output, const String &delimiters, char *found)
-{
-	char chr;
-	if(found) *found = '\0';
-	if(!get(chr)) return false;
-	while(!delimiters.contains(chr))
-	{
-		output.write(chr);
-		if(!get(chr)) break;
-	}
-	if(found) *found = chr;
-	return true;
-}
-
-bool Stream::readString(Stream &output, const String &delimiters, bool skipBefore)
-{
-	char chr;
-	if(!get(chr)) return false;
-
-	if(skipBefore)
-	{
-		while(delimiters.contains(chr))
-			if(!get(chr)) return false;
-	}
-
-	while(!delimiters.contains(chr))
-	{
-		if(!IgnoredCharacters.contains(chr)) output.write(chr);
-		if(!get(chr)) break;
-	}
-	return true;
-}
-
-bool Stream::readField(Stream &output)
-{
-	return readString(output,FieldDelimiters,false);
-}
-
-bool Stream::parseField(Stream &output, const String &delimiters, char *found)
-{
-	String str;
-	char chr;
-	bool before = true;
-
-	if(found) *found = '\0';
-	if(!get(chr)) return false;
-	while(!delimiters.contains(chr))
-	{
-		if(before)
-		{
-			if(!FieldDelimiters.contains(chr))
-			{
-				before = false;
-				if(!IgnoredCharacters.contains(chr)) str+= chr;
-			}
-		}
-		else {
-			if(chr == NewLine) throw InvalidData("Unable to parse field in stream");
-			if(!IgnoredCharacters.contains(chr)) str+= chr;
-		}
-
-		if(!get(chr)) return true;
-	}
-
-	if(found) *found = chr;
-
-	while(!str.empty())
-	{
-		chr = str[str.size()-1];
-		if(FieldDelimiters.contains(chr)) str.erase(str.end()-1);
-		else break;
-	}
-
-	output.write(str);
-	return true;
 }
 
 bool Stream::readStdString(std::string &output)
