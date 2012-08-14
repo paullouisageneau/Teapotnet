@@ -87,7 +87,12 @@ void Core::Handler::run(void)
 		line.read(channel);
 		line.read(size);
 
-
+		Pipe *pipe;
+		if(mChannel.get(channel,pipe))
+		{
+			// TODO: Limited read
+			//mStream->read(*pipe);
+		}
 	}
 
 	//mCore->remove(this);
