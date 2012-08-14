@@ -79,19 +79,25 @@ void Core::Handler::run(void)
 	String proto;
 	String version;
 	line.readString(proto);
-	line.readString(version);
+	line.readString(version);	
 
 	while(mStream->readLine(line))
 	{
 		unsigned channel, size;
 		line.read(channel);
 		line.read(size);
-
-		Pipe *pipe;
-		if(mChannel.get(channel,pipe))
+		
+		if(channel == 0)
 		{
-			// TODO: Limited read
-			//mStream->read(*pipe);
+
+		}
+		else {	
+			Pipe *pipe;
+			if(mChannels.get(channel,pipe))
+			{
+				// TODO: Limited read
+				//mStream->read(*pipe);
+			}
 		}
 	}
 
