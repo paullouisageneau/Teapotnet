@@ -99,17 +99,18 @@ Stream &Stream::operator<<(Stream &s)
 	return (*this);
 }
 
-void Stream::read(Stream &s)
+bool Stream::read(Stream &s)
 {
 	char buffer[BufferSize];
 	int size = readData(buffer,BufferSize);
-	if(size <= 0) return;
+	if(size <= 0) return false;
 	while(size > 0)
 	{
 		mLast = buffer[size-1];
 		s.writeData(buffer,size);
 		size = readData(buffer,BufferSize);
 	}
+	return true;
 }
 
 bool Stream::read(Serializable &s)

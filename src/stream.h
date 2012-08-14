@@ -47,7 +47,7 @@ public:
 	bool ignoreUntil(const String &delimiters);
 	bool ignoreWhile(const String &chars);
 
-	void	read(Stream &s);
+	bool	read(Stream &s);
 	bool	read(Serializable &s);
 	bool	read(String &s);
 	bool	read(bool &b);

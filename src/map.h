@@ -32,7 +32,7 @@ namespace arc
 {
 
 template<typename K, typename V>
-class Map : public std::map<K,V>, public Serializable
+class Map : public std::map<K,V>
 {
 public:
 	void insert(const K &key, const V &value);
@@ -40,11 +40,6 @@ public:
 	bool get(const K &key, V &value) const;
 	const V &get(const K &key) const;
 	V &get(const K &key);
-
-	void serialize(Stream &s) const;
-	void deserialize(Stream &s);
-	void serializeBinary(ByteStream &s) const;
-	void deserializeBinary(ByteStream &s);
 };
 
 typedef Map<String,String> StringMap;
@@ -85,58 +80,6 @@ V &Map<K,V>::get(const K &key)
 	typename std::map<K,V>::iterator it = this->find(key);
 	if(it == this->end()) throw OutOfBounds("Map key does not exist");
 	return it->second;
-}
-
-template<typename K, typename V>
-void Map<K,V>::serialize(Stream &s) const
-{
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
-			it != this->end();
-			++it)
-	{
-		s<<it->first<<'='<<it->second<<Stream::NewLine;
-	}
-}
-
-template<typename K, typename V>
-void Map<K,V>::deserialize(Stream &s)
-{
-	this->clear();
-	String str1;
-	while(s.readField(str1))
-	{
-		String str2 = str1.cut('=');
-		K key;
-		V value;
-		str1.read(key);
-		str2.read(value);
-		this->insert(key,value);
-	}
-}
-
-template<typename K, typename V>
-void Map<K,V>::serializeBinary(ByteStream &s) const
-{
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
-			it != this->end();
-			++it)
-	{
-		s.writeBinary(it->first);
-		s.writeBinary(it->second);
-	}
-}
-
-template<typename K, typename V>
-void Map<K,V>::deserializeBinary(ByteStream &s)
-{
-	this->clear();
-	K key;
-	V value;
-	while(s.readBinary(key))
-	{
-		assertIO(s.readBinary(value))
-		this->insert(key,value);
-	}
 }
 
 }

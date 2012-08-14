@@ -36,10 +36,10 @@ public:
 	ByteStream(void);
 	virtual ~ByteStream(void);
 
-	int	read(char *buffer, int size);
+	int		read(char *buffer, int size);
 	void	write(const char *data, int size);
 
-	void	readBinary(ByteStream &s);
+	bool	readBinary(ByteStream &s);
 	bool	readBinary(Serializable &s);
 	bool	readBinary(ByteString &s);
 	bool	readBinary(sint8_t &i);

@@ -45,16 +45,17 @@ void ByteStream::write(const char *data, int size)
 	writeData(data,size);
 }
 
-void ByteStream::readBinary(ByteStream &s)
+bool ByteStream::readBinary(ByteStream &s)
 {
 	char buffer[BufferSize];
 	int size = readData(buffer,BufferSize);
-	if(size <= 0) return;
+	if(size <= 0) return false;
 	while(size > 0)
 	{
 		s.writeData(buffer,size);
 		size = readData(buffer,BufferSize);
 	}
+	return true;
 }
 
 bool ByteStream::readBinary(Serializable &s)

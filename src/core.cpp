@@ -87,8 +87,7 @@ void Core::Handler::run(void)
 		line.read(channel);
 		line.read(size);
 
-		// need an half-handler
-		// or a stream limiter (better) ?
+
 	}
 
 	//mCore->remove(this);

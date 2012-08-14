@@ -27,6 +27,7 @@
 #include "address.h"
 #include "stream.h"
 #include "socket.h"
+#include "pipe.h"
 #include "thread.h"
 #include "mutex.h"
 #include "signal.h"
@@ -44,7 +45,7 @@ public:
 	void add(Socket *sock);
 
 protected:
-	class Handler : public Thread, public Serializable
+	class Handler : public Thread
 	{
 	public:
 		Handler(Core *core, Stream *stream);
@@ -57,6 +58,7 @@ protected:
 		Core	*mCore;
 		Stream  *mStream;
 		Handler *mHandler;
+		Map<unsigned, Pipe*> mChannels;
 	};
 
 	void add(const Address &addr, Handler *Handler);

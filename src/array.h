@@ -32,7 +32,7 @@ namespace arc
 {
 
 template<typename T>
-class Array : public std::vector<T>, public Serializable
+class Array : public std::vector<T>
 {
 public:
 	T *data(void);
@@ -103,40 +103,6 @@ bool Array<T>::remove(const T &value)
 		}
 		else ++i;
 	return found;
-}
-
-template<typename T>
-void Array<T>::serialize(Stream &s) const
-{
-	for(int i=0; i<this->size(); ++i)
-		s<<this->at(i)<<Stream::NewLine;
-}
-
-template<typename T>
-void Array<T>::deserialize(Stream &s)
-{
-	this->clear();
-	T tmp;
-	while(s.read(tmp))
-	{
-		this->push_back(tmp);
-	}
-}
-
-template<typename T>
-void Array<T>::serializeBinary(ByteStream &s) const
-{
-	for(int i=0; i<this->size(); ++i)
-		s.writeBinary(this->at(i));
-}
-
-template<typename T>
-void Array<T>::deserializeBinary(ByteStream &s)
-{
-	this->clear();
-	T tmp;
-	while(s.readBinary(tmp))
-		this->push_back(tmp);
 }
 
 }
