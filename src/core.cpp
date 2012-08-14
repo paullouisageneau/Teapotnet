@@ -37,41 +37,40 @@ Core::~Core(void)
 void Core::add(Socket *sock)
 {
 	assert(sock != NULL);
-	Pipe *pipe = new Pipe(this,sock);
-	pipe->start();
-	add(sock->getRemoteAddress(), pipe);
+	Handler *handler = new Handler(this,sock);
+	handler->start();
+	add(sock->getRemoteAddress(), handler);
 }
 
-void Core::add(const Address &addr, Core::Pipe *pipe)
+void Core::add(const Address &addr, Core::Handler *handler)
 {
-	assert(pipe != NULL);
-	mPipes.insert(addr, pipe);
+	assert(handler != NULL);
+	mHandlers.insert(addr, handler);
 }
 
 void Core::remove(const Address &addr)
 {
-	if(mPipes.contains(addr))
+	if(mHandlers.contains(addr))
 	{
-		delete mPipes.get(addr);
-		mPipes.erase(addr);
+		delete mHandlers.get(addr);
+		mHandlers.erase(addr);
 	}
 }
 
-Core::Pipe::Pipe(Core *core, Stream *stream) :
+Core::Handler::Handler(Core *core, Stream *stream) :
 	mCore(core),
-	mStream(stream),
-	mHandler(new Handler)
+	mStream(stream)
 {
 
 }
 
-Core::Pipe::~Pipe(void)
+Core::Handler::~Handler(void)
 {
 	delete mStream;
 	delete mHandler;
 }
 
-void Core::Pipe::run(void)
+void Core::Handler::run(void)
 {
 	String line;
 	if(!mStream->readLine(line))
@@ -88,7 +87,7 @@ void Core::Pipe::run(void)
 		line.read(channel);
 		line.read(size);
 
-		// need an half-pipe
+		// need an half-handler
 		// or a stream limiter (better) ?
 	}
 

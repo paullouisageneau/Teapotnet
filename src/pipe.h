@@ -19,52 +19,34 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_CORE_H
-#define ARC_CORE_H
+#ifndef ARC_PIPE_H
+#define ARC_PIPE_H
 
-#include "include.h"
-#include "map.h"
-#include "address.h"
 #include "stream.h"
-#include "socket.h"
-#include "thread.h"
+#include "bytestream.h"
 #include "mutex.h"
 #include "signal.h"
-#include "synchronizable.h"
 
 namespace arc
 {
 
-class Core
+class Pipe : public Stream, public ByteStream
 {
 public:
-	Core(void);
-	~Core(void);
+	Pipe(void);
+	virtual ~Pipe(void);
 
-	void add(Socket *sock);
+	void close(void);
 
 protected:
-	class Handler : public Thread, public Serializable
-	{
-	public:
-		Handler(Core *core, Stream *stream);
-		~Handler(void);
+	int readData(char *buffer, int size);
+	void writeData(const char *data, int size);
 
-	protected:
-		void run(void);
-
-	private:
-		Core	*mCore;
-		Stream  *mStream;
-		Handler *mHandler;
-	};
-
-	void add(const Address &addr, Handler *Handler);
-	void remove(const Address &addr);
-
-	Map<Address,Handler*> mHandlers;
-
-	friend class Handler;
+private:
+	ByteString mBuffer;
+	Mutex mMutex;
+	Signal mSignal;
+	bool mIsClosed;
 };
 
 }

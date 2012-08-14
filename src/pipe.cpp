@@ -19,54 +19,57 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_CORE_H
-#define ARC_CORE_H
-
-#include "include.h"
-#include "map.h"
-#include "address.h"
-#include "stream.h"
-#include "socket.h"
-#include "thread.h"
-#include "mutex.h"
-#include "signal.h"
-#include "synchronizable.h"
+#include "pipe.h"
 
 namespace arc
 {
 
-class Core
+Pipe::Pipe(void)
 {
-public:
-	Core(void);
-	~Core(void);
-
-	void add(Socket *sock);
-
-protected:
-	class Handler : public Thread, public Serializable
-	{
-	public:
-		Handler(Core *core, Stream *stream);
-		~Handler(void);
-
-	protected:
-		void run(void);
-
-	private:
-		Core	*mCore;
-		Stream  *mStream;
-		Handler *mHandler;
-	};
-
-	void add(const Address &addr, Handler *Handler);
-	void remove(const Address &addr);
-
-	Map<Address,Handler*> mHandlers;
-
-	friend class Handler;
-};
 
 }
 
-#endif
+Pipe::~Pipe(void)
+{
+	close();
+}
+
+void Pipe::close(void)
+{
+	mMutex.lock();
+	mIsClosed = true;
+	mSignal.launchAll();
+	mMutex.unlock();
+}
+
+int Pipe::readData(char *buffer, int size)
+{
+	mMutex.lock();
+	while(mBuffer.empty())
+	{
+		if(mIsClosed)
+		{
+			mMutex.unlock();
+			return 0;
+		}
+
+		mSignal.wait(mMutex);
+	}
+
+	size = mBuffer.read(buffer,size);
+	mMutex.unlock();
+	return size;
+}
+
+void Pipe::writeData(const char *data, int size)
+{
+	if(size == 0) return;
+	if(mIsClosed) throw IOException("Pipe is closed, cannot write");
+
+	mMutex.lock();
+	mBuffer.write(data,size);
+	mMutex.unlock();
+	mSignal.launchAll();
+}
+
+}
