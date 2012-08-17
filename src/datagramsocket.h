@@ -38,8 +38,8 @@ public:
 
 	Address getLocalAddress(void);
 
-	int read(char *buffer, int size, Address &sender);
-	void write(const char *buffer, int size, const Address &receiver);
+	int read(char *buffer, size_t size, Address &sender);
+	void write(const char *buffer, size_t size, const Address &receiver);
 
 	void read(ByteStream &stream, Address &sender);
 	void write(ByteStream &stream, const Address &receiver);

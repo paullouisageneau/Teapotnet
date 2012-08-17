@@ -40,8 +40,8 @@ public:
 	virtual ~File(void);
 
 protected:
-	int readData(char *buffer, int size);
-	void writeData(const char *data, int size);
+	int readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 };
 
 }

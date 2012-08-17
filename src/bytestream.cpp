@@ -35,12 +35,12 @@ ByteStream::~ByteStream(void)
 
 }
 
-int ByteStream::read(char *buffer, int size)
+int ByteStream::read(char *buffer, size_t size)
 {
 	return readData(buffer,size);
 }
 
-void ByteStream::write(const char *data, int size)
+void ByteStream::write(const char *data, size_t size)
 {
 	writeData(data,size);
 }
@@ -48,9 +48,9 @@ void ByteStream::write(const char *data, int size)
 bool ByteStream::readBinary(ByteStream &s)
 {
 	char buffer[BufferSize];
-	int size = readData(buffer,BufferSize);
-	if(size <= 0) return false;
-	while(size > 0)
+	size_t size = readData(buffer,BufferSize);
+	if(!size) return false;
+	while(size)
 	{
 		s.writeData(buffer,size);
 		size = readData(buffer,BufferSize);
@@ -191,7 +191,7 @@ bool ByteStream::readTime(double &t)
 void ByteStream::writeBinary(ByteStream &s)
 {
 	char buffer[BufferSize];
-	int size;
+	size_t size;
 	while((size = s.readData(buffer,BufferSize)) > 0)
 	{
 		writeData(buffer,size);

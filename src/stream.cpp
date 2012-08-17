@@ -102,9 +102,9 @@ Stream &Stream::operator<<(Stream &s)
 bool Stream::read(Stream &s)
 {
 	char buffer[BufferSize];
-	int size = readData(buffer,BufferSize);
-	if(size <= 0) return false;
-	while(size > 0)
+	size_t size = readData(buffer,BufferSize);
+	if(!size) return false;
+	while(size)
 	{
 		mLast = buffer[size-1];
 		s.writeData(buffer,size);
@@ -171,7 +171,7 @@ bool Stream::readBool(void)
 void Stream::write(Stream &s)
 {
 	char buffer[BufferSize];
-	int size;
+	size_t size;
 	while((size = s.readData(buffer,BufferSize)) > 0)
 	{
 		writeData(buffer,size);

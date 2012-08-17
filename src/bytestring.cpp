@@ -30,7 +30,7 @@ ByteString::ByteString(void)
 
 }
 
-ByteString::ByteString(const char *data, int size) :
+ByteString::ByteString(const char *data, size_t size) :
 		std::deque<char>(data,data+size)
 {
 
@@ -57,7 +57,7 @@ void ByteString::append(const ByteString &bs)
 	insert(end(), bs.begin(), bs.end());
 }
 
-void ByteString::append(const char *array, int size)
+void ByteString::append(const char *array, size_t size)
 {
 	insert(end(), array, array+size);
 }
@@ -73,7 +73,9 @@ void ByteString::serialize(Stream &s) const
 	{
 		std::ostringstream oss;
 		oss.width(2);
+		oss.fill('0');
 		oss<<std::hex<<unsigned(uint8_t(at(i)));
+		s<<oss.str();
 	}
 }
 
@@ -113,15 +115,15 @@ void ByteString::deserializeBinary(ByteStream &s)
 	assertIO(s.readBinary(*this));
 }
 
-int ByteString::readData(char *buffer, int size)
+int ByteString::readData(char *buffer, size_t size)
 {
-	size = std::min(size, int(this->size()));
+	size = std::min(size, this->size());
 	std::copy(begin(), begin()+size, buffer);
 	erase(begin(), begin()+size);
 	return size;
 }
 
-void ByteString::writeData(const char *data, int size)
+void ByteString::writeData(const char *data, size_t size)
 {
 	insert(end(), data, data+size);
 }

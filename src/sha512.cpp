@@ -25,9 +25,42 @@
  */
 
 #include "sha512.h"
+#include "exception.h"
 
 namespace arc
 {
+
+void Sha512::Hash(const char *data, size_t size, ByteStream &out)
+{
+	Sha512 sha;
+	sha.process(data,size);
+	sha.finalize(out);
+}
+
+void Sha512::Hash(ByteStream &data, ByteStream &out)
+{
+	Sha512 sha;
+	sha.process(data);
+	sha.finalize(out);
+}
+
+
+/* Various macros */
+#define ROR64c(x, y)															\
+    ( ((((x)&CONST64(0xFFFFFFFFFFFFFFFF))>>((uint64_t)(y)&CONST64(63))) |		\
+      ((x)<<((uint64_t)(64-((y)&CONST64(63)))))) & CONST64(0xFFFFFFFFFFFFFFFF))
+
+#define STORE64H(x, y)																	\
+   { (y)[0] = (unsigned char)(((x)>>56)&255); (y)[1] = (unsigned char)(((x)>>48)&255);	\
+     (y)[2] = (unsigned char)(((x)>>40)&255); (y)[3] = (unsigned char)(((x)>>32)&255);	\
+     (y)[4] = (unsigned char)(((x)>>24)&255); (y)[5] = (unsigned char)(((x)>>16)&255);	\
+     (y)[6] = (unsigned char)(((x)>>8)&255); (y)[7] = (unsigned char)((x)&255); }
+
+#define LOAD64H(x, y)															\
+   { x = (((uint64_t)((y)[0] & 255))<<56)|(((uint64_t)((y)[1] & 255))<<48) |	\
+         (((uint64_t)((y)[2] & 255))<<40)|(((uint64_t)((y)[3] & 255))<<32) |	\
+         (((uint64_t)((y)[4] & 255))<<24)|(((uint64_t)((y)[5] & 255))<<16) |	\
+         (((uint64_t)((y)[6] & 255))<<8)|(((uint64_t)((y)[7] & 255))); }
 
 /* Various logical functions */
 #define CH(x,y,z)       (z ^ (x & (y ^ z)))
@@ -109,35 +142,44 @@ void Sha512::init(void)
 }
 
 // Process a block of memory though the hash
-void Sha512::process(const unsigned char *in, unsigned long inlen) 
+void Sha512::process(const char *data, size_t size)
 {
-	Assert(in != NULL);
-	Assert(curlen <= sizeof(buf);
+	Assert(data != NULL);
+	Assert(curlen <= sizeof(buf));
 	
-	while (inlen > 0)
+	while (size)
 	{
-		if (curlen == 0 && inlen >= 128)
+		if (curlen == 0 && size >= 128)
 		{
-			compress((unsigned char *)in);
+			compress(reinterpret_cast<const unsigned char*>(data));
 			
 			length += 128 * 8;
-			in+= 128;
-			inlen-= 128;
-		} 
+			data+= 128;
+			size-= 128;
+		}
 		else {
-			unsigned long n = std::min(inlen, (128 - curlen));
-			std::memcpy(buf + curlen, in, (size_t)n);
+			size_t n = std::min(size, size_t(128 - curlen));
+			std::memcpy(buf + curlen, data, n);
 			curlen += n;
-			in+= n;
-			inlen-= n;
+			data+= n;
+			size-= n;
 			if (curlen == 128)
 			{
-				compress(md, buf);
+				compress(buf);
 				length += 8*128;
 				curlen = 0;
 			}
 		}
 	}
+}
+
+// Process a stream though the hash
+void Sha512::process(ByteStream &data)
+{
+	char buffer[BufferSize];
+	size_t size = data.read(buffer, BufferSize);
+	while(size)
+		process(buffer, size);
 }
 
 // Terminate the hash to get the digest
@@ -152,7 +194,7 @@ void Sha512::finalize(unsigned char *out)
 	length += curlen * CONST64(8);
 	
 	/* append the '1' bit */
-	buf[curlen++] = (unsigned char)0x80;
+	buf[curlen++] = 0x80;
 	
 	/* if the length is currently above 112 bytes we append zeros
 	 * then compress.  Then we can fall back to padding zeros and length
@@ -161,9 +203,9 @@ void Sha512::finalize(unsigned char *out)
 	if (curlen > 112)
 	{
 		while (curlen < 128)
-			buf[curlen++] = (unsigned char)0;
+			buf[curlen++] = 0;
 
-		compress(md, buf);
+		compress(buf);
 		curlen = 0;
 	}
 	
@@ -172,19 +214,27 @@ void Sha512::finalize(unsigned char *out)
 	 * > 2^64 bits of data... :-)
 	 */
 	while (curlen < 120)
-		buf[curlen++] = (unsigned char)0;
+		buf[curlen++] = 0;
 	
-	/* store length */
+	// store length */
 	STORE64H(length, buf+120);
-	compress(md, buf);
+	compress(buf);
 	
-	/* copy output */
+	// copy output
 	for (i = 0; i < 8; i++)
 		STORE64H(state[i], out+(8*i));
 }
 
-/* compress 1024-bits */
-void Sha512::compress(unsigned char *buf)
+// Terminate the hash to get the digest
+void Sha512::finalize(ByteStream &out)
+{
+	unsigned char temp[64];
+	finalize(temp);
+	out.write(reinterpret_cast<char*>(temp),64);
+}
+
+// Compress 1024-bits
+void Sha512::compress(const unsigned char *buf)
 {
 	uint64_t S[8], W[80], t0, t1;
 	int i;
@@ -223,4 +273,6 @@ void Sha512::compress(unsigned char *buf)
 	/* feedback */
 	for (i = 0; i < 8; i++)
 		state[i] = state[i] + S[i];
+}
+
 }

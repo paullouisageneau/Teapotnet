@@ -21,11 +21,20 @@
 
 #include "main.h"
 #include "httpd.h"
+#include "sha512.h"
 
 using namespace arc;
 
 int main(int argc, char** argv)
 {
+	// TEST
+	String test = "The quick brown fox jumps over the lazy dog";
+	ByteString result;
+	Sha512::Hash(test.data(),test.size(), result);
+
+	std::cout<<"Data: "<<test<<std::endl;
+	std::cout<<"Hash: "<<result.toString()<<std::endl;
+
 	// TEST
 	Httpd *httpd = new Httpd(8080);
 	httpd->start();

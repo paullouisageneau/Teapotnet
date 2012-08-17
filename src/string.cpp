@@ -274,15 +274,15 @@ void String::deserializeBinary(ByteStream &s)
 	}
 }
 
-int String::readData(char *buffer, int size)
+int String::readData(char *buffer, size_t size)
 {
-	size = std::min(size,int(this->size()));
+	size = std::min(size,this->size());
 	std::copy(begin(),begin()+size,buffer);
 	erase(begin(),begin()+size); // WARNING: linear with string size
 	return size;
 }
 
-void String::writeData(const char *data, int size)
+void String::writeData(const char *data, size_t size)
 {
 	insert(end(), data, data+size);
 }

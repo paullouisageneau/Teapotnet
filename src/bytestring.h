@@ -35,13 +35,13 @@ class ByteString : public std::deque<char>, public ByteStream, public Serializab
 {
 public:	
 	ByteString(void);
-	ByteString(const char *data, int size);
+	ByteString(const char *data, size_t size);
 	virtual ~ByteString(void);
 
 	void clear(void);
 	void append(char value, int n = 1);
 	void append(const ByteString &bs);
-	void append(const char *array, int size);
+	void append(const char *array, size_t size);
 	void fill(char value, int n);
 
 	// Serializable
@@ -51,8 +51,8 @@ public:
 	virtual void deserializeBinary(ByteStream &s);
 
 protected:
-	int readData(char *buffer, int size);
-	void writeData(const char *data, int size);
+	int readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 };
 
 }

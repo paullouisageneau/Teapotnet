@@ -23,7 +23,9 @@
 #define ARC_SHA512_H
 
 #include "include.h"
+#include "bytestream.h"
 #include "bytestring.h"
+#include "bytearray.h"
 
 namespace arc
 {
@@ -31,21 +33,26 @@ namespace arc
 class Sha512
 {
 public:
+	static void Hash(const char *data, size_t size, ByteStream &out);
+	static void Hash(ByteStream &data, ByteStream &out);
+
 	Sha512(void);
-	virtual ~Sha512(void);
+	~Sha512(void);
 	
 	void init(void);
-	void process(const unsigned char *in, unsigned long inlen);
+	void process(const char *data, size_t size);
+	void process(ByteStream &data);
 	void finalize(unsigned char *out);
+	void finalize(ByteStream &out);
 	
 private:
 	static const uint64_t K[80];
 	
-	void compress(unsigned char *buf);
+	void compress(const unsigned char *buf);
 	
 	uint64_t  length, state[8];
-	unsigned long curlen;
 	unsigned char buf[128];
+	int curlen;
 };
 
 }

@@ -42,7 +42,7 @@ void Pipe::close(void)
 	mMutex.unlock();
 }
 
-int Pipe::readData(char *buffer, int size)
+int Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();
 	while(mBuffer.empty())
@@ -61,7 +61,7 @@ int Pipe::readData(char *buffer, int size)
 	return size;
 }
 
-void Pipe::writeData(const char *data, int size)
+void Pipe::writeData(const char *data, size_t size)
 {
 	if(size == 0) return;
 	if(mIsClosed) throw IOException("Pipe is closed, cannot write");

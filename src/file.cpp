@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "file.h"
+#include "exception.h"
 
 namespace arc
 {
@@ -44,15 +45,15 @@ File::~File(void)
 	close();
 }
 
-int File::readData(char *buffer, int size)
+int File::readData(char *buffer, size_t size)
 {
-	readsome(buffer, size);
+	std::fstream::readsome(buffer, size);
 	return gcount();
 }
 
-void File::writeData(const char *data, int size)
+void File::writeData(const char *data, size_t size)
 {
-	write(data,size);
+	std::fstream::write(data,size);
 }
 
 }

@@ -40,7 +40,7 @@ public:
 
 	void append(const T &value, int n = 1);
 	void append(const Array<T> array);
-	void append(const T *array, int size);
+	void append(const T *array, size_t size);
 	void fill(const T &value, int n);
 
 	bool remove(const T &value);
@@ -80,7 +80,7 @@ void Array<T>::append(const Array<T> array)
 }
 
 template<typename T>
-void Array<T>::append(const T *array, int size)
+void Array<T>::append(const T *array, size_t size)
 {
 	this->insert(this->end(),array,array+size);
 }

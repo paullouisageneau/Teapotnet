@@ -114,8 +114,8 @@ protected:
 	static const String BlankCharacters;
 	static const String FieldDelimiters;
 
-	virtual int readData(char *buffer, int size) = 0;
-	virtual void writeData(const char *data, int size) = 0;
+	virtual int readData(char *buffer, size_t size) = 0;
+	virtual void writeData(const char *data, size_t size) = 0;
 
 	char mLast;
 

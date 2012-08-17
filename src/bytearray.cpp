@@ -25,9 +25,9 @@
 namespace arc
 {
 
-ByteArray::ByteArray(int size) :
-		mData(new char[size]),
-		mSize(size),
+ByteArray::ByteArray(size_t size) :
+		mArray(new char[size]),
+		mLength(size),
 		mLeft(0),
 		mReadPos(0),
 		mWritePos(0),
@@ -36,9 +36,9 @@ ByteArray::ByteArray(int size) :
 
 }
 
-ByteArray::ByteArray(char *data, int size) :
-		mData(data),
-		mSize(size),
+ByteArray::ByteArray(char *array, size_t length) :
+		mArray(array),
+		mLength(length),
 		mLeft(0),
 		mReadPos(0),
 		mWritePos(0),
@@ -48,8 +48,8 @@ ByteArray::ByteArray(char *data, int size) :
 }
 
 ByteArray::ByteArray(const ByteArray &array) :
-	mData(array.mData),
-	mSize(array.mSize),
+	mArray(array.mArray),
+	mLength(array.mLength),
 	mLeft(array.mLeft),
 	mReadPos(array.mReadPos),
 	mWritePos(array.mWritePos),
@@ -60,15 +60,30 @@ ByteArray::ByteArray(const ByteArray &array) :
 
 ByteArray::~ByteArray(void)
 {
-	if(mMustDelete) delete mData;
+	if(mMustDelete) delete mArray;
+}
+
+char *ByteArray::array(void)
+{
+	return mArray;
+}
+
+const char *ByteArray::array(void) const
+{
+	return mArray;
+}
+
+size_t ByteArray::length(void) const
+{
+	return mLength;
 }
 
 const char *ByteArray::data(void) const
 {
-	return mData+mReadPos;
+	return mArray+mReadPos;
 }
 
-int ByteArray::size(void) const
+size_t ByteArray::size(void) const
 {
 	return mLeft;
 }
@@ -80,20 +95,20 @@ void ByteArray::clear(void)
 	mLeft = 0;
 }
 
-int ByteArray::readData(char *buffer, int size)
+int ByteArray::readData(char *buffer, size_t size)
 {
 	if(mLeft <= 0) return 0;
 	size = std::min(size,mLeft);
-	std::copy(mData+mReadPos, mData+mReadPos+size, buffer);
+	std::copy(mArray+mReadPos, mArray+mReadPos+size, buffer);
 	mReadPos+= size;
 	mLeft-= size;
 	return size;
 }
 
-void ByteArray::writeData(const char *data, int size)
+void ByteArray::writeData(const char *data, size_t size)
 {
-	if(mWritePos+size > mSize) throw IOException();
-	std::copy(data, data+size, mData+mWritePos+size);
+	if(mWritePos+size > mLength) throw IOException();
+	std::copy(data, data+size, mArray+mWritePos+size);
 	mWritePos+= size;
 	if(mLeft< mWritePos) mLeft = mWritePos;
 }

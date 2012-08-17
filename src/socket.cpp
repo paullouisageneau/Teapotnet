@@ -94,7 +94,7 @@ void Socket::close(void)
 	}
 }
 
-int Socket::readData(char *buffer, int size)
+int Socket::readData(char *buffer, size_t size)
 {
 	int r = recv(mSock,buffer,size,0);
 	if(r < 0)
@@ -105,7 +105,7 @@ int Socket::readData(char *buffer, int size)
 	return r;
 }
 
-void Socket::writeData(const char *data, int size)
+void Socket::writeData(const char *data, size_t size)
 {
 	// TODO: verify all the data has been sent
 	int r = send(mSock,data,size,0);

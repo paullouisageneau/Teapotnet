@@ -31,26 +31,30 @@ namespace arc
 class ByteArray : public ByteStream
 {
 public:
-	ByteArray(int size);
-	ByteArray(char *data, int size);	// data is NOT copied
-	ByteArray(const ByteArray &array);	// data is NOT copied
+	ByteArray(size_t size);
+	ByteArray(char *array, size_t length);	// data is NOT copied
+	ByteArray(const ByteArray &array);		// data is NOT copied
 	virtual ~ByteArray(void);
 
+	char *array(void);					// complete array
+	const char *array(void) const;
+	size_t length(void) const;			// total size
+
 	const char *data(void) const;		// reading position
-	int size(void) const;				// data left
+	size_t size(void) const;			// data left
 	
 	void clear(void);
-	
+
 protected:
-	int readData(char *buffer, int size);
-	void writeData(const char *data, int size);
+	int readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 
 private:
-	char *mData;
-	int mSize;
-	int mLeft;
-	int mReadPos;
-	int mWritePos;
+	char *mArray;
+	size_t mLength;
+	size_t mLeft;
+	size_t mReadPos;
+	size_t mWritePos;
 	bool mMustDelete;
 };
 

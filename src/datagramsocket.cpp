@@ -112,7 +112,7 @@ Address DatagramSocket::getLocalAddress(void)
 	return addr;
 }
 
-int DatagramSocket::read(char *buffer, int size, Address &sender)
+int DatagramSocket::read(char *buffer, size_t size, Address &sender)
 {
 	sockaddr_storage sa;
 	socklen_t sl = sizeof(sa);
@@ -122,7 +122,7 @@ int DatagramSocket::read(char *buffer, int size, Address &sender)
 	return size;
 }
 
-void DatagramSocket::write(const char *buffer, int size, const Address &receiver)
+void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
 {
 	size = sendto(mSock, buffer, size, 0, receiver.getaddr(), receiver.getaddrLen());
 	if(size < 0) throw NetException("Unable to write");
@@ -131,7 +131,7 @@ void DatagramSocket::write(const char *buffer, int size, const Address &receiver
 void DatagramSocket::read(ByteStream &stream, Address &sender)
 {
 	char buffer[MaxDatagramSize];
-	int size = MaxDatagramSize;
+	size_t size = MaxDatagramSize;
 	size = read(buffer, size, sender);
 	stream.clear();
 	stream.write(buffer,size);
@@ -140,7 +140,7 @@ void DatagramSocket::read(ByteStream &stream, Address &sender)
 void DatagramSocket::write(ByteStream &stream, const Address &receiver)
 {
 	char buffer[MaxDatagramSize];
-	int size = stream.read(buffer,MaxDatagramSize);
+	size_t size = stream.read(buffer,MaxDatagramSize);
 	stream.clear();
 	write(buffer, size, receiver);
 }

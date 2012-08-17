@@ -52,7 +52,7 @@ public:
 	void trim(void);
 
 	bool contains(char chr) const;
-	void remove(int pos, int size = String::npos);
+	void remove(int pos, int nb = String::npos);
 	bool isEmpty() const;
 
 	int indexOf(char c, int from = 0) const;
@@ -87,8 +87,8 @@ public:
 
 protected:
 	// Stream
-	int readData(char *buffer, int size);
-	void writeData(const char *data, int size);
+	int readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 };
 
 }
