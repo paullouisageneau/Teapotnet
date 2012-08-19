@@ -115,7 +115,7 @@ void ByteString::deserializeBinary(ByteStream &s)
 	assertIO(s.readBinary(*this));
 }
 
-int ByteString::readData(char *buffer, size_t size)
+size_t ByteString::readData(char *buffer, size_t size)
 {
 	size = std::min(size, this->size());
 	std::copy(begin(), begin()+size, buffer);

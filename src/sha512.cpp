@@ -44,6 +44,12 @@ void Sha512::Hash(ByteStream &data, ByteStream &out)
 	sha.finalize(out);
 }
 
+void Sha512::Hash(const String &str, ByteStream &out)
+{
+	Sha512 sha;
+	sha.process(str.data(),str.size());
+	sha.finalize(out);
+}
 
 /* Various macros */
 #define ROR64c(x, y)															\
@@ -177,8 +183,8 @@ void Sha512::process(const char *data, size_t size)
 void Sha512::process(ByteStream &data)
 {
 	char buffer[BufferSize];
-	size_t size = data.read(buffer, BufferSize);
-	while(size)
+	size_t size;
+	while((size = data.read(buffer, BufferSize)))
 		process(buffer, size);
 }
 

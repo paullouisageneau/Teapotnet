@@ -35,7 +35,7 @@ ByteStream::~ByteStream(void)
 
 }
 
-int ByteStream::read(char *buffer, size_t size)
+size_t ByteStream::read(char *buffer, size_t size)
 {
 	return readData(buffer,size);
 }
@@ -45,17 +45,31 @@ void ByteStream::write(const char *data, size_t size)
 	writeData(data,size);
 }
 
-bool ByteStream::readBinary(ByteStream &s)
+size_t ByteStream::readBinary(ByteStream &s)
 {
 	char buffer[BufferSize];
-	size_t size = readData(buffer,BufferSize);
-	if(!size) return false;
-	while(size)
+	size_t total = 0;
+	size_t size;
+	while((size = readData(buffer,BufferSize)))
 	{
+		total+= size;
 		s.writeData(buffer,size);
 		size = readData(buffer,BufferSize);
 	}
-	return true;
+	return total;
+}
+
+size_t ByteStream::readBinary(ByteStream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = readData(buffer,std::min(BufferSize,left))))
+	{
+		left-= size;
+		s.writeData(buffer,size);
+	}
+	return max-left;
 }
 
 bool ByteStream::readBinary(Serializable &s)
@@ -190,12 +204,7 @@ bool ByteStream::readTime(double &t)
 
 void ByteStream::writeBinary(ByteStream &s)
 {
-	char buffer[BufferSize];
-	size_t size;
-	while((size = s.readData(buffer,BufferSize)) > 0)
-	{
-		writeData(buffer,size);
-	}
+	s.readBinary(*this);
 }
 
 void ByteStream::writeBinary(const Serializable &s)

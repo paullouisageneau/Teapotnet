@@ -29,7 +29,7 @@ namespace arc
 const String Stream::IgnoredCharacters = "\r\0";
 const String Stream::BlankCharacters = " \t";
 const String Stream::FieldDelimiters = ",;\n";	// Must NOT contain '.', '=', and ':'
-const char Stream::NewLine = ' ';
+const char Stream::NewLine = '\n';
 const char Stream::Space = ' ';
 
 Stream::Stream(void)
@@ -99,18 +99,32 @@ Stream &Stream::operator<<(Stream &s)
 	return (*this);
 }
 
-bool Stream::read(Stream &s)
+size_t Stream::read(Stream &s)
 {
 	char buffer[BufferSize];
-	size_t size = readData(buffer,BufferSize);
-	if(!size) return false;
-	while(size)
+	size_t total = 0;
+	size_t size;
+	while((size = readData(buffer,BufferSize)))
 	{
+		total+= size;
 		mLast = buffer[size-1];
 		s.writeData(buffer,size);
-		size = readData(buffer,BufferSize);
 	}
-	return true;
+	return total;
+}
+
+size_t Stream::read(Stream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while((size = readData(buffer,std::min(BufferSize,left))))
+	{
+		left-=size;
+		mLast = buffer[size-1];
+		s.writeData(buffer,size);
+	}
+	return max-left;
 }
 
 bool Stream::read(Serializable &s)
@@ -170,12 +184,7 @@ bool Stream::readBool(void)
 
 void Stream::write(Stream &s)
 {
-	char buffer[BufferSize];
-	size_t size;
-	while((size = s.readData(buffer,BufferSize)) > 0)
-	{
-		writeData(buffer,size);
-	}
+	s.read(*this);
 }
 
 void Stream::write(const Serializable &s)
@@ -257,12 +266,6 @@ bool Stream::readField(Stream &output)
 bool Stream::readLine(Stream &output)
 {
 	return readString(output,String(NewLine),false);
-}
-
-bool Stream::writeLine(const String &input)
-{
-	write(input);
-	write(NewLine);
 }
 
 bool Stream::readStdString(std::string &output)

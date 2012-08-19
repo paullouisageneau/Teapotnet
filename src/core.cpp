@@ -57,48 +57,60 @@ void Core::remove(const Address &addr)
 	}
 }
 
-Core::Handler::Handler(Core *core, Stream *stream) :
+Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
-	mStream(stream)
+	mSock(sock)
 {
 
 }
 
 Core::Handler::~Handler(void)
 {
-	delete mStream;
+	delete mSock;
 	delete mHandler;
 }
 
 void Core::Handler::run(void)
 {
 	String line;
-	if(!mStream->readLine(line))
+	if(!mSock->readLine(line))
 		return;
 
 	String proto;
 	String version;
 	line.readString(proto);
-	line.readString(version);	
+	line.readString(version);
 
-	while(mStream->readLine(line))
+	unlock();
+	while(mSock->readLine(line))
 	{
+		lock();
+
+		String command;
+		line.read(command);
+		command = command.toUpper();
+
 		unsigned channel, size;
 		line.read(channel);
 		line.read(size);
-		
-		if(channel == 0)
+
+		if(command == "DATA")
 		{
+			ByteStream *bs;
+			if(mChannels.get(channel,bs))
+			{
+				if(size) {
+					mSock->readBinary(*bs,size);
+				}
+				else {
+					delete bs;
+					mChannels.erase(channel);
+				}
+			}
 
 		}
-		else {	
-			Pipe *pipe;
-			if(mChannels.get(channel,pipe))
-			{
-				// TODO: Limited read
-				//mStream->read(*pipe);
-			}
-		}
+
+		unlock();
 	}
 
 	//mCore->remove(this);

@@ -28,7 +28,7 @@
 namespace arc
 {
 
-class Thread : virtual public Synchronizable
+class Thread
 {
 public:
 	Thread(void);											// start the run() member function on start()
@@ -80,7 +80,7 @@ private:
 
 template<typename T> Thread::Thread(void (*func)(void))
 {
-	assert(func != NULL);
+	Assert(func != NULL);
 	VoidWrapper<T> *wrapper = new VoidWrapper<T>;
 	wrapper->thread = this;
 	wrapper->func = func;
@@ -89,7 +89,7 @@ template<typename T> Thread::Thread(void (*func)(void))
 
 template<typename T> Thread::Thread(void (*func)(T*), T *arg)
 {
-	assert(func != NULL);
+	Assert(func != NULL);
 	ArgWrapper<T> *wrapper = new ArgWrapper<T>;
 	wrapper->thread = this;
 	wrapper->func = func;

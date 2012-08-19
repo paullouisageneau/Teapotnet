@@ -25,19 +25,16 @@
 namespace arc
 {
 
+bool File::Exist(const String &filename)
+{
+	std::fstream file;
+	file.open(filename.c_str(), std::ios_base::in);
+	return file.is_open();
+}
+
 File::File(const String &filename, File::OpenMode mode)
 {
-	ios_base::openmode m;
-	switch(mode)
-	{
-	case Read:		m = ios_base::in;				break;
-	case Write:		m = ios_base::out;				break;
-	case Append:	m = ios_base::app;				break;
-	default:		m = ios_base::in|ios_base::out;	break;
-	}
-
-	open(filename.c_str(), m);
-	if(!is_open()) throw IOException(String("Unable to open file ")+filename);
+	open(filename,mode);
 }
 
 File::~File(void)
@@ -45,10 +42,34 @@ File::~File(void)
 	close();
 }
 
-int File::readData(char *buffer, size_t size)
+void File::open(const String &filename, OpenMode mode)
+{
+	std::ios_base::openmode m;
+	switch(mode)
+	{
+	case Read:		m = std::ios_base::in;						break;
+	case Write:		m = std::ios_base::out;						break;
+	case Append:	m = std::ios_base::app;						break;
+	default:		m = std::ios_base::in|std::ios_base::out;	break;
+	}
+
+	std::fstream::open(filename.c_str(), m);
+	if(!is_open()) throw IOException(String("Unable to open file: ")+filename);
+}
+
+size_t File::size(void)
+{
+	pos_type pos = std::fstream::tellg();
+	std::fstream::seekg(0, std::ios_base::end);
+	pos_type size = std::fstream::tellg();
+	std::fstream::seekg(pos);
+	return size_t(size);
+}
+
+size_t File::readData(char *buffer, size_t size)
 {
 	std::fstream::readsome(buffer, size);
-	return gcount();
+	return std::fstream::gcount();
 }
 
 void File::writeData(const char *data, size_t size)

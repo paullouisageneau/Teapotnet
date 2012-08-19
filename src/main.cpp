@@ -22,6 +22,7 @@
 #include "main.h"
 #include "httpd.h"
 #include "sha512.h"
+#include "store.h"
 
 using namespace arc;
 
@@ -30,15 +31,19 @@ int main(int argc, char** argv)
 	// TEST
 	String test = "The quick brown fox jumps over the lazy dog";
 	ByteString result;
-	Sha512::Hash(test.data(),test.size(), result);
+	Sha512::Hash(test, result);
 
 	std::cout<<"Data: "<<test<<std::endl;
 	std::cout<<"Hash: "<<result.toString()<<std::endl;
 
+	Store store;
+	store.addDirectory("/home/paulo/images");
+	store.refresh();
+
 	// TEST
-	Httpd *httpd = new Httpd(8080);
+	/*Httpd *httpd = new Httpd(8080);
 	httpd->start();
-	httpd->join();
+	httpd->join();*/
 	
 	return 0;
 }

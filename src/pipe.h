@@ -34,16 +34,17 @@ class Pipe : public Stream, public ByteStream
 {
 public:
 	Pipe(void);
+	Pipe(ByteStream *buffer);	// buffer destroyed at deletion
 	virtual ~Pipe(void);
 
 	void close(void);
 
 protected:
-	int readData(char *buffer, size_t size);
+	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
 private:
-	ByteString mBuffer;
+	ByteStream *mBuffer;
 	Mutex mMutex;
 	Signal mSignal;
 	bool mIsClosed;

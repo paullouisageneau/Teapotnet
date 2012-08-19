@@ -47,7 +47,8 @@ public:
 	bool ignoreUntil(const String &delimiters);
 	bool ignoreWhile(const String &chars);
 
-	bool	read(Stream &s);
+	size_t	read(Stream &s);
+	size_t	read(Stream &s, size_t max);
 	bool	read(Serializable &s);
 	bool	read(String &s);
 	bool	read(bool &b);
@@ -102,7 +103,9 @@ public:
 	bool readString(Stream &output);	// delimiters = BlankCharacters, output is trimmed
 	bool readField(Stream &output);		// delimiters = FieldDelimiters
 	bool readLine(Stream &output);		// delimiter  = NewLine
-	bool writeLine(const String &input);
+
+	template<typename T> bool readLine(T &output);
+	template<typename T> bool writeLine(const T &input);
 
 	// TODO: operator !
 
@@ -114,7 +117,7 @@ protected:
 	static const String BlankCharacters;
 	static const String FieldDelimiters;
 
-	virtual int readData(char *buffer, size_t size) = 0;
+	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
 
 	char mLast;
@@ -129,6 +132,7 @@ private:
 
 // NB: String is not defined here, as it herits from Stream.
 // Threrefore, it cannot be used in template functions defined here.
+// Template functions readLine() and writeLine() are defined in string.h
 
 class IOException;
 

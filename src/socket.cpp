@@ -94,7 +94,7 @@ void Socket::close(void)
 	}
 }
 
-int Socket::readData(char *buffer, size_t size)
+size_t Socket::readData(char *buffer, size_t size)
 {
 	int r = recv(mSock,buffer,size,0);
 	if(r < 0)

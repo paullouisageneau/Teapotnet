@@ -23,7 +23,6 @@
 #define ARC_CORE_H
 
 #include "include.h"
-#include "map.h"
 #include "address.h"
 #include "stream.h"
 #include "socket.h"
@@ -31,7 +30,11 @@
 #include "thread.h"
 #include "mutex.h"
 #include "signal.h"
+#include "identifier.h"
+#include "resource.h"
 #include "synchronizable.h"
+#include "map.h"
+#include "array.h"
 
 namespace arc
 {
@@ -45,10 +48,10 @@ public:
 	void add(Socket *sock);
 
 protected:
-	class Handler : public Thread
+	class Handler : public Thread, public Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *stream);
+		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
 	protected:
@@ -56,9 +59,9 @@ protected:
 
 	private:
 		Core	*mCore;
-		Stream  *mStream;
+		Socket  *mSock;
 		Handler *mHandler;
-		Map<unsigned, Pipe*> mChannels;
+		Map<unsigned, ByteStream*> mChannels;
 	};
 
 	void add(const Address &addr, Handler *Handler);

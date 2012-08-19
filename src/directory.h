@@ -19,98 +19,44 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "bytearray.h"
-#include "exception.h"
+#ifndef ARC_DIRECTORY_H
+#define ARC_DIRECTORY_H
+
+#include "include.h"
+#include "string.h"
+
+#include "dirent.h"
 
 namespace arc
 {
 
-ByteArray::ByteArray(size_t size) :
-		mArray(new char[size]),
-		mLength(size),
-		mLeft(0),
-		mReadPos(0),
-		mWritePos(0),
-		mMustDelete(true)
+class Directory
 {
+public:
+	static const char Separator;
+
+	Directory(void);
+	Directory(const String &path);
+	~Directory(void);
+
+	void open(const String &path);
+	void close(void);
+
+	String path(void) const;	// trailing separator added if necessary
+
+	bool nextFile(void);
+	String fileName(void) const;
+	String filePath(void) const;
+	time_t fileTime(void) const;
+	size_t fileSize(void) const;
+	bool fileIsDir(void) const;
+
+private:
+	String mPath;
+	DIR *mDir;
+	struct dirent *mDirent;
+};
 
 }
 
-ByteArray::ByteArray(char *array, size_t length) :
-		mArray(array),
-		mLength(length),
-		mLeft(0),
-		mReadPos(0),
-		mWritePos(0),
-		mMustDelete(false)
-{
-
-}
-
-ByteArray::ByteArray(const ByteArray &array) :
-	mArray(array.mArray),
-	mLength(array.mLength),
-	mLeft(array.mLeft),
-	mReadPos(array.mReadPos),
-	mWritePos(array.mWritePos),
-	mMustDelete(false)
-{
-
-}
-
-ByteArray::~ByteArray(void)
-{
-	if(mMustDelete) delete mArray;
-}
-
-char *ByteArray::array(void)
-{
-	return mArray;
-}
-
-const char *ByteArray::array(void) const
-{
-	return mArray;
-}
-
-size_t ByteArray::length(void) const
-{
-	return mLength;
-}
-
-const char *ByteArray::data(void) const
-{
-	return mArray+mReadPos;
-}
-
-size_t ByteArray::size(void) const
-{
-	return mLeft;
-}
-
-void ByteArray::clear(void)
-{
-	mReadPos = 0;
-	mWritePos = 0;
-	mLeft = 0;
-}
-
-size_t ByteArray::readData(char *buffer, size_t size)
-{
-	if(mLeft <= 0) return 0;
-	size = std::min(size,mLeft);
-	std::copy(mArray+mReadPos, mArray+mReadPos+size, buffer);
-	mReadPos+= size;
-	mLeft-= size;
-	return size;
-}
-
-void ByteArray::writeData(const char *data, size_t size)
-{
-	if(mWritePos+size > mLength) throw IOException();
-	std::copy(data, data+size, mArray+mWritePos+size);
-	mWritePos+= size;
-	if(mLeft< mWritePos) mLeft = mWritePos;
-}
-
-}
+#endif

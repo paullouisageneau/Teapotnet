@@ -87,9 +87,25 @@ public:
 
 protected:
 	// Stream
-	int readData(char *buffer, size_t size);
+	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 };
+
+
+// Templates functions from Stream using String are defined here
+
+template<typename T> bool Stream::readLine(T &output)
+{
+	String line;
+	if(!readLine(line)) return false;
+	return line.read(output);
+}
+
+template<typename T> bool Stream::writeLine(const T &input)
+{
+	write(input);
+	write(NewLine);
+}
 
 }
 

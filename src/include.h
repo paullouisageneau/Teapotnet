@@ -94,7 +94,7 @@ typedef int ctl_t;
 #endif
 
 #ifndef NULL
-#define NULL 0L
+#define NULL (void*)(0L)
 #endif
 
 #ifndef HOST_NAME_MAX
@@ -108,9 +108,9 @@ typedef int ctl_t;
 namespace arc
 {
 
-typedef signed char		sint8_t;	// 8 bits
+typedef signed char			sint8_t;	// 8 bits
 typedef signed short		sint16_t;	// 16 bits
-typedef signed int		sint32_t;	// 32 bits
+typedef signed int			sint32_t;	// 32 bits
 typedef signed long long	sint64_t;	// 64 bits
 
 typedef unsigned char		uint8_t;	// 8 bits
@@ -118,18 +118,10 @@ typedef unsigned short		uint16_t;	// 16 bits
 typedef unsigned int		uint32_t;	// 32 bits
 typedef unsigned long long	uint64_t;	// 64 bits
 
-typedef float			float32_t;	// 32 bits float
-typedef double			float64_t;	// 64 bits float
+typedef float				float32_t;	// 32 bits float
+typedef double				float64_t;	// 64 bits float
 
 #define CONST64(n) n ## ULL	// 64 bits unsigned constant
-
-#ifdef DEBUG
-#define Log	std::cout<<__FILE__<<" "<<std::dec<<__LINE__<<" "
-#else
-#define Log	std::cout
-#endif
-
-#define VAR(x) Log<<""#x"="<<x<<std::endl;
 
 template<typename T> T bounds(T val, T val_min, T val_max)
 {
@@ -151,7 +143,21 @@ template<typename T> void msleep(T msecs)
 #endif
 }
 
-const int BufferSize = 4096;
+template<typename T> void Log(const char *prefix, const T &value)
+{
+#ifdef DEBUG
+	std::cout<<__FILE__<<" "<<std::dec<<__LINE__<<" "<<prefix<<": "<<str<<std::endl;
+#else
+	std::cout<<prefix<<": "<<value<<std::endl;
+#endif
+}
+
+#define VAR(x) std::cout<<""#x"="<<x<<std::endl;
+
+const size_t BufferSize = 4096;
+
+#define Set std::set
+#define List std::list
 
 }
 

@@ -46,7 +46,7 @@ public:
 	void clear(void);
 
 protected:
-	int readData(char *buffer, size_t size);
+	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
 private:

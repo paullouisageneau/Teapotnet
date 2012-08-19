@@ -36,10 +36,11 @@ public:
 	ByteStream(void);
 	virtual ~ByteStream(void);
 
-	int		read(char *buffer, size_t size);
+	size_t	read(char *buffer, size_t size);
 	void	write(const char *data, size_t size);
 
-	bool	readBinary(ByteStream &s);
+	size_t	readBinary(ByteStream &s);
+	size_t	readBinary(ByteStream &s, size_t max);
 	bool	readBinary(Serializable &s);
 	bool	readBinary(ByteString &s);
 	bool	readBinary(sint8_t &i);
@@ -87,7 +88,7 @@ public:
 	virtual void ignore(int n = 1);
 	
 protected:
-	virtual int readData(char *buffer, size_t size) = 0;
+	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
 
 private:

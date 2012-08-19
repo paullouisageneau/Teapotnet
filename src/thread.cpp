@@ -90,23 +90,19 @@ void Thread::run(void)
 void *Thread::ThreadRun(void *myThread)
 {
 	Thread *thread = reinterpret_cast<Thread*>(myThread);
-	thread->lock();
 	thread->mRunning = true;
 	thread->run();
 	thread->mRunning = false;
-	thread->unlock();
 	pthread_exit(NULL);
 }
 
 void *Thread::ThreadCall(void *myWrapper)
 {
 	Wrapper *wrapper = reinterpret_cast<Wrapper*>(myWrapper);
-	wrapper->thread->lock();
 	wrapper->thread->mRunning = true;
 	wrapper->call();
 	delete wrapper;
 	wrapper->thread->mRunning = false;
-	wrapper->thread->unlock();
 	pthread_exit(NULL);
 }
 

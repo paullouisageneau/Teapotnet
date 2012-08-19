@@ -33,15 +33,24 @@ namespace arc
 class Store
 {
 public:
+	static const String DatabaseDirectory;
+
 	Store(void);
 	~Store(void);
 
-	void add(Resource *resource);
+	void addDirectory(const String &path);
+	void removeDirectory(const String &path);
+
+	void refresh(void);
+	void refreshDirectory(const String &directoryPath);
+
 	Resource *get(const Identifier &identifier);
 
 protected:
+	Set<String> mDirectories;
+
 	Map<Identifier,Resource*> mResources;
-	std::list<Resource*> mSorted;	// TODO
+	List<Resource*> mSorted;	// TODO
 };
 
 }

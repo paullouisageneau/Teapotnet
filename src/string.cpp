@@ -274,7 +274,7 @@ void String::deserializeBinary(ByteStream &s)
 	}
 }
 
-int String::readData(char *buffer, size_t size)
+size_t String::readData(char *buffer, size_t size)
 {
 	size = std::min(size,this->size());
 	std::copy(begin(),begin()+size,buffer);

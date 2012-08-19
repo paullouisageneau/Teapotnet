@@ -34,13 +34,19 @@ namespace arc
 class File : public Stream, public ByteStream, public std::fstream
 {
 public:
+	static bool Exist(const String &filename);
+
 	enum OpenMode { Read, Write, ReadWrite, Append };
 
+	File(void);
 	File(const String &filename, OpenMode mode = ReadWrite);
-	virtual ~File(void);
+	~File(void);
+
+	void open(const String &filename, OpenMode mode = ReadWrite);
+	size_t size(void);
 
 protected:
-	int readData(char *buffer, size_t size);
+	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 };
 

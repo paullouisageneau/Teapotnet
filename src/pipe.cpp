@@ -20,11 +20,21 @@
  *************************************************************************/
 
 #include "pipe.h"
+#include "bytestring.h"
 
 namespace arc
 {
 
-Pipe::Pipe(void)
+Pipe::Pipe(void) :
+	mBuffer(new ByteString),
+	mIsClosed(false)
+{
+
+}
+
+Pipe::Pipe(ByteStream *buffer) :
+		mBuffer(buffer),
+		mIsClosed(false)
 {
 
 }
@@ -32,6 +42,7 @@ Pipe::Pipe(void)
 Pipe::~Pipe(void)
 {
 	close();
+	delete mBuffer;
 }
 
 void Pipe::close(void)
@@ -42,10 +53,11 @@ void Pipe::close(void)
 	mMutex.unlock();
 }
 
-int Pipe::readData(char *buffer, size_t size)
+size_t Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();
-	while(mBuffer.empty())
+	size_t len;
+	while((len = mBuffer->read(buffer,size)) == 0)
 	{
 		if(mIsClosed)
 		{
@@ -56,9 +68,8 @@ int Pipe::readData(char *buffer, size_t size)
 		mSignal.wait(mMutex);
 	}
 
-	size = mBuffer.read(buffer,size);
 	mMutex.unlock();
-	return size;
+	return len;
 }
 
 void Pipe::writeData(const char *data, size_t size)
@@ -67,7 +78,7 @@ void Pipe::writeData(const char *data, size_t size)
 	if(mIsClosed) throw IOException("Pipe is closed, cannot write");
 
 	mMutex.lock();
-	mBuffer.write(data,size);
+	mBuffer->write(data,size);
 	mMutex.unlock();
 	mSignal.launchAll();
 }

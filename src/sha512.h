@@ -25,7 +25,7 @@
 #include "include.h"
 #include "bytestream.h"
 #include "bytestring.h"
-#include "bytearray.h"
+#include "string.h"
 
 namespace arc
 {
@@ -35,6 +35,7 @@ class Sha512
 public:
 	static void Hash(const char *data, size_t size, ByteStream &out);
 	static void Hash(ByteStream &data, ByteStream &out);
+	static void Hash(const String &str, ByteStream &out);
 
 	Sha512(void);
 	~Sha512(void);
