@@ -42,7 +42,16 @@ public:
 	V &get(const K &key);
 };
 
-typedef Map<String,String> StringMap;
+template<typename K, typename V>
+class SerializableMap : public Map<K,V>, public Serializable
+{
+	void serialize(Stream &s) const;
+	void deserialize(Stream &s);
+	void serializeBinary(ByteStream &s) const;
+	void deserializeBinary(ByteStream &s);
+};
+
+typedef SerializableMap<String,String> StringMap;
 
 template<typename K, typename V>
 void Map<K,V>::insert(const K &key, const V &value)
@@ -80,6 +89,67 @@ V &Map<K,V>::get(const K &key)
 	typename std::map<K,V>::iterator it = this->find(key);
 	if(it == this->end()) throw OutOfBounds("Map key does not exist");
 	return it->second;
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::serialize(Stream &s) const
+{
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+			it != this->end();
+			++it)
+	{
+		s<<it->first<<"="<<it->second<<Stream::NewLine;
+	}
+
+	s<<Stream::NewLine;
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::deserialize(Stream &s)
+{
+	this->clear();
+
+	String line;
+	while(s.readLine(line) && !line.empty())
+	{
+		String second = line.cut('=');
+		K key;
+		V value;
+		line.read(key);
+		second.read(value);
+		this->insert(key,value);
+	}
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::serializeBinary(ByteStream &s) const
+{
+	s.writeBinary(uint32_t(this->size()));
+
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+				it != this->end();
+				++it)
+	{
+		s.writeBinary(it->first);
+		s.writeBinary(it->second);
+	}
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::deserializeBinary(ByteStream &s)
+{
+	this->clear();
+	uint32_t size;
+	AssertIO(s.readBinary(size));
+
+	for(uint32_t i=0; i<size; ++i)
+	{
+		K key;
+		V value;
+		AssertIO(s.readBinary(key));
+		AssertIO(s.readBinary(value));
+		this->insert(key,value);
+	}
 }
 
 }

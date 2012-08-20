@@ -36,8 +36,8 @@ public:
 	ByteStream(void);
 	virtual ~ByteStream(void);
 
-	size_t	read(char *buffer, size_t size);
-	void	write(const char *data, size_t size);
+	virtual size_t readData(char *buffer, size_t size) = 0;
+	virtual void writeData(const char *data, size_t size) = 0;
 
 	size_t	readBinary(ByteStream &s);
 	size_t	readBinary(ByteStream &s, size_t max);
@@ -86,10 +86,6 @@ public:
 
 	virtual void clear(void);
 	virtual void ignore(int n = 1);
-	
-protected:
-	virtual size_t readData(char *buffer, size_t size) = 0;
-	virtual void writeData(const char *data, size_t size) = 0;
 
 private:
 	void	fixEndianess16(char *data);

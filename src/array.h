@@ -42,14 +42,19 @@ public:
 	void append(const Array<T> array);
 	void append(const T *array, size_t size);
 	void fill(const T &value, int n);
-
 	bool remove(const T &value);
+};
 
+template<typename T>
+class SerializableArray : public Array<T>, public Serializable
+{
 	void serialize(Stream &s) const;
 	void deserialize(Stream &s);
 	void serializeBinary(ByteStream &s) const;
 	void deserializeBinary(ByteStream &s);
 };
+
+typedef SerializableArray<String> StringArray;
 
 template<typename T>
 T *Array<T>::data(void)
@@ -103,6 +108,58 @@ bool Array<T>::remove(const T &value)
 		}
 		else ++i;
 	return found;
+}
+
+template<typename T>
+void SerializableArray<T>::serialize(Stream &s) const
+{
+	for(size_t i=0; i<this->size(); ++i)
+	{
+		s<<this->at(i)<<Stream::NewLine;
+	}
+
+	s<<Stream::NewLine;
+}
+
+template<typename T>
+void SerializableArray<T>::deserialize(Stream &s)
+{
+	this->clear();
+
+	String line;
+	while(s.readLine(line) && !line.empty())
+	{
+		T value;
+		line.read(value);
+		this->append(value);
+	}
+}
+
+template<typename T>
+void SerializableArray<T>::serializeBinary(ByteStream &s) const
+{
+	s.writeBinary(uint32_t(this->size()));
+
+	for(size_t i=0; i<this->size(); ++i)
+	{
+		s.writeBinary(this->at(i));
+	}
+}
+
+template<typename T>
+void SerializableArray<T>::deserializeBinary(ByteStream &s)
+{
+	this->clear();
+	uint32_t size;
+	AssertIO(s.readBinary(size));
+
+	this->reserve(size);
+	for(uint32_t i=0; i<size; ++i)
+	{
+		T value;
+		AssertIO(s.readBinary(value));
+		this->append(value);
+	}
 }
 
 }

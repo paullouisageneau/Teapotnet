@@ -134,13 +134,13 @@ void DatagramSocket::read(ByteStream &stream, Address &sender)
 	size_t size = MaxDatagramSize;
 	size = read(buffer, size, sender);
 	stream.clear();
-	stream.write(buffer,size);
+	stream.writeData(buffer,size);
 }
 
 void DatagramSocket::write(ByteStream &stream, const Address &receiver)
 {
 	char buffer[MaxDatagramSize];
-	size_t size = stream.read(buffer,MaxDatagramSize);
+	size_t size = stream.readData(buffer,MaxDatagramSize);
 	stream.clear();
 	write(buffer, size, receiver);
 }

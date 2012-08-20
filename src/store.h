@@ -34,6 +34,7 @@ class Store
 {
 public:
 	static const String DatabaseDirectory;
+	static const size_t ChunkSize;
 
 	Store(void);
 	~Store(void);
@@ -44,13 +45,12 @@ public:
 	void refresh(void);
 	void refreshDirectory(const String &directoryPath);
 
-	Resource *get(const Identifier &identifier);
+	ByteStream *get(const Identifier &identifier);
+	ByteStream *get(const String &url);
 
 protected:
 	Set<String> mDirectories;
-
-	Map<Identifier,Resource*> mResources;
-	List<Resource*> mSorted;	// TODO
+	Map<Identifier,String> mResources;
 };
 
 }

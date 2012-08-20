@@ -38,6 +38,9 @@ public:
 	Stream(void);
 	virtual ~Stream(void);
 
+	virtual size_t readData(char *buffer, size_t size) = 0;
+	virtual void writeData(const char *data, size_t size) = 0;
+
 	bool get(char &chr);
 	void put(char chr);
 	char last(void) const;
@@ -103,11 +106,10 @@ public:
 	bool readString(Stream &output);	// delimiters = BlankCharacters, output is trimmed
 	bool readField(Stream &output);		// delimiters = FieldDelimiters
 	bool readLine(Stream &output);		// delimiter  = NewLine
+	bool readLine(String &output);		// used by the template function readLine()
 
 	template<typename T> bool readLine(T &output);
 	template<typename T> bool writeLine(const T &input);
-
-	// TODO: operator !
 
 	static const char NewLine;
 	static const char Space;
@@ -116,9 +118,6 @@ protected:
 	static const String IgnoredCharacters;
 	static const String BlankCharacters;
 	static const String FieldDelimiters;
-
-	virtual size_t readData(char *buffer, size_t size) = 0;
-	virtual void writeData(const char *data, size_t size) = 0;
 
 	char mLast;
 
@@ -151,7 +150,7 @@ void Stream::write(const T *ptr)
 template<typename T> bool Stream::readStd(T &val)
 {
 	std::string str;
-	if(!readStdString(str)) return false;
+	if(!readStdString(str) || str.empty()) return false;
 	std::istringstream iss(str);
 	if(!(iss>>val)) error();
 	return true;
@@ -166,7 +165,7 @@ template<typename T> void Stream::writeStd(const T &val)
 
 template<typename T> Stream& Stream::operator>>(T &val)
 {
-	read(val);
+	if(!read(val)) error();
 	return (*this);
 }
 

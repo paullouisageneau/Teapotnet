@@ -35,16 +35,6 @@ ByteStream::~ByteStream(void)
 
 }
 
-size_t ByteStream::read(char *buffer, size_t size)
-{
-	return readData(buffer,size);
-}
-
-void ByteStream::write(const char *data, size_t size)
-{
-	writeData(data,size);
-}
-
 size_t ByteStream::readBinary(ByteStream &s)
 {
 	char buffer[BufferSize];

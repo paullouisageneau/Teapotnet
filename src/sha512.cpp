@@ -37,18 +37,27 @@ void Sha512::Hash(const char *data, size_t size, ByteStream &out)
 	sha.finalize(out);
 }
 
-void Sha512::Hash(ByteStream &data, ByteStream &out)
-{
-	Sha512 sha;
-	sha.process(data);
-	sha.finalize(out);
-}
-
 void Sha512::Hash(const String &str, ByteStream &out)
 {
 	Sha512 sha;
 	sha.process(str.data(),str.size());
 	sha.finalize(out);
+}
+
+size_t Sha512::Hash(ByteStream &data, ByteStream &out)
+{
+	Sha512 sha;
+	size_t size = sha.process(data);
+	sha.finalize(out);
+	return size;
+}
+
+size_t Sha512::Hash(ByteStream &data, size_t size, ByteStream &out)
+{
+	Sha512 sha;
+	size = sha.process(data, size);
+	sha.finalize(out);
+	return size;
 }
 
 /* Various macros */
@@ -179,16 +188,35 @@ void Sha512::process(const char *data, size_t size)
 	}
 }
 
-// Process a stream though the hash
-void Sha512::process(ByteStream &data)
+// Process a stream through the hash
+size_t Sha512::process(ByteStream &data)
 {
 	char buffer[BufferSize];
+	size_t total = 0;
 	size_t size;
-	while((size = data.read(buffer, BufferSize)))
+	while((size = data.readData(buffer, BufferSize)))
+	{
+		total+= size;
 		process(buffer, size);
+	}
+	return total;
 }
 
-// Terminate the hash to get the digest
+// Process a stream through the hash
+size_t Sha512::process(ByteStream &data, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = data.readData(buffer, std::min(BufferSize,left))))
+	{
+		left-= size;
+		process(buffer, size);
+	}
+	return max-left;
+}
+
+// Terminate the hash and get the digest
 void Sha512::finalize(unsigned char *out)
 {
 	Assert(out != NULL);
@@ -236,7 +264,7 @@ void Sha512::finalize(ByteStream &out)
 {
 	unsigned char temp[64];
 	finalize(temp);
-	out.write(reinterpret_cast<char*>(temp),64);
+	out.writeData(reinterpret_cast<char*>(temp),64);
 }
 
 // Compress 1024-bits

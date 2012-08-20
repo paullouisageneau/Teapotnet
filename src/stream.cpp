@@ -139,7 +139,8 @@ bool Stream::read(String &s)
 	s.clear();
 	if(!ignoreWhile(BlankCharacters)) return false;
 	s+= last();
-	return readString(s,FieldDelimiters+BlankCharacters,false);
+	readString(s,FieldDelimiters+BlankCharacters,false);
+	return true;
 }
 
 bool Stream::read(bool &b)
@@ -264,6 +265,11 @@ bool Stream::readField(Stream &output)
 }
 
 bool Stream::readLine(Stream &output)
+{
+	return readString(output,String(NewLine),false);
+}
+
+bool Stream::readLine(String &output)
 {
 	return readString(output,String(NewLine),false);
 }

@@ -34,7 +34,11 @@ namespace arc
 class File : public Stream, public ByteStream, public std::fstream
 {
 public:
+	using Stream::read;
+	using Stream::write;
+
 	static bool Exist(const String &filename);
+	static void Remove(const String &filename);
 
 	enum OpenMode { Read, Write, ReadWrite, Append };
 
@@ -45,7 +49,7 @@ public:
 	void open(const String &filename, OpenMode mode = ReadWrite);
 	size_t size(void);
 
-protected:
+	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 };

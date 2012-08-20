@@ -32,6 +32,11 @@ bool File::Exist(const String &filename)
 	return file.is_open();
 }
 
+void File::Remove(const String &filename)
+{
+	std::remove(filename.c_str());
+}
+
 File::File(const String &filename, File::OpenMode mode)
 {
 	open(filename,mode);
@@ -44,6 +49,8 @@ File::~File(void)
 
 void File::open(const String &filename, OpenMode mode)
 {
+	if(is_open()) close();
+
 	std::ios_base::openmode m;
 	switch(mode)
 	{

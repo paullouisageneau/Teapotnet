@@ -34,15 +34,17 @@ class Sha512
 {
 public:
 	static void Hash(const char *data, size_t size, ByteStream &out);
-	static void Hash(ByteStream &data, ByteStream &out);
 	static void Hash(const String &str, ByteStream &out);
+	static size_t Hash(ByteStream &data, ByteStream &out);
+	static size_t Hash(ByteStream &data, size_t size, ByteStream &out);
 
 	Sha512(void);
 	~Sha512(void);
 	
 	void init(void);
 	void process(const char *data, size_t size);
-	void process(ByteStream &data);
+	size_t process(ByteStream &data);
+	size_t process(ByteStream &data, size_t max);
 	void finalize(unsigned char *out);
 	void finalize(ByteStream &out);
 	

@@ -106,7 +106,7 @@ void Address::serialize(Stream &s) const
 void Address::deserialize(Stream &s)
 {
 	String str;
-	assertIO(s.readField(str));
+	AssertIO(s.readField(str));
 	int separator = str.find_last_of(':');
 	if(separator == String::NotFound) throw InvalidData("Invalid network Address: " + str);
 	String host(str,0,separator);
@@ -162,7 +162,7 @@ void Address::serializeBinary(ByteStream &s) const
 void Address::deserializeBinary(ByteStream &s)
 {
 	uint8_t size = 0;
-	assertIO(s.readBinary(size));
+	AssertIO(s.readBinary(size));
 
 	if(size == 0)
 	{
@@ -182,10 +182,10 @@ void Address::deserializeBinary(ByteStream &s)
 		uint8_t u;
 		for(int i=0; i<4; ++i)
 		{
-				assertIO(s.readBinary(u)); b[i] = u;
+				AssertIO(s.readBinary(u)); b[i] = u;
 		}
 		uint16_t port;
-		assertIO(s.readBinary(port));
+		AssertIO(s.readBinary(port));
 		sa->sin_port = htons(port);
 		break;
 	}
@@ -199,11 +199,11 @@ void Address::deserializeBinary(ByteStream &s)
 		uint8_t u;
 		for(int i=0; i<16; ++i)
 		{
-			assertIO(s.readBinary(u));
+			AssertIO(s.readBinary(u));
 			sa6->sin6_addr.s6_addr[i] = u;
 		}
 		uint16_t port;
-		assertIO(s.readBinary(port));
+		AssertIO(s.readBinary(port));
 		sa6->sin6_port = htons(port);
 		break;
 	}

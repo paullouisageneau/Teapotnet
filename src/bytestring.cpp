@@ -43,7 +43,7 @@ ByteString::~ByteString(void)
 
 void ByteString::clear(void)
 {
-	clear();
+	std::deque<char>::clear();
 }
 
 void ByteString::append(char value, int n)
@@ -112,7 +112,7 @@ void ByteString::serializeBinary(ByteStream &s) const
 
 void ByteString::deserializeBinary(ByteStream &s)
 {
-	assertIO(s.readBinary(*this));
+	AssertIO(s.readBinary(*this));
 }
 
 size_t ByteString::readData(char *buffer, size_t size)

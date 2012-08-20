@@ -57,7 +57,7 @@ size_t Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();
 	size_t len;
-	while((len = mBuffer->read(buffer,size)) == 0)
+	while((len = mBuffer->readData(buffer,size)) == 0)
 	{
 		if(mIsClosed)
 		{
@@ -78,7 +78,7 @@ void Pipe::writeData(const char *data, size_t size)
 	if(mIsClosed) throw IOException("Pipe is closed, cannot write");
 
 	mMutex.lock();
-	mBuffer->write(data,size);
+	mBuffer->writeData(data,size);
 	mMutex.unlock();
 	mSignal.launchAll();
 }

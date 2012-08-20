@@ -28,6 +28,7 @@ namespace arc
 {
 
 const String Store::DatabaseDirectory = "db";
+const size_t Store::ChunkSize = 256*1024;		// 256 Kio
 
 Store::Store(void)
 {
@@ -36,7 +37,7 @@ Store::Store(void)
 
 Store::~Store(void)
 {
-	// TODO: delete resources
+
 }
 
 void Store::addDirectory(const String &path)
@@ -78,43 +79,92 @@ void Store::refreshDirectory(const String &directoryPath)
 
 		if(File::Exist(entry))
 		{
-			File file(entry, File::Read);
-			String path;
-			time_t time;
-			size_t size;
-			String hash;
-			file.readLine(path);
-			file.readLine(time);
-			file.readLine(size);
-			file.readLine(hash);
+			try {
+				File file(entry, File::Read);
 
-			// If the file has not changed, don't hash it again
-			if(size == dir.fileSize() && time == dir.fileTime())
+				String path;
+				SerializableMap<String,String> header;
+				file.readLine(path);
+				file.read(header);
+
+				time_t time;
+				size_t size;
+				String hash;
+				size_t chunkSize;
+				unsigned chunkCount;
+				header["time"] >> time;
+				header["size"] >> size;
+				header["chunk-size"] >> chunkSize;
+				header["chunk-count"] >> chunkCount;
+				header["hash"] >> hash;
+
+				// If the file has not changed, don't hash it again
+				if(size == dir.fileSize() && time == dir.fileTime())
+				{
+					mResources.insert(Identifier(dataHash),dir.filePath());
+					continue;
+				}
+			}
+			catch(Exception &e)
 			{
-				//mResources.insert(Identifier(hash));
-				continue;
+				Log("Store", String("Corrupted entry for ")+dir.fileName()+": "+e.what());
 			}
 		}
 
 		Log("Store", String("Hashing file: ")+dir.fileName());
 
-		ByteString dataHash;
-		File data(dir.filePath(), File::Read);
+		try {
+			ByteString dataHash;
+			File data(dir.filePath(), File::Read);
+			Sha512::Hash(data, dataHash);
+			data.close();
 
-		Sha512::Hash(data, dataHash);
-		File file(entry, File::Write);
-		file.writeLine(dir.filePath());
-		file.writeLine(dir.fileTime());
-		file.writeLine(dir.fileSize());
-		file.writeLine(dataHash);
+			size_t   chunkSize = ChunkSize;
+			unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
+
+			StringMap header;
+			header["time"] << dir.fileTime();
+			header["size"] << dir.fileSize();
+			header["chunk-size"] << chunkSize;
+			header["chunk-count"] << chunkCount;
+			header["hash"] << dataHash;
+
+			File file(entry, File::Write);
+			file.writeLine(dir.filePath());
+			file.write(header);
+
+			data.open(dir.filePath(), File::Read);
+
+			for(unsigned i=0; i<chunkCount; ++i)
+			{
+				dataHash.clear();
+				AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
+				file.writeLine(dataHash);
+			}
+
+			data.close();
+
+			mResources.insert(Identifier(dataHash),dir.filePath());
+		}
+		catch(Exception &e)
+		{
+			Log("Store", String("Hashing failed for ")+dir.fileName()+": "+e.what());
+			File::Remove(entry);
+		}
 	}
 }
 
-Resource *Store::get(const Identifier &identifier)
+ByteStream *Store::get(const Identifier &identifier)
 {
-	Resource *resource;
-	if(mResources.get(identifier,resource)) return resource;
-	else return NULL;
+	String url;
+	if(mResources.get(identifier,url)) return false;
+	return get(url);
+}
+
+ByteStream *Store::url(const String &url)
+{
+	if(!File::exists(url)) return NULL;
+	return new File(url);
 }
 
 }

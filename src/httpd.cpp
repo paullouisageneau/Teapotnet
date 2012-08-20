@@ -88,7 +88,7 @@ void Httpd::Handler::Request::parse(Stream &stream)
 	while(true)
 	{
 		String line;
-		assertIO(stream.readLine(line));
+		AssertIO(stream.readLine(line));
 		if(line.empty()) break;
 
 		String value = line.cut(':');

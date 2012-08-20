@@ -28,7 +28,6 @@ using namespace arc;
 
 int main(int argc, char** argv)
 {
-	// TEST
 	String test = "The quick brown fox jumps over the lazy dog";
 	ByteString result;
 	Sha512::Hash(test, result);

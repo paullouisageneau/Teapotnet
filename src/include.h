@@ -154,10 +154,10 @@ template<typename T> void Log(const char *prefix, const T &value)
 
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
-const size_t BufferSize = 4096;
-
 #define Set std::set
 #define List std::list
+
+const size_t BufferSize = 4096;
 
 }
 

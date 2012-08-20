@@ -252,25 +252,25 @@ void String::serialize(Stream &s) const
 
 void String::deserialize(Stream &s)
 {
-	assertIO(s.read(*this));
+	AssertIO(s.read(*this));
 }
 
 void String::serializeBinary(ByteStream &s) const
 {
 	const char null = '\0';
-	s.write(data(),size());
-	s.write(&null,1);
+	s.writeData(data(),size());
+	s.writeData(&null,1);
 }
 
 void String::deserializeBinary(ByteStream &s)
 {
 	clear();
 	char chr;
-	assertIO(s.read(&chr,1));
+	AssertIO(s.readData(&chr,1));
 	while(chr != '\0')
 	{
 		push_back(chr);
-		if(!s.read(&chr,1)) break;
+		if(!s.readData(&chr,1)) break;
 	}
 }
 
