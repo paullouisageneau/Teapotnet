@@ -101,7 +101,7 @@ void Store::refreshDirectory(const String &directoryPath)
 				// If the file has not changed, don't hash it again
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
-					mResources.insert(Identifier(dataHash),dir.filePath());
+					//mResources.insert(Identifier(hash),dir.filePath());
 					continue;
 				}
 			}
@@ -144,7 +144,7 @@ void Store::refreshDirectory(const String &directoryPath)
 
 			data.close();
 
-			mResources.insert(Identifier(dataHash),dir.filePath());
+			//mResources.insert(Identifier(dataHash),dir.filePath());
 		}
 		catch(Exception &e)
 		{
@@ -157,13 +157,13 @@ void Store::refreshDirectory(const String &directoryPath)
 ByteStream *Store::get(const Identifier &identifier)
 {
 	String url;
-	if(mResources.get(identifier,url)) return false;
+	if(mResources.get(identifier,url)) return NULL;
 	return get(url);
 }
 
-ByteStream *Store::url(const String &url)
+ByteStream *Store::get(const String &url)
 {
-	if(!File::exists(url)) return NULL;
+	if(!File::Exist(url)) return NULL;
 	return new File(url);
 }
 
