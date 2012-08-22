@@ -50,12 +50,12 @@ void StripedFile::seek(size_t block, size_t offset)
 	if(mBlock <= block)
 	{
 		mFile->seekg(offset-mOffset, File::cur);
-		mOffset = 0;
+		mOffset = offset;
 	}
 	else {
 		mFile->seekg(mStripe*mStripeSize + offset, File::beg);
 		mBlock = 0;
-		mOffset = 0;
+		mOffset = offset;
 	}
 
 	while(mBlock < block)
