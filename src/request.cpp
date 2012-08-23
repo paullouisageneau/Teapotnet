@@ -42,6 +42,11 @@ unsigned Request::id(void) const
 	return mId;
 }
 
+const Identifier &Request::target(void) const
+{
+	return mTarget;
+}
+
 void Request::submit(void)
 {
 	if(!mId)

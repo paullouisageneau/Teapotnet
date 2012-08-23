@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "synchronizable.h"
+#include "identifier.h"
 
 namespace arc
 {
@@ -37,6 +38,7 @@ public:
 	virtual ~Request(void);
 
 	unsigned id() const;
+	const Identifier &target(void) const;
 	void isPending() const;
 
 	void submit(void);
@@ -45,9 +47,22 @@ public:
 	void addPending();
 	void removePending();
 
+	class Response
+	{
+
+	};
+
+	int responses(void) const;
+	Response *response(int num);
+
 private:
 	unsigned mId;
+	Identifier mTarget;
 	int mPendingCount;
+
+	Array<Response> mResponses;
+	Map<Identifier, Response*> mResponsesMap;
+
 
 	friend class Core;
 };

@@ -32,6 +32,7 @@
 #include "signal.h"
 #include "identifier.h"
 #include "resource.h"
+#include "request.h"
 #include "synchronizable.h"
 #include "map.h"
 #include "array.h"
@@ -42,32 +43,58 @@ namespace arc
 class Core
 {
 public:
-	Core(void);
-	~Core(void);
+	static const Core *Instance;
 
 	void add(Socket *sock);
 
+	unsigned addRequest(Request *request);
+	void removeRequest(unsigned id);
+
 protected:
+	Core(void);
+	~Core(void);
+
 	class Handler : public Thread, public Synchronizable
 	{
 	public:
 		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
-	protected:
-		void run(void);
+		void addRequest(Request *request);
+		void removeRequest(unsigned id);
+		void addTransfert(unsigned channel, ByteStream *in);
 
 	private:
+		void run(void);
+
 		Core	*mCore;
 		Socket  *mSock;
 		Handler *mHandler;
-		Map<unsigned, ByteStream*> mChannels;
+		Map<unsigned, Request*> mRequests;
+
+		class Sender : public Thread, public Synchronizable
+		{
+		private:
+			static const size_t ChunkSize;
+
+			void run(void);
+
+			Socket  *mSock;
+			Map<unsigned, ByteStream*> mTransferts;
+			Queue<Request*> mRequestsQueue;
+			friend class Handler;
+		};
+
+		Sender mSender;
 	};
 
 	void add(const Address &addr, Handler *Handler);
 	void remove(const Address &addr);
 
 	Map<Address,Handler*> mHandlers;
+
+	Map<unsigned,Request*> mRequests;
+	unsigned mLastRequest;
 
 	friend class Handler;
 };

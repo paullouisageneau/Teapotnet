@@ -24,7 +24,10 @@
 namespace arc
 {
 
-Core::Core(void)
+const Core *Core::Instance = new Core();
+
+Core::Core(void) :
+		mLastRequest(0)
 {
 
 }
@@ -40,6 +43,38 @@ void Core::add(Socket *sock)
 	Handler *handler = new Handler(this,sock);
 	handler->start();
 	add(sock->getRemoteAddress(), handler);
+}
+
+unsigned Core::addRequest(Request *request)
+{
+	++mLastRequest;
+	request->mId = mLastRequest;
+	mRequests.insert(mLastRequest, request);
+
+	for(Map<Address,Handler*>::iterator it = mHandlers.begin();
+			it != mHandlers.end();
+			++it)
+	{
+		Handler *handler = it->second;
+		handler->lock();
+		handler->addRequest(request);
+		handler->unlock();
+	}
+
+	return mLastRequest;
+}
+
+void Core::removeRequest(unsigned id)
+{
+	for(Map<Address,Handler*>::iterator it = mHandlers.begin();
+				it != mHandlers.end();
+				++it)
+	{
+		Handler *handler = it->second;
+		handler->lock();
+		handler->removeRequest(id);
+		handler->unlock();
+	}
 }
 
 void Core::add(const Address &addr, Core::Handler *handler)
@@ -70,6 +105,31 @@ Core::Handler::~Handler(void)
 	delete mHandler;
 }
 
+void Core::Handler::addRequest(Request *request)
+{
+	mSender.lock();
+	request->addPending();
+	mSender.mRequestsQueue.push(request);
+	mSender.unlock();
+	mSender.notify();
+
+	mRequests.insert(request->id(),request);
+}
+
+void Core::Handler::removeRequest(unsigned id)
+{
+	mRequests.erase(id);
+}
+
+void Core::Handler::addTransfert(unsigned channel, ByteStream *in)
+{
+	mSender.lock();
+	Assert(!mSender.mTransferts.contains(channel));
+	mSender.mTransferts.insert(channel, in);
+	mSender.unlock();
+	mSender.notify();
+}
+
 void Core::Handler::run(void)
 {
 	String line;
@@ -81,7 +141,9 @@ void Core::Handler::run(void)
 	line.readString(proto);
 	line.readString(version);
 
-	unlock();
+	mSender.mSock = mSock;
+	mSender.start();
+
 	while(mSock->readLine(line))
 	{
 		lock();
@@ -90,30 +152,69 @@ void Core::Handler::run(void)
 		line.read(command);
 		command = command.toUpper();
 
-		unsigned channel, size;
-		line.read(channel);
-		line.read(size);
-
 		if(command == "DATA")
 		{
-			ByteStream *bs;
-			if(mChannels.get(channel,bs))
+			unsigned channel, size;
+			line.read(channel);
+			line.read(size);
+
+			Request *request;
+			if(mRequests.get(channel,request))
 			{
-				if(size) {
-					mSock->readBinary(*bs,size);
-				}
-				else {
-					delete bs;
-					mChannels.erase(channel);
-				}
+				if(size) mSock->readBinary(request->file(),size);
+				else request->setFinished();
 			}
+
+		}
+		else if(command == "GET")
+		{
 
 		}
 
 		unlock();
 	}
 
+	mSock->close();
+
 	//mCore->remove(this);
+}
+
+const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
+
+void Core::Handler::Sender::run(void)
+{
+	char buffer[ChunkSize];
+
+	while(true)
+	{
+		lock();
+		if(mTransferts.empty() && mRequestsQueue.empty()) wait();
+
+		if(!mRequestsQueue.empty())
+		{
+			Request *request = mRequestsQueue.front();
+			*mSock<<"GET "<<request->target()<<Stream::NewLine;
+			// TODO: params
+			request->removePending();
+			mRequestsQueue.pop();
+		}
+
+		Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
+		while(it != mTransferts.end())
+		{
+			size_t size = it->second->readData(buffer,ChunkSize);
+			*mSock<<"DATA "<<it->first<<" "<<size<<Stream::NewLine;
+			mSock->writeBinary(buffer, size);
+
+			if(size == 0)
+			{
+				delete it->second;
+				it = mTransferts.erase(it);
+			}
+			else ++it;
+		}
+		unlock();
+	}
 }
 
 }
