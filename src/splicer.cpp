@@ -19,86 +19,30 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "stripedfile.h"
+#include "splicer.h"
 
 namespace arc
 {
 
-StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe) :
-		mFile(file),
-		mBlockSize(blockSize),
-		mStripeSize(blockSize/nbStripes),
-		mStripe(stripe)
+Splicer::Splicer(const String &filename, size_t blockSize, int nbStripes) :
+	mBlockSize(blockSize)
 {
-	mFile->seekg(stripe*mStripeSize, File::beg);
 	mBlock = 0;
-	mOffset = 0;
-}
 
-StripedFile::~StripedFile(void)
-{
-	mFile->close();
-	delete mFile;
-}
-
-void StripedFile::seek(uint64_t position)
-{
-	seek(position / mStripeSize, position % mStripeSize);
-}
-
-void StripedFile::seek(size_t block, size_t offset)
-{
-	if(mBlock <= block)
+	for(int i=0; i<nbStripes; ++i)
 	{
-		mFile->seekg(offset-mOffset, File::cur);
-		mOffset = offset;
-	}
-	else {
-		mFile->seekg(mStripe*mStripeSize + offset, File::beg);
-		mBlock = 0;
-		mOffset = offset;
-	}
+		File *file = new File(filename, File::Write);
+		StripedFile *striped = new StripedFile(file, blockSize, nbStripes, i);
+		mStripes.push_back(striped);
 
-	while(mBlock < block)
-	{
-		mFile->seekg(mBlockSize, File::cur);
-		++mBlock;
+		// TODO: request object !
 	}
 }
 
-size_t StripedFile::readData(char *buffer, size_t size)
+Splicer::~Splicer(void)
 {
-	if(!size) return 0;
-
-	const size_t left = std::min(mStripeSize - mOffset, size);
-	const size_t len = mFile->readData(buffer, left);
-	mOffset+= len;
-
-	if(mOffset == mStripeSize)
-	{
-		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
-		return len + readData(buffer+len, size-len);
-	}
-
-	return len;
-}
-
-void StripedFile::writeData(const char *buffer, size_t size)
-{
-	if(!size) return;
-
-	const size_t len = std::min(mStripeSize - mOffset, size);
-
-	mFile->writeData(buffer, len);
-	mOffset+= len;
-
-	if(mOffset == mStripeSize)
-	{
-		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
-		writeData(buffer+len, size-len);
-	}
+	for(int i=0; i<mStripes.size(); ++i)
+		delete mStripes[i];
 }
 
 }

@@ -19,86 +19,32 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+#ifndef ARC_SPLICER_H
+#define ARC_SPLICER_H
+
+#include "include.h"
 #include "stripedfile.h"
+#include "array.h"
 
 namespace arc
 {
 
-StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe) :
-		mFile(file),
-		mBlockSize(blockSize),
-		mStripeSize(blockSize/nbStripes),
-		mStripe(stripe)
+// "I'll wrap you in a sheet !"
+
+class Splicer
 {
-	mFile->seekg(stripe*mStripeSize, File::beg);
-	mBlock = 0;
-	mOffset = 0;
-}
+public:
+	Splicer(const String &filename, size_t blockSize, int nbStripes);
+	~Splicer(void);
 
-StripedFile::~StripedFile(void)
-{
-	mFile->close();
-	delete mFile;
-}
 
-void StripedFile::seek(uint64_t position)
-{
-	seek(position / mStripeSize, position % mStripeSize);
-}
 
-void StripedFile::seek(size_t block, size_t offset)
-{
-	if(mBlock <= block)
-	{
-		mFile->seekg(offset-mOffset, File::cur);
-		mOffset = offset;
-	}
-	else {
-		mFile->seekg(mStripe*mStripeSize + offset, File::beg);
-		mBlock = 0;
-		mOffset = offset;
-	}
-
-	while(mBlock < block)
-	{
-		mFile->seekg(mBlockSize, File::cur);
-		++mBlock;
-	}
-}
-
-size_t StripedFile::readData(char *buffer, size_t size)
-{
-	if(!size) return 0;
-
-	const size_t left = std::min(mStripeSize - mOffset, size);
-	const size_t len = mFile->readData(buffer, left);
-	mOffset+= len;
-
-	if(mOffset == mStripeSize)
-	{
-		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
-		return len + readData(buffer+len, size-len);
-	}
-
-	return len;
-}
-
-void StripedFile::writeData(const char *buffer, size_t size)
-{
-	if(!size) return;
-
-	const size_t len = std::min(mStripeSize - mOffset, size);
-
-	mFile->writeData(buffer, len);
-	mOffset+= len;
-
-	if(mOffset == mStripeSize)
-	{
-		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
-		writeData(buffer+len, size-len);
-	}
-}
+private:
+	size_t mBlockSize;
+	size_t mBlock;			// Current block
+	Array<StripedFile*> mStripes;
+};
 
 }
+
+#endif
