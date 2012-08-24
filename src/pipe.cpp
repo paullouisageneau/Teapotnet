@@ -25,30 +25,37 @@
 namespace arc
 {
 
-Pipe::Pipe(void) :
-	mBuffer(new ByteString),
-	mIsClosed(false)
+Pipe::Pipe(void)
 {
-
+	open(new ByteString);
 }
 
-Pipe::Pipe(ByteStream *buffer) :
-		mBuffer(buffer),
-		mIsClosed(false)
+Pipe::Pipe(ByteStream *buffer)
 {
-
+	open(buffer);
 }
 
 Pipe::~Pipe(void)
 {
 	close();
-	delete mBuffer;
+	delete mReadBuffer;
+}
+
+void Pipe::open(ByteStream *buffer)
+{
+	mReadBuffer = buffer;
+	mWriteBuffer = buffer->pipeIn();
 }
 
 void Pipe::close(void)
 {
 	mMutex.lock();
-	mIsClosed = true;
+
+	if(mWriteBuffer && mWriteBuffer != mReadBuffer)
+		delete mWriteBuffer;
+
+	mWriteBuffer = NULL;
+
 	mSignal.launchAll();
 	mMutex.unlock();
 }
@@ -57,7 +64,7 @@ size_t Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();
 	size_t len;
-	while((len = mBuffer->readData(buffer,size)) == 0)
+	while((len = mReadBuffer->readData(buffer,size)) == 0)
 	{
 		if(mIsClosed)
 		{
@@ -75,10 +82,10 @@ size_t Pipe::readData(char *buffer, size_t size)
 void Pipe::writeData(const char *data, size_t size)
 {
 	if(size == 0) return;
-	if(mIsClosed) throw IOException("Pipe is closed, cannot write");
+	if(!mWriteBuffer) throw IOException("Pipe is closed, cannot write");
 
 	mMutex.lock();
-	mBuffer->writeData(data,size);
+	mWriteBuffer->writeData(data,size);
 	mMutex.unlock();
 	mSignal.launchAll();
 }

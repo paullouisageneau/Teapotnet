@@ -67,9 +67,12 @@ public:
 		const String &parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
 	
+		Pipe *content(void) const;
+
 	private:
 		String mStatus;
 		StringMap mParameters;
+		Pipe *mContent;
 	};
 
 	int responses(void) const;

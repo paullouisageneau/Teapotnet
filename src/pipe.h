@@ -44,10 +44,12 @@ public:
 	void writeData(const char *data, size_t size);
 
 private:
-	ByteStream *mBuffer;
+	void open(ByteStream *buffer);
+
+	ByteStream *mReadBuffer;
+	ByteStream *mWriteBuffer;
 	Mutex mMutex;
 	Signal mSignal;
-	bool mIsClosed;
 };
 
 }

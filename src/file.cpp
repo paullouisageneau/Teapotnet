@@ -51,16 +51,19 @@ void File::open(const String &filename, OpenMode mode)
 {
 	if(is_open()) close();
 
+	mName = filename;
+
 	std::ios_base::openmode m;
 	switch(mode)
 	{
 	case Read:		m = std::ios_base::in;						break;
 	case Write:		m = std::ios_base::out;						break;
 	case Append:	m = std::ios_base::app;						break;
+	case Truncate:	m = std::ios_base::trunc;					break;
 	default:		m = std::ios_base::in|std::ios_base::out;	break;
 	}
 
-	std::fstream::open(filename.c_str(), m);
+	std::fstream::open(filename.c_str(), m|std::ios_base::binary);
 	if(!is_open()) throw IOException(String("Unable to open file: ")+filename);
 }
 
@@ -82,6 +85,11 @@ size_t File::readData(char *buffer, size_t size)
 void File::writeData(const char *data, size_t size)
 {
 	std::fstream::write(data,size);
+}
+
+ByteStream *File::pipeIn(void) const
+{
+	return new File(mName,Append);
 }
 
 }

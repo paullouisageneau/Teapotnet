@@ -305,6 +305,11 @@ void ByteStream::ignore(int n)
 		if(!readData(&dummy,1)) break;
 }
 
+virtual ByteStream *ByteStream::pipeIn(void) const
+{
+	return this;
+}
+
 void ByteStream::fixEndianess16(char *data)
 {
 	// TODO

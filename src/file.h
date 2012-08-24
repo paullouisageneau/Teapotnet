@@ -40,7 +40,7 @@ public:
 	static bool Exist(const String &filename);
 	static void Remove(const String &filename);
 
-	enum OpenMode { Read, Write, ReadWrite, Append };
+	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 
 	File(void);
 	File(const String &filename, OpenMode mode = ReadWrite);
@@ -52,6 +52,11 @@ public:
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
+
+private:
+	ByteStream *pipeIn(void) const;
+
+	String mName;
 };
 
 }
