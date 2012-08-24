@@ -204,12 +204,12 @@ void Core::Handler::Sender::run(void)
 		{
 			size_t size = it->second->readData(buffer,ChunkSize);
 			*mSock<<"DATA "<<it->first<<" "<<size<<Stream::NewLine;
-			mSock->writeBinary(buffer, size);
+			mSock->writeData(buffer, size);
 
 			if(size == 0)
 			{
 				delete it->second;
-				it = mTransferts.erase(it);
+				mTransferts.erase(it++);
 			}
 			else ++it;
 		}

@@ -25,6 +25,8 @@
 #include "include.h"
 #include "synchronizable.h"
 #include "identifier.h"
+#include "array.h"
+#include "map.h"
 
 namespace arc
 {
@@ -38,8 +40,16 @@ public:
 	virtual ~Request(void);
 
 	unsigned id() const;
-	const Identifier &target(void) const;
+	const String &target(void) const;
 	void isPending() const;
+
+	void setBroadcast(void);
+	void setMulticast(const Identifier &group);
+	void setUnicast(const Identifier &destination);
+
+	void setTarget(const String &target);
+	void setParameters(StringMap &params);
+	void setParameter(const String &name, const String &value);		
 
 	void submit(void);
 	void cancel(void);
@@ -49,7 +59,17 @@ public:
 
 	class Response
 	{
+	public:
+		Response(const String &status, const StringMap &parameters);
 
+		const String &status(void) const;
+		const StringMap &parameters(void) const;
+		const String &parameter(const String &name) const;
+		bool parameter(const String &name, String &value) const;
+	
+	private:
+		String mStatus;
+		StringMap mParameters;
 	};
 
 	int responses(void) const;
