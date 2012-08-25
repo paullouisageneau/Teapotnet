@@ -26,6 +26,7 @@
 #include "synchronizable.h"
 #include "identifier.h"
 #include "bytestream.h"
+#include "synchronizable.h"
 #include "array.h"
 #include "map.h"
 
@@ -44,10 +45,6 @@ public:
 	const String &target(void) const;
 	bool isPending() const;
 
-	void setLocal(void);
-	void setBroadcast(void);
-	void setMulticast(const Identifier &group);
-	void setUnicast(const Identifier &destination);
 	void setContentSink(ByteStream *bs);
 
 	void setTarget(const String &target);
@@ -55,7 +52,9 @@ public:
 	void setParameter(const String &name, const String &value);
 
 	void submit(void);
+	void submit(const Identifier &receiver);
 	void cancel(void);
+	void execute(void);
 
 	void addPending();
 	void removePending();
@@ -76,23 +75,27 @@ public:
 		String mStatus;
 		StringMap mParameters;
 		Pipe *mContent;
+		bool mIsSent;
 
 		friend class Core;
 	};
 
-	int responses(void) const;
+	int responsesCount(void) const;
 	Response *response(int num);
 
 private:
+	int addResponse(Response *response);
+
+	Identifier mReceiver;
 	String mTarget;
 	StringMap mParameters;
 	ByteStream *mContentSink;
+	Synchronizable *mResponseSender;
 
 	unsigned mId;
 	int mPendingCount;
 
 	Array<Response*> mResponses;
-	Map<Identifier, Response*> mResponsesMap;
 
 	friend class Core;
 };

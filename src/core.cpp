@@ -42,7 +42,6 @@ void Core::add(Socket *sock)
 	assert(sock != NULL);
 	Handler *handler = new Handler(this,sock);
 	handler->start();
-	add(sock->getRemoteAddress(), handler);
 }
 
 unsigned Core::addRequest(Request *request)
@@ -51,11 +50,22 @@ unsigned Core::addRequest(Request *request)
 	request->mId = mLastRequest;
 	mRequests.insert(mLastRequest, request);
 
-	for(Map<Address,Handler*>::iterator it = mHandlers.begin();
-			it != mHandlers.end();
-			++it)
+	if(request->mReceiver == Identifier::Null)
 	{
-		Handler *handler = it->second;
+		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+				it != mHandlers.end();
+				++it)
+		{
+			Handler *handler = it->second;
+			handler->lock();
+			handler->addRequest(request);
+			handler->unlock();
+		}
+	}
+	else {
+		// TODO: This should be modified to allow routing
+		Handler *handler;
+		if(!mHandlers.get(request->mReceiver, handler)) return 0;	// TODO
 		handler->lock();
 		handler->addRequest(request);
 		handler->unlock();
@@ -66,7 +76,7 @@ unsigned Core::addRequest(Request *request)
 
 void Core::removeRequest(unsigned id)
 {
-	for(Map<Address,Handler*>::iterator it = mHandlers.begin();
+	for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
 				it != mHandlers.end();
 				++it)
 	{
@@ -77,24 +87,25 @@ void Core::removeRequest(unsigned id)
 	}
 }
 
-void Core::add(const Address &addr, Core::Handler *handler)
+void Core::add(const Identifier &peer, Core::Handler *handler)
 {
-	assert(handler != NULL);
-	mHandlers.insert(addr, handler);
+	Assert(handler != NULL);
+	mHandlers.insert(peer, handler);
 }
 
-void Core::remove(const Address &addr)
+void Core::remove(const Identifier &peer)
 {
-	if(mHandlers.contains(addr))
+	if(mHandlers.contains(peer))
 	{
-		delete mHandlers.get(addr);
-		mHandlers.erase(addr);
+		delete mHandlers.get(peer);
+		mHandlers.erase(peer);
 	}
 }
 
 Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
-	mSock(sock)
+	mSock(sock),
+	mSender(sock)
 {
 
 }
@@ -121,15 +132,6 @@ void Core::Handler::removeRequest(unsigned id)
 	mRequests.erase(id);
 }
 
-void Core::Handler::addTransfert(unsigned channel, ByteStream *in)
-{
-	mSender.lock();
-	Assert(!mSender.mTransferts.contains(channel));
-	mSender.mTransferts.insert(channel, in);
-	mSender.unlock();
-	mSender.notify();
-}
-
 void Core::Handler::run(void)
 {
 	String line;
@@ -142,8 +144,10 @@ void Core::Handler::run(void)
 	line.readString(version);
 
 	// TODO: auth
+	// Initialize mPeer here !
 
-	mSender.mSock = mSock;
+	// mCore->add(mPeer,this);
+
 	mSender.start();
 
 	while(mSock->readLine(line))
@@ -170,17 +174,29 @@ void Core::Handler::run(void)
 
 		if(command == "O")
 		{
+			unsigned id;
+			String status;
 			unsigned channel;
+
+			line.read(id);
+			line.read(status);
 			line.read(channel);
-			String &status = line;
 
 			Request *request;
-			if(mRequests.get(channel,request))
+			if(mRequests.get(id,request))
 			{
-				ByteStream *sink = request->mContentSink;	// TODO
-				Request::Response *response = new Request::Response(status, parameters);
-				request->mResponsesMap.insert(mPeer, response);
-				request->mResponses.push_back(response);
+				Request::Response *response;
+
+				if(channel)
+				{
+					ByteStream *sink = request->mContentSink; // TODO
+					response = new Request::Response(status, parameters, sink);
+					mResponses.insert(channel,response);
+				}
+				else response = new Request::Response(status, parameters);
+
+				request->addResponse(response);
+
 			}
 		}
 		else if(command == "D")
@@ -189,34 +205,32 @@ void Core::Handler::run(void)
 			line.read(channel);
 			line.read(size);
 
-			Request *request;
-			if(mRequests.get(channel,request))
+			Request::Response *response;
+			if(mResponses.get(channel,response))
 			{
-				Request::Response *response = NULL;
-				if(request->mResponsesMap.get(mPeer,response))
-				{
-					if(size) mSock->readBinary(*response->content(),size);
-					else {
-						response->content()->close();
-						request->removePending();
-						mRequests.erase(channel);
-					}
+				if(size) mSock->readBinary(*response->content(),size);
+				else {
+					response->content()->close();
+					mRequests.erase(channel);
 				}
-				else mSock->ignore(size);	// TODO: error
 			}
+			else mSock->ignore(size);	// TODO: error
 		}
 		else if(command == "I")
 		{
 			String &target = line;
 
-			Request request;
-			request.setTarget(target);
-			request.setParameters(parameters);
-			request.setLocal();
-			request.submit();
-			request.wait();	// TODO: THIS IS BAD
+			Request *request = new Request;
+			request->setTarget(target);
+			request->setParameters(parameters);
 
-			// TODO: send response
+			request->execute();
+
+			mSender.lock();
+			mSender.mRequestsToRespond.push_back(request);
+			request->mResponseSender = &mSender;
+			mSender.unlock();
+			mSender.notify();
 		}
 
 		unlock();
@@ -229,6 +243,23 @@ void Core::Handler::run(void)
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
 
+Core::Handler::Sender::Sender(Socket *sock) :
+		mSock(sock),
+		mLastChannel(0)
+{
+
+}
+
+Core::Handler::Sender::~Sender(void)
+{
+	for(int i=0; i<mRequestsToRespond.size(); ++i)
+	{
+		Request *request = mRequestsToRespond[i];
+		if(request->mResponseSender == this)
+			request->mResponseSender = NULL;
+	}
+}
+
 void Core::Handler::Sender::run(void)
 {
 	char buffer[ChunkSize];
@@ -236,21 +267,66 @@ void Core::Handler::Sender::run(void)
 	while(true)
 	{
 		lock();
-		if(mTransferts.empty() && mRequestsQueue.empty()) wait();
+		if(mTransferts.empty()
+				&& mRequestsQueue.empty()
+				&& mRequestsToRespond.empty())
+			wait();
 
 		if(!mRequestsQueue.empty())
 		{
 			Request *request = mRequestsQueue.front();
 			*mSock<<"I "<<request->target()<<Stream::NewLine;
-			// TODO: params
+
+			StringMap &parameters = request->mParameters;
+			for(	StringMap::iterator it = parameters.begin();
+						it != parameters.end();
+						++it)
+			{
+					*mSock<<it->first<<": "<<it->second<<Stream::NewLine;
+			}
+			*mSock<<Stream::NewLine;
+
+			request->removePending();
 			mRequestsQueue.pop();
+		}
+
+		for(int i=0; i<mRequestsToRespond.size(); ++i)
+		{
+			Request *request = mRequestsToRespond[i];
+			for(int j=0; j<request->responsesCount(); ++j)
+			{
+				Request::Response *response = request->response(i);
+				if(!response->mIsSent)
+				{
+					String status = "OK";
+					unsigned channel = 0;
+
+					if(response->content())
+					{
+						++mLastChannel;
+						channel = mLastChannel;
+						mTransferts.insert(channel,response->content());
+					}
+
+					*mSock<<"O "<<request->id()<<" "<<status<<" "<<channel<<Stream::NewLine;
+
+					StringMap &parameters = response->mParameters;
+					for(	StringMap::iterator it = parameters.begin();
+							it != parameters.end();
+							++it)
+					{
+						*mSock<<it->first<<": "<<it->second<<Stream::NewLine;
+					}
+					*mSock<<Stream::NewLine;
+				}
+			}
 		}
 
 		Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
 		while(it != mTransferts.end())
 		{
 			size_t size = it->second->readData(buffer,ChunkSize);
-			*mSock<<"DATA "<<it->first<<" "<<size<<Stream::NewLine;
+			*mSock<<"D "<<it->first<<" "<<size<<Stream::NewLine;
 			mSock->writeData(buffer, size);
 
 			if(size == 0)

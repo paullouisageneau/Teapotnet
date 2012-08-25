@@ -27,7 +27,8 @@ namespace arc
 
 Request::Request(const String &target) :
 		mId(0),				// 0 = invalid id
-		mPendingCount(0)
+		mPendingCount(0),
+		mResponseSender(NULL)
 {
 	setTarget(target);
 }
@@ -53,26 +54,6 @@ const String &Request::target(void) const
 bool Request::isPending() const
 {
 	return (mPendingCount != 0);
-}
-
-void Request::setLocal(void)
-{
-
-}
-
-void Request::setBroadcast(void)
-{
-
-}
-
-void Request::setMulticast(const Identifier &group)
-{
-
-}
-
-void Request::setUnicast(const Identifier &destination)
-{
-
 }
 
 void Request::setContentSink(ByteStream *bs)
@@ -103,12 +84,26 @@ void Request::submit(void)
 	}
 }
 
+void Request::submit(const Identifier &receiver)
+{
+	if(!mId)
+	{
+		mReceiver = receiver;
+		mId = Core::Instance->addRequest(this);
+	}
+}
+
 void Request::cancel(void)
 {
 	if(mId)
 	{
 		Core::Instance->removeRequest(mId);
 	}
+}
+
+void Request::execute(void)
+{
+	// TODO
 }
 
 void Request::addPending(void)
@@ -126,11 +121,31 @@ void Request::removePending(void)
 	unlock();
 }
 
+int Request::responsesCount(void) const
+{
+	return mResponses.size();
+}
+
+int Request::addResponse(Response *response)
+{
+	Assert(response != NULL);
+	mResponses.push_back(response);
+	if(mResponseSender) mResponseSender->notify();
+	return mResponses.size()-1;
+}
+
+Request::Response *Request::response(int num)
+{
+	return mResponses.at(num);
+}
+
 Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *sink) :
 	mStatus(status),
-	mParameters(parameters)
+	mParameters(parameters),
+	mIsSent(false)
 {
-	mContent = new Pipe(sink);
+	if(sink) mContent = new Pipe(sink);
+	else mContent = NULL;
 }
 
 Request::Response::~Response(void)

@@ -79,6 +79,8 @@ size_t File::size(void)
 size_t File::readData(char *buffer, size_t size)
 {
 	std::fstream::readsome(buffer, size);
+	if(!std::fstream::gcount() && std::fstream::good())
+		std::fstream::read(buffer, size);
 	return std::fstream::gcount();
 }
 

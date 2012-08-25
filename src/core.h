@@ -62,7 +62,6 @@ protected:
 
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
-		void addTransfert(unsigned channel, ByteStream *in);
 
 	private:
 		void run(void);
@@ -72,27 +71,34 @@ protected:
 		Socket  *mSock;
 		Handler *mHandler;
 		Map<unsigned, Request*> mRequests;
+		Map<unsigned, Request::Response*> mResponses;
 
 		class Sender : public Thread, public Synchronizable
 		{
+		public:
+			Sender(Socket *sock);
+			~Sender(void);
+
 		private:
 			static const size_t ChunkSize;
 
 			void run(void);
 
 			Socket  *mSock;
-			Map<unsigned, ByteStream*> mTransferts;
+			unsigned mLastChannel;
+			Map<unsigned, ByteStream*> mTransferts;	// TODO
 			Queue<Request*> mRequestsQueue;
+			Array<Request*> mRequestsToRespond;
 			friend class Handler;
 		};
 
 		Sender mSender;
 	};
 
-	void add(const Address &addr, Handler *Handler);
-	void remove(const Address &addr);
+	void add(const Identifier &peer, Handler *Handler);
+	void remove(const Identifier &peer);
 
-	Map<Address,Handler*> mHandlers;
+	Map<Identifier,Handler*> mHandlers;
 
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;
