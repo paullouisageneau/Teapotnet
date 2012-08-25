@@ -66,7 +66,7 @@ size_t Pipe::readData(char *buffer, size_t size)
 	size_t len;
 	while((len = mReadBuffer->readData(buffer,size)) == 0)
 	{
-		if(mIsClosed)
+		if(!mWriteBuffer)	// if closed
 		{
 			mMutex.unlock();
 			return 0;

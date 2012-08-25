@@ -43,7 +43,7 @@ namespace arc
 class Core
 {
 public:
-	static const Core *Instance;
+	static Core *Instance;
 
 	void add(Socket *sock);
 
@@ -67,6 +67,7 @@ protected:
 	private:
 		void run(void);
 
+		Identifier mPeer;
 		Core	*mCore;
 		Socket  *mSock;
 		Handler *mHandler;

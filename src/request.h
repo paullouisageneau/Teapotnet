@@ -25,6 +25,7 @@
 #include "include.h"
 #include "synchronizable.h"
 #include "identifier.h"
+#include "bytestream.h"
 #include "array.h"
 #include "map.h"
 
@@ -36,20 +37,22 @@ class Core;
 class Request : public Synchronizable
 {
 public:
-	Request(void);
+	Request(const String &target = "");
 	virtual ~Request(void);
 
 	unsigned id() const;
 	const String &target(void) const;
-	void isPending() const;
+	bool isPending() const;
 
+	void setLocal(void);
 	void setBroadcast(void);
 	void setMulticast(const Identifier &group);
 	void setUnicast(const Identifier &destination);
+	void setContentSink(ByteStream *bs);
 
 	void setTarget(const String &target);
 	void setParameters(StringMap &params);
-	void setParameter(const String &name, const String &value);		
+	void setParameter(const String &name, const String &value);
 
 	void submit(void);
 	void cancel(void);
@@ -60,32 +63,36 @@ public:
 	class Response
 	{
 	public:
-		Response(const String &status, const StringMap &parameters);
+		Response(const String &status, const StringMap &parameters, ByteStream *sink = NULL);
+		~Response(void);
 
 		const String &status(void) const;
 		const StringMap &parameters(void) const;
-		const String &parameter(const String &name) const;
+		String parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
-	
 		Pipe *content(void) const;
 
 	private:
 		String mStatus;
 		StringMap mParameters;
 		Pipe *mContent;
+
+		friend class Core;
 	};
 
 	int responses(void) const;
 	Response *response(int num);
 
 private:
+	String mTarget;
+	StringMap mParameters;
+	ByteStream *mContentSink;
+
 	unsigned mId;
-	Identifier mTarget;
 	int mPendingCount;
 
-	Array<Response> mResponses;
+	Array<Response*> mResponses;
 	Map<Identifier, Response*> mResponsesMap;
-
 
 	friend class Core;
 };

@@ -25,16 +25,19 @@
 namespace arc
 {
 
-Request::Request(void) :
-		mId(0),		// 0 = invalid id
+Request::Request(const String &target) :
+		mId(0),				// 0 = invalid id
 		mPendingCount(0)
 {
-
+	setTarget(target);
 }
 
 Request::~Request(void)
 {
 	cancel();
+
+	for(int i=0; i<mResponses.size(); ++i)
+		delete mResponses[i];
 }
 
 unsigned Request::id(void) const
@@ -42,9 +45,54 @@ unsigned Request::id(void) const
 	return mId;
 }
 
-const Identifier &Request::target(void) const
+const String &Request::target(void) const
 {
 	return mTarget;
+}
+
+bool Request::isPending() const
+{
+	return (mPendingCount != 0);
+}
+
+void Request::setLocal(void)
+{
+
+}
+
+void Request::setBroadcast(void)
+{
+
+}
+
+void Request::setMulticast(const Identifier &group)
+{
+
+}
+
+void Request::setUnicast(const Identifier &destination)
+{
+
+}
+
+void Request::setContentSink(ByteStream *bs)
+{
+	mContentSink = bs;
+}
+
+void Request::setTarget(const String &target)
+{
+	mTarget = target;
+}
+
+void Request::setParameters(StringMap &params)
+{
+	mParameters = params;
+}
+
+void Request::setParameter(const String &name, const String &value)
+{
+	mParameters.insert(name, value);
 }
 
 void Request::submit(void)
@@ -76,6 +124,45 @@ void Request::removePending(void)
 	Assert(mPendingCount != 0);
 	mPendingCount--;
 	unlock();
+}
+
+Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *sink) :
+	mStatus(status),
+	mParameters(parameters)
+{
+	mContent = new Pipe(sink);
+}
+
+Request::Response::~Response(void)
+{
+	delete mContent;
+}
+
+const String &Request::Response::status(void) const
+{
+	return mStatus;
+}
+
+const StringMap &Request::Response::parameters(void) const
+{
+	return mParameters;
+}
+
+String Request::Response::parameter(const String &name) const
+{
+	String value;
+	if(mParameters.contains(name)) return value;
+	else return "";
+}
+
+bool Request::Response::parameter(const String &name, String &value) const
+{
+	return mParameters.get(name,value);
+}
+
+Pipe *Request::Response::content(void) const
+{
+	return mContent;
 }
 
 }

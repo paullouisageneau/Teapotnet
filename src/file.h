@@ -36,6 +36,7 @@ class File : public Stream, public ByteStream, public std::fstream
 public:
 	using Stream::read;
 	using Stream::write;
+	using ByteStream::ignore;
 
 	static bool Exist(const String &filename);
 	static void Remove(const String &filename);
@@ -54,7 +55,7 @@ public:
 	void writeData(const char *data, size_t size);
 
 private:
-	ByteStream *pipeIn(void) const;
+	ByteStream *pipeIn(void);
 
 	String mName;
 };

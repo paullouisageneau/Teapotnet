@@ -305,7 +305,7 @@ void ByteStream::ignore(int n)
 		if(!readData(&dummy,1)) break;
 }
 
-virtual ByteStream *ByteStream::pipeIn(void) const
+ByteStream *ByteStream::pipeIn(void)
 {
 	return this;
 }

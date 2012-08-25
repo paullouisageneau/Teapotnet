@@ -33,6 +33,8 @@ namespace arc
 class Socket : public Stream, public ByteStream
 {
 public:
+	using ByteStream::ignore;
+
 	Socket(void);
 	Socket(const Address &Address);
 	Socket(socket_t sock);

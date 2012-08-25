@@ -87,7 +87,7 @@ void File::writeData(const char *data, size_t size)
 	std::fstream::write(data,size);
 }
 
-ByteStream *File::pipeIn(void) const
+ByteStream *File::pipeIn(void)
 {
 	return new File(mName,Append);
 }

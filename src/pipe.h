@@ -33,6 +33,8 @@ namespace arc
 class Pipe : public Stream, public ByteStream
 {
 public:
+	using ByteStream::ignore;
+
 	Pipe(void);
 	Pipe(ByteStream *buffer);	// buffer destroyed at deletion
 	virtual ~Pipe(void);

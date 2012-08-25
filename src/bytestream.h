@@ -89,7 +89,7 @@ public:
 	virtual void ignore(int n = 1);
 
 private:
-	virtual ByteStream *pipeIn(void) const;	// return the write end for a pipe
+	virtual ByteStream *pipeIn(void);	// return the write end for a pipe
 
 	void	fixEndianess16(char *data);
 	void	fixEndianess32(char *data);

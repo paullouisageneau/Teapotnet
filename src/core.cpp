@@ -24,7 +24,7 @@
 namespace arc
 {
 
-const Core *Core::Instance = new Core();
+Core *Core::Instance = new Core();
 
 Core::Core(void) :
 		mLastRequest(0)
@@ -141,6 +141,8 @@ void Core::Handler::run(void)
 	line.readString(proto);
 	line.readString(version);
 
+	// TODO: auth
+
 	mSender.mSock = mSock;
 	mSender.start();
 
@@ -152,7 +154,36 @@ void Core::Handler::run(void)
 		line.read(command);
 		command = command.toUpper();
 
-		if(command == "DATA")
+		// Read parameters
+		StringMap parameters;
+		while(true)
+		{
+			String name;
+			AssertIO(mSock->readLine(name));
+			if(name.empty()) break;
+
+			String value = name.cut(':');
+			name.trim();
+			value.trim();
+			parameters.insert(name,value);
+		}
+
+		if(command == "O")
+		{
+			unsigned channel;
+			line.read(channel);
+			String &status = line;
+
+			Request *request;
+			if(mRequests.get(channel,request))
+			{
+				ByteStream *sink = request->mContentSink;	// TODO
+				Request::Response *response = new Request::Response(status, parameters);
+				request->mResponsesMap.insert(mPeer, response);
+				request->mResponses.push_back(response);
+			}
+		}
+		else if(command == "D")
 		{
 			unsigned channel, size;
 			line.read(channel);
@@ -161,14 +192,31 @@ void Core::Handler::run(void)
 			Request *request;
 			if(mRequests.get(channel,request))
 			{
-				if(size) mSock->readBinary(request->file(),size);
-				else request->setFinished();
+				Request::Response *response = NULL;
+				if(request->mResponsesMap.get(mPeer,response))
+				{
+					if(size) mSock->readBinary(*response->content(),size);
+					else {
+						response->content()->close();
+						request->removePending();
+						mRequests.erase(channel);
+					}
+				}
+				else mSock->ignore(size);	// TODO: error
 			}
-
 		}
-		else if(command == "GET")
+		else if(command == "I")
 		{
+			String &target = line;
 
+			Request request;
+			request.setTarget(target);
+			request.setParameters(parameters);
+			request.setLocal();
+			request.submit();
+			request.wait();	// TODO: THIS IS BAD
+
+			// TODO: send response
 		}
 
 		unlock();
@@ -193,9 +241,8 @@ void Core::Handler::Sender::run(void)
 		if(!mRequestsQueue.empty())
 		{
 			Request *request = mRequestsQueue.front();
-			*mSock<<"GET "<<request->target()<<Stream::NewLine;
+			*mSock<<"I "<<request->target()<<Stream::NewLine;
 			// TODO: params
-			request->removePending();
 			mRequestsQueue.pop();
 		}
 
