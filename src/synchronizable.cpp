@@ -74,7 +74,7 @@ void Synchronizable::wait(void) const
 	}
 }
 
-void Synchronizable::wait(double timeout) const
+void Synchronizable::wait(time_t timeout) const
 {
 	mMutex->lock();
 	try {

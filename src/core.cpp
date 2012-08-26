@@ -195,8 +195,13 @@ void Core::Handler::run(void)
 				}
 				else response = new Request::Response(status, parameters);
 
+				response->mPeer = mPeer;
 				request->addResponse(response);
 
+				// TODO: Only one response expected for now
+				mRequests.erase(id);
+
+				request->removePending();	// TODO
 			}
 		}
 		else if(command == "D")
@@ -223,7 +228,6 @@ void Core::Handler::run(void)
 			Request *request = new Request;
 			request->setTarget(target, (command == "G"));
 			request->setParameters(parameters);
-
 			request->execute();
 
 			mSender.lock();
@@ -288,7 +292,6 @@ void Core::Handler::Sender::run(void)
 			}
 			*mSock<<Stream::NewLine;
 
-			request->removePending();
 			mRequestsQueue.pop();
 		}
 

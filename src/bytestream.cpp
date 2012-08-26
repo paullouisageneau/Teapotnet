@@ -184,14 +184,6 @@ bool ByteStream::readFloat(float &f)
 	return readBinary(f);
 }
 
-bool ByteStream::readTime(double &t)
-{
-	uint32_t ms;
-	if(!readBinary(ms)) return false;
-	t = double(ms)*0.001;
-	return true;
-}
-
 void ByteStream::writeBinary(ByteStream &s)
 {
 	s.readBinary(*this);
@@ -284,12 +276,6 @@ void ByteStream::writeInt32(unsigned int i)
 void ByteStream::writeFloat(float f)
 {
 	writeBinary(f);
-}
-
-void ByteStream::writeTime(double time)
-{
-	uint32_t ms = uint32_t(time*1000.);
-	writeBinary(ms);
 }
 
 void ByteStream::clear(void)

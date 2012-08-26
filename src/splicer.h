@@ -24,6 +24,8 @@
 
 #include "include.h"
 #include "stripedfile.h"
+#include "identifier.h"
+#include "request.h"
 #include "array.h"
 
 namespace arc
@@ -34,14 +36,14 @@ namespace arc
 class Splicer
 {
 public:
-	Splicer(const String &filename, size_t blockSize, int nbStripes);
+	Splicer(const Identifier &target, const String &filename, size_t blockSize);
 	~Splicer(void);
 
-
-
 private:
+	Identifier mTarget;
 	size_t mBlockSize;
 	size_t mBlock;			// Current block
+	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
 };
 

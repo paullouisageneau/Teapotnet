@@ -61,7 +61,6 @@ public:
 	bool	readInt16(unsigned int &i);
 	bool	readInt32(unsigned &i);
 	bool	readFloat(float &f);
-	bool	readTime(double &t);
 
 	void	writeBinary(ByteStream &s);
 	void	writeBinary(const Serializable &s);
@@ -83,7 +82,6 @@ public:
 	void	writeInt16(unsigned int i = 0);
 	void	writeInt32(unsigned int i = 0);
 	void	writeFloat(float f = 0.f);
-	void	writeTime(double time = 0.);
 
 	virtual void clear(void);
 	virtual void ignore(int n = 1);

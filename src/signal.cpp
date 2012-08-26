@@ -53,7 +53,7 @@ void Signal::wait(Mutex &mutex)
 		throw Exception("Unable to wait for signal");
 }
 
-bool Signal::wait(Mutex &mutex, unsigned timeout)
+bool Signal::wait(Mutex &mutex, time_t timeout)
 {
 	timespec ts;
 	ts.tv_sec = timeout / 1000;

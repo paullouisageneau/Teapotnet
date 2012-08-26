@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "identifier.h"
+#include "file.h"
 #include "map.h"
 
 namespace arc
@@ -46,8 +47,8 @@ public:
 	void refresh(void);
 	void refreshDirectory(const String &directoryPath);
 
-	ByteStream *get(const Identifier &identifier);
-	ByteStream *get(const String &url);
+	File *get(const Identifier &identifier);
+	File *get(const String &url);
 
 	bool info(const Identifier &identifier, StringMap &map);
 	bool info(const String &url, StringMap &map);

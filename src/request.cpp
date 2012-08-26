@@ -22,6 +22,7 @@
 #include "request.h"
 #include "core.h"
 #include "store.h"
+#include "stripedfile.h"
 
 namespace arc
 {
@@ -106,14 +107,45 @@ void Request::cancel(void)
 bool Request::execute(void)
 {
 	StringMap info;
-	if(!Store::Instance->info(mTarget, info)) return false;
+	if(!Store::Instance->info(mTarget, info))
+	{
+		addResponse(new Response("KO"));
+		return false;
+	}
 
 	ByteStream *bs = NULL;
-	if(mIsData) bs = Store::Instance->get(mTarget);
+	if(mIsData)
+	{
+		StringMap parameters = mParameters;
+
+		if(parameters.contains("Stripe"))
+		{
+			size_t blockSize;
+			int nbStripe, stripe;
+
+			parameters["BlockSize"] >> blockSize;
+			parameters["StripesCount"] >> nbStripe;
+			parameters["Stripe"] >> stripe;
+
+			File *file = Store::Instance->get(mTarget);
+			if(file)
+			{
+				StripedFile *stripedFile = new StripedFile(file, blockSize, nbStripe, stripe);
+				// TODO: seeking
+				bs = stripedFile;
+			}
+		}
+		else {
+			File *file = Store::Instance->get(mTarget);
+			// TODO: seeking
+			bs = file;
+		}
+	}
 
 	Response *response = new Response("OK", info, bs);
 	if(response->content()) response->content()->close();	// no more content
 	addResponse(response);
+	return true;
 }
 
 void Request::addPending(void)
@@ -125,6 +157,7 @@ void Request::removePending(void)
 {
 	Assert(mPendingCount != 0);
 	mPendingCount--;
+	if(mPendingCount == 0) notifyAll();
 }
 
 int Request::responsesCount(void) const
@@ -145,6 +178,14 @@ Request::Response *Request::response(int num)
 	return mResponses.at(num);
 }
 
+Request::Response::Response(const String &status) :
+	mStatus(status),
+	mContent(NULL),
+	mIsSent(false)
+{
+
+}
+
 Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *content) :
 	mStatus(status),
 	mParameters(parameters),
@@ -157,6 +198,11 @@ Request::Response::Response(const String &status, const StringMap &parameters, B
 Request::Response::~Response(void)
 {
 	delete mContent;
+}
+
+const Identifier &Request::Response::peer(void) const
+{
+	return mPeer;
 }
 
 const String &Request::Response::status(void) const

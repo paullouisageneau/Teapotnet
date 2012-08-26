@@ -22,7 +22,6 @@
 #include "store.h"
 #include "directory.h"
 #include "sha512.h"
-#include "file.h"
 
 namespace arc
 {
@@ -158,14 +157,14 @@ void Store::refreshDirectory(const String &directoryPath)
 	}
 }
 
-ByteStream *Store::get(const Identifier &identifier)
+File *Store::get(const Identifier &identifier)
 {
 	String url;
 	if(mFiles.get(identifier,url)) return NULL;
 	return get(url);
 }
 
-ByteStream *Store::get(const String &url)
+File *Store::get(const String &url)
 {
 	if(!File::Exist(url)) return NULL;
 	return new File(url);
