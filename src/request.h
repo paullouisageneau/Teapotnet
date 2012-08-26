@@ -38,7 +38,7 @@ class Core;
 class Request : public Synchronizable
 {
 public:
-	Request(const String &target = "");
+	Request(const String &target = "", bool data = true);
 	virtual ~Request(void);
 
 	unsigned id() const;
@@ -47,14 +47,14 @@ public:
 
 	void setContentSink(ByteStream *bs);
 
-	void setTarget(const String &target);
+	void setTarget(const String &target, bool data);
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
 
 	void submit(void);
 	void submit(const Identifier &receiver);
 	void cancel(void);
-	void execute(void);
+	bool execute(void);
 
 	void addPending();
 	void removePending();
@@ -62,7 +62,7 @@ public:
 	class Response
 	{
 	public:
-		Response(const String &status, const StringMap &parameters, ByteStream *sink = NULL);
+		Response(const String &status, const StringMap &parameters, ByteStream *content = NULL);
 		~Response(void);
 
 		const String &status(void) const;
@@ -88,6 +88,7 @@ private:
 
 	Identifier mReceiver;
 	String mTarget;
+	bool mIsData;
 	StringMap mParameters;
 	ByteStream *mContentSink;
 	Synchronizable *mResponseSender;

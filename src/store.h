@@ -24,7 +24,6 @@
 
 #include "include.h"
 #include "identifier.h"
-#include "resource.h"
 #include "map.h"
 
 namespace arc
@@ -35,6 +34,8 @@ class Store
 public:
 	static const String DatabaseDirectory;
 	static const size_t ChunkSize;
+
+	static Store *Instance;
 
 	Store(void);
 	~Store(void);
@@ -48,9 +49,12 @@ public:
 	ByteStream *get(const Identifier &identifier);
 	ByteStream *get(const String &url);
 
+	bool info(const Identifier &identifier, StringMap &map);
+	bool info(const String &url, StringMap &map);
+
 protected:
 	Set<String> mDirectories;
-	Map<Identifier,String> mResources;
+	Map<Identifier,String> mFiles;
 };
 
 }

@@ -31,7 +31,6 @@
 #include "mutex.h"
 #include "signal.h"
 #include "identifier.h"
-#include "resource.h"
 #include "request.h"
 #include "synchronizable.h"
 #include "map.h"

@@ -36,6 +36,7 @@ public:
 	static const Identifier Null;
 
 	Identifier(void);
+	Identifier(const ByteString &bs);
 	~Identifier(void);
 
 };

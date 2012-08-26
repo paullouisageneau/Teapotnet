@@ -172,7 +172,7 @@ void Core::Handler::run(void)
 			parameters.insert(name,value);
 		}
 
-		if(command == "O")
+		if(command == "R")
 		{
 			unsigned id;
 			String status;
@@ -216,12 +216,12 @@ void Core::Handler::run(void)
 			}
 			else mSock->ignore(size);	// TODO: error
 		}
-		else if(command == "I")
+		else if(command == "I" || command == "G")
 		{
 			String &target = line;
 
 			Request *request = new Request;
-			request->setTarget(target);
+			request->setTarget(target, (command == "G"));
 			request->setParameters(parameters);
 
 			request->execute();
@@ -275,7 +275,9 @@ void Core::Handler::Sender::run(void)
 		if(!mRequestsQueue.empty())
 		{
 			Request *request = mRequestsQueue.front();
-			*mSock<<"I "<<request->target()<<Stream::NewLine;
+			if(request->mIsData) *mSock<<"G";
+			else *mSock<<"I";
+			*mSock<<" "<<request->target()<<Stream::NewLine;
 
 			StringMap &parameters = request->mParameters;
 			for(	StringMap::iterator it = parameters.begin();
@@ -308,7 +310,7 @@ void Core::Handler::Sender::run(void)
 						mTransferts.insert(channel,response->content());
 					}
 
-					*mSock<<"O "<<request->id()<<" "<<status<<" "<<channel<<Stream::NewLine;
+					*mSock<<"R "<<request->id()<<" "<<status<<" "<<channel<<Stream::NewLine;
 
 					StringMap &parameters = response->mParameters;
 					for(	StringMap::iterator it = parameters.begin();

@@ -21,16 +21,17 @@
 
 #include "request.h"
 #include "core.h"
+#include "store.h"
 
 namespace arc
 {
 
-Request::Request(const String &target) :
+Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
 		mPendingCount(0),
 		mResponseSender(NULL)
 {
-	setTarget(target);
+	setTarget(target, data);
 }
 
 Request::~Request(void)
@@ -61,9 +62,10 @@ void Request::setContentSink(ByteStream *bs)
 	mContentSink = bs;
 }
 
-void Request::setTarget(const String &target)
+void Request::setTarget(const String &target, bool data)
 {
 	mTarget = target;
+	mIsData = data;
 }
 
 void Request::setParameters(StringMap &params)
@@ -101,24 +103,28 @@ void Request::cancel(void)
 	}
 }
 
-void Request::execute(void)
+bool Request::execute(void)
 {
-	// TODO
+	StringMap info;
+	if(!Store::Instance->info(mTarget, info)) return false;
+
+	ByteStream *bs = NULL;
+	if(mIsData) bs = Store::Instance->get(mTarget);
+
+	Response *response = new Response("OK", info, bs);
+	if(response->content()) response->content()->close();	// no more content
+	addResponse(response);
 }
 
 void Request::addPending(void)
 {
-	lock();
 	mPendingCount++;
-	unlock();
 }
 
 void Request::removePending(void)
 {
-	lock();
 	Assert(mPendingCount != 0);
 	mPendingCount--;
-	unlock();
 }
 
 int Request::responsesCount(void) const
@@ -139,12 +145,12 @@ Request::Response *Request::response(int num)
 	return mResponses.at(num);
 }
 
-Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *sink) :
+Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *content) :
 	mStatus(status),
 	mParameters(parameters),
 	mIsSent(false)
 {
-	if(sink) mContent = new Pipe(sink);
+	if(content) mContent = new Pipe(content);
 	else mContent = NULL;
 }
 

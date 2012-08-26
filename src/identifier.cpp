@@ -31,6 +31,11 @@ Identifier::Identifier(void)
 
 }
 
+Identifier::Identifier(const ByteString &bs)
+{
+	*this = bs;
+}
+
 Identifier::~Identifier(void)
 {
 
