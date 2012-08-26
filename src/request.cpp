@@ -140,6 +140,13 @@ bool Request::execute(void)
 			// TODO: seeking
 			bs = file;
 		}
+
+		if(!bs)
+		{
+			// File could not be opened
+			addResponse(new Response("KO"));
+			return false;
+		}
 	}
 
 	Response *response = new Response("OK", info, bs);

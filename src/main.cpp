@@ -35,14 +35,13 @@ int main(int argc, char** argv)
 	std::cout<<"Data: "<<test<<std::endl;
 	std::cout<<"Hash: "<<result.toString()<<std::endl;
 
-	Store store;
-	store.addDirectory("/home/paulo/images");
-	store.refresh();
+	Store::Instance->addDirectory("images","/home/paulo/images");
+	Store::Instance->refresh();
 
 	// TEST
-	/*Httpd *httpd = new Httpd(8080);
+	Httpd *httpd = new Httpd(8080);
 	httpd->start();
-	httpd->join();*/
+	httpd->join();
 	
 	return 0;
 }

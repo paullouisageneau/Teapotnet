@@ -41,44 +41,91 @@ Store::~Store(void)
 
 }
 
-void Store::addDirectory(const String &path)
+void Store::addDirectory(const String &name, const String &path)
 {
-	mDirectories.insert(path);
+	mDirectories.insert(name, path);
 }
 
-void Store::removeDirectory(const String &path)
+void Store::removeDirectory(const String &name)
 {
-	mDirectories.erase(path);
+	mDirectories.erase(name);
 }
 
 void Store::refresh(void)
 {
 	mFiles.clear();
 
-	for(Set<String>::iterator it = mDirectories.begin();
+	for(StringMap::iterator it = mDirectories.begin();
 			it != mDirectories.end();
 			++it)
 	{
-		refreshDirectory(*it);
+		refreshDirectory(it->first, it->second);
 	}
 }
 
-void Store::refreshDirectory(const String &directoryPath)
+File *Store::get(const Identifier &identifier)
 {
-	Log("Store", String("Refreshing directory: ")+directoryPath);
+	String url;
+	if(mFiles.get(identifier,url)) return NULL;
+	return get(url);
+}
 
-	Directory dir(directoryPath);
+File *Store::get(const String &url)
+{
+	String path(urlToPath(url));
+	if(!File::Exist(path)) return NULL;
+	return new File(path);
+}
+
+bool Store::info(const Identifier &identifier, StringMap &map)
+{
+	String url;
+	if(mFiles.get(identifier,url)) return false;
+	return info(url, map);
+}
+
+bool Store::info(const String &url, StringMap &map)
+{
+	ByteString hash;
+	Sha512::Hash(url, hash);
+	String entry = DatabaseDirectory+Directory::Separator+url;
+	if(!File::Exist(entry)) return false;
+
+	try {
+		File file(entry, File::Read);
+
+		String path;
+		SerializableMap<String,String> header;
+		file.readLine(path);
+		file.read(map);
+	}
+	catch(Exception &e)
+	{
+		Log("Store", String("Corrupted entry for ")+url+": "+e.what());
+		return false;
+	}
+
+	return true;
+}
+
+void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
+{
+	Log("Store", String("Refreshing directory: ")+dirUrl);
+
+	Directory dir(dirPath);
 	while(dir.nextFile())
 	{
+		String url(dirUrl + Directory::Separator + dir.fileName());
+
 		if(dir.fileIsDir())
 		{
-			refreshDirectory(dir.filePath());
+			refreshDirectory(url, dir.filePath());
 			continue;
 		}
 
-		ByteString pathHash;
-		Sha512::Hash(dir.filePath(), pathHash);
-		String entry = DatabaseDirectory+Directory::Separator+pathHash.toString();
+		ByteString urlHash;
+		Sha512::Hash(url, urlHash);
+		String entry = DatabaseDirectory+Directory::Separator+urlHash.toString();
 
 		if(File::Exist(entry))
 		{
@@ -104,7 +151,7 @@ void Store::refreshDirectory(const String &directoryPath)
 				// If the file has not changed, don't hash it again
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
-					//mFiles.insert(Identifier(hash),dir.filePath());
+					mFiles.insert(Identifier(hash), url);
 					continue;
 				}
 			}
@@ -147,7 +194,7 @@ void Store::refreshDirectory(const String &directoryPath)
 
 			data.close();
 
-			mFiles.insert(Identifier(dataHash),dir.filePath());
+			mFiles.insert(Identifier(dataHash), url);
 		}
 		catch(Exception &e)
 		{
@@ -157,48 +204,14 @@ void Store::refreshDirectory(const String &directoryPath)
 	}
 }
 
-File *Store::get(const Identifier &identifier)
+String Store::urlToPath(const String &url) const
 {
-	String url;
-	if(mFiles.get(identifier,url)) return NULL;
-	return get(url);
-}
+	String dir(url);
+	String path = dir.cut(Directory::Separator);
 
-File *Store::get(const String &url)
-{
-	if(!File::Exist(url)) return NULL;
-	return new File(url);
-}
-
-bool Store::info(const Identifier &identifier, StringMap &map)
-{
-	String url;
-	if(mFiles.get(identifier,url)) return false;
-	return info(url, map);
-}
-
-bool Store::info(const String &url, StringMap &map)
-{
-	ByteString hash;
-	Sha512::Hash(url, hash);
-	String entry = DatabaseDirectory+Directory::Separator+url;
-	if(!File::Exist(entry)) return false;
-
-	try {
-		File file(entry, File::Read);
-
-		String path;
-		SerializableMap<String,String> header;
-		file.readLine(path);
-		file.read(map);
-	}
-	catch(Exception &e)
-	{
-		Log("Store", String("Corrupted entry for ")+url+": "+e.what());
-		return false;
-	}
-
-	return true;
+	String dirPath;
+	if(!mDirectories.get(dir,dirPath)) throw Exception("Directory does not exists");
+	return dirPath + Directory::Separator + path;
 }
 
 }

@@ -49,7 +49,7 @@ public:
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 
-protected:
+private:
 	Core(void);
 	~Core(void);
 

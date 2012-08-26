@@ -38,14 +38,10 @@ public:
 
 	static Store *Instance;
 
-	Store(void);
-	~Store(void);
-
-	void addDirectory(const String &path);
-	void removeDirectory(const String &path);
+	void addDirectory(const String &name, const String &path);
+	void removeDirectory(const String &name);
 
 	void refresh(void);
-	void refreshDirectory(const String &directoryPath);
 
 	File *get(const Identifier &identifier);
 	File *get(const String &url);
@@ -53,8 +49,14 @@ public:
 	bool info(const Identifier &identifier, StringMap &map);
 	bool info(const String &url, StringMap &map);
 
-protected:
-	Set<String> mDirectories;
+private:
+	Store(void);
+	~Store(void);
+
+	void refreshDirectory(const String &dirUrl, const String &dirPath);
+	String urlToPath(const String &url) const;
+
+	StringMap mDirectories;
 	Map<Identifier,String> mFiles;
 };
 
