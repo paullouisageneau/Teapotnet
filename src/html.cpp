@@ -55,7 +55,7 @@ void Html::footer(void)
 
 void Html::raw(const String &str)
 {
-	*mStream.write(str);
+	mStream->write(str);
 }
 
 void Html::text(const String &str)
@@ -65,12 +65,12 @@ void Html::text(const String &str)
 		char chr = str[i];
 		switch(chr)
 		{
-		case '"': 	*mStream.write("&quot;");	break;
-		case '\'': 	*mStream.write("&apos;");	break;
-		case '<': 	*mStream.write("&lt;");		break;
-		case '>': 	*mStream.write("&gt;");		break;
-		case '&': 	*mStream.write("&amp;");		break;
-		default:	*mStream.put(chr);			break;
+		case '"': 	mStream->write("&quot;");	break;
+		case '\'': 	mStream->write("&apos;");	break;
+		case '<': 	mStream->write("&lt;");		break;
+		case '>': 	mStream->write("&gt;");		break;
+		case '&': 	mStream->write("&amp;");	break;
+		default:	mStream->put(chr);			break;
 		}
 	}
 }

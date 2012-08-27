@@ -136,18 +136,18 @@ void Httpd::Request::clear(void)
 	post.clear();
 }
 
-void Httpd::Response::Response(const Request &request, int code)
+Httpd::Response::Response(const Request &request, int code)
 {
 	this->code = code;
 	this->version = request.version;
 }
 
-void Httpd::Response::~Response(void)
+Httpd::Response::~Response(void)
 {
 
 }
 
-void Http::Response::send(void)
+void Httpd::Response::send(void)
 {
 	if(version == "1.1" && code >= 200)
 		headers["Connection"] = "Close";
@@ -205,7 +205,7 @@ void Http::Response::send(void)
 	*sock<<"HTTP/";
 	if(version == "1.1") *sock<<"1.1";
 	else *sock<<"1.0";
-	*sock<<" "<<code<<" "<<response.msg<<"\r\n";
+	*sock<<" "<<code<<" "<<message<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
@@ -249,7 +249,7 @@ void Httpd::Handler::run(void)
 	Request request;
 
 	try {
-		request.parse(mSock);
+		request.parse(*mSock);
 
 		String expect;
 		if(request.headers.get("Expect",expect)

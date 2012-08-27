@@ -39,9 +39,9 @@ public:
 	~Httpd(void);
 
 	struct Request
-        {
-        	void parse(Stream &stream);
-        	void clear(void);
+	{
+		void parse(Stream &stream);
+		void clear(void);
 
 		String method;          // GET, POST, HEAD...
 		String protocol;        // HTTP
@@ -52,11 +52,13 @@ public:
 		StringMap cookies;      // Cookies
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
-        };
+	};
 
 	struct Response
 	{
-		void prefill(const Request &request);
+		Response(const Request &request, int code = 200);
+		~Response(void);
+
 		void send(void);
 		void clear(void);
 
@@ -65,7 +67,7 @@ public:
 		String message;		// Message
 		StringMap headers;	// HTTP headers
 		Socket *sock;
-	}
+	};
 
 private:
 	class Handler : public Thread
@@ -84,7 +86,7 @@ private:
 
 	void run(void);
 
-	ServerSocket *mSock;
+	ServerSocket mSock;
 
 	friend class Handler;
 };
