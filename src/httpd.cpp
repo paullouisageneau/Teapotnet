@@ -33,8 +33,7 @@ Httpd::Httpd(int port) :
 
 Httpd::~Httpd(void)
 {
-	mSock.close();
-	// TODO: delete clients
+	mSock.close();	// useless
 }
 
 void Httpd::run(void)
@@ -45,7 +44,7 @@ void Httpd::run(void)
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			Handler *client = new Handler(this, sock);
-			client->start();
+			client->start(true); // client will destroy itself
 		}
 	}
 	catch(const NetException &e)
@@ -167,33 +166,33 @@ void Httpd::Response::send(void)
 	{
 		switch(code)
 		{
-		case 100: message = "Continue";			break;
-		case 200: message = "OK";			break;
-		case 204: message = "No content";		break;
+		case 100: message = "Continue";				break;
+		case 200: message = "OK";					break;
+		case 204: message = "No content";			break;
 		case 206: message = "Partial Content";		break;
 		case 301: message = "Moved Permanently"; 	break;
-		case 302: message = "Found";			break;
-		case 303: message = "See Other";		break;
+		case 302: message = "Found";				break;
+		case 303: message = "See Other";			break;
 		case 304: message = "Not Modified"; 		break;
-		case 305: message = "Use Proxy"; 		break;
+		case 305: message = "Use Proxy"; 			break;
 		case 307: message = "Temporary Redirect";	break;
-		case 400: message = "Bad Request"; 		break;
-		case 401: message = "Unauthorized";		break;
-		case 403: message = "Forbidden"; 		break;
-		case 404: message = "Not Found";		break;
+		case 400: message = "Bad Request"; 			break;
+		case 401: message = "Unauthorized";			break;
+		case 403: message = "Forbidden"; 			break;
+		case 404: message = "Not Found";			break;
 		case 405: message = "Method Not Allowed";	break;
 		case 406: message = "Not Acceptable";		break;
 		case 408: message = "Request Timeout";		break;
-		case 410: message = "Gone";				break;
-		case 413: message = "Request Entity Too Large"; 	break;
-		case 414: message = "Request-URI Too Long";		break;
+		case 410: message = "Gone";								break;
+		case 413: message = "Request Entity Too Large"; 		break;
+		case 414: message = "Request-URI Too Long";				break;
 		case 416: message = "Requested Range Not Satisfiable";	break;
-		case 500: message = "Internal Server Error";		break;
-		case 501: message = "Not Implemented";			break;
-		case 502: message = "Bad Gateway";			break;
-		case 503: message = "Service Unavailable";		break;
-		case 504: message = "Gateway Timeout";			break;
-		case 505: message = "HTTP Version Not Supported";	break;
+		case 500: message = "Internal Server Error";			break;
+		case 501: message = "Not Implemented";					break;
+		case 502: message = "Bad Gateway";						break;
+		case 503: message = "Service Unavailable";				break;
+		case 504: message = "Gateway Timeout";					break;
+		case 505: message = "HTTP Version Not Supported";		break;
 
 		default:
 			if(code < 300) message = "OK";

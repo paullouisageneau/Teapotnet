@@ -36,7 +36,7 @@ public:
 	template<typename T> Thread(void (*func)(T*), T *arg);	// start func(arg) immediately
 	virtual ~Thread(void);
 
-	void start(void);
+	void start(bool autoDelete = false);
 	void join(void);
 	void terminate(void);
 	bool isRunning(void);
@@ -76,9 +76,13 @@ private:
 	pthread_t 	mThread;
 	bool		mRunning;
 	bool		mJoined;
+	bool		mAutoDelete;
 };
 
-template<typename T> Thread::Thread(void (*func)(void))
+template<typename T> Thread::Thread(void (*func)(void)) :
+		mRunning(false),
+		mJoined(true),
+		mAutoDelete(false)
 {
 	Assert(func != NULL);
 	VoidWrapper<T> *wrapper = new VoidWrapper<T>;
@@ -87,7 +91,10 @@ template<typename T> Thread::Thread(void (*func)(void))
 	start(wrapper);
 }
 
-template<typename T> Thread::Thread(void (*func)(T*), T *arg)
+template<typename T> Thread::Thread(void (*func)(T*), T *arg) :
+		mRunning(false),
+		mJoined(true),
+		mAutoDelete(false)
 {
 	Assert(func != NULL);
 	ArgWrapper<T> *wrapper = new ArgWrapper<T>;

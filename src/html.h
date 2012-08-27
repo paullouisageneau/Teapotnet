@@ -32,7 +32,7 @@ namespace arc
 class Html
 {
 public:
-	Html(Stream *stream);
+	Html(Stream *stream);	// stream WON'T be destroyed
 	~Html(void);
 
 	void header(const String &title = "");

@@ -26,7 +26,8 @@ namespace arc
 
 Thread::Thread(void) :
 		mRunning(false),
-		mJoined(true)
+		mJoined(true),
+		mAutoDelete(false)
 {	
 
 }
@@ -36,14 +37,18 @@ Thread::~Thread(void)
 	if(!mJoined) join();
 }
 
-void Thread::start(void)
+void Thread::start(bool autoDelete)
 {
 	if(mRunning) return;
 	if(!mJoined) join();
-	mJoined = false;
+
+	mJoined = mAutoDelete = autoDelete;
 
 	if(pthread_create(&mThread, NULL, &ThreadRun, reinterpret_cast<void*>(this)) != 0)
-			throw Exception("Thread creation failed");
+		throw Exception("Thread creation failed");
+
+	if(mAutoDelete)
+		pthread_detach(mThread);
 }
 
 void Thread::start(Thread::Wrapper *wrapper)
@@ -51,9 +56,10 @@ void Thread::start(Thread::Wrapper *wrapper)
 	if(mRunning) return;
 	if(!mJoined) join();
 	mJoined = false;
+	mAutoDelete = false;
 
 	if(pthread_create(&mThread, NULL, &ThreadCall, reinterpret_cast<void*>(wrapper)) != 0)
-				throw Exception("Thread creation failed");
+		throw Exception("Thread creation failed");
 }
 
 void Thread::join(void)
@@ -93,6 +99,7 @@ void *Thread::ThreadRun(void *myThread)
 	thread->mRunning = true;
 	thread->run();
 	thread->mRunning = false;
+	if(thread->mAutoDelete) delete thread;
 	pthread_exit(NULL);
 }
 

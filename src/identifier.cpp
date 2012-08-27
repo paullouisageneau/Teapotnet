@@ -31,9 +31,10 @@ Identifier::Identifier(void)
 
 }
 
-Identifier::Identifier(const ByteString &bs)
+Identifier::Identifier(const ByteString &bs) :
+	ByteString(bs)
 {
-	*this = bs;
+
 }
 
 Identifier::~Identifier(void)
