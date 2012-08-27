@@ -53,6 +53,8 @@ public:
 				const String &alt = "",
 				String id = "");
 
+	void br(void);
+
 	Stream *stream(void);
 
 private:

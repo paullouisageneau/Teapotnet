@@ -35,6 +35,9 @@ class Directory
 public:
 	static const char Separator;
 
+	static bool Exist(const String &path);
+	static bool Remove(const String &path);
+
 	Directory(void);
 	Directory(const String &path);
 	~Directory(void);

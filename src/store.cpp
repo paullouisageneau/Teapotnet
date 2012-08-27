@@ -22,6 +22,7 @@
 #include "store.h"
 #include "directory.h"
 #include "sha512.h"
+#include "html.h"
 
 namespace arc
 {
@@ -106,6 +107,85 @@ bool Store::info(const String &url, StringMap &map)
 	}
 
 	return true;
+}
+
+void Store::http(Httpd::Request &request)
+{
+	try {
+		const String &url = request.file;
+
+		if(request.file == "/")
+		{
+			Httpd::Response response(request,200);
+			response.headers["Content-Type"] = "text/html; charset=UTF-8";
+			response.send();
+
+			Html page(response.sock);
+			page.header(request.file);
+			page.open("h1");
+			page.text(request.file);
+			page.close("h1");
+
+			for(StringMap::iterator it = mDirectories.begin();
+						it != mDirectories.end();
+						++it)
+			{
+				page.link(it->first, it->first);
+				page.br();
+			}
+
+			page.footer();
+		}
+		else {
+			String path = urlToPath(url);
+			if(path[path.size()-1] == Directory::Separator) path.resize(path.size()-1);
+
+			if(Directory::Exist(path))
+			{
+				if(url[url.size()-1] != '/')
+				{
+					Httpd::Response response(request, 301);	// Moved Permanently
+					response.headers["Location"] = url+"/";
+					response.send();
+					return;
+				}
+
+				Httpd::Response response(request, 200);
+				response.headers["Content-Type"] = "text/html; charset=UTF-8";
+				response.send();
+
+				Html page(response.sock);
+				page.header(request.file);
+				page.open("h1");
+				page.text(request.file);
+				page.close("h1");
+
+				Directory dir(path);
+				while(dir.nextFile())
+				{
+					page.link(dir.fileName(), dir.fileName());
+					page.br();
+				}
+
+				page.footer();
+			}
+			else if(File::Exist(path))
+			{
+				Httpd::Response response(request,200);
+				response.headers["Content-Type"] = "application/octet-stream";	// TODO
+				response.send();
+
+				File file(path, File::Read);
+				response.sock->writeBinary(file);
+			}
+			else throw Exception("File not found");
+		}
+	}
+	catch(...)
+	{
+		// TODO: Log
+		throw 404;	// Httpd handles integer exceptions
+	}
 }
 
 void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
@@ -206,11 +286,19 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 
 String Store::urlToPath(const String &url) const
 {
-	String dir(url);
-	String path = dir.cut(Directory::Separator);
+	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
+
+	String dir(url.substr(1));
+	String path = dir.cut('/');
+
+	// Do not accept the parent directory symbol as a security protection
+	if(path.find("..") != String::NotFound) throw Exception("Invalid URL");
 
 	String dirPath;
 	if(!mDirectories.get(dir,dirPath)) throw Exception("Directory does not exists");
+
+	path.replace('/',Directory::Separator);
+
 	return dirPath + Directory::Separator + path;
 }
 

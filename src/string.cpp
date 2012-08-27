@@ -183,6 +183,18 @@ bool String::remove(char chr)
 	return found;
 }
 
+bool String::replace(char a, char b)
+{
+	bool found = false;
+	for(int i=0; i<this->size(); ++i)
+		if(at(i) == a)
+		{
+			at(i) = b;
+			found = true;
+		}
+	return found;
+}
+
 String String::mid(int pos, int n) const
 {
     return this->substr(pos, n);

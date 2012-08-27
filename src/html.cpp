@@ -121,6 +121,11 @@ void Html::image(	const String &url,
 	*mStream<<"/>\n";
 }
 
+void Html::br(void)
+{
+	*mStream<<"<br/>\n";
+}
+
 Stream *Html::stream(void)
 {
 	return mStream;

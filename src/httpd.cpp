@@ -21,6 +21,7 @@
 
 #include "httpd.h"
 #include "html.h"
+#include "store.h"
 
 namespace arc
 {
@@ -53,9 +54,18 @@ void Httpd::run(void)
 	}
 }
 
-void Httpd::Request::parse(Stream &stream)
+Httpd::Request::Request(Socket *sock)
+{
+	this->sock = NULL;
+	if(sock) parse(sock);
+}
+
+void Httpd::Request::parse(Socket *sock)
 {
 	clear();
+
+	this->sock = sock;
+	Stream &stream = *sock;
 
 	// Read first line
 	String line;
@@ -139,11 +149,8 @@ Httpd::Response::Response(const Request &request, int code)
 {
 	this->code = code;
 	this->version = request.version;
-}
-
-Httpd::Response::~Response(void)
-{
-
+	this->sock = request.sock;
+	this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 
 void Httpd::Response::send(void)
@@ -246,9 +253,8 @@ Httpd::Handler::~Handler(void)
 void Httpd::Handler::run(void)
 {
 	Request request;
-
 	try {
-		request.parse(*mSock);
+		request.parse(mSock);
 
 		String expect;
 		if(request.headers.get("Expect",expect)
@@ -261,9 +267,7 @@ void Httpd::Handler::run(void)
 	}
 	catch(int code)
 	{
-		Response response(request);
-		response.sock = mSock;
-		response.code = code;
+		Response response(request, code);
 		response.headers["Content-Type"] = "text/html; charset=UTF-8";
 		response.send();
 
@@ -272,7 +276,7 @@ void Httpd::Handler::run(void)
 			Html page(response.sock);
 			page.header(response.message);
 			page.open("h1");
-			page.text(response.message);
+			page.text(String::number(response.code) + " - " + response.message);
 			page.close("h1");
 			page.footer();
 		}
@@ -281,9 +285,10 @@ void Httpd::Handler::run(void)
 
 void Httpd::Handler::process(Request &request)
 {
-	Response response(request);
+	Store::Instance->http(request);
+
+	/*Response response(request);
 	response.sock = mSock;
-	response.headers["Content-Type"] = "text/html; charset=UTF-8";
 
 	// TODO
 	
@@ -296,7 +301,7 @@ void Httpd::Handler::process(Request &request)
 		page.text("Hello world !");
 		page.close("h1");
 		page.footer();
-	}
+	}*/
 }
 
 }

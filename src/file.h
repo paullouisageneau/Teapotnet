@@ -39,7 +39,7 @@ public:
 	using ByteStream::ignore;
 
 	static bool Exist(const String &filename);
-	static void Remove(const String &filename);
+	static bool Remove(const String &filename);
 
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 

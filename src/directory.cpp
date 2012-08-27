@@ -40,6 +40,19 @@ namespace arc
 
 const char Directory::Separator = PATH_SEPARATOR;
 
+bool Directory::Exist(const String &path)
+{
+	DIR *dir = opendir(path.c_str());
+	if(!dir) return false;
+	closedir(dir);
+	return true;
+}
+
+bool Directory::Remove(const String &path)
+{
+	return (rmdir(path.c_str()) == 0);
+}
+
 Directory::Directory(void) :
 		mDir(NULL),
 		mDirent(NULL)

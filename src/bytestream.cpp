@@ -44,7 +44,6 @@ size_t ByteStream::readBinary(ByteStream &s)
 	{
 		total+= size;
 		s.writeData(buffer,size);
-		size = readData(buffer,BufferSize);
 	}
 	return total;
 }

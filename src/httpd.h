@@ -40,7 +40,9 @@ public:
 
 	struct Request
 	{
-		void parse(Stream &stream);
+		Request(Socket *sock = NULL);
+
+		void parse(Socket *sock);
 		void clear(void);
 
 		String method;          // GET, POST, HEAD...
@@ -52,21 +54,21 @@ public:
 		StringMap cookies;      // Cookies
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
+		Socket *sock;			// Internal use for Response construction
 	};
 
 	struct Response
 	{
 		Response(const Request &request, int code = 200);
-		~Response(void);
 
 		void send(void);
 		void clear(void);
 
-		int code;		// Response code
+		int code;			// Response code
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
-		Socket *sock;
+		Socket *sock;		// Socket where to send data
 	};
 
 private:

@@ -61,6 +61,7 @@ public:
 	int lastIndexOf(const char* c) const;
 
 	bool remove(char chr);
+	bool replace(char a, char b);
 
 	String mid(int pos, int n = String::npos) const;
 	String left(int pos) const;

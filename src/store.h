@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "identifier.h"
+#include "httpd.h"
 #include "file.h"
 #include "map.h"
 
@@ -48,6 +49,8 @@ public:
 
 	bool info(const Identifier &identifier, StringMap &map);
 	bool info(const String &url, StringMap &map);
+
+	void http(Httpd::Request &request);
 
 private:
 	Store(void);

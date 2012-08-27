@@ -32,9 +32,9 @@ bool File::Exist(const String &filename)
 	return file.is_open();
 }
 
-void File::Remove(const String &filename)
+bool File::Remove(const String &filename)
 {
-	std::remove(filename.c_str());
+	return (std::remove(filename.c_str()) == 0);
 }
 
 File::File(const String &filename, File::OpenMode mode)
