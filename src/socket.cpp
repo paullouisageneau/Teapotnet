@@ -44,7 +44,7 @@ Socket::Socket(socket_t sock)
 
 Socket::~Socket(void)
 {
-
+	close();
 }
 
 bool Socket::isConnected(void) const

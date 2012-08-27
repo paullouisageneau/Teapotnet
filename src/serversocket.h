@@ -41,7 +41,7 @@ public:
 
 	void listen(int port);
 	void close(void);
-	Socket accept(void);
+	void accept(Socket &sock);
 
 private:
 	socket_t	mSock;

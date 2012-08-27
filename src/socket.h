@@ -30,6 +30,8 @@
 namespace arc
 {
 
+class ServerSocket;
+	
 class Socket : public Stream, public ByteStream
 {
 public:
@@ -52,6 +54,8 @@ public:
 
 private:
 	socket_t mSock;
+	
+	friend class ServerSocket;
 };
 
 }

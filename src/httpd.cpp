@@ -42,7 +42,8 @@ void Httpd::run(void)
 	try {
 		while(true)
 		{
-			Socket sock = mSock.accept();
+			Socket *sock = new Socket;
+			mSock.accept(*sock);
 			Handler *client = new Handler(this, sock);
 			client->start();
 		}
@@ -53,20 +54,7 @@ void Httpd::run(void)
 	}
 }
 
-Httpd::Handler::Handler(Httpd *httpd, const Socket &sock) :
-		mHttpd(httpd),
-		mSock(sock)
-{
-
-}
-
-Httpd::Handler::~Handler(void)
-{
-	if(mSock.isConnected())
-		mSock.close();
-}
-
-void Httpd::Handler::Request::parse(Stream &stream)
+void Httpd::Request::parse(Stream &stream)
 {
 	clear();
 
@@ -135,7 +123,7 @@ void Httpd::Handler::Request::parse(Stream &stream)
 	}
 }
 
-void Httpd::Handler::Request::clear(void)
+void Httpd::Request::clear(void)
 {
 	method.clear();
 	protocol.clear();
@@ -148,47 +136,20 @@ void Httpd::Handler::Request::clear(void)
 	post.clear();
 }
 
-void Httpd::Handler::run(void)
+void Httpd::Response::Response(const Request &request, int code)
 {
-	Request request;
-
-	try {
-		request.parse(mSock);
-
-		String expect;
-		if(request.headers.get("Expect",expect)
-				&& expect.toLower() == "100-continue")
-		{
-			mSock.writeLine("HTTP/1.1 100 Continue\r\n\r\n");
-		}
-
-		process(request);
-	}
-	catch(int code)
-	{
-		StringMap headers;
-		headers["Content-Type"] = "text/html; charset=UTF-8";
-
-		String message;
-		respond(code, headers, request, &message);
-
-		if(request.method != "HEAD")
-		{
-			Html page(mSock);
-			page.header(message);
-			page.open("h1");
-			page.text(message);
-			page.close("h1");
-			page.footer();
-		}
-	}
-
-	mSock.close();
+	this->code = code;
+	this->version = request.version;
 }
 
-void Httpd::Handler::respond(int code, StringMap &headers, Request &request, String *message)
+void Httpd::Response::~Response(void)
 {
-	if(request.version == "1.1" && code >= 200)
+
+}
+
+void Http::Response::send(void)
+{
+	if(version == "1.1" && code >= 200)
 		headers["Connection"] = "Close";
 
 	if(!headers.contains("Date"))
@@ -202,47 +163,49 @@ void Httpd::Handler::respond(int code, StringMap &headers, Request &request, Str
 		headers["Date"] = buffer;
 	}
 
-	String msg;
-	switch(code)
+	if(message.empty())
 	{
-	case 100: msg = "Continue";				break;
-	case 200: msg = "OK";					break;
-	case 204: msg = "No content";			break;
-	case 206: msg = "Partial Content";		break;
-	case 301: msg = "Moved Permanently"; 	break;
-	case 302: msg = "Found";			 	break;
-	case 303: msg = "See Other";			break;
-	case 304: msg = "Not Modified"; 		break;
-	case 305: msg = "Use Proxy"; 			break;
-	case 307: msg = "Temporary Redirect"; 	break;
-	case 400: msg = "Bad Request"; 			break;
-	case 401: msg = "Unauthorized";			break;
-	case 403: msg = "Forbidden"; 			break;
-	case 404: msg = "Not Found";			break;
-	case 405: msg = "Method Not Allowed";	break;
-	case 406: msg = "Not Acceptable";		break;
-	case 408: msg = "Request Timeout";		break;
-	case 410: msg = "Gone";					break;
-	case 413: msg = "Request Entity Too Large"; 		break;
-	case 414: msg = "Request-URI Too Long";				break;
-	case 416: msg = "Requested Range Not Satisfiable";	break;
-	case 500: msg = "Internal Server Error";			break;
-	case 501: msg = "Not Implemented";					break;
-	case 502: msg = "Bad Gateway";						break;
-	case 503: msg = "Service Unavailable";				break;
-	case 504: msg = "Gateway Timeout";					break;
-	case 505: msg = "HTTP Version Not Supported";		break;
+		switch(code)
+		{
+		case 100: message = "Continue";			break;
+		case 200: message = "OK";			break;
+		case 204: message = "No content";		break;
+		case 206: message = "Partial Content";		break;
+		case 301: message = "Moved Permanently"; 	break;
+		case 302: message = "Found";			break;
+		case 303: message = "See Other";		break;
+		case 304: message = "Not Modified"; 		break;
+		case 305: message = "Use Proxy"; 		break;
+		case 307: message = "Temporary Redirect";	break;
+		case 400: message = "Bad Request"; 		break;
+		case 401: message = "Unauthorized";		break;
+		case 403: message = "Forbidden"; 		break;
+		case 404: message = "Not Found";		break;
+		case 405: message = "Method Not Allowed";	break;
+		case 406: message = "Not Acceptable";		break;
+		case 408: message = "Request Timeout";		break;
+		case 410: message = "Gone";				break;
+		case 413: message = "Request Entity Too Large"; 	break;
+		case 414: message = "Request-URI Too Long";		break;
+		case 416: message = "Requested Range Not Satisfiable";	break;
+		case 500: message = "Internal Server Error";		break;
+		case 501: message = "Not Implemented";			break;
+		case 502: message = "Bad Gateway";			break;
+		case 503: message = "Service Unavailable";		break;
+		case 504: message = "Gateway Timeout";			break;
+		case 505: message = "HTTP Version Not Supported";	break;
 
-	default:
-		if(code < 300) msg = "OK";
-		else msg = "Error";
-		break;
+		default:
+			if(code < 300) message = "OK";
+			else message = "Error";
+			break;
+		}
 	}
 
-	mSock<<"HTTP/";
-	if(request.version == "1.1") mSock<<"1.1";
-	else mSock<<"1.0";
-	mSock<<" "<<code<<" "<<msg<<"\r\n";
+	*sock<<"HTTP/";
+	if(version == "1.1") *sock<<"1.1";
+	else *sock<<"1.0";
+	*sock<<" "<<code<<" "<<response.msg<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
@@ -255,26 +218,77 @@ void Httpd::Handler::respond(int code, StringMap &headers, Request &request, Str
 				l != lines.end();
 				++l)
 		{
-			mSock<<it->first<<": "<<*l<<"\r\n";
+			*sock<<it->first<<": "<<*l<<"\r\n";
 		}
 	}
 
-	mSock<<"\r\n";
+	*sock<<"\r\n";
+}
 
-	if(message)
+void Httpd::Response::clear(void)
+{
+	code = 0;
+	message.clear();
+	version.clear();
+}
+
+Httpd::Handler::Handler(Httpd *httpd, Socket *sock) :
+		mHttpd(httpd),
+		mSock(sock)
+{
+
+}
+
+Httpd::Handler::~Handler(void)
+{
+	delete mSock;	// deletion closes the socket
+}
+
+void Httpd::Handler::run(void)
+{
+	Request request;
+
+	try {
+		request.parse(mSock);
+
+		String expect;
+		if(request.headers.get("Expect",expect)
+				&& expect.toLower() == "100-continue")
+		{
+			mSock->writeLine("HTTP/1.1 100 Continue\r\n\r\n");
+		}
+
+		process(request);
+	}
+	catch(int code)
 	{
-		message->clear();
-		*message<<code<<" "<<msg;
+		Response response(request);
+		response.sock = mSock;
+		response.code = code;
+		response.headers["Content-Type"] = "text/html; charset=UTF-8";
+		response.send();
+
+		if(request.method != "HEAD")
+		{
+			Html page(response.sock);
+			page.header(response.message);
+			page.open("h1");
+			page.text(response.message);
+			page.close("h1");
+			page.footer();
+		}
 	}
 }
 
 void Httpd::Handler::process(Request &request)
 {
-	StringMap headers;
-	headers["Content-Type"] = "text/html; charset=UTF-8";
+	Response response(request);
+	response.sock = mSock;
+	response.headers["Content-Type"] = "text/html; charset=UTF-8";
 
-	respond(200, headers, request);
-
+	// TODO
+	
+	response.send();
 	if(request.method != "HEAD")
 	{
 		Html page(mSock);

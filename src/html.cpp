@@ -25,7 +25,7 @@
 namespace arc
 {
 
-Html::Html(Stream &stream) :
+Html::Html(Stream *stream) :
 		mStream(stream)
 {
 
@@ -38,24 +38,24 @@ Html::~Html(void)
 
 void Html::header(const String &title)
 {
-	mStream<<"<!DOCTYPE html>\n";
-	mStream<<"<html>\n";
-	mStream<<"<head>\n";
-	mStream<<"<title>"<<title<<"</title>\n";
-	mStream<<"</head>\n";
-	mStream<<"<body>\n";
+	*mStream<<"<!DOCTYPE html>\n";
+	*mStream<<"<html>\n";
+	*mStream<<"<head>\n";
+	*mStream<<"<title>"<<title<<"</title>\n";
+	*mStream<<"</head>\n";
+	*mStream<<"<body>\n";
 
 }
 
 void Html::footer(void)
 {
-	mStream<<"</body>\n";
-	mStream<<"</html>\n";
+	*mStream<<"</body>\n";
+	*mStream<<"</html>\n";
 }
 
 void Html::raw(const String &str)
 {
-	mStream.write(str);
+	*mStream.write(str);
 }
 
 void Html::text(const String &str)
@@ -65,35 +65,35 @@ void Html::text(const String &str)
 		char chr = str[i];
 		switch(chr)
 		{
-		case '"': 	mStream.write("&quot;");	break;
-		case '\'': 	mStream.write("&apos;");	break;
-		case '<': 	mStream.write("&lt;");		break;
-		case '>': 	mStream.write("&gt;");		break;
-		case '&': 	mStream.write("&amp;");		break;
-		default:	mStream.put(chr);			break;
+		case '"': 	*mStream.write("&quot;");	break;
+		case '\'': 	*mStream.write("&apos;");	break;
+		case '<': 	*mStream.write("&lt;");		break;
+		case '>': 	*mStream.write("&gt;");		break;
+		case '&': 	*mStream.write("&amp;");		break;
+		default:	*mStream.put(chr);			break;
 		}
 	}
 }
 
 void Html::object(const Serializable &s)
 {
-	s.html(mStream);
+	s.html(*mStream);
 }
 
 void Html::open(const String &type, String id)
 {
 	assert(!type.empty());
 	String cl = id.cut('.');
-	mStream<<"<"<<type;
-	if(!id.empty()) mStream<<" id=\""<<id<<"\"";
-	if(!cl.empty()) mStream<<" class=\""<<cl<<"\"";
-	mStream<<">";
+	*mStream<<"<"<<type;
+	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
+	*mStream<<">";
 }
 
 void Html::close(const String &type)
 {
 	assert(!type.empty());
-	mStream<<"</"<<type<<">\n";
+	*mStream<<"</"<<type<<">\n";
 }
 
 void Html::link(	const String &url,
@@ -101,12 +101,12 @@ void Html::link(	const String &url,
 					String id)
 {
 	String cl = id.cut('.');
-	mStream<<"<a href=\""<<url<<"\"";
-	if(!id.empty()) mStream<<" id=\""<<id<<"\"";
-	if(!cl.empty()) mStream<<" class=\""<<cl<<"\"";
-	mStream<<">";
+	*mStream<<"<a href=\""<<url<<"\"";
+	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
+	*mStream<<">";
 	text(txt);
-	mStream<<"</a>\n";
+	*mStream<<"</a>\n";
 }
 
 void Html::image(	const String &url,
@@ -114,14 +114,14 @@ void Html::image(	const String &url,
 					String id)
 {
 	String cl = id.cut('.');
-	mStream<<"<img src=\""<<url<<"\"";
-	if(!alt.empty()) mStream<<" alt=\""<<alt<<"\"";
-	if(!id.empty())  mStream<<" id=\""<<id<<"\"";
-	if(!cl.empty())  mStream<<" class=\""<<cl<<"\"";
-	mStream<<"/>\n";
+	*mStream<<"<img src=\""<<url<<"\"";
+	if(!alt.empty()) *mStream<<" alt=\""<<alt<<"\"";
+	if(!id.empty())  *mStream<<" id=\""<<id<<"\"";
+	if(!cl.empty())  *mStream<<" class=\""<<cl<<"\"";
+	*mStream<<"/>\n";
 }
 
-Stream &Html::stream(void)
+Stream *Html::stream(void)
 {
 	return mStream;
 }

@@ -32,7 +32,7 @@ namespace arc
 class Html
 {
 public:
-	Html(Stream &stream);
+	Html(Stream *stream);
 	~Html(void);
 
 	void header(const String &title = "");
@@ -53,10 +53,10 @@ public:
 				const String &alt = "",
 				String id = "");
 
-	Stream &stream(void);
+	Stream *stream(void);
 
 private:
-	Stream &mStream;
+	Stream *mStream;
 };
 
 }

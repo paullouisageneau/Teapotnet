@@ -144,13 +144,13 @@ void ServerSocket::close(void)
 	}
 }
 
-Socket ServerSocket::accept(void)
+void ServerSocket::accept(Socket &sock)
 {
 	if(mSock == INVALID_SOCKET) throw NetException("Socket not listening");
-
+	sock.close();
 	socket_t clientSock = ::accept(mSock, NULL, NULL);
 	if(clientSock == INVALID_SOCKET) throw NetException(String("Listening socket closed on port ")+String::number(mPort));
-	return Socket(clientSock);
+	sock.mSock = clientSock;
 }
 
 }

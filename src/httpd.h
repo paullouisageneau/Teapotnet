@@ -38,41 +38,53 @@ public:
 	Httpd(int port = 80);
 	~Httpd(void);
 
+	struct Request
+        {
+        	void parse(Stream &stream);
+        	void clear(void);
+
+		String method;          // GET, POST, HEAD...
+		String protocol;        // HTTP
+		String version;         // 1.0 or 1.1
+		String file;            // URL without parameters
+		String url;             // Complete URL
+		StringMap headers;      // HTTP headers
+		StringMap cookies;      // Cookies
+		StringMap get;          // URL parameters
+		StringMap post;         // POST parameters
+        };
+
+	struct Response
+	{
+		void prefill(const Request &request);
+		void send(void);
+		void clear(void);
+
+		int code;		// Response code
+		String version;		// 1.0 or 1.1
+		String message;		// Message
+		StringMap headers;	// HTTP headers
+		Socket *sock;
+	}
+
 private:
 	class Handler : public Thread
 	{
 	public:
-		Handler(Httpd *httpd, const Socket &sock);
+		Handler(Httpd *httpd, Socket *sock);
 		~Handler(void);
 
 	private:
-		struct Request
-		{
-			void parse(Stream &stream);
-			void clear(void);
-
-			String method;		// GET, POST, HEAD...
-			String protocol;	// HTTP
-			String version;		// 1.0 or 1.1
-			String file;		// URL without parameters
-			String url;			// Complete URL
-			StringMap headers;	// HTTP headers
-			StringMap cookies;	// Cookies
-			StringMap get;		// URL parameters
-			StringMap post;		// POST parameters
-		};
-
 		void run(void);
-		void respond(int code, StringMap &headers, Request &request, String *message = NULL);
 		void process(Request &request);
 
 		Httpd *mHttpd;
-		Socket mSock;
+		Socket *mSock;
 	};
 
 	void run(void);
 
-	ServerSocket mSock;
+	ServerSocket *mSock;
 
 	friend class Handler;
 };
