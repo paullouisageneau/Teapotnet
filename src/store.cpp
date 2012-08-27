@@ -117,7 +117,6 @@ void Store::http(Httpd::Request &request)
 		if(request.file == "/")
 		{
 			Httpd::Response response(request,200);
-			response.headers["Content-Type"] = "text/html; charset=UTF-8";
 			response.send();
 
 			Html page(response.sock);
@@ -151,7 +150,6 @@ void Store::http(Httpd::Request &request)
 				}
 
 				Httpd::Response response(request, 200);
-				response.headers["Content-Type"] = "text/html; charset=UTF-8";
 				response.send();
 
 				Html page(response.sock);

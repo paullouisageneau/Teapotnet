@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "core.h"
+#include "html.h"
 
 namespace arc
 {
@@ -84,6 +85,57 @@ void Core::removeRequest(unsigned id)
 		handler->lock();
 		handler->removeRequest(id);
 		handler->unlock();
+	}
+}
+
+void Core::http(Httpd::Request &request)
+{
+	List<String> list;
+	request.file.explode(list,'/');
+
+	// URL should begin with /
+	if(list.empty()) throw 404;
+	if(!list.front().empty()) throw 404;
+	list.pop_front();
+	if(list.empty()) throw 404;
+
+	// Remove last /
+	if(list.back().empty()) list.pop_back();
+	if(list.empty()) throw 404;
+
+	if(list.front() == "peers")
+	{
+		list.pop_front();
+
+		if(list.empty())
+		{
+			Httpd::Response response(request, 200);
+			response.send();
+
+			Html page(response.sock);
+			page.header("Peers");
+			page.open("h1");
+			page.text("Peers");
+			page.close("h1");
+
+			if(mHandlers.empty()) page.text("No peer...");
+			else for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+							it != mHandlers.end();
+							++it)
+			{
+				String str(it->first.toString());
+				page.link(str,String("/peers/")+str);
+				page.br();
+			}
+
+			page.footer();
+		}
+		else {
+			//Identifier ident;
+			//list.front() >> ident;
+
+			// TODO
+		}
 	}
 }
 

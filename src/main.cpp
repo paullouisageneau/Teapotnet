@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	Store::Instance->refresh();
 
 	// TEST
-	Httpd *httpd = new Httpd(8000);
+	Httpd *httpd = new Httpd(8080);
 	httpd->start();
 	httpd->join();
 	

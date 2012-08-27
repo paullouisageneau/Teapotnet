@@ -22,6 +22,7 @@
 #include "httpd.h"
 #include "html.h"
 #include "store.h"
+#include "core.h"
 
 namespace arc
 {
@@ -285,23 +286,37 @@ void Httpd::Handler::run(void)
 
 void Httpd::Handler::process(Request &request)
 {
-	Store::Instance->http(request);
+	try {
+		// TODO: registering system
 
-	/*Response response(request);
-	response.sock = mSock;
+		if(request.file.substr(0,6) == "/peers")
+		{
+			Core::Instance->http(request);
+		}
+		else {
+			Store::Instance->http(request);
+		}
 
-	// TODO
-	
-	response.send();
-	if(request.method != "HEAD")
+		/*Response response(request);
+		response.sock = mSock;
+
+		// TODO
+
+		response.send();
+		if(request.method != "HEAD")
+		{
+			Html page(mSock);
+			page.header("Test page");
+			page.open("h1");
+			page.text("Hello world !");
+			page.close("h1");
+			page.footer();
+		}*/
+	}
+	catch(Exception &e)
 	{
-		Html page(mSock);
-		page.header("Test page");
-		page.open("h1");
-		page.text("Hello world !");
-		page.close("h1");
-		page.footer();
-	}*/
+		throw 500;
+	}
 }
 
 }

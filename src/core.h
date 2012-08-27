@@ -35,6 +35,7 @@
 #include "synchronizable.h"
 #include "map.h"
 #include "array.h"
+#include "httpd.h"
 
 namespace arc
 {
@@ -48,6 +49,8 @@ public:
 
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
+
+	void http(Httpd::Request &request);
 
 private:
 	Core(void);
