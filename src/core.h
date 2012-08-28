@@ -25,6 +25,7 @@
 #include "include.h"
 #include "address.h"
 #include "stream.h"
+#include "serversocket.h"
 #include "socket.h"
 #include "pipe.h"
 #include "thread.h"
@@ -40,12 +41,10 @@
 namespace arc
 {
 
-class Core
+class Core : public Thread
 {
 public:
 	static Core *Instance;
-
-	void add(Socket *sock);
 
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
@@ -53,8 +52,10 @@ public:
 	void http(Httpd::Request &request);
 
 private:
-	Core(void);
+	Core(int port);
 	~Core(void);
+
+	void run(void);
 
 	class Handler : public Thread, public Synchronizable
 	{
@@ -100,8 +101,9 @@ private:
 	void add(const Identifier &peer, Handler *Handler);
 	void remove(const Identifier &peer);
 
-	Map<Identifier,Handler*> mHandlers;
+	ServerSocket mSock;
 
+	Map<Identifier,Handler*> mHandlers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;
 

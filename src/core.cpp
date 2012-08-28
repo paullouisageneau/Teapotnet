@@ -25,9 +25,10 @@
 namespace arc
 {
 
-Core *Core::Instance = new Core();
+Core *Core::Instance = new Core(8000);	// TODO
 
-Core::Core(void) :
+Core::Core(int port) :
+		mSock(port),
 		mLastRequest(0)
 {
 
@@ -35,14 +36,24 @@ Core::Core(void) :
 
 Core::~Core(void)
 {
-
+	mSock.close();
 }
 
-void Core::add(Socket *sock)
+void Core::run(void)
 {
-	assert(sock != NULL);
-	Handler *handler = new Handler(this,sock);
-	handler->start();
+	try {
+		while(true)
+		{
+			Socket *sock = new Socket;
+			mSock.accept(*sock);
+			Handler *handler = new Handler(this, sock);
+			handler->start(true); // handler will destroy itself
+		}
+	}
+	catch(const NetException &e)
+	{
+		return;
+	}
 }
 
 unsigned Core::addRequest(Request *request)
