@@ -39,6 +39,14 @@ Core::~Core(void)
 	mSock.close();
 }
 
+void Core::add(Socket *sock)
+{
+	assert(sock != NULL);
+	Handler *handler = new Handler(this,sock);
+	handler->start(true); // handler will destroy itself
+}
+
+
 void Core::run(void)
 {
 	try {
@@ -46,8 +54,7 @@ void Core::run(void)
 		{
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
-			Handler *handler = new Handler(this, sock);
-			handler->start(true); // handler will destroy itself
+			add(sock);
 		}
 	}
 	catch(const NetException &e)

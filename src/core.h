@@ -46,6 +46,8 @@ class Core : public Thread
 public:
 	static Core *Instance;
 
+	void add(Socket *sock);
+
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 
