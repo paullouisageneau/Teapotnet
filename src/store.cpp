@@ -195,12 +195,6 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	{
 		String url(dirUrl + Directory::Separator + dir.fileName());
 
-		if(dir.fileIsDir())
-		{
-			refreshDirectory(url, dir.filePath());
-			continue;
-		}
-
 		ByteString urlHash;
 		Sha512::Hash(url, urlHash);
 		String entry = DatabaseDirectory+Directory::Separator+urlHash.toString();
@@ -211,26 +205,34 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				File file(entry, File::Read);
 
 				String path;
-				SerializableMap<String,String> header;
+				StringMap header;
 				file.readLine(path);
 				file.read(header);
-
+				
 				time_t time;
-				size_t size;
-				String hash;
-				size_t chunkSize;
-				unsigned chunkCount;
 				header["time"] >> time;
-				header["size"] >> size;
-				header["chunk-size"] >> chunkSize;
-				header["chunk-count"] >> chunkCount;
-				header["hash"] >> hash;
+				if(!header.contains("type")) throw Exception("Missing type field");				
 
-				// If the file has not changed, don't hash it again
-				if(size == dir.fileSize() && time == dir.fileTime())
+				if(header["type"] == "directory") 
 				{
-					mFiles.insert(Identifier(hash), url);
 					continue;
+				}
+				else {
+					size_t size;
+					String hash;
+					size_t chunkSize;
+					unsigned chunkCount;
+					header["size"] >> size;
+					header["chunk-size"] >> chunkSize;
+					header["chunk-count"] >> chunkCount;
+					header["hash"] >> hash;
+
+					// If the file has not changed, don't hash it again
+					if(size == dir.fileSize() && time == dir.fileTime())
+					{
+						mFiles.insert(Identifier(hash), url);
+						continue;
+					}
 				}
 			}
 			catch(Exception &e)
@@ -239,40 +241,52 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 			}
 		}
 
-		Log("Store", String("Hashing file: ")+dir.fileName());
+		Log("Store", String("Processing: ")+dir.fileName());
 
 		try {
-			ByteString dataHash;
-			File data(dir.filePath(), File::Read);
-			Sha512::Hash(data, dataHash);
-			data.close();
-
-			size_t   chunkSize = ChunkSize;
-			unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
-
 			StringMap header;
 			header["time"] << dir.fileTime();
-			header["size"] << dir.fileSize();
-			header["chunk-size"] << chunkSize;
-			header["chunk-count"] << chunkCount;
-			header["hash"] << dataHash;
 
-			File file(entry, File::Write);
-			file.writeLine(dir.filePath());
-			file.write(header);
+			if(dir.fileIsDir())
+                	{
+				header["type"] << "directory";
+                	
+				File file(entry, File::Write);
+                                file.writeLine(dir.filePath());
+                                file.write(header);
+				file.close();
 
-			data.open(dir.filePath(), File::Read);
-
-			for(unsigned i=0; i<chunkCount; ++i)
-			{
-				dataHash.clear();
-				AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
-				file.writeLine(dataHash);
+                                refreshDirectory(url, dir.filePath());
 			}
+			else {
+				ByteString dataHash;
+				File data(dir.filePath(), File::Read);
+				Sha512::Hash(data, dataHash);
+				data.close();
 
-			data.close();
+				size_t   chunkSize = ChunkSize;
+                        	unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
 
-			mFiles.insert(Identifier(dataHash), url);
+				header["type"] << "file";
+				header["size"] << dir.fileSize();
+				header["chunk-size"] << chunkSize;
+				header["chunk-count"] << chunkCount;
+				header["hash"] << dataHash;
+
+				mFiles.insert(Identifier(dataHash), url);
+			
+				File file(entry, File::Write);
+				file.writeLine(dir.filePath());
+				file.write(header);
+			
+				data.open(dir.filePath(), File::Read);
+                                for(unsigned i=0; i<chunkCount; ++i)
+                                {
+                                        dataHash.clear();
+                                        AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
+                                        file.writeLine(dataHash);
+                                }
+			}
 		}
 		catch(Exception &e)
 		{
