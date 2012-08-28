@@ -209,7 +209,7 @@ void Core::Handler::run(void)
 	// TODO: auth
 	// Initialize mPeer here !
 
-	// mCore->add(mPeer,this);
+	mCore->add(mPeer,this);
 
 	mSender.start();
 
@@ -305,7 +305,7 @@ void Core::Handler::run(void)
 
 	mSock->close();
 
-	//mCore->remove(this);
+	mCore->remove(mPeer);
 }
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
