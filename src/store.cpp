@@ -248,15 +248,15 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 			header["time"] << dir.fileTime();
 
 			if(dir.fileIsDir())
-                	{
+			{
 				header["type"] << "directory";
-                	
+
 				File file(entry, File::Write);
-                                file.writeLine(dir.filePath());
-                                file.write(header);
+				file.writeLine(dir.filePath());
+				file.write(header);
 				file.close();
 
-                                refreshDirectory(url, dir.filePath());
+				refreshDirectory(url, dir.filePath());
 			}
 			else {
 				ByteString dataHash;
@@ -265,7 +265,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				data.close();
 
 				size_t   chunkSize = ChunkSize;
-                        	unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
+				unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
 
 				header["type"] << "file";
 				header["size"] << dir.fileSize();
@@ -274,18 +274,18 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				header["hash"] << dataHash;
 
 				mFiles.insert(Identifier(dataHash), url);
-			
+
 				File file(entry, File::Write);
 				file.writeLine(dir.filePath());
 				file.write(header);
-			
+
 				data.open(dir.filePath(), File::Read);
-                                for(unsigned i=0; i<chunkCount; ++i)
-                                {
-                                        dataHash.clear();
-                                        AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
-                                        file.writeLine(dataHash);
-                                }
+				for(unsigned i=0; i<chunkCount; ++i)
+				{
+					dataHash.clear();
+					AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
+					file.writeLine(dataHash);
+				}
 			}
 		}
 		catch(Exception &e)
