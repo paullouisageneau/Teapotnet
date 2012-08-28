@@ -44,11 +44,17 @@ public:
 
 	void refresh(void);
 
-	File *get(const Identifier &identifier);
-	File *get(const String &url);
+	struct Entry
+	{
+		Identifier 	identifier;
+		String		url;
+		String		path;
+		StringMap	info;
+		File		*content;	// file content
+	};
 
-	bool info(const Identifier &identifier, StringMap &map);
-	bool info(const String &url, StringMap &map);
+	bool get(const Identifier &identifier, Entry &entry, bool content = true);
+	bool get(const String &url, Entry &entry, bool content = true);
 
 	void http(Httpd::Request &request);
 

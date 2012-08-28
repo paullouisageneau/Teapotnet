@@ -112,16 +112,34 @@ bool Directory::nextFile(void)
 	return true;
 }
 
+String Directory::filePath(void) const
+{
+	if(!mDirent) throw IOException("No more files in directory");
+	return mPath+String(mDirent->d_name);
+}
+
+
 String Directory::fileName(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
 	return String(mDirent->d_name);
 }
 
-String Directory::filePath(void) const
+time_t Directory::fileTime(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
-	return mPath+String(mDirent->d_name);
+	struct stat attrib;
+	stat(filePath().c_str(), &attrib);
+	return attrib.st_mtime;
+}
+
+size_t Directory::fileSize(void) const
+{
+	if(!mDirent) throw IOException("No more files in directory");
+	if(fileIsDir()) return 0;
+	struct stat attrib;
+	stat(filePath().c_str(), &attrib);
+	return size_t(attrib.st_size);
 }
 
 bool Directory::fileIsDir(void) const
@@ -130,18 +148,13 @@ bool Directory::fileIsDir(void) const
 	return (mDirent->d_type == DT_DIR);
 }
 
-time_t Directory::fileTime(void) const
+void Directory::getFileInfo(StringMap &map) const
 {
-	struct stat attrib;
-	stat(filePath().c_str(), &attrib);
-	return attrib.st_mtime;
-}
-
-size_t Directory::fileSize(void) const
-{
-	struct stat attrib;
-	stat(filePath().c_str(), &attrib);
-	return size_t(attrib.st_size);
+	// Note: fileInfo must not contain path
+	map.clear();
+	map["name"] =  fileName();
+	map["time"] << fileTime();
+	map["size"] << fileSize();
 }
 
 }

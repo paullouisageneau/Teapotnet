@@ -64,49 +64,78 @@ void Store::refresh(void)
 	}
 }
 
-File *Store::get(const Identifier &identifier)
+bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 {
-	String url;
-	if(mFiles.get(identifier,url)) return NULL;
-	return get(url);
-}
-
-File *Store::get(const String &url)
-{
-	String path(urlToPath(url));
-	if(!File::Exist(path)) return NULL;
-	return new File(path);
-}
-
-bool Store::info(const Identifier &identifier, StringMap &map)
-{
-	String url;
-	if(mFiles.get(identifier,url)) return false;
-	return info(url, map);
-}
-
-bool Store::info(const String &url, StringMap &map)
-{
-	ByteString hash;
-	Sha512::Hash(url, hash);
-	String entry = DatabaseDirectory+Directory::Separator+url;
-	if(!File::Exist(entry)) return false;
+	entry.content = NULL;
 
 	try {
-		File file(entry, File::Read);
+		String entryName = DatabaseDirectory+Directory::Separator+identifier.toString();
+		String url;
+		if(mFiles.get(identifier,url))	// Hash is on content
+		{
+			Identifier hash;
+			Sha512::Hash(url, hash);
+			entryName = DatabaseDirectory+Directory::Separator+hash.toString();
 
-		String path;
-		SerializableMap<String,String> header;
-		file.readLine(path);
-		file.read(map);
+			if(File::Exist(entryName))		// TODO: force reindexation
+			{
+				File file(entryName, File::Read);
+				file.readLine(entry.path);
+				file.read(entry.info);
+
+				Assert(entry.info.get("type") != "directory");
+				if(content) entry.content = new File(entry.path, File::Read);	// content = file
+			}
+		}
+		else if(File::Exist(entryName))		// Hash is on URL
+		{
+			entry.content = new File(entryName, File::Read);	// content = meta
+			entry.content->readLine(entry.path);
+			entry.content->read(entry.info);
+
+			if(!content)
+			{
+				delete entry.content;
+				entry.content = NULL;
+			}
+		}
 	}
 	catch(Exception &e)
 	{
-		Log("Store", String("Corrupted entry for ")+url+": "+e.what());
+		if(entry.content)
+		{
+			delete entry.content;
+			entry.content = NULL;
+		}
+
+		Log("Store", String("Corrupted entry for ")+identifier.toString()+": "+e.what());
 		return false;
 	}
 
 	return true;
+}
+
+bool Store::get(const String &url, Entry &entry, bool content)
+{
+	Identifier hash;
+
+	try {
+		if(url.find('/') == String::NotFound)	// url is a hash
+		{
+			String s(url);
+			s >> hash;
+		}
+		else {
+			Sha512::Hash(url, hash);
+		}
+	}
+	catch(...)
+	{
+		// TODO: Log
+		return false;
+	}
+
+	return get(hash, entry, content);
 }
 
 void Store::http(Httpd::Request &request)
@@ -190,6 +219,16 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 {
 	Log("Store", String("Refreshing directory: ")+dirUrl);
 
+	Identifier hash;
+	Sha512::Hash(dirUrl, hash);
+	String entryName = DatabaseDirectory+Directory::Separator+hash.toString();
+	File dirEntry(entryName, File::Write);
+	dirEntry.writeLine(dirPath);
+
+	StringMap header;
+	header["type"] << "directory";
+	dirEntry.write(header);
+
 	Directory dir(dirPath);
 	while(dir.nextFile())
 	{
@@ -197,27 +236,26 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 
 		ByteString urlHash;
 		Sha512::Hash(url, urlHash);
-		String entry = DatabaseDirectory+Directory::Separator+urlHash.toString();
+		String entryName = DatabaseDirectory+Directory::Separator+urlHash.toString();
 
-		if(File::Exist(entry))
+		if(File::Exist(entryName))
 		{
 			try {
-				File file(entry, File::Read);
+				File file(entryName, File::Read);
 
 				String path;
 				StringMap header;
 				file.readLine(path);
 				file.read(header);
 				
+				StringMap origHeader(header);
+
 				time_t time;
 				header["time"] >> time;
 				if(!header.contains("type")) throw Exception("Missing type field");				
 
-				if(header["type"] == "directory") 
+				if(header["type"] != "directory") // Directories are reindexed every time
 				{
-					continue;
-				}
-				else {
 					size_t size;
 					String hash;
 					size_t chunkSize;
@@ -231,6 +269,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 					if(size == dir.fileSize() && time == dir.fileTime())
 					{
 						mFiles.insert(Identifier(hash), url);
+						dirEntry.write(origHeader);
 						continue;
 					}
 				}
@@ -244,18 +283,9 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 		Log("Store", String("Processing: ")+dir.fileName());
 
 		try {
-			StringMap header;
-			header["time"] << dir.fileTime();
 
 			if(dir.fileIsDir())
 			{
-				header["type"] << "directory";
-
-				File file(entry, File::Write);
-				file.writeLine(dir.filePath());
-				file.write(header);
-				file.close();
-
 				refreshDirectory(url, dir.filePath());
 			}
 			else {
@@ -267,17 +297,18 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				size_t   chunkSize = ChunkSize;
 				unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
 
-				header["type"] << "file";
-				header["size"] << dir.fileSize();
+				StringMap header;
+				dir.getFileInfo(header);
 				header["chunk-size"] << chunkSize;
 				header["chunk-count"] << chunkCount;
 				header["hash"] << dataHash;
 
 				mFiles.insert(Identifier(dataHash), url);
 
-				File file(entry, File::Write);
+				File file(entryName, File::Write);
 				file.writeLine(dir.filePath());
 				file.write(header);
+				dirEntry.write(header);
 
 				data.open(dir.filePath(), File::Read);
 				for(unsigned i=0; i<chunkCount; ++i)
@@ -290,8 +321,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 		}
 		catch(Exception &e)
 		{
-			Log("Store", String("Hashing failed for ")+dir.fileName()+": "+e.what());
-			File::Remove(entry);
+			Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
+			File::Remove(entryName);
 		}
 	}
 }

@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "string.h"
+#include "map.h"
 
 #include "dirent.h"
 
@@ -48,11 +49,17 @@ public:
 	String path(void) const;	// trailing separator added if necessary
 
 	bool nextFile(void);
-	String fileName(void) const;
+
+	// Path
 	String filePath(void) const;
+
+	// Attributes
+	String fileName(void) const;
 	time_t fileTime(void) const;
 	size_t fileSize(void) const;
-	bool fileIsDir(void) const;
+	bool fileIsDir(void)  const;
+
+	void getFileInfo(StringMap &map) const;	// Get all attributes
 
 private:
 	String mPath;

@@ -106,19 +106,21 @@ void Request::cancel(void)
 
 bool Request::execute(void)
 {
-	StringMap info;
-	if(!Store::Instance->info(mTarget, info))
+	StringMap parameters = mParameters;
+
+	Store::Entry entry;
+	if(!Store::Instance->get(mTarget, entry, mIsData))
 	{
 		addResponse(new Response("KO"));
 		return false;
 	}
 
-	ByteStream *bs = NULL;
-	if(mIsData)
+	ByteStream *content = NULL;
+	if(entry.content)
 	{
-		StringMap parameters = mParameters;
+		content = entry.content;
 
-		if(parameters.contains("Stripe"))
+		if(entry.info["type"] != "directory" && parameters.contains("Stripe"))
 		{
 			size_t blockSize;
 			int nbStripe, stripe;
@@ -127,29 +129,18 @@ bool Request::execute(void)
 			parameters["StripesCount"] >> nbStripe;
 			parameters["Stripe"] >> stripe;
 
-			File *file = Store::Instance->get(mTarget);
-			if(file)
-			{
-				StripedFile *stripedFile = new StripedFile(file, blockSize, nbStripe, stripe);
-				// TODO: seeking
-				bs = stripedFile;
-			}
-		}
-		else {
-			File *file = Store::Instance->get(mTarget);
+			StripedFile *stripedFile = new StripedFile(entry.content, blockSize, nbStripe, stripe);
 			// TODO: seeking
-			bs = file;
+			content = stripedFile;
+
+			size_t size;
+			entry.info["size"] >> size;
+			entry.info["size"] << size/nbStripe;
 		}
 
-		if(!bs)
-		{
-			// File could not be opened
-			addResponse(new Response("KO"));
-			return false;
-		}
 	}
 
-	Response *response = new Response("OK", info, bs);
+	Response *response = new Response("OK", entry.info, content);
 	if(response->content()) response->content()->close();	// no more content
 	addResponse(response);
 	return true;
