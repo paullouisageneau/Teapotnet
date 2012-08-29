@@ -215,14 +215,18 @@ void Httpd::Request::recv(Socket *sock)
 		if(stream.read(data, size) != size)
 			throw IOException("Connection unexpectedly closed");
 
-		List<String> exploded;
-		data.explode(exploded,'&');
-		for(	List<String>::iterator it = exploded.begin();
-				it != exploded.end();
-				++it)
+		if(headers.contains("Content-Type")
+				&& headers["Content-Type"] == "application/x-www-form-urlencoded")
 		{
-			String value = it->cut('=');
-			post.insert(*it, value);
+			List<String> exploded;
+			data.explode(exploded,'&');
+			for(	List<String>::iterator it = exploded.begin();
+					it != exploded.end();
+					++it)
+			{
+				String value = it->cut('=');
+				post.insert(*it, value);
+			}
 		}
 	}
 }
