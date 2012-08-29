@@ -21,6 +21,7 @@
 
 #include "http.h"
 #include "exception.h"
+#include "html.h"
 
 namespace arc
 {
@@ -133,7 +134,7 @@ void Http::Request::recv(Socket &sock)
 	if(url.empty() || version.empty() || protocol != "HTTP")
 		throw 400;
 
-	if(method != "GET" && method != "HEAD" && method != "POST")
+	if(method != "GET" && method != "POST" /*&& method != "HEAD"*/)
 		throw 405;
 
 	// Read headers
@@ -412,6 +413,85 @@ int Http::Post(const String &url, const StringMap &post, Stream &output)
 
 	sock.read(output);
 	return response.code;
+}
+
+Http::Server::Server(int port) :
+	mSock(port)
+{
+
+}
+
+Http::Server::~Server(void)
+{
+	mSock.close();	// useless
+}
+
+void Http::Server::run(void)
+{
+	try {
+		while(true)
+		{
+			Socket *sock = new Socket;
+			mSock.accept(*sock);
+			Handler *client = new Handler(this, sock);
+			client->start(true); // client will destroy itself
+		}
+	}
+	catch(const NetException &e)
+	{
+		return;
+	}
+}
+
+Http::Server::Handler::Handler(Server *server, Socket *sock) :
+		mServer(server),
+		mSock(sock)
+{
+
+}
+
+Http::Server::Handler::~Handler(void)
+{
+	delete mSock;	// deletion closes the socket
+}
+
+void Http::Server::Handler::run(void)
+{
+	Request request;
+	try {
+		request.recv(*mSock);
+
+		String expect;
+		if(request.headers.get("Expect",expect)
+				&& expect.toLower() == "100-continue")
+		{
+			mSock->writeLine("HTTP/1.1 100 Continue\r\n\r\n");
+		}
+
+		try {
+			mServer->process(request);
+		}
+		catch(Exception &e)
+		{
+			throw 500;
+		}
+	}
+	catch(int code)
+	{
+		Response response(request, code);
+		response.headers["Content-Type"] = "text/html; charset=UTF-8";
+		response.send();
+
+		if(request.method != "HEAD")
+		{
+			Html page(response.sock);
+			page.header(response.message);
+			page.open("h1");
+			page.text(String::number(response.code) + " - " + response.message);
+			page.close("h1");
+			page.footer();
+		}
+	}
 }
 
 }

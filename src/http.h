@@ -25,6 +25,8 @@
 #include "include.h"
 #include "string.h"
 #include "socket.h"
+#include "serversocket.h"
+#include "thread.h"
 #include "map.h"
 
 namespace arc
@@ -70,6 +72,34 @@ public:
 
 		Socket *sock;		// Socket where to send/receive data
 	};
+
+	class Server : public Thread
+	{
+	public:
+		Server(int port = 80);
+		~Server(void);
+
+		virtual void process(Http::Request &request) = 0;
+
+	private:
+		void run(void);
+
+		class Handler : public Thread
+		{
+		public:
+			Handler(Server *server, Socket *sock);
+			~Handler(void);
+
+		private:
+			void run(void);
+
+			Server *mServer;
+			Socket *mSock;
+		};
+
+		ServerSocket mSock;
+	};
+
 
 	static int Get(const String &url, Stream &output);
 	static int Post(const String &url, const StringMap &post, Stream &output);

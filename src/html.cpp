@@ -21,7 +21,6 @@
 
 #include "html.h"
 #include "exception.h"
-#include "httpd.h"
 
 namespace arc
 {

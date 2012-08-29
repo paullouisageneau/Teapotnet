@@ -20,7 +20,6 @@
  *************************************************************************/
 
 #include "main.h"
-#include "httpd.h"
 #include "sha512.h"
 #include "store.h"
 
@@ -39,9 +38,9 @@ int main(int argc, char** argv)
 	Store::Instance->refresh();
 
 	// TEST
-	Httpd *httpd = new Httpd(8080);
+	/*Httpd *httpd = new Httpd(8080);
 	httpd->start();
-	httpd->join();
+	httpd->join();*/
 	
 	return 0;
 }
