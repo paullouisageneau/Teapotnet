@@ -423,6 +423,8 @@ Http::Server::Server(int port) :
 
 Http::Server::~Server(void)
 {
+	// TODO: clients
+
 	mSock.close();	// useless
 }
 
