@@ -40,35 +40,38 @@ public:
 
 	struct Request
 	{
-		Request(Socket *sock = NULL);
+		Request(const String &url, const String &method = "GET");
 
-		void parse(Socket *sock);
+		void recv(Socket *sock);
+		void send(Socket *sock);
 		void clear(void);
 
 		String method;          // GET, POST, HEAD...
-		String protocol;        // HTTP
 		String version;         // 1.0 or 1.1
-		String file;            // URL without parameters
-		String url;             // Complete URL
+		String url;             // URL without parameters
 		StringMap headers;      // HTTP headers
 		StringMap cookies;      // Cookies
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
-		Socket *sock;			// Internal use for Response construction
+		
+		Socket *sock;		// Internal use for Response construction
 	};
 
 	struct Response
 	{
+		Response(void);
 		Response(const Request &request, int code = 200);
 
-		void send(void);
+		void recv(Socket *sock = NULL);
+		void send(Socket *sock = NULL);
 		void clear(void);
 
-		int code;			// Response code
+		int code;		// Response code
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
-		Socket *sock;		// Socket where to send data
+		
+		Socket *sock;		// Socket where to send/receive data
 	};
 
 private:

@@ -28,7 +28,7 @@ namespace arc
 {
 
 Httpd::Httpd(int port) :
-		mSock(port)
+	mSock(port)
 {
 
 }
@@ -55,13 +55,17 @@ void Httpd::run(void)
 	}
 }
 
-Httpd::Request::Request(Socket *sock)
+Httpd::Request::Request(const String &url, const String &method)
 {
-	this->sock = NULL;
-	if(sock) parse(sock);
+	this->protocol = "HTTP";
+	this->version = "1.0";
+	this->url = url;
+	
+	if(!method.empty()) this->method = method;
+	else this->method = "GET";
 }
 
-void Httpd::Request::parse(Socket *sock)
+void Httpd::Request::recv(Socket *sock)
 {
 	clear();
 
@@ -73,6 +77,8 @@ void Httpd::Request::parse(Socket *sock)
 	if(!stream.readLine(line)) return;
 	line.readString(method);
 	line.readString(url);
+	
+	String protocol;
 	line.readString(protocol);
 	version = protocol.cut('/');
 
@@ -111,8 +117,7 @@ void Httpd::Request::parse(Socket *sock)
 	}
 
 	// Read URL variables
-	file = url;
-	String getData = file.cut('?');
+	String getData = url.cut('?');
 	if(!getData.empty())
 	{
 		std::list<String> exploded;
@@ -133,17 +138,48 @@ void Httpd::Request::parse(Socket *sock)
 	}
 }
 
+void Httpd::Request::send(Socket *sock)
+{
+	this->sock = sock;
+	
+	// TODO: get, post, cookies
+	
+	*sock<<method<<" "<<url<<" HTTP/"<<version<<"\r\n";
+
+	for(	StringMap::iterator it = headers.begin();
+			it != headers.end();
+			++it)
+	{
+		std::list<String> lines;
+		it->second.remove('\r');
+		it->second.explode(lines,'\n');
+		for(	std::list<String>::iterator l = lines.begin();
+				l != lines.end();
+				++l)
+		{
+			*sock<<it->first<<": "<<*l<<"\r\n";
+		}
+	}
+
+	*sock<<"\r\n";
+}
+
 void Httpd::Request::clear(void)
 {
 	method.clear();
-	protocol.clear();
 	version.clear();
-	file.clear();
 	url.clear();
 	headers.clear();
 	cookies.clear();
 	get.clear();
 	post.clear();
+}
+
+Httpd::Response::Response(void)
+{
+	this->code = 200;
+	this->version = "1.0";
+	this->sock = NULL;
 }
 
 Httpd::Response::Response(const Request &request, int code)
@@ -154,8 +190,21 @@ Httpd::Response::Response(const Request &request, int code)
 	this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 
-void Httpd::Response::send(void)
+void Httpd::Response::recv(Socket *sock)
 {
+	if(sock) this->sock = sock;
+	else sock =  this->sock;
+	Assert(sock != NULL);
+	
+	// TODO
+}
+
+void Httpd::Response::send(Socket *sock)
+{
+	if(sock) this->sock = sock;
+	else sock =  this->sock;
+	Assert(sock != NULL);
+	
 	if(version == "1.1" && code >= 200)
 		headers["Connection"] = "Close";
 
@@ -209,10 +258,7 @@ void Httpd::Response::send(void)
 		}
 	}
 
-	*sock<<"HTTP/";
-	if(version == "1.1") *sock<<"1.1";
-	else *sock<<"1.0";
-	*sock<<" "<<code<<" "<<message<<"\r\n";
+	*sock<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
