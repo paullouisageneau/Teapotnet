@@ -74,18 +74,46 @@ void Httpd::Request::send(Socket *sock)
 	this->sock = sock;
 	Stream &stream = stream;
 
-	// TODO: get, post, cookies
+	String completeUrl(url);
+	if(!get.empty())
+	{
+		if(completeUrl.find('?') == String::NotFound)
+			completeUrl+= '?';
 
-	stream<<method<<" "<<url<<" HTTP/"<<version<<"\r\n";
+		for(	StringMap::iterator it = get.begin();
+				it != get.end();
+				++it)
+		{
+			completeUrl<<'&'<<it->first<<'='<<it->second;
+		}
+	}
+
+	String postData;
+	if(!post.empty())
+	{
+		for(	StringMap::iterator it = post.begin();
+				it != post.end();
+				++it)
+		{
+			if(!postData.empty()) postData<<'&';
+			postData<<it->first<<'='<<it->second;
+		}
+
+		headers["Content-Length"] = "";
+		headers["Content-Length"] << postData.size();
+		headers["Content-Type"] = "application/x-www-form-urlencoded";
+	}
+
+	stream<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
 			++it)
 	{
-		std::list<String> lines;
+		List<String> lines;
 		it->second.remove('\r');
 		it->second.explode(lines,'\n');
-		for(	std::list<String>::iterator l = lines.begin();
+		for(	List<String>::iterator l = lines.begin();
 				l != lines.end();
 				++l)
 		{
@@ -93,7 +121,17 @@ void Httpd::Request::send(Socket *sock)
 		}
 	}
 
+	for(	StringMap::iterator it = cookies.begin();
+			it != cookies.end();
+			++it)
+	{
+		stream<<"Set-Cookie: "<< it->first<<'='<<it->second<<"\r\n";
+	}
+
 	stream<<"\r\n";
+
+	if(!postData.empty())
+		stream<<postData;
 }
 
 void Httpd::Request::recv(Socket *sock)
@@ -106,7 +144,7 @@ void Httpd::Request::recv(Socket *sock)
 
 	// Read first line
 	String line;
-	if(!stream.readLine(line)) throw Exception("Connection closed");
+	if(!stream.readLine(line)) throw IOException("Connection closed");
 	line.readString(method);
 	line.readString(url);
 	
@@ -152,9 +190,9 @@ void Httpd::Request::recv(Socket *sock)
 	String getData = url.cut('?');
 	if(!getData.empty())
 	{
-		std::list<String> exploded;
+		List<String> exploded;
 		getData.explode(exploded,'&');
-		for(	std::list<String>::iterator it = exploded.begin();
+		for(	List<String>::iterator it = exploded.begin();
 				it != exploded.end();
 				++it)
 		{
@@ -166,7 +204,26 @@ void Httpd::Request::recv(Socket *sock)
 	// Read post variables
 	if(method == "POST")
 	{
-		// TODO: read post data
+		if(!headers.contains("Content-Length"))
+			throw Exception("Missing Content-Length header in POST request");
+
+		size_t size;
+		String contentLength(headers["Content-Length"]);
+		contentLength >> size;
+
+		String data;
+		if(stream.read(data, size) != size)
+			throw IOException("Connection unexpectedly closed");
+
+		List<String> exploded;
+		data.explode(exploded,'&');
+		for(	List<String>::iterator it = exploded.begin();
+				it != exploded.end();
+				++it)
+		{
+			String value = it->cut('=');
+			post.insert(*it, value);
+		}
 	}
 }
 
@@ -267,10 +324,10 @@ void Httpd::Response::send(Socket *sock)
 			it != headers.end();
 			++it)
 	{
-		std::list<String> lines;
+		List<String> lines;
 		it->second.remove('\r');
 		it->second.explode(lines,'\n');
-		for(	std::list<String>::iterator l = lines.begin();
+		for(	List<String>::iterator l = lines.begin();
 				l != lines.end();
 				++l)
 		{
@@ -291,7 +348,7 @@ void Httpd::Response::recv(Socket *sock)
 
 	// Read first line
 	String line;
-	if(!stream.readLine(line)) throw Exception("Connection closed");
+	if(!stream.readLine(line)) throw IOException("Connection closed");
 
 	String protocol;
 	line.readString(protocol);

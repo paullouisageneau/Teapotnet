@@ -55,7 +55,7 @@ public:
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
 		
-		Socket *sock;		// Internal use for Response construction
+		Socket *sock;			// Internal use for Response construction
 	};
 
 	struct Response
@@ -68,7 +68,7 @@ public:
 		void recv(Socket *sock);
 		void clear(void);
 
-		int code;		// Response code
+		int code;			// Response code
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
