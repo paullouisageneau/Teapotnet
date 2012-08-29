@@ -40,10 +40,11 @@ public:
 
 	struct Request
 	{
+		Request(void);
 		Request(const String &url, const String &method = "GET");
 
-		void recv(Socket *sock);
 		void send(Socket *sock);
+		void recv(Socket *sock);
 		void clear(void);
 
 		String method;          // GET, POST, HEAD...
@@ -62,8 +63,9 @@ public:
 		Response(void);
 		Response(const Request &request, int code = 200);
 
-		void recv(Socket *sock = NULL);
-		void send(Socket *sock = NULL);
+		void send(void);
+		void send(Socket *sock);
+		void recv(Socket *sock);
 		void clear(void);
 
 		int code;		// Response code

@@ -55,26 +55,58 @@ void Httpd::run(void)
 	}
 }
 
+Httpd::Request::Request(void)
+{
+	clear();
+}
+
 Httpd::Request::Request(const String &url, const String &method)
 {
-	this->protocol = "HTTP";
-	this->version = "1.0";
+	clear();
+
 	this->url = url;
-	
 	if(!method.empty()) this->method = method;
-	else this->method = "GET";
+}
+
+void Httpd::Request::send(Socket *sock)
+{
+	Assert(sock != NULL);
+	this->sock = sock;
+	Stream &stream = stream;
+
+	// TODO: get, post, cookies
+
+	stream<<method<<" "<<url<<" HTTP/"<<version<<"\r\n";
+
+	for(	StringMap::iterator it = headers.begin();
+			it != headers.end();
+			++it)
+	{
+		std::list<String> lines;
+		it->second.remove('\r');
+		it->second.explode(lines,'\n');
+		for(	std::list<String>::iterator l = lines.begin();
+				l != lines.end();
+				++l)
+		{
+			stream<<it->first<<": "<<*l<<"\r\n";
+		}
+	}
+
+	stream<<"\r\n";
 }
 
 void Httpd::Request::recv(Socket *sock)
 {
-	clear();
-
+	Assert(sock != NULL);
 	this->sock = sock;
-	Stream &stream = *sock;
+	Stream &stream = stream;
+
+	clear();
 
 	// Read first line
 	String line;
-	if(!stream.readLine(line)) return;
+	if(!stream.readLine(line)) throw Exception("Connection closed");
 	line.readString(method);
 	line.readString(url);
 	
@@ -82,7 +114,7 @@ void Httpd::Request::recv(Socket *sock)
 	line.readString(protocol);
 	version = protocol.cut('/');
 
-	if(url.empty() || protocol != "HTTP")
+	if(url.empty() || version.empty() || protocol != "HTTP")
 		throw 400;
 
 	if(method != "GET" && method != "HEAD" && method != "POST")
@@ -138,72 +170,43 @@ void Httpd::Request::recv(Socket *sock)
 	}
 }
 
-void Httpd::Request::send(Socket *sock)
-{
-	this->sock = sock;
-	
-	// TODO: get, post, cookies
-	
-	*sock<<method<<" "<<url<<" HTTP/"<<version<<"\r\n";
-
-	for(	StringMap::iterator it = headers.begin();
-			it != headers.end();
-			++it)
-	{
-		std::list<String> lines;
-		it->second.remove('\r');
-		it->second.explode(lines,'\n');
-		for(	std::list<String>::iterator l = lines.begin();
-				l != lines.end();
-				++l)
-		{
-			*sock<<it->first<<": "<<*l<<"\r\n";
-		}
-	}
-
-	*sock<<"\r\n";
-}
-
 void Httpd::Request::clear(void)
 {
-	method.clear();
-	version.clear();
+	method = "GET";
+	version = "1.0";
 	url.clear();
 	headers.clear();
 	cookies.clear();
 	get.clear();
 	post.clear();
+	sock = NULL;
 }
 
 Httpd::Response::Response(void)
 {
-	this->code = 200;
-	this->version = "1.0";
-	this->sock = NULL;
+	clear();
 }
 
 Httpd::Response::Response(const Request &request, int code)
 {
+	clear();
+
 	this->code = code;
 	this->version = request.version;
 	this->sock = request.sock;
 	this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 
-void Httpd::Response::recv(Socket *sock)
+void Httpd::Response::send(void)
 {
-	if(sock) this->sock = sock;
-	else sock =  this->sock;
-	Assert(sock != NULL);
-	
-	// TODO
+	send(sock);
 }
 
 void Httpd::Response::send(Socket *sock)
 {
-	if(sock) this->sock = sock;
-	else sock =  this->sock;
 	Assert(sock != NULL);
+	this->sock = sock;
+	Stream &stream = stream;
 	
 	if(version == "1.1" && code >= 200)
 		headers["Connection"] = "Close";
@@ -258,7 +261,7 @@ void Httpd::Response::send(Socket *sock)
 		}
 	}
 
-	*sock<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
+	stream<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
@@ -271,16 +274,53 @@ void Httpd::Response::send(Socket *sock)
 				l != lines.end();
 				++l)
 		{
-			*sock<<it->first<<": "<<*l<<"\r\n";
+			stream<<it->first<<": "<<*l<<"\r\n";
 		}
 	}
 
-	*sock<<"\r\n";
+	stream<<"\r\n";
+}
+
+void Httpd::Response::recv(Socket *sock)
+{
+	Assert(sock != NULL);
+	this->sock = sock;
+	Stream &stream = stream;
+
+	clear();
+
+	// Read first line
+	String line;
+	if(!stream.readLine(line)) throw Exception("Connection closed");
+
+	String protocol;
+	line.readString(protocol);
+	version = protocol.cut('/');
+
+	line.read(code);
+	message = line;
+
+	if(version.empty() || protocol != "HTTP")
+		throw Exception("Invalid HTTP response");
+
+	// Read headers
+	while(true)
+	{
+		String line;
+		AssertIO(stream.readLine(line));
+		if(line.empty()) break;
+
+		String value = line.cut(':');
+		line.trim();
+		value.trim();
+		headers.insert(line,value);
+	}
 }
 
 void Httpd::Response::clear(void)
 {
-	code = 0;
+	code = 200;
+	version = "1.0";
 	message.clear();
 	version.clear();
 }
@@ -301,7 +341,7 @@ void Httpd::Handler::run(void)
 {
 	Request request;
 	try {
-		request.parse(mSock);
+		request.recv(mSock);
 
 		String expect;
 		if(request.headers.get("Expect",expect)
@@ -335,7 +375,7 @@ void Httpd::Handler::process(Request &request)
 	try {
 		// TODO: registering system
 
-		if(request.file.substr(0,6) == "/peers")
+		if(request.url.substr(0,6) == "/peers")
 		{
 			Core::Instance->http(request);
 		}

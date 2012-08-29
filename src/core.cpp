@@ -46,7 +46,6 @@ void Core::add(Socket *sock)
 	handler->start(true); // handler will destroy itself
 }
 
-
 void Core::run(void)
 {
 	try {
@@ -109,7 +108,7 @@ void Core::removeRequest(unsigned id)
 void Core::http(Httpd::Request &request)
 {
 	List<String> list;
-	request.file.explode(list,'/');
+	request.url.explode(list,'/');
 
 	// URL should begin with /
 	if(list.empty()) throw 404;
