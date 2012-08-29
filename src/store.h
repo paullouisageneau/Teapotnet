@@ -24,7 +24,7 @@
 
 #include "include.h"
 #include "identifier.h"
-#include "httpd.h"
+#include "http.h"
 #include "file.h"
 #include "map.h"
 
@@ -56,7 +56,7 @@ public:
 	bool get(const Identifier &identifier, Entry &entry, bool content = true);
 	bool get(const String &url, Entry &entry, bool content = true);
 
-	void http(Httpd::Request &request);
+	void http(Http::Request &request);
 
 private:
 	Store(void);

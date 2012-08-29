@@ -138,20 +138,20 @@ bool Store::get(const String &url, Entry &entry, bool content)
 	return get(hash, entry, content);
 }
 
-void Store::http(Httpd::Request &request)
+void Store::http(Http::Request &request)
 {
 	try {
-		const String &url = request.file;
+		const String &url = request.url;
 
-		if(request.file == "/")
+		if(request.url == "/")
 		{
-			Httpd::Response response(request,200);
+			Http::Response response(request,200);
 			response.send();
 
 			Html page(response.sock);
-			page.header(request.file);
+			page.header(request.url);
 			page.open("h1");
-			page.text(request.file);
+			page.text(request.url);
 			page.close("h1");
 
 			for(StringMap::iterator it = mDirectories.begin();
@@ -172,19 +172,19 @@ void Store::http(Httpd::Request &request)
 			{
 				if(url[url.size()-1] != '/')
 				{
-					Httpd::Response response(request, 301);	// Moved Permanently
+					Http::Response response(request, 301);	// Moved Permanently
 					response.headers["Location"] = url+"/";
 					response.send();
 					return;
 				}
 
-				Httpd::Response response(request, 200);
+				Http::Response response(request, 200);
 				response.send();
 
 				Html page(response.sock);
-				page.header(request.file);
+				page.header(request.url);
 				page.open("h1");
-				page.text(request.file);
+				page.text(request.url);
 				page.close("h1");
 
 				Directory dir(path);
@@ -198,7 +198,7 @@ void Store::http(Httpd::Request &request)
 			}
 			else if(File::Exist(path))
 			{
-				Httpd::Response response(request,200);
+				Http::Response response(request,200);
 				response.headers["Content-Type"] = "application/octet-stream";	// TODO
 				response.send();
 

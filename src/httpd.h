@@ -24,10 +24,10 @@
 
 #include "include.h"
 #include "exception.h"
-#include "map.h"
 #include "socket.h"
 #include "serversocket.h"
 #include "thread.h"
+#include "http.h"
 
 namespace arc
 {
@@ -38,44 +38,6 @@ public:
 	Httpd(int port = 80);
 	~Httpd(void);
 
-	struct Request
-	{
-		Request(void);
-		Request(const String &url, const String &method = "GET");
-
-		void send(Socket *sock);
-		void recv(Socket *sock);
-		void clear(void);
-
-		String method;          // GET, POST, HEAD...
-		String version;         // 1.0 or 1.1
-		String url;             // URL without parameters
-		StringMap headers;      // HTTP headers
-		StringMap cookies;      // Cookies
-		StringMap get;          // URL parameters
-		StringMap post;         // POST parameters
-		
-		Socket *sock;			// Internal use for Response construction
-	};
-
-	struct Response
-	{
-		Response(void);
-		Response(const Request &request, int code = 200);
-
-		void send(void);
-		void send(Socket *sock);
-		void recv(Socket *sock);
-		void clear(void);
-
-		int code;			// Response code
-		String version;		// 1.0 or 1.1
-		String message;		// Message
-		StringMap headers;	// HTTP headers
-		
-		Socket *sock;		// Socket where to send/receive data
-	};
-
 private:
 	class Handler : public Thread
 	{
@@ -85,7 +47,7 @@ private:
 
 	private:
 		void run(void);
-		void process(Request &request);
+		void process(Http::Request &request);
 
 		Httpd *mHttpd;
 		Socket *mSock;

@@ -32,10 +32,16 @@ Address::Address(void)
 	setNull();
 }
 
-Address::Address(const String &host, const String &port)
+Address::Address(const String &host, const String &service)
+{
+	set(host,service);
+}
+
+Address::Address(const String &host, int port)
 {
 	set(host,port);
 }
+
 
 Address::Address(String Address)
 {
@@ -69,6 +75,13 @@ void Address::set(const String &host, const String &service)
 	std::memcpy(&maddr,aiList->ai_addr,aiList->ai_addrlen);
 
 	freeaddrinfo(aiList);
+}
+
+void Address::set(const String &host, int port)
+{
+	String service;
+	service << port;
+	set(host, port);
 }
 
 void Address::set(const sockaddr *addr, socklen_t addrlen)

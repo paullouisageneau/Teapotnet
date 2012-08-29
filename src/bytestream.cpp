@@ -290,6 +290,15 @@ void ByteStream::ignore(int n)
 		if(!readData(&dummy,1)) break;
 }
 
+void ByteStream::discard(void)
+{
+	char buffer[BufferSize];
+	while(readData(buffer,BufferSize))
+	{
+		// do nothing
+	}
+}
+
 ByteStream *ByteStream::pipeIn(void)
 {
 	return this;

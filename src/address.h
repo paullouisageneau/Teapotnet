@@ -33,11 +33,13 @@ class Address : public Serializable
 public:
 	Address(void);
 	Address(const String &host, const String &service);
+	Address(const String &host, int port);
 	Address(String Address);
 	Address(const sockaddr *addr, socklen_t addrlen);
 	virtual ~Address(void);
 
 	void set(const String &host, const String &service);
+	void set(const String &host, int port);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
 	bool isNull(void) const;

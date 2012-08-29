@@ -105,7 +105,7 @@ void Core::removeRequest(unsigned id)
 	}
 }
 
-void Core::http(Httpd::Request &request)
+void Core::http(Http::Request &request)
 {
 	List<String> list;
 	request.url.explode(list,'/');
@@ -126,7 +126,7 @@ void Core::http(Httpd::Request &request)
 
 		if(list.empty())
 		{
-			Httpd::Response response(request, 200);
+			Http::Response response(request, 200);
 			response.send();
 
 			Html page(response.sock);
