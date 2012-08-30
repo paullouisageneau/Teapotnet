@@ -24,6 +24,10 @@
 
 #include "include.h"
 #include "http.h"
+#include "address.h"
+#include "identifier.h"
+#include "array.h"
+#include "map.h"
 
 namespace arc
 {
@@ -32,10 +36,15 @@ class Tracker : public Http::Server
 {
 public:
 	Tracker(int port = 8080);
-	~Tracker();
+	~Tracker(void);
 
-protected:
+private:
 	void process(Http::Request &request);
+	void insert(const Identifier &identifier, const Address &addr);
+	void retrieve(const Identifier &identifier, Array<Address> &array);
+
+	typedef Map<Identifier, Map<Address,time_t> > map_t;
+	map_t mMap;
 };
 
 }

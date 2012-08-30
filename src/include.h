@@ -143,6 +143,11 @@ template<typename T> void msleep(T msecs)
 #endif
 }
 
+inline time_t time(void)
+{
+	return std::time(NULL);
+}
+
 template<typename T> void Log(const char *prefix, const T &value)
 {
 #ifdef DEBUG

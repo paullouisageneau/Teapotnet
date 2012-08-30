@@ -37,7 +37,63 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
-	// TODO
+	Identifier identifier;
+
+	try {
+		if(request.url[0] == '/') request.url.ignore();
+		request.url >> identifier;
+	}
+	catch(...)
+	{
+		throw 400;
+	}
+
+	if(request.method == "POST")
+	{
+		SerializableArray<Address> addrs;
+		retrieve(identifier, addrs);
+		if(addrs.empty()) throw 404;
+
+		Http::Response response(request,200);
+		response.headers["Content-Type"] = "text/plain";
+		response.send();
+		response.sock->write(addrs);
+	}
+	else {
+		if(!request.post.contains("port")) throw 400;
+		Address addr(request.sock->getRemoteAddress().host(), request.post["port"]);
+		insert(identifier,addr);
+
+		Http::Response response(request,200);
+		response.send();
+	}
+}
+
+void Tracker::insert(const Identifier &identifier, const Address &addr)
+{
+	Map<Address,time_t> &map = mMap[identifier];
+	map[addr] = time();
+}
+
+void Tracker::retrieve(const Identifier &identifier, Array<Address> &array)
+{
+	array.clear();
+
+	map_t::iterator it = mMap.find(identifier);
+	if(it == mMap.end()) return;
+
+	Map<Address,time_t> &map = it->second;
+	if(map.empty()) return;
+
+	array.reserve(map.size());
+	for(	Map<Address,time_t>::iterator it = map.begin();
+			it != map.end();
+			++it)
+	{
+		array.push_back(it->first);
+	}
+
+	std::random_shuffle(array.begin(), array.end());
 }
 
 }

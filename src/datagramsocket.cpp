@@ -124,7 +124,7 @@ int DatagramSocket::read(char *buffer, size_t size, Address &sender)
 
 void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
 {
-	size = sendto(mSock, buffer, size, 0, receiver.getaddr(), receiver.getaddrLen());
+	size = sendto(mSock, buffer, size, 0, receiver.addr(), receiver.addrLen());
 	if(size < 0) throw NetException("Unable to write");
 }
 

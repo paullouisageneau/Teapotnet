@@ -44,9 +44,13 @@ public:
 	void setNull(void);
 	bool isNull(void) const;
 
-	const sockaddr *getaddr(void) const;
-	int getaddrFamily(void) const;
-	socklen_t getaddrLen(void) const;
+	String host(void) const;
+	String service(void) const;
+	int port(void) const;
+
+	const sockaddr *addr(void) const;
+	int addrFamily(void) const;
+	socklen_t addrLen(void) const;
 
 	// Serializable
 	virtual void serialize(Stream &s) const;
@@ -55,8 +59,8 @@ public:
 	virtual void deserializeBinary(ByteStream &s);
 
 private:
-	sockaddr_storage 	maddr;
-	socklen_t			maddrLen;
+	sockaddr_storage 	mAddr;
+	socklen_t			mAddrLen;
 };
 
 bool operator < (const Address &a1, const Address &a2);

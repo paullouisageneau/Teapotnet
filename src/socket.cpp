@@ -64,12 +64,12 @@ void Socket::connect(const Address &Address)
 
 	try {
 		// Create chunk socket
-		mSock = ::socket(Address.getaddrFamily(),SOCK_STREAM,0);
+		mSock = ::socket(Address.addrFamily(),SOCK_STREAM,0);
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
 		// Connect it
-		if(::connect(mSock,Address.getaddr(),Address.getaddrLen()) != 0)
+		if(::connect(mSock,Address.addr(),Address.addrLen()) != 0)
 			throw NetException(String("Connection to ")+Address.toString()+" failed");
 
 		/*

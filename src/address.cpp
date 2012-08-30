@@ -71,8 +71,8 @@ void Address::set(const String &host, const String &service)
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
 		throw NetException("Address resolution failed for "+host+":"+service);
 
-	maddrLen = aiList->ai_addrlen;
-	std::memcpy(&maddr,aiList->ai_addr,aiList->ai_addrlen);
+	mAddrLen = aiList->ai_addrlen;
+	std::memcpy(&mAddr,aiList->ai_addr,aiList->ai_addrlen);
 
 	freeaddrinfo(aiList);
 }
@@ -88,31 +88,54 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 {
 	if(!addr || !addrlen)
 	{
-		maddrLen = 0;
+		mAddrLen = 0;
 		return;
 	}
 
-	maddrLen = addrlen;
-	std::memcpy(&maddr,addr,addrlen);
+	mAddrLen = addrlen;
+	std::memcpy(&mAddr,addr,addrlen);
 }
 
 void Address::setNull(void)
 {
-	maddrLen = 0;
+	mAddrLen = 0;
 }
 
 bool Address::isNull(void) const
 {
-	return (maddrLen == 0);
+	return (mAddrLen == 0);
+}
+
+String Address::host(void) const
+{
+	char host[HOST_NAME_MAX];
+	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, NULL, 0, NI_NUMERICHOST))
+		throw InvalidData("Invalid stored network Address");
+	return String(host);
+}
+
+String Address::service(void) const
+{
+	char service[SERVICE_NAME_MAX];
+	if(getnameinfo(addr(), addrLen(), NULL, 0, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+		throw InvalidData("Invalid stored network Address");
+	return String(service);
+}
+
+int Address::port(void) const
+{
+	String str(service());
+	int port;
+	str >> port;
+	return port;
 }
 
 void Address::serialize(Stream &s) const
 {
 	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
-	if(getnameinfo(getaddr(), getaddrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
+	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network Address");
-
 	s<<host<<':'<<service;
 }
 
@@ -136,20 +159,20 @@ void Address::deserialize(Stream &s)
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
 		throw InvalidData("Invalid network Address: " + str);
 
-	maddrLen = aiList->ai_addrlen;
-	std::memcpy(&maddr,aiList->ai_addr,aiList->ai_addrlen);
+	mAddrLen = aiList->ai_addrlen;
+	std::memcpy(&mAddr,aiList->ai_addr,aiList->ai_addrlen);
 
 	freeaddrinfo(aiList);
 }
 
 void Address::serializeBinary(ByteStream &s) const
 {
-	switch(getaddrFamily())
+	switch(addrFamily())
 	{
 	case AF_INET:	// IP v4
 	{
 		s.writeBinary(uint8_t(4));
-		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&maddr);
+		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
 		const char *b = reinterpret_cast<const char *>(&sa->sin_addr.s_addr);
 
 		for(int i=0; i<4; ++i) s.writeBinary(uint8_t(b[i]));
@@ -160,7 +183,7 @@ void Address::serializeBinary(ByteStream &s) const
 	case AF_INET6:	// IP v6
 	{
 		s.writeBinary(uint8_t(16));
-		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&maddr);
+		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 
 		for(int i=0; i<16; ++i) s.writeBinary(uint8_t(sa6->sin6_addr.s6_addr[i]));
 		s.writeBinary(uint16_t(ntohs(sa6->sin6_port)));
@@ -179,7 +202,7 @@ void Address::deserializeBinary(ByteStream &s)
 
 	if(size == 0)
 	{
-		maddrLen = 0;
+		mAddrLen = 0;
 		return;
 	}
 
@@ -187,8 +210,8 @@ void Address::deserializeBinary(ByteStream &s)
 	{
 	case 4:		// IP v4
 	{
-		maddrLen = sizeof(sockaddr_in);
-		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&maddr);
+		mAddrLen = sizeof(sockaddr_in);
+		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
 		char *b = reinterpret_cast<char *>(&sa->sin_addr.s_addr);
 
 		sa->sin_family = AF_INET;
@@ -205,8 +228,8 @@ void Address::deserializeBinary(ByteStream &s)
 
 	case 16:	// IP v6
 	{
-		maddrLen = sizeof(sockaddr_in6);
-		sockaddr_in6 *sa6 = reinterpret_cast<sockaddr_in6*>(&maddr);
+		mAddrLen = sizeof(sockaddr_in6);
+		sockaddr_in6 *sa6 = reinterpret_cast<sockaddr_in6*>(&mAddr);
 
 		sa6->sin6_family = AF_INET6;
 		uint8_t u;
@@ -226,37 +249,37 @@ void Address::deserializeBinary(ByteStream &s)
 	}
 }
 
-const sockaddr *Address::getaddr(void) const
+const sockaddr *Address::addr(void) const
 {
-	return reinterpret_cast<const sockaddr*>(&maddr);
+	return reinterpret_cast<const sockaddr*>(&mAddr);
 }
 
-int Address::getaddrFamily(void) const
+int Address::addrFamily(void) const
 {
-	return reinterpret_cast<const sockaddr_in*>(&maddr)->sin_family;
+	return reinterpret_cast<const sockaddr_in*>(&mAddr)->sin_family;
 }
 
-socklen_t Address::getaddrLen(void) const
+socklen_t Address::addrLen(void) const
 {
-	return maddrLen;
+	return mAddrLen;
 }
 
 bool operator < (const Address &a1, const Address &a2)
 {
-	if(a1.getaddrLen() != a2.getaddrLen()) return a1.getaddrLen() < a2.getaddrLen();
-	return std::memcmp(a1.getaddr(),a2.getaddr(),a1.getaddrLen()) < 0;
+	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() < a2.addrLen();
+	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) < 0;
 }
 
 bool operator > (const Address &a1, const Address &a2)
 {
-	if(a1.getaddrLen() != a2.getaddrLen()) return a1.getaddrLen() > a2.getaddrLen();
-	else return std::memcmp(a1.getaddr(),a2.getaddr(),a1.getaddrLen()) > 0;
+	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() > a2.addrLen();
+	else return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) > 0;
 }
 
 bool operator == (const Address &a1, const Address &a2)
 {
-	if(a1.getaddrLen() != a2.getaddrLen()) return false;
-	else return std::memcmp(a1.getaddr(),a2.getaddr(),a1.getaddrLen()) == 0;
+	if(a1.addrLen() != a2.addrLen()) return false;
+	else return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) == 0;
 }
 
 bool operator != (const Address &a1, const Address &a2)
