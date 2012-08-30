@@ -364,11 +364,15 @@ void Http::Response::clear(void)
 int Http::Get(const String &url, Stream &output)
 {
 	Request request(url,"GET");
+
 	String host;
 	if(!request.headers.get("Host",host))
 		throw Exception("Invalid URL");
 
-	Socket sock(Address(host, 80));
+	String service(host.cut(':'));
+	if(service.empty()) service = "80";
+
+	Socket sock(Address(host, service));
 	request.send(sock);
 
 	Response response;
@@ -396,7 +400,10 @@ int Http::Post(const String &url, const StringMap &post, Stream &output)
 	if(!request.headers.get("Host",host))
 		throw Exception("Invalid URL");
 
-	Socket sock(Address(host, 80));
+	String service(host.cut(':'));
+        if(service.empty()) service = "80";
+
+	Socket sock(Address(host, service));
 	request.send(sock);
 
 	Response response;
