@@ -54,8 +54,12 @@ bool Socket::isConnected(void) const
 
 Address Socket::getRemoteAddress(void) const
 {
-	// TODO: NOT IMPLEMENTED
-	return Address();
+	sockaddr_storage addr;
+	socklen_t len = sizeof(addr);
+	if(getpeername(mSock, reinterpret_cast<sockaddr*>(&addr), &len))
+		throw NetException("Unable to retrieve remote address");
+
+	return Address(reinterpret_cast<sockaddr*>(&addr), len);
 }
 
 void Socket::connect(const Address &Address)

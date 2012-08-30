@@ -101,8 +101,8 @@ public:
 	};
 
 
-	static int Get(const String &url, Stream &output);
-	static int Post(const String &url, const StringMap &post, Stream &output);
+	static int Get(const String &url, Stream *output = NULL);
+	static int Post(const String &url, const StringMap &post, Stream *output = NULL);
 
 private:
 	Http(void);

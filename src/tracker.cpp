@@ -50,6 +50,14 @@ void Tracker::process(Http::Request &request)
 
 	if(request.method == "POST")
 	{
+		if(!request.post.contains("port")) throw 400;
+		Address addr(request.sock->getRemoteAddress().host(), request.post["port"]);
+		insert(identifier,addr);
+
+		Http::Response response(request,200);
+		response.send();
+	}
+	else {
 		SerializableArray<Address> addrs;
 		retrieve(identifier, addrs);
 		if(addrs.empty()) throw 404;
@@ -59,20 +67,12 @@ void Tracker::process(Http::Request &request)
 		response.send();
 		response.sock->write(addrs);
 	}
-	else {
-		if(!request.post.contains("port")) throw 400;
-		Address addr(request.sock->getRemoteAddress().host(), request.post["port"]);
-		insert(identifier,addr);
-
-		Http::Response response(request,200);
-		response.send();
-	}
 }
 
 void Tracker::insert(const Identifier &identifier, const Address &addr)
 {
 	Map<Address,time_t> &map = mMap[identifier];
-	map[addr] = time();
+	map[addr] = time(NULL);
 }
 
 void Tracker::retrieve(const Identifier &identifier, Array<Address> &array)

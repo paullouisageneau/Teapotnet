@@ -98,11 +98,11 @@ typedef int ctl_t;
 #endif
 
 #ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX 256
+#define HOST_NAME_MAX 1024
 #endif
 
 #ifndef SERVICE_NAME_MAX
-#define SERVICE_NAME_MAX 256
+#define SERVICE_NAME_MAX 32
 #endif
 
 namespace arc
@@ -141,11 +141,6 @@ template<typename T> void msleep(T msecs)
 #else
 	usleep(msecs*1000);
 #endif
-}
-
-inline time_t time(void)
-{
-	return std::time(NULL);
 }
 
 template<typename T> void Log(const char *prefix, const T &value)

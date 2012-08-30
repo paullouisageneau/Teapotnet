@@ -108,22 +108,27 @@ bool Address::isNull(void) const
 
 String Address::host(void) const
 {
+	if(isNull()) throw InvalidData("Requested host for null address");
 	char host[HOST_NAME_MAX];
 	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, NULL, 0, NI_NUMERICHOST))
-		throw InvalidData("Invalid stored network Address");
+		throw InvalidData("Invalid stored network address");
 	return String(host);
 }
 
 String Address::service(void) const
 {
+	if(isNull()) throw InvalidData("Requested service for null address");
+
 	char service[SERVICE_NAME_MAX];
 	if(getnameinfo(addr(), addrLen(), NULL, 0, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
-		throw InvalidData("Invalid stored network Address");
+		throw InvalidData("Invalid stored network address");
 	return String(service);
 }
 
 int Address::port(void) const
 {
+	if(isNull()) throw InvalidData("Requested port for null address");
+
 	String str(service());
 	int port;
 	str >> port;

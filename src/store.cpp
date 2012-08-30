@@ -226,7 +226,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	dirEntry.writeLine(dirPath);
 
 	StringMap header;
-	header["type"] << "directory";
+	header["type"] = "directory";
+	header["time"] << time(NULL);
 	dirEntry.write(header);
 
 	Directory dir(dirPath);
@@ -299,6 +300,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 
 				StringMap header;
 				dir.getFileInfo(header);
+				header["type"] = "file";
 				header["chunk-size"] << chunkSize;
 				header["chunk-count"] << chunkCount;
 				header["hash"] << dataHash;

@@ -42,7 +42,7 @@ Http::Request::Request(const String &url, const String &method)
 		if(protocol != "http") throw Exception(String("Unknown protocol in URL: ")+protocol);
 
 		String host(url.substr(p+3));
-		this->url = host.cut('/');
+		this->url = String('/') + host.cut('/');
 		headers["Host"] = host;
 	}
 
@@ -124,6 +124,8 @@ void Http::Request::recv(Socket &sock)
 	// Read first line
 	String line;
 	if(!sock.readLine(line)) throw IOException("Connection closed");
+	method.clear();
+	url.clear();
 	line.readString(method);
 	line.readString(url);
 
@@ -186,7 +188,7 @@ void Http::Request::recv(Socket &sock)
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");
 
-		size_t size;
+		size_t size = 0;
 		String contentLength(headers["Content-Length"]);
 		contentLength >> size;
 
@@ -219,7 +221,6 @@ void Http::Request::clear(void)
 	cookies.clear();
 	get.clear();
 	post.clear();
-	sock = NULL;
 }
 
 Http::Response::Response(void)
@@ -361,67 +362,6 @@ void Http::Response::clear(void)
 	version.clear();
 }
 
-int Http::Get(const String &url, Stream &output)
-{
-	Request request(url,"GET");
-
-	String host;
-	if(!request.headers.get("Host",host))
-		throw Exception("Invalid URL");
-
-	String service(host.cut(':'));
-	if(service.empty()) service = "80";
-
-	Socket sock(Address(host, service));
-	request.send(sock);
-
-	Response response;
-	response.recv(sock);
-
-	if(response.code/100 == 3 && response.headers.contains("Location"))
-	{
-		sock.discard();
-		sock.close();
-
-		// Location MAY NOT be a relative URL
-		return Get(response.headers["Location"], output);
-	}
-
-	sock.read(output);
-	return response.code;
-}
-
-int Http::Post(const String &url, const StringMap &post, Stream &output)
-{
-	Request request(url,"POST");
-	request.post = post;
-
-	String host;
-	if(!request.headers.get("Host",host))
-		throw Exception("Invalid URL");
-
-	String service(host.cut(':'));
-        if(service.empty()) service = "80";
-
-	Socket sock(Address(host, service));
-	request.send(sock);
-
-	Response response;
-	response.recv(sock);
-
-	if(response.code/100 == 3 && response.headers.contains("Location"))
-	{
-		sock.discard();
-		sock.close();
-
-		// Location MAY NOT be a relative URL
-		return Get(response.headers["Location"], output);
-	}
-
-	sock.read(output);
-	return response.code;
-}
-
 Http::Server::Server(int port) :
 	mSock(port)
 {
@@ -482,6 +422,7 @@ void Http::Server::Handler::run(void)
 		}
 		catch(Exception &e)
 		{
+			Log("Http::Server::Handler", e.what());
 			throw 500;
 		}
 	}
@@ -501,6 +442,71 @@ void Http::Server::Handler::run(void)
 			page.footer();
 		}
 	}
+}
+
+int Http::Get(const String &url, Stream *output)
+{
+	Request request(url,"GET");
+
+	String host;
+	if(!request.headers.get("Host",host))
+		throw Exception("Invalid URL");
+
+	String service(host.cut(':'));
+	if(service.empty()) service = "80";
+
+	Socket sock(Address(host, service));
+	request.send(sock);
+
+	Response response;
+	response.recv(sock);
+
+	if(response.code/100 == 3 && response.headers.contains("Location"))
+	{
+		sock.discard();
+		sock.close();
+
+		// Location MAY NOT be a relative URL
+		return Get(response.headers["Location"], output);
+	}
+
+	if(output) sock.read(*output);
+	else sock.discard();
+
+	return response.code;
+}
+
+int Http::Post(const String &url, const StringMap &post, Stream *output)
+{
+	Request request(url,"POST");
+	request.post = post;
+
+	String host;
+	if(!request.headers.get("Host",host))
+		throw Exception("Invalid URL");
+
+	String service(host.cut(':'));
+        if(service.empty()) service = "80";
+
+	Socket sock(Address(host, service));
+	request.send(sock);
+
+	Response response;
+	response.recv(sock);
+
+	if(response.code/100 == 3 && response.headers.contains("Location"))
+	{
+		sock.discard();
+		sock.close();
+
+		// Location MAY NOT be a relative URL
+		return Get(response.headers["Location"], output);
+	}
+
+	if(output) sock.read(*output);
+	else sock.discard();
+
+	return response.code;
 }
 
 }

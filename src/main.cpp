@@ -22,6 +22,8 @@
 #include "main.h"
 #include "sha512.h"
 #include "store.h"
+#include "tracker.h"
+#include "http.h"
 
 using namespace arc;
 
@@ -42,6 +44,20 @@ int main(int argc, char** argv)
 	httpd->start();
 	httpd->join();*/
 	
+	Tracker tracker(8000);
+	tracker.start();
+
+	String url("http://127.0.0.1:8000/"+result.toString());
+	StringMap post;
+	post["port"] = "6666";
+	int code = Http::Post(url, post);
+	std::cout<<code<<std::endl;
+
+	String output;
+	code = Http::Get(url, &output);
+	std::cout<<code<<std::endl;
+	std::cout<<output<<std::endl;
+
 	return 0;
 }
 

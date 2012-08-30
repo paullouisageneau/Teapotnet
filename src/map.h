@@ -115,8 +115,8 @@ void SerializableMap<K,V>::deserialize(Stream &s)
 		String second = line.cut('=');
 		K key;
 		V value;
-		line.read(key);
-		second.read(value);
+		line.readLine(key);
+		second.readLine(value);
 		this->insert(key,value);
 	}
 }

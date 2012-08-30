@@ -118,7 +118,7 @@ size_t Stream::read(Stream &s, size_t max)
 	char buffer[BufferSize];
 	size_t left = max;
 	size_t size;
-	while((size = readData(buffer,std::min(BufferSize,left))))
+	while(left && (size = readData(buffer,std::min(BufferSize,left))))
 	{
 		left-=size;
 		mLast = buffer[size-1];

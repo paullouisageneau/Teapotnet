@@ -154,7 +154,15 @@ void Directory::getFileInfo(StringMap &map) const
 	map.clear();
 	map["name"] =  fileName();
 	map["time"] << fileTime();
-	map["size"] << fileSize();
+
+	if(fileIsDir())
+	{
+		map["type"] =  "directory";
+	}
+	else {
+		map["type"] =  "file";
+		map["size"] << fileSize();
+	}
 }
 
 }

@@ -130,7 +130,7 @@ void SerializableArray<T>::deserialize(Stream &s)
 	while(s.readLine(line) && !line.empty())
 	{
 		T value;
-		line.read(value);
+		line.readLine(value);	// read() would stop at first space
 		this->append(value);
 	}
 }
