@@ -37,6 +37,7 @@
 #include "map.h"
 #include "array.h"
 #include "http.h"
+#include "interface.h"
 
 namespace arc
 {

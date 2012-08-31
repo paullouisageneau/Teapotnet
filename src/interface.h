@@ -39,7 +39,7 @@ public:
 class Interface : public Http::Server
 {
 public:
-	static const Interface *Instance;
+	static Interface *Instance;
 
 	void add(const String &directory, HttpInterfaceable *interfaceable);
 	void remove(const String &directory);

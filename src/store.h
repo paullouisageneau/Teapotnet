@@ -27,6 +27,7 @@
 #include "http.h"
 #include "file.h"
 #include "map.h"
+#include "interface.h"
 
 namespace arc
 {

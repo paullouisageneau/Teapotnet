@@ -40,24 +40,25 @@ int main(int argc, char** argv)
 	Store::Instance->refresh();
 
 	// TEST
-	/*Httpd *httpd = new Httpd(8080);
+/*
+	Httpd *httpd = new Httpd(8080);
 	httpd->start();
-	httpd->join();*/
+	httpd->join();
+*/
 	
-	Tracker tracker(8000);
+/*
+	Tracker tracker(8080);
 	tracker.start();
 
-	String url("http://127.0.0.1:8000/"+result.toString());
+	String url("http://127.0.0.1:8080/"+result.toString());
 	StringMap post;
 	post["port"] = "6666";
-	int code = Http::Post(url, post);
-	std::cout<<code<<std::endl;
+	Http::Post(url, post);
 
 	String output;
-	code = Http::Get(url, &output);
-	std::cout<<code<<std::endl;
+	Http::Get(url, &output);
 	std::cout<<output<<std::endl;
-
+*/
 	return 0;
 }
 
