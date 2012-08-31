@@ -24,18 +24,34 @@
 
 #include "include.h"
 #include "http.h"
+#include "mutex.h"
+#include "map.h"
 
 namespace arc
 {
 
+class HttpInterfaceable
+{
+public:
+	virtual void http(Http::Request &request) = 0;
+};
+
 class Interface : public Http::Server
 {
 public:
-	Interface(int port = 80);
-	~Interface();
+	static const Interface *Instance;
 
-protected:
+	void add(const String &directory, HttpInterfaceable *interfaceable);
+	void remove(const String &directory);
+
+private:
+	Interface(int port);
+        ~Interface();
+
 	void process(Http::Request &request);
+
+	Map<String,HttpInterfaceable*>	mDirectories;
+	Mutex mMutex;
 };
 
 }

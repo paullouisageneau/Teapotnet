@@ -31,7 +31,7 @@
 namespace arc
 {
 
-class Store
+class Store : public HttpInterfaceable
 {
 public:
 	static const String DatabaseDirectory;

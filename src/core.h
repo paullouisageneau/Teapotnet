@@ -41,7 +41,7 @@
 namespace arc
 {
 
-class Core : public Thread
+class Core : public Thread, public HttpInterfaceable
 {
 public:
 	static Core *Instance;

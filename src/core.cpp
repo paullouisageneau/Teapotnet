@@ -48,6 +48,8 @@ void Core::add(Socket *sock)
 
 void Core::run(void)
 {
+	Interface::Instance->add("peers", this);
+
 	try {
 		while(true)
 		{
