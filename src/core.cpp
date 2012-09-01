@@ -21,6 +21,7 @@
 
 #include "core.h"
 #include "html.h"
+#include "sha512.h"
 
 namespace arc
 {
@@ -205,18 +206,70 @@ void Core::Handler::removeRequest(unsigned id)
 
 void Core::Handler::run(void)
 {
-	String line;
-	if(!mSock->readLine(line))
-		return;
+	ByteString nonce_a, salt_a;
+	for(int i=0; i<16; ++i)
+	{
+	  	char c = char(rand()%256);	// TODO
+		nonce_a.push_back(c);
+		
+		c = char(rand()%256);		// TODO
+		salt_a.push_back(c);  
+	}
+  
+	*mSock<<"H "<<mCore->mName<<" "<<APPNAME<<" "<<APPVERSION<<" "<<nonce_a<<Stream::NewLine;
+  
+	String line, command;
+	if(!mSock->readLine(line)) return;
 
-	String proto;
-	String version;
-	line.readString(proto);
-	line.readString(version);
+	line.read(command);
+	command = command.toUpper();
+	if(command != "H") throw Exception("Unexpected command");
+	
+	String name, appname, version;
+	line.read(name);
+	line.read(appname);
+	line.read(version);
+	
+	ByteString nonce_b;
+	line.read(nonce_b);
+	
+	// TODO: checks
+	
+	ByteString secret;	// TODO: set this according to name
+	
+	ByteString agregate_a, hash_a;
+	agregate_a.writeBinary(secret);
+	agregate_a.writeBinary(salt_a);
+	agregate_a.writeBinary(nonce_b);
+	agregate_a.writeBinary(mCore->mName);
+	agregate_a.writeBinary(name);
+	Sha512::Hash(agregate_a, hash_a);	// TODO: multiple times
+	  
+	*mSock<<"A "<<" "<<salt_a<<" "<<hash_a<<Stream::NewLine;
 
-	// TODO: auth
-	// Initialize mPeer here !
-
+	line.clear();
+	if(!mSock->readLine(line)) throw Exception("Connection unexpectedly closed");
+	
+	line.read(command);
+	command = command.toUpper();
+	if(command != "H") throw Exception("Unexpected command");
+	
+	ByteString salt_b, test_b;
+	line.read(salt_b);
+	line.read(test_b);
+	
+	ByteString agregate_b, hash_b;
+	agregate_b.writeBinary(secret);
+	agregate_b.writeBinary(salt_b);
+	agregate_b.writeBinary(nonce_a);
+	agregate_b.writeBinary(name);
+	agregate_b.writeBinary(mCore->mName);
+	Sha512::Hash(agregate_b, hash_b);	// TODO: multiple times
+	
+	if(test_b != hash_b) throw Exception("Authentication failed");
+	
+	// TODO: set mPeer here
+	
 	mCore->add(mPeer,this);
 
 	mSender.start();

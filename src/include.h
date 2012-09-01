@@ -22,6 +22,10 @@
 #ifndef ARC_INCLUDE_H
 #define ARC_INCLUDE_H
 
+#define APPNAME		"Arcanet"
+#define APPVERSION	"0.1"
+
+
 #if defined(_WIN32) || defined(_WIN64)
 	#define WINDOWS
 #endif
@@ -108,9 +112,9 @@ typedef int ctl_t;
 namespace arc
 {
 
-typedef signed char			sint8_t;	// 8 bits
+typedef signed char		sint8_t;	// 8 bits
 typedef signed short		sint16_t;	// 16 bits
-typedef signed int			sint32_t;	// 32 bits
+typedef signed int		sint32_t;	// 32 bits
 typedef signed long long	sint64_t;	// 64 bits
 
 typedef unsigned char		uint8_t;	// 8 bits
@@ -118,8 +122,8 @@ typedef unsigned short		uint16_t;	// 16 bits
 typedef unsigned int		uint32_t;	// 32 bits
 typedef unsigned long long	uint64_t;	// 64 bits
 
-typedef float				float32_t;	// 32 bits float
-typedef double				float64_t;	// 64 bits float
+typedef float			float32_t;	// 32 bits float
+typedef double			float64_t;	// 64 bits float
 
 #define CONST64(n) n ## ULL	// 64 bits unsigned constant
 

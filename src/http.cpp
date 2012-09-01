@@ -48,7 +48,7 @@ Http::Request::Request(const String &url, const String &method)
 
 	if(!method.empty()) this->method = method;
 
-	this->headers["User-Agent"] = "Arcanet";
+	this->headers["User-Agent"] = String(APPNAME) + '/' + APPVERSION;
 }
 
 void Http::Request::send(Socket &sock)

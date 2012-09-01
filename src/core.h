@@ -104,8 +104,9 @@ private:
 	void add(const Identifier &peer, Handler *Handler);
 	void remove(const Identifier &peer);
 
+	String mName;
 	ServerSocket mSock;
-
+	Map<String,ByteString> mSecrets;	// TODO
 	Map<Identifier,Handler*> mHandlers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;
