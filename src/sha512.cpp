@@ -26,29 +26,41 @@
 
 #include "sha512.h"
 #include "exception.h"
+#include "bytearray.h"
 
 namespace arc
 {
 
-void Sha512::Hash(const char *data, size_t size, ByteStream &out)
+static const int Sha512::CryptRounds = 5000;
+  
+void Sha512::Hash(const char *data, size_t size, ByteStream &out, int rounds)
 {
-	Sha512 sha;
-	sha.process(data,size);
-	sha.finalize(out);
+	ByteArray array(data, size);
+	Hash(array, out, rounds);
 }
 
-void Sha512::Hash(const String &str, ByteStream &out)
+void Sha512::Hash(const String &str, ByteStream &out, int rounds)
 {
-	Sha512 sha;
-	sha.process(str.data(),str.size());
-	sha.finalize(out);
+	Hash(str.data(), str.size(), out, rounds);
 }
 
-size_t Sha512::Hash(ByteStream &data, ByteStream &out)
+size_t Sha512::Hash(ByteStream &data, ByteStream &out, int rounds)
 {
+	Assert(rounds > 0);
+  
+	unsigned char buffer[64];
 	Sha512 sha;
 	size_t size = sha.process(data);
-	sha.finalize(out);
+	sha.finalize(buffer);
+	
+	while(--rounds)
+	{
+	  sha.init();
+	  sha.process(buffer,64);
+	  sha.finalize(buffer);
+	}
+	
+	out.writeData(reinterpret_cast<char*>(buffer),64);
 	return size;
 }
 

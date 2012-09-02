@@ -66,6 +66,9 @@ private:
 		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
+		void addSecret(const String &name, const ByteString &secret);
+		void removeSecret(const String &name, const ByteString &secret);
+		
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
 
@@ -106,7 +109,7 @@ private:
 
 	String mName;
 	ServerSocket mSock;
-	Map<String,ByteString> mSecrets;	// TODO
+	Map<ByteString, ByteString> > mSecrets;
 	Map<Identifier,Handler*> mHandlers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;

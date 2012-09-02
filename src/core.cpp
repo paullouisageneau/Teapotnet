@@ -65,6 +65,32 @@ void Core::run(void)
 	}
 }
 
+void Core::addSecret(const String &name, const ByteString &secret)
+{
+	ByteString agregate;
+	agregate.writeBinary(secret);
+	agregate.writeBinary(mName);
+	agregate.writeBinary(name);
+	
+	ByteString peer;
+	Sha512::Hash(agregate, peer, Sha512::CryptRounds);
+	
+	mSecrets.insert(peer, secret);
+}
+
+void Core::removeSecret(const String &name, const ByteString &secret)
+{
+	ByteString agregate;
+	agregate.writeBinary(secret);
+	agregate.writeBinary(mName);
+	agregate.writeBinary(name);
+	
+	ByteString peer;
+	Sha512::Hash(agregate, peer, Sha512::CryptRounds);
+	
+	mSecrets.erase(peer);
+}
+
 unsigned Core::addRequest(Request *request)
 {
 	++mLastRequest;
@@ -235,7 +261,8 @@ void Core::Handler::run(void)
 	
 	// TODO: checks
 	
-	ByteString secret;	// TODO: set this according to name
+	ByteString secret;
+	if(!mSecrets.get(
 	
 	ByteString agregate_a, hash_a;
 	agregate_a.writeBinary(secret);
@@ -245,7 +272,7 @@ void Core::Handler::run(void)
 	agregate_a.writeBinary(name);
 	Sha512::Hash(agregate_a, hash_a);	// TODO: multiple times
 	  
-	*mSock<<"A "<<" "<<salt_a<<" "<<hash_a<<Stream::NewLine;
+	*mSock<<"A "<<salt_a<<" "<<hash_a<<Stream::NewLine;
 
 	line.clear();
 	if(!mSock->readLine(line)) throw Exception("Connection unexpectedly closed");

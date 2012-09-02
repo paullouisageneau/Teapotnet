@@ -33,9 +33,11 @@ namespace arc
 class Sha512
 {
 public:
-	static void Hash(const char *data, size_t size, ByteStream &out);
-	static void Hash(const String &str, ByteStream &out);
-	static size_t Hash(ByteStream &data, ByteStream &out);
+	static const int CryptRounds;
+  
+	static void Hash(const char *data, size_t size, ByteStream &out, int rounds = 1);
+	static void Hash(const String &str, ByteStream &out, int rounds = 1);
+	static size_t Hash(ByteStream &data, ByteStream &out, int rounds = 1);
 	static size_t Hash(ByteStream &data, size_t size, ByteStream &out);
 
 	Sha512(void);

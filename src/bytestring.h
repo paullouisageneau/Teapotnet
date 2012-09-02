@@ -44,6 +44,10 @@ public:
 	void append(const char *array, size_t size);
 	void fill(char value, int n);
 
+	uint16_t checksum16(void) const { uint16_t i = 0; return checksum(i); }
+	uint32_t checksum32(void) const { uint32_t i = 0; return checksum(i); }
+	uint64_t checksum64(void) const { uint64_t i = 0; return checksum(i); }
+	
 	// Serializable
 	virtual void serialize(Stream &s) const;
 	virtual void deserialize(Stream &s);
@@ -53,7 +57,28 @@ public:
 protected:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
+	
+	template<typename T> T checksum(T &result) const;
 };
+
+template<typename T>
+T ByteString::checksum(T &result) const
+{
+ 	Bytestring copy(*this);
+	
+	while(copy.size() % sizeof(T))
+	  copy.writeBinary(uint8_t(0));
+
+	result = 0;
+	for(int i=0; i<size(); ++i)
+	{
+	  	T i;
+		copy.readBinary(i);
+		result = result ^ i;
+	}
+	
+	return result;
+}
 
 }
 
