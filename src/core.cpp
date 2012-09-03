@@ -323,7 +323,7 @@ void Core::Handler::run(void)
 	agregate_a.writeBinary(nonce_b);
 	agregate_a.writeBinary(mCore->mName);
 	agregate_a.writeBinary(name);
-	Sha512::Hash(agregate_a, hash_a);	// TODO: multiple times
+	Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
 	
 	args.clear();
 	args<<salt_a<<" "<<hash_a<<Stream::NewLine;
@@ -342,7 +342,7 @@ void Core::Handler::run(void)
 	agregate_b.writeBinary(nonce_a);
 	agregate_b.writeBinary(name);
 	agregate_b.writeBinary(mCore->mName);
-	Sha512::Hash(agregate_b, hash_b);	// TODO: multiple times
+	Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 	
 	if(test_b != hash_b) throw Exception("Authentication failed");
 	
