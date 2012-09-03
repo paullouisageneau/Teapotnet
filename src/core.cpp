@@ -28,6 +28,18 @@ namespace arc
 
 Core *Core::Instance = new Core(8000);	// TODO
 
+Core::ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out)
+{
+	if(name2 > name1) std::swap(name1, name2);
+  
+  	ByteString agregate;
+	agregate.writeBinary(secret);
+	agregate.writeBinary(name1);
+	agregate.writeBinary(name2);
+	
+	Sha512::Hash(agregate, out, Sha512::CryptRounds);
+}
+
 Core::Core(int port) :
 		mSock(port),
 		mLastRequest(0)
@@ -40,10 +52,11 @@ Core::~Core(void)
 	mSock.close();
 }
 
-void Core::add(Socket *sock)
+void Core::add(Socket *sock, const Identifier &identifier)
 {
 	assert(sock != NULL);
 	Handler *handler = new Handler(this,sock);
+	if(identifier != Identifier::Null) handler->setIdentifier(identifier);
 	handler->start(true); // handler will destroy itself
 }
 
@@ -56,7 +69,7 @@ void Core::run(void)
 		{
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
-			add(sock);
+			add(sock, Identifier::Null);
 		}
 	}
 	catch(const NetException &e)
@@ -67,27 +80,15 @@ void Core::run(void)
 
 void Core::addSecret(const String &name, const ByteString &secret)
 {
-	ByteString agregate;
-	agregate.writeBinary(secret);
-	agregate.writeBinary(mName);
-	agregate.writeBinary(name);
-	
 	ByteString peer;
-	Sha512::Hash(agregate, peer, Sha512::CryptRounds);
-	
+	ComputePeerIdentifier(mName, name, secret, peer);
 	mSecrets.insert(peer, secret);
 }
 
 void Core::removeSecret(const String &name, const ByteString &secret)
 {
-	ByteString agregate;
-	agregate.writeBinary(secret);
-	agregate.writeBinary(mName);
-	agregate.writeBinary(name);
-	
 	ByteString peer;
-	Sha512::Hash(agregate, peer, Sha512::CryptRounds);
-	
+	ComputePeerIdentifier(mName, name, secret, peer);
 	mSecrets.erase(peer);
 }
 
@@ -200,6 +201,41 @@ void Core::remove(const Identifier &peer)
 	}
 }
 
+void Core::Handler::sendCommand(Socket *sock, const String &command, const String &args, const StringMap &parameters)
+{
+	*mSock<<command<<" "<<param<<Stream::NewLine;
+
+	for(	StringMap::iterator it = parameters.begin();
+		it != parameters.end();
+		++it)
+	{
+		*mSock<<it->first<<": "<<it->second<<Stream::NewLine;
+	}
+	*mSock<<Stream::NewLine;
+}
+		
+bool Core::Handler::recvCommand(Socket *sock, String &command, String &args, StringMap &parameters)
+{
+	if(!mSock->readLine(command)) return false;
+	args = command.cut(' ');
+	command = command.toUpper();
+	
+	parameters.clear();
+	while(true)
+	{
+		String name;
+		AssertIO(mSock->readLine(name));
+		if(name.empty()) break;
+
+		String value = name.cut(':');
+		name.trim();
+		value.trim();
+		parameters.insert(name,value);
+	}
+	
+	return true;
+}
+
 Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
 	mSock(sock),
@@ -212,6 +248,11 @@ Core::Handler::~Handler(void)
 {
 	delete mSock;
 	delete mHandler;
+}
+
+void Core::Handler::setPeer(Identifier &peer)
+{
+	mPeer = peer; 
 }
 
 void Core::Handler::addRequest(Request *request)
@@ -242,27 +283,39 @@ void Core::Handler::run(void)
 		salt_a.push_back(c);  
 	}
   
-	*mSock<<"H "<<mCore->mName<<" "<<APPNAME<<" "<<APPVERSION<<" "<<nonce_a<<Stream::NewLine;
+  	if(mPeer != mIdentifier::Null)
+	{
+	  	String args;
+		args <<mPeer<<" "<<APPNAME<<" "<<APPVERSION<<" "<<nonce_a;
+	 	sendCommand(mSock, "H", args, StringMap());
+	}
   
-	String line, command;
-	if(!mSock->readLine(line)) return;
-
-	line.read(command);
-	command = command.toUpper();
+  	String command, args;
+	StringMap parameters;
+	if(!recvCommand(mSock, command, args, parameters)) return;
 	if(command != "H") throw Exception("Unexpected command");
 	
-	String name, appname, version;
-	line.read(name);
+	String appname, version;
+	ByteString peer, nonce_b;
+	line.read(peer);
 	line.read(appname);
 	line.read(version);
-	
-	ByteString nonce_b;
 	line.read(nonce_b);
+	
+	Assert(mPeer == mIdentifier::Null || peer == mPeer);
 	
 	// TODO: checks
 	
 	ByteString secret;
-	if(!mSecrets.get(
+	if(!mSecrets.get(peer, secret)) throw Exception("Unknown peer");
+	
+	if(mPeer == mIdentifier::Null)
+	{
+	  	mPeer = peer;
+	  	args.clear();
+		args <<mPeer<<" "<<APPNAME<<" "<<APPVERSION<<" "<<nonce_a;
+	 	sendCommand(mSock, "H", args, StringMap());
+	}
 	
 	ByteString agregate_a, hash_a;
 	agregate_a.writeBinary(secret);
@@ -271,15 +324,13 @@ void Core::Handler::run(void)
 	agregate_a.writeBinary(mCore->mName);
 	agregate_a.writeBinary(name);
 	Sha512::Hash(agregate_a, hash_a);	// TODO: multiple times
-	  
-	*mSock<<"A "<<salt_a<<" "<<hash_a<<Stream::NewLine;
-
-	line.clear();
-	if(!mSock->readLine(line)) throw Exception("Connection unexpectedly closed");
 	
-	line.read(command);
-	command = command.toUpper();
-	if(command != "H") throw Exception("Unexpected command");
+	args.clear();
+	args<<salt_a<<" "<<hash_a<<Stream::NewLine;
+	sendCommand(mSock, "A", args, StringMap());
+	
+	AssertIO(recvCommand(mSock, command, args, parameters));
+	if(command != "A") throw Exception("Unexpected command");
 	
 	ByteString salt_b, test_b;
 	line.read(salt_b);
@@ -295,43 +346,22 @@ void Core::Handler::run(void)
 	
 	if(test_b != hash_b) throw Exception("Authentication failed");
 	
-	// TODO: set mPeer here
-	
 	mCore->add(mPeer,this);
 
 	mSender.start();
-
-	while(mSock->readLine(line))
+	
+	while(recvCommand(mSock, command, args, parameters))
 	{
 		lock();
-
-		String command;
-		line.read(command);
-		command = command.toUpper();
-
-		// Read parameters
-		StringMap parameters;
-		while(true)
-		{
-			String name;
-			AssertIO(mSock->readLine(name));
-			if(name.empty()) break;
-
-			String value = name.cut(':');
-			name.trim();
-			value.trim();
-			parameters.insert(name,value);
-		}
 
 		if(command == "R")
 		{
 			unsigned id;
 			String status;
 			unsigned channel;
-
-			line.read(id);
-			line.read(status);
-			line.read(channel);
+			args.read(id);
+			args.read(status);
+			args.read(channel);
 
 			Request *request;
 			if(mRequests.get(id,request))
@@ -358,8 +388,8 @@ void Core::Handler::run(void)
 		else if(command == "D")
 		{
 			unsigned channel, size;
-			line.read(channel);
-			line.read(size);
+			args.read(channel);
+			args.read(size);
 
 			Request::Response *response;
 			if(mResponses.get(channel,response))
@@ -374,7 +404,7 @@ void Core::Handler::run(void)
 		}
 		else if(command == "I" || command == "G")
 		{
-			String &target = line;
+			String &target = args;
 
 			Request *request = new Request;
 			request->setTarget(target, (command == "G"));
@@ -430,19 +460,12 @@ void Core::Handler::Sender::run(void)
 		if(!mRequestsQueue.empty())
 		{
 			Request *request = mRequestsQueue.front();
-			if(request->mIsData) *mSock<<"G";
-			else *mSock<<"I";
-			*mSock<<" "<<request->target()<<Stream::NewLine;
-
-			StringMap &parameters = request->mParameters;
-			for(	StringMap::iterator it = parameters.begin();
-						it != parameters.end();
-						++it)
-			{
-					*mSock<<it->first<<": "<<it->second<<Stream::NewLine;
-			}
-			*mSock<<Stream::NewLine;
-
+			
+			String command;
+			if(request->mIsData) command = "G";
+			else command = "I";
+			 
+			Handler::sendCommand(mSock, command, request->target(), request->mParameters);
 			mRequestsQueue.pop();
 		}
 
@@ -463,17 +486,8 @@ void Core::Handler::Sender::run(void)
 						channel = mLastChannel;
 						mTransferts.insert(channel,response->content());
 					}
-
-					*mSock<<"R "<<request->id()<<" "<<status<<" "<<channel<<Stream::NewLine;
-
-					StringMap &parameters = response->mParameters;
-					for(	StringMap::iterator it = parameters.begin();
-							it != parameters.end();
-							++it)
-					{
-						*mSock<<it->first<<": "<<it->second<<Stream::NewLine;
-					}
-					*mSock<<Stream::NewLine;
+					
+					Handler::sendCommand(mSock, "R", String(request->id()) <<" "<<status<<" "<<channel, response->mParameters);
 				}
 			}
 		}
@@ -482,7 +496,8 @@ void Core::Handler::Sender::run(void)
 		while(it != mTransferts.end())
 		{
 			size_t size = it->second->readData(buffer,ChunkSize);
-			*mSock<<"D "<<it->first<<" "<<size<<Stream::NewLine;
+			
+			Handler::sendCommand(mSock, "D", String(it->first) << " " << size, StringMap());
 			mSock->writeData(buffer, size);
 
 			if(size == 0)

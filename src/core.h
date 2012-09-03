@@ -47,8 +47,13 @@ class Core : public Thread, public HttpInterfaceable
 public:
 	static Core *Instance;
 
-	void add(Socket *sock);
+	static ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out);
+	
+	void add(Socket *sock, const Identifier &peer);
 
+	void addSecret(const String &name, const ByteString &secret);
+	void removeSecret(const String &name, const ByteString &secret);
+	
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 
@@ -66,12 +71,22 @@ private:
 		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
-		void addSecret(const String &name, const ByteString &secret);
-		void removeSecret(const String &name, const ByteString &secret);
+		void setPeer(const Identifier &peer);
 		
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
 
+	protected:
+	  	static void sendCommand(Socket *sock,
+				   	const String &command, 
+		       			const String &args,
+					const StringMap &parameters);
+		
+		static bool recvCommand(Socket *sock,
+				   	String &command, 
+		       			String &args,
+					StringMap &parameters);
+		
 	private:
 		void run(void);
 
