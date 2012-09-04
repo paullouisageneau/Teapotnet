@@ -64,7 +64,7 @@ protected:
 template<typename T>
 T ByteString::checksum(T &result) const
 {
- 	Bytestring copy(*this);
+ 	ByteString copy(*this);
 	
 	while(copy.size() % sizeof(T))
 	  copy.writeBinary(uint8_t(0));
@@ -72,9 +72,9 @@ T ByteString::checksum(T &result) const
 	result = 0;
 	for(int i=0; i<size(); ++i)
 	{
-	  	T i;
-		copy.readBinary(i);
-		result = result ^ i;
+	  	T value;
+		copy.readBinary(value);
+		result = result ^ value;
 	}
 	
 	return result;

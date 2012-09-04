@@ -47,7 +47,7 @@ class Core : public Thread, public HttpInterfaceable
 public:
 	static Core *Instance;
 
-	static ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out);
+	static void ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out);
 	
 	void add(Socket *sock, const Identifier &peer);
 
@@ -124,7 +124,7 @@ private:
 
 	String mName;
 	ServerSocket mSock;
-	Map<ByteString, ByteString> > mSecrets;
+	Map<ByteString, ByteString > mSecrets;
 	Map<Identifier,Handler*> mHandlers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;

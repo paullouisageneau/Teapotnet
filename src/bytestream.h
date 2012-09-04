@@ -47,9 +47,11 @@ public:
 	bool	readBinary(sint8_t &i);
 	bool	readBinary(sint16_t &i);
 	bool	readBinary(sint32_t &i);
+	bool	readBinary(sint64_t &i);
 	bool	readBinary(uint8_t &i);
 	bool	readBinary(uint16_t &i);
 	bool	readBinary(uint32_t &i);
+	bool	readBinary(uint64_t &i);
 	bool	readBinary(float32_t &f);
 
 	template<class T> bool readBinary(T *ptr);
@@ -68,9 +70,11 @@ public:
 	void	writeBinary(sint8_t i = 0);
 	void	writeBinary(sint16_t i = 0);
 	void	writeBinary(sint32_t i = 0);
+	void	writeBinary(sint64_t i = 0);
 	void	writeBinary(uint8_t i = 0);
 	void	writeBinary(uint16_t i = 0);
 	void	writeBinary(uint32_t i = 0);
+	void	writeBinary(uint64_t i = 0);
 	void	writeBinary(float32_t f = 0.f);
 
 	template<class T> void writeBinary(const T *ptr);
@@ -90,8 +94,9 @@ public:
 private:
 	virtual ByteStream *pipeIn(void);	// return the write end for a pipe
 
-	void	fixEndianess16(char *data);
-	void	fixEndianess32(char *data);
+	uint16_t fixEndianess(uint16_t n);
+	uint32_t fixEndianess(uint32_t n);
+	uint64_t fixEndianess(uint64_t n);
 
 	friend class Pipe;
 };

@@ -31,11 +31,12 @@
 namespace arc
 {
 
-static const int Sha512::CryptRounds = 5000;
+const int Sha512::CryptRounds = 5000;
   
 void Sha512::Hash(const char *data, size_t size, ByteStream &out, int rounds)
 {
-	ByteArray array(data, size);
+	// TODO: ConstByteArray ?
+	ByteArray array(const_cast<char *>(data), size);
 	Hash(array, out, rounds);
 }
 
@@ -56,7 +57,7 @@ size_t Sha512::Hash(ByteStream &data, ByteStream &out, int rounds)
 	while(--rounds)
 	{
 	  sha.init();
-	  sha.process(buffer,64);
+	  sha.process(reinterpret_cast<char*>(buffer),64);
 	  sha.finalize(buffer);
 	}
 	

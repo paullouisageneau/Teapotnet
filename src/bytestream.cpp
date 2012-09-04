@@ -86,21 +86,33 @@ bool ByteStream::readBinary(ByteString &s)
 
 bool ByteStream::readBinary(sint8_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),1) != 1) return false;
+	uint8_t u;
+	if(!readBinary(u)) return false;
+	i = sint8_t(u);
 	return true;
 }
 
 bool ByteStream::readBinary(sint16_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),2) != 2) return false;
-	fixEndianess16(reinterpret_cast<char*>(i));
+	uint16_t u;
+	if(!readBinary(u)) return false;
+	i = sint16_t(u);
 	return true;
 }
 
 bool ByteStream::readBinary(sint32_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),4) != 4) return false;
-	fixEndianess32(reinterpret_cast<char*>(i));
+	uint32_t u;
+	if(!readBinary(u)) return false;
+	i = sint32_t(u);
+	return true;
+}
+
+bool ByteStream::readBinary(sint64_t &i)
+{
+	uint64_t u;
+	if(!readBinary(u)) return false;
+	i = sint64_t(u);
 	return true;
 }
 
@@ -113,14 +125,21 @@ bool ByteStream::readBinary(uint8_t &i)
 bool ByteStream::readBinary(uint16_t &i)
 {
 	if(readData(reinterpret_cast<char*>(&i),2) != 2) return false;
-	fixEndianess16(reinterpret_cast<char*>(i));
+	i = fixEndianess(i);
 	return true;
 }
 
 bool ByteStream::readBinary(uint32_t &i)
 {
 	if(readData(reinterpret_cast<char*>(&i),4) != 4) return false;
-	fixEndianess32(reinterpret_cast<char*>(i));
+	i = fixEndianess(i);
+	return true;
+}
+
+bool ByteStream::readBinary(uint64_t &i)
+{
+	if(readData(reinterpret_cast<char*>(&i),8) != 8) return false;
+	i = fixEndianess(i);
 	return true;
 }
 
@@ -204,21 +223,23 @@ void ByteStream::writeBinary(const ByteString &s)
 
 void ByteStream::writeBinary(sint8_t i)
 {
-	writeData(reinterpret_cast<char*>(&i),1);
+	writeBinary(uint8_t(i));
 }
 
 void ByteStream::writeBinary(sint16_t i)
 {
-	fixEndianess16(reinterpret_cast<char*>(i));
-	writeData(reinterpret_cast<char*>(&i),2);
+	writeBinary(uint16_t(i));
 }
 
 void ByteStream::writeBinary(sint32_t i)
 {
-	fixEndianess32(reinterpret_cast<char*>(i));
-	writeData(reinterpret_cast<char*>(&i),4);
+	writeBinary(uint32_t(i));
 }
 
+void ByteStream::writeBinary(sint64_t i)
+{
+	writeBinary(uint64_t(i));
+}
 
 void ByteStream::writeBinary(uint8_t i)
 {
@@ -227,14 +248,20 @@ void ByteStream::writeBinary(uint8_t i)
 
 void ByteStream::writeBinary(uint16_t i)
 {
-	fixEndianess16(reinterpret_cast<char*>(i));
+	i = fixEndianess(i);
 	writeData(reinterpret_cast<char*>(&i),2);
 }
 
 void ByteStream::writeBinary(uint32_t i)
 {
-	fixEndianess32(reinterpret_cast<char*>(i));
+	i = fixEndianess(i);
 	writeData(reinterpret_cast<char*>(&i),4);
+}
+
+void ByteStream::writeBinary(uint64_t i)
+{
+	i = fixEndianess(i);
+	writeData(reinterpret_cast<char*>(&i),8);
 }
 
 void ByteStream::writeBinary(float32_t f)
@@ -304,14 +331,33 @@ ByteStream *ByteStream::pipeIn(void)
 	return this;
 }
 
-void ByteStream::fixEndianess16(char *data)
+uint16_t ByteStream::fixEndianess(uint16_t n)
 {
-	// TODO
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint16_t(p[0]) << 8) |
+		(uint16_t(p[1]));
 }
 
-void ByteStream::fixEndianess32(char *data)
+uint32_t ByteStream::fixEndianess(uint32_t n)
 {
-	// TODO
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint32_t(p[0]) << 24) |
+		(uint32_t(p[1]) << 16) |
+		(uint32_t(p[2]) <<  8) |
+		(uint32_t(p[3]));
+}
+
+uint64_t ByteStream::fixEndianess(uint64_t n)
+{
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint64_t(p[0]) << 56) |
+		(uint64_t(p[1]) << 48) |
+		(uint64_t(p[2]) << 40) |
+		(uint64_t(p[3]) << 32) |
+		(uint64_t(p[4]) << 24) |
+		(uint64_t(p[5]) << 16) |
+		(uint64_t(p[6]) <<  8) |
+		(uint64_t(p[7]));
 }
 
 }
