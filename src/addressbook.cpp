@@ -123,7 +123,7 @@ void AddressBook::run(void)
 		    publish(contact.remotePeering);
 		}
 		
-		wait(30*60*1000);
+		wait(10*60*1000);
 	}
 }
 
