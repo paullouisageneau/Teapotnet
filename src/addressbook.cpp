@@ -115,6 +115,7 @@ void AddressBook::run(void)
 					{
 					 
 					}
+					lock();
 				}
 			}
 		    }
