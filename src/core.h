@@ -46,13 +46,9 @@ class Core : public Thread, public HttpInterfaceable
 {
 public:
 	static Core *Instance;
-
-	static void ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out);
 	
-	void add(Socket *sock, const Identifier &peer);
-
-	void addSecret(const String &name, const ByteString &secret);
-	void removeSecret(const String &name, const ByteString &secret);
+	void addPeer(Socket *sock, const Identifier &peering, const Identifier &remotePeering);
+	bool hasPeer(const Identifier &peering);
 	
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
@@ -71,7 +67,7 @@ private:
 		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
-		void setPeer(const Identifier &peer);
+		void setPeering(const Identifier &peering, const Identifier &remotePeering);
 		
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
@@ -90,7 +86,7 @@ private:
 	private:
 		void run(void);
 
-		Identifier mPeer;
+		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
 		Socket  *mSock;
 		Handler *mHandler;
@@ -122,10 +118,10 @@ private:
 	void add(const Identifier &peer, Handler *Handler);
 	void remove(const Identifier &peer);
 
-	String mName;
+	String mLocalName;
 	ServerSocket mSock;
 	Map<ByteString, ByteString > mSecrets;
-	Map<Identifier,Handler*> mHandlers;
+	Map<Identifier,Handler*> mPeers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;
 

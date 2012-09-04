@@ -198,9 +198,9 @@ Request::Response::~Response(void)
 	delete mContent;
 }
 
-const Identifier &Request::Response::peer(void) const
+const Identifier &Request::Response::peering(void) const
 {
-	return mPeer;
+	return mPeering;
 }
 
 const String &Request::Response::status(void) const

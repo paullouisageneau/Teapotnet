@@ -43,6 +43,7 @@ public:
 	void append(const T *array, size_t size);
 	void fill(const T &value, int n);
 	bool remove(const T &value);
+	bool contains(const T &value);
 };
 
 template<typename T>
@@ -108,6 +109,15 @@ bool Array<T>::remove(const T &value)
 		}
 		else ++i;
 	return found;
+}
+
+template<typename T>
+bool Array<T>::contains(const T &value)
+{
+	for(int i=0; i<this->size(); ++i)
+		if(this->at(i) == value)
+			return true;
+	return false;
 }
 
 template<typename T>

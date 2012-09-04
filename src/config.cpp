@@ -19,62 +19,32 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "splicer.h"
-#include "request.h"
+#include "config.h"
 
 namespace arc
 {
 
-Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
-		mTarget(target),
-		mBlockSize(blockSize)
+StringMap Config::Param;
+Mutex Config::ParamMutex;
+  
+String Config::Get(const String &key)
 {
-	mBlock = 0;
-
-	Request request(target.toString(),false);
-	request.submit();
-	request.wait();
-
-	request.lock();
-
-	Set<Identifier> sources;
-	for(int i=0; i<request.responsesCount(); ++i)
+	ParamMutex.lock();
+	String value;
+	if(!Param.get(key, value))
 	{
-		Request::Response *response = request.response(i);
-		if(response->status() == "OK")
-		{
-			sources.insert(response->peering());
-		}
+	 	 ParamMutex.unlock();
+		 throw Exception("Config: no entry for \""+key+"\"");
 	}
-
-	StringMap parameters;
-	parameters["BlockSize"] << blockSize;
-	parameters["StripesCount"] << sources.size();
-
-	for(int i=0; i<sources.size(); ++i)
-	{
-		File *file = new File(filename, File::Write);
-		StripedFile *striped = new StripedFile(file, blockSize, sources.size(), i);
-		mStripes.push_back(striped);
-
-		Request *request = new Request;
-		request->setTarget(target.toString(),true);
-		parameters["Stripe"] << i;
-		request->setParameters(parameters);
-		request->setContentSink(striped);
-		mRequests.push_back(request);
-	}
-
-	request.unlock();
+	ParamMutex.unlock();
+	return value;
 }
 
-Splicer::~Splicer(void)
+void Config::Put(const String &key, const String &value)
 {
-	for(int i=0; i<mRequests.size(); ++i)
-		delete mRequests[i];
-
-	for(int i=0; i<mStripes.size(); ++i)
-		delete mStripes[i];
+  	ParamMutex.lock();
+	Param.insert(key, value);
+	ParamMutex.unlock();
 }
 
 }

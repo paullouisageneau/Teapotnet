@@ -28,19 +28,6 @@ namespace arc
 
 Core *Core::Instance = new Core(8000);	// TODO
 
-void Core::ComputePeerIdentifier(const String &name1, const String &name2, const ByteString &secret, ByteStream &out)
-{
-	const String *n1 = &name1;
-	const String *n2 = &name2;
-	if(name2 > name1) std::swap(n1, n2);
-  
-  	ByteString agregate;
-	agregate.writeBinary(secret);
-	agregate.writeBinary(*n1);
-	agregate.writeBinary(*n2);
-	
-	Sha512::Hash(agregate, out, Sha512::CryptRounds);
-}
 
 Core::Core(int port) :
 		mSock(port),
@@ -54,12 +41,17 @@ Core::~Core(void)
 	mSock.close();
 }
 
-void Core::add(Socket *sock, const Identifier &identifier)
+void Core::addPeer(Socket *sock, const Identifier &peering, const Identifier &remotePeering)
 {
 	assert(sock != NULL);
 	Handler *handler = new Handler(this,sock);
-	if(identifier != Identifier::Null) handler->setPeer(identifier);
+	if(peering != Identifier::Null) handler->setPeering(peering, remotePeering);
 	handler->start(true); // handler will destroy itself
+}
+
+bool Core::hasPeer(const Identifier &peering)
+{
+	return mPeers.contains(peering);
 }
 
 void Core::run(void)
@@ -71,27 +63,14 @@ void Core::run(void)
 		{
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
-			add(sock, Identifier::Null);
+			Handler *handler = new Handler(this,sock);
+			handler->start(true); // handler will destroy itself
 		}
 	}
 	catch(const NetException &e)
 	{
 		return;
 	}
-}
-
-void Core::addSecret(const String &name, const ByteString &secret)
-{
-	ByteString peer;
-	ComputePeerIdentifier(mName, name, secret, peer);
-	mSecrets.insert(peer, secret);
-}
-
-void Core::removeSecret(const String &name, const ByteString &secret)
-{
-	ByteString peer;
-	ComputePeerIdentifier(mName, name, secret, peer);
-	mSecrets.erase(peer);
 }
 
 unsigned Core::addRequest(Request *request)
@@ -102,8 +81,8 @@ unsigned Core::addRequest(Request *request)
 
 	if(request->mReceiver == Identifier::Null)
 	{
-		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-				it != mHandlers.end();
+		for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
+				it != mPeers.end();
 				++it)
 		{
 			Handler *handler = it->second;
@@ -115,7 +94,7 @@ unsigned Core::addRequest(Request *request)
 	else {
 		// TODO: This should be modified to allow routing
 		Handler *handler;
-		if(!mHandlers.get(request->mReceiver, handler)) return 0;	// TODO
+		if(!mPeers.get(request->mReceiver, handler)) return 0;	// TODO
 		handler->lock();
 		handler->addRequest(request);
 		handler->unlock();
@@ -126,8 +105,8 @@ unsigned Core::addRequest(Request *request)
 
 void Core::removeRequest(unsigned id)
 {
-	for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-				it != mHandlers.end();
+	for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
+				it != mPeers.end();
 				++it)
 	{
 		Handler *handler = it->second;
@@ -167,9 +146,9 @@ void Core::http(Http::Request &request)
 			page.text("Peers");
 			page.close("h1");
 
-			if(mHandlers.empty()) page.text("No peer...");
-			else for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-							it != mHandlers.end();
+			if(mPeers.empty()) page.text("No peer...");
+			else for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
+							it != mPeers.end();
 							++it)
 			{
 				String str(it->first.toString());
@@ -191,15 +170,15 @@ void Core::http(Http::Request &request)
 void Core::add(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
-	mHandlers.insert(peer, handler);
+	mPeers.insert(peer, handler);
 }
 
 void Core::remove(const Identifier &peer)
 {
-	if(mHandlers.contains(peer))
+	if(mPeers.contains(peer))
 	{
-		delete mHandlers.get(peer);
-		mHandlers.erase(peer);
+		delete mPeers.get(peer);
+		mPeers.erase(peer);
 	}
 }
 
@@ -252,9 +231,10 @@ Core::Handler::~Handler(void)
 	delete mHandler;
 }
 
-void Core::Handler::setPeer(const Identifier &peer)
+void Core::Handler::setPeering(const Identifier &peering, const Identifier &remotePeering)
 {
-	mPeer = peer; 
+	mPeering = peering;
+	mRemotePeering = remotePeering; 
 }
 
 void Core::Handler::addRequest(Request *request)
@@ -287,15 +267,15 @@ void Core::Handler::run(void)
     	String command, args;
 	StringMap parameters;
   
-  	if(mPeer != Identifier::Null)
+  	if(mRemotePeering != Identifier::Null)
 	{
 	 	args.clear();
-	  	args << mPeer;
+	  	args << mRemotePeering;
 		parameters.clear();
 		parameters["Application"] << APPNAME;
 		parameters["Version"] << APPVERSION;
 		parameters["Nonce"] << nonce_a;
-		parameters["Name"] << mCore->mName;
+		parameters["Name"] << mCore->mLocalName;
 	 	sendCommand(mSock, "H", args, parameters);
 	}
   
@@ -303,30 +283,40 @@ void Core::Handler::run(void)
 	if(command != "H") throw Exception("Unexpected command");
 	
 	String name, appname, appversion;
-	ByteString peer, nonce_b;
-	args.read(peer);
+	ByteString peering, nonce_b;
+	args.read(peering);
 	parameters["Application"] >> appname;
 	parameters["Version"] >> appversion;
 	parameters["Nonce"] >> nonce_b;
 	parameters["Name"] >> name;
-	
-	Assert(mPeer == Identifier::Null || peer == mPeer);
 
-	ByteString secret;
-	if(peer.size() != 64) throw Exception("Invalid peer: " + peer.toString());
-	// TODO
-	if(!mCore->mSecrets.get(peer, secret)) throw Exception("Unknown peer: " + peer.toString());
+	if(mPeering != Identifier::Null && mPeering != peering) 
+			throw Exception("Peering in response does not match: " + peering.toString());
 	
-	if(mPeer == Identifier::Null)
+	ByteString secret;
+	if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());
+	if(!mCore->mSecrets.get(peering, secret)) throw Exception("Unknown peering: " + peering.toString());
+		
+	if(mRemotePeering == Identifier::Null)
 	{
-	  	mPeer = peer;
+		String agregate;
+		agregate.writeLine(secret);
+		agregate.writeLine(name);
+		agregate.writeLine(mCore->mLocalName);
+		Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
+	}
+	
+	if(mPeering == Identifier::Null)
+	{
+	 	mPeering = peering;
+		
 		args.clear();
-	  	args << mPeer;
+	  	args << mRemotePeering;
 		parameters.clear();
 		parameters["Application"] << APPNAME;
 		parameters["Version"] << APPVERSION;
 		parameters["Nonce"] << nonce_a;
-		parameters["Name"] << mCore->mName;
+		parameters["Name"] << mCore->mLocalName;
 	 	sendCommand(mSock, "H", args, parameters);
 	}
 	
@@ -334,7 +324,7 @@ void Core::Handler::run(void)
 	agregate_a.writeLine(secret);
 	agregate_a.writeLine(salt_a);
 	agregate_a.writeLine(nonce_b);
-	agregate_a.writeLine(mCore->mName);
+	agregate_a.writeLine(mCore->mLocalName);
 	agregate_a.writeLine(name);
 	
 	ByteString hash_a;
@@ -358,14 +348,14 @@ void Core::Handler::run(void)
 	agregate_b.writeLine(salt_b);
 	agregate_b.writeLine(nonce_a);
 	agregate_b.writeLine(name);
-	agregate_b.writeLine(mCore->mName);
+	agregate_b.writeLine(mCore->mLocalName);
 	
 	ByteString hash_b;
 	Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 	
 	if(test_b != hash_b) throw Exception("Authentication failed");
 	
-	mCore->add(mPeer,this);
+	mCore->add(mPeering,this);
 
 	mSender.start();
 	
@@ -395,7 +385,7 @@ void Core::Handler::run(void)
 				}
 				else response = new Request::Response(status, parameters);
 
-				response->mPeer = mPeer;
+				response->mPeering = mPeering;
 				request->addResponse(response);
 
 				// TODO: Only one response expected for now
@@ -442,7 +432,7 @@ void Core::Handler::run(void)
 
 	mSock->close();
 
-	mCore->remove(mPeer);
+	mCore->remove(mPeering);
 }
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO

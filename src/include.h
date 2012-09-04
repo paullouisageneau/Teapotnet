@@ -161,6 +161,7 @@ template<typename T> void Log(const char *prefix, const T &value)
 #define List std::list
 #define Queue std::queue
 #define Stack std::stack
+#define Dequeue std::dequeue
 
 const size_t BufferSize = 4096;
 

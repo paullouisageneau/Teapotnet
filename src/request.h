@@ -66,7 +66,7 @@ public:
 		Response(const String &status, const StringMap &parameters, ByteStream *content = NULL);
 		~Response(void);
 
-		const Identifier &peer(void) const;
+		const Identifier &peering(void) const;
 		const String &status(void) const;
 		const StringMap &parameters(void) const;
 		String parameter(const String &name) const;
@@ -74,7 +74,7 @@ public:
 		Pipe *content(void) const;
 
 	private:
-		Identifier mPeer;
+		Identifier mPeering;
 		String mStatus;
 		StringMap mParameters;
 		Pipe *mContent;

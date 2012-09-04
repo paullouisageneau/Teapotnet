@@ -19,62 +19,52 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "splicer.h"
-#include "request.h"
+#ifndef ARC_ADDRESSBOOK_H
+#define ARC_ADDRESSBOOK_H
+
+#include "include.h"
+#include "thread.h"
+#include "http.h"
+#include "address.h"
+#include "socket.h"
+#include "identifier.h"
+#include "array.h"
+#include "map.h"
 
 namespace arc
 {
 
-Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
-		mTarget(target),
-		mBlockSize(blockSize)
+class AddressBook : public Thread, protected Synchronizable
 {
-	mBlock = 0;
-
-	Request request(target.toString(),false);
-	request.submit();
-	request.wait();
-
-	request.lock();
-
-	Set<Identifier> sources;
-	for(int i=0; i<request.responsesCount(); ++i)
+public:
+	AddressBook(void);
+	~AddressBook(void);
+	
+	const Identifier &addContact(String &name, String &secret);
+	void removeContact(Identifier &peering);
+	void computePeering(const String &name, const ByteString &secret, ByteStream &out);
+	void computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out);
+	
+	void http(Http::Request &request);
+	
+	struct Contact
 	{
-		Request::Response *response = request.response(i);
-		if(response->status() == "OK")
-		{
-			sources.insert(response->peering());
-		}
-	}
-
-	StringMap parameters;
-	parameters["BlockSize"] << blockSize;
-	parameters["StripesCount"] << sources.size();
-
-	for(int i=0; i<sources.size(); ++i)
-	{
-		File *file = new File(filename, File::Write);
-		StripedFile *striped = new StripedFile(file, blockSize, sources.size(), i);
-		mStripes.push_back(striped);
-
-		Request *request = new Request;
-		request->setTarget(target.toString(),true);
-		parameters["Stripe"] << i;
-		request->setParameters(parameters);
-		request->setContentSink(striped);
-		mRequests.push_back(request);
-	}
-
-	request.unlock();
-}
-
-Splicer::~Splicer(void)
-{
-	for(int i=0; i<mRequests.size(); ++i)
-		delete mRequests[i];
-
-	for(int i=0; i<mStripes.size(); ++i)
-		delete mStripes[i];
-}
+		String name;
+		ByteString secret;
+		Identifier peering;
+		Identifier remotePeering;
+		Array<Address> addrs;
+	};
+	
+private:
+	void run(void);
+	bool publish(const Identifier &remotePeering);
+	bool query(const Identifier &peering, Array<Address> &addrs);
+	
+	String mLocalName;
+	Map<Identifier, Contact> mContacts;	// Sorted by peering
+};
 
 }
+
+#endif
