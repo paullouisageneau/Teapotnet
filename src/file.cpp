@@ -37,6 +37,11 @@ bool File::Remove(const String &filename)
 	return (std::remove(filename.c_str()) == 0);
 }
 
+bool File::Rename(const String &source, const String &destination)
+{
+	return (std::rename(source.c_str(), destination.c_str()) == 0);
+}
+
 File::File(const String &filename, File::OpenMode mode)
 {
 	open(filename,mode);
@@ -49,22 +54,29 @@ File::~File(void)
 
 void File::open(const String &filename, OpenMode mode)
 {
-	if(is_open()) close();
+	close();
+	if(filename.empty()) throw IOException("Empty file name");
 
 	mName = filename;
 
 	std::ios_base::openmode m;
 	switch(mode)
 	{
-	case Read:		m = std::ios_base::in;						break;
-	case Write:		m = std::ios_base::out;						break;
-	case Append:	m = std::ios_base::app;						break;
-	case Truncate:	m = std::ios_base::trunc;					break;
+	case Read:		m = std::ios_base::in;				break;
+	case Write:		m = std::ios_base::out;				break;
+	case Append:		m = std::ios_base::app;				break;
+	case Truncate:		m = std::ios_base::trunc;			break;
 	default:		m = std::ios_base::in|std::ios_base::out;	break;
 	}
 
 	std::fstream::open(filename.c_str(), m|std::ios_base::binary);
-	if(!is_open()) throw IOException(String("Unable to open file: ")+filename);
+	if(!std::fstream::is_open()) throw IOException(String("Unable to open file: ")+filename);
+}
+
+void File::close(void)
+{
+	if(std::fstream::is_open())
+		std::fstream::close();
 }
 
 size_t File::size(void)
@@ -92,6 +104,40 @@ void File::writeData(const char *data, size_t size)
 ByteStream *File::pipeIn(void)
 {
 	return new File(mName,Append);
+}
+
+SafeWriteFile::SafeWriteFile(void)
+{
+
+}
+
+SafeWriteFile::SafeWriteFile(const String &filename)
+{
+	open(filename);
+}
+
+SafeWriteFile::~SafeWriteFile(void)
+{
+	close();
+}
+
+void SafeWriteFile::open(const String &filename)
+{
+	close();
+	if(filename.empty()) throw IOException("Empty file name");
+	File::open(filename+".tmp", Truncate);
+	mTarget = filename;
+}
+
+void SafeWriteFile::close(void)
+{
+	File::close();
+	if(!mTarget.empty())
+	{
+		if(!Rename(mName, mTarget)) throw IOException("Cannot write file: " + mTarget);
+		Remove(mName);
+		mTarget.clear();
+	}
 }
 
 }

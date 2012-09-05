@@ -40,24 +40,40 @@ public:
 
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
+	static bool Rename(const String &source, const String &destination);
 
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 
 	File(void);
 	File(const String &filename, OpenMode mode = ReadWrite);
-	~File(void);
+	virtual ~File(void);
 
-	void open(const String &filename, OpenMode mode = ReadWrite);
+	virtual void open(const String &filename, OpenMode mode = ReadWrite);
+	virtual void close(void);
+	
 	size_t size(void);
 
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
-private:
+protected:
 	ByteStream *pipeIn(void);
-
 	String mName;
+};
+
+class SafeWriteFile : public File
+{
+public:
+	SafeWriteFile(void);
+	SafeWriteFile(const String &filename);
+	~SafeWriteFile(void);
+	
+	void open(const String &filename);
+	void close(void);
+
+private:
+	String mTarget;
 };
 
 }
