@@ -29,9 +29,20 @@
 namespace arc
 {
 
-AddressBook::AddressBook(const String &name)
+AddressBook::AddressBook(const String &name) :
+	mLocalName(name)
 {
 	Interface::Instance->add(name+"/contacts", this);
+	
+	try {
+	  File file(name+"_contacts.txt", File::Read);
+	  load(file);
+	  file.close();
+	}
+	catch(...)
+	{
+	  
+	}
 }
 
 AddressBook::~AddressBook(void)

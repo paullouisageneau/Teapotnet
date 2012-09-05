@@ -25,6 +25,7 @@
 #include "tracker.h"
 #include "http.h"
 #include "config.h"
+#include "addressbook.h"
 
 using namespace arc;
 
@@ -65,6 +66,10 @@ int main(int argc, char** argv)
 	Http::Get(url, &output);
 	std::cout<<output<<std::endl;
 */
+
+	AddressBook book("test");
+	book.join();
+
 	return 0;
 }
 
