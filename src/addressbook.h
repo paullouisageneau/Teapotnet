@@ -25,6 +25,7 @@
 #include "include.h"
 #include "thread.h"
 #include "http.h"
+#include "interface.h"
 #include "address.h"
 #include "socket.h"
 #include "identifier.h"
@@ -34,10 +35,10 @@
 namespace arc
 {
 
-class AddressBook : public Thread, protected Synchronizable
+class AddressBook : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
-	AddressBook(void);
+	AddressBook(const String &name);
 	~AddressBook(void);
 	
 	const Identifier &addContact(String &name, String &secret);
@@ -45,15 +46,22 @@ public:
 	void computePeering(const String &name, const ByteString &secret, ByteStream &out);
 	void computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out);
 	
-	void http(Http::Request &request);
+	void load(Stream &stream);
+	void save(Stream &stream) const;
+	void autosave(void) const;
 	
-	struct Contact
+	void http(const String &prefix, Http::Request &request);
+	
+	struct Contact : public Serializable
 	{
 		String name;
 		ByteString secret;
 		Identifier peering;
 		Identifier remotePeering;
-		Array<Address> addrs;
+		SerializableArray<Address> addrs;
+		
+		void serialize(Stream &s) const;
+		void deserialize(Stream &s);
 	};
 	
 private:

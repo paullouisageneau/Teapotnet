@@ -138,7 +138,7 @@ bool Store::get(const String &url, Entry &entry, bool content)
 	return get(hash, entry, content);
 }
 
-void Store::http(Http::Request &request)
+void Store::http(const String &prefix, Http::Request &request)
 {
 	try {
 		const String &url = request.url;

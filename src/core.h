@@ -53,7 +53,7 @@ public:
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 
-	void http(Http::Request &request);
+	void http(const String &prefix, Http::Request &request);
 
 private:
 	Core(int port);

@@ -23,13 +23,15 @@
 #include "core.h"
 #include "sha512.h"
 #include "config.h"
+#include "file.h"
+#include "html.h"
 
 namespace arc
 {
 
-AddressBook::AddressBook(void)
+AddressBook::AddressBook(const String &name)
 {
-  
+	Interface::Instance->add(name+"/contacts", this);
 }
 
 AddressBook::~AddressBook(void)
@@ -52,6 +54,7 @@ const Identifier &AddressBook::addContact(String &name, String &secret)
 	contact.remotePeering.clear();
 	computeRemotePeering(name, secret, contact.remotePeering);
 	
+	autosave();
 	notify();
 	return contact.peering;
 }
@@ -60,6 +63,7 @@ void AddressBook::removeContact(Identifier &peering)
 {
 	synchronize(this);
  	mContacts.erase(peering);
+	autosave();
 }
 
 void AddressBook::computePeering(const String &name, const ByteString &secret, ByteStream &out)
@@ -80,11 +84,112 @@ void AddressBook::computeRemotePeering(const String &name, const ByteString &sec
 	Sha512::Hash(agregate, out, Sha512::CryptRounds);
 }
 
-void AddressBook::http(Http::Request &request)
+void AddressBook::load(Stream &stream)
+{
+	synchronize(this);
+  
+	stream.readLine(mLocalName);
+	
+	mContacts.clear();
+	Contact contact;
+	while(stream.read(contact))
+	{
+		mContacts.insert(contact.peering, contact);
+	}	
+}
+
+void AddressBook::save(Stream &stream) const
+{
+	synchronize(this);
+  
+	stream.writeLine(mLocalName);
+	
+	for(Map<Identifier, Contact>::const_iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		const Contact &contact = it->second;
+		stream.write(contact);
+	}	
+}
+
+void AddressBook::autosave(void) const
+{
+	synchronize(this);
+  
+	SafeWriteFile file(mLocalName+"_contacts.txt");
+	save(file);
+	file.close();
+}
+
+void AddressBook::http(const String &prefix, Http::Request &request)
 {
 	synchronize(this);
 	
-	
+	try {
+		String url = request.url;
+		
+		if(url.empty() || url == "/")
+		{
+			for(Map<Identifier, Contact>::iterator it = mContacts.begin();
+				it != mContacts.end();
+				++it)
+			{
+				Contact &contact = it->second;
+				
+				Http::Response response(request,200);
+				response.send();
+				
+				Html page(response.sock);
+				page.header("Contacts");
+				page.open("h1");
+				page.text("Contacts");
+				page.close("h1");
+
+				for(Map<Identifier, Contact>::iterator it = mContacts.begin();
+					it != mContacts.end();
+					++it)
+				{
+		    			Contact &contact = it->second;
+					String contactUrl;
+					contactUrl << prefix << "/" << contact.peering;
+					page.link(contact.name, contactUrl);
+					page.br();
+				}
+
+				page.footer();
+			}
+		}
+		else {
+			if(url[0] == '/') url.ignore();
+			
+			ByteString peering;
+			url >> peering;
+
+		  	Contact &contact = mContacts.get(peering);
+			
+			Http::Response response(request,200);
+			response.send();
+				
+			Html page(response.sock);
+			page.header(contact.name);
+			page.open("h1");
+			page.text(contact.name);
+			page.close("h1");
+
+			page.text("Secret: " + contact.secret.toString()); page.br();
+			page.text("Peering: " + contact.peering.toString()); page.br();
+			page.text("Remote peering: " + contact.remotePeering.toString()); page.br();
+			
+			page.footer();
+			
+		}
+	}
+	catch(...)
+	{
+		// TODO: Log
+		throw 404;	// Httpd handles integer exceptions
+	}
 }
 
 void AddressBook::run(void)
@@ -94,8 +199,8 @@ void AddressBook::run(void)
 	while(true)
 	{
 		for(Map<Identifier, Contact>::iterator it = mContacts.begin();
-				      it != mContacts.end();
-				      ++it)
+			it != mContacts.end();
+			++it)
 		{
 		    Contact &contact = it->second;
 
@@ -123,6 +228,7 @@ void AddressBook::run(void)
 		    publish(contact.remotePeering);
 		}
 		
+		autosave();
 		wait(10*60*1000);
 	}
 }
@@ -163,6 +269,35 @@ bool AddressBook::query(const Identifier &peering, Array<Address> &addrs)
 		return false;
 	}
 	return true;
+}
+
+void AddressBook::Contact::serialize(Stream &s) const
+{
+	StringMap map;
+	map["name"] << name;
+	map["secret"] << secret;
+	map["peering"] << peering;
+	map["remotePeering"] << remotePeering;
+		
+	s.write(map);
+	s.write(addrs);
+}
+
+void AddressBook::Contact::deserialize(Stream &s)
+{
+	name.clear();
+	secret.clear();
+	peering.clear();
+	remotePeering.clear();
+	
+	StringMap map;
+	s.read(map);
+	map["name"] >> name;
+	map["secret"] >> secret;
+	map["peering"] >> peering;
+	map["remotePeering"] >> remotePeering;
+	
+	s.read(addrs);
 }
 
 }

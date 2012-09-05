@@ -116,26 +116,11 @@ void Core::removeRequest(unsigned id)
 	}
 }
 
-void Core::http(Http::Request &request)
+void Core::http(const String &prefix, Http::Request &request)
 {
-	List<String> list;
-	request.url.explode(list,'/');
-
-	// URL should begin with /
-	if(list.empty()) throw 404;
-	if(!list.front().empty()) throw 404;
-	list.pop_front();
-	if(list.empty()) throw 404;
-
-	// Remove last /
-	if(list.back().empty()) list.pop_back();
-	if(list.empty()) throw 404;
-
-	if(list.front() == "peers")
+	if(prefix == "peers")
 	{
-		list.pop_front();
-
-		if(list.empty())
+		if(request.url == "/")
 		{
 			Http::Response response(request, 200);
 			response.send();

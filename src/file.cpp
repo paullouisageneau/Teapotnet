@@ -42,6 +42,11 @@ bool File::Rename(const String &source, const String &destination)
 	return (std::rename(source.c_str(), destination.c_str()) == 0);
 }
 
+File::File(void)
+{
+
+}
+
 File::File(const String &filename, File::OpenMode mode)
 {
 	open(filename,mode);

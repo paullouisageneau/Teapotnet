@@ -33,7 +33,7 @@ namespace arc
 class HttpInterfaceable
 {
 public:
-	virtual void http(Http::Request &request) = 0;
+	virtual void http(const String &prefix, Http::Request &request) = 0;
 };
 
 class Interface : public Http::Server
@@ -41,8 +41,8 @@ class Interface : public Http::Server
 public:
 	static Interface *Instance;
 
-	void add(const String &directory, HttpInterfaceable *interfaceable);
-	void remove(const String &directory);
+	void add(const String &prefix, HttpInterfaceable *interfaceable);
+	void remove(const String &prefix);
 
 private:
 	Interface(int port);
@@ -50,7 +50,7 @@ private:
 
 	void process(Http::Request &request);
 
-	Map<String,HttpInterfaceable*>	mDirectories;
+	Map<String,HttpInterfaceable*>	mPrefixes;
 	Mutex mMutex;
 };
 

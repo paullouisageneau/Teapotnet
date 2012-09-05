@@ -57,7 +57,7 @@ public:
 	bool get(const Identifier &identifier, Entry &entry, bool content = true);
 	bool get(const String &url, Entry &entry, bool content = true);
 
-	void http(Http::Request &request);
+	void http(const String &prefix, Http::Request &request);
 
 private:
 	Store(void);
