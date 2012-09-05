@@ -25,6 +25,7 @@
 #include "include.h"
 #include "stream.h"
 #include "serializable.h"
+#include "map.h"
 
 namespace arc
 {
@@ -46,15 +47,25 @@ public:
 	void close(const String &type);
 
 	void link(	const String &url,
-				const String &txt,
-				String id = "");
+			const String &txt,
+			String id = "");
 
 	void image(	const String &url,
-				const String &alt = "",
-				String id = "");
+			const String &alt = "",
+			String id = "");
 
 	void br(void);
 
+	void openForm(	const String &action = "#",
+			const String &method = "post",
+		     	const String &name = "");
+	void closeForm(void);
+	void input(const String &type, const String &name, const String &value);
+	void checkbox(const String &name, const String &value, bool checked);
+	void textarea(const String &name, const String &value);
+	void select(const String &name, const StringMap &options, const String &def);
+	void button(const String &name);
+	
 	Stream *stream(void);
 
 private:

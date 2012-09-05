@@ -41,7 +41,7 @@ public:
 	AddressBook(const String &name);
 	~AddressBook(void);
 	
-	const Identifier &addContact(String &name, String &secret);
+	const Identifier &addContact(String &name, ByteString &secret);
 	void removeContact(Identifier &peering);
 	void computePeering(const String &name, const ByteString &secret, ByteStream &out);
 	void computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out);

@@ -97,8 +97,8 @@ void Html::close(const String &type)
 }
 
 void Html::link(	const String &url,
-					const String &txt,
-					String id)
+			const String &txt,
+			String id)
 {
 	String cl = id.cut('.');
 	*mStream<<"<a href=\""<<url<<"\"";
@@ -110,8 +110,8 @@ void Html::link(	const String &url,
 }
 
 void Html::image(	const String &url,
-					const String &alt,
-					String id)
+			const String &alt,
+			String id)
 {
 	String cl = id.cut('.');
 	*mStream<<"<img src=\""<<url<<"\"";
@@ -124,6 +124,60 @@ void Html::image(	const String &url,
 void Html::br(void)
 {
 	*mStream<<"<br/>\n";
+}
+
+void Html::openForm(	const String &action,
+			const String &method,
+		     	const String &name)
+{
+	*mStream<<"form";
+	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
+	*mStream<<" action=\""<<action<<"\" method=\""<<method<<"\"";
+	if(method == "post") *mStream<<" enctype=\"application/x-www-form-urlencoded\"";
+	*mStream<<"/>\n";
+}
+
+void Html::closeForm(void)
+{
+	*mStream<<"</form>\n";
+}
+
+void Html::input(const String &type, const String &name, const String &value)
+{
+ 	*mStream<<"<input type=\""<<type<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"/>\n";
+}
+
+void Html::checkbox(const String &name, const String &value, bool checked)
+{
+ 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<"/>";
+ 	text(value);
+ 	*mStream<<"</span>\n";
+}
+
+void Html::textarea(const String &name, const String &value)
+{
+	*mStream<<"<textarea class=\""<<name<<"\" name=\""<<name<<"\"/>";
+	text(value);
+	*mStream<<"</textarea>\n";
+}
+
+void Html::select(const String &name, const StringMap &options, const String &def)
+{
+	*mStream<<"<select name=\""<<name<<"\"/>\n";
+	for(StringMap::const_iterator it=options.begin(); it!=options.end(); ++it)
+	{
+		 *mStream<<"<option ";
+		 if(def == it->first) *mStream<<"selected ";
+		 *mStream<<"value=\""<<it->first<<"\">";
+		 text(it->second);
+		 *mStream<<"</option>\n";
+	}
+	*mStream<<"</select>\n";
+}
+
+void Html::button(const String &name)
+{
+	*mStream<<"<input type=\"submit\" class=\"button\" name=\""<<name<<"\" value=\"name\"/>\n";
 }
 
 Stream *Html::stream(void)

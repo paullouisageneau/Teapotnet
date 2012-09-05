@@ -39,7 +39,7 @@ AddressBook::~AddressBook(void)
   
 }
 
-const Identifier &AddressBook::addContact(String &name, String &secret)
+const Identifier &AddressBook::addContact(String &name, ByteString &secret)
 {
 	synchronize(this);
 	
@@ -131,34 +131,41 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 		
 		if(url.empty() || url == "/")
 		{
+			if(request.method == "POST")
+			{
+				String name, csecret;
+				request.post["name"] >> name;
+				request.post["secret"] >> csecret;
+				
+				ByteString secret;
+				Sha512::Hash(csecret, secret, Sha512::CryptRounds);
+				
+				addContact(name, secret);
+			}
+			
+			Http::Response response(request,200);
+			response.send();
+			
+			Html page(response.sock);
+			page.header("Contacts");
+			page.open("h1");
+			page.text("Contacts");
+			page.close("h1");
+
 			for(Map<Identifier, Contact>::iterator it = mContacts.begin();
 				it != mContacts.end();
 				++it)
 			{
-				Contact &contact = it->second;
-				
-				Http::Response response(request,200);
-				response.send();
-				
-				Html page(response.sock);
-				page.header("Contacts");
-				page.open("h1");
-				page.text("Contacts");
-				page.close("h1");
-
-				for(Map<Identifier, Contact>::iterator it = mContacts.begin();
-					it != mContacts.end();
-					++it)
-				{
-		    			Contact &contact = it->second;
-					String contactUrl;
-					contactUrl << prefix << "/" << contact.peering;
-					page.link(contact.name, contactUrl);
-					page.br();
-				}
-
-				page.footer();
+		    		Contact &contact = it->second;
+				String contactUrl;
+				contactUrl << prefix << "/" << contact.peering;
+				page.link(contact.name, contactUrl);
+				page.br();
 			}
+
+			
+			
+			page.footer();
 		}
 		else {
 			if(url[0] == '/') url.ignore();
