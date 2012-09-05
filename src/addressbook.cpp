@@ -50,6 +50,8 @@ const Identifier &AddressBook::addContact(String &name, ByteString &secret)
 	contact.name = name;
 	contact.secret = secret;
 	contact.peering = peering;
+	contact.tracker = contact.name.cut('@');
+	if(contact.tracker.empty()) contact.tracker = Config::Get("tracker");
 	
 	contact.remotePeering.clear();
 	computeRemotePeering(name, secret, contact.remotePeering);
@@ -163,7 +165,17 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.br();
 			}
 
-			
+			page.open("h2");
+			page.text("Add new contact");
+			page.close("h2");
+			page.openForm(prefix+"/","post");
+			page.text("Name");
+			page.input("text","name");
+			page.br();
+			page.text("Secret");
+			page.input("text","secret");
+			page.br();
+			page.closeForm();
 			
 			page.footer();
 		}
@@ -211,7 +223,7 @@ void AddressBook::run(void)
 		{
 		    Contact &contact = it->second;
 
-		    if(query(contact.peering, contact.addrs))
+		    if(query(contact.peering, contact.tracker, contact.addrs))
 		    {
 		    	if(!Core::Instance->hasPeer(contact.peering))
 			{
@@ -257,10 +269,12 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	return true;
 }
 
-bool AddressBook::query(const Identifier &peering, Array<Address> &addrs)
+bool AddressBook::query(const Identifier &peering, const String &tracker, Array<Address> &addrs)
 {
 	try {
-		String url("http://" + Config::Get("tracker") + "/" + peering.toString());
+	  	String url;
+	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/" + peering.toString();
+		else url = "http://" + tracker + "/" + peering.toString();
   
 		String output;
 		if(Http::Get(url, &output) != 200) return false;
@@ -282,6 +296,7 @@ void AddressBook::Contact::serialize(Stream &s) const
 {
 	StringMap map;
 	map["name"] << name;
+	map["tracker"] << tracker;
 	map["secret"] << secret;
 	map["peering"] << peering;
 	map["remotePeering"] << remotePeering;
@@ -300,6 +315,7 @@ void AddressBook::Contact::deserialize(Stream &s)
 	StringMap map;
 	s.read(map);
 	map["name"] >> name;
+	map["tracker"] >> tracker;
 	map["secret"] >> secret;
 	map["peering"] >> peering;
 	map["remotePeering"] >> remotePeering;

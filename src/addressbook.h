@@ -55,6 +55,7 @@ public:
 	struct Contact : public Serializable
 	{
 		String name;
+		String tracker;
 		ByteString secret;
 		Identifier peering;
 		Identifier remotePeering;
@@ -67,7 +68,7 @@ public:
 private:
 	void run(void);
 	bool publish(const Identifier &remotePeering);
-	bool query(const Identifier &peering, Array<Address> &addrs);
+	bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
 	
 	String mLocalName;
 	Map<Identifier, Contact> mContacts;	// Sorted by peering

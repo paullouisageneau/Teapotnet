@@ -60,10 +60,10 @@ public:
 			const String &method = "post",
 		     	const String &name = "");
 	void closeForm(void);
-	void input(const String &type, const String &name, const String &value);
-	void checkbox(const String &name, const String &value, bool checked);
-	void textarea(const String &name, const String &value);
-	void select(const String &name, const StringMap &options, const String &def);
+	void input(const String &type, const String &name, const String &value = "");
+	void checkbox(const String &name, const String &value, bool checked = false);
+	void textarea(const String &name, const String &value = "");
+	void select(const String &name, const StringMap &options, const String &def = "");
 	void button(const String &name);
 	
 	Stream *stream(void);
