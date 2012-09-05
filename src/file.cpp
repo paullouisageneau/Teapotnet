@@ -136,6 +136,7 @@ void SafeWriteFile::close(void)
 	{
 		if(!Rename(mName, mTarget)) throw IOException("Cannot write file: " + mTarget);
 		Remove(mName);
+		mName = mTarget;
 		mTarget.clear();
 	}
 }
