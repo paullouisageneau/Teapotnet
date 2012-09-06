@@ -101,6 +101,7 @@ void AddressBook::load(Stream &stream)
 {
 	synchronize(this);
   
+	mLocalName.clear();
 	stream.readLine(mLocalName);
 	
 	mContacts.clear();
