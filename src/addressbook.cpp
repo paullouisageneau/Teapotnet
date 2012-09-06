@@ -166,6 +166,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				Http::Response response(request,303);
 				response.headers["Location"] = prefix + "/";
 				response.send();
+				return;
 			}
 			
 			Http::Response response(request,200);
