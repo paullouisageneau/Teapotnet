@@ -68,6 +68,7 @@ int main(int argc, char** argv)
 */
 
 	AddressBook book("test");
+	book.start();
 	book.join();
 
 	return 0;

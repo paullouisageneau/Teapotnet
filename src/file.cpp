@@ -70,7 +70,7 @@ void File::open(const String &filename, OpenMode mode)
 	case Read:		m = std::ios_base::in;				break;
 	case Write:		m = std::ios_base::out;				break;
 	case Append:		m = std::ios_base::app;				break;
-	case Truncate:		m = std::ios_base::trunc;			break;
+	case Truncate:		m = std::ios_base::out|std::ios_base::trunc;	break;
 	default:		m = std::ios_base::in|std::ios_base::out;	break;
 	}
 

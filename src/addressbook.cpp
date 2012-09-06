@@ -236,7 +236,7 @@ void AddressBook::run(void)
 
 		    if(query(contact.peering, contact.tracker, contact.addrs))
 		    {
-		    	if(!Core::Instance->hasPeer(contact.peering))
+			if(!Core::Instance->hasPeer(contact.peering))
 			{
 				for(int i=0; i<contact.addrs.size(); ++i)
 				{
@@ -258,6 +258,7 @@ void AddressBook::run(void)
 		    publish(contact.remotePeering);
 		}
 		
+		//std::cout<<"AddressBook autosave..."<<std::endl;
 		autosave();
 		wait(10*60*1000);
 	}

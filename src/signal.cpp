@@ -55,11 +55,15 @@ void Signal::wait(Mutex &mutex)
 
 bool Signal::wait(Mutex &mutex, time_t timeout)
 {
+	timeval tv;
+	gettimeofday(&tv, NULL);
+	uint64_t t = uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)*1000 + timeout;
 	timespec ts;
-	ts.tv_sec = timeout / 1000;
-	ts.tv_nsec = (timeout % 1000) * 1000000;
-
+	ts.tv_sec = t/1000;
+	ts.tv_nsec+= t%1000;
+	
 	int ret = pthread_cond_timedwait(&mCond, &mutex.mMutex, &ts);
+
 	if(ret == 0) return true;
 	if(ret == ETIMEDOUT) return false;
 	else throw Exception("Unable to wait for signal");
