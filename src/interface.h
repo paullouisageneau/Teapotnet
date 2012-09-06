@@ -41,13 +41,13 @@ class Interface : public Http::Server
 public:
 	static Interface *Instance;
 
+	Interface(int port);
+        ~Interface();
+	
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
 	void remove(const String &prefix);
 
 private:
-	Interface(int port);
-        ~Interface();
-
 	void process(Http::Request &request);
 
 	Map<String,HttpInterfaceable*>	mPrefixes;

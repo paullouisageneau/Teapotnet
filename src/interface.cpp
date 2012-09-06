@@ -24,7 +24,7 @@
 namespace arc
 {
 
-Interface *Interface::Instance = new Interface(8080);	// TODO
+Interface *Interface::Instance = NULL;
 
 Interface::Interface(int port) :
 		Http::Server(port)

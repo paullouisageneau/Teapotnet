@@ -37,9 +37,11 @@ class Store : public HttpInterfaceable
 public:
 	static const String DatabaseDirectory;
 	static const size_t ChunkSize;
-
 	static Store *Instance;
 
+	Store(void);
+	~Store(void);
+	
 	void addDirectory(const String &name, const String &path);
 	void removeDirectory(const String &name);
 
@@ -60,9 +62,6 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	Store(void);
-	~Store(void);
-
 	void refreshDirectory(const String &dirUrl, const String &dirPath);
 	String urlToPath(const String &url) const;
 

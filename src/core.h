@@ -47,6 +47,9 @@ class Core : public Thread, public HttpInterfaceable
 public:
 	static Core *Instance;
 	
+	Core(int port);
+	~Core(void);
+	
 	void addPeer(Socket *sock, const Identifier &peering, const Identifier &remotePeering);
 	bool hasPeer(const Identifier &peering);
 	
@@ -56,9 +59,6 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	Core(int port);
-	~Core(void);
-
 	void run(void);
 
 	class Handler : public Thread, public Synchronizable

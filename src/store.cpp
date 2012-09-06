@@ -30,7 +30,7 @@ namespace arc
 const String Store::DatabaseDirectory = "db";
 const size_t Store::ChunkSize = 256*1024;		// 256 Kio
 
-Store *Store::Instance = new Store;
+Store *Store::Instance = NULL;
 
 Store::Store(void)
 {

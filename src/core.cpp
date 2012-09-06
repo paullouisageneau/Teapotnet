@@ -26,7 +26,7 @@
 namespace arc
 {
 
-Core *Core::Instance = new Core(8000);	// TODO
+Core *Core::Instance = NULL;
 
 
 Core::Core(int port) :

@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "main.h"
+#include "map.h"
 #include "sha512.h"
 #include "store.h"
 #include "tracker.h"
@@ -34,44 +35,76 @@ int main(int argc, char** argv)
 {
 	srand(time(NULL));
   
-	Config::Put("tracker", "127.0.0.1");
-	Config::Put("port", "8000");
-	
-	// TODO
-	Interface::Instance->start();
-	Core::Instance->start();
-	
-	String test = "The quick brown fox jumps over the lazy dog";
+	/*String test = "The quick brown fox jumps over the lazy dog";
 	ByteString result;
 	Sha512::Hash(test, result);
 
 	std::cout<<"Data: "<<test<<std::endl;
-	std::cout<<"Hash: "<<result.toString()<<std::endl;
+	std::cout<<"Hash: "<<result.toString()<<std::endl;*/
 
+	
+	Config::Put("tracker", "127.0.0.1");
+	Config::Put("port", "8000");
+	Config::Put("ifport", "8080");
+	
+	StringMap args;
+	String last;
+	for(int i=1; i<argc; ++i)
+	{
+		String str(argv[i]);
+		if(str.empty()) continue;
+		if(str[0] == '-')
+		{
+			if(!last.empty()) args[last] = "";
+		  
+			if(str[0] == '-') str.ignore();
+			if(!str.empty() && str[0] == '-') str.ignore();
+			if(str.empty())
+			{
+				std::cerr<<"Invalid option: "<<argv[i]<<std::endl;
+				return 1;
+			}
+			last = str;
+		}
+		
+		if(last.empty()) args[str] = "";
+		else {
+			args[last] = str;
+			last.clear();
+		}
+	}
+	
+	Tracker *tracker = NULL;
+	if(args.contains("tracker"))
+	{
+	  	int port;
+		args["tracker"] >> port;
+		tracker = new Tracker(port);
+		tracker->start();
+	}
+	
+	// Starting interface
+	String sifport = Config::Get("ifport");
+	if(args.contains("ifport")) sifport = args["ifport"];
+	int ifport;
+	sifport >> ifport;
+	Interface::Instance = new Interface(ifport);
+	Interface::Instance->start();
+	
+	// Starting store
+	Store::Instance = new Store;
 	Store::Instance->addDirectory("images","/home/paulo/images");
 	Store::Instance->refresh();
-
-	// TEST
-/*
-	Httpd *httpd = new Httpd(8080);
-	httpd->start();
-	httpd->join();
-*/
 	
-/*
-	Tracker tracker(8080);
-	tracker.start();
+	// Starting core
+	String sport = Config::Get("port");
+	if(args.contains("port")) sport = args["port"];
+	int port;
+	sport >> port;
+	Core::Instance = new Core(port);
+	Core::Instance->start();
 
-	String url("http://127.0.0.1:8080/"+result.toString());
-	StringMap post;
-	post["port"] = "6666";
-	Http::Post(url, post);
-
-	String output;
-	Http::Get(url, &output);
-	std::cout<<output<<std::endl;
-*/
-
+	// Test
 	AddressBook book("test");
 	book.start();
 	book.join();
