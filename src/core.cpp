@@ -33,7 +33,7 @@ Core::Core(int port) :
 		mSock(port),
 		mLastRequest(0)
 {
-
+	Interface::Instance->add("/peers", this);
 }
 
 Core::~Core(void)
@@ -56,8 +56,6 @@ bool Core::hasPeer(const Identifier &peering)
 
 void Core::run(void)
 {
-	Interface::Instance->add("peers", this);
-
 	try {
 		while(true)
 		{

@@ -34,7 +34,7 @@ Store *Store::Instance = NULL;
 
 Store::Store(void)
 {
-
+	Interface::Instance->add("/files", this);
 }
 
 Store::~Store(void)
