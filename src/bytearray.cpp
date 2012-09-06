@@ -39,7 +39,7 @@ ByteArray::ByteArray(size_t size) :
 ByteArray::ByteArray(char *array, size_t length) :
 		mArray(array),
 		mLength(length),
-		mLeft(0),
+		mLeft(length),
 		mReadPos(0),
 		mWritePos(0),
 		mMustDelete(false)
@@ -110,7 +110,7 @@ void ByteArray::writeData(const char *data, size_t size)
 	if(mWritePos+size > mLength) throw IOException();
 	std::copy(data, data+size, mArray+mWritePos+size);
 	mWritePos+= size;
-	if(mLeft< mWritePos) mLeft = mWritePos;
+	mLeft+= size;
 }
 
 }

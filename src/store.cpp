@@ -234,12 +234,11 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	while(dir.nextFile())
 	{
 		String url(dirUrl + Directory::Separator + dir.fileName());
-
 		ByteString urlHash;
 		Sha512::Hash(url, urlHash);
 		String entryName = DatabaseDirectory+Directory::Separator+urlHash.toString();
 
-		if(File::Exist(entryName))
+		if(!dir.fileIsDir() && File::Exist(entryName))
 		{
 			try {
 				File file(entryName, File::Read);
@@ -254,25 +253,23 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				time_t time;
 				header["time"] >> time;
 				if(!header.contains("type")) throw Exception("Missing type field");				
+				if(header["type"] == "directory") throw Exception("Invalid type for file");
+				
+				size_t size;
+				String hash;
+				size_t chunkSize;
+				unsigned chunkCount;
+				header["size"] >> size;
+				header["chunk-size"] >> chunkSize;
+				header["chunk-count"] >> chunkCount;
+				header["hash"] >> hash;
 
-				if(header["type"] != "directory") // Directories are reindexed every time
+				// If the file has not changed, don't hash it again
+				if(size == dir.fileSize() && time == dir.fileTime())
 				{
-					size_t size;
-					String hash;
-					size_t chunkSize;
-					unsigned chunkCount;
-					header["size"] >> size;
-					header["chunk-size"] >> chunkSize;
-					header["chunk-count"] >> chunkCount;
-					header["hash"] >> hash;
-
-					// If the file has not changed, don't hash it again
-					if(size == dir.fileSize() && time == dir.fileTime())
-					{
-						mFiles.insert(Identifier(hash), url);
-						dirEntry.write(origHeader);
-						continue;
-					}
+					mFiles.insert(Identifier(hash), url);
+					dirEntry.write(origHeader);
+					continue;
 				}
 			}
 			catch(Exception &e)
@@ -304,7 +301,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				header["chunk-size"] << chunkSize;
 				header["chunk-count"] << chunkCount;
 				header["hash"] << dataHash;
-
+				
 				mFiles.insert(Identifier(dataHash), url);
 
 				File file(entryName, File::Write);

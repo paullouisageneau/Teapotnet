@@ -21,7 +21,7 @@
 
 /* 
  * This file is based on code under public domain from LibTomCrypt by
- * Tom St Denis, tomstdenis (at) gmail (dot) com, http://libtom.org
+ * Tom St Denis, tomstdenis (at) gmail (dot) com, http://libtom.org/
  */
 
 #include "sha512.h"
