@@ -96,12 +96,12 @@ void ByteString::deserialize(Stream &s)
 		byte+= str[i*2+1];
 		std::istringstream iss(byte);
 
-		unsigned value;
+		unsigned value = 0;
 		iss>>std::hex;
-		if(!iss>>value)
+		if(!(iss>>value))
 			throw InvalidData("Invalid hexadecimal representation");
 
-		push_back(uint8_t(value));
+		push_back(uint8_t(value % 256));
 	}
 }
 

@@ -26,6 +26,7 @@
 #include "http.h"
 #include "config.h"
 #include "addressbook.h"
+#include "core.h"
 
 using namespace arc;
 
@@ -35,6 +36,10 @@ int main(int argc, char** argv)
   
 	Config::Put("tracker", "127.0.0.1");
 	Config::Put("port", "8000");
+	
+	// TODO
+	Interface::Instance->start();
+	Core::Instance->start();
 	
 	String test = "The quick brown fox jumps over the lazy dog";
 	ByteString result;

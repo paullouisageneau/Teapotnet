@@ -32,7 +32,7 @@ namespace arc
 AddressBook::AddressBook(const String &name) :
 	mLocalName(name)
 {
-	Interface::Instance->add(name+"/contacts", this);
+	Interface::Instance->add("/"+name+"/contacts", this);
 	
 	try {
 	  File file(name+"_contacts.txt", File::Read);
@@ -57,6 +57,7 @@ const Identifier &AddressBook::addContact(String &name, ByteString &secret)
 	Identifier peering;
 	computePeering(name, secret, peering);
 	
+	if(mContacts.contains(peering)) throw Exception("Contact already exists");
 	Contact &contact = mContacts[peering];
 	contact.name = name;
 	contact.secret = secret;
@@ -147,14 +148,24 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 		{
 			if(request.method == "POST")
 			{
-				String name, csecret;
-				request.post["name"] >> name;
-				request.post["secret"] >> csecret;
+				try {
+					String name, csecret;
+					request.post["name"] >> name;
+					request.post["secret"] >> csecret;
+				  
+					ByteString secret;
+					Sha512::Hash(csecret, secret, Sha512::CryptRounds);
+					
+					addContact(name, secret);
+				}
+				catch(...)
+				{
+					throw 400;
+				}				
 				
-				ByteString secret;
-				Sha512::Hash(csecret, secret, Sha512::CryptRounds);
-				
-				addContact(name, secret);
+				Http::Response response(request,303);
+				response.headers["Location"] = prefix + "/";
+				response.send();
 			}
 			
 			Http::Response response(request,200);
@@ -173,7 +184,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 		    		Contact &contact = it->second;
 				String contactUrl;
 				contactUrl << prefix << "/" << contact.peering;
-				page.link(contact.name, contactUrl);
+				page.link(contactUrl, contact.name+"@"+contact.tracker);
+				page.text(" ("+String::number(contact.peering.checksum32())+")");
 				page.br();
 			}
 
@@ -187,6 +199,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Secret");
 			page.input("text","secret");
 			page.br();
+			page.button("Add contact");
+ 			page.br();
 			page.closeForm();
 			
 			page.footer();
@@ -194,7 +208,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 		else {
 			if(url[0] == '/') url.ignore();
 			
-			ByteString peering;
+			Identifier peering;
 			url >> peering;
 
 		  	Contact &contact = mContacts.get(peering);
@@ -203,9 +217,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			response.send();
 				
 			Html page(response.sock);
-			page.header(contact.name);
+			page.header("Contact: "+contact.name);
 			page.open("h1");
-			page.text(contact.name);
+			page.text("Contact: "+contact.name);
 			page.close("h1");
 
 			page.text("Secret: " + contact.secret.toString()); page.br();
@@ -216,9 +230,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 		}
 	}
-	catch(...)
+	catch(Exception &e)
 	{
-		// TODO: Log
+		Log("AddressBook::http",e.what());
 		throw 404;	// Httpd handles integer exceptions
 	}
 }

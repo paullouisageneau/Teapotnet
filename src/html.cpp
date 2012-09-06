@@ -130,7 +130,7 @@ void Html::openForm(	const String &action,
 			const String &method,
 		     	const String &name)
 {
-	*mStream<<"form";
+	*mStream<<"<form";
 	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
 	*mStream<<" action=\""<<action<<"\" method=\""<<method<<"\"";
 	if(method == "post") *mStream<<" enctype=\"application/x-www-form-urlencoded\"";
@@ -177,7 +177,7 @@ void Html::select(const String &name, const StringMap &options, const String &de
 
 void Html::button(const String &name)
 {
-	*mStream<<"<input type=\"submit\" class=\"button\" name=\""<<name<<"\" value=\"name\"/>\n";
+	*mStream<<"<input type=\"submit\" class=\"button\" name=\""<<name<<"\" value=\""<<name<<"\"/>\n";
 }
 
 Stream *Html::stream(void)

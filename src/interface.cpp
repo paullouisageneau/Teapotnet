@@ -40,8 +40,13 @@ Interface::~Interface(void)
 void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 {
 	Assert(interfaceable != NULL);
+	
+	String cprefix(prefix);
+	if(cprefix.empty() || cprefix[0] != '/')
+		cprefix = "/" + cprefix;
+	
 	mMutex.lock();
-	mPrefixes.insert(prefix, interfaceable);
+	mPrefixes.insert(cprefix, interfaceable);
 	mMutex.unlock();
 }
 
@@ -57,7 +62,7 @@ void Interface::process(Http::Request &request)
 	List<String> list;
 	request.url.explode(list,'/');
 
-	// URL should begin with /
+	// URL must begin with /
 	if(list.empty()) throw 404;
 	if(!list.front().empty()) throw 404;
 	list.pop_front();
@@ -68,6 +73,7 @@ void Interface::process(Http::Request &request)
 	{
 		String prefix;
 		prefix.implode(list,'/');
+		prefix = "/" + prefix;
 	 	list.pop_back();
 		
 		HttpInterfaceable *interfaceable;
