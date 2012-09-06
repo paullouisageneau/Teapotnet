@@ -264,7 +264,7 @@ String String::urlDecode(void) const
 		char c = this->at(i);
  		if(c == '%') 
 		{
-			unsigned value;
+			unsigned value = '?';
 			String h(this->substr(i+1,2));
 			h.hexa(true);
 			h>>value;
