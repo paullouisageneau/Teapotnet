@@ -32,7 +32,9 @@ const String Stream::FieldDelimiters = ",;\n";	// Must NOT contain '.', '=', and
 const char Stream::NewLine = '\n';
 const char Stream::Space = ' ';
 
-Stream::Stream(void)
+Stream::Stream(void) :
+	mLast(0),
+	mHexa(false)
 {
 
 }
@@ -40,6 +42,17 @@ Stream::Stream(void)
 Stream::~Stream(void)
 {
 
+}
+
+bool Stream::hexa(void)
+{
+	return mHexa;
+}
+
+bool Stream::hexa(bool enabled)
+{
+	std::swap(mHexa, enabled);
+	return enabled;
 }
 
 bool Stream::get(char &chr)

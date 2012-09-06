@@ -142,6 +142,13 @@ String String::number(double d, int significatif)
     return out.str();
 }
 
+String String::hexa(unsigned int n)
+{
+    std::ostringstream out;
+    out << std::hex << n;
+    return out.str();
+}
+
 int String::indexOf(char c, int from) const
 {
     int pos = this->find(c, from);
@@ -174,7 +181,7 @@ bool String::remove(char chr)
 {
 	bool found = false;
 	for(int i=0; i<this->size();)
-		if(at(i) == chr)
+		if(this->at(i) == chr)
 		{
 			this->erase(i);
 			found = true;
@@ -187,9 +194,9 @@ bool String::replace(char a, char b)
 {
 	bool found = false;
 	for(int i=0; i<this->size(); ++i)
-		if(at(i) == a)
+		if(this->at(i) == a)
 		{
-			at(i) = b;
+			this->at(i) = b;
 			found = true;
 		}
 	return found;
@@ -231,6 +238,44 @@ String String::toTrimmed(void) const
 	String s(*this);
 	s.trim();
 	return s;
+}
+
+String String::urlEncode(void) const
+{
+	String out;
+	for(int i=0; i<this->size(); ++i)
+	{
+		char c = this->at(i);
+		if(std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') out+= c;
+    		else if(c == ' ') out+= '+';
+    		else {
+		  out+= '%';
+		  out+= String::hexa(unsigned((unsigned char)(c)));
+		}
+	}
+	return out;
+}
+
+String String::urlDecode(void) const
+{
+	String out;
+	for(int i=0; i<this->size(); ++i)
+	{
+		char c = this->at(i);
+ 		if(c == '%') 
+		{
+			unsigned value;
+			String h(this->substr(i+1,2));
+			h.hexa(true);
+			h>>value;
+			out+= char(value);
+			i+=2;
+	
+    		} 
+    		else if(c == '+') out+= ' ';
+		else out+= c;
+	}
+	return out;
 }
 
 double String::toDouble() const

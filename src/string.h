@@ -45,7 +45,8 @@ public:
 	static String number(int n);
 	static String number(unsigned int n);
 	static String number(double d, int significatif = 4);
-
+	static String hexa(unsigned int n);
+	
 	void explode(std::list<String> &strings, char separator) const;
 	void implode(const std::list<String> &strings, char separator);
 	String cut(char separator);
@@ -70,6 +71,8 @@ public:
 	String toLower(void) const;
 	String toUpper(void) const;
 	String toTrimmed(void) const;
+	String urlEncode(void) const;
+	String urlDecode(void) const;
 
 	double toDouble() const;
 	float toFloat() const;

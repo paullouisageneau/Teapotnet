@@ -38,6 +38,9 @@ public:
 	Stream(void);
 	virtual ~Stream(void);
 
+	bool hexa(void);
+	bool hexa(bool enabled);
+	
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
 
@@ -56,7 +59,7 @@ public:
 	bool	read(String &s);
 	bool	read(bool &b);
 
-	inline bool	read(char &c) 				{ return readData(&c,1); }
+	inline bool	read(char &c) 			{ return readData(&c,1); }
 	inline bool	read(signed char &i) 		{ return readStd(i); }
 	inline bool	read(signed short &i) 		{ return readStd(i); }
 	inline bool	read(signed int &i) 		{ return readStd(i); }
@@ -65,8 +68,8 @@ public:
 	inline bool	read(unsigned short &i) 	{ return readStd(i); }
 	inline bool	read(unsigned int &i) 		{ return readStd(i); }
 	inline bool	read(unsigned long &i) 		{ return readStd(i); }
-	inline bool	read(float &f) 				{ return readStd(f); }
-	inline bool	read(double &f) 			{ return readStd(f); }
+	inline bool	read(float &f) 			{ return readStd(f); }
+	inline bool	read(double &f) 		{ return readStd(f); }
 
 	template<class T> bool read(T *ptr);
 
@@ -120,6 +123,7 @@ protected:
 	static const String FieldDelimiters;
 
 	char mLast;
+	bool mHexa;
 
 private:
 	bool readStdString(std::string &output);
@@ -152,6 +156,7 @@ template<typename T> bool Stream::readStd(T &val)
 	std::string str;
 	if(!readStdString(str) || str.empty()) return false;
 	std::istringstream iss(str);
+	if(mHexa) iss>>std::hex;
 	if(!(iss>>val)) error();
 	return true;
 }
@@ -159,6 +164,7 @@ template<typename T> bool Stream::readStd(T &val)
 template<typename T> void Stream::writeStd(const T &val)
 {
 	std::ostringstream oss;
+	if(mHexa) oss<<std::hex;
 	if(!(oss<<val)) error();
 	write(oss.str());
 }

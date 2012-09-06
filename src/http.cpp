@@ -65,7 +65,7 @@ void Http::Request::send(Socket &sock)
 				it != get.end();
 				++it)
 		{
-			completeUrl<<'&'<<it->first<<'='<<it->second;
+			completeUrl<<'&'<<it->first.urlEncode()<<'='<<it->second.urlEncode();
 		}
 	}
 
@@ -77,7 +77,7 @@ void Http::Request::send(Socket &sock)
 				++it)
 		{
 			if(!postData.empty()) postData<<'&';
-			postData<<it->first<<'='<<it->second;
+			postData<<it->first.urlEncode()<<'='<<it->second.urlEncode();
 		}
 
 		headers["Content-Length"] = "";
@@ -177,8 +177,8 @@ void Http::Request::recv(Socket &sock)
 				it != exploded.end();
 				++it)
 		{
-			String value = it->cut('=');
-			get.insert(*it, value);
+			String value = it->cut('=').urlDecode();
+			get.insert(it->urlDecode(), value);
 		}
 	}
 
@@ -205,8 +205,8 @@ void Http::Request::recv(Socket &sock)
 					it != exploded.end();
 					++it)
 			{
-				String value = it->cut('=');
-				post.insert(*it, value);
+				String value = it->cut('=').urlDecode();
+				post.insert(it->urlDecode(), value);
 			}
 		}
 	}
