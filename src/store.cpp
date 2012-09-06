@@ -173,7 +173,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(url[url.size()-1] != '/')
 				{
 					Http::Response response(request, 301);	// Moved Permanently
-					response.headers["Location"] = url+"/";
+					response.headers["Location"] = prefix+url+"/";
 					response.send();
 					return;
 				}
@@ -208,9 +208,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			else throw Exception("File not found");
 		}
 	}
-	catch(...)
+	catch(const Exception &e)
 	{
-		// TODO: Log
+		Log("Store::http",e.what());
 		throw 404;	// Httpd handles integer exceptions
 	}
 }

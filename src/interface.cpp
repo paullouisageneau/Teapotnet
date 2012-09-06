@@ -79,7 +79,17 @@ void Interface::process(Http::Request &request)
 		HttpInterfaceable *interfaceable;
 		if(mPrefixes.get(prefix,interfaceable)) 
 		{
-			request.url.ignore(prefix.size()+1);
+			request.url.ignore(prefix.size());
+			
+			if(prefix != "/" && request.url.empty())
+			{
+				Http::Response response(request, 301);	// Moved Permanently
+				response.headers["Location"] = prefix+"/";
+				response.send();
+				mMutex.unlock();
+				return;  
+			}
+			
 			interfaceable->http(prefix, request);
 			mMutex.unlock();
 			return;

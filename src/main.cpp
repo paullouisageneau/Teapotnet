@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 	std::cout<<"Hash: "<<result.toString()<<std::endl;*/
 
 	
-	Config::Put("tracker", "127.0.0.1");
+	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8000");
 	Config::Put("ifport", "8080");
 	
@@ -66,11 +66,12 @@ int main(int argc, char** argv)
 			}
 			last = str;
 		}
-		
-		if(last.empty()) args[str] = "";
 		else {
-			args[last] = str;
-			last.clear();
+			if(last.empty()) args[str] = "";
+			else {
+				args[last] = str;
+				last.clear();
+			}
 		}
 	}
 	

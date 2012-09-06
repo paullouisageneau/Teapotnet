@@ -116,7 +116,7 @@ void Core::removeRequest(unsigned id)
 
 void Core::http(const String &prefix, Http::Request &request)
 {
-	if(prefix == "peers")
+	if(prefix == "/peers")
 	{
 		if(request.url == "/")
 		{
@@ -148,6 +148,7 @@ void Core::http(const String &prefix, Http::Request &request)
 			// TODO
 		}
 	}
+	else throw 404;
 }
 
 void Core::add(const Identifier &peer, Core::Handler *handler)
