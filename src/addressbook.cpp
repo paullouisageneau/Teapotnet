@@ -30,7 +30,7 @@ namespace arc
 {
 
 AddressBook::AddressBook(const String &name) :
-	mLocalName(name)
+	mName(name)
 {
 	Interface::Instance->add("/"+name+"/contacts", this);
 	
@@ -47,7 +47,7 @@ AddressBook::AddressBook(const String &name) :
 
 AddressBook::~AddressBook(void)
 {
-  
+  	Interface::Instance->remove("/"+mName+"/contacts");
 }
 
 const Identifier &AddressBook::addContact(String &name, ByteString &secret)
@@ -88,7 +88,7 @@ void AddressBook::computePeering(const String &name, const ByteString &secret, B
 {
   	String agregate;
 	agregate.writeLine(secret);
-	agregate.writeLine(mLocalName);
+	agregate.writeLine(mName);
 	agregate.writeLine(name);
 	Sha512::Hash(agregate, out, Sha512::CryptRounds);
 }
@@ -98,7 +98,7 @@ void AddressBook::computeRemotePeering(const String &name, const ByteString &sec
   	String agregate;
 	agregate.writeLine(secret);
 	agregate.writeLine(name);
-	agregate.writeLine(mLocalName);
+	agregate.writeLine(mName);
 	Sha512::Hash(agregate, out, Sha512::CryptRounds);
 }
 
@@ -106,8 +106,8 @@ void AddressBook::load(Stream &stream)
 {
 	synchronize(this);
   
-	mLocalName.clear();
-	stream.readLine(mLocalName);
+	mName.clear();
+	stream.readLine(mName);
 	
 	mContacts.clear();
 	Contact contact;
@@ -121,7 +121,7 @@ void AddressBook::save(Stream &stream) const
 {
 	synchronize(this);
   
-	stream.writeLine(mLocalName);
+	stream.writeLine(mName);
 	
 	for(Map<Identifier, Contact>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
@@ -136,9 +136,48 @@ void AddressBook::autosave(void) const
 {
 	synchronize(this);
   
-	SafeWriteFile file(mLocalName+"_contacts.txt");
+	SafeWriteFile file(mName+"_contacts.txt");
 	save(file);
 	file.close();
+}
+
+void AddressBook::update(void)
+{
+	synchronize(this);
+
+	for(Map<Identifier, Contact>::iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		Contact &contact = it->second;
+
+		if(query(contact.peering, contact.tracker, contact.addrs))
+		{
+			if(!Core::Instance->hasPeer(contact.peering))
+			{
+				for(int i=0; i<contact.addrs.size(); ++i)
+				{
+					const Address &addr = contact.addrs[contact.addrs.size()-(i+1)];
+					unlock();
+					try {
+						Socket *sock = new Socket(addr);
+						Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
+						Core::Instance->addPeer(sock, contact.peering);
+					}
+					catch(...)
+					{
+					 
+					}
+					lock();
+				}
+			}
+		}
+		      
+		publish(contact.remotePeering);
+	}
+		
+	//std::cout<<"AddressBook autosave..."<<std::endl;
+	autosave();
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -239,49 +278,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	{
 		Log("AddressBook::http",e.what());
 		throw 404;	// Httpd handles integer exceptions
-	}
-}
-
-void AddressBook::run(void)
-{
-	synchronize(this);
-	
-	while(true)
-	{
-		for(Map<Identifier, Contact>::iterator it = mContacts.begin();
-			it != mContacts.end();
-			++it)
-		{
-		    Contact &contact = it->second;
-
-		    if(query(contact.peering, contact.tracker, contact.addrs))
-		    {
-			if(!Core::Instance->hasPeer(contact.peering))
-			{
-				for(int i=0; i<contact.addrs.size(); ++i)
-				{
-					const Address &addr = contact.addrs[contact.addrs.size()-(i+1)];
-					unlock();
-					try {
-						Socket *sock = new Socket(addr);
-						Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
-						Core::Instance->addPeer(sock, contact.peering);
-					}
-					catch(...)
-					{
-					 
-					}
-					lock();
-				}
-			}
-		    }
-		      
-		    publish(contact.remotePeering);
-		}
-		
-		//std::cout<<"AddressBook autosave..."<<std::endl;
-		autosave();
-		wait(10*60*1000);
 	}
 }
 

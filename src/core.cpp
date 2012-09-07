@@ -38,6 +38,7 @@ Core::Core(int port) :
 
 Core::~Core(void)
 {
+	Interface::Instance->remove("/peers");
 	mSock.close();	// useless
 }
 

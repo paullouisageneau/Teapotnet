@@ -19,61 +19,67 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_ADDRESSBOOK_H
-#define ARC_ADDRESSBOOK_H
-
-#include "include.h"
-#include "http.h"
-#include "interface.h"
-#include "address.h"
-#include "socket.h"
-#include "identifier.h"
-#include "array.h"
-#include "map.h"
+#include "user.h"
+#include "config.h"
+#include "file.h"
+#include "html.h"
 
 namespace arc
 {
 
-class AddressBook : protected Synchronizable, public HttpInterfaceable
+User::User(const String &name) :
+	mName(name),
+	mAddressBook(new AddressBook(name))
 {
-public:
-	AddressBook(const String &name);
-	~AddressBook(void);
-	
-	const Identifier &addContact(String &name, ByteString &secret);
-	void removeContact(Identifier &peering);
-	void computePeering(const String &name, const ByteString &secret, ByteStream &out);
-	void computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out);
-	
-	void load(Stream &stream);
-	void save(Stream &stream) const;
-	void autosave(void) const;
-	
-	void update(void);
-	
-	void http(const String &prefix, Http::Request &request);
-	
-	struct Contact : public Serializable
-	{
-		String name;
-		String tracker;
-		ByteString secret;
-		Identifier peering;
-		Identifier remotePeering;
-		SerializableArray<Address> addrs;
-		
-		void serialize(Stream &s) const;
-		void deserialize(Stream &s);
-	};
-	
-private:
-	bool publish(const Identifier &remotePeering);
-	bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
-	
-	String mName;
-	Map<Identifier, Contact> mContacts;	// Sorted by peering
-};
-
+	Interface::Instance->add("/"+name, this);
 }
 
-#endif
+User::~User(void)
+{
+	Interface::Instance->remove("/"+mName);
+	delete mAddressBook;
+}
+
+void User::http(const String &prefix, Http::Request &request)
+{
+	synchronize(this);
+	
+	try {
+		String url = request.url;
+		
+		if(url.empty() || url == "/")
+		{
+			Http::Response response(request,200);
+			response.send();
+			
+			Html page(response.sock);
+			page.header(mName);
+			page.open("h1");
+			page.text(mName);
+			page.close("h1");
+
+			page.link(prefix+"/contacts/","Contacts");
+			
+			page.footer();
+		}
+		else throw 404;
+	}
+	catch(Exception &e)
+	{
+		Log("User::http",e.what());
+		throw 404;	// Httpd handles integer exceptions
+	}
+}
+
+void User::run(void)
+{
+	synchronize(this);
+	
+	while(true)
+	{
+		mAddressBook->update();
+		wait(2*60*1000);
+	}
+}
+
+}

@@ -39,7 +39,7 @@ Store::Store(void)
 
 Store::~Store(void)
 {
-
+	Interface::Instance->remove("/files");
 }
 
 void Store::addDirectory(const String &name, const String &path)
