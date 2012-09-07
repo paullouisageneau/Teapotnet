@@ -73,7 +73,9 @@ public:
 	String toTrimmed(void) const;
 	String urlEncode(void) const;
 	String urlDecode(void) const;
-
+	String base64Encode(void) const;
+	String base64Decode(void) const;
+	
 	double toDouble() const;
 	float toFloat() const;
 	int toInt() const;

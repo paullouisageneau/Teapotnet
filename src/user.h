@@ -26,7 +26,9 @@
 #include "thread.h"
 #include "http.h"
 #include "interface.h"
+#include "identifier.h"
 #include "addressbook.h"
+#include "map.h"
 
 namespace arc
 {
@@ -34,7 +36,9 @@ namespace arc
 class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
-	User(const String &name);
+	static User *Authenticate(const String &name, const String &password);
+  
+	User(const String &name, const String &password);
 	~User(void);
 	
 	void http(const String &prefix, Http::Request &request);
@@ -43,7 +47,10 @@ private:
 	void run(void);
 	
 	String mName;
+	Identifier mHash;
 	AddressBook *mAddressBook;
+	
+	static Map<Identifier, User*> UsersMap;
 };
 
 }

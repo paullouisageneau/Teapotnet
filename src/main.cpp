@@ -35,13 +35,12 @@ int main(int argc, char** argv)
 {
 	srand(time(NULL));
   
-	/*String test = "The quick brown fox jumps over the lazy dog";
+	/*String test("The quick brown fox jumps over the lazy dog");
 	ByteString result;
 	Sha512::Hash(test, result);
 
 	std::cout<<"Data: "<<test<<std::endl;
 	std::cout<<"Hash: "<<result.toString()<<std::endl;*/
-
 	
 	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8000");
@@ -106,9 +105,9 @@ int main(int argc, char** argv)
 	Core::Instance->start();
 
 	// Test
-	AddressBook book("test");
+	/*AddressBook book("test");
 	book.start();
-	book.join();
+	book.join();*/
 
 	return 0;
 }

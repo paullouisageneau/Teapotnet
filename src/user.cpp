@@ -22,20 +22,43 @@
 #include "user.h"
 #include "config.h"
 #include "file.h"
+#include "sha512.h"
 #include "html.h"
 
 namespace arc
 {
 
-User::User(const String &name) :
+Map<Identifier, User*> User::UsersMap;
+  
+User *User::Authenticate(const String &name, const String &password)
+{
+	Identifier hash;
+	String agregate;
+	agregate.writeLine(name);
+	agregate.writeLine(password);
+	Sha512::Hash(agregate, hash, Sha512::CryptRounds);
+	
+	User *user = NULL;
+	if(!UsersMap.get(hash, user)) throw Exception("Authentication failed");
+	return user;
+}
+
+User::User(const String &name, const String &password) :
 	mName(name),
 	mAddressBook(new AddressBook(name))
 {
+	String agregate;
+	agregate.writeLine(name);
+	agregate.writeLine(password);
+	Sha512::Hash(agregate, mHash, Sha512::CryptRounds);
+	
 	Interface::Instance->add("/"+name, this);
+	UsersMap.insert(mHash, this);
 }
 
 User::~User(void)
 {
+	UsersMap.erase(mHash);
 	Interface::Instance->remove("/"+mName);
 	delete mAddressBook;
 }

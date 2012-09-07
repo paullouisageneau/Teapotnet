@@ -243,9 +243,9 @@ String String::toTrimmed(void) const
 String String::urlEncode(void) const
 {
 	String out;
-	for(int i=0; i<this->size(); ++i)
+	for(int i=0; i<size(); ++i)
 	{
-		char c = this->at(i);
+		char c = at(i);
 		if(std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') out+= c;
     		else if(c == ' ') out+= '+';
     		else {
@@ -259,13 +259,13 @@ String String::urlEncode(void) const
 String String::urlDecode(void) const
 {
 	String out;
-	for(int i=0; i<this->size(); ++i)
+	for(int i=0; i<size(); ++i)
 	{
-		char c = this->at(i);
+		char c = at(i);
  		if(c == '%') 
 		{
 			unsigned value = '?';
-			String h(this->substr(i+1,2));
+			String h(substr(i+1,2));
 			h.hexa(true);
 			h>>value;
 			out+= char(value);
@@ -275,6 +275,79 @@ String String::urlDecode(void) const
     		else if(c == '+') out+= ' ';
 		else out+= c;
 	}
+	return out;
+}
+
+String String::base64Encode(void) const
+{
+	static char tab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	String out;
+	int i = 0;
+	while (size()-i >= 3)
+	{
+		out+= tab[uint8_t(at(i)) >> 2];
+		out+= tab[((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+		out+= tab[((uint8_t(at(i+1)) & 0x0F) << 2) | (uint8_t(at(i+2)) >> 6)];
+		out+= tab[uint8_t(at(i+2)) & 0x3F];
+		i+= 3;
+	}
+
+	int left = size()-i;
+	if(left)
+	{
+		out+= tab[at(i) >> 2];
+		if (left == 1)
+		{
+			out+= tab[(uint8_t(at(i)) & 3) << 4];
+			out+= '=';
+		}
+		else {
+			out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+			out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
+		}
+		out+= '=';
+	}
+	
+	return out;
+}
+
+String String::base64Decode(void) const
+{
+	String out;
+	int i = 0;
+	while(i < size())
+	{
+		unsigned char tab[4];
+		int j = 0;
+		while(i < size() && j < 4)
+		{
+			char c = at(i);
+			if(c == '=') break;
+			
+			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
+			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
+			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
+			else if (c == '+') tab[j] = 62;
+			else if (c == '/') tab[j] = 63;
+			else throw IOException("Invalid character");
+			
+			++i; ++j;
+		}
+
+		if(j)
+		{
+			out+= (tab[0] << 2) | (tab[1] >> 4);
+			if (j > 2)
+			{
+				out+= (tab[1] << 4) | (tab[2] >> 2);
+				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
+			}
+		}
+		
+		if(at(i) == '=') break;
+	}
+
 	return out;
 }
 
