@@ -50,7 +50,12 @@ public:
 	Core(int port);
 	~Core(void);
 	
-	void addPeer(Socket *sock, const Identifier &peering, const Identifier &remotePeering);
+	void registerPeering(	const Identifier &peering,
+				const Identifier &remotePeering,
+		       		const ByteString &secret);
+	void unregisterPeering(const Identifier &peering);
+			     
+	void addPeer(Socket *sock, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
 	
 	unsigned addRequest(Request *request);
@@ -67,7 +72,7 @@ private:
 		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
-		void setPeering(const Identifier &peering, const Identifier &remotePeering);
+		void setPeering(const Identifier &peering);
 		
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
@@ -115,12 +120,12 @@ private:
 		Sender mSender;
 	};
 
-	void add(const Identifier &peer, Handler *Handler);
-	void remove(const Identifier &peer);
+	void addHandler(const Identifier &peer, Handler *Handler);
+	void removeHandler(const Identifier &peer, Handler *handler);
 
-	String mLocalName;
 	ServerSocket mSock;
-	Map<ByteString, ByteString > mSecrets;
+	Map<Identifier, Identifier> mPeerings;
+	Map<Identifier, ByteString> mSecrets;
 	Map<Identifier,Handler*> mPeers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;

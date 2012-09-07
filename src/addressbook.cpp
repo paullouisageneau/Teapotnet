@@ -76,8 +76,12 @@ const Identifier &AddressBook::addContact(String &name, ByteString &secret)
 void AddressBook::removeContact(Identifier &peering)
 {
 	synchronize(this);
- 	mContacts.erase(peering);
-	autosave();
+	if(mContacts.contains(peering))
+	{
+		Core::Instance->unregisterPeering(peering);
+ 		mContacts.erase(peering);
+		autosave();
+	}
 }
 
 void AddressBook::computePeering(const String &name, const ByteString &secret, ByteStream &out)
@@ -260,7 +264,8 @@ void AddressBook::run(void)
 					unlock();
 					try {
 						Socket *sock = new Socket(addr);
-						Core::Instance->addPeer(sock, contact.peering, contact.remotePeering);
+						Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
+						Core::Instance->addPeer(sock, contact.peering);
 					}
 					catch(...)
 					{
