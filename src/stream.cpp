@@ -44,15 +44,16 @@ Stream::~Stream(void)
 
 }
 
-bool Stream::hexa(void)
+bool Stream::hexaMode(void)
 {
 	return mHexa;
 }
 
-bool Stream::hexa(bool enabled)
+bool Stream::hexaMode(bool enabled)
 {
-	std::swap(mHexa, enabled);
-	return enabled;
+	bool old = mHexa;
+	mHexa = enabled;
+	return old;
 }
 
 bool Stream::get(char &chr)

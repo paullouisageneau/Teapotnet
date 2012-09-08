@@ -38,8 +38,8 @@ public:
 	Stream(void);
 	virtual ~Stream(void);
 
-	bool hexa(void);
-	bool hexa(bool enabled);
+	bool hexaMode(void);
+	bool hexaMode(bool enabled);
 	
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
@@ -157,6 +157,7 @@ template<typename T> bool Stream::readStd(T &val)
 	if(!readStdString(str) || str.empty()) return false;
 	std::istringstream iss(str);
 	if(mHexa) iss>>std::hex;
+	else iss>>std::dec;
 	if(!(iss>>val)) error();
 	return true;
 }
@@ -164,7 +165,8 @@ template<typename T> bool Stream::readStd(T &val)
 template<typename T> void Stream::writeStd(const T &val)
 {
 	std::ostringstream oss;
-	if(mHexa) oss<<std::hex;
+	if(mHexa) oss<<std::hex<<std::uppercase;
+	else oss<<std::dec;
 	if(!(oss<<val)) error();
 	write(oss.str());
 }

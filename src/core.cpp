@@ -63,6 +63,7 @@ void Core::addPeer(Socket *sock, const Identifier &peering)
 	if(peering != Identifier::Null && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
 	
+	//Log("Core", "Spawning new handler");
 	Handler *handler = new Handler(this,sock);
 	if(peering != Identifier::Null) handler->setPeering(peering);
 	handler->start(true); // handler will destroy itself
@@ -80,6 +81,7 @@ void Core::run(void)
 		{
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
+			Log("Core", "Incoming connexion from " + sock->getRemoteAddress().toString());
 			addPeer(sock, Identifier::Null);
 		}
 	}
@@ -205,6 +207,7 @@ void Core::Handler::sendCommand(Socket *sock, const String &command, const Strin
 		
 bool Core::Handler::recvCommand(Socket *sock, String &command, String &args, StringMap &parameters)
 {
+	command.clear();
 	if(!sock->readLine(command)) return false;
 	args = command.cut(' ');
 	command = command.toUpper();
@@ -262,170 +265,183 @@ void Core::Handler::removeRequest(unsigned id)
 
 void Core::Handler::run(void)
 {
-	ByteString nonce_a, salt_a;
-	for(int i=0; i<16; ++i)
-	{
-	  	char c = char(rand()%256);	// TODO
-		nonce_a.push_back(c);
-		c = char(rand()%256);		// TODO
-		salt_a.push_back(c);  
-	}
-  
-    	String command, args;
-	StringMap parameters;
-  
-  	if(mRemotePeering != Identifier::Null)
-	{
-	 	args.clear();
-	  	args << mRemotePeering;
-		parameters.clear();
-		parameters["Application"] << APPNAME;
-		parameters["Version"] << APPVERSION;
-		parameters["Nonce"] << nonce_a;
-	 	sendCommand(mSock, "H", args, parameters);
-	}
-  
-	if(!recvCommand(mSock, command, args, parameters)) return;
-	if(command != "H") throw Exception("Unexpected command");
-	
-	String appname, appversion;
-	ByteString peering, nonce_b;
-	args.read(peering);
-	parameters["Application"] >> appname;
-	parameters["Version"] >> appversion;
-	parameters["Nonce"] >> nonce_b;
-
-	if(mPeering != Identifier::Null && mPeering != peering) 
-			throw Exception("Peering in response does not match: " + peering.toString());
-	
-	ByteString secret;
-	if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());	// TODO: useless
-	if(!mCore->mPeerings.get(peering, mRemotePeering)) throw Exception("Unknown peering: " + peering.toString());
-	if(!mCore->mSecrets.get(peering, secret)) throw Exception("No secret for peering: " + peering.toString());
-	
-	if(mPeering == Identifier::Null)
-	{
-	 	mPeering = peering;
+	try {
+		Log("Core::Handler", "Starting");
+	  
+		ByteString nonce_a, salt_a;
+		for(int i=0; i<16; ++i)
+		{
+			char c = char(rand()%256);	// TODO
+			nonce_a.push_back(c);
+			c = char(rand()%256);		// TODO
+			salt_a.push_back(c);  
+		}
+	  
+		String command, args;
+		StringMap parameters;
+	  
+		if(mPeering != Identifier::Null)
+		{
+			if(!mCore->mPeerings.get(mPeering, mRemotePeering)) 
+				throw Exception("Unknown peering: " + mPeering.toString());
+			
+			args.clear();
+			args << mRemotePeering;
+			parameters.clear();
+			parameters["Application"] << APPNAME;
+			parameters["Version"] << APPVERSION;
+			parameters["Nonce"] << nonce_a;
+			sendCommand(mSock, "H", args, parameters);
+		}
+	  
+		if(!recvCommand(mSock, command, args, parameters)) return;
+		if(command != "H") throw Exception("Unexpected command: " + command);
 		
-		args.clear();
-	  	args << mRemotePeering;
+		String appname, appversion;
+		ByteString peering, nonce_b;
+		args.read(peering);
+		parameters["Application"] >> appname;
+		parameters["Version"] >> appversion;
+		parameters["Nonce"] >> nonce_b;
+
+		if(mPeering != Identifier::Null && mPeering != peering) 
+				throw Exception("Peering in response does not match: " + peering.toString());
+		
+		ByteString secret;
+		if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());	// TODO: useless
+		if(!mCore->mSecrets.get(peering, secret)) throw Exception("No secret for peering: " + peering.toString());
+		
+		if(mPeering == Identifier::Null)
+		{
+			mPeering = peering;
+			if(!mCore->mPeerings.get(mPeering, mRemotePeering)) 
+				throw Exception("Unknown peering: " + mPeering.toString());
+			
+			args.clear();
+			args << mRemotePeering;
+			parameters.clear();
+			parameters["Application"] << APPNAME;
+			parameters["Version"] << APPVERSION;
+			parameters["Nonce"] << nonce_a;
+			sendCommand(mSock, "H", args, parameters);
+		}
+		
+		String agregate_a;
+		agregate_a.writeLine(secret);
+		agregate_a.writeLine(salt_a);
+		agregate_a.writeLine(nonce_b);
+		agregate_a.writeLine(mPeering);
+		
+		ByteString hash_a;
+		Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
+		
 		parameters.clear();
-		parameters["Application"] << APPNAME;
-		parameters["Version"] << APPVERSION;
-		parameters["Nonce"] << nonce_a;
-	 	sendCommand(mSock, "H", args, parameters);
-	}
-	
-	String agregate_a;
-	agregate_a.writeLine(secret);
-	agregate_a.writeLine(salt_a);
-	agregate_a.writeLine(nonce_b);
-	agregate_a.writeLine(mPeering);
-	
-	ByteString hash_a;
-	Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
-	
-	parameters.clear();
-	parameters["Digest"] << hash_a;
-	parameters["Salt"] << salt_a;
-	sendCommand(mSock, "A", "DIGEST", parameters);
-	
-	AssertIO(recvCommand(mSock, command, args, parameters));
-	if(command != "A") throw Exception("Unexpected command");
-	if(args.toUpper() != "DIGEST") throw Exception("Unknown authentication method " + args.toString());
-	
-	ByteString salt_b, test_b;
-	parameters["Digest"] >> test_b;
-	parameters["Salt"] >> salt_b;
-	
-	String agregate_b;
-	agregate_b.writeLine(secret);
-	agregate_b.writeLine(salt_b);
-	agregate_b.writeLine(nonce_a);
-	agregate_b.writeLine(mRemotePeering);
-	
-	ByteString hash_b;
-	Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
-	
-	if(test_b != hash_b) throw Exception("Authentication failed");
-	
-	mCore->addHandler(mPeering,this);
-
-	mSender.start();
-	
-	while(recvCommand(mSock, command, args, parameters))
-	{
-		lock();
-
-		if(command == "R")
+		parameters["Digest"] << hash_a;
+		parameters["Salt"] << salt_a;
+		sendCommand(mSock, "A", "DIGEST", parameters);
+		
+		AssertIO(recvCommand(mSock, command, args, parameters));
+		if(command != "A") throw Exception("Unexpected command: " + command);
+		if(args.toUpper() != "DIGEST") throw Exception("Unknown authentication method " + args.toString());
+		
+		ByteString salt_b, test_b;
+		parameters["Digest"] >> test_b;
+		parameters["Salt"] >> salt_b;
+		
+		String agregate_b;
+		agregate_b.writeLine(secret);
+		agregate_b.writeLine(salt_b);
+		agregate_b.writeLine(nonce_a);
+		agregate_b.writeLine(mRemotePeering);
+		
+		ByteString hash_b;
+		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
+		
+		if(test_b != hash_b) throw Exception("Authentication failed");
+		
+		Log("Core::Handler", "Authentication finished");
+		mCore->addHandler(mPeering,this);
+		mSender.start();
+		
+		while(recvCommand(mSock, command, args, parameters))
 		{
-			unsigned id;
-			String status;
-			unsigned channel;
-			args.read(id);
-			args.read(status);
-			args.read(channel);
+			lock();
 
-			Request *request;
-			if(mRequests.get(id,request))
+			if(command == "R")
 			{
-				Request::Response *response;
+				unsigned id;
+				String status;
+				unsigned channel;
+				args.read(id);
+				args.read(status);
+				args.read(channel);
 
-				if(channel)
+				Request *request;
+				if(mRequests.get(id,request))
 				{
-					ByteStream *sink = request->mContentSink; // TODO
-					response = new Request::Response(status, parameters, sink);
-					mResponses.insert(channel,response);
+					Request::Response *response;
+
+					if(channel)
+					{
+						ByteStream *sink = request->mContentSink; // TODO
+						response = new Request::Response(status, parameters, sink);
+						mResponses.insert(channel,response);
+					}
+					else response = new Request::Response(status, parameters);
+
+					response->mPeering = mPeering;
+					request->addResponse(response);
+
+					// TODO: Only one response expected for now
+					mRequests.erase(id);
+
+					request->removePending();	// TODO
 				}
-				else response = new Request::Response(status, parameters);
-
-				response->mPeering = mPeering;
-				request->addResponse(response);
-
-				// TODO: Only one response expected for now
-				mRequests.erase(id);
-
-				request->removePending();	// TODO
 			}
-		}
-		else if(command == "D")
-		{
-			unsigned channel, size;
-			args.read(channel);
-			args.read(size);
-
-			Request::Response *response;
-			if(mResponses.get(channel,response))
+			else if(command == "D")
 			{
-				if(size) mSock->readBinary(*response->content(),size);
-				else {
-					response->content()->close();
-					mRequests.erase(channel);
+				unsigned channel, size;
+				args.read(channel);
+				args.read(size);
+
+				Request::Response *response;
+				if(mResponses.get(channel,response))
+				{
+					if(size) mSock->readBinary(*response->content(),size);
+					else {
+						response->content()->close();
+						mRequests.erase(channel);
+					}
 				}
+				else mSock->ignore(size);	// TODO: error
 			}
-			else mSock->ignore(size);	// TODO: error
+			else if(command == "I" || command == "G")
+			{
+				String &target = args;
+
+				Request *request = new Request;
+				request->setTarget(target, (command == "G"));
+				request->setParameters(parameters);
+				request->execute();
+
+				mSender.lock();
+				mSender.mRequestsToRespond.push_back(request);
+				request->mResponseSender = &mSender;
+				mSender.unlock();
+				mSender.notify();
+			}
+
+			unlock();
 		}
-		else if(command == "I" || command == "G")
-		{
-			String &target = args;
 
-			Request *request = new Request;
-			request->setTarget(target, (command == "G"));
-			request->setParameters(parameters);
-			request->execute();
-
-			mSender.lock();
-			mSender.mRequestsToRespond.push_back(request);
-			request->mResponseSender = &mSender;
-			mSender.unlock();
-			mSender.notify();
-		}
-
-		unlock();
+		mSock->close();
+		Log("Core::Handler", "Finished"); 
 	}
-
-	mSock->close();
-
+	catch(std::exception &e)
+	{
+		Log("Core::Handler", String("Stopping: ") + e.what()); 
+	}
+	
 	mCore->removeHandler(mPeering, this);
 }
 

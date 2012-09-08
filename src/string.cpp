@@ -25,6 +25,34 @@
 namespace arc
 {
 
+String String::number(double d, int digits)
+{
+    std::ostringstream out;
+    out << std::setprecision(digits) << d;
+    return out.str();
+}
+
+String String::number(int n)
+{
+    std::ostringstream out;
+    out << n;
+    return out.str();
+}
+
+String String::number(unsigned int n, int minDigits)
+{
+    std::ostringstream out;
+    out << n;
+    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+}
+
+String String::hexa(unsigned int n, int minDigits)
+{
+    std::ostringstream out;
+    out << std::hex << std::uppercase << n;
+    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+}
+  
 String::String(void)
 {
 
@@ -47,6 +75,13 @@ String::String(const std::string &str) :
 {
 
 }
+
+String::String(size_t n, char chr) :
+		std::string(n, chr)
+{
+
+}
+	
 
 String::String(const String &str, int begin) :
 		std::string(str,begin)
@@ -119,34 +154,6 @@ void String::remove(int pos, int nb)
 bool String::isEmpty() const
 {
     return this->empty();
-}
-
-String String::number(int n)
-{
-    std::ostringstream out;
-    out << n;
-    return out.str();
-}
-
-String String::number(unsigned int n)
-{
-    std::ostringstream out;
-    out << n;
-    return out.str();
-}
-
-String String::number(double d, int significatif)
-{
-    std::ostringstream out;
-    out << std::setprecision(significatif) << d;
-    return out.str();
-}
-
-String String::hexa(unsigned int n)
-{
-    std::ostringstream out;
-    out << std::hex << n;
-    return out.str();
 }
 
 int String::indexOf(char c, int from) const

@@ -34,18 +34,19 @@ class String : public Stream, public Serializable, public std::string
 public:
 	static const String Empty;
 
+	static String number(double d, int digits = 4);
+	static String number(int n);
+	static String number(unsigned int n, int minDigits = 1);
+	static String hexa(unsigned int n, int minDigits = 1);
+	
 	String(void);
 	String(const char chr);
 	String(const char *str);
-	String(const std::string &str),
+	String(const std::string &str);
+	String(size_t n, char chr);
 	String(const String &str, int begin = 0);
 	String(const String &str, int begin, int end);
 	virtual ~String(void);
-
-	static String number(int n);
-	static String number(unsigned int n);
-	static String number(double d, int significatif = 4);
-	static String hexa(unsigned int n);
 	
 	void explode(std::list<String> &strings, char separator) const;
 	void implode(const std::list<String> &strings, char separator);

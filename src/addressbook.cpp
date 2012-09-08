@@ -106,11 +106,7 @@ void AddressBook::computeRemotePeering(const String &name, const ByteString &sec
 void AddressBook::load(Stream &stream)
 {
 	synchronize(this);
-  
-	mName.clear();
-	stream.readLine(mName);
 	
-	mContacts.clear();
 	Contact contact;
 	while(stream.read(contact))
 	{
@@ -122,8 +118,6 @@ void AddressBook::save(Stream &stream) const
 {
 	synchronize(this);
   
-	stream.writeLine(mName);
-	
 	for(Map<Identifier, Contact>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
@@ -145,16 +139,20 @@ void AddressBook::autosave(void) const
 void AddressBook::update(void)
 {
 	synchronize(this);
-
+	Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
+	
 	for(Map<Identifier, Contact>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
 		Contact &contact = it->second;
 
-		if(query(contact.peering, contact.tracker, contact.addrs))
+		if(!Core::Instance->hasPeer(contact.peering))
 		{
-			if(!Core::Instance->hasPeer(contact.peering))
+			Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
+		  
+			Log("AddressBook::update", "Querying tracker " + contact.tracker);
+			if(query(contact.peering, contact.tracker, contact.addrs))
 			{
 				for(int i=0; i<contact.addrs.size(); ++i)
 				{
@@ -162,7 +160,6 @@ void AddressBook::update(void)
 					unlock();
 					try {
 						Socket *sock = new Socket(addr);
-						Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
 						Core::Instance->addPeer(sock, contact.peering);
 					}
 					catch(...)
@@ -177,7 +174,7 @@ void AddressBook::update(void)
 		publish(contact.remotePeering);
 	}
 		
-	//std::cout<<"AddressBook autosave..."<<std::endl;
+	Log("AddressBook::update", "Finished");
 	autosave();
 }
 
@@ -230,7 +227,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				String contactUrl;
 				contactUrl << prefix << "/" << contact.peering;
 				page.link(contactUrl, contact.name+"@"+contact.tracker);
-				page.text(" ("+String::number(contact.peering.checksum32())+")");
+				
+				int checksum = contact.peering.checksum32() + contact.remotePeering.checksum32();
+				page.text(" "+String::hexa(checksum,8));
+				
+				String status("Not connected");
+				if(Core::Instance->hasPeer(contact.peering)) status = "Connected";
+				page.text(" ("+status+")");
+				
 				page.br();
 			}
 
@@ -291,9 +295,9 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		post["port"] = Config::Get("port");
 		if(Http::Post(url, post) != 200) return false;
 	}
-	catch(...)
+	catch(const std::exception &e)
 	{
-		// LOG
+		Log("AddressBook::publish", e.what()); 
 		return false;
 	}
 	return true;
@@ -309,14 +313,20 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 		String output;
 		if(Http::Get(url, &output) != 200) return false;
 	
-		Address a;
-		while(output.read(a))
+		String line;
+		while(output.readLine(line))
+		{
+			line.trim();
+			if(line.empty()) continue;
+			Address a;
+			line >> a;
 			if(!addrs.contains(a))
-				addrs.push_back(a); 
+				addrs.push_back(a);
+		}
 	}
-	catch(...)
+	catch(const std::exception &e)
 	{
-		// LOG
+		Log("AddressBook::query", e.what()); 
 		return false;
 	}
 	return true;

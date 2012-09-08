@@ -22,6 +22,7 @@
 #ifndef ARC_INCLUDE_H
 #define ARC_INCLUDE_H
 
+#define DEBUG
 #define APPNAME		"Arcanet"
 #define APPVERSION	"0.1"
 
@@ -146,10 +147,12 @@ template<typename T> void msleep(T msecs)
 #endif
 }
 
-template<typename T> void Log(const char *prefix, const T &value)
+#define Log(prefix, value) LogImpl(__FILE__, __LINE__, prefix, value)
+
+template<typename T> void LogImpl(const char *file, int line, const char *prefix, const T &value)
 {
 #ifdef DEBUG
-	std::cout<<__FILE__<<" "<<std::dec<<__LINE__<<" "<<prefix<<": "<<str<<std::endl;
+	std::cout<<file<<":"<<std::dec<<line<<" "<<prefix<<": "<<value<<std::endl;
 #else
 	std::cout<<prefix<<": "<<value<<std::endl;
 #endif
