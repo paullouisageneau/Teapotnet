@@ -113,6 +113,7 @@ int main(int argc, char** argv)
 	User *alice = new User("alice","azerty");
 	User *bob = new User("bob","azerty");
 	
+	Core::Instance->join();
 	return 0;
 }
 
