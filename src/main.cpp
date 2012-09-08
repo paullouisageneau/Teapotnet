@@ -26,8 +26,8 @@
 #include "tracker.h"
 #include "http.h"
 #include "config.h"
-#include "addressbook.h"
 #include "core.h"
+#include "user.h"
 
 using namespace arc;
 
@@ -110,6 +110,9 @@ int main(int argc, char** argv)
 	book.start();
 	book.join();*/
 
+	User *alice = new User("alice","azerty");
+	User *bob = new User("bob","azerty");
+	
 	return 0;
 }
 
