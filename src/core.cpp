@@ -46,12 +46,16 @@ void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
 		       		const ByteString &secret)
 {
+	synchronize(this);
+	
 	mPeerings[peering] = remotePeering;
 	mSecrets[peering] = secret;
 }
 
 void Core::unregisterPeering(const Identifier &peering)
 {
+	synchronize(this);
+	
 	mPeerings.erase(peering);
 	mSecrets.erase(peering);
 }
@@ -59,6 +63,7 @@ void Core::unregisterPeering(const Identifier &peering)
 void Core::addPeer(Socket *sock, const Identifier &peering)
 {
 	assert(sock != NULL);
+	synchronize(this);
 	
 	if(peering != Identifier::Null && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
@@ -71,6 +76,7 @@ void Core::addPeer(Socket *sock, const Identifier &peering)
 
 bool Core::hasPeer(const Identifier &peering)
 {
+	synchronize(this);
 	return mPeers.contains(peering);
 }
 
@@ -87,12 +93,16 @@ void Core::run(void)
 	}
 	catch(const NetException &e)
 	{
-		return;
+
 	}
+	
+	Log("Core", "Finished");
 }
 
 unsigned Core::addRequest(Request *request)
 {
+	synchronize(this);
+  
 	++mLastRequest;
 	request->mId = mLastRequest;
 	mRequests.insert(mLastRequest, request);
@@ -104,18 +114,15 @@ unsigned Core::addRequest(Request *request)
 				++it)
 		{
 			Handler *handler = it->second;
-			handler->lock();
 			handler->addRequest(request);
-			handler->unlock();
 		}
 	}
 	else {
-		// TODO: This should be modified to allow routing
 		Handler *handler;
-		if(!mPeers.get(request->mReceiver, handler)) return 0;	// TODO
-		handler->lock();
+		if(!mPeers.get(request->mReceiver, handler)) 
+			throw Exception("Unknown receiver");
+		
 		handler->addRequest(request);
-		handler->unlock();
 	}
 
 	return mLastRequest;
@@ -123,19 +130,21 @@ unsigned Core::addRequest(Request *request)
 
 void Core::removeRequest(unsigned id)
 {
+	synchronize(this);
+  
 	for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
 				it != mPeers.end();
 				++it)
 	{
 		Handler *handler = it->second;
-		handler->lock();
 		handler->removeRequest(id);
-		handler->unlock();
 	}
 }
 
 void Core::http(const String &prefix, Http::Request &request)
 {
+	synchronize(this);
+	
 	if(prefix == "/peers")
 	{
 		if(request.url == "/")
@@ -174,6 +183,8 @@ void Core::http(const String &prefix, Http::Request &request)
 void Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
+	synchronize(this);
+	
 	if(!mPeers.contains(peer)) mPeers.insert(peer, handler);
 	else {
 		if(mPeers[peer] != handler)
@@ -183,6 +194,8 @@ void Core::addHandler(const Identifier &peer, Core::Handler *handler)
 
 void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
+	synchronize(this);
+  
 	if(mPeers.contains(peer))
 	{
 		Handler *h = mPeers.get(peer);
@@ -244,28 +257,36 @@ Core::Handler::~Handler(void)
 
 void Core::Handler::setPeering(const Identifier &peering)
 {
+	synchronize(this);
 	mPeering = peering;
 }
 
 void Core::Handler::addRequest(Request *request)
 {
+	synchronize(this);
+	
+	Log("Core::Handler", "New request " + String::number(request->id()));
+	
 	mSender.lock();
 	request->addPending();
 	mSender.mRequestsQueue.push(request);
+	mSender.notifyAll();
+	Log("Core::Handler", "Sender notified");
 	mSender.unlock();
-	mSender.notify();
 
 	mRequests.insert(request->id(),request);
 }
 
 void Core::Handler::removeRequest(unsigned id)
 {
+	synchronize(this);
 	mRequests.erase(id);
 }
 
 void Core::Handler::run(void)
 {
 	try {
+		lock();
 		Log("Core::Handler", "Starting");
 	  
 		ByteString nonce_a, salt_a;
@@ -363,6 +384,7 @@ void Core::Handler::run(void)
 		mCore->addHandler(mPeering,this);
 		mSender.start();
 		
+		unlock();
 		while(recvCommand(mSock, command, args, parameters))
 		{
 			lock();
@@ -439,6 +461,7 @@ void Core::Handler::run(void)
 	}
 	catch(std::exception &e)
 	{
+		unlock();
 		Log("Core::Handler", String("Stopping: ") + e.what()); 
 	}
 	
@@ -466,72 +489,87 @@ Core::Handler::Sender::~Sender(void)
 
 void Core::Handler::Sender::run(void)
 {
-	char buffer[ChunkSize];
-
-	while(true)
-	{
-		lock();
-		if(mTransferts.empty()
+	try {
+		Log("Core::Handler::Sender", "Starting");
+		
+		while(true)
+		{
+			lock();
+			if(mTransferts.empty()
 				&& mRequestsQueue.empty()
 				&& mRequestsToRespond.empty())
-			wait();
-
-		if(!mRequestsQueue.empty())
-		{
-			Request *request = mRequestsQueue.front();
-			
-			String command;
-			if(request->mIsData) command = "G";
-			else command = "I";
-			 
-			Handler::sendCommand(mSock, command, request->target(), request->mParameters);
-			mRequestsQueue.pop();
-		}
-
-		for(int i=0; i<mRequestsToRespond.size(); ++i)
-		{
-			Request *request = mRequestsToRespond[i];
-			for(int j=0; j<request->responsesCount(); ++j)
 			{
-				Request::Response *response = request->response(i);
-				if(!response->mIsSent)
-				{
-					String status = "OK";
-					unsigned channel = 0;
+				wait();
+			}
+			
+			Log("Core::Handler::Sender", "Loop...");
+			
+			if(!mRequestsQueue.empty())
+			{
+				Request *request = mRequestsQueue.front();
+				
+				String command;
+				if(request->mIsData) command = "G";
+				else command = "I";
+				
+				Handler::sendCommand(mSock, command, request->target(), request->mParameters);
+				mRequestsQueue.pop();
+			}
 
-					if(response->content())
+			for(int i=0; i<mRequestsToRespond.size(); ++i)
+			{
+				Request *request = mRequestsToRespond[i];
+				for(int j=0; j<request->responsesCount(); ++j)
+				{
+					Request::Response *response = request->response(i);
+					if(!response->mIsSent)
 					{
-						++mLastChannel;
-						channel = mLastChannel;
-						mTransferts.insert(channel,response->content());
+						String status = "OK";
+						unsigned channel = 0;
+
+						if(response->content())
+						{
+							++mLastChannel;
+							channel = mLastChannel;
+							mTransferts.insert(channel,response->content());
+						}
+						
+						String args;
+						args << request->id() <<" "<<status<<" "<<channel;
+						Handler::sendCommand(mSock, "R", args, response->mParameters);
 					}
-					
-					String args;
-					args << request->id() <<" "<<status<<" "<<channel;
-					Handler::sendCommand(mSock, "R", args, response->mParameters);
 				}
 			}
-		}
 
-		Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
-		while(it != mTransferts.end())
-		{
-			size_t size = it->second->readData(buffer,ChunkSize);
-			
-			String args;
-			args << it->first << " " << size;
-			Handler::sendCommand(mSock, "D", args, StringMap());
-			mSock->writeData(buffer, size);
-
-			if(size == 0)
+			char buffer[ChunkSize];
+			Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
+			while(it != mTransferts.end())
 			{
-				delete it->second;
-				mTransferts.erase(it++);
+				size_t size = it->second->readData(buffer,ChunkSize);
+				
+				String args;
+				args << it->first << " " << size;
+				Handler::sendCommand(mSock, "D", args, StringMap());
+				mSock->writeData(buffer, size);
+
+				if(size == 0)
+				{
+					delete it->second;
+					mTransferts.erase(it++);
+				}
+				else ++it;
 			}
-			else ++it;
+			unlock();
 		}
-		unlock();
+		
+		Log("Core::Handler::Sender", "Finished");
 	}
+	catch(std::exception &e)
+	{
+		unlock();
+		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
+	}
+	
 }
 
 }

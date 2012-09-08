@@ -275,6 +275,18 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Peering: " + contact.peering.toString()); page.br();
 			page.text("Remote peering: " + contact.remotePeering.toString()); page.br();
 			
+			Request request("/images");
+			request.submit(contact.peering);
+			request.wait();
+			
+			page.text("Files: " + String::number(request.responsesCount()));
+			for(int i=0; i<request.responsesCount(); ++i)
+			{
+				Request::Response *response = request.response(i);
+				page.stream()->write(*response->content());
+				response->content()->close();
+			}
+			
 			page.footer();
 			
 		}

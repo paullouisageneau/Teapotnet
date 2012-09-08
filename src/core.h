@@ -42,7 +42,7 @@
 namespace arc
 {
 
-class Core : public Thread, public HttpInterfaceable
+class Core : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static Core *Instance;
@@ -66,7 +66,7 @@ public:
 private:
 	void run(void);
 
-	class Handler : public Thread, public Synchronizable
+	class Handler : public Thread, protected Synchronizable
 	{
 	public:
 		Handler(Core *core, Socket *sock);
