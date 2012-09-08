@@ -60,7 +60,7 @@ void Store::refresh(void)
 			it != mDirectories.end();
 			++it)
 	{
-		refreshDirectory(it->first, it->second);
+		refreshDirectory("/"+it->first, it->second);
 	}
 }
 
@@ -233,7 +233,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	Directory dir(dirPath);
 	while(dir.nextFile())
 	{
-		String url(dirUrl + Directory::Separator + dir.fileName());
+		String url(dirUrl + '/' + dir.fileName());
 		ByteString urlHash;
 		Sha512::Hash(url, urlHash);
 		String entryName = DatabaseDirectory+Directory::Separator+urlHash.toString();
