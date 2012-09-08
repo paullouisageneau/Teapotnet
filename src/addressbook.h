@@ -69,6 +69,7 @@ public:
 private:
 	bool publish(const Identifier &remotePeering);
 	bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
+	String fileName(void) const;
 	
 	String mName;
 	Map<Identifier, Contact> mContacts;	// Sorted by peering

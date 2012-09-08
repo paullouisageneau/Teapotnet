@@ -53,6 +53,12 @@ bool Directory::Remove(const String &path)
 	return (rmdir(path.c_str()) == 0);
 }
 
+void Directory::Create(const String &path)
+{
+	if(mkdir(path.c_str(),0770) != 0)
+		throw IOException("Cannot create directory \""+path+"\"");
+}
+
 Directory::Directory(void) :
 		mDir(NULL),
 		mDirent(NULL)

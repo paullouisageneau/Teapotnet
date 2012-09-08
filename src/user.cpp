@@ -22,6 +22,7 @@
 #include "user.h"
 #include "config.h"
 #include "file.h"
+#include "directory.h"
 #include "sha512.h"
 #include "html.h"
 
@@ -47,10 +48,22 @@ User::User(const String &name, const String &password) :
 	mName(name),
 	mAddressBook(new AddressBook(name))
 {
-	String agregate;
-	agregate.writeLine(name);
-	agregate.writeLine(password);
-	Sha512::Hash(agregate, mHash, Sha512::CryptRounds);
+	if(password.empty())
+	{
+		File file(profilePath()+"password", File::Read);
+		file.read(mHash);
+		file.close();
+	}
+	else {
+		String agregate;
+		agregate.writeLine(name);
+		agregate.writeLine(password);
+		Sha512::Hash(agregate, mHash, Sha512::CryptRounds);
+		
+		File file(profilePath()+"password", File::Write);
+		file.write(mHash);
+		file.close();
+	}
 	
 	Interface::Instance->add("/"+name, this);
 	UsersMap.insert(mHash, this);
@@ -103,6 +116,14 @@ void User::run(void)
 		mAddressBook->update();
 		wait(2*60*1000);
 	}
+}
+
+String User::profilePath(void) const
+{
+	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
+	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
+	if(!Directory::Exist(path)) Directory::Create(path);
+	return path + Directory::Separator;
 }
 
 }

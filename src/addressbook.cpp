@@ -24,6 +24,7 @@
 #include "sha512.h"
 #include "config.h"
 #include "file.h"
+#include "directory.h"
 #include "html.h"
 
 namespace arc
@@ -35,7 +36,7 @@ AddressBook::AddressBook(const String &name) :
 	Interface::Instance->add("/"+name+"/contacts", this);
 	
 	try {
-	  File file(name+"_contacts.txt", File::Read);
+	  File file(fileName(), File::Read);
 	  load(file);
 	  file.close();
 	}
@@ -136,7 +137,7 @@ void AddressBook::autosave(void) const
 {
 	synchronize(this);
   
-	SafeWriteFile file(mName+"_contacts.txt");
+	SafeWriteFile file(fileName());
 	save(file);
 	file.close();
 }
@@ -319,6 +320,11 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 		return false;
 	}
 	return true;
+}
+
+String AddressBook::fileName(void) const
+{
+	return Config::Get("profiles_dir")+Directory::Separator+mName+Directory::Separator+"contacts";
 }
 
 void AddressBook::Contact::serialize(Stream &s) const

@@ -37,9 +37,10 @@ bool File::Remove(const String &filename)
 	return (std::remove(filename.c_str()) == 0);
 }
 
-bool File::Rename(const String &source, const String &destination)
+void File::Rename(const String &source, const String &destination)
 {
-	return (std::rename(source.c_str(), destination.c_str()) == 0);
+	if(std::rename(source.c_str(), destination.c_str()) != 0)
+		throw IOException("Cannot move \""+source+"\" to \""+destination+"\"");
 }
 
 File::File(void)
@@ -139,7 +140,7 @@ void SafeWriteFile::close(void)
 	File::close();
 	if(!mTarget.empty())
 	{
-		if(!Rename(mName, mTarget)) throw IOException("Cannot write file: " + mTarget);
+		Rename(mName, mTarget);
 		Remove(mName);
 		mName = mTarget;
 		mTarget.clear();

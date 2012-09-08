@@ -44,7 +44,8 @@ int main(int argc, char** argv)
 	
 	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8000");
-	Config::Put("ifport", "8080");
+	Config::Put("interface_port", "8080");
+	Config::Put("profiles_dir","profiles");
 	
 	StringMap args;
 	String last;
@@ -84,7 +85,7 @@ int main(int argc, char** argv)
 	}
 	
 	// Starting interface
-	String sifport = Config::Get("ifport");
+	String sifport = Config::Get("interface_port");
 	if(args.contains("ifport")) sifport = args["ifport"];
 	int ifport;
 	sifport >> ifport;

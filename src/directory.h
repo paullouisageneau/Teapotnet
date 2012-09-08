@@ -38,6 +38,7 @@ public:
 
 	static bool Exist(const String &path);
 	static bool Remove(const String &path);
+	static void Create(const String &path);
 
 	Directory(void);
 	Directory(const String &path);

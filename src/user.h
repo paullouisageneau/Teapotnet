@@ -38,13 +38,14 @@ class User : public Thread, protected Synchronizable, public HttpInterfaceable
 public:
 	static User *Authenticate(const String &name, const String &password);
   
-	User(const String &name, const String &password);
+	User(const String &name, const String &password = "");
 	~User(void);
 	
 	void http(const String &prefix, Http::Request &request);
 	
 private:
 	void run(void);
+	String profilePath(void) const;
 	
 	String mName;
 	Identifier mHash;

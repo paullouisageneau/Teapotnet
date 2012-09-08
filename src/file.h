@@ -40,7 +40,7 @@ public:
 
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
-	static bool Rename(const String &source, const String &destination);
+	static void Rename(const String &source, const String &destination);
 
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 
