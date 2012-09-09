@@ -59,30 +59,12 @@ void Synchronizable::notifyAll(void) const
 
 void Synchronizable::wait(void) const
 {
-	mMutex->lock();
-	try {
-		mSignal->wait(*mMutex);
-	}
-	catch(...)
-	{
-		mMutex->unlock();
-		throw;
-	}
-	mMutex->unlock();
+	mSignal->wait(*mMutex);
 }
 
 void Synchronizable::wait(time_t timeout) const
 {
-	mMutex->lock();
-	try {
-		mSignal->wait(*mMutex, timeout);
-	}
-	catch(...)
-	{
-		mMutex->unlock();
-		throw;
-	}
-	mMutex->unlock();
+	mSignal->wait(*mMutex, timeout);
 }
 
 }

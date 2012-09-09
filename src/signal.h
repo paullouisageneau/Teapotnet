@@ -37,8 +37,8 @@ public:
 
 	void launch(void);
 	void launchAll(void);
-	void wait(Mutex &mutex);					// mutex must be locked
-	bool wait(Mutex &mutex, time_t timeout);	// mutex must be locked
+	void wait(Mutex &mutex);
+	bool wait(Mutex &mutex, time_t timeout);
 
 private:
 	pthread_cond_t mCond;
