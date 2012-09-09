@@ -31,8 +31,8 @@ namespace arc
 class Thread
 {
 public:
-	Thread(void);											// start the run() member function on start()
-	template<typename T> Thread(void (*func)(void));		// start func() immediately
+	Thread(void);						// start the run() member function on start()
+	Thread(void (*func)(void));				// start func() immediately
 	template<typename T> Thread(void (*func)(T*), T *arg);	// start func(arg) immediately
 	virtual ~Thread(void);
 
@@ -56,7 +56,6 @@ private:
 		virtual void call(void) = 0;
 	};
 
-	template<typename T>
 	struct VoidWrapper : public Wrapper
 	{
 		void (*func)(void);
@@ -79,13 +78,13 @@ private:
 	bool		mAutoDelete;
 };
 
-template<typename T> Thread::Thread(void (*func)(void)) :
+Thread::Thread(void (*func)(void)) :
 		mRunning(false),
 		mJoined(true),
 		mAutoDelete(false)
 {
 	Assert(func != NULL);
-	VoidWrapper<T> *wrapper = new VoidWrapper<T>;
+	VoidWrapper *wrapper = new VoidWrapper;
 	wrapper->thread = this;
 	wrapper->func = func;
 	start(wrapper);
@@ -104,7 +103,7 @@ template<typename T> Thread::Thread(void (*func)(T*), T *arg) :
 	start(wrapper);
 }
 
-template<typename T> void Thread::VoidWrapper<T>::call(void)
+void Thread::VoidWrapper::call(void)
 {
 	func();
 }
