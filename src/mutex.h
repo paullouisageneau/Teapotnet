@@ -43,8 +43,6 @@ public:
 
 private:
 	pthread_mutex_t mMutex;
-	pthread_t mLockedBy;
-	int mLockCount;
 
 	friend class Signal;
 };

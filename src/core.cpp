@@ -270,10 +270,10 @@ void Core::Handler::addRequest(Request *request)
 	mSender.lock();
 	request->addPending();
 	mSender.mRequestsQueue.push(request);
-	mSender.notifyAll();
-	Log("Core::Handler", "Sender notified");
 	mSender.unlock();
-
+	mSender.notify();
+	Log("Core::Handler", "Sender notified");
+	
 	mRequests.insert(request->id(),request);
 }
 

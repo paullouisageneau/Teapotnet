@@ -24,11 +24,13 @@
 namespace arc
 {
 
-Mutex::Mutex(void) :
-		mLockedBy(0),
-		mLockCount(0)
+Mutex::Mutex(void)
 {
-	 if(pthread_mutex_init(&mMutex,NULL) != 0)
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	
+	 if(pthread_mutex_init(&mMutex, &attr) != 0)
 		 throw Exception("Unable to create mutex");
 }
 
@@ -39,38 +41,22 @@ Mutex::~Mutex(void)
 
 void Mutex::lock(void)
 {
-	if(mLockCount == 0 || mLockedBy != pthread_self())
-	{
-		if(pthread_mutex_lock(&mMutex) != 0)
-			throw Exception("Unable to lock mutex");
-	}
-
-	mLockedBy = pthread_self();
-	mLockCount++;
+	if(pthread_mutex_lock(&mMutex) != 0)
+		throw Exception("Unable to lock mutex");
 }
 
 bool Mutex::tryLock(void)
 {
-	if(mLockCount == 0 || mLockedBy != pthread_self())
-	{
-		int ret = pthread_mutex_trylock(&mMutex);
-		if(ret == EBUSY) return false;
-		else if(ret != 0) throw Exception("Unable to lock mutex");
-	}
-
-	mLockedBy = pthread_self();
-	mLockCount++;
-	return true;
+	int ret = pthread_mutex_trylock(&mMutex);
+	if(ret == 0) return true;
+	else if(ret == EBUSY) return false;
+	else throw Exception("Unable to lock mutex");
 }
 
 void Mutex::unlock(void)
 {
-	mLockCount--;
-	if(mLockCount == 0)
-	{
-		if(pthread_mutex_unlock(&mMutex) != 0)
-			throw Exception("Unable to unlock mutex");
-	}
+	if(pthread_mutex_unlock(&mMutex) != 0)
+		throw Exception("Unable to unlock mutex");
 }
 
 }
