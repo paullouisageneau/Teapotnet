@@ -78,18 +78,6 @@ private:
 	bool		mAutoDelete;
 };
 
-Thread::Thread(void (*func)(void)) :
-		mRunning(false),
-		mJoined(true),
-		mAutoDelete(false)
-{
-	Assert(func != NULL);
-	VoidWrapper *wrapper = new VoidWrapper;
-	wrapper->thread = this;
-	wrapper->func = func;
-	start(wrapper);
-}
-
 template<typename T> Thread::Thread(void (*func)(T*), T *arg) :
 		mRunning(false),
 		mJoined(true),
@@ -101,11 +89,6 @@ template<typename T> Thread::Thread(void (*func)(T*), T *arg) :
 	wrapper->func = func;
 	wrapper->arg = arg;
 	start(wrapper);
-}
-
-void Thread::VoidWrapper::call(void)
-{
-	func();
 }
 
 template<typename T> void Thread::ArgWrapper<T>::call(void)

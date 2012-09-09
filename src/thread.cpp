@@ -32,6 +32,18 @@ Thread::Thread(void) :
 
 }
 
+Thread::Thread(void (*func)(void)) :
+		mRunning(false),
+		mJoined(true),
+		mAutoDelete(false)
+{
+	Assert(func != NULL);
+	VoidWrapper *wrapper = new VoidWrapper;
+	wrapper->thread = this;
+	wrapper->func = func;
+	start(wrapper);
+}
+
 Thread::~Thread(void)
 {
 	if(!mJoined) join();
@@ -111,6 +123,11 @@ void *Thread::ThreadCall(void *myWrapper)
 	delete wrapper;
 	wrapper->thread->mRunning = false;
 	pthread_exit(NULL);
+}
+
+void Thread::VoidWrapper::call(void)
+{
+	func();
 }
 
 }
