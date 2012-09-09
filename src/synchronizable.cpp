@@ -49,16 +49,12 @@ void Synchronizable::unlock(void) const
 
 void Synchronizable::notify(void) const
 {
-	mMutex->lock();
 	mSignal->launch();
-	mMutex->unlock();
 }
 
 void Synchronizable::notifyAll(void) const
 {
-	mMutex->lock();
 	mSignal->launchAll();
-	mMutex->unlock();
 }
 
 void Synchronizable::wait(void) const
@@ -72,6 +68,7 @@ void Synchronizable::wait(void) const
 		mMutex->unlock();
 		throw;
 	}
+	mMutex->unlock();
 }
 
 void Synchronizable::wait(time_t timeout) const
@@ -85,6 +82,7 @@ void Synchronizable::wait(time_t timeout) const
 		mMutex->unlock();
 		throw;
 	}
+	mMutex->unlock();
 }
 
 }
