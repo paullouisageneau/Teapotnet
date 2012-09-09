@@ -30,7 +30,8 @@ namespace arc
 Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
 		mPendingCount(0),
-		mResponseSender(NULL)
+		mResponseSender(NULL),
+		mContentSink(NULL)
 {
 	setTarget(target, data);
 }
@@ -106,6 +107,8 @@ void Request::cancel(void)
 
 bool Request::execute(void)
 {
+	synchronize(this);  
+
 	StringMap parameters = mParameters;
 
 	Store::Entry entry;
@@ -143,6 +146,8 @@ bool Request::execute(void)
 	Response *response = new Response("OK", entry.info, content);
 	if(response->content()) response->content()->close();	// no more content
 	addResponse(response);
+	
+	Log("Request", "Finished execution");
 	return true;
 }
 
@@ -187,6 +192,7 @@ Request::Response::Response(const String &status) :
 Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *content) :
 	mStatus(status),
 	mParameters(parameters),
+	mContent(NULL),
 	mIsSent(false)
 {
 	if(content) mContent = new Pipe(content);

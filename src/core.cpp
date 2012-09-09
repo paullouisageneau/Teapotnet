@@ -272,7 +272,6 @@ void Core::Handler::addRequest(Request *request)
 	mSender.mRequestsQueue.push(request);
 	mSender.unlock();
 	mSender.notify();
-	Log("Core::Handler", "Sender notified");
 	
 	mRequests.insert(request->id(),request);
 }
@@ -384,6 +383,7 @@ void Core::Handler::run(void)
 		mCore->addHandler(mPeering,this);
 		mSender.start();
 		
+		Log("Core::Handler", "Entering main loop");
 		unlock();
 		while(recvCommand(mSock, command, args, parameters))
 		{
@@ -397,19 +397,25 @@ void Core::Handler::run(void)
 				args.read(id);
 				args.read(status);
 				args.read(channel);
-
+				
 				Request *request;
 				if(mRequests.get(id,request))
 				{
-					Request::Response *response;
-
+				  	Request::Response *response;
 					if(channel)
 					{
-						ByteStream *sink = request->mContentSink; // TODO
+						Log("Core::Handler", "Received response for request "+String::number(id)+", receiving on channel "+String::number(channel));
+	
+						ByteStream *sink = request->mContentSink; 	// TODO
+						if(!sink) sink = new ByteString;		// TODO
+						
 						response = new Request::Response(status, parameters, sink);
 						mResponses.insert(channel,response);
 					}
-					else response = new Request::Response(status, parameters);
+					else {
+						Log("Core::Handler", "Received response for request "+String::number(id)+", no data");
+						response = new Request::Response(status, parameters);
+					}
 
 					response->mPeering = mPeering;
 					request->addResponse(response);
@@ -419,6 +425,7 @@ void Core::Handler::run(void)
 
 					request->removePending();	// TODO
 				}
+				else Log("Core::Handler", "WARNING: Received response for unknown request "+String::number(id));
 			}
 			else if(command == "D")
 			{
@@ -429,21 +436,30 @@ void Core::Handler::run(void)
 				Request::Response *response;
 				if(mResponses.get(channel,response))
 				{
+				 	Assert(response->content() != NULL);
 					if(size) mSock->readBinary(*response->content(),size);
 					else {
+						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
 						mRequests.erase(channel);
 					}
 				}
-				else mSock->ignore(size);	// TODO: error
+				else {
+				  Log("Core::Handler", "WARNING: Received data for unknown channel "+String::number(channel));
+				  mSock->ignore(size);
+				}
 			}
 			else if(command == "I" || command == "G")
 			{
+			  	unsigned id;
+				args.read(id);
 				String &target = args;
+			  	Log("Core::Handler", "Received request "+String::number(id)+" for \""+target+"\"");
 
 				Request *request = new Request;
 				request->setTarget(target, (command == "G"));
 				request->setParameters(parameters);
+				request->mId = id;
 				request->execute();
 
 				mSender.lock();
@@ -496,34 +512,24 @@ void Core::Handler::Sender::run(void)
 		{
 			lock();
 			if(mTransferts.empty()
-				&& mRequestsQueue.empty()
-				&& mRequestsToRespond.empty())
+				&& mRequestsQueue.empty())
 			{
+				//Log("Core::Handler::Sender", "No pending tasks, waiting");
 				wait();
 			}
 			
-			Log("Core::Handler::Sender", "Loop...");
-			
-			if(!mRequestsQueue.empty())
-			{
-				Request *request = mRequestsQueue.front();
-				
-				String command;
-				if(request->mIsData) command = "G";
-				else command = "I";
-				
-				Handler::sendCommand(mSock, command, request->target(), request->mParameters);
-				mRequestsQueue.pop();
-			}
-
 			for(int i=0; i<mRequestsToRespond.size(); ++i)
 			{
 				Request *request = mRequestsToRespond[i];
+				synchronize(request);
+				
 				for(int j=0; j<request->responsesCount(); ++j)
 				{
-					Request::Response *response = request->response(i);
+					Request::Response *response = request->response(j);
 					if(!response->mIsSent)
 					{
+						Log("Core::Handler::Sender", "Sending response");
+						
 						String status = "OK";
 						unsigned channel = 0;
 
@@ -531,14 +537,33 @@ void Core::Handler::Sender::run(void)
 						{
 							++mLastChannel;
 							channel = mLastChannel;
+							
+							Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
 							mTransferts.insert(channel,response->content());
 						}
 						
 						String args;
 						args << request->id() <<" "<<status<<" "<<channel;
 						Handler::sendCommand(mSock, "R", args, response->mParameters);
+						
+						response->mIsSent = true;
 					}
 				}
+			}
+			
+			if(!mRequestsQueue.empty())
+			{
+				Request *request = mRequestsQueue.front();
+				Log("Core::Handler::Sender", "Sending request "+String::number(request->id()));
+				
+				String command;
+				if(request->mIsData) command = "G";
+				else command = "I";
+				
+				String args;
+				args << request->id() << " " << request->target();
+				Handler::sendCommand(mSock, command, args, request->mParameters);
+				mRequestsQueue.pop();
 			}
 
 			char buffer[ChunkSize];
@@ -550,14 +575,17 @@ void Core::Handler::Sender::run(void)
 				String args;
 				args << it->first << " " << size;
 				Handler::sendCommand(mSock, "D", args, StringMap());
-				mSock->writeData(buffer, size);
 
 				if(size == 0)
 				{
+					Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
 					delete it->second;
 					mTransferts.erase(it++);
 				}
-				else ++it;
+				else {
+				 	mSock->writeData(buffer, size);
+					++it;
+				}
 			}
 			unlock();
 		}
@@ -567,7 +595,7 @@ void Core::Handler::Sender::run(void)
 	catch(std::exception &e)
 	{
 		unlock();
-		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
+		Log("Core::Handler::Sender", String("ERROR: ") + e.what()); 
 	}
 	
 }

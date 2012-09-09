@@ -23,7 +23,6 @@
 #define ARC_MUTEX_H
 
 #include "include.h"
-#include "exception.h"
 
 namespace arc
 {

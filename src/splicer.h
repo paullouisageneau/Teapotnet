@@ -33,16 +33,18 @@ namespace arc
 
 // "I'll wrap you in a sheet !"
 
-class Splicer
+class Splicer : public Synchronizable
 {
 public:
 	Splicer(const Identifier &target, const String &filename, size_t blockSize);
 	~Splicer(void);
 
+	bool finished(void) const;
+	size_t finishedBlocks(void) const;
+	
 private:
 	Identifier mTarget;
 	size_t mBlockSize;
-	size_t mBlock;			// Current block
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
 };

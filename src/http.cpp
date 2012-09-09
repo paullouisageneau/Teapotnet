@@ -414,7 +414,7 @@ void Http::Server::Handler::run(void)
 		if(request.headers.get("Expect",expect)
 				&& expect.toLower() == "100-continue")
 		{
-			mSock->writeLine("HTTP/1.1 100 Continue\r\n\r\n");
+			mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
 		}
 
 		try {
@@ -422,7 +422,7 @@ void Http::Server::Handler::run(void)
 		}
 		catch(Exception &e)
 		{
-			Log("Http::Server::Handler", e.what());
+			Log("Http::Server::Handler", String("ERROR: ") + e.what());
 			throw 500;
 		}
 	}

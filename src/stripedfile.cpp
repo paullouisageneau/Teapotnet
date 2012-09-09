@@ -41,6 +41,21 @@ StripedFile::~StripedFile(void)
 	delete mFile;
 }
 
+uint64_t StripedFile::tell(void) const
+{
+	return uint64_t(mBlock)*mStripeSize + uint64_t(mOffset);
+}
+
+size_t StripedFile::tellBlock(void) const
+{
+	return mBlock;
+}
+
+size_t StripedFile::tellOffset(void) const
+{
+	return mOffset;
+}
+
 void StripedFile::seek(uint64_t position)
 {
 	seek(position / mStripeSize, position % mStripeSize);

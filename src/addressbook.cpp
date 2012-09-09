@@ -256,11 +256,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 		}
 		else {
 			if(url[0] == '/') url.ignore();
+			String speering = url;
+			url = "/" + speering.cut('/');
 			
 			Identifier peering;
-			url >> peering;
-
+			speering >> peering;
 		  	Contact &contact = mContacts.get(peering);
+			
+			String contactRoot(prefix+'/'+peering.toString()+'/');
 			
 			Http::Response response(request,200);
 			response.send();
@@ -274,17 +277,50 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Secret: " + contact.secret.toString()); page.br();
 			page.text("Peering: " + contact.peering.toString()); page.br();
 			page.text("Remote peering: " + contact.remotePeering.toString()); page.br();
+			page.br();
 			
-			Request request("/images");
+			String target(url);
+			if(target.size() > 1 && target[target.size()-1] == '/') target = target.substr(0, target.size()-1);
+			
+			Request request(target);
 			request.submit(contact.peering);
 			request.wait();
 			
-			page.text("Files: " + String::number(request.responsesCount()));
 			for(int i=0; i<request.responsesCount(); ++i)
 			{
 				Request::Response *response = request.response(i);
-				page.stream()->write(*response->content());
-				response->content()->close();
+				StringMap parameters = response->parameters();
+				
+				if(!response->content()) page.text("No content...");
+				else {	
+					try {
+						if(parameters.contains("type") && parameters["type"] == "directory")
+						{
+							StringMap info;
+						
+								String base(url.substr(url.lastIndexOf('/')+1));
+								if(!base.empty()) base+= '/';
+								while(response->content()->read(info))
+								{
+									if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
+									else page.link("/" + info.get("hash"), info.get("name"));
+									page.br();
+								}
+							
+						}
+						else {
+							page.text("Download ");
+							page.link("/" + parameters.get("hash"), parameters.get("name"));
+							page.br();
+						}
+					}
+					catch(...)
+					{
+
+					}	
+					
+					response->content()->close();
+				}
 			}
 			
 			page.footer();

@@ -20,6 +20,9 @@
  *************************************************************************/
 
 #include "interface.h"
+#include "html.h"
+#include "store.h"
+#include "splicer.h"
 
 namespace arc
 {
@@ -65,6 +68,28 @@ void Interface::remove(const String &prefix)
 
 void Interface::process(Http::Request &request)
 {
+	//Log("Interface", "Request for URL \""+request.url+"\"");
+	
+	// Main page
+	if(request.url == "/")
+	{
+		Http::Response response(request, 200);
+		response.send();
+			
+		Html page(response.sock);
+		page.header("Arcanet");
+		page.open("h1");
+		page.text("Welcome on Arcanet");
+		page.close("h1");
+		
+		// TODO: Authentication
+		page.link("/alice", "Alice");
+		page.link("/bob", " Bob");
+		
+		page.footer();
+		return;
+	}
+	
 	List<String> list;
 	request.url.explode(list,'/');
 
@@ -87,6 +112,8 @@ void Interface::process(Http::Request &request)
 		{
 			request.url.ignore(prefix.size());
 			
+			//Log("Interface", "Matched prefix \""+prefix+"\"");
+			
 			if(prefix != "/" && request.url.empty())
 			{
 				Http::Response response(request, 301);	// Moved Permanently
@@ -102,6 +129,65 @@ void Interface::process(Http::Request &request)
 		}
 	}
 	mMutex.unlock();
+	
+	String url(request.url);
+	if(url[0] == '/') url.ignore();
+	if(!url.contains('/'))
+	{
+	 	try {
+			Identifier hash;
+			url >> hash;  
+		
+			Store::Entry entry;
+			if(Store::Instance->get(hash, entry, true))
+			{
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/octet-stream";
+				response.headers["Content-Disposition"] = "attachment";
+				if(entry.info.contains("name")) response.headers["Content-Disposition"]+= "; filename=\"" + entry.info.get("name") + "\"";
+				if(entry.info.contains("hash")) response.headers["Content-SHA512"] = entry.info.get("hash");
+				// TODO: Date + Last-Modified
+				response.send();
+				
+				if(entry.content) response.sock->write(*entry.content);
+				delete entry.content;
+				return;
+			}
+			else {
+				size_t blockSize = Store::ChunkSize;
+				String filename("/tmp/"+hash.toString());
+				Splicer splicer(hash, filename, blockSize);
+				File file(filename, File::Read);
+				
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/octet-stream";
+				response.headers["Content-SHA512"] = hash.toString();
+				// TODO: Missing headers
+				response.send();
+				
+				size_t current = 0;
+				while(true)
+				{
+					msleep(1000);
+					if(splicer.finished()) return;
+					size_t finished = splicer.finishedBlocks();
+					while(current < finished)
+					{
+						if(!file.read(*response.sock, blockSize)) return;
+						++current;
+					}
+				}
+				
+				return;
+			}
+		}
+		catch(const std::exception &e)
+		{
+			Log("Interface::process", String("Error: ") + e.what());
+			throw 404;
+		}
+	}
+	
 	throw 404;
 }
 

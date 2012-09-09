@@ -56,10 +56,28 @@ void Store::refresh(void)
 {
 	mFiles.clear();
 
+	Identifier hash;
+	Sha512::Hash("/", hash);
+	String entryName = DatabaseDirectory+Directory::Separator+hash.toString();
+	File dirEntry(entryName, File::Write);
+	dirEntry.writeLine("");
+
+	StringMap header;
+	header["name"] = "/";
+	header["type"] = "directory";
+	header["time"] << time(NULL);
+	dirEntry.write(header);
+	
 	for(StringMap::iterator it = mDirectories.begin();
 			it != mDirectories.end();
 			++it)
-	{
+	{	
+		StringMap info;
+		info["name"] = it->first;
+		info["type"] = "directory";
+		info["time"] << time(NULL);
+		dirEntry.write(info);
+		
 		refreshDirectory("/"+it->first, it->second);
 	}
 }
@@ -73,19 +91,23 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 		String url;
 		if(mFiles.get(identifier,url))	// Hash is on content
 		{
+			Log("Store", "Requested \"" + url + "\" from data hash");  
+		
 			Identifier hash;
 			Sha512::Hash(url, hash);
 			entryName = DatabaseDirectory+Directory::Separator+hash.toString();
 
-			if(File::Exist(entryName))		// TODO: force reindexation
-			{
-				File file(entryName, File::Read);
-				file.readLine(entry.path);
-				file.read(entry.info);
+			// TODO: not found ?!
+			if(!File::Exist(entryName)) return false;		// TODO: force reindexation
+			
+			File file(entryName, File::Read);
+			file.readLine(entry.path);
+			file.read(entry.info);
 
-				Assert(entry.info.get("type") != "directory");
-				if(content) entry.content = new File(entry.path, File::Read);	// content = file
-			}
+			if(content && entry.info.get("type") != "directory") 
+				entry.content = new File(entry.path, File::Read);	// content = file
+
+			return true;
 		}
 		else if(File::Exist(entryName))		// Hash is on URL
 		{
@@ -93,14 +115,19 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 			entry.content->readLine(entry.path);
 			entry.content->read(entry.info);
 
+			Log("Store", "Requested \"" + entry.info.get("name") + "\" from url");
+			
 			if(!content)
 			{
 				delete entry.content;
 				entry.content = NULL;
 			}
+			
+			return true;
+			
 		}
 	}
-	catch(Exception &e)
+	catch(const Exception &e)
 	{
 		if(entry.content)
 		{
@@ -108,17 +135,19 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 			entry.content = NULL;
 		}
 
-		Log("Store", String("Corrupted entry for ")+identifier.toString()+": "+e.what());
+		Log("Store", "Corrupted entry for \""+identifier.toString()+"\": "+e.what());
 		return false;
 	}
 
-	return true;
+	return false;
 }
 
 bool Store::get(const String &url, Entry &entry, bool content)
 {
-	Identifier hash;
+  	entry.content = NULL;
+  	if(url.empty()) return false;
 
+  	Identifier hash;	
 	try {
 		if(url.find('/') == String::NotFound)	// url is a hash
 		{
@@ -226,6 +255,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	dirEntry.writeLine(dirPath);
 
 	StringMap header;
+	header["name"] = dirUrl.substr(dirUrl.lastIndexOf('/')+1);
 	header["type"] = "directory";
 	header["time"] << time(NULL);
 	dirEntry.write(header);
@@ -284,6 +314,11 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 
 			if(dir.fileIsDir())
 			{
+			  	StringMap info;
+				dir.getFileInfo(info);
+				info["type"] = "directory";
+				dirEntry.write(info);
+				
 				refreshDirectory(url, dir.filePath());
 			}
 			else {

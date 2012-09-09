@@ -34,6 +34,10 @@ public:
 	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);
 	~StripedFile(void);
 
+	uint64_t tell(void) const;
+	size_t tellBlock(void) const;
+	size_t tellOffset(void) const;
+	
 	void seek(uint64_t position);
 	void seek(size_t block, size_t offset);
 

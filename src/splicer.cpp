@@ -21,6 +21,7 @@
 
 #include "splicer.h"
 #include "request.h"
+#include "pipe.h"
 
 namespace arc
 {
@@ -29,8 +30,8 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		mTarget(target),
 		mBlockSize(blockSize)
 {
-	mBlock = 0;
-
+	Log("Splicer", "Requesting available sources...");
+	
 	Request request(target.toString(),false);
 	request.submit();
 	request.wait();
@@ -47,6 +48,8 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		}
 	}
 
+	Log("Splicer", "Found " + String::number(int(sources.size())) + " sources");
+	
 	StringMap parameters;
 	parameters["BlockSize"] << blockSize;
 	parameters["StripesCount"] << sources.size();
@@ -59,13 +62,15 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 
 		Request *request = new Request;
 		request->setTarget(target.toString(),true);
-		parameters["Stripe"] << i;
+		parameters["Stripe"] = String::number(i);
 		request->setParameters(parameters);
 		request->setContentSink(striped);
 		mRequests.push_back(request);
 	}
 
 	request.unlock();
+	
+	Log("Splicer", "Transferts launched successfully");
 }
 
 Splicer::~Splicer(void)
@@ -75,6 +80,27 @@ Splicer::~Splicer(void)
 
 	for(int i=0; i<mStripes.size(); ++i)
 		delete mStripes[i];
+}
+
+bool Splicer::finished(void) const
+{
+	for(int i=0; i<mRequests.size(); ++i)
+	{
+		if(!mRequests[i]->responsesCount()) return false;
+		const Request::Response *response = mRequests[i]->response(0);
+		if(response->content()->is_open()) return false;
+	}
+
+	return true;
+}
+
+size_t Splicer::finishedBlocks(void) const
+{
+	size_t block = 0;
+	for(int i=0; i<mStripes.size(); ++i)
+		block = std::min(block, mStripes[i]->tellBlock());
+
+	return block;
 }
 
 }

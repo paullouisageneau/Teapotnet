@@ -60,6 +60,11 @@ void Pipe::close(void)
 	mMutex.unlock();
 }
 
+bool Pipe::is_open(void) const
+{
+	return (mWriteBuffer != NULL); 
+}
+
 size_t Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();

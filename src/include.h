@@ -147,17 +147,6 @@ template<typename T> void msleep(T msecs)
 #endif
 }
 
-#define Log(prefix, value) LogImpl(__FILE__, __LINE__, prefix, value)
-
-template<typename T> void LogImpl(const char *file, int line, const char *prefix, const T &value)
-{
-#ifdef DEBUG
-	std::cout<<file<<":"<<std::dec<<line<<" "<<prefix<<": "<<value<<std::endl;
-#else
-	std::cout<<prefix<<": "<<value<<std::endl;
-#endif
-}
-
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
 #define Set std::set
@@ -169,5 +158,30 @@ template<typename T> void LogImpl(const char *file, int line, const char *prefix
 const size_t BufferSize = 4096;
 
 }
+
+#ifndef ARC_MUTEX_H
+#include "mutex.h"
+
+namespace arc
+{
+
+extern Mutex LogMutex;
+
+#define Log(prefix, value) LogImpl(__FILE__, __LINE__, prefix, value)
+
+template<typename T> void LogImpl(const char *file, int line, const char *prefix, const T &value)
+{
+	LogMutex.lock();
+#ifdef DEBUG
+	std::cout<<file<<":"<<std::dec<<line<<" "<<prefix<<": "<<value<<std::endl;
+#else
+	std::cout<<prefix<<": "<<value<<std::endl;
+#endif
+	LogMutex.unlock();
+}
+
+}
+
+#endif
 
 #endif

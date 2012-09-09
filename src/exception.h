@@ -51,7 +51,7 @@ public:
 };
 
 #ifdef DEBUG
-	#define Assert(condition) if (!(condition)) throw AssertException(__FILE__, __LINE__, "AssertIOn failed : " #condition)
+	#define Assert(condition) if (!(condition)) throw AssertException(__FILE__, __LINE__, "Assertion failed : " #condition)
 #else
 	inline void DoNothing(bool) {}
 	#define Assert(condition) DoNothing(!(condition))
