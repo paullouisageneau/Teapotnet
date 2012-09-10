@@ -299,10 +299,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				Assert(path == dir.filePath());	
 				Assert(header.get("type") != "directory");
 				Assert(header.get("url") == url);
-				Assert(header.get("path") == path);
 				
-				StringMap info(header);
-				info.erase("path");
+				StringMap origHeader(header);
 				
 				time_t time;
 				size_t size;
@@ -319,7 +317,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
 					mFiles.insert(Identifier(hash), url);
-					dirEntry.write(info);
+					dirEntry.write(origHeader);
 					continue;
 				}
 			}
@@ -337,7 +335,6 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 			{
 			  	StringMap info;
 				dir.getFileInfo(info);
-				info.erase("path");
 				info["type"] = "directory";
 				info["url"] = url;
 				dirEntry.write(info);
@@ -367,7 +364,6 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				file.writeLine(dir.filePath());
 				file.write(header);
 				
-				header.erase("path");	// no path in info
 				dirEntry.write(header);
 
 				data.open(dir.filePath(), File::Read);
