@@ -296,8 +296,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				file.readLine(path);
 				file.read(header);
 				
-				Assert(path == dir.filePath());
-				Assert(header.contains("type"));			
+				Assert(path == dir.filePath());	
 				Assert(header.get("type") != "directory");
 				Assert(header.get("url") == url);
 				Assert(header.get("path") == path);
