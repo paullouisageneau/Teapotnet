@@ -74,7 +74,7 @@ void ByteString::serialize(Stream &s) const
 		std::ostringstream oss;
 		oss.width(2);
 		oss.fill('0');
-		oss<<std::hex<<unsigned(uint8_t(at(i)));
+		oss<<std::hex<<std::uppercase<<unsigned(uint8_t(at(i)));
 		s<<oss.str();
 	}
 }
