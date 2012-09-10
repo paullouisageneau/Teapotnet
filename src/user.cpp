@@ -114,7 +114,7 @@ void User::run(void)
 	while(true)
 	{
 		mAddressBook->update();
-		wait(2*60*1000);
+		mAddressBook->wait(2*60*1000);
 	}
 }
 

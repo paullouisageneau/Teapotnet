@@ -259,6 +259,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			String speering = url;
 			url = "/" + speering.cut('/');
 			
+			if(url == "/" && request.url[request.url.size()-1] != '/')
+			{
+			 	Http::Response response(request, 301);	// Moved Permanently
+				response.headers["Location"] = prefix+request.url+'/';
+				response.send();
+				return;
+			}
+			
 			Identifier peering;
 			speering >> peering;
 		  	Contact &contact = mContacts.get(peering);
@@ -279,48 +287,55 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Remote peering: " + contact.remotePeering.toString()); page.br();
 			page.br();
 			
-			String target(url);
-			if(target.size() > 1 && target[target.size()-1] == '/') target = target.substr(0, target.size()-1);
-			
-			Request request(target);
-			request.submit(contact.peering);
-			request.wait();
-			
-			for(int i=0; i<request.responsesCount(); ++i)
-			{
-				Request::Response *response = request.response(i);
-				StringMap parameters = response->parameters();
+			try {
+				String target(url);
+				if(target.size() > 1 && target[target.size()-1] == '/') target = target.substr(0, target.size()-1);
 				
-				if(!response->content()) page.text("No content...");
-				else {	
-					try {
-						if(parameters.contains("type") && parameters["type"] == "directory")
-						{
-							StringMap info;
-						
-								String base(url.substr(url.lastIndexOf('/')+1));
-								if(!base.empty()) base+= '/';
-								while(response->content()->read(info))
-								{
-									if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
-									else page.link("/" + info.get("hash"), info.get("name"));
-									page.br();
-								}
-							
-						}
-						else {
-							page.text("Download ");
-							page.link("/" + parameters.get("hash"), parameters.get("name"));
-							page.br();
-						}
-					}
-					catch(...)
-					{
-
-					}	
+				Request request(target);
+				request.submit(contact.peering);
+				request.wait();
+				
+				for(int i=0; i<request.responsesCount(); ++i)
+				{
+					Request::Response *response = request.response(i);
+					StringMap parameters = response->parameters();
 					
-					response->content()->close();
+					if(!response->content()) page.text("No content...");
+					else {	
+						try {
+							if(parameters.contains("type") && parameters["type"] == "directory")
+							{
+								StringMap info;
+							
+									String base(url.substr(url.lastIndexOf('/')+1));
+									if(!base.empty()) base+= '/';
+									while(response->content()->read(info))
+									{
+										if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
+										else page.link("/" + info.get("hash"), info.get("name"));
+										page.br();
+									}
+								
+							}
+							else {
+								page.text("Download ");
+								page.link("/" + parameters.get("hash"), parameters.get("name"));
+								page.br();
+							}
+						}
+						catch(...)
+						{
+
+						}	
+						
+						response->content()->close();
+					}
 				}
+			}
+			catch(const std::exception &e)
+			{
+				Log("Store::http", "Unable to query the file list");
+				page.text("Unable to retrieve the content...");
 			}
 			
 			page.footer();

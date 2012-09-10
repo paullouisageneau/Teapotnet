@@ -34,7 +34,7 @@
 namespace arc
 {
 
-class AddressBook : protected Synchronizable, public HttpInterfaceable
+class AddressBook : public Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(const String &name);
