@@ -139,7 +139,7 @@ void Interface::process(Http::Request &request)
 			url >> hash;  
 		
 			Store::Entry entry;
-			if(Store::Instance->get(hash, entry, true) && false)	// DEBUG ONLY
+			if(Store::Instance->get(hash, entry, true))
 			{
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
@@ -166,18 +166,20 @@ void Interface::process(Http::Request &request)
 				response.send();
 				
 				size_t current = 0;
-				while(true)
+				while(!splicer.finished())
 				{
-					msleep(1000);
-					if(splicer.finished()) return;
 					size_t finished = splicer.finishedBlocks();
+					VAR(finished);
 					while(current < finished)
 					{
 						if(!file.read(*response.sock, blockSize)) return;
 						++current;
 					}
+					
+					msleep(500);
 				}
 				
+				file.read(*response.sock);
 				return;
 			}
 		}

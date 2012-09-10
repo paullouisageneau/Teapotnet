@@ -48,6 +48,8 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		}
 	}
 
+	if(sources.empty()) throw Exception("No sources found");
+	
 	Log("Splicer", "Found " + String::number(int(sources.size())) + " sources");
 	
 	StringMap parameters;
@@ -71,6 +73,8 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		request->submit(*it);
 		mRequests.push_back(request);
 		
+		// TODO: check responses ?
+		
 		++i;
 	}
 
@@ -93,9 +97,22 @@ bool Splicer::finished(void) const
 {
 	for(int i=0; i<mRequests.size(); ++i)
 	{
-		if(!mRequests[i]->responsesCount()) return false;
+		mRequests[i]->lock();
+		
+		if(mRequests[i]->responsesCount() == 0)
+		{
+			mRequests[i]->unlock();
+			return false;
+		}
+		
 		const Request::Response *response = mRequests[i]->response(0);
-		if(response->content()->is_open()) return false;
+		if(!response || response->content()->is_open()) 
+		{
+			mRequests[i]->unlock();
+			return false;
+		}
+
+		mRequests[i]->unlock();
 	}
 
 	return true;
@@ -103,8 +120,8 @@ bool Splicer::finished(void) const
 
 size_t Splicer::finishedBlocks(void) const
 {
-	size_t block = 0;
-	for(int i=0; i<mStripes.size(); ++i)
+	size_t block = mStripes[0]->tellBlock();
+	for(int i=1; i<mStripes.size(); ++i)
 		block = std::min(block, mStripes[i]->tellBlock());
 
 	return block;
