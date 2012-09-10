@@ -59,12 +59,13 @@ void Store::refresh(void)
 	Identifier hash;
 	Sha512::Hash("/", hash);
 	String entryName = DatabaseDirectory+Directory::Separator+hash.toString();
-	File dirEntry(entryName, File::Write);
+	SafeWriteFile dirEntry(entryName);
 	dirEntry.writeLine("");
 
 	StringMap header;
 	header["name"] = "/";
 	header["type"] = "directory";
+	header["url"] = "/";
 	header["time"] << time(NULL);
 	dirEntry.write(header);
 	
@@ -72,19 +73,27 @@ void Store::refresh(void)
 			it != mDirectories.end();
 			++it)
 	{	
+		refreshDirectory("/" + it->first, it->second);
+		
 		StringMap info;
 		info["name"] = it->first;
 		info["type"] = "directory";
+		info["url"]  = "/" + it->first; 
 		info["time"] << time(NULL);
 		dirEntry.write(info);
-		
-		refreshDirectory("/"+it->first, it->second);
 	}
 }
 
 bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 {
 	entry.content = NULL;
+	entry.info.clear();
+	
+	if(entry.identifier != identifier)
+	{
+		entry.identifier = identifier;
+		entry.url.clear();
+	}
 
 	try {
 		String entryName = DatabaseDirectory+Directory::Separator+identifier.toString();
@@ -97,13 +106,17 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 			Sha512::Hash(url, hash);
 			entryName = DatabaseDirectory+Directory::Separator+hash.toString();
 
-			// TODO: not found ?!
-			if(!File::Exist(entryName)) return false;		// TODO: force reindexation
+			if(!File::Exist(entryName))
+			{
+				Log("Store", "WARNING: No entry for " + hash.toString());
+				return false;		// TODO: force reindexation
+			}
 			
 			File file(entryName, File::Read);
 			file.readLine(entry.path);
 			file.read(entry.info);
-
+			if(entry.url.empty()) entry.info.get("url", entry.url);
+			
 			if(content && entry.info.get("type") != "directory") 
 				entry.content = new File(entry.path, File::Read);	// content = file
 
@@ -114,6 +127,7 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 			entry.content = new File(entryName, File::Read);	// content = meta
 			entry.content->readLine(entry.path);
 			entry.content->read(entry.info);
+			if(entry.url.empty()) entry.info.get("url", entry.url);
 
 			Log("Store", "Requested \"" + entry.info.get("name") + "\" from url");
 			
@@ -145,17 +159,20 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 bool Store::get(const String &url, Entry &entry, bool content)
 {
   	entry.content = NULL;
+	entry.url = url;
+	entry.identifier.clear();
+	entry.info.clear();
+	
   	if(url.empty()) return false;
-
-  	Identifier hash;	
+	
 	try {
 		if(url.find('/') == String::NotFound)	// url is a hash
 		{
 			String s(url);
-			s >> hash;
+			s >> entry.identifier;
 		}
 		else {
-			Sha512::Hash(url, hash);
+			Sha512::Hash(url, entry.identifier);
 		}
 	}
 	catch(...)
@@ -164,7 +181,7 @@ bool Store::get(const String &url, Entry &entry, bool content)
 		return false;
 	}
 
-	return get(hash, entry, content);
+	return get(entry.identifier, entry, content);
 }
 
 void Store::http(const String &prefix, Http::Request &request)
@@ -255,6 +272,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	dirEntry.writeLine(dirPath);
 
 	StringMap header;
+	header["url"] = dirUrl;
 	header["name"] = dirUrl.substr(dirUrl.lastIndexOf('/')+1);
 	header["type"] = "directory";
 	header["time"] << time(NULL);
@@ -278,17 +296,21 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				file.readLine(path);
 				file.read(header);
 				
-				StringMap origHeader(header);
-
-				time_t time;
-				header["time"] >> time;
-				if(!header.contains("type")) throw Exception("Missing type field");				
-				if(header["type"] == "directory") throw Exception("Invalid type for file");
+				Assert(path == dir.filePath());
+				Assert(header.contains("type"));			
+				Assert(header.get("type") != "directory");
+				Assert(header.get("url") == url);
+				Assert(header.get("path") == path);
 				
+				StringMap info(header);
+				info.erase("path");
+				
+				time_t time;
 				size_t size;
 				String hash;
 				size_t chunkSize;
 				unsigned chunkCount;
+				header["time"] >> time;
 				header["size"] >> size;
 				header["chunk-size"] >> chunkSize;
 				header["chunk-count"] >> chunkCount;
@@ -298,7 +320,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
 					mFiles.insert(Identifier(hash), url);
-					dirEntry.write(origHeader);
+					dirEntry.write(info);
 					continue;
 				}
 			}
@@ -316,7 +338,9 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 			{
 			  	StringMap info;
 				dir.getFileInfo(info);
+				info.erase("path");
 				info["type"] = "directory";
+				info["url"] = url;
 				dirEntry.write(info);
 				
 				refreshDirectory(url, dir.filePath());
@@ -333,6 +357,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				StringMap header;
 				dir.getFileInfo(header);
 				header["type"] = "file";
+				header["url"] = url;
 				header["chunk-size"] << chunkSize;
 				header["chunk-count"] << chunkCount;
 				header["hash"] << dataHash;
@@ -342,6 +367,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				File file(entryName, File::Write);
 				file.writeLine(dir.filePath());
 				file.write(header);
+				
+				header.erase("path");	// no path in info
 				dirEntry.write(header);
 
 				data.open(dir.filePath(), File::Read);

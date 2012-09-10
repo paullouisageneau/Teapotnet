@@ -49,8 +49,8 @@ public:
 
 	struct Entry
 	{
-		Identifier 	identifier;	// TODO
-		String		url;		// TODO
+		Identifier 	identifier;
+		String		url;
 		String		path;
 		StringMap	info;
 		File		*content;	// file content
