@@ -28,6 +28,7 @@ namespace arc
 
 Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
 		mTarget(target),
+		mFileName(filename),
 		mBlockSize(blockSize)
 {
 	Log("Splicer", "Requesting available sources...");
@@ -42,12 +43,17 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 	for(int i=0; i<request.responsesCount(); ++i)
 	{
 		Request::Response *response = request.response(i);
+		StringMap parameters = response->parameters();
+		
 		if(response->status() == "OK")
 		{
+			if(mName.empty() && parameters.contains("name")) 
+				mName = parameters.get("name");
 			sources.insert(response->peering());
 		}
 	}
 
+	if(mName.empty()) throw Exception("Unable to retrieve the file name");
 	if(sources.empty()) throw Exception("No sources found");
 	
 	Log("Splicer", "Found " + String::number(int(sources.size())) + " sources");
@@ -91,6 +97,11 @@ Splicer::~Splicer(void)
 	// Deleting the requests deletes the responses
 	// Deleting the responses deletes the contents
 	// So the stripes are already deleted
+}
+
+const String &Splicer::name(void)
+{
+	return mName;
 }
 
 bool Splicer::finished(void) const

@@ -39,11 +39,15 @@ public:
 	Splicer(const Identifier &target, const String &filename, size_t blockSize);
 	~Splicer(void);
 
+	const String &name(void);
+	
 	bool finished(void) const;
 	size_t finishedBlocks(void) const;
 	
 private:
 	Identifier mTarget;
+	String mFileName;
+	String mName;
 	size_t mBlockSize;
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;

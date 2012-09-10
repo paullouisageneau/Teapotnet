@@ -161,6 +161,7 @@ void Interface::process(Http::Request &request)
 				
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
+				response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
 				response.headers["Content-SHA512"] = hash.toString();
 				// TODO: Missing headers
 				response.send();
