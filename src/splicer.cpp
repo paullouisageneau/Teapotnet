@@ -54,7 +54,10 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 	parameters["BlockSize"] << blockSize;
 	parameters["StripesCount"] << sources.size();
 
-	for(int i=0; i<sources.size(); ++i)
+	int i = 0;
+	for(Set<Identifier>::iterator it = sources.begin();
+	  	it != sources.end();
+		++it)
 	{
 		File *file = new File(filename, File::Write);
 		StripedFile *striped = new StripedFile(file, blockSize, sources.size(), i);
@@ -65,7 +68,10 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		parameters["Stripe"] = String::number(i);
 		request->setParameters(parameters);
 		request->setContentSink(striped);
+		request->submit(*it);
 		mRequests.push_back(request);
+		
+		++i;
 	}
 
 	request.unlock();
@@ -78,8 +84,9 @@ Splicer::~Splicer(void)
 	for(int i=0; i<mRequests.size(); ++i)
 		delete mRequests[i];
 
-	for(int i=0; i<mStripes.size(); ++i)
-		delete mStripes[i];
+	// Deleting the requests deletes the responses
+	// Deleting the responses deletes the contents
+	// So the stripes are already deleted
 }
 
 bool Splicer::finished(void) const

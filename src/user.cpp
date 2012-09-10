@@ -97,24 +97,24 @@ void User::http(const String &prefix, Http::Request &request)
 			page.link(prefix+"/contacts/","Contacts");
 			
 			page.footer();
+			return;
 		}
-		else throw 404;
 	}
 	catch(Exception &e)
 	{
 		Log("User::http",e.what());
 		throw 404;	// Httpd handles integer exceptions
 	}
+			
+	throw 404;
 }
 
 void User::run(void)
 {
-	synchronize(this);
-	
 	while(true)
 	{
 		mAddressBook->update();
-		mAddressBook->wait(2*60*1000);
+		mAddressBook->wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
 	}
 }
 

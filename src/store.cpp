@@ -282,7 +282,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 	while(dir.nextFile())
 	{
 		String url(dirUrl + '/' + dir.fileName());
-		ByteString urlHash;
+		Identifier urlHash;
 		Sha512::Hash(url, urlHash);
 		String entryName = DatabaseDirectory+Directory::Separator+urlHash.toString();
 
@@ -304,7 +304,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				
 				time_t time;
 				size_t size;
-				String hash;
+				Identifier hash;
 				size_t chunkSize;
 				unsigned chunkCount;
 				header["time"] >> time;
@@ -316,7 +316,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				// If the file has not changed, don't hash it again
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
-					mFiles.insert(Identifier(hash), url);
+					mFiles.insert(hash, url);
 					dirEntry.write(origHeader);
 					continue;
 				}
@@ -342,7 +342,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				refreshDirectory(url, dir.filePath());
 			}
 			else {
-				ByteString dataHash;
+				Identifier dataHash;
 				File data(dir.filePath(), File::Read);
 				Sha512::Hash(data, dataHash);
 				data.close();
