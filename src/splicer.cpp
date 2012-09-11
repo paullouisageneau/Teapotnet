@@ -131,9 +131,9 @@ bool Splicer::finished(void) const
 
 size_t Splicer::finishedBlocks(void) const
 {
-	size_t block = mStripes[0]->tellBlock();
+	size_t block = mStripes[0]->tellWriteBlock();
 	for(int i=1; i<mStripes.size(); ++i)
-		block = std::min(block, mStripes[i]->tellBlock());
+		block = std::min(block, mStripes[i]->tellWriteBlock());
 
 	return block;
 }

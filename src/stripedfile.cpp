@@ -31,8 +31,8 @@ StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe
 		mStripe(stripe)
 {
 	mFile->seekg(stripe*mStripeSize, File::beg);
-	mBlock = 0;
-	mOffset = 0;
+	mReadBlock = mWriteBlock = 0;
+	mReadOffset = mWriteOffset = 0;
 }
 
 StripedFile::~StripedFile(void)
@@ -41,43 +41,86 @@ StripedFile::~StripedFile(void)
 	delete mFile;
 }
 
-uint64_t StripedFile::tell(void) const
+uint64_t StripedFile::tellRead(void) const
 {
-	return uint64_t(mBlock)*mStripeSize + uint64_t(mOffset);
+	return uint64_t(tellReadBlock())*mStripeSize + uint64_t(tellReadOffset());
 }
 
-size_t StripedFile::tellBlock(void) const
+size_t StripedFile::tellReadBlock(void) const
 {
-	return mBlock;
+	return mReadBlock;
 }
 
-size_t StripedFile::tellOffset(void) const
+size_t StripedFile::tellReadOffset(void) const
 {
-	return mOffset;
+	return mReadOffset;
 }
 
-void StripedFile::seek(uint64_t position)
+uint64_t StripedFile::tellWrite(void) const
 {
-	seek(position / mStripeSize, position % mStripeSize);
+	return uint64_t(tellWriteBlock())*mStripeSize + uint64_t(tellWriteOffset());
 }
 
-void StripedFile::seek(size_t block, size_t offset)
+size_t StripedFile::tellWriteBlock(void) const
 {
-	if(mBlock <= block)
+	return mWriteBlock;
+}
+
+size_t StripedFile::tellWriteOffset(void) const
+{
+	return mWriteOffset;
+}
+
+void StripedFile::seekRead(uint64_t position)
+{
+	seekRead(position / mStripeSize, position % mStripeSize);
+}
+
+void StripedFile::seekRead(size_t block, size_t offset)
+{
+	if(mReadBlock <= block)
 	{
-		mFile->seekg(offset-mOffset, File::cur);
-		mOffset = offset;
+		mFile->seekg(offset-mReadOffset, File::cur);
+		mReadOffset = offset;
 	}
 	else {
 		mFile->seekg(mStripe*mStripeSize + offset, File::beg);
-		mBlock = 0;
-		mOffset = offset;
+		mReadBlock = 0;
+		mReadOffset = offset;
 	}
 
-	while(mBlock < block)
+	while(mReadBlock < block)
 	{
 		mFile->seekg(mBlockSize, File::cur);
-		++mBlock;
+		++mReadBlock;
+	}
+}
+
+void StripedFile::seekWrite(uint64_t position)
+{
+	seekWrite(position / mStripeSize, position % mStripeSize);
+}
+
+void StripedFile::seekWrite(size_t block, size_t offset)
+{
+	// WARNING: seekp() MUST allow seeking past the end of the file.
+	// If it is not the case, this WILL NOT work.
+  
+	if(mWriteBlock <= block)
+	{
+		mFile->seekp(offset-mWriteOffset, File::cur);
+		mWriteOffset = offset;
+	}
+	else {
+		mFile->seekp(mStripe*mStripeSize + offset, File::beg);
+		mWriteBlock = 0;
+		mWriteOffset = offset;
+	}
+
+	while(mWriteBlock < block)
+	{
+		mFile->seekp(mBlockSize, File::cur);
+		++mWriteBlock;
 	}
 }
 
@@ -85,14 +128,14 @@ size_t StripedFile::readData(char *buffer, size_t size)
 {
 	if(!size) return 0;
 
-	const size_t left = std::min(mStripeSize - mOffset, size);
+	const size_t left = std::min(mStripeSize - mReadOffset, size);
 	const size_t len = mFile->readData(buffer, left);
-	mOffset+= len;
+	mReadOffset+= len;
 
-	if(mOffset == mStripeSize)
+	if(mReadOffset == mStripeSize)
 	{
 		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
+		seekRead(mReadBlock+1, 0);
 		return len + readData(buffer+len, size-len);
 	}
 
@@ -103,15 +146,15 @@ void StripedFile::writeData(const char *buffer, size_t size)
 {
 	if(!size) return;
 
-	const size_t len = std::min(mStripeSize - mOffset, size);
+	const size_t len = std::min(mStripeSize - mWriteOffset, size);
 
 	mFile->writeData(buffer, len);
-	mOffset+= len;
+	mWriteOffset+= len;
 
-	if(mOffset == mStripeSize)
+	if(mWriteOffset == mStripeSize)
 	{
 		// Move to the beginning of the stripe on the next block
-		seek(mBlock+1, 0);
+		seekWrite(mWriteBlock+1, 0);
 		writeData(buffer+len, size-len);
 	}
 }
