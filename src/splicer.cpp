@@ -25,7 +25,7 @@
 
 namespace arc
 {
-
+  
 Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
 		mTarget(target),
 		mFileName(filename),
@@ -33,9 +33,11 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 {
 	Log("Splicer", "Requesting available sources...");
 	
+	time_t timeout = 2000;	// TODO
+	
 	Request request(target.toString(),false);
 	request.submit();
-	request.wait();
+	request.wait(timeout);
 
 	request.lock();
 
