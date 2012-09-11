@@ -121,9 +121,7 @@ bool Request::execute(void)
 	ByteStream *content = NULL;
 	if(entry.content)
 	{
-		content = entry.content;
-
-		if(entry.info["type"] != "directory" && parameters.contains("Stripe"))
+		if(parameters.contains("Stripe"))
 		{
 			size_t blockSize;
 			int nbStripe, stripe;
@@ -135,11 +133,12 @@ bool Request::execute(void)
 			StripedFile *stripedFile = new StripedFile(entry.content, blockSize, nbStripe, stripe);
 			// TODO: seeking
 			content = stripedFile;
-
+			
 			size_t size;
 			entry.info["size"] >> size;
 			entry.info["size"] << size/nbStripe;
 		}
+		else content = entry.content;
 
 	}
 

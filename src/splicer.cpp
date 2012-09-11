@@ -119,7 +119,10 @@ bool Splicer::finished(void) const
 		}
 		
 		const Request::Response *response = mRequests[i]->response(0);
-		if(!response || response->content()->is_open()) 
+		Assert(response != NULL);
+		Assert(response->content() != NULL);
+		
+		if(response->content()->is_open()) 
 		{
 			mRequests[i]->unlock();
 			return false;

@@ -31,6 +31,8 @@ StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe
 		mStripe(stripe)
 {
 	mFile->seekg(stripe*mStripeSize, File::beg);
+	mFile->seekp(stripe*mStripeSize, File::beg);
+	
 	mReadBlock = mWriteBlock = 0;
 	mReadOffset = mWriteOffset = 0;
 }
