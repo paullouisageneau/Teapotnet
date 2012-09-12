@@ -19,45 +19,44 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_USER_H
-#define ARC_USER_H
+#ifndef ARC_MESSAGE_H
+#define ARC_MESSAGE_H
 
 #include "include.h"
-#include "thread.h"
-#include "http.h"
-#include "interface.h"
+#include "string.h"
 #include "identifier.h"
-#include "addressbook.h"
-#include "core.h"
 #include "map.h"
 
 namespace arc
 {
 
-class User : public Thread, protected Synchronizable, public Core::Listener, public HttpInterfaceable
+class Message
 {
 public:
-	static User *Authenticate(const String &name, const String &password);
-	
-	User(const String &name, const String &password = "");
-	~User(void);
-	
-	const String &name(void) const;
-	String profilePath(void) const;
-	
-	void message(const Message &message);
-	void http(const String &prefix, Http::Request &request);
-	
+	Message(const String &content = "");
+	virtual ~Message(void);
+
+	const Identifier &receiver(void) const;
+	const String &content(void) const;
+	const StringMap &parameters(void) const;
+	bool parameter(const String &name, String &value) const;
+
+	void setContent(const String &content);
+	void setParameters(StringMap &params);
+	void setParameter(const String &name, const String &value);
+
+	void send(void);
+	void send(const Identifier &receiver);
+
 private:
-	void run(void);
-	
-	String mName;
-	Identifier mHash;
-	AddressBook *mAddressBook;
-	
-	static Map<Identifier, User*> UsersMap;
+	Identifier mReceiver;
+	StringMap mParameters;
+	String mContent;
+
+	friend class Core;
 };
 
 }
 
 #endif
+

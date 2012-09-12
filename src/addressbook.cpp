@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "addressbook.h"
+#include "user.h"
 #include "core.h"
 #include "sha512.h"
 #include "config.h"
@@ -30,10 +31,13 @@
 namespace arc
 {
 
-AddressBook::AddressBook(const String &name) :
-	mName(name)
+AddressBook::AddressBook(User *user)
 {
-	Interface::Instance->add("/"+name+"/contacts", this);
+	Assert(user != NULL);
+	mUser = user;
+	mName = user->name();
+	
+	Interface::Instance->add("/"+mName+"/contacts", this);
 	
 	try {
 	  File file(fileName(), File::Read);
@@ -149,7 +153,7 @@ void AddressBook::update(void)
 
 		if(!Core::Instance->hasPeer(contact.peering))
 		{
-			Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret);
+			Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret, mUser);
 		  
 			Log("AddressBook::update", "Querying tracker " + contact.tracker);
 			if(query(contact.peering, contact.tracker, contact.addrs))
@@ -397,7 +401,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 
 String AddressBook::fileName(void) const
 {
-	return Config::Get("profiles_dir")+Directory::Separator+mName+Directory::Separator+"contacts";
+	return mUser->profilePath()+"contacts";
 }
 
 void AddressBook::Contact::serialize(Stream &s) const

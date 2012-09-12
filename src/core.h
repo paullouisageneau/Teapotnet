@@ -32,6 +32,7 @@
 #include "mutex.h"
 #include "signal.h"
 #include "identifier.h"
+#include "message.h"
 #include "request.h"
 #include "synchronizable.h"
 #include "map.h"
@@ -41,23 +42,31 @@
 
 namespace arc
 {
-
+  
 class Core : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static Core *Instance;
+	
+	class Listener
+	{
+	public:
+		virtual void message(const Message &message) = 0; 
+	};
 	
 	Core(int port);
 	~Core(void);
 	
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const ByteString &secret);
+		       		const ByteString &secret,
+				Listener *listener = NULL);
 	void unregisterPeering(const Identifier &peering);
 			     
 	void addPeer(Socket *sock, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
 	
+	void sendMessage(const Message &message);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 
@@ -74,6 +83,7 @@ private:
 
 		void setPeering(const Identifier &peering);
 		
+		void sendMessage(const Message &message);
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
 
@@ -112,6 +122,7 @@ private:
 			Socket  *mSock;
 			unsigned mLastChannel;
 			Map<unsigned, ByteStream*> mTransferts;	// TODO
+			Queue<Message>	mMessagesQueue;
 			Queue<Request*> mRequestsQueue;
 			Array<Request*> mRequestsToRespond;
 			friend class Handler;
@@ -126,7 +137,8 @@ private:
 	ServerSocket mSock;
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, ByteString> mSecrets;
-	Map<Identifier,Handler*> mPeers;
+	Map<Identifier, Listener*> mListeners;
+	Map<Identifier,Handler*> mHandlers;
 	Map<unsigned,Request*> mRequests;
 	unsigned mLastRequest;
 

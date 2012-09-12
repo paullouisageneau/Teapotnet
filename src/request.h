@@ -26,14 +26,11 @@
 #include "synchronizable.h"
 #include "identifier.h"
 #include "bytestream.h"
-#include "synchronizable.h"
 #include "array.h"
 #include "map.h"
 
 namespace arc
 {
-
-class Core;
 
 class Request : public Synchronizable
 {

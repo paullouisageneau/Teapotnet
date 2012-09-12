@@ -44,12 +44,15 @@ Core::~Core(void)
 
 void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const ByteString &secret)
+		       		const ByteString &secret,
+				Core::Listener *listener)
 {
 	synchronize(this);
 	
 	mPeerings[peering] = remotePeering;
 	mSecrets[peering] = secret;
+	if(listener) mListeners[peering] = listener;
+	else mListeners.erase(peering);
 }
 
 void Core::unregisterPeering(const Identifier &peering)
@@ -77,7 +80,7 @@ void Core::addPeer(Socket *sock, const Identifier &peering)
 bool Core::hasPeer(const Identifier &peering)
 {
 	synchronize(this);
-	return mPeers.contains(peering);
+	return mHandlers.contains(peering);
 }
 
 void Core::run(void)
@@ -99,6 +102,29 @@ void Core::run(void)
 	Log("Core", "Finished");
 }
 
+void Core::sendMessage(const Message &message)
+{
+	synchronize(this);
+	
+	if(message.mReceiver == Identifier::Null)
+	{
+		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+				it != mHandlers.end();
+				++it)
+		{
+			Handler *handler = it->second;
+			handler->sendMessage(message);
+		}
+	}
+	else {
+		Handler *handler;
+		if(!mHandlers.get(message.mReceiver, handler)) 
+			throw Exception("Message receiver is not connected");
+		
+		handler->sendMessage(message);
+	}
+}
+
 unsigned Core::addRequest(Request *request)
 {
 	synchronize(this);
@@ -109,8 +135,8 @@ unsigned Core::addRequest(Request *request)
 
 	if(request->mReceiver == Identifier::Null)
 	{
-		for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
-				it != mPeers.end();
+		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+				it != mHandlers.end();
 				++it)
 		{
 			Handler *handler = it->second;
@@ -119,8 +145,8 @@ unsigned Core::addRequest(Request *request)
 	}
 	else {
 		Handler *handler;
-		if(!mPeers.get(request->mReceiver, handler)) 
-			throw Exception("Unknown receiver");
+		if(!mHandlers.get(request->mReceiver, handler)) 
+			throw Exception("Request receiver is not connected");
 		
 		handler->addRequest(request);
 	}
@@ -132,8 +158,8 @@ void Core::removeRequest(unsigned id)
 {
 	synchronize(this);
   
-	for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
-				it != mPeers.end();
+	for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+				it != mHandlers.end();
 				++it)
 	{
 		Handler *handler = it->second;
@@ -158,9 +184,9 @@ void Core::http(const String &prefix, Http::Request &request)
 			page.text("Peers");
 			page.close("h1");
 
-			if(mPeers.empty()) page.text("No peer...");
-			else for(Map<Identifier,Handler*>::iterator it = mPeers.begin();
-							it != mPeers.end();
+			if(mHandlers.empty()) page.text("No peer...");
+			else for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
+							it != mHandlers.end();
 							++it)
 			{
 				String str(it->first.toString());
@@ -185,9 +211,9 @@ void Core::addHandler(const Identifier &peer, Core::Handler *handler)
 	Assert(handler != NULL);
 	synchronize(this);
 	
-	if(!mPeers.contains(peer)) mPeers.insert(peer, handler);
+	if(!mHandlers.contains(peer)) mHandlers.insert(peer, handler);
 	else {
-		if(mPeers[peer] != handler)
+		if(mHandlers[peer] != handler)
 			throw Exception("Another handler is already registered");
 	}
 }
@@ -196,12 +222,12 @@ void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
 	synchronize(this);
   
-	if(mPeers.contains(peer))
+	if(mHandlers.contains(peer))
 	{
-		Handler *h = mPeers.get(peer);
+		Handler *h = mHandlers.get(peer);
 		if(h != handler) return;
 		delete h;
-		mPeers.erase(peer);
+		mHandlers.erase(peer);
 	}
 }
 
@@ -261,6 +287,18 @@ void Core::Handler::setPeering(const Identifier &peering)
 	mPeering = peering;
 }
 
+void Core::Handler::sendMessage(const Message &message)
+{
+	synchronize(this);
+	
+	Log("Core::Handler", "New message");
+	
+	mSender.lock();
+	mSender.mMessagesQueue.push(message);
+	mSender.unlock();
+	mSender.notify();
+}
+
 void Core::Handler::addRequest(Request *request)
 {
 	synchronize(this);
@@ -302,8 +340,11 @@ void Core::Handler::run(void)
 	  
 		if(mPeering != Identifier::Null)
 		{
-			if(!mCore->mPeerings.get(mPeering, mRemotePeering)) 
-				throw Exception("Unknown peering: " + mPeering.toString());
+		  	{
+				synchronize(mCore);
+				if(!mCore->mPeerings.get(mPeering, mRemotePeering))
+					throw Exception("Unknown peering: " + mPeering.toString());
+			}
 			
 			args.clear();
 			args << mRemotePeering;
@@ -329,7 +370,12 @@ void Core::Handler::run(void)
 		
 		ByteString secret;
 		if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());	// TODO: useless
-		if(!mCore->mSecrets.get(peering, secret)) throw Exception("No secret for peering: " + peering.toString());
+		
+		{
+			synchronize(mCore);
+			if(!mCore->mSecrets.get(peering, secret)) 
+				throw Exception("No secret for peering: " + peering.toString());
+		}
 		
 		if(mPeering == Identifier::Null)
 		{
@@ -468,6 +514,29 @@ void Core::Handler::run(void)
 				mSender.unlock();
 				mSender.notify();
 			}
+			else if(command == "M")
+			{
+				unsigned size;
+				args.read(size);
+				
+				Message message;
+				message.mReceiver = mPeering;
+				message.mParameters = parameters;
+				message.mContent.reserve(size);
+				
+				mSock->read(message.mContent,size);
+				
+				Listener *listener;
+				
+				{
+					synchronize(mCore);
+					if(!mCore->mListeners.get(mPeering, listener))
+						listener = NULL;
+				}
+				
+				if(listener) listener->message(message);
+				else Log("Core::Handler", "WARNING: No message listener, dropping message");
+			}
 
 			unlock();
 		}
@@ -498,6 +567,8 @@ Core::Handler::Sender::~Sender(void)
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
 	{
 		Request *request = mRequestsToRespond[i];
+		synchronize(request);
+		
 		if(request->mResponseSender == this)
 			request->mResponseSender = NULL;
 	}
@@ -511,8 +582,9 @@ void Core::Handler::Sender::run(void)
 		while(true)
 		{
 			lock();
-			if(mTransferts.empty()
-				&& mRequestsQueue.empty())
+			if(mMessagesQueue.empty()
+				&& mRequestsQueue.empty()
+			  	&& mTransferts.empty())
 			{
 				//Log("Core::Handler::Sender", "No pending tasks, waiting");
 				wait();
@@ -551,6 +623,20 @@ void Core::Handler::Sender::run(void)
 				}
 			}
 			
+			if(!mMessagesQueue.empty())
+			{
+				const Message &message = mMessagesQueue.front();
+				Log("Core::Handler::Sender", "Sending message");
+				
+				String args;
+				args << message.mContent.size();
+				Handler::sendCommand(mSock, "M", args, message.parameters());
+				
+				mSock->write(message.mContent);
+				
+				mMessagesQueue.pop();
+			}
+			  
 			if(!mRequestsQueue.empty())
 			{
 				Request *request = mRequestsQueue.front();
@@ -594,8 +680,9 @@ void Core::Handler::Sender::run(void)
 	}
 	catch(std::exception &e)
 	{
+		mSock->close();
 		unlock();
-		Log("Core::Handler::Sender", String("ERROR: ") + e.what()); 
+		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}
 	
 }

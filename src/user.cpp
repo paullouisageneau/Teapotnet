@@ -46,7 +46,7 @@ User *User::Authenticate(const String &name, const String &password)
 
 User::User(const String &name, const String &password) :
 	mName(name),
-	mAddressBook(new AddressBook(name))
+	mAddressBook(new AddressBook(this))
 {
 	if(password.empty())
 	{
@@ -74,6 +74,11 @@ User::~User(void)
 	UsersMap.erase(mHash);
 	Interface::Instance->remove("/"+mName);
 	delete mAddressBook;
+}
+
+void User::message(const Message &message)
+{
+	// TODO
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -109,13 +114,9 @@ void User::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void User::run(void)
+const String &User::name(void) const
 {
-	while(true)
-	{
-		mAddressBook->update();
-		mAddressBook->wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
-	}
+	return mName; 
 }
 
 String User::profilePath(void) const
@@ -124,6 +125,15 @@ String User::profilePath(void) const
 	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
 	if(!Directory::Exist(path)) Directory::Create(path);
 	return path + Directory::Separator;
+}
+
+void User::run(void)
+{
+	while(true)
+	{
+		mAddressBook->update();
+		mAddressBook->wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
+	}
 }
 
 }

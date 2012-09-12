@@ -34,10 +34,12 @@
 namespace arc
 {
 
+class User;
+  
 class AddressBook : public Synchronizable, public HttpInterfaceable
 {
 public:
-	AddressBook(const String &name);
+	AddressBook(User *user);
 	~AddressBook(void);
 	
 	const Identifier &addContact(String &name, ByteString &secret);
@@ -72,6 +74,7 @@ private:
 	String fileName(void) const;
 	
 	String mName;
+	User *mUser;
 	Map<Identifier, Contact> mContacts;	// Sorted by peering
 };
 

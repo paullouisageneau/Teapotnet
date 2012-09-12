@@ -19,45 +19,67 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_USER_H
-#define ARC_USER_H
-
-#include "include.h"
-#include "thread.h"
-#include "http.h"
-#include "interface.h"
-#include "identifier.h"
-#include "addressbook.h"
+#include "message.h"
 #include "core.h"
-#include "map.h"
 
 namespace arc
 {
 
-class User : public Thread, protected Synchronizable, public Core::Listener, public HttpInterfaceable
+Message::Message(const String &content) :
+	mContent(content)
 {
-public:
-	static User *Authenticate(const String &name, const String &password);
-	
-	User(const String &name, const String &password = "");
-	~User(void);
-	
-	const String &name(void) const;
-	String profilePath(void) const;
-	
-	void message(const Message &message);
-	void http(const String &prefix, Http::Request &request);
-	
-private:
-	void run(void);
-	
-	String mName;
-	Identifier mHash;
-	AddressBook *mAddressBook;
-	
-	static Map<Identifier, User*> UsersMap;
-};
-
+  
 }
 
-#endif
+Message::~Message(void)
+{
+  
+}
+
+const Identifier &Message::receiver(void) const
+{
+	return mReceiver;
+}
+
+const String &Message::content(void) const
+{
+	return mContent;
+}
+
+const StringMap &Message::parameters(void) const
+{
+	return mParameters;
+}
+
+bool Message::parameter(const String &name, String &value) const
+{
+	return mParameters.get(name, value);
+}
+
+void Message::setContent(const String &content)
+{
+	mContent = content;
+}
+
+void Message::setParameters(StringMap &params)
+{
+	mParameters = params;
+}
+
+void Message::setParameter(const String &name, const String &value)
+{
+	mParameters[name] = value; 
+}
+
+void Message::send(void)
+{
+	Core::Instance->sendMessage(*this);
+}
+
+void Message::send(const Identifier &receiver)
+{
+	mReceiver = receiver;
+	Core::Instance->sendMessage(*this);
+}
+  
+}
