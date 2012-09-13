@@ -575,7 +575,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				page.openForm(prefix + "/chat", "post");
 				page.input("text","message");
-				page.button("Envoyer");
+				page.button("Send");
 				page.br();
 				page.closeForm();
 				
