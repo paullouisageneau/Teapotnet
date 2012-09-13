@@ -408,19 +408,19 @@ void Http::Server::Handler::run(void)
 {
 	Request request;
 	try {
-		request.recv(*mSock);
+	  	try {
+			request.recv(*mSock);
 
-		String expect;
-		if(request.headers.get("Expect",expect)
+			String expect;
+			if(request.headers.get("Expect",expect)
 				&& expect.toLower() == "100-continue")
-		{
-			mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
-		}
-
-		try {
+			{
+				mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
+			}
+			
 			mServer->process(request);
 		}
-		catch(Exception &e)
+		catch(const Exception &e)
 		{
 			Log("Http::Server::Handler", String("ERROR: ") + e.what());
 			throw 500;

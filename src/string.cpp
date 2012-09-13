@@ -271,13 +271,20 @@ String String::urlDecode(void) const
 		char c = at(i);
  		if(c == '%') 
 		{
-			unsigned value = '?';
 			String h(substr(i+1,2));
-			h.hexa(true);
-			h>>value;
+
+			unsigned value;
+			try {
+				h.hexaMode(true);
+				h>>value;
+			}
+			catch(...)
+			{
+				out+= '%';
+				continue;
+			}
 			out+= char(value);
 			i+=2;
-	
     		} 
     		else if(c == '+') out+= ' ';
 		else out+= c;
