@@ -107,7 +107,7 @@ void Request::cancel(void)
 
 bool Request::execute(void)
 {
-	synchronize(this);  
+	Synchronize(this);  
 
 	StringMap parameters = mParameters;
 

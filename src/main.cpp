@@ -28,6 +28,7 @@
 #include "config.h"
 #include "core.h"
 #include "user.h"
+#include "directory.h"
 
 using namespace arc;
 
@@ -107,16 +108,48 @@ int main(int argc, char** argv)
 	Core::Instance = new Core(port);
 	Core::Instance->start();
 
-	// Test
-	/*AddressBook book("test");
-	book.start();
-	book.join();*/
-
-	User *alice = new User("alice","azerty");
-	alice->start();
-	sleep(1);
-	User *bob = new User("bob","azerty");
-	bob->start();
+	Directory profilesDir(Config::Get("profiles_dir"));
+	while(profilesDir.nextFile())
+	{
+		if(profilesDir.fileIsDir())
+		{
+			String name = profilesDir.fileName();
+			User *user;
+			
+			try {
+				user = new User(name);	
+			}
+			catch(const std::exception &e)
+			{
+				Log("main", "ERROR: Unable to load user \"" + name + "\": " + e.what());
+			}
+			
+			user->start();
+			sleep(1);
+		}
+	}
+	
+	String usersFileName = "users.txt";
+	File usersFile;
+	
+	if(File::Exist(usersFileName))
+	{
+		usersFile.open(usersFileName, File::Read);
+		String line;
+		while(usersFile.readLine(line))
+		{
+			String &name = line;
+			String password = name.cut(' ');
+			name.trim();
+			password.trim();
+			User *user = new User(name, password);
+			user->start();
+			sleep(1);
+		}
+		usersFile.close();
+	}
+	usersFile.open(usersFileName, File::Truncate);
+	usersFile.close();
 	
 	Core::Instance->join();
 	return 0;

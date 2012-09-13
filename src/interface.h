@@ -29,7 +29,7 @@
 
 namespace arc
 {
-
+  
 class HttpInterfaceable
 {
 public:

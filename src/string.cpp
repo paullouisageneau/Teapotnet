@@ -359,7 +359,7 @@ String String::base64Decode(void) const
 			}
 		}
 		
-		if(at(i) == '=') break;
+		if(i < size() && at(i) == '=') break;
 	}
 
 	return out;

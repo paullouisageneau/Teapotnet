@@ -34,14 +34,14 @@ Map<Identifier, User*> User::UsersMap;
 User *User::Authenticate(const String &name, const String &password)
 {
 	Identifier hash;
-	String agregate;
-	agregate.writeLine(name);
-	agregate.writeLine(password);
-	Sha512::Hash(agregate, hash, Sha512::CryptRounds);
+	Sha512::Hash(name + ':' + password, hash, Sha512::CryptRounds);
 	
 	User *user = NULL;
-	if(!UsersMap.get(hash, user)) throw Exception("Authentication failed");
-	return user;
+	if(UsersMap.get(hash, user)) return user;
+	else {
+		Log("User::Authenticate", "Authentication failed for \""+name+"\"");
+		return NULL;
+	}
 }
 
 User::User(const String &name, const String &password) :
@@ -55,10 +55,7 @@ User::User(const String &name, const String &password) :
 		file.close();
 	}
 	else {
-		String agregate;
-		agregate.writeLine(name);
-		agregate.writeLine(password);
-		Sha512::Hash(agregate, mHash, Sha512::CryptRounds);
+		Sha512::Hash(name + ':' + password, mHash, Sha512::CryptRounds);
 		
 		File file(profilePath()+"password", File::Write);
 		file.write(mHash);
@@ -78,7 +75,7 @@ User::~User(void)
 
 void User::http(const String &prefix, Http::Request &request)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	try {
 		String url = request.url;

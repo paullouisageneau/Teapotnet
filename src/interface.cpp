@@ -21,6 +21,7 @@
 
 #include "interface.h"
 #include "html.h"
+#include "user.h"
 #include "store.h"
 #include "splicer.h"
 
@@ -70,34 +71,55 @@ void Interface::process(Http::Request &request)
 {
 	//Log("Interface", "Request for URL \""+request.url+"\"");
 	
-	// Main page
-	if(request.url == "/")
+	// URL must begin with /
+	if(request.url.empty() || request.url[0] != '/') throw 404;
+
+	User *user = NULL;
+	String auth;
+	if(request.headers.get("Authorization", auth))
 	{
-		Http::Response response(request, 200);
+	 	String tmp = auth.cut(' ');
+		auth.trim();
+		tmp.trim();
+		if(auth != "Basic") throw 400;
+		
+		String name = tmp.base64Decode();
+		String password = name.cut(':');
+		user = User::Authenticate(name, password);
+	}
+	
+	if(user && request.url == "/")
+	{
+		Http::Response response(request, 303);
+		response.headers["Location"] = "/" + user->name();
 		response.send();
-			
-		Html page(response.sock);
-		page.header("Arcanet");
-		page.open("h1");
-		page.text("Welcome on Arcanet");
-		page.close("h1");
-		
-		// TODO: Authentication
-		page.link("/alice", "Alice");
-		page.link("/bob", " Bob");
-		
-		page.footer();
 		return;
 	}
 	
 	List<String> list;
 	request.url.explode(list,'/');
-
-	// URL must begin with /
-	if(list.empty()) throw 404;
-	if(!list.front().empty()) throw 404;
-	list.pop_front();
-	if(list.empty()) throw 404;
+	list.pop_front();	// first element is empty because url begin with '/'
+	if(list.empty()) throw 500;
+	
+	if(!user || list.front() != user->name())
+	{
+	 	String realm;
+		if(list.front().empty()) realm = "Arcanet";	// empty iff url == '/'
+		else realm = list.front() + " on Arcanet";
+		
+		Http::Response response(request, 401);
+		response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
+		response.send();
+			
+		Html page(response.sock);
+		page.header("Arcanet");
+		page.open("h1");
+		page.text("Authentication required");
+		page.close("h1");
+		
+		page.footer();
+		return;
+	}
 
 	mMutex.lock();
 	while(!list.empty())

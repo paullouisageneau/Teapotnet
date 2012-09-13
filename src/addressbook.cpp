@@ -62,7 +62,7 @@ const String &AddressBook::name(void) const
 
 const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 {
-	synchronize(this);
+	Synchronize(this);
 
 	String tracker = name.cut('@');
 	if(tracker.empty()) tracker = Config::Get("tracker");
@@ -79,7 +79,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	if(mContacts.contains(contact->peering())) 
 	{
 		delete contact;
-		throw Exception("Contact already exists");
+		throw Exception("The contact already exists");
 	}
 	
 	mContacts.insert(contact->peering(), contact);
@@ -92,7 +92,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 
 void AddressBook::removeContact(const Identifier &peering)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	Contact *contact;
 	if(mContacts.get(peering, contact))
@@ -112,7 +112,7 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 
 void AddressBook::load(Stream &stream)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	Contact *contact = new Contact(this);
 	while(stream.read(*contact))
@@ -125,7 +125,7 @@ void AddressBook::load(Stream &stream)
 
 void AddressBook::save(Stream &stream) const
 {
-	synchronize(this);
+	Synchronize(this);
   
 	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
@@ -138,7 +138,7 @@ void AddressBook::save(Stream &stream) const
 
 void AddressBook::autosave(void) const
 {
-	synchronize(this);
+	Synchronize(this);
   
 	SafeWriteFile file(mFileName);
 	save(file);
@@ -147,7 +147,7 @@ void AddressBook::autosave(void) const
 
 void AddressBook::update(void)
 {
-	synchronize(this);
+	Synchronize(this);
 	Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
 	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
@@ -164,8 +164,8 @@ void AddressBook::update(void)
 
 void AddressBook::http(const String &prefix, Http::Request &request)
 {
-	synchronize(this);
-	
+	Synchronize(this);
+
 	try {
 		if(request.url.empty() || request.url == "/")
 		{
@@ -373,7 +373,7 @@ String AddressBook::Contact::urlPrefix(void) const
 
 void AddressBook::Contact::update(void)
 {
-	synchronize(this);
+	Synchronize(this);
 
 	if(!Core::Instance->hasPeer(mPeering))
 	{
@@ -415,7 +415,7 @@ void AddressBook::Contact::update(void)
 
 void AddressBook::Contact::message(const Message &message)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	Assert(message.receiver() == mPeering);
 	mMessages.push_back(message); 
@@ -423,7 +423,7 @@ void AddressBook::Contact::message(const Message &message)
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
-  	synchronize(this);
+  	Synchronize(this);
 	
 	String base(prefix+request.url);
 	base = base.substr(base.lastIndexOf('/')+1);
@@ -595,7 +595,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 void AddressBook::Contact::serialize(Stream &s) const
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	StringMap map;
 	map["uname"] << mUniqueName;
@@ -611,7 +611,7 @@ void AddressBook::Contact::serialize(Stream &s) const
 
 void AddressBook::Contact::deserialize(Stream &s)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	if(!mUniqueName.empty())
 		Interface::Instance->remove(urlPrefix());

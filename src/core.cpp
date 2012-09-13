@@ -47,7 +47,7 @@ void Core::registerPeering(	const Identifier &peering,
 		       		const ByteString &secret,
 				Core::Listener *listener)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	mPeerings[peering] = remotePeering;
 	mSecrets[peering] = secret;
@@ -57,7 +57,7 @@ void Core::registerPeering(	const Identifier &peering,
 
 void Core::unregisterPeering(const Identifier &peering)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	mPeerings.erase(peering);
 	mSecrets.erase(peering);
@@ -66,7 +66,7 @@ void Core::unregisterPeering(const Identifier &peering)
 void Core::addPeer(Socket *sock, const Identifier &peering)
 {
 	assert(sock != NULL);
-	synchronize(this);
+	Synchronize(this);
 	
 	if(peering != Identifier::Null && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
@@ -79,7 +79,7 @@ void Core::addPeer(Socket *sock, const Identifier &peering)
 
 bool Core::hasPeer(const Identifier &peering)
 {
-	synchronize(this);
+	Synchronize(this);
 	return mHandlers.contains(peering);
 }
 
@@ -104,7 +104,7 @@ void Core::run(void)
 
 void Core::sendMessage(const Message &message)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	if(message.mReceiver == Identifier::Null)
 	{
@@ -127,7 +127,7 @@ void Core::sendMessage(const Message &message)
 
 unsigned Core::addRequest(Request *request)
 {
-	synchronize(this);
+	Synchronize(this);
   
 	++mLastRequest;
 	request->mId = mLastRequest;
@@ -156,7 +156,7 @@ unsigned Core::addRequest(Request *request)
 
 void Core::removeRequest(unsigned id)
 {
-	synchronize(this);
+	Synchronize(this);
   
 	for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
 				it != mHandlers.end();
@@ -169,7 +169,7 @@ void Core::removeRequest(unsigned id)
 
 void Core::http(const String &prefix, Http::Request &request)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	if(prefix == "/peers")
 	{
@@ -209,7 +209,7 @@ void Core::http(const String &prefix, Http::Request &request)
 void Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
-	synchronize(this);
+	Synchronize(this);
 	
 	if(!mHandlers.contains(peer)) mHandlers.insert(peer, handler);
 	else {
@@ -220,7 +220,7 @@ void Core::addHandler(const Identifier &peer, Core::Handler *handler)
 
 void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
-	synchronize(this);
+	Synchronize(this);
   
 	if(mHandlers.contains(peer))
 	{
@@ -283,13 +283,13 @@ Core::Handler::~Handler(void)
 
 void Core::Handler::setPeering(const Identifier &peering)
 {
-	synchronize(this);
+	Synchronize(this);
 	mPeering = peering;
 }
 
 void Core::Handler::sendMessage(const Message &message)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	Log("Core::Handler", "New message");
 	
@@ -301,7 +301,7 @@ void Core::Handler::sendMessage(const Message &message)
 
 void Core::Handler::addRequest(Request *request)
 {
-	synchronize(this);
+	Synchronize(this);
 	
 	Log("Core::Handler", "New request " + String::number(request->id()));
 	
@@ -316,7 +316,7 @@ void Core::Handler::addRequest(Request *request)
 
 void Core::Handler::removeRequest(unsigned id)
 {
-	synchronize(this);
+	Synchronize(this);
 	mRequests.erase(id);
 }
 
@@ -341,7 +341,7 @@ void Core::Handler::run(void)
 		if(mPeering != Identifier::Null)
 		{
 		  	{
-				synchronize(mCore);
+				Synchronize(mCore);
 				if(!mCore->mPeerings.get(mPeering, mRemotePeering))
 					throw Exception("Unknown peering: " + mPeering.toString());
 			}
@@ -372,7 +372,7 @@ void Core::Handler::run(void)
 		if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());	// TODO: useless
 		
 		{
-			synchronize(mCore);
+			Synchronize(mCore);
 			if(!mCore->mSecrets.get(peering, secret)) 
 				throw Exception("No secret for peering: " + peering.toString());
 		}
@@ -529,7 +529,7 @@ void Core::Handler::run(void)
 				Listener *listener;
 				
 				{
-					synchronize(mCore);
+					Synchronize(mCore);
 					if(!mCore->mListeners.get(mPeering, listener))
 						listener = NULL;
 				}
@@ -567,7 +567,7 @@ Core::Handler::Sender::~Sender(void)
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
 	{
 		Request *request = mRequestsToRespond[i];
-		synchronize(request);
+		Synchronize(request);
 		
 		if(request->mResponseSender == this)
 			request->mResponseSender = NULL;
@@ -593,7 +593,7 @@ void Core::Handler::Sender::run(void)
 			for(int i=0; i<mRequestsToRespond.size(); ++i)
 			{
 				Request *request = mRequestsToRespond[i];
-				synchronize(request);
+				Synchronize(request);
 				
 				for(int j=0; j<request->responsesCount(); ++j)
 				{

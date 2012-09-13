@@ -57,7 +57,7 @@ private:
 	const Synchronizable *s;
 };
 
-#define synchronize(x) 	Synchronizer __sync(x)
+#define Synchronize(x) 	Synchronizer __sync(x)
 
 }
 
