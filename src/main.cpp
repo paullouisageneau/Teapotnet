@@ -38,13 +38,6 @@ int main(int argc, char** argv)
 {
 	srand(time(NULL));
 	
-	/*String test("The quick brown fox jumps over the lazy dog");
-	ByteString result;
-	Sha512::Hash(test, result);
-
-	std::cout<<"Data: "<<test<<std::endl;
-	std::cout<<"Hash: "<<result.toString()<<std::endl;*/
-	
 	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8000");
 	Config::Put("interface_port", "8080");
@@ -122,6 +115,7 @@ int main(int argc, char** argv)
 			catch(const std::exception &e)
 			{
 				Log("main", "ERROR: Unable to load user \"" + name + "\": " + e.what());
+				continue;
 			}
 			
 			user->start();

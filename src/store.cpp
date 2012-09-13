@@ -177,7 +177,6 @@ bool Store::get(const String &url, Entry &entry, bool content)
 	}
 	catch(...)
 	{
-		// TODO: Log
 		return false;
 	}
 
@@ -251,13 +250,13 @@ void Store::http(const String &prefix, Http::Request &request)
 				File file(path, File::Read);
 				response.sock->writeBinary(file);
 			}
-			else throw Exception("File not found");
+			else throw 404;
 		}
 	}
-	catch(const Exception &e)
+	catch(const std::exception &e)
 	{
-		Log("Store::http",e.what());
-		throw 404;	// Httpd handles integer exceptions
+		Log("Store::http", e.what());
+		throw 500;	// Httpd handles integer exceptions
 	}
 }
 
