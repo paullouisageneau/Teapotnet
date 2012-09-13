@@ -34,13 +34,13 @@ namespace arc
 AddressBook::AddressBook(User *user)
 {
 	Assert(user != NULL);
-	mUser = user;
 	mName = user->name();
+	mFileName = user->profilePath() + "contacts";
 	
 	Interface::Instance->add("/"+mName+"/contacts", this);
 	
 	try {
-	  File file(fileName(), File::Read);
+	  File file(mFileName, File::Read);
 	  load(file);
 	  file.close();
 	}
@@ -55,66 +55,69 @@ AddressBook::~AddressBook(void)
   	Interface::Instance->remove("/"+mName+"/contacts");
 }
 
-const Identifier &AddressBook::addContact(String &name, ByteString &secret)
+const String &AddressBook::name(void) const
+{
+ 	return mName; 
+}
+
+const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 {
 	synchronize(this);
+
+	String tracker = name.cut('@');
+	if(tracker.empty()) tracker = Config::Get("tracker");
 	
-	Identifier peering;
-	computePeering(name, secret, peering);
+	String uname = name;
+	unsigned i = 0;
+	while(mContactsByUniqueName.contains(uname))
+	{
+		uname = name;
+		uname << ++i;
+	}
 	
-	if(mContacts.contains(peering)) throw Exception("Contact already exists");
-	Contact &contact = mContacts[peering];
-	contact.name = name;
-	contact.secret = secret;
-	contact.peering = peering;
-	contact.tracker = contact.name.cut('@');
-	if(contact.tracker.empty()) contact.tracker = Config::Get("tracker");
+	Contact *contact = new Contact(this, uname, name, tracker, secret);
+	if(mContacts.contains(contact->peering())) 
+	{
+		delete contact;
+		throw Exception("Contact already exists");
+	}
 	
-	contact.remotePeering.clear();
-	computeRemotePeering(name, secret, contact.remotePeering);
+	mContacts.insert(contact->peering(), contact);
+	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	
 	autosave();
 	notify();
-	return contact.peering;
+	return contact->peering();
 }
 
-void AddressBook::removeContact(Identifier &peering)
+void AddressBook::removeContact(const Identifier &peering)
 {
 	synchronize(this);
-	if(mContacts.contains(peering))
+	
+	Contact *contact;
+	if(mContacts.get(peering, contact))
 	{
 		Core::Instance->unregisterPeering(peering);
+		mContactsByUniqueName.erase(contact->uniqueName());
  		mContacts.erase(peering);
+		delete contact;
 		autosave();
 	}
 }
 
-void AddressBook::computePeering(const String &name, const ByteString &secret, ByteStream &out)
+const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 {
-  	String agregate;
-	agregate.writeLine(secret);
-	agregate.writeLine(mName);
-	agregate.writeLine(name);
-	Sha512::Hash(agregate, out, Sha512::CryptRounds);
-}
-
-void AddressBook::computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out)
-{
-  	String agregate;
-	agregate.writeLine(secret);
-	agregate.writeLine(name);
-	agregate.writeLine(mName);
-	Sha512::Hash(agregate, out, Sha512::CryptRounds);
+	return mContacts.get(peering);  
 }
 
 void AddressBook::load(Stream &stream)
 {
 	synchronize(this);
 	
-	Contact contact;
-	while(stream.read(contact))
+	Contact *contact = new Contact(this);
+	while(stream.read(*contact))
 	{
-		mContacts.insert(contact.peering, contact);
+		mContacts.insert(contact->peering(), contact);
 	}	
 }
 
@@ -122,12 +125,12 @@ void AddressBook::save(Stream &stream) const
 {
 	synchronize(this);
   
-	for(Map<Identifier, Contact>::const_iterator it = mContacts.begin();
+	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
-		const Contact &contact = it->second;
-		stream.write(contact);
+		const Contact *contact = it->second;
+		stream.write(*contact);
 	}	
 }
 
@@ -135,7 +138,7 @@ void AddressBook::autosave(void) const
 {
 	synchronize(this);
   
-	SafeWriteFile file(fileName());
+	SafeWriteFile file(mFileName);
 	save(file);
 	file.close();
 }
@@ -145,37 +148,12 @@ void AddressBook::update(void)
 	synchronize(this);
 	Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
-	for(Map<Identifier, Contact>::iterator it = mContacts.begin();
+	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
-		Contact &contact = it->second;
-
-		if(!Core::Instance->hasPeer(contact.peering))
-		{
-			Core::Instance->registerPeering(contact.peering, contact.remotePeering, contact.secret, mUser);
-		  
-			Log("AddressBook::update", "Querying tracker " + contact.tracker);
-			if(query(contact.peering, contact.tracker, contact.addrs))
-			{
-				for(int i=0; i<contact.addrs.size(); ++i)
-				{
-					const Address &addr = contact.addrs[contact.addrs.size()-(i+1)];
-					unlock();
-					try {
-						Socket *sock = new Socket(addr);
-						Core::Instance->addPeer(sock, contact.peering);
-					}
-					catch(...)
-					{
-					 
-					}
-					lock();
-				}
-			}
-		}
-		      
-		publish(contact.remotePeering);
+		Contact *contact = it->second;
+		contact->update();
 	}
 		
 	Log("AddressBook::update", "Finished");
@@ -187,9 +165,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	synchronize(this);
 	
 	try {
-		String url = request.url;
-		
-		if(url.empty() || url == "/")
+		if(request.url.empty() || request.url == "/")
 		{
 			if(request.method == "POST")
 			{
@@ -223,20 +199,17 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Contacts");
 			page.close("h1");
 
-			for(Map<Identifier, Contact>::iterator it = mContacts.begin();
+			for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 				it != mContacts.end();
 				++it)
 			{
-		    		Contact &contact = it->second;
-				String contactUrl;
-				contactUrl << prefix << "/" << contact.peering;
-				page.link(contactUrl, contact.name+"@"+contact.tracker);
-				
-				int checksum = contact.peering.checksum32() + contact.remotePeering.checksum32();
-				page.text(" "+String::hexa(checksum,8));
+		    		Contact *contact = it->second;
+				String contactUrl = prefix + '/' + contact->uniqueName() + '/';
+				page.link(contactUrl, contact->name() + "@" + contact->tracker());
+				page.text(" "+String::hexa(contact->peeringChecksum(),8));
 				
 				String status("Not connected");
-				if(Core::Instance->hasPeer(contact.peering)) status = "Connected";
+				if(Core::Instance->hasPeer(contact->peering())) status = "Connected";
 				page.text(" ("+status+")");
 				
 				page.br();
@@ -257,100 +230,16 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeForm();
 			
 			page.footer();
-		}
-		else {
-			if(url[0] == '/') url.ignore();
-			String speering = url;
-			url = "/" + speering.cut('/');
-			
-			if(url == "/" && request.url[request.url.size()-1] != '/')
-			{
-			 	Http::Response response(request, 301);	// Moved Permanently
-				response.headers["Location"] = prefix+request.url+'/';
-				response.send();
-				return;
-			}
-			
-			Identifier peering;
-			speering >> peering;
-		  	Contact &contact = mContacts.get(peering);
-			
-			String contactRoot(prefix+'/'+peering.toString()+'/');
-			
-			Http::Response response(request,200);
-			response.send();
-				
-			Html page(response.sock);
-			page.header("Contact: "+contact.name);
-			page.open("h1");
-			page.text("Contact: "+contact.name);
-			page.close("h1");
-
-			page.text("Secret: " + contact.secret.toString()); page.br();
-			page.text("Peering: " + contact.peering.toString()); page.br();
-			page.text("Remote peering: " + contact.remotePeering.toString()); page.br();
-			page.br();
-			
-			try {
-				String target(url);
-				if(target.size() > 1 && target[target.size()-1] == '/') target = target.substr(0, target.size()-1);
-				
-				Request request(target);
-				request.submit(contact.peering);
-				request.wait();
-				
-				for(int i=0; i<request.responsesCount(); ++i)
-				{
-					Request::Response *response = request.response(i);
-					StringMap parameters = response->parameters();
-					
-					if(!response->content()) page.text("No content...");
-					else {	
-						try {
-							if(parameters.contains("type") && parameters["type"] == "directory")
-							{
-								StringMap info;
-							
-									String base(url.substr(url.lastIndexOf('/')+1));
-									if(!base.empty()) base+= '/';
-									while(response->content()->read(info))
-									{
-										if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
-										else page.link("/" + info.get("hash"), info.get("name"));
-										page.br();
-									}
-								
-							}
-							else {
-								page.text("Download ");
-								page.link("/" + parameters.get("hash"), parameters.get("name"));
-								page.br();
-							}
-						}
-						catch(...)
-						{
-
-						}	
-						
-						response->content()->close();
-					}
-				}
-			}
-			catch(const std::exception &e)
-			{
-				Log("Store::http", "Unable to query the file list");
-				page.text("Unable to retrieve the content...");
-			}
-			
-			page.footer();
-			
+			return;
 		}
 	}
-	catch(Exception &e)
+	catch(const Exception &e)
 	{
 		Log("AddressBook::http",e.what());
-		throw 404;	// Httpd handles integer exceptions
+		throw 500;	// Httpd handles integer exceptions
 	}
+	
+	throw 404;
 }
 
 bool AddressBook::publish(const Identifier &remotePeering)
@@ -399,40 +288,340 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 	return true;
 }
 
-String AddressBook::fileName(void) const
+AddressBook::Contact::Contact(	AddressBook *addressBook, 
+				const String &uname,
+				const String &name,
+			        const String &tracker,
+			        const ByteString &secret) :
+	mAddressBook(addressBook),
+	mUniqueName(uname),
+	mName(name),
+	mTracker(tracker),
+	mSecret(secret)
+{	
+	Assert(addressBook != NULL);
+	Assert(!uname.empty());
+	Assert(!name.empty());
+	Assert(!tracker.empty());
+	Assert(!secret.empty());
+	
+	// Compute peering
+	String agregate;
+	agregate.writeLine(mSecret);
+	agregate.writeLine(mAddressBook->name());
+	agregate.writeLine(mName);
+	Sha512::Hash(agregate, mPeering, Sha512::CryptRounds);
+	
+	// Compute Remote peering
+	agregate.clear();
+	agregate.writeLine(mSecret);
+	agregate.writeLine(mName);
+	agregate.writeLine(mAddressBook->name());
+	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
+	
+	Interface::Instance->add("/"+mName+"/contacts/"+mUniqueName, this);
+}
+
+AddressBook::Contact::Contact(AddressBook *addressBook) :
+  	mAddressBook(addressBook)
 {
-	return mUser->profilePath()+"contacts";
+  
+}
+
+AddressBook::Contact::~Contact(void)
+{
+  	Interface::Instance->add("/"+mName+"/contacts/"+mUniqueName, this);
+}
+
+const String &AddressBook::Contact::uniqueName(void) const
+{
+	return mUniqueName;
+}
+
+const String &AddressBook::Contact::name(void) const
+{
+	return mName;
+}
+
+const String &AddressBook::Contact::tracker(void) const
+{
+	return mTracker;
+}
+
+const Identifier &AddressBook::Contact::peering(void) const
+{
+	return mPeering;
+}
+
+const Identifier &AddressBook::Contact::remotePeering(void) const
+{
+	return mRemotePeering;
+}
+
+uint32_t AddressBook::Contact::peeringChecksum(void) const
+{
+	return mPeering.checksum32() + mRemotePeering.checksum32(); 
+}
+
+void AddressBook::Contact::update(void)
+{
+	synchronize(this);
+
+	if(!Core::Instance->hasPeer(mPeering))
+	{
+		Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
+		  
+		Log("AddressBook::Contact", "Querying tracker " + mTracker);
+		
+		if(AddressBook::query(mPeering, mTracker, mAddrs))
+		{
+			for(int i=0; i<mAddrs.size(); ++i)
+			{
+				const Address &addr = mAddrs[mAddrs.size()-(i+1)];
+				unlock();
+				try {
+					Socket *sock = new Socket(addr);
+					Core::Instance->addPeer(sock, mPeering);
+				}
+				catch(...)
+				{
+					 
+				}
+				lock();
+			}
+		}
+	}
+	
+	AddressBook::publish(mRemotePeering);
+		
+	if(!mMessages.empty())
+	{
+		time_t t = time(NULL);
+		while(!mMessages.front().isRead() 
+			&& mMessages.front().time() >= t + 7200)	// 2h
+		{
+				 mMessages.pop_front();
+		}
+	} 
+}
+
+void AddressBook::Contact::message(const Message &message)
+{
+	synchronize(this);
+	
+	Assert(message.receiver() == mPeering);
+	mMessages.push_back(message); 
+}
+
+void AddressBook::Contact::http(const String &prefix, Http::Request &request)
+{
+  	synchronize(this);
+	
+	String base(prefix+request.url);
+	base = base.substr(base.lastIndexOf('/')+1);
+	if(!base.empty()) base+= '/';
+	
+	try {
+		if(request.url.empty() || request.url == "/")
+		{
+			Http::Response response(request,200);
+			response.send();
+				
+			Html page(response.sock);
+			page.header("Contact: "+mName);
+			page.open("h1");
+			page.text("Contact: "+mName);
+			page.close("h1");
+
+			page.text("Secret: " + mSecret.toString()); page.br();
+			page.text("Peering: " + mPeering.toString()); page.br();
+			page.text("Remote peering: " + mRemotePeering.toString()); page.br();
+			page.br();
+			page.br();
+			
+			page.link(prefix+"/files/","Files");
+			page.link(prefix+"/chat/","Chat");
+			
+			page.footer();
+			return;
+		}
+		else {
+			String url = request.url;
+			String directory = url;
+			directory.ignore();		// remove first '/'
+			url = "/" + directory.cut('/');
+			if(directory.empty()) throw 404;
+			  
+			if(directory == "files")
+			{
+				String target(url);
+				if(target.size() > 1 && target[target.size()-1] == '/') 
+					target = target.substr(0, target.size()-1);
+				
+				Http::Response response(request,200);
+				response.send();	
+				
+				Html page(response.sock);
+				page.header("Files: "+mName);
+				page.open("h1");
+				page.text("Files: "+mName);
+				page.close("h1");
+				
+				Request request(target);
+				try {
+					request.submit(mPeering);
+					request.wait();
+				}
+				catch(const Exception &e)
+				{
+					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+					page.text("Not connected...");
+					page.footer();
+					return;
+				}
+				
+				for(int i=0; i<request.responsesCount(); ++i)
+				{
+					Request::Response *response = request.response(i);
+					StringMap parameters = response->parameters();
+					
+					if(!response->content()) page.text("No content...");
+					else try {
+						if(parameters.contains("type") && parameters["type"] == "directory")
+						{
+							StringMap info;
+							while(response->content()->read(info))
+							{
+								if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
+								else page.link("/" + info.get("hash"), info.get("name"));
+								page.br();
+							}
+						}
+						else {
+							page.text("Download ");
+							page.link("/" + parameters.get("hash"), parameters.get("name"));
+							page.br();
+						}
+					}
+					catch(...)
+					{
+
+					}
+				}
+				
+				page.footer();
+				return;
+			}
+			else if(directory == "chat")
+			{
+				if(url != "/") throw 404;
+			  
+				if(request.method == "POST")
+				{
+					try {
+						Message message(request.post.get("message"));
+						mMessages.push_back(message);	// copy stored now so receiver is null
+						message.send(mPeering);
+					}
+					catch(...)
+					{
+						throw 400;
+					}				
+					
+					Http::Response response(request, 303);
+					response.headers["Location"] = prefix + "/chat";
+					response.send();
+					return;
+				}
+			  
+				Http::Response response(request,200);
+				response.send();	
+				
+				Html page(response.sock);
+				page.header("Chat: "+mName);
+				page.open("h1");
+				page.text("Chat: "+mName);
+				page.close("h1");
+			  
+				for(int i=0; i<mMessages.size(); ++i)
+				{
+					char buffer[64];
+					time_t t = mMessages[i].time();
+					std::strftime (buffer, 64, "%x %X", localtime(&t));
+	  
+					page.open("span",".message");
+					page.open("span",".date");
+					page.text(buffer);
+					page.close("span");
+					page.text(" ");
+					page.open("span",".user");
+					if(mMessages[i].receiver() == Identifier::Null) page.text(mAddressBook->name());
+					else page.text(mAddressBook->getContact(mMessages[i].receiver())->name());
+					page.close("span");
+					page.text(" " + mMessages[i].content());
+					page.close("span");
+					page.br();
+					
+					mMessages[i].markRead();
+				}
+				
+				page.openForm(prefix + "/chat", "post");
+				page.input("text","message");
+				page.button("Envoyer");
+				page.br();
+				page.closeForm();
+				
+				page.footer();
+				return;
+			}
+		}
+	}
+	catch(const Exception &e)
+	{
+		Log("AddressBook::Contact::http", e.what());
+		throw 500;
+	}
+	
+	throw 404;
 }
 
 void AddressBook::Contact::serialize(Stream &s) const
 {
+	synchronize(this);
+	
 	StringMap map;
-	map["name"] << name;
-	map["tracker"] << tracker;
-	map["secret"] << secret;
-	map["peering"] << peering;
-	map["remotePeering"] << remotePeering;
+	map["uname"] << mUniqueName;
+	map["name"] << mName;
+	map["tracker"] << mTracker;
+	map["secret"] << mSecret;
+	map["peering"] << mPeering;
+	map["remotePeering"] << mRemotePeering;
 		
 	s.write(map);
-	s.write(addrs);
+	s.write(mAddrs);
 }
 
 void AddressBook::Contact::deserialize(Stream &s)
 {
-	name.clear();
-	secret.clear();
-	peering.clear();
-	remotePeering.clear();
+	synchronize(this);
+	
+	mUniqueName.clear();
+  	mName.clear();
+	mTracker.clear();
+	mSecret.clear();
+	mPeering.clear();
+	mRemotePeering.clear();
 	
 	StringMap map;
 	s.read(map);
-	map["name"] >> name;
-	map["tracker"] >> tracker;
-	map["secret"] >> secret;
-	map["peering"] >> peering;
-	map["remotePeering"] >> remotePeering;
+	map["uname"] >> mUniqueName;
+	map["name"] >> mName;
+	map["tracker"] >> mTracker;
+	map["secret"] >> mSecret;
+	map["peering"] >> mPeering;
+	map["remotePeering"] >> mRemotePeering;
 	
-	s.read(addrs);
+	s.read(mAddrs);
 }
 
 }

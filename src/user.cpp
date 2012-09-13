@@ -76,11 +76,6 @@ User::~User(void)
 	delete mAddressBook;
 }
 
-void User::message(const Message &message)
-{
-	// TODO
-}
-
 void User::http(const String &prefix, Http::Request &request)
 {
 	synchronize(this);
@@ -100,6 +95,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 
 			page.link(prefix+"/contacts/","Contacts");
+			page.br();
+			page.br();
 			
 			page.footer();
 			return;

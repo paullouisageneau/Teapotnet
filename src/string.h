@@ -68,7 +68,7 @@ public:
 	String mid(int pos, int n = String::npos) const;
 	String left(int pos) const;
 	String right(int pos) const;
-
+	
 	String toLower(void) const;
 	String toUpper(void) const;
 	String toTrimmed(void) const;

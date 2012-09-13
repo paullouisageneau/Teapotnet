@@ -26,14 +26,20 @@ namespace arc
 {
 
 Message::Message(const String &content) :
-	mContent(content)
+	mContent(content),
+	mIsRead(false)
 {
-  
+	std::time(&mTime);
 }
 
 Message::~Message(void)
 {
   
+}
+
+time_t Message::time(void) const
+{
+	return mTime; 
 }
 
 const Identifier &Message::receiver(void) const
@@ -69,6 +75,16 @@ void Message::setParameters(StringMap &params)
 void Message::setParameter(const String &name, const String &value)
 {
 	mParameters[name] = value; 
+}
+
+bool Message::isRead(void) const
+{
+	return mIsRead;  
+}
+
+void Message::markRead(bool read)
+{
+	mIsRead = read; 
 }
 
 void Message::send(void)

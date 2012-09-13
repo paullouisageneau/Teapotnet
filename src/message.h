@@ -26,6 +26,7 @@
 #include "string.h"
 #include "identifier.h"
 #include "map.h"
+#include "html.h"
 
 namespace arc
 {
@@ -36,6 +37,7 @@ public:
 	Message(const String &content = "");
 	virtual ~Message(void);
 
+	time_t time(void) const;
 	const Identifier &receiver(void) const;
 	const String &content(void) const;
 	const StringMap &parameters(void) const;
@@ -45,13 +47,18 @@ public:
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
 
+	bool isRead(void) const;
+	void markRead(bool read = true);
+	
 	void send(void);
 	void send(const Identifier &receiver);
-
+	
 private:
+  	time_t mTime;
 	Identifier mReceiver;
 	StringMap mParameters;
 	String mContent;
+	bool mIsRead;
 
 	friend class Core;
 };

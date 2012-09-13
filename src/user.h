@@ -28,13 +28,12 @@
 #include "interface.h"
 #include "identifier.h"
 #include "addressbook.h"
-#include "core.h"
 #include "map.h"
 
 namespace arc
 {
 
-class User : public Thread, protected Synchronizable, public Core::Listener, public HttpInterfaceable
+class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static User *Authenticate(const String &name, const String &password);
@@ -45,7 +44,6 @@ public:
 	const String &name(void) const;
 	String profilePath(void) const;
 	
-	void message(const Message &message);
 	void http(const String &prefix, Http::Request &request);
 	
 private:

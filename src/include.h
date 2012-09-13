@@ -153,7 +153,7 @@ template<typename T> void msleep(T msecs)
 #define List std::list
 #define Queue std::queue
 #define Stack std::stack
-#define Dequeue std::dequeue
+#define Deque std::deque
 
 const size_t BufferSize = 4096;
 

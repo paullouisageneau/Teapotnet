@@ -28,6 +28,8 @@
 #include "address.h"
 #include "socket.h"
 #include "identifier.h"
+#include "core.h"
+#include "message.h"
 #include "array.h"
 #include "map.h"
 
@@ -42,40 +44,64 @@ public:
 	AddressBook(User *user);
 	~AddressBook(void);
 	
-	const Identifier &addContact(String &name, ByteString &secret);
-	void removeContact(Identifier &peering);
-	void computePeering(const String &name, const ByteString &secret, ByteStream &out);
-	void computeRemotePeering(const String &name, const ByteString &secret, ByteStream &out);
+	const String &name(void) const;
 	
 	void load(Stream &stream);
 	void save(Stream &stream) const;
 	void autosave(void) const;
 	
 	void update(void);
-	
 	void http(const String &prefix, Http::Request &request);
+
 	
-	struct Contact : public Serializable
+	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
-		String name;
-		String tracker;
-		ByteString secret;
-		Identifier peering;
-		Identifier remotePeering;
-		SerializableArray<Address> addrs;
+	public:
+	  	Contact(	AddressBook *addressBook,
+				const String &uname,
+				const String &name,
+	     			const String &tracker,
+	     			const ByteString &secret);
+		Contact(AddressBook *addressBook);
+		~Contact(void);
+	    	
+		const String &uniqueName(void) const;
+		const String &name(void) const;
+		const String &tracker(void) const;
+		const Identifier &peering(void) const;
+		const Identifier &remotePeering(void) const;
+		uint32_t peeringChecksum(void) const;
+		
+		void update(void);
+		
+		void message(const Message &message);
+		void http(const String &prefix, Http::Request &request);
 		
 		void serialize(Stream &s) const;
 		void deserialize(Stream &s);
+		
+	private:
+	  	AddressBook *mAddressBook;
+		String mUniqueName, mName, mTracker;
+		Identifier mPeering, mRemotePeering;
+		ByteString mSecret;
+		
+		SerializableArray<Address> mAddrs;
+		Deque<Message> mMessages;
 	};
 	
+	const Identifier &addContact(String name, const ByteString &secret);
+	void removeContact(const Identifier &peering);
+	const Contact *getContact(const Identifier &peering);
+	
 private:
-	bool publish(const Identifier &remotePeering);
-	bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
-	String fileName(void) const;
+	static bool publish(const Identifier &remotePeering);
+	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
 	
 	String mName;
-	User *mUser;
-	Map<Identifier, Contact> mContacts;	// Sorted by peering
+	String mFileName;
+	Map<Identifier, Contact*> mContacts;		// Sorted by peering
+	Map<String, Contact*> mContactsByUniqueName;	// Sorted by unique name
 };
 
 }
