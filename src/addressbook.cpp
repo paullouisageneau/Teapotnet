@@ -118,7 +118,9 @@ void AddressBook::load(Stream &stream)
 	while(stream.read(*contact))
 	{
 		mContacts.insert(contact->peering(), contact);
+		contact = new Contact(this);
 	}	
+	delete contact;
 }
 
 void AddressBook::save(Stream &stream) const
@@ -319,7 +321,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	agregate.writeLine(mAddressBook->name());
 	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
 	
-	Interface::Instance->add("/"+mName+"/contacts/"+mUniqueName, this);
+	Interface::Instance->add(urlPrefix(), this);
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
@@ -330,7 +332,7 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 
 AddressBook::Contact::~Contact(void)
 {
-  	Interface::Instance->add("/"+mName+"/contacts/"+mUniqueName, this);
+  	Interface::Instance->remove(urlPrefix());
 }
 
 const String &AddressBook::Contact::uniqueName(void) const
@@ -361,6 +363,12 @@ const Identifier &AddressBook::Contact::remotePeering(void) const
 uint32_t AddressBook::Contact::peeringChecksum(void) const
 {
 	return mPeering.checksum32() + mRemotePeering.checksum32(); 
+}
+
+String AddressBook::Contact::urlPrefix(void) const
+{
+	if(mUniqueName.empty()) return "";
+	return String("/")+mAddressBook->name()+"/contacts/"+mUniqueName;
 }
 
 void AddressBook::Contact::update(void)
@@ -605,6 +613,9 @@ void AddressBook::Contact::deserialize(Stream &s)
 {
 	synchronize(this);
 	
+	if(!mUniqueName.empty())
+		Interface::Instance->remove(urlPrefix());
+	
 	mUniqueName.clear();
   	mName.clear();
 	mTracker.clear();
@@ -614,6 +625,7 @@ void AddressBook::Contact::deserialize(Stream &s)
 	
 	StringMap map;
 	s.read(map);
+	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
 	map["tracker"] >> mTracker;
@@ -622,6 +634,8 @@ void AddressBook::Contact::deserialize(Stream &s)
 	map["remotePeering"] >> mRemotePeering;
 	
 	s.read(mAddrs);
+	
+	Interface::Instance->add(urlPrefix(), this);
 }
 
 }

@@ -71,6 +71,7 @@ public:
 		const Identifier &peering(void) const;
 		const Identifier &remotePeering(void) const;
 		uint32_t peeringChecksum(void) const;
+		String urlPrefix(void) const;
 		
 		void update(void);
 		
