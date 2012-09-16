@@ -33,11 +33,11 @@ namespace arc
 #define AES_BLOCK_SIZE 16
 #define AES_MAXNR 14
 
-class Aes : public Stream, public ByteString
+class AesCipher : public Stream, public ByteString
 {
 public:
-  	Aes(ByteStream *bs);
-	~Aes(void);
+  	AesCipher(ByteStream *bs);
+	~AesCipher(void);
 	
 	void setEncryptionKey(const char *key, size_t size);
 	void setDecryptionKey(const char *key, size_t size);
@@ -75,6 +75,18 @@ private:
 	size_t	mTempBlockInSize;
 	char	mTempBlockOut[AES_BLOCK_SIZE];
 	size_t	mTempBlockOutSize;
+	
+	static const uint32_t Te0[];
+	static const uint32_t Te1[];
+	static const uint32_t Te2[];
+	static const uint32_t Te3[];
+	static const uint32_t Te4[];
+	static const uint32_t Td0[];
+	static const uint32_t Td1[];
+	static const uint32_t Td2[];
+	static const uint32_t Td3[];
+	static const uint32_t Td4[];
+	static const uint32_t rcon[];
 };
 
 }

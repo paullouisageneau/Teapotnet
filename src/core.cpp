@@ -22,6 +22,7 @@
 #include "core.h"
 #include "html.h"
 #include "sha512.h"
+#include "aescipher.h"
 
 namespace arc
 {
@@ -403,11 +404,11 @@ void Core::Handler::run(void)
 		parameters.clear();
 		parameters["Digest"] << hash_a;
 		parameters["Salt"] << salt_a;
-		sendCommand(mStream, "A", "DIGEST", parameters);
+		sendCommand(mStream, "A", "DIGEST AES256", parameters);
 		
 		AssertIO(recvCommand(mStream, command, args, parameters));
 		if(command != "A") throw Exception("Unexpected command: " + command);
-		if(args.toUpper() != "DIGEST") throw Exception("Unknown authentication method " + args.toString());
+		if(args.toUpper() != "DIGEST AES256") throw Exception("Unknown authentication method " + args.toString());
 		
 		ByteString salt_b, test_b;
 		parameters["Digest"] >> test_b;
@@ -425,6 +426,9 @@ void Core::Handler::run(void)
 		if(test_b != hash_b) throw Exception("Authentication failed");
 		
 		Log("Core::Handler", "Authentication finished");
+		
+		//Aes = new Aes
+		
 		mCore->addHandler(mPeering,this);
 		mSender.start();
 		
