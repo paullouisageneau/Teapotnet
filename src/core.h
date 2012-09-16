@@ -51,7 +51,8 @@ public:
 	class Listener
 	{
 	public:
-		virtual void message(const Message &message) = 0; 
+		virtual void message(Message *message) = 0;
+		virtual void request(Request *request) = 0;
 	};
 	
 	Core(int port);
@@ -138,8 +139,10 @@ private:
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, ByteString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
-	Map<Identifier,Handler*> mHandlers;
-	Map<unsigned,Request*> mRequests;
+	
+	Map<Identifier, Handler*> mHandlers;
+	
+	Map<unsigned, Request*> mRequests;
 	unsigned mLastRequest;
 
 	friend class Handler;

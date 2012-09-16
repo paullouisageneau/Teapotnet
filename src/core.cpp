@@ -340,11 +340,10 @@ void Core::Handler::run(void)
 	  
 		if(mPeering != Identifier::Null)
 		{
-		  	{
-				Synchronize(mCore);
-				if(!mCore->mPeerings.get(mPeering, mRemotePeering))
-					throw Exception("Unknown peering: " + mPeering.toString());
-			}
+		  	mCore->lock();
+			if(!mCore->mPeerings.get(mPeering, mRemotePeering))
+				throw Exception("Unknown peering: " + mPeering.toString());
+			mCore->unlock();
 			
 			args.clear();
 			args << mRemotePeering;
@@ -502,22 +501,32 @@ void Core::Handler::run(void)
 				String &target = args;
 			  	Log("Core::Handler", "Received request "+String::number(id)+" for \""+target+"\"");
 
-				Request *request = new Request;
-				request->setTarget(target, (command == "G"));
-				request->setParameters(parameters);
-				request->mId = id;
-				request->execute();
+				Listener *listener;
+				mCore->lock();
+				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
+				mCore->unlock();
+				
+				if(!listener) Log("Core::Handler", "WARNING: No listener, dropping request " + String::number(id));
+				else {
+					Request *request = new Request;
+					request->setTarget(target, (command == "G"));
+					request->setParameters(parameters);
+					request->mId = id;
+				
+					listener->request(request);
 
-				mSender.lock();
-				mSender.mRequestsToRespond.push_back(request);
-				request->mResponseSender = &mSender;
-				mSender.unlock();
-				mSender.notify();
+					mSender.lock();
+					mSender.mRequestsToRespond.push_back(request);
+					request->mResponseSender = &mSender;
+					mSender.unlock();
+					mSender.notify();
+				}
 			}
 			else if(command == "M")
 			{
 				unsigned size;
 				args.read(size);
+				Log("Core::Handler", "Received message");
 				
 				Message message;
 				message.mReceiver = mPeering;
@@ -527,15 +536,12 @@ void Core::Handler::run(void)
 				mSock->read(message.mContent,size);
 				
 				Listener *listener;
+				mCore->lock();
+				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
+				mCore->unlock();
 				
-				{
-					Synchronize(mCore);
-					if(!mCore->mListeners.get(mPeering, listener))
-						listener = NULL;
-				}
-				
-				if(listener) listener->message(message);
-				else Log("Core::Handler", "WARNING: No message listener, dropping message");
+				if(listener) listener->message(&message);
+				else Log("Core::Handler", "WARNING: No listener, dropping message");
 			}
 
 			unlock();
@@ -565,13 +571,7 @@ Core::Handler::Sender::Sender(Socket *sock) :
 Core::Handler::Sender::~Sender(void)
 {
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
-	{
-		Request *request = mRequestsToRespond[i];
-		Synchronize(request);
-		
-		if(request->mResponseSender == this)
-			request->mResponseSender = NULL;
-	}
+		delete mRequestsToRespond[i];
 }
 
 void Core::Handler::Sender::run(void)
@@ -609,6 +609,7 @@ void Core::Handler::Sender::run(void)
 						{
 							++mLastChannel;
 							channel = mLastChannel;
+							
 							
 							Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
 							mTransferts.insert(channel,response->content());
@@ -665,7 +666,6 @@ void Core::Handler::Sender::run(void)
 				if(size == 0)
 				{
 					Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
-					delete it->second;
 					mTransferts.erase(it++);
 				}
 				else {
@@ -673,6 +673,19 @@ void Core::Handler::Sender::run(void)
 					++it;
 				}
 			}
+			
+			int i=0;
+			while(i<mRequestsToRespond.size())
+			{
+				Request *request = mRequestsToRespond[i];
+				if(!request->isPending())
+				{
+					mRequestsToRespond.erase(i);
+					delete request; 
+				}
+				else ++i;
+			}
+			
 			unlock();
 		}
 		

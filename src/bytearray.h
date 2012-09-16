@@ -33,15 +33,15 @@ class ByteArray : public ByteStream
 public:
 	ByteArray(size_t size);
 	ByteArray(char *array, size_t length);	// data is NOT copied
-	ByteArray(const ByteArray &array);		// data is NOT copied
+	ByteArray(const ByteArray &array);	// data is NOT copied
 	virtual ~ByteArray(void);
 
-	char *array(void);					// complete array
+	char *array(void);			// complete array
 	const char *array(void) const;
-	size_t length(void) const;			// total size
+	size_t length(void) const;		// total size
 
 	const char *data(void) const;		// reading position
-	size_t size(void) const;			// data left
+	size_t size(void) const;		// data left
 	
 	void clear(void);
 

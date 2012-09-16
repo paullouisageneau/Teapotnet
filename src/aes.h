@@ -19,57 +19,62 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_HTML_H
-#define ARC_HTML_H
+#ifndef ARC_AES_H
+#define ARC_AES_H
 
 #include "include.h"
 #include "stream.h"
-#include "serializable.h"
-#include "map.h"
+#include "bytestream.h"
+#include "bytestring.h"
 
 namespace arc
 {
 
-class Html
+#define AES_BLOCK_SIZE 16
+#define AES_MAXNR 14
+
+class Aes : public Stream, public ByteString
 {
 public:
-	Html(Stream *stream);	// stream WON'T be destroyed
-	~Html(void);
-
-	void header(const String &title = "", const String &redirect = "");
-	void footer(void);
-
-	void raw(const String &str);
-	void text(const String &str);
-	void object(const Serializable &s);
-
-	void open(const String &type, String id = "");
-	void close(const String &type);
-
-	void link(	const String &url,
-			const String &txt,
-			String id = "");
-
-	void image(	const String &url,
-			const String &alt = "",
-			String id = "");
-
-	void br(void);
-
-	void openForm(	const String &action = "#",
-			const String &method = "post",
-		     	const String &name = "");
-	void closeForm(void);
-	void input(const String &type, const String &name, const String &value = "");
-	void checkbox(const String &name, const String &value, bool checked = false);
-	void textarea(const String &name, const String &value = "");
-	void select(const String &name, const StringMap &options, const String &def = "");
-	void button(const String &name);
+  	Aes(ByteStream *bs);
+	~Aes(void);
 	
-	Stream *stream(void);
+	void setEncryptionKey(const char *key, size_t size);
+	void setDecryptionKey(const char *key, size_t size);
+	
+	void setEncryptionInit(const char *iv);
+	void setDecryptionInit(const char *iv);
+	
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 
 private:
-	Stream *mStream;
+  	struct Key
+	{
+	    uint32_t rd_key[4 *(AES_MAXNR + 1)];
+	    int rounds;
+	};
+  
+  	void setEncryptionKey(const char *key, size_t size, Key &out);
+	void setDecryptionKey(const char *key, size_t size, Key &out);
+  
+  	void encrypt(char *in, char *out);
+	void decrypt(char *in, char *out);
+  
+	size_t readBlock(char *out);
+	
+
+	ByteStream *mByteStream;
+	
+	Key mEncryptionKey;
+	Key mDecryptionKey;
+	char mEncryptionInit[AES_BLOCK_SIZE];
+	char mDecryptionInit[AES_BLOCK_SIZE];
+	
+	char	mTempBlockIn[AES_BLOCK_SIZE];
+	size_t	mTempBlockInSize;
+	char	mTempBlockOut[AES_BLOCK_SIZE];
+	size_t	mTempBlockOutSize;
 };
 
 }

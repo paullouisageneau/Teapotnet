@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "store.h"
+#include "user.h"
 #include "directory.h"
 #include "sha512.h"
 #include "html.h"
@@ -27,38 +28,125 @@
 namespace arc
 {
 
-const String Store::DatabaseDirectory = "db";
+Map<Identifier,String> Store::Resources;
+Mutex Store::ResourcesMutex;
+  
 const size_t Store::ChunkSize = 256*1024;		// 256 Kio
 
-Store *Store::Instance = NULL;
-
-Store::Store(void)
+bool Store::GetResource(const Identifier &hash, Entry &entry, bool content)
 {
-	Interface::Instance->add("/files", this);
+	entry.content = NULL;
+	entry.info.clear();
+	entry.hash = hash;
+	entry.url.clear();
+	entry.path.clear();
+
+	String entryName;
+	ResourcesMutex.lock();
+	if(Resources.get(hash, entryName))	// Hash is on content
+	{
+		ResourcesMutex.unlock();
+		try {
+			Log("Store::GetResource", "Requested " + hash.toString());  
+
+			if(!File::Exist(entryName))
+			{
+				Log("Store", "WARNING: No entry for " + hash.toString());
+				ResourcesMutex.lock();
+				Resources.erase(hash);
+				ResourcesMutex.unlock();
+				return false;
+			}
+				
+			File file(entryName, File::Read);
+			file.readLine(entry.path);
+			file.read(entry.info);
+			if(entry.url.empty()) entry.info.get("url", entry.url);
+		}
+		catch(const Exception &e)
+		{
+			Log("Store", "Corrupted entry for \""+hash.toString()+"\": "+e.what());
+			return false;
+		}
+		
+		if(content && entry.info.get("type") != "directory") 
+			entry.content = new File(entry.path, File::Read);	// content = file
+
+		return true;
+	}
+	
+	ResourcesMutex.unlock();
+	return false;
+}
+
+Store::Store(User *user) :
+	mUser(user)
+{
+  	Assert(mUser != NULL);
+	mFileName = mUser->profilePath() + "directories";
+	mDatabasePath = mUser->profilePath() + "db" + Directory::Separator;
+	
+	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
+	
+	try {
+	  File file(mFileName, File::Read);
+	  file.read(mDirectories);
+	  file.close();
+	}
+	catch(...)
+	{
+	  
+	}
+	
+	Interface::Instance->add("/"+mUser->name()+"/files", this);
 }
 
 Store::~Store(void)
 {
-	Interface::Instance->remove("/files");
+	Interface::Instance->remove("/"+mUser->name()+"/files");
+}
+
+User *Store::user(void) const
+{
+	return mUser; 
+}
+
+String Store::userName(void) const
+{
+	return mUser->name(); 
 }
 
 void Store::addDirectory(const String &name, const String &path)
 {
+	if(!Directory::Exist(path)) throw Exception("The directory does not exist: "+path);
+	Directory test(path);
+	test.close();
+	
 	mDirectories.insert(name, path);
+	save();
 }
 
 void Store::removeDirectory(const String &name)
 {
-	mDirectories.erase(name);
+	if(mDirectories.contains(name))
+	{
+  		mDirectories.erase(name);
+		save();
+	}
+}
+
+void Store::save(void) const
+{
+	 File file(mFileName, File::Read);
+	 file.write(mDirectories);
+	 file.close();
 }
 
 void Store::refresh(void)
 {
-	mFiles.clear();
-
 	Identifier hash;
 	Sha512::Hash("/", hash);
-	String entryName = DatabaseDirectory+Directory::Separator+hash.toString();
+	String entryName = mDatabasePath + hash.toString();
 	SafeWriteFile dirEntry(entryName);
 	dirEntry.writeLine("");
 
@@ -89,41 +177,16 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 	entry.content = NULL;
 	entry.info.clear();
 	
-	if(entry.identifier != identifier)
+	if(entry.hash != identifier)
 	{
-		entry.identifier = identifier;
+		entry.hash = identifier;
 		entry.url.clear();
 	}
 
-	try {
-		String entryName = DatabaseDirectory+Directory::Separator+identifier.toString();
-		String url;
-		if(mFiles.get(identifier,url))	// Hash is on content
-		{
-			Log("Store", "Requested \"" + url + "\" from data hash");  
-		
-			Identifier hash;
-			Sha512::Hash(url, hash);
-			entryName = DatabaseDirectory+Directory::Separator+hash.toString();
-
-			if(!File::Exist(entryName))
-			{
-				Log("Store", "WARNING: No entry for " + hash.toString());
-				return false;		// TODO: force reindexation
-			}
-			
-			File file(entryName, File::Read);
-			file.readLine(entry.path);
-			file.read(entry.info);
-			if(entry.url.empty()) entry.info.get("url", entry.url);
-			
-			if(content && entry.info.get("type") != "directory") 
-				entry.content = new File(entry.path, File::Read);	// content = file
-
-			return true;
-		}
-		else if(File::Exist(entryName))		// Hash is on URL
-		{
+	String entryName = mDatabasePath + identifier.toString();
+	if(File::Exist(entryName))
+	{
+		try {
 			entry.content = new File(entryName, File::Read);	// content = meta
 			entry.content->readLine(entry.path);
 			entry.content->read(entry.info);
@@ -138,29 +201,28 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 			}
 			
 			return true;
-			
 		}
-	}
-	catch(const Exception &e)
-	{
-		if(entry.content)
+		catch(const Exception &e)
 		{
-			delete entry.content;
-			entry.content = NULL;
-		}
+			if(entry.content)
+			{
+				delete entry.content;
+				entry.content = NULL;
+			}
 
-		Log("Store", "Corrupted entry for \""+identifier.toString()+"\": "+e.what());
-		return false;
+			Log("Store", "Corrupted entry for \""+identifier.toString()+"\": "+e.what());
+			return false;
+		}
 	}
 
-	return false;
+	return GetResource(identifier, entry, content);
 }
 
 bool Store::get(const String &url, Entry &entry, bool content)
 {
   	entry.content = NULL;
 	entry.url = url;
-	entry.identifier.clear();
+	entry.hash.clear();
 	entry.info.clear();
 	
   	if(url.empty()) return false;
@@ -169,10 +231,10 @@ bool Store::get(const String &url, Entry &entry, bool content)
 		if(url.find('/') == String::NotFound)	// url is a hash
 		{
 			String s(url);
-			s >> entry.identifier;
+			s >> entry.hash;
 		}
 		else {
-			Sha512::Hash(url, entry.identifier);
+			Sha512::Hash(url, entry.hash);
 		}
 	}
 	catch(...)
@@ -180,7 +242,7 @@ bool Store::get(const String &url, Entry &entry, bool content)
 		return false;
 	}
 
-	return get(entry.identifier, entry, content);
+	return get(entry.hash, entry, content);
 }
 
 void Store::http(const String &prefix, Http::Request &request)
@@ -190,13 +252,53 @@ void Store::http(const String &prefix, Http::Request &request)
 
 		if(request.url == "/")
 		{
+		  	if(request.method == "POST")
+			{
+				String name = request.post["name"];
+				String path = request.post["path"];
+				
+				if(!path.empty())
+				{
+				  	if(name.empty()) 
+					{
+						name = path;
+						name = name.cutLast(Directory::Separator);
+						name = name.cutLast('/');
+						name = name.cutLast('\\');
+					}
+				  
+					try {
+					 	addDirectory(name, path);
+					}
+					catch(const Exception &e)
+					{
+						Http::Response response(request,200);
+						response.send();
+						
+						Html page(response.sock);
+						page.header("Error", prefix + "/");
+						page.open("h1");
+						page.text("Error");
+						page.close("h1");
+						page.text(e.what());
+						page.footer();
+						return;
+					}
+				}
+				
+				Http::Response response(request,303);
+				response.headers["Location"] = prefix + "/";
+				response.send();
+				return;
+			}
+		  
 			Http::Response response(request,200);
 			response.send();
 
 			Html page(response.sock);
-			page.header(request.url);
+			page.header("Files");
 			page.open("h1");
-			page.text(request.url);
+			page.text("Files");
 			page.close("h1");
 
 			for(StringMap::iterator it = mDirectories.begin();
@@ -207,6 +309,20 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.br();
 			}
 
+			page.open("h2");
+			page.text("Add new directory");
+			page.close("h2");
+			page.openForm(prefix+"/","post");
+			page.text("Path");
+			page.input("text","path");
+			page.br();
+			page.text("Name");
+			page.input("text","name");
+			page.br();
+			page.button("Add directory");
+ 			page.br();
+			page.closeForm();
+			
 			page.footer();
 		}
 		else {
@@ -266,7 +382,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 
 	Identifier hash;
 	Sha512::Hash(dirUrl, hash);
-	String entryName = DatabaseDirectory+Directory::Separator+hash.toString();
+	String entryName = mDatabasePath + hash.toString();
 	File dirEntry(entryName, File::Write);
 	dirEntry.writeLine(dirPath);
 
@@ -283,7 +399,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 		String url(dirUrl + '/' + dir.fileName());
 		Identifier urlHash;
 		Sha512::Hash(url, urlHash);
-		String entryName = DatabaseDirectory+Directory::Separator+urlHash.toString();
+		String entryName = mDatabasePath + urlHash.toString();
 
 		if(!dir.fileIsDir() && File::Exist(entryName))
 		{
@@ -315,7 +431,9 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				// If the file has not changed, don't hash it again
 				if(size == dir.fileSize() && time == dir.fileTime())
 				{
-					mFiles.insert(hash, url);
+				 	ResourcesMutex.lock();
+					Resources.insert(hash, entryName);
+					ResourcesMutex.unlock();
 					dirEntry.write(origHeader);
 					continue;
 				}
@@ -357,7 +475,9 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				header["chunk-count"] << chunkCount;
 				header["hash"] << dataHash;
 				
-				mFiles.insert(Identifier(dataHash), url);
+				ResourcesMutex.lock();
+				Resources.insert(hash, entryName);
+				ResourcesMutex.unlock();
 
 				File file(entryName, File::Write);
 				file.writeLine(dir.filePath());

@@ -54,11 +54,6 @@ const String &Request::target(void) const
 	return mTarget;
 }
 
-bool Request::isPending() const
-{
-	return (mPendingCount != 0);
-}
-
 void Request::setContentSink(ByteStream *bs)
 {
 	mContentSink = bs;
@@ -105,14 +100,26 @@ void Request::cancel(void)
 	}
 }
 
-bool Request::execute(void)
+bool Request::execute(Store *store)
 {
 	Synchronize(this);  
 
 	StringMap parameters = mParameters;
 
 	Store::Entry entry;
-	if(!Store::Instance->get(mTarget, entry, mIsData))
+	
+	bool success = false;
+	if(store) success = store->get(mTarget, entry, mIsData);
+	else {
+	  try {
+	    	Identifier identifier;
+		mTarget >> identifier;
+	  	success = Store::GetResource(identifier, entry, mIsData);
+	  }
+	  catch(const Exception &e) {}
+	}
+	
+	if(!store)
 	{
 		addResponse(new Response("KO"));
 		return false;
@@ -134,7 +141,7 @@ bool Request::execute(void)
 			// TODO: seeking
 			content = stripedFile;
 			
-			size_t size;
+			uint64_t size;
 			entry.info["size"] >> size;
 			entry.info["size"] << size/nbStripe;
 		}
@@ -148,6 +155,11 @@ bool Request::execute(void)
 	
 	Log("Request", "Finished execution");
 	return true;
+}
+
+bool Request::isPending() const
+{
+	return (mPendingCount == 0);
 }
 
 void Request::addPending(void)
@@ -183,7 +195,8 @@ Request::Response *Request::response(int num)
 Request::Response::Response(const String &status) :
 	mStatus(status),
 	mContent(NULL),
-	mIsSent(false)
+	mIsSent(false),
+	mPendingCount(0)
 {
 
 }
@@ -192,7 +205,8 @@ Request::Response::Response(const String &status, const StringMap &parameters, B
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),
-	mIsSent(false)
+	mIsSent(false),
+	mPendingCount(0)
 {
 	if(content) mContent = new Pipe(content);
 	else mContent = NULL;

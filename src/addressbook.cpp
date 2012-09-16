@@ -31,13 +31,13 @@
 namespace arc
 {
 
-AddressBook::AddressBook(User *user)
+AddressBook::AddressBook(User *user) :
+	mUser(user)
 {
-	Assert(user != NULL);
-	mName = user->name();
-	mFileName = user->profilePath() + "contacts";
+	Assert(mUser != NULL);
+	mFileName = mUser->profilePath() + "contacts";
 	
-	Interface::Instance->add("/"+mName+"/contacts", this);
+	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
 	
 	try {
 	  File file(mFileName, File::Read);
@@ -52,12 +52,17 @@ AddressBook::AddressBook(User *user)
 
 AddressBook::~AddressBook(void)
 {
-  	Interface::Instance->remove("/"+mName+"/contacts");
+  	Interface::Instance->remove("/"+mUser->name()+"/contacts");
 }
 
-const String &AddressBook::name(void) const
+User *AddressBook::user(void) const
 {
- 	return mName; 
+ 	return mUser; 
+}
+
+String AddressBook::userName(void) const
+{
+ 	return mUser->name(); 
 }
 
 const Identifier &AddressBook::addContact(String name, const ByteString &secret)
@@ -85,7 +90,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	mContacts.insert(contact->peering(), contact);
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	
-	autosave();
+	save();
 	notify();
 	return contact->peering();
 }
@@ -101,7 +106,7 @@ void AddressBook::removeContact(const Identifier &peering)
 		mContactsByUniqueName.erase(contact->uniqueName());
  		mContacts.erase(peering);
 		delete contact;
-		autosave();
+		save();
 	}
 }
 
@@ -136,7 +141,7 @@ void AddressBook::save(Stream &stream) const
 	}	
 }
 
-void AddressBook::autosave(void) const
+void AddressBook::save(void) const
 {
 	Synchronize(this);
   
@@ -159,7 +164,7 @@ void AddressBook::update(void)
 	}
 		
 	Log("AddressBook::update", "Finished");
-	autosave();
+	save();
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -310,7 +315,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	// Compute peering
 	String agregate;
 	agregate.writeLine(mSecret);
-	agregate.writeLine(mAddressBook->name());
+	agregate.writeLine(mAddressBook->userName());
 	agregate.writeLine(mName);
 	Sha512::Hash(agregate, mPeering, Sha512::CryptRounds);
 	
@@ -318,7 +323,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	agregate.clear();
 	agregate.writeLine(mSecret);
 	agregate.writeLine(mName);
-	agregate.writeLine(mAddressBook->name());
+	agregate.writeLine(mAddressBook->userName());
 	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
 	
 	Interface::Instance->add(urlPrefix(), this);
@@ -368,7 +373,7 @@ uint32_t AddressBook::Contact::peeringChecksum(void) const
 String AddressBook::Contact::urlPrefix(void) const
 {
 	if(mUniqueName.empty()) return "";
-	return String("/")+mAddressBook->name()+"/contacts/"+mUniqueName;
+	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
 void AddressBook::Contact::update(void)
@@ -413,12 +418,20 @@ void AddressBook::Contact::update(void)
 	} 
 }
 
-void AddressBook::Contact::message(const Message &message)
+void AddressBook::Contact::message(Message *message)
 {
 	Synchronize(this);
 	
-	Assert(message.receiver() == mPeering);
-	mMessages.push_back(message); 
+	Assert(message);
+	Assert(message->receiver() == mPeering);
+	mMessages.push_back(*message); 
+}
+
+void AddressBook::Contact::request(Request *request)
+{
+	Assert(request);
+	Store *store = mAddressBook->user()->store();
+	request->execute(store);
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
@@ -563,7 +576,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.close("span");
 					page.text(" ");
 					page.open("span",".user");
-					if(mMessages[i].receiver() == Identifier::Null) page.text(mAddressBook->name());
+					if(mMessages[i].receiver() == Identifier::Null) page.text(mAddressBook->userName());
 					else page.text(mAddressBook->getContact(mMessages[i].receiver())->name());
 					page.close("span");
 					page.text(" " + mMessages[i].content());

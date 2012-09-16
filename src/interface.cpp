@@ -161,7 +161,7 @@ void Interface::process(Http::Request &request)
 			url >> hash;  
 		
 			Store::Entry entry;
-			if(Store::Instance->get(hash, entry, true))
+			if(Store::GetResource(hash, entry, true))
 			{
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";

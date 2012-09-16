@@ -28,6 +28,7 @@
 #include "bytestream.h"
 #include "array.h"
 #include "map.h"
+#include "store.h"
 
 namespace arc
 {
@@ -40,7 +41,6 @@ public:
 
 	unsigned id() const;
 	const String &target(void) const;
-	bool isPending() const;
 
 	void setContentSink(ByteStream *bs);
 
@@ -51,8 +51,9 @@ public:
 	void submit(void);
 	void submit(const Identifier &receiver);
 	void cancel(void);
-	bool execute(void);
+	bool execute(Store *store);
 
+	bool isPending() const;
 	void addPending();
 	void removePending();
 
@@ -69,7 +70,7 @@ public:
 		String parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
 		Pipe *content(void) const;
-
+		
 	private:
 		Identifier mPeering;
 		String mStatus;
@@ -77,6 +78,8 @@ public:
 		Pipe *mContent;
 		bool mIsSent;
 
+		int mPendingCount;
+		
 		friend class Core;
 	};
 

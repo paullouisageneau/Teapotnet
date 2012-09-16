@@ -30,6 +30,9 @@
 #include "user.h"
 #include "directory.h"
 
+#include "aes.h"
+#include "bytearray.h"
+
 using namespace arc;
 
 Mutex arc::LogMutex;
@@ -37,6 +40,27 @@ Mutex arc::LogMutex;
 int main(int argc, char** argv)
 {
 	srand(time(NULL));
+	
+	/*String asciiKey = "This is a test key";
+	ByteArray key(64);
+	Sha512::Hash(asciiKey, key);
+		
+	String test = "The quick brown fox jumps over the lazy dog";
+	ByteString cipher;
+	
+	Aes aes(&cipher);
+	aes.setEncryptionKey(key.data(), 32);
+	aes.setDecryptionKey(key.data(), 32);
+	
+	aes.write(test);
+	
+	String out;
+	aes.readLine(out);
+	
+	std::cout<<test<<std::endl;
+	std::cout<<cipher.toString()<<std::endl;
+	std::cout<<out<<std::endl;*/
+	
 	
 	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8000");
@@ -87,11 +111,6 @@ int main(int argc, char** argv)
 	sifport >> ifport;
 	Interface::Instance = new Interface(ifport);
 	Interface::Instance->start();
-	
-	// Starting store
-	Store::Instance = new Store;
-	Store::Instance->addDirectory("images","/home/paulo/images");
-	Store::Instance->refresh();
 	
 	// Starting core
 	String sport = Config::Get("port");

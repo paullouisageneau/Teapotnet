@@ -117,6 +117,7 @@ void ByteString::deserializeBinary(ByteStream &s)
 
 size_t ByteString::readData(char *buffer, size_t size)
 {
+	if(this->empty()) return 0;
 	size = std::min(size, this->size());
 	std::copy(begin(), begin()+size, buffer);
 	erase(begin(), begin()+size);

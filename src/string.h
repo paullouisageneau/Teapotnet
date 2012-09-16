@@ -51,6 +51,7 @@ public:
 	void explode(std::list<String> &strings, char separator) const;
 	void implode(const std::list<String> &strings, char separator);
 	String cut(char separator);
+	String cutLast(char separator);
 	void trim(void);
 
 	bool contains(char chr) const;

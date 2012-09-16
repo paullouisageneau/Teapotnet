@@ -46,7 +46,8 @@ User *User::Authenticate(const String &name, const String &password)
 
 User::User(const String &name, const String &password) :
 	mName(name),
-	mAddressBook(new AddressBook(this))
+	mAddressBook(new AddressBook(this)),
+	mStore(new Store(this))
 {
 	if(password.empty())
 	{
@@ -71,6 +72,30 @@ User::~User(void)
 	UsersMap.erase(mHash);
 	Interface::Instance->remove("/"+mName);
 	delete mAddressBook;
+	delete mStore;
+}
+
+const String &User::name(void) const
+{
+	return mName; 
+}
+
+String User::profilePath(void) const
+{
+	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
+	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
+	if(!Directory::Exist(path)) Directory::Create(path);
+	return path + Directory::Separator;
+}
+
+AddressBook *User::addressBook(void) const
+{
+	return mAddressBook;
+}
+
+Store *User::store(void) const
+{
+	return mStore;
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -93,6 +118,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.link(prefix+"/contacts/","Contacts");
 			page.br();
+			page.link(prefix+"/files/","Files");
 			page.br();
 			
 			page.footer();
@@ -108,24 +134,12 @@ void User::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-const String &User::name(void) const
-{
-	return mName; 
-}
-
-String User::profilePath(void) const
-{
-	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
-	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
-	if(!Directory::Exist(path)) Directory::Create(path);
-	return path + Directory::Separator;
-}
-
 void User::run(void)
 {
 	while(true)
 	{
 		mAddressBook->update();
+		mStore->refresh();
 		mAddressBook->wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
 	}
 }

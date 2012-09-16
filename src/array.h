@@ -42,6 +42,7 @@ public:
 	void append(const Array<T> array);
 	void append(const T *array, size_t size);
 	void fill(const T &value, int n);
+	void erase(int i);
 	bool remove(const T &value);
 	bool contains(const T &value);
 };
@@ -104,11 +105,17 @@ bool Array<T>::remove(const T &value)
 	for(int i=0; i<this->size();)
 		if(this->at(i) == value)
 		{
-			this->erase(i);
+			this->erase(this->begin()+i);
 			found = true;
 		}
 		else ++i;
 	return found;
+}
+
+template<typename T>
+void Array<T>::erase(int i)
+{
+	std::vector<T>::erase(this->begin()+i);
 }
 
 template<typename T>

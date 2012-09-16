@@ -36,12 +36,13 @@ Html::~Html(void)
 
 }
 
-void Html::header(const String &title)
+void Html::header(const String &title, const String &redirect)
 {
 	*mStream<<"<!DOCTYPE html>\n";
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
 	*mStream<<"<title>"<<title<<"</title>\n";
+	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 

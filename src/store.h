@@ -24,37 +24,43 @@
 
 #include "include.h"
 #include "identifier.h"
-#include "http.h"
 #include "file.h"
 #include "map.h"
+#include "http.h"
 #include "interface.h"
+#include "mutex.h"
 
 namespace arc
 {
 
+class User;
+  
 class Store : public HttpInterfaceable
 {
 public:
-	static const String DatabaseDirectory;
-	static const size_t ChunkSize;
-	static Store *Instance;
-
-	Store(void);
-	~Store(void);
-	
-	void addDirectory(const String &name, const String &path);
-	void removeDirectory(const String &name);
-
-	void refresh(void);
-
 	struct Entry
 	{
-		Identifier 	identifier;
+		Identifier 	hash;
 		String		url;
 		String		path;
 		StringMap	info;
 		File		*content;	// file content
 	};
+  
+  	static bool GetResource(const Identifier &hash, Entry &entry, bool content = true);
+	static const size_t ChunkSize;
+
+	Store(User *user);
+	~Store(void);
+	
+	User *user(void) const;
+	String userName(void) const;
+	
+	void addDirectory(const String &name, const String &path);
+	void removeDirectory(const String &name);
+
+	void save(void) const;
+	void refresh(void);
 
 	bool get(const Identifier &identifier, Entry &entry, bool content = true);
 	bool get(const String &url, Entry &entry, bool content = true);
@@ -65,8 +71,13 @@ private:
 	void refreshDirectory(const String &dirUrl, const String &dirPath);
 	String urlToPath(const String &url) const;
 
+	User *mUser;
+	String mFileName;
+	String mDatabasePath;
 	StringMap mDirectories;
-	Map<Identifier,String> mFiles;
+	
+	static Map<Identifier,String> Resources;	// entry names by data hash
+	static Mutex ResourcesMutex;
 };
 
 }

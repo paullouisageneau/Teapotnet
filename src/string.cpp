@@ -130,6 +130,15 @@ String String::cut(char separator)
 	return after;
 }
 
+String String::cutLast(char separator)
+{
+	int pos = find_last_of(separator);
+	if(pos == NotFound) return String();
+	String after = substr(pos+1);
+	resize(pos);
+	return after;
+}
+
 void String::trim(void)
 {
 	int i = 0;

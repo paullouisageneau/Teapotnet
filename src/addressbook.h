@@ -44,11 +44,12 @@ public:
 	AddressBook(User *user);
 	~AddressBook(void);
 	
-	const String &name(void) const;
+	User *user(void) const;
+	String userName(void) const;
 	
 	void load(Stream &stream);
 	void save(Stream &stream) const;
-	void autosave(void) const;
+	void save(void) const;
 	
 	void update(void);
 	void http(const String &prefix, Http::Request &request);
@@ -75,7 +76,8 @@ public:
 		
 		void update(void);
 		
-		void message(const Message &message);
+		void message(Message *message);
+		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);
 		
 		void serialize(Stream &s) const;
@@ -99,7 +101,7 @@ private:
 	static bool publish(const Identifier &remotePeering);
 	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
 	
-	String mName;
+	User *mUser;
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;		// Sorted by peering
 	Map<String, Contact*> mContactsByUniqueName;	// Sorted by unique name

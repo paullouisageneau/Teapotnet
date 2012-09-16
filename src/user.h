@@ -28,6 +28,7 @@
 #include "interface.h"
 #include "identifier.h"
 #include "addressbook.h"
+#include "store.h"
 #include "map.h"
 
 namespace arc
@@ -44,6 +45,9 @@ public:
 	const String &name(void) const;
 	String profilePath(void) const;
 	
+	AddressBook *addressBook(void) const;
+	Store *store(void) const;
+	
 	void http(const String &prefix, Http::Request &request);
 	
 private:
@@ -52,6 +56,7 @@ private:
 	String mName;
 	Identifier mHash;
 	AddressBook *mAddressBook;
+	Store *mStore;
 	
 	static Map<Identifier, User*> UsersMap;
 };

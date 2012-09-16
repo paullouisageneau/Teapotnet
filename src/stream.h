@@ -68,6 +68,7 @@ public:
 	inline bool	read(unsigned short &i) 	{ return readStd(i); }
 	inline bool	read(unsigned int &i) 		{ return readStd(i); }
 	inline bool	read(unsigned long &i) 		{ return readStd(i); }
+	inline bool	read(unsigned long long &i) 	{ return readStd(i); }
 	inline bool	read(float &f) 			{ return readStd(f); }
 	inline bool	read(double &f) 		{ return readStd(f); }
 
@@ -85,7 +86,7 @@ public:
 	void	write(const std::string &s);
 	void	write(bool b);
 
-	inline void	write(char c) 				{ writeData(&c,1); }
+	inline void	write(char c) 			{ writeData(&c,1); }
 	inline void	write(signed char i) 		{ writeStd(i); }
 	inline void	write(signed short i) 		{ writeStd(i); }
 	inline void	write(signed int i) 		{ writeStd(i); }
@@ -94,8 +95,9 @@ public:
 	inline void	write(unsigned short i) 	{ writeStd(i); }
 	inline void	write(unsigned int i) 		{ writeStd(i); }
 	inline void	write(unsigned long i) 		{ writeStd(i); }
-	inline void	write(float f) 				{ writeStd(f); }
-	inline void	write(double f) 			{ writeStd(f); }
+	inline void	write(unsigned long long i) 	{ writeStd(i); }
+	inline void	write(float f) 			{ writeStd(f); }
+	inline void	write(double f) 		{ writeStd(f); }
 
 	template<class T> void write(const T *ptr);
 
