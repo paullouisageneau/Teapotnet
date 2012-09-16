@@ -22,6 +22,7 @@
 #include "stream.h"
 #include "serializable.h"
 #include "exception.h"
+#include "bytestream.h"
 
 namespace arc
 {
@@ -42,6 +43,32 @@ Stream::Stream(void) :
 Stream::~Stream(void)
 {
 
+}
+
+size_t Stream::readData(ByteStream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = readData(buffer,std::min(BufferSize,left))))
+	{
+		left-= size;
+		s.writeData(buffer,size);
+	}
+	return max-left;
+}
+
+size_t Stream::writeData(ByteStream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = s.readData(buffer,std::min(BufferSize,left))))
+	{
+		left-= size;
+		writeData(buffer,size);
+	}
+	return max-left;
 }
 
 bool Stream::hexaMode(void)

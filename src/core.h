@@ -79,7 +79,7 @@ private:
 	class Handler : public Thread, protected Synchronizable
 	{
 	public:
-		Handler(Core *core, Socket *sock);
+		Handler(Core *core, Stream *stream);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
@@ -89,12 +89,12 @@ private:
 		void removeRequest(unsigned id);
 
 	protected:
-	  	static void sendCommand(Socket *sock,
+	  	static void sendCommand(Stream *stream,
 				   	const String &command, 
 		       			const String &args,
 					const StringMap &parameters);
 		
-		static bool recvCommand(Socket *sock,
+		static bool recvCommand(Stream *stream,
 				   	String &command, 
 		       			String &args,
 					StringMap &parameters);
@@ -104,7 +104,7 @@ private:
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
-		Socket  *mSock;
+		Stream  *mStream;
 		Handler *mHandler;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
@@ -112,7 +112,7 @@ private:
 		class Sender : public Thread, public Synchronizable
 		{
 		public:
-			Sender(Socket *sock);
+			Sender(Stream *stream);
 			~Sender(void);
 
 		private:
@@ -120,7 +120,7 @@ private:
 
 			void run(void);
 
-			Socket  *mSock;
+			Stream *mStream;
 			unsigned mLastChannel;
 			Map<unsigned, ByteStream*> mTransferts;	// TODO
 			Queue<Message>	mMessagesQueue;

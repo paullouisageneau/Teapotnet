@@ -231,23 +231,23 @@ void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	}
 }
 
-void Core::Handler::sendCommand(Socket *sock, const String &command, const String &args, const StringMap &parameters)
+void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
 {
-	*sock<<command<<" "<<args<<Stream::NewLine;
+	*stream<<command<<" "<<args<<Stream::NewLine;
 
 	for(	StringMap::const_iterator it = parameters.begin();
 		it != parameters.end();
 		++it)
 	{
-		*sock<<it->first<<": "<<it->second<<Stream::NewLine;
+		*stream<<it->first<<": "<<it->second<<Stream::NewLine;
 	}
-	*sock<<Stream::NewLine;
+	*stream<<Stream::NewLine;
 }
 		
-bool Core::Handler::recvCommand(Socket *sock, String &command, String &args, StringMap &parameters)
+bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, StringMap &parameters)
 {
 	command.clear();
-	if(!sock->readLine(command)) return false;
+	if(!stream->readLine(command)) return false;
 	args = command.cut(' ');
 	command = command.toUpper();
 	
@@ -255,7 +255,7 @@ bool Core::Handler::recvCommand(Socket *sock, String &command, String &args, Str
 	while(true)
 	{
 		String name;
-		AssertIO(sock->readLine(name));
+		AssertIO(stream->readLine(name));
 		if(name.empty()) break;
 
 		String value = name.cut(':');
@@ -267,17 +267,17 @@ bool Core::Handler::recvCommand(Socket *sock, String &command, String &args, Str
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Socket *sock) :
+Core::Handler::Handler(Core *core, Stream *stream) :
 	mCore(core),
-	mSock(sock),
-	mSender(sock)
+	mStream(stream),
+	mSender(stream)
 {
 
 }
 
 Core::Handler::~Handler(void)
 {	
-	delete mSock;
+	delete mStream;
 	delete mHandler;
 }
 
@@ -351,10 +351,10 @@ void Core::Handler::run(void)
 			parameters["Application"] << APPNAME;
 			parameters["Version"] << APPVERSION;
 			parameters["Nonce"] << nonce_a;
-			sendCommand(mSock, "H", args, parameters);
+			sendCommand(mStream, "H", args, parameters);
 		}
 	  
-		if(!recvCommand(mSock, command, args, parameters)) return;
+		if(!recvCommand(mStream, command, args, parameters)) return;
 		if(command != "H") throw Exception("Unexpected command: " + command);
 		
 		String appname, appversion;
@@ -388,7 +388,7 @@ void Core::Handler::run(void)
 			parameters["Application"] << APPNAME;
 			parameters["Version"] << APPVERSION;
 			parameters["Nonce"] << nonce_a;
-			sendCommand(mSock, "H", args, parameters);
+			sendCommand(mStream, "H", args, parameters);
 		}
 		
 		String agregate_a;
@@ -403,9 +403,9 @@ void Core::Handler::run(void)
 		parameters.clear();
 		parameters["Digest"] << hash_a;
 		parameters["Salt"] << salt_a;
-		sendCommand(mSock, "A", "DIGEST", parameters);
+		sendCommand(mStream, "A", "DIGEST", parameters);
 		
-		AssertIO(recvCommand(mSock, command, args, parameters));
+		AssertIO(recvCommand(mStream, command, args, parameters));
 		if(command != "A") throw Exception("Unexpected command: " + command);
 		if(args.toUpper() != "DIGEST") throw Exception("Unknown authentication method " + args.toString());
 		
@@ -430,7 +430,7 @@ void Core::Handler::run(void)
 		
 		Log("Core::Handler", "Entering main loop");
 		unlock();
-		while(recvCommand(mSock, command, args, parameters))
+		while(recvCommand(mStream, command, args, parameters))
 		{
 			lock();
 
@@ -482,7 +482,7 @@ void Core::Handler::run(void)
 				if(mResponses.get(channel,response))
 				{
 				 	Assert(response->content() != NULL);
-					if(size) mSock->readBinary(*response->content(),size);
+					if(size) mStream->readData(*response->content(),size);
 					else {
 						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
@@ -491,7 +491,7 @@ void Core::Handler::run(void)
 				}
 				else {
 				  Log("Core::Handler", "WARNING: Received data for unknown channel "+String::number(channel));
-				  mSock->ignore(size);
+				  mStream->ignore(size);
 				}
 			}
 			else if(command == "I" || command == "G")
@@ -533,7 +533,7 @@ void Core::Handler::run(void)
 				message.mParameters = parameters;
 				message.mContent.reserve(size);
 				
-				mSock->read(message.mContent,size);
+				mStream->read(message.mContent,size);
 				
 				Listener *listener;
 				mCore->lock();
@@ -547,7 +547,6 @@ void Core::Handler::run(void)
 			unlock();
 		}
 
-		mSock->close();
 		Log("Core::Handler", "Finished"); 
 	}
 	catch(std::exception &e)
@@ -561,8 +560,8 @@ void Core::Handler::run(void)
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
 
-Core::Handler::Sender::Sender(Socket *sock) :
-		mSock(sock),
+Core::Handler::Sender::Sender(Stream *stream) :
+		mStream(stream),
 		mLastChannel(0)
 {
 
@@ -617,7 +616,7 @@ void Core::Handler::Sender::run(void)
 						
 						String args;
 						args << request->id() <<" "<<status<<" "<<channel;
-						Handler::sendCommand(mSock, "R", args, response->mParameters);
+						Handler::sendCommand(mStream, "R", args, response->mParameters);
 						
 						response->mIsSent = true;
 					}
@@ -631,9 +630,9 @@ void Core::Handler::Sender::run(void)
 				
 				String args;
 				args << message.mContent.size();
-				Handler::sendCommand(mSock, "M", args, message.parameters());
+				Handler::sendCommand(mStream, "M", args, message.parameters());
 				
-				mSock->write(message.mContent);
+				mStream->write(message.mContent);
 				
 				mMessagesQueue.pop();
 			}
@@ -649,7 +648,7 @@ void Core::Handler::Sender::run(void)
 				
 				String args;
 				args << request->id() << " " << request->target();
-				Handler::sendCommand(mSock, command, args, request->mParameters);
+				Handler::sendCommand(mStream, command, args, request->mParameters);
 				mRequestsQueue.pop();
 			}
 
@@ -661,7 +660,7 @@ void Core::Handler::Sender::run(void)
 				
 				String args;
 				args << it->first << " " << size;
-				Handler::sendCommand(mSock, "D", args, StringMap());
+				Handler::sendCommand(mStream, "D", args, StringMap());
 
 				if(size == 0)
 				{
@@ -669,7 +668,7 @@ void Core::Handler::Sender::run(void)
 					mTransferts.erase(it++);
 				}
 				else {
-				 	mSock->writeData(buffer, size);
+				 	mStream->writeData(buffer, size);
 					++it;
 				}
 			}
@@ -693,7 +692,7 @@ void Core::Handler::Sender::run(void)
 	}
 	catch(std::exception &e)
 	{
-		mSock->close();
+		//mStream->close();	// TODO
 		unlock();
 		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}

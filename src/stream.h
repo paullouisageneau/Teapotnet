@@ -31,6 +31,7 @@ namespace arc
 
 class Serializable;
 class String;
+class ByteStream;
 
 class Stream
 {
@@ -43,7 +44,10 @@ public:
 	
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-
+	
+	size_t readData(ByteStream &s, size_t max);
+	size_t writeData(ByteStream &s, size_t max);
+	
 	bool get(char &chr);
 	void put(char chr);
 	char last(void) const;
