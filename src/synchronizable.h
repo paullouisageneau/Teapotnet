@@ -58,6 +58,7 @@ private:
 };
 
 #define Synchronize(x) 	Synchronizer __sync(x)
+#define UnPrioritize(x) {(x)->unlock(); yield(); (x)->lock();}
 
 }
 

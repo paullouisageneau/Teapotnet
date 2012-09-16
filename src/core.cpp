@@ -86,6 +86,8 @@ bool Core::hasPeer(const Identifier &peering)
 
 void Core::run(void)
 {
+	Log("Core", "Starting");
+	
 	try {
 		while(true)
 		{
@@ -234,15 +236,19 @@ void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
 {
-	*stream<<command<<" "<<args<<Stream::NewLine;
+	String line;
+	line << command << " " << args << Stream::NewLine;
+  	*stream << line;
 
 	for(	StringMap::const_iterator it = parameters.begin();
 		it != parameters.end();
 		++it)
 	{
-		*stream<<it->first<<": "<<it->second<<Stream::NewLine;
+	  	line.clear();
+		line << it->first << ": " << it->second << Stream::NewLine;
+		*stream << line;
 	}
-	*stream<<Stream::NewLine;
+	*stream << Stream::NewLine;
 }
 		
 bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, StringMap &parameters)
@@ -268,17 +274,18 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Stream *stream) :
+Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
-	mStream(stream),
-	mSender(stream)
+	mSock(sock),
+	mStream(sock)
 {
 
 }
 
 Core::Handler::~Handler(void)
 {	
-	delete mStream;
+	if(mStream != mSock) delete mStream;
+	delete mSock;
 	delete mHandler;
 }
 
@@ -427,9 +434,32 @@ void Core::Handler::run(void)
 		
 		Log("Core::Handler", "Authentication finished");
 		
-		//Aes = new Aes
+		AesCipher *cipher = new AesCipher(mSock);
+		
+		// Set encryption key and IV
+		ByteString key_a;
+		agregate_a.writeLine(nonce_a);
+		Sha512::Hash(agregate_a, key_a, Sha512::CryptRounds);
+		ByteString iv_a(key_a);
+		key_a.resize(32);	// 256 bits
+		iv_a.ignore(32);
+		cipher->setEncryptionKey(key_a);
+		cipher->setEncryptionInit(iv_a);
+		
+		// Set decryption key and IV
+		ByteString key_b;
+		agregate_b.writeLine(nonce_b);
+		Sha512::Hash(agregate_b, key_b, Sha512::CryptRounds);
+		ByteString iv_b(key_b);
+		key_b.resize(32);	// 256 bits
+		iv_b.ignore(32);
+		cipher->setDecryptionKey(key_b);
+		cipher->setDecryptionInit(iv_b);
+		
+		mStream = cipher;
 		
 		mCore->addHandler(mPeering,this);
+		mSender.mStream = mStream;
 		mSender.start();
 		
 		Log("Core::Handler", "Entering main loop");
@@ -551,7 +581,7 @@ void Core::Handler::run(void)
 			unlock();
 		}
 
-		Log("Core::Handler", "Finished"); 
+		Log("Core::Handler", "Finished");
 	}
 	catch(std::exception &e)
 	{
@@ -559,13 +589,13 @@ void Core::Handler::run(void)
 		Log("Core::Handler", String("Stopping: ") + e.what()); 
 	}
 	
+	mSock->close();
 	mCore->removeHandler(mPeering, this);
 }
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
 
-Core::Handler::Sender::Sender(Stream *stream) :
-		mStream(stream),
+Core::Handler::Sender::Sender(void) :
 		mLastChannel(0)
 {
 
@@ -581,6 +611,7 @@ void Core::Handler::Sender::run(void)
 {
 	try {
 		Log("Core::Handler::Sender", "Starting");
+		Assert(mStream);
 		
 		while(true)
 		{

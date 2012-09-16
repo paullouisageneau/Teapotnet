@@ -38,7 +38,7 @@ namespace arc
 
 class User;
   
-class AddressBook : public Synchronizable, public HttpInterfaceable
+class AddressBook : protected Thread, public Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -50,8 +50,8 @@ public:
 	void load(Stream &stream);
 	void save(Stream &stream) const;
 	void save(void) const;
-	
 	void update(void);
+	
 	void http(const String &prefix, Http::Request &request);
 
 	
@@ -100,6 +100,8 @@ public:
 private:
 	static bool publish(const Identifier &remotePeering);
 	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
+	
+	void run(void);
 	
 	User *mUser;
 	String mFileName;

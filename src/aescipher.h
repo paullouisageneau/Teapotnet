@@ -31,19 +31,24 @@ namespace arc
 {
 
 #define AES_BLOCK_SIZE 16
+#define AES_MAX_KEY_SIZE 32
 #define AES_MAXNR 14
 
 class AesCipher : public Stream, public ByteString
 {
 public:
-  	AesCipher(ByteStream *bs);
+  	AesCipher(ByteStream *bs);	// bs will not be deleted
 	~AesCipher(void);
 	
-	void setEncryptionKey(const char *key, size_t size);
-	void setDecryptionKey(const char *key, size_t size);
+	size_t setEncryptionKey(const ByteString &key);
+	size_t setEncryptionKey(const char *key, size_t size);
+	size_t setDecryptionKey(const ByteString &key);
+	size_t setDecryptionKey(const char *key, size_t size);
 	
-	void setEncryptionInit(const char *iv);
-	void setDecryptionInit(const char *iv);
+	void setEncryptionInit(const ByteString &iv);
+	void setEncryptionInit(const char *iv, size_t size);
+	void setDecryptionInit(const ByteString &iv);
+	void setDecryptionInit(const char *iv, size_t size);
 	
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
@@ -55,15 +60,15 @@ private:
 	    int rounds;
 	};
   
-  	void setEncryptionKey(const char *key, size_t size, Key &out);
-	void setDecryptionKey(const char *key, size_t size, Key &out);
+  	size_t setEncryptionKey(const char *key, size_t size, Key &out);
+	size_t setDecryptionKey(const char *key, size_t size, Key &out);
   
   	void encrypt(char *in, char *out);
 	void decrypt(char *in, char *out);
   
 	size_t readBlock(char *out);
 	
-
+	
 	ByteStream *mByteStream;
 	
 	Key mEncryptionKey;

@@ -86,19 +86,21 @@ Store::Store(User *user) :
 	mFileName = mUser->profilePath() + "directories";
 	mDatabasePath = mUser->profilePath() + "db" + Directory::Separator;
 	
-	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
+	if(!Directory::Exist(mDatabasePath))
+		Directory::Create(mDatabasePath);
+	
+	Interface::Instance->add("/"+mUser->name()+"/files", this);
 	
 	try {
 	  File file(mFileName, File::Read);
 	  file.read(mDirectories);
 	  file.close();
+	  start();
 	}
 	catch(...)
 	{
 	  
 	}
-	
-	Interface::Instance->add("/"+mUser->name()+"/files", this);
 }
 
 Store::~Store(void)
@@ -118,32 +120,42 @@ String Store::userName(void) const
 
 void Store::addDirectory(const String &name, const String &path)
 {
+	Synchronize(this);
+  
 	if(!Directory::Exist(path)) throw Exception("The directory does not exist: "+path);
 	Directory test(path);
 	test.close();
 	
 	mDirectories.insert(name, path);
 	save();
+	start();
 }
 
 void Store::removeDirectory(const String &name)
 {
+  	Synchronize(this);
+  
 	if(mDirectories.contains(name))
 	{
   		mDirectories.erase(name);
 		save();
+		start();
 	}
 }
 
 void Store::save(void) const
 {
-	 File file(mFileName, File::Read);
-	 file.write(mDirectories);
-	 file.close();
+  	Synchronize(this);
+  
+	File file(mFileName, File::Write);
+	file.write(mDirectories);
+	file.close();
 }
 
 void Store::refresh(void)
 {
+	Synchronize(this);
+	
 	Identifier hash;
 	Sha512::Hash("/", hash);
 	String entryName = mDatabasePath + hash.toString();
@@ -174,6 +186,8 @@ void Store::refresh(void)
 
 bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 {
+	Synchronize(this);
+  
 	entry.content = NULL;
 	entry.info.clear();
 	
@@ -220,6 +234,8 @@ bool Store::get(const Identifier &identifier, Entry &entry, bool content)
 
 bool Store::get(const String &url, Entry &entry, bool content)
 {
+	Synchronize(this);
+	
   	entry.content = NULL;
 	entry.url = url;
 	entry.hash.clear();
@@ -247,6 +263,8 @@ bool Store::get(const String &url, Entry &entry, bool content)
 
 void Store::http(const String &prefix, Http::Request &request)
 {
+	Synchronize(this);
+	
 	try {
 		const String &url = request.url;
 
@@ -296,9 +314,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			response.send();
 
 			Html page(response.sock);
-			page.header("Files");
+			page.header("Shared files");
 			page.open("h1");
-			page.text("Files");
+			page.text("Shared files");
 			page.close("h1");
 
 			for(StringMap::iterator it = mDirectories.begin();
@@ -309,18 +327,12 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.br();
 			}
 
-			page.open("h2");
-			page.text("Add new directory");
-			page.close("h2");
 			page.openForm(prefix+"/","post");
-			page.text("Path");
-			page.input("text","path");
-			page.br();
-			page.text("Name");
-			page.input("text","name");
-			page.br();
-			page.button("Add directory");
- 			page.br();
+			page.openFieldset("New directory");
+			page.label("path","Path"); page.input("text","path"); page.br();
+			page.label("name","Name"); page.input("text","name"); page.br();
+			page.label("add"); page.button("add","Share directory");
+			page.closeFieldset();
 			page.closeForm();
 			
 			page.footer();
@@ -378,6 +390,7 @@ void Store::http(const String &prefix, Http::Request &request)
 
 void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 {
+	Synchronize(this);
 	Log("Store", String("Refreshing directory: ")+dirUrl);
 
 	Identifier hash;
@@ -491,6 +504,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 					dataHash.clear();
 					AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
 					file.writeLine(dataHash);
+					
+					UnPrioritize(this);
 				}
 			}
 		}
@@ -499,6 +514,8 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 			Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
 			File::Remove(entryName);
 		}
+		
+		UnPrioritize(this);
 	}
 }
 
@@ -518,6 +535,11 @@ String Store::urlToPath(const String &url) const
 	path.replace('/',Directory::Separator);
 
 	return dirPath + Directory::Separator + path;
+}
+
+void Store::run(void)
+{
+	refresh(); 
 }
 
 }

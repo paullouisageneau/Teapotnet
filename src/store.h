@@ -23,6 +23,8 @@
 #define ARC_STORE_H
 
 #include "include.h"
+#include "thread.h"
+#include "synchronizable.h"
 #include "identifier.h"
 #include "file.h"
 #include "map.h"
@@ -35,7 +37,7 @@ namespace arc
 
 class User;
   
-class Store : public HttpInterfaceable
+class Store : protected Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	struct Entry
@@ -70,6 +72,7 @@ public:
 private:
 	void refreshDirectory(const String &dirUrl, const String &dirPath);
 	String urlToPath(const String &url) const;
+	void run(void);
 
 	User *mUser;
 	String mFileName;

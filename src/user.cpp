@@ -29,19 +29,43 @@
 namespace arc
 {
 
-Map<Identifier, User*> User::UsersMap;
+Map<String, User*>	User::UsersByName;
+Map<Identifier, User*>	User::UsersByAuth;
+Mutex			User::UsersMutex;
   
+bool User::Exist(const String &name)
+{
+	return (User::Get(name) != NULL);
+}
+
+User *User::Get(const String &name)
+{
+	User *user = NULL;
+	UsersMutex.lock();
+	if(UsersByName.get(name, user)) 
+	{
+	  	UsersMutex.unlock();
+		return user;
+	}
+	UsersMutex.unlock();
+	return NULL; 
+}
+
 User *User::Authenticate(const String &name, const String &password)
 {
 	Identifier hash;
 	Sha512::Hash(name + ':' + password, hash, Sha512::CryptRounds);
 	
 	User *user = NULL;
-	if(UsersMap.get(hash, user)) return user;
-	else {
-		Log("User::Authenticate", "Authentication failed for \""+name+"\"");
-		return NULL;
+	UsersMutex.lock();
+	if(UsersByAuth.get(hash, user)) 
+	{
+	  	UsersMutex.unlock();
+		return user;
 	}
+	UsersMutex.unlock();
+	Log("User::Authenticate", "Authentication failed for \""+name+"\"");
+	return NULL;
 }
 
 User::User(const String &name, const String &password) :
@@ -63,14 +87,23 @@ User::User(const String &name, const String &password) :
 		file.close();
 	}
 	
-	Interface::Instance->add("/"+name, this);
-	UsersMap.insert(mHash, this);
+	UsersMutex.lock();
+	UsersByName.insert(mName, this);
+	UsersByAuth.insert(mHash, this);
+	UsersMutex.unlock();
+	
+	Interface::Instance->add("/"+mName, this);
 }
 
 User::~User(void)
 {
-	UsersMap.erase(mHash);
+  	UsersMutex.lock();
+	UsersByName.erase(mName);
+  	UsersByAuth.erase(mHash);
+	UsersMutex.unlock();
+	
 	Interface::Instance->remove("/"+mName);
+	
 	delete mAddressBook;
 	delete mStore;
 }
@@ -140,7 +173,7 @@ void User::run(void)
 	{
 		mAddressBook->update();
 		mStore->refresh();
-		mAddressBook->wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
+		wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
 	}
 }
 

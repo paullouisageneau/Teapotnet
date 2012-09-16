@@ -33,30 +33,52 @@ AesCipher::AesCipher(ByteStream *bs) :
 	mTempBlockInSize(0),
 	mTempBlockOutSize(0)
 {
+	// TODO: set keys and rounds to a safe values
+	
 	std::memset(mEncryptionInit, 0, AES_BLOCK_SIZE);
 	std::memset(mDecryptionInit, 0, AES_BLOCK_SIZE);
 }
 
 AesCipher::~AesCipher(void)
 {
-	//delete mByteStream;
+	// mByteStream is not deleted
 }
 
-void AesCipher::setEncryptionKey(const char *key, size_t size)
+size_t AesCipher::setEncryptionKey(const ByteString &key)
 {
-	setEncryptionKey(key, size, mEncryptionKey);
+	 char tmp[AES_MAX_KEY_SIZE];
+	 size_t size = key.size();
+	 if(size > AES_MAX_KEY_SIZE) size = AES_MAX_KEY_SIZE;
+	 std::copy(key.begin(), key.begin()+size, tmp);
+	 return setEncryptionKey(tmp, size);
 }
 
-void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &out)
+size_t AesCipher::setEncryptionKey(const char *key, size_t size)
+{
+	return setEncryptionKey(key, size, mEncryptionKey);
+}
+
+size_t AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &out)
 {
 	Assert(key);
 	
-	size_t bits = size*8;
+	if(size >= 32)		// 256 bits
+	{
+		size = 32;
+		out.rounds = 14;
+	}
+	else if(size >= 24)	// 192 bits
+	{
+		size = 24;
+		out.rounds = 12;
+	}
+	else if(size >= 16)	// 128 bits
+	{
+		size = 16;
+		out.rounds = 10;
+	}
+	else throw Exception("Key size is too small: " + String::number(unsigned(size)));
 
-	if(bits == 128) out.rounds = 10;
-	else if(bits == 192) out.rounds = 12;
-	else if(bits == 256) out.rounds = 14;
-	else throw Exception("Invalid key size");
 	
 	uint32_t *rk = out.rd_key;
 	
@@ -65,7 +87,7 @@ void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &o
 	rk[2] = GETU32(key +  8);
 	rk[3] = GETU32(key + 12);
 	
-	if(bits == 128) 
+	if(size == 16) 
 	{
 	  	int i = 0;
 		while(true) 
@@ -82,7 +104,7 @@ void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &o
 			rk[6] = rk[2] ^ rk[5];
 			rk[7] = rk[3] ^ rk[6];
 			
-			if (++i == 10) return;
+			if (++i == 10) return size;
 			
 			rk += 4;
 		}
@@ -91,7 +113,7 @@ void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &o
 	rk[4] = GETU32(key + 16);
 	rk[5] = GETU32(key + 20);
 	
-	if(bits == 192) 
+	if(size == 24) 
 	{
 	  	int i = 0;
 		while(true) 
@@ -107,7 +129,7 @@ void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &o
 			rk[ 8] = rk[ 2] ^ rk[ 7];
 			rk[ 9] = rk[ 3] ^ rk[ 8];
 			
-			if (++i == 8) return;
+			if (++i == 8) return size;
 			
 			rk[10] = rk[ 4] ^ rk[ 9];
 			rk[11] = rk[ 5] ^ rk[10];
@@ -119,50 +141,56 @@ void AesCipher::setEncryptionKey(const char *key, size_t size, AesCipher::Key &o
 	rk[6] = GETU32(key + 24);
 	rk[7] = GETU32(key + 28);
 	
-	if(bits == 256) 
+	int i = 0;
+	while(true) 
 	{
-		int i = 0;
-		while(true) 
-		{
-			uint32_t tmp = rk[ 7];
-			rk[ 8] = rk[ 0] ^
-				(Te4[(tmp >> 16) & 0xff] & 0xff000000) ^
-				(Te4[(tmp >>  8) & 0xff] & 0x00ff0000) ^
-				(Te4[(tmp      ) & 0xff] & 0x0000ff00) ^
-				(Te4[(tmp >> 24)       ] & 0x000000ff) ^
-				rcon[i];
+		uint32_t tmp = rk[ 7];
+		rk[ 8] = rk[ 0] ^
+			(Te4[(tmp >> 16) & 0xff] & 0xff000000) ^
+			(Te4[(tmp >>  8) & 0xff] & 0x00ff0000) ^
+			(Te4[(tmp      ) & 0xff] & 0x0000ff00) ^
+			(Te4[(tmp >> 24)       ] & 0x000000ff) ^
+			rcon[i];
 				
-			rk[ 9] = rk[ 1] ^ rk[ 8];
-			rk[10] = rk[ 2] ^ rk[ 9];
-			rk[11] = rk[ 3] ^ rk[10];
+		rk[ 9] = rk[ 1] ^ rk[ 8];
+		rk[10] = rk[ 2] ^ rk[ 9];
+		rk[11] = rk[ 3] ^ rk[10];
 			
-			if (++i == 7) return;
+		if (++i == 7) return size;
 
-			tmp = rk[11];
-			rk[12] = rk[ 4] ^
-				(Te4[(tmp >> 24)       ] & 0xff000000) ^
-				(Te4[(tmp >> 16) & 0xff] & 0x00ff0000) ^
-				(Te4[(tmp >>  8) & 0xff] & 0x0000ff00) ^
-				(Te4[(tmp      ) & 0xff] & 0x000000ff);
+		tmp = rk[11];
+		rk[12] = rk[ 4] ^
+			(Te4[(tmp >> 24)       ] & 0xff000000) ^
+			(Te4[(tmp >> 16) & 0xff] & 0x00ff0000) ^
+			(Te4[(tmp >>  8) & 0xff] & 0x0000ff00) ^
+			(Te4[(tmp      ) & 0xff] & 0x000000ff);
 			
-			rk[13] = rk[ 5] ^ rk[12];
-			rk[14] = rk[ 6] ^ rk[13];
-			rk[15] = rk[ 7] ^ rk[14];
+		rk[13] = rk[ 5] ^ rk[12];
+		rk[14] = rk[ 6] ^ rk[13];
+		rk[15] = rk[ 7] ^ rk[14];
 			
-			rk += 8;
-        	}
+		rk += 8;
 	}
 }
 
-void AesCipher::setDecryptionKey(const char *key, size_t size)
+size_t AesCipher::setDecryptionKey(const ByteString &key)
 {
-	setDecryptionKey(key, size, mDecryptionKey);
+	 char tmp[AES_MAX_KEY_SIZE];
+	 size_t size = key.size();
+	 if(size > AES_MAX_KEY_SIZE) size = AES_MAX_KEY_SIZE;
+	 std::copy(key.begin(), key.begin()+size, tmp);
+	 return setDecryptionKey(tmp, size);
 }
 
-void AesCipher::setDecryptionKey(const char *key, size_t size, AesCipher::Key &out)
+size_t AesCipher::setDecryptionKey(const char *key, size_t size)
+{
+	return setDecryptionKey(key, size, mDecryptionKey);
+}
+
+size_t AesCipher::setDecryptionKey(const char *key, size_t size, AesCipher::Key &out)
 {
 	/* first, start with an encryption schedule */
-	setEncryptionKey(key, size, out);
+	size = setEncryptionKey(key, size, out);
 
 	uint32_t *rk = out.rd_key;
 
@@ -206,26 +234,53 @@ void AesCipher::setDecryptionKey(const char *key, size_t size, AesCipher::Key &o
 			Td2[Te4[(rk[3] >>  8) & 0xff] & 0xff] ^
 			Td3[Te4[(rk[3]      ) & 0xff] & 0xff];
 	}
+	
+	return size;
 }
 
-void AesCipher::setEncryptionInit(const char *iv)
+void AesCipher::setEncryptionInit(const ByteString &iv)
 {
-	std::memcpy(mEncryptionInit, iv, AES_BLOCK_SIZE); 
+	if(iv.empty()) std::memset(mEncryptionInit, 0, AES_BLOCK_SIZE);
+	else {
+		for(int i=0; i<AES_BLOCK_SIZE; ++i)
+			mEncryptionInit[i] = iv.at(i % iv.size());
+	}
 }
 
-void AesCipher::setDecryptionInit(const char *iv)
+void AesCipher::setEncryptionInit(const char *iv, size_t size)
 {
- 	std::memcpy(mDecryptionInit, iv, AES_BLOCK_SIZE); 
+	Assert(iv);
+  	if(!size) std::memset(mEncryptionInit, 0, AES_BLOCK_SIZE);
+	else {
+		for(int i=0; i<AES_BLOCK_SIZE; ++i)
+			mEncryptionInit[i] = iv[i % size];
+	}
 }
 
+void AesCipher::setDecryptionInit(const ByteString &iv)
+{
+	if(iv.empty()) std::memset(mDecryptionInit, 0, AES_BLOCK_SIZE);
+	else {
+		for(int i=0; i<AES_BLOCK_SIZE; ++i)
+			mDecryptionInit[i] = iv.at(i % iv.size());
+	}
+}
+
+void AesCipher::setDecryptionInit(const char *iv, size_t size)
+{
+	Assert(iv);
+  	if(!size) std::memset(mDecryptionInit, 0, AES_BLOCK_SIZE);
+	else {
+		for(int i=0; i<AES_BLOCK_SIZE; ++i)
+			mDecryptionInit[i] = iv[i % size];
+	}
+}
 /*
  * Encrypt a single block
  * in and out can overlap
  */
 void AesCipher::encrypt(char *in, char *out)
 {
-	Assert(in && out);
-	
 	uint32_t s0, s1, s2, s3, t0, t1, t2, t3;
 	const uint32_t *rk = mEncryptionKey.rd_key;
 
@@ -332,8 +387,6 @@ void AesCipher::encrypt(char *in, char *out)
  */
 void AesCipher::decrypt(char *in, char *out)
 {
-	Assert(in && out);
-	
 	uint32_t s0, s1, s2, s3, t0, t1, t2, t3;
 	const uint32_t *rk = mDecryptionKey.rd_key;
 

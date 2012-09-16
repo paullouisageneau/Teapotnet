@@ -29,6 +29,7 @@
 #include "identifier.h"
 #include "addressbook.h"
 #include "store.h"
+#include "mutex.h"
 #include "map.h"
 
 namespace arc
@@ -37,6 +38,8 @@ namespace arc
 class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
+  	static bool Exist(const String &name);
+	static User *Get(const String &name);
 	static User *Authenticate(const String &name, const String &password);
 	
 	User(const String &name, const String &password = "");
@@ -58,7 +61,9 @@ private:
 	AddressBook *mAddressBook;
 	Store *mStore;
 	
-	static Map<Identifier, User*> UsersMap;
+	static Map<String, User*>	UsersByName;
+	static Map<Identifier, User*>	UsersByAuth;
+	static Mutex			UsersMutex;
 };
 
 }

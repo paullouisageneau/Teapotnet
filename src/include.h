@@ -89,6 +89,8 @@ typedef u_long ctl_t;
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <sched.h>
+
 typedef int socket_t;
 typedef int ctl_t;
 #define sockerrno errno
@@ -143,7 +145,19 @@ template<typename T> void msleep(T msecs)
 #ifdef WINDOWS
 	Sleep(unsigned(msecs));
 #else
-	usleep(msecs*1000);
+	struct timespec ts;
+	ts.tv_sec = msecs/1000;
+	ts.tv_nsec = (msecs%1000)*1000000;
+	nanosleep(&ts, NULL);
+#endif
+}
+
+inline void yield(void)
+{
+#ifdef WINDOWS
+	Sleep(0);
+#else
+	sched_yield();
 #endif
 }
 

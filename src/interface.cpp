@@ -24,6 +24,8 @@
 #include "user.h"
 #include "store.h"
 #include "splicer.h"
+#include "config.h"
+#include "directory.h"
 
 namespace arc
 {
@@ -73,7 +75,7 @@ void Interface::process(Http::Request &request)
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
-
+	
 	User *user = NULL;
 	String auth;
 	if(request.headers.get("Authorization", auth))
@@ -101,64 +103,87 @@ void Interface::process(Http::Request &request)
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
 	
-	if(!user || list.front() != user->name())
+	if(list.size() == 1 && request.url[request.url.size()-1] != '/') 
 	{
-	 	String realm;
-		if(list.front().empty()) realm = "Arcanet";	// empty iff url == '/'
-		else realm = list.front() + " on Arcanet";
-		
-		Http::Response response(request, 401);
-		response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
-		response.send();
-			
-		Html page(response.sock);
-		page.header("Arcanet");
-		page.open("h1");
-		page.text("Authentication required");
-		page.close("h1");
-		
-		page.footer();
-		return;
-	}
-
-	mMutex.lock();
-	while(!list.empty())
-	{
-		String prefix;
-		prefix.implode(list,'/');
-		prefix = "/" + prefix;
-	 	list.pop_back();
-		
-		HttpInterfaceable *interfaceable;
-		if(mPrefixes.get(prefix,interfaceable)) 
+		String name = Config::Get("static_dir") + Directory::Separator + list.front();
+		if(File::Exist(name))
 		{
-			request.url.ignore(prefix.size());
+			File file(name, File::Read);
+			Http::Response response(request, 200);
 			
-			//Log("Interface", "Matched prefix \""+prefix+"\"");
-			
-			if(prefix != "/" && request.url.empty())
-			{
-				Http::Response response(request, 301);	// Moved Permanently
-				response.headers["Location"] = prefix+"/";
-				response.send();
-				mMutex.unlock();
-				return;  
-			}
-			
-			interfaceable->http(prefix, request);
-			mMutex.unlock();
+			// TODO
+			String ext = name.cutLast('.');
+			if(ext == "html") response.headers.insert("Content-Type","text/html");
+			if(ext == "css")  response.headers.insert("Content-Type","text/css");
+			if(ext == "png")  response.headers.insert("Content-Type","image/png");
+			if(ext == "jpg")  response.headers.insert("Content-Type","text/jpeg");
+
+			response.send();
+			response.sock->writeBinary(file);
 			return;
 		}
 	}
-	mMutex.unlock();
 	
-	String url(request.url);
-	if(url[0] == '/') url.ignore();
-	if(!url.contains('/'))
+	if(!user || User::Exist(list.front()))
 	{
+		if(!user || list.front() != user->name())
+		{
+			String realm;
+			if(list.front().empty()) realm = "Arcanet";	// empty iff url == '/'
+			else realm = list.front() + " on Arcanet";
+			
+			Http::Response response(request, 401);
+			response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
+			response.send();
+				
+			Html page(response.sock);
+			page.header("Arcanet");
+			page.open("h1");
+			page.text("Authentication required");
+			page.close("h1");
+			
+			page.footer();
+			return;
+		}
+
+		mMutex.lock();
+		while(!list.empty())
+		{
+			String prefix;
+			prefix.implode(list,'/');
+			prefix = "/" + prefix;
+			list.pop_back();
+			
+			HttpInterfaceable *interfaceable;
+			if(mPrefixes.get(prefix,interfaceable)) 
+			{
+				request.url.ignore(prefix.size());
+				
+				//Log("Interface", "Matched prefix \""+prefix+"\"");
+				
+				if(prefix != "/" && request.url.empty())
+				{
+					Http::Response response(request, 301);	// Moved Permanently
+					response.headers["Location"] = prefix+"/";
+					response.send();
+					mMutex.unlock();
+					return;  
+				}
+				
+				interfaceable->http(prefix, request);
+				mMutex.unlock();
+				return;
+			}
+		}
+		mMutex.unlock();
+	}
+	else {
+	  	if(list.size() != 1) throw 404; 
+	  
 	 	try {
 			Identifier hash;
-			url >> hash;  
+			String tmp = list.front();
+			tmp >> hash;  
 		
 			Store::Entry entry;
 			if(Store::GetResource(hash, entry, true))

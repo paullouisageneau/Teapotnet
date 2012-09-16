@@ -91,7 +91,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	
 	save();
-	notify();
+	start();
 	return contact->peering();
 }
 
@@ -107,6 +107,7 @@ void AddressBook::removeContact(const Identifier &peering)
  		mContacts.erase(peering);
 		delete contact;
 		save();
+		start();
 	}
 }
 
@@ -126,6 +127,8 @@ void AddressBook::load(Stream &stream)
 		contact = new Contact(this);
 	}	
 	delete contact;
+	
+	start();
 }
 
 void AddressBook::save(Stream &stream) const
@@ -221,19 +224,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				
 				page.br();
 			}
-
-			page.open("h2");
-			page.text("Add new contact");
-			page.close("h2");
+	
 			page.openForm(prefix+"/","post");
-			page.text("Name");
-			page.input("text","name");
-			page.br();
-			page.text("Secret");
-			page.input("text","secret");
-			page.br();
-			page.button("Add contact");
- 			page.br();
+			page.openFieldset("New contact");
+			page.label("name","Name"); page.input("text","name"); page.br();
+			page.label("secret","Secret"); page.input("text","secret"); page.br();
+			page.label("add"); page.button("add","Add contact");
+			page.closeFieldset();
 			page.closeForm();
 			
 			page.footer();
@@ -247,6 +244,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	}
 	
 	throw 404;
+}
+
+void AddressBook::run(void)
+{
+	update();
 }
 
 bool AddressBook::publish(const Identifier &remotePeering)
@@ -539,20 +541,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			  
 				if(request.method == "POST")
 				{
-					try {
-						Message message(request.post.get("message"));
-						mMessages.push_back(message);	// copy stored now so receiver is null
-						message.send(mPeering);
-					}
-					catch(...)
+					if(request.post.contains("message") && !request.post.get("message").empty())
 					{
-						throw 400;
-					}				
-					
-					Http::Response response(request, 303);
-					response.headers["Location"] = prefix + "/chat";
-					response.send();
-					return;
+						try {
+							Message message(request.post.get("message"));
+							mMessages.push_back(message);	// copy stored now so receiver is null
+							message.send(mPeering);
+						}
+						catch(...)
+						{
+							throw 400;
+						}				
+						
+						Http::Response response(request, 303);
+						response.headers["Location"] = prefix + "/chat";
+						response.send();
+						return;
+					}
 				}
 			  
 				Http::Response response(request,200);
@@ -588,7 +593,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				page.openForm(prefix + "/chat", "post");
 				page.input("text","message");
-				page.button("Send");
+				page.button("send", "Send");
 				page.br();
 				page.closeForm();
 				

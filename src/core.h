@@ -79,7 +79,7 @@ private:
 	class Handler : public Thread, protected Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *stream);
+		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
@@ -104,6 +104,7 @@ private:
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
+		Socket  *mSock;
 		Stream  *mStream;
 		Handler *mHandler;
 		Map<unsigned, Request*> mRequests;
@@ -112,7 +113,7 @@ private:
 		class Sender : public Thread, public Synchronizable
 		{
 		public:
-			Sender(Stream *stream);
+			Sender(void);
 			~Sender(void);
 
 		private:

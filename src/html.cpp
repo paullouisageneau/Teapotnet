@@ -42,6 +42,7 @@ void Html::header(const String &title, const String &redirect)
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
 	*mStream<<"<title>"<<title<<"</title>\n";
+	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
@@ -143,9 +144,29 @@ void Html::closeForm(void)
 	*mStream<<"</form>\n";
 }
 
+void Html::openFieldset(const String &legend)
+{
+	open("fieldset");
+	open("legend");
+	text(legend);
+	close("legend");
+}
+
+void Html::closeFieldset(void)
+{
+  	close("fieldset");
+}
+
+void Html::label(const String &name, const String &label)
+{
+	*mStream<<"<label for=\""<<name<<"\">"<<label<<"</label>\n";
+}
+
 void Html::input(const String &type, const String &name, const String &value)
 {
- 	*mStream<<"<input type=\""<<type<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"/>\n";
+	String t(type);
+	if(t == "button") t = "submit";
+ 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"/>\n";
 }
 
 void Html::checkbox(const String &name, const String &value, bool checked)
@@ -176,9 +197,10 @@ void Html::select(const String &name, const StringMap &options, const String &de
 	*mStream<<"</select>\n";
 }
 
-void Html::button(const String &name)
+void Html::button(const String &name, const String &text)
 {
-	*mStream<<"<input type=\"submit\" class=\"button\" name=\""<<name<<"\" value=\""<<name<<"\"/>\n";
+  	if(text.empty()) input("submit", name, name);
+	else input("submit", name, text);
 }
 
 Stream *Html::stream(void)
