@@ -40,6 +40,7 @@ int main(int argc, char** argv)
 	
 	Config::Put("tracker", "127.0.0.1:2000");
 	Config::Put("port", "8480");
+	Config::Put("tracker_port", "8488");
 	Config::Put("interface_port", "8080");
 	Config::Put("profiles_dir", "profiles");
 	Config::Put("static_dir", "static");
@@ -75,6 +76,8 @@ int main(int argc, char** argv)
 	Tracker *tracker = NULL;
 	if(args.contains("tracker"))
 	{
+		if(args["tracker"].empty()) 
+			args["tracker"] = Config::Get("tracker_port");
 	  	int port;
 		args["tracker"] >> port;
 		tracker = new Tracker(port);
