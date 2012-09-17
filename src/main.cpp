@@ -100,6 +100,9 @@ int main(int argc, char** argv)
 	Core::Instance = new Core(port);
 	Core::Instance->start();
 
+	if(!Directory::Exist(Config::Get("profiles_dir")))
+		Directory::Create(Config::Get("profiles_dir"));
+	
 	Directory profilesDir(Config::Get("profiles_dir"));
 	while(profilesDir.nextFile())
 	{

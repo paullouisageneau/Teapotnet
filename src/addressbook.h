@@ -84,6 +84,8 @@ public:
 		void deserialize(Stream &s);
 		
 	private:
+	  	void messageToHtml(Html &html, const Message &message) const;
+	  
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;
 		Identifier mPeering, mRemotePeering;
@@ -91,6 +93,7 @@ public:
 		
 		SerializableArray<Address> mAddrs;
 		Deque<Message> mMessages;
+		unsigned mMessagesCount;
 	};
 	
 	const Identifier &addContact(String name, const ByteString &secret);

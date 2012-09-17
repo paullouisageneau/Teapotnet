@@ -332,7 +332,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
-  	mAddressBook(addressBook)
+  	mAddressBook(addressBook),
+	mMessagesCount(0)
 {
   
 }
@@ -426,7 +427,8 @@ void AddressBook::Contact::message(Message *message)
 	
 	Assert(message);
 	Assert(message->receiver() == mPeering);
-	mMessages.push_back(*message); 
+	mMessages.push_back(*message);
+	++mMessagesCount;
 }
 
 void AddressBook::Contact::request(Request *request)
@@ -537,7 +539,26 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			}
 			else if(directory == "chat")
 			{
-				if(url != "/") throw 404;
+				if(url != "/")
+				{
+				  	url.ignore();
+					unsigned count = 0;
+					try { url>>count; }
+					catch(...) { throw 404; }
+					
+					Http::Response response(request,200);
+					response.send();
+					
+					Html html(response.sock);
+					if(count < mMessagesCount && mMessagesCount-count <= mMessages.size())
+					{
+						int i = mMessages.size() - (mMessagesCount-count);
+						messageToHtml(html, mMessages[i]);
+						mMessages[i].markRead();
+					}
+					
+					return;
+				}
 			  
 				if(request.method == "POST")
 				{
@@ -569,27 +590,32 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.text("Chat: "+mName);
 				page.close("h1");
 			  
+				page.open("div", "chat");
 				for(int i=0; i<mMessages.size(); ++i)
 				{
-					char buffer[64];
-					time_t t = mMessages[i].time();
-					std::strftime (buffer, 64, "%x %X", localtime(&t));
-	  
-					page.open("span",".message");
-					page.open("span",".date");
-					page.text(buffer);
-					page.close("span");
-					page.text(" ");
-					page.open("span",".user");
-					if(mMessages[i].receiver() == Identifier::Null) page.text(mAddressBook->userName());
-					else page.text(mAddressBook->getContact(mMessages[i].receiver())->name());
-					page.close("span");
-					page.text(" " + mMessages[i].content());
-					page.close("span");
-					page.br();
-					
+	  				messageToHtml(page, mMessages[i]);
 					mMessages[i].markRead();
 				}
+				page.close("div");
+				
+				*page.stream()<<"<script type=\"text/javascript\">\n\
+	var count = "+String::number(mMessagesCount)+";\n\
+	function update()\n\
+	{\n\
+		var xhr = createXMLHttpRequest()\n\
+		xhr.open('GET', '"+prefix+"/chat/'+count, false);\n\
+		xhr.withCredentials = true;\n\
+		xhr.send();\n\
+		if(xhr.status === 200 && xhr.responseText)\n\
+		{\n\
+  			document.getElementById('chat').innerHTML+= xhr.responseText;\n\
+  			count+= 1;\n\
+  			setTimeout('update()', 100);\n\
+		}\n\
+		else setTimeout('update()', 2000);\n\
+	}\n\
+	setTimeout('update()', 2000);\n\
+</script>\n";
 				
 				page.openForm(prefix + "/chat", "post");
 				page.input("text","message");
@@ -609,6 +635,25 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	}
 	
 	throw 404;
+}
+
+void AddressBook::Contact::messageToHtml(Html &html, const Message &message) const
+{
+	char buffer[64];
+	time_t t = message.time();
+	std::strftime (buffer, 64, "%x %X", localtime(&t));
+	html.open("span",".message");
+	html.open("span",".date");
+	html.text(buffer);
+	html.close("span");
+	html.text(" ");
+	html.open("span",".user");
+	if(message.receiver() == Identifier::Null) html.text(mAddressBook->userName());
+	else html.text(mAddressBook->getContact(message.receiver())->name());
+	html.close("span");
+	html.text(" " + message.content());
+	html.close("span");
+	html.br(); 
 }
 
 void AddressBook::Contact::serialize(Stream &s) const

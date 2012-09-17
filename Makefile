@@ -8,10 +8,10 @@ LDLIBS=-lpthread
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: arcanet
+all: teapotnet
 
-arcanet: $(OBJS)
-	$(CXX) $(LDFLAGS) -o arcanet $(OBJS) $(LDLIBS) 
+teapotnet: $(OBJS)
+	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) $(LDLIBS) 
 
 depend: .depend
 

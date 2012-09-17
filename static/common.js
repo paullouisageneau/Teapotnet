@@ -1,4 +1,4 @@
-function createXhrObject()
+function createXMLHttpRequest()
 {
     if (window.XMLHttpRequest)
         return new XMLHttpRequest();
@@ -19,4 +19,9 @@ function createXhrObject()
     }
     window.alert("Votre navigateur ne prend pas en charge l'objet XMLHTTPRequest.");
     return null; // non supporté
+}
+
+function parseJson(json)
+{
+	return typeof JSON !='undefined' ? JSON.parse(json) : eval('('+json+')');
 }
