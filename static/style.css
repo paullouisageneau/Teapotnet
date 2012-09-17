@@ -1,0 +1,140 @@
+body
+{
+	font-family: "sans";
+	font-size: 100%;
+	background-color: #FFFFFF;
+	padding: 1em;
+	margin: 0;
+}
+
+a:link, a:visited
+{
+	text-decoration: none;
+}
+
+a:hover
+{
+	text-decoration: underline;
+}
+
+div
+{
+	margin: 0;
+	padding: 0;
+}
+
+img
+{
+	margin: 1em;
+	padding: 0em;
+}
+
+form
+{
+	display: inline;	
+}
+
+hr 
+{
+	clear: both;
+	
+}
+
+h1
+{
+
+}
+
+h2
+{
+
+}
+
+table 
+{
+	margin: 1em;
+	padding: 0em;
+	border: 0; 
+	border-collapse: collapse;
+	border-style: none;
+	border-width:0
+}
+
+tr
+{
+	margin: 0;
+	border: 0;
+	padding: 0;
+	border-width:0;
+}
+
+td
+{
+	margin: 0;
+	border: 0;
+	padding: 0.5em;
+	border-width:0;
+	vertical-align: top;
+}
+
+fieldset 
+{
+	max-width: 30em;
+	margin: 0em;
+	margin-top: 1em;
+	padding: 1em;
+	border:1px solid black;
+	border-radius: 0.5em;
+}
+
+label 
+{
+	float: left;
+	clear: both;
+	width: 25%;
+	margin-right: 0.5em;
+	padding-top: 0.4em;
+	text-align: right;
+	font-size: 80%;
+	font-weight: bold;
+}
+
+legend 
+{
+	padding: 0.2em 0.5em;
+	border: 1px solid black;
+	border-radius: 0.5em;
+	font-size: 90%;
+	text-align: right;
+}
+
+input
+{
+	margin: 0.2em;
+}
+
+.user
+{
+	font-weight: bold;
+}
+
+.box
+{
+	width: 80%;
+	margin: 1em;
+        padding: 1em;
+        border: 1px solid #808080;
+        border-radius: 1em;
+	background-color: #E0E0E0;
+        box-shadow: 1px 1px 6px #202020;
+}
+
+.backbox
+{
+	margin: 1em;
+        padding: 1em;
+        display: inline-block;
+        border: 1px solid #F0F0F0;
+        border-radius: 1em;
+	background-color: #FEFEFE;
+}
