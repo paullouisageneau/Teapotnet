@@ -24,7 +24,7 @@
 #include "store.h"
 #include "stripedfile.h"
 
-namespace arc
+namespace tpot
 {
 
 Request::Request(const String &target, bool data) :

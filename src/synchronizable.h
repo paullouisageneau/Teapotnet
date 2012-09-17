@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SYNCHRONIZABLE_H
-#define ARC_SYNCHRONIZABLE_H
+#ifndef TPOT_SYNCHRONIZABLE_H
+#define TPOT_SYNCHRONIZABLE_H
 
 #include "mutex.h"
 #include "signal.h"
 
-namespace arc
+namespace tpot
 {
 
 class Synchronizable

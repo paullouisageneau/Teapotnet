@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_MAP_H
-#define ARC_MAP_H
+#ifndef TPOT_MAP_H
+#define TPOT_MAP_H
 
 #include "include.h"
 #include "exception.h"
@@ -28,7 +28,7 @@
 
 #include <map>
 
-namespace arc
+namespace tpot
 {
 
 template<typename K, typename V>

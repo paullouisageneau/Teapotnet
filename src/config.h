@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_CONFIG_H
-#define ARC_CONFIG_H
+#ifndef TPOT_CONFIG_H
+#define TPOT_CONFIG_H
 
 #include "include.h"
 #include "string.h"
@@ -28,7 +28,7 @@
 #include "file.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
 
 class Config

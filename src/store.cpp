@@ -25,7 +25,7 @@
 #include "sha512.h"
 #include "html.h"
 
-namespace arc
+namespace tpot
 {
 
 Map<Identifier,String> Store::Resources;

@@ -22,7 +22,7 @@
 #include "html.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 Html::Html(Stream *stream) :

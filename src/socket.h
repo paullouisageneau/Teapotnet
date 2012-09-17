@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SOCKET_H
-#define ARC_SOCKET_H
+#ifndef TPOT_SOCKET_H
+#define TPOT_SOCKET_H
 
 #include "include.h"
 #include "stream.h"
 #include "bytestream.h"
 #include "address.h"
 
-namespace arc
+namespace tpot
 {
 
 class ServerSocket;

@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_ADDRESSBOOK_H
-#define ARC_ADDRESSBOOK_H
+#ifndef TPOT_ADDRESSBOOK_H
+#define TPOT_ADDRESSBOOK_H
 
 #include "include.h"
 #include "http.h"
@@ -33,7 +33,7 @@
 #include "array.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
 
 class User;

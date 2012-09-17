@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SHA512_H
-#define ARC_SHA512_H
+#ifndef TPOT_SHA512_H
+#define TPOT_SHA512_H
 
 #include "include.h"
 #include "bytestream.h"
 #include "bytestring.h"
 #include "string.h"
 
-namespace arc
+namespace tpot
 {
 
 class Sha512

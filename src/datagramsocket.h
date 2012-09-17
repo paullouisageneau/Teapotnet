@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_DATAGRAMSOCKET_H
-#define ARC_DATAGRAMSOCKET_H
+#ifndef TPOT_DATAGRAMSOCKET_H
+#define TPOT_DATAGRAMSOCKET_H
 
 #include "include.h"
 #include "address.h"
 
-namespace arc
+namespace tpot
 {
 
 class DatagramSocket

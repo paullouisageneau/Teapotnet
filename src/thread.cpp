@@ -21,7 +21,7 @@
 
 #include "thread.h"
 
-namespace arc
+namespace tpot
 {
 
 Thread::Thread(void) :

@@ -22,7 +22,7 @@
 #include "file.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 bool File::Exist(const String &filename)

@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_STORE_H
-#define ARC_STORE_H
+#ifndef TPOT_STORE_H
+#define TPOT_STORE_H
 
 #include "include.h"
 #include "thread.h"
@@ -32,7 +32,7 @@
 #include "interface.h"
 #include "mutex.h"
 
-namespace arc
+namespace tpot
 {
 
 class User;

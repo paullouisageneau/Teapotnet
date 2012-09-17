@@ -28,7 +28,7 @@
 #include "directory.h"
 #include "html.h"
 
-namespace arc
+namespace tpot
 {
 
 AddressBook::AddressBook(User *user) :

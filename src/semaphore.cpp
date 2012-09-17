@@ -21,7 +21,7 @@
 
 #include "semaphore.h"
 
-namespace arc
+namespace tpot
 {
 
 Semaphore::Semaphore(int value) :

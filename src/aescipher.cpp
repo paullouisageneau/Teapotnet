@@ -22,7 +22,7 @@
 #include "aescipher.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 #define GETU32(pt) (uint32_t(uint8_t((pt)[0]) << 24) ^ uint32_t(uint8_t((pt)[1]) << 16) ^ uint32_t(uint8_t((pt)[2]) <<  8) ^ uint32_t(uint8_t((pt)[3])))

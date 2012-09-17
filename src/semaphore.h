@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SEMAPHORE_H
-#define ARC_SEMAPHORE_H
+#ifndef TPOT_SEMAPHORE_H
+#define TPOT_SEMAPHORE_H
 
 #include "include.h"
 #include "exception.h"
 #include "mutex.h"
 #include "signal.h"
 
-namespace arc
+namespace tpot
 {
 
 class Semaphore

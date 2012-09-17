@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_THREAD_H
-#define ARC_THREAD_H
+#ifndef TPOT_THREAD_H
+#define TPOT_THREAD_H
 
 #include "include.h"
 #include "synchronizable.h"
 
-namespace arc
+namespace tpot
 {
 
 class Thread

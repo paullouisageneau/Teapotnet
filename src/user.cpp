@@ -26,7 +26,7 @@
 #include "sha512.h"
 #include "html.h"
 
-namespace arc
+namespace tpot
 {
 
 Map<String, User*>	User::UsersByName;

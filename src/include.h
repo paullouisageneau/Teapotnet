@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_INCLUDE_H
-#define ARC_INCLUDE_H
+#ifndef TPOT_INCLUDE_H
+#define TPOT_INCLUDE_H
 
 #define DEBUG
 #define APPNAME		"TeapotNet"
@@ -111,7 +111,7 @@ typedef int ctl_t;
 #define SERVICE_NAME_MAX 32
 #endif
 
-namespace arc
+namespace tpot
 {
 
 typedef signed char		sint8_t;	// 8 bits
@@ -173,10 +173,10 @@ const size_t BufferSize = 4096;
 
 }
 
-#ifndef ARC_MUTEX_H
+#ifndef TPOT_MUTEX_H
 #include "mutex.h"
 
-namespace arc
+namespace tpot
 {
 
 extern Mutex LogMutex;

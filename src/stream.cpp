@@ -24,7 +24,7 @@
 #include "exception.h"
 #include "bytestream.h"
 
-namespace arc
+namespace tpot
 {
 
 const String Stream::IgnoredCharacters = "\r\0";

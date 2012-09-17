@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_FILE_H
-#define ARC_FILE_H
+#ifndef TPOT_FILE_H
+#define TPOT_FILE_H
 
 #include "stream.h"
 #include "bytestream.h"
@@ -28,7 +28,7 @@
 
 #include <fstream>
 
-namespace arc
+namespace tpot
 {
 
 class File : public Stream, public ByteStream, public std::fstream

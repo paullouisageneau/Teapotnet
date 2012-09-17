@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_DIRECTORY_H
-#define ARC_DIRECTORY_H
+#ifndef TPOT_DIRECTORY_H
+#define TPOT_DIRECTORY_H
 
 #include "include.h"
 #include "string.h"
@@ -28,7 +28,7 @@
 
 #include "dirent.h"
 
-namespace arc
+namespace tpot
 {
 
 class Directory

@@ -22,7 +22,7 @@
 #include "message.h"
 #include "core.h"
 
-namespace arc
+namespace tpot
 {
 
 Message::Message(const String &content) :

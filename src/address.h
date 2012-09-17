@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_ADDRESS_H
-#define ARC_ADDRESS_H
+#ifndef TPOT_ADDRESS_H
+#define TPOT_ADDRESS_H
 
 #include "include.h"
 #include "serializable.h"
 
-namespace arc
+namespace tpot
 {
 
 class Address : public Serializable

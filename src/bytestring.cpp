@@ -22,7 +22,7 @@
 #include "bytestring.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 ByteString::ByteString(void)

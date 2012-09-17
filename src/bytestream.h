@@ -19,12 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_BYTESTREAM_H
-#define ARC_BYTESTREAM_H
+#ifndef TPOT_BYTESTREAM_H
+#define TPOT_BYTESTREAM_H
 
 #include "include.h"
 
-namespace arc
+namespace tpot
 {
 
 class Serializable;

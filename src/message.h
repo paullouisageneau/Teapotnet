@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_MESSAGE_H
-#define ARC_MESSAGE_H
+#ifndef TPOT_MESSAGE_H
+#define TPOT_MESSAGE_H
 
 #include "include.h"
 #include "string.h"
@@ -28,7 +28,7 @@
 #include "map.h"
 #include "html.h"
 
-namespace arc
+namespace tpot
 {
 
 class Message

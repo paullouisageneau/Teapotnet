@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-namespace arc
+namespace tpot
 {
 
 StringMap Config::Param;

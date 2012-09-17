@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_TRACKER_H
-#define ARC_TRACKER_H
+#ifndef TPOT_TRACKER_H
+#define TPOT_TRACKER_H
 
 #include "include.h"
 #include "http.h"
@@ -29,7 +29,7 @@
 #include "array.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
 
 class Tracker : public Http::Server

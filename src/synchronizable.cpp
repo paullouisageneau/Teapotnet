@@ -21,7 +21,7 @@
 
 #include "synchronizable.h"
 
-namespace arc
+namespace tpot
 {
 
 Synchronizable::Synchronizable(void) :

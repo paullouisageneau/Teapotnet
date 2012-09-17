@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_IDENTIFIER_H
-#define ARC_IDENTIFIER_H
+#ifndef TPOT_IDENTIFIER_H
+#define TPOT_IDENTIFIER_H
 
 #include "include.h"
 #include "bytestring.h"
 #include "stream.h"
 #include "serializable.h"
 
-namespace arc
+namespace tpot
 {
 
 class Identifier : public ByteString

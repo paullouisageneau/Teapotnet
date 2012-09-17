@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_STREAM_H
-#define ARC_STREAM_H
+#ifndef TPOT_STREAM_H
+#define TPOT_STREAM_H
 
 #include "include.h"
 
 #include <sstream>
 
-namespace arc
+namespace tpot
 {
 
 class Serializable;

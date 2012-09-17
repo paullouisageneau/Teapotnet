@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_HTML_H
-#define ARC_HTML_H
+#ifndef TPOT_HTML_H
+#define TPOT_HTML_H
 
 #include "include.h"
 #include "stream.h"
 #include "serializable.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
 
 class Html

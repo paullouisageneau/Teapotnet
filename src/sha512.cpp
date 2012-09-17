@@ -28,7 +28,7 @@
 #include "exception.h"
 #include "bytearray.h"
 
-namespace arc
+namespace tpot
 {
 
 const int Sha512::CryptRounds = 5000;

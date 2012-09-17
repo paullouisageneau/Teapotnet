@@ -23,7 +23,7 @@
 #include "request.h"
 #include "pipe.h"
 
-namespace arc
+namespace tpot
 {
   
 Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :

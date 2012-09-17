@@ -22,7 +22,7 @@
 #include "bytearray.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 ByteArray::ByteArray(size_t size) :

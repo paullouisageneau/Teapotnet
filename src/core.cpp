@@ -24,7 +24,7 @@
 #include "sha512.h"
 #include "aescipher.h"
 
-namespace arc
+namespace tpot
 {
 
 Core *Core::Instance = NULL;

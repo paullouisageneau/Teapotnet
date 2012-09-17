@@ -23,7 +23,7 @@
 #include "exception.h"
 #include "string.h"
 
-namespace arc
+namespace tpot
 {
 
 const int DatagramSocket::MaxDatagramSize = 1500;

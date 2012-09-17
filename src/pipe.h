@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_PIPE_H
-#define ARC_PIPE_H
+#ifndef TPOT_PIPE_H
+#define TPOT_PIPE_H
 
 #include "stream.h"
 #include "bytestream.h"
 #include "mutex.h"
 #include "signal.h"
 
-namespace arc
+namespace tpot
 {
 
 class Pipe : public Stream, public ByteStream

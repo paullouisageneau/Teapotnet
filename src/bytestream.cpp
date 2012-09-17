@@ -22,7 +22,7 @@
 #include "bytestream.h"
 #include "serializable.h"
 
-namespace arc
+namespace tpot
 {
 
 ByteStream::ByteStream(void)

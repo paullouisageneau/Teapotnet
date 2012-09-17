@@ -35,7 +35,7 @@
 #define PATH_SEPARATOR '/'
 #endif
 
-namespace arc
+namespace tpot
 {
 
 const char Directory::Separator = PATH_SEPARATOR;

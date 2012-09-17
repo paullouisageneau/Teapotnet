@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_REQUEST_H
-#define ARC_REQUEST_H
+#ifndef TPOT_REQUEST_H
+#define TPOT_REQUEST_H
 
 #include "include.h"
 #include "synchronizable.h"
@@ -30,7 +30,7 @@
 #include "map.h"
 #include "store.h"
 
-namespace arc
+namespace tpot
 {
 
 class Request : public Synchronizable

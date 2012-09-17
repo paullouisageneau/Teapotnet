@@ -22,7 +22,7 @@
 #include "socket.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 Socket::Socket(void) :

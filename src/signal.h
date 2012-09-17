@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SIGNAL_H
-#define ARC_SIGNAL_H
+#ifndef TPOT_SIGNAL_H
+#define TPOT_SIGNAL_H
 
 #include "include.h"
 #include "exception.h"
 #include "mutex.h"
 
-namespace arc
+namespace tpot
 {
 
 class Signal

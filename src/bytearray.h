@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_BYTEARRAY_H
-#define ARC_BYTEARRAY_H
+#ifndef TPOT_BYTEARRAY_H
+#define TPOT_BYTEARRAY_H
 
 #include "include.h"
 #include "bytestream.h"
 
-namespace arc
+namespace tpot
 {
 
 class ByteArray : public ByteStream

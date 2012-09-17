@@ -21,7 +21,7 @@
 
 #include "identifier.h"
 
-namespace arc
+namespace tpot
 {
 
 const Identifier Identifier::Null;

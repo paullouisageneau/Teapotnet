@@ -27,7 +27,7 @@
 #include "config.h"
 #include "directory.h"
 
-namespace arc
+namespace tpot
 {
 
 Interface *Interface::Instance = NULL;

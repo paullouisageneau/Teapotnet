@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_USER_H
-#define ARC_USER_H
+#ifndef TPOT_USER_H
+#define TPOT_USER_H
 
 #include "include.h"
 #include "thread.h"
@@ -32,7 +32,7 @@
 #include "mutex.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
 
 class User : public Thread, protected Synchronizable, public HttpInterfaceable

@@ -19,12 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_MUTEX_H
-#define ARC_MUTEX_H
+#ifndef TPOT_MUTEX_H
+#define TPOT_MUTEX_H
 
 #include "include.h"
 
-namespace arc
+namespace tpot
 {
 
 // Recusive mutex implementation

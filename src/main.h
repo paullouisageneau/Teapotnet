@@ -19,12 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_MAIN_H
-#define ARC_MAIN_H
+#ifndef TPOT_MAIN_H
+#define TPOT_MAIN_H
 
 #include "include.h"
 
-namespace arc
+namespace tpot
 {
 
 

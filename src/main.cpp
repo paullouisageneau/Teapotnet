@@ -30,9 +30,9 @@
 #include "user.h"
 #include "directory.h"
 
-using namespace arc;
+using namespace tpot;
 
-Mutex arc::LogMutex;
+Mutex tpot::LogMutex;
 
 int main(int argc, char** argv)
 {

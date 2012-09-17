@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_STRIPEDFILE_H
-#define ARC_STRIPEDFILE_H
+#ifndef TPOT_STRIPEDFILE_H
+#define TPOT_STRIPEDFILE_H
 
 #include "include.h"
 #include "file.h"
 
-namespace arc
+namespace tpot
 {
 
 class StripedFile : public ByteStream

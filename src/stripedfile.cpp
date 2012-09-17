@@ -21,7 +21,7 @@
 
 #include "stripedfile.h"
 
-namespace arc
+namespace tpot
 {
 
 StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe) :

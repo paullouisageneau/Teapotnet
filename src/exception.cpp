@@ -21,7 +21,7 @@
 
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 Exception::Exception(const String &message) :

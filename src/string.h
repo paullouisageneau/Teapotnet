@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_STRING_H
-#define ARC_STRING_H
+#ifndef TPOT_STRING_H
+#define TPOT_STRING_H
 
 #include "include.h"
 #include "stream.h"
 #include "serializable.h"
 
-namespace arc
+namespace tpot
 {
 
 class String : public Stream, public Serializable, public std::string

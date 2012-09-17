@@ -24,7 +24,7 @@
 #include "bytestring.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 Serializable::Serializable(void)

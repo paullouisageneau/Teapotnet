@@ -22,7 +22,7 @@
 #include "pipe.h"
 #include "bytestring.h"
 
-namespace arc
+namespace tpot
 {
 
 Pipe::Pipe(void)

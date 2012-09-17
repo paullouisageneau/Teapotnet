@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_INTERFACE_H
-#define ARC_INTERFACE_H
+#ifndef TPOT_INTERFACE_H
+#define TPOT_INTERFACE_H
 
 #include "include.h"
 #include "http.h"
 #include "mutex.h"
 #include "map.h"
 
-namespace arc
+namespace tpot
 {
   
 class HttpInterfaceable

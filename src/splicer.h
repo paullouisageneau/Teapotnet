@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_SPLICER_H
-#define ARC_SPLICER_H
+#ifndef TPOT_SPLICER_H
+#define TPOT_SPLICER_H
 
 #include "include.h"
 #include "stripedfile.h"
@@ -28,7 +28,7 @@
 #include "request.h"
 #include "array.h"
 
-namespace arc
+namespace tpot
 {
 
 // "I'll wrap you in a sheet !"

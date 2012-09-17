@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_CORE_H
-#define ARC_CORE_H
+#ifndef TPOT_CORE_H
+#define TPOT_CORE_H
 
 #include "include.h"
 #include "address.h"
@@ -40,7 +40,7 @@
 #include "http.h"
 #include "interface.h"
 
-namespace arc
+namespace tpot
 {
   
 class Core : public Thread, protected Synchronizable, public HttpInterfaceable

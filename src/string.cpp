@@ -22,7 +22,7 @@
 #include "string.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 String String::number(double d, int digits)

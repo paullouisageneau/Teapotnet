@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_AES_H
-#define ARC_AES_H
+#ifndef TPOT_AES_H
+#define TPOT_AES_H
 
 #include "include.h"
 #include "stream.h"
 #include "bytestream.h"
 #include "bytestring.h"
 
-namespace arc
+namespace tpot
 {
 
 #define AES_BLOCK_SIZE 16

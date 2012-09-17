@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_ARRAY_H
-#define ARC_ARRAY_H
+#ifndef TPOT_ARRAY_H
+#define TPOT_ARRAY_H
 
 #include "include.h"
 #include "exception.h"
@@ -28,7 +28,7 @@
 
 #include <vector>
 
-namespace arc
+namespace tpot
 {
 
 template<typename T>

@@ -23,7 +23,7 @@
 #include "exception.h"
 #include "html.h"
 
-namespace arc
+namespace tpot
 {
 
 Http::Request::Request(void)

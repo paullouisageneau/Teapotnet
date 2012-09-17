@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_BYTESTRING_H
-#define ARC_BYTESTRING_H
+#ifndef TPOT_BYTESTRING_H
+#define TPOT_BYTESTRING_H
 
 #include "include.h"
 #include "bytestream.h"
@@ -28,7 +28,7 @@
 
 #include <deque>
 
-namespace arc
+namespace tpot
 {
 
 class ByteString : public std::deque<char>, public ByteStream, public Serializable

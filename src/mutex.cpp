@@ -22,7 +22,7 @@
 #include "mutex.h"
 #include "exception.h"
 
-namespace arc
+namespace tpot
 {
 
 Mutex::Mutex(void) :

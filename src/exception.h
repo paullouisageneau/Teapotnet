@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef ARC_EXCEPTION_H
-#define ARC_EXCEPTION_H
+#ifndef TPOT_EXCEPTION_H
+#define TPOT_EXCEPTION_H
 
 #include "include.h"
 #include "string.h"
 #include <exception>
 
-namespace arc
+namespace tpot
 {
 
 // Base class for exceptions

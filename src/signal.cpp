@@ -21,7 +21,7 @@
 
 #include "signal.h"
 
-namespace arc
+namespace tpot
 {
 
 Signal::Signal(void)

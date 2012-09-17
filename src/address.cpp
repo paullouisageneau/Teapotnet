@@ -24,7 +24,7 @@
 #include "string.h"
 #include "bytestring.h"
 
-namespace arc
+namespace tpot
 {
 
 Address::Address(void)
