@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	srand(time(NULL));
 	
 	Config::Put("tracker", "127.0.0.1:2000");
-	Config::Put("port", "8000");
+	Config::Put("port", "8480");
 	Config::Put("interface_port", "8080");
 	Config::Put("profiles_dir", "profiles");
 	Config::Put("static_dir", "static");

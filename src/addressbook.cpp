@@ -254,7 +254,7 @@ void AddressBook::run(void)
 bool AddressBook::publish(const Identifier &remotePeering)
 {
 	try {
-		String url("http://" + Config::Get("tracker") + "/" + remotePeering.toString());
+		String url("http://" + Config::Get("tracker") + "/tracker/" + remotePeering.toString());
 		
 		StringMap post;
 		post["port"] = Config::Get("port");
@@ -272,8 +272,8 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 {
 	try {
 	  	String url;
-	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/" + peering.toString();
-		else url = "http://" + tracker + "/" + peering.toString();
+	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker/" + peering.toString();
+		else url = "http://" + tracker + "/tracker/" + peering.toString();
   
 		String output;
 		if(Http::Get(url, &output) != 200) return false;

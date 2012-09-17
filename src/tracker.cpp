@@ -37,35 +37,58 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
-	Identifier identifier;
-
-	try {
-		if(request.url[0] == '/') request.url.ignore();
-		request.url >> identifier;
+	if(!request.url[0] == '/') throw 404;
+	request.url.ignore();
+	
+	List<String> list;
+	request.url.explode(list, '/');
+	if(list.size() != 2 && list.size() != 3) throw 404;
+	if(list.size() == 3)
+	{
+		if(!list.back().empty()) throw 404;
+		list.pop_back();
 	}
-	catch(...)
+
+	if(list.front() != "tracker") throw 404;
+	list.pop_front();
+	
+	try {
+		Identifier identifier;
+		String tmp(list.front());
+		tmp >> identifier;
+
+		if(identifier.size() != 64) throw 400;
+		
+		if(request.method == "POST")
+		{
+			String host, port;
+			
+			if(!request.post.get("port", port)) 
+				throw 400;
+			
+			if(!request.post.get("host", host)) 
+				host = request.sock->getRemoteAddress().host();
+			
+			Address addr(host, port);
+			insert(identifier,addr);
+
+			Http::Response response(request,200);
+			response.send();
+		}
+		else {
+			SerializableArray<Address> addrs;
+			retrieve(identifier, addrs);
+			if(addrs.empty()) throw 404;
+
+			Http::Response response(request,200);
+			response.headers["Content-Type"] = "text/plain";
+			response.send();
+			response.sock->write(addrs);
+		}
+	}
+	catch(const Exception &e)
 	{
 		throw 400;
-	}
-
-	if(request.method == "POST")
-	{
-		if(!request.post.contains("port")) throw 400;
-		Address addr(request.sock->getRemoteAddress().host(), request.post["port"]);
-		insert(identifier,addr);
-
-		Http::Response response(request,200);
-		response.send();
-	}
-	else {
-		SerializableArray<Address> addrs;
-		retrieve(identifier, addrs);
-		if(addrs.empty()) throw 404;
-
-		Http::Response response(request,200);
-		response.headers["Content-Type"] = "text/plain";
-		response.send();
-		response.sock->write(addrs);
 	}
 }
 
