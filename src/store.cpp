@@ -465,7 +465,8 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 		Log("Store", String("Processing: ")+dir.fileName());
 
 		try {
-
+			Desynchronize(this);
+			
 			if(dir.fileIsDir())
 			{
 			  	StringMap info;
@@ -476,8 +477,9 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 				
 				updateDirectory(url, dir.filePath());
 			}
-			else {
-				Identifier dataHash;
+			else 
+			{	
+			  	Identifier dataHash;
 				File data(dir.filePath(), File::Read);
 				Sha512::Hash(data, dataHash);
 				data.close();
@@ -509,8 +511,6 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 					dataHash.clear();
 					AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
 					file.writeLine(dataHash);
-					
-					UnPrioritize(this);
 				}
 			}
 		}
@@ -519,8 +519,6 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 			Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
 			File::Remove(entryName);
 		}
-		
-		UnPrioritize(this);
 	}
 }
 

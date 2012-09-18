@@ -58,7 +58,19 @@ private:
 	const Synchronizable *s;
 };
 
-#define Synchronize(x) 	Synchronizer __sync(x)
+class Desynchronizer
+{
+public:
+	inline Desynchronizer(const Synchronizable *_s) : s(_s) { c = s->unlockAll(); }
+	inline ~Desynchronizer(void) { s->lock(c); }
+
+private:
+	const Synchronizable *s;
+	int c;
+};
+
+#define Synchronize(x)   Synchronizer	__sync(x)
+#define Desynchronize(x) Desynchronizer	__desync(x)
 #define UnPrioritize(x) {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 
 }
