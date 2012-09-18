@@ -388,8 +388,7 @@ void AddressBook::Contact::update(void)
 	{
 		Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		  
-		Log("AddressBook::Contact", "Querying tracker " + mTracker);
-		
+		Log("AddressBook::Contact", "Querying tracker " + mTracker);	
 		if(AddressBook::query(mPeering, mTracker, mAddrs))
 		{
 			for(int i=0; i<mAddrs.size(); ++i)
@@ -408,7 +407,8 @@ void AddressBook::Contact::update(void)
 			}
 		}
 	}
-	
+
+	Log("AddressBook::Contact", "Publishing to tracker " + mTracker);
 	AddressBook::publish(mRemotePeering);
 		
 	if(!mMessages.empty())

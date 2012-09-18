@@ -123,7 +123,7 @@ void *Thread::ThreadRun(void *myThread)
 	}
 	
 	thread->mRunning = false;
-	if(thread->mAutoDelete) delete thread;
+	//if(thread->mAutoDelete) delete thread;
 	pthread_exit(NULL);
 }
 

@@ -55,6 +55,9 @@ void Http::Request::send(Socket &sock)
 {
 	this->sock = &sock;
 
+	if(version == "1.1" && !headers.contains("Connexion"))
+                headers["Connection"] = "Close";
+
 	String completeUrl(url);
 	if(!get.empty())
 	{
@@ -223,7 +226,7 @@ void Http::Request::recv(Socket &sock)
 void Http::Request::clear(void)
 {
 	method = "GET";
-	version = "1.0";
+	version = "1.1";
 	url.clear();
 	headers.clear();
 	cookies.clear();
@@ -365,7 +368,7 @@ void Http::Response::recv(Socket &sock)
 void Http::Response::clear(void)
 {
 	code = 200;
-	version = "1.0";
+	version = "1.1";
 	message.clear();
 	version.clear();
 }

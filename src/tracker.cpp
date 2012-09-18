@@ -37,6 +37,8 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
+	//Log("Tracker", "URL " + request.url);	
+
 	if(!request.url[0] == '/') throw 404;
 	request.url.ignore();
 	
@@ -57,20 +59,22 @@ void Tracker::process(Http::Request &request)
 		String tmp(list.front());
 		tmp >> identifier;
 
-		if(identifier.size() != 64) throw 400;
+		if(identifier.size() != 64) throw Exception("Invalid indentifier size");
 		
 		if(request.method == "POST")
 		{
 			String host, port;
 			
 			if(!request.post.get("port", port)) 
-				throw 400;
+				throw Exception("Missing port number");
 			
 			if(!request.post.get("host", host)) 
 				host = request.sock->getRemoteAddress().host();
 			
 			Address addr(host, port);
 			insert(identifier,addr);
+
+			//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 
 			Http::Response response(request,200);
 			response.send();
@@ -80,15 +84,24 @@ void Tracker::process(Http::Request &request)
 			retrieve(identifier, addrs);
 			if(addrs.empty()) throw 404;
 
+			//Log("Tracker", "GET " + identifier.toString());
+
 			Http::Response response(request,200);
 			response.headers["Content-Type"] = "text/plain";
 			response.send();
 			response.sock->write(addrs);
 		}
 	}
+	catch(int code)
+	{
+		Http::Response response(request,code);
+                response.send();
+	}
 	catch(const Exception &e)
 	{
-		throw 400;
+		Log("Tracker", String("Error: ") + e.what());
+		Http::Response response(request,400);
+                response.send();
 	}
 }
 
