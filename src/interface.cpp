@@ -146,7 +146,6 @@ void Interface::process(Http::Request &request)
 			return;
 		}
 
-		mMutex.lock();
 		while(!list.empty())
 		{
 			String prefix;
@@ -154,9 +153,12 @@ void Interface::process(Http::Request &request)
 			prefix = "/" + prefix;
 			list.pop_back();
 			
+			mMutex.lock();
 			HttpInterfaceable *interfaceable;
 			if(mPrefixes.get(prefix,interfaceable)) 
 			{
+				mMutex.unlock();
+				
 				request.url.ignore(prefix.size());
 				
 				//Log("Interface", "Matched prefix \""+prefix+"\"");
@@ -171,11 +173,10 @@ void Interface::process(Http::Request &request)
 				}
 				
 				interfaceable->http(prefix, request);
-				mMutex.unlock();
 				return;
 			}
+			mMutex.unlock();
 		}
-		mMutex.unlock();
 	}
 	else {
 	  	if(list.size() != 1) throw 404; 

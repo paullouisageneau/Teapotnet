@@ -34,9 +34,10 @@ public:
 	Synchronizable(void);
 	virtual ~Synchronizable(void);
 
-	void lock(void) const;
+	void lock(int count = 1) const;
 	void unlock(void) const;
-
+	int unlockAll(void) const;
+	
 	void notify(void) const;
 	void notifyAll(void) const;
 	void wait(void) const;
@@ -58,7 +59,7 @@ private:
 };
 
 #define Synchronize(x) 	Synchronizer __sync(x)
-#define UnPrioritize(x) {(x)->unlock(); yield(); (x)->lock();}
+#define UnPrioritize(x) {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 
 }
 

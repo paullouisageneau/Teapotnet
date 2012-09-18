@@ -38,8 +38,10 @@ Mutex::~Mutex(void)
 	pthread_mutex_destroy(&mMutex);
 }
 
-void Mutex::lock(void)
+void Mutex::lock(int count)
 {
+	if(!count) return;
+	
 	if(mLockCount == 0 || mLockedBy != pthread_self())
 	{
 		if(pthread_mutex_lock(&mMutex) != 0)
@@ -47,7 +49,7 @@ void Mutex::lock(void)
 	}
 
 	mLockedBy = pthread_self();
-	mLockCount++;
+	mLockCount+= count;
 }
 
 bool Mutex::tryLock(void)
@@ -74,6 +76,20 @@ void Mutex::unlock(void)
 		if(pthread_mutex_unlock(&mMutex) != 0)
 			throw Exception("Unable to unlock mutex");
 	}
+}
+
+int Mutex::unlockAll(void)
+{
+ 	int count = mLockCount;
+	mLockCount = 0;
+
+	if(count)
+	{
+		if(pthread_mutex_unlock(&mMutex) != 0)
+			throw Exception("Unable to unlock mutex");
+	}
+	
+	return count;
 }
 
 }

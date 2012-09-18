@@ -37,14 +37,19 @@ Synchronizable::~Synchronizable(void)
 	delete mSignal;
 }
 
-void Synchronizable::lock(void) const
+void Synchronizable::lock(int count) const
 {
-	mMutex->lock();
+	mMutex->lock(count);
 }
 
 void Synchronizable::unlock(void) const
 {
 	mMutex->unlock();
+}
+
+int Synchronizable::unlockAll(void) const
+{
+	return mMutex->unlockAll(); 
 }
 
 void Synchronizable::notify(void) const

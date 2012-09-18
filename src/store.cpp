@@ -152,9 +152,12 @@ void Store::save(void) const
 	file.close();
 }
 
-void Store::refresh(void)
+void Store::update(void)
 {
 	Synchronize(this);
+	
+	mUpdateMutex.lock();
+	Log("Store::update", "Started");
 	
 	Identifier hash;
 	Sha512::Hash("/", hash);
@@ -173,7 +176,7 @@ void Store::refresh(void)
 			it != mDirectories.end();
 			++it)
 	{	
-		refreshDirectory("/" + it->first, it->second);
+		updateDirectory("/" + it->first, it->second);
 		
 		StringMap info;
 		info["name"] = it->first;
@@ -182,6 +185,9 @@ void Store::refresh(void)
 		info["time"] << time(NULL);
 		dirEntry.write(info);
 	}
+	
+	Log("Store::update", "Finished");
+	mUpdateMutex.unlock();
 }
 
 bool Store::get(const Identifier &identifier, Entry &entry, bool content)
@@ -388,7 +394,7 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 }
 
-void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
+void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 {
 	Synchronize(this);
 	Log("Store", String("Refreshing directory: ")+dirUrl);
@@ -424,7 +430,6 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				file.readLine(path);
 				file.read(header);
 				
-				Assert(path == dir.filePath());	
 				Assert(header.get("type") != "directory");
 				Assert(header.get("url") == url);
 				
@@ -469,7 +474,7 @@ void Store::refreshDirectory(const String &dirUrl, const String &dirPath)
 				info["url"] = url;
 				dirEntry.write(info);
 				
-				refreshDirectory(url, dir.filePath());
+				updateDirectory(url, dir.filePath());
 			}
 			else {
 				Identifier dataHash;
@@ -539,7 +544,7 @@ String Store::urlToPath(const String &url) const
 
 void Store::run(void)
 {
-	refresh(); 
+	update(); 
 }
 
 }

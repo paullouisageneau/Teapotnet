@@ -119,15 +119,14 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
-	
+
 	Contact *contact = new Contact(this);
 	while(stream.read(*contact))
 	{
 		mContacts.insert(contact->peering(), contact);
 		contact = new Contact(this);
-	}	
+	}
 	delete contact;
-	
 	start();
 }
 
@@ -429,6 +428,7 @@ void AddressBook::Contact::message(Message *message)
 	Assert(message->receiver() == mPeering);
 	mMessages.push_back(*message);
 	++mMessagesCount;
+	notifyAll();
 }
 
 void AddressBook::Contact::request(Request *request)
@@ -465,7 +465,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.br();
 			
 			page.link(prefix+"/files/","Files");
+			page.br();
 			page.link(prefix+"/chat/","Chat");
+			page.br();
 			
 			page.footer();
 			return;
@@ -549,9 +551,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request,200);
 					response.send();
 					
-					Html html(response.sock);
+					if(count == mMessagesCount)
+						wait(60000);
+					
 					if(count < mMessagesCount && mMessagesCount-count <= mMessages.size())
 					{
+						Html html(response.sock);
 						int i = mMessages.size() - (mMessagesCount-count);
 						messageToHtml(html, mMessages[i]);
 						mMessages[i].markRead();
@@ -562,21 +567,35 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			  
 				if(request.method == "POST")
 				{
-					if(request.post.contains("message") && !request.post.get("message").empty())
+					if(request.post.contains("message") && !request.post["message"].empty())
 					{
 						try {
-							Message message(request.post.get("message"));
+							Message message(request.post["message"]);
 							mMessages.push_back(message);	// copy stored now so receiver is null
-							message.send(mPeering);
+							++mMessagesCount;
+							notifyAll();
+							
+							message.send(mPeering);	// send
+							
+							if(request.post["ajax"].toBool())	//ajax
+							{
+								Http::Response response(request, 200);
+								response.send();
+								/*Html html(response.sock);
+								messageToHtml(html, mMessages.back());
+								mMessages.back().markRead();*/
+							}
+							else {	// form submit
+							 	Http::Response response(request, 303);
+								response.headers["Location"] = prefix + "/chat";
+								response.send();
+							}
 						}
 						catch(...)
 						{
 							throw 400;
-						}				
+						}
 						
-						Http::Response response(request, 303);
-						response.headers["Location"] = prefix + "/chat";
-						response.send();
 						return;
 					}
 				}
@@ -589,39 +608,64 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.open("h1");
 				page.text("Chat: "+mName);
 				page.close("h1");
-			  
+								
+				page.openForm(prefix + "/chat", "post", "chatform");
+				page.input("text","message");
+				page.button("send","Send");
+				page.br();
+				page.br();
+				page.closeForm();
+						
 				page.open("div", "chat");
-				for(int i=0; i<mMessages.size(); ++i)
+				for(int i=mMessages.size()-1; i>=0; --i)
 				{
 	  				messageToHtml(page, mMessages[i]);
 					mMessages[i].markRead();
 				}
 				page.close("div");
 				
-				*page.stream()<<"<script type=\"text/javascript\">\n\
+*page.stream()<<"<script type=\"text/javascript\">\n\
 	var count = "+String::number(mMessagesCount)+";\n\
 	function update()\n\
 	{\n\
-		var xhr = createXMLHttpRequest()\n\
-		xhr.open('GET', '"+prefix+"/chat/'+count, false);\n\
-		xhr.withCredentials = true;\n\
-		xhr.send();\n\
-		if(xhr.status === 200 && xhr.responseText)\n\
+		var xhr = createXMLHttpRequest();\n\
+		xhr.onreadystatechange = function()\n\
 		{\n\
-  			document.getElementById('chat').innerHTML+= xhr.responseText;\n\
-  			count+= 1;\n\
-  			setTimeout('update()', 100);\n\
+  			if(xhr.readyState == 4)\n\
+			{\n\
+				if(xhr.status === 200 && xhr.responseText)\n\
+				{\n\
+					var content = document.getElementById('chat').innerHTML;\n\
+					document.getElementById('chat').innerHTML = xhr.responseText + content;\n\
+					count+= 1;\n\
+					setTimeout('update()', 100);\n\
+				}\n\
+				else setTimeout('update()', 1000);\n\
+			}\n\
 		}\n\
-		else setTimeout('update()', 2000);\n\
+		xhr.open('GET', '"+prefix+"/chat/'+count, true);\n\
+		xhr.send();\n\
 	}\n\
-	setTimeout('update()', 2000);\n\
+	function post()\n\
+	{\n\
+		var message = document.chatform.message.value;\n\
+		if(!message) return false;\n\
+		document.chatform.message.value = '';\n\
+		var xhr = createXMLHttpRequest();\n\
+		xhr.onreadystatechange = function()\n\
+		{\n\
+  			if(xhr.readyState == 4 && xhr.status != 200)\n\
+			{\n\
+				alert('The message could not be sent. Is this user online ?');\n\
+			}\n\
+		}\n\
+		xhr.open('POST', '"+prefix+"/chat', true);\n\
+		xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');\n\
+		xhr.send('message='+encodeURIComponent(message)+'&ajax=1');\n\
+	}\n\
+	setTimeout('update()', 1000);\n\
+	document.chatform.onsubmit = function() {post(); return false;}\n\
 </script>\n";
-				
-				page.openForm(prefix + "/chat", "post");
-				page.input("text","message");
-				page.button("send", "Send");
-				page.br();
-				page.closeForm();
 				
 				page.footer();
 				return;
@@ -651,7 +695,7 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message) con
 	if(message.receiver() == Identifier::Null) html.text(mAddressBook->userName());
 	else html.text(mAddressBook->getContact(message.receiver())->name());
 	html.close("span");
-	html.text(" " + message.content());
+	html.text(": " + message.content());
 	html.close("span");
 	html.br(); 
 }
@@ -687,7 +731,8 @@ void AddressBook::Contact::deserialize(Stream &s)
 	mRemotePeering.clear();
 	
 	StringMap map;
-	s.read(map);
+	AssertIO(s.read(map))
+	AssertIO(!map.empty());
 	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
@@ -697,6 +742,8 @@ void AddressBook::Contact::deserialize(Stream &s)
 	map["remotePeering"] >> mRemotePeering;
 	
 	s.read(mAddrs);
+	
+	// TODO: checks
 	
 	Interface::Instance->add(urlPrefix(), this);
 }

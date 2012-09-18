@@ -85,15 +85,14 @@ void ByteString::deserialize(Stream &s)
 
 	String str;
 	s.read(str);
-	int count = str.size()/2;
-	if(count*2 != str.size())
-		throw InvalidData("Missing character at the end of hexadecimal representation");
+	int count = (str.size()+1)/2;
 
 	for(int i=0; i<count; ++i)
 	{
 		std::string byte;
 		byte+= str[i*2];
-		byte+= str[i*2+1];
+		if(i*2+1 != str.size()) byte+= str[i*2+1];
+		else byte+= '0';
 		std::istringstream iss(byte);
 
 		unsigned value = 0;

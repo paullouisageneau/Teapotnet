@@ -170,9 +170,13 @@ size_t Stream::read(Stream &s, size_t max)
 
 bool Stream::read(Serializable &s)
 {
-	// TODO: end of stream
-	s.deserialize(*this);
-	return true;
+	try {
+		s.deserialize(*this);
+		return true;
+	}
+	catch(const IOException &e) {}
+	
+	return false; 
 }
 
 bool Stream::read(String &s)

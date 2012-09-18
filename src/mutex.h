@@ -36,10 +36,12 @@ public:
 
 	// Lock and Unlock are cumulative
 	// They can be called multiple times
-	void lock(void);
+	void lock(int count = 1);
 	bool tryLock(void);
 	void unlock(void);
-
+	
+	int unlockAll(void);
+	
 private:
 	pthread_mutex_t mMutex;
 	pthread_t mLockedBy;

@@ -38,7 +38,7 @@ namespace tpot
 
 class User;
   
-class AddressBook : protected Thread, public Synchronizable, public HttpInterfaceable
+class AddressBook : public Thread, public Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);

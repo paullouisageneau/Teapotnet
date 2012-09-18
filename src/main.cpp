@@ -141,6 +141,7 @@ int main(int argc, char** argv)
 			User *user = new User(name, password);
 			user->start();
 			sleep(1);
+			line.clear();
 		}
 		usersFile.close();
 	}

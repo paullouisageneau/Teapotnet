@@ -196,17 +196,25 @@ void Http::Request::recv(Socket &sock)
 		if(sock.read(data, size) != size)
 			throw IOException("Connection unexpectedly closed");
 
-		if(headers.contains("Content-Type")
-				&& headers["Content-Type"] == "application/x-www-form-urlencoded")
+		
+		
+		if(headers.contains("Content-Type"))
 		{
-			List<String> exploded;
-			data.explode(exploded,'&');
-			for(	List<String>::iterator it = exploded.begin();
-					it != exploded.end();
-					++it)
+		  	String type = headers["Content-Type"];
+			String parameters = type.cut(';');
+			type.trim();
+			
+			if(type == "application/x-www-form-urlencoded")
 			{
-				String value = it->cut('=').urlDecode();
-				post.insert(it->urlDecode(), value);
+				List<String> exploded;
+				data.explode(exploded,'&');
+				for(	List<String>::iterator it = exploded.begin();
+						it != exploded.end();
+						++it)
+				{
+					String value = it->cut('=').urlDecode();
+					post.insert(it->urlDecode(), value);
+				}
 			}
 		}
 	}
@@ -420,9 +428,13 @@ void Http::Server::Handler::run(void)
 			
 			mServer->process(request);
 		}
+		catch(const NetException &e)
+		{
+			Log("Http::Server::Handler", e.what()); 
+		}
 		catch(const Exception &e)
 		{
-			Log("Http::Server::Handler", String("ERROR: ") + e.what());
+			Log("Http::Server::Handler", String("Error: ") + e.what());
 			throw 500;
 		}
 	}

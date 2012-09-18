@@ -37,7 +37,7 @@ namespace tpot
 
 class User;
   
-class Store : protected Thread, protected Synchronizable, public HttpInterfaceable
+class Store : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	struct Entry
@@ -62,7 +62,7 @@ public:
 	void removeDirectory(const String &name);
 
 	void save(void) const;
-	void refresh(void);
+	void update(void);
 
 	bool get(const Identifier &identifier, Entry &entry, bool content = true);
 	bool get(const String &url, Entry &entry, bool content = true);
@@ -70,7 +70,7 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	void refreshDirectory(const String &dirUrl, const String &dirPath);
+	void updateDirectory(const String &dirUrl, const String &dirPath);
 	String urlToPath(const String &url) const;
 	void run(void);
 
@@ -78,6 +78,7 @@ private:
 	String mFileName;
 	String mDatabasePath;
 	StringMap mDirectories;
+	Mutex mUpdateMutex;
 	
 	static Map<Identifier,String> Resources;	// entry names by data hash
 	static Mutex ResourcesMutex;

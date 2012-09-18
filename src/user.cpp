@@ -171,9 +171,9 @@ void User::run(void)
 {
 	while(true)
 	{
-		mAddressBook->update();
-		mStore->refresh();
 		wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
+		if(!mAddressBook->isRunning()) mAddressBook->start();
+		if(!mStore->isRunning()) mStore->start();
 	}
 }
 
