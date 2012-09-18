@@ -79,6 +79,7 @@ int main(int argc, char** argv)
 				}
 			}
 		}
+		if(!last.empty()) args[last] = "";
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
@@ -87,6 +88,8 @@ int main(int argc, char** argv)
 				args["tracker"] = Config::Get("tracker_port");
 			int port;
 			args["tracker"] >> port;
+			
+			Log("main", "Launching the tracker");
 			tracker = new Tracker(port);
 			tracker->start();
 		}
