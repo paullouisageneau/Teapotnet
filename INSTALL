@@ -1,11 +1,15 @@
 * TeapotNet - Installation notes
+By Paul-Louis Ageneau
+For licensing and copyright information see the COPYING file
+
 
 Installing is not supported for the moment.
 
-You can compile the executable by simply doing:
+You can compile the executable with a simple:
 $ make
 
 This should work for any more or less POSIX-compliant system.
+Note you need libpthread for the compilation to succeed.
 
 You can then run the application with the tracker:
 $ ./teapotnet --tracker
