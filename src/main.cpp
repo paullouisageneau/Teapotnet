@@ -142,9 +142,10 @@ int main(int argc, char** argv)
 			while(usersFile.readLine(line))
 			{
 				String &name = line;
-				String password = name.cut(' ');
 				name.trim();
+				String password = name.cut(' ');
 				password.trim();
+				if(name.empty()) continue;
 				User *user = new User(name, password);
 				user->start();
 				sleep(1);
