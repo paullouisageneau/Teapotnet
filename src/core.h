@@ -42,7 +42,10 @@
 
 namespace tpot
 {
-  
+
+// Core of the TeapotNet node
+// Implements the TPOT protocol
+// This is a singleton class, all users use it.  
 class Core : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
