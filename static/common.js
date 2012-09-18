@@ -17,8 +17,8 @@ function createXMLHttpRequest()
             catch(e){}
         }
     }
-    window.alert("Votre navigateur ne prend pas en charge l'objet XMLHTTPRequest.");
-    return null; // non supporté
+    window.alert("Your browser does not support XMLHTTPRequest. Please use a more recent one.");
+    return null; // not supported
 }
 
 function parseJson(json)
