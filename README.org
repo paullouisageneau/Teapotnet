@@ -1,11 +1,5 @@
 * TeapotNet
 
- (
- )  _o_ _
- \\/   \_\
-  \____/
-
-
 ** What is it ?
 
 TeapotNet is a simple friend-to-friend network. It allows you
