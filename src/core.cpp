@@ -292,7 +292,6 @@ Core::Handler::~Handler(void)
 
 	if(mStream != mSock) delete mStream;
 	delete mSock;
-	delete mHandler;
 }
 
 void Core::Handler::setPeering(const Identifier &peering)
@@ -623,7 +622,7 @@ void Core::Handler::Sender::run(void)
 		while(true)
 		{
 			lock();
-			if(mShouldStop) return;
+			if(mShouldStop) break;
 
 			if(mMessagesQueue.empty()
 				&& mRequestsQueue.empty()
@@ -736,7 +735,6 @@ void Core::Handler::Sender::run(void)
 	}
 	catch(std::exception &e)
 	{
-		//mStream->close();	// TODO
 		unlock();
 		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}

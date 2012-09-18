@@ -109,7 +109,6 @@ private:
 		Core	*mCore;
 		Socket  *mSock;
 		Stream  *mStream;
-		Handler *mHandler;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 
