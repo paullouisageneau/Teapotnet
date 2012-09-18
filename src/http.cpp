@@ -56,7 +56,7 @@ void Http::Request::send(Socket &sock)
 	this->sock = &sock;
 
 	if(version == "1.1" && !headers.contains("Connexion"))
-                headers["Connection"] = "Close";
+                headers["Connection"] = "close";
 
 	String completeUrl(url);
 	if(!get.empty())
@@ -259,7 +259,7 @@ void Http::Response::send(Socket &sock)
 	this->sock = &sock;
 
 	if(version == "1.1" && code >= 200 && !headers.contains("Connexion"))
-		headers["Connection"] = "Close";
+		headers["Connection"] = "close";
 
 	if(!headers.contains("Date"))
 	{
