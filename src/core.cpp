@@ -284,6 +284,12 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 
 Core::Handler::~Handler(void)
 {	
+	mSender.lock();
+	mSender.mShouldStop = true;
+	mSender.notify();
+	mSender.unlock();
+	mSender.join();	
+
 	if(mStream != mSock) delete mStream;
 	delete mSock;
 	delete mHandler;
@@ -596,7 +602,8 @@ void Core::Handler::run(void)
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
 
 Core::Handler::Sender::Sender(void) :
-		mLastChannel(0)
+		mLastChannel(0),
+		mShouldStop(false)
 {
 
 }
@@ -616,6 +623,8 @@ void Core::Handler::Sender::run(void)
 		while(true)
 		{
 			lock();
+			if(mShouldStop) return;
+
 			if(mMessagesQueue.empty()
 				&& mRequestsQueue.empty()
 			  	&& mTransferts.empty())

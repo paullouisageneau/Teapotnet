@@ -130,6 +130,7 @@ private:
 			Queue<Message>	mMessagesQueue;
 			Queue<Request*> mRequestsQueue;
 			Array<Request*> mRequestsToRespond;
+			bool mShouldStop;
 			friend class Handler;
 		};
 
