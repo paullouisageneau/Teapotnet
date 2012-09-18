@@ -58,6 +58,9 @@ void Http::Request::send(Socket &sock)
 	if(version == "1.1" && !headers.contains("Connexion"))
                 headers["Connection"] = "Close";
 
+	if(!headers.contains("Accept-Encoding"))
+		headers["Accept-Encoding"] = "identity";
+
 	String completeUrl(url);
 	if(!get.empty())
 	{
@@ -88,7 +91,8 @@ void Http::Request::send(Socket &sock)
 		headers["Content-Type"] = "application/x-www-form-urlencoded";
 	}
 
-	sock<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
+	String buf;
+	buf<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
@@ -101,7 +105,7 @@ void Http::Request::send(Socket &sock)
 				l != lines.end();
 				++l)
 		{
-			sock<<it->first<<": "<<*l<<"\r\n";
+			buf<<it->first<<": "<<*l<<"\r\n";
 		}
 	}
 
@@ -109,10 +113,12 @@ void Http::Request::send(Socket &sock)
 			it != cookies.end();
 			++it)
 	{
-		sock<<"Set-Cookie: "<< it->first<<'='<<it->second<<"\r\n";
+		buf<<"Set-Cookie: "<< it->first<<'='<<it->second<<"\r\n";
 	}
 
-	sock<<"\r\n";
+	buf<<"\r\n";
+
+	sock<<buf;
 
 	if(!postData.empty())
 		sock<<postData;
@@ -381,8 +387,6 @@ Http::Server::Server(int port) :
 
 Http::Server::~Server(void)
 {
-	// TODO: clients
-
 	mSock.close();	// useless
 }
 
@@ -481,7 +485,7 @@ int Http::Get(const String &url, Stream *output)
 		sock.discard();
 		sock.close();
 
-		// Location MAY NOT be a relative URL
+		// TODO: relative location (even if not RFC-compliant)
 		return Get(response.headers["Location"], output);
 	}
 
