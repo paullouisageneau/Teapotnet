@@ -109,7 +109,19 @@ void *Thread::ThreadRun(void *myThread)
 {
 	Thread *thread = reinterpret_cast<Thread*>(myThread);
 	thread->mRunning = true;
-	thread->run();
+	
+	try {
+		thread->run();
+	}
+	catch(const std::exception &e)
+	{
+		Log("Thread::ThreadRun", String("WARNING: Unhandled exception in thread: ") + e.what()); 
+	}
+	catch(...)
+	{
+		Log("Thread::ThreadRun", String("WARNING: Unhandled unknown exception in thread")); 
+	}
+	
 	thread->mRunning = false;
 	if(thread->mAutoDelete) delete thread;
 	pthread_exit(NULL);
@@ -119,7 +131,19 @@ void *Thread::ThreadCall(void *myWrapper)
 {
 	Wrapper *wrapper = reinterpret_cast<Wrapper*>(myWrapper);
 	wrapper->thread->mRunning = true;
-	wrapper->call();
+	
+	try {
+		wrapper->call();
+	}
+	catch(const std::exception &e)
+	{
+		Log("Thread::ThreadCall", String("WARNING: Unhandled exception in thread: ") + e.what()); 
+	}
+	catch(...)
+	{
+		Log("Thread::ThreadCall", String("WARNING: Unhandled unknown exception in thread")); 
+	}
+	
 	delete wrapper;
 	wrapper->thread->mRunning = false;
 	pthread_exit(NULL);

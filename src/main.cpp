@@ -36,119 +36,133 @@ Mutex tpot::LogMutex;
 
 int main(int argc, char** argv)
 {
-	srand(time(NULL));
-	
-	Config::Put("tracker", "127.0.0.1:2000");
-	Config::Put("port", "8480");
-	Config::Put("tracker_port", "8488");
-	Config::Put("interface_port", "8080");
-	Config::Put("profiles_dir", "profiles");
-	Config::Put("static_dir", "static");
-	
-	StringMap args;
-	String last;
-	for(int i=1; i<argc; ++i)
-	{
-		String str(argv[i]);
-		if(str.empty()) continue;
-		if(str[0] == '-')
+	try {
+	  	Log("main", "Starting...");
+		
+		srand(time(NULL));
+		
+		const String configFileName = "config.txt";
+		
+		Config::Load(configFileName);
+		Config::Default("tracker", "teapotnet.org");
+		Config::Default("port", "8480");
+		Config::Default("tracker_port", "8488");
+		Config::Default("interface_port", "8080");
+		Config::Default("profiles_dir", "profiles");
+		Config::Default("static_dir", "static");
+		Config::Save(configFileName);
+		
+		StringMap args;
+		String last;
+		for(int i=1; i<argc; ++i)
 		{
-			if(!last.empty()) args[last] = "";
-		  
-			if(str[0] == '-') str.ignore();
-			if(!str.empty() && str[0] == '-') str.ignore();
-			if(str.empty())
+			String str(argv[i]);
+			if(str.empty()) continue;
+			if(str[0] == '-')
 			{
-				std::cerr<<"Invalid option: "<<argv[i]<<std::endl;
-				return 1;
+				if(!last.empty()) args[last] = "";
+			  
+				if(str[0] == '-') str.ignore();
+				if(!str.empty() && str[0] == '-') str.ignore();
+				if(str.empty())
+				{
+					std::cerr<<"Invalid option: "<<argv[i]<<std::endl;
+					return 1;
+				}
+				last = str;
 			}
-			last = str;
-		}
-		else {
-			if(last.empty()) args[str] = "";
 			else {
-				args[last] = str;
-				last.clear();
+				if(last.empty()) args[str] = "";
+				else {
+					args[last] = str;
+					last.clear();
+				}
 			}
 		}
-	}
-	
-	Tracker *tracker = NULL;
-	if(args.contains("tracker"))
-	{
-		if(args["tracker"].empty()) 
-			args["tracker"] = Config::Get("tracker_port");
-	  	int port;
-		args["tracker"] >> port;
-		tracker = new Tracker(port);
-		tracker->start();
-	}
-	
-	// Starting interface
-	String sifport = Config::Get("interface_port");
-	if(args.contains("ifport")) sifport = args["ifport"];
-	int ifport;
-	sifport >> ifport;
-	Interface::Instance = new Interface(ifport);
-	Interface::Instance->start();
-	
-	// Starting core
-	String sport = Config::Get("port");
-	if(args.contains("port")) sport = args["port"];
-	int port;
-	sport >> port;
-	Core::Instance = new Core(port);
-	Core::Instance->start();
+		
+		Tracker *tracker = NULL;
+		if(args.contains("tracker"))
+		{
+			if(args["tracker"].empty()) 
+				args["tracker"] = Config::Get("tracker_port");
+			int port;
+			args["tracker"] >> port;
+			tracker = new Tracker(port);
+			tracker->start();
+		}
+		
+		// Starting interface
+		String sifport = Config::Get("interface_port");
+		if(args.contains("ifport")) sifport = args["ifport"];
+		int ifport;
+		sifport >> ifport;
+		Interface::Instance = new Interface(ifport);
+		Interface::Instance->start();
+		
+		// Starting core
+		String sport = Config::Get("port");
+		if(args.contains("port")) sport = args["port"];
+		int port;
+		sport >> port;
+		Core::Instance = new Core(port);
+		Core::Instance->start();
 
-	if(!Directory::Exist(Config::Get("profiles_dir")))
-		Directory::Create(Config::Get("profiles_dir"));
-	
-	Directory profilesDir(Config::Get("profiles_dir"));
-	while(profilesDir.nextFile())
-	{
-		if(profilesDir.fileIsDir())
+		if(!Directory::Exist(Config::Get("profiles_dir")))
+			Directory::Create(Config::Get("profiles_dir"));
+		
+		Directory profilesDir(Config::Get("profiles_dir"));
+		while(profilesDir.nextFile())
 		{
-			String name = profilesDir.fileName();
-			User *user;
-			
-			try {
-				user = new User(name);	
-			}
-			catch(const std::exception &e)
+			if(profilesDir.fileIsDir())
 			{
-				Log("main", "ERROR: Unable to load user \"" + name + "\": " + e.what());
-				continue;
+				String name = profilesDir.fileName();
+				User *user;
+				
+				try {
+					user = new User(name);	
+				}
+				catch(const std::exception &e)
+				{
+					Log("main", "ERROR: Unable to load user \"" + name + "\": " + e.what());
+					continue;
+				}
+				
+				user->start();
+				sleep(1);
 			}
-			
-			user->start();
-			sleep(1);
 		}
-	}
-	
-	String usersFileName = "users.txt";
-	File usersFile;
-	
-	if(File::Exist(usersFileName))
-	{
-		usersFile.open(usersFileName, File::Read);
-		String line;
-		while(usersFile.readLine(line))
+		
+		String usersFileName = "users.txt";
+		File usersFile;
+		
+		if(File::Exist(usersFileName))
 		{
-			String &name = line;
-			String password = name.cut(' ');
-			name.trim();
-			password.trim();
-			User *user = new User(name, password);
-			user->start();
-			sleep(1);
-			line.clear();
+			usersFile.open(usersFileName, File::Read);
+			String line;
+			while(usersFile.readLine(line))
+			{
+				String &name = line;
+				String password = name.cut(' ');
+				name.trim();
+				password.trim();
+				User *user = new User(name, password);
+				user->start();
+				sleep(1);
+				line.clear();
+			}
+			usersFile.close();
 		}
+		usersFile.open(usersFileName, File::Truncate);
 		usersFile.close();
+		
+		Core::Instance->join();
+		Log("main", "Finished");
+		return 0;
 	}
-	usersFile.open(usersFileName, File::Truncate);
-	usersFile.close();
-	
-	Core::Instance->join();
-	return 0;
+	catch(const std::exception &e)
+	{
+		Log("main", String("ERROR: ") + e.what());
+		return 1;	  
+	}
 }
 

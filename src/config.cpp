@@ -20,31 +20,67 @@
  *************************************************************************/
 
 #include "config.h"
+#include "file.h"
 
 namespace tpot
 {
 
-StringMap Config::Param;
-Mutex Config::ParamMutex;
+StringMap Config::Params;
+Mutex Config::ParamsMutex;
   
 String Config::Get(const String &key)
 {
-	ParamMutex.lock();
+	ParamsMutex.lock();
 	String value;
-	if(!Param.get(key, value))
+	if(!Params.get(key, value))
 	{
-	 	 ParamMutex.unlock();
+	 	 ParamsMutex.unlock();
 		 throw Exception("Config: no entry for \""+key+"\"");
 	}
-	ParamMutex.unlock();
+	ParamsMutex.unlock();
 	return value;
 }
 
 void Config::Put(const String &key, const String &value)
 {
-  	ParamMutex.lock();
-	Param.insert(key, value);
-	ParamMutex.unlock();
+  	ParamsMutex.lock();
+	Params.insert(key, value);
+	ParamsMutex.unlock();
+}
+
+void Config::Default(const String &key, const String &value)
+{
+	ParamsMutex.lock();
+	if(!Params.contains(key)) Params.insert(key, value);
+	ParamsMutex.unlock();
+}
+
+void Config::Load(const String &filename)
+{
+	ParamsMutex.lock();
+	try {
+		File file(filename, File::Read);
+		file.read(Params);
+		file.close();
+	}
+	catch(...) {}	// Silently fail
+	ParamsMutex.unlock();
+}
+
+void Config::Save(const String &filename)
+{
+	ParamsMutex.lock();
+	try {
+		File file(filename, File::Truncate);
+		file.write(Params);
+		file.close();
+	}
+	catch(...)
+	{
+		ParamsMutex.unlock();
+		throw;
+	}
+	ParamsMutex.unlock();
 }
 
 }

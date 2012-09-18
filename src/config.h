@@ -36,10 +36,13 @@ class Config
 public:
 	static String Get(const String &key);
 	static void Put(const String &key, const String &value);
+	static void Default(const String &key, const String &value);
+	static void Load(const String &filename);
+	static void Save(const String &filename);
 	
 private:
-	static StringMap Param;
-	static Mutex ParamMutex;
+	static StringMap Params;
+	static Mutex ParamsMutex;
 	
 	Config(void);
 	~Config(void);
