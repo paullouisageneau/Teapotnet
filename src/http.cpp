@@ -317,7 +317,8 @@ void Http::Response::send(Socket &sock)
 		}
 	}
 
-	sock<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
+	String buf;
+	buf<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
 
 	for(	StringMap::iterator it = headers.begin();
 			it != headers.end();
@@ -330,11 +331,12 @@ void Http::Response::send(Socket &sock)
 				l != lines.end();
 				++l)
 		{
-			sock<<it->first<<": "<<*l<<"\r\n";
+			buf<<it->first<<": "<<*l<<"\r\n";
 		}
 	}
 
-	sock<<"\r\n";
+	buf<<"\r\n";
+	sock<<buf;
 }
 
 void Http::Response::recv(Socket &sock)
