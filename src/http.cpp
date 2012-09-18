@@ -58,8 +58,8 @@ void Http::Request::send(Socket &sock)
 	if(version == "1.1" && !headers.contains("Connexion"))
                 headers["Connection"] = "close";
 
-	if(!headers.contains("Accept-Encoding"))
-		headers["Accept-Encoding"] = "identity";
+	//if(!headers.contains("Accept-Encoding"))
+	//	headers["Accept-Encoding"] = "identity";
 
 	String completeUrl(url);
 	if(!get.empty())
@@ -232,7 +232,7 @@ void Http::Request::recv(Socket &sock)
 void Http::Request::clear(void)
 {
 	method = "GET";
-	version = "1.1";
+	version = "1.0";
 	url.clear();
 	headers.clear();
 	cookies.clear();
@@ -374,7 +374,7 @@ void Http::Response::recv(Socket &sock)
 void Http::Response::clear(void)
 {
 	code = 200;
-	version = "1.1";
+	version = "1.0";
 	message.clear();
 	version.clear();
 }
