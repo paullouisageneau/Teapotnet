@@ -257,6 +257,8 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		
 		StringMap post;
 		post["port"] = Config::Get("port");
+		if(!Config::Get("external_address").empty() && Config::Get("external_address") != "auto")
+			post["host"] = Config::Get("external_address");
 		if(Http::Post(url, post) != 200) return false;
 	}
 	catch(const std::exception &e)

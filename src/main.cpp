@@ -50,6 +50,7 @@ int main(int argc, char** argv)
 		Config::Default("interface_port", "8080");
 		Config::Default("profiles_dir", "profiles");
 		Config::Default("static_dir", "static");
+		Config::Default("external_address", "auto");
 		Config::Save(configFileName);
 		
 		StringMap args;
