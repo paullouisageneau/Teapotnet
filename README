@@ -1,1 +1,31 @@
-TODO
+* TeapotNet
+
+ (
+ )  _o_ _
+ \\/   \_\
+  \____/
+
+
+** What is it ?
+
+TeapotNet is a simple friend-to-friend network. It allows you
+to chat and share, download or stream files. It features a clear
+HTTP interface and easy to use authentification and encryption
+based on shared secrets.
+
+** Installation
+
+Please see the INSTALL file.
+
+** License
+
+TeapotNet is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as  
+published by the Free Software Foundation, either version 3 of  
+the License, or (at your option) any later version.             
+
+TeapotNet is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of      
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the    
+GNU Affero General Public License for more details.
+
