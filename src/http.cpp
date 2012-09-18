@@ -204,8 +204,6 @@ void Http::Request::recv(Socket &sock)
 		String data;
 		if(sock.read(data, size) != size)
 			throw IOException("Connection unexpectedly closed");
-
-		
 		
 		if(headers.contains("Content-Type"))
 		{
@@ -423,43 +421,49 @@ void Http::Server::Handler::run(void)
 {
 	Request request;
 	try {
-	  	try {
-			request.recv(*mSock);
+		try {
+			try {
+				request.recv(*mSock);
 
-			String expect;
-			if(request.headers.get("Expect",expect)
-				&& expect.toLower() == "100-continue")
-			{
-				mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
+				String expect;
+				if(request.headers.get("Expect",expect)
+					&& expect.toLower() == "100-continue")
+				{
+					mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
+				}
+				
+				mServer->process(request);
 			}
-			
-			mServer->process(request);
+			catch(const NetException &e)
+			{
+				Log("Http::Server::Handler", e.what()); 
+			}
+			catch(const Exception &e)
+			{
+				Log("Http::Server::Handler", String("Error: ") + e.what());
+				throw 500;
+			}
 		}
-		catch(const NetException &e)
+		catch(int code)
 		{
-			Log("Http::Server::Handler", e.what()); 
-		}
-		catch(const Exception &e)
-		{
-			Log("Http::Server::Handler", String("Error: ") + e.what());
-			throw 500;
+			Response response(request, code);
+			response.headers["Content-Type"] = "text/html; charset=UTF-8";
+			response.send();
+
+			if(request.method != "HEAD")
+			{
+				Html page(response.sock);
+				page.header(response.message);
+				page.open("h1");
+				page.text(String::number(response.code) + " - " + response.message);
+				page.close("h1");
+				page.footer();
+			}
 		}
 	}
-	catch(int code)
+	catch(const NetException &e)
 	{
-		Response response(request, code);
-		response.headers["Content-Type"] = "text/html; charset=UTF-8";
-		response.send();
-
-		if(request.method != "HEAD")
-		{
-			Html page(response.sock);
-			page.header(response.message);
-			page.open("h1");
-			page.text(String::number(response.code) + " - " + response.message);
-			page.close("h1");
-			page.footer();
-		}
+		Log("Http::Server::Handler", e.what()); 
 	}
 }
 
