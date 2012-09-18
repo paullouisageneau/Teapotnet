@@ -66,16 +66,16 @@ void Core::unregisterPeering(const Identifier &peering)
 
 void Core::addPeer(Socket *sock, const Identifier &peering)
 {
-	assert(sock != NULL);
+	Assert(sock);
 	Synchronize(this);
 	
 	if(peering != Identifier::Null && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
 	
-	//Log("Core", "Spawning new handler");
+	Log("Core", "Spawning new handler");
 	Handler *handler = new Handler(this,sock);
 	if(peering != Identifier::Null) handler->setPeering(peering);
-	handler->start(true); // handler will destroy itself
+	handler->start();
 }
 
 bool Core::hasPeer(const Identifier &peering)
@@ -284,11 +284,14 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 
 Core::Handler::~Handler(void)
 {	
-	mSender.lock();
-	mSender.mShouldStop = true;
-	mSender.notify();
-	mSender.unlock();
-	mSender.join();	
+	if(mSender.isRunning())
+	{
+		mSender.lock();
+		mSender.mShouldStop = true;
+		mSender.unlock();
+		mSender.notify();
+		mSender.join();	
+	}
 
 	if(mStream != mSock) delete mStream;
 	delete mSock;
@@ -595,6 +598,8 @@ void Core::Handler::run(void)
 	}
 	
 	mSock->close();
+
+	//WARNING: this DESTROYS the handler
 	mCore->removeHandler(mPeering, this);
 }
 
