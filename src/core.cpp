@@ -23,6 +23,7 @@
 #include "html.h"
 #include "sha512.h"
 #include "aescipher.h"
+#include "config.h"
 
 namespace tpot
 {
@@ -347,6 +348,8 @@ void Core::Handler::run(void)
 		lock();
 		Log("Core::Handler", "Starting");
 	  
+		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
+		
 		ByteString nonce_a, salt_a;
 		for(int i=0; i<16; ++i)
 		{
@@ -448,8 +451,8 @@ void Core::Handler::run(void)
 		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 		
 		if(test_b != hash_b) throw Exception("Authentication failed");
-		
 		Log("Core::Handler", "Authentication finished");
+		mSock->setTimeout(0);
 		
 		AesCipher *cipher = new AesCipher(mSock);
 		

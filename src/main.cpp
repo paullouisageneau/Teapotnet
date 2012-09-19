@@ -51,6 +51,8 @@ int main(int argc, char** argv)
 		Config::Default("profiles_dir", "profiles");
 		Config::Default("static_dir", "static");
 		Config::Default("external_address", "auto");
+		Config::Default("http_timeout", "5000");
+		Config::Default("tpot_timeout", "5000");
 		Config::Save(configFileName);
 		
 		StringMap args;

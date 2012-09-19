@@ -22,6 +22,7 @@
 #include "http.h"
 #include "exception.h"
 #include "html.h"
+#include "config.h"
 
 namespace tpot
 {
@@ -425,8 +426,9 @@ void Http::Server::Handler::run(void)
 	try {
 		try {
 			try {
+			  	mSock->setTimeout(Config::Get("http_timeout").toInt());
 				request.recv(*mSock);
-
+				
 				String expect;
 				if(request.headers.get("Expect",expect)
 					&& expect.toLower() == "100-continue")
@@ -481,8 +483,8 @@ int Http::Get(const String &url, Stream *output)
 	if(service.empty()) service = "80";
 
 	Socket sock(Address(host, service));
+	sock.setTimeout(Config::Get("http_timeout").toInt());
 	request.send(sock);
-
 	Response response;
 	response.recv(sock);
 
@@ -514,8 +516,8 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
         if(service.empty()) service = "80";
 
 	Socket sock(Address(host, service));
+	sock.setTimeout(Config::Get("http_timeout").toInt());
 	request.send(sock);
-
 	Response response;
 	response.recv(sock);
 
