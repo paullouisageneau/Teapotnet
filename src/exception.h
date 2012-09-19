@@ -130,6 +130,13 @@ public:
 	SerializeException(const String &problem);
 };
 
+// If a timeout occured
+class Timeout : public Exception
+{
+public:
+	Timeout(void);
+};
+
 inline void AssertZero(int nbr) { if(!nbr) throw DivideByZero(); }
 inline void AssertZero(float nbr) { if(std::fabs(nbr) <= std::numeric_limits<float>::epsilon()) throw DivideByZero(); }
 inline void AssertZero(double nbr) { if(std::fabs(float(nbr)) <= std::numeric_limits<float>::epsilon()) throw DivideByZero(); }

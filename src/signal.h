@@ -38,7 +38,7 @@ public:
 	void launch(void);
 	void launchAll(void);
 	void wait(Mutex &mutex);
-	bool wait(Mutex &mutex, time_t timeout);
+	bool wait(Mutex &mutex, unsigned timeout);
 
 private:
 	pthread_cond_t mCond;

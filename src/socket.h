@@ -45,6 +45,8 @@ public:
 	bool isConnected(void) const;
 	Address getRemoteAddress(void) const;
 
+	void setTimeout(unsigned msecs);
+	
 	void connect(const Address &Address);
 	void close(void);
 
@@ -54,6 +56,7 @@ public:
 
 private:
 	socket_t mSock;
+	unsigned mTimeout;
 	
 	friend class ServerSocket;
 };

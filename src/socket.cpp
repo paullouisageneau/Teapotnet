@@ -26,18 +26,21 @@ namespace tpot
 {
 
 Socket::Socket(void) :
-		mSock(INVALID_SOCKET)
+		mSock(INVALID_SOCKET),
+		mTimeout(0)
 {
 
 }
 
 Socket::Socket(const Address &Address) :
-		mSock(INVALID_SOCKET)
+		mSock(INVALID_SOCKET),
+		mTimeout(0)
 {
 	connect(Address);
 }
 
-Socket::Socket(socket_t sock)
+Socket::Socket(socket_t sock) :
+		mTimeout(0)
 {
 	mSock = sock;
 }
@@ -60,6 +63,11 @@ Address Socket::getRemoteAddress(void) const
 		throw NetException("Unable to retrieve remote address");
 
 	return Address(reinterpret_cast<sockaddr*>(&addr), len);
+}
+
+void Socket::setTimeout(unsigned msecs)
+{
+	mTimeout = msecs; 
 }
 
 void Socket::connect(const Address &Address)
@@ -100,6 +108,21 @@ void Socket::close(void)
 
 size_t Socket::readData(char *buffer, size_t size)
 {
+	if(mTimeout)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(mSock, &readfds);
+
+		struct timeval tv;
+		tv.tv_sec = mTimeout/1000;
+		tv.tv_usec = (mTimeout%1000)*1000;
+		int ret = select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+
+		if (ret == -1) throw Exception("Unable to wait on socket");
+		if (ret ==  0) throw Timeout();
+	}
+	
 	int count = recv(mSock,buffer,size,0);
 	if(count < 0) throw NetException("Connection lost");
 	return count;

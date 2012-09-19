@@ -67,7 +67,7 @@ void Synchronizable::wait(void) const
 	mSignal->wait(*mMutex);
 }
 
-void Synchronizable::wait(time_t timeout) const
+void Synchronizable::wait(unsigned timeout) const
 {
 	mSignal->wait(*mMutex, timeout);
 }

@@ -61,7 +61,7 @@ void Signal::wait(Mutex &mutex)
 	if(ret) throw Exception("Unable to wait for signal");
 }
 
-bool Signal::wait(Mutex &mutex, time_t timeout)
+bool Signal::wait(Mutex &mutex, unsigned timeout)
 {
 	timeval tv;
 	gettimeofday(&tv, NULL);

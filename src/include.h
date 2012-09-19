@@ -140,10 +140,10 @@ template<typename T> T sqr(T x)
 	return x*x;
 }
 
-template<typename T> void msleep(T msecs)
+inline void msleep(unsigned msecs)
 {
 #ifdef WINDOWS
-	Sleep(unsigned(msecs));
+	Sleep(msecs);
 #else
 	struct timespec ts;
 	ts.tv_sec = msecs/1000;

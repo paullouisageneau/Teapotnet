@@ -66,40 +66,47 @@ InvalidData::InvalidData(const String &dataName)
 }
 
 IOException::IOException(const String &message) :
-		Exception(String() + message)
+	Exception(String() + message)
 {
 	mMessage = "IO error";
 	if(!message.empty()) mMessage+= ": " + message;
 }
 
 OutOfMemory::OutOfMemory(void) :
-		Exception("Insufficient memory")
+	Exception("Insufficient memory")
 {
 
 }
 
 DivideByZero::DivideByZero(void) :
-		Exception("Division by zero")
+	Exception("Division by zero")
 {
 	
 }
 
 OutOfBounds::OutOfBounds(const String &message) :
-    Exception(String("Out of bounds: ") + message)
+	Exception(String("Out of bounds: ") + message)
 {
 
 }
 
 NetException::NetException(const String &message) :
-		Exception(String("Network error: ") + message)
+	Exception(String("Network error: ") + message)
 {
 
 }
 
 SerializeException::SerializeException(const String &problem) :
-		Exception(String("Unexpected data: ") + problem)
+	Exception(String("Unexpected data: ") + problem)
 {
 
 }
+
+Timeout::Timeout(void) :
+	Exception("Timeout")
+{
+
+}
+
 
 }

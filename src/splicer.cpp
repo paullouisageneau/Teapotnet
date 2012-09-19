@@ -33,7 +33,7 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 {
 	Log("Splicer", "Requesting available sources...");
 	
-	time_t timeout = 2000;	// TODO
+	unsigned timeout = 2000;	// TODO
 	
 	Request request(target.toString(),false);
 	request.submit();

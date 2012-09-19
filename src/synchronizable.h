@@ -41,7 +41,7 @@ public:
 	void notify(void) const;
 	void notifyAll(void) const;
 	void wait(void) const;
-	void wait(time_t timeout) const;
+	void wait(unsigned timeout) const;
 
 private:
 	Mutex *mMutex;		// Pointers are used here to keep functions const
