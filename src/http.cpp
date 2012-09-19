@@ -526,7 +526,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 		sock.discard();
 		sock.close();
 
-		// Location MAY NOT be a relative URL
+		// TODO: support relative URLs, even if not RFC-compliant
 		return Get(response.headers["Location"], output);
 	}
 
