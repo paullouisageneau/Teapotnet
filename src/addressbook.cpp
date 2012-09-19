@@ -387,30 +387,44 @@ void AddressBook::Contact::update(void)
 	if(!Core::Instance->hasPeer(mPeering))
 	{
 		Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
-		  
-		Log("AddressBook::Contact", "Querying tracker " + mTracker);	
-		if(AddressBook::query(mPeering, mTracker, mAddrs))
+		
+		if(Core::Instance->hasPeer(mRemotePeering))	// the user is local
 		{
-			for(int i=0; i<mAddrs.size(); ++i)
+			Address addr("127.0.0.1", Config::Get("port"));
+			try {
+				Socket *sock = new Socket(addr);
+				Core::Instance->addPeer(sock, mPeering);
+			}
+			catch(...)
 			{
-				const Address &addr = mAddrs[mAddrs.size()-(i+1)];
-				unlock();
-				try {
-					Socket *sock = new Socket(addr);
-					Core::Instance->addPeer(sock, mPeering);
-				}
-				catch(...)
-				{
-					 
-				}
-				lock();
+				Log("AddressBook::Contact", "WARNING: Unable to connect the local core");	 
 			}
 		}
+		else {
+			Log("AddressBook::Contact", "Querying tracker " + mTracker);	
+			if(AddressBook::query(mPeering, mTracker, mAddrs))
+			{
+				for(int i=0; i<mAddrs.size(); ++i)
+				{
+					const Address &addr = mAddrs[mAddrs.size()-(i+1)];
+					unlock();
+					try {
+						Socket *sock = new Socket(addr);
+						Core::Instance->addPeer(sock, mPeering);
+					}
+					catch(...)
+					{
+						
+					}
+					lock();
+				}
+			}
+			
+			Log("AddressBook::Contact", "Publishing to tracker " + mTracker);
+			AddressBook::publish(mRemotePeering);
+		}
 	}
-
-	Log("AddressBook::Contact", "Publishing to tracker " + mTracker);
-	AddressBook::publish(mRemotePeering);
-		
+	
 	if(!mMessages.empty())
 	{
 		time_t t = time(NULL);

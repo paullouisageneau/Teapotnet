@@ -68,8 +68,12 @@ void Tracker::process(Http::Request &request)
 			if(!request.post.get("port", port)) 
 				throw Exception("Missing port number");
 			
-			if(!request.post.get("host", host)) 
-				host = request.sock->getRemoteAddress().host();
+			if(!request.post.get("host", host))
+			{
+				if(request.headers.contains("X-Forwarded-For")) 
+					host = request.headers["X-Forwarded-For"];
+				else host = request.sock->getRemoteAddress().host();
+			}
 			
 			Address addr(host, port);
 			insert(identifier,addr);
