@@ -55,8 +55,8 @@ Splicer::Splicer(const Identifier &target, const String &filename, size_t blockS
 		}
 	}
 
-	if(mName.empty()) throw Exception("Unable to retrieve the file name");
 	if(sources.empty()) throw Exception("No sources found");
+	if(mName.empty()) throw Exception("Unable to retrieve the file name");
 	
 	Log("Splicer", "Found " + String::number(int(sources.size())) + " sources");
 	

@@ -626,7 +626,7 @@ void Core::Handler::Sender::run(void)
 		
 		while(true)
 		{
-			lock();
+			Synchronize(this);
 			if(mShouldStop) break;
 
 			if(mMessagesQueue.empty()
@@ -732,15 +732,12 @@ void Core::Handler::Sender::run(void)
 				}
 				else ++i;
 			}
-			
-			unlock();
 		}
 		
 		Log("Core::Handler::Sender", "Finished");
 	}
 	catch(std::exception &e)
 	{
-		unlock();
 		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}
 	

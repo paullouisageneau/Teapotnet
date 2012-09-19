@@ -129,7 +129,7 @@ void Interface::process(Http::Request &request)
 		if(!user || list.front() != user->name())
 		{
 			String realm;
-			if(list.front().empty()) realm = "TeapotNet";	// empty iff url == '/'
+			if(list.front().empty() || !User::Exist(list.front())) realm = "TeapotNet";
 			else realm = list.front() + " on TeapotNet";
 			
 			Http::Response response(request, 401);
