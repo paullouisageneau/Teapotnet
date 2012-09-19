@@ -237,7 +237,10 @@ void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
 {
 	String line;
-	line << command << " " << args << Stream::NewLine;
+	line << command << " " << args;
+	//Log("Core::Handler", "<< " + line);
+	
+	line << Stream::NewLine;
   	*stream << line;
 
 	for(	StringMap::const_iterator it = parameters.begin();
@@ -245,7 +248,7 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 		++it)
 	{
 	  	line.clear();
-		line << it->first << ": " << it->second << Stream::NewLine;
+		line << it->first.toCapitalized() << ": " << it->second << Stream::NewLine;
 		*stream << line;
 	}
 	*stream << Stream::NewLine;
@@ -255,6 +258,8 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 {
 	command.clear();
 	if(!stream->readLine(command)) return false;
+	//Log("Core::Handler", ">> " + command);
+	
 	args = command.cut(' ');
 	command = command.toUpper();
 	
@@ -268,7 +273,7 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 		String value = name.cut(':');
 		name.trim();
 		value.trim();
-		parameters.insert(name,value);
+		parameters.insert(name.toLower(),value);
 	}
 	
 	return true;
@@ -364,9 +369,9 @@ void Core::Handler::run(void)
 			args.clear();
 			args << mRemotePeering;
 			parameters.clear();
-			parameters["Application"] << APPNAME;
-			parameters["Version"] << APPVERSION;
-			parameters["Nonce"] << nonce_a;
+			parameters["application"] << APPNAME;
+			parameters["version"] << APPVERSION;
+			parameters["nonce"] << nonce_a;
 			sendCommand(mStream, "H", args, parameters);
 		}
 	  
@@ -376,9 +381,9 @@ void Core::Handler::run(void)
 		String appname, appversion;
 		ByteString peering, nonce_b;
 		args.read(peering);
-		parameters["Application"] >> appname;
-		parameters["Version"] >> appversion;
-		parameters["Nonce"] >> nonce_b;
+		parameters["application"] >> appname;
+		parameters["version"] >> appversion;
+		parameters["nonce"] >> nonce_b;
 
 		if(mPeering != Identifier::Null && mPeering != peering) 
 				throw Exception("Peering in response does not match: " + peering.toString());
@@ -401,9 +406,9 @@ void Core::Handler::run(void)
 			args.clear();
 			args << mRemotePeering;
 			parameters.clear();
-			parameters["Application"] << APPNAME;
-			parameters["Version"] << APPVERSION;
-			parameters["Nonce"] << nonce_a;
+			parameters["application"] << APPNAME;
+			parameters["version"] << APPVERSION;
+			parameters["nonce"] << nonce_a;
 			sendCommand(mStream, "H", args, parameters);
 		}
 		
@@ -417,17 +422,21 @@ void Core::Handler::run(void)
 		Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
 		
 		parameters.clear();
-		parameters["Digest"] << hash_a;
-		parameters["Salt"] << salt_a;
-		sendCommand(mStream, "A", "DIGEST AES256", parameters);
+		parameters["method"] << "DIGEST";
+		parameters["cipher"] << "AES256";
+		parameters["salt"] << salt_a;
+		sendCommand(mStream, "A", hash_a.toString(), parameters);
 		
 		AssertIO(recvCommand(mStream, command, args, parameters));
 		if(command != "A") throw Exception("Unexpected command: " + command);
-		if(args.toUpper() != "DIGEST AES256") throw Exception("Unknown authentication method " + args.toString());
+		if(parameters.contains("method") && parameters["method"].toUpper() != "DIGEST")
+			throw Exception("Unknown authentication method: " + parameters["method"]);
+		if(parameters.contains("cipher") && parameters["cipher"].toUpper() != "AES256")
+			throw Exception("Unknown authentication method: " + parameters["cipher"]);
 		
 		ByteString salt_b, test_b;
-		parameters["Digest"] >> test_b;
-		parameters["Salt"] >> salt_b;
+		args >> test_b;
+		parameters["salt"] >> salt_b;
 		
 		String agregate_b;
 		agregate_b.writeLine(secret);
@@ -474,7 +483,7 @@ void Core::Handler::run(void)
 		unlock();
 		while(recvCommand(mStream, command, args, parameters))
 		{
-			lock();
+			Synchronize(this);
 
 			if(command == "R")
 			{
@@ -524,7 +533,10 @@ void Core::Handler::run(void)
 				if(mResponses.get(channel,response))
 				{
 				 	Assert(response->content() != NULL);
-					if(size) mStream->readData(*response->content(),size);
+					if(size) {
+					  	size_t len = mStream->readData(*response->content(),size);
+						if(len != size) throw IOException("Incomplete data chunk");
+					}
 					else {
 						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
@@ -585,15 +597,13 @@ void Core::Handler::run(void)
 				if(listener) listener->message(&message);
 				else Log("Core::Handler", "WARNING: No listener, dropping message");
 			}
-
-			unlock();
+			else throw Exception("Invalid command: " + command);
 		}
 
 		Log("Core::Handler", "Finished");
 	}
 	catch(std::exception &e)
 	{
-		unlock();
 		Log("Core::Handler", String("Stopping: ") + e.what()); 
 	}
 	

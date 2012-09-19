@@ -100,23 +100,21 @@ void Socket::close(void)
 
 size_t Socket::readData(char *buffer, size_t size)
 {
-	int r = recv(mSock,buffer,size,0);
-	if(r < 0)
-	{
-		close();
-		throw NetException("Connection lost");
-	}
-	return r;
+	int count = recv(mSock,buffer,size,0);
+	if(count < 0) throw NetException("Connection lost");
+	return count;
 }
 
 void Socket::writeData(const char *data, size_t size)
 {
-	// TODO: verify all the data has been sent
-	int r = send(mSock,data,size,0);
-	if(r < 0)
+	while(size)
 	{
-		close();
-		throw NetException("Connection lost");
+		int count = send(mSock,data,size,0);
+		if(count == 0) throw NetException("Connection closed");
+		if(count < 0)  throw NetException("Connection lost");
+
+		data+= count;
+		size-= count;
 	}
 }
 

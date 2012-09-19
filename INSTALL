@@ -1,5 +1,5 @@
-* TeapotNet - Installation notes
-by Paul-Louis Ageneau
+== TeapotNet - Installation notes ==
+      by Paul-Louis Ageneau
 
 
 Installing is not supported for the moment.
@@ -17,7 +17,7 @@ or without it:
 $ ./teapotnet
 
 By default, it listens for TPOT connections on port 8480.
-The interface listen by defaut on port 8080, and the tracker on port 8488.
+The interface listens by defaut on port 8080, and the tracker on port 8488.
 This can be changed in config.txt (created at first startup)
 
 To create a new user, write the username and password to users.txt
@@ -25,6 +25,6 @@ To create a new user, write the username and password to users.txt
 $ echo myusername mypassword > users.txt
 $ ./teapotnet
 
-Once the program is running, point your browser to http://127.0.0.1:8080/
+Once the program is running, point your web browser to http://127.0.0.1:8080/
 to access the interface.
 

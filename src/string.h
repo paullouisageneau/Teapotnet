@@ -72,6 +72,7 @@ public:
 	
 	String toLower(void) const;
 	String toUpper(void) const;
+	String toCapitalized(void) const;
 	String toTrimmed(void) const;
 	String urlEncode(void) const;
 	String urlDecode(void) const;

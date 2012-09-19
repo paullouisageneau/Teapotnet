@@ -21,6 +21,7 @@
 
 #include "aescipher.h"
 #include "exception.h"
+#include "bytearray.h"
 
 namespace tpot
 {
@@ -502,8 +503,6 @@ size_t AesCipher::readData(char *buffer, size_t size)
 		{
 			mTempBlockOutSize = readBlock(mTempBlockOut);
 			if(!mTempBlockOutSize) break;
-			String block;
-			block.assign(mTempBlockOut, mTempBlockOutSize);
 		}
 		
 		size_t count = std::min(mTempBlockOutSize, size);
@@ -523,25 +522,29 @@ size_t AesCipher::readData(char *buffer, size_t size)
 
 size_t AesCipher::readBlock(char *out)
 {
-	if(mTempBlockInSize != AES_BLOCK_SIZE)
+	while(true)
 	{
-		size_t count = mByteStream->readData(mTempBlockIn+mTempBlockInSize, AES_BLOCK_SIZE-mTempBlockInSize);
-		mTempBlockInSize+= count;
-		if(!count) return 0;
+		while(mTempBlockInSize != AES_BLOCK_SIZE)
+		{
+			size_t count = mByteStream->readData(mTempBlockIn+mTempBlockInSize, AES_BLOCK_SIZE-mTempBlockInSize);
+			if(!count) return 0;
+			mTempBlockInSize+= count;
+		}
+
+		decrypt(mTempBlockIn, out);
+
+		for(size_t n=0; n < AES_BLOCK_SIZE; ++n)
+			out[n] ^= mDecryptionInit[n];
+				
+		std::memcpy(mDecryptionInit, mTempBlockIn, AES_BLOCK_SIZE);
+		mTempBlockInSize = 0;
+		
+		// Remove PKCS7 padding
+		size_t padding = uint8_t(out[AES_BLOCK_SIZE - 1]);
+		if(padding > AES_BLOCK_SIZE) throw IOException("AES: Invalid padding in deciphered block");
+		size_t size = AES_BLOCK_SIZE - padding;
+		if(size) return size;
 	}
-
-	decrypt(mTempBlockIn, out);
-
-	for(size_t n=0; n < AES_BLOCK_SIZE; ++n)
-		out[n] ^= mDecryptionInit[n];
-			
-	std::memcpy(mDecryptionInit, mTempBlockIn, AES_BLOCK_SIZE);
-	mTempBlockInSize = 0;
-	
-	// Remove PKCS7 padding
-	size_t padding = uint8_t(out[AES_BLOCK_SIZE - 1]);
-	padding = std::min(padding, size_t(AES_BLOCK_SIZE-1));
-	return AES_BLOCK_SIZE - padding;
 }
 
 void AesCipher::writeData(const char *data, size_t size)
@@ -550,22 +553,21 @@ void AesCipher::writeData(const char *data, size_t size)
 
 	while(size)
 	{
-		char in[AES_BLOCK_SIZE];
+		char tmp[AES_BLOCK_SIZE];
 		size_t len = std::min(size, size_t(AES_BLOCK_SIZE - 1)); 
-		std::memcpy(in, data, len);
+		std::memcpy(tmp, data, len);
 		
 		// Add PKCS7 padding
 		size_t padding = AES_BLOCK_SIZE - len;
 		for(size_t n=len; n<AES_BLOCK_SIZE; ++n)
-			in[n] = uint8_t(padding);
+			tmp[n] = uint8_t(padding);
 		
-		char out[AES_BLOCK_SIZE];
-		for(size_t n=0; n < AES_BLOCK_SIZE; ++n)
-			out[n] = in[n] ^ mEncryptionInit[n];
+		for(size_t n=0; n<AES_BLOCK_SIZE; ++n)
+			tmp[n] = tmp[n] ^ mEncryptionInit[n];
 		
-		encrypt(out, out);
-		std::memcpy(mEncryptionInit, out, AES_BLOCK_SIZE);
-		mByteStream->writeData(out, AES_BLOCK_SIZE);
+		encrypt(tmp, tmp);
+		std::memcpy(mEncryptionInit, tmp, AES_BLOCK_SIZE);
+		mByteStream->writeData(tmp, AES_BLOCK_SIZE);
 
 		data+= len;
 		size-= len;

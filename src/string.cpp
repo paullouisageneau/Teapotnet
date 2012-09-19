@@ -249,6 +249,25 @@ String String::toUpper(void) const
 	return s;
 }
 
+String String::toCapitalized(void) const
+{
+	String s(*this);
+	bool cap = true;
+	for(int i=0; i<s.size(); ++i)
+	{
+		if(cap)
+		{
+			s[i] = toupper(s[i]);
+			cap = false;
+		}
+		else {
+			if(s[i] == ' ' || s[i] == '-') cap=true;
+			else s[i] = tolower(s[i]);
+		}
+	}
+	return s;
+}
+
 String String::toTrimmed(void) const
 {
 	String s(*this);
