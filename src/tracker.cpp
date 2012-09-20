@@ -112,16 +112,12 @@ void Tracker::process(Http::Request &request)
 
 void Tracker::insert(const Identifier &identifier, const Address &addr)
 {
-	Synchronize(this);
-	
 	Map<Address,time_t> &map = mMap[identifier];
 	map[addr] = time(NULL);
 }
 
 void Tracker::retrieve(const Identifier &identifier, Array<Address> &array)
 {
-	Synchronize(this);
-	
 	array.clear();
 
 	map_t::iterator it = mMap.find(identifier);
