@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "http.h"
+#include "synchronizable.h"
 #include "address.h"
 #include "identifier.h"
 #include "array.h"
@@ -32,7 +33,7 @@
 namespace tpot
 {
 
-class Tracker : public Http::Server
+class Tracker : protected Synchronizable, public Http::Server
 {
 public:
 	Tracker(int port = 8080);
