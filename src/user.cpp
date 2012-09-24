@@ -171,7 +171,7 @@ void User::run(void)
 {
 	while(true)
 	{
-		wait(2*60*1000);	// warning: this must not be locked when waiting for mAddressBook
+		wait(2*60*1000);
 		if(!mAddressBook->isRunning()) mAddressBook->start();
 		if(!mStore->isRunning()) mStore->start();
 	}

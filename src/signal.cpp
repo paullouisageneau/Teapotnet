@@ -65,7 +65,7 @@ bool Signal::wait(Mutex &mutex, unsigned timeout)
 {
 	timeval tv;
 	gettimeofday(&tv, NULL);
-	uint64_t t = uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)*1000 + timeout;
+	uint64_t t = uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000 + timeout;
 	timespec ts;
 	ts.tv_sec = t/1000;
 	ts.tv_nsec = (t%1000)*1000000;
