@@ -24,10 +24,12 @@
 namespace tpot
 {
 
+const time_t Tracker::EntryLife = 3600;	// seconds
+  
 Tracker::Tracker(int port) :
 		Http::Server(port)
 {
-
+	mIterator = mMap.begin();
 }
 
 Tracker::~Tracker(void)
@@ -114,6 +116,24 @@ void Tracker::insert(const Identifier &identifier, const Address &addr)
 {
 	Map<Address,time_t> &map = mMap[identifier];
 	map[addr] = time(NULL);
+	
+	int nbr = 2;
+	if(nbr < mMap.size()) nbr = mMap.size();
+	for(int i=0; i<nbr; ++i)
+	{
+	  	if(mIterator == mMap.end()) mIterator = mMap.begin();
+
+		Map<Address,time_t> &map = mIterator->second;
+		Map<Address,time_t>::iterator it = map.begin();
+		while(it != map.end())
+		{
+			if(it->second + EntryLife >= time(NULL)) map.erase(it++);
+			else it++;
+		} 
+			
+		if(map.empty()) mMap.erase(mIterator++);
+		else mIterator++;	
+	}
 }
 
 void Tracker::retrieve(const Identifier &identifier, Array<Address> &array)

@@ -36,6 +36,8 @@ namespace tpot
 class Tracker : protected Synchronizable, public Http::Server
 {
 public:
+	static const time_t EntryLife;
+  
 	Tracker(int port = 8080);
 	~Tracker(void);
 
@@ -46,6 +48,7 @@ private:
 
 	typedef Map<Identifier, Map<Address,time_t> > map_t;
 	map_t mMap;
+	map_t::iterator mIterator; 
 };
 
 }
