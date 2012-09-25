@@ -44,7 +44,7 @@ public:
 private:
 	void process(Http::Request &request);
 	void insert(const Identifier &identifier, const Address &addr);
-	void retrieve(const Identifier &identifier, Array<Address> &array);
+	void retrieve(const Identifier &identifier, Array<Address> &array) const;
 
 	typedef Map<Identifier, Map<Address,time_t> > map_t;
 	map_t mMap;

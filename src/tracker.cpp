@@ -114,11 +114,8 @@ void Tracker::process(Http::Request &request)
 
 void Tracker::insert(const Identifier &identifier, const Address &addr)
 {
-	Map<Address,time_t> &map = mMap[identifier];
-	map[addr] = time(NULL);
-	
 	int nbr = 2;
-	if(nbr < mMap.size()) nbr = mMap.size();
+	if(nbr > mMap.size()) nbr = mMap.size();
 	for(int i=0; i<nbr; ++i)
 	{
 	  	if(mIterator == mMap.end()) mIterator = mMap.begin();
@@ -134,20 +131,23 @@ void Tracker::insert(const Identifier &identifier, const Address &addr)
 		if(map.empty()) mMap.erase(mIterator++);
 		else mIterator++;	
 	}
+	
+	Map<Address,time_t> &map = mMap[identifier];
+	map[addr] = time(NULL);
 }
 
-void Tracker::retrieve(const Identifier &identifier, Array<Address> &array)
+void Tracker::retrieve(const Identifier &identifier, Array<Address> &array) const
 {
 	array.clear();
 
-	map_t::iterator it = mMap.find(identifier);
+	map_t::const_iterator it = mMap.find(identifier);
 	if(it == mMap.end()) return;
 
-	Map<Address,time_t> &map = it->second;
+	const Map<Address,time_t> &map = it->second;
 	if(map.empty()) return;
 
 	array.reserve(map.size());
-	for(	Map<Address,time_t>::iterator it = map.begin();
+	for(	Map<Address,time_t>::const_iterator it = map.begin();
 			it != map.end();
 			++it)
 	{
