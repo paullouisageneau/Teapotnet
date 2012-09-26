@@ -551,6 +551,25 @@ void Core::Handler::run(void)
 				  mStream->ignore(size);
 				}
 			}
+			else if(command == "E")
+			{
+				unsigned channel;
+				args.read(channel);
+
+				Request::Response *response;
+				if(mResponses.get(channel,response))
+				{
+				 	Assert(response->content() != NULL);
+					
+					Log("Core::Handler", "Error on channel "+String::number(channel));
+					// TODO: pass error through response pipe
+					response->content()->close();
+					mRequests.erase(channel);
+				}
+				else {
+					Log("Core::Handler", "WARNING: Received error for unknown channel "+String::number(channel));
+				}
+			}
 			else if(command == "I" || command == "G")
 			{
 			  	unsigned id;
@@ -717,7 +736,24 @@ void Core::Handler::Sender::run(void)
 			Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
 			while(it != mTransferts.end())
 			{
-				size_t size = it->second->readData(buffer,ChunkSize);
+				size_t size = 0;
+				
+				try {
+					size = it->second->readData(buffer,ChunkSize);
+				}
+				catch(const Exception &e)
+				{
+					Log("Core::Handler::Sender", "Error on channel "+String::number(it->first));
+					
+					String args;
+					args << it->first;
+					StringMap parameters;
+					parameters["message"] = e.what();
+					Handler::sendCommand(mStream, "E", args, parameters);
+					
+					mTransferts.erase(it++);
+					continue;
+				}
 				
 				String args;
 				args << it->first << " " << size;
