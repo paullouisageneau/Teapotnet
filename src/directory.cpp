@@ -21,6 +21,7 @@
 
 #include "directory.h"
 #include "exception.h"
+#include "file.h"
 
 #include <time.h>
 #include <sys/types.h>
@@ -143,9 +144,7 @@ size_t Directory::fileSize(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
 	if(fileIsDir()) return 0;
-	struct stat attrib;
-	stat(filePath().c_str(), &attrib);
-	return size_t(attrib.st_size);
+	return File::Size(filePath());
 }
 
 bool Directory::fileIsDir(void) const

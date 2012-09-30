@@ -41,6 +41,7 @@ public:
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
 	static void Rename(const String &source, const String &destination);
+	static uint64_t Size(const String &filename);
 
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 
@@ -51,7 +52,7 @@ public:
 	virtual void open(const String &filename, OpenMode mode = ReadWrite);
 	virtual void close(void);
 	
-	size_t size(void);
+	uint64_t size(void);
 
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);

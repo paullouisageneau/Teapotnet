@@ -53,9 +53,10 @@
 
 #include <pthread.h>
 
-// Winsock compatibility
+// Windows compatibility
 #ifdef WINDOWS
 
+#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #undef min
@@ -72,6 +73,8 @@ typedef u_long ctl_t;
 #define EaddRINUSE	WSAEaddRINUSE
 #define SOCK_TO_INT(x) 0
 
+#define stat64 __stat64
+
 #else
 
 #include <errno.h>
@@ -83,6 +86,7 @@ typedef u_long ctl_t;
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
@@ -115,15 +119,25 @@ typedef int ctl_t;
 namespace tpot
 {
 
-typedef signed char		sint8_t;	// 8 bits
-typedef signed short		sint16_t;	// 16 bits
-typedef signed int		sint32_t;	// 32 bits
-typedef signed long long	sint64_t;	// 64 bits
-
+#ifdef WINDOWS
+typedef signed char		int8_t;		// 8 bits
+typedef signed short		int16_t;	// 16 bits
+typedef signed int		int32_t;	// 32 bits
+typedef signed long long	int64_t;	// 64 bits
 typedef unsigned char		uint8_t;	// 8 bits
 typedef unsigned short		uint16_t;	// 16 bits
 typedef unsigned int		uint32_t;	// 32 bits
 typedef unsigned long long	uint64_t;	// 64 bits
+#else
+typedef ::int8_t		int8_t;		// 8 bits
+typedef ::int16_t		int16_t;	// 16 bits
+typedef ::int32_t		int32_t;	// 32 bits
+typedef ::int64_t		int64_t;	// 64 bits
+typedef ::uint8_t		uint8_t;	// 8 bits
+typedef ::uint16_t		uint16_t;	// 16 bits
+typedef ::uint32_t		uint32_t;	// 32 bits
+typedef ::uint64_t		uint64_t;	// 64 bits
+#endif
 
 typedef float			float32_t;	// 32 bits float
 typedef double			float64_t;	// 64 bits float

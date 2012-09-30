@@ -43,6 +43,13 @@ void File::Rename(const String &source, const String &destination)
 		throw IOException("Cannot move \""+source+"\" to \""+destination+"\"");
 }
 
+uint64_t File::Size(const String &filename)
+{
+	struct stat64 st;
+	stat64(filename.c_str(), &st);
+	return uint64_t(st.st_size);
+}
+
 File::File(void)
 {
 
@@ -85,13 +92,9 @@ void File::close(void)
 		std::fstream::close();
 }
 
-size_t File::size(void)
+uint64_t File::size(void)
 {
-	pos_type pos = std::fstream::tellg();
-	std::fstream::seekg(0, std::ios_base::end);
-	pos_type size = std::fstream::tellg();
-	std::fstream::seekg(pos);
-	return size_t(size);
+	return Size(mName);
 }
 
 size_t File::readData(char *buffer, size_t size)

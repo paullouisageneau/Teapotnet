@@ -84,35 +84,35 @@ bool ByteStream::readBinary(ByteString &s)
 	return true;
 }
 
-bool ByteStream::readBinary(sint8_t &i)
+bool ByteStream::readBinary(int8_t &i)
 {
 	uint8_t u;
 	if(!readBinary(u)) return false;
-	i = sint8_t(u);
+	i = int8_t(u);
 	return true;
 }
 
-bool ByteStream::readBinary(sint16_t &i)
+bool ByteStream::readBinary(int16_t &i)
 {
 	uint16_t u;
 	if(!readBinary(u)) return false;
-	i = sint16_t(u);
+	i = int16_t(u);
 	return true;
 }
 
-bool ByteStream::readBinary(sint32_t &i)
+bool ByteStream::readBinary(int32_t &i)
 {
 	uint32_t u;
 	if(!readBinary(u)) return false;
-	i = sint32_t(u);
+	i = int32_t(u);
 	return true;
 }
 
-bool ByteStream::readBinary(sint64_t &i)
+bool ByteStream::readBinary(int64_t &i)
 {
 	uint64_t u;
 	if(!readBinary(u)) return false;
-	i = sint64_t(u);
+	i = int64_t(u);
 	return true;
 }
 
@@ -221,22 +221,22 @@ void ByteStream::writeBinary(const ByteString &s)
 		writeData(&s.at(i),1);
 }
 
-void ByteStream::writeBinary(sint8_t i)
+void ByteStream::writeBinary(int8_t i)
 {
 	writeBinary(uint8_t(i));
 }
 
-void ByteStream::writeBinary(sint16_t i)
+void ByteStream::writeBinary(int16_t i)
 {
 	writeBinary(uint16_t(i));
 }
 
-void ByteStream::writeBinary(sint32_t i)
+void ByteStream::writeBinary(int32_t i)
 {
 	writeBinary(uint32_t(i));
 }
 
-void ByteStream::writeBinary(sint64_t i)
+void ByteStream::writeBinary(int64_t i)
 {
 	writeBinary(uint64_t(i));
 }
@@ -271,17 +271,17 @@ void ByteStream::writeBinary(float32_t f)
 
 void ByteStream::writeInt8(signed int i)
 {
-	writeBinary(sint8_t(i));
+	writeBinary(int8_t(i));
 }
 
 void ByteStream::writeInt16(signed int i)
 {
-	writeBinary(sint16_t(i));
+	writeBinary(int16_t(i));
 }
 
 void ByteStream::writeInt32(signed int i)
 {
-	writeBinary(sint32_t(i));
+	writeBinary(int32_t(i));
 }
 
 void ByteStream::writeInt8(unsigned int i)
