@@ -192,6 +192,7 @@ void Interface::process(Http::Request &request)
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment";
+				response.headers["Content-Length"] = entry.info["size"];
 				if(entry.info.contains("name")) response.headers["Content-Disposition"]+= "; filename=\"" + entry.info.get("name") + "\"";
 				if(entry.info.contains("hash")) response.headers["Content-SHA512"] = entry.info.get("hash");
 				// TODO: Date + Last-Modified
@@ -210,6 +211,7 @@ void Interface::process(Http::Request &request)
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
+				response.headers["Content-Length"] << splicer.size();
 				response.headers["Content-SHA512"] = hash.toString();
 				// TODO: Missing headers
 				response.send();

@@ -29,7 +29,8 @@ namespace tpot
 Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
 		mTarget(target),
 		mFileName(filename),
-		mBlockSize(blockSize)
+		mBlockSize(blockSize),
+		mSize(0)
 {
 	Log("Splicer", "Requesting available sources...");
 	
@@ -67,9 +68,14 @@ Splicer::~Splicer(void)
 	// So the stripes are already deleted
 }
 
-const String &Splicer::name(void)
+const String &Splicer::name(void) const
 {
 	return mName;
+}
+
+uint64_t Splicer::size(void) const
+{
+	return mSize;
 }
 
 void Splicer::process(void)
@@ -154,7 +160,17 @@ void Splicer::search(Set<Identifier> &sources)
 		if(!response->error())
 		{
 			if(mName.empty() && parameters.contains("name")) 
+			{
 				mName = parameters.get("name");
+			}
+			
+			// TODO: check size
+			if(mSize == 0 && parameters.contains("size")) 
+			{
+				String tmp = parameters.get("size");
+				tmp >> mSize;
+			}
+			
 			sources.insert(response->peering());
 		}
 	}
