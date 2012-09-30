@@ -79,6 +79,7 @@ typedef u_long ctl_t;
 #include <stdlib.h>
 #include <memory.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/types.h>

@@ -133,7 +133,7 @@ private:
 			friend class Handler;
 		};
 
-		Sender mSender;
+		Sender *mSender;
 	};
 
 	void addHandler(const Identifier &peer, Handler *Handler);

@@ -119,9 +119,10 @@ bool Request::execute(Store *store)
 	  catch(const Exception &e) {}
 	}
 	
-	if(!store)
+	if(!success)
 	{
-		addResponse(new Response("KO"));
+		addResponse(new Response(Response::NotFound));
+		Log("Request", "Traget not Found");
 		return false;
 	}
 
@@ -131,30 +132,44 @@ bool Request::execute(Store *store)
 		if(parameters.contains("Stripe"))
 		{
 			size_t blockSize;
-			int nbStripe, stripe;
+			int stripesCount, stripe;
 
-			parameters["BlockSize"] >> blockSize;
-			parameters["StripesCount"] >> nbStripe;
-			parameters["Stripe"] >> stripe;
+			parameters["block-size"] >> blockSize;
+			parameters["stripes-count"] >> stripesCount;
+			parameters["stripe"] >> stripe;
 
-			StripedFile *stripedFile = new StripedFile(entry.content, blockSize, nbStripe, stripe);
-			// TODO: seeking
+			Assert(blockSize > 0);
+			Assert(stripesCount > 0);
+			
+			StripedFile *stripedFile = new StripedFile(entry.content, blockSize, stripesCount, stripe);
+			
+			size_t block = 0;
+			size_t offset = 0;
+			if(parameters.contains("block")) parameters["block"] >> block;
+			if(parameters.contains("offset")) parameters["offset"] >> offset;
+			stripedFile->seekRead(block, offset);
+			
 			content = stripedFile;
 			
 			uint64_t size;
 			entry.info["size"] >> size;
-			entry.info["size"] << size/nbStripe;
+			entry.info["size"] << size/stripesCount;
 		}
 		else content = entry.content;
 
 	}
 
-	Response *response = new Response("OK", entry.info, content);
+	Response *response = new Response(Response::Success, entry.info, content);
 	if(response->content()) response->content()->close();	// no more content
 	addResponse(response);
 	
 	Log("Request", "Finished execution");
 	return true;
+}
+
+const Identifier &Request::receiver(void) const
+{
+	return mReceiver; 
 }
 
 bool Request::isPending() const
@@ -192,22 +207,23 @@ Request::Response *Request::response(int num)
 	return mResponses.at(num);
 }
 
-Request::Response::Response(const String &status) :
+Request::Response::Response(int status) :
 	mStatus(status),
 	mContent(NULL),
 	mIsSent(false),
 	mPendingCount(0)
 {
-
+	Assert(status >= 0);
 }
 
-Request::Response::Response(const String &status, const StringMap &parameters, ByteStream *content) :
+Request::Response::Response(int status, const StringMap &parameters, ByteStream *content) :
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),
 	mIsSent(false),
 	mPendingCount(0)
 {
+	Assert(status >= 0);
 	if(content) mContent = new Pipe(content);
 	else mContent = NULL;
 }
@@ -220,11 +236,6 @@ Request::Response::~Response(void)
 const Identifier &Request::Response::peering(void) const
 {
 	return mPeering;
-}
-
-const String &Request::Response::status(void) const
-{
-	return mStatus;
 }
 
 const StringMap &Request::Response::parameters(void) const
@@ -247,6 +258,21 @@ bool Request::Response::parameter(const String &name, String &value) const
 Pipe *Request::Response::content(void) const
 {
 	return mContent;
+}
+
+int Request::Response::status(void) const
+{
+ 	return mStatus;
+}
+
+bool Request::Response::error(void) const
+{
+	return status() > 0; 
+}
+
+bool Request::Response::finished(void) const
+{
+	return status() < 0; 
 }
 
 }

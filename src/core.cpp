@@ -283,22 +283,33 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
 	mSock(sock),
-	mStream(sock)
+	mStream(sock),
+	mSender(NULL)
 {
 
 }
 
 Core::Handler::~Handler(void)
 {	
-	if(mSender.isRunning())
+	for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
+		it != mResponses.end();
+		++it)
+	{	
+		it->second->mStatus = Request::Response::Interrupted;
+		it->second->content()->close();
+	}
+  
+	if(mSender->isRunning())
 	{
-		mSender.lock();
-		mSender.mShouldStop = true;
-		mSender.unlock();
-		mSender.notify();
-		mSender.join();	
+		mSender->lock();
+		mSender->mShouldStop = true;
+		mSender->unlock();
+		mSender->notify();
+		mSender->join();	
 	}
 
+	if(mSender) delete mSender;
+	
 	if(mStream != mSock) delete mStream;
 	delete mSock;
 }
@@ -315,10 +326,10 @@ void Core::Handler::sendMessage(const Message &message)
 	
 	Log("Core::Handler", "New message");
 	
-	mSender.lock();
-	mSender.mMessagesQueue.push(message);
-	mSender.unlock();
-	mSender.notify();
+	mSender->lock();
+	mSender->mMessagesQueue.push(message);
+	mSender->unlock();
+	mSender->notify();
 }
 
 void Core::Handler::addRequest(Request *request)
@@ -327,11 +338,11 @@ void Core::Handler::addRequest(Request *request)
 	
 	Log("Core::Handler", "New request " + String::number(request->id()));
 	
-	mSender.lock();
+	mSender->lock();
 	request->addPending();
-	mSender.mRequestsQueue.push(request);
-	mSender.unlock();
-	mSender.notify();
+	mSender->mRequestsQueue.push(request);
+	mSender->unlock();
+	mSender->notify();
 	
 	mRequests.insert(request->id(),request);
 }
@@ -479,8 +490,10 @@ void Core::Handler::run(void)
 		mStream = cipher;
 		
 		mCore->addHandler(mPeering,this);
-		mSender.mStream = mStream;
-		mSender.start();
+		mSender->mStream = mStream;
+		
+		mSender = new Sender;
+		mSender->start();
 		
 		Log("Core::Handler", "Entering main loop");
 		unlock();
@@ -491,7 +504,7 @@ void Core::Handler::run(void)
 			if(command == "R")
 			{
 				unsigned id;
-				String status;
+				int status;
 				unsigned channel;
 				args.read(id);
 				args.read(status);
@@ -503,7 +516,7 @@ void Core::Handler::run(void)
 				  	Request::Response *response;
 					if(channel)
 					{
-						Log("Core::Handler", "Received response for request "+String::number(id)+", receiving on channel "+String::number(channel));
+						Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
 						ByteStream *sink = request->mContentSink; 	// TODO
 						if(!sink) sink = new ByteString;		// TODO
@@ -512,15 +525,12 @@ void Core::Handler::run(void)
 						mResponses.insert(channel,response);
 					}
 					else {
-						Log("Core::Handler", "Received response for request "+String::number(id)+", no data");
+						Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
 						response = new Request::Response(status, parameters);
 					}
 
 					response->mPeering = mPeering;
 					request->addResponse(response);
-
-					// TODO: Only one response expected for now
-					mRequests.erase(id);
 
 					request->removePending();	// TODO
 				}
@@ -543,7 +553,7 @@ void Core::Handler::run(void)
 					else {
 						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
-						mRequests.erase(channel);
+						mResponses.erase(channel);
 					}
 				}
 				else {
@@ -554,17 +564,22 @@ void Core::Handler::run(void)
 			else if(command == "E")
 			{
 				unsigned channel;
+				int status;
 				args.read(channel);
-
+				args.read(status);
+				
 				Request::Response *response;
 				if(mResponses.get(channel,response))
 				{
 				 	Assert(response->content() != NULL);
 					
-					Log("Core::Handler", "Error on channel "+String::number(channel));
-					// TODO: pass error through response pipe
+					Log("Core::Handler", "Error on channel "+String::number(channel)+", status "+String::number(status));
+					
+					Assert(status > 0);
+				
+					response->mStatus = status;
 					response->content()->close();
-					mRequests.erase(channel);
+					mResponses.erase(channel);
 				}
 				else {
 					Log("Core::Handler", "WARNING: Received error for unknown channel "+String::number(channel));
@@ -591,11 +606,11 @@ void Core::Handler::run(void)
 				
 					listener->request(request);
 
-					mSender.lock();
-					mSender.mRequestsToRespond.push_back(request);
-					request->mResponseSender = &mSender;
-					mSender.unlock();
-					mSender.notify();
+					mSender->lock();
+					mSender->mRequestsToRespond.push_back(request);
+					request->mResponseSender = mSender;
+					mSender->unlock();
+					mSender->notify();
 				}
 			}
 			else if(command == "M")
@@ -648,6 +663,16 @@ Core::Handler::Sender::~Sender(void)
 {
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
 		delete mRequestsToRespond[i];
+	
+	Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
+	while(it != mTransferts.end())
+	{
+		int status = Request::Response::Interrupted;	
+		String args;
+		args << it->first << status;
+		Handler::sendCommand(mStream, "E", args, StringMap());
+		++it;
+	}
 }
 
 void Core::Handler::Sender::run(void)
@@ -681,7 +706,6 @@ void Core::Handler::Sender::run(void)
 					{
 						Log("Core::Handler::Sender", "Sending response");
 						
-						String status = "OK";
 						unsigned channel = 0;
 
 						if(response->content())
@@ -689,13 +713,12 @@ void Core::Handler::Sender::run(void)
 							++mLastChannel;
 							channel = mLastChannel;
 							
-							
 							Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
 							mTransferts.insert(channel,response->content());
 						}
 						
 						String args;
-						args << request->id() <<" "<<status<<" "<<channel;
+						args << request->id() <<" "<<response->status()<<" "<<channel;
 						Handler::sendCommand(mStream, "R", args, response->mParameters);
 						
 						response->mIsSent = true;
@@ -745,8 +768,10 @@ void Core::Handler::Sender::run(void)
 				{
 					Log("Core::Handler::Sender", "Error on channel "+String::number(it->first));
 					
+					int status = Request::Response::ReadFailed;
+					
 					String args;
-					args << it->first;
+					args << it->first << status;
 					StringMap parameters;
 					parameters["message"] = e.what();
 					Handler::sendCommand(mStream, "E", args, parameters);

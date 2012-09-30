@@ -43,7 +43,6 @@ public:
 	const String &target(void) const;
 
 	void setContentSink(ByteStream *bs);
-
 	void setTarget(const String &target, bool data);
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
@@ -53,6 +52,8 @@ public:
 	void cancel(void);
 	bool execute(Store *store);
 
+	const Identifier &receiver(void) const;
+	
 	bool isPending() const;
 	void addPending();
 	void removePending();
@@ -60,24 +61,33 @@ public:
 	class Response
 	{
 	public:
-		Response(const String &status);
-		Response(const String &status, const StringMap &parameters, ByteStream *content = NULL);
+		static const int Finished = -1;
+		static const int Success = 0;
+		static const int NotFound = 1;
+		static const int Interrupted = 2;
+		static const int ReadFailed = 3;
+	  
+		Response(int status = 0);
+		Response(int status, const StringMap &parameters, ByteStream *content = NULL);
 		~Response(void);
 
 		const Identifier &peering(void) const;
-		const String &status(void) const;
 		const StringMap &parameters(void) const;
 		String parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
 		Pipe *content(void) const;
 		
+		int status(void) const;
+		bool error(void) const;
+		bool finished(void) const;
+		
 	private:
+	  	int mStatus;
 		Identifier mPeering;
-		String mStatus;
 		StringMap mParameters;
 		Pipe *mContent;
 		bool mIsSent;
-
+		
 		int mPendingCount;
 		
 		friend class Core;

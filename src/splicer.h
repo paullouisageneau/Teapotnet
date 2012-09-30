@@ -41,14 +41,19 @@ public:
 
 	const String &name(void);
 	
+	void process(void);
 	bool finished(void) const;
 	size_t finishedBlocks(void) const;
 	
 private:
+  	void search(Set<Identifier> &sources);
+  	void query(int i, const Identifier &source);
+  
 	Identifier mTarget;
 	String mFileName;
 	String mName;
 	size_t mBlockSize;
+	int mNbStripes;
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
 };

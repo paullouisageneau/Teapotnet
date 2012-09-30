@@ -217,7 +217,9 @@ void Interface::process(Http::Request &request)
 				size_t current = 0;
 				while(!splicer.finished())
 				{
-					size_t finished = splicer.finishedBlocks();
+					splicer.process();
+				  
+				  	size_t finished = splicer.finishedBlocks();
 					while(current < finished)
 					{
 						if(!file.read(*response.sock, blockSize)) return;
