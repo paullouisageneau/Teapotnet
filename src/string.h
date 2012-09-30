@@ -33,11 +33,13 @@ class String : public Stream, public Serializable, public std::string
 {
 public:
 	static const String Empty;
-
+	
+	template<typename T> static String number(T n);
 	static String number(double d, int digits = 4);
-	static String number(int n);
-	static String number(unsigned int n, int minDigits = 1);
+	static String number(unsigned int n, int minDigits);
 	static String hexa(unsigned int n, int minDigits = 1);
+	static String hrSize(uint64_t size);
+	static String hrSize(const String &size);
 	
 	String(void);
 	String(const char chr);
@@ -100,6 +102,12 @@ protected:
 	void writeData(const char *data, size_t size);
 };
 
+template<typename T> String String::number(T n)
+{
+    std::ostringstream out;
+    out << n;
+    return out.str();
+}
 
 // Templates functions from Stream using String are defined here
 

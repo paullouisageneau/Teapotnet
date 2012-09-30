@@ -523,22 +523,44 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				for(int i=0; i<request.responsesCount(); ++i)
+				if(request.responsesCount() > 0)
 				{
-					Request::Response *response = request.response(i);
+					Request::Response *response = request.response(0);
 					StringMap parameters = response->parameters();
 					
 					if(!response->content()) page.text("No content...");
 					else try {
 						if(parameters.contains("type") && parameters["type"] == "directory")
 						{
-							StringMap info;
+							Map<String, StringMap> files;
+						  	StringMap info;
 							while(response->content()->read(info))
 							{
+							 	if(!info.contains("type")) break;
+								if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);
+								else files.insert("1"+info.get("name"),info);
+							}
+							
+							page.open("table");
+							for(Map<String, StringMap>::iterator it = files.begin();
+								it != files.end();
+								++it)
+							{
+							  	StringMap &info = it->second;
+								
+								page.open("tr");
+								page.open("td"); 
 								if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
 								else page.link("/" + info.get("hash"), info.get("name"));
-								page.br();
+								page.close("td");
+								page.open("td"); 
+								if(info.get("type") == "directory") page.text("directory");
+								else page.text(String::hrSize(info.get("size")));
+								page.close("td");
+								page.open("tr");
 							}
+
+							page.close("table");
 						}
 						else {
 							page.text("Download ");
@@ -546,9 +568,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							page.br();
 						}
 					}
-					catch(...)
+					catch(const Exception &e)
 					{
-
+						Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
+						page.text("Error, unable to list files");
 					}
 				}
 				

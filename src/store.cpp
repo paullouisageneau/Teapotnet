@@ -366,13 +366,32 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.text(request.url);
 				page.close("h1");
 
+				Map<String, StringMap> files;
 				Directory dir(path);
+				StringMap info;
 				while(dir.nextFile())
 				{
-					page.link(dir.fileName(), dir.fileName());
-					page.br();
+					dir.getFileInfo(info);
+					if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);
+					else files.insert("1"+info.get("name"),info);
+				}
+				
+				page.open("table");
+				for(Map<String, StringMap>::iterator it = files.begin();
+					it != files.end();
+					++it)
+				{
+					StringMap &info = it->second;
+					page.open("tr");
+					page.open("td"); page.link(info.get("name"),info.get("name")); page.close("td");
+					page.open("td"); 
+					if(info.get("type") == "directory") page.text("directory");
+					else page.text(String::hrSize(info.get("size"))); 
+					page.close("td");
+					page.open("tr");
 				}
 
+				page.close("table");
 				page.footer();
 			}
 			else if(File::Exist(path))

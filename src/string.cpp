@@ -32,13 +32,6 @@ String String::number(double d, int digits)
     return out.str();
 }
 
-String String::number(int n)
-{
-    std::ostringstream out;
-    out << n;
-    return out.str();
-}
-
 String String::number(unsigned int n, int minDigits)
 {
     std::ostringstream out;
@@ -51,6 +44,31 @@ String String::hexa(unsigned int n, int minDigits)
     std::ostringstream out;
     out << std::hex << std::uppercase << n;
     return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+}
+  
+String String::hrSize(uint64_t size)
+{
+ 	const char prefix[] = {'K','M','G','T'};
+	const unsigned base = 1024;
+	
+	if(size < base) return String::number(size) + " B";
+	
+	char symbol;
+	for(int i=0; i<4; ++i)
+	{
+		size/= base;
+		symbol = prefix[i];
+		if(size < base) break; 
+	}
+	return String::number(size) + " " + symbol + "iB";
+}
+
+String String::hrSize(const String &size)
+{
+	String tmp(size);
+	uint64_t i;
+	tmp >> i;
+	return hrSize(i);
 }
   
 String::String(void)

@@ -490,9 +490,10 @@ void Core::Handler::run(void)
 		mStream = cipher;
 		
 		mCore->addHandler(mPeering,this);
-		mSender->mStream = mStream;
 		
+		// Start the sender
 		mSender = new Sender;
+		mSender->mStream = mStream;
 		mSender->start();
 		
 		Log("Core::Handler", "Entering main loop");

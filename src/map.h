@@ -110,8 +110,10 @@ void SerializableMap<K,V>::deserialize(Stream &s)
 	this->clear();
 
 	String line;
-	while(s.readLine(line) && !line.empty())
+	while(s.readLine(line))
 	{
+	  	if(line.empty()) return;
+	  
 		String second = line.cut('=');
 		K key;
 		V value;
@@ -119,6 +121,8 @@ void SerializableMap<K,V>::deserialize(Stream &s)
 		second.readLine(value);
 		this->insert(key,value);
 	}
+	
+	if(this->empty()) throw IOException();
 }
 
 template<typename K, typename V>

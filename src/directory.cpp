@@ -156,14 +156,12 @@ bool Directory::fileIsDir(void) const
 void Directory::getFileInfo(StringMap &map) const
 {
 	// Note: fileInfo must not contain path
+	
 	map.clear();
 	map["name"] =  fileName();
 	map["time"] << fileTime();
-
-	if(fileIsDir())
-	{
-		map["type"] =  "directory";
-	}
+	
+	if(fileIsDir()) map["type"] =  "directory";
 	else {
 		map["type"] =  "file";
 		map["size"] << fileSize();
