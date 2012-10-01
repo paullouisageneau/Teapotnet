@@ -152,7 +152,7 @@ void Html::openForm(	const String &action,
 	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
 	*mStream<<" action=\""<<action<<"\" method=\""<<method<<"\"";
 	if(method == "post") *mStream<<" enctype=\"application/x-www-form-urlencoded\"";
-	*mStream<<"/>\n";
+	*mStream<<">\n";
 }
 
 void Html::closeForm(void)
