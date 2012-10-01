@@ -38,7 +38,7 @@ public:
 	using ByteStream::ignore;
 
 	Socket(void);
-	Socket(const Address &Address);
+	Socket(const Address &Address, unsigned msecs = 0);
 	Socket(socket_t sock);
 	virtual ~Socket(void);
 

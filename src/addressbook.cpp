@@ -409,7 +409,7 @@ void AddressBook::Contact::update(void)
 					const Address &addr = mAddrs[mAddrs.size()-(i+1)];
 					unlock();
 					try {
-						Socket *sock = new Socket(addr);
+						Socket *sock = new Socket(addr, 1000);	// TODO: timeout
 						Core::Instance->addPeer(sock, mPeering);
 					}
 					catch(...)

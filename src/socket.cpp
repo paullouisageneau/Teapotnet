@@ -32,9 +32,9 @@ Socket::Socket(void) :
 
 }
 
-Socket::Socket(const Address &Address) :
+Socket::Socket(const Address &Address, unsigned msecs) :
 		mSock(INVALID_SOCKET),
-		mTimeout(0)
+		mTimeout(msecs)
 {
 	connect(Address);
 }
@@ -80,15 +80,39 @@ void Socket::connect(const Address &Address)
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
-		// Connect it
-		if(::connect(mSock,Address.addr(),Address.addrLen()) != 0)
-			throw NetException(String("Connection to ")+Address.toString()+" failed");
+		if(!mTimeout)
+		{
+			// Connect it
+			if(::connect(mSock,Address.addr(),Address.addrLen()) != 0)
+				throw NetException(String("Connection to ")+Address.toString()+" failed");
+		}
+		else {
+			ctl_t b = 1;
+			if(ioctl(mSock,FIONBIO,&b) < 0)
+				throw Exception("Cannot set non-blocking mode");
+		
+			// Initiate connection
+			::connect(mSock,Address.addr(),Address.addrLen());
 
-		/*
-		ctl_t b = 1;
-		if(ioctl(mSock,FIONBIO,&b) < 0)
-			throw Exception("Cannot use non-blocking mode");
-		 */
+			fd_set writefds;
+			FD_ZERO(&writefds);
+			FD_SET(mSock, &writefds);
+
+			struct timeval tv;
+			tv.tv_sec = mTimeout/1000;
+			tv.tv_usec = (mTimeout%1000)*1000;
+			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
+
+			if (ret == -1) 
+			  	throw Exception("Unable to wait on socket");
+			
+			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
+				throw NetException(String("Connection to ")+Address.toString()+" failed"); 
+			
+			b = 0;
+			if(ioctl(mSock,FIONBIO,&b) < 0)
+				throw Exception("Cannot set blocking mode");
+		}
 	}
 	catch(...)
 	{
@@ -117,13 +141,13 @@ size_t Socket::readData(char *buffer, size_t size)
 		struct timeval tv;
 		tv.tv_sec = mTimeout/1000;
 		tv.tv_usec = (mTimeout%1000)*1000;
-		int ret = select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 
 		if (ret == -1) throw Exception("Unable to wait on socket");
 		if (ret ==  0) throw Timeout();
 	}
 	
-	int count = recv(mSock,buffer,size,0);
+	int count = ::recv(mSock,buffer,size,0);
 	if(count < 0) throw NetException("Connection lost");
 	return count;
 }
@@ -132,7 +156,7 @@ void Socket::writeData(const char *data, size_t size)
 {
 	while(size)
 	{
-		int count = send(mSock,data,size,0);
+		int count = ::send(mSock,data,size,0);
 		if(count == 0) throw NetException("Connection closed");
 		if(count < 0)  throw NetException("Connection lost");
 
