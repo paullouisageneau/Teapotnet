@@ -26,7 +26,6 @@ namespace tpot
 {
 
 Mutex::Mutex(void) :
-		mLockedBy(0),
 		mLockCount(0)
 {
 	 if(pthread_mutex_init(&mMutex,NULL) != 0)
@@ -42,7 +41,7 @@ void Mutex::lock(int count)
 {
 	if(!count) return;
 	
-	if(mLockCount == 0 || mLockedBy != pthread_self())
+	if(mLockCount == 0 || !pthread_equal(mLockedBy, pthread_self()))
 	{
 		if(pthread_mutex_lock(&mMutex) != 0)
 			throw Exception("Unable to lock mutex");
@@ -54,7 +53,7 @@ void Mutex::lock(int count)
 
 bool Mutex::tryLock(void)
 {
-	if(mLockCount == 0 || mLockedBy != pthread_self())
+	if(mLockCount == 0 || !pthread_equal(mLockedBy, pthread_self()))
 	{
 		int ret = pthread_mutex_trylock(&mMutex);
 		if(ret == EBUSY) return false;

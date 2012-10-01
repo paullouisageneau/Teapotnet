@@ -27,9 +27,14 @@ namespace tpot
 
 bool File::Exist(const String &filename)
 {
-	std::fstream file;
+	/*std::fstream file;
 	file.open(filename.c_str(), std::ios_base::in);
-	return file.is_open();
+	return file.is_open();*/
+	
+	stat_t st;
+	if(stat(filename.c_str(), &st)) return false;
+	if(!S_ISDIR(st.st_mode)) return true;
+	else return false;
 }
 
 bool File::Remove(const String &filename)
@@ -45,8 +50,8 @@ void File::Rename(const String &source, const String &destination)
 
 uint64_t File::Size(const String &filename)
 {
-	struct stat64 st;
-	stat64(filename.c_str(), &st);
+	stat_t st;
+	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
 	return uint64_t(st.st_size);
 }
 

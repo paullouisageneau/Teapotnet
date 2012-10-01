@@ -87,7 +87,9 @@ public:
 	bool toBool() const;
 
 	operator const char*(void);
-
+	char &operator [](int pos);
+	const char &operator [](int pos) const;
+	
 	// Serializable
 	virtual void serialize(Stream &s) const;
 	virtual void deserialize(Stream &s);

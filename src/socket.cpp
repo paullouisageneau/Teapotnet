@@ -101,7 +101,7 @@ void Socket::close(void)
 {
 	if(mSock != INVALID_SOCKET)
 	{
-		::close(mSock);
+		::closesocket(mSock);
 		mSock = INVALID_SOCKET;
 	}
 }

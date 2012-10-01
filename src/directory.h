@@ -26,8 +26,6 @@
 #include "string.h"
 #include "map.h"
 
-#include "dirent.h"
-
 namespace tpot
 {
 

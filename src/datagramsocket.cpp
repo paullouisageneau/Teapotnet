@@ -77,7 +77,7 @@ DatagramSocket::DatagramSocket(int port)
 
 DatagramSocket::~DatagramSocket(void)
 {
-	if(mSock != INVALID_SOCKET) close(mSock);
+	if(mSock != INVALID_SOCKET) ::closesocket(mSock);
 }
 
 Address DatagramSocket::getLocalAddress(void)

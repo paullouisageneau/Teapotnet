@@ -28,6 +28,11 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#define WINDOWS
+	#define _WIN32_WINNT 0x0501
+	#define __MSVCRT_VERSION__ 0x0601
+	#ifdef __MINGW32__
+		#define MINGW
+	#endif
 #endif
 
 #include <cstdio>
@@ -51,6 +56,7 @@
 #include <stack>
 #include <queue>
 
+#include <dirent.h>
 #include <pthread.h>
 
 // Windows compatibility
@@ -63,17 +69,21 @@
 #undef max
 
 typedef SOCKET socket_t;
-typedef SOCKaddR sockaddr;
+typedef SOCKADDR sockaddr;
 typedef int socklen_t;
 typedef u_long ctl_t;
 #define ioctl ioctlsocket
-#define close closesocket
 #define sockerrno WSAGetLasterror()
 #define EWOULDBLOCK	WSAEWOULDBLOCK
-#define EaddRINUSE	WSAEaddRINUSE
+#define EADDRINUSE	WSAEADDRINUSE
 #define SOCK_TO_INT(x) 0
 
-#define stat64 __stat64
+#define mkdir(d,x) _mkdir(d)
+
+#ifdef MINGW
+#include <sys/stat.h>
+#include <sys/time.h>
+#endif
 
 #else
 
@@ -93,11 +103,11 @@ typedef u_long ctl_t;
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
 #include <sched.h>
 
 typedef int socket_t;
 typedef int ctl_t;
+#define closesocket close
 #define sockerrno errno
 #define INVALID_SOCKET -1
 #define SOCK_TO_INT(x) (x)
@@ -128,6 +138,11 @@ typedef unsigned char		uint8_t;	// 8 bits
 typedef unsigned short		uint16_t;	// 16 bits
 typedef unsigned int		uint32_t;	// 32 bits
 typedef unsigned long long	uint64_t;	// 64 bits
+
+typedef struct __stat64 stat_t;
+inline int stat(const char *path, stat_t *buf) { return _stat64(path,buf); }
+inline int _stat(const char *path, stat_t *buf) { return stat(path,buf); }
+
 #else
 typedef ::int8_t		int8_t;		// 8 bits
 typedef ::int16_t		int16_t;	// 16 bits
@@ -137,6 +152,10 @@ typedef ::uint8_t		uint8_t;	// 8 bits
 typedef ::uint16_t		uint16_t;	// 16 bits
 typedef ::uint32_t		uint32_t;	// 32 bits
 typedef ::uint64_t		uint64_t;	// 64 bits
+
+typedef struct stat64 stat_t;
+inline int stat(const char *path, stat_t *buf) { return stat64(path,buf); }
+
 #endif
 
 typedef float			float32_t;	// 32 bits float

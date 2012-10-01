@@ -43,10 +43,14 @@ const char Directory::Separator = PATH_SEPARATOR;
 
 bool Directory::Exist(const String &path)
 {
-	DIR *dir = opendir(path.c_str());
+	/*DIR *dir = opendir(path.c_str());
 	if(!dir) return false;
-	closedir(dir);
-	return true;
+	closedir(dir);*/
+	
+	stat_t st;
+	if(stat(path.c_str(), &st)) return false;
+	if(S_ISDIR(st.st_mode)) return true;
+	else return false;
 }
 
 bool Directory::Remove(const String &path)
@@ -56,7 +60,7 @@ bool Directory::Remove(const String &path)
 
 void Directory::Create(const String &path)
 {
-	if(mkdir(path.c_str(),0770) != 0)
+	if(mkdir(path.c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
 }
 
@@ -150,7 +154,8 @@ size_t Directory::fileSize(void) const
 bool Directory::fileIsDir(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
-	return (mDirent->d_type == DT_DIR);
+	//return (mDirent->d_type == DT_DIR);
+	return Exist(filePath());
 }
 
 void Directory::getFileInfo(StringMap &map) const

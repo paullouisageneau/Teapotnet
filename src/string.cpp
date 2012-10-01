@@ -435,6 +435,21 @@ bool String::toBool() const
 	return s.readBool();
 }
 
+String::operator const char*(void)
+{
+	return this->c_str(); 
+}
+
+char &String::operator [](int pos)
+{
+	return this->at(pos);
+}
+
+const char &String::operator [](int pos) const
+{
+	return this->at(pos); 
+}
+
 void String::serialize(Stream &s) const
 {
 	s.write(*this);

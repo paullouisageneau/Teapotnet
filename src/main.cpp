@@ -134,7 +134,7 @@ int main(int argc, char** argv)
 				}
 				
 				user->start();
-				sleep(1);
+				msleep(1000);
 			}
 		}
 		
@@ -154,7 +154,7 @@ int main(int argc, char** argv)
 				if(name.empty()) continue;
 				User *user = new User(name, password);
 				user->start();
-				sleep(1);
+				msleep(1000);
 				line.clear();
 			}
 			usersFile.close();
