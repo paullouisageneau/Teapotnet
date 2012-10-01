@@ -474,16 +474,25 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.text("Contact: "+mName);
 			page.close("h1");
 
-			page.text("Secret: " + mSecret.toString()); page.br();
-			page.text("Peering: " + mPeering.toString()); page.br();
-			page.text("Remote peering: " + mRemotePeering.toString()); page.br();
-			page.br();
-			page.br();
-			
 			page.link(prefix+"/files/","Files");
 			page.br();
 			page.link(prefix+"/chat/","Chat");
 			page.br();
+			page.br();
+			
+			page.open("div", "info");
+			page.text("Secret: " + mSecret.toString()); page.br();
+			page.text("Peering: " + mPeering.toString()); page.br();
+			page.text("Remote peering: " + mRemotePeering.toString()); page.br();
+			page.close("div");
+			page.open("div", "show_info");
+			page.close("div");
+			
+			page.raw("<script type=\"text/javascript\">\n\
+	document.getElementById('info').style.display = 'none';\n\
+	document.getElementById('show_info').innerHTML = '<a id=\"show_info\" href=\"javascript:showInfo();\">Show information</a>';\n\
+	function showInfo() { document.getElementById('info').style.display=''; document.getElementById('show_info').style.display='none'; }\n\
+</script>\n");
 			
 			page.footer();
 			return;

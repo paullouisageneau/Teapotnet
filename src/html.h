@@ -46,6 +46,10 @@ public:
 	void open(const String &type, String id = "");
 	void close(const String &type);
 
+	void openLink(	const String &url,
+			String id = "");
+	void closeLink(void);
+	
 	void link(	const String &url,
 			const String &txt,
 			String id = "");

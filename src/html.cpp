@@ -45,10 +45,13 @@ void Html::header(const String &title, const String &redirect)
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\"/>\n";
 	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
-	*mStream<<"<script type=\"text/javaScript\" src=\"/common.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
-
+	
+	open("div","panel");
+	openLink("/"); image("/logo.png","TeapotNet","logo"); closeLink();
+	close("div");
 }
 
 void Html::footer(void)
@@ -100,8 +103,7 @@ void Html::close(const String &type)
 	*mStream<<"</"<<type<<">\n";
 }
 
-void Html::link(	const String &url,
-			const String &txt,
+void Html::openLink(	const String &url,
 			String id)
 {
 	String cl = id.cut('.');
@@ -109,8 +111,20 @@ void Html::link(	const String &url,
 	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
 	*mStream<<">";
-	text(txt);
+}
+
+void Html::closeLink(void)
+{
 	*mStream<<"</a>\n";
+}
+
+void Html::link(	const String &url,
+			const String &txt,
+			String id)
+{
+	openLink(url,id);
+	text(txt);
+	closeLink();
 }
 
 void Html::image(	const String &url,
