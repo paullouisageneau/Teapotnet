@@ -48,10 +48,13 @@ void Html::header(const String &title, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
-	
+
 	open("div","panel");
 	openLink("/"); image("/logo.png","TeapotNet","logo"); closeLink();
 	close("div");
+	open("div","bar");
+        link(SOURCELINK, "Source code");
+        close("div");
 }
 
 void Html::footer(void)
