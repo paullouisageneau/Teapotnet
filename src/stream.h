@@ -36,6 +36,11 @@ class ByteStream;
 class Stream
 {
 public:
+	static const String IgnoredCharacters;
+	static const String BlankCharacters;
+	static const char NewLine;
+	static const char Space;
+	
 	Stream(void);
 	virtual ~Stream(void);
 
@@ -51,12 +56,17 @@ public:
 	bool get(char &chr);
 	void put(char chr);
 	char last(void) const;
+	
+	void space(void);
 
 	bool ignore(int n = 1);
 	bool ignoreUntil(char delimiter);
 	bool ignoreUntil(const String &delimiters);
 	bool ignoreWhile(const String &chars);
 
+	bool readUntil(Stream &output, char delimiter);
+	bool readUntil(Stream &output, const String &delimiters);
+	
 	size_t	read(Stream &s);
 	size_t	read(Stream &s, size_t max);
 	bool	read(Serializable &s);
@@ -108,26 +118,15 @@ public:
 	template<typename T> Stream& operator>>(T &val);
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
-
-	bool readUntil(Stream &output, char delimiter);
-	bool readUntil(Stream &output, const String &delimiters);
-	bool readString(Stream &output, const String &delimiters, bool skipBefore = false);
-	bool readString(Stream &output);	// delimiters = BlankCharacters, output is trimmed
-	bool readField(Stream &output);		// delimiters = FieldDelimiters
-	bool readLine(Stream &output);		// delimiter  = NewLine
-	bool readLine(String &output);		// used by the template function readLine()
-
+	
+	bool assertChar(char chr);
+	bool readChar(char &chr);
+	bool readLine(String &str);
+	bool readString(String &str);
 	template<typename T> bool readLine(T &output);
 	template<typename T> bool writeLine(const T &input);
-
-	static const char NewLine;
-	static const char Space;
-
+	
 protected:
-	static const String IgnoredCharacters;
-	static const String BlankCharacters;
-	static const String FieldDelimiters;
-
 	char mLast;
 	bool mHexa;
 

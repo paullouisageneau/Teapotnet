@@ -90,15 +90,6 @@ void Serializable::html(Stream &s) const
 	serialize(s);
 }
 
-std::istream &operator>>(std::istream &is, Serializable &s)
-{
-	std::string stdstr;
-	is>>stdstr;
-	String str(stdstr);
-	s.deserialize(str);
-	return is;
-}
-
 std::ostream &operator<<(std::ostream &os, const Serializable &s)
 {
 	os<<std::string(s.toString());

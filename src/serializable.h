@@ -52,8 +52,6 @@ public:
 	virtual void html(Stream &s) const;
 };
 
-// WARNING: These operators are not symetric if toString is reimplemented
-std::istream &operator>>(std::istream &is, Serializable &s);
 std::ostream &operator<<(std::ostream &os, const Serializable &s);
 
 }

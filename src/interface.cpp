@@ -168,7 +168,6 @@ void Interface::process(Http::Request &request)
 					Http::Response response(request, 301);	// Moved Permanently
 					response.headers["Location"] = prefix+"/";
 					response.send();
-					mMutex.unlock();
 					return;  
 				}
 				

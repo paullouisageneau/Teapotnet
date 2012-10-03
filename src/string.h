@@ -32,14 +32,15 @@ namespace tpot
 class String : public Stream, public Serializable, public std::string
 {
 public:
-	static const String Empty;
-	
 	template<typename T> static String number(T n);
 	static String number(double d, int digits = 4);
 	static String number(unsigned int n, int minDigits);
 	static String hexa(unsigned int n, int minDigits = 1);
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
+	
+	static const String Empty;
+	static const size_type NotFound = npos;
 	
 	String(void);
 	String(const char chr);
@@ -74,8 +75,8 @@ public:
 	
 	String toLower(void) const;
 	String toUpper(void) const;
-	String toCapitalized(void) const;
-	String toTrimmed(void) const;
+	String capitalized(void) const;
+	String trimmed(void) const;
 	String urlEncode(void) const;
 	String urlDecode(void) const;
 	String base64Encode(void) const;
@@ -95,8 +96,6 @@ public:
 	virtual void deserialize(Stream &s);
 	virtual void serializeBinary(ByteStream &s) const;
 	virtual void deserializeBinary(ByteStream &s);
-
-	static const size_type NotFound = npos;
 
 protected:
 	// Stream

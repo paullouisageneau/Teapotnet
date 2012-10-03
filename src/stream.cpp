@@ -28,8 +28,7 @@ namespace tpot
 {
 
 const String Stream::IgnoredCharacters = "\r\0";
-const String Stream::BlankCharacters = " \t";
-const String Stream::FieldDelimiters = ",;\n";	// Must NOT contain '.', '=', and ':'
+const String Stream::BlankCharacters = " \t\n";
 const char Stream::NewLine = '\n';
 const char Stream::Space = ' ';
 
@@ -85,12 +84,16 @@ bool Stream::hexaMode(bool enabled)
 
 bool Stream::get(char &chr)
 {
-	if(readData(&mLast,1))
+	while(readData(&mLast,1))
 	{
-		chr = mLast;
-		return true;
+		if(!IgnoredCharacters.contains(mLast))
+		{
+			chr = mLast;
+			return true;
+		}
 	}
-	else return false;
+	
+	return false;
 }
 
 void Stream::put(char chr)
@@ -101,6 +104,12 @@ void Stream::put(char chr)
 char Stream::last(void) const
 {
 	return mLast;
+}
+
+void Stream::space(void)
+{
+	if(!BlankCharacters.contains(last()))
+		put(Space);
 }
 
 bool Stream::ignore(int n)
@@ -134,10 +143,28 @@ bool Stream::ignoreWhile(const String &chars)
 	return true;
 }
 
-Stream &Stream::operator<<(Stream &s)
+bool Stream::readUntil(Stream &output, char delimiter)
 {
-	write(s);
-	return (*this);
+	char chr;
+	if(!get(chr)) return false;
+	while(chr != delimiter)
+	{
+		if(!IgnoredCharacters.contains(chr)) output.write(chr);
+		if(!get(chr)) break;
+	}
+	return true;
+}
+
+bool Stream::readUntil(Stream &output, const String &delimiters)
+{
+	char chr;
+	if(!get(chr)) return false;
+	while(!delimiters.contains(chr))
+	{
+		if(!IgnoredCharacters.contains(chr)) output.write(chr);
+		if(!get(chr)) break;
+	}
+	return true;
 }
 
 size_t Stream::read(Stream &s)
@@ -182,9 +209,61 @@ bool Stream::read(Serializable &s)
 bool Stream::read(String &s)
 {
 	s.clear();
-	if(!ignoreWhile(BlankCharacters)) return false;
-	s+= last();
-	readString(s,FieldDelimiters+BlankCharacters,false);
+  
+	char chr;
+	if(!get(chr)) return false;
+
+	while(BlankCharacters.contains(chr))
+		if(!get(chr)) return false;
+	
+	bool quotes = (chr == '\'' || chr == '\"');
+		
+	String delimiters;
+	if(quotes)
+	{
+		quotes = true;
+		delimiters = String(chr);
+		AssertIO(get(chr));
+	}
+	else {
+		s+= chr;
+		delimiters = Stream::BlankCharacters;
+		if(!get(chr)) return true;
+	}
+
+	while(!delimiters.contains(chr))
+	{
+		if(chr == '\\')
+		{
+			AssertIO(get(chr));
+			switch(chr)
+			{
+			case '\"': 	chr = '\"';	break;
+			case '\'': 	chr = '\'';	break;
+			case '\\': 	chr = '\\';	break;
+			case 'b': 	chr = '\b';	break;
+			case 'f': 	chr = '\f';	break;
+			case 'n': 	chr = '\n';	break;
+			case 'r': 	chr = '\r';	break;
+			case 'u':
+				String tmp;
+				AssertIO(read(tmp, 4));
+				unsigned u;
+				tmp >> u;
+				if(u >= 0x80) continue;	// TODO
+				chr = u;
+				break;
+			}
+		}
+		
+		s+= chr;
+		if(!get(chr))
+		{
+			if(quotes) throw IOException();
+			else break;
+		}
+	}
+	
 	return true;
 }
 
@@ -240,7 +319,7 @@ void Stream::write(const Serializable &s)
 
 void Stream::write(const String &s)
 {
-	writeData(s.data(), s.size());
+  	writeData(s.data(), s.size());
 }
 
 void Stream::write(const char *s)
@@ -259,64 +338,36 @@ void Stream::write(bool b)
 	else write("false");
 }
 
-bool Stream::readUntil(Stream &output, char delimiter)
+Stream &Stream::operator<<(Stream &s)
 {
-	if(!get(mLast)) return false;
-	while(mLast != delimiter)
-	{
-		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
-		if(!get(mLast)) break;
-	}
+	write(s);
+	return (*this);
+}
+
+bool Stream::assertChar(char chr)
+{
+	char tmp;
+	if(!readChar(tmp)) return false;
+	AssertIO(tmp == chr);
 	return true;
 }
 
-bool Stream::readUntil(Stream &output, const String &delimiters)
+bool Stream::readChar(char &chr)
 {
-	if(!get(mLast)) return false;
-	while(!delimiters.contains(mLast))
-	{
-		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
-		if(!get(mLast)) break;
-	}
+	if(!ignoreWhile(BlankCharacters)) return false;
+	chr = last();
 	return true;
 }
 
-bool Stream::readString(Stream &output, const String &delimiters, bool skipBefore)
+bool Stream::readLine(String &str)
 {
-	if(!get(mLast)) return false;
-
-	if(skipBefore)
-	{
-		while(delimiters.contains(mLast))
-			if(!get(mLast)) return false;
-	}
-
-	while(!delimiters.contains(mLast))
-	{
-		if(!IgnoredCharacters.contains(mLast)) output.write(mLast);
-		if(!get(mLast)) break;
-	}
-	return true;
+	str.clear();
+	return readUntil(str, NewLine);
 }
 
-bool Stream::readString(Stream &output)
+bool Stream::readString(String &str)
 {
-	return readString(output, BlankCharacters, true);
-}
-
-bool Stream::readField(Stream &output)
-{
-	return readString(output,FieldDelimiters,false);
-}
-
-bool Stream::readLine(Stream &output)
-{
-	return readString(output,String(NewLine),false);
-}
-
-bool Stream::readLine(String &output)
-{
-	return readString(output,String(NewLine),false);
+	return read(str);
 }
 
 bool Stream::readStdString(std::string &output)

@@ -267,7 +267,7 @@ String String::toUpper(void) const
 	return s;
 }
 
-String String::toCapitalized(void) const
+String String::capitalized(void) const
 {
 	String s(*this);
 	bool cap = true;
@@ -286,7 +286,7 @@ String String::toCapitalized(void) const
 	return s;
 }
 
-String String::toTrimmed(void) const
+String String::trimmed(void) const
 {
 	String s(*this);
 	s.trim();

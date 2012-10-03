@@ -141,13 +141,14 @@ void Address::serialize(Stream &s) const
 	char service[SERVICE_NAME_MAX];
 	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network Address");
+	
 	s<<host<<':'<<service;
 }
 
 void Address::deserialize(Stream &s)
 {
 	String str;
-	AssertIO(s.readField(str));
+	AssertIO(s.read(str));
 	int separator = str.find_last_of(':');
 	if(separator == String::NotFound) throw InvalidData("Invalid network Address: " + str);
 	String host(str,0,separator);
