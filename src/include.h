@@ -221,11 +221,20 @@ extern Mutex LogMutex;
 template<typename T> void LogImpl(const char *file, int line, const char *prefix, const T &value)
 {
 	LogMutex.lock();
+	
+	try {
 #ifdef DEBUG
 	std::cout<<file<<":"<<std::dec<<line<<" "<<prefix<<": "<<value<<std::endl;
 #else
 	std::cout<<prefix<<": "<<value<<std::endl;
 #endif
+	}
+	catch(...)
+	{
+		LogMutex.unlock();
+		throw;
+	}
+	
 	LogMutex.unlock();
 }
 
