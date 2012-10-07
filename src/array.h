@@ -50,10 +50,20 @@ public:
 template<typename T>
 class SerializableArray : public Array<T>, public Serializable
 {
-	void serialize(Stream &s) const;
-	void deserialize(Stream &s);
-	void serializeBinary(ByteStream &s) const;
-	void deserializeBinary(ByteStream &s);
+	class SerializableElement : public Serializer::Element
+	{
+	public:
+		 T value;
+		 
+		 SerializableElement(void);
+		 SerializableElement(const T &value);
+
+		 void serialize(Serializer &s) const;
+		 bool deserialize(Serializer &s);
+	};
+  
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
 };
 
 typedef SerializableArray<String> StringArray;
@@ -128,55 +138,64 @@ bool Array<T>::contains(const T &value)
 }
 
 template<typename T>
-void SerializableArray<T>::serialize(Stream &s) const
+void SerializableArray<T>::serialize(Serializer &s) const
 {
-	for(size_t i=0; i<this->size(); ++i)
-	{
-		s<<this->at(i)<<Stream::NewLine;
-	}
-
-	s<<Stream::NewLine;
-}
-
-template<typename T>
-void SerializableArray<T>::deserialize(Stream &s)
-{
-	this->clear();
-
-	String line;
-	while(s.readLine(line) && !line.empty())
-	{
-		T value;
-		line.readLine(value);	// read() would stop at first space
-		this->append(value);
-	}
-}
-
-template<typename T>
-void SerializableArray<T>::serializeBinary(ByteStream &s) const
-{
-	s.writeBinary(uint32_t(this->size()));
+	s.outputArrayBegin(this->size());
 
 	for(size_t i=0; i<this->size(); ++i)
 	{
-		s.writeBinary(this->at(i));
+		SerializableElement element(this->at(i));
+		s.output(element);
 	}
+	
+	s.outputArrayEnd();
 }
 
 template<typename T>
-void SerializableArray<T>::deserializeBinary(ByteStream &s)
+bool SerializableArray<T>::deserialize(Serializer &s)
 {
 	this->clear();
-	uint32_t size;
-	AssertIO(s.readBinary(size));
+	if(!s.inputArrayBegin()) return false;
 
-	this->reserve(size);
-	for(uint32_t i=0; i<size; ++i)
-	{
-		T value;
-		AssertIO(s.readBinary(value));
-		this->append(value);
+	try {
+		while(s.inputArrayElement())
+		{
+			SerializableElement element;
+			AssertIO(s.input(element));
+			this->append(element.value);
+		}
 	}
+	catch(const Serializer::End &end)
+	{
+	  
+	}
+
+	return true;
+}
+
+template<typename T>
+SerializableArray<T>::SerializableElement::SerializableElement(void)
+{
+	 
+}
+
+template<typename T>
+SerializableArray<T>::SerializableElement::SerializableElement(const T &value) :
+	value(value)
+{
+	 
+}
+
+template<typename T>
+void SerializableArray<T>::SerializableElement::serialize(Serializer &s) const
+{
+	s.output(value);
+}
+
+template<typename T>
+bool SerializableArray<T>::SerializableElement::deserialize(Serializer &s)
+{
+	s.input(value);
 }
 
 }

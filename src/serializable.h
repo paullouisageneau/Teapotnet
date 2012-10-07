@@ -28,9 +28,8 @@ namespace tpot
 {
 
 class Stream;
-class ByteStream;
 class String;
-class ByteString;
+class Serializer;
 
 class Serializable
 {
@@ -38,26 +37,21 @@ public:
 	Serializable(void);
 	virtual ~Serializable(void);
 
+	virtual void serialize(Serializer &s) const;
+	virtual bool deserialize(Serializer &s);
 	virtual void serialize(Stream &s) const;
-	virtual void deserialize(Stream &s);
-	virtual void serializeBinary(ByteStream &s) const;
-	virtual void deserializeBinary(ByteStream &s);
-
-	virtual String toString(void) const;
-	virtual ByteString toBinary(void) const;
-
+	virtual bool deserialize(Stream &s);
+	
+	String toString(void) const;
+	void fromString(String str);
 	operator String(void) const;
-	operator ByteString(void) const;
-
-	virtual void html(Stream &s) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Serializable &s);
 
 }
 
-#include "string.h"
-#include "bytestring.h"
+#include "serializer.h"
 
 #endif
  

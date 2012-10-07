@@ -44,32 +44,34 @@ public:
 	Stream(void);
 	virtual ~Stream(void);
 
+	// Settings
 	bool hexaMode(void);
 	bool hexaMode(bool enabled);
-	
+		
+	// Data-level access
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-	
 	size_t readData(ByteStream &s, size_t max);
 	size_t writeData(ByteStream &s, size_t max);
 	
+	// Atomic
 	bool get(char &chr);
 	void put(char chr);
 	char last(void) const;
-	
 	void space(void);
-
 	bool ignore(int n = 1);
+	
+	// Conditionnal
 	bool ignoreUntil(char delimiter);
 	bool ignoreUntil(const String &delimiters);
 	bool ignoreWhile(const String &chars);
-
 	bool readUntil(Stream &output, char delimiter);
 	bool readUntil(Stream &output, const String &delimiters);
 	
+	// Reading
 	size_t	read(Stream &s);
-	size_t	read(Stream &s, size_t max);
 	bool	read(Serializable &s);
+	size_t	read(Stream &s, size_t max);
 	bool	read(String &s);
 	bool	read(bool &b);
 
@@ -86,20 +88,19 @@ public:
 	inline bool	read(float &f) 			{ return readStd(f); }
 	inline bool	read(double &f) 		{ return readStd(f); }
 
-	template<class T> bool read(T *ptr);
-
 	double	readDouble(void);
 	float 	readFloat(void);
 	int 	readInt(void);
 	bool 	readBool(void);
 
+	// Writing
 	void	write(Stream &s);
 	void	write(const Serializable &s);
 	void	write(const String &s);
 	void	write(const char *s);
 	void	write(const std::string &s);
 	void	write(bool b);
-
+	
 	inline void	write(char c) 			{ writeData(&c,1); }
 	inline void	write(signed char i) 		{ writeStd(i); }
 	inline void	write(signed short i) 		{ writeStd(i); }
@@ -113,12 +114,12 @@ public:
 	inline void	write(float f) 			{ writeStd(f); }
 	inline void	write(double f) 		{ writeStd(f); }
 
-	template<class T> void write(const T *ptr);
-
+	// Flow operators
 	template<typename T> Stream& operator>>(T &val);
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
 	
+	// Parsing
 	bool assertChar(char chr);
 	bool readChar(char &chr);
 	bool readLine(String &str);
@@ -143,18 +144,6 @@ private:
 // Template functions readLine() and writeLine() are defined in string.h
 
 class IOException;
-
-template<class T>
-bool Stream::read(T *ptr)
-{
-	return read(*ptr);
-}
-
-template<class T>
-void Stream::write(const T *ptr)
-{
-	write(*ptr);
-}
 
 template<typename T> bool Stream::readStd(T &val)
 {

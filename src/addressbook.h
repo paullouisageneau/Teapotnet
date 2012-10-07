@@ -80,8 +80,8 @@ public:
 		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);
 		
-		void serialize(Stream &s) const;
-		void deserialize(Stream &s);
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
 		
 	private:
 	  	void messageToHtml(Html &html, const Message &message) const;

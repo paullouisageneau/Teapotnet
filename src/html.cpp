@@ -87,7 +87,10 @@ void Html::text(const String &str)
 
 void Html::object(const Serializable &s)
 {
-	s.html(*mStream);
+	// TODO
+	open("span");
+	mStream->write(s.toString());
+	close("span");
 }
 
 void Html::open(const String &type, String id)

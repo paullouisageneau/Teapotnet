@@ -53,39 +53,25 @@ public:
 	bool	readBinary(uint32_t &i);
 	bool	readBinary(uint64_t &i);
 	bool	readBinary(float32_t &f);
+	bool	readBinary(float64_t &f);
 
 	template<class T> bool readBinary(T *ptr);
-
-	bool	readInt8(signed int &i);
-	bool	readInt16(signed int &i);
-	bool	readInt32(signed int &i);
-	bool	readInt8(unsigned int &i);
-	bool	readInt16(unsigned int &i);
-	bool	readInt32(unsigned &i);
-	bool	readFloat(float &f);
 
 	void	writeBinary(ByteStream &s);
 	void	writeBinary(const Serializable &s);
 	void	writeBinary(const ByteString &s);
-	void	writeBinary(int8_t i = 0);
-	void	writeBinary(int16_t i = 0);
-	void	writeBinary(int32_t i = 0);
-	void	writeBinary(int64_t i = 0);
-	void	writeBinary(uint8_t i = 0);
-	void	writeBinary(uint16_t i = 0);
-	void	writeBinary(uint32_t i = 0);
-	void	writeBinary(uint64_t i = 0);
-	void	writeBinary(float32_t f = 0.f);
+	void	writeBinary(int8_t i);
+	void	writeBinary(int16_t i);
+	void	writeBinary(int32_t i);
+	void	writeBinary(int64_t i);
+	void	writeBinary(uint8_t i);
+	void	writeBinary(uint16_t i);
+	void	writeBinary(uint32_t i);
+	void	writeBinary(uint64_t i);
+	void	writeBinary(float32_t f);
+	void	writeBinary(float64_t f);
 
 	template<class T> void writeBinary(const T *ptr);
-
-	void	writeInt8(signed int i = 0);
-	void	writeInt16(signed int i = 0);
-	void	writeInt32(signed int i = 0);
-	void	writeInt8(unsigned int i = 0);
-	void	writeInt16(unsigned int i = 0);
-	void	writeInt32(unsigned int i = 0);
-	void	writeFloat(float f = 0.f);
 
 	virtual void clear(void);
 	virtual void ignore(int n = 1);

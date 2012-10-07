@@ -21,6 +21,8 @@
 
 #include "bytestream.h"
 #include "serializable.h"
+#include "byteserializer.h"
+#include "bytestring.h"
 
 namespace tpot
 {
@@ -63,25 +65,14 @@ size_t ByteStream::readBinary(ByteStream &s, size_t max)
 
 bool ByteStream::readBinary(Serializable &s)
 {
-	s.deserializeBinary(*this);
-	return true;
+	ByteSerializer serializer(this);
+	return s.deserialize(serializer);
 }
 
 bool ByteStream::readBinary(ByteString &s)
 {
-	s.clear();
-
-	uint32_t count;
-	if(!readBinary(count)) return false;
-
-	char b;
-	for(uint32_t i=0; i<count; ++i)
-	{
-		if(!readData(&b,1)) return false;
-		s.push_back(b);
-	}
-
-	return true;
+	ByteSerializer serializer(this);
+	return s.deserialize(serializer);
 }
 
 bool ByteStream::readBinary(int8_t &i)
@@ -149,57 +140,10 @@ bool ByteStream::readBinary(float32_t &f)
 	return true;
 }
 
-bool ByteStream::readInt8(signed int &i)
+bool ByteStream::readBinary(float64_t &f)
 {
-	uint8_t val;
-	if(!readBinary(val)) return false;
-	i = (signed int)(val);
+	if(readData(reinterpret_cast<char*>(&f),8) != 8) return false;
 	return true;
-}
-
-bool ByteStream::readInt16(signed int &i)
-{
-	uint16_t val;
-	if(!readBinary(val)) return false;
-	i = (signed int)(val);
-	return true;
-}
-
-bool ByteStream::readInt32(signed int &i)
-{
-	uint32_t val;
-	if(!readBinary(val)) return false;
-	i = (signed int)(val);
-	return true;
-}
-
-bool ByteStream::readInt8(unsigned int &i)
-{
-	uint8_t val;
-	if(!readBinary(val)) return false;
-	i = (unsigned int)(val);
-	return true;
-}
-
-bool ByteStream::readInt16(unsigned int &i)
-{
-	uint16_t val;
-	if(!readBinary(val)) return false;
-	i = (unsigned int)(val);
-	return true;
-}
-
-bool ByteStream::readInt32(unsigned &i)
-{
-	uint32_t val;
-	if(!readBinary(val)) return false;
-	i = (unsigned int)(val);
-	return true;
-}
-
-bool ByteStream::readFloat(float &f)
-{
-	return readBinary(f);
 }
 
 void ByteStream::writeBinary(ByteStream &s)
@@ -209,16 +153,14 @@ void ByteStream::writeBinary(ByteStream &s)
 
 void ByteStream::writeBinary(const Serializable &s)
 {
-	s.serializeBinary(*this);
+	ByteSerializer serializer(this);
+	s.serialize(serializer);
 }
 
 void ByteStream::writeBinary(const ByteString &s)
 {
-	uint32_t count(s.size());
-	writeBinary(count);
-
-	for(uint32_t i=0; i<count; ++i)
-		writeData(&s.at(i),1);
+	ByteSerializer serializer(this);
+	s.serialize(serializer);
 }
 
 void ByteStream::writeBinary(int8_t i)
@@ -269,39 +211,9 @@ void ByteStream::writeBinary(float32_t f)
 	writeData(reinterpret_cast<char*>(&f),4);
 }
 
-void ByteStream::writeInt8(signed int i)
+void ByteStream::writeBinary(float64_t f)
 {
-	writeBinary(int8_t(i));
-}
-
-void ByteStream::writeInt16(signed int i)
-{
-	writeBinary(int16_t(i));
-}
-
-void ByteStream::writeInt32(signed int i)
-{
-	writeBinary(int32_t(i));
-}
-
-void ByteStream::writeInt8(unsigned int i)
-{
-	writeBinary(uint8_t(i));
-}
-
-void ByteStream::writeInt16(unsigned int i)
-{
-	writeBinary(uint16_t(i));
-}
-
-void ByteStream::writeInt32(unsigned int i)
-{
-	writeBinary(uint32_t(i));
-}
-
-void ByteStream::writeFloat(float f)
-{
-	writeBinary(f);
+	writeData(reinterpret_cast<char*>(&f),8);
 }
 
 void ByteStream::clear(void)

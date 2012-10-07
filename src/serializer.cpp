@@ -19,69 +19,66 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+#include "serializer.h"
 #include "serializable.h"
-#include "string.h"
 #include "exception.h"
-#include "yamlserializer.h"
+#include "map.h"
+#include "array.h"
 
 namespace tpot
 {
 
-Serializable::Serializable(void)
+Serializer::Serializer(void)
 {
-
+  
 }
 
-Serializable::~Serializable(void)
+Serializer::~Serializer(void)
 {
-
+  
 }
-
-void Serializable::serialize(Serializer &s) const
+ 
+bool Serializer::input(Serializable &s)
 {
-	// DUMMY
-	throw Unsupported("Object cannot be deserialized");
+	return s.deserialize(*this);
 }
 
-bool Serializable::deserialize(Serializer &s)
+bool Serializer::input(Element &element)
 {
-	// DUMMY
-	throw Unsupported("Object cannot be deserialized");
+	return element.deserialize(*this); 
 }
 
-void Serializable::serialize(Stream &s) const
+bool Serializer::input(Pair &pair)
 {
-	YamlSerializer serializer(&s);	// TODO
-	serialize(serializer);
+	return pair.deserialize(*this);
 }
 
-bool Serializable::deserialize(Stream &s)
+void Serializer::output(const Serializable &s)
 {
-	YamlSerializer serializer(&s);	// TODO
-	return deserialize(serializer);
+        s.serialize(*this);
 }
 
-String Serializable::toString(void) const
+void Serializer::output(const Element &element)
 {
-	String str;
-	serialize(str);
-	return str;
+        element.serialize(*this); 
 }
 
-void Serializable::fromString(String str)
+void Serializer::output(const Pair &pair)
 {
-	AssertIO(deserialize(str));  
+        pair.serialize(*this);  
 }
 
-Serializable::operator String(void) const
+void Serializer::Pair::serialize(Serializer &s) const
 {
-	return toString();
+	serializeKey(s);
+	serializeValue(s);
 }
-
-std::ostream &operator<<(std::ostream &os, const Serializable &s)
+		 
+bool Serializer::Pair::deserialize(Serializer &s)
 {
-	os<<std::string(s.toString());
-	return os;
+	if(!deserializeKey(s)) return false;
+	AssertIO(deserializeValue(s));  
 }
 
 }
+

@@ -67,8 +67,34 @@ void ByteString::fill(char value, int n)
 	assign(n, value);
 }
 
+void ByteString::serialize(Serializer &s) const
+{
+	s.output(uint32_t(size()));
+
+	for(int i=0; i<size(); ++i)
+		s.output(uint8_t(at(i)));	
+}
+
+bool ByteString::deserialize(Serializer &s)
+{
+	clear();
+
+	uint32_t count;
+	if(!s.input(count)) return false;
+
+	uint8_t b;
+	for(uint32_t i=0; i<count; ++i)
+	{
+		AssertIO(!s.input(b));
+		push_back(b);
+	}
+
+	return true;
+}
+
 void ByteString::serialize(Stream &s) const
 {
+	String str;
 	for(int i=0; i<size(); ++i)
 	{
 		std::ostringstream oss;
@@ -79,14 +105,14 @@ void ByteString::serialize(Stream &s) const
 	}
 }
 
-void ByteString::deserialize(Stream &s)
+bool ByteString::deserialize(Stream &s)
 {
 	clear();
-
+	
 	String str;
-	s.read(str);
+	if(!s.read(str)) return false;
+	
 	int count = (str.size()+1)/2;
-
 	for(int i=0; i<count; ++i)
 	{
 		std::string byte;
@@ -102,16 +128,8 @@ void ByteString::deserialize(Stream &s)
 
 		push_back(uint8_t(value % 256));
 	}
-}
-
-void ByteString::serializeBinary(ByteStream &s) const
-{
-	s.writeBinary(*this);
-}
-
-void ByteString::deserializeBinary(ByteStream &s)
-{
-	AssertIO(s.readBinary(*this));
+	
+	return true;
 }
 
 size_t ByteString::readData(char *buffer, size_t size)

@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "address.h"
+#include "bytestream.h"
 
 namespace tpot
 {

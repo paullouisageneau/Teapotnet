@@ -450,33 +450,24 @@ const char &String::operator [](int pos) const
 	return this->at(pos); 
 }
 
-void String::serialize(Stream &s) const
+void String::serialize(Serializer &s) const
 {
-	s.write(*this);
+	s.output(*this);
 }
 
-void String::deserialize(Stream &s)
+bool String::deserialize(Serializer &s)
 {
-	AssertIO(s.read(*this));
+	return s.input(*this);
 }
 
-void String::serializeBinary(ByteStream &s) const
+String String::toString(void) const
 {
-	const char null = '\0';
-	s.writeData(data(),size());
-	s.writeData(&null,1);
+	return *this;  
 }
 
-void String::deserializeBinary(ByteStream &s)
+void String::fromString(String &str)
 {
-	clear();
-	char chr;
-	AssertIO(s.readData(&chr,1));
-	while(chr != '\0')
-	{
-		push_back(chr);
-		if(!s.readData(&chr,1)) break;
-	}
+	*this = str; 
 }
 
 size_t String::readData(char *buffer, size_t size)

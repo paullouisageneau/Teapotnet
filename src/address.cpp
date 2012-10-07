@@ -42,10 +42,9 @@ Address::Address(const String &host, int port)
 	set(host,port);
 }
 
-
-Address::Address(String Address)
+Address::Address(const String &str)
 {
-	deserialize(Address);
+	fromString(str);
 }
 
 Address::Address(const sockaddr *addr, socklen_t addrlen)
@@ -135,6 +134,92 @@ int Address::port(void) const
 	return port;
 }
 
+void Address::serialize(Serializer &s) const
+{
+	switch(addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		s.output(uint8_t(4));
+		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
+		const char *b = reinterpret_cast<const char *>(&sa->sin_addr.s_addr);
+
+		for(int i=0; i<4; ++i) s.output(uint8_t(b[i]));
+		s.output(uint16_t(ntohs(sa->sin_port)));
+		break;
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		s.output(uint8_t(16));
+		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
+
+		for(int i=0; i<16; ++i) s.output(uint8_t(sa6->sin6_addr.s6_addr[i]));
+		s.output(uint16_t(ntohs(sa6->sin6_port)));
+		break;
+	}
+
+	default:
+		throw InvalidData("Stored network Address cannot be serialized to binary");
+	}
+}
+
+bool Address::deserialize(Serializer &s)
+{
+	uint8_t size = 0;
+	if(!s.input(size)) return false;
+
+	if(size == 0)
+	{
+		mAddrLen = 0;
+		return true;
+	}
+
+	switch(size)
+	{
+	case 4:		// IP v4
+	{
+		mAddrLen = sizeof(sockaddr_in);
+		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
+		char *b = reinterpret_cast<char *>(&sa->sin_addr.s_addr);
+
+		sa->sin_family = AF_INET;
+		uint8_t u;
+		for(int i=0; i<4; ++i)
+		{
+				AssertIO(s.input(u)); b[i] = u;
+		}
+		uint16_t port;
+		AssertIO(s.input(port));
+		sa->sin_port = htons(port);
+		break;
+	}
+
+	case 16:	// IP v6
+	{
+		mAddrLen = sizeof(sockaddr_in6);
+		sockaddr_in6 *sa6 = reinterpret_cast<sockaddr_in6*>(&mAddr);
+
+		sa6->sin6_family = AF_INET6;
+		uint8_t u;
+		for(int i=0; i<16; ++i)
+		{
+			AssertIO(s.input(u));
+			sa6->sin6_addr.s6_addr[i] = u;
+		}
+		uint16_t port;
+		AssertIO(s.input(port));
+		sa6->sin6_port = htons(port);
+		break;
+	}
+
+	default:
+		throw InvalidData("Invalid network Address");
+	}
+	
+	return true;
+}
+
 void Address::serialize(Stream &s) const
 {
 	char host[HOST_NAME_MAX];
@@ -145,10 +230,11 @@ void Address::serialize(Stream &s) const
 	s<<host<<':'<<service;
 }
 
-void Address::deserialize(Stream &s)
+bool Address::deserialize(Stream &s)
 {
 	String str;
-	AssertIO(s.read(str));
+	if(!s.read(str)) return false;
+  
 	int separator = str.find_last_of(':');
 	if(separator == String::NotFound) throw InvalidData("Invalid network Address: " + str);
 	String host(str,0,separator);
@@ -169,90 +255,7 @@ void Address::deserialize(Stream &s)
 	std::memcpy(&mAddr,aiList->ai_addr,aiList->ai_addrlen);
 
 	freeaddrinfo(aiList);
-}
-
-void Address::serializeBinary(ByteStream &s) const
-{
-	switch(addrFamily())
-	{
-	case AF_INET:	// IP v4
-	{
-		s.writeBinary(uint8_t(4));
-		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
-		const char *b = reinterpret_cast<const char *>(&sa->sin_addr.s_addr);
-
-		for(int i=0; i<4; ++i) s.writeBinary(uint8_t(b[i]));
-		s.writeBinary(uint16_t(ntohs(sa->sin_port)));
-		break;
-	}
-
-	case AF_INET6:	// IP v6
-	{
-		s.writeBinary(uint8_t(16));
-		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
-
-		for(int i=0; i<16; ++i) s.writeBinary(uint8_t(sa6->sin6_addr.s6_addr[i]));
-		s.writeBinary(uint16_t(ntohs(sa6->sin6_port)));
-		break;
-	}
-
-	default:
-		throw InvalidData("Stored network Address cannot be serialized to binary");
-	}
-}
-
-void Address::deserializeBinary(ByteStream &s)
-{
-	uint8_t size = 0;
-	AssertIO(s.readBinary(size));
-
-	if(size == 0)
-	{
-		mAddrLen = 0;
-		return;
-	}
-
-	switch(size)
-	{
-	case 4:		// IP v4
-	{
-		mAddrLen = sizeof(sockaddr_in);
-		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
-		char *b = reinterpret_cast<char *>(&sa->sin_addr.s_addr);
-
-		sa->sin_family = AF_INET;
-		uint8_t u;
-		for(int i=0; i<4; ++i)
-		{
-				AssertIO(s.readBinary(u)); b[i] = u;
-		}
-		uint16_t port;
-		AssertIO(s.readBinary(port));
-		sa->sin_port = htons(port);
-		break;
-	}
-
-	case 16:	// IP v6
-	{
-		mAddrLen = sizeof(sockaddr_in6);
-		sockaddr_in6 *sa6 = reinterpret_cast<sockaddr_in6*>(&mAddr);
-
-		sa6->sin6_family = AF_INET6;
-		uint8_t u;
-		for(int i=0; i<16; ++i)
-		{
-			AssertIO(s.readBinary(u));
-			sa6->sin6_addr.s6_addr[i] = u;
-		}
-		uint16_t port;
-		AssertIO(s.readBinary(port));
-		sa6->sin6_port = htons(port);
-		break;
-	}
-
-	default:
-		throw InvalidData("Invalid network Address");
-	}
+	return true;
 }
 
 const sockaddr *Address::addr(void) const

@@ -748,7 +748,7 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message) con
 	html.br(); 
 }
 
-void AddressBook::Contact::serialize(Stream &s) const
+void AddressBook::Contact::serialize(Serializer &s) const
 {
 	Synchronize(this);
 	
@@ -760,11 +760,11 @@ void AddressBook::Contact::serialize(Stream &s) const
 	map["peering"] << mPeering;
 	map["remotePeering"] << mRemotePeering;
 		
-	s.write(map);
-	s.write(mAddrs);
+	s.output(map);
+	s.output(mAddrs);
 }
 
-void AddressBook::Contact::deserialize(Stream &s)
+bool AddressBook::Contact::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
@@ -779,7 +779,7 @@ void AddressBook::Contact::deserialize(Stream &s)
 	mRemotePeering.clear();
 	
 	StringMap map;
-	AssertIO(s.read(map))
+	if(!s.input(map)) return false;
 	AssertIO(!map.empty());
 	
 	map["uname"] >> mUniqueName;
@@ -789,11 +789,13 @@ void AddressBook::Contact::deserialize(Stream &s)
 	map["peering"] >> mPeering;
 	map["remotePeering"] >> mRemotePeering;
 	
-	s.read(mAddrs);
+	AssertIO(s.input(mAddrs));
 	
 	// TODO: checks
 	
 	Interface::Instance->add(urlPrefix(), this);
+	
+	return true;
 }
 
 }

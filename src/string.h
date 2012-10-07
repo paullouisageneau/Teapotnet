@@ -92,10 +92,10 @@ public:
 	const char &operator [](int pos) const;
 	
 	// Serializable
-	virtual void serialize(Stream &s) const;
-	virtual void deserialize(Stream &s);
-	virtual void serializeBinary(ByteStream &s) const;
-	virtual void deserializeBinary(ByteStream &s);
+	virtual void serialize(Serializer &s) const;
+	virtual bool deserialize(Serializer &s);
+	virtual String toString(void) const;
+	virtual void fromString(String &str);
 
 protected:
 	// Stream

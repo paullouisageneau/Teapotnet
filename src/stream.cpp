@@ -197,13 +197,10 @@ size_t Stream::read(Stream &s, size_t max)
 
 bool Stream::read(Serializable &s)
 {
-	try {
-		s.deserialize(*this);
-		return true;
-	}
-	catch(const IOException &e) {}
-	
-	return false; 
+	String str;
+	if(!read(str)) return false;
+	s.fromString(str);
+	return true;
 }
 
 bool Stream::read(String &s)
@@ -215,53 +212,11 @@ bool Stream::read(String &s)
 
 	while(BlankCharacters.contains(chr))
 		if(!get(chr)) return false;
-	
-	bool quotes = (chr == '\'' || chr == '\"');
-		
-	String delimiters;
-	if(quotes)
-	{
-		quotes = true;
-		delimiters = String(chr);
-		AssertIO(get(chr));
-	}
-	else {
-		s+= chr;
-		delimiters = Stream::BlankCharacters;
-		if(!get(chr)) return true;
-	}
 
-	while(!delimiters.contains(chr))
+	while(!BlankCharacters.contains(chr))
 	{
-		if(chr == '\\')
-		{
-			AssertIO(get(chr));
-			switch(chr)
-			{
-			case '\"': 	chr = '\"';	break;
-			case '\'': 	chr = '\'';	break;
-			case '\\': 	chr = '\\';	break;
-			case 'b': 	chr = '\b';	break;
-			case 'f': 	chr = '\f';	break;
-			case 'n': 	chr = '\n';	break;
-			case 'r': 	chr = '\r';	break;
-			case 'u':
-				String tmp;
-				AssertIO(read(tmp, 4));
-				unsigned u;
-				tmp >> u;
-				if(u >= 0x80) continue;	// TODO
-				chr = u;
-				break;
-			}
-		}
-		
 		s+= chr;
-		if(!get(chr))
-		{
-			if(quotes) throw IOException();
-			else break;
-		}
+		if(!get(chr)) break;
 	}
 	
 	return true;
@@ -314,7 +269,7 @@ void Stream::write(Stream &s)
 
 void Stream::write(const Serializable &s)
 {
-	s.serialize(*this);
+	write(s.toString());
 }
 
 void Stream::write(const String &s)

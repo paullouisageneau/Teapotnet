@@ -45,10 +45,23 @@ public:
 template<typename K, typename V>
 class SerializableMap : public Map<K,V>, public Serializable
 {
-	void serialize(Stream &s) const;
-	void deserialize(Stream &s);
-	void serializeBinary(ByteStream &s) const;
-	void deserializeBinary(ByteStream &s);
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	
+	class SerializablePair : public Serializer::Pair
+	{
+	public:
+		K key;
+		V value;
+	  
+		SerializablePair(void);
+		SerializablePair(const K &key, const V &value);
+		 
+		void serializeKey(Serializer &s) const;
+		void serializeValue(Serializer &s) const;
+		bool deserializeKey(Serializer &s);
+		bool deserializeValue(Serializer &s);
+	};
 };
 
 typedef SerializableMap<String,String> StringMap;
@@ -92,68 +105,79 @@ V &Map<K,V>::get(const K &key)
 }
 
 template<typename K, typename V>
-void SerializableMap<K,V>::serialize(Stream &s) const
+void SerializableMap<K,V>::serialize(Serializer &s) const
 {
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
-			it != this->end();
-			++it)
-	{
-		s<<it->first<<"="<<it->second<<Stream::NewLine;
-	}
-
-	s<<Stream::NewLine;
-}
-
-template<typename K, typename V>
-void SerializableMap<K,V>::deserialize(Stream &s)
-{
-	this->clear();
-
-	String line;
-	while(s.readLine(line))
-	{
-	  	if(line.empty()) return;
-	  
-		String second = line.cut('=');
-		K key;
-		V value;
-		line.readLine(key);
-		second.readLine(value);
-		this->insert(key,value);
-	}
-	
-	if(this->empty()) throw IOException();
-}
-
-template<typename K, typename V>
-void SerializableMap<K,V>::serializeBinary(ByteStream &s) const
-{
-	s.writeBinary(uint32_t(this->size()));
+	s.outputMapBegin(uint32_t(this->size()));
 
 	for(	typename std::map<K,V>::const_iterator it = this->begin();
 				it != this->end();
 				++it)
 	{
-		s.writeBinary(it->first);
-		s.writeBinary(it->second);
+		SerializablePair pair(it->first, it->second);
+		s.output(pair);
 	}
+	
+	s.outputMapEnd();
 }
 
 template<typename K, typename V>
-void SerializableMap<K,V>::deserializeBinary(ByteStream &s)
+bool SerializableMap<K,V>::deserialize(Serializer &s)
 {
 	this->clear();
-	uint32_t size;
-	AssertIO(s.readBinary(size));
+	if(!s.inputMapBegin()) return false;
 
-	for(uint32_t i=0; i<size; ++i)
-	{
-		K key;
-		V value;
-		AssertIO(s.readBinary(key));
-		AssertIO(s.readBinary(value));
-		this->insert(key,value);
+	try {
+		while(s.inputMapElement())
+		{
+			SerializablePair pair;
+			AssertIO(s.input(pair));
+			this->insert(pair.key, pair.value);
+		}
 	}
+	catch(const Serializer::End &end)
+	{
+	  
+	}
+	
+	return true;
+}
+
+template<typename K, typename V>
+SerializableMap<K,V>::SerializablePair::SerializablePair(void)
+{
+  
+}
+
+template<typename K, typename V>
+SerializableMap<K,V>::SerializablePair::SerializablePair(const K &key, const V &value) :
+	key(key),
+	value(value)
+{
+	  
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::SerializablePair::serializeKey(Serializer &s) const
+{
+	s.output(key);  
+}
+
+template<typename K, typename V>
+void SerializableMap<K,V>::SerializablePair::serializeValue(Serializer &s) const
+{
+	s.output(value);
+}
+
+template<typename K, typename V>
+bool SerializableMap<K,V>::SerializablePair::deserializeKey(Serializer &s)
+{
+	s.input(key);
+}
+
+template<typename K, typename V>
+bool SerializableMap<K,V>::SerializablePair::deserializeValue(Serializer &s)
+{
+	s.input(value);
 }
 
 }

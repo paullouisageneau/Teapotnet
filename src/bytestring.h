@@ -49,11 +49,11 @@ public:
 	uint64_t checksum64(void) const { uint64_t i = 0; return checksum(i); }
 	
 	// Serializable
+	virtual void serialize(Serializer &s) const;
+	virtual bool deserialize(Serializer &s);
 	virtual void serialize(Stream &s) const;
-	virtual void deserialize(Stream &s);
-	virtual void serializeBinary(ByteStream &s) const;
-	virtual void deserializeBinary(ByteStream &s);
-
+	virtual bool deserialize(Stream &s);
+	
 protected:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
