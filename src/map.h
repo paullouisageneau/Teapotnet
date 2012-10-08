@@ -45,9 +45,6 @@ public:
 template<typename K, typename V>
 class SerializableMap : public Map<K,V>, public Serializable
 {
-	void serialize(Serializer &s) const;
-	bool deserialize(Serializer &s);
-	
 	class SerializablePair : public Serializer::Pair
 	{
 	public:
@@ -62,6 +59,10 @@ class SerializableMap : public Map<K,V>, public Serializable
 		bool deserializeKey(Serializer &s);
 		bool deserializeValue(Serializer &s);
 	};
+	
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
 };
 
 typedef SerializableMap<String,String> StringMap;
@@ -126,20 +127,20 @@ bool SerializableMap<K,V>::deserialize(Serializer &s)
 	this->clear();
 	if(!s.inputMapBegin()) return false;
 
-	try {
-		while(s.inputMapElement())
-		{
-			SerializablePair pair;
-			AssertIO(s.input(pair));
-			this->insert(pair.key, pair.value);
-		}
-	}
-	catch(const Serializer::End &end)
+	while(s.inputMapCheck())
 	{
-	  
+		SerializablePair pair;
+		if(!s.input(pair)) break;
+		this->insert(pair.key, pair.value);
 	}
 	
 	return true;
+}
+
+template<typename K, typename V>
+bool SerializableMap<K,V>::isInlineSerializable(void) const
+{
+	return false; 	// recursive, no inlining
 }
 
 template<typename K, typename V>
@@ -178,6 +179,26 @@ template<typename K, typename V>
 bool SerializableMap<K,V>::SerializablePair::deserializeValue(Serializer &s)
 {
 	s.input(value);
+}
+
+// Functions Serilizer::inputMapElement and Serializer::outputMapElement defined here
+
+template<class K, class V> 
+bool Serializer::inputMapElement(K &key, V &value)
+{
+	 if(!this->inputMapCheck()) return false;
+	 typename SerializableMap<K,V>::SerializablePair tmp;
+	 if(!this->input(tmp)) return false;
+	 key = tmp.key;
+	 value = tmp.value;
+	 return true;  
+}
+
+template<class K, class V> 
+bool Serializer::outputMapElement(const K &key, const V &value)
+{
+  	typename SerializableMap<K,V>::SerializablePair tmp(key, value);
+	this->output(tmp);
 }
 
 }

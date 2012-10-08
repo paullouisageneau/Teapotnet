@@ -36,11 +36,13 @@ class Serializable
 public:
 	Serializable(void);
 	virtual ~Serializable(void);
-
+	
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual void serialize(Stream &s) const;
 	virtual bool deserialize(Stream &s);
+	
+	virtual bool isInlineSerializable(void) const;
 	
 	String toString(void) const;
 	void fromString(String str);

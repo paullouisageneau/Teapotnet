@@ -45,6 +45,7 @@ void Html::header(const String &title, const String &redirect)
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\"/>\n";
 	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\" />\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";

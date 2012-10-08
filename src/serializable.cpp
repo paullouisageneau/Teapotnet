@@ -61,6 +61,11 @@ bool Serializable::deserialize(Stream &s)
 	return deserialize(serializer);
 }
 
+bool Serializable::isInlineSerializable(void) const
+{
+	return true;	// Most objects allow inline serialization
+}
+
 String Serializable::toString(void) const
 {
 	String str;

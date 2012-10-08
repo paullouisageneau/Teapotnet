@@ -64,6 +64,7 @@ class SerializableArray : public Array<T>, public Serializable
   
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
 };
 
 typedef SerializableArray<String> StringArray;
@@ -157,20 +158,20 @@ bool SerializableArray<T>::deserialize(Serializer &s)
 	this->clear();
 	if(!s.inputArrayBegin()) return false;
 
-	try {
-		while(s.inputArrayElement())
-		{
-			SerializableElement element;
-			AssertIO(s.input(element));
-			this->append(element.value);
-		}
-	}
-	catch(const Serializer::End &end)
+	while(s.inputArrayCheck())
 	{
-	  
+		SerializableElement element;
+		if(!s.input(element)) break;
+		this->append(element.value);
 	}
-
+	
 	return true;
+}
+
+template<typename T>
+bool SerializableArray<T>::isInlineSerializable(void) const
+{
+	return false;  	// recursive, no inlining
 }
 
 template<typename T>
@@ -196,6 +197,25 @@ template<typename T>
 bool SerializableArray<T>::SerializableElement::deserialize(Serializer &s)
 {
 	s.input(value);
+}
+
+// Functions Serilizer::inputArrayElement and Serializer::outputArrayElement defined here
+
+template<class T>
+bool Serializer::inputArrayElement(T &element)
+{
+	 if(!this->inputArrayCheck()) return false;
+	 typename SerializableArray<T>::SerializableElement tmp;
+	 if(!this->input(tmp)) return false;
+	 element = tmp.value;
+	 return true;
+}
+
+template<class T> 
+bool Serializer::outputArrayElement(const T &element)
+{
+	typename SerializableArray<T>::SerializableElement tmp(element);
+	this->output(tmp);
 }
 
 }

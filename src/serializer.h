@@ -55,11 +55,6 @@ public:
 		 bool deserialize(Serializer &s);
 	};
 	
-	class End
-	{
-
-	};
-	
 	virtual bool    input(Serializable &s);
 	virtual bool	input(Element &element);
 	virtual bool	input(Pair &pair);
@@ -95,30 +90,39 @@ public:
 	virtual void	output(double f) = 0;
 
 	virtual bool	inputArrayBegin(void)		{ return true; }
-	virtual bool	inputArrayElement(void)		{ return true; }
+	virtual bool	inputArrayCheck(void)		{ return true; }
 	virtual bool	inputMapBegin(void)		{ return true; }
-	virtual bool	inputMapElement(void)		{ return true; }
-	
+	virtual bool	inputMapCheck(void)		{ return true; }
 	virtual void	outputArrayBegin(int size)	{}
 	virtual void	outputArrayEnd(void)		{}
 	virtual void	outputMapBegin(int size)	{}
 	virtual void	outputMapEnd(void)		{}
 	
+	// Shortcuts replacing element output or check + element input
+	template<class T>		bool inputArrayElement(T &element);
+	template<class T> 		bool outputArrayElement(const T &element);
+	template<class K, class V>	bool inputMapElement(K &key, V &value);
+	template<class K, class V>	bool outputMapElement(const K &key, const V &value);
+	
         template<class T> bool input(T *ptr);
 	template<class T> void output(const T *ptr);
 };
 
+
 template<class T>
 bool Serializer::input(T *ptr)
 {
-	return input(*ptr);
+	return this->input(*ptr);
 }
 
 template<class T>
 void Serializer::output(const T *ptr)
 {
-	output(*ptr);
+	this->output(*ptr);
 }
+
+// Functions inputArrayElement and outputArrayElement defined in array.h
+// Functions inputMapElement and outputMapElement defined in map.h
 
 }
 

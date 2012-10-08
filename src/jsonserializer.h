@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPOT_YAMLSERIALIZER_H
-#define TPOT_YAMLSERIALIZER_H
+#ifndef TPOT_JSONSERIALIZER_H
+#define TPOT_JSONSERIALIZER_H
 
 #include "serializer.h"
 #include "stream.h"
@@ -29,11 +29,11 @@
 namespace tpot
 {
 
-class YamlSerializer : public Serializer
+class JsonSerializer : public Serializer
 {
 public:
-	YamlSerializer(Stream *stream);
-	virtual ~YamlSerializer(void);
+	JsonSerializer(Stream *stream);
+	virtual ~JsonSerializer(void);
 	
 	bool	input(Serializable &s);
 	bool	input(Element &element);
@@ -85,17 +85,16 @@ private:
   
   	Stream *mStream;
 	int mLevel;
-	bool mEnd;
 };
 
 template<typename T> 
-bool YamlSerializer::read(T &value)
+bool JsonSerializer::read(T &value)
 {
 	return mStream->read(value);
 }
 
 template<typename T> 
-void YamlSerializer::write(const T &value)
+void JsonSerializer::write(const T &value)
 {
 	mStream->space();
 	mStream->write(value);
