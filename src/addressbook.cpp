@@ -27,6 +27,7 @@
 #include "file.h"
 #include "directory.h"
 #include "html.h"
+#include "yamlserializer.h"
 
 namespace tpot
 {
@@ -113,15 +114,16 @@ void AddressBook::removeContact(const Identifier &peering)
 
 const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 {
-	return mContacts.get(peering);  
+	return mContacts.get(peering);
 }
 
 void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
+	YamlSerializer serializer(&stream);
 	Contact *contact = new Contact(this);
-	while(stream.read(*contact))
+	while(serializer.input(*contact))
 	{
 		mContacts.insert(contact->peering(), contact);
 		contact = new Contact(this);
@@ -134,12 +136,13 @@ void AddressBook::save(Stream &stream) const
 {
 	Synchronize(this);
   
+	YamlSerializer serializer(&stream);
 	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
 		const Contact *contact = it->second;
-		stream.write(*contact);
+		serializer.output(*contact);
 	}	
 }
 
@@ -796,6 +799,11 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	Interface::Instance->add(urlPrefix(), this);
 	
 	return true;
+}
+
+bool AddressBook::Contact::isInlineSerializable(void) const
+{
+	return false; 
 }
 
 }

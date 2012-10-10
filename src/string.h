@@ -87,6 +87,8 @@ public:
 	int toInt() const;
 	bool toBool() const;
 
+	void substrings(Set<String> &result, int minlength = 0) const;
+	
 	operator const char*(void);
 	char &operator [](int pos);
 	const char &operator [](int pos) const;

@@ -41,6 +41,7 @@
 #include <ctime>
 #include <cstring>
 #include <cmath>
+#include <cctype>
 
 #include <algorithm>
 #include <limits>

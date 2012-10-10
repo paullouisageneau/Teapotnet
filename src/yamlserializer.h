@@ -79,6 +79,8 @@ public:
 	void	outputMapBegin(int size);
 	void	outputMapEnd(void);
 	
+	void	outputClose(void);
+	
 private:
   	template<typename T> bool read(T &value);
   	template<typename T> void write(const T &value);

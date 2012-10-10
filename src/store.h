@@ -69,7 +69,7 @@ public:
 
 	void http(const String &prefix, Http::Request &request);
 
-private:
+private:  
 	void updateDirectory(const String &dirUrl, const String &dirPath);
 	String urlToPath(const String &url) const;
 	void run(void);
@@ -79,6 +79,8 @@ private:
 	String mDatabasePath;
 	StringMap mDirectories;
 	Mutex mUpdateMutex;
+	
+	static void keywords(String name, Set<String> &result);
 	
 	static Map<Identifier,String> Resources;	// entry names by data hash
 	static Mutex ResourcesMutex;

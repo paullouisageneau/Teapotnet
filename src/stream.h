@@ -56,11 +56,13 @@ public:
 	
 	// Atomic
 	bool get(char &chr);
+	bool ignore(int n = 1);
 	void put(char chr);
+	void space(void);
+	void newline(void);
+
 	char last(void) const;
 	bool atEnd(void) const;
-	void space(void);
-	bool ignore(int n = 1);
 	
 	// Conditionnal
 	bool ignoreUntil(char delimiter);

@@ -43,10 +43,11 @@ bool JsonSerializer::input(Serializable &s)
 	if(s.isInlineSerializable())
 	{
 		String str;
-		input(str);
-		return s.deserialize(str);
+		if(!input(str)) return false;
+		s.fromString(str);
+		return true;
 	}
-	else return s.deserialize(*mStream);
+	else return s.deserialize(*this);
 }
 
 bool JsonSerializer::input(Element &element)
@@ -132,13 +133,8 @@ bool JsonSerializer::input(String &str)
 
 void JsonSerializer::output(const Serializable &s)
 {
-	if(s.isInlineSerializable())
-	{
-		String str;
-		s.serialize(str);
-		output(str);
-	}
-	else s.serialize(*mStream);
+	if(s.isInlineSerializable()) output(s.toString());
+	else s.serialize(*this);
 }
 
 void JsonSerializer::output(const Element &element)
@@ -146,7 +142,7 @@ void JsonSerializer::output(const Element &element)
 	bool first = (mStream->last() == '[');
 	if(!first) *mStream<<',';
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::min(mLevel-1,0), ' ');
+	*mStream<<String(std::max(mLevel-1,0), ' ');
 	
 	element.serialize(*this);
 }
@@ -156,7 +152,7 @@ void JsonSerializer::output(const Pair &pair)
 	bool first = (mStream->last() == '{');
 	if(!first) *mStream<<',';
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::min(mLevel-1,0), ' ');
+	*mStream<<String(std::max(mLevel-1,0), ' ');
 	
 	pair.serializeKey(*this);
 	*mStream<<": ";
@@ -216,7 +212,7 @@ bool JsonSerializer::inputMapCheck(void)
 void JsonSerializer::outputArrayBegin(int size)
 {
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::min(mLevel-1,0), ' ');
+	*mStream<<String(std::max(mLevel-1,0), ' ');
   	*mStream<<'[';
 	++mLevel;
 }
@@ -231,7 +227,7 @@ void JsonSerializer::outputArrayEnd(void)
 void JsonSerializer::outputMapBegin(int size)
 {
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::min(mLevel-1,0), ' ');
+	*mStream<<String(std::max(mLevel-1,0), ' ');
 	*mStream<<'{';
 	++mLevel;
 }

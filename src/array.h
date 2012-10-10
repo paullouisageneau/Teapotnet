@@ -50,6 +50,7 @@ public:
 template<typename T>
 class SerializableArray : public Array<T>, public Serializable
 {
+public:
 	class SerializableElement : public Serializer::Element
 	{
 	public:

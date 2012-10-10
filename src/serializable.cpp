@@ -70,6 +70,7 @@ String Serializable::toString(void) const
 {
 	String str;
 	serialize(str);
+	str.trim();
 	return str;
 }
 

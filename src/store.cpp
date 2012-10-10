@@ -24,6 +24,7 @@
 #include "directory.h"
 #include "sha512.h"
 #include "html.h"
+#include "yamlserializer.h"
 
 namespace tpot
 {
@@ -93,7 +94,8 @@ Store::Store(User *user) :
 	
 	try {
 	  File file(mFileName, File::Read);
-	  file.read(mDirectories);
+	  YamlSerializer serializer(&file);
+	  serializer.input(mDirectories);
 	  file.close();
 	  start();
 	}
@@ -148,7 +150,8 @@ void Store::save(void) const
   	Synchronize(this);
   
 	File file(mFileName, File::Write);
-	file.write(mDirectories);
+	YamlSerializer serializer(&file);
+	serializer.output(mDirectories);
 	file.close();
 }
 
@@ -163,14 +166,15 @@ void Store::update(void)
 	Sha512::Hash("/", hash);
 	String entryName = mDatabasePath + hash.toString();
 	SafeWriteFile dirEntry(entryName);
-	dirEntry.writeLine("");
+	YamlSerializer dirSerializer(&dirEntry);
+	dirSerializer.output(String(""));
 
 	StringMap header;
 	header["name"] = "/";
 	header["type"] = "directory";
 	header["url"] = "/";
 	header["time"] << time(NULL);
-	dirEntry.write(header);
+	dirSerializer.output(header);
 	
 	for(StringMap::iterator it = mDirectories.begin();
 			it != mDirectories.end();
@@ -183,7 +187,7 @@ void Store::update(void)
 		info["type"] = "directory";
 		info["url"]  = "/" + it->first; 
 		info["time"] << time(NULL);
-		dirEntry.write(info);
+		dirSerializer.output(info);
 	}
 	
 	Log("Store::update", "Finished");
@@ -422,14 +426,16 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 	Sha512::Hash(dirUrl, hash);
 	String entryName = mDatabasePath + hash.toString();
 	File dirEntry(entryName, File::Write);
-	dirEntry.writeLine(dirPath);
+	YamlSerializer dirSerializer(&dirEntry);
+	dirSerializer.output(dirPath);
 
 	StringMap header;
 	header["url"] = dirUrl;
 	header["name"] = dirUrl.substr(dirUrl.lastIndexOf('/')+1);
 	header["type"] = "directory";
 	header["time"] << time(NULL);
-	dirEntry.write(header);
+	dirSerializer.output(header);
+	dirSerializer.outputClose();
 
 	Directory dir(dirPath);
 	while(dir.nextFile())
@@ -443,11 +449,12 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 		{
 			try {
 				File file(entryName, File::Read);
-
+				YamlSerializer serializer(&file);
+				
 				String path;
 				StringMap header;
-				file.readLine(path);
-				file.read(header);
+				serializer.input(path);
+				serializer.input(header);
 				
 				Assert(header.get("type") != "directory");
 				Assert(header.get("url") == url);
@@ -471,11 +478,11 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 				 	ResourcesMutex.lock();
 					Resources.insert(hash, entryName);
 					ResourcesMutex.unlock();
-					dirEntry.write(origHeader);
+					dirSerializer.output(origHeader);
 					continue;
 				}
 			}
-			catch(Exception &e)
+			catch(const Exception &e)
 			{
 				Log("Store", String("Corrupted entry for ")+dir.fileName()+": "+e.what());
 			}
@@ -492,7 +499,7 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 				dir.getFileInfo(info);
 				info["type"] = "directory";
 				info["url"] = url;
-				dirEntry.write(info);
+				dirSerializer.output(info);
 				
 				updateDirectory(url, dir.filePath());
 			}
@@ -519,21 +526,25 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath)
 				ResourcesMutex.unlock();
 
 				File file(entryName, File::Write);
-				file.writeLine(dir.filePath());
-				file.write(header);
+				YamlSerializer serializer(&file);
+				serializer.output(dir.filePath());
+				serializer.output(header);
+				serializer.outputClose();
 				
-				dirEntry.write(header);
+				dirSerializer.output(header);
 
 				data.open(dir.filePath(), File::Read);
+				serializer.outputArrayBegin(chunkCount);
 				for(unsigned i=0; i<chunkCount; ++i)
 				{
 					dataHash.clear();
 					AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
-					file.writeLine(dataHash);
+					serializer.outputArrayElement(dataHash);
 				}
+				serializer.outputArrayEnd();
 			}
 		}
-		catch(Exception &e)
+		catch(const Exception &e)
 		{
 			Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
 			File::Remove(entryName);
@@ -562,6 +573,23 @@ String Store::urlToPath(const String &url) const
 void Store::run(void)
 {
 	update(); 
+}
+
+void Store::keywords(String name, Set<String> &result)
+{
+	const int minLength = 3;
+  
+	result.clear();
+	
+	for(int i=0; i<name.size(); ++i)
+		if(!std::isalnum(name[i]) && !std::isdigit(name[i]))
+			name[i] = ' ';
+	
+	List<String> lst;
+	name.explode(' ', lst);
+	
+	for(List<String>::iterator it = lst.begin(); it != lst.end(); ++it)
+		it->substrings(result, minLength);
 }
 
 }

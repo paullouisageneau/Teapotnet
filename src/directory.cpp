@@ -49,8 +49,7 @@ bool Directory::Exist(const String &path)
 	
 	stat_t st;
 	if(stat(path.c_str(), &st)) return false;
-	if(S_ISDIR(st.st_mode)) return true;
-	else return false;
+	return S_ISDIR(st.st_mode);
 }
 
 bool Directory::Remove(const String &path)

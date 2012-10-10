@@ -45,35 +45,36 @@ public:
 	void	output(const Pair &pair);
 	void	output(const String &str);
 	
-	inline bool	input(int8_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(int16_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(int32_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(int64_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(uint8_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(uint16_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(uint32_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(uint64_t &i)	{ return mStream->readLine(i); }
-	inline bool	input(bool &b)		{ return mStream->readLine(b); }
-	inline bool	input(float &f)		{ return mStream->readLine(f); }
-	inline bool	input(double &f)	{ return mStream->readLine(f); }
+	inline bool	input(int8_t &i)	{ return mStream->read(i); }
+	inline bool	input(int16_t &i)	{ return mStream->read(i); }
+	inline bool	input(int32_t &i)	{ return mStream->read(i); }
+	inline bool	input(int64_t &i)	{ return mStream->read(i); }
+	inline bool	input(uint8_t &i)	{ return mStream->read(i); }
+	inline bool	input(uint16_t &i)	{ return mStream->read(i); }
+	inline bool	input(uint32_t &i)	{ return mStream->read(i); }
+	inline bool	input(uint64_t &i)	{ return mStream->read(i); }
+	inline bool	input(bool &b)		{ return mStream->read(b); }
+	inline bool	input(float &f)		{ return mStream->read(f); }
+	inline bool	input(double &f)	{ return mStream->read(f); }
 
-	inline void	output(int8_t i)	{ mStream->writeLine(i); }
-	inline void	output(int16_t i)	{ mStream->writeLine(i); }
-	inline void	output(int32_t i)	{ mStream->writeLine(i); }
-	inline void	output(int64_t i)	{ mStream->writeLine(i); }
-	inline void	output(uint8_t i)	{ mStream->writeLine(i); }
-	inline void	output(uint16_t i)	{ mStream->writeLine(i); }
-	inline void	output(uint32_t i)	{ mStream->writeLine(i); }
-	inline void	output(uint64_t i)	{ mStream->writeLine(i); }
-	inline void	output(bool b)		{ mStream->writeLine(b); }
-	inline void	output(float f)		{ mStream->writeLine(f); }
-	inline void	output(double f)	{ mStream->writeLine(f); }
+	inline void	output(int8_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(int16_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(int32_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(int64_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(uint8_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(uint16_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(uint32_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(uint64_t i)	{ mStream->write(i); mStream->space(); }
+	inline void	output(bool b)		{ mStream->write(b); mStream->space(); }
+	inline void	output(float f)		{ mStream->write(f); mStream->space(); }
+	inline void	output(double f)	{ mStream->write(f); mStream->space(); }
 	
 	bool	inputArrayBegin(void);
 	bool	inputMapBegin(void);
 	
 private:
   	Stream *mStream;
+	char mSeparator;
 };
 
 }

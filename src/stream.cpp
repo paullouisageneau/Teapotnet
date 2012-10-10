@@ -99,9 +99,26 @@ bool Stream::get(char &chr)
 	return false;
 }
 
+bool Stream::ignore(int n)
+{
+	if(!get(mLast)) return false;
+	while(--n) if(!get(mLast)) return false;
+	return true;
+}
+
 void Stream::put(char chr)
 {
 	writeData(&chr,1);
+}
+
+void Stream::space(void)
+{
+	put(Space);
+}
+
+void Stream::newline(void)
+{
+	put(NewLine);
 }
 
 char Stream::last(void) const
@@ -112,19 +129,6 @@ char Stream::last(void) const
 bool Stream::atEnd(void) const
 {
 	return mEnd;
-}
-
-void Stream::space(void)
-{
-	if(!BlankCharacters.contains(last()))
-		put(Space);
-}
-
-bool Stream::ignore(int n)
-{
-	if(!get(mLast)) return false;
-	while(--n) if(!get(mLast)) return false;
-	return true;
 }
 
 bool Stream::ignoreUntil(char delimiter)

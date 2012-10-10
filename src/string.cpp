@@ -435,6 +435,16 @@ bool String::toBool() const
 	return s.readBool();
 }
 
+void String::substrings(Set<String> &result, int minlength) const
+{
+	for(int s = std::max(minlength,0); s<=size(); ++s)
+	{
+		if(s == 0) result.insert(String());
+		else for(int i=0; i<size()-s+1; ++i)
+			 result.insert(substr(i,s));
+	}
+}
+
 String::operator const char*(void)
 {
 	return this->c_str(); 

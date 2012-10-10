@@ -98,6 +98,8 @@ public:
 	virtual void	outputMapBegin(int size)	{}
 	virtual void	outputMapEnd(void)		{}
 	
+	virtual void	outputClose(void)		{}
+	
 	// Shortcuts replacing element output or check + element input
 	template<class T>		bool inputArrayElement(T &element);
 	template<class T> 		void outputArrayElement(const T &element);

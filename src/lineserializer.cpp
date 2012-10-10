@@ -39,10 +39,14 @@ LineSerializer::~LineSerializer(void)
  
 bool LineSerializer::input(Serializable &s)
 {
-	String line;
-	if(!input(line)) return false;
-	AssertIO(s.deserialize(line));
-	return true;
+	if(s.isInlineSerializable())
+	{
+		String line;
+		if(!input(line)) return false;
+		s.fromString(line);
+		return true;
+	}
+	else return s.deserialize(*this);
 }
 
 bool LineSerializer::input(Element &element)
@@ -75,14 +79,15 @@ bool LineSerializer::input(Pair &pair)
 bool LineSerializer::input(String &str)
 {
 	// TODO: unescape
-	return mStream->readLine(str);
+	return mStream->read(str);
 }
 
 void LineSerializer::output(const Serializable &s)
 {
-	String line;
-	s.serialize(line);
-	output(line);
+	if(s.isInlineSerializable()) output(s.toString());
+	else s.serialize(*this);
+	
+	mStream->newline();
 }
 
 void LineSerializer::output(const Element &element)
@@ -92,6 +97,7 @@ void LineSerializer::output(const Element &element)
 	element.serialize(serializer);
 	if(!line.empty()) line.resize(line.size()-1);
 	output(line);
+	mStream->newline();
 }
 
 void LineSerializer::output(const Pair &pair)
@@ -101,17 +107,19 @@ void LineSerializer::output(const Pair &pair)
 	LineSerializer valueSerializer(&value);
 	pair.serializeKey(keySerializer);
 	pair.serializeValue(valueSerializer);
-	if(!key.empty()) key.resize(key.size()-1);
-	if(!value.empty()) value.resize(value.size()-1);
+	key.trim();
+	value.trim();
 	String str;
 	str<<key<<'='<<value;
 	output(str);
+	mStream->newline();
 }
 
 void LineSerializer::output(const String &str)
 {	
 	// TODO: escape
-	mStream->writeLine(str);
+	mStream->write(str);
+	mStream->space();
 }
 
 bool LineSerializer::inputArrayBegin(void)
