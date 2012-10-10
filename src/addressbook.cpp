@@ -758,7 +758,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["tracker"] << mTracker;
 	map["secret"] << mSecret;
 	map["peering"] << mPeering;
-	map["remotePeering"] << mRemotePeering;
+	map["remote"] << mRemotePeering;
 		
 	s.output(map);
 	s.output(mAddrs);
@@ -787,7 +787,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["tracker"] >> mTracker;
 	map["secret"] >> mSecret;
 	map["peering"] >> mPeering;
-	map["remotePeering"] >> mRemotePeering;
+	map["remote"] >> mRemotePeering;
 	
 	AssertIO(s.input(mAddrs));
 	

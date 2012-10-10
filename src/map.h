@@ -195,7 +195,7 @@ bool Serializer::inputMapElement(K &key, V &value)
 }
 
 template<class K, class V> 
-bool Serializer::outputMapElement(const K &key, const V &value)
+void Serializer::outputMapElement(const K &key, const V &value)
 {
   	typename SerializableMap<K,V>::SerializablePair tmp(key, value);
 	this->output(tmp);

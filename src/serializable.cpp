@@ -22,7 +22,7 @@
 #include "serializable.h"
 #include "string.h"
 #include "exception.h"
-#include "yamlserializer.h"
+#include "lineserializer.h"
 
 namespace tpot
 {
@@ -51,13 +51,13 @@ bool Serializable::deserialize(Serializer &s)
 
 void Serializable::serialize(Stream &s) const
 {
-	YamlSerializer serializer(&s);	// TODO
+	LineSerializer serializer(&s);
 	serialize(serializer);
 }
 
 bool Serializable::deserialize(Stream &s)
 {
-	YamlSerializer serializer(&s);	// TODO
+	LineSerializer serializer(&s);
 	return deserialize(serializer);
 }
 

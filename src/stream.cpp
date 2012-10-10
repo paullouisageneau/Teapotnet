@@ -34,7 +34,8 @@ const char Stream::Space = ' ';
 
 Stream::Stream(void) :
 	mLast(0),
-	mHexa(false)
+	mHexa(false),
+	mEnd(false)
 {
 
 }
@@ -86,6 +87,7 @@ bool Stream::get(char &chr)
 {
 	while(readData(&mLast,1))
 	{
+		mEnd = false;
 		if(!IgnoredCharacters.contains(mLast))
 		{
 			chr = mLast;
@@ -93,6 +95,7 @@ bool Stream::get(char &chr)
 		}
 	}
 	
+	mEnd = true;
 	return false;
 }
 
@@ -104,6 +107,11 @@ void Stream::put(char chr)
 char Stream::last(void) const
 {
 	return mLast;
+}
+
+bool Stream::atEnd(void) const
+{
+	return mEnd;
 }
 
 void Stream::space(void)
@@ -149,7 +157,7 @@ bool Stream::readUntil(Stream &output, char delimiter)
 	if(!get(chr)) return false;
 	while(chr != delimiter)
 	{
-		if(!IgnoredCharacters.contains(chr)) output.write(chr);
+		output.write(chr);
 		if(!get(chr)) break;
 	}
 	return true;
@@ -161,7 +169,7 @@ bool Stream::readUntil(Stream &output, const String &delimiters)
 	if(!get(chr)) return false;
 	while(!delimiters.contains(chr))
 	{
-		if(!IgnoredCharacters.contains(chr)) output.write(chr);
+		output.write(chr);
 		if(!get(chr)) break;
 	}
 	return true;
@@ -178,6 +186,7 @@ size_t Stream::read(Stream &s)
 		mLast = buffer[size-1];
 		s.writeData(buffer,size);
 	}
+	mEnd = true;
 	return total;
 }
 
@@ -192,15 +201,13 @@ size_t Stream::read(Stream &s, size_t max)
 		mLast = buffer[size-1];
 		s.writeData(buffer,size);
 	}
+	mEnd = (left != 0);
 	return max-left;
 }
 
 bool Stream::read(Serializable &s)
 {
-	String str;
-	if(!read(str)) return false;
-	s.fromString(str);
-	return true;
+	return s.deserialize(*this);
 }
 
 bool Stream::read(String &s)
@@ -269,7 +276,7 @@ void Stream::write(Stream &s)
 
 void Stream::write(const Serializable &s)
 {
-	write(s.toString());
+	s.serialize(*this);
 }
 
 void Stream::write(const String &s)

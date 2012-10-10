@@ -84,8 +84,9 @@ private:
   	template<typename T> void write(const T &value);
   
   	Stream *mStream;
-	int mLevel;
-	bool mEnd;
+	String mLine;		// for input
+	Stack<int> mIndent;	// for input
+	int mLevel;		// for output
 };
 
 template<typename T> 
@@ -97,9 +98,10 @@ bool YamlSerializer::read(T &value)
 template<typename T> 
 void YamlSerializer::write(const T &value)
 {
-	mStream->space();
+	if(mLevel) mStream->space();
+	else *mStream<<"---"<<Stream::NewLine;
 	mStream->write(value);
-	if(mLevel == 0) *mStream << Stream::NewLine;	
+	if(mIndent.empty()) *mStream << Stream::NewLine;	
 }
 
 }

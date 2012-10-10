@@ -212,7 +212,7 @@ bool Serializer::inputArrayElement(T &element)
 }
 
 template<class T> 
-bool Serializer::outputArrayElement(const T &element)
+void Serializer::outputArrayElement(const T &element)
 {
 	typename SerializableArray<T>::SerializableElement tmp(element);
 	this->output(tmp);

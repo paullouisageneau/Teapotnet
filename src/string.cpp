@@ -460,14 +460,14 @@ bool String::deserialize(Serializer &s)
 	return s.input(*this);
 }
 
-String String::toString(void) const
+void String::serialize(Stream &s) const
 {
-	return *this;  
+	s.write(*this);
 }
 
-void String::fromString(String &str)
+bool String::deserialize(Stream &s)
 {
-	*this = str; 
+	s.read(*this); 
 }
 
 size_t String::readData(char *buffer, size_t size)

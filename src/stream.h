@@ -58,6 +58,7 @@ public:
 	bool get(char &chr);
 	void put(char chr);
 	char last(void) const;
+	bool atEnd(void) const;
 	void space(void);
 	bool ignore(int n = 1);
 	
@@ -130,6 +131,7 @@ public:
 protected:
 	char mLast;
 	bool mHexa;
+	bool mEnd;
 
 private:
 	bool readStdString(std::string &output);

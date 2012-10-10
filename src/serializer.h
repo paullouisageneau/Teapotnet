@@ -100,9 +100,9 @@ public:
 	
 	// Shortcuts replacing element output or check + element input
 	template<class T>		bool inputArrayElement(T &element);
-	template<class T> 		bool outputArrayElement(const T &element);
+	template<class T> 		void outputArrayElement(const T &element);
 	template<class K, class V>	bool inputMapElement(K &key, V &value);
-	template<class K, class V>	bool outputMapElement(const K &key, const V &value);
+	template<class K, class V>	void outputMapElement(const K &key, const V &value);
 	
         template<class T> bool input(T *ptr);
 	template<class T> void output(const T *ptr);

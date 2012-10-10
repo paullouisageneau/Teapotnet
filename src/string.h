@@ -94,8 +94,8 @@ public:
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
-	virtual String toString(void) const;
-	virtual void fromString(String &str);
+	virtual void serialize(Stream &s) const;
+	virtual bool deserialize(Stream &s);
 
 protected:
 	// Stream

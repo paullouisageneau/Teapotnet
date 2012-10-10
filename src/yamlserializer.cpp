@@ -28,50 +28,62 @@ namespace tpot
 
 YamlSerializer::YamlSerializer(Stream *stream) :
 	mStream(stream),
-	mLevel(0),
-	mEnd(false)
+	mLevel(0)
 {
 	Assert(stream);
 }
 
 YamlSerializer::~YamlSerializer(void)
 {
-	 
+ 
 }
  
 bool YamlSerializer::input(Serializable &s)
 {
+	if(!mLevel) *mStream<<"---"<<Stream::NewLine;
+	++mLevel;
 	return s.deserialize(*mStream);
+	--mLevel;
 }
 
 bool YamlSerializer::input(Element &element)
 {
+	if(!mLevel)
+	{
+		if(mLine.empty() && !mStream->readLine(mLine))
+			return false;
+		
+		if(mLine.trimmed() == "---") mLine.clear();
+		else if(mLine.trimmed() == "...") return false;
+	}
+  
+  	String trimmed = mLine.trimmed();
+	while(trimmed.empty())
+	{
+		mLine.clear();
+		if(!mStream->readLine(mLine)) return false;
+		trimmed =  mLine.trimmed();
+	}
+
+	int indent = 0;
+	while(indent < mLine.size() && 
+		(mLine[indent] == ' ' || mLine[indent] == '\t')) ++indent;
+	
+	if(mIndent.top() < 0) mIndent.top() = indent;
+	else if(!mIndent.empty())
+	{
+		if(indent < mIndent.top()) return false;
+		if(indent > mIndent.top()) throw IOException("Invalid YAML indentation");
+	}
+	
+	mLine.trim();
+	
 	char chr;
-	if(!mStream->readChar(chr))
-	{
-		mEnd = true;
-		return false;
-	}
+	mLine.get(chr);
+	if(chr != '-') throw IOException("Invalid array entry, missing '-'");
 	
-	if(chr == '.')
-	{
-		  AssertIO(mStream->assertChar('.'));
-		  AssertIO(mStream->assertChar('.'));
-		  return false;
-	}
-	
-	AssertIO(chr == '-');
-	AssertIO(mStream->readChar(chr));
-	
-	if(chr == '-')
-	{
-		 AssertIO(mStream->assertChar('-'));
-		 String line;
-		 mStream->readLine(line);
-		 return false;
-	}
-	
-	AssertIO(chr == ' ' || chr == '\t');
+	AssertIO(mLine.get(chr));
+	AssertIO(chr == ' ');
 	AssertIO(element.deserialize(*this));
 	return true;
 }
@@ -79,31 +91,48 @@ bool YamlSerializer::input(Element &element)
 
 bool YamlSerializer::input(Pair &pair)
 {
-	char chr;
-	if(!mStream->readChar(chr)) 
+	if(!mLevel)
 	{
-		mEnd = true;
-		return false;
+		if(mLine.empty() && !mStream->readLine(mLine))
+			return false;
+		
+		if(mLine.trimmed() == "---") mLine.clear();
+		else if(mLine.trimmed() == "...") return false;
+	}
+
+	String trimmed = mLine.trimmed();
+	while(trimmed.empty())
+	{
+		mLine.clear();
+		if(!mStream->readLine(mLine))
+		{
+			mIndent.pop();
+			return false;
+		}
+		
+		trimmed =  mLine.trimmed();
 	}
 	
-	if(chr == '.')
+	int indent = 0;
+	while(indent < mLine.size() && 
+		(mLine[indent] == ' ' || mLine[indent] == '\t')) ++indent;
+	
+	if(mIndent.top() < 0) mIndent.top() = indent;
+	else if(!mIndent.empty())
 	{
-		  AssertIO(mStream->assertChar('.'));
-		  AssertIO(mStream->assertChar('.'));
-		  return false;
+		if(indent > mIndent.top()) throw IOException("Invalid YAML indentation");
+		if(indent < mIndent.top()) 
+		{
+		  	mIndent.pop();
+			return false;
+		}
 	}
 	
-	if(chr == '-')
-	{
-		 AssertIO(mStream->assertChar('-'));
-		 String line;
-		 mStream->readLine(line);
-		 return false;
-	}
-  
-  	String key(chr);
-	AssertIO(mStream->readUntil(key,":"));
+	mLine.trim();
+	if(!mLine.contains(':')) throw IOException("Invalid associative entry, missing ':'");
 	
+	String key;
+	AssertIO(mLine.readUntil(key,':'));
 	YamlSerializer keySerializer(&key);
 	AssertIO(pair.deserializeKey(keySerializer));
 	AssertIO(pair.deserializeValue(*this));
@@ -113,49 +142,64 @@ bool YamlSerializer::input(Pair &pair)
 bool YamlSerializer::input(String &str)
 {
 	str.clear();
-  
-	char chr;
-	if(!mStream->get(chr)) return false;
-
-	while(Stream::BlankCharacters.contains(chr))
-		if(!mStream->get(chr)) return false;
-	
-	bool quotes = (chr == '\'' || chr == '\"');
+ 
+	if(!mLevel)
+	{
+		if(mLine.empty() && !mStream->readLine(mLine))
+			return false;
 		
-	String delimiters;
-	if(quotes)
-	{
-		quotes = true;
-		delimiters = String(chr);
-		AssertIO(mStream->get(chr));
+		if(mLine.trimmed() == "---") mLine.clear();
+		else if(mLine.trimmed() == "...") return false;
 	}
-	else {
-		str+= chr;
-		delimiters = Stream::BlankCharacters;
-		if(!mStream->get(chr)) return true;
-	}
-
-	while(!delimiters.contains(chr))
+	
+	bool keepNewLines = true;
+	int i = 0;
+	while(true)
 	{
-		if(chr == '\\')
+		if(mLine.empty() && !mStream->readLine(mLine))
+			return i != 0;
+			
+		String trimmed =  mLine.trimmed();
+		
+		if(i == 0)
 		{
-			AssertIO(mStream->get(chr));
-			switch(chr)
+			if(trimmed == "|") continue;
+			if(trimmed == ">") 
 			{
-			case 'n': 	chr = '\n';	break;
-			case 'r': 	chr = '\r';	break;
+				keepNewLines = false;
+				continue;
+			}
+			
+			str = mLine;
+			str.trim();
+			mLine.clear();
+			return true;
+		}
+		
+		int indent = 0;
+		while(indent < mLine.size() && 
+			(mLine[indent] == ' ' || mLine[indent] == '\t')) ++indent;
+		
+		if(!mIndent.empty())
+		{
+			if(mIndent.top() < 0) mIndent.top() = indent;
+			else {
+				if(indent < mIndent.top()) return false;
+				if(indent > mIndent.top()) throw IOException("Invalid YAML indentation");
 			}
 		}
 		
-		str+= chr;
-		if(!mStream->get(chr))
+		if(!str.empty()) 
 		{
-			if(quotes) throw IOException();
-			else break;
+			if(keepNewLines) str+= '\n';
+			else str+= ' ';
 		}
+		
+		mLine.trim();
+		str+= mLine;
+		mLine.clear();
+		++i;
 	}
-	
-	return true; 
 }
 
 void YamlSerializer::output(const Serializable &s)
@@ -165,7 +209,8 @@ void YamlSerializer::output(const Serializable &s)
 
 void YamlSerializer::output(const Element &element)
 {
-	*mStream<<String(std::min(mLevel-1,0), ' ')<<"- ";
+	*mStream<<String(std::min(mLevel-1,0), ' ');
+	*mStream<<"- ";
 	element.serialize(*this);
 	*mStream<<Stream::NewLine;
 }
@@ -181,30 +226,31 @@ void YamlSerializer::output(const Pair &pair)
 
 void YamlSerializer::output(const String &str)
 {
-	bool quotes = str.contains(' ') 
-			|| str.contains('\t') 
-			|| str.contains('\n');
-  
-	if(quotes) *mStream<<'\"';
-  	for(size_t i=0; i<str.size(); ++i)
+	if(!mLevel) *mStream<<"---";
+	if(str.empty())
 	{
-	  	char chr = str[i];
-		
-		switch(chr)
-		{
-		case '\"': mStream->write("\\\""); break;
-		case '\'': mStream->write("\\\'"); break;
-		case '\n': mStream->write("\\n"); break;
-		case '\r': mStream->write("\\r"); break;
-		default: mStream->put(chr); break;
-		}
+		*mStream<<Stream::NewLine;
+		return;
 	}
-	if(quotes) *mStream<<'\"';
+	
+	if(str.contains('\n') || str[0] == '|' || str[0] == '>') *mStream<<" |"<<Stream::NewLine;
+	else if(!mLevel) *mStream<<Stream::NewLine;
+  
+	String copy(str);
+	String line;
+	while(copy.readLine(line))
+	{
+		*mStream<<String(std::min(mLevel-1,0), ' ');
+		 *mStream<<line;
+		if(copy.last() == '\n') *mStream<<Stream::NewLine;
+	}
 }
 
 bool YamlSerializer::inputArrayBegin(void)
 {
-	return !mEnd;	
+	if(mStream->atEnd()) return false;
+	mIndent.push(-1);
+	return true;
 }
 
 bool YamlSerializer::inputArrayCheck(void)
@@ -214,7 +260,9 @@ bool YamlSerializer::inputArrayCheck(void)
 
 bool YamlSerializer::inputMapBegin(void)
 {
-	return !mEnd;
+	if(mStream->atEnd()) return false;
+	mIndent.push(-1);
+	return true;
 }
 
 bool YamlSerializer::inputMapCheck(void)
@@ -231,7 +279,6 @@ void YamlSerializer::outputArrayEnd(void)
 {
 	Assert(mLevel > 0);
 	--mLevel;
-	*mStream<<"---"<<Stream::NewLine;
 }
 
 void YamlSerializer::outputMapBegin(int size)
@@ -243,7 +290,6 @@ void YamlSerializer::outputMapEnd(void)
 {
 	Assert(mLevel > 0);
 	--mLevel;
-	*mStream<<"---"<<Stream::NewLine;
 }
 
 }
