@@ -586,7 +586,7 @@ void Store::keywords(String name, Set<String> &result)
 			name[i] = ' ';
 	
 	List<String> lst;
-	name.explode(' ', lst);
+	name.explode(lst, ' ');
 	
 	for(List<String>::iterator it = lst.begin(); it != lst.end(); ++it)
 		it->substrings(result, minLength);
