@@ -114,4 +114,14 @@ void LineSerializer::output(const String &str)
 	mStream->writeLine(str);
 }
 
+bool LineSerializer::inputArrayBegin(void)
+{
+	return !mStream->atEnd();
+}
+
+bool LineSerializer::inputMapBegin(void)
+{
+	return !mStream->atEnd();
+}
+
 }

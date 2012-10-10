@@ -69,6 +69,9 @@ public:
 	inline void	output(float f)		{ mStream->writeLine(f); }
 	inline void	output(double f)	{ mStream->writeLine(f); }
 	
+	bool	inputArrayBegin(void);
+	bool	inputMapBegin(void);
+	
 private:
   	Stream *mStream;
 };
