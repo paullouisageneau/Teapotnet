@@ -716,7 +716,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(!request.get.contains("popup"))
 				{
 					String popupUrl = prefix + "/chat?popup=1";
-					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','','"+prefix+"');\">Popup</a>");
+					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','"+prefix+"');\">Popup</a>");
 				}
 				
 				page.br();
