@@ -117,6 +117,7 @@ void Interface::process(Http::Request &request)
 			if(ext == "css")  response.headers.insert("Content-Type","text/css");
 			if(ext == "png")  response.headers.insert("Content-Type","image/png");
 			if(ext == "jpg")  response.headers.insert("Content-Type","text/jpeg");
+			if(ext == "ico")  response.headers.insert("Content-Type","image/x-icon");
 
 			response.send();
 			response.sock->writeBinary(file);
@@ -183,7 +184,8 @@ void Interface::process(Http::Request &request)
 	 	try {
 			Identifier hash;
 			String tmp = list.front();
-			tmp >> hash;  
+			try { tmp >> hash; }
+			catch(...) { throw 404; }
 		
 			Store::Entry entry;
 			if(Store::GetResource(hash, entry, true))

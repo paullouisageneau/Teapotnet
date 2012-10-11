@@ -298,6 +298,7 @@ void Http::Response::send(Socket &sock)
 		case 405: message = "Method Not Allowed";	break;
 		case 406: message = "Not Acceptable";		break;
 		case 408: message = "Request Timeout";		break;
+		case 409: message = "Conflict";			break;
 		case 410: message = "Gone";								break;
 		case 413: message = "Request Entity Too Large"; 		break;
 		case 414: message = "Request-URI Too Long";				break;
@@ -437,6 +438,10 @@ void Http::Server::Handler::run(void)
 				}
 				
 				mServer->process(request);
+			}
+			catch(const Timeout &e)
+			{
+				// Do nothing
 			}
 			catch(const NetException &e)
 			{

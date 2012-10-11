@@ -32,7 +32,7 @@ namespace tpot
 class ByteSerializer : public Serializer
 {
 public:
-	ByteSerializer(ByteStream *stream);
+	ByteSerializer(ByteStream *stream);	// stream WON'T be destroyed
 	virtual ~ByteSerializer(void);
 	
 	inline bool	input(String &str)	{ return mStream->readBinary(str); }

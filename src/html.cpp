@@ -36,26 +36,31 @@ Html::~Html(void)
 
 }
 
-void Html::header(const String &title, const String &redirect)
+void Html::header(const String &title, bool blank, const String &redirect)
 {
 	*mStream<<"<!DOCTYPE html>\n";
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
-	*mStream<<"<title>"<<title<<"</title>\n";
+	if(blank) *mStream<<"<title>"<<title<<"</title>\n";
+	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\"/>\n";
-	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n";
-	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\" />\n";
+	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\"/>\n";
+	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\"/>\n";
+	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\"/>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 
-	open("div","panel");
-	openLink("/"); image("/logo.png","TeapotNet","logo"); closeLink();
-	close("div");
-	open("div","bar");
-        link(SOURCELINK, "Source code");
-        close("div");
+	if(!blank)
+	{
+		open("div","panel");
+		openLink("/"); image("/logo.png", APPNAME, "logo"); closeLink();
+		close("div");
+		open("div","bar");
+		link(SOURCELINK, "Source code", "", true);
+		close("div");
+	}
 }
 
 void Html::footer(void)
@@ -110,13 +115,13 @@ void Html::close(const String &type)
 	*mStream<<"</"<<type<<">\n";
 }
 
-void Html::openLink(	const String &url,
-			String id)
+void Html::openLink(const String &url, String id, bool newTab)
 {
 	String cl = id.cut('.');
 	*mStream<<"<a href=\""<<url<<"\"";
 	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
+	if(newTab) *mStream<<" target=\"_blank\"";
 	*mStream<<">";
 }
 
@@ -125,11 +130,26 @@ void Html::closeLink(void)
 	*mStream<<"</a>\n";
 }
 
+void Html::span(const String &txt, String id)
+{
+ 	open("span",id);
+	text(txt);
+	close("span"); 
+}
+
+void Html::div(const String &txt, String id)
+{
+	open("div",id);
+	text(txt);
+	close("div");
+}
+
 void Html::link(	const String &url,
 			const String &txt,
-			String id)
+			String id,
+			bool newTab)
 {
-	openLink(url,id);
+	openLink(url, id, newTab);
 	text(txt);
 	closeLink();
 }
@@ -145,6 +165,12 @@ void Html::image(	const String &url,
 	if(!cl.empty())  *mStream<<" class=\""<<cl<<"\"";
 	*mStream<<"/>\n";
 }
+
+void Html::space(void)
+{
+	*mStream<<' ';
+}
+
 
 void Html::br(void)
 {

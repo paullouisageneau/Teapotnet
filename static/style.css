@@ -139,6 +139,22 @@ input
 	font-weight: bold;
 }
 
+.message
+{
+  
+}
+
+.oldmessage
+{
+	color: #606060; 
+}
+
+.important
+{
+	font-weight: bold;
+	color: red;
+}
+
 .box
 {
 	width: 80%;

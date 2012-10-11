@@ -36,28 +36,32 @@ public:
 	Html(Stream *stream);	// stream WON'T be destroyed
 	~Html(void);
 
-	void header(const String &title = "", const String &redirect = "");
+	void header(const String &title = "", bool blank = false, const String &redirect = "");
 	void footer(void);
 
 	void raw(const String &str);
 	void text(const String &str);
 	void object(const Serializable &s);
-
+	
 	void open(const String &type, String id = "");
 	void close(const String &type);
-
-	void openLink(	const String &url,
-			String id = "");
+	
+	void openLink(const String &url, String id = "", bool newTab = false);
 	void closeLink(void);
+	
+	void span(const String &txt, String id = "");
+	void div(const String &txt, String id = "");
 	
 	void link(	const String &url,
 			const String &txt,
-			String id = "");
+			String id = "",
+			bool newTab = false);
 
 	void image(	const String &url,
 			const String &alt = "",
 			String id = "");
 
+	void space(void);
 	void br(void);
 
 	void openForm(	const String &action = "#",

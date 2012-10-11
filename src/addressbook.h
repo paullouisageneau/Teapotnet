@@ -73,6 +73,7 @@ public:
 		const Identifier &remotePeering(void) const;
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
+		int unreadMessagesCount(void) const;
 		
 		void update(void);
 		
@@ -85,7 +86,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
-	  	void messageToHtml(Html &html, const Message &message) const;
+	  	void messageToHtml(Html &html, const Message &message, bool old = false) const;
 	  
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;

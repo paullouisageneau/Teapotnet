@@ -217,13 +217,23 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			{
 		    		Contact *contact = it->second;
 				String contactUrl = prefix + '/' + contact->uniqueName() + '/';
+				
+				page.open("span",".contact");
 				page.link(contactUrl, contact->name() + "@" + contact->tracker());
 				page.text(" "+String::hexa(contact->peeringChecksum(),8));
 				
-				String status("Not connected");
-				if(Core::Instance->hasPeer(contact->peering())) status = "Connected";
-				page.text(" ("+status+")");
+				page.space();
+				if(Core::Instance->hasPeer(contact->peering())) page.span("(Connected)");
+				else page.span("(Not connected)");
 				
+				int msgcount = contact->unreadMessagesCount();
+				if(msgcount) 
+				{
+					page.space();
+					page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+				}
+				
+				page.close("span");
 				page.br();
 			}
 	
@@ -383,16 +393,30 @@ String AddressBook::Contact::urlPrefix(void) const
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
+int AddressBook::Contact::unreadMessagesCount(void) const
+{
+	int count = 0;
+	for(int i=mMessages.size()-1; i>=0; --i)
+	{
+		if(mMessages[i].isRead()) break;
+		++count;
+	}
+	return count;
+}
+
 void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
 
 	if(!Core::Instance->hasPeer(mPeering))
 	{
+	  	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
 		Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
-		if(Core::Instance->hasPeer(mRemotePeering))	// the user is local
+		if(Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
 		{
+			Log("AddressBook::Contact", mUniqueName + " found locally");
+		  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
 				Socket *sock = new Socket(addr);
@@ -404,7 +428,7 @@ void AddressBook::Contact::update(void)
 			}
 		}
 		else {
-			Log("AddressBook::Contact", "Querying tracker " + mTracker);	
+			Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 			if(AddressBook::query(mPeering, mTracker, mAddrs))
 			{
 				for(int i=0; i<mAddrs.size(); ++i)
@@ -423,8 +447,11 @@ void AddressBook::Contact::update(void)
 				}
 			}
 			
-			Log("AddressBook::Contact", "Publishing to tracker " + mTracker);
-			AddressBook::publish(mRemotePeering);
+			if(!Core::Instance->hasPeer(mPeering))	// a new local peer could have established a connection in parallel
+			{
+				Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+				AddressBook::publish(mRemotePeering);
+			}
 		}
 	}
 	
@@ -477,9 +504,21 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.text("Contact: "+mName);
 			page.close("h1");
 
+			page.text("Status: ");
+			if(Core::Instance->hasPeer(mPeering)) page.text("Connected");
+			else page.text("Not connected");
+			page.br();
+			page.br();
+			
 			page.link(prefix+"/files/","Files");
 			page.br();
 			page.link(prefix+"/chat/","Chat");
+			int msgcount = unreadMessagesCount();
+			if(msgcount) 
+			{
+				page.space();
+				page.span(String("[")+String::number(msgcount)+String(" new messages]"),".important");
+			}
 			page.br();
 			page.br();
 			
@@ -603,13 +642,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					response.send();
 					
 					if(count == mMessagesCount)
-						wait(60000);
+						wait(120000);
 					
 					if(count < mMessagesCount && mMessagesCount-count <= mMessages.size())
 					{
 						Html html(response.sock);
 						int i = mMessages.size() - (mMessagesCount-count);
-						messageToHtml(html, mMessages[i]);
+						messageToHtml(html, mMessages[i], false);
 						mMessages[i].markRead();
 					}
 					
@@ -622,18 +661,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					{
 						try {
 							Message message(request.post["message"]);
-							mMessages.push_back(message);	// copy stored now so receiver is null
+						  	message.send(mPeering);	// send
+							
+							mMessages.push_back(Message(request.post["message"]));	// thus receiver is null
 							++mMessagesCount;
 							notifyAll();
-							
-							message.send(mPeering);	// send
 							
 							if(request.post["ajax"].toBool())	//ajax
 							{
 								Http::Response response(request, 200);
 								response.send();
 								/*Html html(response.sock);
-								messageToHtml(html, mMessages.back());
+								messageToHtml(html, mMessages.back(), false);
 								mMessages.back().markRead();*/
 							}
 							else {	// form submit
@@ -644,7 +683,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						}
 						catch(...)
 						{
-							throw 400;
+							throw 409;
 						}
 						
 						return;
@@ -655,68 +694,95 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();	
 				
 				Html page(response.sock);
-				page.header("Chat: "+mName);
-				page.open("h1");
-				page.text("Chat: "+mName);
-				page.close("h1");
-								
+				page.header("Chat with "+mName, request.get.contains("popup"));
+				if(!request.get.contains("popup"))
+				{
+					page.open("h1");
+					page.text("Chat with "+mName);
+					page.close("h1");
+				}
+				else {
+					page.open("b");
+					page.text("Chat with "+mName);
+					page.close("b");
+					page.br();
+				}
+				
 				page.openForm(prefix + "/chat", "post", "chatform");
 				page.input("text","message");
 				page.button("send","Send");
+				page.space();
+				
+				if(!request.get.contains("popup"))
+				{
+					String popupUrl = prefix + "/chat?popup=1";
+					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','','"+prefix+"');\">Popup</a>");
+				}
+				
 				page.br();
 				page.br();
 				page.closeForm();
-						
+	
 				page.open("div", "chat");
 				for(int i=mMessages.size()-1; i>=0; --i)
 				{
-	  				messageToHtml(page, mMessages[i]);
+	  				messageToHtml(page, mMessages[i], mMessages[i].isRead());
 					mMessages[i].markRead();
 				}
 				page.close("div");
 				
-*page.stream()<<"<script type=\"text/javascript\">\n\
+page.raw("<script type=\"text/javascript\">\n\
 	var count = "+String::number(mMessagesCount)+";\n\
+	var title = document.title;\n\
+	var hasFocus = true;\n\
+	var nbNewMessages = 0;\n\
+	$(window).blur(function() {\n\
+		hasFocus = false;\n\
+		$('span.message').attr('class', 'oldmessage');\n\
+	});\n\
+	$(window).focus(function() {\n\
+		hasFocus = true;\n\
+		nbNewMessages = 0;\n\
+		document.title = title;\n\
+	});\n\
 	function update()\n\
 	{\n\
-		var xhr = createXMLHttpRequest();\n\
-		xhr.onreadystatechange = function()\n\
-		{\n\
-  			if(xhr.readyState == 4)\n\
+		var request = $.ajax({\n\
+			url: '"+prefix+"/chat/'+count,\n\
+			dataType: 'html',\n\
+			timeout: 300000\n\
+		});\n\
+		request.done(function(html) {\n\
+			if($.trim(html) != '')\n\
 			{\n\
-				if(xhr.status === 200 && xhr.responseText)\n\
+				$(\"#chat\").prepend(html);\n\
+				if(!hasFocus)\n\
 				{\n\
-					var content = document.getElementById('chat').innerHTML;\n\
-					document.getElementById('chat').innerHTML = xhr.responseText + content;\n\
-					count+= 1;\n\
-					setTimeout('update()', 100);\n\
+					nbNewMessages+= 1;\n\
+					document.title = title+' ('+nbNewMessages+')';\n\
 				}\n\
-				else setTimeout('update()', 1000);\n\
+				count+= 1;\n\
 			}\n\
-		}\n\
-		xhr.open('GET', '"+prefix+"/chat/'+count, true);\n\
-		xhr.send();\n\
+			setTimeout('update()', 100);\n\
+		});\n\
+		request.fail(function(jqXHR, textStatus) {\n\
+			setTimeout('update()', 10000);\n\
+		});\n\
 	}\n\
 	function post()\n\
 	{\n\
 		var message = document.chatform.message.value;\n\
 		if(!message) return false;\n\
 		document.chatform.message.value = '';\n\
-		var xhr = createXMLHttpRequest();\n\
-		xhr.onreadystatechange = function()\n\
-		{\n\
-  			if(xhr.readyState == 4 && xhr.status != 200)\n\
-			{\n\
-				alert('The message could not be sent. Is this user online ?');\n\
-			}\n\
-		}\n\
-		xhr.open('POST', '"+prefix+"/chat', true);\n\
-		xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');\n\
-		xhr.send('message='+encodeURIComponent(message)+'&ajax=1');\n\
+		var request = $.post('"+prefix+"/chat',\n\
+			{ 'message': message, 'ajax': 1 });\n\
+		request.fail(function(jqXHR, textStatus) {\n\
+			alert('The message could not be sent. Is this user online ?');\n\
+		});\n\
 	}\n\
 	setTimeout('update()', 1000);\n\
 	document.chatform.onsubmit = function() {post(); return false;}\n\
-</script>\n";
+</script>\n");
 				
 				page.footer();
 				return;
@@ -732,12 +798,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void AddressBook::Contact::messageToHtml(Html &html, const Message &message) const
+void AddressBook::Contact::messageToHtml(Html &html, const Message &message, bool old) const
 {
 	char buffer[64];
 	time_t t = message.time();
 	std::strftime (buffer, 64, "%x %X", localtime(&t));
-	html.open("span",".message");
+	if(old) html.open("span",".oldmessage");
+	else html.open("span",".message");
 	html.open("span",".date");
 	html.text(buffer);
 	html.close("span");

@@ -30,16 +30,22 @@
 #include "user.h"
 #include "directory.h"
 
+#include <signal.h>
+
 using namespace tpot;
 
 Mutex tpot::LogMutex;
 
 int main(int argc, char** argv)
 {
+#ifndef WINDOWS
+	signal(SIGPIPE, SIG_IGN);
+#endif
+
+	srand(time(NULL));
+	
 	try {
 	  	Log("main", "Starting...");
-		
-		srand(time(NULL));
 		
 		const String configFileName = "config.txt";
 		

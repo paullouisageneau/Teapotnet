@@ -32,7 +32,7 @@ namespace tpot
 class YamlSerializer : public Serializer
 {
 public:
-	YamlSerializer(Stream *stream);
+	YamlSerializer(Stream *stream);	// stream WON'T be destroyed
 	virtual ~YamlSerializer(void);
 	
 	bool	input(Serializable &s);

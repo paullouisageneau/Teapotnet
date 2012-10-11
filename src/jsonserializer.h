@@ -32,7 +32,7 @@ namespace tpot
 class JsonSerializer : public Serializer
 {
 public:
-	JsonSerializer(Stream *stream);
+	JsonSerializer(Stream *stream);	// stream WON'T be destroyed
 	virtual ~JsonSerializer(void);
 	
 	bool	input(Serializable &s);

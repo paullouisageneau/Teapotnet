@@ -66,7 +66,8 @@ public:
 		       		const ByteString &secret,
 				Listener *listener = NULL);
 	void unregisterPeering(const Identifier &peering);
-			     
+	bool hasRegisteredPeering(const Identifier &peering);
+	
 	void addPeer(Socket *sock, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
 	

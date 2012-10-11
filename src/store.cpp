@@ -304,7 +304,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						response.send();
 						
 						Html page(response.sock);
-						page.header("Error", prefix + "/");
+						page.header("Error", false, prefix + "/");
 						page.open("h1");
 						page.text("Error");
 						page.close("h1");

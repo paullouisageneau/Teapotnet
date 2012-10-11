@@ -32,7 +32,7 @@ namespace tpot
 class LineSerializer : public Serializer
 {
 public:
-	LineSerializer(Stream *stream);
+	LineSerializer(Stream *stream);	// stream WON'T be destroyed
 	virtual ~LineSerializer(void);
 	
 	bool	input(Serializable &s);

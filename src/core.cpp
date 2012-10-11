@@ -65,6 +65,12 @@ void Core::unregisterPeering(const Identifier &peering)
 	mSecrets.erase(peering);
 }
 
+bool Core::hasRegisteredPeering(const Identifier &peering)
+{
+	Synchronize(this);
+	return mPeerings.contains(peering);
+}
+
 void Core::addPeer(Socket *sock, const Identifier &peering)
 {
 	Assert(sock);
@@ -400,15 +406,15 @@ void Core::Handler::run(void)
 		parameters["nonce"] >> nonce_b;
 
 		if(mPeering != Identifier::Null && mPeering != peering) 
-				throw Exception("Peering in response does not match: " + peering.toString());
+				throw Exception("Peering in response does not match");
 		
 		ByteString secret;
-		if(peering.size() != 64) throw Exception("Invalid peering: " + peering.toString());	// TODO: useless
+		if(peering.size() != 64) throw Exception("Invalid peering identifier");	// TODO: useless
 		
 		{
 			Synchronize(mCore);
 			if(!mCore->mSecrets.get(peering, secret)) 
-				throw Exception("No secret for peering: " + peering.toString());
+				throw Exception("No secret for peering");
 		}
 		
 		if(mPeering == Identifier::Null)
