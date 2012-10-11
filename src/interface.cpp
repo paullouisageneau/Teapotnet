@@ -114,6 +114,7 @@ void Interface::process(Http::Request &request)
 			// TODO
 			String ext = name.cutLast('.');
 			if(ext == "html") response.headers.insert("Content-Type","text/html");
+			if(ext == "js")   response.headers.insert("Content-Type","text/javascript");
 			if(ext == "css")  response.headers.insert("Content-Type","text/css");
 			if(ext == "png")  response.headers.insert("Content-Type","image/png");
 			if(ext == "jpg")  response.headers.insert("Content-Type","text/jpeg");
