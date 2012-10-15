@@ -3,7 +3,7 @@ CXX=i486-mingw32-g++
 RM=rm -f
 CPPFLAGS=-g
 LDFLAGS=-g
-LDLIBS=-lpthread -lws2_32
+LDLIBS=-lpthread -lws2_32 -lsqlite3
 
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))

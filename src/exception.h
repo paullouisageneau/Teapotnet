@@ -109,13 +109,6 @@ public:
 	OutOfBounds(const String &message = "");
 };
 
-// If an OpenGL error occured
-class GlError : public Exception
-{
-public:
-	GlError(void);
-};
-
 // If a network error occured
 class NetException : public Exception
 {

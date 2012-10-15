@@ -3,7 +3,7 @@ CXX=g++
 RM=rm -f
 CPPFLAGS=-g
 LDFLAGS=-g
-LDLIBS=-lpthread
+LDLIBS=-lpthread -lsqlite3
 
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
