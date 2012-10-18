@@ -23,6 +23,7 @@
 #include "core.h"
 #include "store.h"
 #include "stripedfile.h"
+#include "yamlserializer.h"
 
 namespace tpot
 {
@@ -103,18 +104,21 @@ void Request::cancel(void)
 bool Request::execute(Store *store)
 {
 	Synchronize(this);  
-
+	
 	StringMap parameters = mParameters;
 
-	Store::Entry entry;
-	
 	bool success = false;
-	if(store) success = store->get(mTarget, entry, mIsData);
+	Store::Entry entry;
+	if(mTarget.contains('/'))
+	{
+		if(store) success = store->queryEntry(mTarget, entry);
+	}
 	else {
 	  try {
 	    	Identifier identifier;
 		mTarget >> identifier;
-	  	success = Store::GetResource(identifier, entry, mIsData);
+	  	if(store) success = store->queryResource(identifier, entry);
+		else success = Store::GetResource(identifier, entry);
 	  }
 	  catch(const Exception &e) {}
 	}
@@ -122,47 +126,95 @@ bool Request::execute(Store *store)
 	if(!success)
 	{
 		addResponse(new Response(Response::NotFound));
-		Log("Request", "Traget not Found");
+		Log("Request", "Target not Found");
 		return false;
 	}
 
-	ByteStream *content = NULL;
-	if(entry.content)
+	StringMap rparameters;
+	rparameters["name"] << entry.name;
+	rparameters["size"] << entry.size;
+	rparameters["time"] << entry.time;
+	if(entry.type) rparameters["type"] = "file";
+	else rparameters["type"] = "directory";
+	
+	if(mIsData)
 	{
-		if(parameters.contains("Stripe"))
+		if(entry.type)	// file
 		{
-			size_t blockSize;
-			int stripesCount, stripe;
+			ByteStream *content = NULL;
+			if(!parameters.contains("Stripe")) content = new File(entry.path);
+			else {
+				size_t blockSize;
+				int stripesCount, stripe;
 
-			parameters["block-size"] >> blockSize;
-			parameters["stripes-count"] >> stripesCount;
-			parameters["stripe"] >> stripe;
+				parameters["block-size"] >> blockSize;
+				parameters["stripes-count"] >> stripesCount;
+				parameters["stripe"] >> stripe;
 
-			Assert(blockSize > 0);
-			Assert(stripesCount > 0);
+				Assert(blockSize > 0);
+				Assert(stripesCount > 0);
+				
+				File *file = NULL;
+				StripedFile *stripedFile = NULL;
+				
+				try {
+					file = new File(entry.path);
+					stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
+					
+					size_t block = 0;
+					size_t offset = 0;
+					if(parameters.contains("block")) parameters["block"] >> block;
+					if(parameters.contains("offset")) parameters["offset"] >> offset;
+					stripedFile->seekRead(block, offset);
+					
+					content = stripedFile;
+					entry.size/= stripesCount;
+				}
+				catch(...)
+				{
+					delete file;
+					delete stripedFile;
+					throw;
+				}
+			}
 			
-			StripedFile *stripedFile = new StripedFile(entry.content, blockSize, stripesCount, stripe);
-			
-			size_t block = 0;
-			size_t offset = 0;
-			if(parameters.contains("block")) parameters["block"] >> block;
-			if(parameters.contains("offset")) parameters["offset"] >> offset;
-			stripedFile->seekRead(block, offset);
-			
-			content = stripedFile;
-			
-			uint64_t size;
-			entry.info["size"] >> size;
-			entry.info["size"] << size/stripesCount;
+			Response *response = new Response(Response::Success, rparameters, content);
+			if(response->content()) response->content()->close();	// no more content
+			addResponse(response);
 		}
-		else content = entry.content;
-
+		else {	// directory
+		 
+			Response *response = new Response(Response::Success, rparameters, new ByteString);
+			addResponse(response);
+		  
+			List<Store::Entry> list;
+			if(store->queryList(mTarget, list))
+			{
+				YamlSerializer serializer(response->content());
+				 
+				for(List<Store::Entry>::iterator it = list.begin();
+					it != list.end();
+					++it)
+				{
+					const Store::Entry &entry = *it;
+					StringMap map;
+					map["name"] = entry.name;
+					map["size"] << entry.size;
+					map["time"] << entry.time;
+					if(entry.type) map["type"] = "directory";
+					else map["type"] = "files";
+					serializer.output(map);
+				}
+			}
+			
+			response->content()->close();	// no more content
+		}
+	}
+	else {
+		Response *response = new Response(Response::Success, rparameters, NULL);
+		addResponse(response);
 	}
 
-	Response *response = new Response(Response::Success, entry.info, content);
-	if(response->content()) response->content()->close();	// no more content
-	addResponse(response);
-	
 	Log("Request", "Finished execution");
 	return true;
 }

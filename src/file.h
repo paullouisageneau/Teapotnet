@@ -42,6 +42,7 @@ public:
 	static bool Remove(const String &filename);
 	static void Rename(const String &source, const String &destination);
 	static uint64_t Size(const String &filename);
+	static uint64_t Time(const String &filename);
 
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
 

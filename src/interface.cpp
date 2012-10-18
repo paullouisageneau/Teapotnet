@@ -189,23 +189,24 @@ void Interface::process(Http::Request &request)
 			catch(...) { throw 404; }
 		
 			Store::Entry entry;
-			if(Store::GetResource(hash, entry, true))
+			if(Store::GetResource(hash, entry))
 			{
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment";
-				response.headers["Content-Length"] = entry.info["size"];
-				if(entry.info.contains("name")) response.headers["Content-Disposition"]+= "; filename=\"" + entry.info.get("name") + "\"";
-				if(entry.info.contains("hash")) response.headers["Content-SHA512"] = entry.info.get("hash");
+				response.headers["Content-Length"] << entry.size;
+				response.headers["Content-Disposition"]+= "; filename=\"" + entry.name + "\"";
+				response.headers["Content-SHA512"] = entry.hash;
 				// TODO: Date + Last-Modified
 				response.send();
 				
-				if(entry.content) response.sock->write(*entry.content);
-				delete entry.content;
+				File file(entry.path);
+				response.sock->write(file);
 				return;
 			}
 			else {
-				size_t blockSize = Store::ChunkSize;
+				size_t blockSize = 256*1024;	// TODO
+				
 				String filename("/tmp/"+hash.toString());
 				Splicer splicer(hash, filename, blockSize);
 				File file(filename, File::Read);

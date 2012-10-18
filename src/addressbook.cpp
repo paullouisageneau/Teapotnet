@@ -583,9 +583,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					else try {
 						if(parameters.contains("type") && parameters["type"] == "directory")
 						{
+							YamlSerializer serializer(response->content());
+							
 							Map<String, StringMap> files;
 						  	StringMap info;
-							while(response->content()->read(info))
+							while(serializer.input(info))
 							{
 							 	if(!info.contains("type")) break;
 								if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);

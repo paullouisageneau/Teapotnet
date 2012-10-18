@@ -45,6 +45,18 @@ Database::Statement Database::prepare(const String &request)
 	return Statement(mDb, stmt);
 }
 
+void Database::execute(const String &request)
+{
+	Statement statement = prepare(request);
+	statement.step();
+	statement.finalize();
+}
+
+int64_t Database::insertId(void) const
+{
+	return sqlite3_last_insert_rowid(mDb); 
+}
+
 Database::Statement::Statement(sqlite3 *db, sqlite3_stmt *stmt) :
 	mDb(db),
 	mStmt(stmt)
@@ -54,14 +66,14 @@ Database::Statement::Statement(sqlite3 *db, sqlite3_stmt *stmt) :
 
 Database::Statement::~Statement(void)
 {
-	finalize();
+	// DO NOT call finalize, object is passed by copy
 }
 
-bool Database::Statement::next(void)
+bool Database::Statement::step(void)
 {
 	int status = sqlite3_step(mStmt);
 	if(status != SQLITE_DONE && status != SQLITE_ROW)
-		throw DatabaseException(mDb, "Statement failed");
+		throw DatabaseException(mDb, "Statement execution failed");
 	  
 	return (status == SQLITE_ROW);
 }
@@ -76,6 +88,74 @@ void Database::Statement::finalize(void)
 {
 	  sqlite3_finalize(mStmt);
 	  mStmt = NULL;
+}
+
+void Database::Statement::execute(void)
+{
+	step();
+	finalize();
+}
+
+int Database::Statement::parametersCount(void) const
+{
+	return sqlite3_bind_parameter_count(mStmt);
+}
+
+void Database::Statement::bind(int parameter, int value)
+{
+	if(sqlite3_bind_int(mStmt, parameter, value) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+}
+
+void Database::Statement::bind(int parameter, int64_t value)
+{
+	if(sqlite3_bind_int64(mStmt, parameter, sqlite3_int64(value)) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
+}
+
+void Database::Statement::bind(int parameter, unsigned value)
+{
+	if(sqlite3_bind_int(mStmt, parameter, int(value)) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+}
+
+void Database::Statement::bind(int parameter, uint64_t value)
+{
+	if(sqlite3_bind_int64(mStmt, parameter, sqlite3_int64(value)) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
+}
+
+void Database::Statement::bind(int parameter, float value)
+{
+	if(sqlite3_bind_double(mStmt, parameter, double(value)) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
+}
+
+void Database::Statement::bind(int parameter, double value)
+{
+	if(sqlite3_bind_double(mStmt, parameter, value) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
+}
+
+void Database::Statement::bind(int parameter, const String &value)
+{
+	if(sqlite3_bind_text(mStmt, parameter, value.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+}
+
+void Database::Statement::bind(int parameter, const ByteString &value)
+{
+	// TODO
+	std::vector<char> tmp;
+	tmp.assign(value.begin(), value.end());
+	if(sqlite3_bind_blob(mStmt, parameter, &tmp[0], tmp.size(), SQLITE_TRANSIENT) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+}
+
+void Database::Statement::bindNull(int parameter)
+{
+	if(sqlite3_bind_null(mStmt, parameter) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
 int Database::Statement::columnsCount(void) const
@@ -108,7 +188,22 @@ String Database::Statement::value(int column) const
 		
 void Database::Statement::value(int column, int &v) const
 {
-	v = sqlite3_column_double(mStmt, column);
+	v = sqlite3_column_int(mStmt, column);
+}
+
+void Database::Statement::value(int column, int64_t &v) const
+{
+	v = sqlite3_column_int64(mStmt, column);
+}
+
+void Database::Statement::value(int column, unsigned &v) const
+{
+	v = unsigned(sqlite3_column_int(mStmt, column));
+}
+
+void Database::Statement::value(int column, uint64_t &v) const
+{
+	v = uint64_t(sqlite3_column_int64(mStmt, column));
 }
 
 void Database::Statement::value(int column, float &v) const
@@ -123,18 +218,21 @@ void Database::Statement::value(int column, double &v) const
 
 void Database::Statement::value(int column, String &v) const
 {
-  	v = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+  	const char * text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+	if(text) v = text;
+	else v.clear();
 }
 
 void Database::Statement::value(int column, ByteString &v) const
 {
 	int size = sqlite3_column_bytes(mStmt, column);
 	const char *data = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
-	v.assign(data, data+size);
+	if(data) v.assign(data, data+size);
+	else v.clear();
 }
 
 DatabaseException::DatabaseException(sqlite3 *db, const String &message) :
-	Exception(String("Database error: ") + message + String(": ") + sqlite3_errmsg(db))
+	Exception(String("Database error: ") + message + String(": ") + String(sqlite3_errmsg(db)))
 {
   
 }

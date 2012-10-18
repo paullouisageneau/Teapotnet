@@ -32,65 +32,61 @@ namespace tpot
 Map<Identifier,String> Store::Resources;
 Mutex Store::ResourcesMutex;
   
-const size_t Store::ChunkSize = 256*1024;		// 256 Kio
-
-bool Store::GetResource(const Identifier &hash, Entry &entry, bool content)
+bool Store::GetResource(const Identifier &hash, Entry &entry)
 {
-	entry.content = NULL;
-	entry.info.clear();
-	entry.hash = hash;
-	entry.url.clear();
-	entry.path.clear();
-
-	String entryName;
+	String path;
 	ResourcesMutex.lock();
-	if(Resources.get(hash, entryName))	// Hash is on content
+	bool found = Resources.get(hash, path);
+	ResourcesMutex.unlock();
+	if(!found) return false;
+	
+	Log("Store::GetResource", "Requested " + hash.toString());  
+
+	if(!File::Exist(path))
 	{
+		ResourcesMutex.lock();
+		Resources.erase(hash);
 		ResourcesMutex.unlock();
-		try {
-			Log("Store::GetResource", "Requested " + hash.toString());  
-
-			if(!File::Exist(entryName))
-			{
-				Log("Store", "WARNING: No entry for " + hash.toString());
-				ResourcesMutex.lock();
-				Resources.erase(hash);
-				ResourcesMutex.unlock();
-				return false;
-			}
-				
-			File file(entryName, File::Read);
-			file.readLine(entry.path);
-			file.read(entry.info);
-			if(entry.url.empty()) entry.info.get("url", entry.url);
-		}
-		catch(const Exception &e)
-		{
-			Log("Store", "Corrupted entry for \""+hash.toString()+"\": "+e.what());
-			return false;
-		}
-		
-		if(content && entry.info.get("type") != "directory") 
-			entry.content = new File(entry.path, File::Read);	// content = file
-
-		return true;
+		return false;
 	}
 	
-	ResourcesMutex.unlock();
-	return false;
+	entry.hash = hash;
+	entry.url.clear();	// no url
+	entry.path.clear();	// no path
+	entry.type = 1;		// file
+	entry.size = File::Size(path);
+	entry.time = File::Time(path);
+		
+	int pos = path.lastIndexOf(Directory::Separator);
+	if(pos == String::NotFound) entry.name = path;
+	else entry.name = path.substr(pos+1);
+
+	return true;
 }
 
 Store::Store(User *user) :
 	mUser(user)
 {
   	Assert(mUser != NULL);
+	
+	mDatabase = new Database(mUser->profilePath() + "files.db");
+	
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
+	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+	parent_id INTEGER,\
+	path TEXT UNIQUE,\
+	url TEXT UNIQUE,\
+	hash BLOB,\
+	name_rowid INTEGER,\
+	size INTEGER(8),\
+	time INTEGER(8),\
+	type INTEGER(1),\
+	seen INTEGER(1))");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS hash ON files (hash)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS parent_id ON files (parent_id)");
+	mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
+	
 	mFileName = mUser->profilePath() + "directories";
-	mDatabasePath = mUser->profilePath() + "db" + Directory::Separator;
-	
-	if(!Directory::Exist(mDatabasePath))
-		Directory::Create(mDatabasePath);
-	
-	Interface::Instance->add("/"+mUser->name()+"/files", this);
 	
 	try {
 	  File file(mFileName, File::Read);
@@ -103,6 +99,8 @@ Store::Store(User *user) :
 	{
 	  
 	}
+	
+	Interface::Instance->add("/"+mUser->name()+"/files", this);
 }
 
 Store::~Store(void)
@@ -158,117 +156,180 @@ void Store::save(void) const
 void Store::update(void)
 {
 	Synchronize(this);
-	
-	mUpdateMutex.lock();
 	Log("Store::update", "Started");
 	
-	Identifier hash;
-	Sha512::Hash("/", hash);
-	String entryName = mDatabasePath + hash.toString();
-	SafeWriteFile dirEntry(entryName);
-	YamlSerializer dirSerializer(&dirEntry);
-	dirSerializer.output(String(""));
-
-	StringMap header;
-	header["name"] = "/";
-	header["type"] = "directory";
-	header["url"] = "/";
-	header["time"] << time(NULL);
-	dirSerializer.output(header);
+	mDatabase->execute("UPDATE files SET seen=0");
 	
 	for(StringMap::iterator it = mDirectories.begin();
 			it != mDirectories.end();
 			++it)
-	{	
-		updateDirectory("/" + it->first, it->second);
-		
-		StringMap info;
-		info["name"] = it->first;
-		info["type"] = "directory";
-		info["url"]  = "/" + it->first; 
-		info["time"] << time(NULL);
-		dirSerializer.output(info);
-	}
-	
-	Log("Store::update", "Finished");
-	mUpdateMutex.unlock();
-}
-
-bool Store::get(const Identifier &identifier, Entry &entry, bool content)
-{
-	Synchronize(this);
-  
-	entry.content = NULL;
-	entry.info.clear();
-	
-	if(entry.hash != identifier)
-	{
-		entry.hash = identifier;
-		entry.url.clear();
-	}
-
-	String entryName = mDatabasePath + identifier.toString();
-	if(File::Exist(entryName))
-	{
-		try {
-			entry.content = new File(entryName, File::Read);	// content = meta
-			entry.content->readLine(entry.path);
-			entry.content->read(entry.info);
-			if(entry.url.empty()) entry.info.get("url", entry.url);
-
-			Log("Store", "Requested \"" + entry.info.get("name") + "\" from url");
-			
-			if(!content)
-			{
-				delete entry.content;
-				entry.content = NULL;
-			}
-			
-			return true;
-		}
-		catch(const Exception &e)
-		{
-			if(entry.content)
-			{
-				delete entry.content;
-				entry.content = NULL;
-			}
-
-			Log("Store", "Corrupted entry for \""+identifier.toString()+"\": "+e.what());
-			return false;
-		}
-	}
-
-	return GetResource(identifier, entry, content);
-}
-
-bool Store::get(const String &url, Entry &entry, bool content)
-{
-	Synchronize(this);
-	
-  	entry.content = NULL;
-	entry.url = url;
-	entry.hash.clear();
-	entry.info.clear();
-	
-  	if(url.empty()) return false;
-	
 	try {
-		if(url.find('/') == String::NotFound)	// url is a hash
+		const String &name = it->first;
+		const String &path = it->second;
+		String url = "/" + name;
+
+		Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE path=?1");
+		statement.bind(1, path);
+		
+		// Entry already exists
+		if(statement.step())
 		{
-			String s(url);
-			s >> entry.hash;
+			int64_t id;
+			statement.value(1, id);
+			statement.finalize();
+			
+			statement = mDatabase->prepare("UPDATE files SET parent_id=0, url=?2, size=0, time=?3, type=0, seen=1 WHERE id=?1");
+			statement.bind(1, id);
+			statement.bind(2, url);
+			statement.bind(3, int64_t(time(NULL)));
+			statement.execute();
+			
+			updateDirectory(url, path, id);
 		}
 		else {
-			Sha512::Hash(url, entry.hash);
+		  	statement.finalize();
+		  	Log("Store", String("Processing: ")+name);
+			
+			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
+			statement.bind(1, name);
+			statement.execute();
+			
+			statement = mDatabase->prepare("INSERT INTO files (path, url, time, name_rowid, parent_id, hash, size, type, seen)\
+				VALUES (?1, ?2, ?3, ?4, 0, NULL, 0, 0, 1)");
+			statement.bind(1, path);
+			statement.bind(2, url);
+			statement.bind(3, int64_t(time(NULL)));
+			statement.bind(4, mDatabase->insertId());
+			statement.execute();
+			
+			updateDirectory(url, path, mDatabase->insertId());
 		}
 	}
-	catch(...)
+	catch(const Exception &e)
 	{
+		Log("Store", String("Processing failed for ")+it->first+": "+e.what());
+
+	}
+	
+	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
+	
+	Log("Store::update", "Finished");
+}
+
+bool Store::queryEntry(const String &url, Entry &entry)
+{
+	Synchronize(this);
+	
+	if(url == "/")
+	{
+		entry.path = "";
+		entry.url = "/";
+		entry.hash.clear();
+		entry.size = 0;
+		entry.time = time(NULL);
+		entry.type = 0;
+		return true;
+	}
+	
+	Database::Statement statement = mDatabase->prepare("SELECT id, path, url, hash, size, time, type FROM files WHERE url = ?1");
+	statement.bind(1, url);
+	
+	if(!statement.step())
+	{
+		statement.finalize();
 		return false;
 	}
+	
+	int64_t id;
+	statement.value(1, id);
+	statement.value(2, entry.path);
+	statement.value(3, entry.url);
+	statement.value(4, entry.hash);
+	statement.value(5, entry.size);
+	statement.value(6, entry.time);
+	statement.value(7, entry.type);
+	statement.finalize();
+	return true;
+}
 
-	return get(entry.hash, entry, content);
+bool Store::queryList(const String &url, List<Store::Entry> &list)
+{
+	Synchronize(this);
+	list.clear();
+	
+	int64_t id = 0;
+	if(url != "/")
+	{
+		Database::Statement statement = mDatabase->prepare("SELECT id, type FROM files WHERE url = ?1");
+		statement.bind(1, url);
+		
+		if(!statement.step())
+		{
+			statement.finalize();
+			return false;
+		}
+		
+		int type;
+		statement.value(1, id);
+		statement.value(2, type);
+		statement.finalize();
+
+		if(type != 0) return false;
+	}
+	
+	Database::Statement statement = mDatabase->prepare("SELECT path, url, size, time, type FROM files WHERE parent_id = ?1");
+	statement.bind(1, id);
+			
+	while(statement.step())
+	{
+		Entry entry;
+		
+		int64_t size, time;
+		int type;
+		String path, url;
+		statement.value(1, path);
+		statement.value(2, url);
+		statement.value(3, size);
+		statement.value(4, time);
+		statement.value(5, type);
+					
+		String name;
+		int pos = url.lastIndexOf('/');
+		if(pos == String::NotFound) name = url;
+		else name = url.substr(pos+1);	
+		
+		list.push_back(entry);
+	}
+	
+	statement.finalize(); 
+	return true;
+}
+
+bool Store::queryResource(const Identifier &hash, Entry &entry)
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("SELECT id, path, url, size, time, type FROM files WHERE hash = ?1 ORDER BY time DESC LIMIT 1");
+	statement.bind(1, hash);
+	
+	if(statement.step())
+	{
+		int64_t id;
+		statement.value(1, id);
+		statement.value(2, entry.path);
+		statement.value(3, entry.url);
+		statement.value(4, entry.size);
+		statement.value(5, entry.time);
+		statement.value(6, entry.type);
+		statement.finalize();
+		
+		entry.hash = hash;
+		Assert(entry.type != 0);	// the result cannot be a directory
+		return true;
+	}
+	
+	statement.finalize();
+	return GetResource(hash, entry);
 }
 
 void Store::http(const String &prefix, Http::Request &request)
@@ -417,138 +478,120 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 }
 
-void Store::updateDirectory(const String &dirUrl, const String &dirPath)
+void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t dirId)
 {
 	Synchronize(this);
 	Log("Store", String("Refreshing directory: ")+dirUrl);
-
-	Identifier hash;
-	Sha512::Hash(dirUrl, hash);
-	String entryName = mDatabasePath + hash.toString();
-	File dirEntry(entryName, File::Write);
-	YamlSerializer dirSerializer(&dirEntry);
-	dirSerializer.output(dirPath);
-
-	StringMap header;
-	header["url"] = dirUrl;
-	header["name"] = dirUrl.substr(dirUrl.lastIndexOf('/')+1);
-	header["type"] = "directory";
-	header["time"] << time(NULL);
-	dirSerializer.output(header);
-	dirSerializer.outputClose();
-
+	
+	ByteString hash;
 	Directory dir(dirPath);
-	while(dir.nextFile())
-	{
-		String url(dirUrl + '/' + dir.fileName());
-		Identifier urlHash;
-		Sha512::Hash(url, urlHash);
-		String entryName = mDatabasePath + urlHash.toString();
-
-		if(!dir.fileIsDir() && File::Exist(entryName))
+	while(dir.nextFile()) 
+	try {
+		String fileUrl = dirUrl + '/' + dir.fileName();
+	
+		Database::Statement statement = mDatabase->prepare("SELECT id, url, hash, size, time, type FROM files WHERE path = ?1");
+		statement.bind(1, dir.filePath());
+		
+		int64_t id;
+		if(statement.step())	// Entry already exists
 		{
-			try {
-				File file(entryName, File::Read);
-				YamlSerializer serializer(&file);
-				
-				String path;
-				StringMap header;
-				serializer.input(path);
-				serializer.input(header);
-				
-				Assert(header.get("type") != "directory");
-				Assert(header.get("url") == url);
-				
-				StringMap origHeader(header);
-				
-				time_t time;
-				size_t size;
-				Identifier hash;
-				size_t chunkSize;
-				unsigned chunkCount;
-				header["time"] >> time;
-				header["size"] >> size;
-				header["chunk-size"] >> chunkSize;
-				header["chunk-count"] >> chunkCount;
-				header["hash"] >> hash;
-
-				// If the file has not changed, don't hash it again
-				if(size == dir.fileSize() && time == dir.fileTime())
-				{
-				 	ResourcesMutex.lock();
-					Resources.insert(hash, entryName);
-					ResourcesMutex.unlock();
-					dirSerializer.output(origHeader);
-					continue;
-				}
-			}
-			catch(const Exception &e)
-			{
-				Log("Store", String("Corrupted entry for ")+dir.fileName()+": "+e.what());
-			}
-		}
-
-		Log("Store", String("Processing: ")+dir.fileName());
-
-		try {
-			Desynchronize(this);
+			int64_t size, time;
+			int type;
+			String url;
+			statement.value(1, id);
+			statement.value(2, url);
+			statement.value(3, hash);
+			statement.value(4, size);
+			statement.value(5, time);
+			statement.value(6, type);
+			statement.finalize();
 			
-			if(dir.fileIsDir())
+			if(url != fileUrl)
 			{
-			  	StringMap info;
-				dir.getFileInfo(info);
-				info["type"] = "directory";
-				info["url"] = url;
-				dirSerializer.output(info);
-				
-				updateDirectory(url, dir.filePath());
+				statement = mDatabase->prepare("UPDATE files SET url=?2 WHERE id=?1");
+				statement.bind(1, id);
+				statement.bind(2, fileUrl);
+				statement.execute();
 			}
-			else 
-			{	
-			  	Identifier dataHash;
-				File data(dir.filePath(), File::Read);
-				Sha512::Hash(data, dataHash);
-				data.close();
-
-				size_t   chunkSize = ChunkSize;
-				unsigned chunkCount = dir.fileSize()/ChunkSize + 1;
-
-				StringMap header;
-				dir.getFileInfo(header);
-				header["type"] = "file";
-				header["url"] = url;
-				header["chunk-size"] << chunkSize;
-				header["chunk-count"] << chunkCount;
-				header["hash"] << dataHash;
+			
+			if(size == dir.fileSize() && time == dir.fileTime())
+			{
+				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, seen=1 WHERE id=?1");
+				statement.bind(1, id);
+				statement.bind(2, dirId);
+				statement.execute();
+			}
+			else {	// file has changed
+			  
+			  	hash.clear();
 				
-				ResourcesMutex.lock();
-				Resources.insert(hash, entryName);
-				ResourcesMutex.unlock();
-
-				File file(entryName, File::Write);
-				YamlSerializer serializer(&file);
-				serializer.output(dir.filePath());
-				serializer.output(header);
-				serializer.outputClose();
-				
-				dirSerializer.output(header);
-
-				data.open(dir.filePath(), File::Read);
-				serializer.outputArrayBegin(chunkCount);
-				for(unsigned i=0; i<chunkCount; ++i)
-				{
-					dataHash.clear();
-					AssertIO(Sha512::Hash(data, ChunkSize, dataHash));
-					serializer.outputArrayElement(dataHash);
+				if(dir.fileIsDir()) type = 0;
+				else {
+					Desynchronize(this);
+					type = 1;
+					File data(dir.filePath(), File::Read);
+					Sha512::Hash(data, hash);
+					data.close();
 				}
-				serializer.outputArrayEnd();
+				
+				size = dir.fileSize();
+				time = dir.fileTime();
+				
+				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, hash=?3, size=?4, time=?5, type=?6, seen=1 WHERE id=?1");
+				statement.bind(1, id);
+				statement.bind(2, dirId);
+				statement.bind(3, hash);
+				statement.bind(4, size);
+				statement.bind(5, time);
+				statement.bind(6, type);
+				statement.execute();
 			}
 		}
-		catch(const Exception &e)
-		{
-			Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
-			File::Remove(entryName);
+		else {
+			statement.finalize();
+		  	Log("Store", String("Processing: ")+dir.fileName());
+		  
+			int type;
+			if(dir.fileIsDir()) type = 0;
+			else {
+			  	Desynchronize(this);
+				type = 1;
+				File data(dir.filePath(), File::Read);
+				Sha512::Hash(data, hash);
+				data.close();
+			}
+			
+			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
+			statement.bind(1, dir.fileName());
+			statement.execute();
+			
+			statement = mDatabase->prepare("INSERT INTO files (parent_id, path, url, hash, size, time, type, name_rowid, seen)\
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)");
+			statement.bind(1, dirId);
+			statement.bind(2, dir.filePath());
+			statement.bind(3, fileUrl);
+			if(dir.fileIsDir()) statement.bindNull(4);
+			else statement.bind(4, hash);
+			statement.bind(5, int64_t(dir.fileSize()));
+			statement.bind(6, int64_t(dir.fileTime()));
+			statement.bind(7, type);
+			statement.bind(8, mDatabase->insertId());
+			statement.execute();
+			
+			id = mDatabase->insertId();
 		}
+		
+		if(dir.fileIsDir()) updateDirectory(fileUrl, dir.filePath(), id);
+		else {
+			ResourcesMutex.lock();
+			Resources.insert(hash, dir.filePath());
+			ResourcesMutex.unlock();
+		}
+	}
+	catch(const Exception &e)
+	{
+		Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
+
 	}
 }
 

@@ -31,6 +31,7 @@
 #include "http.h"
 #include "interface.h"
 #include "mutex.h"
+#include "database.h"
 
 namespace tpot
 {
@@ -45,11 +46,13 @@ public:
 		Identifier 	hash;
 		String		url;
 		String		path;
-		StringMap	info;
-		File		*content;	// file content
+		String		name;
+		int		type;
+		uint64_t	size;
+		uint64_t	time;
 	};
   
-  	static bool GetResource(const Identifier &hash, Entry &entry, bool content = true);
+  	static bool GetResource(const Identifier &hash, Entry &entry);
 	static const size_t ChunkSize;
 
 	Store(User *user);
@@ -64,25 +67,25 @@ public:
 	void save(void) const;
 	void update(void);
 
-	bool get(const Identifier &identifier, Entry &entry, bool content = true);
-	bool get(const String &url, Entry &entry, bool content = true);
+	bool queryEntry(const String &url, Entry &entry);
+	bool queryList(const String &url, List<Entry> &list);
+	bool queryResource(const Identifier &hash, Entry &entry);
 
 	void http(const String &prefix, Http::Request &request);
 
 private:  
-	void updateDirectory(const String &dirUrl, const String &dirPath);
+	void updateDirectory(const String &dirUrl, const String &dirPath, int64_t dirId);
 	String urlToPath(const String &url) const;
 	void run(void);
 
 	User *mUser;
+	Database *mDatabase;
 	String mFileName;
-	String mDatabasePath;
 	StringMap mDirectories;
-	Mutex mUpdateMutex;
 	
 	static void keywords(String name, Set<String> &result);
 	
-	static Map<Identifier,String> Resources;	// entry names by data hash
+	static Map<Identifier,String> Resources;	// path by data hash
 	static Mutex ResourcesMutex;
 };
 

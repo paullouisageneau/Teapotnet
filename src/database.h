@@ -44,18 +44,33 @@ public:
 		Statement(sqlite3 *db, sqlite3_stmt *stmt);
 		~Statement(void);
 		
-		bool next(void);
+		bool step(void);
 		void reset(void);
 		void finalize(void);
 		
+		void execute(void);	// step + finalize
+		
 		enum type_t { Null, Integer, Float, Text, Blob };
+		
+		int parametersCount(void) const;
+		void bind(int parameter, int value);
+		void bind(int parameter, int64_t value);
+		void bind(int parameter, unsigned value);
+		void bind(int parameter, uint64_t value);
+		void bind(int parameter, float value);
+		void bind(int parameter, double value);
+		void bind(int parameter, const String &value);
+		void bind(int parameter, const ByteString &value);
+		void bindNull(int parameter);
 		
 		int columnsCount(void) const;
 		type_t type(int column) const;
 		String name(int column) const;
 		String value(int column) const;
-		
 		void value(int column, int &v) const;
+		void value(int column, int64_t &v) const;
+		void value(int column, unsigned &v) const;
+		void value(int column, uint64_t &v) const;
 		void value(int column, float &v) const;
 		void value(int column, double &v) const;
 		void value(int column, String &v) const;
@@ -67,7 +82,9 @@ public:
 	};
 	
 	Statement prepare(const String &request);
-
+	void execute(const String &request);
+	int64_t insertId(void) const;
+	
 private:
 	sqlite3 *mDb;
 };

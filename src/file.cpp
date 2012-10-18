@@ -55,6 +55,13 @@ uint64_t File::Size(const String &filename)
 	return uint64_t(st.st_size);
 }
 
+uint64_t File::Time(const String &filename)
+{
+	stat_t st;
+	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
+	return uint64_t(st.st_mtime);
+}
+
 File::File(void)
 {
 
