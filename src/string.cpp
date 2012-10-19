@@ -251,6 +251,20 @@ String String::right(int n) const
     return this->substr(std::max(int(this->size())-n,0), std::min(n,int(this->size())));
 }
 
+String String::after(char c) const
+{
+	int pos = this->indexOf(c);
+	if(pos == NotFound) return *this;
+	else return this->substr(pos+1);   
+}
+
+String String::afterLast(char c) const
+{
+	int pos = this->lastIndexOf(c);
+	if(pos == NotFound) return *this;
+	else return this->substr(pos+1); 
+}
+
 String String::toLower(void) const
 {
 	String s(*this);

@@ -183,7 +183,9 @@ String Database::Statement::name(int column) const
 
 String Database::Statement::value(int column) const
 {
-	return String(reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column)));
+	const char * text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+	if(text) return String(text);
+	else return String();
 }
 		
 void Database::Statement::value(int column, int &v) const
@@ -218,7 +220,7 @@ void Database::Statement::value(int column, double &v) const
 
 void Database::Statement::value(int column, String &v) const
 {
-  	const char * text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+  	const char *text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
 	if(text) v = text;
 	else v.clear();
 }

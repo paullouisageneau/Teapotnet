@@ -583,15 +583,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					else try {
 						if(parameters.contains("type") && parameters["type"] == "directory")
 						{
-							YamlSerializer serializer(response->content());
+						  	YamlSerializer serializer(response->content());
 							
 							Map<String, StringMap> files;
-						  	StringMap info;
-							while(serializer.input(info))
+						  	StringMap map;
+							while(serializer.input(map))
 							{
-							 	if(!info.contains("type")) break;
-								if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);
-								else files.insert("1"+info.get("name"),info);
+							 	if(!map.contains("type")) break;
+								if(map.get("type") == "directory") files.insert("0"+map.get("name"),map);
+								else files.insert("1"+map.get("name"),map);
 							}
 							
 							page.open("table");
@@ -599,16 +599,16 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 								it != files.end();
 								++it)
 							{
-							  	StringMap &info = it->second;
+							  	StringMap &map = it->second;
 								
 								page.open("tr");
 								page.open("td"); 
-								if(info.get("type") == "directory") page.link(base + info.get("name"), info.get("name"));
-								else page.link("/" + info.get("hash"), info.get("name"));
+								if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+								else page.link("/" + map.get("hash"), map.get("name"));
 								page.close("td");
 								page.open("td"); 
-								if(info.get("type") == "directory") page.text("directory");
-								else page.text(String::hrSize(info.get("size")));
+								if(map.get("type") == "directory") page.text("directory");
+								else page.text(String::hrSize(map.get("size")));
 								page.close("td");
 								page.open("tr");
 							}

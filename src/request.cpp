@@ -201,8 +201,11 @@ bool Request::execute(Store *store)
 					map["name"] = entry.name;
 					map["size"] << entry.size;
 					map["time"] << entry.time;
-					if(entry.type) map["type"] = "directory";
-					else map["type"] = "files";
+					if(!entry.type) map["type"] = "directory";
+					else {
+						map["type"] = "file";
+						map["hash"] << entry.hash;
+					}
 					serializer.output(map);
 				}
 			}

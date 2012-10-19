@@ -70,7 +70,8 @@ public:
 	bool queryEntry(const String &url, Entry &entry);
 	bool queryList(const String &url, List<Entry> &list);
 	bool queryResource(const Identifier &hash, Entry &entry);
-
+	bool search(const String &keywords, List<Entry> &list);
+	
 	void http(const String &prefix, Http::Request &request);
 
 private:  

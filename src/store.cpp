@@ -51,15 +51,12 @@ bool Store::GetResource(const Identifier &hash, Entry &entry)
 	}
 	
 	entry.hash = hash;
+	entry.path = path;
 	entry.url.clear();	// no url
-	entry.path.clear();	// no path
 	entry.type = 1;		// file
 	entry.size = File::Size(path);
 	entry.time = File::Time(path);
-		
-	int pos = path.lastIndexOf(Directory::Separator);
-	if(pos == String::NotFound) entry.name = path;
-	else entry.name = path.substr(pos+1);
+	entry.name = path.afterLast(Directory::Separator);
 
 	return true;
 }
@@ -211,7 +208,7 @@ void Store::update(void)
 
 	}
 	
-	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
+	//mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
 	
 	Log("Store::update", "Finished");
 }
@@ -241,14 +238,16 @@ bool Store::queryEntry(const String &url, Entry &entry)
 	}
 	
 	int64_t id;
-	statement.value(1, id);
-	statement.value(2, entry.path);
-	statement.value(3, entry.url);
-	statement.value(4, entry.hash);
-	statement.value(5, entry.size);
-	statement.value(6, entry.time);
-	statement.value(7, entry.type);
+	statement.value(0, id);
+	statement.value(1, entry.path);
+	statement.value(2, entry.url);
+	statement.value(3, entry.hash);
+	statement.value(4, entry.size);
+	statement.value(5, entry.time);
+	statement.value(6, entry.type);
 	statement.finalize();
+
+	entry.name = entry.url.afterLast('/');
 	return true;
 }
 
@@ -270,33 +269,27 @@ bool Store::queryList(const String &url, List<Store::Entry> &list)
 		}
 		
 		int type;
-		statement.value(1, id);
-		statement.value(2, type);
+		statement.value(0, id);
+		statement.value(1, type);
 		statement.finalize();
 
 		if(type != 0) return false;
 	}
 	
-	Database::Statement statement = mDatabase->prepare("SELECT path, url, size, time, type FROM files WHERE parent_id = ?1");
+	Database::Statement statement = mDatabase->prepare("SELECT path, url, hash, size, time, type FROM files WHERE parent_id = ?1");
 	statement.bind(1, id);
 			
 	while(statement.step())
 	{
 		Entry entry;
-		
-		int64_t size, time;
-		int type;
-		String path, url;
-		statement.value(1, path);
-		statement.value(2, url);
-		statement.value(3, size);
-		statement.value(4, time);
-		statement.value(5, type);
+		statement.value(0, entry.path);
+		statement.value(1, entry.url);
+		statement.value(2, entry.hash);
+		statement.value(3, entry.size);
+		statement.value(4, entry.time);
+		statement.value(5, entry.type);
 					
-		String name;
-		int pos = url.lastIndexOf('/');
-		if(pos == String::NotFound) name = url;
-		else name = url.substr(pos+1);	
+		entry.name = entry.url.afterLast('/');
 		
 		list.push_back(entry);
 	}
@@ -315,21 +308,28 @@ bool Store::queryResource(const Identifier &hash, Entry &entry)
 	if(statement.step())
 	{
 		int64_t id;
-		statement.value(1, id);
-		statement.value(2, entry.path);
-		statement.value(3, entry.url);
-		statement.value(4, entry.size);
-		statement.value(5, entry.time);
-		statement.value(6, entry.type);
+		statement.value(0, id);
+		statement.value(1, entry.path);
+		statement.value(2, entry.url);
+		statement.value(3, entry.size);
+		statement.value(4, entry.time);
+		statement.value(5, entry.type);
 		statement.finalize();
 		
 		entry.hash = hash;
+		entry.name = entry.url.afterLast('/');
+		
 		Assert(entry.type != 0);	// the result cannot be a directory
 		return true;
 	}
 	
 	statement.finalize();
 	return GetResource(hash, entry);
+}
+
+bool Store::search(const String &keywords, List<Entry> &list)
+{
+	return false; 
 }
 
 void Store::http(const String &prefix, Http::Request &request)
@@ -523,13 +523,12 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t
 			}
 			else {	// file has changed
 			  
-			  	hash.clear();
-				
 				if(dir.fileIsDir()) type = 0;
 				else {
 					Desynchronize(this);
 					type = 1;
 					File data(dir.filePath(), File::Read);
+					hash.clear();
 					Sha512::Hash(data, hash);
 					data.close();
 				}
@@ -557,6 +556,7 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t
 			  	Desynchronize(this);
 				type = 1;
 				File data(dir.filePath(), File::Read);
+				hash.clear();
 				Sha512::Hash(data, hash);
 				data.close();
 			}

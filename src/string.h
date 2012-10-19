@@ -73,6 +73,9 @@ public:
 	String left(int pos) const;
 	String right(int pos) const;
 	
+	String after(char c) const;
+	String afterLast(char c) const;
+	
 	String toLower(void) const;
 	String toUpper(void) const;
 	String capitalized(void) const;

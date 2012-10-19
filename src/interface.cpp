@@ -189,7 +189,7 @@ void Interface::process(Http::Request &request)
 			catch(...) { throw 404; }
 		
 			Store::Entry entry;
-			if(Store::GetResource(hash, entry))
+			if(Store::GetResource(hash, entry) && !entry.path.empty())
 			{
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
@@ -235,6 +235,8 @@ void Interface::process(Http::Request &request)
 				}
 				
 				file.read(*response.sock);
+				file.close();
+				File::Remove(filename);
 				return;
 			}
 		}
