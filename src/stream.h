@@ -83,6 +83,7 @@ public:
 	inline bool	read(signed short &i) 		{ return readStd(i); }
 	inline bool	read(signed int &i) 		{ return readStd(i); }
 	inline bool	read(signed long &i) 		{ return readStd(i); }
+	inline bool     read(signed long long &i)       { return readStd(i); }
 	inline bool	read(unsigned char &i) 		{ return readStd(i); }
 	inline bool	read(unsigned short &i) 	{ return readStd(i); }
 	inline bool	read(unsigned int &i) 		{ return readStd(i); }
@@ -109,6 +110,7 @@ public:
 	inline void	write(signed short i) 		{ writeStd(i); }
 	inline void	write(signed int i) 		{ writeStd(i); }
 	inline void	write(signed long i) 		{ writeStd(i); }
+	inline void     write(signed long long i)       { writeStd(i); }
 	inline void	write(unsigned char i) 		{ writeStd(i); }
 	inline void	write(unsigned short i) 	{ writeStd(i); }
 	inline void	write(unsigned int i) 		{ writeStd(i); }
