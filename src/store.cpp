@@ -81,8 +81,14 @@ Store::Store(User *user) :
 	seen INTEGER(1))");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS hash ON files (hash)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS parent_id ON files (parent_id)");
-	mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
+	//mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
 	
+	// Fix: "IF NOT EXISTS" is not available for virtual tables with old ns-3 versions
+	Database::Statement statement = mDatabase->prepare("select DISTINCT tbl_name from sqlite_master where tbl_name = 'names'");
+	if(!statement.step()) mDatabase->execute("CREATE VIRTUAL TABLE names USING FTS3(name)");	
+	statement.finalize();
+	//
+
 	mFileName = mUser->profilePath() + "directories";
 	
 	try {
