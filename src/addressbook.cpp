@@ -670,13 +670,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				const unsigned timeout = 5000;	// TODO
+				const unsigned timeoutMin = 3000;	// TODO
+				const unsigned timeoutMax = 5000;	// TODO
 				
 				Request request("search:"+query, false);	// no data
 				try {
 					request.submit(mPeering);
-					request.wait(timeout);	// TODO
-					msleep(1000);		// TODO
+					request.wait(timeoutMax-timeoutMin);
+					msleep(timeoutMin);	// TODO
 				}
 				catch(const Exception &e)
 				{
@@ -686,9 +687,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				Synchronize(&request);
-				
-				if(!request.responsesCount()) page.text("No results...");
+				request.lock();
+				if(!request.responsesCount()) 
+				{
+					page.br();
+					page.text("No results...");
+				}
 				else try {
 					page.open("table");
 					for(int i=0; i<request.responsesCount(); ++i)
@@ -716,9 +720,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
+					page.close("table");
 					page.text("Error, unable to list files");
+					request.unlock();
 				}
 				
+				request.unlock();
 				page.footer();
 				return;
 			}
