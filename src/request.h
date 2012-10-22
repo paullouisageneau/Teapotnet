@@ -55,8 +55,8 @@ public:
 	const Identifier &receiver(void) const;
 	
 	bool isPending() const;
-	void addPending();
-	void removePending();
+	void addPending(const Identifier &peering);
+	void removePending(const Identifier &peering);
 
 	class Response
 	{
@@ -109,7 +109,7 @@ private:
 	Synchronizable *mResponseSender;
 
 	unsigned mId;
-	int mPendingCount;
+	Set<Identifier> mPending;
 
 	Array<Response*> mResponses;
 

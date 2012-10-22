@@ -512,6 +512,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			page.link(prefix+"/files/","Files");
 			page.br();
+			page.link(prefix+"/search/","Search");
+			page.br();
 			page.link(prefix+"/chat/","Chat");
 			int msgcount = unreadMessagesCount();
 			if(msgcount) 
@@ -556,10 +558,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();	
 				
 				Html page(response.sock);
-				page.header("Files: "+mName);
+				page.header(mName+": Files");
 				page.open("h1");
-				page.text("Files: "+mName);
+				page.text(mName+": Files");
 				page.close("h1");
+				
+				page.link(prefix+"/search/","Search files");
 				
 				Request request(target);
 				try {
@@ -577,6 +581,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(request.responsesCount() > 0)
 				{
 					Request::Response *response = request.response(0);
+					if(response->error())
+						throw Exception(String("Response status code ")+String::number(response->status()));
+					
 					StringMap parameters = response->parameters();
 					
 					if(!response->content()) page.text("No content...");
@@ -610,7 +617,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 								if(map.get("type") == "directory") page.text("directory");
 								else page.text(String::hrSize(map.get("size")));
 								page.close("td");
-								page.open("tr");
+								page.close("tr");
 							}
 
 							page.close("table");
@@ -626,6 +633,90 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
 						page.text("Error, unable to list files");
 					}
+				}
+				
+				page.footer();
+				return;
+			}
+			else if(directory == "search")
+			{
+				if(url != "/") throw 404;
+				
+				String query;
+				if(request.post.contains("query"))
+				{
+					query = request.post.get("query");
+					query.trim();
+				}
+				
+				Http::Response response(request,200);
+				response.send();
+				
+				Html page(response.sock);
+				page.header(mName+": Search");
+				page.open("h1");
+				page.text(mName+": Search");
+				page.close("h1");
+				
+				page.openForm(prefix + "/search", "post", "searchform");
+				page.input("text","query",query);
+				page.button("search","Search");
+				page.closeForm();
+				page.br();
+				
+				if(query.empty())
+				{
+					page.footer();
+					return;
+				}
+				
+				const unsigned timeout = 5000;	// TODO
+				
+				Request request("search:"+query, false);	// no data
+				try {
+					request.submit(mPeering);
+					request.wait(timeout);	// TODO
+					msleep(1000);		// TODO
+				}
+				catch(const Exception &e)
+				{
+					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+					page.text("Not connected...");
+					page.footer();
+					return;
+				}
+				
+				Synchronize(&request);
+				
+				if(!request.responsesCount()) page.text("No results...");
+				else try {
+					page.open("table");
+					for(int i=0; i<request.responsesCount(); ++i)
+					{
+						Request::Response *response = request.response(i);
+						if(response->error())
+							throw Exception(String("Response status code ")+String::number(response->status()));
+					
+						StringMap map = response->parameters();
+						
+						if(!map.contains("type")) break;
+						page.open("tr");
+						page.open("td"); 
+						if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+						else page.link("/" + map.get("hash"), map.get("name"));
+						page.close("td");
+						page.open("td"); 
+						if(map.get("type") == "directory") page.text("directory");
+						else page.text(String::hrSize(map.get("size")));
+						page.close("td");
+						page.close("tr");
+					}
+					page.close("table");
+				}
+				catch(const Exception &e)
+				{
+					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
+					page.text("Error, unable to list files");
 				}
 				
 				page.footer();

@@ -345,7 +345,7 @@ void Core::Handler::addRequest(Request *request)
 	Log("Core::Handler", "New request " + String::number(request->id()));
 	
 	mSender->lock();
-	request->addPending();
+	request->addPending(mPeering);
 	mSender->mRequestsQueue.push(request);
 	mSender->unlock();
 	mSender->notify();
@@ -538,10 +538,9 @@ void Core::Handler::run(void)
 
 					response->mPeering = mPeering;
 					request->addResponse(response);
-
-					request->removePending();	// TODO
+					request->removePending(mPeering);	// this triggers the notification
 				}
-				else Log("Core::Handler", "WARNING: Received response for unknown request "+String::number(id));
+				else Log("Core::Handler", "Warning: Received response for unknown request "+String::number(id));
 			}
 			else if(command == "D")
 			{

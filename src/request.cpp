@@ -30,7 +30,6 @@ namespace tpot
 
 Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
-		mPendingCount(0),
 		mResponseSender(NULL),
 		mContentSink(NULL)
 {
@@ -179,8 +178,11 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	rparameters["name"] << entry.name;
 	rparameters["size"] << entry.size;
 	rparameters["time"] << entry.time;
-	if(entry.type) rparameters["type"] = "file";
-	else rparameters["type"] = "directory";
+	if(!entry.type) rparameters["type"] = "directory";
+	else {
+		rparameters["type"] = "file";
+		rparameters["hash"] << entry.digest;
+	}
 		  
 	if(!mIsData) return new Response(Response::Success, rparameters, NULL);
 		
@@ -282,19 +284,22 @@ const Identifier &Request::receiver(void) const
 
 bool Request::isPending() const
 {
-	return (mPendingCount == 0);
+	return !mPending.empty();
 }
 
-void Request::addPending(void)
+void Request::addPending(const Identifier &peering)
 {
-	mPendingCount++;
+	mPending.insert(peering);
 }
 
-void Request::removePending(void)
+void Request::removePending(const Identifier &peering)
 {
-	Assert(mPendingCount != 0);
-	mPendingCount--;
-	if(mPendingCount == 0) notifyAll();
+	Set<Identifier>::iterator it = mPending.find(peering);
+	if(it != mPending.end())
+	{
+		mPending.erase(it);
+		if(mPending.empty()) notifyAll();
+	}
 }
 
 int Request::responsesCount(void) const

@@ -463,12 +463,12 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	
 	String sql;
 	sql<<"SELECT "<<fields<<" FROM files ";
-	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = names_rowid ";
+	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
 	sql<<"WHERE url NOT NULL ";
 	if(parentId >= 0)		sql<<"AND parent_id = ? ";
 	else if(!url.empty())		sql<<"AND url = ? ";
 	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
-	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ?";
+	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
 	
 	/*if(!query.mTypes.empty())
 	{
