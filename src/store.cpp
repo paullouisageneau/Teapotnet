@@ -254,7 +254,7 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 	}
 
 	statement.finalize();
-	return false;
+	return GlobalInstance->queryEntry(query, entry);
 }
 
 bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
@@ -282,7 +282,7 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 	}
 	
 	statement.finalize();
-	return !list.empty();
+	return !list.empty() || GlobalInstance->queryList(query, list);
 }
 
 void Store::http(const String &prefix, Http::Request &request)
