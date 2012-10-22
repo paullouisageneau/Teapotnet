@@ -617,6 +617,7 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t
 		
 		if(dir.fileIsDir()) updateDirectory(fileUrl, dir.filePath(), id);
 		else {
+			Desynchronize(this);
 			ResourcesMutex.lock();
 			Resources.insert(digest, dir.filePath());
 			ResourcesMutex.unlock();
