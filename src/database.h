@@ -41,6 +41,7 @@ public:
 	class Statement
 	{
 	public:
+		Statement(void);
 		Statement(sqlite3 *db, sqlite3_stmt *stmt);
 		~Statement(void);
 		

@@ -183,20 +183,20 @@ void Interface::process(Http::Request &request)
 	  	if(list.size() != 1) throw 404; 
 	  
 	 	try {
-			Identifier hash;
+			ByteString digest;
 			String tmp = list.front();
-			try { tmp >> hash; }
+			try { tmp >> digest; }
 			catch(...) { throw 404; }
 		
 			Store::Entry entry;
-			if(Store::GetResource(hash, entry) && !entry.path.empty())
+			if(Store::GetResource(digest, entry) && !entry.path.empty())
 			{
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment";
 				response.headers["Content-Length"] << entry.size;
 				response.headers["Content-Disposition"]+= "; filename=\"" + entry.name + "\"";
-				response.headers["Content-SHA512"] = entry.hash;
+				response.headers["Content-SHA512"] = entry.digest.toString();
 				// TODO: Date + Last-Modified
 				response.send();
 				
@@ -207,15 +207,15 @@ void Interface::process(Http::Request &request)
 			else {
 				size_t blockSize = 256*1024;	// TODO
 				
-				String filename("/tmp/"+hash.toString());
-				Splicer splicer(hash, filename, blockSize);
+				String filename("/tmp/"+digest.toString());
+				Splicer splicer(digest, filename, blockSize);
 				File file(filename, File::Read);
 				
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
 				response.headers["Content-Length"] << splicer.size();
-				response.headers["Content-SHA512"] = hash.toString();
+				response.headers["Content-SHA512"] = digest.toString();
 				// TODO: Missing headers
 				response.send();
 				

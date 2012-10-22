@@ -57,6 +57,13 @@ int64_t Database::insertId(void) const
 	return sqlite3_last_insert_rowid(mDb); 
 }
 
+Database::Statement::Statement(void) :
+	mDb(NULL),
+	mStmt(NULL)
+{
+
+}
+
 Database::Statement::Statement(sqlite3 *db, sqlite3_stmt *stmt) :
 	mDb(db),
 	mStmt(stmt)

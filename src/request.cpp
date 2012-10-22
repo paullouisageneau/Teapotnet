@@ -103,123 +103,176 @@ void Request::cancel(void)
 
 bool Request::execute(Store *store)
 {
-	Synchronize(this);  
+	Assert(store);
+	Synchronize(this);
 	
 	StringMap parameters = mParameters;
-
-	bool success = false;
-	Store::Entry entry;
-	if(mTarget.contains('/'))
+	String command;
+	String argument;
+	int pos = mTarget.find(':');
+	if(pos != String::NotFound)
 	{
-		if(store) success = store->queryEntry(mTarget, entry);
+		command  = mTarget.substr(0,pos);
+		argument = mTarget.substr(pos+1);
 	}
 	else {
-	  try {
-	    	Identifier identifier;
-		mTarget >> identifier;
-	  	if(store) success = store->queryResource(identifier, entry);
-		else success = Store::GetResource(identifier, entry);
-	  }
-	  catch(const Exception &e) {}
+		if(mTarget.contains('/')) command  = "file";
+		else command = "digest";
+		argument = mTarget; 
 	}
 	
-	if(!success)
+	if(command == "digest")
 	{
-		addResponse(new Response(Response::NotFound));
-		Log("Request", "Target not Found");
-		return false;
+		ByteString digest;
+		try { mTarget >> digest; }
+		catch(const Exception &e) { digest.clear(); }
+		
+		if(!digest.empty())
+		{
+			Store::Entry entry;
+			if(Store::GetResource(digest, entry))
+			{
+				addResponse(createResponse(entry, parameters, store));
+				return true;
+			}
+		}
 	}
+	else if(command == "file")
+	{
+		if(argument.size() >= 2 && argument[argument.size()-1] == '/')
+			argument.resize(argument.size()-1);
+		
+		Store::Entry entry;
+		if(store->queryEntry(Store::Query(argument), entry))
+		{
+			addResponse(createResponse(entry, parameters, store));
+			return true;
+		}
+	}
+	else if(command == "search")
+	{
+		Store::Query query;
+		query.setMatch(argument);
+		
+		List<Store::Entry> list;
+		if(store->queryList(query, list))
+		{		
+			for(List<Store::Entry>::iterator it = list.begin();
+				it != list.end();
+				++it)
+			{
+				addResponse(createResponse(*it, parameters, store));
+			}
+			
+			return true;
+		}
+	}
+	
+	addResponse(new Response(Response::NotFound));
+	Log("Request", "Target not Found");
+	return false;
+}
 
+Request::Response *Request::createResponse(Store::Entry &entry, const StringMap &parameters, Store *store)
+{
 	StringMap rparameters;
 	rparameters["name"] << entry.name;
 	rparameters["size"] << entry.size;
 	rparameters["time"] << entry.time;
 	if(entry.type) rparameters["type"] = "file";
 	else rparameters["type"] = "directory";
-	
-	if(mIsData)
-	{
-		if(entry.type)	// file
-		{
-			ByteStream *content = NULL;
-			if(!parameters.contains("Stripe")) content = new File(entry.path);
-			else {
-				size_t blockSize;
-				int stripesCount, stripe;
-
-				parameters["block-size"] >> blockSize;
-				parameters["stripes-count"] >> stripesCount;
-				parameters["stripe"] >> stripe;
-
-				Assert(blockSize > 0);
-				Assert(stripesCount > 0);
-				
-				File *file = NULL;
-				StripedFile *stripedFile = NULL;
-				
-				try {
-					file = new File(entry.path);
-					stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
-					
-					size_t block = 0;
-					size_t offset = 0;
-					if(parameters.contains("block")) parameters["block"] >> block;
-					if(parameters.contains("offset")) parameters["offset"] >> offset;
-					stripedFile->seekRead(block, offset);
-					
-					content = stripedFile;
-					entry.size/= stripesCount;
-				}
-				catch(...)
-				{
-					delete file;
-					delete stripedFile;
-					throw;
-				}
-			}
-			
-			Response *response = new Response(Response::Success, rparameters, content);
-			if(response->content()) response->content()->close();	// no more content
-			addResponse(response);
-		}
-		else {	// directory
-		 
-			Response *response = new Response(Response::Success, rparameters, new ByteString);
-			addResponse(response);
 		  
-			List<Store::Entry> list;
-			if(store->queryList(mTarget, list))
+	if(!mIsData) return new Response(Response::Success, rparameters, NULL);
+		
+	if(!entry.type)	// directory
+	{
+		rparameters["processing"] = "none";
+		rparameters["formatting"] = "YAML";
+		
+		Response *response = new Response(Response::Success, rparameters, new ByteString);
+		addResponse(response);
+		
+		Assert(store);
+		
+		// The trailing '/' means it's a directory listing
+		String url = entry.url;
+		if(url.empty() || url[url.size()-1] != '/') url+= '/';
+		
+		List<Store::Entry> list;
+		if(store->queryList(Store::Query(url), list))
+		{
+			YamlSerializer serializer(response->content());
+					
+			for(List<Store::Entry>::iterator it = list.begin();
+				it != list.end();
+				++it)
 			{
-				YamlSerializer serializer(response->content());
-				 
-				for(List<Store::Entry>::iterator it = list.begin();
-					it != list.end();
-					++it)
-				{
-					const Store::Entry &entry = *it;
-					StringMap map;
-					map["name"] = entry.name;
-					map["size"] << entry.size;
-					map["time"] << entry.time;
-					if(!entry.type) map["type"] = "directory";
-					else {
-						map["type"] = "file";
-						map["hash"] << entry.hash;
-					}
-					serializer.output(map);
+				const Store::Entry &entry = *it;
+				StringMap map;
+				map["name"] = entry.name;
+				map["size"] << entry.size;
+				map["time"] << entry.time;
+				if(!entry.type) map["type"] = "directory";
+				else {
+					map["type"] = "file";
+					map["hash"] << entry.digest;
 				}
+				serializer.output(map);
 			}
-			
-			response->content()->close();	// no more content
 		}
+				
+		response->content()->close();	// no more content
+		return response;
+	}
+	
+	ByteStream *content = NULL;
+	if(!parameters.contains("Stripe")) 
+	{
+		content = new File(entry.path);
+		rparameters["processing"] = "none";
 	}
 	else {
-		Response *response = new Response(Response::Success, rparameters, NULL);
-		addResponse(response);
+		size_t blockSize;
+		int stripesCount, stripe;
+		parameters.get("block-size").extract(blockSize);
+		parameters.get("stripes-count").extract(stripesCount);
+		parameters.get("stripe").extract(stripe);
+			
+		Assert(blockSize > 0);
+		Assert(stripesCount > 0);
+		Assert(stripe > 0);
+			
+		File *file = NULL;
+		StripedFile *stripedFile = NULL;
+					
+		try {
+			file = new File(entry.path);
+			stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
+					
+			size_t block = 0;
+			size_t offset = 0;
+			if(parameters.contains("block")) parameters.get("block").extract(block);
+			if(parameters.contains("offset")) parameters.get("offset").extract(offset);
+			stripedFile->seekRead(block, offset);
+			
+			content = stripedFile;
+			
+			rparameters["processing"] = "striped";
+			rparameters["size"].clear();
+			rparameters["size"] << entry.size/stripesCount;
+		}
+		catch(...)
+		{
+			delete file;
+			delete stripedFile;
+			throw;
+		}
 	}
-
-	Log("Request", "Finished execution");
-	return true;
+				
+	Response *response = new Response(Response::Success, rparameters, content);
+	if(response->content()) response->content()->close();	// no more content
+	return response;	
+	
 }
 
 const Identifier &Request::receiver(void) const

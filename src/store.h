@@ -25,7 +25,6 @@
 #include "include.h"
 #include "thread.h"
 #include "synchronizable.h"
-#include "identifier.h"
 #include "file.h"
 #include "map.h"
 #include "http.h"
@@ -41,18 +40,41 @@ class User;
 class Store : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
+	class Query
+	{
+	public:
+		Query(const String &url = "");
+		
+		void setLocation(const String &url);
+		void setDigest(const ByteString &digest);
+		void setAge(time_t min, time_t max);
+		void setRange(int first, int last);
+		void setLimit(int count);
+	  	void setMatch(const String &match);
+		void addType(const String &type);
+		
+	private:
+		String mUrl, mMatch;
+		ByteString mDigest;
+		List<String> mTypes;
+		time_t mMinAge, mMaxAge;
+		int mOffset, mCount;
+		
+		friend class Store;
+	};
+  
 	struct Entry
 	{
-		Identifier 	hash;
+		ByteString 	digest;
 		String		url;
 		String		path;
 		String		name;
 		int		type;
 		uint64_t	size;
-		uint64_t	time;
+		time_t		time;
 	};
   
-  	static bool GetResource(const Identifier &hash, Entry &entry);
+  	static bool GetResource(const ByteString &digest, Entry &entry);
 	static const size_t ChunkSize;
 
 	Store(User *user);
@@ -67,14 +89,13 @@ public:
 	void save(void) const;
 	void update(void);
 
-	bool queryEntry(const String &url, Entry &entry);
-	bool queryList(const String &url, List<Entry> &list);
-	bool queryResource(const Identifier &hash, Entry &entry);
-	bool search(const String &keywords, List<Entry> &list);
+	bool queryEntry(const Query &query, Entry &entry);
+	bool queryList(const Query &query, List<Entry> &list);
 	
 	void http(const String &prefix, Http::Request &request);
 
-private:  
+private:
+  	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
 	void updateDirectory(const String &dirUrl, const String &dirPath, int64_t dirId);
 	String urlToPath(const String &url) const;
 	void run(void);
@@ -86,7 +107,7 @@ private:
 	
 	static void keywords(String name, Set<String> &result);
 	
-	static Map<Identifier,String> Resources;	// path by data hash
+	static Map<ByteString,String> Resources;	// path by data hash
 	static Mutex ResourcesMutex;
 };
 

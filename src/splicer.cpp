@@ -26,7 +26,7 @@
 namespace tpot
 {
   
-Splicer::Splicer(const Identifier &target, const String &filename, size_t blockSize) :
+Splicer::Splicer(const ByteString &target, const String &filename, size_t blockSize) :
 		mTarget(target),
 		mFileName(filename),
 		mBlockSize(blockSize),

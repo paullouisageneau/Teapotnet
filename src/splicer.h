@@ -36,7 +36,7 @@ namespace tpot
 class Splicer : public Synchronizable
 {
 public:
-	Splicer(const Identifier &target, const String &filename, size_t blockSize);
+	Splicer(const ByteString &target, const String &filename, size_t blockSize);
 	~Splicer(void);
 
 	const String &name(void) const;
@@ -50,7 +50,7 @@ private:
   	void search(Set<Identifier> &sources);
   	void query(int i, const Identifier &source);
   
-	Identifier mTarget;
+	ByteString mTarget;
 	String mFileName;
 	size_t mBlockSize;
 	String mName;

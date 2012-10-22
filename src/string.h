@@ -89,7 +89,9 @@ public:
 	float toFloat() const;
 	int toInt() const;
 	bool toBool() const;
-
+	
+	template<typename T> void extract(T &value) const;
+	
 	void substrings(Set<String> &result, int minlength = 0) const;
 	
 	operator const char*(void);
@@ -113,6 +115,12 @@ template<typename T> String String::number(T n)
     std::ostringstream out;
     out << n;
     return out.str();
+}
+
+template<typename T> void String::extract(T &value) const
+{
+    String tmp(*this);
+    tmp.read(value);
 }
 
 // Templates functions from Stream using String are defined here

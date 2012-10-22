@@ -63,9 +63,10 @@ public:
 	public:
 		static const int Finished = -1;
 		static const int Success = 0;
-		static const int NotFound = 1;
-		static const int Interrupted = 2;
-		static const int ReadFailed = 3;
+		static const int Failed = 1;
+		static const int NotFound = 2;
+		static const int Interrupted = 3;
+		static const int ReadFailed = 4;
 	  
 		Response(int status = 0);
 		Response(int status, const StringMap &parameters, ByteStream *content = NULL);
@@ -97,6 +98,7 @@ public:
 	Response *response(int num);
 
 private:
+	Response *createResponse(Store::Entry &entry, const StringMap &parameters, Store *store);
 	int addResponse(Response *response);
 
 	Identifier mReceiver;

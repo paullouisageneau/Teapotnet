@@ -604,21 +604,30 @@ void Core::Handler::run(void)
 				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
 				mCore->unlock();
 				
-				if(!listener) Log("Core::Handler", "WARNING: No listener, dropping request " + String::number(id));
-				else {
-					Request *request = new Request;
-					request->setTarget(target, (command == "G"));
-					request->setParameters(parameters);
-					request->mId = id;
+				Request *request = new Request;
+				request->setTarget(target, (command == "G"));
+				request->setParameters(parameters);
+				request->mId = id;
 				
-					listener->request(request);
-
-					mSender->lock();
-					mSender->mRequestsToRespond.push_back(request);
-					request->mResponseSender = mSender;
-					mSender->unlock();
-					mSender->notify();
+				if(!listener) Log("Core::Handler", "Warning: No listener for request " + String::number(id));
+				else {
+					try {
+						listener->request(request);
+					}
+					catch(const Exception &e)
+					{
+						Log("Core::Handler", String("Warning: Listener failed to process request: ")+e.what()); 
+					}
 				}
+					
+				if(request->responsesCount() == 0) 
+					request->addResponse(new Request::Response(Request::Response::Failed));
+					
+				mSender->lock();
+				mSender->mRequestsToRespond.push_back(request);
+				request->mResponseSender = mSender;
+				mSender->unlock();
+				mSender->notify();
 			}
 			else if(command == "M")
 			{
@@ -638,8 +647,16 @@ void Core::Handler::run(void)
 				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
 				mCore->unlock();
 				
-				if(listener) listener->message(&message);
-				else Log("Core::Handler", "WARNING: No listener, dropping message");
+				if(!listener) Log("Core::Handler", "Warning: No listener, dropping message");
+				else {
+					try {
+						listener->message(&message);
+					}
+					catch(const Exception &e)
+					{
+						Log("Core::Handler", String("Warning: Listener failed to process message: ")+e.what()); 
+					}
+				}
 			}
 			else throw Exception("Invalid command: " + command);
 		}
