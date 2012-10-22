@@ -24,11 +24,12 @@
 #include "directory.h"
 #include "sha512.h"
 #include "html.h"
-#include "yamlserializer.h"
+#include "lineserializer.h"
 
 namespace tpot
 {
 
+Store *Store::GlobalInstance = new Store(NULL);
 Map<ByteString,String> Store::Resources;
 Mutex Store::ResourcesMutex;
   
@@ -64,9 +65,8 @@ bool Store::GetResource(const ByteString &digest, Entry &entry)
 Store::Store(User *user) :
 	mUser(user)
 {
-  	Assert(mUser != NULL);
-	
-	mDatabase = new Database(mUser->profilePath() + "files.db");
+	if(mUser) mDatabase = new Database(mUser->profilePath() + "files.db");
+	else mDatabase = new Database("files.db");
 	
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -89,26 +89,27 @@ Store::Store(User *user) :
 	statement.finalize();
 	//
 
-	mFileName = mUser->profilePath() + "directories";
+	if(mUser) mFileName = mUser->profilePath() + "directories";
+	else mFileName = "directories.txt";
 	
-	try {
-	  File file(mFileName, File::Read);
-	  YamlSerializer serializer(&file);
-	  serializer.input(mDirectories);
-	  file.close();
-	  start();
-	}
-	catch(...)
+	if(File::Exist(mFileName))
 	{
-	  
+		try {
+	  		File file(mFileName, File::Read);
+	  		LineSerializer serializer(&file);
+	  		serializer.input(mDirectories);
+	  		file.close();
+	  		start();
+		}
+		catch(...) {}
 	}
 	
-	Interface::Instance->add("/"+mUser->name()+"/files", this);
+	if(mUser) Interface::Instance->add("/"+mUser->name()+"/files", this);
 }
 
 Store::~Store(void)
 {
-	Interface::Instance->remove("/"+mUser->name()+"/files");
+	if(mUser) Interface::Instance->remove("/"+mUser->name()+"/files");
 }
 
 User *Store::user(void) const
@@ -118,7 +119,8 @@ User *Store::user(void) const
 
 String Store::userName(void) const
 {
-	return mUser->name(); 
+	if(mUser) return mUser->name();
+	else return "";
 }
 
 void Store::addDirectory(const String &name, const String &path)
@@ -151,7 +153,7 @@ void Store::save(void) const
   	Synchronize(this);
   
 	File file(mFileName, File::Write);
-	YamlSerializer serializer(&file);
+	LineSerializer serializer(&file);
 	serializer.output(mDirectories);
 	file.close();
 }
@@ -287,6 +289,8 @@ void Store::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
 	
+	Assert(mUser);
+	
 	try {
 		const String &url = request.url;
 
@@ -295,20 +299,22 @@ void Store::http(const String &prefix, Http::Request &request)
 		  	if(request.method == "POST")
 			{
 				String name = request.post["name"];
-				String path = request.post["path"];
 				
-				if(!path.empty())
+				if(!name.empty())
 				{
-				  	if(name.empty())
-					{
-						name = path;
-						name = name.cutLast(Directory::Separator);
-						name = name.cutLast('/');
-						name = name.cutLast('\\');
-					}
-				  
 					try {
-					 	addDirectory(name, path);
+						if(name.contains('/') || name.contains('\\') || name.find(".."))
+							throw Exception("Invalid directory name");
+						
+						if(!Directory::Exist(mUser->profilePath() + "files"))
+							Directory::Create(mUser->profilePath() + "files");	
+						  
+						String path = mUser->profilePath() + "files" + Directory::Separator + name;
+						
+						if(!Directory::Exist(path))
+							Directory::Create(path);
+					
+					 	addDirectory(name, path);	// TODO
 					}
 					catch(const Exception &e)
 					{
@@ -351,7 +357,6 @@ void Store::http(const String &prefix, Http::Request &request)
 
 			page.openForm(prefix+"/","post");
 			page.openFieldset("New directory");
-			page.label("path","Path"); page.input("text","path"); page.br();
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("add"); page.button("add","Share directory");
 			page.closeFieldset();

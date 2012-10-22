@@ -40,6 +40,8 @@ class User;
 class Store : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
+	static Store *GlobalInstance;
+  
 	class Query
 	{
 	public:
