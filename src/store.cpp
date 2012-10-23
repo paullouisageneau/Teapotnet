@@ -89,8 +89,17 @@ Store::Store(User *user) :
 	statement.finalize();
 	//
 
-	if(mUser) mFileName = mUser->profilePath() + "directories";
-	else mFileName = "directories.txt";
+	if(mUser) 
+	{
+		mFileName = mUser->profilePath() + "directories";
+		mBasePath = mUser->profilePath() + "files" + Directory::Separator;
+		if(!Directory::Exist(mBasePath))
+			Directory::Create(mBasePath);
+	}
+	else {
+		mFileName = "directories.txt";
+		mBasePath = "";
+	}
 	
 	if(File::Exist(mFileName))
 	{
@@ -102,6 +111,8 @@ Store::Store(User *user) :
 	  		start();
 		}
 		catch(...) {}
+		
+		save();
 	}
 	
 	if(mUser) Interface::Instance->add("/"+mUser->name()+"/files", this);
@@ -127,8 +138,10 @@ void Store::addDirectory(const String &name, const String &path)
 {
 	Synchronize(this);
   
-	if(!Directory::Exist(path)) throw Exception("The directory does not exist: "+path);
-	Directory test(path);
+	if(!Directory::Exist(mBasePath + path)) 
+		throw Exception("The directory does not exist: " + mBasePath + path);
+	
+	Directory test(mBasePath + path);
 	test.close();
 	
 	mDirectories.insert(name, path);
@@ -170,7 +183,7 @@ void Store::update(void)
 			++it)
 	try {
 		const String &name = it->first;
-		const String &path = it->second;
+		const String &path = mBasePath + it->second;
 		String url = "/" + name;
 
 		Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE path=?1");
@@ -254,7 +267,8 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 	}
 
 	statement.finalize();
-	return GlobalInstance->queryEntry(query, entry);
+	if(this != GlobalInstance) return GlobalInstance->queryEntry(query, entry);
+	else return false;
 }
 
 bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
@@ -265,7 +279,6 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 	Database::Statement statement;
 	if(!prepareQuery(statement, query, fields, false)) return false;
 	
-	list.clear();
 	while(statement.step())
 	{
 		Entry entry;
@@ -282,7 +295,8 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 	}
 	
 	statement.finalize();
-	return !list.empty() || GlobalInstance->queryList(query, list);
+	if(this != GlobalInstance) GlobalInstance->queryList(query, list);
+	return !list.empty();
 }
 
 void Store::http(const String &prefix, Http::Request &request)
@@ -303,18 +317,19 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(!name.empty())
 				{
 					try {
-						if(name.contains('/') || name.contains('\\') || name.find(".."))
-							throw Exception("Invalid directory name");
+						if(name.contains('/') || name.contains('\\') 
+							|| name.find("..") != String::NotFound)
+								throw Exception("Invalid directory name");
+
+						String dirname = name.toLower();
+						dirname.replace(' ','_');
+						// TODO: sanitize dirname
 						
-						if(!Directory::Exist(mUser->profilePath() + "files"))
-							Directory::Create(mUser->profilePath() + "files");	
-						  
-						String path = mUser->profilePath() + "files" + Directory::Separator + name;
-						
+						String path = mBasePath + dirname;
 						if(!Directory::Exist(path))
 							Directory::Create(path);
 					
-					 	addDirectory(name, path);	// TODO
+					 	addDirectory(name, dirname);
 					}
 					catch(const Exception &e)
 					{
@@ -342,9 +357,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			response.send();
 
 			Html page(response.sock);
-			page.header("Shared files");
+			page.header("Shared folders");
 			page.open("h1");
-			page.text("Shared files");
+			page.text("Shared folders");
 			page.close("h1");
 
 			for(StringMap::iterator it = mDirectories.begin();
@@ -397,7 +412,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					else files.insert("1"+info.get("name"),info);
 				}
 				
-				page.open("table");
+				page.open("table", ".files");
 				for(Map<String, StringMap>::iterator it = files.begin();
 					it != files.end();
 					++it)
@@ -650,12 +665,18 @@ String Store::urlToPath(const String &url) const
 
 	path.replace('/',Directory::Separator);
 
-	return dirPath + Directory::Separator + path;
+	return mBasePath + dirPath + Directory::Separator + path;
 }
 
 void Store::run(void)
 {
-	update(); 
+	// TODO
+	while(true)
+	{
+		update();
+		if(this != GlobalInstance) break;
+		msleep(12*60*60*1000);	// 12h
+	}
 }
 
 void Store::keywords(String name, Set<String> &result)

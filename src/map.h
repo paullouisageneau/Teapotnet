@@ -93,7 +93,7 @@ template<typename K, typename V>
 const V &Map<K,V>::get(const K &key) const
 {
 	typename std::map<K,V>::const_iterator it = this->find(key);
-	if(it == this->end()) throw OutOfBounds("Map key does not exist");
+	if(it == this->end())  throw OutOfBounds("Map key does not exist");
 	return it->second;
 }
 

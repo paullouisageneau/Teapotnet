@@ -72,7 +72,7 @@ td
 {
 	margin: 0;
 	border: 0;
-	padding: 0.25em;
+	padding: 0.1em;
 	border-width:0;
 	vertical-align: top;
 }
@@ -153,6 +153,14 @@ input
 {
 	font-weight: bold;
 	color: red;
+}
+
+table.files td
+{
+	padding-top: 0.1em;
+	padding-bottom: 0.1em;
+	padding-left: 1em;
+	padding-right: 1em;
 }
 
 .box

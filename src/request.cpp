@@ -178,6 +178,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	rparameters["name"] << entry.name;
 	rparameters["size"] << entry.size;
 	rparameters["time"] << entry.time;
+	if(!entry.url.empty()) rparameters["path"] = entry.url;	// Warning: path in parameters is url in store
 	if(!entry.type) rparameters["type"] = "directory";
 	else {
 		rparameters["type"] = "file";
@@ -192,9 +193,9 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 		rparameters["formatting"] = "YAML";
 		
 		Response *response = new Response(Response::Success, rparameters, new ByteString);
-		addResponse(response);
 		
 		Assert(store);
+		Assert(response->content());
 		
 		// The trailing '/' means it's a directory listing
 		String url = entry.url;
@@ -270,7 +271,8 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 			throw;
 		}
 	}
-				
+	
+	Assert(content);
 	Response *response = new Response(Response::Success, rparameters, content);
 	if(response->content()) response->content()->close();	// no more content
 	return response;	
@@ -310,6 +312,8 @@ int Request::responsesCount(void) const
 int Request::addResponse(Response *response)
 {
 	Assert(response != NULL);
+	//Assert(!mResponses.contains(response));
+	
 	mResponses.push_back(response);
 	if(mResponseSender) mResponseSender->notify();
 	return mResponses.size()-1;
@@ -323,8 +327,8 @@ Request::Response *Request::response(int num)
 Request::Response::Response(int status) :
 	mStatus(status),
 	mContent(NULL),
-	mIsSent(false),
-	mPendingCount(0)
+	mTransfertStarted(false),
+	mTransfertFinished(false)
 {
 	Assert(status >= 0);
 }
@@ -333,8 +337,8 @@ Request::Response::Response(int status, const StringMap &parameters, ByteStream 
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),
-	mIsSent(false),
-	mPendingCount(0)
+	mTransfertStarted(false),
+	mTransfertFinished(false)
 {
 	Assert(status >= 0);
 	if(content) mContent = new Pipe(content);
@@ -380,7 +384,7 @@ int Request::Response::status(void) const
 
 bool Request::Response::error(void) const
 {
-	return status() > 0; 
+	return (status() > 0) && (status() != Pending); 
 }
 
 bool Request::Response::finished(void) const

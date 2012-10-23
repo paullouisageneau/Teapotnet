@@ -537,8 +537,10 @@ void Core::Handler::run(void)
 					}
 
 					response->mPeering = mPeering;
+					response->mTransfertStarted = true;
 					request->addResponse(response);
-					request->removePending(mPeering);	// this triggers the notification
+					if(response->status() != Request::Response::Pending) 
+						request->removePending(mPeering);	// this triggers the notification
 				}
 				else Log("Core::Handler", "Warning: Received response for unknown request "+String::number(id));
 			}
@@ -551,7 +553,7 @@ void Core::Handler::run(void)
 				Request::Response *response;
 				if(mResponses.get(channel,response))
 				{
-				 	Assert(response->content() != NULL);
+				 	Assert(response->content());
 					if(size) {
 					  	size_t len = mStream->readData(*response->content(),size);
 						if(len != size) throw IOException("Incomplete data chunk");
@@ -559,12 +561,13 @@ void Core::Handler::run(void)
 					else {
 						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
+						response->mTransfertFinished = true;
 						mResponses.erase(channel);
 					}
 				}
 				else {
-				  Log("Core::Handler", "WARNING: Received data for unknown channel "+String::number(channel));
-				  mStream->ignore(size);
+					Log("Core::Handler", "Warning: Received data for unknown channel "+String::number(channel));
+					mStream->ignore(size);
 				}
 			}
 			else if(command == "E")
@@ -588,7 +591,7 @@ void Core::Handler::run(void)
 					mResponses.erase(channel);
 				}
 				else {
-					Log("Core::Handler", "WARNING: Received error for unknown channel "+String::number(channel));
+					Log("Core::Handler", "Warning: Received error for unknown channel "+String::number(channel));
 				}
 			}
 			else if(command == "I" || command == "G")
@@ -687,7 +690,7 @@ Core::Handler::Sender::~Sender(void)
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
 		delete mRequestsToRespond[i];
 	
-	Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
+	Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
 	while(it != mTransferts.end())
 	{
 		int status = Request::Response::Interrupted;	
@@ -725,26 +728,29 @@ void Core::Handler::Sender::run(void)
 				for(int j=0; j<request->responsesCount(); ++j)
 				{
 					Request::Response *response = request->response(j);
-					if(!response->mIsSent)
+					if(!response->mTransfertStarted)
 					{
 						Log("Core::Handler::Sender", "Sending response");
 						
 						unsigned channel = 0;
 
-						if(response->content())
-						{
+						response->mTransfertStarted = true;
+						if(!response->content()) response->mTransfertFinished = true;
+						else {
 							++mLastChannel;
 							channel = mLastChannel;
 							
 							Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
-							mTransferts.insert(channel,response->content());
+							mTransferts.insert(channel,response);
 						}
 						
-						String args;
-						args << request->id() <<" "<<response->status()<<" "<<channel;
-						Handler::sendCommand(mStream, "R", args, response->mParameters);
+						int status = response->status();
+						if(status == Request::Response::Success && j != request->responsesCount()-1)
+							status = Request::Response::Pending;
 						
-						response->mIsSent = true;
+						String args;
+						args << request->id() << " " << status << " " <<channel;
+						Handler::sendCommand(mStream, "R", args, response->mParameters);
 					}
 				}
 			}
@@ -779,13 +785,14 @@ void Core::Handler::Sender::run(void)
 			}
 
 			char buffer[ChunkSize];
-			Map<unsigned, ByteStream*>::iterator it = mTransferts.begin();
+			Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
 			while(it != mTransferts.end())
 			{
 				size_t size = 0;
 				
 				try {
-					size = it->second->readData(buffer,ChunkSize);
+					ByteStream *content = it->second->content();
+					size = content->readData(buffer,ChunkSize);
 				}
 				catch(const Exception &e)
 				{
@@ -799,6 +806,7 @@ void Core::Handler::Sender::run(void)
 					parameters["message"] = e.what();
 					Handler::sendCommand(mStream, "E", args, parameters);
 					
+					it->second->mTransfertFinished = true;
 					mTransferts.erase(it++);
 					continue;
 				}
@@ -810,6 +818,7 @@ void Core::Handler::Sender::run(void)
 				if(size == 0)
 				{
 					Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
+					it->second->mTransfertFinished = true;
 					mTransferts.erase(it++);
 				}
 				else {
@@ -818,16 +827,25 @@ void Core::Handler::Sender::run(void)
 				}
 			}
 			
-			int i=0;
-			while(i<mRequestsToRespond.size())
+			for(int i=0; i<mRequestsToRespond.size(); ++i)
 			{
 				Request *request = mRequestsToRespond[i];
-				if(!request->isPending())
+				
 				{
-					mRequestsToRespond.erase(i);
-					delete request; 
+					Synchronize(request);
+					
+					if(!request->isPending()) continue;
+
+					for(int j=0; j<request->responsesCount(); ++j)
+					{
+						Request::Response *response = request->response(j);
+						if(!response->mTransfertFinished) continue;
+					}
 				}
-				else ++i;
+				
+				mRequestsToRespond.erase(i);
+				request->mId = 0;	// request MUST NOT be suppressed from the core like a sent request !
+				delete request; 
 			}
 		}
 		

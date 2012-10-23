@@ -126,7 +126,7 @@ private:
 
 			Stream *mStream;
 			unsigned mLastChannel;
-			Map<unsigned, ByteStream*> mTransferts;	// TODO
+			Map<unsigned, Request::Response*> mTransferts;
 			Queue<Message>	mMessagesQueue;
 			Queue<Request*> mRequestsQueue;
 			Array<Request*> mRequestsToRespond;

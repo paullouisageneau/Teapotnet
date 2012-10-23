@@ -46,6 +46,7 @@ public:
 	
 	User *user(void) const;
 	String userName(void) const;
+	int unreadMessagesCount(void) const;
 	
 	void load(Stream &stream);
 	void save(Stream &stream) const;

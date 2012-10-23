@@ -170,7 +170,7 @@ int main(int argc, char** argv)
 		
 		Core::Instance->join();
 		Log("main", "Finished");
-		return 0;
+		exit(0);
 	}
 	catch(const std::exception &e)
 	{

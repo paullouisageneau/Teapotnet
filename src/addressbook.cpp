@@ -66,6 +66,21 @@ String AddressBook::userName(void) const
  	return mUser->name(); 
 }
 
+int AddressBook::unreadMessagesCount(void) const
+{
+	int count = 0;
+  
+	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		const Contact *contact = it->second;
+		count+= contact->unreadMessagesCount();
+	}
+	
+	return count;
+}
+
 const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 {
 	Synchronize(this);
@@ -114,7 +129,9 @@ void AddressBook::removeContact(const Identifier &peering)
 
 const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 {
-	return mContacts.get(peering);
+	Contact *contact;
+	if(mContacts.get(peering, contact)) return contact;
+	else return NULL;
 }
 
 void AddressBook::load(Stream &stream)
@@ -554,89 +571,98 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(target.size() > 1 && target[target.size()-1] == '/') 
 					target = target.substr(0, target.size()-1);
 				
-				Http::Response response(request,200);
-				response.send();	
-				
-				Html page(response.sock);
-				page.header(mName+": Files");
-				page.open("h1");
-				page.text(mName+": Files");
-				page.close("h1");
-				
-				page.link(prefix+"/search/","Search files");
-				
-				Request request(target);
+				Request trequest(target, true);
 				try {
-					request.submit(mPeering);
-					request.wait();
+					trequest.submit(mPeering);
+					trequest.wait();
 				}
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
-					page.text("Not connected...");
-					page.footer();
-					return;
+					throw;
 				}
 				
-				if(request.responsesCount() > 0)
-				{
-					Request::Response *response = request.response(0);
-					if(response->error())
-						throw Exception(String("Response status code ")+String::number(response->status()));
+				if(trequest.responsesCount() == 0)
+					throw Exception("No response from peer");
+				
+				Request::Response *tresponse = trequest.response(0);
+				StringMap parameters = tresponse->parameters();
+				if(tresponse->error())
+					throw Exception(String("Response status code ")+String::number(tresponse->status()));
+				
+				Assert(tresponse->content());
 					
-					StringMap parameters = response->parameters();
-					
-					if(!response->content()) page.text("No content...");
-					else try {
-						if(parameters.contains("type") && parameters["type"] == "directory")
-						{
-						  	YamlSerializer serializer(response->content());
-							
-							Map<String, StringMap> files;
-						  	StringMap map;
-							while(serializer.input(map))
-							{
-							 	if(!map.contains("type")) break;
-								if(map.get("type") == "directory") files.insert("0"+map.get("name"),map);
-								else files.insert("1"+map.get("name"),map);
-							}
-							
-							page.open("table");
-							for(Map<String, StringMap>::iterator it = files.begin();
-								it != files.end();
-								++it)
-							{
-							  	StringMap &map = it->second;
-								
-								page.open("tr");
-								page.open("td"); 
-								if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-								else page.link("/" + map.get("hash"), map.get("name"));
-								page.close("td");
-								page.open("td"); 
-								if(map.get("type") == "directory") page.text("directory");
-								else page.text(String::hrSize(map.get("size")));
-								page.close("td");
-								page.close("tr");
-							}
-
-							page.close("table");
-						}
-						else {
-							page.text("Download ");
-							page.link("/" + parameters.get("hash"), parameters.get("name"));
-							page.br();
-						}
-					}
-					catch(const Exception &e)
+				try {
+					if(parameters.contains("type") && parameters["type"] == "directory")
 					{
-						Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
-						page.text("Error, unable to list files");
+						Http::Response response(request,200);
+						response.send();	
+				
+						Html page(response.sock);
+						page.header(mName+": Files");
+						page.open("h1");
+						page.text(mName+": Files");
+						page.close("h1");
+						page.link(prefix+"/search/","Search files");
+						
+						YamlSerializer serializer(tresponse->content());
+							
+						Map<String, StringMap> files;
+						StringMap map;
+						while(serializer.input(map))
+						{
+							// Check info
+							if(!map.contains("type")) continue;
+							if(!map.contains("name")) continue;
+							if(map.get("type") != "directory" && !map.contains("hash")) continue;
+							
+							// Sort
+							if(map.get("type") == "directory") files.insert("0"+map.get("name"),map);
+							else files.insert("1"+map.get("name"),map);
+						}
+						
+						page.open("table",".files");
+						for(Map<String, StringMap>::iterator it = files.begin();
+							it != files.end();
+							++it)
+						{
+							StringMap &map = it->second;
+							
+							page.open("tr");
+							page.open("td"); 
+							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+							else page.link("/" + map.get("hash"), map.get("name"));
+							page.close("td");
+							page.open("td"); 
+							if(map.get("type") == "directory") page.text("directory");
+							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+							page.close("td");
+							page.close("tr");
+						}
+
+						page.close("table");
+						page.footer();
+						return;
+					}
+					else {
+						Http::Response response(request, 200);
+						response.headers["Content-Type"] = "application/octet-stream";
+						response.headers["Content-Disposition"] = "attachment";
+						response.headers["Content-Length"] = parameters.get("size");
+						response.headers["Content-Disposition"]+= "; filename=\"" + parameters.get("name") + "\"";
+						response.headers["Content-SHA512"] = parameters.get("hash");
+						
+						// TODO: Date + Last-Modified
+						response.send();
+						response.sock->write(*tresponse->content());
+						return;
 					}
 				}
-				
-				page.footer();
-				return;
+				catch(const Exception &e)
+				{
+					Log("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
+					throw;
+				}
 			}
 			else if(directory == "search")
 			{
@@ -670,14 +696,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				const unsigned timeoutMin = 3000;	// TODO
-				const unsigned timeoutMax = 5000;	// TODO
-				
-				Request request("search:"+query, false);	// no data
+				Request trequest("search:"+query, false);	// no data
 				try {
-					request.submit(mPeering);
-					request.wait(timeoutMax-timeoutMin);
-					msleep(timeoutMin);	// TODO
+					trequest.submit(mPeering);
 				}
 				catch(const Exception &e)
 				{
@@ -687,31 +708,36 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				request.lock();
-				if(!request.responsesCount()) 
+				const unsigned timeout = 5000;	// TODO
+				
 				{
-					page.br();
-					page.text("No results...");
+					Desynchronize(this);
+					trequest.lock();
+					trequest.wait(timeout);
 				}
-				else try {
-					page.open("table");
-					for(int i=0; i<request.responsesCount(); ++i)
+				
+				try {
+					page.open("table",".files");
+					for(int i=0; i<trequest.responsesCount(); ++i)
 					{
-						Request::Response *response = request.response(i);
-						if(response->error())
-							throw Exception(String("Response status code ")+String::number(response->status()));
+						Request::Response *tresponse = trequest.response(i);
+						if(tresponse->error()) continue;
 					
-						StringMap map = response->parameters();
+						// Check info
+						StringMap map = tresponse->parameters();
+						if(!map.contains("type")) continue;
+						if(!map.contains("path")) continue;
+						if(map.get("type") != "directory" && !map.contains("hash")) continue;
+						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 						
-						if(!map.contains("type")) break;
 						page.open("tr");
 						page.open("td"); 
-						if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+						if(map.get("type") == "directory") page.link(prefix + "files" + map.get("path"), map.get("name"));
 						else page.link("/" + map.get("hash"), map.get("name"));
 						page.close("td");
 						page.open("td"); 
 						if(map.get("type") == "directory") page.text("directory");
-						else page.text(String::hrSize(map.get("size")));
+						else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 						page.close("td");
 						page.close("tr");
 					}
@@ -722,10 +748,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
 					page.close("table");
 					page.text("Error, unable to list files");
-					request.unlock();
 				}
 				
-				request.unlock();
+				trequest.unlock();
 				page.footer();
 				return;
 			}

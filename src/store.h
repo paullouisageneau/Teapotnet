@@ -105,6 +105,7 @@ private:
 	User *mUser;
 	Database *mDatabase;
 	String mFileName;
+	String mBasePath;
 	StringMap mDirectories;
 	
 	static void keywords(String name, Set<String> &result);

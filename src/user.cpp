@@ -149,7 +149,20 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text(mName);
 			page.close("h1");
 
+			page.openForm(prefix + "/search", "post", "searchform");
+			page.input("text","query");
+			page.button("search","Search");
+			page.closeForm();
+			page.br();
+			page.br();
+			
 			page.link(prefix+"/contacts/","Contacts");
+			int msgcount = mAddressBook->unreadMessagesCount();
+			if(msgcount)
+			{
+				page.space();
+				page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+			}
 			page.br();
 			page.link(prefix+"/files/","Files");
 			page.br();
@@ -157,8 +170,95 @@ void User::http(const String &prefix, Http::Request &request)
 			page.footer();
 			return;
 		}
+		
+		if(url == "/search" || url == "/search/")
+		{
+			String query;
+			if(request.post.contains("query"))
+			{
+				query = request.post.get("query");
+				query.trim();
+			}
+				
+			Http::Response response(request,200);
+			response.send();
+				
+			Html page(response.sock);
+			page.header("Search");
+			page.open("h1");
+			page.text("Search");
+			page.close("h1");
+				
+			page.openForm(prefix + "/search", "post", "searchform");
+			page.input("text","query",query);
+			page.button("search","Search");
+			page.closeForm();
+			page.br();
+				
+			if(query.empty())
+			{
+				page.footer();
+				return;
+			}
+			
+			Request trequest("search:"+query, false);	// no data
+			trequest.submit();
+			
+			const unsigned timeout = 5000;	// TODO
+				
+			{
+				Desynchronize(this);
+				trequest.lock();
+				trequest.wait(timeout);
+			}
+			
+			try {
+				page.open("table",".files");
+				for(int i=0; i<trequest.responsesCount(); ++i)
+				{
+					Request::Response *tresponse = trequest.response(i);
+					if(tresponse->error()) continue;
+					
+					// Check contact
+					const AddressBook::Contact *contact = mAddressBook->getContact(tresponse->peering());
+					if(!contact) continue;
+					
+					// Check info
+					StringMap map = tresponse->parameters();
+					if(!map.contains("type")) continue;
+					if(!map.contains("path")) continue;
+					if(map.get("type") != "directory" && !map.contains("hash")) continue;
+					if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
+					
+					page.open("tr");
+					page.open("td");
+					page.link(contact->urlPrefix()+"/", contact->name());
+					page.close("td");
+					page.open("td"); 
+					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));
+					else page.link("/" + map.get("hash"), map.get("name"));
+					page.close("td");
+					page.open("td"); 
+					if(map.get("type") == "directory") page.text("directory");
+					else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+					page.close("td");
+					page.close("tr");
+				}
+				page.close("table");
+			}
+			catch(const Exception &e)
+			{
+				Log("User::http", String("Unable to list files: ") + e.what());
+				page.close("table");
+				page.text("Error, unable to list files");
+			}
+				
+			trequest.unlock();
+			page.footer();
+			return;
+		}
 	}
-	catch(Exception &e)
+	catch(const Exception &e)
 	{
 		Log("User::http",e.what());
 		throw 404;	// Httpd handles integer exceptions

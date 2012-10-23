@@ -63,10 +63,11 @@ public:
 	public:
 		static const int Finished = -1;
 		static const int Success = 0;
-		static const int Failed = 1;
-		static const int NotFound = 2;
-		static const int Interrupted = 3;
-		static const int ReadFailed = 4;
+		static const int Pending = 1;
+		static const int Failed = 2;
+		static const int NotFound = 3;
+		static const int Interrupted = 4;
+		static const int ReadFailed = 5;
 	  
 		Response(int status = 0);
 		Response(int status, const StringMap &parameters, ByteStream *content = NULL);
@@ -87,9 +88,8 @@ public:
 		Identifier mPeering;
 		StringMap mParameters;
 		Pipe *mContent;
-		bool mIsSent;
-		
-		int mPendingCount;
+		bool mTransfertStarted;
+		bool mTransfertFinished;
 		
 		friend class Core;
 	};
