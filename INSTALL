@@ -28,3 +28,6 @@ $ ./teapotnet
 Once the program is running, point your web browser to http://127.0.0.1:8080/
 to access the interface.
 
+Note directories.txt contains global shared directories (ie for all users)
+The format is "name=path" (for instance "test=/home/test") on each line.
+
