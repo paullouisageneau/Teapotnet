@@ -305,6 +305,13 @@ Core::Handler::~Handler(void)
 		it->second->content()->close();
 	}
   
+	for(Map<unsigned, Request*>::iterator it = mRequests.begin();
+		it != mRequests.end();
+		++it)
+	{
+		it->second->removePending(mPeering);
+	}
+  
 	if(mSender->isRunning())
 	{
 		mSender->lock();
@@ -356,7 +363,13 @@ void Core::Handler::addRequest(Request *request)
 void Core::Handler::removeRequest(unsigned id)
 {
 	Synchronize(this);
-	mRequests.erase(id);
+	
+	Map<unsigned, Request*>::iterator it = mRequests.find(id);
+	if(it != mRequests.end())
+	{
+		it->second->removePending(mPeering);
+		mRequests.erase(it);
+	}
 }
 
 void Core::Handler::run(void)
@@ -366,6 +379,20 @@ void Core::Handler::run(void)
 		Log("Core::Handler", "Starting");
 	  
 		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
+		
+		// Set up obfuscation cipher
+		ByteString tmpkey;
+		Sha512::Hash("TeapotNet", tmpkey);
+		ByteString tmpiv(tmpkey);
+		tmpkey.resize(32);	// 256 bits
+		tmpiv.ignore(32);
+		
+		AesCipher *cipher = new AesCipher(mSock);
+		cipher->setEncryptionKey(tmpkey);
+		cipher->setEncryptionInit(tmpiv);
+		cipher->setDecryptionKey(tmpkey);
+		cipher->setDecryptionInit(tmpiv);
+		mStream = cipher;	// IVs are zeroes
 		
 		ByteString nonce_a, salt_a;
 		for(int i=0; i<16; ++i)
@@ -471,8 +498,6 @@ void Core::Handler::run(void)
 		Log("Core::Handler", "Authentication finished");
 		mSock->setTimeout(0);
 		
-		AesCipher *cipher = new AesCipher(mSock);
-		
 		// Set encryption key and IV
 		ByteString key_a;
 		agregate_a.writeLine(nonce_a);
@@ -480,8 +505,6 @@ void Core::Handler::run(void)
 		ByteString iv_a(key_a);
 		key_a.resize(32);	// 256 bits
 		iv_a.ignore(32);
-		cipher->setEncryptionKey(key_a);
-		cipher->setEncryptionInit(iv_a);
 		
 		// Set decryption key and IV
 		ByteString key_b;
@@ -490,9 +513,14 @@ void Core::Handler::run(void)
 		ByteString iv_b(key_b);
 		key_b.resize(32);	// 256 bits
 		iv_b.ignore(32);
+		
+		// Set up new cipher for the connection
+		delete cipher;
+		cipher = new AesCipher(mSock);
+		cipher->setEncryptionKey(key_a);
+		cipher->setEncryptionInit(iv_a);
 		cipher->setDecryptionKey(key_b);
 		cipher->setDecryptionInit(iv_b);
-		
 		mStream = cipher;
 		
 		mCore->addHandler(mPeering,this);

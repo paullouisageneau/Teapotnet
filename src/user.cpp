@@ -204,7 +204,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Request trequest("search:"+query, false);	// no data
 			trequest.submit();
 			
-			const unsigned timeout = 5000;	// TODO
+			const unsigned timeout = Config::Get("request_timeout").toInt();
 				
 			{
 				Desynchronize(this);
@@ -232,7 +232,7 @@ void User::http(const String &prefix, Http::Request &request)
 					
 					page.open("tr");
 					page.open("td");
-					page.link(contact->urlPrefix()+"/", contact->name());
+					page.text("("); page.link(contact->urlPrefix()+"/", contact->name()); page.text(")");
 					page.close("td");
 					page.open("td"); 
 					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));

@@ -59,6 +59,7 @@ int main(int argc, char** argv)
 		Config::Default("external_address", "auto");
 		Config::Default("http_timeout", "5000");
 		Config::Default("tpot_timeout", "5000");
+		Config::Default("request_timeout", "5000");
 		Config::Save(configFileName);
 		
 		StringMap args;
@@ -102,6 +103,9 @@ int main(int argc, char** argv)
 			tracker = new Tracker(port);
 			tracker->start();
 		}
+		
+		// Creating global store
+		Store::GlobalInstance = new Store(NULL);
 		
 		// Starting interface
 		String sifport = Config::Get("interface_port");

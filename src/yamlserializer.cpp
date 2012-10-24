@@ -187,6 +187,10 @@ bool YamlSerializer::input(String &str)
 				mLine.clear();
 				continue;
 			}
+			
+			str = trimmed;
+			mLine.clear();
+			return true;
 		}
 		
 		if(!mIndent.empty())
@@ -194,7 +198,7 @@ bool YamlSerializer::input(String &str)
 			int indent = 0;
 			while(indent < mLine.size() && 
 				(mLine[indent] == ' ' || mLine[indent] == '\t')) ++indent;
-		
+			
 			if(mIndent.top() < 0) mIndent.top() = indent;
 			else {
 				if(indent < mIndent.top()) return i != 0;
@@ -247,15 +251,22 @@ void YamlSerializer::output(const String &str)
 		return;
 	}
 	
-	if(!mLevel || str.contains('\n') || str[0] == '|' || str[0] == '>') *mStream<<" |"<<Stream::NewLine;
-  
-	String copy(str);
-	String line;
-	while(copy.readLine(line))
+	if(!mLevel || str.contains('\n') || str[0] == '|' || str[0] == '>')
 	{
-		*mStream<<String(std::max(mLevel-1,0), ' ');
-		 *mStream<<line;
-		if(copy.last() == '\n') *mStream<<Stream::NewLine;
+		*mStream<<" |"<<Stream::NewLine;
+	  
+		String copy(str);
+		String line;
+		while(copy.readLine(line))
+		{
+			*mStream<<String(std::max(mLevel-1,0), ' ');
+			*mStream<<line;
+			if(copy.last() == '\n') *mStream<<Stream::NewLine;
+		}
+	}
+	else {
+		if(!mLevel) *mStream<<' ';
+		*mStream<<str;
 	}
 	
 	if(!mLevel) *mStream<<Stream::NewLine;
@@ -284,7 +295,8 @@ bool YamlSerializer::inputMapCheck(void)
 	
 void YamlSerializer::outputArrayBegin(int size)
 {
-	if(!mLevel) *mStream<<"---"<<Stream::NewLine;
+	if(!mLevel) *mStream<<"---";
+	*mStream<<Stream::NewLine;
 	++mLevel;
 }
 
@@ -296,7 +308,8 @@ void YamlSerializer::outputArrayEnd(void)
 
 void YamlSerializer::outputMapBegin(int size)
 {
-	if(!mLevel) *mStream<<"---"<<Stream::NewLine;
+	if(!mLevel) *mStream<<"---";
+	*mStream<<Stream::NewLine;
   	++mLevel;
 }
 

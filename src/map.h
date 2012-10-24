@@ -45,6 +45,7 @@ public:
 template<typename K, typename V>
 class SerializableMap : public Map<K,V>, public Serializable
 {
+public:
 	class SerializablePair : public Serializer::Pair
 	{
 	public:

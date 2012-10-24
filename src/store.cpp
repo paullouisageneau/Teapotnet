@@ -29,7 +29,7 @@
 namespace tpot
 {
 
-Store *Store::GlobalInstance = new Store(NULL);
+Store *Store::GlobalInstance = NULL;
 Map<ByteString,String> Store::Resources;
 Mutex Store::ResourcesMutex;
   
@@ -92,9 +92,16 @@ Store::Store(User *user) :
 	if(mUser) 
 	{
 		mFileName = mUser->profilePath() + "directories";
-		mBasePath = mUser->profilePath() + "files" + Directory::Separator;
-		if(!Directory::Exist(mBasePath))
-			Directory::Create(mBasePath);
+		
+		const String folder = "shared";
+		if(!Directory::Exist(folder))
+			Directory::Create(folder);
+		
+		const String subfolder = folder + Directory::Separator + mUser->name();
+		if(!Directory::Exist(subfolder))
+			Directory::Create(subfolder);
+		
+		mBasePath = subfolder + Directory::Separator;
 	}
 	else {
 		mFileName = "directories.txt";
@@ -111,9 +118,9 @@ Store::Store(User *user) :
 	  		start();
 		}
 		catch(...) {}
-		
-		save();
 	}
+	
+	save();
 	
 	if(mUser) Interface::Instance->add("/"+mUser->name()+"/files", this);
 }
@@ -185,7 +192,11 @@ void Store::update(void)
 		const String &name = it->first;
 		const String &path = mBasePath + it->second;
 		String url = "/" + name;
-
+		
+		if(!Directory::Exist(path))
+			Directory::Create(path);
+		
+		// TODO: path should be relative in database
 		Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE path=?1");
 		statement.bind(1, path);
 		

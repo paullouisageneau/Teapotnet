@@ -51,7 +51,7 @@ public:
 };
 
 #ifdef DEBUG
-	#define Assert(condition) if (!(condition)) throw AssertException(__FILE__, __LINE__, "Assertion failed : " #condition)
+	#define Assert(condition) if(!(condition)) throw AssertException(__FILE__, __LINE__, "Assertion failed : " #condition)
 #else
 	inline void DoNothing(bool) {}
 	#define Assert(condition) DoNothing(!(condition))
@@ -87,7 +87,7 @@ public:
 	IOException(const String &message = "");
 };
 
-#define AssertIO(condition) {if(!(condition)) throw IOException();}
+#define AssertIO(condition) if(!(condition)) throw IOException()
 
 // If the system is out of memory
 class OutOfMemory : public Exception

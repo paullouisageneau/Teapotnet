@@ -45,9 +45,9 @@ AddressBook::AddressBook(User *user) :
 	  load(file);
 	  file.close();
 	}
-	catch(...)
+	catch(const Exception &e)
 	{
-	  
+		Log("AddressBook", String("Loading failed: ") + e.what());
 	}
 }
 
@@ -708,7 +708,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				const unsigned timeout = 5000;	// TODO
+				const unsigned timeout = Config::Get("request_timeout").toInt();
 				
 				{
 					Desynchronize(this);
@@ -954,9 +954,11 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["secret"] << mSecret;
 	map["peering"] << mPeering;
 	map["remote"] << mRemotePeering;
-		
-	s.output(map);
-	s.output(mAddrs);
+	
+	s.outputMapBegin(2);
+	s.outputMapElement(String("info"),map);
+	s.outputMapElement(String("addr"),mAddrs);
+	s.outputMapEnd();
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
@@ -974,8 +976,11 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mRemotePeering.clear();
 	
 	StringMap map;
-	if(!s.input(map)) return false;
-	AssertIO(!map.empty());
+	
+	String key;
+	AssertIO(s.inputMapBegin());
+	AssertIO(s.inputMapElement(key,map) && key == "info");
+	AssertIO(s.inputMapElement(key,mAddrs) && key == "addr");
 	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
@@ -983,8 +988,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["secret"] >> mSecret;
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
-	
-	AssertIO(s.input(mAddrs));
 	
 	// TODO: checks
 	
