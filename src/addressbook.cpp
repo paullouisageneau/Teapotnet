@@ -40,14 +40,17 @@ AddressBook::AddressBook(User *user) :
 	
 	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
 	
-	try {
-	  File file(mFileName, File::Read);
-	  load(file);
-	  file.close();
-	}
-	catch(const Exception &e)
+	if(File::Exist(mFileName))
 	{
-		Log("AddressBook", String("Loading failed: ") + e.what());
+		try {
+			File file(mFileName, File::Read);
+			load(file);
+			file.close();
+		}
+		catch(const Exception &e)
+		{
+			Log("AddressBook", String("Loading failed: ") + e.what());
+		}
 	}
 }
 
