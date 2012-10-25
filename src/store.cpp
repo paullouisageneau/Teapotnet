@@ -562,7 +562,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 		uint64_t size = File::Size(absPath);
 		time_t   time = File::Time(absPath);
 		
-		Database::Statement statement = mDatabase->prepare("SELECT id, url, size, time, type FROM files WHERE path = ?1");
+		Database::Statement statement = mDatabase->prepare("SELECT id, url, digest, size, time, type FROM files WHERE path = ?1");
 		statement.bind(1, path);
 		
 		int64_t id;
@@ -576,9 +576,10 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			int dbType;
 			statement.value(0, id);
 			statement.value(1, dbUrl);
-			statement.value(2, dbSize);
-			statement.value(3, dbTime);
-			statement.value(4, dbType);
+			statement.value(2, digest);
+			statement.value(3, dbSize);
+			statement.value(4, dbTime);
+			statement.value(5, dbType);
 			statement.finalize();
 			
 			if(url != dbUrl)
