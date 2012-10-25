@@ -127,7 +127,7 @@ void Html::openLink(const String &url, String id, bool newTab)
 
 void Html::closeLink(void)
 {
-	*mStream<<"</a>\n";
+	*mStream<<"</a>";
 }
 
 void Html::span(const String &txt, String id)

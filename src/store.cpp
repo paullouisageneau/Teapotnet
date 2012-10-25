@@ -42,7 +42,7 @@ bool Store::GetResource(const ByteString &digest, Entry &entry)
 	if(!found) return false;
 	
 	Log("Store::GetResource", "Requested " + digest.toString());  
-
+	
 	if(!File::Exist(path))
 	{
 		ResourcesMutex.lock();
@@ -190,53 +190,18 @@ void Store::update(void)
 			++it)
 	try {
 		const String &name = it->first;
-		const String &path = mBasePath + it->second;
-		String url = "/" + name;
+		const String &path = it->second;
+		String absPath = mBasePath + path;
+		String url = String("/") + name;
 		
-		if(!Directory::Exist(path))
-			Directory::Create(path);
+		if(!Directory::Exist(absPath))
+			Directory::Create(absPath);
 		
-		// TODO: path should be relative in database
-		Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE path=?1");
-		statement.bind(1, path);
-		
-		// Entry already exists
-		if(statement.step())
-		{
-			int64_t id;
-			statement.value(0, id);
-			statement.finalize();
-			
-			statement = mDatabase->prepare("UPDATE files SET parent_id=0, url=?2, size=0, time=?3, type=0, seen=1 WHERE id=?1");
-			statement.bind(1, id);
-			statement.bind(2, url);
-			statement.bind(3, time(NULL));
-			statement.execute();
-			
-			updateDirectory(url, path, id);
-		}
-		else {
-		  	statement.finalize();
-		  	Log("Store", String("Processing: ")+name);
-			
-			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
-			statement.bind(1, name);
-			statement.execute();
-			
-			statement = mDatabase->prepare("INSERT INTO files (path, url, time, name_rowid, parent_id, digest, size, type, seen)\
-				VALUES (?1, ?2, ?3, ?4, 0, NULL, 0, 0, 1)");
-			statement.bind(1, path);
-			statement.bind(2, url);
-			statement.bind(3, time(NULL));
-			statement.bind(4, mDatabase->insertId());
-			statement.execute();
-			
-			updateDirectory(url, path, mDatabase->insertId());
-		}
+		updateRec(url, path, 0);
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Processing failed for ")+it->first+": "+e.what());
+		Log("Store", String("Update failed for directory ") + it->first + ": " + e.what());
 
 	}
 	
@@ -336,6 +301,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						dirname.replace(' ','_');
 						// TODO: sanitize dirname
 						
+						Assert(!dirname.empty());
 						String path = mBasePath + dirname;
 						if(!Directory::Exist(path))
 							Directory::Create(path);
@@ -425,9 +391,12 @@ void Store::http(const String &prefix, Http::Request &request)
 							
 						TempFile *tempFile = it->second;
 						tempFile->close();
-						File::Rename(tempFile->name(), path + Directory::Separator + fileName);
+						
+						String filePath = path + Directory::Separator + fileName;
+						File::Rename(tempFile->name(), filePath);
 						
 						Log("Store::Http", String("Uploaded: ") + fileName);
+						start();
 					}
 					
 					Http::Response response(request,303);
@@ -581,68 +550,66 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	return true;
 }
 
-void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t dirId)
+void Store::updateRec(const String &url, const String &path, int64_t parentId)
 {
 	Synchronize(this);
-	Log("Store", String("Refreshing directory: ")+dirUrl);
-	
-	ByteString digest;
-	Directory dir(dirPath);
-	while(dir.nextFile()) 
+
 	try {
-		String fileUrl = dirUrl + '/' + dir.fileName();
-	
-		Database::Statement statement = mDatabase->prepare("SELECT id, url, digest, size, time, type FROM files WHERE path = ?1");
-		statement.bind(1, dir.filePath());
+		String absPath = mBasePath + path;
+		
+		int type = 0;
+		if(!Directory::Exist(absPath)) type = 1;
+		uint64_t size = File::Size(absPath);
+		time_t   time = File::Time(absPath);
+		
+		Database::Statement statement = mDatabase->prepare("SELECT id, url, size, time, type FROM files WHERE path = ?1");
+		statement.bind(1, path);
 		
 		int64_t id;
+		ByteString digest;
+		
 		if(statement.step())	// Entry already exists
-		{
-			int type;
-		  	int64_t size;
-			time_t time;
-			String url;
+		{	
+			String dbUrl;
+			int64_t dbSize;
+			time_t dbTime;
+			int dbType;
 			statement.value(0, id);
-			statement.value(1, url);
-			statement.value(2, digest);
-			statement.value(3, size);
-			statement.value(4, time);
-			statement.value(5, type);
+			statement.value(1, dbUrl);
+			statement.value(2, dbSize);
+			statement.value(3, dbTime);
+			statement.value(4, dbType);
 			statement.finalize();
 			
-			if(url != fileUrl)
+			if(url != dbUrl)
 			{
 				statement = mDatabase->prepare("UPDATE files SET url=?2 WHERE id=?1");
 				statement.bind(1, id);
-				statement.bind(2, fileUrl);
+				statement.bind(2, dbUrl);
 				statement.execute();
 			}
-			
-			if(size == dir.fileSize() && time == dir.fileTime())
+				
+			if(time == dbTime && size == dbSize && type == dbType)
 			{
 				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, seen=1 WHERE id=?1");
 				statement.bind(1, id);
-				statement.bind(2, dirId);
+				statement.bind(2, parentId);
 				statement.execute();
 			}
 			else {	// file has changed
-			  
-				if(dir.fileIsDir()) type = 0;
-				else {
+				  
+				if(type)
+				{
 					Desynchronize(this);
-					type = 1;
-					File data(dir.filePath(), File::Read);
+					File data(absPath, File::Read);
 					digest.clear();
 					Sha512::Hash(data, digest);
 					data.close();
 				}
 				
-				size = dir.fileSize();
-				time = dir.fileTime();
-				
 				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, digest=?3, size=?4, time=?5, type=?6, seen=1 WHERE id=?1");
 				statement.bind(1, id);
-				statement.bind(2, dirId);
+				statement.bind(2, parentId);
 				statement.bind(3, digest);
 				statement.bind(4, size);
 				statement.bind(5, time);
@@ -652,50 +619,59 @@ void Store::updateDirectory(const String &dirUrl, const String &dirPath, int64_t
 		}
 		else {
 			statement.finalize();
-		  	Log("Store", String("Processing: ")+dir.fileName());
-		  
-			int type;
-			if(dir.fileIsDir()) type = 0;
-			else {
-			  	Desynchronize(this);
-				type = 1;
-				File data(dir.filePath(), File::Read);
+			Log("Store", String("Processing: ") + path);
+			  
+			if(type) 
+			{
+				Desynchronize(this);
+				File data(absPath, File::Read);
 				digest.clear();
 				Sha512::Hash(data, digest);
 				data.close();
 			}
 			
+			String name = url.afterLast('/');
 			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
-			statement.bind(1, dir.fileName());
+			statement.bind(1, name);
 			statement.execute();
-			
+				
 			statement = mDatabase->prepare("INSERT INTO files (parent_id, path, url, digest, size, time, type, name_rowid, seen)\
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)");
-			statement.bind(1, dirId);
-			statement.bind(2, dir.filePath());
-			statement.bind(3, fileUrl);
-			if(dir.fileIsDir()) statement.bindNull(4);
-			else statement.bind(4, digest);
-			statement.bind(5, int64_t(dir.fileSize()));
-			statement.bind(6, int64_t(dir.fileTime()));
+							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)");
+			statement.bind(1, parentId);
+			statement.bind(2, path);
+			statement.bind(3, url);
+			if(type) statement.bind(4, digest);
+			else statement.bindNull(4);
+			statement.bind(5, size);
+			statement.bind(6, time);
 			statement.bind(7, type);
 			statement.bind(8, mDatabase->insertId());
 			statement.execute();
-			
+				
 			id = mDatabase->insertId();
 		}
-		
-		if(dir.fileIsDir()) updateDirectory(fileUrl, dir.filePath(), id);
-		else {
+			
+		if(!type)	// directory
+		{
+			Directory dir(absPath);
+			while(dir.nextFile())
+			{
+				String childPath = path + Directory::Separator + dir.fileName();
+				String childUrl  = url + '/' + dir.fileName();
+				updateRec(childUrl, childPath, id);
+			}
+		}
+		else {		// file
+		  
 			Desynchronize(this);
 			ResourcesMutex.lock();
-			Resources.insert(digest, dir.filePath());
+			Resources.insert(digest, absPath);
 			ResourcesMutex.unlock();
 		}
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Processing failed for ")+dir.fileName()+": "+e.what());
+		Log("Store", String("Processing failed for ") + path + ": " + e.what());
 
 	}
 }

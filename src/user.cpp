@@ -271,7 +271,7 @@ void User::run(void)
 {
 	while(true)
 	{
-		wait(2*60*1000);
+		wait(5*60*1000);
 		if(!mAddressBook->isRunning()) mAddressBook->start();
 		if(!mStore->isRunning()) mStore->start();
 	}

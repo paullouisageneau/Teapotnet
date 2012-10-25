@@ -98,7 +98,7 @@ public:
 
 private:
   	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
-	void updateDirectory(const String &dirUrl, const String &dirPath, int64_t dirId);
+	void updateRec(const String &url, const String &path, int64_t parentId);
 	String urlToPath(const String &url) const;
 	void run(void);
 
@@ -110,7 +110,7 @@ private:
 	
 	static void keywords(String name, Set<String> &result);
 	
-	static Map<ByteString,String> Resources;	// path by data hash
+	static Map<ByteString,String> Resources;	// absolute path by data hash
 	static Mutex ResourcesMutex;
 };
 

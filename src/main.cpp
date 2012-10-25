@@ -134,6 +134,8 @@ int main(int argc, char** argv)
 				String name = profilesDir.fileName();
 				User *user;
 				
+				Log("main", String("Loading user ") + name + "...");
+				
 				try {
 					user = new User(name);	
 				}
@@ -162,6 +164,7 @@ int main(int argc, char** argv)
 				String password = name.cut(' ');
 				password.trim();
 				if(name.empty()) continue;
+				Log("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
 				user->start();
 				msleep(1000);
