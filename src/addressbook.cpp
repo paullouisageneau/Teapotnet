@@ -231,32 +231,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Contacts");
 			page.close("h1");
 
-			for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-				it != mContacts.end();
-				++it)
-			{
-		    		Contact *contact = it->second;
-				String contactUrl = prefix + '/' + contact->uniqueName() + '/';
-				
-				page.open("span",".contact");
-				page.link(contactUrl, contact->name() + "@" + contact->tracker());
-				page.text(" "+String::hexa(contact->peeringChecksum(),8));
-				
-				page.space();
-				if(Core::Instance->hasPeer(contact->peering())) page.span("(Connected)");
-				else page.span("(Not connected)");
-				
-				int msgcount = contact->unreadMessagesCount();
-				if(msgcount) 
-				{
-					page.space();
-					page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
-				}
-				
-				page.close("span");
-				page.br();
-			}
-	
 			page.openForm(prefix+"/","post");
 			page.openFieldset("New contact");
 			page.label("name","Name"); page.input("text","name"); page.br();
@@ -264,6 +238,37 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("add"); page.button("add","Add contact");
 			page.closeFieldset();
 			page.closeForm();
+			
+			if(!mContacts.empty())
+			{
+				page.open("div",".box");
+				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
+					it != mContacts.end();
+					++it)
+				{
+					Contact *contact = it->second;
+					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
+					
+					page.open("span",".contact");
+					page.link(contactUrl, contact->name() + "@" + contact->tracker());
+					page.text(" "+String::hexa(contact->peeringChecksum(),8));
+					
+					page.space();
+					if(Core::Instance->hasPeer(contact->peering())) page.span("(Connected)");
+					else page.span("(Not connected)");
+					
+					int msgcount = contact->unreadMessagesCount();
+					if(msgcount) 
+					{
+						page.space();
+						page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+					}
+					
+					page.close("span");
+					page.br();
+				}
+				page.close("div");
+			}
 			
 			page.footer();
 			return;

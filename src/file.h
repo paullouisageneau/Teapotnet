@@ -25,6 +25,7 @@
 #include "stream.h"
 #include "bytestream.h"
 #include "string.h"
+#include "mutex.h"
 
 #include <fstream>
 
@@ -43,8 +44,9 @@ public:
 	static void Rename(const String &source, const String &destination);
 	static uint64_t Size(const String &filename);
 	static uint64_t Time(const String &filename);
+	static String TempName(void);
 
-	enum OpenMode { Read, Write, ReadWrite, Append, Truncate };
+	enum OpenMode { Read, Write, ReadWrite, Append, Truncate, TruncateReadWrite };
 
 	File(void);
 	File(const String &filename, OpenMode mode = ReadWrite);
@@ -53,8 +55,9 @@ public:
 	virtual void open(const String &filename, OpenMode mode = ReadWrite);
 	virtual void close(void);
 	
-	uint64_t size(void);
-
+	String name(void) const;
+	uint64_t size(void) const;
+	
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
@@ -71,11 +74,24 @@ public:
 	SafeWriteFile(const String &filename);
 	~SafeWriteFile(void);
 	
-	void open(const String &filename);
+	void open(const String &filename, OpenMode mode = Truncate);	// mode MUST be Truncate
 	void close(void);
 
 private:
 	String mTarget;
+};
+
+class TempFile : public File
+{
+public:
+	TempFile(void);
+	TempFile(const String &filename);
+	~TempFile(void);
+
+	void close(void);
+	
+private:
+	void open(const String &filename, OpenMode mode = ReadWrite);
 };
 
 }

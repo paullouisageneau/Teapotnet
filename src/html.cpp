@@ -179,12 +179,17 @@ void Html::br(void)
 
 void Html::openForm(	const String &action,
 			const String &method,
-		     	const String &name)
+		     	const String &name,
+			bool multipart)
 {
+	String enctype;
+	if(multipart) enctype = "multipart/form-data";
+	else enctype = "application/x-www-form-urlencoded";
+	
 	*mStream<<"<form";
 	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
 	*mStream<<" action=\""<<action<<"\" method=\""<<method<<"\"";
-	if(method == "post") *mStream<<" enctype=\"application/x-www-form-urlencoded\"";
+	if(method == "post") *mStream<<" enctype=\""<<enctype<<"\"";
 	*mStream<<">\n";
 }
 
@@ -250,6 +255,11 @@ void Html::button(const String &name, const String &text)
 {
   	if(text.empty()) input("submit", name, name);
 	else input("submit", name, text);
+}
+
+void Html::file(const String &name)
+{
+ 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size=30 />\n";
 }
 
 Stream *Html::stream(void)

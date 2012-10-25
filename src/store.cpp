@@ -373,20 +373,25 @@ void Store::http(const String &prefix, Http::Request &request)
 			page.text("Shared folders");
 			page.close("h1");
 
-			for(StringMap::iterator it = mDirectories.begin();
-						it != mDirectories.end();
-						++it)
-			{
-				page.link(it->first, it->first);
-				page.br();
-			}
-
 			page.openForm(prefix+"/","post");
 			page.openFieldset("New directory");
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("add"); page.button("add","Share directory");
 			page.closeFieldset();
 			page.closeForm();
+			
+			if(!mDirectories.empty())
+			{
+				page.open("div",".box");
+				for(StringMap::iterator it = mDirectories.begin();
+							it != mDirectories.end();
+							++it)
+				{
+					page.link(it->first, it->first);
+					page.br();
+				}
+				page.close("div");
+			}
 			
 			page.footer();
 		}
@@ -403,6 +408,33 @@ void Store::http(const String &prefix, Http::Request &request)
 					response.send();
 					return;
 				}
+			  
+				if(request.method == "POST")
+				{
+					for(Map<String,TempFile*>::iterator it = request.files.begin();
+						it != request.files.end();
+						++it)
+					{
+						String fileName;
+						if(!request.post.get(it->first, fileName)) continue;
+						if(fileName.empty()) continue;
+						
+						if(fileName.contains('/') || fileName.contains('\\') 
+								|| fileName.find("..") != String::NotFound)
+									throw Exception("Invalid file name");
+							
+						TempFile *tempFile = it->second;
+						tempFile->close();
+						File::Rename(tempFile->name(), path + Directory::Separator + fileName);
+						
+						Log("Store::Http", String("Uploaded: ") + fileName);
+					}
+					
+					Http::Response response(request,303);
+					response.headers["Location"] = prefix+url;
+					response.send();
+					return;
+				}
 
 				Http::Response response(request, 200);
 				response.send();
@@ -413,6 +445,13 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.text(request.url);
 				page.close("h1");
 
+				page.openForm(prefix+url,"post", "uploadform", true);
+				page.openFieldset("Upload a file");
+				page.label("file","File"); page.file("file"); page.br();
+				page.label("send"); page.button("send","Send");
+				page.closeFieldset();
+				page.closeForm();
+				
 				Map<String, StringMap> files;
 				Directory dir(path);
 				StringMap info;

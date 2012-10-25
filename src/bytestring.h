@@ -31,11 +31,14 @@
 namespace tpot
 {
 
+class String;
+  
 class ByteString : public std::deque<char>, public ByteStream, public Serializable
 {
 public:	
 	ByteString(void);
 	ByteString(const char *data, size_t size);
+	ByteString(const String &str);
 	virtual ~ByteString(void);
 
 	void clear(void);

@@ -45,7 +45,24 @@ String String::hexa(unsigned int n, int minDigits)
     out << std::hex << std::uppercase << n;
     return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
-  
+
+String String::random(size_t nbr)
+{
+	String result;
+	while(nbr--)
+	{
+		// TODO
+		switch(rand()%3)
+		{
+		case 0: result+= char('0' + rand()%10);
+		case 1: result+= char('a' + rand()%26);
+		case 2: result+= char('A' + rand()%26);
+		}
+	}
+
+	return result;
+}
+
 String String::hrSize(uint64_t size)
 {
  	const char prefix[] = {'K','M','G','T'};
@@ -165,6 +182,17 @@ void String::trim(void)
 
 	i = size();
 	while(i > 0 && BlankCharacters.contains(at(i-1))) --i;
+	if(i < size()) erase(i);
+}
+
+void String::trimQuotes(void)
+{
+	int i = 0;
+	while(i < size() && (at(i) == '\'' || at(i) == '\"')) ++i;
+	if(i > 0) erase(0,i);
+
+	i = size();
+	while(i > 0 && (at(i-1) == '\'' || at(i-1) == '\"')) --i;
 	if(i < size()) erase(i);
 }
 

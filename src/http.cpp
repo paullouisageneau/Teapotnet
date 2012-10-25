@@ -32,6 +32,11 @@ Http::Request::Request(void)
 	clear();
 }
 
+Http::Request::~Request(void)
+{
+	clear();
+}
+
 Http::Request::Request(const String &url, const String &method)
 {
 	clear();
@@ -198,22 +203,21 @@ void Http::Request::recv(Socket &sock)
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");
 
-		size_t size = 0;
-		String contentLength(headers["Content-Length"]);
-		contentLength >> size;
-
-		String data;
-		if(sock.read(data, size) != size)
-			throw IOException("Connection unexpectedly closed");
+		size_t contentLength = 0;
+		headers["Content-Length"].extract(contentLength);
 		
-		if(headers.contains("Content-Type"))
+		String contentType;
+		if(headers.get("Content-Type", contentType))
 		{
-		  	String type = headers["Content-Type"];
-			String parameters = type.cut(';');
-			type.trim();
+			String parameters = contentType.cut(';');
+			contentType.trim();
 			
-			if(type == "application/x-www-form-urlencoded")
+			if(contentType == "application/x-www-form-urlencoded")
 			{
+				String data;
+				if(sock.read(data, contentLength) != contentLength)
+					throw IOException("Connection unexpectedly closed");
+			  
 				List<String> exploded;
 				data.explode(exploded,'&');
 				for(	List<String>::iterator it = exploded.begin();
@@ -223,6 +227,145 @@ void Http::Request::recv(Socket &sock)
 					String value = it->cut('=').urlDecode();
 					post.insert(it->urlDecode(), value);
 				}
+			}
+			else if(contentType == "multipart/form-data")
+			{
+				String boundary;
+				while(true)
+				{
+					String key;
+			  		if(!parameters.readUntil(key,';')) break;
+					String value = key.cut('=');
+					key.trim();
+					value.trim();
+					value.trimQuotes();
+					if(key == "boundary") boundary = String("--") + value;
+				}
+				
+				Assert(!boundary.empty());
+				
+				String line;
+				while(line.empty()) AssertIO(sock.readLine(line));
+				AssertIO(line == boundary);
+				
+				bool finished = false;
+				while(!finished)
+				{
+					StringMap mimeHeaders;
+					while(true)
+					{
+						String line;
+						AssertIO(sock.readLine(line));
+						if(line.empty()) break;
+						
+						String value = line.cut(':');
+						line.trim();
+						value.trim();
+						mimeHeaders.insert(line,value);
+					}
+					
+					Stream *stream = NULL;
+					String contentType, contentDisposition, name, fileName;
+					
+					if(mimeHeaders.get("Content-Type", contentType))
+					{
+						String parameters = contentType.cut(';');
+						contentType.trim();
+					}
+					
+					if(mimeHeaders.get("Content-Disposition", contentDisposition))
+					{
+						String parameters = contentDisposition.cut(';');
+						contentDisposition.trim();
+						
+						while(true)
+						{
+							String key;
+			  				if(!parameters.readUntil(key,';')) break;
+							String value = key.cut('=');
+							key.trim();
+							value.trim();
+							value.trimQuotes();
+							if(key == "name") name = value;
+							else if(key == "filename") fileName = value;
+						}
+						
+						if(fileName.empty()) stream = &post[name];
+						else {
+						 	post[name] = fileName;
+							TempFile *tempFile = new TempFile();
+							files[name] = tempFile;
+							stream = tempFile;
+							Log("Http::Request", String("File upload: ") + fileName);
+						}
+					}
+					
+					String contentLength;
+					if(mimeHeaders.get("Content-Length", contentLength))
+					{
+						size_t size = 0;
+						contentLength >> size;
+						if(stream) sock.read(*stream,size);
+						else sock.ignore(size);
+						
+						String line;
+						AssertIO(sock.readLine(line));
+						AssertIO(sock.readLine(line));
+						if(line == boundary + "--") finished = true;
+						else AssertIO(line == boundary);
+					}
+					else {
+					  	/*String line;
+						while(sock.readLine(line))
+						{
+							if(line == boundary) break;
+							if(stream) stream->write(line);
+							line.clear();
+						}*/
+						
+						char *tmp = new char[boundary.size()];
+						try {
+						  	int i = 0;
+							while(!finished)
+							{
+								char chr;
+								AssertIO(sock.readData(&chr,1));
+								
+								if(chr == boundary[i])
+								{
+									tmp[i] = chr;
+									++i;
+									if(i == boundary.size()) 
+									{
+										String line;
+										AssertIO(sock.readLine(line));
+										if(line == "--") finished = true;
+										else AssertIO(line.empty());
+										break;
+									}
+								}
+								else {
+								  	if(stream)
+									{
+								  		if(i) stream->writeData(tmp, i);
+										stream->writeData(&chr, 1);
+									}
+									i = 0;
+								}
+							}
+						}	  
+						catch(...)
+						{
+							delete[] tmp;
+							throw;
+						}
+						delete[] tmp;
+					}
+				}
+			}
+			else {
+				Log("Http::Request", String("Warning: Unknown encoding: ") + contentType);
+				sock.ignore(contentLength);
 			}
 		}
 	}
@@ -237,6 +380,11 @@ void Http::Request::clear(void)
 	cookies.clear();
 	get.clear();
 	post.clear();
+	
+	for(Map<String, TempFile*>::iterator it = files.begin(); it != files.end(); ++it)
+	 	delete it->second;
+	
+	files.clear();
 }
 
 Http::Response::Response(void)

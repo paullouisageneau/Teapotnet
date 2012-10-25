@@ -36,6 +36,7 @@ public:
 	static String number(double d, int digits = 4);
 	static String number(unsigned int n, int minDigits);
 	static String hexa(unsigned int n, int minDigits = 1);
+	static String random(size_t nbr);
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
 	
@@ -56,6 +57,7 @@ public:
 	String cut(char separator);
 	String cutLast(char separator);
 	void trim(void);
+	void trimQuotes(void);
 
 	bool contains(char chr) const;
 	void remove(int pos, int nb = String::npos);

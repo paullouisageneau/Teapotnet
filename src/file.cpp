@@ -44,8 +44,13 @@ bool File::Remove(const String &filename)
 
 void File::Rename(const String &source, const String &destination)
 {
-	if(std::rename(source.c_str(), destination.c_str()) != 0)
-		throw IOException("Cannot move \""+source+"\" to \""+destination+"\"");
+	if(!Exist(source)) throw IOException(String("Rename: source file does not exist: ") + source);
+	if(std::rename(source.c_str(), destination.c_str()) == 0) return;
+	
+	// std::rename will fail to copy between filesystems, so we need to try manually
+	File sourceFile(source, Read);
+	File destinationFile(destination, Truncate);
+	sourceFile.read(destinationFile);
 }
 
 uint64_t File::Size(const String &filename)
@@ -60,6 +65,24 @@ uint64_t File::Time(const String &filename)
 	stat_t st;
 	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
 	return uint64_t(st.st_mtime);
+}
+
+String File::TempName(void)
+{
+	 String tempPath;
+#ifdef WINDOWS
+	char buffer[MAX_PATH+1];
+	Assert(GetTempPath(buffer, MAX_PATH+1) != 0);
+	tempPath = buffer;
+#else
+	tempPath = "/tmp/";
+#endif
+	 
+	String fileName;
+	do fileName = tempPath + String::random(16);
+	while(File::Exist(fileName));
+	
+	return fileName;
 }
 
 File::File(void)
@@ -87,11 +110,12 @@ void File::open(const String &filename, OpenMode mode)
 	std::ios_base::openmode m;
 	switch(mode)
 	{
-	case Read:		m = std::ios_base::in;				break;
-	case Write:		m = std::ios_base::out;				break;
-	case Append:		m = std::ios_base::app;				break;
-	case Truncate:		m = std::ios_base::out|std::ios_base::trunc;	break;
-	default:		m = std::ios_base::in|std::ios_base::out;	break;
+	case Read:		m = std::ios_base::in;						break;
+	case Write:		m = std::ios_base::out;						break;
+	case Append:		m = std::ios_base::app;						break;
+	case Truncate:		m = std::ios_base::out|std::ios_base::trunc;			break;
+	case TruncateReadWrite:	m = std::ios_base::in|std::ios_base::out|std::ios_base::trunc;	break;
+	default:		m = std::ios_base::in|std::ios_base::out;			break;
 	}
 
 	std::fstream::open(filename.c_str(), m|std::ios_base::binary);
@@ -100,11 +124,17 @@ void File::open(const String &filename, OpenMode mode)
 
 void File::close(void)
 {
+	// mName MUST NOT be changed here
 	if(std::fstream::is_open())
 		std::fstream::close();
 }
 
-uint64_t File::size(void)
+String File::name(void) const
+{
+	return mName; 
+}
+
+uint64_t File::size(void) const
 {
 	return Size(mName);
 }
@@ -139,13 +169,14 @@ SafeWriteFile::SafeWriteFile(const String &filename)
 
 SafeWriteFile::~SafeWriteFile(void)
 {
-	close();
+
 }
 
-void SafeWriteFile::open(const String &filename)
+void SafeWriteFile::open(const String &filename, OpenMode mode)
 {
 	close();
 	if(filename.empty()) throw IOException("Empty file name");
+	Assert(mode == Truncate);
 	File::open(filename+".tmp", Truncate);
 	mTarget = filename;
 }
@@ -160,6 +191,34 @@ void SafeWriteFile::close(void)
 		mName = mTarget;
 		mTarget.clear();
 	}
+}
+
+TempFile::TempFile(void) :
+	File(TempName(), TruncateReadWrite)
+{
+  
+}
+
+TempFile::TempFile(const String &filename) :
+	File(filename, TruncateReadWrite)
+{
+	  
+}
+
+TempFile::~TempFile(void)
+{
+	File::close();
+	if(File::Exist(mName)) File::Remove(mName);  
+}
+
+void TempFile::open(const String &filename, OpenMode mode)
+{
+	File::open(filename, mode);
+}
+
+void TempFile::close(void)
+{
+	File::close();
 }
 
 }

@@ -28,6 +28,7 @@
 #include "serversocket.h"
 #include "thread.h"
 #include "map.h"
+#include "file.h"
 
 namespace tpot
 {
@@ -39,7 +40,8 @@ public:
 	{
 		Request(void);
 		Request(const String &url, const String &method = "GET");
-
+		~Request(void);
+		
 		void send(Socket &sock);
 		void recv(Socket &sock);
 		void clear(void);
@@ -51,7 +53,8 @@ public:
 		StringMap cookies;      // Cookies
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
-
+		Map<String, TempFile*> files; // Files posted with POST
+		
 		Socket *sock;			// Internal use for Response construction
 	};
 

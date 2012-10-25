@@ -66,7 +66,8 @@ public:
 
 	void openForm(	const String &action = "#",
 			const String &method = "post",
-		     	const String &name = "");
+		     	const String &name = "",
+			bool multipart = false);
 	void closeForm(void);
 	void openFieldset(const String &legend);
 	void closeFieldset(void);
@@ -76,6 +77,7 @@ public:
 	void textarea(const String &name, const String &value = "");
 	void select(const String &name, const StringMap &options, const String &def = "");
 	void button(const String &name, const String &text = "");
+	void file(const String &name);
 	
 	Stream *stream(void);
 

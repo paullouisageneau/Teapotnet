@@ -31,7 +31,13 @@ ByteString::ByteString(void)
 }
 
 ByteString::ByteString(const char *data, size_t size) :
-		std::deque<char>(data,data+size)
+	std::deque<char>(data,data+size)
+{
+
+}
+
+ByteString::ByteString(const String &str) :
+	std::deque<char>(str.data(),str.data()+str.size())
 {
 
 }

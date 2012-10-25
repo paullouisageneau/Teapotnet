@@ -79,11 +79,11 @@ td
 
 fieldset 
 {
-	max-width: 30em;
+	width: 40em;
 	margin: 0em;
-	margin-top: 1em;
+	margin-bottom: 1em;
 	padding: 1em;
-	border:1px solid black;
+	border: 1px solid black;
 	border-radius: 0.5em;
 }
 
@@ -165,21 +165,12 @@ table.files td
 
 .box
 {
-	width: 80%;
-	margin: 1em;
-        padding: 1em;
-        border: 1px solid #808080;
-        border-radius: 1em;
-	background-color: #E0E0E0;
-        box-shadow: 1px 1px 6px #202020;
-}
-
-.backbox
-{
-	margin: 1em;
-        padding: 1em;
-        display: inline-block;
-        border: 1px solid #F0F0F0;
-        border-radius: 1em;
-	background-color: #FEFEFE;
+	width: 40em;
+	margin: 0em;
+	margin-bottom: 1em;
+	padding: 1em;
+	border: 1px solid black;
+	border-radius: 0.5em;
+	display: inline-block;
+	/*box-shadow: 1px 1px 6px #202020;*/
 }
