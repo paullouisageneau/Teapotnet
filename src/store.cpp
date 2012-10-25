@@ -443,7 +443,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					if(info.get("type") == "directory") page.text("directory");
 					else page.text(String::hrSize(info.get("size"))); 
 					page.close("td");
-					page.open("tr");
+					page.close("tr");
 				}
 
 				page.close("table");
