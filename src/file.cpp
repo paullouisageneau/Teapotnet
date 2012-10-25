@@ -51,6 +51,9 @@ void File::Rename(const String &source, const String &destination)
 	File sourceFile(source, Read);
 	File destinationFile(destination, Truncate);
 	sourceFile.read(destinationFile);
+	sourceFile.close();
+	destinationFile.close();
+	Remove(source);
 }
 
 uint64_t File::Size(const String &filename)
