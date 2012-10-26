@@ -481,7 +481,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			else if(File::Exist(path))
 			{
 				Http::Response response(request,200);
-				response.headers["Content-Type"] = "application/octet-stream";	// TODO
+				response.headers["Content-Type"] = "application/octet-stream";
+				response.headers["Content-Length"] << File::Size(path);
+				// TODO: date
 				response.send();
 
 				File file(path, File::Read);
