@@ -590,7 +590,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
-					throw;
+					
+					Http::Response response(request,200);
+                                        response.send();
+
+                                        Html page(response.sock);
+                                        page.header(mName+": Files");
+                                        page.open("h1");
+					page.text(mName+": Files");
+                                	page.close("h1");
+					page.text("Not connected...");
+					page.footer();
+					return;
 				}
 				
 				if(trequest.responsesCount() == 0)
@@ -599,8 +610,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				Request::Response *tresponse = trequest.response(0);
 				StringMap parameters = tresponse->parameters();
 				if(tresponse->error())
-					throw Exception(String("Response status code ")+String::number(tresponse->status()));
-				
+				{
+					if(tresponse->status() == Request::Response::NotFound) throw 404;
+					else throw Exception(String("Response status code ")+String::number(tresponse->status()));
+				}
+
 				Assert(tresponse->content());
 					
 				try {
