@@ -1,8 +1,8 @@
 CC=gcc
 CXX=g++
 RM=rm -f
-CPPFLAGS=-g
-LDFLAGS=-g
+CPPFLAGS=-O
+LDFLAGS=-O
 LDLIBS=-lpthread -lsqlite3
 
 SRCS=$(shell printf "%s " src/*.cpp)

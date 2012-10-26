@@ -1,17 +1,17 @@
 CC=i486-mingw32-gcc
 CXX=i486-mingw32-g++
 RM=rm -f
-CPPFLAGS=-g
-LDFLAGS=-g
+CPPFLAGS=-O
+LDFLAGS=-O
 LDLIBS=-lpthread -lws2_32 -lsqlite3
 
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: teapotnet
+all: teapotnet.exe
 
-teapotnet: $(OBJS)
-	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) $(LDLIBS) 
+teapotnet.exe: $(OBJS)
+	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) $(LDLIBS) 
 
 depend: .depend
 

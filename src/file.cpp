@@ -75,7 +75,7 @@ String File::TempName(void)
 	 String tempPath;
 #ifdef WINDOWS
 	char buffer[MAX_PATH+1];
-	Assert(GetTempPath(buffer, MAX_PATH+1) != 0);
+	Assert(GetTempPath(MAX_PATH+1,buffer) != 0);
 	tempPath = buffer;
 #else
 	tempPath = "/tmp/";

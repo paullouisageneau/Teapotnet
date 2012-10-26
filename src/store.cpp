@@ -225,7 +225,7 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 		return true;
 	}
 	
-	const String fields = "path, url, digest, size, time, type";
+	const String fields = "path, url, digest, type, size, time";
 	Database::Statement statement;
 	if(!prepareQuery(statement, query, fields, true)) return false;
 	
@@ -234,9 +234,12 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 		statement.value(0, entry.path);
 		statement.value(1, entry.url);
 		statement.value(2, entry.digest);
-		statement.value(3, entry.size);
-		statement.value(4, entry.time);
-		statement.value(5, entry.type);
+		statement.value(3, entry.type);
+		statement.value(4, entry.size);
+		
+		int64_t time;
+		statement.value(5, time);
+		entry.time = time;
 		
 		statement.finalize();
 		return true;
@@ -251,7 +254,7 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 {
 	Synchronize(this);
 	
-	const String fields = "path, url, digest, size, time, type";
+	const String fields = "path, url, digest, type, size, time";
 	Database::Statement statement;
 	if(!prepareQuery(statement, query, fields, false)) return false;
 	
@@ -261,10 +264,13 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 		statement.value(0, entry.path);
 		statement.value(1, entry.url);
 		statement.value(2, entry.digest);
-		statement.value(3, entry.size);
-		statement.value(4, entry.time);
-		statement.value(5, entry.type);
-					
+		statement.value(3, entry.type);
+		statement.value(4, entry.size);
+		
+		int64_t time;
+		statement.value(5, time);
+		entry.time = time;
+		
 		entry.name = entry.url.afterLast('/');
 		
 		list.push_back(entry);
@@ -544,8 +550,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 		statement.bind(++parameter, *it);
 	}*/
 	
-	if(query.mMinAge > 0)	statement.bind(++parameter, time(NULL)-query.mMinAge);
-	if(query.mMaxAge > 0)	statement.bind(++parameter, time(NULL)-query.mMaxAge);
+	if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(time(NULL)-query.mMinAge));
+	if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(time(NULL)-query.mMaxAge));
 	
 	return true;
 }
@@ -560,7 +566,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 		int type = 0;
 		if(!Directory::Exist(absPath)) type = 1;
 		uint64_t size = File::Size(absPath);
-		time_t   time = File::Time(absPath);
+		int64_t  time = File::Time(absPath);
 		
 		Database::Statement statement = mDatabase->prepare("SELECT id, url, size, time, type FROM files WHERE path = ?1");
 		statement.bind(1, path);
@@ -570,10 +576,10 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 		
 		if(statement.step())	// Entry already exists
 		{	
-			String dbUrl;
-			int64_t dbSize;
-			time_t dbTime;
-			int dbType;
+			String   dbUrl;
+			uint64_t dbSize;
+			int64_t  dbTime;
+			int      dbType;
 			statement.value(0, id);
 			statement.value(1, dbUrl);
 			statement.value(2, dbSize);
