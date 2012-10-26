@@ -52,7 +52,7 @@ h2
 
 table 
 {
-	margin: 1em;
+	margin: 0em;
 	padding: 0em;
 	border: 0; 
 	border-collapse: collapse;
@@ -134,6 +134,16 @@ input
 	width: 120em;
 }
 
+.title
+{
+	font-weight: bold; 
+}
+
+.value
+{
+  
+}
+
 .user
 {
 	font-weight: bold;
@@ -152,10 +162,50 @@ input
 .important
 {
 	font-weight: bold;
+	color: blue;
+}
+
+.online
+{
+	font-weight: bold;
+	color: green;
+}
+
+.offline
+{
+	font-weight: bold;
 	color: red;
 }
 
+table.files
+{
+	margin: 1em;
+}
+
+table.contacts
+{
+	margin: 1em;
+}
+
+.box table.files
+{
+	margin: 0;
+}
+
+.box table.contacts
+{
+	margin: 0;
+}
+
 table.files td
+{
+	padding-top: 0.1em;
+	padding-bottom: 0.1em;
+	padding-left: 1em;
+	padding-right: 1em;
+}
+
+table.contacts td
 {
 	padding-top: 0.1em;
 	padding-bottom: 0.1em;

@@ -197,9 +197,18 @@ void Http::Request::recv(Socket &sock)
 		}
 	}
 
+	String expect;
+	if((headers.get("Expect",expect) && expect.toLower() == "100-continue")
+		|| (method == "POST" && version == "1.1"))
+	{
+		sock.write("HTTP/1.1 100 Continue\r\n\r\n");
+	}
+	
 	// Read post variables
 	if(method == "POST")
 	{
+		sock.setTimeout(0);
+	  
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");
 
@@ -264,40 +273,41 @@ void Http::Request::recv(Socket &sock)
 						mimeHeaders.insert(line,value);
 					}
 					
-					Stream *stream = NULL;
-					String contentType, contentDisposition, name, fileName;
-					
+					String contentType;
 					if(mimeHeaders.get("Content-Type", contentType))
 					{
 						String parameters = contentType.cut(';');
 						contentType.trim();
 					}
 					
-					if(mimeHeaders.get("Content-Disposition", contentDisposition))
+					String contentDisposition;
+					if(!mimeHeaders.get("Content-Disposition", contentDisposition))
+						throw Exception("Missing Content-Disposition header in multipart POST request");
+					
+					String parameters = contentDisposition.cut(';');
+					contentDisposition.trim();
+					
+					String name, fileName;
+					while(true)
 					{
-						String parameters = contentDisposition.cut(';');
-						contentDisposition.trim();
-						
-						while(true)
-						{
-							String key;
-			  				if(!parameters.readUntil(key,';')) break;
-							String value = key.cut('=');
-							key.trim();
-							value.trim();
-							value.trimQuotes();
-							if(key == "name") name = value;
-							else if(key == "filename") fileName = value;
-						}
-						
-						if(fileName.empty()) stream = &post[name];
-						else {
-						 	post[name] = fileName;
-							TempFile *tempFile = new TempFile();
-							files[name] = tempFile;
-							stream = tempFile;
-							Log("Http::Request", String("File upload: ") + fileName);
-						}
+						String key;
+			  			if(!parameters.readUntil(key,';')) break;
+						String value = key.cut('=');
+						key.trim();
+						value.trim();
+						value.trimQuotes();
+						if(key == "name") name = value;
+						else if(key == "filename") fileName = value;
+					}
+					
+					Stream *stream = NULL;
+					if(fileName.empty()) stream = &post[name];
+					else {
+						post[name] = fileName;
+						TempFile *tempFile = new TempFile();
+						files[name] = tempFile;
+						stream = tempFile;
+						Log("Http::Request", String("File upload: ") + fileName);
 					}
 					
 					String contentLength;
@@ -305,8 +315,7 @@ void Http::Request::recv(Socket &sock)
 					{
 						size_t size = 0;
 						contentLength >> size;
-						if(stream) sock.read(*stream,size);
-						else sock.ignore(size);
+						sock.read(*stream,size);
 						
 						String line;
 						AssertIO(sock.readLine(line));
@@ -324,19 +333,26 @@ void Http::Request::recv(Socket &sock)
 						}*/
 						
 						char *tmp = new char[boundary.size()];
+						char *buffer = new char[boundary.size()];
 						try {
-						  	int i = 0;
-							while(!finished)
+							size_t size = 0;
+							size_t c = 0;
+							size_t i = 0;
+							while(true)
 							{
-								char chr;
-								AssertIO(sock.readData(&chr,1));
-								
-								if(chr == boundary[i])
+								if(c == size)
 								{
-									tmp[i] = chr;
-									++i;
+									c = 0;
+									size = sock.readData(buffer,boundary.size()-i);
+									AssertIO(size);
+								}
+								
+								if(buffer[c] == boundary[i])
+								{
+									tmp[i++] = buffer[c++];
 									if(i == boundary.size()) 
 									{
+										// If we are here there is no data left in buffer
 										String line;
 										AssertIO(sock.readLine(line));
 										if(line == "--") finished = true;
@@ -345,11 +361,10 @@ void Http::Request::recv(Socket &sock)
 									}
 								}
 								else {
-								  	if(stream)
-									{
-								  		if(i) stream->writeData(tmp, i);
-										stream->writeData(&chr, 1);
-									}
+								  	if(i) stream->writeData(tmp, i);
+									i = c; ++c;
+									while(c != size && buffer[c] != boundary[0]) ++c;
+									stream->writeData(buffer + i, c - i);
 									i = 0;
 								}
 							}
@@ -357,6 +372,7 @@ void Http::Request::recv(Socket &sock)
 						catch(...)
 						{
 							delete[] tmp;
+							delete[] buffer;
 							throw;
 						}
 						delete[] tmp;
@@ -430,33 +446,33 @@ void Http::Response::send(Socket &sock)
 		switch(code)
 		{
 		case 100: message = "Continue";				break;
-		case 200: message = "OK";					break;
+		case 200: message = "OK";				break;
 		case 204: message = "No content";			break;
-		case 206: message = "Partial Content";		break;
-		case 301: message = "Moved Permanently"; 	break;
+		case 206: message = "Partial Content";			break;
+		case 301: message = "Moved Permanently"; 		break;
 		case 302: message = "Found";				break;
 		case 303: message = "See Other";			break;
-		case 304: message = "Not Modified"; 		break;
+		case 304: message = "Not Modified"; 			break;
 		case 305: message = "Use Proxy"; 			break;
-		case 307: message = "Temporary Redirect";	break;
+		case 307: message = "Temporary Redirect";		break;
 		case 400: message = "Bad Request"; 			break;
 		case 401: message = "Unauthorized";			break;
 		case 403: message = "Forbidden"; 			break;
 		case 404: message = "Not Found";			break;
-		case 405: message = "Method Not Allowed";	break;
-		case 406: message = "Not Acceptable";		break;
-		case 408: message = "Request Timeout";		break;
-		case 409: message = "Conflict";			break;
-		case 410: message = "Gone";								break;
-		case 413: message = "Request Entity Too Large"; 		break;
-		case 414: message = "Request-URI Too Long";				break;
+		case 405: message = "Method Not Allowed";		break;
+		case 406: message = "Not Acceptable";			break;
+		case 408: message = "Request Timeout";			break;
+		case 409: message = "Conflict";				break;
+		case 410: message = "Gone";				break;
+		case 413: message = "Request Entity Too Large"; 	break;
+		case 414: message = "Request-URI Too Long";		break;
 		case 416: message = "Requested Range Not Satisfiable";	break;
-		case 500: message = "Internal Server Error";			break;
-		case 501: message = "Not Implemented";					break;
-		case 502: message = "Bad Gateway";						break;
-		case 503: message = "Service Unavailable";				break;
-		case 504: message = "Gateway Timeout";					break;
-		case 505: message = "HTTP Version Not Supported";		break;
+		case 500: message = "Internal Server Error";		break;
+		case 501: message = "Not Implemented";			break;
+		case 502: message = "Bad Gateway";			break;
+		case 503: message = "Service Unavailable";		break;
+		case 504: message = "Gateway Timeout";			break;
+		case 505: message = "HTTP Version Not Supported";	break;
 
 		default:
 			if(code < 300) message = "OK";
@@ -577,14 +593,6 @@ void Http::Server::Handler::run(void)
 			try {
 			  	mSock->setTimeout(Config::Get("http_timeout").toInt());
 				request.recv(*mSock);
-				
-				String expect;
-				if(request.headers.get("Expect",expect)
-					&& expect.toLower() == "100-continue")
-				{
-					mSock->write("HTTP/1.1 100 Continue\r\n\r\n");
-				}
-				
 				mServer->process(request);
 			}
 			catch(const Timeout &e)

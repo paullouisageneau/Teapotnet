@@ -71,7 +71,6 @@ Store::Store(User *user) :
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 	parent_id INTEGER,\
-	path TEXT UNIQUE,\
 	url TEXT UNIQUE,\
 	digest BLOB,\
 	name_rowid INTEGER,\
@@ -183,7 +182,7 @@ void Store::update(void)
 	Synchronize(this);
 	Log("Store::update", "Started");
 	
-	mDatabase->execute("UPDATE files SET seen=0");
+	mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
 	
 	for(StringMap::iterator it = mDirectories.begin();
 			it != mDirectories.end();
@@ -225,21 +224,23 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 		return true;
 	}
 	
-	const String fields = "path, url, digest, type, size, time";
+	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
 	if(!prepareQuery(statement, query, fields, true)) return false;
 	
 	if(statement.step())
 	{
-		statement.value(0, entry.path);
-		statement.value(1, entry.url);
-		statement.value(2, entry.digest);
-		statement.value(3, entry.type);
-		statement.value(4, entry.size);
+		statement.value(0, entry.url);
+		statement.value(1, entry.digest);
+		statement.value(2, entry.type);
+		statement.value(3, entry.size);
 		
 		int64_t time;
-		statement.value(5, time);
+		statement.value(4, time);
 		entry.time = time;
+		
+		entry.path = urlToPath(entry.url);
+		entry.name = entry.url.afterLast('/');
 		
 		statement.finalize();
 		return true;
@@ -254,23 +255,23 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 {
 	Synchronize(this);
 	
-	const String fields = "path, url, digest, type, size, time";
+	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
 	if(!prepareQuery(statement, query, fields, false)) return false;
 	
 	while(statement.step())
 	{
 		Entry entry;
-		statement.value(0, entry.path);
-		statement.value(1, entry.url);
-		statement.value(2, entry.digest);
-		statement.value(3, entry.type);
-		statement.value(4, entry.size);
+		statement.value(0, entry.url);
+		statement.value(1, entry.digest);
+		statement.value(2, entry.type);
+		statement.value(3, entry.size);
 		
 		int64_t time;
-		statement.value(5, time);
+		statement.value(4, time);
 		entry.time = time;
 		
+		entry.path = urlToPath(entry.url);
 		entry.name = entry.url.afterLast('/');
 		
 		list.push_back(entry);
@@ -344,26 +345,31 @@ void Store::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			page.text("Shared folders");
 			page.close("h1");
-
-			page.openForm(prefix+"/","post");
-			page.openFieldset("New directory");
-			page.label("name","Name"); page.input("text","name"); page.br();
-			page.label("add"); page.button("add","Share directory");
-			page.closeFieldset();
-			page.closeForm();
 			
 			if(!mDirectories.empty())
 			{
 				page.open("div",".box");
+				page.open("table",".files");
 				for(StringMap::iterator it = mDirectories.begin();
 							it != mDirectories.end();
 							++it)
 				{
+					page.open("tr");
+					page.open("td");
 					page.link(it->first, it->first);
-					page.br();
+					page.close("td");
+					page.close("tr");
 				}
+				page.close("table");
 				page.close("div");
 			}
+			
+			page.openForm(prefix+"/","post");
+			page.openFieldset("New directory");
+			page.label("name","Name"); page.input("text","name"); page.br();
+			page.label("add"); page.button("add","Create directory");
+			page.closeFieldset();
+			page.closeForm();
 			
 			page.footer();
 		}
@@ -389,7 +395,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					{
 						String fileName;
 						if(!request.post.get(it->first, fileName)) continue;
-						if(fileName.empty()) continue;
+						Assert(!fileName.empty());
 						
 						if(fileName.contains('/') || fileName.contains('\\') 
 								|| fileName.find("..") != String::NotFound)
@@ -420,13 +426,25 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.text(request.url);
 				page.close("h1");
 
-				page.openForm(prefix+url,"post", "uploadform", true);
+				page.openForm(prefix+url,"post", "uploadForm", true);
 				page.openFieldset("Upload a file");
 				page.label("file","File"); page.file("file"); page.br();
 				page.label("send"); page.button("send","Send");
 				page.closeFieldset();
 				page.closeForm();
-				
+				page.div("","uploadMessage");
+
+				page.raw("<script type=\"text/javascript\">\n\
+	document.uploadForm.send.style.display = 'none';\n\
+	$(document.uploadForm.file).change(function() {\n\
+		if(document.uploadForm.file.value != '') {\n\
+		  	document.uploadForm.style.display = 'none';\n\
+			$('#uploadMessage').html('<div class=\"box\">Uploading the file, please wait...</div>');\n\
+			document.uploadForm.submit();\n\
+		}\n\
+	});\n\
+</script>\n");
+	
 				Map<String, StringMap> files;
 				Directory dir(path);
 				StringMap info;
@@ -437,22 +455,27 @@ void Store::http(const String &prefix, Http::Request &request)
 					else files.insert("1"+info.get("name"),info);
 				}
 				
-				page.open("table", ".files");
-				for(Map<String, StringMap>::iterator it = files.begin();
-					it != files.end();
-					++it)
+				if(!info.empty())
 				{
-					StringMap &info = it->second;
-					page.open("tr");
-					page.open("td"); page.link(info.get("name"),info.get("name")); page.close("td");
-					page.open("td"); 
-					if(info.get("type") == "directory") page.text("directory");
-					else page.text(String::hrSize(info.get("size"))); 
-					page.close("td");
-					page.close("tr");
+					page.open("div", ".box");
+					page.open("table", ".files");
+					for(Map<String, StringMap>::iterator it = files.begin();
+						it != files.end();
+						++it)
+					{
+						StringMap &info = it->second;
+						page.open("tr");
+						page.open("td"); page.link(info.get("name"),info.get("name")); page.close("td");
+						page.open("td"); 
+						if(info.get("type") == "directory") page.text("directory");
+						else page.text(String::hrSize(info.get("size"))); 
+						page.close("td");
+						page.close("tr");
+					}
+					page.close("table");
+					page.close("div");
 				}
-
-				page.close("table");
+				
 				page.footer();
 			}
 			else if(File::Exist(path))
@@ -568,33 +591,23 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 		uint64_t size = File::Size(absPath);
 		int64_t  time = File::Time(absPath);
 		
-		Database::Statement statement = mDatabase->prepare("SELECT id, url, digest, size, time, type FROM files WHERE path = ?1");
-		statement.bind(1, path);
+		Database::Statement statement = mDatabase->prepare("SELECT id, digest, size, time, type FROM files WHERE url = ?1");
+		statement.bind(1, url);
 		
 		int64_t id;
 		ByteString digest;
 		
 		if(statement.step())	// Entry already exists
 		{	
-			String   dbUrl;
 			uint64_t dbSize;
 			int64_t  dbTime;
 			int      dbType;
 			statement.value(0, id);
-			statement.value(1, dbUrl);
-			statement.value(2, digest);
-			statement.value(3, dbSize);
-			statement.value(4, dbTime);
-			statement.value(5, dbType);
+			statement.value(1, digest);
+			statement.value(2, dbSize);
+			statement.value(3, dbTime);
+			statement.value(4, dbType);
 			statement.finalize();
-			
-			if(url != dbUrl)
-			{
-				statement = mDatabase->prepare("UPDATE files SET url=?2 WHERE id=?1");
-				statement.bind(1, id);
-				statement.bind(2, dbUrl);
-				statement.execute();
-			}
 				
 			if(time == dbTime && size == dbSize && type == dbType)
 			{
@@ -642,17 +655,16 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			statement.bind(1, name);
 			statement.execute();
 				
-			statement = mDatabase->prepare("INSERT INTO files (parent_id, path, url, digest, size, time, type, name_rowid, seen)\
-							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)");
+			statement = mDatabase->prepare("INSERT INTO files (parent_id, url, digest, size, time, type, name_rowid, seen)\
+							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)");
 			statement.bind(1, parentId);
-			statement.bind(2, path);
-			statement.bind(3, url);
-			if(type) statement.bind(4, digest);
-			else statement.bindNull(4);
-			statement.bind(5, size);
-			statement.bind(6, time);
-			statement.bind(7, type);
-			statement.bind(8, mDatabase->insertId());
+			statement.bind(2, url);
+			if(type) statement.bind(3, digest);
+			else statement.bindNull(3);
+			statement.bind(4, size);
+			statement.bind(5, time);
+			statement.bind(6, type);
+			statement.bind(7, mDatabase->insertId());
 			statement.execute();
 				
 			id = mDatabase->insertId();

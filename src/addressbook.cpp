@@ -230,18 +230,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			page.text("Contacts");
 			page.close("h1");
-
-			page.openForm(prefix+"/","post");
-			page.openFieldset("New contact");
-			page.label("name","Name"); page.input("text","name"); page.br();
-			page.label("secret","Secret"); page.input("text","secret"); page.br();
-			page.label("add"); page.button("add","Add contact");
-			page.closeFieldset();
-			page.closeForm();
 			
 			if(!mContacts.empty())
 			{
 				page.open("div",".box");
+				page.open("table",".contacts");
 				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 					it != mContacts.end();
 					++it)
@@ -249,26 +242,36 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					Contact *contact = it->second;
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
+					page.open("tr");
+					page.open("td");
 					page.open("span",".contact");
 					page.link(contactUrl, contact->name() + "@" + contact->tracker());
-					page.text(" "+String::hexa(contact->peeringChecksum(),8));
-					
-					page.space();
-					if(Core::Instance->hasPeer(contact->peering())) page.span("(Connected)");
-					else page.span("(Not connected)");
-					
-					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) 
-					{
-						page.space();
-						page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
-					}
-					
 					page.close("span");
-					page.br();
+					page.close("td");
+					page.open("td");
+					page.text(" "+String::hexa(contact->peeringChecksum(),8));
+					page.close("td");
+					page.open("td");
+					if(Core::Instance->hasPeer(contact->peering())) page.span("Connected", ".online");
+					else page.span("Not connected", ".offline");
+					page.close("td");
+					page.open("td");
+					int msgcount = contact->unreadMessagesCount();
+					if(msgcount) page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+					page.close("td");
+					page.close("tr");
 				}
+				page.close("table");
 				page.close("div");
 			}
+			
+			page.openForm(prefix+"/","post");
+			page.openFieldset("New contact");
+			page.label("name","Name"); page.input("text","name"); page.br();
+			page.label("secret","Secret"); page.input("text","secret"); page.br();
+			page.label("add"); page.button("add","Add contact");
+			page.closeFieldset();
+			page.closeForm();
 			
 			page.footer();
 			return;
@@ -529,9 +532,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.text("Contact: "+mName);
 			page.close("h1");
 
-			page.text("Status: ");
-			if(Core::Instance->hasPeer(mPeering)) page.text("Connected");
-			else page.text("Not connected");
+			page.span("Status:",".title"); page.space();
+			if(Core::Instance->hasPeer(mPeering)) page.span("Connected",".online");
+			else page.span("Not connected",".offline");
 			page.br();
 			page.br();
 			
@@ -550,9 +553,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.br();
 			
 			page.open("div", "info");
-			page.text("Secret: " + mSecret.toString()); page.br();
-			page.text("Peering: " + mPeering.toString()); page.br();
-			page.text("Remote peering: " + mRemotePeering.toString()); page.br();
+			page.span("Secret:",".title"); page.space(); page.span(mSecret.toString(),".value"); page.br();
+			page.span("Local peering:",".title"); page.space(); page.span(mPeering.toString(),".value"); page.br();
+			page.span("Remote peering:",".title"); page.space(); page.span(mRemotePeering.toString(),".value"); page.br();
 			page.close("div");
 			page.open("div", "show_info");
 			page.close("div");
@@ -841,7 +844,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.br();
 				}
 				
-				page.openForm(prefix + "/chat", "post", "chatform");
+				page.openForm(prefix + "/chat", "post", "chatForm");
 				page.input("text","message");
 				page.button("send","Send");
 				page.space();
@@ -904,9 +907,9 @@ page.raw("<script type=\"text/javascript\">\n\
 	}\n\
 	function post()\n\
 	{\n\
-		var message = document.chatform.message.value;\n\
+		var message = document.chatForm.message.value;\n\
 		if(!message) return false;\n\
-		document.chatform.message.value = '';\n\
+		document.chatForm.message.value = '';\n\
 		var request = $.post('"+prefix+"/chat',\n\
 			{ 'message': message, 'ajax': 1 });\n\
 		request.fail(function(jqXHR, textStatus) {\n\
@@ -914,13 +917,17 @@ page.raw("<script type=\"text/javascript\">\n\
 		});\n\
 	}\n\
 	setTimeout('update()', 1000);\n\
-	document.chatform.onsubmit = function() {post(); return false;}\n\
+	document.chatForm.onsubmit = function() {post(); return false;}\n\
 </script>\n");
 				
 				page.footer();
 				return;
 			}
 		}
+	}
+	catch(const NetException &e)
+	{
+		throw;
 	}
 	catch(const Exception &e)
 	{

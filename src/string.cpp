@@ -28,7 +28,7 @@ namespace tpot
 String String::number(double d, int digits)
 {
     std::ostringstream out;
-    out << std::setprecision(digits) << d;
+    out << std::fixed << std::setprecision(digits) << d;
     return out.str();
 }
 
@@ -66,18 +66,19 @@ String String::random(size_t nbr)
 String String::hrSize(uint64_t size)
 {
  	const char prefix[] = {'K','M','G','T'};
-	const unsigned base = 1024;
+	const int base = 1024;
 	
 	if(size < base) return String::number(size) + " B";
 	
 	char symbol;
+	double fsize(size);
 	for(int i=0; i<4; ++i)
 	{
-		size/= base;
+		fsize/= base;
 		symbol = prefix[i];
-		if(size < base) break; 
+		if(fsize < base) break; 
 	}
-	return String::number(size) + " " + symbol + "iB";
+	return String::number(fsize,1) + " " + symbol + "iB";
 }
 
 String String::hrSize(const String &size)

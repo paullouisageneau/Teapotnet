@@ -205,7 +205,7 @@ inline void yield(void)
 #define Stack std::stack
 #define Deque std::deque
 
-const size_t BufferSize = 4096;
+const size_t BufferSize = 8*1024;	// 8 KiB
 
 }
 
