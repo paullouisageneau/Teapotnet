@@ -332,7 +332,6 @@ void Http::Request::recv(Socket &sock)
 							line.clear();
 						}*/
 						
-						char *tmp = new char[boundary.size()];
 						char *buffer = new char[boundary.size()];
 						try {
 							size_t size = 0;
@@ -349,7 +348,7 @@ void Http::Request::recv(Socket &sock)
 								
 								if(buffer[c] == boundary[i])
 								{
-									tmp[i++] = buffer[c++];
+									++i; ++c;
 									if(i == boundary.size()) 
 									{
 										// If we are here there is no data left in buffer
@@ -361,7 +360,7 @@ void Http::Request::recv(Socket &sock)
 									}
 								}
 								else {
-								  	if(i) stream->writeData(tmp, i);
+								  	if(i) stream->writeData(boundary.data(), i);
 									i = c; ++c;
 									while(c != size && buffer[c] != boundary[0]) ++c;
 									stream->writeData(buffer + i, c - i);
@@ -371,11 +370,10 @@ void Http::Request::recv(Socket &sock)
 						}	  
 						catch(...)
 						{
-							delete[] tmp;
 							delete[] buffer;
 							throw;
 						}
-						delete[] tmp;
+						delete[] buffer;
 					}
 				}
 			}
