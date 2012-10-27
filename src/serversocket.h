@@ -37,7 +37,8 @@ public:
 
 	bool isListening(void) const;
 	int getPort(void) const;
-	Address getLocalAddress(void) const;
+	Address getBindAddress(void) const;
+	void getLocalAddresses(List<Address> &list) const;
 
 	void listen(int port);
 	void close(void);

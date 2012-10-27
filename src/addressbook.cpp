@@ -28,6 +28,7 @@
 #include "directory.h"
 #include "html.h"
 #include "yamlserializer.h"
+#include "portmapping.h"
 
 namespace tpot
 {
@@ -297,10 +298,58 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		String url("http://" + Config::Get("tracker") + "/tracker/" + remotePeering.toString());
 		
 		StringMap post;
-		post["port"] = Config::Get("port");
-		if(!Config::Get("external_address").empty() && Config::Get("external_address") != "auto")
-			post["host"] = Config::Get("external_address");
-		if(Http::Post(url, post) != 200) return false;
+		String externalAddress = Config::Get("external_address");
+		if(!externalAddress.empty() && externalAddress != "auto")
+		{
+			if(externalAddress.contains(':'))
+			{
+				Address addr(externalAddress);
+				post["host"] = addr.host();
+				post["port"] = addr.service();
+			}
+			else {
+				post["host"] = externalAddress;
+				post["port"] = Config::Get("port");
+			}
+			
+			if(Http::Post(url, post) != 200) return false;
+		}
+		else {
+			List<Address> list;
+			Core::Instance->getAddresses(list);
+			
+			bool success = false;
+			for(List<Address>::const_iterator it = list.begin();
+				it != list.end();
+				++it)
+			{
+				const Address &addr = *it;
+				if(addr.addrFamily() == AF_INET)
+				{
+					String host = PortMapping::Instance->getExternalHost();
+					if(!host.empty()) 
+					{
+						post["host"] = host;
+						uint16_t port;
+						PortMapping::Instance->getTcp(addr.port(), port);
+						post["port"] << port;
+						
+						success|= (Http::Post(url, post) != 200);
+					}
+				}
+				
+				String host = addr.host();
+				if(host != "127.0.0.1" && host != "::1")
+				{
+					post["host"] = host;
+					post["port"] = addr.service();
+				}
+
+				success|= (Http::Post(url, post) != 200);
+			}
+			
+			return success;
+		}
 	}
 	catch(const std::exception &e)
 	{

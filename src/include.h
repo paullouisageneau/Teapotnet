@@ -101,11 +101,13 @@ typedef u_long ctl_t;
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sched.h>
+#include <ifaddrs.h>
 
 typedef int socket_t;
 typedef int ctl_t;

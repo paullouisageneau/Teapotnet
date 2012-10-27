@@ -34,20 +34,28 @@ class DatagramSocket
 public:
 	static const int MaxDatagramSize;
 	
-	DatagramSocket(int port);
+	DatagramSocket(int port = 0, bool broadcast = false);
+	DatagramSocket(const Address &local, bool broadcast = false);
 	~DatagramSocket(void);
 
-	Address getLocalAddress(void);
-
+	void setTimeout(unsigned msecs);
+	Address getBindAddress(void) const;
+	void getLocalAddresses(List<Address> &list) const;
+	
+	void bind(int port, bool broascast = false);
+	void bind(const Address &local, bool broadcast = false);
+	void close(void);
+	
 	int read(char *buffer, size_t size, Address &sender);
 	void write(const char *buffer, size_t size, const Address &receiver);
 
-	void read(ByteStream &stream, Address &sender);
+	bool read(ByteStream &stream, Address &sender);
 	void write(ByteStream &stream, const Address &receiver);
 	
 private:
 	socket_t mSock;
 	int mPort;
+	unsigned mTimeout;
 };
 
 }

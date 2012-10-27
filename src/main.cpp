@@ -29,6 +29,7 @@
 #include "core.h"
 #include "user.h"
 #include "directory.h"
+#include "portmapping.h"
 
 #include <signal.h>
 
@@ -104,22 +105,36 @@ int main(int argc, char** argv)
 			tracker->start();
 		}
 		
-		// Creating global store
-		Store::GlobalInstance = new Store(NULL);
-		
-		// Starting interface
-		String sifport = Config::Get("interface_port");
-		if(args.contains("ifport")) sifport = args["ifport"];
-		int ifport;
-		sifport >> ifport;
-		Interface::Instance = new Interface(ifport);
-		Interface::Instance->start();
-		
-		// Starting core
 		String sport = Config::Get("port");
 		if(args.contains("port")) sport = args["port"];
 		int port;
 		sport >> port;
+		
+		String sifport = Config::Get("interface_port");
+		if(args.contains("ifport")) sifport = args["ifport"];
+		int ifport;
+		sifport >> ifport;
+		
+		// Creating global store
+		Store::GlobalInstance = new Store(NULL);
+		
+		// Starting port mapping
+		PortMapping::Instance = new PortMapping;
+		if(Config::Get("external_address").empty()
+			|| Config::Get("external_address") == "auto")
+		{
+			Log("main", "NAT port mapping is enabled");
+			PortMapping::Instance->init();
+			PortMapping::Instance->addTcp(port, port);
+			PortMapping::Instance->start();
+		}
+		else Log("main", "NAT port mapping is disabled");
+		
+		// Starting interface
+		Interface::Instance = new Interface(ifport);
+		Interface::Instance->start();
+		
+		// Starting core
 		Core::Instance = new Core(port);
 		Core::Instance->start();
 

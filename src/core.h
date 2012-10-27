@@ -61,6 +61,8 @@ public:
 	Core(int port);
 	~Core(void);
 	
+	void getAddresses(List<Address> &list) const;
+	
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
 		       		const ByteString &secret,

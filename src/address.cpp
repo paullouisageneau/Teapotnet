@@ -37,7 +37,7 @@ Address::Address(const String &host, const String &service)
 	set(host,service);
 }
 
-Address::Address(const String &host, int port)
+Address::Address(const String &host, uint16_t port)
 {
 	set(host,port);
 }
@@ -63,8 +63,8 @@ void Address::set(const String &host, const String &service)
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
 	aiHints.ai_socktype = SOCK_STREAM;
-	aiHints.ai_protocol = IPPROTO_TCP;
-	aiHints.ai_flags = 0;
+	aiHints.ai_protocol = 0;
+	aiHints.ai_flags = AI_ADDRCONFIG;
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
@@ -76,11 +76,11 @@ void Address::set(const String &host, const String &service)
 	freeaddrinfo(aiList);
 }
 
-void Address::set(const String &host, int port)
+void Address::set(const String &host, uint16_t port)
 {
 	String service;
 	service << port;
-	set(host, port);
+	set(host, service);
 }
 
 void Address::set(const sockaddr *addr, socklen_t addrlen)
@@ -124,12 +124,12 @@ String Address::service(void) const
 	return String(service);
 }
 
-int Address::port(void) const
+uint16_t Address::port(void) const
 {
 	if(isNull()) throw InvalidData("Requested port for null address");
 
 	String str(service());
-	int port;
+	uint16_t port;
 	str >> port;
 	return port;
 }
@@ -244,8 +244,8 @@ bool Address::deserialize(Stream &s)
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
 	aiHints.ai_socktype = SOCK_STREAM;
-	aiHints.ai_protocol = IPPROTO_TCP;
-	aiHints.ai_flags = 0;
+	aiHints.ai_protocol = 0;
+	aiHints.ai_flags = AI_ADDRCONFIG;
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)

@@ -33,20 +33,20 @@ class Address : public Serializable
 public:
 	Address(void);
 	Address(const String &host, const String &service);
-	Address(const String &host, int port);
+	Address(const String &host, uint16_t port);
 	Address(const String &str);
 	Address(const sockaddr *addr, socklen_t addrlen);
 	virtual ~Address(void);
 
 	void set(const String &host, const String &service);
-	void set(const String &host, int port);
+	void set(const String &host, uint16_t port);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
 	bool isNull(void) const;
 
 	String host(void) const;
 	String service(void) const;
-	int port(void) const;
+	uint16_t port(void) const;
 
 	const sockaddr *addr(void) const;
 	int addrFamily(void) const;
@@ -60,7 +60,7 @@ public:
 
 private:
 	sockaddr_storage 	mAddr;
-	socklen_t			mAddrLen;
+	socklen_t		mAddrLen;
 };
 
 bool operator < (const Address &a1, const Address &a2);

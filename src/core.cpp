@@ -44,6 +44,12 @@ Core::~Core(void)
 	mSock.close();	// useless
 }
 
+void Core::getAddresses(List<Address> &list) const
+{
+	Synchronize(this);
+	mSock.getLocalAddresses(list);
+}
+
 void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
 		       		const ByteString &secret,
