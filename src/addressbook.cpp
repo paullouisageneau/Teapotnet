@@ -332,7 +332,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 						post["host"] = host;
 						uint16_t port;
 						PortMapping::Instance->getTcp(addr.port(), port);
-						post["port"] << port;
+						post["port"] == String::number(unsigned(port));
 						
 						success|= (Http::Post(url, post) != 200);
 					}
@@ -343,9 +343,9 @@ bool AddressBook::publish(const Identifier &remotePeering)
 				{
 					post["host"] = host;
 					post["port"] = addr.service();
+					
+					success|= (Http::Post(url, post) != 200);
 				}
-
-				success|= (Http::Post(url, post) != 200);
 			}
 			
 			return success;

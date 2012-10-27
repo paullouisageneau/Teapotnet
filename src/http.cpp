@@ -82,20 +82,17 @@ void Http::Request::send(Socket &sock)
 	}
 
 	String postData;
-	if(!post.empty())
+	for(	StringMap::iterator it = post.begin();
+			it != post.end();
+			++it)
 	{
-		for(	StringMap::iterator it = post.begin();
-				it != post.end();
-				++it)
-		{
-			if(!postData.empty()) postData<<'&';
-			postData<<it->first.urlEncode()<<'='<<it->second.urlEncode();
-		}
-
-		headers["Content-Length"] = "";
-		headers["Content-Length"] << postData.size();
-		headers["Content-Type"] = "application/x-www-form-urlencoded";
+		if(!postData.empty()) postData<<'&';
+		postData<<it->first.urlEncode()<<'='<<it->second.urlEncode();
 	}
+
+	headers["Content-Length"] = "";
+	headers["Content-Length"] << postData.size();
+	headers["Content-Type"] = "application/x-www-form-urlencoded";
 
 	String buf;
 	buf<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
