@@ -57,12 +57,19 @@ void openUserInterface(void)
 
 int main(int argc, char** argv)
 {
-#ifndef WINDOWS
+	srand(time(NULL));
+  
+#ifdef WINDOWS
+	WSADATA WSAData;
+	WSAStartup(MAKEWORD(2,2), &WSAData);
+#else
 	signal(SIGPIPE, SIG_IGN);
 #endif
 	
-	srand(time(NULL));
-	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_process_attach_np();
+#endif
+
 	if(!File::Exist("users.txt"))
 	{
 		std::cout<<"Welcome to TeapotNet !"<<std::endl;
@@ -101,7 +108,9 @@ int main(int argc, char** argv)
 		
 		const String configFileName = "config.txt";
 		
-		Config::Load(configFileName);
+		if(File::Exist(configFileName))
+			Config::Load(configFileName);
+		
 		Config::Default("tracker", "teapotnet.org");
 		Config::Default("port", "8480");
 		Config::Default("tracker_port", "8488");
@@ -149,6 +158,12 @@ int main(int argc, char** argv)
 			if(!args.contains("nointerface"))
 				openUserInterface();
 			return 0;
+		}
+		
+		if(!args.contains("debug") && Config::Get("debug") != "on")
+		{
+			HWND hWnd = GetConsoleWindow();
+			ShowWindow(hWnd, SW_HIDE);
 		}
 #endif
 		
@@ -258,12 +273,21 @@ int main(int argc, char** argv)
 		
 		Core::Instance->join();
 		Log("main", "Finished");
-		exit(0);
 	}
 	catch(const std::exception &e)
 	{
 		Log("main", String("ERROR: ") + e.what());
 		return 1;	  
 	}
+	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_process_detach_np();
+#endif
+	
+#ifdef WINDOWS
+	WSACleanup();
+#endif
+	
+	exit(0);
 }
 

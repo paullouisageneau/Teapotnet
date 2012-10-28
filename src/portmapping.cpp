@@ -28,10 +28,19 @@ namespace tpot
 PortMapping *PortMapping::Instance = NULL;
   
 PortMapping::PortMapping(void) :
-	mEnabled(false),
-	mSock(0, true),
-	mAnnounceSock(Address("224.0.0.1", 5350), true)
+	mEnabled(false)
 {
+	mSock.bind(0, true);
+	
+	try {
+		mAnnounceSock.bind(Address("224.0.0.1", 5350), false);
+	}
+	catch(const Exception &e)
+	{
+		Log("PortMapping", String("Warning: ") + e.what());
+		mAnnounceSock.bind(5350, true);
+	}
+  
 	mSock.setTimeout(250);
 	mAnnounceSock.setTimeout(300000);		// TODO
 	mGatewayAddr.set("255.255.255.255", 5351);	// TODO

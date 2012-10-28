@@ -154,11 +154,11 @@ void DatagramSocket::bind(int port, bool broadcast)
 	close();
 	
 	mPort = port;
-	addrinfo *aiList = NULL;
 	
 	// Obtain local Address
+	addrinfo *aiList = NULL;
 	addrinfo aiHints;
-	memset(&aiHints, 0, sizeof(aiHints));
+	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
 	aiHints.ai_socktype = SOCK_DGRAM;
 	aiHints.ai_protocol = 0;
@@ -166,7 +166,7 @@ void DatagramSocket::bind(int port, bool broadcast)
 	String service;
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException("Local binding Address resolution failed for port "+port);
+		throw NetException("Local binding address resolution failed for port "+port);
 
 	// Prefer IPv6
 	addrinfo *ai = aiList;

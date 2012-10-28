@@ -156,22 +156,22 @@ void ServerSocket::listen(int port)
 	close();
 
 	mPort = port;
-	addrinfo *aiList = NULL;
 	mSock = INVALID_SOCKET;
 
+	// Obtain local Address
+	addrinfo *aiList = NULL;
+	addrinfo aiHints;
+	std::memset(&aiHints, 0, sizeof(aiHints));
+	aiHints.ai_family = AF_UNSPEC;
+	aiHints.ai_socktype = SOCK_STREAM;
+	aiHints.ai_protocol = 0;
+	aiHints.ai_flags = AI_PASSIVE;
+	String service;
+	service << port;
+	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
+		throw NetException(String("Local binding address resolution failed for port ")+String::number(port));
+		
 	try {
-		// Obtain local Address
-		addrinfo aiHints;
-		memset(&aiHints, 0, sizeof(aiHints));
-		aiHints.ai_family = AF_UNSPEC;
-		aiHints.ai_socktype = SOCK_STREAM;
-		aiHints.ai_protocol = 0;
-		aiHints.ai_flags = AI_PASSIVE;
-		String service;
-		service << port;
-		if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-			throw NetException(String("Local binding Address resolution failed for port ")+String::number(port));
-
 		// Prefer IPv6
 		addrinfo *ai = aiList;
 		while(ai)
@@ -206,17 +206,15 @@ void ServerSocket::listen(int port)
 		if(ioctl(mSock,FIONBIO,&b) < 0)
 			throw Exception("Cannot use non-blocking mode");
 		 */
-
-		// Clean up
-		freeaddrinfo(aiList);
-		aiList = NULL;
 	}
 	catch(...)
 	{
-		if(aiList) freeaddrinfo(aiList);
+		freeaddrinfo(aiList);
 		close();
 		throw;
 	}
+	
+	freeaddrinfo(aiList);
 }
 
 void ServerSocket::close(void)

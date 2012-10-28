@@ -38,7 +38,7 @@ class Stream
 public:
 	static const String IgnoredCharacters;
 	static const String BlankCharacters;
-	static const char NewLine;
+	static const String NewLine;
 	static const char Space;
 	
 	Stream(void);

@@ -29,7 +29,7 @@ namespace tpot
 
 const String Stream::IgnoredCharacters = "\r\0";
 const String Stream::BlankCharacters = " \t\n";
-const char Stream::NewLine = '\n';
+const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
 
 Stream::Stream(void) :
@@ -118,7 +118,7 @@ void Stream::space(void)
 
 void Stream::newline(void)
 {
-	put(NewLine);
+	write(NewLine);
 }
 
 char Stream::last(void) const
@@ -328,7 +328,7 @@ bool Stream::readChar(char &chr)
 bool Stream::readLine(String &str)
 {
 	str.clear();
-	return readUntil(str, NewLine);
+	return readUntil(str, '\n');
 }
 
 bool Stream::readString(String &str)

@@ -110,6 +110,10 @@ void *Thread::ThreadRun(void *myThread)
 	Thread *thread = reinterpret_cast<Thread*>(myThread);
 	thread->mRunning = true;
 	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_thread_attach_np();
+#endif
+	
 	try {
 		thread->run();
 	}
@@ -124,6 +128,10 @@ void *Thread::ThreadRun(void *myThread)
 	
 	thread->mRunning = false;
 	if(thread->mAutoDelete) delete thread;
+	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_thread_detach_np();
+#endif
 	pthread_exit(NULL);
 }
 
@@ -131,6 +139,10 @@ void *Thread::ThreadCall(void *myWrapper)
 {
 	Wrapper *wrapper = reinterpret_cast<Wrapper*>(myWrapper);
 	wrapper->thread->mRunning = true;
+	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_thread_attach_np();
+#endif
 	
 	try {
 		wrapper->call();
@@ -146,6 +158,10 @@ void *Thread::ThreadCall(void *myWrapper)
 	
 	delete wrapper;
 	wrapper->thread->mRunning = false;
+	
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_thread_detach_np();
+#endif
 	pthread_exit(NULL);
 }
 

@@ -1,6 +1,6 @@
 body
 {
-	font-family: "sans";
+	font-family: Sans-Serif;
 	font-size: 80%;
 	background-color: #FFFFFF;
 	padding: 1em;
@@ -27,6 +27,7 @@ img
 {
 	margin: 0em;
 	padding: 0em;
+	border: 0;
 }
 
 form

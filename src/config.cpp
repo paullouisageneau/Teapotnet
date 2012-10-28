@@ -35,7 +35,8 @@ String Config::Get(const String &key)
 	if(!Params.get(key, value))
 	{
 	 	 ParamsMutex.unlock();
-		 throw Exception("Config: no entry for \""+key+"\"");
+		 //throw Exception("Config: no entry for \""+key+"\"");
+		 return "";
 	}
 	ParamsMutex.unlock();
 	return value;

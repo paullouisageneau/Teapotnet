@@ -33,6 +33,7 @@
 	#define __MSVCRT_VERSION__ 0x0601
 	#ifdef __MINGW32__
 		#define MINGW
+		#define PTW32_STATIC_LIB
 	#endif
 #endif
 
@@ -59,7 +60,12 @@
 #include <queue>
 
 #include <dirent.h>
+
+#ifdef WINDOWS
+#include "../win32/pthread.h"
+#else
 #include <pthread.h>
+#endif
 
 // Windows compatibility
 #ifdef WINDOWS
