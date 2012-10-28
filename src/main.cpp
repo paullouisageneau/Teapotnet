@@ -42,7 +42,7 @@ Mutex tpot::LogMutex;
 #include <shellapi.h>
 
 #define SHARED __attribute__((section(".shared"), shared))
-uint16_t InterfacePort SHARED = 0;
+int InterfacePort SHARED = 0;
 
 void openUserInterface(void)
 {
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 		{
 			if(args["tracker"].empty()) 
 				args["tracker"] = Config::Get("tracker_port");
-			uint16_t port;
+			int port;
 			args["tracker"] >> port;
 			
 			Log("main", "Launching the tracker");
@@ -182,12 +182,12 @@ int main(int argc, char** argv)
 		
 		String sport = Config::Get("port");
 		if(args.contains("port")) sport = args["port"];
-		uint16_t port;
+		int port;
 		sport >> port;
 		
 		String sifport = Config::Get("interface_port");
 		if(args.contains("ifport")) sifport = args["ifport"];
-		uint16_t ifport;
+		int ifport;
 		sifport >> ifport;
 		
 		// Creating global store
