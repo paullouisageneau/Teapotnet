@@ -27,6 +27,7 @@
 #define APPVERSION	"0.1"
 #define SOURCELINK	"http://www.teapotnet.org/source/"
 
+
 #if defined(_WIN32) || defined(_WIN64)
 	#define WINDOWS
 	#define _WIN32_WINNT 0x0501

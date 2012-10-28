@@ -37,6 +37,7 @@ using namespace tpot;
 
 Mutex tpot::LogMutex;
 
+
 #ifdef WINDOWS
 
 #include <shellapi.h>
