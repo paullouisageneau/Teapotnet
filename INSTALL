@@ -10,11 +10,11 @@ $ make
 This should work for any more or less POSIX-compliant system.
 Note you need libpthread for the compilation to succeed.
 
-You can then run the application with the tracker:
-$ ./teapotnet --tracker
-
-or without it:
+You can then run the application:
 $ ./teapotnet
+
+Or with the local tracker enabled:
+$ ./teapotnet --tracker
 
 By default, it listens for TPOT connections on port 8480.
 The interface listens by defaut on port 8080, and the tracker on port 8488.

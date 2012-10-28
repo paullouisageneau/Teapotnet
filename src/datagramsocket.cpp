@@ -63,7 +63,9 @@ Address DatagramSocket::getBindAddress(void) const
 
 void DatagramSocket::getLocalAddresses(List<Address> &list) const
 {
-/*
+	Address bindAddr = getBindAddress();
+  
+#ifdef WINDOWS
 	// Retrieve hostname
 	char hostname[HOST_NAME_MAX];
 	if(gethostname(hostname,HOST_NAME_MAX))
@@ -82,7 +84,7 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 	if(getaddrinfo(hostname, service.c_str(), &aiHints, &aiList) != 0)
 		throw NetException(String("Address resolution failed for ")+String(hostname));
 
-	Address bindAddr = getBindAddress();
+	
 	
 	addrinfo *ai = aiList;  
 	while(ai)
@@ -102,36 +104,7 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 	}
 	
 	freeaddrinfo(aiList);
-*/
-
-/*	
-	ifreq ifrs[16];
-	ifconf ifc;
-	std::memset(&ifc, 0, sizeof(ifc));
-	ifc.ifc_buf = reinterpret_cast<char*>(ifrs);
-	ifc.ifc_len = sizeof(ifrs);
-
-	if(ioctl(mSock, SIOCGIFCONF, reinterpret_cast<char*>(&ifc)) < 0)
-		throw NetException("Unable to list network interfaces");
-
-	int nbr =  ifc.ifc_len / sizeof(ifreq);
-	for(int i=0; i<nbr; ++i)
-	{
-		ifreq *ifr = ifrs + i;
- 		sockaddr *sa = &ifr->ifr_addr;
-		socklen_t len = 0;
-		switch(sa->sa_family) 
-		{
-			case AF_INET:  len = sizeof(sockaddr_in);  break;
-			case AF_INET6: len = sizeof(sockaddr_in6); break;
-		}
-		
-		if(len) list.push_back(Address(sa, len));
-	}
-*/
-
-	Address bindAddr = getBindAddress();
-
+#else
 	ifaddrs *ifas;
 	if(getifaddrs(&ifas) < 0)
 		throw NetException("Unable to list network interfaces");
@@ -168,7 +141,7 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 	}
 
 	freeifaddrs(ifas);
-
+#endif
 }
 
 void DatagramSocket::setTimeout(unsigned msecs)
@@ -227,9 +200,9 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 		// Set options
 		int enabled = 1;
 		int disabled = 0;
-		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<void*>(&enabled), sizeof(enabled));
-		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<void*>(&enabled), sizeof(enabled));
-		if(local.addrFamily() == AF_INET6) setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<void*>(&disabled), sizeof(disabled)); 
+		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		if(local.addrFamily() == AF_INET6) setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
 		// Bind it
 		if(::bind(mSock, local.addr(), local.addrLen()) != 0)

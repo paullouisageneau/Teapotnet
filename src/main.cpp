@@ -37,13 +37,64 @@ using namespace tpot;
 
 Mutex tpot::LogMutex;
 
+#ifdef WINDOWS
+
+#include <shellapi.h>
+
+#define SHARED __attribute__((section(".shared"), shared))
+uint16_t InterfacePort SHARED = 0;
+
+void openUserInterface(void)
+{
+	if(!InterfacePort) return;
+
+	String url;
+	url << "http://localhost:" << InterfacePort << "/";
+	ShellExecute(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
+}
+
+#endif
+
 int main(int argc, char** argv)
 {
 #ifndef WINDOWS
 	signal(SIGPIPE, SIG_IGN);
 #endif
-
+	
 	srand(time(NULL));
+	
+	if(!File::Exist("users.txt"))
+	{
+		std::cout<<"Welcome to TeapotNet !"<<std::endl;
+		std::cout<<"No user has been configured yet, please enter your new username and password."<<std::endl;
+		
+		std::string username, password;
+		
+		do {
+			std::cout<<"username: ";
+			std::cin>>username;
+		}
+		while(username.empty() && username.find(' ') == std::string::npos);
+		  
+		do {
+			std::cout<<"password: ";
+			std::cin>>password;
+		}
+		while(password.empty());
+		
+		std::cout<<std::endl;
+		
+		std::ofstream of("users.txt");
+		if(!of.is_open())
+		{
+			std::cout<<"Unable to open users.txt"<<std::endl;
+			std::cin.get();
+			return 1;
+		}
+		
+		of << username << ' ' << password << std::endl;
+		of.close();
+	}
 	
 	try {
 	  	Log("main", "Starting...");
@@ -92,12 +143,21 @@ int main(int argc, char** argv)
 		}
 		if(!last.empty()) args[last] = "";
 		
+#ifdef WINDOWS
+		if(InterfacePort)
+		{
+			if(!args.contains("nointerface"))
+				openUserInterface();
+			return 0;
+		}
+#endif
+		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
 		{
 			if(args["tracker"].empty()) 
 				args["tracker"] = Config::Get("tracker_port");
-			int port;
+			uint16_t port;
 			args["tracker"] >> port;
 			
 			Log("main", "Launching the tracker");
@@ -107,16 +167,30 @@ int main(int argc, char** argv)
 		
 		String sport = Config::Get("port");
 		if(args.contains("port")) sport = args["port"];
-		int port;
+		uint16_t port;
 		sport >> port;
 		
 		String sifport = Config::Get("interface_port");
 		if(args.contains("ifport")) sifport = args["ifport"];
-		int ifport;
+		uint16_t ifport;
 		sifport >> ifport;
 		
 		// Creating global store
 		Store::GlobalInstance = new Store(NULL);
+		
+		// Starting interface
+		Interface::Instance = new Interface(ifport);
+		Interface::Instance->start();
+		
+		// Starting core
+		Core::Instance = new Core(port);
+		Core::Instance->start();
+		
+#ifdef WINDOWS
+		InterfacePort = ifport;
+		if(!args.contains("nointerface"))
+			openUserInterface();
+#endif
 		
 		// Starting port mapping
 		PortMapping::Instance = new PortMapping;
@@ -130,14 +204,6 @@ int main(int argc, char** argv)
 		}
 		else Log("main", "NAT port mapping is disabled");
 		
-		// Starting interface
-		Interface::Instance = new Interface(ifport);
-		Interface::Instance->start();
-		
-		// Starting core
-		Core::Instance = new Core(port);
-		Core::Instance->start();
-
 		if(!Directory::Exist(Config::Get("profiles_dir")))
 			Directory::Create(Config::Get("profiles_dir"));
 		

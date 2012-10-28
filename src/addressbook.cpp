@@ -375,7 +375,8 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Array<
 			line.trim();
 			if(line.empty()) continue;
 			Address a;
-			line >> a;
+			try { line >> a; }
+			catch(...) { continue; }
 			if(!addrs.contains(a))
 				addrs.push_back(a);
 		}

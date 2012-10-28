@@ -85,6 +85,9 @@ typedef u_long ctl_t;
 #ifdef MINGW
 #include <sys/stat.h>
 #include <sys/time.h>
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27 
+#endif
 #endif
 
 #else
@@ -101,7 +104,7 @@ typedef u_long ctl_t;
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <net/if.h>
+//#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -128,6 +131,10 @@ typedef int ctl_t;
 
 #ifndef SERVICE_NAME_MAX
 #define SERVICE_NAME_MAX 32
+#endif
+
+#ifndef AI_ADDRCONFIG
+#define AI_ADDRCONFIG 0
 #endif
 
 namespace tpot

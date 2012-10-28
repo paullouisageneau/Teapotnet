@@ -1,5 +1,6 @@
 CC=i486-mingw32-gcc
 CXX=i486-mingw32-g++
+RES=i486-mingw32-windres
 RM=rm -f
 CPPFLAGS=-O
 LDFLAGS=-O
@@ -10,8 +11,8 @@ OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet.exe
 
-teapotnet.exe: $(OBJS)
-	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) $(LDLIBS) 
+teapotnet.exe: $(OBJS) res.o
+	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) res.o $(LDLIBS) 
 
 depend: .depend
 
@@ -20,9 +21,14 @@ depend: .depend
 
 clean:
 	$(RM) $(OBJS)
-
+	$(RM) res.rc
+	
 dist-clean: clean
 	$(RM) src/*~ ./.depend
+
+res.o:
+	echo 1 ICON "teapotnet.ico" > res.rc
+	$(RES) res.rc res.o
 
 include .depend
 
