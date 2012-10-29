@@ -2,7 +2,10 @@ CC=i486-mingw32-gcc
 CXX=i486-mingw32-g++
 RES=i486-mingw32-windres
 RM=rm -f
-CPPFLAGS=-O
+#CPPFLAGS=-O
+#LDFLAGS=-O -static-libgcc
+#LDLIBS=-lws2_32 -lpthread -lsqlite3
+CPPFLAGS=-O -DPTW32_STATIC_LIB
 LDFLAGS=-O -static -static-libgcc
 LDLIBS=-lws2_32 -lsqlite3 -L win32 -lpthreadGC2
 

@@ -34,7 +34,6 @@
 	#define __MSVCRT_VERSION__ 0x0601
 	#ifdef __MINGW32__
 		#define MINGW
-		#define PTW32_STATIC_LIB
 	#endif
 #endif
 
@@ -62,7 +61,7 @@
 
 #include <dirent.h>
 
-#ifdef WINDOWS
+#ifdef PTW32_STATIC_LIB
 #include "../win32/pthread.h"
 #else
 #include <pthread.h>
