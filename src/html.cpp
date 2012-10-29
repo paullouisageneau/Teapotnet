@@ -43,10 +43,10 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<head>\n";
 	if(blank) *mStream<<"<title>"<<title<<"</title>\n";
 	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
-	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\"/>\n";
-	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\"/>\n";
-	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\"/>\n";
-	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\"/>\n";
+	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">\n";
+	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n";
+	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\">\n";
+	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"</head>\n";
@@ -86,7 +86,7 @@ void Html::text(const String &str)
 		case '<': 	mStream->write("&lt;");		break;
 		case '>': 	mStream->write("&gt;");		break;
 		case '&': 	mStream->write("&amp;");	break;
-		default:	mStream->put(chr);			break;
+		default:	mStream->put(chr);		break;
 		}
 	}
 }
@@ -220,26 +220,26 @@ void Html::input(const String &type, const String &name, const String &value)
 {
 	String t(type);
 	if(t == "button") t = "submit";
- 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"/>\n";
+ 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\">\n";
 }
 
 void Html::checkbox(const String &name, const String &value, bool checked)
 {
- 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<"/>";
+ 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<">";
  	text(value);
  	*mStream<<"</span>\n";
 }
 
 void Html::textarea(const String &name, const String &value)
 {
-	*mStream<<"<textarea class=\""<<name<<"\" name=\""<<name<<"\"/>";
+	*mStream<<"<textarea class=\""<<name<<"\" name=\""<<name<<"\">";
 	text(value);
 	*mStream<<"</textarea>\n";
 }
 
 void Html::select(const String &name, const StringMap &options, const String &def)
 {
-	*mStream<<"<select name=\""<<name<<"\"/>\n";
+	*mStream<<"<select name=\""<<name<<"\">\n";
 	for(StringMap::const_iterator it=options.begin(); it!=options.end(); ++it)
 	{
 		 *mStream<<"<option ";
@@ -259,7 +259,7 @@ void Html::button(const String &name, const String &text)
 
 void Html::file(const String &name)
 {
- 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size=30 />\n";
+ 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size="30">\n";
 }
 
 Stream *Html::stream(void)
