@@ -259,7 +259,7 @@ void Html::button(const String &name, const String &text)
 
 void Html::file(const String &name)
 {
- 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size="30">\n";
+ 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size=\"30\">\n";
 }
 
 Stream *Html::stream(void)
