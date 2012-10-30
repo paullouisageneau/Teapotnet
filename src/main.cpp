@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 	pthread_win32_process_attach_np();
 #endif
 
-	if(!File::Exist("users.txt"))
+	if(!File::Exist("users.txt") && !File::Exist("config.txt"))
 	{
 		std::cout<<"Welcome to TeapotNet !"<<std::endl;
 		std::cout<<"No user has been configured yet, please enter your new username and password."<<std::endl;
@@ -106,18 +106,33 @@ int main(int argc, char** argv)
 	
 	try {
 	  	Log("main", "Starting...");
-		
+
+#ifndef WINDOWS
+		// Main config file name
+		// Should tell us where the static dir is located
+		const String mainConfigFileName = "/etc/teapotnet/config.conf";
+		if(File::Exist(mainConfigFileName))
+		{
+			Log("main", "Loading main configuration...");
+                        Config::Load(mainConfigFileName);
+			VAR(Config::Get("static_dir"));
+		}
+#endif
+
 		const String configFileName = "config.txt";
-		
 		if(File::Exist(configFileName))
+		{
+			Log("main", "Loading configuration...");
 			Config::Load(configFileName);
-		
+		}
+
 		Config::Default("tracker", "teapotnet.org");
 		Config::Default("port", "8480");
 		Config::Default("tracker_port", "8488");
 		Config::Default("interface_port", "8080");
 		Config::Default("profiles_dir", "profiles");
 		Config::Default("static_dir", "static");
+		Config::Default("shared_dir", "shared");
 		Config::Default("external_address", "auto");
 		Config::Default("http_timeout", "5000");
 		Config::Default("tpot_timeout", "5000");
@@ -271,13 +286,19 @@ int main(int argc, char** argv)
 		}
 		usersFile.open(usersFileName, File::Truncate);
 		usersFile.close();
-		
+
+		Log("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
 		Core::Instance->join();
 		Log("main", "Finished");
 	}
 	catch(const std::exception &e)
 	{
 		Log("main", String("ERROR: ") + e.what());
+#ifdef WINDOWS
+		HWND hWnd = GetConsoleWindow();
+                ShowWindow(hWnd, SW_SHOW);
+		std::cin.get();
+#endif
 		return 1;	  
 	}
 	

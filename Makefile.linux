@@ -1,3 +1,6 @@
+prefix=/usr/local
+statedir=/var/local
+
 CC=gcc
 CXX=g++
 RM=rm -f
@@ -25,4 +28,13 @@ dist-clean: clean
 	$(RM) src/*~ ./.depend
 
 include .depend
+
+install: teapotnet
+	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
+	install -d $(DESTDIR)$(statedir)/teapotnet
+	cp -r static $(DESTDIR)$(statedir)/teapotnet
+
+uninstall:
+	rm -f $(DESTDIR)$(prefix)/bin/teaponet
+	rm -rf $(DESTDIR)$(statedir)/teapotnet
 

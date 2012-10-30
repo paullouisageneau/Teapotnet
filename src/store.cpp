@@ -25,6 +25,7 @@
 #include "sha512.h"
 #include "html.h"
 #include "lineserializer.h"
+#include "config.h"
 
 namespace tpot
 {
@@ -92,7 +93,7 @@ Store::Store(User *user) :
 	{
 		mFileName = mUser->profilePath() + "directories";
 		
-		const String folder = "shared";
+		const String folder = Config::Get("shared_dir");
 		if(!Directory::Exist(folder))
 			Directory::Create(folder);
 		
