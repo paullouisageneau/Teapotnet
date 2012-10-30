@@ -115,7 +115,6 @@ int main(int argc, char** argv)
 		{
 			Log("main", "Loading main configuration...");
                         Config::Load(mainConfigFileName);
-			VAR(Config::Get("static_dir"));
 		}
 #endif
 
