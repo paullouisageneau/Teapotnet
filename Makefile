@@ -29,9 +29,10 @@ dist-clean: clean
 include .depend
 
 install: teapotnet
-	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
+	install -d $(DESTDIR)$(prefix)/bin
 	install -d $(DESTDIR)$(prefix)/share/teapotnet
 	install -d /etc/teapotnet
+	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
 	cp -r static $(DESTDIR)$(prefix)/share/teapotnet
 	echo "static_dir=$(DESTDIR)$(prefix)/share/teapotnet/static" > /etc/teapotnet/config.conf
 
