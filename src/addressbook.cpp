@@ -254,13 +254,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.input("hidden", "argument");
 				page.closeForm();
 				
-				page.javascript("function deleteContact(name, identifier)\n\
-				{\n\
-					if(!confirm('Do you really want to delete '+name+' ?')) return false;\n\
-					document.executeForm.command.value = 'delete';\n\
-					document.executeForm.argument.value = identifier;\n\
-					document.executeForm.submit();\n\
-					return false;\n\
+				page.javascript("function deleteContact(name, identifier) {\n\
+					if(confirm('Do you really want to delete '+name+' ?')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = identifier;\n\
+						document.executeForm.submit();\n\
+					}\n\
 				}");
 				
 				page.open("table",".contacts");

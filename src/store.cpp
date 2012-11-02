@@ -296,12 +296,22 @@ void Store::http(const String &prefix, Http::Request &request)
 		{
 		  	if(request.method == "POST")
 			{
-				String name = request.post["name"];
-				
-				if(!name.empty())
+				String command = request.post["command"];
+			  	if(command == "delete")
 				{
+					String name = request.post["argument"];
+					if(!name.empty()) 
+					{
+						removeDirectory(name);
+						// TODO: delete files recursively
+					}
+				}
+			  	else if(request.post.contains("name"))
+				{
+					String name = request.post["name"];
 					try {
-						if(name.contains('/') || name.contains('\\') 
+						if(name.empty()
+							|| name.contains('/') || name.contains('\\') 
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
 
@@ -350,6 +360,20 @@ void Store::http(const String &prefix, Http::Request &request)
 			if(!mDirectories.empty())
 			{
 				page.open("div",".box");
+				
+				page.openForm(prefix+url, "post", "executeForm");
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.closeForm();
+				
+				page.javascript("function deleteDirectory(name) {\n\
+					if(confirm('Do you really want to delete the directory '+name+' ?')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = name;\n\
+						document.executeForm.submit();\n\
+					}\n\
+				}");
+				
 				page.open("table",".files");
 				for(StringMap::iterator it = mDirectories.begin();
 							it != mDirectories.end();
@@ -358,6 +382,11 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.open("tr");
 					page.open("td");
 					page.link(it->first, it->first);
+					page.close("td");
+					page.open("td",".delete");
+					page.openLink("javascript:deleteDirectory('"+it->first+"')");
+					page.image("/delete.png", "Delete");
+					page.closeLink();
 					page.close("td");
 					page.close("tr");
 				}
@@ -390,7 +419,24 @@ void Store::http(const String &prefix, Http::Request &request)
 			  
 				if(request.method == "POST")
 				{
-					for(Map<String,TempFile*>::iterator it = request.files.begin();
+					String command = request.post["command"];
+			  		if(command == "delete")
+					{
+						String fileName = request.post["argument"];
+						if(!fileName.empty())
+						{
+							String filePath = path + Directory::Separator + fileName;
+							if(File::Exist(filePath))
+							{
+				  				File::Remove(filePath);
+								Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE url = ?1");
+								statement.bind(1, url);
+								statement.execute();
+							}
+							// TODO: recursively delete repertories
+						}
+					}
+					else for(Map<String,TempFile*>::iterator it = request.files.begin();
 						it != request.files.end();
 						++it)
 					{
@@ -435,16 +481,14 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.closeForm();
 				page.div("","uploadMessage");
 
-				page.raw("<script type=\"text/javascript\">\n\
-	document.uploadForm.send.style.display = 'none';\n\
-	$(document.uploadForm.file).change(function() {\n\
-		if(document.uploadForm.file.value != '') {\n\
-		  	document.uploadForm.style.display = 'none';\n\
-			$('#uploadMessage').html('<div class=\"box\">Uploading the file, please wait...</div>');\n\
-			document.uploadForm.submit();\n\
-		}\n\
-	});\n\
-</script>\n");
+				page.javascript("document.uploadForm.send.style.display = 'none';\n\
+				$(document.uploadForm.file).change(function() {\n\
+					if(document.uploadForm.file.value != '') {\n\
+		  				document.uploadForm.style.display = 'none';\n\
+						$('#uploadMessage').html('<div class=\"box\">Uploading the file, please wait...</div>');\n\
+						document.uploadForm.submit();\n\
+					}\n\
+				});");
 	
 				Map<String, StringMap> files;
 				Directory dir(path);
@@ -459,6 +503,20 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(!info.empty())
 				{
 					page.open("div", ".box");
+					
+					page.openForm(prefix+url, "post", "executeForm");
+					page.input("hidden", "command");
+					page.input("hidden", "argument");
+					page.closeForm();
+				
+					page.javascript("function deleteFile(name) {\n\
+						if(confirm('Do you really want to delete '+name+' ?')) {\n\
+							document.executeForm.command.value = 'delete';\n\
+							document.executeForm.argument.value = name;\n\
+							document.executeForm.submit();\n\
+						}\n\
+					}");
+					
 					page.open("table", ".files");
 					for(Map<String, StringMap>::iterator it = files.begin();
 						it != files.end();
@@ -470,6 +528,11 @@ void Store::http(const String &prefix, Http::Request &request)
 						page.open("td"); 
 						if(info.get("type") == "directory") page.text("directory");
 						else page.text(String::hrSize(info.get("size"))); 
+						page.close("td");
+						page.open("td",".delete");
+						page.openLink("javascript:deleteFile('"+info.get("name")+"')");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
 						page.close("td");
 						page.close("tr");
 					}
