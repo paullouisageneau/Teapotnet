@@ -214,6 +214,11 @@ table.contacts td
 	padding-right: 1em;
 }
 
+td.delete
+{
+	width: 16px; 
+}
+
 .box
 {
 	width: 40em;

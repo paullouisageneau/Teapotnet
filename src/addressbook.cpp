@@ -93,7 +93,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	if(tracker.empty()) tracker = Config::Get("tracker");
 	
 	String uname = name;
-	unsigned i = 0;
+	unsigned i = 1;
 	while(mContactsByUniqueName.contains(uname))
 	{
 		uname = name;
@@ -203,17 +203,30 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(request.method == "POST")
 			{
 				try {
-					String name, csecret;
-					request.post["name"] >> name;
-					request.post["secret"] >> csecret;
-				  
-					ByteString secret;
-					Sha512::Hash(csecret, secret, Sha512::CryptRounds);
-					
-					addContact(name, secret);
+			  		String command = request.post["command"];
+			  		if(command == "delete")
+					{
+				  		Identifier peering;
+						request.post["argument"] >> peering;
+						
+						removeContact(peering);
+					}
+					else {
+						String name, csecret;
+						name = request.post["name"];
+						csecret = request.post["secret"];
+					  
+						if(name.empty() || csecret.empty()) throw 400;
+						
+						ByteString secret;
+						Sha512::Hash(csecret, secret, Sha512::CryptRounds);
+						
+						addContact(name, secret);
+					}
 				}
-				catch(...)
+				catch(const Exception &e)
 				{
+					Log("AddressBook::http", String("Error: ") + e.what());
 					throw 400;
 				}				
 				
@@ -235,6 +248,21 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(!mContacts.empty())
 			{
 				page.open("div",".box");
+				
+				page.openForm(prefix+"/", "post", "executeForm");
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.closeForm();
+				
+				page.javascript("function deleteContact(name, identifier)\n\
+				{\n\
+					if(!confirm('Do you really want to delete '+name+' ?')) return false;\n\
+					document.executeForm.command.value = 'delete';\n\
+					document.executeForm.argument.value = identifier;\n\
+					document.executeForm.submit();\n\
+					return false;\n\
+				}");
+				
 				page.open("table",".contacts");
 				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 					it != mContacts.end();
@@ -259,6 +287,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.open("td");
 					int msgcount = contact->unreadMessagesCount();
 					if(msgcount) page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+					page.close("td");
+					page.open("td",".delete");
+					page.openLink("javascript:deleteContact('"+contact->name()+"','"+contact->peering().toString()+"')");
+					page.image("/delete.png", "Delete");
+					page.closeLink();
 					page.close("td");
 					page.close("tr");
 				}

@@ -227,11 +227,11 @@ void Interface::process(Http::Request &request)
 				  	size_t finished = splicer.finishedBlocks();
 					while(current < finished)
 					{
-						if(!file.read(*response.sock, blockSize)) return;
+						Assert(!file.read(*response.sock, blockSize) == blockSize);
 						++current;
 					}
 					
-					msleep(500);
+					msleep(100);
 				}
 				
 				file.read(*response.sock);

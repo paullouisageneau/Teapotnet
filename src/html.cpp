@@ -25,8 +25,28 @@
 namespace tpot
 {
 
+String Html::escape(const String &str)
+{
+	String result;
+	for(int i=0; i<str.size(); ++i)
+	{
+		char chr = str[i];
+		switch(chr)
+		{
+		case '"': 	result << "&quot;";	break;
+		case '\'': 	result << "&apos;";	break;
+		case '<': 	result << "&lt;";	break;
+		case '>': 	result << "&gt;";	break;
+		case '&': 	result << "&amp;";	break;
+		default:	result+=chr;		break;
+		}
+	}
+	return result;
+}
+  
 Html::Html(Stream *stream) :
-		mStream(stream)
+	mStream(stream),
+	mBlank(false)
 {
 
 }
@@ -38,6 +58,8 @@ Html::~Html(void)
 
 void Html::header(const String &title, bool blank, const String &redirect)
 {
+	mBlank = blank;
+  
 	*mStream<<"<!DOCTYPE html>\n";
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
@@ -52,7 +74,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 
-	if(!blank)
+	if(!mBlank)
 	{
 		open("div","panel");
 		openLink("/"); image("/logo.png", APPNAME, "logo"); closeLink();
@@ -60,11 +82,17 @@ void Html::header(const String &title, bool blank, const String &redirect)
 		open("div","bar");
 		link(SOURCELINK, "Source code", "", true);
 		close("div");
+		open("div","content");
 	}
 }
 
 void Html::footer(void)
 {
+	if(!mBlank)
+	{
+		close("div"); 
+	}
+
 	*mStream<<"</body>\n";
 	*mStream<<"</html>\n";
 }
@@ -76,33 +104,24 @@ void Html::raw(const String &str)
 
 void Html::text(const String &str)
 {
-	for(int i=0; i<str.size(); ++i)
-	{
-		char chr = str[i];
-		switch(chr)
-		{
-		case '"': 	mStream->write("&quot;");	break;
-		case '\'': 	mStream->write("&apos;");	break;
-		case '<': 	mStream->write("&lt;");		break;
-		case '>': 	mStream->write("&gt;");		break;
-		case '&': 	mStream->write("&amp;");	break;
-		default:	mStream->put(chr);		break;
-		}
-	}
+	mStream->write(escape(str));
 }
 
 void Html::object(const Serializable &s)
 {
 	// TODO
 	open("span");
-	mStream->write(s.toString());
+	mStream->write(escape(s.toString()));
 	close("span");
 }
 
 void Html::open(const String &type, String id)
 {
 	assert(!type.empty());
+	
+	if(!id.empty() && id[0] == '#') id.ignore();
 	String cl = id.cut('.');
+	
 	*mStream<<"<"<<type;
 	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
@@ -117,7 +136,9 @@ void Html::close(const String &type)
 
 void Html::openLink(const String &url, String id, bool newTab)
 {
+	if(!id.empty() && id[0] == '#') id.ignore();
 	String cl = id.cut('.');
+
 	*mStream<<"<a href=\""<<url<<"\"";
 	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
@@ -158,12 +179,21 @@ void Html::image(	const String &url,
 			const String &alt,
 			String id)
 {
-	String cl = id.cut('.');
+	if(!id.empty() && id[0] == '#') id.ignore();
+  	String cl = id.cut('.');
+	
 	*mStream<<"<img src=\""<<url<<"\"";
 	if(!alt.empty()) *mStream<<" alt=\""<<alt<<"\"";
 	if(!id.empty())  *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty())  *mStream<<" class=\""<<cl<<"\"";
 	*mStream<<"/>\n";
+}
+
+void Html::javascript(const String &code)
+{
+	*mStream<<"<script type=\"text/javascript\">\n";
+	*mStream<<code<<"\n"; 
+	*mStream<<"</script>\n"; 
 }
 
 void Html::space(void)
@@ -188,7 +218,7 @@ void Html::openForm(	const String &action,
 	
 	*mStream<<"<form";
 	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
-	*mStream<<" action=\""<<action<<"\" method=\""<<method<<"\"";
+	*mStream<<" action=\""<<escape(action)<<"\" method=\""<<method<<"\"";
 	if(method == "post") *mStream<<" enctype=\""<<enctype<<"\"";
 	*mStream<<">\n";
 }

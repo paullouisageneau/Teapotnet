@@ -33,6 +33,8 @@ namespace tpot
 class Html
 {
 public:
+	static String escape(const String &str);
+  
 	Html(Stream *stream);	// stream WON'T be destroyed
 	~Html(void);
 
@@ -56,11 +58,13 @@ public:
 			const String &txt,
 			String id = "",
 			bool newTab = false);
-
+	
 	void image(	const String &url,
 			const String &alt = "",
 			String id = "");
 
+	void javascript(const String &code);
+	
 	void space(void);
 	void br(void);
 
@@ -83,6 +87,7 @@ public:
 
 private:
 	Stream *mStream;
+	bool mBlank;
 };
 
 }
