@@ -988,6 +988,8 @@ page.raw("<script type=\"text/javascript\">\n\
 			if($.trim(html) != '')\n\
 			{\n\
 				$(\"#chat\").prepend(html);\n\
+				var text = $('#chat span.text:first');\n\
+				if(text) text.html(text.html().linkify());\n\
 				if(!hasFocus)\n\
 				{\n\
 					nbNewMessages+= 1;\n\
@@ -1049,7 +1051,10 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message, boo
 	if(message.receiver() == Identifier::Null) html.text(mAddressBook->userName());
 	else html.text(mAddressBook->getContact(message.receiver())->name());
 	html.close("span");
-	html.text(": " + message.content());
+	html.text(": ");
+	html.open("span",".text");
+	html.text(message.content());
+	html.close("span");
 	html.close("span");
 	html.br(); 
 }
