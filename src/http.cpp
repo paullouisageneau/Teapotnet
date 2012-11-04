@@ -23,6 +23,8 @@
 #include "exception.h"
 #include "html.h"
 #include "config.h"
+#include "mime.h"
+#include "directory.h"
 
 namespace tpot
 {
@@ -426,16 +428,11 @@ void Http::Response::send(Socket &sock)
 		headers["Connection"] = "close";
 
 	if(!headers.contains("Date"))
-	{
-		// TODO
-		time_t rawtime;
-		time(&rawtime);
-		struct tm *timeinfo = localtime(&rawtime);
-		char buffer[256];
-		strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S %Z", timeinfo);
-		headers["Date"] = buffer;
-	}
+		headers["Date"] = Time::Now().toHttpDate();
 
+	if(!headers.contains("Last-Modified"))
+		headers["Last-Modified"] = headers["Date"];
+	
 	if(message.empty())
 	{
 		switch(code)
@@ -690,6 +687,128 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	else sock.discard();
 
 	return response.code;
+}
+
+void Http::RespondWithFile(const Request &request, const String &fileName)
+{
+	int code = 200;
+	File file;
+	
+	if(!File::Exist(fileName)) code = 404;
+	else {
+		if(request.method != "GET" && request.method != "HEAD") code = 405;
+		else {
+			String ifModifiedSince;
+			if(request.headers.get("If-Modified-Since", ifModifiedSince))
+			{
+				Time time(ifModifiedSince);
+				if(time >= File::Time(fileName))
+				{
+					Response response(request, 304);
+					response.send();
+					return;
+				}
+			}
+		  
+			try {
+				file.open(fileName, File::Read);
+			}
+			catch(...)
+			{
+				code = 403;
+			}
+		}
+	}
+	
+	uint64_t rangeBegin = file.size()-1;
+	uint64_t rangeEnd = 0;
+	String range;
+	if(request.headers.get("Range",range))
+	{
+		 range.cut(';');
+		 String tmp = range.cut('=');
+		 if(range != "bytes") code = 416;
+		 else {
+		 	List<String> intervals;
+		 	tmp.explode(intervals, ',');
+		 	while(!intervals.empty())
+			{
+				String sbegin = intervals.front();
+				String send = sbegin.cut('-');
+				intervals.pop_front();
+				
+				uint64_t begin, end;
+				if(!send.empty())   send >> end;
+				else end = file.size()-1;
+				if(!sbegin.empty()) sbegin >> begin;
+				else {
+					begin = file.size()-end;
+					end = file.size()-1;
+				}
+				
+				if(begin >= file.size() || end >= file.size() || begin > end)
+				{
+					code = 416;
+					break;
+				}
+				
+				rangeBegin = std::min(begin, rangeBegin);
+				rangeEnd   = std::max(end, rangeEnd);
+			}
+		 }
+	}
+	
+	if(code != 200)
+	{
+		Response response(request, code);
+		response.headers["Content-Type"] = "text/html; charset=UTF-8";
+		response.send();
+		
+		if(request.method != "HEAD")
+		{
+			Html page(response.sock);
+			page.header(response.message);
+			page.open("h1");
+			page.text(String::number(response.code) + " - " + response.message);
+			page.close("h1");
+			page.footer();
+		}
+		
+		return;
+	}
+	
+	Response response(request, code);
+	
+	String name = fileName.afterLast(Directory::Separator);
+	if(name != request.url.afterLast('/')) 
+		response.headers["Content-Disposition"] = "attachment; filename=\"" + name + "\"";
+	
+	if(request.headers.contains("Range"))
+	{
+		 response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << file.size();
+		 response.headers["Content-Size"]  << rangeEnd - rangeBegin + 1;
+	}
+	else {
+		response.headers["Content-Size"] << file.size();
+	}
+	
+	response.headers["Content-Type"] = Mime::GetType(fileName);
+	response.headers["Last-Modified"] = File::Time(fileName).toHttpDate();
+
+	response.send();
+
+	if(request.method != "HEAD")
+	{
+		if(request.headers.contains("Range"))
+		{
+			file.seekg(rangeBegin);
+			file.read(*response.sock, rangeEnd - rangeBegin + 1);
+		}
+		else {
+			file.read(*response.sock);
+		}
+		file.close();
+	}
 }
 
 }

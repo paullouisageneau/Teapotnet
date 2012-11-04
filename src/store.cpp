@@ -26,6 +26,8 @@
 #include "html.h"
 #include "lineserializer.h"
 #include "config.h"
+#include "time.h"
+#include "mime.h"
 
 namespace tpot
 {
@@ -220,7 +222,7 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 		entry.url = "/";
 		entry.type = 0;
 		entry.size = 0;
-		entry.time = time(NULL);
+		entry.time = Time::Now();
 		entry.digest.clear();
 		return true;
 	}
@@ -545,9 +547,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			else if(File::Exist(path))
 			{
 				Http::Response response(request,200);
-				response.headers["Content-Type"] = "application/octet-stream";
+				response.headers["Content-Type"] = Mime::GetType(path);
 				response.headers["Content-Length"] << File::Size(path);
-				// TODO: date
+				response.headers["Last-Modified"] = File::Time(path).toHttpDate();
 				response.send();
 
 				File file(path, File::Read);
@@ -615,8 +617,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 		sql<<") ";
 	}*/
 	
-	if(query.mMinAge > 0) sql<<"AND time >= ? "; 
-	if(query.mMaxAge > 0) sql<<"AND time <= ? ";
+	if(query.mMinAge.toUnixTime() > 0) sql<<"AND time >= ? "; 
+	if(query.mMaxAge.toUnixTime() > 0) sql<<"AND time <= ? ";
 	
 	sql<<"ORDER BY time DESC "; // Newer files first
 	
@@ -639,8 +641,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 		statement.bind(++parameter, *it);
 	}*/
 	
-	if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(time(NULL)-query.mMinAge));
-	if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(time(NULL)-query.mMaxAge));
+	if(query.mMinAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMinAge));
+	if(query.mMaxAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMaxAge));
 	
 	return true;
 }
@@ -826,7 +828,7 @@ void Store::Query::setDigest(const ByteString &digest)
 	mDigest = digest;
 }
 
-void Store::Query::setAge(time_t min, time_t max)
+void Store::Query::setAge(Time min, Time max)
 {
 	mMinAge = min;
 	mMaxAge = max;

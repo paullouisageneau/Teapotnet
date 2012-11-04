@@ -49,7 +49,7 @@ public:
 		
 		void setLocation(const String &url);
 		void setDigest(const ByteString &digest);
-		void setAge(time_t min, time_t max);
+		void setAge(Time min, Time max);
 		void setRange(int first, int last);
 		void setLimit(int count);
 	  	void setMatch(const String &match);
@@ -59,7 +59,7 @@ public:
 		String mUrl, mMatch;
 		ByteString mDigest;
 		List<String> mTypes;
-		time_t mMinAge, mMaxAge;
+		Time mMinAge, mMaxAge;
 		int mOffset, mCount;
 		
 		friend class Store;
@@ -73,7 +73,7 @@ public:
 		String		name;
 		int		type;
 		uint64_t	size;
-		time_t		time;
+		Time		time;
 	};
   
   	static bool GetResource(const ByteString &digest, Entry &entry);

@@ -32,14 +32,15 @@ String Config::Get(const String &key)
 {
 	ParamsMutex.lock();
 	String value;
-	if(!Params.get(key, value))
+	if(Params.get(key, value))
 	{
 	 	 ParamsMutex.unlock();
-		 //throw Exception("Config: no entry for \""+key+"\"");
-		 return "";
+		return value;
 	}
+	
 	ParamsMutex.unlock();
-	return value;
+	//throw Exception("Config: no entry for \""+key+"\"");
+	return "";
 }
 
 void Config::Put(const String &key, const String &value)

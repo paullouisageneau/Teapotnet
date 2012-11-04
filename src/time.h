@@ -19,81 +19,47 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPOT_FILE_H
-#define TPOT_FILE_H
+#ifndef TPOT_TIME_H
+#define TPOT_TIME_H
 
-#include "stream.h"
-#include "bytestream.h"
-#include "string.h"
+#include "include.h"
+#include "serializable.h"
+#include "thread.h"
 #include "mutex.h"
-#include "time.h"
-
-#include <fstream>
 
 namespace tpot
 {
 
-class File : public Stream, public ByteStream, public std::fstream
+class Time : public Serializable
 {
 public:
-	using Stream::read;
-	using Stream::write;
-	using ByteStream::ignore;
-
-	static bool Exist(const String &filename);
-	static bool Remove(const String &filename);
-	static void Rename(const String &source, const String &destination);
-	static uint64_t Size(const String &filename);
-	static tpot::Time Time(const String &filename);
-	static String TempName(void);
-
-	enum OpenMode { Read, Write, ReadWrite, Append, Truncate, TruncateReadWrite };
-
-	File(void);
-	File(const String &filename, OpenMode mode = ReadWrite);
-	virtual ~File(void);
-
-	virtual void open(const String &filename, OpenMode mode = ReadWrite);
-	virtual void close(void);
+  	static Time Now(void);
+	static void Schedule(const Time &when, Thread *thread);
 	
-	String name(void) const;
-	uint64_t size(void) const;
-	
-	// Stream, ByteStream
-	size_t readData(char *buffer, size_t size);
-	void writeData(const char *data, size_t size);
+	Time(void);
+	Time(time_t time);
+	Time(const String &str);
+	~Time(void);
 
-protected:
-	ByteStream *pipeIn(void);
-	String mName;
-};
-
-class SafeWriteFile : public File
-{
-public:
-	SafeWriteFile(void);
-	SafeWriteFile(const String &filename);
-	~SafeWriteFile(void);
+	String toHttpDate(void) const;
+	time_t toUnixTime(void) const;
 	
-	void open(const String &filename, OpenMode mode = Truncate);	// mode MUST be Truncate
-	void close(void);
+	double operator - (const Time &t);
+	operator time_t(void) const;
+	
+	// Serializable
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
 
 private:
-	String mTarget;
+  	static Mutex TimeMutex;
+	time_t mTime;
 };
 
-class TempFile : public File
-{
-public:
-	TempFile(void);
-	TempFile(const String &filename);
-	~TempFile(void);
-
-	void close(void);
-	
-private:
-	void open(const String &filename, OpenMode mode = ReadWrite);
-};
+bool operator < (const Time &t1, const Time &t2);
+bool operator > (const Time &t1, const Time &t2);
+bool operator == (const Time &a1, const Time &t2);
+bool operator != (const Time &a1, const Time &t2);
 
 }
 

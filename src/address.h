@@ -36,13 +36,14 @@ public:
 	Address(const String &host, uint16_t port);
 	Address(const String &str);
 	Address(const sockaddr *addr, socklen_t addrlen);
-	virtual ~Address(void);
+	~Address(void);
 
 	void set(const String &host, const String &service);
 	void set(const String &host, uint16_t port);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
 	bool isNull(void) const;
+	bool isLocal(void) const;
 
 	String host(void) const;
 	String service(void) const;
@@ -53,10 +54,10 @@ public:
 	socklen_t addrLen(void) const;
 
 	// Serializable
-	virtual void serialize(Serializer &s) const;
-	virtual bool deserialize(Serializer &s);
-	virtual void serialize(Stream &s) const;
-	virtual bool deserialize(Stream &s);
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	void serialize(Stream &s) const;
+	bool deserialize(Stream &s);
 
 private:
 	sockaddr_storage 	mAddr;

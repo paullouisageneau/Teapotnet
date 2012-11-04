@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "stream.h"
+#include "socket.h"
 #include "serializable.h"
 #include "map.h"
 
@@ -36,6 +37,7 @@ public:
 	static String escape(const String &str);
   
 	Html(Stream *stream);	// stream WON'T be destroyed
+	Html(Socket *sock);	// sock WON'T be destroyed
 	~Html(void);
 
 	void header(const String &title = "", bool blank = false, const String &redirect = "");
@@ -88,6 +90,7 @@ public:
 private:
 	Stream *mStream;
 	bool mBlank;
+	bool mAdmin;
 };
 
 }

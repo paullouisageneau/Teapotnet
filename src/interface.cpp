@@ -26,6 +26,7 @@
 #include "splicer.h"
 #include "config.h"
 #include "directory.h"
+#include "mime.h"
 
 namespace tpot
 {
@@ -105,23 +106,10 @@ void Interface::process(Http::Request &request)
 	
 	if(list.size() == 1 && request.url[request.url.size()-1] != '/') 
 	{
-		String name = Config::Get("static_dir") + Directory::Separator + list.front();
-		if(File::Exist(name))
+		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
+		if(File::Exist(fileName)) 
 		{
-			File file(name, File::Read);
-			Http::Response response(request, 200);
-			
-			// TODO
-			String ext = name.cutLast('.');
-			if(ext == "html") response.headers.insert("Content-Type","text/html");
-			if(ext == "js")   response.headers.insert("Content-Type","text/javascript");
-			if(ext == "css")  response.headers.insert("Content-Type","text/css");
-			if(ext == "png")  response.headers.insert("Content-Type","image/png");
-			if(ext == "jpg")  response.headers.insert("Content-Type","text/jpeg");
-			if(ext == "ico")  response.headers.insert("Content-Type","image/x-icon");
-
-			response.send();
-			response.sock->writeBinary(file);
+			Http::RespondWithFile(request, fileName);
 			return;
 		}
 	}
@@ -192,12 +180,11 @@ void Interface::process(Http::Request &request)
 			if(Store::GetResource(digest, entry) && !entry.path.empty())
 			{
 				Http::Response response(request, 200);
-				response.headers["Content-Type"] = "application/octet-stream";
-				response.headers["Content-Disposition"] = "attachment";
+				response.headers["Content-Disposition"] = "attachment; filename=\"" + entry.name + "\"";
+				response.headers["Content-Type"] = Mime::GetType(entry.name);
 				response.headers["Content-Length"] << entry.size;
-				response.headers["Content-Disposition"]+= "; filename=\"" + entry.name + "\"";
+				response.headers["Last-Modified"] = entry.time.toHttpDate();
 				response.headers["Content-SHA512"] = entry.digest.toString();
-				// TODO: Date + Last-Modified
 				response.send();
 				
 				File file(entry.path);
@@ -212,8 +199,8 @@ void Interface::process(Http::Request &request)
 				File file(filename, File::Read);
 				
 				Http::Response response(request, 200);
-				response.headers["Content-Type"] = "application/octet-stream";
 				response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
+				response.headers["Content-Type"] = Mime::GetType(splicer.name());
 				response.headers["Content-Length"] << splicer.size();
 				response.headers["Content-SHA512"] = digest.toString();
 				// TODO: Missing headers

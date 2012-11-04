@@ -105,6 +105,12 @@ bool Address::isNull(void) const
 	return (mAddrLen == 0);
 }
 
+bool Address::isLocal(void) const
+{
+	String h = host();
+	return (h == "127.0.0.1" || h == "::1");
+}
+
 String Address::host(void) const
 {
 	if(isNull()) throw InvalidData("Requested host for null address");

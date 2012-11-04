@@ -55,7 +55,7 @@ public:
 		StringMap post;         // POST parameters
 		Map<String, TempFile*> files; // Files posted with POST
 		
-		Socket *sock;			// Internal use for Response construction
+		Socket *sock;		// Internal use for Response construction
 	};
 
 	struct Response
@@ -68,7 +68,7 @@ public:
 		void recv(Socket &sock);
 		void clear(void);
 
-		int code;			// Response code
+		int code;		// Response code
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
@@ -107,6 +107,8 @@ public:
 	static int Get(const String &url, Stream *output = NULL);
 	static int Post(const String &url, const StringMap &post, Stream *output = NULL);
 
+	static void RespondWithFile(const Request &request, const String &fileName);
+	
 private:
 	Http(void);
 };

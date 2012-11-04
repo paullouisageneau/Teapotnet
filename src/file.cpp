@@ -63,16 +63,16 @@ uint64_t File::Size(const String &filename)
 	return uint64_t(st.st_size);
 }
 
-uint64_t File::Time(const String &filename)
+tpot::Time File::Time(const String &filename)
 {
 	stat_t st;
 	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
-	return uint64_t(st.st_mtime);
+	return tpot::Time(st.st_mtime);
 }
 
 String File::TempName(void)
 {
-	 String tempPath;
+	String tempPath;
 #ifdef WINDOWS
 	char buffer[MAX_PATH+1];
 	Assert(GetTempPath(MAX_PATH+1,buffer) != 0);
