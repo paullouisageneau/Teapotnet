@@ -31,6 +31,7 @@ namespace tpot
 
 AesCipher::AesCipher(ByteStream *bs) :
 	mByteStream(bs),
+	mDumpStream(NULL),
 	mTempBlockInSize(0),
 	mTempBlockOutSize(0)
 {
@@ -276,6 +277,12 @@ void AesCipher::setDecryptionInit(const char *iv, size_t size)
 			mDecryptionInit[i] = iv[i % size];
 	}
 }
+
+void AesCipher::dumpStream(ByteStream *bs)
+{
+	mDumpStream = bs; 
+}
+
 /*
  * Encrypt a single block
  * in and out can overlap
@@ -531,6 +538,8 @@ size_t AesCipher::readBlock(char *out)
 			mTempBlockInSize+= count;
 		}
 
+		if(mDumpStream) mDumpStream->writeData(mTempBlockIn, AES_BLOCK_SIZE);
+		
 		decrypt(mTempBlockIn, out);
 
 		for(size_t n=0; n < AES_BLOCK_SIZE; ++n)

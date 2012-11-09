@@ -44,7 +44,7 @@ Address::Address(const String &host, uint16_t port)
 
 Address::Address(const String &str)
 {
-	fromString(str);
+	set(str);
 }
 
 Address::Address(const sockaddr *addr, socklen_t addrlen)
@@ -83,6 +83,11 @@ void Address::set(const String &host, uint16_t port)
 	set(host, service);
 }
 
+void Address::set(const String &str)
+{
+	fromString(str);
+}
+
 void Address::set(const sockaddr *addr, socklen_t addrlen)
 {
 	if(!addr || !addrlen)
@@ -107,8 +112,55 @@ bool Address::isNull(void) const
 
 bool Address::isLocal(void) const
 {
-	String h = host();
-	return (h == "127.0.0.1" || h == "::1");
+	switch(addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
+		if(b[0] == 127) return true;
+		break;
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
+		// TODO: case of ipv4 as ipv6
+		for(int i=0; i<15; ++i) if(b[i] != 0) break;
+		if(b[15] == 1) return true;
+		break;
+	}
+	
+	}
+	return false;
+}
+
+bool Address::isPrivate(void) const
+{
+	switch(addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
+		if(b[0] == 10) return true;
+		if(b[0] == 172 && b[1] >= 16 && b[1] < 32) return true;
+		if(b[0] == 192 && b[1] == 168) return true;
+		break;
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
+		// TODO: case of ipv4 as ipv6
+		if(b[0] == 0xfc && b[1] == 0) return true; 
+		break;
+	}
+	
+	}
+	return false;
 }
 
 String Address::host(void) const
@@ -117,7 +169,7 @@ String Address::host(void) const
 	char host[HOST_NAME_MAX];
 	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, NULL, 0, NI_NUMERICHOST))
 		throw InvalidData("Invalid stored network address");
-	return String(host);
+	return String(host).toLower();
 }
 
 String Address::service(void) const
@@ -127,7 +179,7 @@ String Address::service(void) const
 	char service[SERVICE_NAME_MAX];
 	if(getnameinfo(addr(), addrLen(), NULL, 0, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network address");
-	return String(service);
+	return String(service).toLower();
 }
 
 uint16_t Address::port(void) const
@@ -148,9 +200,9 @@ void Address::serialize(Serializer &s) const
 	{
 		s.output(uint8_t(4));
 		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
-		const char *b = reinterpret_cast<const char *>(&sa->sin_addr.s_addr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
 
-		for(int i=0; i<4; ++i) s.output(uint8_t(b[i]));
+		for(int i=0; i<4; ++i) s.output(b[i]);
 		s.output(uint16_t(ntohs(sa->sin_port)));
 		break;
 	}
@@ -159,7 +211,7 @@ void Address::serialize(Serializer &s) const
 	{
 		s.output(uint8_t(16));
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
-
+		
 		for(int i=0; i<16; ++i) s.output(uint8_t(sa6->sin6_addr.s6_addr[i]));
 		s.output(uint16_t(ntohs(sa6->sin6_port)));
 		break;
@@ -187,7 +239,7 @@ bool Address::deserialize(Serializer &s)
 	{
 		mAddrLen = sizeof(sockaddr_in);
 		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
-		char *b = reinterpret_cast<char *>(&sa->sin_addr.s_addr);
+		uint8_t *b = reinterpret_cast<uint8_t *>(&sa->sin_addr.s_addr);
 
 		sa->sin_family = AF_INET;
 		uint8_t u;

@@ -179,52 +179,58 @@ void Interface::process(Http::Request &request)
 			Store::Entry entry;
 			if(Store::GetResource(digest, entry) && !entry.path.empty())
 			{
+				File file(entry.path);
+				
 				Http::Response response(request, 200);
 				response.headers["Content-Disposition"] = "attachment; filename=\"" + entry.name + "\"";
 				response.headers["Content-Type"] = Mime::GetType(entry.name);
 				response.headers["Content-Length"] << entry.size;
 				response.headers["Last-Modified"] = entry.time.toHttpDate();
 				response.headers["Content-SHA512"] = entry.digest.toString();
-				response.send();
 				
-				File file(entry.path);
+				response.send();
 				response.sock->write(file);
 				return;
 			}
 			else {
-				size_t blockSize = 256*1024;	// TODO
+				size_t blockSize = 256*1024;		// TODO
+				String filename  = File::TempName();	// TODO
 				
-				String filename("/tmp/"+digest.toString());
-				Splicer splicer(digest, filename, blockSize);
-				File file(filename, File::Read);
-				
-				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
-				response.headers["Content-Type"] = Mime::GetType(splicer.name());
-				response.headers["Content-Length"] << splicer.size();
-				response.headers["Content-SHA512"] = digest.toString();
-				// TODO: Missing headers
-				response.send();
-				
-				size_t current = 0;
-				while(!splicer.finished())
-				{
-					splicer.process();
-				  
-				  	size_t finished = splicer.finishedBlocks();
-					while(current < finished)
+				try {
+					Splicer splicer(digest, filename, blockSize);
+					File file(filename, File::Read);
+					
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
+					response.headers["Content-Type"] = Mime::GetType(splicer.name());
+					response.headers["Content-Length"] << splicer.size();
+					response.headers["Content-SHA512"] = digest.toString();
+					// TODO: Missing headers
+					response.send();
+					
+					size_t current = 0;
+					while(!splicer.finished())
 					{
-						Assert(!file.read(*response.sock, blockSize) == blockSize);
-						++current;
+						splicer.process();
+					  
+						size_t finished = splicer.finishedBlocks();
+						while(current < finished)
+						{
+							Assert(!file.read(*response.sock, blockSize) == blockSize);
+							++current;
+						}
+						
+						msleep(20);
 					}
 					
-					msleep(100);
+					file.read(*response.sock);					
+					return;
 				}
-				
-				file.read(*response.sock);
-				file.close();
-				File::Remove(filename);
-				return;
+				catch(...)
+				{
+					if(File::Exist(filename)) File::Remove(filename);
+					throw;
+				}
 			}
 		}
 		catch(const std::exception &e)

@@ -132,6 +132,30 @@ void File::close(void)
 		std::fstream::close();
 }
 
+void File::seekRead(uint64_t position)
+{
+	uint64_t step = std::numeric_limits<std::streamoff>::max();
+	std::fstream::seekg(0, std::fstream::beg);
+	do {
+		uint64_t offset = std::min(position, step);
+		position-= offset;
+		std::fstream::seekg(std::streamoff(offset), std::fstream::cur);
+	}
+	while(position != 0);
+}
+
+void File::seekWrite(uint64_t position)
+{
+	uint64_t step = std::numeric_limits<std::streamoff>::max();
+	std::fstream::seekp(0, std::fstream::beg);
+	do {
+		uint64_t offset = std::min(position, step);
+		position-= offset;
+		std::fstream::seekp(std::streamoff(offset), std::fstream::cur);
+	}
+	while(position != 0);  
+}
+
 String File::name(void) const
 {
 	return mName; 

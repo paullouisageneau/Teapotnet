@@ -75,6 +75,10 @@ public:
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
+		bool isConnected(void) const;
+		
+		bool addAddress(const Address &addr, bool forceConnection = false);
+		bool removeAddress(const Address &addr);
 		
 		void update(void);
 		
@@ -101,7 +105,8 @@ public:
 	
 	const Identifier &addContact(String name, const ByteString &secret);
 	void removeContact(const Identifier &peering);
-	const Contact *getContact(const Identifier &peering);
+	Contact *getContact(const Identifier &peering);
+	const Contact *getContact(const Identifier &peering) const;
 	
 private:
 	static bool publish(const Identifier &remotePeering);

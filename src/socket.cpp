@@ -25,6 +25,45 @@
 namespace tpot
 {
 
+void Socket::Transfert(Socket *sock1, Socket *sock2)
+{
+	Assert(sock1);
+	Assert(sock2);
+  
+	char buffer[BufferSize];
+	
+	while(true)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(sock1->mSock, &readfds);
+		FD_SET(sock2->mSock, &readfds);
+		
+		int n = std::max(SOCK_TO_INT(sock1->mSock),SOCK_TO_INT(sock2->mSock))+1;
+		int ret = ::select(n, &readfds, NULL, NULL, NULL);
+
+		if (ret < 0) throw Exception("Unable to wait on socket");
+		if (ret ==  0) break;
+		
+		if(FD_ISSET(sock1->mSock, &readfds))
+		{
+			 int count = ::recv(sock1->mSock, buffer, BufferSize, 0);
+			 if(count <= 0) break;
+			 sock2->writeData(buffer, count);
+		}
+		
+		if(FD_ISSET(sock2->mSock, &readfds))
+		{
+			 int count = ::recv(sock2->mSock, buffer, BufferSize, 0);
+			 if(count <= 0) break;
+			 sock1->writeData(buffer, count);
+		}
+	}
+	
+	sock1->close();
+	sock2->close();
+}
+  
 Socket::Socket(void) :
 		mSock(INVALID_SOCKET),
 		mTimeout(0)

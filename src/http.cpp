@@ -801,7 +801,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 	{
 		if(request.headers.contains("Range"))
 		{
-			file.seekg(rangeBegin);
+			file.seekRead(rangeBegin);
 			file.read(*response.sock, rangeEnd - rangeBegin + 1);
 		}
 		else {

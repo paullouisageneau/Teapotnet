@@ -242,7 +242,6 @@ void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	{
 		Handler *h = mHandlers.get(peer);
 		if(h != handler) return;
-		delete h;
 		mHandlers.erase(peer);
 	}
 }
@@ -303,6 +302,17 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 
 Core::Handler::~Handler(void)
 {	
+	{
+		Synchronize(mCore);
+		
+		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
+		{
+			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
+			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
+			mCore->mKnownPublicAddresses.erase(mRemoteAddr);
+		}
+	}
+  
 	for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
 		it != mResponses.end();
 		++it)
@@ -318,7 +328,7 @@ Core::Handler::~Handler(void)
 		it->second->removePending(mPeering);
 	}
   
-	if(mSender->isRunning())
+	if(mSender && mSender->isRunning())
 	{
 		mSender->lock();
 		mSender->mShouldStop = true;
@@ -380,11 +390,17 @@ void Core::Handler::removeRequest(unsigned id)
 
 void Core::Handler::run(void)
 {
+	String command, args;
+	StringMap parameters;
+  
+	bool isIncoming = (mPeering == Identifier::Null);
+	
 	try {
-		lock();
+		Synchronize(this);
 		Log("Core::Handler", "Starting");
 	  
 		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
+		mRemoteAddr = mSock->getRemoteAddress();
 		
 		// Set up obfuscation cipher
 		ByteString tmpkey;
@@ -400,6 +416,8 @@ void Core::Handler::run(void)
 		cipher->setDecryptionInit(tmpiv);
 		mStream = cipher;	// IVs are zeroes
 		
+		cipher->dumpStream(&mObfuscatedHello);
+		
 		ByteString nonce_a, salt_a;
 		for(int i=0; i<16; ++i)
 		{
@@ -409,15 +427,10 @@ void Core::Handler::run(void)
 			salt_a.push_back(c);  
 		}
 	  
-		String command, args;
-		StringMap parameters;
-	  
-		if(mPeering != Identifier::Null)
+		if(!isIncoming)	
 		{
-		  	mCore->lock();
-			if(!mCore->mPeerings.get(mPeering, mRemotePeering))
-				throw Exception("Unknown peering: " + mPeering.toString());
-			mCore->unlock();
+			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
 			
 			args.clear();
 			args << mRemotePeering;
@@ -433,28 +446,124 @@ void Core::Handler::run(void)
 		
 		String appname, appversion;
 		ByteString peering, nonce_b;
-		args.read(peering);
+		args >> peering;
 		parameters["application"] >> appname;
 		parameters["version"] >> appversion;
 		parameters["nonce"] >> nonce_b;
 
-		if(mPeering != Identifier::Null && mPeering != peering) 
+		if(!isIncoming && mPeering != peering) 
 				throw Exception("Peering in response does not match");
 		
 		ByteString secret;
 		if(peering.size() != 64) throw Exception("Invalid peering identifier");	// TODO: useless
 		
-		{
-			Synchronize(mCore);
-			if(!mCore->mSecrets.get(peering, secret)) 
-				throw Exception("No secret for peering");
-		}
-		
-		if(mPeering == Identifier::Null)
+		if(isIncoming)
 		{
 			mPeering = peering;
-			if(!mCore->mPeerings.get(mPeering, mRemotePeering)) 
-				throw Exception("Unknown peering: " + mPeering.toString());
+			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+			{
+				unsigned timeout = 2000;
+				mCore->mMeetingPoint.lock();
+				while(timeout)
+				{
+					if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
+					mCore->mMeetingPoint.wait(timeout);
+				}
+				mCore->mMeetingPoint.unlock();
+				
+				Handler *handler;
+				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
+				{
+					if(!handler)
+					{
+						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
+						mCore->mMeetingPoint.notifyAll();
+						wait(2000);
+					}
+				  
+					delete this;
+					return;
+				}
+				
+				Log("Core::Handler", "Got unknown peering, asking peers");
+					
+				String adresses;
+				List<Address> list;
+				Config::GetExternalAddresses(list);
+				for(	List<Address>::iterator it = list.begin();
+					it != list.end();
+					++it)
+				{
+					if(!adresses.empty()) adresses+= ',';
+					adresses+= it->toString();
+				}
+					
+				Request request(String("peer:") + mPeering.toString(), false);
+				request.setParameter("adresses", adresses);
+				request.submit();
+				request.wait(2000);
+					
+				request.lock();
+				for(int i=0; i<request.responsesCount(); ++i)
+				{
+					String remote;
+					if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
+					{
+						request.unlock();
+						Log("Core::Handler", "Got positive response for peering");
+						
+						remote >> mRemotePeering;
+						SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
+						mCore->mMeetingPoint.notifyAll();
+						
+						unsigned timeout = 2000;
+						mCore->mMeetingPoint.lock();
+						while(timeout)
+						{
+							if(SynchronizeTest(mCore, mCore->mRedirections.contains(mRemotePeering))) break;
+							mCore->mMeetingPoint.wait(timeout);
+						}
+						mCore->mMeetingPoint.unlock();
+						
+						Handler *otherHandler;
+						if(SynchronizeTest(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler) && otherHandler))
+						{
+							otherHandler->lock();
+							Stream *otherStream = otherHandler->mStream;
+							Socket *otherSock   = otherHandler->mSock;
+							otherHandler->mStream = NULL;
+							otherHandler->mSock   = NULL;
+								
+							mSock->write(otherHandler->mObfuscatedHello);
+							otherSock->write(mObfuscatedHello);
+							
+							otherHandler->unlock();
+							otherHandler->notifyAll();
+							otherHandler = NULL;
+							
+							Log("Core::Handler", "Successfully forwarded connection");
+							
+							// Transfert
+							Socket::Transfert(mSock, otherSock);
+							otherSock->close();
+							mSock->close();
+								
+							if(otherStream != otherSock) delete otherStream;
+							delete otherSock;
+						}
+						
+						delete this;
+						return;
+					}
+				}
+				
+				request.unlock();
+					
+				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
+					
+				delete this;
+				return;
+			}
 			
 			args.clear();
 			args << mRemotePeering;
@@ -464,6 +573,12 @@ void Core::Handler::run(void)
 			parameters["nonce"] << nonce_a;
 			sendCommand(mStream, "H", args, parameters);
 		}
+		
+		cipher->dumpStream(NULL);
+		mObfuscatedHello.clear();
+		
+		if(SynchronizeTest(mCore, !mCore->mSecrets.get(peering, secret)))
+			throw Exception(String("Warning: No secret for peering: ") + peering.toString());
 		
 		String agregate_a;
 		agregate_a.writeLine(secret);
@@ -529,15 +644,34 @@ void Core::Handler::run(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
+		// Register the handler
 		mCore->addHandler(mPeering,this);
+		
+		if(!mRemoteAddr.isPrivate())
+		{
+			Synchronize(mCore);
+			if(isIncoming) mCore->mLastIncoming = Time::Now();
+			else {
+				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
+				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
+			}
+		}
 		
 		// Start the sender
 		mSender = new Sender;
 		mSender->mStream = mStream;
 		mSender->start();
-		
+	}
+	catch(const std::exception &e)
+	{
+		Log("Core::Handler", String("Handshake failed: ") + e.what()); 
+		mSock->close();
+		delete this;
+		return;
+	}
+	
+	try {
 		Log("Core::Handler", "Entering main loop");
-		unlock();
 		while(recvCommand(mStream, command, args, parameters))
 		{
 			Synchronize(this);
@@ -636,14 +770,13 @@ void Core::Handler::run(void)
 			  	Log("Core::Handler", "Received request "+String::number(id)+" for \""+target+"\"");
 
 				Listener *listener;
-				mCore->lock();
-				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
-				mCore->unlock();
+				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
 				
 				Request *request = new Request;
 				request->setTarget(target, (command == "G"));
 				request->setParameters(parameters);
 				request->mId = id;
+				request->mRemoteAddr = mRemoteAddr;
 				
 				if(!listener) Log("Core::Handler", "Warning: No listener for request " + String::number(id));
 				else {
@@ -679,9 +812,7 @@ void Core::Handler::run(void)
 				mStream->read(message.mContent,size);
 				
 				Listener *listener;
-				mCore->lock();
-				if(!mCore->mListeners.get(mPeering, listener)) listener = NULL;
-				mCore->unlock();
+				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
 				
 				if(!listener) Log("Core::Handler", "Warning: No listener, dropping message");
 				else {
@@ -699,15 +830,14 @@ void Core::Handler::run(void)
 
 		Log("Core::Handler", "Finished");
 	}
-	catch(std::exception &e)
+	catch(const std::exception &e)
 	{
 		Log("Core::Handler", String("Stopping: ") + e.what()); 
 	}
 	
 	mSock->close();
-
-	//WARNING: this DESTROYS the handler
 	mCore->removeHandler(mPeering, this);
+	delete this;
 }
 
 const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO

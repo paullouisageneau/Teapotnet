@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "signal.h"
+#include "time.h"
 
 namespace tpot
 {
@@ -61,14 +62,13 @@ void Signal::wait(Mutex &mutex)
 	if(ret) throw Exception("Unable to wait for signal");
 }
 
-bool Signal::wait(Mutex &mutex, unsigned timeout)
+bool Signal::wait(Mutex &mutex, unsigned &timeout)
 {
-	timeval tv;
-	gettimeofday(&tv, NULL);
-	uint64_t t = uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000 + timeout;
+	uint64_t t1 = Time::Milliseconds();
+	
 	timespec ts;
-	ts.tv_sec = t/1000;
-	ts.tv_nsec = (t%1000)*1000000;
+	ts.tv_sec = (t1+timeout)/1000;
+	ts.tv_nsec = ((t1+timeout)%1000)*1000000;
 	
 	mutex.lock();
 	int oldLockCount = mutex.mLockCount;
@@ -79,9 +79,23 @@ bool Signal::wait(Mutex &mutex, unsigned timeout)
 	mutex.mLockCount = oldLockCount;
 	mutex.unlock();
 
+	if(ret == ETIMEDOUT) 
+	{
+		timeout = 0;
+		return false;
+	}
+	
+	uint64_t t2 = Time::Milliseconds();
+	timeout-= unsigned(std::max(t1,t2)-t1);
+	
 	if(ret == 0) return true;
-	else if(ret == ETIMEDOUT) return false;
 	else throw Exception("Unable to wait for signal");
 }
 
+bool Signal::wait(Mutex &mutex, const unsigned &timeout)
+{
+	unsigned tmp = timeout;
+	return wait(mutex, tmp);
+}
+  
 }

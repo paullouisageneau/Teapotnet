@@ -33,6 +33,8 @@
 namespace tpot
 {
 
+class AddressBook;
+
 class Request : public Synchronizable
 {
 public:
@@ -50,14 +52,14 @@ public:
 	void submit(void);
 	void submit(const Identifier &receiver);
 	void cancel(void);
-	bool execute(Store *store);
+	bool execute(AddressBook *addressBook, Store *store);
 
 	const Identifier &receiver(void) const;
 	
 	bool isPending() const;
 	void addPending(const Identifier &peering);
 	void removePending(const Identifier &peering);
-
+	
 	class Response
 	{
 	public:
@@ -96,6 +98,8 @@ public:
 
 	int responsesCount(void) const;
 	Response *response(int num);
+	const Response *response(int num) const;
+	bool isSuccessful(void) const;
 
 private:
 	Response *createResponse(Store::Entry &entry, const StringMap &parameters, Store *store);
@@ -107,7 +111,8 @@ private:
 	StringMap mParameters;
 	ByteStream *mContentSink;
 	Synchronizable *mResponseSender;
-
+	Address mRemoteAddr;
+	
 	unsigned mId;
 	Set<Identifier> mPending;
 

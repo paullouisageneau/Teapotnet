@@ -112,9 +112,12 @@ private:
 		Core	*mCore;
 		Socket  *mSock;
 		Stream  *mStream;
+		Address mRemoteAddr;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 
+		ByteString mObfuscatedHello;
+		
 		class Sender : public Thread, public Synchronizable
 		{
 		public:
@@ -146,12 +149,16 @@ private:
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, ByteString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
-	
+	Map<Identifier, Handler*>  mRedirections;
 	Map<Identifier, Handler*> mHandlers;
 	
 	Map<unsigned, Request*> mRequests;
 	unsigned mLastRequest;
 
+	Synchronizable mMeetingPoint;
+	Time mLastIncoming;
+	Map<Address, int> mKnownPublicAddresses;
+	
 	friend class Handler;
 };
 

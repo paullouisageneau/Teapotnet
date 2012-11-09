@@ -21,6 +21,7 @@
 
 #include "request.h"
 #include "core.h"
+#include "addressbook.h"
 #include "store.h"
 #include "stripedfile.h"
 #include "yamlserializer.h"
@@ -100,8 +101,9 @@ void Request::cancel(void)
 	}
 }
 
-bool Request::execute(Store *store)
+bool Request::execute(AddressBook *addressBook, Store *store)
 {
+	Assert(addressBook);
 	Assert(store);
 	Synchronize(this);
 	
@@ -116,23 +118,62 @@ bool Request::execute(Store *store)
 	}
 	else {
 		if(mTarget.contains('/')) command  = "file";
-		else command = "digest";
+		else command == "digest";
 		argument = mTarget; 
 	}
 	
-	if(command == "digest")
+	if(command.empty() || command == "digest" || command == "peer")
 	{
-		ByteString digest;
-		try { mTarget >> digest; }
-		catch(const Exception &e) { digest.clear(); }
+		Identifier identifier;
+		try { mTarget >> identifier; }
+		catch(const Exception &e) { identifier.clear(); }
 		
-		if(!digest.empty())
+		if(!identifier.empty())
 		{
-			Store::Entry entry;
-			if(Store::GetResource(digest, entry))
+			if(command == "peer")
 			{
-				addResponse(createResponse(entry, parameters, store));
-				return true;
+				if(!mParameters.contains("adresses"))
+					throw Exception("Missing addresses in peer request");
+				
+				AddressBook::Contact *contact = addressBook->getContact(identifier);
+				if(contact && !contact->isConnected())
+				{
+					List<String> list;
+					mParameters.get("adresses").explode(list, ',');
+					
+					if(mParameters.contains("port") && !mRemoteAddr.isNull()) 
+						list.push_back(mRemoteAddr.host() + ':' + mParameters.get("port"));
+					
+					for(	List<String>::iterator it = list.begin();
+						it != list.end();
+						++it)
+					try {
+						Address addr(*it);
+						if(contact->addAddress(addr, true))
+						{
+							StringMap parameters;
+							parameters["remote"] = contact->remotePeering().toString();
+							Response *response = new Response(Response::Success, parameters);
+							addResponse(response);
+							return true;
+						}
+					}
+					catch(...)
+					{
+					  
+					}
+
+					addResponse(new Response(Response::Failed));
+					return false;
+				}
+			}
+			else {
+				Store::Entry entry;
+				if(Store::GetResource(identifier, entry))
+				{
+					addResponse(createResponse(entry, parameters, store));
+					return true;
+				}
 			}
 		}
 	}
@@ -322,6 +363,20 @@ int Request::addResponse(Response *response)
 Request::Response *Request::response(int num)
 {
 	return mResponses.at(num);
+}
+
+const Request::Response *Request::response(int num) const
+{
+	return mResponses.at(num);
+}
+
+bool Request::isSuccessful(void) const
+{
+	for(int i=0; i<responsesCount(); ++i)
+		if(!response(i)->error())
+			return true;
+	
+	return false;
 }
 
 Request::Response::Response(int status) :

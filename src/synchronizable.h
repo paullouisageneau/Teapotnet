@@ -41,8 +41,9 @@ public:
 	void notify(void) const;
 	void notifyAll(void) const;
 	void wait(void) const;
-	void wait(unsigned timeout) const;
-
+	void wait(unsigned &timeout) const;
+	void wait(const unsigned &timeout) const;
+	
 private:
 	Mutex *mMutex;		// Pointers are used here to keep functions const
 	Signal *mSignal;
@@ -69,9 +70,23 @@ private:
 	int c;
 };
 
+inline bool lockAndTrue(Synchronizable *s)
+{
+	s->lock();
+	return true;
+}
+
+inline bool testAndUnlock(Synchronizable *s, bool b)
+{
+	s->unlock();
+	return b;
+}
+
 #define Synchronize(x)   Synchronizer	__sync(x)
 #define Desynchronize(x) Desynchronizer	__desync(x)
-#define UnPrioritize(x) {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
+#define UnPrioritize(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
+#define SynchronizeTest(x,test) (lockAndTrue(x) && testAndUnlock(x,(test)))
+#define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }
 
 }
 

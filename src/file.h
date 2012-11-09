@@ -56,6 +56,9 @@ public:
 	virtual void open(const String &filename, OpenMode mode = ReadWrite);
 	virtual void close(void);
 	
+	void seekRead(uint64_t position);
+	void seekWrite(uint64_t position);
+	
 	String name(void) const;
 	uint64_t size(void) const;
 	

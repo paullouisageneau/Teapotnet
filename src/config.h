@@ -27,6 +27,7 @@
 #include "mutex.h"
 #include "file.h"
 #include "map.h"
+#include "address.h"
 
 namespace tpot
 {
@@ -39,6 +40,8 @@ public:
 	static void Default(const String &key, const String &value);
 	static void Load(const String &filename);
 	static void Save(const String &filename);
+	
+	static void GetExternalAddresses(List<Address> &list);
 	
 private:
 	static StringMap Params;

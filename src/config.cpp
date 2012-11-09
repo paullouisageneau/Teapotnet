@@ -21,6 +21,8 @@
 
 #include "config.h"
 #include "file.h"
+#include "core.h"
+#include "portmapping.h"
 
 namespace tpot
 {
@@ -86,6 +88,46 @@ void Config::Save(const String &filename)
 		throw;
 	}
 	ParamsMutex.unlock();
+}
+
+void Config::GetExternalAddresses(List<Address> &list)
+{
+	list.clear();
+	
+	String externalAddress = Config::Get("external_address");
+	if(!externalAddress.empty() && externalAddress != "auto")
+	{
+		Address addr;
+		if(externalAddress.contains(':')) addr.set(externalAddress);
+		else addr.set(externalAddress, Config::Get("port"));
+		list.push_back(addr);
+	}
+	else {
+		List<Address> tmp;
+		Core::Instance->getAddresses(tmp);
+		
+		bool success = false;
+		for(List<Address>::const_iterator it = tmp.begin();
+			it != tmp.end();
+			++it)
+		{
+			const Address &addr = *it;
+			if(addr.addrFamily() == AF_INET)
+			{
+				String host = PortMapping::Instance->getExternalHost();
+				if(!host.empty()) 
+				{
+					uint16_t port;
+					PortMapping::Instance->getTcp(addr.port(), port);
+					list.push_back(Address(host, port));
+				}
+			}
+			
+			String host = addr.host();
+			if(host != "127.0.0.1" && host != "::1")
+				list.push_back(addr);
+		}
+	}
 }
 
 }

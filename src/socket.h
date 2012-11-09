@@ -37,6 +37,8 @@ class Socket : public Stream, public ByteStream
 public:
 	using ByteStream::ignore;
 
+	static void Transfert(Socket *sock1, Socket *sock2);
+	
 	Socket(void);
 	Socket(const Address &Address, unsigned msecs = 0);
 	Socket(socket_t sock);

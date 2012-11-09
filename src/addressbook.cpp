@@ -131,10 +131,17 @@ void AddressBook::removeContact(const Identifier &peering)
 	}
 }
 
-const AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
+AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 {
 	Contact *contact;
 	if(mContacts.get(peering, contact)) return contact;
+	else return NULL;
+}
+
+const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) const
+{
+	Contact *contact;
+	if(mContacts.contains(peering)) return mContacts.get(peering);
 	else return NULL;
 }
 
@@ -280,7 +287,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.text(" "+String::hexa(contact->peeringChecksum(),8));
 					page.close("td");
 					page.open("td");
-					if(Core::Instance->hasPeer(contact->peering())) page.span("Connected", ".online");
+					if(contact->isConnected()) page.span("Connected", ".online");
 					else page.span("Not connected", ".offline");
 					page.close("td");
 					page.open("td");
@@ -329,59 +336,22 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	try {
 		String url("http://" + Config::Get("tracker") + "/tracker/" + remotePeering.toString());
 		
-		StringMap post;
-		String externalAddress = Config::Get("external_address");
-		if(!externalAddress.empty() && externalAddress != "auto")
+		String adresses;
+		List<Address> list;
+		Config::GetExternalAddresses(list);
+		for(	List<Address>::iterator it = list.begin();
+			 it != list.end();
+			++it)
 		{
-			if(externalAddress.contains(':'))
-			{
-				Address addr(externalAddress);
-				post["host"] = addr.host();
-				post["port"] = addr.service();
-			}
-			else {
-				post["host"] = externalAddress;
-				post["port"] = Config::Get("port");
-			}
-			
-			if(Http::Post(url, post) != 200) return false;
+			if(!adresses.empty()) adresses+= ',';
+			adresses+= it->toString();
 		}
-		else {
-			List<Address> list;
-			Core::Instance->getAddresses(list);
-			
-			bool success = false;
-			for(List<Address>::const_iterator it = list.begin();
-				it != list.end();
-				++it)
-			{
-				const Address &addr = *it;
-				if(addr.addrFamily() == AF_INET)
-				{
-					String host = PortMapping::Instance->getExternalHost();
-					if(!host.empty()) 
-					{
-						post["host"] = host;
-						uint16_t port;
-						PortMapping::Instance->getTcp(addr.port(), port);
-						post["port"] == String::number(unsigned(port));
-						
-						success|= (Http::Post(url, post) != 200);
-					}
-				}
-				
-				String host = addr.host();
-				if(host != "127.0.0.1" && host != "::1")
-				{
-					post["host"] = host;
-					post["port"] = addr.service();
-					
-					success|= (Http::Post(url, post) != 200);
-				}
-			}
-			
-			return success;
-		}
+		
+		StringMap post;
+		post["addresses"] = adresses;
+		post["port"] = Config::Get("port");
+		
+		if(Http::Post(url, post) != 200) return false;
 	}
 	catch(const std::exception &e)
 	{
@@ -514,6 +484,36 @@ int AddressBook::Contact::unreadMessagesCount(void) const
 	return count;
 }
 
+bool AddressBook::Contact::isConnected(void) const
+{
+	return Core::Instance->hasPeer(mPeering); 
+}
+
+bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
+{
+  	Synchronize(this);
+
+	if(addr.isNull()) return false;
+	if(!mAddrs.contains(addr)) mAddrs.push_back(addr);
+	else if(!forceConnection) return false;
+	
+	try {
+		Desynchronize(this);
+		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
+		Core::Instance->addPeer(sock, mPeering);
+		return true;
+	}
+	catch(...)
+	{
+		return !forceConnection;
+	} 
+}
+
+bool AddressBook::Contact::removeAddress(const Address &addr)
+{
+	return mAddrs.remove(addr);
+}
+
 void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
@@ -539,25 +539,17 @@ void AddressBook::Contact::update(void)
 		}
 		else {
 			Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
-			if(AddressBook::query(mPeering, mTracker, mAddrs))
-			{
-				for(int i=0; i<mAddrs.size(); ++i)
-				{
-					const Address &addr = mAddrs[mAddrs.size()-(i+1)];
-					unlock();
-					try {
-						Socket *sock = new Socket(addr, 1000);	// TODO: timeout
-						Core::Instance->addPeer(sock, mPeering);
-					}
-					catch(...)
-					{
-						
-					}
-					lock();
-				}
-			}
 			
-			if(!Core::Instance->hasPeer(mPeering))	// a new local peer could have established a connection in parallel
+			Array<Address> newAddrs;
+			if(AddressBook::query(mPeering, mTracker, newAddrs))
+				for(int i=0; i<newAddrs.size(); ++i)
+					addAddress(newAddrs[i], false);
+			
+			for(int i=0; i<mAddrs.size(); ++i)
+				if(!newAddrs.contains(mAddrs[i]))
+					addAddress(mAddrs[i], true);
+			
+			if(!Core::Instance->hasPeer(mPeering))
 			{
 				Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
 				AddressBook::publish(mRemotePeering);
@@ -591,7 +583,7 @@ void AddressBook::Contact::request(Request *request)
 {
 	Assert(request);
 	Store *store = mAddressBook->user()->store();
-	request->execute(store);
+	request->execute(mAddressBook, store);
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
@@ -615,7 +607,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 
 			page.span("Status:",".title"); page.space();
-			if(Core::Instance->hasPeer(mPeering)) page.span("Connected",".online");
+			if(isConnected()) page.span("Connected",".online");
 			else page.span("Not connected",".offline");
 			page.br();
 			page.br();

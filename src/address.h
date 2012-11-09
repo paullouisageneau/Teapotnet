@@ -40,10 +40,12 @@ public:
 
 	void set(const String &host, const String &service);
 	void set(const String &host, uint16_t port);
+	void set(const String &str);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
 	bool isNull(void) const;
 	bool isLocal(void) const;
+	bool isPrivate(void) const;
 
 	String host(void) const;
 	String service(void) const;

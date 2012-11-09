@@ -117,7 +117,7 @@ bool Array<T>::remove(const T &value)
 	for(int i=0; i<this->size();)
 		if(this->at(i) == value)
 		{
-			this->erase(this->begin()+i);
+			this->erase(i);
 			found = true;
 		}
 		else ++i;

@@ -34,6 +34,7 @@ class Time : public Serializable
 {
 public:
   	static Time Now(void);
+	static uint64_t Milliseconds(void);
 	static void Schedule(const Time &when, Thread *thread);
 	
 	Time(void);

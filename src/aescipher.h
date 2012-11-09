@@ -50,6 +50,8 @@ public:
 	void setDecryptionInit(const ByteString &iv);
 	void setDecryptionInit(const char *iv, size_t size);
 	
+	void dumpStream(ByteStream *bs);
+	
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
@@ -70,6 +72,7 @@ private:
 	
 	
 	ByteStream *mByteStream;
+	ByteStream *mDumpStream;
 	
 	Key mEncryptionKey;
 	Key mDecryptionKey;

@@ -66,22 +66,41 @@ void Tracker::process(Http::Request &request)
 		
 		if(request.method == "POST")
 		{
-			String host, port;
-			
-			if(!request.post.get("port", port)) 
-				throw Exception("Missing port number");
-			
-			if(!request.post.get("host", host))
+			String port;
+			if(request.post.get("port", port))
 			{
-				if(request.headers.contains("X-Forwarded-For")) 
-					host = request.headers["X-Forwarded-For"];
-				else host = request.sock->getRemoteAddress().host();
+				String host;
+				if(!request.post.get("host", host))
+				{
+					if(request.headers.contains("X-Forwarded-For")) 
+						host = request.headers["X-Forwarded-For"];
+					else host = request.sock->getRemoteAddress().host();
+				}
+				
+				Address addr(host, port);
+				insert(identifier,addr);
+				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
-			Address addr(host, port);
-			insert(identifier,addr);
-
-			//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+			String addresses;
+			if(request.post.get("addresses", addresses))
+			{
+				List<String> list;
+				addresses.explode(list, ',');
+				
+				for(	List<String>::iterator it = list.begin();
+					it != list.end();
+					++it)
+				try {
+				      Address addr(*it);
+				      insert(identifier,addr);
+				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				}
+				catch(...)
+				{
+				  
+				}
+			}
 
 			Http::Response response(request,200);
 			response.send();
