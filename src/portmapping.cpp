@@ -107,6 +107,11 @@ bool PortMapping::refresh(void)
 	return true;
 }
 
+bool PortMapping::isEnabled(void) const
+{
+	return mEnabled; 
+}
+
 String PortMapping::getExternalHost(void) const
 {	
 	Synchronize(this);

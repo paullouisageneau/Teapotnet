@@ -43,6 +43,8 @@ public:
 	bool init(void);
 	bool refresh(void);
 	
+	bool isEnabled(void) const;
+	
 	String  getExternalHost(void) const;
 	Address getExternalAddress(uint16_t port) const;
 	

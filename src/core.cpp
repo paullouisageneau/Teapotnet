@@ -50,6 +50,23 @@ void Core::getAddresses(List<Address> &list) const
 	mSock.getLocalAddresses(list);
 }
 
+void Core::getKnownPublicAdresses(List<Address> &list) const
+{
+	Synchronize(this);
+	list.clear();
+	for(	Map<Address, int>::const_iterator it = mKnownPublicAddresses.begin();
+		it != mKnownPublicAddresses.end();
+		++it)
+	{
+		list.push_back(it->first);
+	}
+}
+
+bool Core::isPublicConnectable(void) const
+{
+	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
+}
+
 void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
 		       		const ByteString &secret,
@@ -106,7 +123,10 @@ void Core::run(void)
 		{
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
-			Log("Core", "Incoming connexion from " + sock->getRemoteAddress().toString());
+			
+			Address addr = sock->getRemoteAddress();
+			Log("Core", "Incoming connexion from " + addr.toString());
+			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null);
 		}
 	}
@@ -295,9 +315,10 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 	mCore(core),
 	mSock(sock),
 	mStream(sock),
-	mSender(NULL)
+	mSender(NULL),
+	mIsIncoming(true)
 {
-
+	mRemoteAddr = mSock->getRemoteAddress();
 }
 
 Core::Handler::~Handler(void)
@@ -347,6 +368,7 @@ void Core::Handler::setPeering(const Identifier &peering)
 {
 	Synchronize(this);
 	mPeering = peering;
+	mIsIncoming = (peering == Identifier::Null);
 }
 
 void Core::Handler::sendMessage(const Message &message)
@@ -393,14 +415,11 @@ void Core::Handler::run(void)
 	String command, args;
 	StringMap parameters;
   
-	bool isIncoming = (mPeering == Identifier::Null);
-	
 	try {
 		Synchronize(this);
 		Log("Core::Handler", "Starting");
 	  
 		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
-		mRemoteAddr = mSock->getRemoteAddress();
 		
 		// Set up obfuscation cipher
 		ByteString tmpkey;
@@ -427,7 +446,7 @@ void Core::Handler::run(void)
 			salt_a.push_back(c);  
 		}
 	  
-		if(!isIncoming)	
+		if(!mIsIncoming)	
 		{
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
@@ -451,13 +470,13 @@ void Core::Handler::run(void)
 		parameters["version"] >> appversion;
 		parameters["nonce"] >> nonce_b;
 
-		if(!isIncoming && mPeering != peering) 
+		if(!mIsIncoming && mPeering != peering) 
 				throw Exception("Peering in response does not match");
 		
 		ByteString secret;
 		if(peering.size() != 64) throw Exception("Invalid peering identifier");	// TODO: useless
 		
-		if(isIncoming)
+		if(mIsIncoming)
 		{
 			mPeering = peering;
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
@@ -650,8 +669,8 @@ void Core::Handler::run(void)
 		if(!mRemoteAddr.isPrivate())
 		{
 			Synchronize(mCore);
-			if(isIncoming) mCore->mLastIncoming = Time::Now();
-			else {
+			if(!mIsIncoming)
+			{
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 			}

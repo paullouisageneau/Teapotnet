@@ -336,20 +336,38 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	try {
 		String url("http://" + Config::Get("tracker") + "/tracker/" + remotePeering.toString());
 		
-		String adresses;
 		List<Address> list;
 		Config::GetExternalAddresses(list);
+		
+		String addresses;
 		for(	List<Address>::iterator it = list.begin();
 			 it != list.end();
 			++it)
 		{
-			if(!adresses.empty()) adresses+= ',';
-			adresses+= it->toString();
+			if(!addresses.empty()) addresses+= ',';
+			addresses+= it->toString();
 		}
 		
 		StringMap post;
-		post["addresses"] = adresses;
 		post["port"] = Config::Get("port");
+		post["addresses"] = addresses;
+		
+		if(!Core::Instance->isPublicConnectable())
+		{
+			list.clear();
+			Core::Instance->getKnownPublicAdresses(list);
+			
+			String altAddresses;
+			for(	List<Address>::iterator it = list.begin();
+				it != list.end();
+				++it)
+			{
+				if(!altAddresses.empty()) altAddresses+= ',';
+				altAddresses+= it->toString();
+			}
+			
+			post["alternate"] = altAddresses;
+		}
 		
 		if(Http::Post(url, post) != 200) return false;
 	}
@@ -361,7 +379,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	return true;
 }
 
-bool AddressBook::query(const Identifier &peering, const String &tracker, Array<Address> &addrs)
+bool AddressBook::query(const Identifier &peering, const String &tracker, Array<Address> &addrs, bool alternate)
 {
 	try {
 	  	String url;
@@ -494,18 +512,19 @@ bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
   	Synchronize(this);
 
 	if(addr.isNull()) return false;
-	if(!mAddrs.contains(addr)) mAddrs.push_back(addr);
-	else if(!forceConnection) return false;
+	bool isNew = !mAddrs.contains(addr);
+	if(!isNew && !forceConnection) return false;
 	
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
 		Core::Instance->addPeer(sock, mPeering);
+		if(isNew) mAddrs.push_back(addr);
 		return true;
 	}
 	catch(...)
 	{
-		return !forceConnection;
+		return false;
 	} 
 }
 
@@ -538,21 +557,35 @@ void AddressBook::Contact::update(void)
 			}
 		}
 		else {
+			Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+			AddressBook::publish(mRemotePeering);
+		  
 			Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 			
+			bool connected = false;
 			Array<Address> newAddrs;
-			if(AddressBook::query(mPeering, mTracker, newAddrs))
+			if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 				for(int i=0; i<newAddrs.size(); ++i)
-					addAddress(newAddrs[i], false);
+					connected|= addAddress(newAddrs[i], false);
 			
-			for(int i=0; i<mAddrs.size(); ++i)
-				if(!newAddrs.contains(mAddrs[i]))
-					addAddress(mAddrs[i], true);
-			
+			if(connected) msleep(500);	// TODO
+				
 			if(!Core::Instance->hasPeer(mPeering))
 			{
-				Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-				AddressBook::publish(mRemotePeering);
+				connected = false;
+				for(int i=0; i<mAddrs.size(); ++i)
+					if(!newAddrs.contains(mAddrs[i]))
+						connected|= addAddress(mAddrs[i], true);
+				
+				if(connected) msleep(500);	// TODO
+					
+				if(!Core::Instance->hasPeer(mPeering))
+				{
+					Array<Address> altAddrs;
+					if(AddressBook::query(mPeering, mTracker, altAddrs, true))
+						for(int i=0; i<newAddrs.size(); ++i)
+							addAddress(newAddrs[i], false);
+				}
 			}
 		}
 	}

@@ -110,7 +110,7 @@ public:
 	
 private:
 	static bool publish(const Identifier &remotePeering);
-	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs);
+	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs, bool alternate = false);
 	
 	void run(void);
 	

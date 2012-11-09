@@ -62,6 +62,8 @@ public:
 	~Core(void);
 	
 	void getAddresses(List<Address> &list) const;
+	void getKnownPublicAdresses(List<Address> &list) const;
+	bool isPublicConnectable(void) const;
 	
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
@@ -113,6 +115,7 @@ private:
 		Socket  *mSock;
 		Stream  *mStream;
 		Address mRemoteAddr;
+		bool mIsIncoming;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 
@@ -155,8 +158,8 @@ private:
 	Map<unsigned, Request*> mRequests;
 	unsigned mLastRequest;
 
+	Time mLastPublicIncomingTime;
 	Synchronizable mMeetingPoint;
-	Time mLastIncoming;
 	Map<Address, int> mKnownPublicAddresses;
 	
 	friend class Handler;

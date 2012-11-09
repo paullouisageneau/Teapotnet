@@ -46,6 +46,9 @@ public:
 	bool isNull(void) const;
 	bool isLocal(void) const;
 	bool isPrivate(void) const;
+	bool isPublic(void) const;
+	bool isIpv4(void) const;
+	bool isIpv6(void) const;
 
 	String host(void) const;
 	String service(void) const;

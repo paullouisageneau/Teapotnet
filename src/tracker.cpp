@@ -24,12 +24,13 @@
 namespace tpot
 {
 
-const time_t Tracker::EntryLife = 3600;	// seconds
+const double Tracker::EntryLife = 3600.;	// seconds
   
 Tracker::Tracker(int port) :
 		Http::Server(port)
 {
-	mIterator = mMap.begin();
+	mStorage.cleaner   = mStorage.map.begin();
+	mAlternate.cleaner = mAlternate.map.begin();
 }
 
 Tracker::~Tracker(void)
@@ -48,9 +49,12 @@ void Tracker::process(Http::Request &request)
 	List<String> list;
 	request.url.explode(list, '/');
 	if(list.size() != 2 && list.size() != 3) throw 404;
+	
+	bool alternate = false;
 	if(list.size() == 3)
 	{
-		if(!list.back().empty()) throw 404;
+		if(list.back() == "alternate") alternate = true;
+	  	if(!list.back().empty()) throw 404;
 		list.pop_back();
 	}
 
@@ -59,8 +63,7 @@ void Tracker::process(Http::Request &request)
 	
 	try {
 		Identifier identifier;
-		String tmp(list.front());
-		tmp >> identifier;
+		list.front().extract(identifier);
 
 		if(identifier.size() != 64) throw Exception("Invalid indentifier size");
 		
@@ -78,7 +81,7 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				insert(identifier,addr);
+				insert(mStorage, identifier, addr);
 				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
@@ -93,7 +96,8 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      insert(identifier,addr);
+				      if(alternate) insert(mAlternate, identifier, addr);
+				      else insert(mStorage, identifier, addr);
 				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 				}
 				catch(...)
@@ -102,12 +106,32 @@ void Tracker::process(Http::Request &request)
 				}
 			}
 
+			if(!alternate && request.post.get("alternate", addresses))
+			{
+				List<String> list;
+				addresses.explode(list, ',');
+				
+				for(	List<String>::iterator it = list.begin();
+					it != list.end();
+					++it)
+				try {
+				      Address addr(*it);
+				      insert(mAlternate, identifier, addr);
+				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
+				}
+				catch(...)
+				{
+				  
+				}
+			}
+			
 			Http::Response response(request,200);
 			response.send();
 		}
 		else {
 			SerializableArray<Address> addrs;
-			retrieve(identifier, addrs);
+			if(alternate) retrieve(mAlternate, identifier, addrs);
+			else retrieve(mStorage, identifier, addrs);
 			if(addrs.empty()) throw 404;
 
 			//Log("Tracker", "GET " + identifier.toString());
@@ -131,44 +155,44 @@ void Tracker::process(Http::Request &request)
 	}
 }
 
-void Tracker::insert(const Identifier &identifier, const Address &addr)
+void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
 {
-	int nbr = 2;
-	if(nbr > mMap.size()) nbr = mMap.size();
+	int nbr = 1;
+	if(nbr > s.map.size()) nbr = s.map.size();
 	for(int i=0; i<nbr; ++i)
 	{
-	  	if(mIterator == mMap.end()) mIterator = mMap.begin();
+	  	if(s.cleaner == s.map.end()) s.cleaner = s.map.begin();
 
-		Map<Address,time_t> &map = mIterator->second;
-		Map<Address,time_t>::iterator it = map.begin();
-		while(it != map.end())
+		Map<Address,Time> &submap = s.cleaner->second;
+		Map<Address,Time>::iterator it = submap.begin();
+		while(it != submap.end())
 		{
-			if(it->second + EntryLife >= time(NULL)) map.erase(it++);
+			if(Time::Now() - it->second >= EntryLife) submap.erase(it++);
 			else it++;
 		} 
 			
-		if(map.empty()) mMap.erase(mIterator++);
-		else mIterator++;	
+		if(submap.empty()) s.map.erase(s.cleaner++);
+		else s.cleaner++;	
 	}
 	
-	Map<Address,time_t> &map = mMap[identifier];
-	map[addr] = time(NULL);
+	Map<Address,Time> &submap = s.map[identifier];
+	submap[addr] = Time::Now();
 }
 
-void Tracker::retrieve(const Identifier &identifier, Array<Address> &array) const
+void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Array<Address> &array) const
 {
 	array.clear();
 
-	map_t::const_iterator it = mMap.find(identifier);
-	if(it == mMap.end()) return;
+	map_t::const_iterator it = s.map.find(identifier);
+	if(it == s.map.end()) return;
 
-	const Map<Address,time_t> &map = it->second;
-	if(map.empty()) return;
+	const Map<Address,Time> &submap = it->second;
+	if(submap.empty()) return;
 
-	array.reserve(map.size());
-	for(	Map<Address,time_t>::const_iterator it = map.begin();
-			it != map.end();
-			++it)
+	array.reserve(submap.size());
+	for(	Map<Address,Time>::const_iterator it = submap.begin();
+		it != submap.end();
+		++it)
 	{
 		array.push_back(it->first);
 	}

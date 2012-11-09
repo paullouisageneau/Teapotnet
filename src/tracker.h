@@ -29,6 +29,7 @@
 #include "identifier.h"
 #include "array.h"
 #include "map.h"
+#include "time.h"
 
 namespace tpot
 {
@@ -36,19 +37,25 @@ namespace tpot
 class Tracker : protected Synchronizable, public Http::Server
 {
 public:
-	static const time_t EntryLife;
+	static const double EntryLife;
   
 	Tracker(int port = 8080);
 	~Tracker(void);
 
 private:
+	typedef Map<Identifier, Map<Address,Time> > map_t;
+	struct Storage
+	{
+		map_t map;
+		map_t::iterator cleaner;
+	};
+	
+	Storage mStorage;
+	Storage mAlternate;
+	
 	void process(Http::Request &request);
-	void insert(const Identifier &identifier, const Address &addr);
-	void retrieve(const Identifier &identifier, Array<Address> &array) const;
-
-	typedef Map<Identifier, Map<Address,time_t> > map_t;
-	map_t mMap;
-	map_t::iterator mIterator; 
+	void insert(Storage &s, const Identifier &identifier, const Address &addr);
+	void retrieve(Storage &s, const Identifier &identifier, Array<Address> &array) const;
 };
 
 }
