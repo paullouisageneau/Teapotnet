@@ -216,13 +216,7 @@ void Interface::process(Http::Request &request)
 						size_t finished = splicer.finishedBlocks();
 						while(current < finished)
 						{
-							size_t left = blockSize;
-							while(left)
-							{
-								size_t size = file.read(*response.sock, left);
-								AssertIO(size);
-								left-= size;
-							}
+							AssertIO(file.read(*response.sock, blockSize));
 							++current;
 						}
 						
