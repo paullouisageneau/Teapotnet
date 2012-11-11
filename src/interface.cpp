@@ -134,8 +134,16 @@ void Interface::process(Http::Request &request)
 					}
 					
 					Http::Response response(request,303);
-					response.headers["Location"] = "/";
 					response.send();
+					Html page(response.sock);
+					page.header("Account created", false, "/");
+					page.open("h1");
+					page.text("Your account has been created.");
+					page.close("h1");
+					page.open("p");
+					page.text("Please enter your username and password when prompted to log in.");
+					page.close("p");
+					page.footer();
 					return;
 				}
 			  
@@ -147,7 +155,9 @@ void Interface::process(Http::Request &request)
 				page.open("h1");
 				page.text("Welcome to TeapotNet !");
 				page.close("h1");
+				page.open("p");
 				page.text("No user has been configured yet, please enter your new username and password.");
+				page.close("p");
 				
 				page.openForm("/","post");
 				page.openFieldset("New user");
