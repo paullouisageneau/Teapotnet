@@ -33,6 +33,14 @@ Map<String, User*>	User::UsersByName;
 Map<Identifier, User*>	User::UsersByAuth;
 Mutex			User::UsersMutex;
   
+unsigned User::Count(void)
+{
+	 UsersMutex.lock();
+	 unsigned count = UsersByName.size();
+	 UsersMutex.unlock();
+	 return count;
+}
+
 bool User::Exist(const String &name)
 {
 	return (User::Get(name) != NULL);

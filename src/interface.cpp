@@ -91,12 +91,89 @@ void Interface::process(Http::Request &request)
 		user = User::Authenticate(name, password);
 	}
 	
-	if(user && request.url == "/")
+	if(request.url == "/")
 	{
-		Http::Response response(request, 303);
-		response.headers["Location"] = "/" + user->name();
-		response.send();
-		return;
+		if(user)
+		{
+			Http::Response response(request, 303);
+			response.headers["Location"] = "/" + user->name();
+			response.send();
+			return;
+		}
+		else if(User::Count() == 0) 
+		{
+			if(request.sock->getRemoteAddress().isLocal())
+			{
+				if(request.method == "POST")
+				{
+					if(request.post.contains("name"))
+					{
+						String name = request.post["name"];
+						String password = request.post["password"];
+						try {
+							if(!name.empty() && !password.empty())
+							{
+								User *user = new User(name, password);
+								user->start();
+							}
+						}
+						catch(const Exception &e)
+						{
+							Http::Response response(request, 200);
+							response.send();
+							
+							Html page(response.sock);
+							page.header("Error", false, "/");
+							page.open("h1");
+							page.text("Error");
+							page.close("h1");
+							page.text(e.what());
+							page.footer();
+							return;
+						}
+					}
+					
+					Http::Response response(request,303);
+					response.headers["Location"] = "/";
+					response.send();
+					return;
+				}
+			  
+				Http::Response response(request, 200);
+				response.send();
+			
+				Html page(response.sock);
+				page.header("Welcome");
+				page.open("h1");
+				page.text("Welcome to TeapotNet !");
+				page.close("h1");
+				page.text("No user has been configured yet, please enter your new username and password.");
+				
+				page.openForm("/","post");
+				page.openFieldset("New user");
+				page.label("name","Name"); page.input("text","name"); page.br();
+				page.label("password","Password"); page.input("password","password"); page.br();
+				page.label("add"); page.button("add","OK");
+				page.closeFieldset();
+				page.closeForm();
+				
+				page.footer();
+				return;
+			}
+			else {
+				Http::Response response(request, 200);
+				response.send();
+			
+				Html page(response.sock);
+				page.header("Welcome");
+				page.open("h1");
+				page.text("Welcome to TeapotNet !");
+				page.close("h1");
+				page.text("No user has been configured yet.");
+				page.footer();
+				return; 
+			}
+		}
 	}
 	
 	List<String> list;

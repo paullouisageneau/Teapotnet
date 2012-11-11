@@ -38,6 +38,7 @@ namespace tpot
 class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
+	static unsigned Count(void);
   	static bool Exist(const String &name);
 	static User *Get(const String &name);
 	static User *Authenticate(const String &name, const String &password);

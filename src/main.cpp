@@ -70,39 +70,6 @@ int main(int argc, char** argv)
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_attach_np();
 #endif
-
-	if(!File::Exist("users.txt") && !File::Exist("config.txt"))
-	{
-		std::cout<<"Welcome to TeapotNet !"<<std::endl;
-		std::cout<<"No user has been configured yet, please enter your new username and password."<<std::endl;
-		
-		std::string username, password;
-		
-		do {
-			std::cout<<"username: ";
-			std::cin>>username;
-		}
-		while(username.empty() && username.find(' ') == std::string::npos);
-		  
-		do {
-			std::cout<<"password: ";
-			std::cin>>password;
-		}
-		while(password.empty());
-		
-		std::cout<<std::endl;
-		
-		std::ofstream of("users.txt");
-		if(!of.is_open())
-		{
-			std::cout<<"Unable to open users.txt"<<std::endl;
-			std::cin.get();
-			return 1;
-		}
-		
-		of << username << ' ' << password << std::endl;
-		of.close();
-	}
 	
 	try {
 #ifndef WINDOWS
