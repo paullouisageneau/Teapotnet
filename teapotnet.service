@@ -1,0 +1,12 @@
+[Unit]
+Description=TeapotNet
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+User=teapotnet
+WorkingDirectory=/var/lib/teapotnet
+ExecStart=/usr/bin/teapotnet
+
+[Install]
+WantedBy=multi-user.target
