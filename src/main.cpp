@@ -105,25 +105,15 @@ int main(int argc, char** argv)
 	}
 	
 	try {
-	  	Log("main", "Starting...");
-
 #ifndef WINDOWS
 		// Main config file name
 		// Should tell us where the static dir is located
 		const String mainConfigFileName = "/etc/teapotnet/config.conf";
-		if(File::Exist(mainConfigFileName))
-		{
-			Log("main", "Loading main configuration...");
-                        Config::Load(mainConfigFileName);
-		}
+		if(File::Exist(mainConfigFileName)) Config::Load(mainConfigFileName);
 #endif
 
 		const String configFileName = "config.txt";
-		if(File::Exist(configFileName))
-		{
-			Log("main", "Loading configuration...");
-			Config::Load(configFileName);
-		}
+		if(File::Exist(configFileName)) Config::Load(configFileName);
 
 		Config::Default("tracker", "teapotnet.org");
 		Config::Default("port", "8480");
@@ -153,6 +143,7 @@ int main(int argc, char** argv)
 				if(str.empty())
 				{
 					std::cerr<<"Invalid option: "<<argv[i]<<std::endl;
+					std::cerr<<"Try \""<<argv[0]<<" --help\" for help"<<std::endl;
 					return 1;
 				}
 				last = str;
@@ -166,6 +157,27 @@ int main(int argc, char** argv)
 			}
 		}
 		if(!last.empty()) args[last] = "";
+		
+		if(args.contains("help") || args.contains("h"))
+		{
+			std::cout<<APPNAME<<" "<<APPVERSION<<std::endl;
+			std::cout<<APPAUTHOR<<std::endl;
+			std::cout<<"For information, please visit "<<APPLINK<<std::endl;
+			std::cout<<"Usage: ";
+			if(argc) std::cout<<argv[0];
+			else std::cout<<"teapotnet";
+			std::cout<<" [options]"<<std::endl;
+			std::cout<<std::endl;
+			std::cout<<"Available options include:"<<std::endl;
+			std::cout<<" --port port\t\tSet the TPOT port"<<std::endl;
+			std::cout<<" --ifport port\t\tSet the HTTP interface port"<<std::endl;
+			std::cout<<" --tracker [port]\tEnable the local tracker"<<std::endl;
+#ifdef WINDOWS
+			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
+			std::cout<<" --debug\t\tKeep the console window on screen"<<std::endl;
+#endif
+			return 0;
+		}
 		
 #ifdef WINDOWS
 		if(InterfacePort)
@@ -181,6 +193,8 @@ int main(int argc, char** argv)
 			ShowWindow(hWnd, SW_HIDE);
 		}
 #endif
+		
+		Log("main", "Starting...");
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
