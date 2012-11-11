@@ -40,12 +40,14 @@ public:
 	bool tryLock(void);
 	void unlock(void);
 	
-	int unlockAll(void);
+	int  unlockAll(void);
+	void relockAll(void);
 	
 private:
 	pthread_mutex_t mMutex;
 	pthread_t mLockedBy;
 	int mLockCount;
+	int mRelockCount;
 
 	friend class Signal;
 };

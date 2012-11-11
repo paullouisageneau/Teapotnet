@@ -518,14 +518,18 @@ bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
-		Core::Instance->addPeer(sock, mPeering);
-		if(isNew) mAddrs.push_back(addr);
-		return true;
+		if(Core::Instance->addPeer(sock, mPeering))
+		{
+			if(isNew) mAddrs.push_back(addr);
+			return true;
+		}
 	}
 	catch(...)
 	{
-		return false;
-	} 
+
+	}
+
+	return false; 
 }
 
 bool AddressBook::Contact::removeAddress(const Address &addr)
@@ -537,68 +541,55 @@ void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
 
-	if(!Core::Instance->hasPeer(mPeering))
-	{
-	  	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
-		Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
+	if(!mMessages.empty())
+        {
+                time_t t = time(NULL);
+                while(!mMessages.front().isRead()
+                        && mMessages.front().time() >= t + 7200)        // 2h
+                {
+                                 mMessages.pop_front();
+                }
+        }
+
+	if(Core::Instance->hasPeer(mPeering)) return;
+
+	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
+	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
-		if(Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
-		{
-			Log("AddressBook::Contact", mUniqueName + " found locally");
+	if(Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
+	{
+		Log("AddressBook::Contact", mUniqueName + " found locally");
 		  
-			Address addr("127.0.0.1", Config::Get("port"));
-			try {
-				Socket *sock = new Socket(addr);
-				Core::Instance->addPeer(sock, mPeering);
-			}
-			catch(...)
-			{
-				Log("AddressBook::Contact", "WARNING: Unable to connect the local core");	 
-			}
+		Address addr("127.0.0.1", Config::Get("port"));
+		try {
+			Socket *sock = new Socket(addr);
+			Core::Instance->addPeer(sock, mPeering);
 		}
-		else {
-			Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-			AddressBook::publish(mRemotePeering);
-		  
-			Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
-			
-			bool connected = false;
-			Array<Address> newAddrs;
-			if(AddressBook::query(mPeering, mTracker, newAddrs, false))
-				for(int i=0; i<newAddrs.size(); ++i)
-					connected|= addAddress(newAddrs[i], false);
-			
-			if(connected) msleep(500);	// TODO
-				
-			if(!Core::Instance->hasPeer(mPeering))
-			{
-				connected = false;
-				for(int i=0; i<mAddrs.size(); ++i)
-					if(!newAddrs.contains(mAddrs[i]))
-						connected|= addAddress(mAddrs[i], true);
-				
-				if(connected) msleep(500);	// TODO
-					
-				if(!Core::Instance->hasPeer(mPeering))
-				{
-					Array<Address> altAddrs;
-					if(AddressBook::query(mPeering, mTracker, altAddrs, true))
-						for(int i=0; i<newAddrs.size(); ++i)
-							addAddress(newAddrs[i], false);
-				}
-			}
+		catch(...)
+		{
+			Log("AddressBook::Contact", "WARNING: Unable to connect the local core");	 
 		}
 	}
-	
-	if(!mMessages.empty())
-	{
-		time_t t = time(NULL);
-		while(!mMessages.front().isRead() 
-			&& mMessages.front().time() >= t + 7200)	// 2h
-		{
-				 mMessages.pop_front();
-		}
-	} 
+	else {
+		Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+		AddressBook::publish(mRemotePeering);
+		  
+		Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
+			
+		Array<Address> newAddrs;
+		if(AddressBook::query(mPeering, mTracker, newAddrs, false))
+			for(int i=0; i<newAddrs.size(); ++i)
+				if(addAddress(newAddrs[i], false)) return;
+			
+		for(int i=0; i<mAddrs.size(); ++i)
+			if(!newAddrs.contains(mAddrs[i]))
+				if(addAddress(mAddrs[i], true)) return;
+				
+		Array<Address> altAddrs;
+		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
+			for(int i=0; i<newAddrs.size(); ++i)
+				if(addAddress(newAddrs[i], false)) return;
+	}
 }
 
 void AddressBook::Contact::message(Message *message)

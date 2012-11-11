@@ -72,7 +72,7 @@ public:
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
-	void addPeer(Socket *sock, const Identifier &peering);
+	bool addPeer(Socket *sock, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
 	
 	void sendMessage(const Message &message);
@@ -84,7 +84,7 @@ public:
 private:
 	void run(void);
 
-	class Handler : public Thread, protected Synchronizable
+	class Handler : public Thread, public Synchronizable
 	{
 	public:
 		Handler(Core *core, Socket *sock);
@@ -95,6 +95,9 @@ private:
 		void sendMessage(const Message &message);
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
+
+		bool isIncoming(void) const;
+		bool isAuthenticated(void) const;
 
 	protected:
 	  	static void sendCommand(Stream *stream,
@@ -116,6 +119,7 @@ private:
 		Stream  *mStream;
 		Address mRemoteAddr;
 		bool mIsIncoming;
+		bool mIsAuthenticated;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 

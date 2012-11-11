@@ -94,7 +94,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-void Core::addPeer(Socket *sock, const Identifier &peering)
+bool Core::addPeer(Socket *sock, const Identifier &peering)
 {
 	Assert(sock);
 	Synchronize(this);
@@ -102,10 +102,16 @@ void Core::addPeer(Socket *sock, const Identifier &peering)
 	if(peering != Identifier::Null && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
 	
-	Log("Core", "Spawning new handler");
-	Handler *handler = new Handler(this,sock);
-	if(peering != Identifier::Null) handler->setPeering(peering);
-	handler->start();
+	{
+		Desynchronize(this);
+		Log("Core", "Spawning new handler");
+		Handler *handler = new Handler(this,sock);
+		if(peering != Identifier::Null) handler->setPeering(peering);
+		Synchronize(handler);
+		handler->start();
+		if(!handler->wait(10000)) return false;	// TODO: timeout
+		return handler->isAuthenticated();
+	}
 }
 
 bool Core::hasPeer(const Identifier &peering)
@@ -316,13 +322,17 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 	mSock(sock),
 	mStream(sock),
 	mSender(NULL),
-	mIsIncoming(true)
+	mIsIncoming(true),
+	mIsAuthenticated(false)
 {
 	mRemoteAddr = mSock->getRemoteAddress();
 }
 
 Core::Handler::~Handler(void)
 {	
+	notifyAll();
+	Synchronize(this);
+
 	{
 		Synchronize(mCore);
 		
@@ -410,6 +420,16 @@ void Core::Handler::removeRequest(unsigned id)
 	}
 }
 
+bool Core::Handler::isIncoming(void) const
+{
+	return mIsIncoming;
+}
+
+bool Core::Handler::isAuthenticated(void) const
+{
+	return mIsAuthenticated;
+}
+
 void Core::Handler::run(void)
 {
 	String command, args;
@@ -448,6 +468,8 @@ void Core::Handler::run(void)
 	  
 		if(!mIsIncoming)	
 		{
+			Log("Handler", "Initiating handshake...");
+
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
 			
@@ -459,10 +481,10 @@ void Core::Handler::run(void)
 			parameters["nonce"] << nonce_a;
 			sendCommand(mStream, "H", args, parameters);
 		}
-	  
-		if(!recvCommand(mStream, command, args, parameters)) return;
+	 
+		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command != "H") throw Exception("Unexpected command: " + command);
-		
+
 		String appname, appversion;
 		ByteString peering, nonce_b;
 		args >> peering;
@@ -471,7 +493,7 @@ void Core::Handler::run(void)
 		parameters["nonce"] >> nonce_b;
 
 		if(!mIsIncoming && mPeering != peering) 
-				throw Exception("Peering in response does not match");
+			throw Exception("Peering in response does not match");
 		
 		ByteString secret;
 		if(peering.size() != 64) throw Exception("Invalid peering identifier");	// TODO: useless
@@ -614,7 +636,8 @@ void Core::Handler::run(void)
 		parameters["salt"] << salt_a;
 		sendCommand(mStream, "A", hash_a.toString(), parameters);
 		
-		AssertIO(recvCommand(mStream, command, args, parameters));
+		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
+		
 		if(command != "A") throw Exception("Unexpected command: " + command);
 		if(parameters.contains("method") && parameters["method"].toUpper() != "DIGEST")
 			throw Exception("Unknown authentication method: " + parameters["method"]);
@@ -637,7 +660,8 @@ void Core::Handler::run(void)
 		if(test_b != hash_b) throw Exception("Authentication failed");
 		Log("Core::Handler", "Authentication finished");
 		mSock->setTimeout(0);
-		
+		mIsAuthenticated = true;		
+
 		// Set encryption key and IV
 		ByteString key_a;
 		agregate_a.writeLine(nonce_a);
@@ -680,6 +704,8 @@ void Core::Handler::run(void)
 		mSender = new Sender;
 		mSender->mStream = mStream;
 		mSender->start();
+
+		notifyAll();
 	}
 	catch(const std::exception &e)
 	{

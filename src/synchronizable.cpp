@@ -49,7 +49,12 @@ void Synchronizable::unlock(void) const
 
 int Synchronizable::unlockAll(void) const
 {
-	return mMutex->unlockAll(); 
+	return mMutex->unlockAll();
+}
+
+void Synchronizable::relockAll(void) const
+{
+	mMutex->relockAll();
 }
 
 void Synchronizable::notify(void) const
@@ -67,14 +72,14 @@ void Synchronizable::wait(void) const
 	mSignal->wait(*mMutex);
 }
 
-void Synchronizable::wait(unsigned &timeout) const
+bool Synchronizable::wait(unsigned &timeout) const
 {
-	mSignal->wait(*mMutex, timeout);
+	return mSignal->wait(*mMutex, timeout);
 }
 
-void Synchronizable::wait(const unsigned &timeout) const
+bool Synchronizable::wait(const unsigned &timeout) const
 {
-	mSignal->wait(*mMutex, timeout);
+	return mSignal->wait(*mMutex, timeout);
 }
 
 }

@@ -26,7 +26,8 @@ namespace tpot
 {
 
 Mutex::Mutex(void) :
-		mLockCount(0)
+	mLockCount(0),
+	mRelockCount(0)
 {
 	 if(pthread_mutex_init(&mMutex,NULL) != 0)
 		 throw Exception("Unable to create mutex");
@@ -79,16 +80,22 @@ void Mutex::unlock(void)
 
 int Mutex::unlockAll(void)
 {
- 	int count = mLockCount;
+ 	mRelockCount = mLockCount;
 	mLockCount = 0;
 
-	if(count)
+	if(mRelockCount)
 	{
 		if(pthread_mutex_unlock(&mMutex) != 0)
 			throw Exception("Unable to unlock mutex");
 	}
 	
-	return count;
+	return mRelockCount;
+}
+
+void Mutex::relockAll(void)
+{
+	lock(mRelockCount);
+	mRelockCount = 0;
 }
 
 }

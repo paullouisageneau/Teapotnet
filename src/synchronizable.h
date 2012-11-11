@@ -36,13 +36,14 @@ public:
 
 	void lock(int count = 1) const;
 	void unlock(void) const;
-	int unlockAll(void) const;
-	
+	int  unlockAll(void) const;
+	void relockAll(void) const;	
+
 	void notify(void) const;
 	void notifyAll(void) const;
 	void wait(void) const;
-	void wait(unsigned &timeout) const;
-	void wait(const unsigned &timeout) const;
+	bool wait(unsigned &timeout) const;
+	bool wait(const unsigned &timeout) const;
 	
 private:
 	Mutex *mMutex;		// Pointers are used here to keep functions const
@@ -70,23 +71,36 @@ private:
 	int c;
 };
 
-inline bool lockAndTrue(Synchronizable *s)
+inline bool boolLock(Synchronizable *s, bool b)
 {
 	s->lock();
-	return true;
+	return b;
 }
 
-inline bool testAndUnlock(Synchronizable *s, bool b)
+inline bool boolUnlock(Synchronizable *s, bool b)
 {
 	s->unlock();
 	return b;
 }
 
-#define Synchronize(x)   Synchronizer	__sync(x)
+inline bool boolRelockAll(Synchronizable *s, bool b)
+{
+	s->relockAll();
+}
+
+inline bool boolUnlockAll(Synchronizable *s, bool b)
+{
+	s->unlockAll();
+	return b;
+}
+
+#define Synchronize(x)   Synchronizer	__sync(x); 
 #define Desynchronize(x) Desynchronizer	__desync(x)
 #define UnPrioritize(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
-#define SynchronizeTest(x,test) (lockAndTrue(x) && testAndUnlock(x,(test)))
+#define SynchronizeTest(x,test) (boolLock(x,true) && boolUnlock(x,(test)))
 #define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }
+#define DesynchronizeTest(x, test) (boolUnlockAll(x,true) && boolRelockAll(x,(test)))
+#define DesynchronizeStatement(x,stmt) { Desynchronizer __desync(x); stmt; } 
 
 }
 
