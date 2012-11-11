@@ -69,7 +69,7 @@ Time::Time(const String &str)
 	str.explode(list, ' ');
 
 	struct tm tms;
-	std::memset(&tms, sizeof(tms), 0);
+	std::memset(&tms, 0, sizeof(tms));
 	tms.tm_isdst = -1;
 
 	switch(list.size()) 
