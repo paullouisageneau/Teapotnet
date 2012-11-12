@@ -179,6 +179,11 @@ void File::writeData(const char *data, size_t size)
 	std::fstream::write(data,size);
 }
 
+void File::flush(void)
+{
+	std::fstream::flush(); 
+}
+
 ByteStream *File::pipeIn(void)
 {
 	return new File(mName,Append);

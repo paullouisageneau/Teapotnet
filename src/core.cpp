@@ -812,7 +812,7 @@ void Core::Handler::run(void)
 			  	unsigned id;
 				args.read(id);
 				String &target = args;
-			  	Log("Core::Handler", "Received request "+String::number(id)+" for \""+target+"\"");
+			  	Log("Core::Handler", "Received request "+String::number(id));
 
 				Listener *listener;
 				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;

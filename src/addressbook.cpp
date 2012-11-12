@@ -186,7 +186,7 @@ void AddressBook::save(void) const
 void AddressBook::update(void)
 {
 	Synchronize(this);
-	Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
+	//Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
 	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 		it != mContacts.end();
@@ -196,7 +196,7 @@ void AddressBook::update(void)
 		contact->update();
 	}
 		
-	Log("AddressBook::update", "Finished");
+	//Log("AddressBook::update", "Finished");
 	save();
 }
 
@@ -579,7 +579,7 @@ void AddressBook::Contact::update(void)
 		Array<Address> newAddrs;
 		if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 			for(int i=0; i<newAddrs.size(); ++i)
-				if(addAddress(newAddrs[i], false)) return;
+				if(addAddress(newAddrs[i], true)) return;
 			
 		for(int i=0; i<mAddrs.size(); ++i)
 			if(!newAddrs.contains(mAddrs[i]))
@@ -588,7 +588,7 @@ void AddressBook::Contact::update(void)
 		Array<Address> altAddrs;
 		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
 			for(int i=0; i<newAddrs.size(); ++i)
-				if(addAddress(newAddrs[i], false)) return;
+				if(addAddress(newAddrs[i], true)) return;
 	}
 }
 

@@ -222,6 +222,11 @@ void ByteStream::clear(void)
 	while(readData(&dummy,1));
 }
 
+void ByteStream::flush(void)
+{
+
+}
+
 void ByteStream::ignore(int n)
 {
 	char dummy;

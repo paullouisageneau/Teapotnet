@@ -60,12 +60,7 @@ Splicer::Splicer(const ByteString &target, const String &filename, size_t blockS
 
 Splicer::~Splicer(void)
 {
-	for(int i=0; i<mRequests.size(); ++i)
-		delete mRequests[i];
-
-	// Deleting the requests deletes the responses
-	// Deleting the responses deletes the contents
-	// So the stripes are already deleted
+	close();
 }
 
 const String &Splicer::name(void) const
@@ -129,7 +124,7 @@ bool Splicer::finished(void) const
 		
 		if(response->content()->is_open()) return false;
 	}
-
+	
 	return true;
 }
 
@@ -140,6 +135,21 @@ size_t Splicer::finishedBlocks(void) const
 		block = std::min(block, mStripes[i]->tellWriteBlock());
 
 	return block;
+}
+
+void Splicer::close(void)
+{
+	if(!mRequests.empty())
+	{
+		for(int i=0; i<mRequests.size(); ++i)
+			delete mRequests[i];
+			
+		mRequests.clear();
+	}
+	
+	// Deleting the requests deletes the responses
+	// Deleting the responses deletes the contents
+	// So the stripes are already deleted
 }
 
 void Splicer::search(Set<Identifier> &sources)

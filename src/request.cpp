@@ -302,8 +302,9 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 			content = stripedFile;
 			
 			rparameters["processing"] = "striped";
-			rparameters["size"].clear();
-			rparameters["size"] << entry.size/stripesCount;
+			//rparameters["size"].clear();
+			//rparameters["size"] << entry.size/stripesCount;
+			rparameters.erase("size");
 		}
 		catch(...)
 		{

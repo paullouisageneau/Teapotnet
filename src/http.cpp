@@ -137,7 +137,7 @@ void Http::Request::recv(Socket &sock)
 
 	// Read first line
 	String line;
-	if(!sock.readLine(line)) throw IOException("Connection closed");
+	if(!sock.readLine(line)) throw NetException("Connection closed");
 	method.clear();
 	url.clear();
 	line.readString(method);
@@ -224,7 +224,7 @@ void Http::Request::recv(Socket &sock)
 			{
 				String data;
 				if(sock.read(data, contentLength) != contentLength)
-					throw IOException("Connection unexpectedly closed");
+					throw NetException("Connection unexpectedly closed");
 			  
 				List<String> exploded;
 				data.explode(exploded,'&');
@@ -503,7 +503,7 @@ void Http::Response::recv(Socket &sock)
 
 	// Read first line
 	String line;
-	if(!sock.readLine(line)) throw IOException("Connection closed");
+	if(!sock.readLine(line)) throw NetException("Connection closed");
 
 	String protocol;
 	line.readString(protocol);

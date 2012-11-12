@@ -91,6 +91,7 @@ void Pipe::writeData(const char *data, size_t size)
 
 	mMutex.lock();
 	mWriteBuffer->writeData(data,size);
+	mWriteBuffer->flush();
 	mMutex.unlock();
 	mSignal.launchAll();
 }

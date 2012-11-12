@@ -45,6 +45,7 @@ public:
 	void process(void);
 	bool finished(void) const;
 	size_t finishedBlocks(void) const;
+	void close(void);
 	
 private:
   	void search(Set<Identifier> &sources);

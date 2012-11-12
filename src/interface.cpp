@@ -295,6 +295,7 @@ void Interface::process(Http::Request &request)
 					// TODO: Missing headers
 					response.send();
 					
+					uint64_t total = 0;
 					size_t current = 0;
 					while(!splicer.finished())
 					{
@@ -303,14 +304,20 @@ void Interface::process(Http::Request &request)
 						size_t finished = splicer.finishedBlocks();
 						while(current < finished)
 						{
-							AssertIO(file.read(*response.sock, blockSize));
+							size_t size;
+							AssertIO(size = file.read(*response.sock, blockSize));
+							total+= size;
 							++current;
 						}
 						
 						msleep(20);
 					}
 					
-					file.read(*response.sock);					
+					splicer.close();
+					
+					total+= file.read(*response.sock);
+					if(total != splicer.size())
+						Log("Interface::http", String("Warning: Splicer downloaded ") + String::number(total) + " bytes whereas size was " + String::number(splicer.size())); 
 					return;
 				}
 				catch(...)

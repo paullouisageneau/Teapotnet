@@ -65,7 +65,8 @@ public:
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-
+	void flush(void);
+	
 protected:
 	ByteStream *pipeIn(void);
 	String mName;

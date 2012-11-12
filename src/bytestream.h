@@ -74,6 +74,7 @@ public:
 	template<class T> void writeBinary(const T *ptr);
 
 	virtual void clear(void);
+	virtual void flush(void);
 	virtual void ignore(int n = 1);
 	virtual void discard(void);
 
