@@ -167,7 +167,13 @@ Time::Time(const String &str)
 	}
 	
 	TimeMutex.lock();
-	mTime = timegm(&tms);
+	char *tz = getenv("TZ");
+        setenv("TZ", "", 1);
+        tzset();
+        mTime = mktime(&tms);
+        if(tz) setenv("TZ", tz, 1);
+        else unsetenv("TZ");
+        tzset();
 	TimeMutex.unlock();
 	if(mTime == time_t(-1)) throw Exception(String("Invalid date: ") + str);
 }

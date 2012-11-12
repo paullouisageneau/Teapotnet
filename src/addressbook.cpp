@@ -915,7 +915,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							++mMessagesCount;
 							notifyAll();
 							
-							if(request.post["ajax"].toBool())	//ajax
+							if(request.post.contains("ajax") && request.post["ajax"].toBool())	//ajax
 							{
 								Http::Response response(request, 200);
 								response.send();
@@ -929,8 +929,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 								response.send();
 							}
 						}
-						catch(...)
+						catch(const Exception &e)
 						{
+							Log("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
 							throw 409;
 						}
 						

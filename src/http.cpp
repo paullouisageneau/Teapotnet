@@ -701,12 +701,18 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 			String ifModifiedSince;
 			if(request.headers.get("If-Modified-Since", ifModifiedSince))
 			{
-				Time time(ifModifiedSince);
-				if(time >= File::Time(fileName))
+				try {
+					Time time(ifModifiedSince);
+					if(time >= File::Time(fileName))
+					{
+						Response response(request, 304);
+						response.send();
+						return;
+					}
+				}
+				catch(const Exception &e)
 				{
-					Response response(request, 304);
-					response.send();
-					return;
+					Log("Http::RespondWithFile", String("Warning: ") + e.what()); 
 				}
 			}
 		  
