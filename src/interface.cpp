@@ -327,6 +327,10 @@ void Interface::process(Http::Request &request)
 				}
 			}
 		}
+		catch(const NetException &e)
+		{
+			 return;	// nothing to do
+		}
 		catch(const std::exception &e)
 		{
 			Log("Interface::process", String("Error: ") + e.what());
