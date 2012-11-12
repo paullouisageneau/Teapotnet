@@ -280,7 +280,7 @@ void Interface::process(Http::Request &request)
 				return;
 			}
 			else {
-				size_t blockSize = 256*1024;		// TODO
+				size_t blockSize = 128*1024;		// TODO
 				String filename  = File::TempName();	// TODO
 				
 				try {
