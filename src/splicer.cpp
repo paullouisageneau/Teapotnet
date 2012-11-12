@@ -160,16 +160,11 @@ void Splicer::search(Set<Identifier> &sources)
 		if(!response->error())
 		{
 			if(mName.empty() && parameters.contains("name")) 
-			{
 				mName = parameters.get("name");
-			}
 			
 			// TODO: check size
 			if(mSize == 0 && parameters.contains("size")) 
-			{
-				String tmp = parameters.get("size");
-				tmp >> mSize;
-			}
+				parameters.get("size").extract(mSize);
 			
 			sources.insert(response->peering());
 		}
@@ -184,10 +179,10 @@ void Splicer::query(int i, const Identifier &source)
 	size_t offset = 0;
 	
 	if(mStripes[i]) 
-	{	
-	  block = mStripes[i]->tellWriteBlock();
-	  offset = mStripes[i]->tellWriteOffset();
-	  delete mStripes[i];
+	{
+		block = mStripes[i]->tellWriteBlock();
+		offset = mStripes[i]->tellWriteOffset();
+		delete mStripes[i];
 	}
 	
 	if(mRequests[i]) delete mRequests[i];
