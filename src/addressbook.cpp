@@ -811,7 +811,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					trequest.wait(timeout);
 				}
 				
-				try {
+				if(trequest.responsesCount()) try {
 					page.open("div",".box");
 					page.open("table",".files");
 					for(int i=0; i<trequest.responsesCount(); ++i)
