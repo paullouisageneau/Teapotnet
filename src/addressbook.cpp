@@ -801,7 +801,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+					page.open("div",".box");
 					page.text("Not connected...");
+					page.close("div");
 					page.footer();
 					return;
 				}
@@ -814,8 +816,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					trequest.wait(timeout);
 				}
 				
-				if(trequest.responsesCount()) try {
-					page.open("div",".box");
+				page.open("div",".box");
+				if(!trequest.isSuccessful()) page.text("No files found");
+				else try {
+					
 					page.open("table",".files");
 					for(int i=0; i<trequest.responsesCount(); ++i)
 					{
@@ -841,15 +845,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						page.close("tr");
 					}
 					page.close("table");
-					page.close("div");
+					
 				}
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
 					page.close("table");
-					page.close("div");
 					page.text("Error, unable to list files");
 				}
+				page.close("div");
 				
 				trequest.unlock();
 				page.footer();
