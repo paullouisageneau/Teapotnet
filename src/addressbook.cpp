@@ -675,7 +675,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
                                         Html page(response.sock);
                                         page.header(mName+": Files");
+					page.open("div",".box");
 					page.text("Not connected...");
+					page.close("div");
 					page.footer();
 					return;
 				}
@@ -700,7 +702,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						response.send();	
 				
 						Html page(response.sock);
-						page.header(mName+": Files");
+						if(target.empty() || target == "/") page.header(mName+": browse files");
+						else page.header(mName+": "+target.substr(1));
 						page.link(prefix+"/search/","Search files");
 						
 						YamlSerializer serializer(tresponse->content());
@@ -828,7 +831,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td"); 
-						if(map.get("type") == "directory") page.link(prefix + "files" + map.get("path"), map.get("name"));
+						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
 						else page.link("/" + map.get("hash"), map.get("name"));
 						page.close("td");
 						page.open("td"); 
@@ -914,11 +917,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 				}
 			  
+				bool isPopup = request.get.contains("popup");
+			  
 				Http::Response response(request,200);
 				response.send();	
 				
 				Html page(response.sock);
-				page.header("Chat with "+mName, request.get.contains("popup"));
+				page.header("Chat with "+mName, isPopup);
 				if(request.get.contains("popup"))
 				{
 					page.open("b");
@@ -927,12 +932,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.br();
 				}
 				
+				if(!isPopup) page.open("div", ".box");
 				page.openForm(prefix + "/chat", "post", "chatForm");
 				page.input("text","message");
 				page.button("send","Send");
 				page.space();
 				
-				if(!request.get.contains("popup"))
+				if(!isPopup)
 				{
 					String popupUrl = prefix + "/chat?popup=1";
 					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','"+prefix+"');\">Popup</a>");
@@ -949,6 +955,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					mMessages[i].markRead();
 				}
 				page.close("div");
+				if(!isPopup) page.close("div");
 				
 page.raw("<script type=\"text/javascript\">\n\
 	var count = "+String::number(mMessagesCount)+";\n\

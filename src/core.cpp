@@ -790,7 +790,8 @@ void Core::Handler::run(void)
 					//Log("Core::Handler", "Received data for unknown channel "+String::number(channel));
 					AssertIO(mStream->ignore(size));
 					
-					args = String::number(channel);
+					args.clear();
+					args.write(channel);
 					parameters.clear();
 					SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
 				}
@@ -817,7 +818,7 @@ void Core::Handler::run(void)
 				}
 				else Log("Core::Handler", "Received error for unknown channel "+String::number(channel));
 			}
-			else if(command == "S")	// stop
+			else if(command == "C")	// stop
 			{
 				unsigned channel;
 				args.read(channel);
@@ -922,14 +923,20 @@ Core::Handler::Sender::~Sender(void)
 	for(int i=0; i<mRequestsToRespond.size(); ++i)
 		delete mRequestsToRespond[i];
 	
-	Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
-	while(it != mTransferts.end())
+	try {
+		Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
+		while(it != mTransferts.end())
+		{
+			int status = Request::Response::Interrupted;	
+			String args;
+			args << it->first << status;
+			Handler::sendCommand(mStream, "E", args, StringMap());
+			++it;
+		}
+	}
+	catch(const NetException &e)
 	{
-		int status = Request::Response::Interrupted;	
-		String args;
-		args << it->first << status;
-		Handler::sendCommand(mStream, "E", args, StringMap());
-		++it;
+		// Nothing to do, the other side will close the transferts anyway
 	}
 }
 
@@ -1087,7 +1094,6 @@ void Core::Handler::Sender::run(void)
 	{
 		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}
-	
 }
 
 }
