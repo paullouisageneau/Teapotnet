@@ -415,7 +415,14 @@ void Core::Handler::removeRequest(unsigned id)
 	Map<unsigned, Request*>::iterator it = mRequests.find(id);
 	if(it != mRequests.end())
 	{
-		it->second->removePending(mPeering);
+		Request *request = it->second;
+		for(int i=0; i<request->responsesCount(); ++i)
+		{
+			Request::Response *response = request->response(i);
+			if(response->mChannel) mResponses.erase(response->mChannel);
+		}
+		
+		request->removePending(mPeering);
 		mRequests.erase(it);
 	}
 }
@@ -742,6 +749,7 @@ void Core::Handler::run(void)
 						if(!sink) sink = new ByteString;		// TODO
 						
 						response = new Request::Response(status, parameters, sink);
+						response->mChannel = channel;
 						mResponses.insert(channel,response);
 					}
 					else {
@@ -755,7 +763,7 @@ void Core::Handler::run(void)
 					if(response->status() != Request::Response::Pending) 
 						request->removePending(mPeering);	// this triggers the notification
 				}
-				else Log("Core::Handler", "Warning: Received response for unknown request "+String::number(id));
+				else Log("Core::Handler", "Received response for unknown request "+String::number(id));
 			}
 			else if(command == "D")
 			{
@@ -768,7 +776,7 @@ void Core::Handler::run(void)
 				{
 				 	Assert(response->content());
 					if(size) {
-					  	size_t len = mStream->readData(*response->content(),size);
+					  	size_t len = mStream->readData(*response->content(), size);
 						if(len != size) throw IOException("Incomplete data chunk");
 					}
 					else {
@@ -779,11 +787,15 @@ void Core::Handler::run(void)
 					}
 				}
 				else {
-					Log("Core::Handler", "Warning: Received data for unknown channel "+String::number(channel));
-					mStream->ignore(size);
+					//Log("Core::Handler", "Received data for unknown channel "+String::number(channel));
+					AssertIO(mStream->ignore(size));
+					
+					args = String::number(channel);
+					parameters.clear();
+					SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
 				}
 			}
-			else if(command == "E")
+			else if(command == "E")	// error
 			{
 				unsigned channel;
 				int status;
@@ -803,9 +815,20 @@ void Core::Handler::run(void)
 					response->content()->close();
 					mResponses.erase(channel);
 				}
-				else {
-					Log("Core::Handler", "Warning: Received error for unknown channel "+String::number(channel));
+				else Log("Core::Handler", "Received error for unknown channel "+String::number(channel));
+			}
+			else if(command == "S")	// stop
+			{
+				unsigned channel;
+				args.read(channel);
+				
+				Synchronize(mSender);
+				if(mSender->mTransferts.contains(channel))
+				{
+					Log("Core::Handler", "Stopping on channel "+String::number(channel));
+					mSender->mTransferts.erase(channel);
 				}
+				//else Log("Core::Handler", "Received stop for unknown channel "+String::number(channel));
 			}
 			else if(command == "I" || command == "G")
 			{
@@ -866,7 +889,7 @@ void Core::Handler::run(void)
 					}
 					catch(const Exception &e)
 					{
-						Log("Core::Handler", String("Warning: Listener failed to process message: ")+e.what()); 
+						Log("Core::Handler", String("Warning: Listener failed to process the message: ")+e.what()); 
 					}
 				}
 			}

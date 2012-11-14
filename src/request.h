@@ -90,6 +90,8 @@ public:
 		Identifier mPeering;
 		StringMap mParameters;
 		Pipe *mContent;
+		
+		unsigned mChannel;	// Core uses mChannel when receiving
 		bool mTransfertStarted;
 		bool mTransfertFinished;
 		

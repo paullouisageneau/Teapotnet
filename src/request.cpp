@@ -383,6 +383,7 @@ bool Request::isSuccessful(void) const
 Request::Response::Response(int status) :
 	mStatus(status),
 	mContent(NULL),
+	mChannel(0),
 	mTransfertStarted(false),
 	mTransfertFinished(false)
 {
