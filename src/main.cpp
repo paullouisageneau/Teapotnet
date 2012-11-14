@@ -153,12 +153,6 @@ int main(int argc, char** argv)
 				openUserInterface();
 			return 0;
 		}
-		
-		if(!args.contains("debug") && Config::Get("debug") != "on")
-		{
-			HWND hWnd = GetConsoleWindow();
-			ShowWindow(hWnd, SW_HIDE);
-		}
 #endif
 		
 		Log("main", "Starting...");
@@ -201,6 +195,12 @@ int main(int argc, char** argv)
 		InterfacePort = ifport;
 		if(!args.contains("nointerface"))
 			openUserInterface();
+		
+		if(!args.contains("debug") && Config::Get("debug") != "on")
+		{
+			HWND hWnd = GetConsoleWindow();
+			ShowWindow(hWnd, SW_HIDE);
+		}
 #endif
 		
 		// Starting port mapping

@@ -74,7 +74,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
 	if(blank) *mStream<<"<title>"<<title<<"</title>\n";
-	else if(title.empty()) *mStream<<APPNAME<<"</title>\n";
+	else if(title.empty()) *mStream<<"<title>"<<APPNAME<<"</title>\n";
 	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">\n";
 	*mStream<<"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n";
