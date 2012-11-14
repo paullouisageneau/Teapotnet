@@ -62,6 +62,7 @@
 #include <queue>
 
 #include <dirent.h>
+#include <stdlib.h>
 
 #ifdef PTW32_STATIC_LIB
 #include "../win32/pthread.h"

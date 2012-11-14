@@ -167,15 +167,32 @@ Time::Time(const String &str)
 	}
 	
 	TimeMutex.lock();
+	
 	char *tz = getenv("TZ");
-        setenv("TZ", "", 1);
-        tzset();
-        mTime = mktime(&tms);
-        if(tz) setenv("TZ", tz, 1);
-        else unsetenv("TZ");
-        tzset();
+	putenv(const_cast<char*>("TZ=UTC"));
+	tzset();
+	
+	mTime = std::mktime(&tms);
+	
+	if(tz)
+	{
+		char *buf = reinterpret_cast<char*>(std::malloc(3 + strlen(tz) + 1));
+		if(buf)
+		{
+			std::strcpy(buf,"TZ=");
+			std::strcat(buf, tz);
+			putenv(buf);	
+		}
+	} 
+	else {
+		putenv(const_cast<char*>("TZ="));
+	}
+	tzset();
+	
 	TimeMutex.unlock();
-	if(mTime == time_t(-1)) throw Exception(String("Invalid date: ") + str);
+	
+	if(mTime == time_t(-1)) 
+		throw Exception(String("Invalid date: ") + str);
 }
 
 Time::~Time(void)
