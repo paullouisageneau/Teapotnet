@@ -24,7 +24,7 @@
 
 #define DEBUG
 #define APPNAME		"TeapotNet"
-#define APPVERSION	"0.1"
+#define APPVERSION	"0.2"
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://www.teapotnet.org/"
 #define SOURCELINK	"http://www.teapotnet.org/source/"
@@ -223,7 +223,7 @@ inline void yield(void)
 #define Stack std::stack
 #define Deque std::deque
 
-const size_t BufferSize = 8*1024;	// 8 KiB
+const size_t BufferSize = 4*1024;	// 4 KiB
 
 }
 

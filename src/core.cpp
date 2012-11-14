@@ -909,7 +909,7 @@ void Core::Handler::run(void)
 	delete this;
 }
 
-const size_t Core::Handler::Sender::ChunkSize = 4096;	// TODO
+const size_t Core::Handler::Sender::ChunkSize = BufferSize;
 
 Core::Handler::Sender::Sender(void) :
 		mLastChannel(0),
