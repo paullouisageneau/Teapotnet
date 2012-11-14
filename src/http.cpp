@@ -25,6 +25,7 @@
 #include "config.h"
 #include "mime.h"
 #include "directory.h"
+#include "bytestring.h"
 
 namespace tpot
 {
@@ -336,7 +337,7 @@ void Http::Request::recv(Socket &sock)
 							size_t size = 0;
 							size_t c = 0;
 							size_t i = 0;
-							while(true)
+							while(!finished)
 							{
 								if(c == size)
 								{
@@ -355,14 +356,15 @@ void Http::Request::recv(Socket &sock)
 										AssertIO(sock.readLine(line));
 										if(line == "--") finished = true;
 										else AssertIO(line.empty());
-										break;
 									}
 								}
 								else {
 								  	if(i) stream->writeData(bound.data(), i);
-									i = c; ++c;
+									
+									// WARNING: this works only if the pattern is not redundant
+									i = c;
 									while(c != size && buffer[c] != bound[0]) ++c;
-									stream->writeData(buffer + i, c - i);
+									if(c != i) stream->writeData(buffer + i, c - i);
 									i = 0;
 								}
 							}
