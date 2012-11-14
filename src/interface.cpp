@@ -202,9 +202,7 @@ void Interface::process(Http::Request &request)
 	{
 		if(!user || list.front() != user->name())
 		{
-			String realm;
-			if(list.front().empty() || !User::Exist(list.front())) realm = "TeapotNet";
-			else realm = list.front() + " on TeapotNet";
+			String realm = "TeapotNet";
 			
 			Http::Response response(request, 401);
 			response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
