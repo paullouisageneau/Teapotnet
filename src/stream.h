@@ -56,7 +56,7 @@ public:
 	
 	// Atomic
 	bool get(char &chr);
-	bool ignore(int n = 1);
+	bool ignore(size_t size = 1);
 	void put(char chr);
 	void space(void);
 	void newline(void);

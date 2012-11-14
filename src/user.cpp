@@ -152,11 +152,10 @@ void User::http(const String &prefix, Http::Request &request)
 			response.send();
 			
 			Html page(response.sock);
-			page.header(mName);
-			page.open("h1");
-			page.text(mName);
-			page.close("h1");
+			page.header(String("Welcome, ")+mName+" !");
 
+			page.open("div",".menu");
+			
 			page.openForm(prefix + "/search", "post", "searchform");
 			page.input("text","query");
 			page.button("search","Search");
@@ -174,6 +173,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.br();
 			page.link(prefix+"/files/","Files");
 			page.br();
+			page.close("div");
 			
 			page.footer();
 			return;
@@ -193,9 +193,6 @@ void User::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.sock);
 			page.header("Search");
-			page.open("h1");
-			page.text("Search");
-			page.close("h1");
 				
 			page.openForm(prefix + "/search", "post", "searchform");
 			page.input("text","query",query);
@@ -221,6 +218,7 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			
 			try {
+				page.open("div",".box");
 				page.open("table",".files");
 				for(int i=0; i<trequest.responsesCount(); ++i)
 				{
@@ -253,11 +251,13 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("tr");
 				}
 				page.close("table");
+				page.close("div");
 			}
 			catch(const Exception &e)
 			{
 				Log("User::http", String("Unable to list files: ") + e.what());
 				page.close("table");
+				page.close("div");
 				page.text("Error, unable to list files");
 			}
 				

@@ -183,7 +183,7 @@ void Store::save(void) const
 void Store::update(void)
 {
 	Synchronize(this);
-	Log("Store::update", "Started");
+	//Log("Store::update", "Started");
 	
 	mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
 	
@@ -209,7 +209,7 @@ void Store::update(void)
 	
 	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
 	
-	Log("Store::update", "Finished");
+	//Log("Store::update", "Finished");
 }
 
 bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
@@ -335,9 +335,6 @@ void Store::http(const String &prefix, Http::Request &request)
 						
 						Html page(response.sock);
 						page.header("Error", false, prefix + "/");
-						page.open("h1");
-						page.text("Error");
-						page.close("h1");
 						page.text(e.what());
 						page.footer();
 						return;
@@ -355,9 +352,6 @@ void Store::http(const String &prefix, Http::Request &request)
 
 			Html page(response.sock);
 			page.header("Shared folders");
-			page.open("h1");
-			page.text("Shared folders");
-			page.close("h1");
 			
 			if(!mDirectories.empty())
 			{
@@ -470,14 +464,11 @@ void Store::http(const String &prefix, Http::Request &request)
 				response.send();
 
 				Html page(response.sock);
-				page.header(request.url);
-				page.open("h1");
-				page.text(request.url);
-				page.close("h1");
+				page.header(String("Shared folder: ") + request.url.substr(1,request.url.size()-2));
 
 				page.openForm(prefix+url,"post", "uploadForm", true);
 				page.openFieldset("Upload a file");
-				page.label("file","File"); page.file("file"); page.br();
+				page.label("file"); page.file("file"); page.br();
 				page.label("send"); page.button("send","Send");
 				page.closeFieldset();
 				page.closeForm();

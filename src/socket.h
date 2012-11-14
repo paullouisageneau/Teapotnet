@@ -35,7 +35,7 @@ class ServerSocket;
 class Socket : public Stream, public ByteStream
 {
 public:
-	using ByteStream::ignore;
+	using Stream::ignore;
 
 	static void Transfert(Socket *sock1, Socket *sock2);
 	

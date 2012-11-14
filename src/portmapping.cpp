@@ -80,7 +80,7 @@ bool PortMapping::init(void)
 		}
 	}
 	
-	Log("PortMapping", "NAT-PMP is not available");
+	//Log("PortMapping", "NAT-PMP is not available");
 	return false;
 }
 

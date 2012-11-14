@@ -124,9 +124,6 @@ void Interface::process(Http::Request &request)
 							
 							Html page(response.sock);
 							page.header("Error", false, "/");
-							page.open("h1");
-							page.text("Error");
-							page.close("h1");
 							page.text(e.what());
 							page.footer();
 							return;
@@ -151,7 +148,7 @@ void Interface::process(Http::Request &request)
 				response.send();
 			
 				Html page(response.sock);
-				page.header("Welcome");
+				page.header();
 				page.open("h1");
 				page.text("Welcome to TeapotNet !");
 				page.close("h1");
@@ -175,7 +172,7 @@ void Interface::process(Http::Request &request)
 				response.send();
 			
 				Html page(response.sock);
-				page.header("Welcome");
+				page.header();
 				page.open("h1");
 				page.text("Welcome to TeapotNet !");
 				page.close("h1");
@@ -214,10 +211,7 @@ void Interface::process(Http::Request &request)
 			response.send();
 				
 			Html page(response.sock);
-			page.header("TeapotNet");
-			page.open("h1");
-			page.text("Authentication required");
-			page.close("h1");
+			page.header("Authentication required");
 			
 			page.footer();
 			return;
@@ -269,7 +263,7 @@ void Interface::process(Http::Request &request)
 				File file(entry.path);
 				
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"" + entry.name + "\"";
+				response.headers["Content-Disposition"] = "inline; filename=\"" + entry.name + "\"";
 				response.headers["Content-Type"] = Mime::GetType(entry.name);
 				response.headers["Content-Length"] << entry.size;
 				response.headers["Last-Modified"] = entry.time.toHttpDate();
@@ -288,7 +282,7 @@ void Interface::process(Http::Request &request)
 					File file(filename, File::Read);
 					
 					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
+					response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
 					response.headers["Content-Type"] = Mime::GetType(splicer.name());
 					response.headers["Content-Length"] << splicer.size();
 					response.headers["Content-SHA512"] = digest.toString();
@@ -310,7 +304,7 @@ void Interface::process(Http::Request &request)
 							++current;
 						}
 						
-						msleep(20);
+						msleep(50);
 					}
 					
 					splicer.close();

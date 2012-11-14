@@ -99,10 +99,17 @@ bool Stream::get(char &chr)
 	return false;
 }
 
-bool Stream::ignore(int n)
+bool Stream::ignore(size_t size)
 {
-	if(!get(mLast)) return false;
-	while(--n) if(!get(mLast)) return false;
+	char buffer[BufferSize];
+	size_t len;
+	while(size && (len = readData(buffer, std::min(size, BufferSize))))
+	{
+		if(!len) return false;
+		size-= len;
+		mLast = buffer[len-1];
+	}
+
 	return true;
 }
 

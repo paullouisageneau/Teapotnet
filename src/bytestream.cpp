@@ -227,11 +227,17 @@ void ByteStream::flush(void)
 
 }
 
-void ByteStream::ignore(int n)
+bool ByteStream::ignore(size_t size)
 {
-	char dummy;
-	for(int i=0; i<n; ++i)
-		if(!readData(&dummy,1)) break;
+	char buffer[BufferSize];
+	size_t len;
+	while(size && (len = readData(buffer, std::min(size, BufferSize))))
+	{
+		if(!len) return false;
+		size-= len;
+	}
+
+	return true;
 }
 
 void ByteStream::discard(void)

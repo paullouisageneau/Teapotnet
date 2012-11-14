@@ -75,9 +75,9 @@ public:
 
 	virtual void clear(void);
 	virtual void flush(void);
-	virtual void ignore(int n = 1);
 	virtual void discard(void);
-
+	virtual bool ignore(size_t size = 1);
+	
 private:
 	virtual ByteStream *pipeIn(void);	// return the write end for a pipe
 

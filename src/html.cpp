@@ -74,8 +74,10 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
 	if(blank) *mStream<<"<title>"<<title<<"</title>\n";
+	else if(title.empty()) *mStream<<APPNAME<<"</title>\n";
 	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">\n";
+	*mStream<<"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n";
 	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n";
 	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\">\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
@@ -86,11 +88,13 @@ void Html::header(const String &title, bool blank, const String &redirect)
 
 	if(!mBlank)
 	{
-		open("div","panel");
+		open("div","page");
+		open("div","header");
 		openLink("/"); image("/logo.png", APPNAME, "logo"); closeLink();
+		open("div","title");
+		if(title.empty()) text(APPNAME);
+		else text(title);
 		close("div");
-		open("div","bar");
-		link(SOURCELINK, "Source code", "", true);
 		close("div");
 		open("div","content");
 	}
@@ -101,6 +105,10 @@ void Html::footer(void)
 	if(!mBlank)
 	{
 		close("div"); 
+		open("div", "footer");
+		link(SOURCELINK, "Source code", "", true);
+		close("div");
+		close("div");
 	}
 
 	*mStream<<"</body>\n";

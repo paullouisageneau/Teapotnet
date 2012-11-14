@@ -3,8 +3,8 @@ body
 	font-family: Sans-Serif;
 	font-size: 80%;
 	background-color: #FFFFFF;
-	padding: 1em;
 	margin: 0;
+	padding: 0;
 }
 
 a:link, a:visited
@@ -43,16 +43,25 @@ hr
 
 h1
 {
-
+	font-size: 1.6em;
+	font-weight: bold;
 }
 
 h2
 {
+	font-size: 1.4em;
+	font-weight: bold;
+}
 
+h3
+{
+	font-size: 1.2em;
+	font-weight: bold;
 }
 
 table 
 {
+	width: 100%;
 	margin: 0em;
 	padding: 0em;
 	border: 0; 
@@ -73,17 +82,19 @@ td
 {
 	margin: 0;
 	border: 0;
-	padding: 0.1em;
+	padding-top: 0.1em;
+	padding-bottom: 0.1em;
+	padding-left: 0.2em;
+	padding-right: 0.2em;
 	border-width:0;
 	vertical-align: top;
 }
 
 fieldset 
 {
-	width: 40em;
-	margin: 0em;
+	margin: 0;
 	margin-bottom: 1em;
-	padding: 1em;
+	padding: 0.5em;
 	border: 1px solid black;
 	border-radius: 0.5em;
 }
@@ -92,7 +103,7 @@ label
 {
 	float: left;
 	clear: both;
-	width: 25%;
+	width: 20%;
 	margin-right: 0.5em;
 	padding-top: 0.4em;
 	text-align: right;
@@ -102,9 +113,9 @@ label
 legend 
 {
 	padding: 0.2em 0.5em;
+	text-align: right;
 	border: 1px solid black;
 	border-radius: 0.5em;
-	text-align: right;
 }
 
 input
@@ -112,27 +123,61 @@ input
 	margin: 0.2em;
 }
 
-#panel
+#page
 {
-	float: left;
-	height: 30em;
-	width: 128px;
-	margin: 1em;
+	width: 95%;
+	max-width: 50em;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#header
+{
+	width: 100%;
+	text-align: left;
+	vertical-align: middle;
+	margin-bottom: 0.5em;
+}
+
+#header div
+{
+	display: inline-block;
+}
+
+#title
+{
+	margin: 0.5em;
+	font-weight: bold;
+	font-size: 1.6em;
+}
+
+#content
+{
+	clear: both;
+	width: 100%;
+	min-height: 20em;
+	text-align: justify;
+}
+
+#footer
+{
+	margin-top: 3em;
+	text-align: right;
 }
 
 #logo
 {
-	width: 128px;
-}
-
-#bar
-{
-	text-align: right;
+	float: left;
+	width: 20%;
+	max-width: 128px;
+	margin-bottom: 0.5em;
 }
 
 #info
 {
-	width: 120em;
+
 }
 
 .title
@@ -143,6 +188,19 @@ input
 .value
 {
   
+}
+
+.menu
+{
+	padding: 1em;
+	padding-left: 2em;
+	border: 1px solid black;
+	border-radius: 0.5em;
+}
+
+.menu a
+{
+	font-weight: bold; 
 }
 
 .user
@@ -178,42 +236,6 @@ input
 	color: red;
 }
 
-table.files
-{
-	margin: 1em;
-}
-
-table.contacts
-{
-	margin: 1em;
-}
-
-.box table.files
-{
-	margin: 0;
-}
-
-.box table.contacts
-{
-	margin: 0;
-}
-
-table.files td
-{
-	padding-top: 0.1em;
-	padding-bottom: 0.1em;
-	padding-left: 1em;
-	padding-right: 1em;
-}
-
-table.contacts td
-{
-	padding-top: 0.1em;
-	padding-bottom: 0.1em;
-	padding-left: 1em;
-	padding-right: 1em;
-}
-
 td.delete
 {
 	width: 16px; 
@@ -221,12 +243,10 @@ td.delete
 
 .box
 {
-	width: 40em;
 	margin: 0em;
+	margin-top: 1em;
 	margin-bottom: 1em;
-	padding: 1em;
+	padding: 0.5em;
 	border: 1px solid black;
 	border-radius: 0.5em;
-	display: inline-block;
-	/*box-shadow: 1px 1px 6px #202020;*/
 }

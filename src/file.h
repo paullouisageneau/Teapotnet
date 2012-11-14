@@ -38,7 +38,7 @@ class File : public Stream, public ByteStream, public std::fstream
 public:
 	using Stream::read;
 	using Stream::write;
-	using ByteStream::ignore;
+	using Stream::ignore;
 
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);

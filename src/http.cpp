@@ -459,6 +459,7 @@ void Http::Response::send(Socket &sock)
 		case 413: message = "Request Entity Too Large"; 	break;
 		case 414: message = "Request-URI Too Long";		break;
 		case 416: message = "Requested Range Not Satisfiable";	break;
+		case 418: message = "I'm a teapot";			break;
 		case 500: message = "Internal Server Error";		break;
 		case 501: message = "Not Implemented";			break;
 		case 502: message = "Bad Gateway";			break;
@@ -787,7 +788,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 	
 	String name = fileName.afterLast(Directory::Separator);
 	if(name != request.url.afterLast('/')) 
-		response.headers["Content-Disposition"] = "attachment; filename=\"" + name + "\"";
+		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
 	
 	if(request.headers.contains("Range"))
 	{

@@ -248,9 +248,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			Html page(response.sock);
 			page.header("Contacts");
-			page.open("h1");
-			page.text("Contacts");
-			page.close("h1");
 			
 			if(!mContacts.empty())
 			{
@@ -567,14 +564,14 @@ void AddressBook::Contact::update(void)
 		}
 		catch(...)
 		{
-			Log("AddressBook::Contact", "WARNING: Unable to connect the local core");	 
+			Log("AddressBook::Contact", "Warning: Unable to connect the local core");	 
 		}
 	}
 	else {
-		Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
 		AddressBook::publish(mRemotePeering);
 		  
-		Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
+		//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 			
 		Array<Address> newAddrs;
 		if(AddressBook::query(mPeering, mTracker, newAddrs, false))
@@ -626,10 +623,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.sock);
 			page.header("Contact: "+mName);
-			page.open("h1");
-			page.text("Contact: "+mName);
-			page.close("h1");
-
+			
+			page.open("div",".menu");
+			
 			page.span("Status:",".title"); page.space();
 			if(isConnected()) page.span("Connected",".online");
 			else page.span("Not connected",".offline");
@@ -648,22 +644,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.span(String("[")+String::number(msgcount)+String(" new messages]"),".important");
 			}
 			page.br();
-			page.br();
-			
-			page.open("div", "info");
-			page.span("Secret:",".title"); page.space(); page.span(mSecret.toString(),".value"); page.br();
-			page.span("Local peering:",".title"); page.space(); page.span(mPeering.toString(),".value"); page.br();
-			page.span("Remote peering:",".title"); page.space(); page.span(mRemotePeering.toString(),".value"); page.br();
 			page.close("div");
-			page.open("div", "show_info");
-			page.close("div");
-			
-			page.raw("<script type=\"text/javascript\">\n\
-	document.getElementById('info').style.display = 'none';\n\
-	document.getElementById('show_info').innerHTML = '<a id=\"show_info\" href=\"javascript:showInfo();\">Show information</a>';\n\
-	function showInfo() { document.getElementById('info').style.display=''; document.getElementById('show_info').style.display='none'; }\n\
-</script>\n");
-			
 			page.footer();
 			return;
 		}
@@ -694,9 +675,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
                                         Html page(response.sock);
                                         page.header(mName+": Files");
-                                        page.open("h1");
-					page.text(mName+": Files");
-                                	page.close("h1");
 					page.text("Not connected...");
 					page.footer();
 					return;
@@ -723,9 +701,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 						Html page(response.sock);
 						page.header(mName+": Files");
-						page.open("h1");
-						page.text(mName+": Files");
-						page.close("h1");
 						page.link(prefix+"/search/","Search files");
 						
 						YamlSerializer serializer(tresponse->content());
@@ -744,6 +719,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							else files.insert("1"+map.get("name"),map);
 						}
 						
+						page.open("div",".box");
 						page.open("table",".files");
 						for(Map<String, StringMap>::iterator it = files.begin();
 							it != files.end();
@@ -762,8 +738,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							page.close("td");
 							page.close("tr");
 						}
-
 						page.close("table");
+						page.close("div");
 						page.footer();
 						return;
 					}
@@ -803,10 +779,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				Html page(response.sock);
 				page.header(mName+": Search");
-				page.open("h1");
-				page.text(mName+": Search");
-				page.close("h1");
-				
 				page.openForm(prefix + "/search", "post", "searchform");
 				page.input("text","query",query);
 				page.button("search","Search");
@@ -840,6 +812,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				try {
+					page.open("div",".box");
 					page.open("table",".files");
 					for(int i=0; i<trequest.responsesCount(); ++i)
 					{
@@ -865,11 +838,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						page.close("tr");
 					}
 					page.close("table");
+					page.close("div");
 				}
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
 					page.close("table");
+					page.close("div");
 					page.text("Error, unable to list files");
 				}
 				
@@ -944,13 +919,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				Html page(response.sock);
 				page.header("Chat with "+mName, request.get.contains("popup"));
-				if(!request.get.contains("popup"))
+				if(request.get.contains("popup"))
 				{
-					page.open("h1");
-					page.text("Chat with "+mName);
-					page.close("h1");
-				}
-				else {
 					page.open("b");
 					page.text("Chat with "+mName);
 					page.close("b");
