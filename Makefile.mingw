@@ -1,6 +1,7 @@
 CC=i486-mingw32-gcc
 CXX=i486-mingw32-g++
 RES=i486-mingw32-windres
+STRIP=i486-mingw32-strip
 RM=rm -f
 #CPPFLAGS=-O
 #LDFLAGS=-O -static-libgcc
@@ -16,6 +17,7 @@ all: teapotnet.exe
 
 teapotnet.exe: $(OBJS) res.o
 	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) res.o $(LDLIBS) 
+	$(STRIP) teapotnet.exe
 
 depend: .depend
 
