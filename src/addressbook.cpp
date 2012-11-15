@@ -782,10 +782,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				Html page(response.sock);
 				page.header(mName+": Search");
-				page.openForm(prefix + "/search", "post", "searchform");
+				page.openForm(prefix + "/search", "post", "searchForm");
 				page.input("text","query",query);
 				page.button("search","Search");
 				page.closeForm();
+				page.javascript("document.searchForm.query.focus();");
 				page.br();
 				
 				if(query.empty())
@@ -951,7 +952,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.br();
 				page.br();
 				page.closeForm();
-	
+				page.javascript("document.chatForm.message.focus();");
+				
 				page.open("div", "chat");
 				for(int i=mMessages.size()-1; i>=0; --i)
 				{

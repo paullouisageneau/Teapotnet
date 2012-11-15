@@ -4,7 +4,7 @@ body
 	font-size: 80%;
 	background-color: #FFFFFF;
 	margin: 0;
-	padding: 0;
+	padding: 0.5em;
 }
 
 a:link, a:visited
@@ -127,8 +127,8 @@ input
 {
 	width: 95%;
 	max-width: 50em;
-	margin-top: 1em;
-	margin-bottom: 1em;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
 	margin-left: auto;
 	margin-right: auto;
 }
