@@ -198,7 +198,11 @@ void Interface::process(Http::Request &request)
 		}
 	}
 	
-	if(!user || User::Exist(list.front()))
+	Address remoteAddr = request.sock->getRemoteAddress();
+	
+	if(list.front().empty()
+		|| User::Exist(list.front()) 
+		|| (!remoteAddr.isLocal() && !remoteAddr.isPrivate()))
 	{
 		if(!user || list.front() != user->name())
 		{
