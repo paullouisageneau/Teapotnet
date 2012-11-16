@@ -675,6 +675,7 @@ void Mime::Init(void)
 	Types["gif"] = "image/gif";
 	Types["ief"] = "image/ief";
 	Types["jpeg"] = "image/jpeg";
+	Types["jpg"] = "image/jpeg";
 	Types["ktx"] = "image/ktx";
 	Types["png"] = "image/png";
 	Types["btif"] = "image/prs.btif";
