@@ -25,6 +25,7 @@
 #include "include.h"
 #include "exception.h"
 #include "serializable.h"
+#include "array.h"
 
 #include <map>
 
@@ -40,6 +41,9 @@ public:
 	bool get(const K &key, V &value) const;
 	const V &get(const K &key) const;
 	V &get(const K &key);
+	
+	int getKeys(Array<K> &array) const;
+	int getValues(Array<V> &array) const;
 };
 
 template<typename K, typename V>
@@ -104,6 +108,36 @@ V &Map<K,V>::get(const K &key)
 	typename std::map<K,V>::iterator it = this->find(key);
 	if(it == this->end()) throw OutOfBounds("Map key does not exist");
 	return it->second;
+}
+
+template<typename K, typename V>
+int Map<K,V>::getKeys(Array<K> &array) const
+{
+	array.clear();
+	array.reserve(this->size());
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+		it != this->end();
+		++it)
+	{
+		      array.push_back(it->first);
+	}
+	
+	return array.size();
+}
+
+template<typename K, typename V>
+int Map<K,V>::getValues(Array<V> &array) const
+{
+	array.clear();
+	array.reserve(this->size());
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+		it != this->end();
+		++it)
+	{
+		      array.push_back(it->second);
+	}
+	
+	return array.size();
 }
 
 template<typename K, typename V>

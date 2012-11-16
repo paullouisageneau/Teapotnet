@@ -152,27 +152,102 @@ void User::http(const String &prefix, Http::Request &request)
 			response.send();
 			
 			Html page(response.sock);
-			page.header(String("Welcome, ")+mName+" !");
+			page.header(String("Welcome, ")+mName+" !", true);
 
-			page.open("div",".menu");
+			page.open("div", "mainheader");
+			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
 			
-			page.openForm(prefix + "/search", "post", "searchform");
+			page.open("div", ".search");
+			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text","query");
 			page.button("search","Search");
 			page.closeForm();
+			page.javascript("document.searchForm.query.focus();");
 			page.br();
-			page.br();
+			page.close("div");
 			
-			page.link(prefix+"/contacts/","Contacts");
+			page.close("div");
+			
 			int msgcount = mAddressBook->unreadMessagesCount();
-			if(msgcount)
+			if(msgcount) 
 			{
-				page.space();
-				page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+				page.span(String("You have ")+String::number(msgcount)+String(" new messages"), ".important");
+				page.br();
 			}
-			page.br();
-			page.link(prefix+"/files/","Files");
-			page.br();
+
+			page.open("div","contacts.box");
+			page.open("h2");
+			page.text("Contacts - ");
+			page.link(prefix+"/contacts/","Edit");
+			page.close("h2");
+			
+			Array<AddressBook::Contact*> contacts;
+			mAddressBook->getContacts(contacts);
+			if(contacts.empty()) page.link(prefix+"/contacts/","Add a contact !");
+			else {
+				page.open("table",".contacts");
+				for(int i=0; i<contacts.size(); ++i)
+				{	
+					AddressBook::Contact *contact = contacts[i];
+					
+					page.open("tr");
+					page.open("td");
+					page.open("span",".contact");
+					page.link(contact->urlPrefix(), contact->name() + "@" + contact->tracker());
+					page.close("span");
+					page.close("td");
+					
+					page.open("td");
+					if(contact->isConnected()) page.span("Connected", ".online");
+					else page.span("Not connected", ".offline");
+					page.close("td");
+					
+					page.open("td");
+					page.link(contact->urlPrefix()+"/files/", "files");
+					page.close("td");
+					
+					page.open("td");
+					page.link(contact->urlPrefix()+"/chat/", "chat");
+					int msgcount = contact->unreadMessagesCount();
+					if(msgcount) page.span(String("(")+String::number(msgcount)+String(")"), ".important");
+					page.close("td");
+					
+					page.close("td");
+					page.close("tr");
+				}
+				page.close("table");
+			}
+			page.close("div");
+			
+			page.open("div","files.box");
+			page.open("h2");
+			page.text("Shared folders - ");
+			page.link(prefix+"/files/","Edit");
+			page.close("h2");
+			
+			Array<String> directories;
+			mStore->getDirectories(directories);
+			if(directories.empty()) page.link(prefix+"/contacts/","Add a shared folder !");
+			else {
+				page.open("table",".files");
+				for(int i=0; i<directories.size(); ++i)
+				{	
+					const String &directory = directories[i];
+					String directoryUrl = prefix + "/files/" + directory + "/";
+					
+					page.open("tr");
+					page.open("td");
+					page.open("span",".file");
+					page.link(directoryUrl, directory);
+					page.close("span");
+					page.close("td");
+				}
+				page.close("table");
+			}
+			page.close("div");
+			
+			page.open("div", "footer");
+			page.link(SOURCELINK, "Source code", "", true);
 			page.close("div");
 			
 			page.footer();

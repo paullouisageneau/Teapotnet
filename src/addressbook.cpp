@@ -145,6 +145,11 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) c
 	else return NULL;
 }
 
+void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
+{
+	mContactsByUniqueName.getValues(array);	 
+}
+
 void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
@@ -154,6 +159,7 @@ void AddressBook::load(Stream &stream)
 	while(serializer.input(*contact))
 	{
 		mContacts.insert(contact->peering(), contact);
+		mContactsByUniqueName.insert(contact->uniqueName(), contact);
 		contact = new Contact(this);
 	}
 	delete contact;
@@ -289,7 +295,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					page.open("td");
 					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) page.span(String("[")+String::number(msgcount)+String(" new messages]"), ".important");
+					if(msgcount) page.span(String("(")+String::number(msgcount)+String(" new messages)"), ".important");
 					page.close("td");
 					page.open("td",".delete");
 					page.openLink("javascript:deleteContact('"+contact->name()+"','"+contact->peering().toString()+"')");
@@ -702,7 +708,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						response.send();	
 				
 						Html page(response.sock);
-						if(target.empty() || target == "/") page.header(mName+": browse files");
+						if(target.empty() || target == "/") page.header(mName+": Browse files");
 						else page.header(mName+": "+target.substr(1));
 						page.link(prefix+"/search/","Search files");
 						

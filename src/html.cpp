@@ -86,9 +86,10 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 
+	open("div","page");
+	
 	if(!mBlank)
 	{
-		open("div","page");
 		open("div","header");
 		openLink("/"); image("/logo.png", APPNAME, "logo"); closeLink();
 		open("div","title");
@@ -106,11 +107,11 @@ void Html::footer(void)
 	{
 		close("div"); 
 		open("div", "footer");
-		link(SOURCELINK, "Source code", "", true);
-		close("div");
 		close("div");
 	}
 
+	close("div");
+	
 	*mStream<<"</body>\n";
 	*mStream<<"</html>\n";
 }

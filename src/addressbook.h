@@ -107,6 +107,7 @@ public:
 	void removeContact(const Identifier &peering);
 	Contact *getContact(const Identifier &peering);
 	const Contact *getContact(const Identifier &peering) const;
+	void getContacts(Array<Contact *> &array);
 	
 private:
 	static bool publish(const Identifier &remotePeering);

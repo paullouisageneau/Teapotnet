@@ -170,6 +170,12 @@ void Store::removeDirectory(const String &name)
 	}
 }
 
+void Store::getDirectories(Array<String> &array) const
+{
+	Synchronize(this);
+	mDirectories.getKeys(array);
+}
+
 void Store::save(void) const
 {
   	Synchronize(this);

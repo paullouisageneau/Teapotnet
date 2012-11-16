@@ -87,7 +87,8 @@ public:
 	
 	void addDirectory(const String &name, const String &path);
 	void removeDirectory(const String &name);
-
+	void getDirectories(Array<String> &array) const;
+	
 	void save(void) const;
 	void update(void);
 

@@ -43,19 +43,28 @@ hr
 
 h1
 {
-	font-size: 1.6em;
+	margin: 0;
+	padding: 0;
+	margin-bottom: 0.5em;
+	font-size: 1.3em;
 	font-weight: bold;
 }
 
 h2
 {
-	font-size: 1.4em;
+	margin: 0;
+	padding: 0;
+	margin-bottom: 0.5em;
+	font-size: 1.2em;
 	font-weight: bold;
 }
 
 h3
 {
-	font-size: 1.2em;
+	margin: 0;
+	padding: 0;
+	margin-bottom: 0.5em;
+	font-size: 1.1em;
 	font-weight: bold;
 }
 
@@ -141,6 +150,15 @@ input
 	margin-bottom: 1em;
 }
 
+#mainheader
+{
+	width: 100%;
+	text-align: center;
+	vertical-align: middle;
+	margin-top: 1em;
+	margin-bottom: 2em;
+}
+
 #header div
 {
 	display: inline-block;
@@ -169,10 +187,19 @@ input
 
 #logo
 {
-	float: left;
 	width: 20%;
 	max-width: 128px;
+}
+
+#header #logo
+{
+	float: left;
 	margin-bottom: 1em;
+}
+
+#mainheader #logo
+{
+	margin: 1em;
 }
 
 #info
@@ -199,11 +226,6 @@ input
 	padding-left: 2em;
 	border: 1px solid black;
 	border-radius: 0.5em;
-}
-
-.menu a
-{
-	font-weight: bold; 
 }
 
 .user
