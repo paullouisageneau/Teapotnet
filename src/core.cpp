@@ -122,7 +122,7 @@ bool Core::hasPeer(const Identifier &peering)
 
 void Core::run(void)
 {
-	Log("Core", "Starting");
+	Log("Core", "Starting...");
 	
 	try {
 		while(true)

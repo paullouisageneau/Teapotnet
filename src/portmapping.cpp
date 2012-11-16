@@ -33,12 +33,17 @@ PortMapping::PortMapping(void) :
 	mSock.bind(0, true);
 	
 	try {
-		mAnnounceSock.bind(Address("224.0.0.1", 5350), false);
+		mAnnounceSock.bind(Address("224.0.0.1", 5350), true);
 	}
 	catch(const Exception &e)
 	{
-		Log("PortMapping", String("Warning: ") + e.what());
-		mAnnounceSock.bind(5350, true);
+		try {
+			mAnnounceSock.bind(5350, true);
+		}
+		catch(const Exception &e)
+		{
+			Log("PortMapping", String("Warning: ") + e.what());
+		}
 	}
   
 	mSock.setTimeout(250);

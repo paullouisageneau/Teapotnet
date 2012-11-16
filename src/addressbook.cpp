@@ -723,25 +723,28 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						}
 						
 						page.open("div",".box");
-						page.open("table",".files");
-						for(Map<String, StringMap>::iterator it = files.begin();
-							it != files.end();
-							++it)
-						{
-							StringMap &map = it->second;
-							
-							page.open("tr");
-							page.open("td"); 
-							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-							else page.link("/" + map.get("hash"), map.get("name"));
-							page.close("td");
-							page.open("td"); 
-							if(map.get("type") == "directory") page.text("directory");
-							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
-							page.close("td");
-							page.close("tr");
+						if(files.empty()) page.text("No shared files");
+						else {
+							page.open("table",".files");
+							for(Map<String, StringMap>::iterator it = files.begin();
+								it != files.end();
+								++it)
+							{
+								StringMap &map = it->second;
+								
+								page.open("tr");
+								page.open("td"); 
+								if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+								else page.link("/" + map.get("hash"), map.get("name"));
+								page.close("td");
+								page.open("td"); 
+								if(map.get("type") == "directory") page.text("directory");
+								else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+								page.close("td");
+								page.close("tr");
+							}
+							page.close("table");
 						}
-						page.close("table");
 						page.close("div");
 						page.footer();
 						return;

@@ -51,6 +51,8 @@ public:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *buffer, size_t size);
 
+	void flush(void);
+	
 private:
 	File *mFile;
 	size_t mBlockSize;

@@ -301,7 +301,7 @@ void Interface::process(Http::Request &request)
 						while(current < finished)
 						{
 							size_t size;
-							AssertIO(size = file.read(*response.sock, blockSize));
+							Assert(size = file.read(*response.sock, blockSize));
 							total+= size;
 							++current;
 						}

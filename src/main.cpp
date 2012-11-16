@@ -191,18 +191,6 @@ int main(int argc, char** argv)
 		Core::Instance = new Core(port);
 		Core::Instance->start();
 		
-#ifdef WINDOWS
-		InterfacePort = ifport;
-		if(!args.contains("nointerface"))
-			openUserInterface();
-		
-		if(!args.contains("debug") && Config::Get("debug") != "on")
-		{
-			HWND hWnd = GetConsoleWindow();
-			ShowWindow(hWnd, SW_HIDE);
-		}
-#endif
-		
 		// Starting port mapping
 		PortMapping::Instance = new PortMapping;
 		if(Config::Get("external_address").empty()
@@ -267,6 +255,18 @@ int main(int argc, char** argv)
 		usersFile.open(usersFileName, File::Truncate);
 		usersFile.close();
 
+#ifdef WINDOWS
+		InterfacePort = ifport;
+		if(!args.contains("nointerface"))
+			openUserInterface();
+		
+		if(!args.contains("debug") && Config::Get("debug") != "on")
+		{
+			HWND hWnd = GetConsoleWindow();
+			ShowWindow(hWnd, SW_HIDE);
+		}
+#endif
+		
 		Log("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
 		Core::Instance->join();
 		Log("main", "Finished");

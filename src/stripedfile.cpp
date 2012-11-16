@@ -82,7 +82,7 @@ void StripedFile::seekRead(size_t block, size_t offset)
 {
 	if(mReadBlock <= block)
 	{
-		mFile->seekg(offset-mReadOffset, File::cur);
+		mFile->seekg(File::streamoff(offset)-mWriteOffset, File::cur);
 		mReadOffset = offset;
 	}
 	else {
@@ -106,11 +106,11 @@ void StripedFile::seekWrite(uint64_t position)
 void StripedFile::seekWrite(size_t block, size_t offset)
 {
 	// WARNING: seekp() MUST allow seeking past the end of the file.
-	// If it is not the case, this WILL NOT work.
-  
+	// If it is not the case, this WILL NOT work correctly.
+	
 	if(mWriteBlock <= block)
 	{
-		mFile->seekp(offset-mWriteOffset, File::cur);
+		mFile->seekp(File::streamoff(offset)-mWriteOffset, File::cur);
 		mWriteOffset = offset;
 	}
 	else {
@@ -121,6 +121,8 @@ void StripedFile::seekWrite(size_t block, size_t offset)
 
 	while(mWriteBlock < block)
 	{
+		VAR(mFile->tellp());
+		VAR(mBlockSize);
 		mFile->seekp(mBlockSize, File::cur);
 		++mWriteBlock;
 	}
@@ -159,6 +161,11 @@ void StripedFile::writeData(const char *buffer, size_t size)
 		seekWrite(mWriteBlock+1, 0);
 		writeData(buffer+len, size-len);
 	}
+}
+
+void StripedFile::flush(void)
+{
+	mFile->flush(); 
 }
 
 }
