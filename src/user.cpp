@@ -152,7 +152,7 @@ void User::http(const String &prefix, Http::Request &request)
 			response.send();
 			
 			Html page(response.sock);
-			page.header(String("Welcome, ")+mName+" !", true);
+			page.header(APPNAME, true);
 
 			page.open("div", "mainheader");
 			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
@@ -167,6 +167,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.close("div");
+			
+			page.open("h1");
+			page.text(String("Welcome, ")+mName+" !");
+			page.close("h1");
 			
 			int msgcount = mAddressBook->unreadMessagesCount();
 			if(msgcount) 
