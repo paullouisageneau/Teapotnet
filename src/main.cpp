@@ -70,8 +70,17 @@ int main(int argc, char** argv)
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_attach_np();
 #endif
-	
+
 	try {
+	  
+/*	
+	Assert(Address("127.0.0.1:80").isLocal());
+	Assert(Address("::1:80").isLocal());
+	Assert(Address("::FFFF:127.0.0.1:80").isLocal());
+	Assert(Address("192.168.0.1:80").isPrivate());
+	Assert(Address("::FFFF:192.168.0.1:80").isPrivate());
+*/
+
 #ifndef WINDOWS
 		// Main config file name
 		// Should tell us where the static dir is located
