@@ -188,7 +188,7 @@ void Interface::process(Http::Request &request)
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
 	
-	if(list.size() == 1 && list.contains('.') && request.url[request.url.size()-1] != '/') 
+	if(list.size() == 1 && list.font().contains('.') && request.url[request.url.size()-1] != '/') 
 	{
 		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
 		if(File::Exist(fileName)) 
