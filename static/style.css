@@ -275,3 +275,13 @@ td.delete
 	border: 1px solid black;
 	border-radius: 0.5em;
 }
+
+.files td.filename
+{
+  
+}
+
+.files td.size
+{
+	width: 10em; 
+}

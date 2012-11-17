@@ -739,11 +739,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 								StringMap &map = it->second;
 								
 								page.open("tr");
-								page.open("td"); 
+								page.open("td",".filename"); 
 								if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
 								else page.link("/" + map.get("hash"), map.get("name"));
 								page.close("td");
-								page.open("td"); 
+								page.open("td",".size"); 
 								if(map.get("type") == "directory") page.text("directory");
 								else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 								page.close("td");
@@ -844,11 +844,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 						
 						page.open("tr");
-						page.open("td"); 
+						page.open("td",".filename"); 
 						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
 						else page.link("/" + map.get("hash"), map.get("name"));
 						page.close("td");
-						page.open("td"); 
+						page.open("td",".size"); 
 						if(map.get("type") == "directory") page.text("directory");
 						else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 						page.close("td");

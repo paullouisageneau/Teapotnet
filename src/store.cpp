@@ -235,27 +235,29 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 	
 	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
-	if(!prepareQuery(statement, query, fields, true)) return false;
-	
-	if(statement.step())
+	if(prepareQuery(statement, query, fields, true))
 	{
-		statement.value(0, entry.url);
-		statement.value(1, entry.digest);
-		statement.value(2, entry.type);
-		statement.value(3, entry.size);
-		
-		int64_t time;
-		statement.value(4, time);
-		entry.time = time;
-		
-		entry.path = urlToPath(entry.url);
-		entry.name = entry.url.afterLast('/');
+		if(statement.step())
+		{
+			statement.value(0, entry.url);
+			statement.value(1, entry.digest);
+			statement.value(2, entry.type);
+			statement.value(3, entry.size);
+			
+			int64_t time;
+			statement.value(4, time);
+			entry.time = time;
+			
+			entry.path = urlToPath(entry.url);
+			entry.name = entry.url.afterLast('/');
+			
+			statement.finalize();
+			return true;
+		}
 		
 		statement.finalize();
-		return true;
 	}
-
-	statement.finalize();
+	
 	if(this != GlobalInstance) return GlobalInstance->queryEntry(query, entry);
 	else return false;
 }
@@ -266,27 +268,29 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 	
 	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
-	if(!prepareQuery(statement, query, fields, false)) return false;
-	
-	while(statement.step())
+	if(prepareQuery(statement, query, fields, false))
 	{
-		Entry entry;
-		statement.value(0, entry.url);
-		statement.value(1, entry.digest);
-		statement.value(2, entry.type);
-		statement.value(3, entry.size);
+		while(statement.step())
+		{
+			Entry entry;
+			statement.value(0, entry.url);
+			statement.value(1, entry.digest);
+			statement.value(2, entry.type);
+			statement.value(3, entry.size);
+			
+			int64_t time;
+			statement.value(4, time);
+			entry.time = time;
+			
+			entry.path = urlToPath(entry.url);
+			entry.name = entry.url.afterLast('/');
+			
+			list.push_back(entry);
+		}
 		
-		int64_t time;
-		statement.value(4, time);
-		entry.time = time;
-		
-		entry.path = urlToPath(entry.url);
-		entry.name = entry.url.afterLast('/');
-		
-		list.push_back(entry);
+		statement.finalize();
 	}
 	
-	statement.finalize();
 	if(this != GlobalInstance) GlobalInstance->queryList(query, list);
 	return !list.empty();
 }
