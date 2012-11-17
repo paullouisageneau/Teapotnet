@@ -188,7 +188,7 @@ void Interface::process(Http::Request &request)
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
 	
-	if(list.size() == 1 && request.url[request.url.size()-1] != '/') 
+	if(list.size() == 1 && list.contains('.') && request.url[request.url.size()-1] != '/') 
 	{
 		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
 		if(File::Exist(fileName)) 
@@ -196,6 +196,8 @@ void Interface::process(Http::Request &request)
 			Http::RespondWithFile(request, fileName);
 			return;
 		}
+		
+		if(!User::Exist(list.front())) throw 404;
 	}
 	
 	Address remoteAddr = request.sock->getRemoteAddress();

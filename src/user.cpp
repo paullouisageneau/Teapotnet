@@ -317,12 +317,10 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			const unsigned timeout = Config::Get("request_timeout").toInt();
 				
-			{
-				Desynchronize(this);
-				trequest.lock();
-				trequest.wait(timeout);
-			}
-			
+			Desynchronize(this);
+			Synchronize(&trequest);
+			trequest.wait(timeout);
+
 			page.open("div",".box");
 			if(!trequest.isSuccessful()) page.text("No files found");
 			else try {
@@ -365,9 +363,8 @@ void User::http(const String &prefix, Http::Request &request)
 				page.close("table");
 				page.text("Error, unable to list files");
 			}
-			page.close("div");
 			
-			trequest.unlock();
+			page.close("div");
 			page.footer();
 			return;
 		}
