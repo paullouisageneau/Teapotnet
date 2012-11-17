@@ -272,8 +272,10 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("td");
 				}
 				page.close("table");
+				
+				page.close("div");
 			}
-			page.close("div");
+			
 			
 			page.open("div", "footer");
 			page.link(SOURCELINK, "Source code", "", true);
