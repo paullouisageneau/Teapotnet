@@ -340,7 +340,7 @@ Core::Handler::~Handler(void)
 		{
 			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
 			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
-			mCore->mKnownPublicAddresses.erase(mRemoteAddr);
+				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
 		}
 	}
   
@@ -740,6 +740,8 @@ void Core::Handler::run(void)
 				Request *request;
 				if(mRequests.get(id,request))
 				{
+					Synchronize(request);
+				  
 				  	Request::Response *response;
 					if(channel)
 					{

@@ -312,19 +312,52 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
+			Store::Query squery;
+			squery.setMatch(query);
+		
+			int count = 0;
+			page.open("div",".box");
+			page.open("table",".files");
+			
+			List<Store::Entry> list;
+			if(mStore->queryList(squery, list))
+			{	
+				
+				for(List<Store::Entry>::iterator it = list.begin();
+					it != list.end();
+					++it)
+				{
+					Store::Entry &entry = *it;
+					if(entry.url.empty()) continue;
+					
+					page.open("tr");
+					page.open("td");
+					page.text("(" + mName + ")");
+					page.close("td");
+					page.open("td",".filename"); 
+					page.link("/" + mName + "/files" + entry.url, entry.name);
+					page.close("td");
+					page.open("td",".size"); 
+					if(!entry.type) page.text("directory");
+					else page.text(String::hrSize(entry.size));
+					page.close("td");
+					page.close("tr");
+					
+					++count;
+				}
+			}
+			
+			const unsigned timeout = Config::Get("request_timeout").toInt();
+			
+			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
 			trequest.submit();
 			
-			const unsigned timeout = Config::Get("request_timeout").toInt();
-				
-			Desynchronize(this);
 			Synchronize(&trequest);
 			trequest.wait(timeout);
-
-			page.open("div",".box");
-			if(!trequest.isSuccessful()) page.text("No files found");
-			else try {
-				page.open("table",".files");
+			
+			if(trequest.isSuccessful())
+			try {
 				for(int i=0; i<trequest.responsesCount(); ++i)
 				{
 					Request::Response *tresponse = trequest.response(i);
@@ -354,15 +387,19 @@ void User::http(const String &prefix, Http::Request &request)
 					else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 					page.close("td");
 					page.close("tr");
+					
+					++count;
 				}
-				page.close("table");
+
 			}
 			catch(const Exception &e)
 			{
 				Log("User::http", String("Unable to list files: ") + e.what());
-				page.close("table");
-				page.text("Error, unable to list files");
 			}
+			
+			page.close("table");
+			
+			if(!count) page.text("No files found");
 			
 			page.close("div");
 			page.footer();
