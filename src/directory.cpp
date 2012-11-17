@@ -43,6 +43,8 @@ const char Directory::Separator = PATH_SEPARATOR;
 
 bool Directory::Exist(const String &path)
 {
+	if(path.empty()) return false;	
+  
 	/*DIR *dir = opendir(path.c_str());
 	if(!dir) return false;
 	closedir(dir);*/

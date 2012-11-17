@@ -27,6 +27,8 @@ namespace tpot
 
 bool File::Exist(const String &filename)
 {
+	if(filename.empty()) return false;
+  
 	/*std::fstream file;
 	file.open(filename.c_str(), std::ios_base::in);
 	return file.is_open();*/

@@ -231,8 +231,34 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			Array<String> directories;
 			mStore->getDirectories(directories);
-			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder !");
+			if(directories.empty()) page.link(prefix+"/files/","Add a shared personal folder !");
 			else {
+				page.open("table",".files");
+				for(int i=0; i<directories.size(); ++i)
+				{	
+					const String &directory = directories[i];
+					String directoryUrl = prefix + "/files/" + directory + "/";
+					
+					page.open("tr");
+					page.open("td");
+					page.open("span",".file");
+					page.link(directoryUrl, directory);
+					page.close("span");
+					page.close("td");
+				}
+				page.close("table");
+			}
+			page.close("div");
+			
+			directories.clear();
+			Store::GlobalInstance->getDirectories(directories);
+			if(!directories.empty())
+			{
+				page.open("div","files.box");
+				page.open("h2");
+				page.text("Other shared folders");
+				page.close("h2");
+			
 				page.open("table",".files");
 				for(int i=0; i<directories.size(); ++i)
 				{	

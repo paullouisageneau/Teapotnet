@@ -299,14 +299,12 @@ void Store::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
 	
-	Assert(mUser);
-	
 	try {
 		const String &url = request.url;
 
 		if(request.url == "/")
 		{
-		  	if(request.method == "POST")
+		  	if(this != GlobalInstance && request.method == "POST")
 			{
 				String command = request.post["command"];
 			  	if(command == "delete")
@@ -367,18 +365,21 @@ void Store::http(const String &prefix, Http::Request &request)
 			{
 				page.open("div",".box");
 				
-				page.openForm(prefix+url, "post", "executeForm");
-				page.input("hidden", "command");
-				page.input("hidden", "argument");
-				page.closeForm();
-				
-				page.javascript("function deleteDirectory(name) {\n\
-					if(confirm('Do you really want to delete the directory '+name+' ?')) {\n\
-						document.executeForm.command.value = 'delete';\n\
-						document.executeForm.argument.value = name;\n\
-						document.executeForm.submit();\n\
-					}\n\
-				}");
+				if(this != GlobalInstance)
+				{
+					page.openForm(prefix+url, "post", "executeForm");
+					page.input("hidden", "command");
+					page.input("hidden", "argument");
+					page.closeForm();
+					
+					page.javascript("function deleteDirectory(name) {\n\
+						if(confirm('Do you really want to delete the directory '+name+' ?')) {\n\
+							document.executeForm.command.value = 'delete';\n\
+							document.executeForm.argument.value = name;\n\
+							document.executeForm.submit();\n\
+						}\n\
+					}");
+				}
 				
 				page.open("table",".files");
 				for(StringMap::iterator it = mDirectories.begin();
@@ -386,33 +387,50 @@ void Store::http(const String &prefix, Http::Request &request)
 							++it)
 				{
 					page.open("tr");
-					page.open("td");
+					page.open("td",".filename");
 					page.link(it->first, it->first);
 					page.close("td");
-					page.open("td",".delete");
-					page.openLink("javascript:deleteDirectory('"+it->first+"')");
-					page.image("/delete.png", "Delete");
-					page.closeLink();
-					page.close("td");
+					
+					if(this != GlobalInstance)
+					{
+						page.open("td",".delete");
+						page.openLink("javascript:deleteDirectory('"+it->first+"')");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
+						page.close("td");
+					}
+					
 					page.close("tr");
 				}
+				
 				page.close("table");
 				page.close("div");
 			}
 			
-			page.openForm(prefix+"/","post");
-			page.openFieldset("New directory");
-			page.label("name","Name"); page.input("text","name"); page.br();
-			page.label("add"); page.button("add","Create directory");
-			page.closeFieldset();
-			page.closeForm();
+			if(this != GlobalInstance)
+			{
+				page.openForm(prefix+"/","post");
+				page.openFieldset("New directory");
+				page.label("name","Name"); page.input("text","name"); page.br();
+				page.label("add"); page.button("add","Create directory");
+				page.closeFieldset();
+				page.closeForm();
+			}
 			
 			page.footer();
 		}
 		else {
 			String path = urlToPath(url);
+			
+			if(path.empty())
+			{
+				if(this == GlobalInstance) throw 404;
+				GlobalInstance->http(prefix, request);
+				return;
+			}
+			
 			if(path[path.size()-1] == Directory::Separator) path.resize(path.size()-1);
-
+			
 			if(Directory::Exist(path))
 			{
 				if(url[url.size()-1] != '/')
@@ -423,7 +441,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					return;
 				}
 			  
-				if(request.method == "POST")
+				if(this != GlobalInstance && request.method == "POST")
 				{
 					String command = request.post["command"];
 			  		if(command == "delete")
@@ -476,28 +494,34 @@ void Store::http(const String &prefix, Http::Request &request)
 				Html page(response.sock);
 				page.header(String("Shared folder: ") + request.url.substr(1,request.url.size()-2));
 
-				page.openForm(prefix+url,"post", "uploadForm", true);
-				page.openFieldset("Upload a file");
-				page.label("file"); page.file("file"); page.br();
-				page.label("send"); page.button("send","Send");
-				page.closeFieldset();
-				page.closeForm();
-				page.div("","uploadMessage");
+				if(this != GlobalInstance)
+				{
+					page.openForm(prefix+url,"post", "uploadForm", true);
+					page.openFieldset("Upload a file");
+					page.label("file"); page.file("file"); page.br();
+					page.label("send"); page.button("send","Send");
+					page.closeFieldset();
+					page.closeForm();
+					page.div("","uploadMessage");
 
-				page.javascript("document.uploadForm.send.style.display = 'none';\n\
-				$(document.uploadForm.file).change(function() {\n\
-					if(document.uploadForm.file.value != '') {\n\
-		  				document.uploadForm.style.display = 'none';\n\
-						$('#uploadMessage').html('<div class=\"box\">Uploading the file, please wait...</div>');\n\
-						document.uploadForm.submit();\n\
-					}\n\
-				});");
+					page.javascript("document.uploadForm.send.style.display = 'none';\n\
+					$(document.uploadForm.file).change(function() {\n\
+						if(document.uploadForm.file.value != '') {\n\
+							document.uploadForm.style.display = 'none';\n\
+							$('#uploadMessage').html('<div class=\"box\">Uploading the file, please wait...</div>');\n\
+							document.uploadForm.submit();\n\
+						}\n\
+					});");
+				}
 	
 				Map<String, StringMap> files;
 				Directory dir(path);
 				StringMap info;
 				while(dir.nextFile())
 				{
+					if(dir.fileName() == ".directory" || dir.fileName().toLower() == "thumbs.db")
+						continue;
+					
 					dir.getFileInfo(info);
 					if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);
 					else files.insert("1"+info.get("name"),info);
@@ -507,18 +531,21 @@ void Store::http(const String &prefix, Http::Request &request)
 				{
 					page.open("div", ".box");
 					
-					page.openForm(prefix+url, "post", "executeForm");
-					page.input("hidden", "command");
-					page.input("hidden", "argument");
-					page.closeForm();
-				
-					page.javascript("function deleteFile(name) {\n\
-						if(confirm('Do you really want to delete '+name+' ?')) {\n\
-							document.executeForm.command.value = 'delete';\n\
-							document.executeForm.argument.value = name;\n\
-							document.executeForm.submit();\n\
-						}\n\
-					}");
+					if(this != GlobalInstance)
+					{
+						page.openForm(prefix+url, "post", "executeForm");
+						page.input("hidden", "command");
+						page.input("hidden", "argument");
+						page.closeForm();
+					
+						page.javascript("function deleteFile(name) {\n\
+							if(confirm('Do you really want to delete '+name+' ?')) {\n\
+								document.executeForm.command.value = 'delete';\n\
+								document.executeForm.argument.value = name;\n\
+								document.executeForm.submit();\n\
+							}\n\
+						}");
+					}
 					
 					page.open("table", ".files");
 					for(Map<String, StringMap>::iterator it = files.begin();
@@ -527,16 +554,21 @@ void Store::http(const String &prefix, Http::Request &request)
 					{
 						StringMap &info = it->second;
 						page.open("tr");
-						page.open("td"); page.link(info.get("name"),info.get("name")); page.close("td");
-						page.open("td"); 
+						page.open("td",".filename"); page.link(info.get("name"),info.get("name")); page.close("td");
+						page.open("td",".size"); 
 						if(info.get("type") == "directory") page.text("directory");
 						else page.text(String::hrSize(info.get("size"))); 
 						page.close("td");
-						page.open("td",".delete");
-						page.openLink("javascript:deleteFile('"+info.get("name")+"')");
-						page.image("/delete.png", "Delete");
-						page.closeLink();
-						page.close("td");
+						
+						if(this != GlobalInstance)
+						{	
+							page.open("td",".delete");
+							page.openLink("javascript:deleteFile('"+info.get("name")+"')");
+							page.image("/delete.png", "Delete");
+							page.closeLink();
+							page.close("td");
+						}
+						
 						page.close("tr");
 					}
 					page.close("table");
@@ -744,6 +776,9 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			Directory dir(absPath);
 			while(dir.nextFile())
 			{
+				if(dir.fileName() == ".directory" || dir.fileName().toLower() == "thumbs.db")
+					continue;
+				
 				String childPath = path + Directory::Separator + dir.fileName();
 				String childUrl  = url + '/' + dir.fileName();
 				updateRec(childUrl, childPath, id);
@@ -775,7 +810,7 @@ String Store::urlToPath(const String &url) const
 	if(path.find("..") != String::NotFound) throw Exception("Invalid URL");
 
 	String dirPath;
-	if(!mDirectories.get(dir,dirPath)) throw Exception("Directory does not exists");
+	if(!mDirectories.get(dir,dirPath)) return "";
 
 	path.replace('/',Directory::Separator);
 
