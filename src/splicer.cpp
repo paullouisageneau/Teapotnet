@@ -86,7 +86,6 @@ void Splicer::process(void)
 		
 		const Request::Response *response = mRequests[i]->response(0);
 		Assert(response != NULL);
-		Assert(response->content() != NULL);
 		
 		if(response->error()) onError.push_back(i);
 		byBlocks.insert(mStripes[i]->tellWriteBlock(), i);
@@ -104,8 +103,24 @@ void Splicer::process(void)
 			source = mRequests[byBlocks.rbegin()->second]->receiver();
 			if(source != formerSource) break;
 			++it;
-			if(it == byBlocks.rend()) throw Exception("No more available sources"); 
+			if(it == byBlocks.rend())
+			{
+				Set<Identifier> sources;
+				search(sources);
+	
+				if(sources.empty())
+				{
+					msleep(30000);
+					return;
+				}
+
+				Set<Identifier>::iterator jt = sources.begin();
+				int r = rand() % sources.size();
+				for(int i=0; i<r; ++i) jt++;
+				source = *jt;
+			}
 		}
+		
 		query(i, source);
 	}
 }
@@ -122,6 +137,7 @@ bool Splicer::finished(void) const
 		Assert(response != NULL);
 		Assert(response->content() != NULL);
 		
+		if(response->error()) return false;
 		if(response->content()->is_open()) return false;
 	}
 	

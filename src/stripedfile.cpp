@@ -121,8 +121,6 @@ void StripedFile::seekWrite(size_t block, size_t offset)
 
 	while(mWriteBlock < block)
 	{
-		VAR(mFile->tellp());
-		VAR(mBlockSize);
 		mFile->seekp(mBlockSize, File::cur);
 		++mWriteBlock;
 	}

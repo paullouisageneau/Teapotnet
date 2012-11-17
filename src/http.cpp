@@ -197,6 +197,8 @@ void Http::Request::recv(Socket &sock)
 		}
 	}
 
+	url = url.urlDecode();
+	
 	String expect;
 	if((headers.get("Expect",expect) && expect.toLower() == "100-continue")
 		|| (method == "POST" && version == "1.1"))
