@@ -167,6 +167,7 @@ input
 #title
 {
 	margin: 0.5em;
+	margin-top: 1em;
 	font-weight: bold;
 	font-size: 1.6em;
 }
@@ -189,6 +190,7 @@ input
 {
 	width: 20%;
 	max-width: 128px;
+	min-width: 64px;
 }
 
 #header #logo
