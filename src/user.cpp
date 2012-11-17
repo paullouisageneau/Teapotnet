@@ -216,7 +216,6 @@ void User::http(const String &prefix, Http::Request &request)
 					if(msgcount) page.span(String("(")+String::number(msgcount)+String(")"), ".important");
 					page.close("td");
 					
-					page.close("td");
 					page.close("tr");
 				}
 				page.close("table");
