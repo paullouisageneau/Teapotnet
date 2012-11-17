@@ -85,6 +85,7 @@ private:
   
   	Stream *mStream;
 	int mLevel;
+	bool mFirst;
 };
 
 template<typename T> 
