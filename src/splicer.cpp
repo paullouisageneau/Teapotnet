@@ -101,7 +101,7 @@ void Splicer::process(void)
 		Map<size_t, int>::reverse_iterator it = byBlocks.rbegin();
 		while(true)
 		{
-			source = mRequests[byBlocks.rbegin()->second]->receiver();
+			source = mRequests[it->second]->receiver();
 			if(source != formerSource) break;
 			++it;
 			if(it == byBlocks.rend())
@@ -119,6 +119,7 @@ void Splicer::process(void)
 				int r = rand() % sources.size();
 				for(int i=0; i<r; ++i) jt++;
 				source = *jt;
+				break;
 			}
 		}
 		
