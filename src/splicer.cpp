@@ -87,12 +87,21 @@ void Splicer::process(void)
 		const Request::Response *response = mRequests[i]->response(0);
 		Assert(response != NULL);
 		
-		if(response->error() || response->parameter("processing") != "striped") 
+		if(response->error() || response->parameter("processing") != "striped")
 			onError.push_back(i);
+		
 		byBlocks.insert(mStripes[i]->tellWriteBlock(), i);
 	}
 	
-	for(int k=0; k<onError.size(); ++k)
+	if(onError.empty())
+	{
+		int fastest = byBlocks.begin()->second;
+		int slowest = byBlocks.rbegin()->second;
+		if(mRequests.size() >= 2 && mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
+			if(mStripes[fastest]->tellWriteBlock() > 2*mStripes[slowest]->tellWriteBlock() + 2)
+				query(slowest, mRequests[fastest]->receiver());
+	}
+	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
 		
