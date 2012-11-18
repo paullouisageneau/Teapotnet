@@ -687,6 +687,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.br();
 			page.close("div");
 			
+			unsigned refreshPeriod = 5000;
 			page.javascript("function updateContact() {\n\
 				$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
 					var info = data."+uniqueName()+";\n\
@@ -695,8 +696,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					var msg = '';\n\
 					if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 					transition($('#messagescount'), msg);\n\
+					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
   				});\n\
-  				setTimeout('updateContact()',5000);\n\
 			}\n\
 			updateContact();");
 			
@@ -1019,13 +1020,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.closeForm();
 				page.javascript("document.chatForm.message.focus();");
 				
+				
+				unsigned refreshPeriod = 5000;
 				page.javascript("function updateContact() {\n\
 					$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
 						var info = data."+uniqueName()+";\n\
 						transition($('#status'),\n\
 							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+						setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
 					});\n\
-					setTimeout('updateContact()',5000);\n\
 				}\n\
 				updateContact();");
 				

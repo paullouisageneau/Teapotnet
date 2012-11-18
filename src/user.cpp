@@ -227,6 +227,7 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			page.close("div");
 			
+			unsigned refreshPeriod = 5000;
 			page.javascript("function updateContacts() {\n\
 				$.getJSON('"+prefix+"/contacts/?json', function(data) {\n\
   					$.each(data, function(uname, info) {\n\
@@ -235,8 +236,8 @@ void User::http(const String &prefix, Http::Request &request)
 						var msg = '';\n\
 						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 						transition($('#contact_'+uname+' .messagescount'), msg);\n\
+						setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
   					});\n\
-  					setTimeout('updateContacts()',5000);\n\
 				});\n\
 			}\n\
 			updateContacts();");
