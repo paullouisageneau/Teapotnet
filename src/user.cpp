@@ -237,7 +237,7 @@ void User::http(const String &prefix, Http::Request &request)
 						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 						transition($('#contact_'+uname+' .messagescount'), msg);\n\
   					});\n\
-  					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
+  					setTimeout('updateContacts()',"+String::number(refreshPeriod)+");\n\
 				});\n\
 			}\n\
 			updateContacts();");
