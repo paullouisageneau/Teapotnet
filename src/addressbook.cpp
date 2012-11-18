@@ -1029,7 +1029,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}\n\
 				updateContact();");
 				
-				page.open("div", "chat");
+				page.open("div", "chatmessages");
 				for(int i=mMessages.size()-1; i>=0; --i)
 				{
 	  				messageToHtml(page, mMessages[i], mMessages[i].isRead());
@@ -1062,8 +1062,8 @@ page.raw("<script type=\"text/javascript\">\n\
 		request.done(function(html) {\n\
 			if($.trim(html) != '')\n\
 			{\n\
-				$(\"#chat\").prepend(html);\n\
-				var text = $('#chat span.text:first');\n\
+				$(\"#chatmessages\").prepend(html);\n\
+				var text = $('#chatmessages span.text:first');\n\
 				if(text) text.html(text.html().linkify());\n\
 				if(!hasFocus)\n\
 				{\n\
