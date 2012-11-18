@@ -986,23 +986,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();	
 				
 				Html page(response.sock);
-				page.header("Chat with "+mName, false);
+				page.header("Chat with "+mName, isPopup);
+				if(isPopup)
+				{
+					page.open("b");
+					page.text("Chat with "+mName+" - ");
+					page.open("span", "status.status");
+					page.span(status().capitalized(), String(".")+status());
+					page.close("span");
+					page.close("b");
+				}
+				else {
+					page.open("div", "chat.box");
+					page.open("span", "status.status");
+					page.span(status().capitalized(), String(".")+status());
+					page.close("span");
+				}
 				
-				page.open("span", "chatstatus.status");
-				page.span(status().capitalized(), String(".")+status());
-				page.close("span");
-				
-				page.javascript("function updateContact() {\n\
-					$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
-						var info = data."+uniqueName()+";\n\
-						transition($('#chatstatus'),\n\
-							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-					});\n\
-					setTimeout('updateContact()',5000);\n\
-				}\n\
-				updateContact();");
-				
-				if(!isPopup) page.open("div", "chat.box");
 				page.openForm(prefix + "/chat", "post", "chatForm");
 				page.input("text","message");
 				page.button("send","Send");
@@ -1011,13 +1011,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(!isPopup)
 				{
 					String popupUrl = prefix + "/chat?popup=1";
-					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','"+prefix+"');\">Popup</a>");
+					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 				}
 				
 				page.br();
 				page.br();
 				page.closeForm();
 				page.javascript("document.chatForm.message.focus();");
+				
+				page.javascript("function updateContact() {\n\
+					$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
+						var info = data."+uniqueName()+";\n\
+						transition($('#status'),\n\
+							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+					});\n\
+					setTimeout('updateContact()',5000);\n\
+				}\n\
+				updateContact();");
 				
 				page.open("div", "chat");
 				for(int i=mMessages.size()-1; i>=0; --i)

@@ -209,10 +209,11 @@ input
 	margin: 1em;
 }
 
-#chatstatus
+#chat.box #status
 {
 	float: right;
 	margin: 1em;
+	margin-top: 0.5em;
 }
 
 #info
