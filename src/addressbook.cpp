@@ -28,6 +28,7 @@
 #include "directory.h"
 #include "html.h"
 #include "yamlserializer.h"
+#include "jsonserializer.h"
 #include "portmapping.h"
 
 namespace tpot
@@ -243,9 +244,35 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					throw 400;
 				}				
 				
-				Http::Response response(request,303);
+				Http::Response response(request, 303);
 				response.headers["Location"] = prefix + "/";
 				response.send();
+				return;
+			}
+			
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/json";
+				response.send();
+
+				JsonSerializer json(response.sock);
+				json.outputMapBegin();
+				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
+					it != mContacts.end();
+					++it)
+				{
+					Contact *contact = it->second;
+					
+					StringMap map;
+					map["name"] << contact->name();
+					map["tracker"] << contact->tracker();
+					map["status"] << contact->status();
+					map["messages"] << contact->unreadMessagesCount();
+					
+					json.outputMapElement(contact->uniqueName(), map);
+				}
+				json.outputMapEnd();
 				return;
 			}
 			
@@ -288,14 +315,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					page.open("td");
 					page.text(" "+String::hexa(contact->peeringChecksum(),8));
-					page.close("td");
-					page.open("td");
-					if(contact->isConnected()) page.span("Connected", ".online");
-					else page.span("Not connected", ".offline");
-					page.close("td");
-					page.open("td");
-					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) page.span(String("(")+String::number(msgcount)+String(" new messages)"), ".important");
 					page.close("td");
 					page.open("td",".delete");
 					page.openLink("javascript:deleteContact('"+contact->name()+"','"+contact->peering().toString()+"')");
@@ -421,7 +440,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mUniqueName(uname),
 	mName(name),
 	mTracker(tracker),
-	mSecret(secret)
+	mSecret(secret),
+	mFound(false)
 {	
 	Assert(addressBook != NULL);
 	Assert(!uname.empty());
@@ -505,9 +525,21 @@ int AddressBook::Contact::unreadMessagesCount(void) const
 	return count;
 }
 
+bool AddressBook::Contact::isFound(void) const
+{
+	return mFound;
+}
+
 bool AddressBook::Contact::isConnected(void) const
 {
 	return Core::Instance->hasPeer(mPeering); 
+}
+
+String AddressBook::Contact::status(void) const
+{
+	if(isConnected()) return "connected";
+	else if(isFound()) return "found";
+	else return "disconnected";
 }
 
 bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
@@ -580,9 +612,11 @@ void AddressBook::Contact::update(void)
 		//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 			
 		Array<Address> newAddrs;
-		if(AddressBook::query(mPeering, mTracker, newAddrs, false))
+		if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
+		{
 			for(int i=0; i<newAddrs.size(); ++i)
 				if(addAddress(newAddrs[i], true)) return;
+		}
 			
 		for(int i=0; i<mAddrs.size(); ++i)
 			if(!newAddrs.contains(mAddrs[i]))
@@ -626,15 +660,16 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		{
 			Http::Response response(request,200);
 			response.send();
-				
+
 			Html page(response.sock);
 			page.header("Contact: "+mName);
-			
+				
 			page.open("div",".menu");
-			
-			page.span("Status:",".title"); page.space();
-			if(isConnected()) page.span("Connected",".online");
-			else page.span("Not connected",".offline");
+				
+			page.span("Status:", ".title");
+			page.open("span", "status.status");
+			page.span(status().capitalized(), String(".")+status());
+			page.close("span");
 			page.br();
 			page.br();
 			
@@ -642,15 +677,29 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.br();
 			page.link(prefix+"/search/","Search");
 			page.br();
-			page.link(prefix+"/chat/","Chat");
+			page.openLink(prefix+"/chat/");
+			page.text("Chat");
+			page.open("span", "messagescount.messagescount");
 			int msgcount = unreadMessagesCount();
-			if(msgcount) 
-			{
-				page.space();
-				page.span(String("[")+String::number(msgcount)+String(" new messages]"),".important");
-			}
+			if(msgcount) page.text(String(" (")+String::number(msgcount)+String(")"));
+			page.close("span");
+			page.closeLink();
 			page.br();
 			page.close("div");
+			
+			page.javascript("function updateContact() {\n\
+				$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
+					var info = data."+uniqueName()+";\n\
+			  		transition($('#status'),\n\
+						'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+					var msg = '';\n\
+					if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+					transition($('#messagescount'), msg);\n\
+  				});\n\
+  				setTimeout('updateContact()',5000);\n\
+			}\n\
+			updateContact();");
+			
 			page.footer();
 			return;
 		}
@@ -937,16 +986,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();	
 				
 				Html page(response.sock);
-				page.header("Chat with "+mName, isPopup);
-				if(request.get.contains("popup"))
-				{
-					page.open("b");
-					page.text("Chat with "+mName);
-					page.close("b");
-					page.br();
-				}
+				page.header("Chat with "+mName, false);
 				
-				if(!isPopup) page.open("div", ".box");
+				page.open("span", "chatstatus.status");
+				page.span(status().capitalized(), String(".")+status());
+				page.close("span");
+				
+				page.javascript("function updateContact() {\n\
+					$.getJSON('/"+mAddressBook->userName()+"/contacts/?json', function(data) {\n\
+						var info = data."+uniqueName()+";\n\
+						transition($('#chatstatus'),\n\
+							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+					});\n\
+					setTimeout('updateContact()',5000);\n\
+				}\n\
+				updateContact();");
+				
+				if(!isPopup) page.open("div", "chat.box");
 				page.openForm(prefix + "/chat", "post", "chatForm");
 				page.input("text","message");
 				page.button("send","Send");

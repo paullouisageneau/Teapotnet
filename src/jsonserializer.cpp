@@ -142,7 +142,7 @@ void JsonSerializer::output(const Element &element)
 	if(!mFirst) *mStream<<',';
 	mFirst = false;
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::max(mLevel,0), ' ');
+	*mStream<<String(mLevel*2, ' ');
 	
 	element.serialize(*this);
 }
@@ -152,7 +152,7 @@ void JsonSerializer::output(const Pair &pair)
 	if(!mFirst) *mStream<<',';
 	mFirst = false;
 	*mStream<<Stream::NewLine;
-	*mStream<<String(std::max(mLevel,0), ' ');
+	*mStream<<String(mLevel*2, ' ');
 	
 	pair.serializeKey(*this);
 	*mStream<<": ";
@@ -221,7 +221,7 @@ void JsonSerializer::outputArrayEnd(void)
 	Assert(mLevel > 0);
 	--mLevel;
 	*mStream<<Stream::NewLine;
-	*mStream<<']';
+	*mStream<<String(mLevel*2, ' ')<<']';
 }
 
 void JsonSerializer::outputMapBegin(int size)
@@ -236,7 +236,7 @@ void JsonSerializer::outputMapEnd(void)
 	Assert(mLevel > 0);
 	--mLevel;
 	*mStream<<Stream::NewLine;
-	*mStream<<'}';
+	*mStream<<String(mLevel*2, ' ')<<'}';
 }
 
 }

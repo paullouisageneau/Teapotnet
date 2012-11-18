@@ -54,7 +54,6 @@ public:
 	void update(void);
 	
 	void http(const String &prefix, Http::Request &request);
-
 	
 	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
@@ -75,7 +74,9 @@ public:
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
+		bool isFound(void) const;
 		bool isConnected(void) const;
+		String status(void) const;
 		
 		bool addAddress(const Address &addr, bool forceConnection = false);
 		bool removeAddress(const Address &addr);
@@ -98,6 +99,7 @@ public:
 		Identifier mPeering, mRemotePeering;
 		ByteString mSecret;
 		
+		bool mFound;
 		SerializableArray<Address> mAddrs;
 		Deque<Message> mMessages;
 		unsigned mMessagesCount;

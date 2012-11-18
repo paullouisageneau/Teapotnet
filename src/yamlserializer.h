@@ -74,9 +74,9 @@ public:
 	bool	inputMapBegin(void);
 	bool	inputMapCheck(void);
 	
-	void	outputArrayBegin(int size);
+	void	outputArrayBegin(int size = 0);
 	void	outputArrayEnd(void);
-	void	outputMapBegin(int size);
+	void	outputMapBegin(int size = 0);
 	void	outputMapEnd(void);
 	
 	void	outputClose(void);

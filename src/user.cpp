@@ -172,13 +172,15 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text(String("Welcome, ")+mName+" !");
 			page.close("h1");
 			
+			/*
 			int msgcount = mAddressBook->unreadMessagesCount();
 			if(msgcount) 
 			{
 				page.span(String("You have ")+String::number(msgcount)+String(" new messages"), ".important");
 				page.br();
 			}
-
+			*/
+			
 			page.open("div","contacts.box");
 			page.open("h2");
 			page.text("Contacts - ");
@@ -194,26 +196,29 @@ void User::http(const String &prefix, Http::Request &request)
 				{	
 					AddressBook::Contact *contact = contacts[i];
 					
-					page.open("tr");
+					page.open("tr", String("contact_")+contact->uniqueName());
 					page.open("td");
 					page.open("span",".contact");
 					page.link(contact->urlPrefix(), contact->name() + "@" + contact->tracker());
 					page.close("span");
 					page.close("td");
 					
-					page.open("td");
-					if(contact->isConnected()) page.span("Connected", ".online");
-					else page.span("Not connected", ".offline");
+					page.open("td",".status");
+					page.span(contact->status().capitalized(), String(".") + contact->status());
 					page.close("td");
 					
-					page.open("td");
+					page.open("td",".files");
 					page.link(contact->urlPrefix()+"/files/", "files");
 					page.close("td");
 					
-					page.open("td");
-					page.link(contact->urlPrefix()+"/chat/", "chat");
+					page.open("td",".chat");
+					page.openLink(contact->urlPrefix()+"/chat/");
+					page.text("chat");
+					page.open("span",".messagescount");
 					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) page.span(String("(")+String::number(msgcount)+String(")"), ".important");
+					if(msgcount) page.text(String("(")+String::number(msgcount)+String(")"));
+					page.close("span");
+					page.closeLink();
 					page.close("td");
 					
 					page.close("tr");
@@ -221,6 +226,20 @@ void User::http(const String &prefix, Http::Request &request)
 				page.close("table");
 			}
 			page.close("div");
+			
+			page.javascript("function updateContacts() {\n\
+				$.getJSON('"+prefix+"/contacts/?json', function(data) {\n\
+  					$.each(data, function(uname, info) {\n\
+			  			transition($('#contact_'+uname+' .status'),\n\
+							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+						var msg = '';\n\
+						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+						transition($('#contact_'+uname+' .messagescount'), msg);\n\
+  					});\n\
+  					setTimeout('updateContacts()',5000);\n\
+				});\n\
+			}\n\
+			updateContacts();");
 			
 			page.open("div","files.box");
 			page.open("h2");
@@ -253,7 +272,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Store::GlobalInstance->getDirectories(directories);
 			if(!directories.empty())
 			{
-				page.open("div","files.box");
+				page.open("div","otherfiles.box");
 				page.open("h2");
 				page.text("Other shared folders");
 				page.close("h2");
@@ -275,7 +294,6 @@ void User::http(const String &prefix, Http::Request &request)
 				
 				page.close("div");
 			}
-			
 			
 			page.open("div", "footer");
 			page.link(SOURCELINK, "Source code", "", true);

@@ -235,7 +235,7 @@ int main(int argc, char** argv)
 				}
 				
 				user->start();
-				msleep(1000);
+				msleep(100);
 			}
 		}
 		
@@ -256,7 +256,7 @@ int main(int argc, char** argv)
 				Log("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
 				user->start();
-				msleep(1000);
+				msleep(100);
 				line.clear();
 			}
 			usersFile.close();

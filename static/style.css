@@ -193,6 +193,11 @@ input
 	min-width: 64px;
 }
 
+#logo.small
+{
+	width: 64px;
+}
+
 #header #logo
 {
 	float: left;
@@ -201,6 +206,12 @@ input
 
 #mainheader #logo
 {
+	margin: 1em;
+}
+
+#chatstatus
+{
+	float: right;
 	margin: 1em;
 }
 
@@ -249,18 +260,37 @@ input
 {
 	font-weight: bold;
 	color: blue;
+	text-decoration: blink;
+}
+
+.messagescount
+{
+	font-weight: bold;
+	text-decoration: blink;
 }
 
 .online
 {
 	font-weight: bold;
-	color: green;
+	color: #0000FF;
 }
 
-.offline
+.connected
 {
 	font-weight: bold;
-	color: red;
+	color: #00A000;
+}
+
+.disconnected
+{
+	font-weight: bold;
+	color: #FF0000;
+}
+
+.found
+{
+	font-weight: bold;
+	color: #FFA500;
 }
 
 td.delete
@@ -286,4 +316,14 @@ td.delete
 .files td.size
 {
 	width: 10em; 
+}
+
+.contacts td.files
+{
+ 	width: 6em;
+}
+
+.contacts td.chat
+{
+	width: 6em; 
 }
