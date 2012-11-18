@@ -270,7 +270,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	}
 	
 	ByteStream *content = NULL;
-	if(!parameters.contains("Stripe")) 
+	if(!parameters.contains("stripe")) 
 	{
 		content = new File(entry.path);
 		rparameters["processing"] = "none";
@@ -284,7 +284,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 			
 		Assert(blockSize > 0);
 		Assert(stripesCount > 0);
-		Assert(stripe > 0);
+		Assert(stripe >= 0);
 			
 		File *file = NULL;
 		StripedFile *stripedFile = NULL;
@@ -303,7 +303,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 			
 			rparameters["processing"] = "striped";
 			//rparameters["size"].clear();
-			//rparameters["size"] << entry.size/stripesCount;
+			//rparameters["size"] << TODO;
 			rparameters.erase("size");
 		}
 		catch(...)

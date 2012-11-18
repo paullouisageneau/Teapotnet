@@ -87,7 +87,8 @@ void Splicer::process(void)
 		const Request::Response *response = mRequests[i]->response(0);
 		Assert(response != NULL);
 		
-		if(response->error()) onError.push_back(i);
+		if(response->error() || response->parameter("processing") != "striped") 
+			onError.push_back(i);
 		byBlocks.insert(mStripes[i]->tellWriteBlock(), i);
 	}
 	
@@ -147,7 +148,7 @@ bool Splicer::finished(void) const
 size_t Splicer::finishedBlocks(void) const
 {
 	size_t block = mStripes[0]->tellWriteBlock();
-	for(int i=1; i<mStripes.size(); ++i)
+	for(int i=0; i<mStripes.size(); ++i)
 	{
 		mStripes[i]->flush();
 		block = std::min(block, mStripes[i]->tellWriteBlock());

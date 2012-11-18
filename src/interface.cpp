@@ -308,7 +308,7 @@ void Interface::process(Http::Request &request)
 							++current;
 						}
 						
-						msleep(50);
+						msleep(100);
 					}
 					
 					splicer.close();

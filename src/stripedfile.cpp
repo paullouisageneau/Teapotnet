@@ -28,10 +28,13 @@ StripedFile::StripedFile(File *file, size_t blockSize, int nbStripes, int stripe
 		mFile(file),
 		mBlockSize(blockSize),
 		mStripeSize(blockSize/nbStripes),
-		mStripe(stripe)
+		mStripeOffset(stripe*mStripeSize)
 {
-	mFile->seekg(stripe*mStripeSize, File::beg);
-	mFile->seekp(stripe*mStripeSize, File::beg);
+	if(stripe == nbStripes-1)
+		mStripeSize+= mBlockSize - nbStripes*mStripeSize;
+  
+	mFile->seekg(mStripeOffset, File::beg);
+	mFile->seekp(mStripeOffset, File::beg);
 	
 	mReadBlock = mWriteBlock = 0;
 	mReadOffset = mWriteOffset = 0;
@@ -82,11 +85,11 @@ void StripedFile::seekRead(size_t block, size_t offset)
 {
 	if(mReadBlock <= block)
 	{
-		mFile->seekg(File::streamoff(offset)-mWriteOffset, File::cur);
+		mFile->seekg(File::streamoff(offset)-mReadOffset, File::cur);
 		mReadOffset = offset;
 	}
 	else {
-		mFile->seekg(mStripe*mStripeSize + offset, File::beg);
+		mFile->seekg(mStripeOffset + offset, File::beg);
 		mReadBlock = 0;
 		mReadOffset = offset;
 	}
@@ -114,7 +117,7 @@ void StripedFile::seekWrite(size_t block, size_t offset)
 		mWriteOffset = offset;
 	}
 	else {
-		mFile->seekp(mStripe*mStripeSize + offset, File::beg);
+		mFile->seekp(mStripeOffset + offset, File::beg);
 		mWriteBlock = 0;
 		mWriteOffset = offset;
 	}

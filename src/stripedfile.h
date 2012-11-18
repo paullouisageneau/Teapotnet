@@ -57,7 +57,7 @@ private:
 	File *mFile;
 	size_t mBlockSize;
 	size_t mStripeSize;
-	int mStripe;
+	size_t mStripeOffset;
 
 	size_t mReadBlock,  mWriteBlock;	// Current block
 	size_t mReadOffset, mWriteOffset;	// Current position inside the current stripe
