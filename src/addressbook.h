@@ -113,7 +113,7 @@ public:
 	
 private:
 	static bool publish(const Identifier &remotePeering);
-	static bool query(const Identifier &peering, const String &tracker, Array<Address> &addrs, bool alternate = false);
+	static bool query(const Identifier &peering, const String &tracker, SerializableMap<String, SerializableArray<Address> > &output, bool alternate = false);
 	
 	void run(void);
 	

@@ -69,6 +69,9 @@ void Tracker::process(Http::Request &request)
 		
 		if(request.method == "POST")
 		{
+			String name;
+			if(!request.post.get("name", name)) name = "#default";
+			  
 			String port;
 			if(request.post.get("port", port))
 			{
@@ -81,7 +84,7 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				insert(mStorage, identifier, addr);
+				insert(mStorage, identifier, name, addr);
 				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
@@ -96,9 +99,9 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      if(alternate) insert(mAlternate, identifier, addr);
-				      else insert(mStorage, identifier, addr);
-				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				      if(alternate) insert(mAlternate, identifier, name, addr);
+				      else insert(mStorage, identifier, name, addr);
+				      //Log("Tracker", "POST " + identifier.toString() + "," + name + " -> " + addr.toString());
 				}
 				catch(...)
 				{
@@ -116,8 +119,8 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      insert(mAlternate, identifier, addr);
-				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
+				      insert(mAlternate, identifier, name, addr);
+				      //Log("Tracker", "POST " + identifier.toString()+","+name + " -> " + addr.toString() + " (alternate)");
 				}
 				catch(...)
 				{
@@ -129,17 +132,19 @@ void Tracker::process(Http::Request &request)
 			response.send();
 		}
 		else {
-			SerializableArray<Address> addrs;
-			if(alternate) retrieve(mAlternate, identifier, addrs);
-			else retrieve(mStorage, identifier, addrs);
-			if(addrs.empty()) throw 404;
+			bool b;
+			if(alternate) b = contains(mAlternate, identifier);
+			else b = contains(mStorage, identifier);
+			if(!b) throw 404;
 
 			//Log("Tracker", "GET " + identifier.toString());
 
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
 			response.headers["Content-Type"] = "text/plain";
 			response.send();
-			response.sock->write(addrs);
+			
+			if(alternate) retrieve(mAlternate, identifier, *response.sock);
+			else retrieve(mStorage, identifier, *response.sock);
 		}
 	}
 	catch(int code)
@@ -155,7 +160,7 @@ void Tracker::process(Http::Request &request)
 	}
 }
 
-void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
+void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const String &name, const Address &addr)
 {
 	int nbr = 1;
 	if(nbr > s.map.size()) nbr = s.map.size();
@@ -163,41 +168,57 @@ void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Ad
 	{
 	  	if(s.cleaner == s.map.end()) s.cleaner = s.map.begin();
 
-		Map<Address,Time> &submap = s.cleaner->second;
-		Map<Address,Time>::iterator it = submap.begin();
+		Map<String, Map<Address,Time> > &submap = s.cleaner->second;
+		Map<String, Map<Address,Time> >::iterator it = submap.begin();
 		while(it != submap.end())
 		{
-			if(Time::Now() - it->second >= EntryLife) submap.erase(it++);
-			else it++;
-		} 
+			Map<Address,Time> &subsubmap = it->second;
+			Map<Address,Time>::iterator jt = subsubmap.begin();
+			while(jt != subsubmap.end())
+			{
+				if(Time::Now() - it->second >= EntryLife) subsubmap.erase(jt++);
+				else jt++;
+			} 
 			
+			if(subsubmap.empty()) submap.erase(it++);
+			else it++;
+		}
+		
 		if(submap.empty()) s.map.erase(s.cleaner++);
 		else s.cleaner++;	
 	}
 	
-	Map<Address,Time> &submap = s.map[identifier];
-	submap[addr] = Time::Now();
+	Map<Address,Time> &subsubmap = s.map[identifier][name];
+	subsubmap[addr] = Time::Now();
 }
 
-void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Array<Address> &array) const
+void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Stream &output) const
 {
-	array.clear();
-
+	output.clear();
+  
 	map_t::const_iterator it = s.map.find(identifier);
 	if(it == s.map.end()) return;
 
-	const Map<Address,Time> &submap = it->second;
+	const Map<String, Map<Address,Time> > &submap = it->second;
 	if(submap.empty()) return;
 
-	array.reserve(submap.size());
-	for(	Map<Address,Time>::const_iterator it = submap.begin();
-		it != submap.end();
-		++it)
+	YamlSerializer serializer(&output);
+	serializer.outputMapBegin();
+	for(Map<String, Map<Address,Time> >::const_iterator jt = submap.begin();
+	    	jt != submap.end();
+		++jt)
 	{
-		array.push_back(it->first);
+		SerializableArray<Address> array;
+		array = it->second.getKeys();
+		std::random_shuffle(array.begin(), array.end());
+		serializer.outputMapElement(jt->first, array);
 	}
+	serializer.outputMapEnd();
+}
 
-	std::random_shuffle(array.begin(), array.end());
+bool Tracker::contains(Storage &s, const Identifier &identifier)
+{
+	return s.map.contains(identifier);  
 }
 
 }

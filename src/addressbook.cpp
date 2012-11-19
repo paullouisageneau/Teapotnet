@@ -401,27 +401,18 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	return true;
 }
 
-bool AddressBook::query(const Identifier &peering, const String &tracker, Array<Address> &addrs, bool alternate)
+bool AddressBook::query(const Identifier &peering, const String &tracker, SerializableMap<String, SerializableArray<Address> > &output, bool alternate)
 {
 	try {
 	  	String url;
 	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker/" + peering.toString();
 		else url = "http://" + tracker + "/tracker/" + peering.toString();
   
-		String output;
-		if(Http::Get(url, &output) != 200) return false;
+		String tmp;
+		if(Http::Get(url, &tmp) != 200) return false;
 	
-		String line;
-		while(output.readLine(line))
-		{
-			line.trim();
-			if(line.empty()) continue;
-			Address a;
-			try { line >> a; }
-			catch(...) { continue; }
-			if(!addrs.contains(a))
-				addrs.push_back(a);
-		}
+		YamlSerializer serializer(&tmp);
+		serializer.input(output);
 	}
 	catch(const std::exception &e)
 	{
