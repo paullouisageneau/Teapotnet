@@ -95,11 +95,14 @@ void Splicer::process(void)
 	
 	if(onError.empty())
 	{
-		int fastest = byBlocks.begin()->second;
-		int slowest = byBlocks.rbegin()->second;
-		if(mRequests.size() >= 2 && mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
-			if(mStripes[fastest]->tellWriteBlock() > 2*mStripes[slowest]->tellWriteBlock() + 2)
-				query(slowest, mRequests[fastest]->receiver());
+		if(mRequests.size() >= 2)
+		{
+			int fastest = byBlocks.begin()->second;
+			int slowest = byBlocks.rbegin()->second;
+			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
+				if(mStripes[fastest]->tellWriteBlock() > 2*mStripes[slowest]->tellWriteBlock() + 2)
+					query(slowest, mRequests[fastest]->receiver());
+		}
 	}
 	else for(int k=0; k<onError.size(); ++k)
 	{
