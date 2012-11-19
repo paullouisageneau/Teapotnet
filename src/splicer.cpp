@@ -87,7 +87,7 @@ void Splicer::process(void)
 		const Request::Response *response = mRequests[i]->response(0);
 		Assert(response != NULL);
 		
-		if(response->error() || response->parameter("processing") != "striped")
+		if(response->error())
 			onError.push_back(i);
 		
 		byBlocks.insert(mStripes[i]->tellWriteBlock(), i);
@@ -225,7 +225,6 @@ void Splicer::query(int i, const Identifier &source)
 	{
 		block = mStripes[i]->tellWriteBlock();
 		offset = mStripes[i]->tellWriteOffset();
-		delete mStripes[i];
 	}
 	
 	if(mRequests[i]) delete mRequests[i];
