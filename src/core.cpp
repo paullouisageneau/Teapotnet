@@ -44,6 +44,15 @@ Core::~Core(void)
 	mSock.close();	// useless
 }
 
+String Core::getName(void) const
+{
+	char hostname[HOST_NAME_MAX];
+	if(gethostname(hostname,HOST_NAME_MAX))
+		throw NetException("Cannot retrieve hostname");
+	
+	return String(hostname);
+}
+
 void Core::getAddresses(List<Address> &list) const
 {
 	Synchronize(this);

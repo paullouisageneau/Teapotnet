@@ -61,6 +61,7 @@ public:
 	Core(int port);
 	~Core(void);
 	
+	String getName(void) const;
 	void getAddresses(List<Address> &list) const;
 	void getKnownPublicAdresses(List<Address> &list) const;
 	bool isPublicConnectable(void) const;
