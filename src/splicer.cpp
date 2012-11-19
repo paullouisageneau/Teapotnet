@@ -228,13 +228,17 @@ void Splicer::query(int i, const Identifier &source)
 {
 	Assert(i < mRequests.size());
 	Assert(i < mStripes.size());
-	Assert(mRequests[i]);
-	Assert(mStripes[i]);
   
-  	size_t block = mStripes[i]->tellWriteBlock();
-	size_t offset = mStripes[i]->tellWriteOffset();
-	
-	delete mRequests[i];
+  	size_t block = 0;
+	size_t offset = 0;
+
+	if(mStripes[i])
+	{
+		mStripes[i]->tellWriteBlock();
+		mStripes[i]->tellWriteOffset();
+	}
+
+	if(mRequests[i]) delete mRequests[i];
 	mStripes[i] = NULL;
 	mRequests[i] = NULL;
   
