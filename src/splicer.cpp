@@ -74,23 +74,26 @@ uint64_t Splicer::size(void) const
 }
 
 void Splicer::process(void)
-{
-	Array<int>		onError;
-	Map<size_t, int> 	byBlocks;
+{ 
+  	std::vector<int>		onError;
+	std::multimap<size_t, int> 	byBlocks;
 	
 	for(int i=0; i<mRequests.size(); ++i)
 	{
+		Assert(mRequests[i]);
+		Assert(mStripes[i]);
 		Synchronize(mRequests[i]);
 		
-		if(mRequests[i]->responsesCount() == 0) continue;
+		byBlocks.insert(std::pair<size_t,int>(mStripes[i]->tellWriteBlock(), i));
 		
-		const Request::Response *response = mRequests[i]->response(0);
-		Assert(response != NULL);
-		
-		if(response->error())
-			onError.push_back(i);
-		
-		byBlocks.insert(mStripes[i]->tellWriteBlock(), i);
+		if(mRequests[i]->responsesCount())
+		{
+			const Request::Response *response = mRequests[i]->response(0);
+			Assert(response != NULL);
+				
+			if(response->error())
+				onError.push_back(i);
+		}
 	}
 	
 	if(onError.empty())
@@ -143,6 +146,8 @@ bool Splicer::finished(void) const
 {
 	for(int i=0; i<mRequests.size(); ++i)
 	{
+		Assert(mRequests[i]);
+		Assert(mStripes[i]);
 		Synchronize(mRequests[i]);
 		
 		if(mRequests[i]->responsesCount() == 0) return false;
@@ -160,9 +165,10 @@ bool Splicer::finished(void) const
 
 size_t Splicer::finishedBlocks(void) const
 {
-	size_t block = mStripes[0]->tellWriteBlock();
+	size_t block = std::numeric_limits<size_t>::max();
 	for(int i=0; i<mStripes.size(); ++i)
 	{
+		Assert(mStripes[i]);
 		mStripes[i]->flush();
 		block = std::min(block, mStripes[i]->tellWriteBlock());
 	}
@@ -183,6 +189,8 @@ void Splicer::close(void)
 	// Deleting the requests deletes the responses
 	// Deleting the responses deletes the contents
 	// So the stripes are already deleted
+	
+	mStripes.clear();
 }
 
 void Splicer::search(Set<Identifier> &sources)
@@ -218,22 +226,21 @@ void Splicer::search(Set<Identifier> &sources)
 
 void Splicer::query(int i, const Identifier &source)
 {
-  	size_t block = 0;
-	size_t offset = 0;
+	Assert(i < mRequests.size());
+	Assert(i < mStripes.size());
+	Assert(mRequests[i]);
+	Assert(mStripes[i]);
+  
+  	size_t block = mStripes[i]->tellWriteBlock();
+	size_t offset = mStripes[i]->tellWriteOffset();
 	
-	if(mStripes[i]) 
-	{
-		block = mStripes[i]->tellWriteBlock();
-		offset = mStripes[i]->tellWriteOffset();
-	}
-	
-	if(mRequests[i]) delete mRequests[i];
-	
+	delete mRequests[i];
 	mStripes[i] = NULL;
 	mRequests[i] = NULL;
   
 	File *file = new File(mFileName, File::Write);
 	StripedFile *striped = new StripedFile(file, mBlockSize, mNbStripes, i);
+	striped->seekWrite(block, offset);
 	mStripes[i] = striped;
 		
 	StringMap parameters;
