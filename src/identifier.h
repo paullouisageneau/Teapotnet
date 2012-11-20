@@ -30,16 +30,33 @@
 namespace tpot
 {
 
-class Identifier : public ByteString
+class Identifier : public Serializable
 {
 public:
 	static const Identifier Null;
 
 	Identifier(void);
-	Identifier(const ByteString &bs);
+	Identifier(const ByteString &digest, const String &name = "");
 	~Identifier(void);
 
+	const ByteString &getDigest(void) const;
+	const String &getName(void) const;
+	
+	// Serializable
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	void serialize(Stream &s) const;
+	bool deserialize(Stream &s);
+
+private:
+	ByteString 	mDigest;
+	String		mName;
 };
+
+bool operator < (const Identifier &i1, const Identifier &i2);
+bool operator > (const Identifier &i1, const Identifier &i2);
+bool operator == (const Identifier &i1, const Identifier &i2);
+bool operator != (const Identifier &i1, const Identifier &i2);
 
 }
 

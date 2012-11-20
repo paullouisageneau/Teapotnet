@@ -31,8 +31,9 @@ Identifier::Identifier(void)
 
 }
 
-Identifier::Identifier(const ByteString &bs) :
-	ByteString(bs)
+Identifier::Identifier(const ByteString &digest, const String &name) :
+	mDigest(digest),
+	mName(name)
 {
 
 }
@@ -40,6 +41,65 @@ Identifier::Identifier(const ByteString &bs) :
 Identifier::~Identifier(void)
 {
 
+}
+
+const ByteString &Identifier::getDigest(void) const
+{
+	return mDigest;
+}
+
+const String &Identifier::getName(void) const
+{
+	return mName;
+}
+	
+void Identifier::serialize(Serializer &s) const
+{
+	mDigest.serialize(s);
+	mName.serialize(s);
+}
+
+bool Identifier::deserialize(Serializer &s)
+{
+	if(!mDigest.deserialize(s)) return false;
+	AssertIO(mName.deserialize(s));
+}
+
+void Identifier::serialize(Stream &s) const
+{
+	String str = mDigest.toString();
+	if(!mName.empty()) str+= ':' + mName;
+	s.write(str);
+}
+
+bool Identifier::deserialize(Stream &s)
+{
+	String str;
+	if(!s.read(str)) return false;
+	mName = str.cut(':');
+	str.read(mDigest);
+}
+
+bool operator < (const Identifier &i1, const Identifier &i2)
+{
+	return (i1.getDigest() < i2.getDigest() 
+	  || (i1.getDigest() == i2.getDigest() && i1.getName() < i1.getName()));
+}
+
+bool operator > (const Identifier &i1, const Identifier &i2)
+{
+	return (i1.getDigest() > i2.getDigest() 
+	  || (i1.getDigest() == i2.getDigest() && i1.getName() > i1.getName()));
+}
+
+bool operator == (const Identifier &i1, const Identifier &i2)
+{
+	return (i1.getDigest() == i2.getDigest() && i1.getName() == i1.getName());
+}
+
+bool operator != (const Identifier &i1, const Identifier &i2)
+{
+	return !(i1 == i2);
 }
 
 }
