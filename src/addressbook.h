@@ -79,6 +79,7 @@ public:
 		int unreadMessagesCount(void) const;
 		bool isFound(void) const;
 		bool isConnected(void) const;
+		bool isConnected(const String &instance) const;
 		String status(void) const;
 		
 		// These functions return true if addr is successfully connected

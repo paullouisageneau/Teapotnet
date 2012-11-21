@@ -587,6 +587,11 @@ bool AddressBook::Contact::isConnected(void) const
 	return Core::Instance->hasPeer(mPeering); 
 }
 
+bool AddressBook::Contact::isConnected(const String &instance) const
+{
+	return Core::Instance->hasPeer(Identifier(mPeering, instance)); 
+}
+
 String AddressBook::Contact::status(void) const
 {
 	if(isConnected()) return "connected";
@@ -599,9 +604,10 @@ bool AddressBook::Contact::addAddress(const Address &addr, const String &instanc
   	Synchronize(this);
 
 	if(addr.isNull()) return false;
-	bool isNew = !(mAddrs.contains(instance) && mAddrs[instance].contains(addr));
+	if(instance == Core::Instance->getName()) return false;
 	
-	if(connectAddress(addr, instance))
+	bool isNew = !(mAddrs.contains(instance) && mAddrs[instance].contains(addr));
+	if((!isConnected(instance) || isNew) && connectAddress(addr, instance))
 	{
 		if(isNew) mAddrs[instance].push_back(addr);
 		return true;
@@ -631,8 +637,11 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance)
 {
  	Synchronize(this);
+	
+	if(addr.isNull()) return false;
+	if(instance == Core::Instance->getName()) return false;
+	
 	Identifier identifier(mPeering, instance);
-  
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
@@ -690,7 +699,7 @@ void AddressBook::Contact::update(void)
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
-	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))			// the user is local
+	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
 	{
 		if(!Core::Instance->hasPeer(Identifier(mPeering, Core::Instance->getName())))
 		{

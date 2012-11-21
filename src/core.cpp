@@ -632,6 +632,9 @@ void Core::Handler::run(void)
 				return;
 			}
 			
+			if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
+				throw Exception("Warning: Tried to connect same user on same instance");
+			
 			args.clear();
 			args << mRemotePeering;
 			parameters.clear();
