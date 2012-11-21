@@ -471,7 +471,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		if(Http::Get(url, &tmp) != 200) return false;
 		tmp.trim();
 		if(tmp.empty()) return false;
-		
+	
 		YamlSerializer serializer(&tmp);
 		serializer.input(output);
 	}
