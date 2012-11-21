@@ -150,8 +150,8 @@ private:
 		Sender *mSender;
 	};
 
-	void addHandler(const Identifier &peer, Handler *Handler);
-	void removeHandler(const Identifier &peer, Handler *handler);
+	bool addHandler(const Identifier &peer, Handler *Handler);
+	bool removeHandler(const Identifier &peer, Handler *handler);
 
 	ServerSocket mSock;
 	Map<Identifier, Identifier> mPeerings;

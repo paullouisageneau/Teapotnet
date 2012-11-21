@@ -267,28 +267,28 @@ void Core::http(const String &prefix, Http::Request &request)
 	else throw 404;
 }
 
-void Core::addHandler(const Identifier &peer, Core::Handler *handler)
+bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
 	Synchronize(this);
 	
 	if(!mHandlers.contains(peer)) mHandlers.insert(peer, handler);
 	else {
-		if(mHandlers[peer] != handler)
-			throw Exception("Another handler is already registered");
+		if(mHandlers[peer] != handler) return false;
 	}
+	
+	return true;
 }
 
-void Core::removeHandler(const Identifier &peer, Core::Handler *handler)
+bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Synchronize(this);
   
-	if(mHandlers.contains(peer))
-	{
-		Handler *h = mHandlers.get(peer);
-		if(h != handler) return;
-		mHandlers.erase(peer);
-	}
+	if(!mHandlers.contains(peer)) return false;
+	Handler *h = mHandlers.get(peer);
+	if(h != handler) return false;
+	mHandlers.erase(peer);
+	return true;
 }
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
@@ -684,7 +684,7 @@ void Core::Handler::run(void)
 		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 		
 		if(test_b != hash_b) throw Exception("Authentication failed");
-		Log("Core::Handler", "Authentication finished");
+		Log("Core::Handler", "Authentication successful");
 		mSock->setTimeout(0);
 		mIsAuthenticated = true;		
 
@@ -713,9 +713,6 @@ void Core::Handler::run(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
-		// Register the handler
-		mCore->addHandler(mPeering,this);
-		
 		if(!mRemoteAddr.isPrivate())
 		{
 			Synchronize(mCore);
@@ -724,6 +721,15 @@ void Core::Handler::run(void)
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 			}
+		}
+		
+		// Register the handler
+		if(!mCore->addHandler(mPeering,this))
+		{
+			Log("Core::Handler", "Duplicate handler for the peering, exiting."); 
+			mSock->close();
+			delete this;
+			return;
 		}
 		
 		// Start the sender
