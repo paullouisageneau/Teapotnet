@@ -246,6 +246,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Shared folders - ");
 			page.link(prefix+"/files/","Edit");
+			page.text(" - ");
+			page.link(prefix+"/myself/","Show all my files");
 			page.close("h2");
 			
 			Array<String> directories;
@@ -301,6 +303,22 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.footer();
+			return;
+		}
+		
+		if(url == "/myself" || url == "/myself/")
+		{
+			AddressBook::Contact *self = mAddressBook->getSelf();
+			if(!self)
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = prefix + "/files/";
+				response.send();
+				return;
+			}
+			
+			request.url = String("/") + String(request.url.substr(1)).cut('/');
+			self->http(prefix+"/contacts/"+self->uniqueName()+"/files/", request);
 			return;
 		}
 		

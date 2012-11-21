@@ -55,6 +55,9 @@ public:
 	
 	void http(const String &prefix, Http::Request &request);
 	
+	typedef SerializableArray<Address> AddressArray;
+	typedef SerializableMap<String, AddressArray> AddressMap;
+	
 	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
 	public:
@@ -65,7 +68,7 @@ public:
 	     			const ByteString &secret);
 		Contact(AddressBook *addressBook);
 		~Contact(void);
-	    	
+
 		const String &uniqueName(void) const;
 		const String &name(void) const;
 		const String &tracker(void) const;
@@ -78,8 +81,13 @@ public:
 		bool isConnected(void) const;
 		String status(void) const;
 		
-		bool addAddress(const Address &addr, bool forceConnection = false);
-		bool removeAddress(const Address &addr);
+		// These functions return true if addr is successfully connected
+		bool addAddress(const Address &addr, const String &instance);
+		bool addAddresses(const AddressMap &map);
+		bool connectAddress(const Address &addr, const String &instance);
+		bool connectAddresses(const AddressMap &map);
+		
+		void removeAddress(const Address &addr);
 		
 		void update(void);
 		
@@ -100,7 +108,7 @@ public:
 		ByteString mSecret;
 		
 		bool mFound;
-		SerializableArray<Address> mAddrs;
+		AddressMap mAddrs;
 		Deque<Message> mMessages;
 		unsigned mMessagesCount;
 	};
@@ -111,9 +119,13 @@ public:
 	const Contact *getContact(const Identifier &peering) const;
 	void getContacts(Array<Contact *> &array);
 	
+	const Identifier &setSelf(const ByteString &secret);
+	Contact *getSelf(void);
+	const Contact *getSelf(void) const;
+	
 private:
 	static bool publish(const Identifier &remotePeering);
-	static bool query(const Identifier &peering, const String &tracker, SerializableMap<String, SerializableArray<Address> > &output, bool alternate = false);
+	static bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);
 	
 	void run(void);
 	

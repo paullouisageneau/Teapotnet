@@ -95,7 +95,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	
 	String uname = name;
 	unsigned i = 1;
-	while(mContactsByUniqueName.contains(uname))
+	while(mContactsByUniqueName.contains(uname) || uname == userName())	// userName reserved for self
 	{
 		uname = name;
 		uname << ++i;
@@ -148,7 +148,46 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) c
 
 void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 {
-	mContactsByUniqueName.getValues(array);	 
+	mContactsByUniqueName.getValues(array);
+	Contact *self = getSelf();
+	if(self) array.remove(self);
+}
+
+const Identifier &AddressBook::setSelf(const ByteString &secret)
+{
+	const String tracker = Config::Get("tracker");
+	Assert(!mContactsByUniqueName.contains(userName()));
+	
+	Contact *self = getSelf();
+	if(self) removeContact(self->peering());
+	
+	self = new Contact(this, userName(), userName(), tracker, secret);
+	if(mContacts.contains(self->peering())) 
+	{
+		delete self;
+		throw Exception("a contact with the same peering already exists");
+	}
+	
+	mContacts.insert(self->peering(), self);
+	mContactsByUniqueName.insert(userName(), self);
+	
+	save();
+	start();
+	return self->peering();
+}
+
+AddressBook::Contact *AddressBook::getSelf(void)
+{
+	Contact *contact;
+	if(mContactsByUniqueName.get(userName(), contact)) return contact;
+	else return NULL;
+}
+
+const AddressBook::Contact *AddressBook::getSelf(void) const
+{
+	Contact *contact;
+	if(mContactsByUniqueName.get(userName(), contact)) return contact;
+	else return NULL;
 }
 
 void AddressBook::load(Stream &stream)
@@ -235,7 +274,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						ByteString secret;
 						Sha512::Hash(csecret, secret, Sha512::CryptRounds);
 						
-						addContact(name, secret);
+						if(request.post.contains("self")) setSelf(secret);
+						else addContact(name, secret);
 					}
 				}
 				catch(const Exception &e)
@@ -299,12 +339,16 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}\n\
 				}");
 				
+				Contact *self = getSelf();
+				
 				page.open("table",".contacts");
 				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
 					it != mContacts.end();
 					++it)
 				{
 					Contact *contact = it->second;
+					if(contact == self) continue;
+					
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
 					page.open("tr");
@@ -335,6 +379,19 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 			
+			page.openForm(prefix+"/","post");
+			page.openFieldset("Personal secret");
+			page.input("hidden","name",userName());
+			page.input("hidden","self","true");
+			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
+			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization.");
+			page.br();
+			page.br();
+			page.label("secret","Secret"); page.input("text","secret"); page.br();
+			page.label("add"); page.button("add","Set secret");
+			page.closeFieldset();
+			page.closeForm();
+			
 			page.footer();
 			return;
 		}
@@ -356,7 +413,7 @@ void AddressBook::run(void)
 bool AddressBook::publish(const Identifier &remotePeering)
 {
 	try {
-		String url("http://" + Config::Get("tracker") + "/tracker/" + remotePeering.toString());
+		String url("http://" + Config::Get("tracker") + "/tracker?id=" + remotePeering.toString());
 		
 		List<Address> list;
 		Config::GetExternalAddresses(list);
@@ -371,6 +428,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		}
 		
 		StringMap post;
+		post["instance"] = Core::Instance->getName();
 		post["port"] = Config::Get("port");
 		post["addresses"] = addresses;
 		
@@ -401,13 +459,14 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	return true;
 }
 
-bool AddressBook::query(const Identifier &peering, const String &tracker, SerializableMap<String, SerializableArray<Address> > &output, bool alternate)
+bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
 {
 	try {
 	  	String url;
-	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker/" + peering.toString();
-		else url = "http://" + tracker + "/tracker/" + peering.toString();
-  
+	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker?id=" + peering.toString();
+		else url = "http://" + tracker + "/tracker?id=" + peering.toString();
+  		if(alternate) url+= "&alternate=1";
+		  
 		String tmp;
 		if(Http::Get(url, &tmp) != 200) return false;
 	
@@ -496,7 +555,7 @@ const Identifier &AddressBook::Contact::remotePeering(void) const
 
 uint32_t AddressBook::Contact::peeringChecksum(void) const
 {
-	return mPeering.checksum32() + mRemotePeering.checksum32(); 
+	return mPeering.getDigest().checksum32() + mRemotePeering.getDigest().checksum32(); 
 }
 
 String AddressBook::Contact::urlPrefix(void) const
@@ -533,22 +592,49 @@ String AddressBook::Contact::status(void) const
 	else return "disconnected";
 }
 
-bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
+bool AddressBook::Contact::addAddress(const Address &addr, const String &instance)
 {
   	Synchronize(this);
 
 	if(addr.isNull()) return false;
-	bool isNew = !mAddrs.contains(addr);
-	if(!isNew && !forceConnection) return false;
+	bool isNew = !(mAddrs.contains(instance) && mAddrs[instance].contains(addr));
 	
+	if(connectAddress(addr, instance))
+	{
+		if(isNew) mAddrs[instance].push_back(addr);
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::Contact::addAddresses(const AddressMap &map)
+{
+	Synchronize(this);
+  
+	bool success = false;
+	for(AddressMap::const_iterator it = map.begin();
+		it != map.end();
+		++it)
+	{
+		const String &instance = it->first;
+		const AddressArray &addrs = it->second;
+		for(int i=0; i<addrs.size(); ++i)
+			success|= addAddress(addrs[i], instance);
+	}
+	
+	return success;
+}
+
+bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance)
+{
+ 	Synchronize(this);
+	Identifier identifier(mPeering, instance);
+  
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
-		if(Core::Instance->addPeer(sock, mPeering))
-		{
-			if(isNew) mAddrs.push_back(addr);
-			return true;
-		}
+		return Core::Instance->addPeer(sock, identifier);
 	}
 	catch(...)
 	{
@@ -558,9 +644,31 @@ bool AddressBook::Contact::addAddress(const Address &addr, bool forceConnection)
 	return false; 
 }
 
-bool AddressBook::Contact::removeAddress(const Address &addr)
+bool AddressBook::Contact::connectAddresses(const AddressMap &map)
 {
-	return mAddrs.remove(addr);
+	Synchronize(this);
+  
+	bool success = false;
+	for(AddressMap::const_iterator it = map.begin();
+		it != map.end();
+		++it)
+	{
+		const String &instance = it->first;
+		const AddressArray &addrs = it->second;
+		for(int i=0; i<addrs.size(); ++i)
+			if(connectAddress(addrs[i], instance))
+			{
+				success = true;
+				break;
+			}
+	}
+	return success;
+}
+
+void AddressBook::Contact::removeAddress(const Address &addr)
+{
+	Synchronize(this);
+	mAddrs.erase(addr);
 }
 
 void AddressBook::Contact::update(void)
@@ -577,47 +685,44 @@ void AddressBook::Contact::update(void)
                 }
         }
 
-	if(Core::Instance->hasPeer(mPeering)) return;
-
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
-	if(Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
+	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))			// the user is local
 	{
-		Log("AddressBook::Contact", mUniqueName + " found locally");
-		  
-		Address addr("127.0.0.1", Config::Get("port"));
-		try {
-			Socket *sock = new Socket(addr);
-			Core::Instance->addPeer(sock, mPeering);
-		}
-		catch(...)
+		if(!Core::Instance->hasPeer(Identifier(mPeering, Core::Instance->getName())))
 		{
-			Log("AddressBook::Contact", "Warning: Unable to connect the local core");	 
+			Log("AddressBook::Contact", mUniqueName + " found locally");
+			  
+			Address addr("127.0.0.1", Config::Get("port"));
+			try {
+				Socket *sock = new Socket(addr);
+				Core::Instance->addPeer(sock, mPeering);
+			}
+			catch(...)
+			{
+				Log("AddressBook::Contact", "Warning: Unable to connect the local core");	 
+			}
 		}
+	}
+	
+	//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+	AddressBook::publish(mRemotePeering);
+		  
+	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
+		
+	AddressMap newAddrs;
+	if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
+	{
+		if(addAddresses(newAddrs)) return;
 	}
 	else {
-		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-		AddressBook::publish(mRemotePeering);
-		  
-		//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
-			
-		Array<Address> newAddrs;
-		if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
-		{
-			for(int i=0; i<newAddrs.size(); ++i)
-				if(addAddress(newAddrs[i], true)) return;
-		}
-			
-		for(int i=0; i<mAddrs.size(); ++i)
-			if(!newAddrs.contains(mAddrs[i]))
-				if(addAddress(mAddrs[i], true)) return;
-				
-		Array<Address> altAddrs;
-		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
-			for(int i=0; i<newAddrs.size(); ++i)
-				if(addAddress(newAddrs[i], true)) return;
+		if(connectAddresses(mAddrs)) return;
 	}
+	
+	AddressMap altAddrs;
+	if(mFound = AddressBook::query(mPeering, mTracker, altAddrs, false))
+		connectAddresses(altAddrs);
 }
 
 void AddressBook::Contact::message(Message *message)
@@ -942,7 +1047,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					{
 						try {
 							Message message(request.post["message"]);
-						  	message.send(mPeering);	// send
+						  	message.send(mPeering);	// send to other
+							
+							Contact *self = mAddressBook->getSelf();
+							if(self || self->isConnected()) message.send(self->peering());
 							
 							mMessages.push_back(Message(request.post["message"]));	// thus receiver is null
 							++mMessagesCount;
@@ -1032,60 +1140,58 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.close("div");
 				if(!isPopup) page.close("div");
 				
-page.raw("<script type=\"text/javascript\">\n\
-	var count = "+String::number(mMessagesCount)+";\n\
-	var title = document.title;\n\
-	var hasFocus = true;\n\
-	var nbNewMessages = 0;\n\
-	$(window).blur(function() {\n\
-		hasFocus = false;\n\
-		$('span.message').attr('class', 'oldmessage');\n\
-	});\n\
-	$(window).focus(function() {\n\
-		hasFocus = true;\n\
-		nbNewMessages = 0;\n\
-		document.title = title;\n\
-	});\n\
-	function update()\n\
-	{\n\
-		var request = $.ajax({\n\
-			url: '"+prefix+"/chat/'+count,\n\
-			dataType: 'html',\n\
-			timeout: 300000\n\
-		});\n\
-		request.done(function(html) {\n\
-			if($.trim(html) != '')\n\
-			{\n\
-				$(\"#chatmessages\").prepend(html);\n\
-				var text = $('#chatmessages span.text:first');\n\
-				if(text) text.html(text.html().linkify());\n\
-				if(!hasFocus)\n\
-				{\n\
-					nbNewMessages+= 1;\n\
-					document.title = title+' ('+nbNewMessages+')';\n\
-				}\n\
-				count+= 1;\n\
-			}\n\
-			setTimeout('update()', 100);\n\
-		});\n\
-		request.fail(function(jqXHR, textStatus) {\n\
-			setTimeout('update()', 10000);\n\
-		});\n\
-	}\n\
-	function post()\n\
-	{\n\
-		var message = document.chatForm.message.value;\n\
-		if(!message) return false;\n\
-		document.chatForm.message.value = '';\n\
-		var request = $.post('"+prefix+"/chat',\n\
-			{ 'message': message, 'ajax': 1 });\n\
-		request.fail(function(jqXHR, textStatus) {\n\
-			alert('The message could not be sent. Is this user online ?');\n\
-		});\n\
-	}\n\
-	setTimeout('update()', 1000);\n\
-	document.chatForm.onsubmit = function() {post(); return false;}\n\
-</script>\n");
+				page.javascript("var count = "+String::number(mMessagesCount)+";\n\
+					var title = document.title;\n\
+					var hasFocus = true;\n\
+					var nbNewMessages = 0;\n\
+					$(window).blur(function() {\n\
+						hasFocus = false;\n\
+						$('span.message').attr('class', 'oldmessage');\n\
+					});\n\
+					$(window).focus(function() {\n\
+						hasFocus = true;\n\
+						nbNewMessages = 0;\n\
+						document.title = title;\n\
+					});\n\
+					function update()\n\
+					{\n\
+						var request = $.ajax({\n\
+							url: '"+prefix+"/chat/'+count,\n\
+							dataType: 'html',\n\
+							timeout: 300000\n\
+						});\n\
+						request.done(function(html) {\n\
+							if($.trim(html) != '')\n\
+							{\n\
+								$(\"#chatmessages\").prepend(html);\n\
+								var text = $('#chatmessages span.text:first');\n\
+								if(text) text.html(text.html().linkify());\n\
+								if(!hasFocus)\n\
+								{\n\
+									nbNewMessages+= 1;\n\
+									document.title = title+' ('+nbNewMessages+')';\n\
+								}\n\
+								count+= 1;\n\
+							}\n\
+							setTimeout('update()', 100);\n\
+						});\n\
+						request.fail(function(jqXHR, textStatus) {\n\
+							setTimeout('update()', 10000);\n\
+						});\n\
+					}\n\
+					function post()\n\
+					{\n\
+						var message = document.chatForm.message.value;\n\
+						if(!message) return false;\n\
+						document.chatForm.message.value = '';\n\
+						var request = $.post('"+prefix+"/chat',\n\
+							{ 'message': message, 'ajax': 1 });\n\
+						request.fail(function(jqXHR, textStatus) {\n\
+							alert('The message could not be sent. Is this user online ?');\n\
+						});\n\
+					}\n\
+					setTimeout('update()', 1000);\n\
+					document.chatForm.onsubmit = function() {post(); return false;}");
 				
 				page.footer();
 				return;
@@ -1142,7 +1248,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	
 	s.outputMapBegin(2);
 	s.outputMapElement(String("info"),map);
-	s.outputMapElement(String("addr"),mAddrs);
+	s.outputMapElement(String("addrs"),mAddrs);
 	s.outputMapEnd();
 }
 
@@ -1164,8 +1270,19 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	
 	String key;
 	AssertIO(s.inputMapBegin());
-	AssertIO(s.inputMapElement(key,map) && key == "info");
-	AssertIO(s.inputMapElement(key,mAddrs) && key == "addr");
+	AssertIO(s.inputMapElement(key, map) && key == "info");
+	
+	// TEMPORARY : try/catch block should be removed
+	try {
+		AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
+	}
+	catch(...) {
+		// HACK
+		String hack;
+		do s.input(hack);
+		while(!hack.empty());
+	}
+	//
 	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;

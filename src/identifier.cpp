@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "identifier.h"
+#include "exception.h"
 
 namespace tpot
 {
@@ -53,6 +54,37 @@ const String &Identifier::getName(void) const
 	return mName;
 }
 	
+void Identifier::setDigest(const ByteString &digest)
+{
+	mDigest = digest;  
+}
+
+void Identifier::setName(const String &name)
+{
+	mName = name;  
+}
+
+bool Identifier::empty(void)
+{
+ 	return mDigest.empty(); 
+}
+
+void Identifier::clear(void)
+{
+	mDigest.clear();
+	mName.clear();
+}
+
+Identifier::operator ByteString &(void)
+{
+	return mDigest;  
+}
+
+Identifier::operator const ByteString &(void) const
+{
+	return mDigest; 
+}
+
 void Identifier::serialize(Serializer &s) const
 {
 	mDigest.serialize(s);
@@ -63,6 +95,7 @@ bool Identifier::deserialize(Serializer &s)
 {
 	if(!mDigest.deserialize(s)) return false;
 	AssertIO(mName.deserialize(s));
+	return true;
 }
 
 void Identifier::serialize(Stream &s) const
@@ -77,24 +110,28 @@ bool Identifier::deserialize(Stream &s)
 	String str;
 	if(!s.read(str)) return false;
 	mName = str.cut(':');
-	str.read(mDigest);
+	AssertIO(str.read(mDigest));
+	return true;
 }
 
 bool operator < (const Identifier &i1, const Identifier &i2)
 {
 	return (i1.getDigest() < i2.getDigest() 
-	  || (i1.getDigest() == i2.getDigest() && i1.getName() < i1.getName()));
+	  || (i1.getDigest() == i2.getDigest()
+	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() < i1.getName()));
 }
 
 bool operator > (const Identifier &i1, const Identifier &i2)
 {
-	return (i1.getDigest() > i2.getDigest() 
-	  || (i1.getDigest() == i2.getDigest() && i1.getName() > i1.getName()));
+	return (i1.getDigest() > i2.getDigest()
+	  || (i1.getDigest() == i2.getDigest()
+	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() > i1.getName()));
 }
 
 bool operator == (const Identifier &i1, const Identifier &i2)
 {
-	return (i1.getDigest() == i2.getDigest() && i1.getName() == i1.getName());
+	return (i1.getDigest() == i2.getDigest()
+		&& (i1.getName().empty() || i2.getName().empty() || i1.getName() == i1.getName()));
 }
 
 bool operator != (const Identifier &i1, const Identifier &i2)

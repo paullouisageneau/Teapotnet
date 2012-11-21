@@ -43,7 +43,7 @@ public:
 	~Tracker(void);
 
 private:
-	typedef Map<Identifier, Map<String, Map<Address,Time> > > map_t;
+	typedef Map<Identifier, Map<Address,Time> > map_t;
 	struct Storage
 	{
 		map_t map;
@@ -54,7 +54,7 @@ private:
 	Storage mAlternate;
 	
 	void process(Http::Request &request);
-	void insert(Storage &s, const Identifier &identifier, const String &name, const Address &addr);
+	void insert(Storage &s, const Identifier &identifier, const Address &addr);
 	void retrieve(Storage &s, const Identifier &identifier, Stream &output) const;
 	bool contains(Storage &s, const Identifier &identifier);
 };

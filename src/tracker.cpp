@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tracker.h"
+#include "yamlserializer.h"
 
 namespace tpot
 {
@@ -43,35 +44,34 @@ void Tracker::process(Http::Request &request)
 	Synchronize(this);
 	//Log("Tracker", "URL " + request.url);	
 
-	if(!request.url[0] == '/') throw 404;
-	request.url.ignore();
-	
-	List<String> list;
-	request.url.explode(list, '/');
-	if(list.size() != 2 && list.size() != 3) throw 404;
-	
-	bool alternate = false;
-	if(list.size() == 3)
-	{
-		if(list.back() == "alternate") alternate = true;
-	  	if(!list.back().empty()) throw 404;
-		list.pop_back();
-	}
-
-	if(list.front() != "tracker") throw 404;
-	list.pop_front();
-	
 	try {
+		if(request.url != "/tracker" && request.url != "/tracker/")
+			throw 404;
+		
+		if(!request.get.contains("id"))
+			throw Exception("Missing identifier");
+		
 		Identifier identifier;
-		list.front().extract(identifier);
-
-		if(identifier.size() != 64) throw Exception("Invalid indentifier size");
+		try { 
+			request.get["id"].extract(identifier);
+		}
+		catch(...)
+		{
+			throw Exception("Invalid identifier");
+		}
+		
+		if(identifier.getDigest().size() != 64)
+			throw Exception("Invalid indentifier size");
+		
+		bool alternate = false;
+		if(request.get.contains("alternate")) alternate = true;
 		
 		if(request.method == "POST")
 		{
-			String name;
-			if(!request.post.get("name", name)) name = "#default";
-			  
+			String instance;
+			if(request.post.get("instance", instance)) identifier.setName(instance);
+			if(identifier.getName().empty()) identifier.setName("default");
+			
 			String port;
 			if(request.post.get("port", port))
 			{
@@ -84,7 +84,7 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				insert(mStorage, identifier, name, addr);
+				insert(mStorage, identifier, addr);
 				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
@@ -99,8 +99,8 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      if(alternate) insert(mAlternate, identifier, name, addr);
-				      else insert(mStorage, identifier, name, addr);
+				      if(alternate) insert(mAlternate, identifier, addr);
+				      else insert(mStorage, identifier, addr);
 				      //Log("Tracker", "POST " + identifier.toString() + "," + name + " -> " + addr.toString());
 				}
 				catch(...)
@@ -119,7 +119,7 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      insert(mAlternate, identifier, name, addr);
+				      insert(mAlternate, identifier, addr);
 				      //Log("Tracker", "POST " + identifier.toString()+","+name + " -> " + addr.toString() + " (alternate)");
 				}
 				catch(...)
@@ -132,11 +132,6 @@ void Tracker::process(Http::Request &request)
 			response.send();
 		}
 		else {
-			bool b;
-			if(alternate) b = contains(mAlternate, identifier);
-			else b = contains(mStorage, identifier);
-			if(!b) throw 404;
-
 			//Log("Tracker", "GET " + identifier.toString());
 
 			Http::Response response(request, 200);
@@ -160,7 +155,7 @@ void Tracker::process(Http::Request &request)
 	}
 }
 
-void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const String &name, const Address &addr)
+void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
 {
 	int nbr = 1;
 	if(nbr > s.map.size()) nbr = s.map.size();
@@ -168,19 +163,11 @@ void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const St
 	{
 	  	if(s.cleaner == s.map.end()) s.cleaner = s.map.begin();
 
-		Map<String, Map<Address,Time> > &submap = s.cleaner->second;
-		Map<String, Map<Address,Time> >::iterator it = submap.begin();
+		Map<Address,Time> &submap = s.cleaner->second;
+		Map<Address,Time>::iterator it = submap.begin();
 		while(it != submap.end())
 		{
-			Map<Address,Time> &subsubmap = it->second;
-			Map<Address,Time>::iterator jt = subsubmap.begin();
-			while(jt != subsubmap.end())
-			{
-				if(Time::Now() - it->second >= EntryLife) subsubmap.erase(jt++);
-				else jt++;
-			} 
-			
-			if(subsubmap.empty()) submap.erase(it++);
+			if(Time::Now() - it->second >= EntryLife) submap.erase(it++);
 			else it++;
 		}
 		
@@ -188,31 +175,27 @@ void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const St
 		else s.cleaner++;	
 	}
 	
-	Map<Address,Time> &subsubmap = s.map[identifier][name];
-	subsubmap[addr] = Time::Now();
+	Map<Address,Time> &submap = s.map[identifier];
+	submap[addr] = Time::Now();
 }
 
 void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Stream &output) const
 {
-	output.clear();
-  
-	map_t::const_iterator it = s.map.find(identifier);
-	if(it == s.map.end()) return;
-
-	const Map<String, Map<Address,Time> > &submap = it->second;
-	if(submap.empty()) return;
+	map_t::const_iterator it = s.map.lower_bound(identifier);
+	if(it == s.map.end() || it->first != identifier) return;
 
 	YamlSerializer serializer(&output);
 	serializer.outputMapBegin();
-	for(Map<String, Map<Address,Time> >::const_iterator jt = submap.begin();
-	    	jt != submap.end();
-		++jt)
+	
+	while(it != s.map.end() && it->first == identifier)
 	{
 		SerializableArray<Address> array;
-		array = it->second.getKeys();
+		it->second.getKeys(array);
 		std::random_shuffle(array.begin(), array.end());
-		serializer.outputMapElement(jt->first, array);
+		serializer.outputMapElement(it->first, array);
+		++it;
 	}
+	
 	serializer.outputMapEnd();
 }
 

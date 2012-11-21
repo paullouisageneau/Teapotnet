@@ -23,8 +23,8 @@
 #define TPOT_IDENTIFIER_H
 
 #include "include.h"
+#include "string.h"
 #include "bytestring.h"
-#include "stream.h"
 #include "serializable.h"
 
 namespace tpot
@@ -41,6 +41,14 @@ public:
 
 	const ByteString &getDigest(void) const;
 	const String &getName(void) const;
+	void setDigest(const ByteString &digest);
+	void setName(const String &name);
+	
+	bool empty(void);
+	void clear(void);
+	
+	operator ByteString &(void);
+	operator const ByteString &(void) const;
 	
 	// Serializable
 	void serialize(Serializer &s) const;
@@ -53,6 +61,7 @@ private:
 	String		mName;
 };
 
+// The principle is that an empty name is equal to ANY other name
 bool operator < (const Identifier &i1, const Identifier &i2);
 bool operator > (const Identifier &i1, const Identifier &i2);
 bool operator == (const Identifier &i1, const Identifier &i2);

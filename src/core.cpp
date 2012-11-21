@@ -168,11 +168,16 @@ void Core::sendMessage(const Message &message)
 		}
 	}
 	else {
-		Handler *handler;
-		if(!mHandlers.get(message.mReceiver, handler)) 
-			throw Exception("Message receiver is not connected");
+		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(message.mReceiver);
+		if(it == mHandlers.end() || it->first != message.mReceiver)
+			throw Exception("Request receiver is not connected");
 		
-		handler->sendMessage(message);
+		while(it != mHandlers.end() && it->first == message.mReceiver)
+		{
+			Handler *handler = it->second;
+			handler->sendMessage(message);
+			++it;
+		}
 	}
 }
 
@@ -195,11 +200,16 @@ unsigned Core::addRequest(Request *request)
 		}
 	}
 	else {
-		Handler *handler;
-		if(!mHandlers.get(request->mReceiver, handler)) 
+		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(request->mReceiver);
+		if(it == mHandlers.end() || it->first != request->mReceiver)
 			throw Exception("Request receiver is not connected");
 		
-		handler->addRequest(request);
+		while(it != mHandlers.end() && it->first == request->mReceiver)
+		{
+			Handler *handler = it->second;
+			handler->addRequest(request);
+			++it;
+		}
 	}
 
 	return mLastRequest;
