@@ -322,7 +322,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header("Contacts");
 			
-			if(!mContacts.empty())
+			Array<Contact*> contacts;
+			getContacts(contacts);
+			if(!contacts.empty())
 			{
 				page.open("div",".box");
 				
@@ -339,16 +341,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}\n\
 				}");
 				
-				Contact *self = getSelf();
-				
 				page.open("table",".contacts");
-				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-					it != mContacts.end();
-					++it)
+				for(int i=0; i<contacts.size(); ++i)
 				{
-					Contact *contact = it->second;
-					if(contact == self) continue;
-					
+					Contact *contact = contacts[i];
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
 					page.open("tr");
