@@ -317,8 +317,8 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
-			request.url = String("/") + String(request.url.substr(1)).cut('/');
-			self->http(prefix+"/contacts/"+self->uniqueName()+"/files/", request);
+			request.url = String("/files/") + String(request.url.substr(1)).cut('/');
+			self->http(prefix+"/contacts/"+self->uniqueName(), request);
 			return;
 		}
 		
