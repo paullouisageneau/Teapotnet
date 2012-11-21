@@ -651,7 +651,7 @@ void Core::Handler::run(void)
 		agregate_a.writeLine(secret);
 		agregate_a.writeLine(salt_a);
 		agregate_a.writeLine(nonce_b);
-		agregate_a.writeLine(mPeering);
+		agregate_a.writeLine(mPeering.getDigest());
 		
 		ByteString hash_a;
 		Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
@@ -678,7 +678,7 @@ void Core::Handler::run(void)
 		agregate_b.writeLine(secret);
 		agregate_b.writeLine(salt_b);
 		agregate_b.writeLine(nonce_a);
-		agregate_b.writeLine(mRemotePeering);
+		agregate_b.writeLine(mRemotePeering.getDigest());
 		
 		ByteString hash_b;
 		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
