@@ -192,7 +192,7 @@ void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Stream
 		SerializableArray<Address> array;
 		it->second.getKeys(array);
 		std::random_shuffle(array.begin(), array.end());
-		serializer.outputMapElement(it->first, array);
+		serializer.outputMapElement(it->first.getName(), array);
 		++it;
 	}
 	
