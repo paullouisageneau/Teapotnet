@@ -101,7 +101,7 @@ void Tracker::process(Http::Request &request)
 				      Address addr(*it);
 				      if(alternate) insert(mAlternate, identifier, addr);
 				      else insert(mStorage, identifier, addr);
-				      //Log("Tracker", "POST " + identifier.toString() + "," + name + " -> " + addr.toString());
+				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 				}
 				catch(...)
 				{
@@ -120,7 +120,7 @@ void Tracker::process(Http::Request &request)
 				try {
 				      Address addr(*it);
 				      insert(mAlternate, identifier, addr);
-				      //Log("Tracker", "POST " + identifier.toString()+","+name + " -> " + addr.toString() + " (alternate)");
+				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
 				}
 				catch(...)
 				{
