@@ -145,8 +145,9 @@ void User::http(const String &prefix, Http::Request &request)
 	
 	try {
 		String url = request.url;
+		if(url.empty() || url[0] != '/') throw 404;
 		
-		if(url.empty() || url == "/")
+		if(url == "/")
 		{
 			Http::Response response(request,200);
 			response.send();
@@ -306,22 +307,6 @@ void User::http(const String &prefix, Http::Request &request)
 			return;
 		}
 		
-		if(url == "/myself" || url == "/myself/")
-		{
-			AddressBook::Contact *self = mAddressBook->getSelf();
-			if(!self)
-			{
-				Http::Response response(request, 303);
-				response.headers["Location"] = prefix + "/files/";
-				response.send();
-				return;
-			}
-			
-			request.url = String("/files/") + String(request.url.substr(1)).cut('/');
-			self->http(prefix+"/contacts/"+self->uniqueName(), request);
-			return;
-		}
-		
 		if(url == "/search" || url == "/search/")
 		{
 			String query;
@@ -440,6 +425,26 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.close("div");
 			page.footer();
+			return;
+		}
+		
+		url.ignore();
+		String urlLeft = String("/") + url.cut('/');
+		url = String("/") + url;
+		
+		if(url == "/myself")
+		{
+			AddressBook::Contact *self = mAddressBook->getSelf();
+			if(!self)
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = prefix + "/files/";
+				response.send();
+				return;
+			}
+			
+			request.url = String("/files") + urlLeft;
+			self->http(prefix+"/contacts/"+self->uniqueName(), request);
 			return;
 		}
 	}
