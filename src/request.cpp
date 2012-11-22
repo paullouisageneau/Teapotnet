@@ -21,6 +21,7 @@
 
 #include "request.h"
 #include "core.h"
+#include "user.h"
 #include "addressbook.h"
 #include "store.h"
 #include "stripedfile.h"
@@ -101,11 +102,13 @@ void Request::cancel(void)
 	}
 }
 
-bool Request::execute(AddressBook *addressBook, Store *store)
+bool Request::execute(User *user)
 {
-	Assert(addressBook);
-	Assert(store);
+	Assert(user);
 	Synchronize(this);
+	
+	AddressBook *addressBook = user->addressBook();
+	Store *store = user->store();
 	
 	StringMap parameters = mParameters;
 	String command;

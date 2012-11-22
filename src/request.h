@@ -52,7 +52,7 @@ public:
 	void submit(void);
 	void submit(const Identifier &receiver);
 	void cancel(void);
-	bool execute(AddressBook *addressBook, Store *store);
+	bool execute(User *user);
 
 	const Identifier &receiver(void) const;
 	
