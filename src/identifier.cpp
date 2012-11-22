@@ -118,20 +118,20 @@ bool operator < (const Identifier &i1, const Identifier &i2)
 {
 	return (i1.getDigest() < i2.getDigest() 
 	  || (i1.getDigest() == i2.getDigest()
-	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() < i1.getName()));
+	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() < i2.getName()));
 }
 
 bool operator > (const Identifier &i1, const Identifier &i2)
 {
 	return (i1.getDigest() > i2.getDigest()
 	  || (i1.getDigest() == i2.getDigest()
-	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() > i1.getName()));
+	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() > i2.getName()));
 }
 
 bool operator == (const Identifier &i1, const Identifier &i2)
 {
 	return (i1.getDigest() == i2.getDigest()
-		&& (i1.getName().empty() || i2.getName().empty() || i1.getName() == i1.getName()));
+		&& (i1.getName().empty() || i2.getName().empty() || i1.getName() == i2.getName()));
 }
 
 bool operator != (const Identifier &i1, const Identifier &i2)
