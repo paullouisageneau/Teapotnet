@@ -824,7 +824,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				// Self
 				if(mUniqueName == mAddressBook->userName())
 				{
-					trequest.execute(mAddressBook->user()); 
+					trequest.execute(mAddressBook->user());
 				}
 				
 				Synchronize(&trequest);
@@ -868,13 +868,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Map<String, StringMap> files;
 					for(int i=0; i<trequest.responsesCount(); ++i)
 					{
-						Request::Response *tresponse = trequest.response(i);
+					  	Request::Response *tresponse = trequest.response(i);
 						if(tresponse->error()) continue;
 					
 						const StringMap &params = tresponse->parameters();
-						String instance = tresponse->peering().getName();
-						instances.insert(instance);
+						instances.insert(tresponse->instance());
 
+						VAR(tresponse->instance());
+						VAR(params);
+						
 						// Check info
 						if(!params.contains("type")) continue;
 						if(!params.contains("name")) continue;
@@ -884,7 +886,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						// Directories with the same name appears only once
 						// Files with identical content appears only once
 						if(params.get("type") == "directory") files.insert("0"+params.get("name"),params);
-						else files.insert("1"+params.get("name")+params.get("hash"), params);
+						else files.insert("1"+params.get("name")+params.get("hash").toString(), params);
 					}
 
 					page.open("div",".box");

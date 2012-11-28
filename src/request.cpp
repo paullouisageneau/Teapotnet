@@ -185,10 +185,16 @@ bool Request::execute(User *user)
 		if(argument.size() >= 2 && argument[argument.size()-1] == '/')
 			argument.resize(argument.size()-1);
 		
-		Store::Entry entry;
-		if(store->queryEntry(Store::Query(argument), entry))
+		List<Store::Entry> list;
+		if(store->queryList(Store::Query(argument), list))
 		{
-			addResponse(createResponse(entry, parameters, store));
+			for(List<Store::Entry>::iterator it = list.begin();
+				it != list.end();
+				++it)
+			{
+				addResponse(createResponse(*it, parameters, store));
+			}
+			
 			return true;
 		}
 	}
@@ -413,6 +419,12 @@ Request::Response::~Response(void)
 const Identifier &Request::Response::peering(void) const
 {
 	return mPeering;
+}
+
+String Request::Response::instance(void) const
+{
+	if(isLocal()) return Core::Instance->getName();
+	else return mPeering.getName();
 }
 
 const StringMap &Request::Response::parameters(void) const

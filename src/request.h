@@ -76,6 +76,7 @@ public:
 		~Response(void);
 
 		const Identifier &peering(void) const;
+		String instance(void) const;
 		const StringMap &parameters(void) const;
 		String parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
