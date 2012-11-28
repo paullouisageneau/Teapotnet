@@ -182,9 +182,6 @@ bool Request::execute(User *user)
 	}
 	else if(command == "file")
 	{
-		if(argument.size() >= 2 && argument[argument.size()-1] == '/')
-			argument.resize(argument.size()-1);
-		
 		List<Store::Entry> list;
 		if(store->queryList(Store::Query(argument), list))
 		{
