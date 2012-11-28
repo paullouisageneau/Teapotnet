@@ -437,6 +437,11 @@ Pipe *Request::Response::content(void) const
 	return mContent;
 }
 
+bool Request::Response::isLocal(void) const
+{
+	return mPeering == Identifier::Null;
+}
+
 int Request::Response::status(void) const
 {
  	return mStatus;

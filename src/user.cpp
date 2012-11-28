@@ -247,8 +247,11 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Shared folders - ");
 			page.link(prefix+"/files/","Edit");
-			page.text(" - ");
-			page.link(prefix+"/myself/","Show all my files");
+			if(mAddressBook->getSelf())
+			{
+				page.text(" - ");
+				page.link(prefix+"/myself/","Show all my files");
+			}
 			page.close("h2");
 			
 			Array<String> directories;

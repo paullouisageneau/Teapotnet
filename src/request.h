@@ -80,6 +80,7 @@ public:
 		String parameter(const String &name) const;
 		bool parameter(const String &name, String &value) const;
 		Pipe *content(void) const;
+		bool isLocal(void) const;
 		
 		int status(void) const;
 		bool error(void) const;

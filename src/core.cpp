@@ -129,6 +129,23 @@ bool Core::hasPeer(const Identifier &peering)
 	return mHandlers.contains(peering);
 }
 
+bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
+{
+	array.clear();
+	
+	Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(peering);
+	if(it == mHandlers.end() || it->first != peering) return false;
+		
+	while(it != mHandlers.end() && it->first == peering)
+	{
+		String name = it->first.getName();
+		if(name.empty()) name = "default";
+		array.push_back(name);
+	}
+	
+	return true;
+}
+
 void Core::run(void)
 {
 	Log("Core", "Starting...");

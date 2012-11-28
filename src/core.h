@@ -75,6 +75,7 @@ public:
 	
 	bool addPeer(Socket *sock, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
+	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
 	void sendMessage(const Message &message);
 	unsigned addRequest(Request *request);

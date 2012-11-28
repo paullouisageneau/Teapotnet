@@ -816,110 +816,109 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(directory == "files")
 			{
 				String target(url);
-				if(target.size() > 1 && target[target.size()-1] == '/') 
-					target = target.substr(0, target.size()-1);
+				if(target.empty() || target[target.size()-1] != '/') 
+					target+= '/';
 				
-				Request trequest(target, true);
+				Request trequest(target, false);
+				
+				// Self
+				if(mUniqueName == mAddressBook->userName())
+				{
+					trequest.execute(mAddressBook->user()); 
+				}
+				
+				Synchronize(&trequest);
 				try {
 					trequest.submit(mPeering);
 					trequest.wait();
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
-					
-					Http::Response response(request,200);
-                                        response.send();
-
-                                        Html page(response.sock);
-                                        page.header(mName+": Files");
-					page.open("div",".box");
-					page.text("Not connected...");
-					page.close("div");
-					page.footer();
-					return;
-				}
-				
-				if(trequest.responsesCount() == 0)
-					throw Exception("No response from peer");
-				
-				Request::Response *tresponse = trequest.response(0);
-				StringMap parameters = tresponse->parameters();
-				if(tresponse->error())
-				{
-					if(tresponse->status() == Request::Response::NotFound) throw 404;
-					else throw Exception(String("Response status code ")+String::number(tresponse->status()));
-				}
-
-				Assert(tresponse->content());
-					
-				try {
-					if(parameters.contains("type") && parameters["type"] == "directory")
+					// If not self
+					if(mUniqueName != mAddressBook->userName())
 					{
+						Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+						
 						Http::Response response(request,200);
-						response.send();	
-				
+						response.send();
+
 						Html page(response.sock);
-						if(target.empty() || target == "/") page.header(mName+": Browse files");
-						else page.header(mName+": "+target.substr(1));
-						page.link(prefix+"/search/","Search files");
-						
-						YamlSerializer serializer(tresponse->content());
-							
-						Map<String, StringMap> files;
-						StringMap map;
-						while(serializer.input(map))
-						{
-							// Check info
-							if(!map.contains("type")) continue;
-							if(!map.contains("name")) continue;
-							if(map.get("type") != "directory" && !map.contains("hash")) continue;
-							
-							// Sort
-							if(map.get("type") == "directory") files.insert("0"+map.get("name"),map);
-							else files.insert("1"+map.get("name"),map);
-						}
-						
+						page.header(mName+": Files");
 						page.open("div",".box");
-						if(files.empty()) page.text("No shared files");
-						else {
-							page.open("table",".files");
-							for(Map<String, StringMap>::iterator it = files.begin();
-								it != files.end();
-								++it)
-							{
-								StringMap &map = it->second;
-								
-								page.open("tr");
-								page.open("td",".filename"); 
-								if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-								else page.link("/" + map.get("hash"), map.get("name"));
-								page.close("td");
-								page.open("td",".size"); 
-								if(map.get("type") == "directory") page.text("directory");
-								else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
-								page.close("td");
-								page.close("tr");
-							}
-							page.close("table");
-						}
+						page.text("Not connected...");
 						page.close("div");
 						page.footer();
 						return;
 					}
-					else {
-						Http::Response response(request, 200);
-						response.headers["Content-Type"] = "application/octet-stream";
-						response.headers["Content-Disposition"] = "attachment";
-						response.headers["Content-Length"] = parameters.get("size");
-						response.headers["Content-Disposition"]+= "; filename=\"" + parameters.get("name") + "\"";
-						response.headers["Content-SHA512"] = parameters.get("hash");
-						
-						// TODO: Date + Last-Modified
-						response.send();
-						response.sock->write(*tresponse->content());
-						return;
+				}
+				
+				if(trequest.responsesCount() == 0) throw Exception("No responses");
+				if(!trequest.isSuccessful()) throw 404;
+					
+				try {
+					Http::Response response(request,200);
+					response.send();	
+				
+					Html page(response.sock);
+					if(target.empty() || target == "/") page.header(mName+": Browse files");
+					else page.header(mName+": "+target.substr(1));
+					page.link(prefix+"/search/","Search files");
+					
+					Set<String> instances;
+					Map<String, StringMap> files;
+					for(int i=0; i<trequest.responsesCount(); ++i)
+					{
+						Request::Response *tresponse = trequest.response(i);
+						if(tresponse->error()) continue;
+					
+						const StringMap &params = tresponse->parameters();
+						String instance = tresponse->peering().getName();
+						instances.insert(instance);
+
+						// Check info
+						if(!params.contains("type")) continue;
+						if(!params.contains("name")) continue;
+						if(params.get("type") != "directory" && !params.contains("hash")) continue;
+
+						// Sort
+						// Directories with the same name appears only once
+						// Files with identical content appears only once
+						if(params.get("type") == "directory") files.insert("0"+params.get("name"),params);
+						else files.insert("1"+params.get("name")+params.get("hash"), params);
 					}
+
+					page.open("div",".box");
+					if(files.empty()) page.text("No shared files");
+					else {
+					  	String desc;
+						if(instances.size() == 1) desc << files.size() << " files";
+						else desc << files.size() << " files on " << instances.size() << " instances";
+						page.text(desc);
+						page.br();
+						
+						page.open("table",".files");
+						for(Map<String, StringMap>::iterator it = files.begin();
+							it != files.end();
+							++it)
+						{
+							StringMap &map = it->second;
+								
+							page.open("tr");
+							page.open("td",".filename"); 
+							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+							else page.link("/" + map.get("hash"), map.get("name"));
+							page.close("td");
+							page.open("td",".size"); 
+							if(map.get("type") == "directory") page.text("directory");
+							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+							page.close("td");
+							page.close("tr");
+						}
+						page.close("table");
+					}
+					page.close("div");
+					page.footer();
+					return;
 				}
 				catch(const Exception &e)
 				{
