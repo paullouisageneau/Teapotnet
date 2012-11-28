@@ -117,7 +117,7 @@ bool Core::addPeer(Socket *sock, const Identifier &peering)
 		Handler *handler = new Handler(this,sock);
 		if(peering != Identifier::Null) handler->setPeering(peering);
 		Synchronize(handler);
-		handler->start();
+		handler->start(true);	// autodelete
 		if(!handler->wait(10000)) return false;	// TODO: timeout
 		return handler->isAuthenticated();
 	}
@@ -372,6 +372,8 @@ Core::Handler::~Handler(void)
 	{
 		Synchronize(mCore);
 		
+		mCore->removeHandler(mPeering, this);
+		
 		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
 		{
 			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
@@ -565,7 +567,6 @@ void Core::Handler::run(void)
 						wait(2000);
 					}
 				  
-					delete this;
 					return;
 				}
 				
@@ -636,16 +637,12 @@ void Core::Handler::run(void)
 							delete otherSock;
 						}
 						
-						delete this;
 						return;
 					}
 				}
 				
-				request.unlock();
-					
-				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
-					
-				delete this;
+				request.unlock();	
+				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
 				return;
 			}
 			
@@ -748,7 +745,6 @@ void Core::Handler::run(void)
 		{
 			Log("Core::Handler", "Duplicate handler for the peering, exiting."); 
 			mSock->close();
-			delete this;
 			return;
 		}
 		
@@ -763,7 +759,6 @@ void Core::Handler::run(void)
 	{
 		Log("Core::Handler", String("Handshake failed: ") + e.what()); 
 		mSock->close();
-		delete this;
 		return;
 	}
 	
@@ -952,8 +947,6 @@ void Core::Handler::run(void)
 	}
 	
 	mSock->close();
-	mCore->removeHandler(mPeering, this);
-	delete this;
 }
 
 const size_t Core::Handler::Sender::ChunkSize = BufferSize;
