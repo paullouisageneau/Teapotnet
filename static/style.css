@@ -311,6 +311,11 @@ td.delete
 	border-radius: 0.5em;
 }
 
+.files
+{
+	margin-top: 0.5em;
+}
+
 .files td.filename
 {
   

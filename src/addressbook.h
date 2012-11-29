@@ -48,6 +48,7 @@ public:
 	String userName(void) const;
 	int unreadMessagesCount(void) const;
 	
+	void clear(void);
 	void load(Stream &stream);
 	void save(Stream &stream) const;
 	void save(void) const;
@@ -74,6 +75,7 @@ public:
 		const String &tracker(void) const;
 		const Identifier &peering(void) const;
 		const Identifier &remotePeering(void) const;
+		const Time &time(void) const;
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
@@ -81,6 +83,7 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(const String &instance) const;
 		String status(void) const;
+		const AddressMap &addresses(void) const;
 		
 		// These functions return true if addr is successfully connected
 		bool addAddress(const Address &addr, const String &instance);
@@ -107,6 +110,7 @@ public:
 		String mUniqueName, mName, mTracker;
 		Identifier mPeering, mRemotePeering;
 		ByteString mSecret;
+		Time mTime;
 		
 		bool mFound;
 		AddressMap mAddrs;
@@ -132,8 +136,10 @@ private:
 	
 	User *mUser;
 	String mFileName;
-	Map<Identifier, Contact*> mContacts;		// Sorted by peering
-	Map<String, Contact*> mContactsByUniqueName;	// Sorted by unique name
+	Map<Identifier, Contact*> mContacts;			// Sorted by peering
+	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
+	
+	SerializableMap<Identifier, Time> mDeleted;
 };
 
 }

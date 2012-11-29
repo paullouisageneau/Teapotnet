@@ -59,6 +59,8 @@ AddressBook::AddressBook(User *user) :
 AddressBook::~AddressBook(void)
 {
   	Interface::Instance->remove("/"+mUser->name()+"/contacts");
+	
+	clear();
 }
 
 User *AddressBook::user(void) const
@@ -73,8 +75,9 @@ String AddressBook::userName(void) const
 
 int AddressBook::unreadMessagesCount(void) const
 {
-	int count = 0;
+	Synchronize(this);
   
+	int count = 0;
 	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
@@ -82,7 +85,6 @@ int AddressBook::unreadMessagesCount(void) const
 		const Contact *contact = it->second;
 		count+= contact->unreadMessagesCount();
 	}
-	
 	return count;
 }
 
@@ -102,7 +104,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	}
 	
 	Contact *contact = new Contact(this, uname, name, tracker, secret);
-	if(mContacts.contains(contact->peering())) 
+	if(mContacts.contains(contact->peering()))
 	{
 		delete contact;
 		throw Exception("The contact already exists");
@@ -134,6 +136,8 @@ void AddressBook::removeContact(const Identifier &peering)
 
 AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 {
+	Synchronize(this);
+  
 	Contact *contact;
 	if(mContacts.get(peering, contact)) return contact;
 	else return NULL;
@@ -141,6 +145,8 @@ AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
 
 const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) const
 {
+	Synchronize(this);
+  
 	Contact *contact;
 	if(mContacts.contains(peering)) return mContacts.get(peering);
 	else return NULL;
@@ -148,6 +154,8 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) c
 
 void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 {
+	Synchronize(this); 
+  
 	mContactsByUniqueName.getValues(array);
 	Contact *self = getSelf();
 	if(self) array.remove(self);
@@ -155,6 +163,8 @@ void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 
 const Identifier &AddressBook::setSelf(const ByteString &secret)
 {
+	Synchronize(this);
+  
 	const String tracker = Config::Get("tracker");
 	Assert(!mContactsByUniqueName.contains(userName()));
 	
@@ -178,6 +188,8 @@ const Identifier &AddressBook::setSelf(const ByteString &secret)
 
 AddressBook::Contact *AddressBook::getSelf(void)
 {
+	Synchronize(this);
+	
 	Contact *contact;
 	if(mContactsByUniqueName.get(userName(), contact)) return contact;
 	else return NULL;
@@ -185,9 +197,27 @@ AddressBook::Contact *AddressBook::getSelf(void)
 
 const AddressBook::Contact *AddressBook::getSelf(void) const
 {
+	Synchronize(this);
+	
 	Contact *contact;
 	if(mContactsByUniqueName.get(userName(), contact)) return contact;
 	else return NULL;
+}
+
+void AddressBook::clear(void)
+{
+	Synchronize(this);
+  
+	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		const Contact *contact = it->second;
+		delete contact;
+	} 
+	
+	mContacts.clear();
+	mContactsByUniqueName.clear();
 }
 
 void AddressBook::load(Stream &stream)
@@ -198,6 +228,20 @@ void AddressBook::load(Stream &stream)
 	Contact *contact = new Contact(this);
 	while(serializer.input(*contact))
 	{
+		Contact *oldContact = NULL;
+		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
+		{
+			if(oldContact->time() >= contact->time()) 
+			{
+				oldContact->addAddresses(contact->addresses());
+				continue;
+			}
+			else {
+				contact->addAddresses(oldContact->addresses());
+				delete oldContact;
+			}
+		}
+		
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
 		contact = new Contact(this);
@@ -224,9 +268,20 @@ void AddressBook::save(void) const
 {
 	Synchronize(this);
   
+	String data;
+	save(data);
+	
 	SafeWriteFile file(mFileName);
-	save(file);
+	file.write(data);
 	file.close();
+	
+	const Contact *self = getSelf();
+	if(self)
+	{
+		Message message(data);
+		message.setParameter("type", "contacts");
+		message.send(self->peering());
+	}
 }
 
 void AddressBook::update(void)
@@ -489,6 +544,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mName(name),
 	mTracker(tracker),
 	mSecret(secret),
+	mTime(Time::Now()),
 	mFound(false)
 {	
 	Assert(addressBook != NULL);
@@ -551,6 +607,11 @@ const Identifier &AddressBook::Contact::remotePeering(void) const
 	return mRemotePeering;
 }
 
+const Time &AddressBook::Contact::time(void) const
+{
+	return mTime; 
+}
+
 uint32_t AddressBook::Contact::peeringChecksum(void) const
 {
 	return mPeering.getDigest().checksum32() + mRemotePeering.getDigest().checksum32(); 
@@ -593,6 +654,11 @@ String AddressBook::Contact::status(void) const
 	if(isConnected()) return "connected";
 	else if(isFound()) return "found";
 	else return "disconnected";
+}
+
+const AddressBook::AddressMap &AddressBook::Contact::addresses(void) const
+{
+	return mAddrs;
 }
 
 bool AddressBook::Contact::addAddress(const Address &addr, const String &instance)
@@ -684,7 +750,7 @@ void AddressBook::Contact::update(void)
 
 	if(!mMessages.empty())
         {
-                time_t t = time(NULL);
+                time_t t = Time::Now();
                 while(!mMessages.front().isRead()
                         && mMessages.front().time() >= t + 7200)        // 2h
                 {
@@ -738,9 +804,27 @@ void AddressBook::Contact::message(Message *message)
 	
 	Assert(message);
 	Assert(message->receiver() == mPeering);
-	mMessages.push_back(*message);
-	++mMessagesCount;
-	notifyAll();
+	
+	String type;
+	message->parameters().get("type",type);
+	
+	if(type.empty() || type == "text")
+	{
+		mMessages.push_back(*message);
+		++mMessagesCount;
+		notifyAll();
+	}
+	else if(type == "contacts")
+	{
+		if(mUniqueName != mAddressBook->userName())
+		{
+			Log("AddressBook::Contact::message", "Warning: received contacts update from other than self, dropping");
+			return;
+		}
+		
+		String data = message->content();
+		mAddressBook->load(data);
+	}
 }
 
 void AddressBook::Contact::request(Request *request)
@@ -1252,6 +1336,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["secret"] << mSecret;
 	map["peering"] << mPeering;
 	map["remote"] << mRemotePeering;
+	map["time"] << mTime;
 	
 	s.outputMapBegin(2);
 	s.outputMapElement(String("info"),map);
@@ -1297,6 +1382,9 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["secret"] >> mSecret;
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
+	
+	if(map.contains("time")) map["time"] >> mTime;
+	else mTime = Time::Now();
 	
 	// TODO: checks
 	
