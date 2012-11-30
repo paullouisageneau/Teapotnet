@@ -423,7 +423,7 @@ void Core::Handler::sendMessage(const Message &message)
 {
 	Synchronize(this);
 	
-	Log("Core::Handler", "New message");
+	//Log("Core::Handler", "New message");
 	
 	mSender->lock();
 	mSender->mMessagesQueue.push(message);
@@ -435,7 +435,7 @@ void Core::Handler::addRequest(Request *request)
 {
 	Synchronize(this);
 	
-	Log("Core::Handler", "New request " + String::number(request->id()));
+	//Log("Core::Handler", "New request " + String::number(request->id()));
 	
 	mSender->lock();
 	request->addPending(mPeering);
@@ -785,7 +785,7 @@ void Core::Handler::run(void)
 				  	Request::Response *response;
 					if(channel)
 					{
-						Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
+						//Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
 						ByteStream *sink = request->mContentSink; 	// TODO
 						if(!sink) sink = new ByteString;		// TODO
@@ -795,7 +795,7 @@ void Core::Handler::run(void)
 						mResponses.insert(channel,response);
 					}
 					else {
-						Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
+						//Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
 						response = new Request::Response(status, parameters);
 					}
 
@@ -822,7 +822,7 @@ void Core::Handler::run(void)
 						if(len != size) throw IOException("Incomplete data chunk");
 					}
 					else {
-						Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
+						//Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
 						response->mTransfertFinished = true;
 						mResponses.erase(channel);
@@ -878,7 +878,7 @@ void Core::Handler::run(void)
 			  	unsigned id;
 				args.read(id);
 				String &target = args;
-			  	Log("Core::Handler", "Received request "+String::number(id));
+			  	//Log("Core::Handler", "Received request "+String::number(id));
 
 				Listener *listener;
 				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
@@ -913,7 +913,7 @@ void Core::Handler::run(void)
 			{
 				unsigned size;
 				args.read(size);
-				Log("Core::Handler", "Received message");
+				//Log("Core::Handler", "Received message");
 				
 				Message message;
 				message.mReceiver = mPeering;
@@ -1037,7 +1037,7 @@ void Core::Handler::Sender::run(void)
 			if(!mMessagesQueue.empty())
 			{
 				const Message &message = mMessagesQueue.front();
-				Log("Core::Handler::Sender", "Sending message");
+				//Log("Core::Handler::Sender", "Sending message");
 				
 				String args;
 				args << message.mContent.size();
