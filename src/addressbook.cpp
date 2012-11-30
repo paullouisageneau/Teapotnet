@@ -276,11 +276,17 @@ void AddressBook::save(void) const
 	file.close();
 	
 	const Contact *self = getSelf();
-	if(self)
+	if(self && self->isConnected())
 	{
-		Message message(data);
-		message.setParameter("type", "contacts");
-		message.send(self->peering());
+		try {
+			Message message(data);
+			message.setParameter("type", "contacts");
+			message.send(self->peering());
+		}
+		catch(Exception &e)
+		{
+			Log("AddressBook::Save", String("Contacts synchronization failed: ") + e.what()); 
+		}
 	}
 }
 
