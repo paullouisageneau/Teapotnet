@@ -223,22 +223,30 @@ void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
+	bool changed = false;
+	
 	YamlSerializer serializer(&stream);
 	Contact *contact = new Contact(this);
 	while(serializer.input(*contact))
 	{
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
-			continue;	// TODO
+		{
+			if(oldContact->time() >= contact->time()) continue;
+			contact->addAddresses(oldContact->addresses());
+			delete oldContact;
+		}
 
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
 		Interface::Instance->add(contact->urlPrefix(), contact);
+		changed = true;
 		
 		contact = new Contact(this);
 	}
 	delete contact;
-	start();
+	
+	if(changed) start();
 }
 
 void AddressBook::save(Stream &stream) const
