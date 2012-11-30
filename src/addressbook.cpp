@@ -112,6 +112,7 @@ const Identifier &AddressBook::addContact(String name, const ByteString &secret)
 	
 	mContacts.insert(contact->peering(), contact);
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
+	Interface::Instance->add(contact->urlPrefix(), contact);
 	
 	save();
 	start();
@@ -128,6 +129,7 @@ void AddressBook::removeContact(const Identifier &peering)
 		Core::Instance->unregisterPeering(peering);
 		mContactsByUniqueName.erase(contact->uniqueName());
  		mContacts.erase(peering);
+		Interface::Instance->remove(contact->urlPrefix());
 		delete contact;
 		save();
 		start();
@@ -212,6 +214,7 @@ void AddressBook::clear(void)
 		++it)
 	{
 		const Contact *contact = it->second;
+		Interface::Instance->remove(contact->urlPrefix());
 		delete contact;
 	} 
 	
@@ -571,8 +574,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	agregate.writeLine(mName);
 	agregate.writeLine(mAddressBook->userName());
 	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
-	
-	Interface::Instance->add(urlPrefix(), this);
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
@@ -584,7 +585,7 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 
 AddressBook::Contact::~Contact(void)
 {
-  	Interface::Instance->remove(urlPrefix());
+
 }
 
 const String &AddressBook::Contact::uniqueName(void) const
