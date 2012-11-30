@@ -244,6 +244,8 @@ void AddressBook::load(Stream &stream)
 		
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
+		Interface::Instance->add(contact->urlPrefix(), contact);
+		
 		contact = new Contact(this);
 	}
 	delete contact;
@@ -1393,8 +1395,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	else mTime = Time::Now();
 	
 	// TODO: checks
-	
-	Interface::Instance->add(urlPrefix(), this);
 	
 	return true;
 }
