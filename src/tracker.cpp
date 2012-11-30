@@ -174,7 +174,7 @@ void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Ad
 		if(submap.empty()) s.map.erase(s.cleaner++);
 		else s.cleaner++;	
 	}
-	
+
 	Map<Address,Time> &submap = s.map[identifier];
 	submap[addr] = Time::Now();
 }
