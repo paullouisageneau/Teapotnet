@@ -1009,7 +1009,7 @@ void Core::Handler::Sender::run(void)
 					Request::Response *response = request->response(j);
 					if(!response->mTransfertStarted)
 					{
-						Log("Core::Handler::Sender", "Sending response");
+						//Log("Core::Handler::Sender", "Sending response");
 						
 						unsigned channel = 0;
 
