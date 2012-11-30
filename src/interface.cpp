@@ -63,10 +63,12 @@ void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 	mMutex.unlock();
 }
 
-void Interface::remove(const String &prefix)
+void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 {
 	mMutex.lock();
-	mPrefixes.erase(prefix);
+	HttpInterfaceable *test = NULL;
+	if(mPrefixes.get(prefix, test) && (!interfaceable || test == interfaceable))
+		mPrefixes.erase(prefix);
 	mMutex.unlock();
 }
 

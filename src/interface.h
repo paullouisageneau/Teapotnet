@@ -45,7 +45,7 @@ public:
         ~Interface();
 	
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
-	void remove(const String &prefix);
+	void remove(const String &prefix, HttpInterfaceable *interfaceable = NULL);
 
 private:
 	void process(Http::Request &request);

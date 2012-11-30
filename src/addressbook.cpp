@@ -129,7 +129,6 @@ void AddressBook::removeContact(const Identifier &peering)
 		Core::Instance->unregisterPeering(peering);
 		mContactsByUniqueName.erase(contact->uniqueName());
  		mContacts.erase(peering);
-		Interface::Instance->remove(contact->urlPrefix());
 		delete contact;
 		save();
 		start();
@@ -215,7 +214,6 @@ void AddressBook::clear(void)
 		++it)
 	{
 		const Contact *contact = it->second;
-		Interface::Instance->remove(contact->urlPrefix());
 		delete contact;
 	} 
 	
@@ -586,7 +584,7 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 
 AddressBook::Contact::~Contact(void)
 {
-
+	Interface::Instance->remove(urlPrefix(), this);
 }
 
 const String &AddressBook::Contact::uniqueName(void) const
@@ -1351,9 +1349,6 @@ void AddressBook::Contact::serialize(Serializer &s) const
 bool AddressBook::Contact::deserialize(Serializer &s)
 {
 	Synchronize(this);
-	
-	if(!mUniqueName.empty())
-		Interface::Instance->remove(urlPrefix());
 	
 	mUniqueName.clear();
   	mName.clear();
