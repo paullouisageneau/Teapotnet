@@ -166,7 +166,6 @@ const Identifier &AddressBook::setSelf(const ByteString &secret)
 	Synchronize(this);
   
 	const String tracker = Config::Get("tracker");
-	Assert(!mContactsByUniqueName.contains(userName()));
 	
 	Contact *self = getSelf();
 	if(self) removeContact(self->peering());
@@ -230,11 +229,7 @@ void AddressBook::load(Stream &stream)
 	{
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
-		{
-			if(oldContact->time() >= contact->time()) continue;
-			contact->addAddresses(oldContact->addresses());
 			delete oldContact;
-		}
 		
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
