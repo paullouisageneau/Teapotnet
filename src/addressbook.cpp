@@ -231,15 +231,9 @@ void AddressBook::load(Stream &stream)
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
-			if(oldContact->time() >= contact->time()) 
-			{
-				oldContact->addAddresses(contact->addresses());
-				continue;
-			}
-			else {
-				contact->addAddresses(oldContact->addresses());
-				delete oldContact;
-			}
+			if(oldContact->time() >= contact->time()) continue;
+			contact->addAddresses(oldContact->addresses());
+			delete oldContact;
 		}
 		
 		mContacts.insert(contact->peering(), contact);
