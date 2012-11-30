@@ -181,6 +181,7 @@ const Identifier &AddressBook::setSelf(const ByteString &secret)
 	
 	mContacts.insert(self->peering(), self);
 	mContactsByUniqueName.insert(userName(), self);
+	Interface::Instance->add(self->urlPrefix(), self);
 	
 	save();
 	start();
