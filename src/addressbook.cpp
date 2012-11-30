@@ -963,9 +963,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						const StringMap &params = tresponse->parameters();
 						instances.insert(tresponse->instance());
 
-						VAR(tresponse->instance());
-						VAR(params);
-						
 						// Check info
 						if(!params.contains("type")) continue;
 						if(!params.contains("name")) continue;
