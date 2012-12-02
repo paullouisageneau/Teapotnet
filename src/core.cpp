@@ -1051,7 +1051,7 @@ void Core::Handler::Sender::run(void)
 			if(!mRequestsQueue.empty())
 			{
 				Request *request = mRequestsQueue.front();
-				Log("Core::Handler::Sender", "Sending request "+String::number(request->id()));
+				//Log("Core::Handler::Sender", "Sending request "+String::number(request->id()));
 				
 				String command;
 				if(request->mIsData) command = "G";
