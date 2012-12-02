@@ -918,8 +918,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				Synchronize(&trequest);
 				try {
-					trequest.submit(mPeering);
-					trequest.wait();
+					const unsigned timeout = Config::Get("request_timeout").toInt();
+				  	trequest.submit(mPeering);
+					trequest.wait(timeout);
 				}
 				catch(const Exception &e)
 				{
@@ -1057,9 +1058,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				const unsigned timeout = Config::Get("request_timeout").toInt();
-				
 				{
+					const unsigned timeout = Config::Get("request_timeout").toInt();
 					Desynchronize(this);
 					trequest.lock();
 					trequest.wait(timeout);

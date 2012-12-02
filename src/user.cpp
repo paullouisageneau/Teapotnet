@@ -372,13 +372,12 @@ void User::http(const String &prefix, Http::Request &request)
 				}
 			}
 			
-			const unsigned timeout = Config::Get("request_timeout").toInt();
-			
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
-			trequest.submit();
-			
 			Synchronize(&trequest);
+
+			const unsigned timeout = Config::Get("request_timeout").toInt();
+			trequest.submit();
 			trequest.wait(timeout);
 			
 			if(trequest.isSuccessful())

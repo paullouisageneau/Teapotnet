@@ -1019,7 +1019,7 @@ void Core::Handler::Sender::run(void)
 							++mLastChannel;
 							channel = mLastChannel;
 							
-							Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
+							//Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
 							mTransferts.insert(channel,response);
 						}
 						
