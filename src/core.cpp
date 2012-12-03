@@ -1111,7 +1111,7 @@ void Core::Handler::Sender::run(void)
 
 				if(size == 0)
 				{
-					Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
+					//Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
 					it->second->mTransfertFinished = true;
 					mTransferts.erase(it++);
 				}
