@@ -774,14 +774,15 @@ void AddressBook::Contact::update(void)
 		
 	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
 	{
-		if(!Core::Instance->hasPeer(Identifier(mPeering, Core::Instance->getName())))
+		Identifier identifier(mPeering, Core::Instance->getName());
+		if(!Core::Instance->hasPeer(identifier))
 		{
 			Log("AddressBook::Contact", mUniqueName + " found locally");
 			  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
 				Socket *sock = new Socket(addr);
-				Core::Instance->addPeer(sock, mPeering);
+				Core::Instance->addPeer(sock, identifier);
 			}
 			catch(...)
 			{
@@ -1388,7 +1389,12 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
 	
-	if(map.contains("time")) map["time"] >> mTime;
+	if(map.contains("time")) 
+	{
+		time_t tmp;
+		map["time"] >> tmp;
+		mTime = tmp;
+	}
 	else mTime = Time::Now();
 	
 	// TODO: checks

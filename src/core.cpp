@@ -417,7 +417,15 @@ void Core::Handler::setPeering(const Identifier &peering)
 {
 	Synchronize(this);
 	mPeering = peering;
-	mIsIncoming = (peering == Identifier::Null);
+	if(peering == Identifier::Null) mIsIncoming = true;
+	else {
+		mIsIncoming = false;
+		if(mPeering.getName().empty())
+		{
+			Log("Core::Handler", "Warning: set peering with undefined instance");
+			mPeering.setName("default");
+		}
+	}
 }
 
 void Core::Handler::sendMessage(const Message &message)
@@ -519,6 +527,8 @@ void Core::Handler::run(void)
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
 			
+			mRemotePeering.setName(mCore->getName());
+			
 			args.clear();
 			args << mRemotePeering;
 			parameters.clear();
@@ -530,9 +540,9 @@ void Core::Handler::run(void)
 	 
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command != "H") throw Exception("Unexpected command: " + command);
-
+		
 		String appname, appversion;
-		ByteString peering, nonce_b;
+		Identifier peering, nonce_b;
 		args >> peering;
 		parameters["application"] >> appname;
 		parameters["version"] >> appversion;
@@ -540,9 +550,6 @@ void Core::Handler::run(void)
 
 		if(!mIsIncoming && mPeering != peering) 
 			throw Exception("Peering in response does not match");
-		
-		ByteString secret;
-		if(peering.size() != 64) throw Exception("Invalid peering identifier");	// TODO: useless
 		
 		if(mIsIncoming)
 		{
@@ -579,7 +586,7 @@ void Core::Handler::run(void)
 				}
 				
 				Log("Core::Handler", "Got unknown peering, asking peers");
-					
+				
 				String adresses;
 				List<Address> list;
 				Config::GetExternalAddresses(list);
@@ -669,6 +676,7 @@ void Core::Handler::run(void)
 		cipher->dumpStream(NULL);
 		mObfuscatedHello.clear();
 		
+		ByteString secret;
 		if(SynchronizeTest(mCore, !mCore->mSecrets.get(peering, secret)))
 			throw Exception(String("Warning: No secret for peering: ") + peering.toString());
 		
