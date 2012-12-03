@@ -806,7 +806,7 @@ void AddressBook::Contact::update(void)
 	}
 	
 	AddressMap altAddrs;
-	if(mFound = AddressBook::query(mPeering, mTracker, altAddrs, false))
+	if(mFound = AddressBook::query(mPeering, mTracker, altAddrs, true))
 		connectAddresses(altAddrs);
 }
 
