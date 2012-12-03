@@ -702,7 +702,6 @@ void Core::Handler::run(void)
 		
 		if(test_b != hash_b) throw Exception("Authentication failed");
 		Log("Core::Handler", "Authentication successful");
-		mSock->setTimeout(0);
 		mIsAuthenticated = true;		
 
 		// Set encryption key and IV
@@ -763,12 +762,20 @@ void Core::Handler::run(void)
 	}
 	
 	try {
+	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+	  
 		Log("Core::Handler", "Entering main loop");
+		mSock->setTimeout(readTimeout);
 		while(recvCommand(mStream, command, args, parameters))
 		{
 			Synchronize(this);
 
-			if(command == "R")
+			if(command == "K")	// Keep Alive
+			{
+				unsigned dummy;
+				args.read(dummy);
+			}
+			else if(command == "R")	// Response
 			{
 				unsigned id;
 				int status;
@@ -807,7 +814,7 @@ void Core::Handler::run(void)
 				}
 				else Log("Core::Handler", "Received response for unknown request "+String::number(id));
 			}
-			else if(command == "D")
+			else if(command == "D")	// Data block
 			{
 				unsigned channel, size;
 				args.read(channel);
@@ -838,7 +845,7 @@ void Core::Handler::run(void)
 					SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
 				}
 			}
-			else if(command == "E")	// error
+			else if(command == "E")	// Error
 			{
 				unsigned channel;
 				int status;
@@ -860,7 +867,7 @@ void Core::Handler::run(void)
 				}
 				else Log("Core::Handler", "Received error for unknown channel "+String::number(channel));
 			}
-			else if(command == "C")	// stop
+			else if(command == "C")	// Cancel
 			{
 				unsigned channel;
 				args.read(channel);
@@ -873,7 +880,7 @@ void Core::Handler::run(void)
 				}
 				//else Log("Core::Handler", "Received stop for unknown channel "+String::number(channel));
 			}
-			else if(command == "I" || command == "G")
+			else if(command == "I" || command == "G") // Request
 			{
 			  	unsigned id;
 				args.read(id);
@@ -986,6 +993,8 @@ void Core::Handler::Sender::run(void)
 		Log("Core::Handler::Sender", "Starting");
 		Assert(mStream);
 		
+		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+		
 		while(true)
 		{
 			Synchronize(this);
@@ -996,7 +1005,13 @@ void Core::Handler::Sender::run(void)
 			  	&& mTransferts.empty())
 			{
 				//Log("Core::Handler::Sender", "No pending tasks, waiting");
-				wait();
+				wait(readTimeout/2);
+				
+				// Keep Alive
+				String args;
+				args << unsigned(std::rand());
+				StringMap parameters;
+				Handler::sendCommand(mStream, "K", args, parameters);
 			}
 			
 			for(int i=0; i<mRequestsToRespond.size(); ++i)
@@ -1080,7 +1095,7 @@ void Core::Handler::Sender::run(void)
 					int status = Request::Response::ReadFailed;
 					
 					String args;
-					args << it->first << status;
+					args << it->first << " " << status;
 					StringMap parameters;
 					parameters["message"] = e.what();
 					Handler::sendCommand(mStream, "E", args, parameters);

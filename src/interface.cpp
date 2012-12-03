@@ -74,6 +74,8 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 
 void Interface::process(Http::Request &request)
 {
+	Address remoteAddr = request.sock->getRemoteAddress();
+  	
 	//Log("Interface", "Request for URL \""+request.url+"\"");
 	
 	// URL must begin with /
@@ -104,7 +106,7 @@ void Interface::process(Http::Request &request)
 		}
 		else if(User::Count() == 0) 
 		{
-			if(request.sock->getRemoteAddress().isLocal())
+			if(remoteAddr.isLocal() || remoteAddr.isPrivate())
 			{
 				if(request.method == "POST")
 				{
@@ -201,8 +203,6 @@ void Interface::process(Http::Request &request)
 		
 		if(!User::Exist(list.front())) throw 404;
 	}
-	
-	Address remoteAddr = request.sock->getRemoteAddress();
 	
 	if(list.front().empty()
 		|| User::Exist(list.front()) 

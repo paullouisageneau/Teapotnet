@@ -100,8 +100,9 @@ int main(int argc, char** argv)
 		Config::Default("shared_dir", "shared");
 		Config::Default("external_address", "auto");
 		Config::Default("http_timeout", "5000");
-		Config::Default("tpot_timeout", "5000");
 		Config::Default("request_timeout", "5000");
+		Config::Default("tpot_timeout", "5000");
+		Config::Default("tpot_read_timeout", "60000");
 		Config::Save(configFileName);
 		
 		StringMap args;
