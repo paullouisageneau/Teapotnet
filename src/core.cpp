@@ -491,7 +491,7 @@ void Core::Handler::run(void)
   
 	try {
 		Synchronize(this);
-		Log("Core::Handler", "Starting");
+		Log("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
 	  
 		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
 		
@@ -537,7 +537,7 @@ void Core::Handler::run(void)
 			parameters["nonce"] << nonce_a;
 			sendCommand(mStream, "H", args, parameters);
 		}
-	 
+
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command != "H") throw Exception("Unexpected command: " + command);
 		
