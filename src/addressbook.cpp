@@ -707,6 +707,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
+	if(Core::Instance->hasPeer(Identifier(mPeering, instance))) return true;
 	
 	Identifier identifier(mPeering, instance);
 	try {
