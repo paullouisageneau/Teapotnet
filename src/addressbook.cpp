@@ -1052,6 +1052,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				Request trequest("search:"+query, false);	// no data
+				Synchronize(&trequest);
 				try {
 					trequest.submit(mPeering);
 				}
@@ -1068,7 +1069,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				{
 					const unsigned timeout = Config::Get("request_timeout").toInt();
 					Desynchronize(this);
-					trequest.lock();
 					trequest.wait(timeout);
 				}
 				
@@ -1111,7 +1111,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				page.close("div");
 				
-				trequest.unlock();
 				page.footer();
 				return;
 			}
