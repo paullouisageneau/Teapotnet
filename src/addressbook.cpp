@@ -671,12 +671,17 @@ bool AddressBook::Contact::addAddress(const Address &addr, const String &instanc
   	Synchronize(this);
 
 	if(addr.isNull()) return false;
-	if(instance == Core::Instance->getName()) return false;
+	if(mUniqueName == mAddressBook->userName() && instance == Core::Instance->getName()) return false;
 	
 	bool isNew = !(mAddrs.contains(instance) && mAddrs[instance].contains(addr));
 	if((!isConnected(instance) || isNew) && connectAddress(addr, instance))
 	{
-		if(isNew) mAddrs[instance].push_back(addr);
+		if(isNew) 
+		{
+			AddressArray &array = mAddrs[instance];
+			array.push_back(addr);
+			std::sort(array.rbegin(), array.rend());
+		}
 		return true;
 	}
 	
@@ -706,8 +711,8 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
  	Synchronize(this);
 	
 	if(addr.isNull()) return false;
-	if(instance == Core::Instance->getName()) return false;
-	if(Core::Instance->hasPeer(Identifier(mPeering, instance))) return true;
+	if(mUniqueName == mAddressBook->userName() && instance == Core::Instance->getName()) return false;
+	if(isConnected(instance)) return true;
 	
 	Identifier identifier(mPeering, instance);
 	try {

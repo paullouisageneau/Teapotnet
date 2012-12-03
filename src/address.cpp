@@ -359,19 +359,29 @@ socklen_t Address::addrLen(void) const
 bool operator < (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() < a2.addrLen();
+	if(!a1.isLocal())
+	{
+		if(a2.isLocal()) return true;
+		if(a2.isPrivate() && !a1.isPrivate()) return true;
+	}
 	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) < 0;
 }
 
 bool operator > (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() > a2.addrLen();
-	else return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) > 0;
+	if(!a2.isLocal())
+	{
+		if(a1.isLocal()) return true;
+		if(a1.isPrivate() && !a2.isPrivate()) return true;
+	}
+	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) > 0;
 }
 
 bool operator == (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return false;
-	else return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) == 0;
+	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) == 0;
 }
 
 bool operator != (const Address &a1, const Address &a2)
