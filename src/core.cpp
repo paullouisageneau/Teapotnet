@@ -289,11 +289,12 @@ bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 	Assert(handler != NULL);
 	Synchronize(this);
 	
-	if(!mHandlers.contains(peer)) mHandlers.insert(peer, handler);
-	else {
+	if(mHandlers.contains(peer))
+	{
 		if(mHandlers[peer] != handler) return false;
 	}
 	
+	mHandlers.insert(peer, handler);
 	return true;
 }
 
@@ -546,6 +547,13 @@ void Core::Handler::run(void)
 		if(mIsIncoming)
 		{
 			mPeering = peering;
+			
+			if(mPeering.getName().empty())
+			{
+				Log("Core::Handler", "Warning: got peering with undefined instance");
+				mPeering.setName("default");
+			}
+	
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
 				unsigned timeout = 2000;
@@ -1145,7 +1153,7 @@ void Core::Handler::Sender::run(void)
 		
 		Log("Core::Handler::Sender", "Finished");
 	}
-	catch(std::exception &e)
+	catch(const std::exception &e)
 	{
 		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
 	}
