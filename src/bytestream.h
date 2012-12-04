@@ -42,8 +42,8 @@ public:
 
 	size_t	readBinary(ByteStream &s);
 	size_t	readBinary(ByteStream &s, size_t max);
+	size_t	readBinary(ByteString &s);
 	bool	readBinary(Serializable &s);
-	bool	readBinary(ByteString &s);
 	bool	readBinary(int8_t &i);
 	bool	readBinary(int16_t &i);
 	bool	readBinary(int32_t &i);
@@ -58,8 +58,8 @@ public:
 	template<class T> bool readBinary(T *ptr);
 
 	void	writeBinary(ByteStream &s);
-	void	writeBinary(const Serializable &s);
 	void	writeBinary(const ByteString &s);
+	void	writeBinary(const Serializable &s);
 	void	writeBinary(int8_t i);
 	void	writeBinary(int16_t i);
 	void	writeBinary(int32_t i);

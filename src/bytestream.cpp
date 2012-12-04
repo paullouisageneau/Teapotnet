@@ -63,13 +63,13 @@ size_t ByteStream::readBinary(ByteStream &s, size_t max)
 	return max-left;
 }
 
-bool ByteStream::readBinary(Serializable &s)
+size_t ByteStream::readBinary(ByteString &s)
 {
-	ByteSerializer serializer(this);
-	return s.deserialize(serializer);
+	ByteStream &stream = s;
+	return readBinary(stream);
 }
 
-bool ByteStream::readBinary(ByteString &s)
+bool ByteStream::readBinary(Serializable &s)
 {
 	ByteSerializer serializer(this);
 	return s.deserialize(serializer);
@@ -151,13 +151,14 @@ void ByteStream::writeBinary(ByteStream &s)
 	s.readBinary(*this);
 }
 
-void ByteStream::writeBinary(const Serializable &s)
+void ByteStream::writeBinary(const ByteString &s)
 {
-	ByteSerializer serializer(this);
-	s.serialize(serializer);
+	ByteString tmp(s);
+	ByteStream &stream = tmp;
+	writeBinary(stream);
 }
 
-void ByteStream::writeBinary(const ByteString &s)
+void ByteStream::writeBinary(const Serializable &s)
 {
 	ByteSerializer serializer(this);
 	s.serialize(serializer);
