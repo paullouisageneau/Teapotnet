@@ -651,17 +651,24 @@ void Core::Handler::run(void)
 						
 					if(otherHandler)
 					{
-						otherHandler->lock();
-						Stream *otherStream = otherHandler->mStream;
-						Socket *otherSock   = otherHandler->mSock;
-						otherHandler->mStream = NULL;
-						otherHandler->mSock   = NULL;
+						Stream *otherStream = NULL;
+						Socket *otherSock   = NULL;
+					  
+						{
+							Synchronize(otherHandler);
 							
-						mSock->write(otherHandler->mObfuscatedHello);
-						otherSock->write(mObfuscatedHello);
+							otherStream = otherHandler->mStream;
+							otherSock   = otherHandler->mSock;
+							otherHandler->mStream = NULL;
+							otherHandler->mSock   = NULL;
+							
+							mSock->writeBinary(otherHandler->mObfuscatedHello);
+							otherSock->writeBinary(mObfuscatedHello);
+							mObfuscatedHello.clear();
 						
-						otherHandler->unlock();
-						otherHandler->notifyAll();
+							otherHandler->notifyAll();
+						}
+						
 						otherHandler = NULL;
 						
 						Log("Core::Handler", "Forwarding: Successfully forwarded connection");
