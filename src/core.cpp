@@ -33,7 +33,8 @@ Core *Core::Instance = NULL;
 
 Core::Core(int port) :
 		mSock(port),
-		mLastRequest(0)
+		mLastRequest(0),
+		mLastPublicIncomingTime(0)
 {
 	Interface::Instance->add("/peers", this);
 }
