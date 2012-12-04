@@ -589,10 +589,10 @@ void Core::Handler::run(void)
 				{
 					if(handler)
 					{
-						Log("Core::Handler", "Forwarding: Connection already forwarded");
+						Log("Core::Handler", "Connection already forwarded");
 					}
 					else {
-					  	Log("Core::Handler", "Forwarding: Reached meeting point");
+					  	//Log("Core::Handler", "Reached forwarding meeting point");
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
 						wait(2000);
@@ -601,7 +601,7 @@ void Core::Handler::run(void)
 					return;
 				}
 				
-				Log("Core::Handler", "Forwarding: Got non local peering, asking peers");
+				Log("Core::Handler", "Got non local peering, asking peers");
 				
 				String adresses;
 				List<Address> list;
@@ -635,7 +635,7 @@ void Core::Handler::run(void)
 				
 				if(!remote.empty())
 				{
-					Log("Core::Handler", "Forwarding: Got positive response for peering");
+					Log("Core::Handler", "Got positive response for peering");
 						
 					remote >> mRemotePeering;
 					SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
@@ -675,7 +675,7 @@ void Core::Handler::run(void)
 						
 						otherHandler = NULL;
 						
-						Log("Core::Handler", "Forwarding: Successfully forwarded connection");
+						Log("Core::Handler", "Successfully forwarded connection");
 						
 						// Transfert
 						Socket::Transfert(mSock, otherSock);
@@ -686,7 +686,7 @@ void Core::Handler::run(void)
 						delete otherSock;
 					}
 					else {
-						Log("Core::Handler", "Forwarding: No other handler reached meeting point");
+						Log("Core::Handler", "No other handler reached forwarding meeting point");
 					}
 						
 					return;
@@ -753,7 +753,7 @@ void Core::Handler::run(void)
 		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 		
 		if(test_b != hash_b) throw Exception("Authentication failed");
-		Log("Core::Handler", "Authentication successful");
+		Log("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
 		mIsAuthenticated = true;		
 
 		// Set encryption key and IV
