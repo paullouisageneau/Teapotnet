@@ -168,7 +168,7 @@ void Core::run(void)
 			Address addr = sock->getRemoteAddress();
 			Log("Core", "Incoming connexion from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
-			addPeer(sock, Identifier::Null);
+			addPeer(sock, Identifier::Null, true);	// async
 		}
 	}
 	catch(const NetException &e)
