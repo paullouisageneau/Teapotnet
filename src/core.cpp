@@ -1022,6 +1022,7 @@ void Core::Handler::Sender::run(void)
 			{
 				//Log("Core::Handler::Sender", "No pending tasks, waiting");
 				wait(readTimeout/2);
+				if(mShouldStop) break;
 				
 				// Keep Alive
 				String args;
