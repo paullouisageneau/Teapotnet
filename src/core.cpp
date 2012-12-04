@@ -104,7 +104,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-bool Core::addPeer(Socket *sock, const Identifier &peering)
+bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 {
 	Assert(sock);
 	Synchronize(this);
@@ -117,10 +117,18 @@ bool Core::addPeer(Socket *sock, const Identifier &peering)
 		Log("Core", "Spawning new handler");
 		Handler *handler = new Handler(this,sock);
 		if(peering != Identifier::Null) handler->setPeering(peering);
-		Synchronize(handler);
-		handler->start(true);	// autodelete
-		if(!handler->wait(10000)) return false;	// TODO: timeout
-		return handler->isAuthenticated();
+
+		if(async)
+		{
+			handler->start(true);
+			return true;
+		}
+		else {
+			Synchronize(handler);
+			handler->start(true);	// autodelete
+			if(!handler->wait(10000)) return false;	// TODO: timeout
+			return handler->isAuthenticated();
+		}
 	}
 }
 

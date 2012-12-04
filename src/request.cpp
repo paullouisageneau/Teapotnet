@@ -106,7 +106,7 @@ bool Request::execute(User *user)
 {
 	Assert(user);
 	Synchronize(this);
-	
+
 	AddressBook *addressBook = user->addressBook();
 	Store *store = user->store();
 	
@@ -124,22 +124,25 @@ bool Request::execute(User *user)
 		else command == "digest";
 		argument = mTarget; 
 	}
-	
+
 	if(command.empty() || command == "digest" || command == "peer")
 	{
 		Identifier identifier;
-		try { mTarget >> identifier; }
+		try { argument >> identifier; }
 		catch(const Exception &e) { identifier.clear(); }
-		
+	
 		if(!identifier.empty())
 		{
 			if(command == "peer")
 			{
+				Log("Request::execute", "Got request for peer " + identifier.toString());
+				
 				if(!mParameters.contains("adresses"))
 					throw Exception("Missing addresses in peer request");
 				
 				AddressBook::Contact *contact = addressBook->getContact(identifier);
-				if(contact && !contact->isConnected())
+				const String &instance = identifier.getName();
+				if(contact && !contact->isConnected(instance))
 				{
 					List<String> list;
 					mParameters.get("adresses").explode(list, ',');
@@ -152,18 +155,18 @@ bool Request::execute(User *user)
 						++it)
 					try {
 						Address addr(*it);
-						if(contact->addAddress(addr, true))
-						{
-							StringMap parameters;
-							parameters["remote"] = contact->remotePeering().toString();
-							Response *response = new Response(Response::Success, parameters);
-							addResponse(response);
-							return true;
-						}
+						Socket *sock = new Socket(addr, 1000);	// TODO: timeout
+						Core::Instance->addPeer(sock, identifier, true);	// async					
+						Log("Request::execute", "Socket connected to peer");						
+						StringMap parameters;
+						parameters["remote"] = contact->remotePeering().toString();
+						Response *response = new Response(Response::Success, parameters);
+						addResponse(response);
+						return true;
 					}
 					catch(...)
 					{
-					  
+
 					}
 
 					addResponse(new Response(Response::Failed));
