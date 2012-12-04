@@ -636,18 +636,20 @@ void Core::Handler::run(void)
 					remote >> mRemotePeering;
 					SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
 						
+					Handler *otherHandler = NULL;
+					
 					unsigned timeout = 2000;
 					mCore->mMeetingPoint.lock();
 					mCore->mMeetingPoint.notifyAll();
 					while(timeout)
 					{
-						if(SynchronizeTest(mCore, mCore->mRedirections.contains(mRemotePeering))) break;
+						SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
+						if(otherHandler) break;
 						mCore->mMeetingPoint.wait(timeout);
 					}
 					mCore->mMeetingPoint.unlock();
 						
-					Handler *otherHandler = NULL;
-					if(SynchronizeTest(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler) && otherHandler))
+					if(otherHandler)
 					{
 						otherHandler->lock();
 						Stream *otherStream = otherHandler->mStream;
