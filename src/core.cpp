@@ -746,7 +746,7 @@ void Core::Handler::run(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
-		if(!mRemoteAddr.isPrivate())
+		if(!mRemoteAddr.isPrivate() && !mRemoteAddr.isLocal())
 		{
 			Synchronize(mCore);
 			if(!mIsIncoming)
