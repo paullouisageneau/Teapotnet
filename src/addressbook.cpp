@@ -478,7 +478,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		
 		String addresses;
 		for(	List<Address>::iterator it = list.begin();
-			 it != list.end();
+			it != list.end();
 			++it)
 		{
 			if(!addresses.empty()) addresses+= ',';
@@ -799,10 +799,10 @@ void AddressBook::Contact::update(void)
 	AddressMap newAddrs;
 	if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
-		if(addAddresses(newAddrs)) return;
+		addAddresses(newAddrs);
 	}
 	else {
-		if(connectAddresses(mAddrs)) return;
+		connectAddresses(mAddrs);
 	}
 	
 	AddressMap altAddrs;
