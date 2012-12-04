@@ -617,18 +617,22 @@ void Core::Handler::run(void)
 				Request request(String("peer:") + mPeering.toString(), false);
 				request.setParameter("adresses", adresses);
 				if(!instance.empty()) request.setParameter("instance", instance);
-				request.submit();
-				request.wait(2000);
-					
+				
 				String remote;
-				request.lock();
-				for(int i=0; i<request.responsesCount(); ++i)
+				
 				{
-					if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
-						break;
-				}
-				request.unlock();
+					Synchronize(&request);
+					
+					request.submit();
+					request.wait(2000);
 						
+					for(int i=0; i<request.responsesCount(); ++i)
+					{
+						if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
+							break;
+					}
+				}
+				
 				if(!remote.empty())
 				{
 					Log("Core::Handler", "Forwarding: Got positive response for peering");
@@ -687,8 +691,7 @@ void Core::Handler::run(void)
 						
 					return;
 				}
-				
-				request.unlock();	
+					
 				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
 				return;
 			}
