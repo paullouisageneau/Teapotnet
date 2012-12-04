@@ -125,7 +125,7 @@ bool Request::execute(User *user)
 		argument = mTarget; 
 	}
 
-	if(mParameters.contains("instance") && mParameters["instance"] != mCore->getName())
+	if(mParameters.contains("instance") && mParameters["instance"] != Core::Instance->getName())
 	{
 		addResponse(new Response(Response::NotFound));
 		return false;

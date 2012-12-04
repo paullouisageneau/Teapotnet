@@ -584,10 +584,10 @@ void Core::Handler::run(void)
 				}
 				mCore->mMeetingPoint.unlock();
 				
-				Handler *handler;
+				Handler *handler = NULL;
 				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
 				{
-					if(!handler)
+					if(handler)
 					{
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
@@ -612,7 +612,7 @@ void Core::Handler::run(void)
 					
 				Request request(String("peer:") + mPeering.toString(), false);
 				request.setParameter("adresses", adresses);
-				request.setParameter("instance", instance);
+				if(!instance.empty()) request.setParameter("instance", instance);
 				request.submit();
 				request.wait(2000);
 					
@@ -627,10 +627,10 @@ void Core::Handler::run(void)
 						
 						remote >> mRemotePeering;
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
-						mCore->mMeetingPoint.notifyAll();
 						
 						unsigned timeout = 2000;
 						mCore->mMeetingPoint.lock();
+						mCore->mMeetingPoint.notifyAll();
 						while(timeout)
 						{
 							if(SynchronizeTest(mCore, mCore->mRedirections.contains(mRemotePeering))) break;
@@ -638,7 +638,7 @@ void Core::Handler::run(void)
 						}
 						mCore->mMeetingPoint.unlock();
 						
-						Handler *otherHandler;
+						Handler *otherHandler = NULL;
 						if(SynchronizeTest(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler) && otherHandler))
 						{
 							otherHandler->lock();
