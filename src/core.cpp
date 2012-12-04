@@ -536,19 +536,21 @@ void Core::Handler::run(void)
 			parameters["application"] << APPNAME;
 			parameters["version"] << APPVERSION;
 			parameters["nonce"] << nonce_a;
+			parameters["instance"] << mPeering.getName();
 			sendCommand(mStream, "H", args, parameters);
 		}
 
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command != "H") throw Exception("Unexpected command: " + command);
 		
-		String appname, appversion;
+		String appname, appversion, instance;
 		Identifier peering, nonce_b;
 		args >> peering;
 		parameters["application"] >> appname;
 		parameters["version"] >> appversion;
 		parameters["nonce"] >> nonce_b;
-
+		parameters.get("instance", instance);
+		
 		if(!mIsIncoming && mPeering != peering) 
 			throw Exception("Peering in response does not match");
 		
@@ -562,7 +564,8 @@ void Core::Handler::run(void)
 				mPeering.setName("default");
 			}
 	
-			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+			if((!instance.empty() && instance != mCore->getName())
+				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
 				unsigned timeout = 2000;
 				mCore->mMeetingPoint.lock();
@@ -586,7 +589,7 @@ void Core::Handler::run(void)
 					return;
 				}
 				
-				Log("Core::Handler", "Got unknown peering, asking peers");
+				Log("Core::Handler", "Got non local peering, asking peers");
 				
 				String adresses;
 				List<Address> list;
@@ -671,6 +674,7 @@ void Core::Handler::run(void)
 			parameters["application"] << APPNAME;
 			parameters["version"] << APPVERSION;
 			parameters["nonce"] << nonce_a;
+			parameters["instance"] << mPeering.getName();
 			sendCommand(mStream, "H", args, parameters);
 		}
 		

@@ -714,6 +714,8 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	if(instance == Core::Instance->getName()) return false;
 	if(isConnected(instance)) return true;
 	
+	//Log("AddressBook::Contact::connectAddress", "Connecting " + instance + " on " + addr.toString());
+	
 	Identifier identifier(mPeering, instance);
 	try {
 		Desynchronize(this);
