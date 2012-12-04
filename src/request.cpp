@@ -125,6 +125,12 @@ bool Request::execute(User *user)
 		argument = mTarget; 
 	}
 
+	if(mParameters.contains("instance") && mParameters["instance"] != mCore->getName())
+	{
+		addResponse(new Response(Response::NotFound));
+		return false;
+	}
+	
 	if(command.empty() || command == "digest" || command == "peer")
 	{
 		Identifier identifier;

@@ -612,6 +612,7 @@ void Core::Handler::run(void)
 					
 				Request request(String("peer:") + mPeering.toString(), false);
 				request.setParameter("adresses", adresses);
+				request.setParameter("instance", instance);
 				request.submit();
 				request.wait(2000);
 					
