@@ -587,8 +587,12 @@ void Core::Handler::run(void)
 				Handler *handler = NULL;
 				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
 				{
-					if(!handler)
+					if(handler)
 					{
+						Log("Core::Handler", "Forwarding: Connection already forwarded");
+					}
+					else {
+					  	Log("Core::Handler", "Forwarding: Reached meeting point");
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
 						wait(2000);
@@ -597,7 +601,7 @@ void Core::Handler::run(void)
 					return;
 				}
 				
-				Log("Core::Handler", "Got non local peering, asking peers");
+				Log("Core::Handler", "Forwarding: Got non local peering, asking peers");
 				
 				String adresses;
 				List<Address> list;
@@ -616,57 +620,63 @@ void Core::Handler::run(void)
 				request.submit();
 				request.wait(2000);
 					
+				String remote;
 				request.lock();
 				for(int i=0; i<request.responsesCount(); ++i)
 				{
-					String remote;
 					if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
+						break;
+				}
+				request.unlock();
+						
+				if(!remote.empty())
+				{
+					Log("Core::Handler", "Forwarding: Got positive response for peering");
+						
+					remote >> mRemotePeering;
+					SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
+						
+					unsigned timeout = 2000;
+					mCore->mMeetingPoint.lock();
+					mCore->mMeetingPoint.notifyAll();
+					while(timeout)
 					{
-						request.unlock();
-						Log("Core::Handler", "Got positive response for peering");
-						
-						remote >> mRemotePeering;
-						SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
-						
-						unsigned timeout = 2000;
-						mCore->mMeetingPoint.lock();
-						mCore->mMeetingPoint.notifyAll();
-						while(timeout)
-						{
-							if(SynchronizeTest(mCore, mCore->mRedirections.contains(mRemotePeering))) break;
-							mCore->mMeetingPoint.wait(timeout);
-						}
-						mCore->mMeetingPoint.unlock();
-						
-						Handler *otherHandler = NULL;
-						if(SynchronizeTest(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler) && otherHandler))
-						{
-							otherHandler->lock();
-							Stream *otherStream = otherHandler->mStream;
-							Socket *otherSock   = otherHandler->mSock;
-							otherHandler->mStream = NULL;
-							otherHandler->mSock   = NULL;
-								
-							mSock->write(otherHandler->mObfuscatedHello);
-							otherSock->write(mObfuscatedHello);
-							
-							otherHandler->unlock();
-							otherHandler->notifyAll();
-							otherHandler = NULL;
-							
-							Log("Core::Handler", "Successfully forwarded connection");
-							
-							// Transfert
-							Socket::Transfert(mSock, otherSock);
-							otherSock->close();
-							mSock->close();
-								
-							if(otherStream != otherSock) delete otherStream;
-							delete otherSock;
-						}
-						
-						return;
+						if(SynchronizeTest(mCore, mCore->mRedirections.contains(mRemotePeering))) break;
+						mCore->mMeetingPoint.wait(timeout);
 					}
+					mCore->mMeetingPoint.unlock();
+						
+					Handler *otherHandler = NULL;
+					if(SynchronizeTest(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler) && otherHandler))
+					{
+						otherHandler->lock();
+						Stream *otherStream = otherHandler->mStream;
+						Socket *otherSock   = otherHandler->mSock;
+						otherHandler->mStream = NULL;
+						otherHandler->mSock   = NULL;
+							
+						mSock->write(otherHandler->mObfuscatedHello);
+						otherSock->write(mObfuscatedHello);
+						
+						otherHandler->unlock();
+						otherHandler->notifyAll();
+						otherHandler = NULL;
+						
+						Log("Core::Handler", "Forwarding: Successfully forwarded connection");
+						
+						// Transfert
+						Socket::Transfert(mSock, otherSock);
+						otherSock->close();
+						mSock->close();
+						
+						if(otherStream != otherSock) delete otherStream;
+						delete otherSock;
+					}
+					else {
+						Log("Core::Handler", "Forwarding: No other handler reached meeting point");
+					}
+						
+					return;
 				}
 				
 				request.unlock();	
