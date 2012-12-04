@@ -524,7 +524,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker?id=" + peering.toString();
 		else url = "http://" + tracker + "/tracker?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
-		  
+		
 		String tmp;
 		if(Http::Get(url, &tmp) != 200) return false;
 		tmp.trim();
