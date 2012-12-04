@@ -587,7 +587,7 @@ void Core::Handler::run(void)
 				Handler *handler = NULL;
 				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
 				{
-					if(handler)
+					if(!handler)
 					{
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
