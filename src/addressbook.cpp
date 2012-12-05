@@ -986,7 +986,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							response.headers["Last-Modified"] = time.toHttpDate();
 							
 							response.send();
-							response.sock->write(tresponse->content());
+							response.sock->write(*tresponse->content());
 							return;
 						}
 					}
