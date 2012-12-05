@@ -1033,9 +1033,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 							page.open("tr");
 							page.open("td",".filename"); 
-							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-							else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
-							else page.link(base + map.get("name") + "?instance=" + map.get("instance") + "&file=1", map.get("name"));
+							if(map.get("type") == "directory") page.link(base + map.get("name").urlEncode(), map.get("name"));
+							else if(!map.get("hash").empty()) page.link("/" + map.get("hash").urlEncode(), map.get("name"));
+							else page.link(base + map.get("name").urlEncode() + "?instance=" + map.get("instance").urlEncode() + "&file=1", map.get("name"));
 							page.close("td");
 							page.open("td",".size"); 
 							if(map.get("type") == "directory") page.text("directory");
@@ -1047,13 +1047,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 					page.close("div");
 					page.footer();
-					return;
 				}
 				catch(const Exception &e)
 				{
 					Log("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
-					throw;
 				}
+				
+				return;
 			}
 			else if(directory == "search")
 			{
@@ -1124,9 +1124,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td",".filename"); 
-						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
-						else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
-						else page.link(urlPrefix() + "/files" + map.get("path"), map.get("name") + "?instance=" + tresponse->instance() + "&file=1");
+						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path").urlEncode(), map.get("name"));
+						else if(!map.get("hash").empty()) page.link("/" + map.get("hash").urlEncode(), map.get("name"));
+						else page.link(urlPrefix() + "/files" + map.get("path").urlEncode() + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
 						page.close("td");
 						page.open("td",".size"); 
 						if(map.get("type") == "directory") page.text("directory");
