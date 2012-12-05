@@ -826,7 +826,8 @@ String Store::urlToPath(const String &url) const
 	String path = dir.cut('/');
 
 	// Do not accept the parent directory symbol as a security protection
-	if(path.find("..") != String::NotFound) throw Exception("Invalid URL");
+	if(path == ".." || path.find("../") != String::NotFound || path.find("/..") != String::NotFound)
+		throw Exception("Invalid URL");
 
 	String dirPath;
 	if(!mDirectories.get(dir,dirPath)) return "";
