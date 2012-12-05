@@ -728,8 +728,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			statement.value(3, dbTime);
 			statement.value(4, dbType);
 			statement.finalize();
-				
-			if(time == dbTime && size == dbSize && type == dbType && digest.size() == 64)
+			
+			if(time == dbTime && size == dbSize && type == dbType && !(type && digest.empty()))
 			{
 				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, seen=1 WHERE id=?1");
 				statement.bind(1, id);
