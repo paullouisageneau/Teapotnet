@@ -1135,6 +1135,21 @@ void Core::Handler::Sender::run(void)
 			Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
 			while(it != mTransferts.end())
 			{
+				UnPrioritize(this);
+			  
+				// Check for tasks with higher priority
+				if(!mMessagesQueue.empty()
+				|| !mRequestsQueue.empty())
+					break;
+			  	
+				for(int i=0; i<mRequestsToRespond.size(); ++i)
+				{
+					Synchronize(mRequestsToRespond[i]);
+					for(int j=0; j<mRequestsToRespond[i]->responsesCount(); ++j)
+						if(!mRequestsToRespond[i]->response(j)->mTransfertStarted) 
+							break;
+				}
+				
 				size_t size = 0;
 				
 				try {

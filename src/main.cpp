@@ -99,10 +99,14 @@ int main(int argc, char** argv)
 		Config::Default("static_dir", "static");
 		Config::Default("shared_dir", "shared");
 		Config::Default("external_address", "auto");
-		Config::Default("http_timeout", "5000");
-		Config::Default("request_timeout", "5000");
+		Config::Default("http_timeout", "10000");
+		Config::Default("request_timeout", "10000");
 		Config::Default("tpot_timeout", "5000");
 		Config::Default("tpot_read_timeout", "60000");
+		
+		if(Config::Get("request_timeout").toInt() < 10000)
+			Config::Put("request_timeout", "10000");	
+		
 		Config::Save(configFileName);
 		
 		StringMap args;

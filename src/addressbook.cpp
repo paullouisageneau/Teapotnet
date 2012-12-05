@@ -1006,6 +1006,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							response.send();
 							
 							try {
+								Desynchronize(this);
 								response.sock->write(*tresponse->content());
 							}
 							catch(const NetException &e)
