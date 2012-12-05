@@ -775,7 +775,16 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			statement.bind(1, name);
 			statement.execute();
 			
-			int64_t nameRowId = mDatabase->insertId();
+			// This seems bogus
+			//int64_t nameRowId = mDatabase->insertId();
+			
+			// Dirty way to get the correct rowid
+			int64_t nameRowId = 0;
+			statement = mDatabase->prepare("SELECT rowid FROM names WHERE name = ?1 LIMIT 1");
+			statement.bind(1, name);
+			if(statement.step()) statement.value(0, nameRowId);
+			statement.finalize();
+			//
 			
 			statement = mDatabase->prepare("INSERT INTO files (parent_id, url, digest, size, time, type, name_rowid, seen)\
 							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)");
