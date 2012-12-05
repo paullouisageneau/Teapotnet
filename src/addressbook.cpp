@@ -802,6 +802,14 @@ void AddressBook::Contact::update(void)
 	AddressMap newAddrs;
 	if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
+		for(AddressMap::iterator it = newAddrs.begin();
+			it != newAddrs.end();
+			++it)
+		{
+			AddressArray &array = it->second;
+			std::sort(array.rbegin(), array.rend());
+		}
+		
 		addAddresses(newAddrs);
 	}
 	else {
