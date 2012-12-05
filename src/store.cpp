@@ -193,12 +193,13 @@ void Store::update(void)
 	
 	mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
 	
-	for(StringMap::iterator it = mDirectories.begin();
-			it != mDirectories.end();
-			++it)
+	Array<String> names;
+	mDirectories.getKeys(names);
+	
+	for(int i=0; i<names.size(); ++i)
 	try {
-		const String &name = it->first;
-		const String &path = it->second;
+		const String &name = names[i];
+		const String &path = mDirectories.get(name);
 		String absPath = mBasePath + path;
 		String url = String("/") + name;
 		
@@ -209,17 +210,15 @@ void Store::update(void)
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Update failed for directory ") + it->first + ": " + e.what());
+		Log("Store", String("Update failed for directory ") + names[i] + ": " + e.what());
 	}
 	
 	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
 	
-	for(StringMap::iterator it = mDirectories.begin();
-			it != mDirectories.end();
-			++it)
+	for(int i=0; i<names.size(); ++i)
 	try {
-		const String &name = it->first;
-		const String &path = it->second;
+		const String &name = names[i];
+		const String &path = mDirectories.get(name);
 		String absPath = mBasePath + path;
 		String url = String("/") + name;
 		
@@ -227,11 +226,11 @@ void Store::update(void)
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Hashing failed for directory ") + it->first + ": " + e.what());
+		Log("Store", String("Hashing failed for directory ") + names[i] + ": " + e.what());
 
 	}
 	
-	Log("Store::update", "Finished");
+	//Log("Store::update", "Finished");
 }
 
 bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
