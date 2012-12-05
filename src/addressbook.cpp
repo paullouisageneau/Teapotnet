@@ -989,6 +989,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							response.sock->write(*tresponse->content());
 							return;
 						}
+						
+						throw 404;
 					}
 					
 					Http::Response response(request,200);
