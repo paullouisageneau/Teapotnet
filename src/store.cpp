@@ -205,7 +205,7 @@ void Store::update(void)
 		if(!Directory::Exist(absPath))
 			Directory::Create(absPath);
 		
-		updateRec(url, path, 0);
+		updateRec(url, path, 0, false);
 	}
 	catch(const Exception &e)
 	{
@@ -214,6 +214,23 @@ void Store::update(void)
 	}
 	
 	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
+	
+	for(StringMap::iterator it = mDirectories.begin();
+			it != mDirectories.end();
+			++it)
+	try {
+		const String &name = it->first;
+		const String &path = it->second;
+		String absPath = mBasePath + path;
+		String url = String("/") + name;
+		
+		updateRec(url, path, 0, true);
+	}
+	catch(const Exception &e)
+	{
+		Log("Store", String("Hashing failed for directory ") + it->first + ": " + e.what());
+
+	}
 	
 	//Log("Store::update", "Finished");
 }
@@ -680,7 +697,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	return true;
 }
 
-void Store::updateRec(const String &url, const String &path, int64_t parentId)
+void Store::updateRec(const String &url, const String &path, int64_t parentId, bool computeDigests)
 {
 	Synchronize(this);
 
@@ -710,7 +727,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			statement.value(4, dbType);
 			statement.finalize();
 				
-			if(time == dbTime && size == dbSize && type == dbType)
+			if(time == dbTime && size == dbSize && type == dbType && !digest.empty())
 			{
 				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, seen=1 WHERE id=?1");
 				statement.bind(1, id);
@@ -719,11 +736,12 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			}
 			else {	// file has changed
 				  
-				if(type)
+				digest.clear();
+			  
+				if(type && computeDigests)
 				{
 					Desynchronize(this);
 					File data(absPath, File::Read);
-					digest.clear();
 					Sha512::Hash(data, digest);
 					data.close();
 				}
@@ -742,11 +760,12 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 			statement.finalize();
 			Log("Store", String("Processing: ") + path);
 			  
-			if(type) 
+			digest.clear();
+			
+			if(type && computeDigests)
 			{
 				Desynchronize(this);
 				File data(absPath, File::Read);
-				digest.clear();
 				Sha512::Hash(data, digest);
 				data.close();
 			}
@@ -781,7 +800,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId)
 				
 				String childPath = path + Directory::Separator + dir.fileName();
 				String childUrl  = url + '/' + dir.fileName();
-				updateRec(childUrl, childPath, id);
+				updateRec(childUrl, childPath, id, computeDigests);
 			}
 		}
 		else {		// file

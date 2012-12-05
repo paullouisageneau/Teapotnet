@@ -395,7 +395,7 @@ void User::http(const String &prefix, Http::Request &request)
 					StringMap map = tresponse->parameters();
 					if(!map.contains("type")) continue;
 					if(!map.contains("path")) continue;
-					if(map.get("type") != "directory" && !map.contains("hash")) continue;
+					if(!map.contains("hash")) map["hash"] = "";
 					if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 					
 					page.open("tr");
@@ -404,7 +404,8 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					page.open("td",".filename"); 
 					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));
-					else page.link("/" + map.get("hash"), map.get("name"));
+					else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+					else page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name") + "?instance=" + tresponse->instance() + "&file=1");
 					page.close("td");
 					page.open("td",".size"); 
 					if(map.get("type") == "directory") page.text("directory");

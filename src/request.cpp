@@ -238,7 +238,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	if(!entry.type) rparameters["type"] = "directory";
 	else {
 		rparameters["type"] = "file";
-		rparameters["hash"] << entry.digest;
+		if(!entry.digest.empty()) rparameters["hash"] << entry.digest;
 	}
 		  
 	if(!mIsData) return new Response(Response::Success, rparameters, NULL);
@@ -274,7 +274,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 				if(!entry.type) map["type"] = "directory";
 				else {
 					map["type"] = "file";
-					map["hash"] << entry.digest;
+					if(!entry.digest.empty()) map["hash"] << entry.digest;
 				}
 				serializer.output(map);
 			}

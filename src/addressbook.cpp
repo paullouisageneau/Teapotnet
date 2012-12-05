@@ -30,6 +30,7 @@
 #include "yamlserializer.h"
 #include "jsonserializer.h"
 #include "portmapping.h"
+#include "mime.h"
 
 namespace tpot
 {
@@ -914,10 +915,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(directory == "files")
 			{
 				String target(url);
-				if(target.empty() || target[target.size()-1] != '/') 
-					target+= '/';
 				
-				Request trequest(target, false);
+				if(request.get.contains("file"))
+				{
+					while(!target.empty() && target[target.size()-1] == '/')
+						target.resize(target.size()-1);
+				}
+				else {
+					if(target.empty() || target[target.size()-1] != '/') 
+						target+= '/';
+				}
+				
+				Request trequest(target, request.get.contains("file"));
 				
 				// Self
 				if(mUniqueName == mAddressBook->userName())
@@ -928,7 +937,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				Synchronize(&trequest);
 				try {
 					const unsigned timeout = Config::Get("request_timeout").toInt();
-				  	trequest.submit(mPeering);
+					String instance;
+				  	if(request.get.get("instance", instance)) trequest.submit(Identifier(mPeering, instance));
+					else trequest.submit(mPeering);
 					trequest.wait(timeout);
 				}
 				catch(const Exception &e)
@@ -955,9 +966,27 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(!trequest.isSuccessful()) throw 404;
 					
 				try {
+					if(request.get.contains("file"))
+					{
+						Request::Response *tresponse = trequest.response(0);
+					 	StringMap params = tresponse->parameters();
+						
+						Time time;
+						params.get("time").extract(time);
+						
+						Http::Response response(request,200);
+						response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
+						response.headers["Content-Type"] = Mime::GetType(params.get("name"));
+						response.headers["Content-Length"] = params.get("size");
+						response.headers["Last-Modified"] = time.toHttpDate();
+						
+						response.send();
+						response.sock->write(tresponse->content());
+					}
+					
 					Http::Response response(request,200);
 					response.send();	
-				
+					
 					Html page(response.sock);
 					if(target.empty() || target == "/") page.header(mName+": Browse files");
 					else page.header(mName+": "+target.substr(1));
@@ -970,19 +999,20 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					  	Request::Response *tresponse = trequest.response(i);
 						if(tresponse->error()) continue;
 					
-						const StringMap &params = tresponse->parameters();
+						StringMap params = tresponse->parameters();
 						instances.insert(tresponse->instance());
+						params.insert("instance", tresponse->instance());
 
 						// Check info
 						if(!params.contains("type")) continue;
 						if(!params.contains("name")) continue;
-						if(params.get("type") != "directory" && !params.contains("hash")) continue;
-
+						if(!params.contains("hash")) params.insert("hash", "");
+						
 						// Sort
 						// Directories with the same name appears only once
 						// Files with identical content appears only once
 						if(params.get("type") == "directory") files.insert("0"+params.get("name"),params);
-						else files.insert("1"+params.get("name")+params.get("hash").toString(), params);
+						else files.insert("1"+params.get("name")+params.get("hash"), params);
 					}
 
 					page.open("div",".box");
@@ -1000,11 +1030,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							++it)
 						{
 							StringMap &map = it->second;
-								
+
 							page.open("tr");
 							page.open("td",".filename"); 
 							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-							else page.link("/" + map.get("hash"), map.get("name"));
+							else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+							else page.link(base + map.get("name") + "?instance=" + map.get("instance") + "&file=1", map.get("name"));
 							page.close("td");
 							page.open("td",".size"); 
 							if(map.get("type") == "directory") page.text("directory");
@@ -1088,13 +1119,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						StringMap map = tresponse->parameters();
 						if(!map.contains("type")) continue;
 						if(!map.contains("path")) continue;
-						if(map.get("type") != "directory" && !map.contains("hash")) continue;
+						if(!map.contains("hash")) map["hash"] = "";
 						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 						
 						page.open("tr");
 						page.open("td",".filename"); 
 						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
-						else page.link("/" + map.get("hash"), map.get("name"));
+						else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+						else page.link(urlPrefix() + "/files" + map.get("path"), map.get("name") + "?instance=" + tresponse->instance() + "&file=1");
 						page.close("td");
 						page.open("td",".size"); 
 						if(map.get("type") == "directory") page.text("directory");
