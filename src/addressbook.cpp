@@ -824,8 +824,11 @@ void AddressBook::Contact::update(void)
 	}
 	
 	AddressMap altAddrs;
-	if(mFound = AddressBook::query(mPeering, mTracker, altAddrs, true))
+	if(AddressBook::query(mPeering, mTracker, altAddrs, true))
+	{
+		mFound = true;
 		connectAddresses(altAddrs);
+	}
 }
 
 void AddressBook::Contact::message(Message *message)
