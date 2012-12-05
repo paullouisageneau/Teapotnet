@@ -968,20 +968,27 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				try {
 					if(request.get.contains("file"))
 					{
-						Request::Response *tresponse = trequest.response(0);
-					 	StringMap params = tresponse->parameters();
+						for(int i=0; i<trequest.responsesCount(); ++i)
+						{
+					  		Request::Response *tresponse = trequest.response(i);
+							if(tresponse->error()) continue;
+							
+							StringMap params = tresponse->parameters();
+					 		if(!params.contains("name")) continue;
 						
-						Time time;
-						params.get("time").extract(time);
-						
-						Http::Response response(request,200);
-						response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
-						response.headers["Content-Type"] = Mime::GetType(params.get("name"));
-						response.headers["Content-Length"] = params.get("size");
-						response.headers["Last-Modified"] = time.toHttpDate();
-						
-						response.send();
-						response.sock->write(tresponse->content());
+							Time time = Time::Now();
+							if(params.contains("time")) params.get("time").extract(time);
+							
+							Http::Response response(request,200);
+							response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
+							response.headers["Content-Type"] = Mime::GetType(params.get("name"));
+							if(params.contains("size")) response.headers["Content-Length"] = params.get("size");
+							response.headers["Last-Modified"] = time.toHttpDate();
+							
+							response.send();
+							response.sock->write(tresponse->content());
+							return;
+						}
 					}
 					
 					Http::Response response(request,200);

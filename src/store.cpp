@@ -717,6 +717,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		
 		if(statement.step())	// Entry already exists
 		{	
+			statement.finalize();
+		  
 			uint64_t dbSize;
 			int64_t  dbTime;
 			int      dbType;
@@ -736,6 +738,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			}
 			else {	// file has changed
 				  
+			  	if(computeDigests) Log("Store", String("Processing: ") + path);
+			  
 				digest.clear();
 			  
 				if(type && computeDigests)
@@ -758,8 +762,9 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		}
 		else {
 			statement.finalize();
-			Log("Store", String("Processing: ") + path);
-			  
+			if(computeDigests) Log("Store", String("Processing: ") + path);
+			else Log("Store", String("Indexing: ") + path);
+			
 			digest.clear();
 			
 			if(type && computeDigests)
