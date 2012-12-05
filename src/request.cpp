@@ -224,7 +224,7 @@ bool Request::execute(User *user)
 	}
 	
 	addResponse(new Response(Response::NotFound));
-	Log("Request", "Target not Found");
+	//Log("Request", "Target not Found");
 	return false;
 }
 
