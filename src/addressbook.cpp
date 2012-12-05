@@ -990,10 +990,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						{
 					  		Request::Response *tresponse = trequest.response(i);
 							if(tresponse->error()) continue;
-							
 							StringMap params = tresponse->parameters();
 					 		if(!params.contains("name")) continue;
 						
+							Desynchronize(&trequest);
+							
 							Time time = Time::Now();
 							if(params.contains("time")) params.get("time").extract(time);
 							
