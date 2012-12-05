@@ -318,7 +318,10 @@ td.delete
 
 .files td.filename
 {
-  
+	max-width: 25em;
+	white-space:nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis; 
 }
 
 .files td.size
