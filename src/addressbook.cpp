@@ -986,7 +986,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							response.headers["Last-Modified"] = time.toHttpDate();
 							
 							response.send();
-							response.sock->write(*tresponse->content());
+							
+							try {
+								response.sock->write(*tresponse->content());
+							}
+							catch(const NetException &e)
+							{
+				  
+							}
+							
 							return;
 						}
 						
@@ -1059,7 +1067,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
+					Log("AddressBook::Contact::http", String("Error during access to remote file or directory: ") + e.what());
 				}
 				
 				return;
