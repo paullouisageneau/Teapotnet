@@ -774,7 +774,9 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
 			statement.bind(1, name);
 			statement.execute();
-				
+			
+			int64_t nameRowId = mDatabase->insertId();
+			
 			statement = mDatabase->prepare("INSERT INTO files (parent_id, url, digest, size, time, type, name_rowid, seen)\
 							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)");
 			statement.bind(1, parentId);
@@ -784,7 +786,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			statement.bind(4, size);
 			statement.bind(5, time);
 			statement.bind(6, type);
-			statement.bind(7, mDatabase->insertId());
+			statement.bind(7, nameRowId);
 			statement.execute();
 				
 			id = mDatabase->insertId();
