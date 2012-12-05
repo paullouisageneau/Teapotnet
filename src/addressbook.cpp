@@ -297,12 +297,18 @@ void AddressBook::update(void)
 	Synchronize(this);
 	//Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
-	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
+	Array<Identifier> keys;
+	mContacts.getKeys(keys);
+	
+	for(int i=0; i<keys.size(); ++i)
 	{
-		Contact *contact = it->second;
-		contact->update();
+		Contact *contact = NULL;
+		if(mContacts.get(keys[i], contact))
+		{
+			Desynchronize(this);
+			Assert(contact);
+			contact->update();
+		}
 	}
 		
 	//Log("AddressBook::update", "Finished");
@@ -784,6 +790,7 @@ void AddressBook::Contact::update(void)
 			  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
+				Desynchronize(this);
 				Socket *sock = new Socket(addr);
 				Core::Instance->addPeer(sock, identifier);
 			}
@@ -1058,9 +1065,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 							page.open("tr");
 							page.open("td",".filename"); 
-							if(map.get("type") == "directory") page.link(base + map.get("name").urlEncode(), map.get("name"));
-							else if(!map.get("hash").empty()) page.link("/" + map.get("hash").urlEncode(), map.get("name"));
-							else page.link(base + map.get("name").urlEncode() + "?instance=" + map.get("instance").urlEncode() + "&file=1", map.get("name"));
+							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
+							else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+							else page.link(base + map.get("name") + "?instance=" + map.get("instance").urlEncode() + "&file=1", map.get("name"));
 							page.close("td");
 							page.open("td",".size"); 
 							if(map.get("type") == "directory") page.text("directory");
@@ -1149,9 +1156,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td",".filename"); 
-						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path").urlEncode(), map.get("name"));
-						else if(!map.get("hash").empty()) page.link("/" + map.get("hash").urlEncode(), map.get("name"));
-						else page.link(urlPrefix() + "/files" + map.get("path").urlEncode() + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
+						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
+						else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+						else page.link(urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
 						page.close("td");
 						page.open("td",".size"); 
 						if(map.get("type") == "directory") page.text("directory");

@@ -402,10 +402,10 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("td");
 					page.text("("); page.link(contact->urlPrefix()+"/", contact->name()); page.text(")");
 					page.close("td");
-					page.open("td",".filename"); 
-					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path").urlEncode(), map.get("name"));
-					else if(!map.get("hash").empty()) page.link("/" + map.get("hash").urlEncode(), map.get("name"));
-					else page.link(contact->urlPrefix() + "/files" + map.get("path").urlEncode() + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
+					page.open("td",".filename");
+					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));
+					else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
+					else page.link(contact->urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
 					page.close("td");
 					page.open("td",".size"); 
 					if(map.get("type") == "directory") page.text("directory");
