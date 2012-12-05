@@ -210,7 +210,6 @@ void Store::update(void)
 	catch(const Exception &e)
 	{
 		Log("Store", String("Update failed for directory ") + it->first + ": " + e.what());
-
 	}
 	
 	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
@@ -232,7 +231,7 @@ void Store::update(void)
 
 	}
 	
-	//Log("Store::update", "Finished");
+	Log("Store::update", "Finished");
 }
 
 bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
@@ -716,9 +715,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		ByteString digest;
 		
 		if(statement.step())	// Entry already exists
-		{	
-			statement.finalize();
-		  
+		{
 			uint64_t dbSize;
 			int64_t  dbTime;
 			int      dbType;
@@ -738,12 +735,11 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			}
 			else {	// file has changed
 				  
-			  	if(computeDigests) Log("Store", String("Processing: ") + path);
-			  
-				digest.clear();
+			  	Log("Store", String("Processing: ") + path);
 			  
 				if(type && computeDigests)
 				{
+					digest.clear();
 					Desynchronize(this);
 					File data(absPath, File::Read);
 					Sha512::Hash(data, digest);
@@ -753,7 +749,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, digest=?3, size=?4, time=?5, type=?6, seen=1 WHERE id=?1");
 				statement.bind(1, id);
 				statement.bind(2, parentId);
-				statement.bind(3, digest);
+				if(!digest.empty()) statement.bind(3, digest);
+				else statement.bindNull(3);
 				statement.bind(4, size);
 				statement.bind(5, time);
 				statement.bind(6, type);
@@ -762,13 +759,12 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		}
 		else {
 			statement.finalize();
-			if(computeDigests) Log("Store", String("Processing: ") + path);
+			if(computeDigests) Log("Store", String("Processing new: ") + path);
 			else Log("Store", String("Indexing: ") + path);
-			
-			digest.clear();
 			
 			if(type && computeDigests)
 			{
+				digest.clear();
 				Desynchronize(this);
 				File data(absPath, File::Read);
 				Sha512::Hash(data, digest);
@@ -784,7 +780,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)");
 			statement.bind(1, parentId);
 			statement.bind(2, url);
-			if(type) statement.bind(3, digest);
+			if(!digest.empty()) statement.bind(3, digest);
 			else statement.bindNull(3);
 			statement.bind(4, size);
 			statement.bind(5, time);
