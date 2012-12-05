@@ -734,7 +734,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			}
 			else {	// file has changed
 				  
-			  	Log("Store", String("Processing: ") + path);
+			  	if(computeDigests) Log("Store", String("Processing: ") + path);
 			  
 				if(type && computeDigests)
 				{
