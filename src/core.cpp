@@ -576,7 +576,7 @@ void Core::Handler::run(void)
 			if((!instance.empty() && instance != mCore->getName())
 				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
-				unsigned meetingStepTimeout = Config::Get("tpot_timeout").toInt()/3;
+				const unsigned meetingStepTimeout = Config::Get("tpot_timeout").toInt()/3;
 			  
 				unsigned timeout = meetingStepTimeout;
 				mCore->mMeetingPoint.lock();
