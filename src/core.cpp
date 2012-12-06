@@ -1020,9 +1020,6 @@ Core::Handler::Sender::Sender(void) :
 
 Core::Handler::Sender::~Sender(void)
 {
-	for(int i=0; i<mRequestsToRespond.size(); ++i)
-		delete mRequestsToRespond[i];
-	
 	try {
 		Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
 		while(it != mTransferts.end())
@@ -1038,6 +1035,9 @@ Core::Handler::Sender::~Sender(void)
 	{
 		// Nothing to do, the other side will close the transferts anyway
 	}
+	
+	for(int i=0; i<mRequestsToRespond.size(); ++i)
+		delete mRequestsToRespond[i];
 }
 
 void Core::Handler::Sender::run(void)
@@ -1132,9 +1132,10 @@ void Core::Handler::Sender::run(void)
 				mRequestsQueue.pop();
 			}
 
-			char buffer[ChunkSize];
-			Map<unsigned, Request::Response*>::iterator it = mTransferts.begin();
-			while(it != mTransferts.end())
+			Array<unsigned> channels;
+			mTransferts.getKeys(channels);
+			
+			for(int i=0; i<channels.size(); ++i)
 			{
 				UnPrioritize(this);
 			  
@@ -1143,50 +1144,54 @@ void Core::Handler::Sender::run(void)
 				|| !mRequestsQueue.empty())
 					break;
 			  	
-				for(int i=0; i<mRequestsToRespond.size(); ++i)
+				for(int j=0; j<mRequestsToRespond.size(); ++j)
 				{
-					Synchronize(mRequestsToRespond[i]);
-					for(int j=0; j<mRequestsToRespond[i]->responsesCount(); ++j)
-						if(!mRequestsToRespond[i]->response(j)->mTransfertStarted) 
+					Synchronize(mRequestsToRespond[j]);
+					for(int k=0; k<mRequestsToRespond[j]->responsesCount(); ++k)
+						if(!mRequestsToRespond[j]->response(k)->mTransfertStarted) 
 							break;
 				}
 				
+				unsigned channel = channels[i];
+				Request::Response *response;
+				if(!mTransferts.get(channel, response)) continue;
+				
+				char buffer[ChunkSize];
 				size_t size = 0;
 				
 				try {
-					ByteStream *content = it->second->content();
-					size = content->readData(buffer,ChunkSize);
+					ByteStream *content = response->content();
+					size = content->readData(buffer, ChunkSize);
 				}
 				catch(const Exception &e)
 				{
-					Log("Core::Handler::Sender", "Error on channel "+String::number(it->first));
+					Log("Core::Handler::Sender", "Error on channel "+String::number(channel));
 					
 					int status = Request::Response::ReadFailed;
 					
 					String args;
-					args << it->first << " " << status;
+					args << channel << " " << status;
 					StringMap parameters;
 					parameters["message"] = e.what();
 					Handler::sendCommand(mStream, "E", args, parameters);
 					
-					it->second->mTransfertFinished = true;
-					mTransferts.erase(it++);
+					response->mTransfertFinished = true;
+					mTransferts.erase(channel);
 					continue;
 				}
 				
 				String args;
-				args << it->first << " " << size;
+				args << channel << " " << size;
 				Handler::sendCommand(mStream, "D", args, StringMap());
 
 				if(size == 0)
 				{
-					//Log("Core::Handler::Sender", "Finished sending on channel "+String::number(it->first));
-					it->second->mTransfertFinished = true;
-					mTransferts.erase(it++);
+					//Log("Core::Handler::Sender", "Finished sending on channel "+String::number(channel));
+					response->mTransfertFinished = true;
+					mTransferts.erase(channel);
 				}
 				else {
 				 	mStream->writeData(buffer, size);
-					++it;
 				}
 			}
 			
