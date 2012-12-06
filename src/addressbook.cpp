@@ -823,12 +823,15 @@ void AddressBook::Contact::update(void)
 		connectAddresses(mAddrs);
 	}
 	
-	AddressMap altAddrs;
-	if(AddressBook::query(mPeering, mTracker, altAddrs, true))
-	{
-		mFound = true;
-		connectAddresses(altAddrs);
-	}
+	//if(!Core::Instance->isPublicConnectable())	// Can actually be connectable with IPv6 only
+	//{
+		AddressMap altAddrs;
+		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
+		{
+			mFound = true;
+			connectAddresses(altAddrs);
+		}
+	//}
 }
 
 void AddressBook::Contact::message(Message *message)

@@ -169,6 +169,7 @@ void Core::run(void)
 			Log("Core", "Incoming connexion from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null, true);	// async
+			msleep(250);
 		}
 	}
 	catch(const NetException &e)
@@ -624,7 +625,7 @@ void Core::Handler::run(void)
 					Synchronize(&request);
 					
 					request.submit();
-					request.wait(2000);
+					request.wait(std::max(Config::Get("request_timeout").toInt()-5000,0));
 						
 					for(int i=0; i<request.responsesCount(); ++i)
 					{

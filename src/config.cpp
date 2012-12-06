@@ -102,30 +102,32 @@ void Config::GetExternalAddresses(List<Address> &list)
 		else addr.set(externalAddress, Config::Get("port"));
 		list.push_back(addr);
 	}
-	else {
-		List<Address> tmp;
-		Core::Instance->getAddresses(tmp);
+
+	List<Address> tmp;
+	Core::Instance->getAddresses(tmp);
 		
-		bool success = false;
-		for(List<Address>::const_iterator it = tmp.begin();
-			it != tmp.end();
-			++it)
+	bool success = false;
+	for(List<Address>::const_iterator it = tmp.begin();
+		it != tmp.end();
+		++it)
+	{
+		const Address &addr = *it;
+		if(addr.addrFamily() == AF_INET)
 		{
-			const Address &addr = *it;
-			if(addr.addrFamily() == AF_INET)
+			String host = PortMapping::Instance->getExternalHost();
+			if(!host.empty()) 
 			{
-				String host = PortMapping::Instance->getExternalHost();
-				if(!host.empty()) 
-				{
-					uint16_t port;
-					PortMapping::Instance->getTcp(addr.port(), port);
-					list.push_back(Address(host, port));
-				}
+				uint16_t port;
+				PortMapping::Instance->getTcp(addr.port(), port);
+				list.push_back(Address(host, port));
 			}
+		}
 			
-			String host = addr.host();
-			if(host != "127.0.0.1" && host != "::1")
-				list.push_back(addr);
+		String host = addr.host();
+		if(host != "127.0.0.1" && host != "::1"
+			&& std::find(list.begin(), list.end(), addr) == list.end())
+		{
+			list.push_back(addr);
 		}
 	}
 }
