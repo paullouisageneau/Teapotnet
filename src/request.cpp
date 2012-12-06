@@ -287,7 +287,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	ByteStream *content = NULL;
 	if(!parameters.contains("stripe")) 
 	{
-		content = new File(entry.path);
+		content = new File(entry.path, File::Read);
 		rparameters["processing"] = "none";
 	}
 	else {
@@ -305,7 +305,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 		StripedFile *stripedFile = NULL;
 					
 		try {
-			file = new File(entry.path);
+			file = new File(entry.path, File::Read);
 			stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
 					
 			size_t block = 0;

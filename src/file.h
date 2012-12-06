@@ -50,10 +50,10 @@ public:
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate, TruncateReadWrite };
 
 	File(void);
-	File(const String &filename, OpenMode mode = ReadWrite);
+	File(const String &filename, OpenMode mode = Read);
 	virtual ~File(void);
 
-	virtual void open(const String &filename, OpenMode mode = ReadWrite);
+	virtual void open(const String &filename, OpenMode mode = Read);
 	virtual void close(void);
 	
 	void seekRead(uint64_t position);
@@ -96,7 +96,7 @@ public:
 	void close(void);
 	
 private:
-	void open(const String &filename, OpenMode mode = TruncateReadWrite);
+	void open(const String &filename, OpenMode mode = ReadWrite);
 };
 
 }
