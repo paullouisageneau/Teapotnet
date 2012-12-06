@@ -625,7 +625,7 @@ void Core::Handler::run(void)
 					Synchronize(&request);
 					
 					request.submit();
-					request.wait(std::max(Config::Get("request_timeout").toInt()-5000,0));
+					request.wait(std::max(Config::Get("request_timeout").toInt()-5000,2000));
 						
 					for(int i=0; i<request.responsesCount(); ++i)
 					{
