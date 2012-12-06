@@ -196,9 +196,15 @@ void File::flush(void)
 ByteStream *File::pipeIn(void)
 {
 	// Somehow using Append here can result in a write failure
-	File *file = new File(mName, Write);
-	file->seekWrite(size());
-	return file;
+	try {
+		File *file = new File(mName, ReadWrite);
+		file->seekWrite(size());
+		return file;
+	}
+	catch(...)
+	{
+		return NULL; 
+	}
 }
 
 SafeWriteFile::SafeWriteFile(void)
