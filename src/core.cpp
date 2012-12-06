@@ -114,7 +114,7 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 	
 	{
 		Desynchronize(this);
-		Log("Core", "Spawning new handler");
+		//Log("Core", "Spawning new handler");
 		Handler *handler = new Handler(this,sock);
 		if(peering != Identifier::Null) handler->setPeering(peering);
 
@@ -816,7 +816,7 @@ void Core::Handler::run(void)
 	try {
 	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
 	  
-		Log("Core::Handler", "Entering main loop");
+		//Log("Core::Handler", "Entering main loop");
 		mSock->setTimeout(readTimeout);
 		while(recvCommand(mStream, command, args, parameters))
 		{

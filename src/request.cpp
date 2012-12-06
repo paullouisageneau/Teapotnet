@@ -330,8 +330,7 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	}
 	
 	Assert(content);
-	Response *response = new Response(Response::Success, rparameters, content);
-	if(response->content()) response->content()->close();	// no more content
+	Response *response = new Response(Response::Success, rparameters, content, true);	// content is read only
 	return response;	
 	
 }
@@ -405,7 +404,7 @@ Request::Response::Response(int status) :
 	Assert(status >= 0);
 }
 
-Request::Response::Response(int status, const StringMap &parameters, ByteStream *content) :
+Request::Response::Response(int status, const StringMap &parameters, ByteStream *content, bool readOnly) :
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),
@@ -413,7 +412,7 @@ Request::Response::Response(int status, const StringMap &parameters, ByteStream 
 	mTransfertFinished(false)
 {
 	Assert(status >= 0);
-	if(content) mContent = new Pipe(content);
+	if(content) mContent = new Pipe(content, readOnly);
 	else mContent = NULL;
 }
 

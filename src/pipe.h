@@ -36,7 +36,7 @@ public:
 	using ByteStream::ignore;
 
 	Pipe(void);
-	Pipe(ByteStream *buffer);	// buffer destroyed at deletion
+	Pipe(ByteStream *buffer, bool readOnly = false);	// buffer destroyed at deletion
 	virtual ~Pipe(void);
 
 	void close(void);		// closes then write end
@@ -46,13 +46,20 @@ public:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
-private:
-	void open(ByteStream *buffer);
+protected:
+	void open(ByteStream *buffer, bool readOnly = false);
 
+private:
 	ByteStream *mReadBuffer;
 	ByteStream *mWriteBuffer;
 	Mutex mMutex;
 	Signal mSignal;
+};
+
+class ReadOnlyPipe : public Pipe
+{
+ 	ReadOnlyPipe(ByteStream *buffer);	// buffer destroyed at deletion
+	virtual ~ReadOnlyPipe(void);
 };
 
 }

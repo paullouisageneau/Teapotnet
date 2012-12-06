@@ -72,7 +72,7 @@ public:
 		static const int ReadFailed = 5;
 	  
 		Response(int status = 0);
-		Response(int status, const StringMap &parameters, ByteStream *content = NULL);
+		Response(int status, const StringMap &parameters, ByteStream *content = NULL, bool readOnly = false);
 		~Response(void);
 
 		const Identifier &peering(void) const;

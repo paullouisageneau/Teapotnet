@@ -28,12 +28,12 @@ namespace tpot
 
 Pipe::Pipe(void)
 {
-	open(new ByteString);
+	open(new ByteString, false);
 }
 
-Pipe::Pipe(ByteStream *buffer)
+Pipe::Pipe(ByteStream *buffer, bool readOnly)
 {
-	open(buffer);
+	open(buffer, readOnly);
 }
 
 Pipe::~Pipe(void)
@@ -42,10 +42,11 @@ Pipe::~Pipe(void)
 	delete mReadBuffer;
 }
 
-void Pipe::open(ByteStream *buffer)
+void Pipe::open(ByteStream *buffer, bool readOnly)
 {
 	mReadBuffer = buffer;
-	mWriteBuffer = buffer->pipeIn();
+	if(!readOnly) mWriteBuffer = buffer->pipeIn();
+	else mWriteBuffer = NULL;
 }
 
 void Pipe::close(void)
@@ -96,6 +97,17 @@ void Pipe::writeData(const char *data, size_t size)
 	mWriteBuffer->flush();
 	mSignal.launchAll();
 	mMutex.unlock();
+}
+
+
+ReadOnlyPipe::ReadOnlyPipe(ByteStream *buffer)
+{
+	open(buffer, true);
+}
+
+ReadOnlyPipe::~ReadOnlyPipe(void)
+{
+  
 }
 
 }
