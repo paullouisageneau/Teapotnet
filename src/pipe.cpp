@@ -21,6 +21,7 @@
 
 #include "pipe.h"
 #include "bytestring.h"
+#include "file.h"
 
 namespace tpot
 {
@@ -68,6 +69,7 @@ bool Pipe::is_open(void) const
 size_t Pipe::readData(char *buffer, size_t size)
 {
 	mMutex.lock();
+	
 	size_t len;
 	while((len = mReadBuffer->readData(buffer,size)) == 0)
 	{
@@ -76,7 +78,7 @@ size_t Pipe::readData(char *buffer, size_t size)
 			mMutex.unlock();
 			return 0;
 		}
-
+		
 		mSignal.wait(mMutex);
 	}
 
@@ -88,12 +90,12 @@ void Pipe::writeData(const char *data, size_t size)
 {
 	if(size == 0) return;
 	if(!mWriteBuffer) throw IOException("Pipe is closed, cannot write");
-
+	
 	mMutex.lock();
-	mWriteBuffer->writeData(data,size);
+	mWriteBuffer->writeData(data, size);
 	mWriteBuffer->flush();
-	mMutex.unlock();
 	mSignal.launchAll();
+	mMutex.unlock();
 }
 
 }

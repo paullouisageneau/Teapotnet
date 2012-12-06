@@ -96,7 +96,7 @@ public:
 	void close(void);
 	
 private:
-	void open(const String &filename, OpenMode mode = ReadWrite);
+	void open(const String &filename, OpenMode mode = TruncateReadWrite);
 };
 
 }

@@ -124,7 +124,7 @@ void File::open(const String &filename, OpenMode mode)
 	}
 
 	std::fstream::open(filename.c_str(), m|std::ios_base::binary);
-	if(!std::fstream::is_open()) throw IOException(String("Unable to open file: ")+filename);
+	if(!std::fstream::is_open() || std::fstream::bad()) throw IOException(String("Unable to open file: ")+filename);
 }
 
 void File::close(void)
@@ -132,6 +132,8 @@ void File::close(void)
 	// mName MUST NOT be changed here
 	if(std::fstream::is_open())
 		std::fstream::close();
+	
+	std::fstream::clear();	// clear state
 }
 
 void File::seekRead(uint64_t position)
@@ -170,15 +172,20 @@ uint64_t File::size(void) const
 
 size_t File::readData(char *buffer, size_t size)
 {
+	std::fstream::clear();	// clear state
 	std::fstream::readsome(buffer, size);
 	if(!std::fstream::gcount() && std::fstream::good())
 		std::fstream::read(buffer, size);
+	
+	if(std::fstream::bad()) throw IOException(String("Unable to read from file: ") + mName);
 	return std::fstream::gcount();
 }
 
 void File::writeData(const char *data, size_t size)
 {
+	std::fstream::clear();	// clear state
 	std::fstream::write(data,size);
+	if(std::fstream::bad()) throw IOException(String("Unable to write to file: ") + mName);
 }
 
 void File::flush(void)
@@ -188,7 +195,10 @@ void File::flush(void)
 
 ByteStream *File::pipeIn(void)
 {
-	return new File(mName,Append);
+	// Somehow using Append here can result in a write failure
+	File *file = new File(mName, Write);
+	file->seekWrite(size());
+	return file;
 }
 
 SafeWriteFile::SafeWriteFile(void)

@@ -98,4 +98,9 @@ void Mutex::relockAll(void)
 	mRelockCount = 0;
 }
 
+int Mutex::lockCount(void) const
+{
+	return mLockCount; 
+}
+
 }

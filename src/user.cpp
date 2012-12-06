@@ -447,7 +447,10 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			
 			request.url = String("/files") + urlLeft;
-			self->http(prefix+"/contacts/"+self->uniqueName(), request);
+			String newPrefix = prefix + "/contacts/" + self->uniqueName();
+			
+			Desynchronize(this);
+			self->http(newPrefix, request);
 			return;
 		}
 	}

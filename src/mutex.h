@@ -43,6 +43,8 @@ public:
 	int  unlockAll(void);
 	void relockAll(void);
 	
+	int lockCount(void) const;
+	
 private:
 	pthread_mutex_t mMutex;
 	pthread_t mLockedBy;

@@ -934,7 +934,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				String target(url);
 				
-				if(request.get.contains("file"))
+				bool isFile = request.get.contains("file");
+				
+				if(isFile)
 				{
 					while(!target.empty() && target[target.size()-1] == '/')
 						target.resize(target.size()-1);
@@ -944,10 +946,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						target+= '/';
 				}
 				
-				Request trequest(target, request.get.contains("file"));
+				Request trequest(target, isFile);
+				if(isFile) trequest.setContentSink(new TempFile);
+				
+				String instance;
+				if(request.get.get("instance", instance));
 				
 				// Self
-				if(mUniqueName == mAddressBook->userName())
+				if(mUniqueName == mAddressBook->userName()
+					&& (instance.empty() || instance == Core::Instance->getName()))
 				{
 					trequest.execute(mAddressBook->user());
 				}
@@ -955,8 +962,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				Synchronize(&trequest);
 				try {
 					const unsigned timeout = Config::Get("request_timeout").toInt();
-					String instance;
-				  	if(request.get.get("instance", instance)) trequest.submit(Identifier(mPeering, instance));
+				  	if(!instance.empty()) trequest.submit(Identifier(mPeering, instance));
 					else trequest.submit(mPeering);
 					trequest.wait(timeout);
 				}
@@ -992,7 +998,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(tresponse->error()) continue;
 							StringMap params = tresponse->parameters();
 					 		if(!params.contains("name")) continue;
-						
+							ByteStream *content = tresponse->content();
+							if(!content) continue;
+							
 							Desynchronize(&trequest);
 							
 							Time time = Time::Now();
@@ -1008,7 +1016,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							
 							try {
 								Desynchronize(this);
-								response.sock->write(*tresponse->content());
+								response.sock->writeBinary(*content);
 							}
 							catch(const NetException &e)
 							{
@@ -1059,6 +1067,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(instances.size() == 1) desc << files.size() << " files";
 						else desc << files.size() << " files on " << instances.size() << " instances";
 						page.text(desc);
+						page.text(" - ");
+						if(url[url.size()-1] == '/') page.link("..", "Parent");
+						else page.link(".", "Parent");
 						page.br();
 						
 						page.open("table",".files");

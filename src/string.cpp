@@ -294,6 +294,20 @@ String String::afterLast(char c) const
 	else return this->substr(pos+1); 
 }
 
+String String::before(char c) const
+{
+	int pos = this->indexOf(c);
+	if(pos == NotFound) return *this;
+	else return this->substr(0,pos);   
+}
+
+String String::beforeLast(char c) const
+{
+	int pos = this->lastIndexOf(c);
+	if(pos == NotFound) return *this;
+	else return this->substr(0,pos); 
+}
+
 String String::toLower(void) const
 {
 	String s(*this);
