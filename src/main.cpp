@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 		Config::Default("external_address", "auto");
 		Config::Default("http_timeout", "10000");
 		Config::Default("request_timeout", "10000");
-		Config::Default("tpot_timeout", "10000");
+		Config::Default("tpot_timeout", "15000");
 		Config::Default("tpot_read_timeout", "60000");
 		
 		if(Config::Get("request_timeout").toInt() < 10000)

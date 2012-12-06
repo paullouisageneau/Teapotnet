@@ -576,7 +576,9 @@ void Core::Handler::run(void)
 			if((!instance.empty() && instance != mCore->getName())
 				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
-				unsigned timeout = 2000;
+				unsigned meetingStepTimeout = Config::Get("tpot_timeout").toInt()/3;
+			  
+				unsigned timeout = meetingStepTimeout;
 				mCore->mMeetingPoint.lock();
 				while(timeout)
 				{
@@ -596,7 +598,7 @@ void Core::Handler::run(void)
 					  	//Log("Core::Handler", "Reached forwarding meeting point");
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
-						wait(2000);
+						wait(meetingStepTimeout);
 					}
 				  
 					return;
@@ -625,7 +627,7 @@ void Core::Handler::run(void)
 					Synchronize(&request);
 					
 					request.submit();
-					request.wait(std::max(Config::Get("request_timeout").toInt()-5000,2000));
+					request.wait(meetingStepTimeout);
 						
 					for(int i=0; i<request.responsesCount(); ++i)
 					{
@@ -643,7 +645,7 @@ void Core::Handler::run(void)
 						
 					Handler *otherHandler = NULL;
 					
-					unsigned timeout = 2000;
+					unsigned timeout = meetingStepTimeout;
 					mCore->mMeetingPoint.lock();
 					mCore->mMeetingPoint.notifyAll();
 					while(timeout)
