@@ -990,7 +990,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				if(trequest.responsesCount() == 0) throw Exception("No responses");
-				if(!trequest.isSuccessful()) throw 404;
+				if(!trequest.isSuccessful() && target != "/") throw 404;
 					
 				try {
 					if(request.get.contains("file"))
