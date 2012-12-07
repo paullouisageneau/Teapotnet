@@ -1233,8 +1233,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							Message message(request.post["message"]);
 						  	message.send(mPeering);	// send to other
 							
-							Contact *self = mAddressBook->getSelf();
-							if(self && self->isConnected()) message.send(self->peering());
+							// TODO
+							//Contact *self = mAddressBook->getSelf();
+							//if(self && self->isConnected()) message.send(self->peering());
 							
 							mMessages.push_back(Message(request.post["message"]));	// thus receiver is null
 							++mMessagesCount;
