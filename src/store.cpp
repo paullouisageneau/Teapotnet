@@ -700,6 +700,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	Synchronize(this);
 
 	try {
+		UnPrioritize(this);
+	  
 		String absPath = mBasePath + path;
 		
 		int type = 0;
