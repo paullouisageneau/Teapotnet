@@ -200,6 +200,15 @@ Time::~Time(void)
   
 }
 
+String Time::toDisplayDate(void) const
+{
+	TimeMutex.lock();
+	char buffer[256];
+	strftime (buffer, 256, "%x %X", localtime(&mTime));
+	TimeMutex.unlock();
+	return String(buffer);
+}
+
 String Time::toHttpDate(void) const
 {
 	TimeMutex.lock();

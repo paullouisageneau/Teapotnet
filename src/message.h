@@ -27,6 +27,7 @@
 #include "identifier.h"
 #include "map.h"
 #include "html.h"
+#include "time.h"
 
 namespace tpot
 {
@@ -37,7 +38,7 @@ public:
 	Message(const String &content = "");
 	virtual ~Message(void);
 
-	time_t time(void) const;
+	Time time(void) const;
 	const Identifier &receiver(void) const;
 	const String &content(void) const;
 	const StringMap &parameters(void) const;
@@ -54,7 +55,7 @@ public:
 	void send(const Identifier &receiver);
 	
 private:
-  	time_t mTime;
+  	Time mTime;
 	Identifier mReceiver;
 	StringMap mParameters;
 	String mContent;

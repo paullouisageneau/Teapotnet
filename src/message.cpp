@@ -26,10 +26,11 @@ namespace tpot
 {
 
 Message::Message(const String &content) :
+	mTime(Time::Now()),
 	mContent(content),
 	mIsRead(false)
 {
-	std::time(&mTime);
+
 }
 
 Message::~Message(void)
@@ -37,7 +38,7 @@ Message::~Message(void)
   
 }
 
-time_t Message::time(void) const
+Time Message::time(void) const
 {
 	return mTime; 
 }

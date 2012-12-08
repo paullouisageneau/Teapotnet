@@ -42,6 +42,7 @@ public:
 	Time(const String &str);
 	~Time(void);
 
+	String toDisplayDate(void) const;
 	String toHttpDate(void) const;
 	time_t toUnixTime(void) const;
 	

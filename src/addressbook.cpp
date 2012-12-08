@@ -1398,13 +1398,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 void AddressBook::Contact::messageToHtml(Html &html, const Message &message, bool old) const
 {
-	char buffer[64];
-	time_t t = message.time();
-	std::strftime (buffer, 64, "%x %X", localtime(&t));
 	if(old) html.open("span",".oldmessage");
 	else html.open("span",".message");
 	html.open("span",".date");
-	html.text(buffer);
+	html.text(message.time().toDisplayDate());
 	html.close("span");
 	html.text(" ");
 	html.open("span",".user");
