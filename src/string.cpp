@@ -202,6 +202,30 @@ bool String::contains(char chr) const
 	return (find(chr) != NotFound);
 }
 
+bool String::containsDigits(void) const
+{
+	for(int i=0; i<size(); ++i)
+	{
+		unsigned char c = (unsigned char)(at(i));
+		if(c >= 48 && c <= 57) return true;
+	}
+	
+	return false;
+}
+
+bool String::containsLetters(void) const
+{
+	for(int i=0; i<size(); ++i)
+	{
+		unsigned char c = (unsigned char)(at(i));
+		if(c >= 65 && c <= 90) return true;
+		if(c >= 97 && c <= 122) return true;
+		if(c >= 128) return true;
+	}
+	
+	return false;
+}
+
 void String::remove(int pos, int nb)
 {
     *this = String(this->substr(0, pos) + this->substr(pos+nb, std::string::npos));

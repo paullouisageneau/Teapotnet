@@ -64,7 +64,8 @@ void Address::set(const String &host, const String &service)
 	aiHints.ai_family = AF_UNSPEC;
 	aiHints.ai_socktype = SOCK_STREAM;
 	aiHints.ai_protocol = 0;
-	aiHints.ai_flags = AI_ADDRCONFIG;
+	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
+	else aiHints.ai_flags = AI_ADDRCONFIG;
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
@@ -328,7 +329,8 @@ bool Address::deserialize(Stream &s)
 	aiHints.ai_family = AF_UNSPEC;
 	aiHints.ai_socktype = SOCK_STREAM;
 	aiHints.ai_protocol = 0;
-	aiHints.ai_flags = AI_ADDRCONFIG;
+	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
+	else aiHints.ai_flags = AI_ADDRCONFIG;
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)

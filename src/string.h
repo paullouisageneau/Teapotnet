@@ -60,6 +60,8 @@ public:
 	void trimQuotes(void);
 
 	bool contains(char chr) const;
+	bool containsDigits(void) const;
+	bool containsLetters(void) const;
 	void remove(int pos, int nb = String::npos);
 	bool isEmpty() const;
 
