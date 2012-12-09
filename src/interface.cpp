@@ -318,13 +318,20 @@ void Interface::process(Http::Request &request)
 					total+= file.read(*response.sock);
 					if(total != splicer.size())
 						Log("Interface::http", String("Warning: Splicer downloaded ") + String::number(total) + " bytes whereas size was " + String::number(splicer.size())); 
-					return;
+					
+					// TODO: move in incoming
 				}
-				catch(...)
+				catch(const NetException &e)
 				{
-					if(File::Exist(filename)) File::Remove(filename);
-					throw;
+					// nothing to do
 				}
+				catch(const Exception &e)
+				{
+					Log("Interface::process", String("Error during file transfer: ") + e.what());
+				}
+				
+				if(File::Exist(filename)) File::Remove(filename);
+				return;
 			}
 		}
 		catch(const NetException &e)
