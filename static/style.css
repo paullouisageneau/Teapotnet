@@ -256,7 +256,17 @@ input
 
 .oldmessage
 {
-	color: #606060; 
+	opacity: 0.7; 
+}
+
+.out
+{
+	color: #1010F0;
+}
+
+.in
+{
+	color: #F01010; 
 }
 
 .important

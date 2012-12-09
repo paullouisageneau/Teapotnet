@@ -1033,7 +1033,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 					
 					Http::Response response(request,200);
-					response.send();	
+					response.send();
 					
 					Html page(response.sock);
 					if(target.empty() || target == "/") page.header(mName+": Browse files");
@@ -1404,6 +1404,8 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message, boo
 	html.text(message.time().toDisplayDate());
 	html.close("span");
 	html.text(" ");
+	if(message.receiver() == Identifier::Null) html.open("span",".out");
+	else html.open("span",".in");
 	html.open("span",".user");
 	if(message.receiver() == Identifier::Null) html.text(mAddressBook->userName());
 	else html.text(mAddressBook->getContact(message.receiver())->name());
@@ -1411,6 +1413,7 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message, boo
 	html.text(": ");
 	html.open("span",".text");
 	html.text(message.content());
+	html.close("span");
 	html.close("span");
 	html.close("span");
 	html.br(); 
