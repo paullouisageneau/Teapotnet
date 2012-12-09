@@ -98,6 +98,7 @@ int main(int argc, char** argv)
 		Config::Default("profiles_dir", "profiles");
 		Config::Default("static_dir", "static");
 		Config::Default("shared_dir", "shared");
+		Config::Default("temp_dir", "temp");
 		Config::Default("external_address", "auto");
 		Config::Default("http_timeout", "10000");
 		Config::Default("request_timeout", "10000");
@@ -174,6 +175,7 @@ int main(int argc, char** argv)
 #endif
 		
 		Log("main", "Starting...");
+		File::CleanTemp();
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))

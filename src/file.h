@@ -46,7 +46,8 @@ public:
 	static uint64_t Size(const String &filename);
 	static tpot::Time Time(const String &filename);
 	static String TempName(void);
-
+	static void CleanTemp(void);
+	
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate, TruncateReadWrite };
 
 	File(void);
@@ -68,6 +69,9 @@ public:
 	void flush(void);
 	
 protected:
+	static String TempPath(void);
+  	static const String TempPrefix;
+	
 	ByteStream *pipeIn(void);
 	String mName;
 };

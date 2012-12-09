@@ -21,10 +21,14 @@
 
 #include "file.h"
 #include "exception.h"
+#include "directory.h"
+#include "config.h"
 
 namespace tpot
 {
 
+const String File::TempPrefix = "tpot_";
+  
 bool File::Exist(const String &filename)
 {
 	if(filename.empty()) return false;
@@ -74,20 +78,43 @@ tpot::Time File::Time(const String &filename)
 
 String File::TempName(void)
 {
-	String tempPath;
-#ifdef WINDOWS
-	char buffer[MAX_PATH+1];
-	Assert(GetTempPath(MAX_PATH+1,buffer) != 0);
-	tempPath = buffer;
-#else
-	tempPath = "/tmp/";
-#endif
-	 
+	String tempPath = TempPath();
 	String fileName;
-	do fileName = tempPath + String::random(16);
+	do fileName = tempPath + TempPrefix + String::random(16);
 	while(File::Exist(fileName));
-	
 	return fileName;
+}
+
+void File::CleanTemp(void)
+{
+	Directory dir(TempPath());
+	while(dir.nextFile())
+	{
+		if(dir.fileName().substr(0,TempPrefix.size()) == TempPrefix)
+			File::Remove(dir.filePath());
+	}
+}
+
+String File::TempPath(void)
+{
+	String tempPath = Config::Get("temp_dir");
+	if(tempPath.empty() || tempPath == "auto")
+	{
+		#ifdef WINDOWS
+			char buffer[MAX_PATH+1];
+			Assert(GetTempPath(MAX_PATH+1,buffer) != 0);
+			tempPath = buffer;
+		#else
+			tempPath = "/tmp/";
+		#endif
+	}
+	else {
+		if(!Directory::Exist(tempPath))
+			Directory::Create(tempPath);
+		tempPath+= '/';
+	}
+	
+	return tempPath;
 }
 
 File::File(void)
