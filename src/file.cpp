@@ -87,11 +87,21 @@ String File::TempName(void)
 
 void File::CleanTemp(void)
 {
-	Directory dir(TempPath());
-	while(dir.nextFile())
+	try {
+		Directory dir(TempPath());
+		while(dir.nextFile())
+		try {
+			if(dir.fileName().substr(0,TempPrefix.size()) == TempPrefix)
+				File::Remove(dir.filePath());
+		}
+		catch(...)
+		{
+		
+		}
+	}
+	catch(const Exception &e)
 	{
-		if(dir.fileName().substr(0,TempPrefix.size()) == TempPrefix)
-			File::Remove(dir.filePath());
+		Log("File::CleanTemp", "Warning: Unable to access temp directory");
 	}
 }
 
