@@ -538,14 +538,13 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		if(tmp.empty()) return false;
 	
 		YamlSerializer serializer(&tmp);
-		serializer.input(output);
+		return serializer.input(output);
 	}
 	catch(const std::exception &e)
 	{
 		Log("AddressBook::query", e.what()); 
 		return false;
 	}
-	return true;
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
