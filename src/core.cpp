@@ -216,15 +216,11 @@ unsigned Core::addRequest(Request *request)
 	request->mId = mLastRequest;
 	mRequests.insert(mLastRequest, request);
 
+	Array<Identifier> identifiers;
+	
 	if(request->mReceiver == Identifier::Null)
 	{
-		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-				it != mHandlers.end();
-				++it)
-		{
-			Handler *handler = it->second;
-			handler->addRequest(request);
-		}
+		mHandlers.getKeys(identifiers);
 	}
 	else {
 		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(request->mReceiver);
@@ -233,12 +229,22 @@ unsigned Core::addRequest(Request *request)
 		
 		while(it != mHandlers.end() && it->first == request->mReceiver)
 		{
-			Handler *handler = it->second;
-			handler->addRequest(request);
+			identifiers.push_back(it->first);
 			++it;
 		}
 	}
 
+	if(identifiers.empty()) request->notifyAll();
+	else for(int i=0; i<identifiers.size(); ++i)
+	{
+		Handler *handler;
+		if(mHandlers.get(identifiers[i], handler))
+		{
+			Desynchronize(this);
+			handler->addRequest(request);
+		}
+	}
+	
 	return mLastRequest;
 }
 
@@ -246,12 +252,17 @@ void Core::removeRequest(unsigned id)
 {
 	Synchronize(this);
   
-	for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-				it != mHandlers.end();
-				++it)
+	Array<Identifier> identifiers;
+	mHandlers.getKeys(identifiers);
+	
+	for(int i=0; i<identifiers.size(); ++i)
 	{
-		Handler *handler = it->second;
-		handler->removeRequest(id);
+		Handler *handler;
+		if(mHandlers.get(identifiers[i], handler))
+		{
+			Desynchronize(this);
+			handler->removeRequest(id);
+		}
 	}
 }
 

@@ -45,7 +45,8 @@ public:
 		void send(Socket &sock);
 		void recv(Socket &sock);
 		void clear(void);
-
+		bool extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t contentLength = -1) const;
+		
 		String method;          // GET, POST, HEAD...
 		String version;         // 1.0 or 1.1
 		String url;             // URL without host and parameters

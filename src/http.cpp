@@ -404,6 +404,53 @@ void Http::Request::clear(void)
 	files.clear();
 }
 
+bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t contentLength) const
+{
+	if(contentLength < 0) contentLength = std::numeric_limits<int64_t>::max();
+	rangeBegin = 0;
+	rangeEnd = contentLength-1;
+	
+	String range;
+	if(headers.get("Range",range))
+	{
+		range.cut(';');
+		String tmp = range.cut('=');
+		if(range != "bytes") throw 416;
+		else {
+			List<String> intervals;
+			tmp.explode(intervals, ',');
+			
+			rangeBegin = contentLength-1;
+			rangeEnd = 0;
+			while(!intervals.empty())
+			{
+				String sbegin = intervals.front();
+				String send = sbegin.cut('-');
+				intervals.pop_front();
+				
+				int64_t begin, end;
+				if(!send.empty())   send >> end;
+				else end = contentLength-1;
+				if(!sbegin.empty()) sbegin >> begin;
+				else {
+					begin = contentLength-end;
+					end = contentLength-1;
+				}
+			
+				if(begin >= contentLength || end >= contentLength || begin > end)
+					throw 416;
+				
+				rangeBegin = std::min(begin, rangeBegin);
+				rangeEnd   = std::max(end, rangeEnd);
+			}
+			
+			return true;
+		 }
+	}
+	
+	return false;
+}
+
 Http::Response::Response(void)
 {
 	clear();
@@ -731,43 +778,10 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 		}
 	}
 	
-	uint64_t rangeBegin = file.size()-1;
-	uint64_t rangeEnd = 0;
-	String range;
-	if(request.headers.get("Range",range))
-	{
-		 range.cut(';');
-		 String tmp = range.cut('=');
-		 if(range != "bytes") code = 416;
-		 else {
-		 	List<String> intervals;
-		 	tmp.explode(intervals, ',');
-		 	while(!intervals.empty())
-			{
-				String sbegin = intervals.front();
-				String send = sbegin.cut('-');
-				intervals.pop_front();
-				
-				uint64_t begin, end;
-				if(!send.empty())   send >> end;
-				else end = file.size()-1;
-				if(!sbegin.empty()) sbegin >> begin;
-				else {
-					begin = file.size()-end;
-					end = file.size()-1;
-				}
-				
-				if(begin >= file.size() || end >= file.size() || begin > end)
-				{
-					code = 416;
-					break;
-				}
-				
-				rangeBegin = std::min(begin, rangeBegin);
-				rangeEnd   = std::max(end, rangeEnd);
-			}
-		 }
-	}
+	int64_t rangeBegin;
+	int64_t rangeEnd;
+	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
+	if(hasRange) code = 206;
 	
 	if(code != 200)
 	{
@@ -794,13 +808,13 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 	if(name != request.url.afterLast('/')) 
 		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
 	
-	if(request.headers.contains("Range"))
+	if(hasRange)
 	{
 		 response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << file.size();
-		 response.headers["Content-Size"]  << rangeEnd - rangeBegin + 1;
+		 response.headers["Content-Length"]  << rangeEnd - rangeBegin + 1;
 	}
 	else {
-		response.headers["Content-Size"] << file.size();
+		response.headers["Content-Length"] << file.size();
 	}
 	
 	response.headers["Content-Type"] = Mime::GetType(fileName);
@@ -810,7 +824,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 
 	if(request.method != "HEAD")
 	{
-		if(request.headers.contains("Range"))
+		if(hasRange)
 		{
 			file.seekRead(rangeBegin);
 			file.read(*response.sock, rangeEnd - rangeBegin + 1);

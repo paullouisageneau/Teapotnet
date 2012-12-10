@@ -36,7 +36,7 @@ namespace tpot
 class Splicer : public Synchronizable
 {
 public:
-	Splicer(const ByteString &target, const String &filename, size_t blockSize);
+	Splicer(const ByteString &target, const String &filename, size_t blockSize, size_t firstBlock = 0);
 	~Splicer(void);
 
 	const String &name(void) const;
@@ -54,6 +54,7 @@ private:
 	ByteString mTarget;
 	String mFileName;
 	size_t mBlockSize;
+	size_t mFirstBlock;
 	String mName;
 	uint64_t mSize;
 	int mNbStripes;

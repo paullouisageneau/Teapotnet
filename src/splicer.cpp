@@ -22,14 +22,16 @@
 #include "splicer.h"
 #include "request.h"
 #include "pipe.h"
+#include "config.h"
 
 namespace tpot
 {
   
-Splicer::Splicer(const ByteString &target, const String &filename, size_t blockSize) :
+Splicer::Splicer(const ByteString &target, const String &filename, size_t blockSize, size_t firstBlock) :
 		mTarget(target),
 		mFileName(filename),
 		mBlockSize(blockSize),
+		mFirstBlock(firstBlock),
 		mSize(0)
 {
 	Log("Splicer", "Requesting available sources...");
@@ -195,18 +197,17 @@ void Splicer::close(void)
 
 void Splicer::search(Set<Identifier> &sources)
 {
-	const unsigned timeout = 2000;	// TODO
+	const unsigned timeout = Config::Get("request_timeout").toInt();
 	
-	Request request(mTarget.toString(),false);
+	Request request(mTarget.toString(), false);
 	request.submit();
 	request.wait(timeout);
 
-	request.lock();
-
+	Synchronize(&request);
 	for(int i=0; i<request.responsesCount(); ++i)
 	{
 		Request::Response *response = request.response(i);
-		StringMap parameters = response->parameters();
+		const StringMap &parameters = response->parameters();
 		
 		if(!response->error())
 		{
@@ -220,8 +221,6 @@ void Splicer::search(Set<Identifier> &sources)
 			sources.insert(response->peering());
 		}
 	}
-
-	request.unlock();
 }
 
 void Splicer::query(int i, const Identifier &source)
@@ -234,8 +233,12 @@ void Splicer::query(int i, const Identifier &source)
 
 	if(mStripes[i])
 	{
-		mStripes[i]->tellWriteBlock();
-		mStripes[i]->tellWriteOffset();
+		block = mStripes[i]->tellWriteBlock();
+		offset = mStripes[i]->tellWriteOffset();
+	}
+	else {
+		block = mFirstBlock;
+		offset = 0;
 	}
 
 	if(mRequests[i]) delete mRequests[i];
