@@ -739,7 +739,11 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
-		return Core::Instance->addPeer(sock, identifier);
+		if(Core::Instance->addPeer(sock, identifier)) return true;
+		
+		// A node is running at this address but the user does not exist
+		if(mAddrs.contains(instance))
+			mAddrs[instance].remove(addr);
 	}
 	catch(...)
 	{
