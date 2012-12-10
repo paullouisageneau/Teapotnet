@@ -44,7 +44,7 @@ bool Store::GetResource(const ByteString &digest, Entry &entry)
 	ResourcesMutex.unlock();
 	if(!found) return false;
 	
-	Log("Store::GetResource", "Requested " + digest.toString());  
+	//Log("Store::GetResource", "Requested " + digest.toString());  
 	
 	if(!File::Exist(path))
 	{
