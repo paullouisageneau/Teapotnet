@@ -526,6 +526,8 @@ bool AddressBook::publish(const Identifier &remotePeering)
 
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
 {
+	output.clear();
+  
 	try {
 	  	String url;
 	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker?id=" + peering.toString();
@@ -538,7 +540,18 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		if(tmp.empty()) return false;
 	
 		YamlSerializer serializer(&tmp);
-		return serializer.input(output);
+		
+		while(true)
+		try {
+			serializer.input(output);
+			break;
+		}
+		catch(const InvalidData &e)
+		{
+			 
+		}
+		
+		return !output.empty();
 	}
 	catch(const std::exception &e)
 	{
@@ -805,9 +818,12 @@ void AddressBook::Contact::update(void)
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 		
+	mFound = false;
+	
 	AddressMap newAddrs;
-	if(mFound = AddressBook::query(mPeering, mTracker, newAddrs, false))
+	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
+		mFound = true;
 		for(AddressMap::iterator it = newAddrs.begin();
 			it != newAddrs.end();
 			++it)
@@ -1483,6 +1499,9 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	
 	// TODO: checks
 	
+	mMessages.clear();
+	mMessagesCount = 0;
+	mFound = false;
 	return true;
 }
 
