@@ -334,7 +334,7 @@ void Interface::process(Http::Request &request)
 						size_t finished = splicer.finishedBlocks();
 						while(total < contentLength && current < finished)
 						{
-							if(current == firstBlock)
+							if(current == firstBlock && firstOffset)
 								file.ignore(firstOffset);
 							  
 							size_t size = size_t(std::min(uint64_t(blockSize), contentLength - total));

@@ -171,8 +171,8 @@ size_t Splicer::finishedBlocks(void) const
 	for(int i=0; i<mStripes.size(); ++i)
 	{
 		Assert(mStripes[i]);
-		mStripes[i]->flush();
 		block = std::min(block, mStripes[i]->tellWriteBlock());
+		mStripes[i]->flush();
 	}
 
 	return block;
@@ -234,7 +234,10 @@ void Splicer::query(int i, const Identifier &source)
 	if(mStripes[i])
 	{
 		block = mStripes[i]->tellWriteBlock();
-		offset = mStripes[i]->tellWriteOffset();
+		offset = 0;
+		// TODO
+		//offset = mStripes[i]->tellWriteOffset();
+		mStripes[i]->flush();
 	}
 	else {
 		block = mFirstBlock;
