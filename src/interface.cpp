@@ -324,6 +324,8 @@ void Interface::process(Http::Request &request)
 					// TODO: Missing headers
 					response.send();
 					
+					file.seekRead(firstBlock*blockSize);
+					
 					uint64_t total = 0;
 					size_t current = firstBlock;
 					while(total < contentLength && !splicer.finished())
@@ -337,7 +339,7 @@ void Interface::process(Http::Request &request)
 							if(current == firstBlock)
 								file.ignore(firstOffset);
 							  
-							size_t size = std::min(blockSize, contentLength - total);
+							size_t size = size_t(std::min(uint64_t(blockSize), contentLength - total));
 							Assert(size = file.read(*response.sock, size));
 							total+= size;
 							++current;
