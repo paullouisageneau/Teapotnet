@@ -105,7 +105,7 @@ void Splicer::process(void)
 			int fastest = byBlocks.begin()->second;
 			int slowest = byBlocks.rbegin()->second;
 			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
-				if(mStripes[fastest]->tellWriteBlock() > 2*mStripes[slowest]->tellWriteBlock() + 2)
+				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
 					query(slowest, mRequests[fastest]->receiver());
 		}
 	}
@@ -175,6 +175,7 @@ size_t Splicer::finishedBlocks(void) const
 		mStripes[i]->flush();
 	}
 
+	if(block) --block;	// TODO: full synchro on stripes
 	return block;
 }
 
