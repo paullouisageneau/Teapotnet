@@ -291,8 +291,6 @@ void Interface::process(Http::Request &request)
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd);
 				if(hasRange)
 				{
-					VAR(rangeBegin);
-					VAR(rangeEnd);
 					firstBlock = size_t(rangeBegin / blockSize);
 					firstOffset = size_t(rangeBegin % blockSize);
 				}
