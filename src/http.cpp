@@ -817,6 +817,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 		response.headers["Content-Length"] << file.size();
 	}
 	
+	response.headers["Accept-Ranges"] = "bytes";
 	response.headers["Content-Type"] = Mime::GetType(fileName);
 	response.headers["Last-Modified"] = File::Time(fileName).toHttpDate();
 

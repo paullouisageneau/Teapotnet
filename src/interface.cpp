@@ -317,8 +317,9 @@ void Interface::process(Http::Request &request)
 					response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
 					response.headers["Content-Type"] = Mime::GetType(splicer.name());
 					response.headers["Content-Length"] << contentLength;
-					response.headers["Content-SHA512"] = digest.toString();
+					response.headers["Accept-Ranges"] = "bytes";
 					if(hasRange) response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << contentLength;
+					else response.headers["Content-SHA512"] = digest.toString();
 					// TODO: Missing headers
 					response.send();
 					
