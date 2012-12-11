@@ -303,7 +303,7 @@ void Interface::process(Http::Request &request)
 					int code = 200;
 					
 					rangeBegin = 0;
-					rangeEnd = contentLength;
+					rangeEnd = contentLength-1;
 					
 					if(hasRange)
 					{ 
