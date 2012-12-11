@@ -318,7 +318,7 @@ void Interface::process(Http::Request &request)
 					response.headers["Content-Type"] = Mime::GetType(splicer.name());
 					response.headers["Content-Length"] << contentLength;
 					response.headers["Accept-Ranges"] = "bytes";
-					if(hasRange) response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << contentLength;
+					if(hasRange) response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << splicer.size();
 					else response.headers["Content-SHA512"] = digest.toString();
 					// TODO: Missing headers
 					response.send();
