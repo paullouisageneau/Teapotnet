@@ -273,7 +273,7 @@ void SafeWriteFile::close(void)
 	File::close();
 	if(!mTarget.empty())
 	{
-		Rename(mName, mTarget);
+		if(!std::fstream::bad()) Rename(mName, mTarget);
 		Remove(mName);
 		mName = mTarget;
 		mTarget.clear();
