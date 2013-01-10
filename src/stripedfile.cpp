@@ -51,7 +51,7 @@ uint64_t StripedFile::tellRead(void) const
 	return uint64_t(tellReadBlock())*mStripeSize + uint64_t(tellReadOffset());
 }
 
-size_t StripedFile::tellReadBlock(void) const
+unsigned StripedFile::tellReadBlock(void) const
 {
 	return mReadBlock;
 }
@@ -66,7 +66,7 @@ uint64_t StripedFile::tellWrite(void) const
 	return uint64_t(tellWriteBlock())*mStripeSize + uint64_t(tellWriteOffset());
 }
 
-size_t StripedFile::tellWriteBlock(void) const
+unsigned StripedFile::tellWriteBlock(void) const
 {
 	return mWriteBlock;
 }
@@ -81,7 +81,7 @@ void StripedFile::seekRead(uint64_t position)
 	seekRead(position / mStripeSize, position % mStripeSize);
 }
 
-void StripedFile::seekRead(size_t block, size_t offset)
+void StripedFile::seekRead(unsigned block, size_t offset)
 {
 	if(mReadBlock <= block)
 	{
@@ -106,7 +106,7 @@ void StripedFile::seekWrite(uint64_t position)
 	seekWrite(position / mStripeSize, position % mStripeSize);
 }
 
-void StripedFile::seekWrite(size_t block, size_t offset)
+void StripedFile::seekWrite(unsigned block, size_t offset)
 {
 	// WARNING: seekp() MUST allow seeking past the end of the file.
 	// If it is not the case, this WILL NOT work correctly.

@@ -898,6 +898,7 @@ void Core::Handler::run(void)
 						//Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
 						response->mTransfertFinished = true;
+						response->mStatus = Request::Response::Finished;
 						mResponses.erase(channel);
 					}
 				}

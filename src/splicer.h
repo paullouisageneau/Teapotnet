@@ -33,33 +33,67 @@ namespace tpot
 
 // "I'll wrap you in a sheet !"
 
-class Splicer : public Synchronizable
+class Splicer
 {
 public:
-	Splicer(const ByteString &target, const String &filename, size_t blockSize, size_t firstBlock = 0);
+	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
 	~Splicer(void);
-
-	const String &name(void) const;
-	uint64_t size(void) const;
 	
-	void process(void);
-	bool finished(void) const;
-	size_t finishedBlocks(void) const;
+	const String &name(void) const;
+	int64_t size(void) const;	// range size
+	int64_t begin(void) const;
+	int64_t end(void) const;
+	bool finished(void) const;	// true if the splicer has finished
+	
+	int64_t process(ByteStream *output);
 	void close(void);
 	
 private:
-  	void search(Set<Identifier> &sources);
-  	void query(int i, const Identifier &source);
+	void query(int i, const Identifier &source);
   
-	ByteString mTarget;
-	String mFileName;
-	size_t mBlockSize;
-	size_t mFirstBlock;
-	String mName;
-	uint64_t mSize;
-	int mNbStripes;
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
+	unsigned mFirstBlock, mCurrentBlock, mOffset;
+	File *mFile;
+	int64_t mBegin, mEnd, mLeft;
+	
+	class CacheEntry : protected Synchronizable
+	{
+	public:
+		CacheEntry(const ByteString &target);
+		~CacheEntry(void);
+		
+		const ByteString &target(void) const;
+		const String &fileName(void) const;
+		const String &name(void) const;
+		int64_t size(void) const;
+		size_t blockSize(void) const;
+		bool finished(void) const;	// true if the whole file is finished
+		unsigned block(int64_t position) const;
+		
+		bool getSources(Set<Identifier> &sources);
+		void refreshSources(void);
+		
+		bool isFinished(void) const;
+		bool isBlockFinished(unsigned block) const;
+		bool markBlockFinished(unsigned block);
+		
+	private:
+		ByteString mTarget;
+		String mFileName;
+		String mName;
+		int64_t mSize;
+		unsigned mBlockSize;
+		// TODO: time for cache cleaning
+	  
+		Set<Identifier> mSources;
+		Array<bool> mFinishedBlocks;
+	};
+	
+	CacheEntry *mCacheEntry;
+	
+	static Map<ByteString, CacheEntry*> Cache;
+	static Mutex CacheMutex;
 };
 
 }

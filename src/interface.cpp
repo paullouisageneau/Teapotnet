@@ -280,84 +280,41 @@ void Interface::process(Http::Request &request)
 				return;
 			}
 			else {
-				size_t blockSize = 128*1024;		// TODO
-				String filename  = File::TempName();	// TODO
-				
-				size_t firstBlock = 0;
-				size_t firstOffset = 0;
-				
 				int64_t rangeBegin = 0;
 				int64_t rangeEnd = 0;
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd);
-				if(hasRange)
-				{
-					firstBlock = size_t(rangeBegin / blockSize);
-					firstOffset = size_t(rangeBegin % blockSize);
-				}
 				
 				try {
-					Splicer splicer(digest, filename, blockSize, firstBlock);
-					File file(filename, File::Read);
+				  	// TODO: range error
+					Splicer splicer(digest, rangeBegin, rangeEnd);
 					
-					uint64_t contentLength = splicer.size();
+					int64_t contentLength = splicer.size();
 					int code = 200;
-					
-					rangeBegin = 0;
-					rangeEnd = contentLength-1;
-					
-					if(hasRange)
-					{ 
-						Assert(request.extractRange(rangeBegin, rangeEnd, contentLength));
-						if(rangeBegin >=  contentLength || rangeEnd >= contentLength || rangeBegin > rangeEnd) throw 416;
-						contentLength = uint64_t(rangeEnd - rangeBegin + 1);
-						code = 206;
-					}
 					
 					Http::Response response(request, code);
 					response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
 					response.headers["Content-Type"] = Mime::GetType(splicer.name());
 					response.headers["Content-Length"] << contentLength;
 					response.headers["Accept-Ranges"] = "bytes";
-					if(hasRange) response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << splicer.size();
+					if(hasRange) response.headers["Content-Range"] << splicer.begin() << '-' << splicer.end() << '/' << splicer.size();
 					else response.headers["Content-SHA512"] = digest.toString();
 					// TODO: Missing headers
 					response.send();
 					
-					file.seekRead(firstBlock*blockSize);
-					
 					uint64_t total = 0;
-					size_t current = firstBlock;
-					while(total < contentLength && !splicer.finished())
+					while(!splicer.finished())
 					{
+						total+= splicer.process(response.sock);
 						msleep(100);
-						splicer.process();
-						
-						size_t finished = splicer.finishedBlocks();
-						while(total < contentLength && current < finished)
-						{
-							if(current == firstBlock && firstOffset)
-								file.ignore(firstOffset);
-							  
-							size_t size = size_t(std::min(uint64_t(blockSize), contentLength - total));
-							Assert(size = file.read(*response.sock, size));
-							total+= size;
-							++current;
-						}
 					}
 					
 					splicer.close();
 					
-					if(total < contentLength)
-						total+= file.read(*response.sock, contentLength - total);
-					
 					if(total == contentLength)
 					{
-						if(rangeBegin == 0 && contentLength == file.size())
-						{
-							// TODO: copy in incoming 
-						}
+						// TODO: copy in incoming if finished
 					}
-					else Log("Interface::http", String("Warning: Splicer downloaded ") + String::number(total) + " bytes whereas size was " + String::number(contentLength));
+					else Log("Interface::http", String("Warning: Splicer downloaded ") + String::number(total) + " bytes whereas length was " + String::number(contentLength));
 				}
 				catch(const NetException &e)
 				{
@@ -368,7 +325,6 @@ void Interface::process(Http::Request &request)
 					Log("Interface::process", String("Error during file transfer: ") + e.what());
 				}
 				
-				if(File::Exist(filename)) File::Remove(filename);
 				return;
 			}
 		}

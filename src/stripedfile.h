@@ -35,18 +35,18 @@ public:
 	~StripedFile(void);
 
 	uint64_t tellRead(void) const;
-	size_t tellReadBlock(void) const;
-	size_t tellReadOffset(void) const;
+	unsigned tellReadBlock(void) const;
+	size_t   tellReadOffset(void) const;
 	
 	uint64_t tellWrite(void) const;
-	size_t tellWriteBlock(void) const;
-	size_t tellWriteOffset(void) const;
+	unsigned tellWriteBlock(void) const;
+	size_t   tellWriteOffset(void) const;
 	
 	void seekRead(uint64_t position);
-	void seekRead(size_t block, size_t offset);
+	void seekRead(unsigned block, size_t offset);
 
 	void seekWrite(uint64_t position);
-	void seekWrite(size_t block, size_t offset);
+	void seekWrite(unsigned block, size_t offset);
 	
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *buffer, size_t size);
@@ -59,8 +59,8 @@ private:
 	size_t mStripeSize;
 	size_t mStripeOffset;
 
-	size_t mReadBlock,  mWriteBlock;	// Current block
-	size_t mReadOffset, mWriteOffset;	// Current position inside the current stripe
+	unsigned mReadBlock,  mWriteBlock;	// Current block
+	size_t   mReadOffset, mWriteOffset;	// Current position inside the current stripe
 };
 
 }

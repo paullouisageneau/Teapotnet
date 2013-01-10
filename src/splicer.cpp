@@ -26,35 +26,71 @@
 
 namespace tpot
 {
+	
+Map<ByteString, Splicer::CacheEntry*> Splicer::Cache;
+Mutex Splicer::CacheMutex;
   
-Splicer::Splicer(const ByteString &target, const String &filename, size_t blockSize, size_t firstBlock) :
-		mTarget(target),
-		mFileName(filename),
-		mBlockSize(blockSize),
-		mFirstBlock(firstBlock),
-		mSize(0)
+Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
+	mFirstBlock(0),
+	mCurrentBlock(0),
+	mOffset(0),
+	mBegin(begin),
+	mEnd(end),
+	mLeft(0)
 {
-	Log("Splicer", "Requesting available sources...");
+	CacheMutex.lock();
+	if(!Cache.get(target, mCacheEntry))
+	{
+		Log("Splicer", "No cached file, creating a new one");
+		
+		try {
+			mCacheEntry = new CacheEntry(target);
+		}
+		catch(...)
+		{
+			CacheMutex.unlock();
+			throw;
+		}
+		
+		Cache.insert(target, mCacheEntry);
+	}
+	CacheMutex.unlock();
 	
 	Set<Identifier> sources;
-	search(sources);
+	mCacheEntry->getSources(sources);
+	if(sources.empty()) throw Exception("No sources found for " + target.toString());
 	
-	if(sources.empty()) throw Exception("No sources found");
-	if(mName.empty()) throw Exception("Unable to retrieve the file name");
+	// OK, the cache entry is initialized
 	
-	Log("Splicer", "Found " + String::number(int(sources.size())) + " sources");
+	// Initialize variables
+	mBegin = bounds(mBegin, int64_t(0), mCacheEntry->size());
+	if(mEnd < 0) mEnd = mCacheEntry->size();
+	else mEnd = bounds(mEnd, mBegin, mCacheEntry->size());
+	mLeft = mEnd-mBegin;
 	
-	mNbStripes = sources.size();
-	mRequests.fill(NULL, mNbStripes);
-	mStripes.fill(NULL, mNbStripes);
+	mCurrentBlock = mCacheEntry->block(mBegin);
+	mFirstBlock = mCurrentBlock;
+	while(mCacheEntry->isBlockFinished(mFirstBlock))
+		++mFirstBlock;
+	
+	Log("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
+	
+	// Open file to read
+	mFile = new File(mCacheEntry->fileName(), File::Read);
+	mFile->seekRead(mCurrentBlock*mCacheEntry->blockSize());
+	mOffset = mBegin - mCurrentBlock*mCacheEntry->blockSize();
+	
+	// Request stripes
+	int nbStripes = std::max(1, int(sources.size()));	// TODO
+	mRequests.fill(NULL, nbStripes);
+	mStripes.fill(NULL, nbStripes);
 
-	int i = 0;
-	for(Set<Identifier>::iterator it = sources.begin();
-	  	it != sources.end();
-		++it)
+	Set<Identifier>::iterator it = sources.begin();
+	for(int i=0; i<nbStripes; ++i)
 	{
 		query(i, *it);
-		++i;
+		++it;
+		if(it == sources.end()) it = sources.begin();
 	}
 	
 	Log("Splicer", "Transfers launched successfully");
@@ -63,22 +99,91 @@ Splicer::Splicer(const ByteString &target, const String &filename, size_t blockS
 Splicer::~Splicer(void)
 {
 	close();
+	
+	delete mFile;
 }
 
 const String &Splicer::name(void) const
 {
-	return mName;
+	return mCacheEntry->name(); 
 }
 
-uint64_t Splicer::size(void) const
+int64_t Splicer::size(void) const
 {
-	return mSize;
+	return mEnd - mBegin; 
 }
 
-void Splicer::process(void)
-{ 
-  	std::vector<int>		onError;
-	std::multimap<size_t, int> 	byBlocks;
+int64_t Splicer::begin(void) const
+{
+	return mBegin; 
+}
+
+int64_t Splicer::end(void) const
+{
+	return mEnd;
+}
+
+bool Splicer::finished(void) const
+{
+	return !mLeft;
+}
+
+int64_t Splicer::process(ByteStream *output)
+{
+	int64_t written = 0;
+  
+	unsigned currentBlock = mCacheEntry->block(mCacheEntry->size());
+	int nbPending = 0;
+	for(int i=0; i<mRequests.size(); ++i)
+	{
+		Assert(mRequests[i]);
+		Assert(mStripes[i]);
+		Synchronize(mRequests[i]);
+		
+		if(mRequests[i]->responsesCount()) 
+		{
+			const Request::Response *response = mRequests[i]->response(0);
+			Assert(response != NULL);
+			if(response->finished()) continue;
+		}
+		
+		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
+		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
+		mStripes[i]->flush();
+		++nbPending;
+	}
+
+	if(!nbPending) ++currentBlock;
+	else if(currentBlock > 0) --currentBlock;
+	
+	if(mCurrentBlock < currentBlock)
+	{
+		while(mCurrentBlock < currentBlock)
+		{
+			mCacheEntry->markBlockFinished(mCurrentBlock);
+			
+			if(output && mLeft)
+			{
+				if(mOffset)
+				{
+					mFile->ignore(mOffset);
+					mOffset = 0;
+				}
+			  
+				size_t size = size_t(std::min(int64_t(mCacheEntry->blockSize()), mLeft));
+				Assert(size = mFile->readBinary(*output, size));
+				mLeft-= size;
+				written+= size;
+				
+				if(!mLeft) return written;
+			}
+			
+			++mCurrentBlock;
+		}
+	}
+	
+	std::vector<int>		onError;
+	std::multimap<unsigned, int> 	byBlocks;
 	
 	for(int i=0; i<mRequests.size(); ++i)
 	{
@@ -86,7 +191,7 @@ void Splicer::process(void)
 		Assert(mStripes[i]);
 		Synchronize(mRequests[i]);
 		
-		byBlocks.insert(std::pair<size_t,int>(mStripes[i]->tellWriteBlock(), i));
+		byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
 		
 		if(mRequests[i]->responsesCount())
 		{
@@ -102,11 +207,13 @@ void Splicer::process(void)
 	{
 		if(mRequests.size() >= 2)
 		{
-			int fastest = byBlocks.begin()->second;
-			int slowest = byBlocks.rbegin()->second;
+			int slowest = byBlocks.begin()->second;
+			int fastest = byBlocks.rbegin()->second;
 			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
+			{
 				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
 					query(slowest, mRequests[fastest]->receiver());
+			}
 		}
 	}
 	else for(int k=0; k<onError.size(); ++k)
@@ -115,7 +222,7 @@ void Splicer::process(void)
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
-		Map<size_t, int>::reverse_iterator it = byBlocks.rbegin();
+		Map<unsigned, int>::reverse_iterator it = byBlocks.rbegin();
 		while(true)
 		{
 			source = mRequests[it->second]->receiver();
@@ -124,12 +231,13 @@ void Splicer::process(void)
 			if(it == byBlocks.rend())
 			{
 				Set<Identifier> sources;
-				search(sources);
+				mCacheEntry->refreshSources();
+				mCacheEntry->getSources(sources);
 	
 				if(sources.empty())
 				{
 					msleep(30000);
-					return;
+					return written;
 				}
 
 				Set<Identifier>::iterator jt = sources.begin();
@@ -142,41 +250,8 @@ void Splicer::process(void)
 		
 		query(i, source);
 	}
-}
-
-bool Splicer::finished(void) const
-{
-	for(int i=0; i<mRequests.size(); ++i)
-	{
-		Assert(mRequests[i]);
-		Assert(mStripes[i]);
-		Synchronize(mRequests[i]);
-		
-		if(mRequests[i]->responsesCount() == 0) return false;
-		
-		const Request::Response *response = mRequests[i]->response(0);
-		Assert(response != NULL);
-		Assert(response->content() != NULL);
-		
-		if(response->error()) return false;
-		if(response->content()->is_open()) return false;
-	}
 	
-	return true;
-}
-
-size_t Splicer::finishedBlocks(void) const
-{
-	size_t block = std::numeric_limits<size_t>::max();
-	for(int i=0; i<mStripes.size(); ++i)
-	{
-		Assert(mStripes[i]);
-		block = std::min(block, mStripes[i]->tellWriteBlock());
-		mStripes[i]->flush();
-	}
-
-	if(block) --block;	// TODO: full synchro on stripes
-	return block;
+	return written;
 }
 
 void Splicer::close(void)
@@ -196,77 +271,180 @@ void Splicer::close(void)
 	mStripes.clear();
 }
 
-void Splicer::search(Set<Identifier> &sources)
-{
-	const unsigned timeout = Config::Get("request_timeout").toInt();
-	
-	Request request(mTarget.toString(), false);
-	request.submit();
-	request.wait(timeout);
-
-	Synchronize(&request);
-	for(int i=0; i<request.responsesCount(); ++i)
-	{
-		Request::Response *response = request.response(i);
-		const StringMap &parameters = response->parameters();
-		
-		if(!response->error())
-		{
-			if(mName.empty() && parameters.contains("name")) 
-				mName = parameters.get("name");
-			
-			// TODO: check size
-			if(mSize == 0 && parameters.contains("size")) 
-				parameters.get("size").extract(mSize);
-			
-			sources.insert(response->peering());
-		}
-	}
-}
-
 void Splicer::query(int i, const Identifier &source)
 {
 	Assert(i < mRequests.size());
 	Assert(i < mStripes.size());
-  
-  	size_t block = 0;
+
+	int nbStripes = mStripes.size();
+	unsigned block = mFirstBlock;
 	size_t offset = 0;
 
 	if(mStripes[i])
 	{
-		block = mStripes[i]->tellWriteBlock();
-		offset = 0;
-		// TODO
-		//offset = mStripes[i]->tellWriteOffset();
+		block = std::max(block, mStripes[i]->tellWriteBlock());
 		mStripes[i]->flush();
-	}
-	else {
-		block = mFirstBlock;
-		offset = 0;
 	}
 
 	if(mRequests[i]) delete mRequests[i];
 	mStripes[i] = NULL;
 	mRequests[i] = NULL;
-  
-	File *file = new File(mFileName, File::Write);
-	StripedFile *striped = new StripedFile(file, mBlockSize, mNbStripes, i);
+	
+	File *file = new File(mCacheEntry->fileName(), File::ReadWrite);
+	StripedFile *striped = new StripedFile(file, mCacheEntry->blockSize(), nbStripes, i);
 	striped->seekWrite(block, offset);
 	mStripes[i] = striped;
-		
+	
 	StringMap parameters;
-	parameters["block-size"] << mBlockSize;
-	parameters["stripes-count"] << mNbStripes;
+	parameters["block-size"] << mCacheEntry->blockSize();
+	parameters["stripes-count"] << nbStripes;
 	parameters["stripe"] << i;
 	parameters["block"] << block;
 	parameters["offset"] << offset;
 	
 	Request *request = new Request;
-	request->setTarget(mTarget.toString(),true);
+	request->setTarget(mCacheEntry->target().toString(),true);
 	request->setParameters(parameters);
 	request->setContentSink(striped);
 	request->submit(source);
 	mRequests[i] = request;
+}
+
+Splicer::CacheEntry::CacheEntry(const ByteString &target) :
+	mTarget(target),
+	mSize(0),
+	mBlockSize(128*1024)	// TODO
+{
+	mFileName = File::TempName();
+	File dummy(mFileName, File::TruncateReadWrite);
+	dummy.close();
+}
+
+Splicer::CacheEntry::~CacheEntry(void)
+{
+	File::Remove(mFileName);
+}
+
+const ByteString &Splicer::CacheEntry::target(void) const
+{
+	Synchronize(this);
+	return mTarget;
+}
+
+const String &Splicer::CacheEntry::fileName(void) const
+{
+	Synchronize(this);
+	return mFileName;
+}
+
+const String &Splicer::CacheEntry::name(void) const
+{
+	Synchronize(this); 
+	return mName;
+}
+
+int64_t Splicer::CacheEntry::size(void) const
+{
+	Synchronize(this); 
+	return mSize;
+}
+
+size_t Splicer::CacheEntry::blockSize(void) const
+{
+	Synchronize(this); 
+	return mBlockSize; 
+}
+
+bool Splicer::CacheEntry::finished(void) const
+{
+	Synchronize(this);
+	if(mFinishedBlocks.size() < (mSize + mBlockSize - 1) / mBlockSize) return false;
+	if(std::find(mFinishedBlocks.begin(), mFinishedBlocks.end(), false) == mFinishedBlocks.end()) return false;
+	return true;
+}
+
+unsigned Splicer::CacheEntry::block(int64_t position) const
+{
+	Synchronize(this); 
+	return unsigned(position / int64_t(mBlockSize));  
+}
+
+bool Splicer::CacheEntry::getSources(Set<Identifier> &sources)
+{
+	Synchronize(this);
+	if(mSources.empty()) refreshSources();
+	sources = mSources;
+	return !sources.empty();
+}
+
+void Splicer::CacheEntry::refreshSources(void)
+{
+	Synchronize(this);  
+
+	Log("Splicer", "Requesting available sources...");
+	
+	const unsigned timeout = Config::Get("request_timeout").toInt();
+	
+	Request request(mTarget.toString(), false);
+	request.submit();
+	DesynchronizeStatement(this, request.wait(timeout));
+
+	{
+		Synchronize(&request);
+		mSources.clear();
+		for(int i=0; i<request.responsesCount(); ++i)
+		{
+			Request::Response *response = request.response(i);
+			const StringMap &parameters = response->parameters();
+			
+			if(!response->error())
+			{
+				if(mName.empty() && parameters.contains("name")) 
+					mName = parameters.get("name");
+				
+				// TODO: check size
+				if(mSize == 0 && parameters.contains("size")) 
+					parameters.get("size").extract(mSize);
+				
+				mSources.insert(response->peering());
+			}
+		}
+	}
+	
+	if(mName.empty()) throw Exception("Unable to retrieve the file name");
+	
+	Log("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
+}
+
+bool Splicer::CacheEntry::isFinished(void) const
+{
+  
+}
+
+bool Splicer::CacheEntry::isBlockFinished(unsigned block) const
+{
+	Synchronize(this);
+  
+	if(block >= mFinishedBlocks.size()) return false;
+	return mFinishedBlocks[block];
+}
+
+bool Splicer::CacheEntry::markBlockFinished(unsigned block)
+{
+	Synchronize(this);
+  
+	if(block >= mFinishedBlocks.size())
+	{
+		unsigned i = mFinishedBlocks.size();
+		mFinishedBlocks.resize(block+1);
+		while(i < mFinishedBlocks.size()-1)
+		{
+			mFinishedBlocks[i] = false;
+			++i;
+		}
+	}
+	
+	mFinishedBlocks[block] = true;
 }
 
 }
