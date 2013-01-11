@@ -944,7 +944,7 @@ void Core::Handler::run(void)
 				Synchronize(mSender);
 				if(mSender->mTransferts.contains(channel))
 				{
-					Log("Core::Handler", "Stopping on channel "+String::number(channel));
+					//Log("Core::Handler", "Stopping on channel "+String::number(channel));
 					mSender->mTransferts.erase(channel);
 				}
 				//else Log("Core::Handler", "Received stop for unknown channel "+String::number(channel));
