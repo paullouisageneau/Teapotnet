@@ -880,9 +880,13 @@ void Core::Handler::run(void)
 			}
 			else if(command == "D")	// Data block
 			{
-				unsigned channel, size;
+				unsigned channel;
 				args.read(channel);
-				args.read(size);
+				
+				// TODO: backward compatibility, should be removed
+				unsigned size = 0;
+				if(parameters.contains("length")) parameters["length"].extract(size);
+				else args.read(size);
 
 				Request::Response *response;
 				if(mResponses.get(channel,response))
@@ -983,16 +987,19 @@ void Core::Handler::run(void)
 			}
 			else if(command == "M")
 			{
-				unsigned size;
-				args.read(size);
+				// TODO: backward compatibility, should be removed
+				unsigned length = 0;
+				if(parameters.contains("length")) parameters["length"].extract(length);
+				else args.read(length);
+			  
 				//Log("Core::Handler", "Received message");
 				
 				Message message;
 				message.mReceiver = mPeering;
 				message.mParameters = parameters;
-				message.mContent.reserve(size);
+				message.mContent.reserve(length);
 				
-				mStream->read(message.mContent,size);
+				mStream->read(message.mContent,length);
 				
 				Listener *listener;
 				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
@@ -1008,7 +1015,14 @@ void Core::Handler::run(void)
 					}
 				}
 			}
-			else throw Exception("Invalid command: " + command);
+			else {
+				Log("Core::Handler", "Warning: unknown command: " + command);
+			  
+				// TODO: backward compatibility, should be removed
+				unsigned length = 0;
+				if(parameters.contains("length")) parameters["length"].extract(length);
+				AssertIO(mStream->ignore(length));
+			}
 		}
 
 		Log("Core::Handler", "Finished");
@@ -1118,11 +1132,16 @@ void Core::Handler::Sender::run(void)
 			if(!mMessagesQueue.empty())
 			{
 				const Message &message = mMessagesQueue.front();
-				//Log("Core::Handler::Sender", "Sending message");
+				unsigned length = message.content().size();
 				
+				//Log("Core::Handler::Sender", "Sending message");
+
 				String args;
-				args << message.mContent.size();
-				Handler::sendCommand(mStream, "M", args, message.parameters());
+				args << length;	// TODO: backward compatibility, should be removed
+				StringMap parameters = message.parameters();
+				parameters["length"] = length;
+				
+				Handler::sendCommand(mStream, "M", args, parameters);
 				
 				mStream->write(message.mContent);
 				
@@ -1191,10 +1210,13 @@ void Core::Handler::Sender::run(void)
 					mTransferts.erase(channel);
 					continue;
 				}
-				
+
 				String args;
-				args << channel << " " << size;
-				Handler::sendCommand(mStream, "D", args, StringMap());
+				args << channel;
+				args << " " << size;	// TODO: backward compatibility, should be removed
+				StringMap parameters;
+				parameters["length"] << size;
+				Handler::sendCommand(mStream, "D", args, parameters);
 
 				if(size == 0)
 				{
