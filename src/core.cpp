@@ -702,8 +702,6 @@ void Core::Handler::run(void)
 					else {
 						Log("Core::Handler", "No other handler reached forwarding meeting point");
 					}
-						
-					return;
 				}
 					
 				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
