@@ -989,7 +989,11 @@ void Core::Handler::run(void)
 			{
 				// TODO: backward compatibility, should be removed
 				unsigned length = 0;
-				if(parameters.contains("length")) parameters["length"].extract(length);
+				if(parameters.contains("length")) 
+				{
+					parameters["length"].extract(length);
+					parameters.erase("length");
+				}
 				else args.read(length);
 			  
 				//Log("Core::Handler", "Received message");
@@ -999,7 +1003,7 @@ void Core::Handler::run(void)
 				message.mParameters = parameters;
 				message.mContent.reserve(length);
 				
-				mStream->read(message.mContent,length);
+				mStream->read(message.mContent, length);
 				
 				Listener *listener;
 				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
@@ -1021,7 +1025,7 @@ void Core::Handler::run(void)
 				// TODO: backward compatibility, should be removed
 				unsigned length = 0;
 				if(parameters.contains("length")) parameters["length"].extract(length);
-				AssertIO(mStream->ignore(length));
+				if(length) AssertIO(mStream->ignore(length));
 			}
 		}
 
@@ -1139,7 +1143,7 @@ void Core::Handler::Sender::run(void)
 				String args;
 				args << length;	// TODO: backward compatibility, should be removed
 				StringMap parameters = message.parameters();
-				parameters["length"] = length;
+				parameters["length"] << length;
 				
 				Handler::sendCommand(mStream, "M", args, parameters);
 				
