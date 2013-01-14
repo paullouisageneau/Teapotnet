@@ -25,7 +25,7 @@ depend: .depend
 	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
 
 clean:
-	$(RM) $(OBJS)
+	$(RM) $(OBJS) res.o
 	$(RM) res.rc
 	
 dist-clean: clean
