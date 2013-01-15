@@ -5,7 +5,7 @@ STRIP=i486-mingw32-strip
 RM=rm -f
 CPPFLAGS=-O
 LDFLAGS=-O -static -static-libgcc
-LDLIBS=-lwininet
+LDLIBS=-lwininet -lcrypt32
 
 SRCS=$(shell printf "%s " *.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))

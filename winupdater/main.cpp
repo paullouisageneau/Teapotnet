@@ -25,11 +25,12 @@
 #include <cstdio>
 #include <cstring>
 
-#include <malloc.h>
 #include <windows.h>
 #include <wininet.h>
+#include <wincrypt.h>
 #include <shlwapi.h>
 #include <psapi.h> 
+#include <malloc.h>
 
 #include "unzip.h"
 
@@ -42,12 +43,41 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 			LPSTR lpCmdLine,
 			int nCmdShow)
 {
+	PCSTR szCertFileName = "root.crt";
+	HANDLE hCertFile = CreateFile(szCertFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if(hCertFile != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwCertSize = GetFileSize(hCertFile, NULL);
+		char *pCertData = (char*)malloc(dwCertSize);
+		
+		DWORD dwRead = 0;
+		ReadFile(hCertFile, pCertData, dwCertSize, &dwRead, NULL);
+		CloseHandle(hCertFile);
+		
+		if(dwRead == dwCertSize)
+		{
+			PCCERT_CONTEXT pContext = CertCreateCertificateContext(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+							(BYTE*)pCertData, dwCertSize);
+			HCERTSTORE hRootCertStore = CertOpenSystemStore((HCRYPTPROV)NULL, "ROOT");
+			CertAddCertificateContextToStore(hRootCertStore,
+							pContext,
+							CERT_STORE_ADD_USE_EXISTING,
+							NULL);
+			CertCloseStore(hRootCertStore, 0);
+			CertFreeCertificateContext(pContext);
+		}
+		
+		free(pCertData);
+	}
+	
 	PCSTR szAgent = "TeapotNet-WinUpdater/0.1";
 	HINTERNET hInternet = InternetOpen(szAgent,
 				INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	
 	PCSTR szServerName = "teapotnet.org";
 	INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTP_PORT;
+	//INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTPS_PORT;
+	
 	PCSTR szUserName = NULL;
 	PCSTR szPassword = NULL;
 	DWORD dwConnectFlags = 0;
@@ -64,20 +94,43 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 	PCSTR szReferrer = NULL;	// No referrer.
 	PCSTR *lpszAcceptTypes = NULL;	// We don't care
 	DWORD dwOpenRequestFlags = INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTP |
-		INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTPS |
 		INTERNET_FLAG_KEEP_CONNECTION |
 		INTERNET_FLAG_NO_AUTH |
-		INTERNET_FLAG_NO_AUTO_REDIRECT |
-		INTERNET_FLAG_NO_COOKIES |
 		INTERNET_FLAG_NO_UI |
 		INTERNET_FLAG_RELOAD;
+	// dwOpenRequestFlags|= INTERNET_FLAG_SECURE;
+	// dwOpenRequestFlags|= INTERNET_FLAG_IGNORE_CERT_CN_INVALID;	// Ignore invalid name
+	// dwOpenRequestFlags|= INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;	// Ignore if expired
 	DWORD dwOpenRequestContext = 0;
 	HINTERNET hRequest = HttpOpenRequest(hConnect, szVerb, szObjectName, szVersion,
 				szReferrer, lpszAcceptTypes,
 				dwOpenRequestFlags, dwOpenRequestContext);
 	
-	if(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
+	while(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
 	{
+		DWORD dwError = GetLastError();
+		
+		if(dwError == ERROR_INTERNET_INVALID_CA)
+		{
+			/*
+			DWORD dwFlags = 0;
+			DWORD dwLen = sizeof(dwFlags);
+			InternetQueryOption (hRequest, INTERNET_OPTION_SECURITY_FLAGS, (LPVOID)&dwFlags, &dwLen);
+			dwFlags |= SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+			InternetSetOption (hRequest, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof (dwFlags));
+			*/
+			
+			DWORD dwRet = InternetErrorDlg (GetDesktopWindow(),
+					hRequest,
+					ERROR_INTERNET_INVALID_CA,
+					FLAGS_ERROR_UI_FILTER_FOR_ERRORS |
+					FLAGS_ERROR_UI_FLAGS_GENERATE_DATA |
+					FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS,
+					NULL);
+	
+			if(dwRet == ERROR_SUCCESS) continue;
+		}
+		
 		// TODO: error
 		return 1;
 	}
