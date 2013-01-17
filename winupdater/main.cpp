@@ -43,7 +43,8 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 			LPSTR lpCmdLine,
 			int nCmdShow)
 {
-	PCSTR szCertFileName = "root.crt";
+	/*
+	PCSTR szCertFileName = "root.der";
 	HANDLE hCertFile = CreateFile(szCertFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
 	if(hCertFile != INVALID_HANDLE_VALUE)
 	{
@@ -69,14 +70,15 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 		
 		free(pCertData);
 	}
-	
+	*/
+
 	PCSTR szAgent = "TeapotNet-WinUpdater/0.1";
 	HINTERNET hInternet = InternetOpen(szAgent,
 				INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	
 	PCSTR szServerName = "teapotnet.org";
-	INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTP_PORT;
-	//INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTPS_PORT;
+	//INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTP_PORT;
+	INTERNET_PORT nServerPort = INTERNET_DEFAULT_HTTPS_PORT;
 	
 	PCSTR szUserName = NULL;
 	PCSTR szPassword = NULL;
@@ -98,9 +100,9 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 		INTERNET_FLAG_NO_AUTH |
 		INTERNET_FLAG_NO_UI |
 		INTERNET_FLAG_RELOAD;
-	// dwOpenRequestFlags|= INTERNET_FLAG_SECURE;
+	dwOpenRequestFlags|= INTERNET_FLAG_SECURE;			// SSL
+	dwOpenRequestFlags|= INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;	// Ignore if expired
 	// dwOpenRequestFlags|= INTERNET_FLAG_IGNORE_CERT_CN_INVALID;	// Ignore invalid name
-	// dwOpenRequestFlags|= INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;	// Ignore if expired
 	DWORD dwOpenRequestContext = 0;
 	HINTERNET hRequest = HttpOpenRequest(hConnect, szVerb, szObjectName, szVersion,
 				szReferrer, lpszAcceptTypes,
