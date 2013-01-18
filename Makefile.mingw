@@ -27,22 +27,19 @@ depend: .depend
 clean:
 	$(RM) $(OBJS) res.o
 	$(RM) res.rc
-	cd winupdater
-	make clean
-	cd ..
+	cd winupdater && make clean
 	
 dist-clean: clean
+	$(RM) teapotnet.exe winupdater.exe
 	$(RM) src/*~ ./.depend
+	cd winupdater && make dist-clean
 
 res.o:
 	echo 1 ICON "teapotnet.ico" > res.rc
 	$(RES) res.rc res.o
 
 winupdater.exe:
-	cd winupdater
-	make all
-	cd ..
-	cp winupdater/winupdater.exe .
+	cd winupdater && make all && cp winupdater.exe ..
 
 include .depend
 

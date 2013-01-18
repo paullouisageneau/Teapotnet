@@ -24,6 +24,7 @@ clean:
 	$(RM) $(OBJS)
 
 dist-clean: clean
+	$(RM) teapotnet
 	$(RM) src/*~ ./.depend
 
 include .depend

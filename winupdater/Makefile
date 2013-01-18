@@ -1,7 +1,7 @@
-CC=i486-mingw32-gcc
-CXX=i486-mingw32-g++
-RES=i486-mingw32-windres
-STRIP=i486-mingw32-strip
+CC=$(CROSS)gcc
+CXX=$(CROSS)g++
+RES=$(CROSS)windres
+STRIP=$(CROSS)strip
 RM=rm -f
 CPPFLAGS=-O
 LDFLAGS=-O -static -static-libgcc

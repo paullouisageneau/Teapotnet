@@ -51,7 +51,7 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 			int nCmdShow)
 {
 	int ret = DoUpdate();
-	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, nCmdShow);
+	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, NULL, nCmdShow);
 	return ret;
 }
 
@@ -196,8 +196,8 @@ int DoUpdate(void)
 		GetZipItem(hZip, i, &ze);
 
 		const char *name = ze.name;
-		if(!strncmp(name,"teapotnet")) continue;
-		if(!strncmp(name,"teapotnet/")) name+= 10; 
+		if(!strcmp(name,"teapotnet")) continue;
+		if(!strncmp(name,"teapotnet/",10)) name+= 10; 
 
 		UnzipItem(hZip, i, ze.name);
 	}
