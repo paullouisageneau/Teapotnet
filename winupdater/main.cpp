@@ -25,6 +25,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+
 #include <windows.h>
 #include <wininet.h>
 #include <wincrypt.h>
@@ -36,13 +41,38 @@
 
 #define BUFFERSIZE 2048
 
+int CALLBACK WinMain(   HINSTANCE hInstance,
+                        HINSTANCE hPrevInstance,
+                        LPSTR lpCmdLine,
+                        int nCmdShow);
+int DoUpdate(void);
+
 using namespace std;
+
 
 int CALLBACK WinMain(	HINSTANCE hInstance,
 			HINSTANCE hPrevInstance,
 			LPSTR lpCmdLine,
 			int nCmdShow)
 {
+	int ret = DoUpdate();
+	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, nCmdShow);
+	return ret;
+}
+
+int DoUpdate(void)
+{
+	ifstream file("version");
+	if(!file.is_open())
+	{
+		string strVersion;
+		getline(file, strVersion);
+		file.close();
+	}
+
+	string strLocation = "/download/last/";
+	if(!strVersion.empty()) strLocation+= "?current=" + strVersion;
+
 	/*
 	PCSTR szCertFileName = "root.der";
 	HANDLE hCertFile = CreateFile(szCertFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -91,7 +121,7 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 				dwConnectFlags, dwConnectContext);
 	
 	PCSTR szVerb = "GET";
-	PCSTR szObjectName = "/download/last";
+	PCSTR szObjectName = strLocation.c_str();
 	PCSTR szVersion = NULL;		// Use default.
 	PCSTR szReferrer = NULL;	// No referrer.
 	PCSTR *lpszAcceptTypes = NULL;	// We don't care
@@ -179,8 +209,13 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 	int nbItems = ze.index;
 	for (int i=0; i<nbItems; ++i)
 	{
-		GetZipItem(hZip, i, &ze);	// fetch individual details
-		UnzipItem(hZip, i, ze.name);	// e.g. the item's name.
+		GetZipItem(hZip, i, &ze);
+
+		const char *name = ze.name;
+		if(!strncmp(name,"teapotnet")) continue;
+		if(!strncmp(name,"teapotnet/")) name+= 10; 
+
+		UnzipItem(hZip, i, ze.name);
 	}
 	CloseZip(hZip);
   
