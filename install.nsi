@@ -1,21 +1,11 @@
-# This installs two files, app.exe and logo.ico, creates a start menu shortcut, builds an uninstaller, and
-# adds uninstall information to the registry for Add/Remove Programs
- 
-# To get started, put this script into a folder with the two files (app.exe, logo.ico, and license.rtf -
-# You'll have to create these yourself) and run makensis on it
- 
-# If you change the names "app.exe", "logo.ico", or "license.rtf" you should do a search and replace - they
-# show up in a few places.
-# All the other settings can be tweaked by editing the !defines at the top of this script
+
 !define APPNAME "TeapotNet"
 !define AUTHOR "Paul-Louis Ageneau"
 !define DESCRIPTION "TeapotNet is an Easy but Advanced Privacy-Oriented Transmission Network"
-# These three must be integers
 !define VERSIONMAJOR 0
 !define VERSIONMINOR 3
 !define VERSIONBUILD 3
-# These will be displayed by the "Click here for support information" link in "Add/Remove Programs"
-# It is possible to use "mailto:" links in here to open the email client
+
 !define HELPURL "http://teapotnet.org/help/" # "Support Information" link
 !define UPDATEURL "http://teapotnet.org/download/" # "Product Updates" link
 !define ABOUTURL "http://teapotnet.org/about/" # "Publisher" link
@@ -65,6 +55,9 @@ section "install"
  
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
 	writeUninstaller "$INSTDIR\uninstall.exe"
+ 
+ 	# Desktop
+ 	createShortCut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\teapotnet.exe" "" "$INSTDIR\teapotnet.ico"
  
 	# Start Menu
 	createDirectory "$SMPROGRAMS\${APPNAME}"

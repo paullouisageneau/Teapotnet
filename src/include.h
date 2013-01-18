@@ -28,6 +28,7 @@
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://www.teapotnet.org/"
 #define SOURCELINK	"http://www.teapotnet.org/source/"
+#define VERSIONLINK	String("http://www.teapotnet.org/download/lastversion?current=")+APPVERSION
 
 
 #if defined(_WIN32) || defined(_WIN64)

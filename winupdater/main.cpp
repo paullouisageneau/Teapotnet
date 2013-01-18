@@ -25,11 +25,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-
 #include <windows.h>
 #include <wininet.h>
 #include <wincrypt.h>
@@ -62,17 +57,6 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 
 int DoUpdate(void)
 {
-	ifstream file("version");
-	if(!file.is_open())
-	{
-		string strVersion;
-		getline(file, strVersion);
-		file.close();
-	}
-
-	string strLocation = "/download/last/";
-	if(!strVersion.empty()) strLocation+= "?current=" + strVersion;
-
 	/*
 	PCSTR szCertFileName = "root.der";
 	HANDLE hCertFile = CreateFile(szCertFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -121,7 +105,7 @@ int DoUpdate(void)
 				dwConnectFlags, dwConnectContext);
 	
 	PCSTR szVerb = "GET";
-	PCSTR szObjectName = strLocation.c_str();
+	PCSTR szObjectName = "/download/last";
 	PCSTR szVersion = NULL;		// Use default.
 	PCSTR szReferrer = NULL;	// No referrer.
 	PCSTR *lpszAcceptTypes = NULL;	// We don't care

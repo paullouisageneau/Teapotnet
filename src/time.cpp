@@ -224,6 +224,16 @@ time_t Time::toUnixTime(void) const
 	return mTime; 
 }
 
+unsigned Time::toDays(void) const
+{
+	return unsigned((*this - Time(0))/86400); 
+}
+
+unsigned Time::toHours(void) const
+{
+	return unsigned((*this - Time(0))/3600); 
+}
+
 double Time::operator - (const Time &t)
 {
 	return difftime(mTime, t.mTime);

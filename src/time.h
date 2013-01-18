@@ -45,6 +45,8 @@ public:
 	String toDisplayDate(void) const;
 	String toHttpDate(void) const;
 	time_t toUnixTime(void) const;
+	unsigned toDays(void) const;
+	unsigned toHours(void) const;
 	
 	double operator - (const Time &t);
 	operator time_t(void) const;

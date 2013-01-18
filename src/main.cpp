@@ -22,6 +22,7 @@
 #include "main.h"
 #include "map.h"
 #include "sha512.h"
+#include "time.h"
 #include "store.h"
 #include "tracker.h"
 #include "http.h"
@@ -51,7 +52,7 @@ void openUserInterface(void)
 
 	String url;
 	url << "http://localhost:" << InterfacePort << "/";
-	ShellExecute(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
+	ShellExecute(NULL, "open", url, NULL, NULL, SW_SHOW);
 }
 
 #endif
@@ -81,6 +82,9 @@ int main(int argc, char** argv)
 	Assert(Address("::FFFF:192.168.0.1:80").isPrivate());
 */
 
+	unsigned appVersion = String(APPVERSION).dottedToInt();
+	Assert(appVersion != 0);
+	
 #ifndef WINDOWS
 		// Main config file name
 		// Should tell us where the static dir is located
@@ -105,7 +109,7 @@ int main(int argc, char** argv)
 		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("tpot_read_timeout", "60000");
-		
+
 		if(Config::Get("request_timeout").toInt() < 10000)
 			Config::Put("request_timeout", "10000");	
 		
@@ -116,10 +120,15 @@ int main(int argc, char** argv)
 		
 		StringMap args;
 		String last;
+		String commandLine;
 		for(int i=1; i<argc; ++i)
 		{
 			String str(argv[i]);
 			if(str.empty()) continue;
+			
+			if(!commandLine.empty()) commandLine+= ' ';
+			commandLine+= str;
+
 			if(str[0] == '-')
 			{
 				if(!last.empty()) args[last] = "";
@@ -160,6 +169,7 @@ int main(int argc, char** argv)
 			std::cout<<" --tracker [port]\tEnable the local tracker"<<std::endl;
 #ifdef WINDOWS
 			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
+			std::cout<<" --noupdate\t\tPrevent trying to update the program"<<std::endl;
 			std::cout<<" --debug\t\tKeep the console window on screen"<<std::endl;
 #endif
 			return 0;
@@ -171,6 +181,33 @@ int main(int argc, char** argv)
 			if(!args.contains("nointerface"))
 				openUserInterface();
 			return 0;
+		}
+
+		if(!args.contains("noupdate"))
+		{
+			unsigned currentDay = Time::Now().toDays();
+			unsigned updateDay = 0;
+			if(!Config::Get("last_update_day").empty())
+				Config::Get("last_update_day").extract(updateDay);
+			
+			if(updateDay != currentDay)
+			{
+				String content;
+				if(Http::Get(VERSIONLINK, &content) == 200)
+				content.trim();
+
+				unsigned lastVersion = content.dottedToInt();
+				if(appVersion < lastVersion)
+				{
+					if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
+					{
+						Config::Put("last_update_day", String::number(currentDay));
+						return 0;
+					}
+
+					Log("main", "Warning: Unable to launch the updater, skipping program update.");
+				}
+			}
 		}
 #endif
 		

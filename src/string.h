@@ -90,6 +90,7 @@ public:
 	String urlDecode(void) const;
 	String base64Encode(void) const;
 	String base64Decode(void) const;
+	unsigned dottedToInt(unsigned base = 256) const;
 	
 	double toDouble() const;
 	float toFloat() const;

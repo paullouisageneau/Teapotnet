@@ -492,10 +492,31 @@ String String::base64Decode(void) const
 	return out;
 }
 
+unsigned String::dottedToInt(unsigned base) const
+{
+	List<String> l;
+	explode(l, '.');
+	
+	unsigned n = 0;
+	unsigned b = 1;
+	while(!l.empty())
+	{
+		try {
+		  	unsigned i = 0;
+			l.back().extract(i); 
+			n+= i*b;
+			b*= base;
+		}
+		catch(...) { }
+		
+		l.pop_back();
+	}
+}
+
 double String::toDouble() const
 {
 	String s(*this);
-    return s.readDouble();
+	return s.readDouble();
 }
 
 float String::toFloat() const
