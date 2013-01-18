@@ -1,7 +1,7 @@
-CC=i486-mingw32-gcc
-CXX=i486-mingw32-g++
-RES=i486-mingw32-windres
-STRIP=i486-mingw32-strip
+CC=$(CROSS)gcc
+CXX=$(CROSS)g++
+RES=$(CROSS)windres
+STRIP=$(CROSS)strip
 RM=rm -f
 #CPPFLAGS=-O
 #LDFLAGS=-O -static-libgcc
@@ -13,7 +13,7 @@ LDLIBS=-lws2_32 -lsqlite3 -L win32 -lpthreadGC2
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: teapotnet.exe
+all: teapotnet.exe winupdater.exe
 
 teapotnet.exe: $(OBJS) res.o
 	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) res.o $(LDLIBS) 
@@ -27,6 +27,9 @@ depend: .depend
 clean:
 	$(RM) $(OBJS) res.o
 	$(RM) res.rc
+	cd winupdater
+	make clean
+	cd ..
 	
 dist-clean: clean
 	$(RM) src/*~ ./.depend
@@ -34,6 +37,12 @@ dist-clean: clean
 res.o:
 	echo 1 ICON "teapotnet.ico" > res.rc
 	$(RES) res.rc res.o
+
+winupdater.exe:
+	cd winupdater
+	make all
+	cd ..
+	cp winupdater/winupdater.exe .
 
 include .depend
 

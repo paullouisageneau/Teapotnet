@@ -59,7 +59,7 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file "teapotnet.exe"
 	file "teapotnet.ico"
-	file /r "static"
+	file /R "static"
 	file "winupdater.exe"
 	# Add any other files for the install directory (license files, app data, etc) here
  
@@ -88,7 +88,7 @@ section "install"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoRepair" 1
 
 	# Registry information for startup
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "\"$INSTDIR\teapotnet.exe\" -nointerface"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
 sectionEnd
  
 # Uninstaller
@@ -113,10 +113,10 @@ section "uninstall"
 	# Remove files
 	delete $INSTDIR\teapotnet.exe
 	delete $INSTDIR\teapotnet.ico
-	delete /r $INSTDIR\static
+	rmDir /R $INSTDIR\static
  
 	# Others  
-	delete /r $INSTDIR\temp
+	rmDir /R $INSTDIR\temp
 
 	# Always delete uninstaller as the last action
 	delete $INSTDIR\uninstall.exe
@@ -131,4 +131,3 @@ section "uninstall"
 	DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet"
 sectionEnd
 
-sectionEnd
