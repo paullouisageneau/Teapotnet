@@ -105,7 +105,7 @@ int DoUpdate(void)
 				dwConnectFlags, dwConnectContext);
 	
 	PCSTR szVerb = "GET";
-	PCSTR szObjectName = "/download/last";
+	PCSTR szObjectName = "/download/?release=win32";
 	PCSTR szVersion = NULL;		// Use default.
 	PCSTR szReferrer = NULL;	// No referrer.
 	PCSTR *lpszAcceptTypes = NULL;	// We don't care

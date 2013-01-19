@@ -192,21 +192,24 @@ int main(int argc, char** argv)
 			
 			if(updateDay != currentDay)
 			{
+				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
+				
 				String content;
-				if(Http::Get(VERSIONLINK, &content) == 200)
-				content.trim();
-
-				unsigned lastVersion = content.dottedToInt();
-				if(appVersion < lastVersion)
+				if(Http::Get(url, &content) == 200)
 				{
-					if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
+					content.trim();
+					unsigned lastVersion = content.dottedToInt();
+					if(appVersion < lastVersion)
 					{
-						Config::Put("last_update_day", String::number(currentDay));
-						return 0;
+						if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
+						{
+							Config::Put("last_update_day", String::number(currentDay));
+							return 0;
+						}
+						else Log("main", "Warning: Unable to launch the updater, skipping program update.");
 					}
-
-					Log("main", "Warning: Unable to launch the updater, skipping program update.");
 				}
+				else Log("main", "Warning: Unable to look for new updates");
 			}
 		}
 #endif
