@@ -1,5 +1,8 @@
 prefix=/usr/local
 
+DESTDIR=
+TPROOT=/var/lib/teapotnet
+
 CC=gcc
 CXX=g++
 RM=rm -f
@@ -24,19 +27,22 @@ clean:
 	$(RM) $(OBJS)
 
 dist-clean: clean
+	$(RM) teapotnet
 	$(RM) src/*~ ./.depend
 
 include .depend
 
-install: teapotnet
+install: teapotnet teapotnet.service
 	install -d $(DESTDIR)$(prefix)/bin
 	install -d $(DESTDIR)$(prefix)/share/teapotnet
 	install -d $(DESTDIR)/etc/teapotnet
 	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
 	cp -r static $(DESTDIR)$(prefix)/share/teapotnet
 	echo "static_dir=$(prefix)/share/teapotnet/static" > $(DESTDIR)/etc/teapotnet/config.conf
+	@[ -z "$(DESTDIR)" ] && bash -c "./daemon.sh install $(prefix)"
 
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/teaponet
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
+	@[ -z "$(DESTDIR)" ] && bash -c "./daemon.sh uninstall $(prefix)"
 
