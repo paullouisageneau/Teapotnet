@@ -540,15 +540,27 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		if(tmp.empty()) return false;
 	
 		YamlSerializer serializer(&tmp);
+		typedef SerializableMap<String, SerializableArray<Address> > content_t;
+		content_t content;
 		
 		while(true)
 		try {
-			serializer.input(output);
+			serializer.input(content);
 			break;
 		}
 		catch(const InvalidData &e)
 		{
 			 
+		}
+		
+		for(content_t::const_iterator it = content.begin();
+			it != content.end();
+			++it)
+		{
+			const String &instance = it->first;
+			const Array<Address> &addrs = it->second;
+			for(int i=0; i<addrs.size(); ++i)
+				output[instance].insert(addrs[i], Time::Now());
 		}
 		
 		return !output.empty();
@@ -697,9 +709,8 @@ bool AddressBook::Contact::addAddress(const Address &addr, const String &instanc
 	{
 		if(isNew) 
 		{
-			AddressArray &array = mAddrs[instance];
-			array.push_back(addr);
-			std::sort(array.rbegin(), array.rend());
+			AddressBlock &block = mAddrs[instance];
+			block.insert(addr, Time::Now());
 		}
 		return true;
 	}
@@ -717,9 +728,13 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 		++it)
 	{
 		const String &instance = it->first;
-		const AddressArray &addrs = it->second;
-		for(int i=0; i<addrs.size(); ++i)
-			success|= addAddress(addrs[i], instance);
+		const AddressBlock &block = it->second;
+		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
+			jt != block.rend();
+			++jt)
+		{
+			success|= addAddress(jt->first, instance);
+		}
 	}
 	
 	return success;
@@ -743,7 +758,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		
 		// A node is running at this address but the user does not exist
 		if(mAddrs.contains(instance))
-			mAddrs[instance].remove(addr);
+			mAddrs[instance].erase(addr);
 	}
 	catch(...)
 	{
@@ -763,13 +778,18 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map)
 		++it)
 	{
 		const String &instance = it->first;
-		const AddressArray &addrs = it->second;
-		for(int i=0; i<addrs.size(); ++i)
-			if(connectAddress(addrs[i], instance))
+		const AddressBlock &block = it->second;
+		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
+			jt != block.rend();
+			++jt)
+		{
+			if(connectAddress(jt->first, instance))
 			{
 				success = true;
 				break;
 			}
+		}
+			
 	}
 	return success;
 }
@@ -783,17 +803,7 @@ void AddressBook::Contact::removeAddress(const Address &addr)
 void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
-
-	if(!mMessages.empty())
-        {
-                time_t t = Time::Now();
-                while(!mMessages.front().isRead()
-                        && mMessages.front().time() >= t + 7200)        // 2h
-                {
-                                 mMessages.pop_front();
-                }
-        }
-
+        
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
@@ -821,21 +831,13 @@ void AddressBook::Contact::update(void)
 	AddressBook::publish(mRemotePeering);
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
-		
+	
 	mFound = false;
 	
 	AddressMap newAddrs;
 	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
-		mFound = true;
-		for(AddressMap::iterator it = newAddrs.begin();
-			it != newAddrs.end();
-			++it)
-		{
-			AddressArray &array = it->second;
-			std::sort(array.rbegin(), array.rend());
-		}
-		
+		mFound = true;		
 		addAddresses(newAddrs);
 	}
 	else {
@@ -851,6 +853,33 @@ void AddressBook::Contact::update(void)
 			connectAddresses(altAddrs);
 		}
 	//}
+	
+	AddressMap::iterator it = mAddrs.begin();
+	while(it != mAddrs.end())
+	{
+		const String &instance = it->first;
+		AddressBlock &block = it->second;
+		AddressBlock::iterator jt = block.begin();
+		while(jt != block.end())
+		{
+			if(Time::Now() - jt->second >= 3600*24*8)	// 8 days
+				block.erase(jt++);
+			else jt++;
+		}
+		
+		if(block.empty())
+			mAddrs.erase(it++);
+		else it++;
+	}
+	
+	if(!mMessages.empty())
+        {
+                while(!mMessages.front().isRead()
+                        && Time::Now() - mMessages.front().time() >= 7200)        // 2h
+                {
+                                 mMessages.pop_front();
+                }
+        }
 }
 
 void AddressBook::Contact::message(Message *message)

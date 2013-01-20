@@ -56,8 +56,8 @@ public:
 	
 	void http(const String &prefix, Http::Request &request);
 	
-	typedef SerializableArray<Address> AddressArray;
-	typedef SerializableMap<String, AddressArray> AddressMap;
+	typedef SerializableMap<Address, Time> AddressBlock;
+	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
 	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
