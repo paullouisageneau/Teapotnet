@@ -42,7 +42,6 @@ const char* Exception::what() const throw()
 
 }
 
-
 AssertException::AssertException(const String& File, int Line, const String &message)
 {
 	mMessage<<message<<" in "<<File<<" at line "<<Line;

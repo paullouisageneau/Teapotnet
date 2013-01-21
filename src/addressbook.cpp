@@ -1493,6 +1493,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	}
 	catch(...) {
 		// HACK
+		Log("AddressBook::Contact::deserialize", "Warning: bad or outdated addresses block, ignoring...");
 		String hack;
 		do s.input(hack);
 		while(!hack.empty());

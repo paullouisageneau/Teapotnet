@@ -145,8 +145,7 @@ bool YamlSerializer::input(Pair &pair)
 	{
 		AssertIO(mLine.readUntil(key,':'));
 		char chr;
-		AssertIO(mLine.get(chr));
-		if(chr == ' ') break;
+		if(!mLine.get(chr) || chr == ' ') break;
 		key+= ':';
 		key+= chr;
 	}
