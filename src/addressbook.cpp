@@ -227,11 +227,17 @@ void AddressBook::load(Stream &stream)
 	Synchronize(this);
 
 	bool changed = false;
-	
-	YamlSerializer serializer(&stream);
+
 	Contact *contact = new Contact(this);
-	while(serializer.input(*contact))
+	
+	//YamlSerializer serializer(&stream);
+	//while(serializer.input(*contact))
+	while(true)
 	{
+		// Not really clean but protect from parse errors propagation
+		YamlSerializer serializer(&stream);
+		if(!serializer.input(*contact)) break;
+
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
@@ -1514,14 +1520,14 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 		while(!hack.empty());
 	}
 	//
-	
+
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
 	map["tracker"] >> mTracker;
 	map["secret"] >> mSecret;
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
-	
+
 	if(map.contains("time")) 
 	{
 		time_t tmp;
