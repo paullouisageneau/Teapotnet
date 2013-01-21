@@ -511,6 +511,8 @@ unsigned String::dottedToInt(unsigned base) const
 		
 		l.pop_back();
 	}
+	
+	return n;
 }
 
 double String::toDouble() const
