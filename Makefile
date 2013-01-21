@@ -39,10 +39,10 @@ install: teapotnet teapotnet.service
 	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
 	cp -r static $(DESTDIR)$(prefix)/share/teapotnet
 	echo "static_dir=$(prefix)/share/teapotnet/static" > $(DESTDIR)/etc/teapotnet/config.conf
-	@[ -z "$(DESTDIR)" ] && bash -c "./daemon.sh install $(prefix)"
+	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh install $(prefix)"; fi
 
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/teaponet
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
-	@[ -z "$(DESTDIR)" ] && bash -c "./daemon.sh uninstall $(prefix)"
+	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix)"; fi
 
