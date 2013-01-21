@@ -44,5 +44,6 @@ install: teapotnet teapotnet.service
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/teaponet
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
+	rm -f $(DESTDIR)/etc/teapotnet/config.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix)"; fi
 
