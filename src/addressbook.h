@@ -85,13 +85,11 @@ public:
 		String status(void) const;
 		const AddressMap &addresses(void) const;
 		
-		// These functions return true if addr is successfully connected
-		bool addAddress(const Address &addr, const String &instance);
 		bool addAddresses(const AddressMap &map);
-		bool connectAddress(const Address &addr, const String &instance);
-		bool connectAddresses(const AddressMap &map);
 		
-		void removeAddress(const Address &addr);
+		// These functions return true if addr is successfully connected
+		bool connectAddress(const Address &addr, const String &instance, bool save = true);
+		bool connectAddresses(const AddressMap &map, bool save = true);
 		
 		void update(void);
 		

@@ -703,56 +703,28 @@ const AddressBook::AddressMap &AddressBook::Contact::addresses(void) const
 	return mAddrs;
 }
 
-bool AddressBook::Contact::addAddress(const Address &addr, const String &instance)
-{
-  	Synchronize(this);
-
-	if(addr.isNull()) return false;
-	if(instance == Core::Instance->getName()) return false;
-	
-	bool isNew = !(mAddrs.contains(instance) && mAddrs[instance].contains(addr));
-	if((!isConnected(instance) || isNew) && connectAddress(addr, instance))
-	{
-		if(isNew) 
-		{
-			AddressBlock &block = mAddrs[instance];
-			block.insert(addr, Time::Now());
-		}
-		return true;
-	}
-	
-	return false;
-}
-
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
 {
 	Synchronize(this);
   
-	bool success = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
 		++it)
 	{
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
-		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
-			jt != block.rend();
-			++jt)
-		{
-			success|= addAddress(jt->first, instance);
-		}
+		mAddrs.insert(instance, block);
 	}
 	
-	return success;
+	return true;
 }
 
-bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance)
+bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
  	Synchronize(this);
 	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
-	if(isConnected(instance)) return true;
 	
 	//Log("AddressBook::Contact::connectAddress", "Connecting " + instance + " on " + addr.toString());
 	
@@ -760,7 +732,11 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
-		if(Core::Instance->addPeer(sock, identifier)) return true;
+		if(Core::Instance->addPeer(sock, identifier))
+		{
+			if(save) mAddrs[instance][addr] = Time::Now();
+			return true;
+		}
 		
 		// A node is running at this address but the user does not exist
 		if(mAddrs.contains(instance))
@@ -774,7 +750,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	return false; 
 }
 
-bool AddressBook::Contact::connectAddresses(const AddressMap &map)
+bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
 {
 	Synchronize(this);
   
@@ -785,11 +761,20 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map)
 	{
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
+	  
+	  	// TODO: look for a better address than the already connected one
+		if(isConnected(instance)) 
+		{
+			// TODO: update time for currenly connected address
+			success = true;
+			continue;
+		}
+	  
 		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
 			jt != block.rend();
 			++jt)
 		{
-			if(connectAddress(jt->first, instance))
+			if(connectAddress(jt->first, instance, save))
 			{
 				success = true;
 				break;
@@ -798,12 +783,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map)
 			
 	}
 	return success;
-}
-
-void AddressBook::Contact::removeAddress(const Address &addr)
-{
-	Synchronize(this);
-	mAddrs.erase(addr);
 }
 
 void AddressBook::Contact::update(void)
@@ -838,16 +817,15 @@ void AddressBook::Contact::update(void)
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	
-	mFound = false;
-	
 	AddressMap newAddrs;
 	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
 		mFound = true;		
-		addAddresses(newAddrs);
+		connectAddresses(newAddrs, true);
 	}
 	else {
-		connectAddresses(mAddrs);
+		mFound = false;
+		connectAddresses(mAddrs, true);
 	}
 	
 	//if(!Core::Instance->isPublicConnectable())	// Can actually be connectable with IPv6 only
@@ -856,7 +834,7 @@ void AddressBook::Contact::update(void)
 		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
 		{
 			mFound = true;
-			connectAddresses(altAddrs);
+			connectAddresses(altAddrs, false);
 		}
 	//}
 	
