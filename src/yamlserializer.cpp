@@ -141,7 +141,15 @@ bool YamlSerializer::input(Pair &pair)
 	if(!mLine.contains(':')) throw IOException("Invalid associative entry, missing ':'");
 	
 	String key;
-	AssertIO(mLine.readUntil(key,':'));
+	while(true)
+	{
+		AssertIO(mLine.readUntil(key,':'));
+		char chr;
+		AssertIO(mLine.get(chr));
+		if(chr == ' ') break;
+		key+= ':';
+		key+= chr;
+	}
 	YamlSerializer keySerializer(&key);
 	AssertIO(pair.deserializeKey(keySerializer));
 	mIndent.push(-1);
