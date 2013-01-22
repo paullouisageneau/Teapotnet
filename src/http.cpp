@@ -645,7 +645,7 @@ void Http::Server::Handler::run(void)
 			}
 			catch(const NetException &e)
 			{
-				Log("Http::Server::Handler", e.what()); 
+				//Log("Http::Server::Handler", e.what()); 
 			}
 			catch(const Exception &e)
 			{

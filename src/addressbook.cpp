@@ -726,7 +726,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
-	//Log("AddressBook::Contact::connectAddress", "Connecting " + instance + " on " + addr.toString());
+	//Log("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
 	Identifier identifier(mPeering, instance);
 	try {
@@ -762,6 +762,8 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
 	  
+		if(instance == Core::Instance->getName()) continue;
+
 	  	// TODO: look for a better address than the already connected one
 		if(isConnected(instance)) 
 		{
@@ -770,6 +772,8 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
 			continue;
 		}
 	  
+		//Log("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(block.size()) + " address(es))...");
+
 		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
 			jt != block.rend();
 			++jt)
@@ -820,6 +824,7 @@ void AddressBook::Contact::update(void)
 	AddressMap newAddrs;
 	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
+		//Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		mFound = true;		
 		connectAddresses(newAddrs, true);
 	}
@@ -833,6 +838,7 @@ void AddressBook::Contact::update(void)
 		AddressMap altAddrs;
 		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
 		{
+			//Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(altAddrs.size()) + " instance(s))");
 			mFound = true;
 			connectAddresses(altAddrs, false);
 		}
