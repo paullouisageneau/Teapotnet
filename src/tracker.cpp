@@ -62,7 +62,7 @@ void Tracker::process(Http::Request &request)
 		
 		if(identifier.getDigest().size() != 64)
 			throw Exception("Invalid indentifier size");
-		
+	
 		bool alternate = false;
 		if(request.get.contains("alternate")) alternate = true;
 		
@@ -98,10 +98,16 @@ void Tracker::process(Http::Request &request)
 					it != list.end();
 					++it)
 				try {
-				      Address addr(*it);
-				      if(alternate) insert(mAlternate, identifier, addr);
-				      else insert(mStorage, identifier, addr);
-				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				      	Address addr(*it);
+				      	if(alternate)
+					{
+						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
+						insert(mAlternate, identifier, addr);
+					}
+				      	else {
+						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+						insert(mStorage, identifier, addr);
+					}
 				}
 				catch(...)
 				{
@@ -132,14 +138,19 @@ void Tracker::process(Http::Request &request)
 			response.send();
 		}
 		else {
-			//Log("Tracker", "GET " + identifier.toString());
-
 			Http::Response response(request, 200);
 			response.headers["Content-Type"] = "text/plain";
 			response.send();
 			
-			if(alternate) retrieve(mAlternate, identifier, *response.sock);
-			else retrieve(mStorage, identifier, *response.sock);
+			if(alternate) 
+			{
+				//Log("Tracker", "GET " + identifier.toString() + " (alternate)");
+				retrieve(mAlternate, identifier, *response.sock);
+			}
+			else {
+				//Log("Tracker", "GET " + identifier.toString());
+				retrieve(mStorage, identifier, *response.sock);
+			}
 		}
 	}
 	catch(int code)
@@ -191,6 +202,7 @@ void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Stream
 	{
 		SerializableArray<Address> array;
 		it->second.getKeys(array);
+		VAR(array);
 		if(!array.empty())
 		{
 			std::random_shuffle(array.begin(), array.end());
