@@ -839,6 +839,9 @@ void AddressBook::Contact::update(void)
 		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
 		{
 			//Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(altAddrs.size()) + " instance(s))");
+			
+			if(!mFound) Log("AddressBook::Contact", "Warning: Contact " + mName + " registered alternative addresses but no direct addresses !"); 
+			
 			mFound = true;
 			connectAddresses(altAddrs, false);
 		}
@@ -1028,7 +1031,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				if(trequest.responsesCount() == 0) throw Exception("No responses");
-				if(!trequest.isSuccessful() && target != "/") throw 404;
+				if(!trequest.isSuccessful()) throw 404;
 					
 				try {
 					if(request.get.contains("file"))

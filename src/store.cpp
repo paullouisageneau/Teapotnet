@@ -281,6 +281,7 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 {
 	Synchronize(this);
 	
+	bool success = false;
 	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
 	if(prepareQuery(statement, query, fields, false))
@@ -304,10 +305,11 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 		}
 		
 		statement.finalize();
+		success = true;
 	}
 	
-	if(this != GlobalInstance) GlobalInstance->queryList(query, list);
-	return !list.empty();
+	if(this != GlobalInstance) success|= GlobalInstance->queryList(query, list);
+	return success;
 }
 
 void Store::http(const String &prefix, Http::Request &request)

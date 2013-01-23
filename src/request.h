@@ -68,8 +68,9 @@ public:
 		static const int Pending = 1;
 		static const int Failed = 2;
 		static const int NotFound = 3;
-		static const int Interrupted = 4;
-		static const int ReadFailed = 5;
+		static const int Empty = 4;
+		static const int Interrupted = 5;
+		static const int ReadFailed = 6;
 	  
 		Response(int status = 0);
 		Response(int status, const StringMap &parameters, ByteStream *content = NULL, bool readOnly = false);

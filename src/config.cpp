@@ -106,7 +106,6 @@ void Config::GetExternalAddresses(List<Address> &list)
 	List<Address> tmp;
 	Core::Instance->getAddresses(tmp);
 		
-	bool success = false;
 	for(List<Address>::const_iterator it = tmp.begin();
 		it != tmp.end();
 		++it)

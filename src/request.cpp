@@ -194,7 +194,11 @@ bool Request::execute(User *user)
 		List<Store::Entry> list;
 		if(store->queryList(Store::Query(argument), list))
 		{
-			for(List<Store::Entry>::iterator it = list.begin();
+			if(list.empty())
+			{
+				addResponse(new Response(Response::Empty));
+			}
+			else for(List<Store::Entry>::iterator it = list.begin();
 				it != list.end();
 				++it)
 			{
@@ -210,7 +214,7 @@ bool Request::execute(User *user)
 		query.setMatch(argument);
 		
 		List<Store::Entry> list;
-		if(store->queryList(query, list))
+		if(store->queryList(query, list) && !list.empty())
 		{		
 			for(List<Store::Entry>::iterator it = list.begin();
 				it != list.end();
@@ -466,7 +470,9 @@ int Request::Response::status(void) const
 
 bool Request::Response::error(void) const
 {
-	return (status() > 0) && (status() != Pending); 
+	return (status() > 0 
+		&& status() != Pending
+		&& status() != Empty);
 }
 
 bool Request::Response::finished(void) const
