@@ -38,23 +38,34 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mEnd(end),
 	mLeft(0)
 {
-	CacheMutex.lock();
-	if(!Cache.get(target, mCacheEntry))
 	{
-		Log("Splicer", "No cached file, creating a new one");
-		
-		try {
-			mCacheEntry = new CacheEntry(target);
-		}
-		catch(...)
+		CacheMutex.lock();
+		if(!Cache.get(target, mCacheEntry))
 		{
-			CacheMutex.unlock();
-			throw;
+			Log("Splicer", "No cached file, creating a new one");
+			
+			try {
+				mCacheEntry = new CacheEntry(target);
+			}
+			catch(...)
+			{
+				CacheMutex.unlock();
+				throw;
+			}
+			
+			Cache.insert(target, mCacheEntry);
 		}
 		
-		Cache.insert(target, mCacheEntry);
+		Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
+		while(it != Cache.end())
+		{
+			if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
+				Cache.erase(it++);
+			else it++;
+		}
+		
+		CacheMutex.unlock();
 	}
-	CacheMutex.unlock();
 	
 	Set<Identifier> sources;
 	mCacheEntry->getSources(sources);
@@ -125,13 +136,14 @@ int64_t Splicer::end(void) const
 
 bool Splicer::finished(void) const
 {
-	return !mLeft;
+	return mCacheEntry->finished(); 
 }
 
 int64_t Splicer::process(ByteStream *output)
 {
 	int64_t written = 0;
-  
+
+	mCacheEntry->setAccessTime();
 	unsigned currentBlock = mCacheEntry->block(mCacheEntry->size());
 	int nbPending = 0;
 	for(int i=0; i<mRequests.size(); ++i)
@@ -313,7 +325,8 @@ void Splicer::query(int i, const Identifier &source)
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :
 	mTarget(target),
 	mSize(0),
-	mBlockSize(128*1024)	// TODO
+	mBlockSize(128*1024),	// TODO
+	mTime(Time::Now())
 {
 	mFileName = File::TempName();
 	File dummy(mFileName, File::TruncateReadWrite);
@@ -361,6 +374,18 @@ bool Splicer::CacheEntry::finished(void) const
 	if(mFinishedBlocks.size() < (mSize + mBlockSize - 1) / mBlockSize) return false;
 	if(std::find(mFinishedBlocks.begin(), mFinishedBlocks.end(), false) == mFinishedBlocks.end()) return false;
 	return true;
+}
+
+Time Splicer::CacheEntry::lastAccessTime(void) const
+{
+	Synchronize(this);
+	return mTime;	
+}
+
+void Splicer::CacheEntry::setAccessTime(void)
+{
+	Synchronize(this);
+	mTime = Time::Now();
 }
 
 unsigned Splicer::CacheEntry::block(int64_t position) const
@@ -416,15 +441,10 @@ void Splicer::CacheEntry::refreshSources(void)
 	Log("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
 }
 
-bool Splicer::CacheEntry::isFinished(void) const
-{
-  
-}
-
 bool Splicer::CacheEntry::isBlockFinished(unsigned block) const
 {
 	Synchronize(this);
-  
+
 	if(block >= mFinishedBlocks.size()) return false;
 	return mFinishedBlocks[block];
 }

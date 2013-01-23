@@ -26,6 +26,7 @@
 #include "stripedfile.h"
 #include "identifier.h"
 #include "request.h"
+#include "time.h"
 #include "array.h"
 
 namespace tpot
@@ -69,12 +70,14 @@ private:
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
+		Time lastAccessTime(void) const;
+		void setAccessTime(void);
+		
 		unsigned block(int64_t position) const;
 		
 		bool getSources(Set<Identifier> &sources);
 		void refreshSources(void);
 		
-		bool isFinished(void) const;
 		bool isBlockFinished(unsigned block) const;
 		bool markBlockFinished(unsigned block);
 		
@@ -84,7 +87,7 @@ private:
 		String mName;
 		int64_t mSize;
 		unsigned mBlockSize;
-		// TODO: time for cache cleaning
+		Time mTime;
 	  
 		Set<Identifier> mSources;
 		Array<bool> mFinishedBlocks;
