@@ -4,7 +4,7 @@
 !define DESCRIPTION "TeapotNet is an Easy but Advanced Privacy-Oriented Transmission Network"
 !define VERSIONMAJOR 0
 !define VERSIONMINOR 3
-!define VERSIONBUILD 3
+!define VERSIONBUILD 4
 
 !define HELPURL "http://teapotnet.org/help/" # "Support Information" link
 !define UPDATEURL "http://teapotnet.org/download/" # "Product Updates" link
