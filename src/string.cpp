@@ -496,6 +496,7 @@ unsigned String::dottedToInt(unsigned base) const
 {
 	List<String> l;
 	explode(l, '.');
+	if(l.size() <= 1) return 0;
 	
 	unsigned n = 0;
 	unsigned b = 1;

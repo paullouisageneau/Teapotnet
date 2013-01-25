@@ -4,7 +4,7 @@ RES=$(CROSS)windres
 STRIP=$(CROSS)strip
 RM=rm -f
 CPPFLAGS=-O
-LDFLAGS=-O -static -static-libgcc
+LDFLAGS=-O -static -static-libgcc -mwindows -Wl,-subsystem,windows
 LDLIBS=-lwininet -lcrypt32
 
 SRCS=$(shell printf "%s " *.cpp)

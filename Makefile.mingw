@@ -41,5 +41,11 @@ res.o:
 winupdater.exe:
 	cd winupdater && make all && cp winupdater.exe ..
 
+test: all
+	makensis installer.nsi
+	mkdir -p ~/vmshare/teapotnet
+	cp *.exe ~/vmshare/teapotnet
+	cp -r static ~/vmshare/teapotnet
+
 include .depend
 

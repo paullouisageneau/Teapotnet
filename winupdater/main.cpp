@@ -40,6 +40,7 @@ int CALLBACK WinMain(   HINSTANCE hInstance,
                         HINSTANCE hPrevInstance,
                         LPSTR lpCmdLine,
                         int nCmdShow);
+void Error(const char *szMessage);
 int DoUpdate(void);
 
 using namespace std;
@@ -53,6 +54,11 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 	int ret = DoUpdate();
 	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, NULL, nCmdShow);
 	return ret;
+}
+
+void Error(const char *szMessage)
+{
+	MessageBox(NULL, szMessage, "Error during TeapotNet update process", MB_OK|MB_ICONERROR|MB_SETFOREGROUND);
 }
 
 int DoUpdate(void)
@@ -86,7 +92,7 @@ int DoUpdate(void)
 	}
 	*/
 
-	PCSTR szAgent = "TeapotNet-WinUpdater/0.1";
+	PCSTR szAgent = "TeapotNet-WinUpdater/0.1";	
 	HINTERNET hInternet = InternetOpen(szAgent,
 				INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	
@@ -147,7 +153,6 @@ int DoUpdate(void)
 			if(dwRet == ERROR_SUCCESS) continue;
 		}
 		
-		// TODO: error
 		return 1;
 	}
 
@@ -159,7 +164,7 @@ int DoUpdate(void)
 	HANDLE hTempFile = CreateFile(szTempFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
 	if(hTempFile == INVALID_HANDLE_VALUE)
 	{
-			// TODO: ERROR
+			Error("Unable to open a temporary file");
 			return 1;
 	}
 	
@@ -169,7 +174,7 @@ int DoUpdate(void)
 		DWORD dwRead = 0;
 		if(!InternetReadFile(hRequest, pBuffer, BUFFERSIZE, &dwRead))
 		{
-			// TODO: ERROR
+			Error("Error while downloading the update");
 			return 1;
 		}
 		
@@ -180,7 +185,7 @@ int DoUpdate(void)
 		WriteFile(hTempFile, pBuffer, dwRead, &dwWritten, NULL);
 		if(dwWritten != dwRead)
 		{
-				// TODO: ERROR
+				Error("Error while writing to a temporary file");
 				return 1;
 		}
 	}
@@ -196,13 +201,13 @@ int DoUpdate(void)
 		GetZipItem(hZip, i, &ze);
 
 		const char *name = ze.name;
-		if(!strcmp(name,"teapotnet")) continue;
+		if(!strcmp(name,"teapotnet/")) continue;
 		if(!strncmp(name,"teapotnet/",10)) name+= 10; 
 
-		UnzipItem(hZip, i, ze.name);
+		UnzipItem(hZip, i, name);
 	}
 	CloseZip(hZip);
-  
+
 	DeleteFile(szTempPath);
 	return 0;
 }
