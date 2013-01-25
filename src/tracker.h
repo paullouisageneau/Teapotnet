@@ -54,6 +54,7 @@ private:
 	Storage mAlternate;
 	
 	void process(Http::Request &request);
+	void clean(Storage &s, int nbr = -1);
 	void insert(Storage &s, const Identifier &identifier, const Address &addr);
 	void retrieve(Storage &s, const Identifier &identifier, Stream &output) const;
 	bool contains(Storage &s, const Identifier &identifier);

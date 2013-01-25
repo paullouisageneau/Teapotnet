@@ -71,6 +71,8 @@ void Tracker::process(Http::Request &request)
 			String instance;
 			if(request.post.get("instance", instance)) identifier.setName(instance);
 			if(identifier.getName().empty()) identifier.setName("default");
+		
+			int count = 0;
 			
 			String port;
 			if(request.post.get("port", port))
@@ -85,6 +87,7 @@ void Tracker::process(Http::Request &request)
 				
 				Address addr(host, port);
 				insert(mStorage, identifier, addr);
+				++count;
 				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
@@ -108,6 +111,8 @@ void Tracker::process(Http::Request &request)
 						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 						insert(mStorage, identifier, addr);
 					}
+					
+					++count;
 				}
 				catch(...)
 				{
@@ -126,6 +131,7 @@ void Tracker::process(Http::Request &request)
 				try {
 				      Address addr(*it);
 				      insert(mAlternate, identifier, addr);
+				      ++count;
 				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
 				}
 				catch(...)
@@ -133,6 +139,9 @@ void Tracker::process(Http::Request &request)
 				  
 				}
 			}
+			
+			clean(mStorage, 2*count+1);
+			clean(mAlternate, 2*count+1);
 			
 			Http::Response response(request,200);
 			response.send();
@@ -166,10 +175,10 @@ void Tracker::process(Http::Request &request)
 	}
 }
 
-void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
+void Tracker::clean(Tracker::Storage &s, int nbr)
 {
-	int nbr = 1;
-	if(nbr > s.map.size()) nbr = s.map.size();
+  	if(nbr < 0) nbr = s.map.size();
+	else if(nbr > s.map.size()) nbr = s.map.size();
 	for(int i=0; i<nbr; ++i)
 	{
 	  	if(s.cleaner == s.map.end()) s.cleaner = s.map.begin();
@@ -184,8 +193,11 @@ void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Ad
 		
 		if(submap.empty()) s.map.erase(s.cleaner++);
 		else s.cleaner++;	
-	}
+	} 
+}
 
+void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
+{
 	Map<Address,Time> &submap = s.map[identifier];
 	submap[addr] = Time::Now();
 }
