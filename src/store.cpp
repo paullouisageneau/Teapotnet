@@ -124,12 +124,20 @@ Store::Store(User *user) :
 	
 	save();
 	
-	if(mUser) Interface::Instance->add("/"+mUser->name()+"/files", this);
+	if(mUser)
+	{
+		Interface::Instance->add("/"+mUser->name()+"/files", this);
+		Interface::Instance->add("/"+mUser->name()+"/explore", this);
+	}
 }
 
 Store::~Store(void)
 {
-	if(mUser) Interface::Instance->remove("/"+mUser->name()+"/files");
+	if(mUser) 
+	{
+		Interface::Instance->remove("/"+mUser->name()+"/files");
+		Interface::Instance->remove("/"+mUser->name()+"/explore");
+	}
 }
 
 User *Store::user(void) const
@@ -147,10 +155,11 @@ void Store::addDirectory(const String &name, const String &path)
 {
 	Synchronize(this);
   
-	if(!Directory::Exist(mBasePath + path)) 
-		throw Exception("The directory does not exist: " + mBasePath + path);
+	String absPath = absolutePath(path);
+	if(!Directory::Exist(absPath)) 
+		throw Exception("The directory does not exist: " + absPath);
 	
-	Directory test(mBasePath + path);
+	Directory test(absPath);
 	test.close();
 	
 	mDirectories.insert(name, path);
@@ -198,9 +207,9 @@ void Store::update(void)
 	
 	for(int i=0; i<names.size(); ++i)
 	try {
-		const String &name = names[i];
-		const String &path = mDirectories.get(name);
-		String absPath = mBasePath + path;
+		String name = names[i];
+		String path = mDirectories.get(name);
+		String absPath = absolutePath(path);
 		String url = String("/") + name;
 		
 		if(!Directory::Exist(absPath))
@@ -217,9 +226,9 @@ void Store::update(void)
 	
 	for(int i=0; i<names.size(); ++i)
 	try {
-		const String &name = names[i];
-		const String &path = mDirectories.get(name);
-		String absPath = mBasePath + path;
+		String name = names[i];
+		String path = mDirectories.get(name);
+		String absPath = absolutePath(path);
 		String url = String("/") + name;
 		
 		updateRec(url, path, 0, true);
@@ -316,10 +325,173 @@ void Store::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
 	
+	const String &url = request.url;
+	
 	try {
-		const String &url = request.url;
+		if(prefix.afterLast('/') == "explore")
+		{
+			if(url != "/") throw 404;
+			if(this == GlobalInstance)
+			{
+				if(!request.sock->getRemoteAddress().isLocal())
+					throw 401;
+			}
+			else {
+				if(!Config::Get("user_global_shares").toBool())
+				  	throw 404;
+			}
+			
+			String path;
+			if(!request.get.get("path", path)) 
+			{
+#ifdef WINDOWS
+				DWORD disks = GetLogicalDrives();
+				if(!disks) throw 500;
 
-		if(request.url == "/")
+				Http::Response response(request,200);
+				response.send();
+							
+				Html page(response.sock);
+				page.header(path);
+				
+				page.open("div",".box");
+				page.open("table",".files");
+				for(int i=0; i<25; ++i)
+				{
+					if(disks & (0x1 << i)) 
+					{
+						char letter = 0x41+i;
+						String name = String(letter) + ':';
+						String hrName = String("Disk ") + letter;
+						String link = prefix + "/?path=" + name.urlEncode();
+						
+						page.open("tr");
+						page.open("td",".filename");
+						page.link(link, hrName);
+						page.close("td");
+						page.open("td",".add");
+						page.link(link+"&add=1", "share");
+						page.close("td");
+						page.close("tr");
+					}
+				}
+				page.close("table");
+				page.close("div");
+				page.footer();
+				return;
+#else
+				path = "/";
+#endif
+			}
+			
+			Assert(!path.empty());
+			
+			if(path[path.size()-1] != Directory::Separator)
+				path+= Directory::Separator;
+			
+			if(!Directory::Exist(path)) throw 404;
+		  
+			if(request.get.contains("add")) 
+			{
+				path.resize(path.size()-1);
+				String name = path.afterLast(Directory::Separator);
+				name.remove(':');
+				
+				if(request.method == "POST")
+				{
+					request.post.get("name", name);
+					
+					try {
+						if(name.empty()
+							|| name.contains('/') || name.contains('\\') 
+							|| name.find("..") != String::NotFound)
+								throw Exception("Invalid directory name");
+
+						addDirectory(name, path);
+					}
+					catch(const Exception &e)
+					{
+						Http::Response response(request,200);
+						response.send();
+						
+						Html page(response.sock);
+						page.header("Error", false, prefix + url);
+						page.text(e.what());
+						page.footer();
+						return;
+					}
+					
+					Http::Response response(request,303);
+					response.headers["Location"] = "/"+mUser->name()+"/files/";
+					response.send();
+					return;
+				}
+	  
+				Http::Response response(request,200);
+				response.send();
+				  
+				Html page(response.sock);
+				page.header("Add directory");
+				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
+				page.openFieldset("Add directory");
+				page.label("", "Path"); page.text(path); page.br();
+				page.label("name","Name"); page.input("text","name", name); page.br();
+				page.label("add"); page.button("add","Add directory");
+				page.closeFieldset();
+				page.closeForm();
+				page.footer();
+				return;
+			}
+			
+			Directory dir;
+			try { 
+				dir.open(path); 
+			}
+			catch(...)
+			{
+				throw 401;
+			}
+			
+			Set<String> folders;
+			while(dir.nextFile())
+				if(dir.fileIsDir() && dir.fileName().at(0) != '.')
+					folders.insert(dir.fileName());
+			
+			Http::Response response(request,200);
+			response.send();
+			
+			Html page(response.sock);
+			page.header("Share directory");
+			
+			page.open("div",".box");
+			if(folders.empty()) page.text("No subdirectories");
+			else {
+				page.open("table",".files");
+				for(Set<String>::iterator it = folders.begin();
+					it != folders.end();
+					++it)
+				{
+					const String &name = *it; 
+					String link = prefix + "/?path=" + String(path + name).urlEncode();
+					
+					page.open("tr");
+					page.open("td",".dirname");
+					page.link(link, name);
+					page.close("td");
+					page.open("td",".add");
+					page.link(link+"&add=1", "share");
+					page.close("td");
+					page.close("tr");
+				}
+				page.close("table");
+			}
+			page.close("div");
+			page.footer();
+			return;
+			
+		} // prefix == "explore"
+
+		if(url == "/")
 		{
 		  	if(this != GlobalInstance && request.method == "POST")
 			{
@@ -429,7 +601,10 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix+"/","post");
 				page.openFieldset("New directory");
 				page.label("name","Name"); page.input("text","name"); page.br();
-				page.label("add"); page.button("add","Create directory");
+				page.label("add"); page.button("add","Create directory"); page.br();
+				page.br();
+				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory"); page.br();
+				page.br();
 				page.closeFieldset();
 				page.closeForm();
 			}
@@ -704,7 +879,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	try {
 		UnPrioritize(this);
 	  
-		String absPath = mBasePath + path;
+		String absPath = absolutePath(path);
 		
 		int type = 0;
 		if(!Directory::Exist(absPath)) type = 1;
@@ -836,7 +1011,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 String Store::urlToPath(const String &url) const
 {
 	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
-
+	Synchronize(this);
+  
 	String dir(url.substr(1));
 	String path = dir.cut('/');
 
@@ -849,7 +1025,22 @@ String Store::urlToPath(const String &url) const
 
 	path.replace('/',Directory::Separator);
 
-	return mBasePath + dirPath + Directory::Separator + path;
+	return absolutePath(dirPath + Directory::Separator + path);
+}
+
+String Store::absolutePath(const String &path) const
+{
+	if(path.empty()) throw Exception("Empty path");
+	Synchronize(this);
+	
+#ifdef WINDOWS
+	bool absolute = (path.size() >= 2 && path[1] == ':' && (path.size() == 2 || path[2] == '\\'));
+#else
+	bool absolute = (path[0] == '/');
+#endif
+
+	if(absolute) return path;
+	else return mBasePath + path;
 }
 
 void Store::run(void)

@@ -262,7 +262,9 @@ void Html::closeFieldset(void)
 
 void Html::label(const String &name, const String &label)
 {
-	*mStream<<"<label for=\""<<name<<"\">"<<label<<"</label>\n";
+	*mStream<<"<label";
+	if(!name.empty()) *mStream<<" for=\""<<name<<"\"";
+	*mStream<<">"<<label<<"</label>\n";
 }
 
 void Html::input(const String &type, const String &name, const String &value)

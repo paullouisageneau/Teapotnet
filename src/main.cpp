@@ -109,7 +109,8 @@ int main(int argc, char** argv)
 		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("tpot_read_timeout", "60000");
-
+		Config::Default("user_global_shares", "true");
+		
 		if(Config::Get("request_timeout").toInt() < 10000)
 			Config::Put("request_timeout", "10000");	
 		
@@ -246,7 +247,7 @@ int main(int argc, char** argv)
 		if(args.contains("ifport")) sifport = args["ifport"];
 		int ifport;
 		sifport >> ifport;
-		
+
 		// Creating global store
 		Store::GlobalInstance = new Store(NULL);
 		

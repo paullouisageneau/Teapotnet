@@ -101,6 +101,7 @@ private:
   	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
 	void updateRec(const String &url, const String &path, int64_t parentId, bool computeDigests);
 	String urlToPath(const String &url) const;
+	String absolutePath(const String &path) const;
 	void run(void);
 
 	User *mUser;

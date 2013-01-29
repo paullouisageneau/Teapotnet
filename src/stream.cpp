@@ -247,7 +247,7 @@ bool Stream::read(bool &b)
 	s.trim();
 	String str = s.toLower();
 	if(str == "true" || str == "yes" || str == "1") b = true;
-	else if(str == "false"|| str == "no"  || str == "0" || str == "") b = false;
+	else if(str.empty() || str == "false" || str == "no"  || str == "0") b = false;
 	else throw Exception("Invalid boolean value: \""+s+"\"");
 	return true;
 }
