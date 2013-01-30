@@ -117,6 +117,23 @@ Store::Store(User *user) :
 	  		LineSerializer serializer(&file);
 	  		serializer.input(mDirectories);
 	  		file.close();
+			
+			StringMap::iterator it = mDirectories.begin();
+			while(it != mDirectories.end())
+			{
+				String &path = it->second;
+				if(path.empty() || path == "/")
+				{
+					mDirectories.erase(it++);
+					continue;
+				}
+
+				if(path[path.size()-1] == '/')
+					path.resize(path.size()-1);
+				
+				++it;
+			}
+			
 	  		start();
 		}
 		catch(...) {}
@@ -151,10 +168,16 @@ String Store::userName(void) const
 	else return "";
 }
 
-void Store::addDirectory(const String &name, const String &path)
+void Store::addDirectory(const String &name, String path)
 {
 	Synchronize(this);
   
+	if(!path.empty() && path[path.size()-1] == '/')
+		path.resize(path.size()-1);
+	
+	if(path.empty())	// "/" matches here too
+		throw Exception("Invalid directory");
+	
 	String absPath = absolutePath(path);
 	if(!Directory::Exist(absPath)) 
 		throw Exception("The directory does not exist: " + absPath);
@@ -466,22 +489,40 @@ void Store::http(const String &prefix, Http::Request &request)
 			page.open("div",".box");
 			if(folders.empty()) page.text("No subdirectories");
 			else {
+			  	Array<String> existingPaths;
+			  	mDirectories.getValues(existingPaths);
+				Set<String> existingPathsSet;
+				existingPathsSet.insert(existingPaths.begin(), existingPaths.end());
+				
 				page.open("table",".files");
 				for(Set<String>::iterator it = folders.begin();
 					it != folders.end();
 					++it)
 				{
 					const String &name = *it; 
-					String link = prefix + "/?path=" + String(path + name).urlEncode();
+					String childPath = path + name;
+					String link = prefix + "/?path=" + childPath.urlEncode();
 					
-					page.open("tr");
-					page.open("td",".dirname");
-					page.link(link, name);
-					page.close("td");
-					page.open("td",".add");
-					page.link(link+"&add=1", "share");
-					page.close("td");
-					page.close("tr");
+					if(existingPathsSet.find(childPath) == existingPathsSet.end())
+					{
+						page.open("tr");
+						page.open("td",".dirname");
+						page.link(link, name);
+						page.close("td");
+						page.open("td",".add");
+						page.link(link+"&add=1", "share");
+						page.close("td");
+						page.close("tr");
+					}
+					else {
+						page.open("tr");
+						page.open("td",".dirname");
+						page.text(name);
+						page.close("td");
+						page.open("td",".add");
+						page.close("td");
+						page.close("tr");
+					}
 				}
 				page.close("table");
 			}
@@ -562,7 +603,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.closeForm();
 					
 					page.javascript("function deleteDirectory(name) {\n\
-						if(confirm('Do you really want to delete the directory '+name+' ?')) {\n\
+						if(confirm('Do you really want to delete the shared directory '+name+' ?')) {\n\
 							document.executeForm.command.value = 'delete';\n\
 							document.executeForm.argument.value = name;\n\
 							document.executeForm.submit();\n\

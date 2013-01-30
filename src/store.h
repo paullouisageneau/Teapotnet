@@ -85,7 +85,7 @@ public:
 	User *user(void) const;
 	String userName(void) const;
 	
-	void addDirectory(const String &name, const String &path);
+	void addDirectory(const String &name, String path);
 	void removeDirectory(const String &name);
 	void getDirectories(Array<String> &array) const;
 	
