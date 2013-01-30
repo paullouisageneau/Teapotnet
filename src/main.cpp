@@ -261,13 +261,20 @@ int main(int argc, char** argv)
 		// Creating global store
 		Store::GlobalInstance = new Store(NULL);
 		
-		// Starting interface
+		// Starting interface and core
 		Interface::Instance = new Interface(ifport);
 		Interface::Instance->start();
 		
 		// Starting core
 		Core::Instance = new Core(port);
 		Core::Instance->start();
+		
+		if(args.contains("port") || args.contains("ifport"))
+		{
+			Config::Put("port", String::number(port));
+			Config::Put("interface_port", String::number(ifport));
+			Config::Save(configFileName);
+		}
 		
 		// Starting port mapping
 		PortMapping::Instance = new PortMapping;
