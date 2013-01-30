@@ -345,7 +345,7 @@ int main(int argc, char** argv)
 		if(!args.contains("nointerface"))
 			openUserInterface();
 		
-		if(!args.contains("debug") && Config::Get("debug") != "on")
+		if(!args.contains("debug") && !Config::Get("debug").toBool())
 		{
 			HWND hWnd = GetConsoleWindow();
 			ShowWindow(hWnd, SW_HIDE);
