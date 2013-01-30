@@ -41,26 +41,37 @@ namespace tpot
 
 const char Directory::Separator = PATH_SEPARATOR;
 
-bool Directory::Exist(const String &path)
+bool Directory::Exist(String path)
 {
-	if(path.empty()) return false;	
-  
 	/*DIR *dir = opendir(path.c_str());
 	if(!dir) return false;
-	closedir(dir);*/
+	closedir(dir);
+	return true;*/
+  
+	if(path.empty()) return false;	
+  	if(path.size() >= 2 && path[path.size()-1] == Separator)
+		path.resize(path.size()-1);
 	
 	stat_t st;
 	if(stat(path.c_str(), &st)) return false;
 	return S_ISDIR(st.st_mode);
 }
 
-bool Directory::Remove(const String &path)
+bool Directory::Remove(String path)
 {
+	if(path.empty()) return false;	
+  	if(path.size() >= 2 && path[path.size()-1] == Separator)
+		path.resize(path.size()-1);
+  
 	return (rmdir(path.c_str()) == 0);
 }
 
-void Directory::Create(const String &path)
+void Directory::Create(String path)
 {
+	if(path.empty()) throw IOException("Cannot create directory: empty path");	
+  	if(path.size() >= 2 && path[path.size()-1] == Separator)
+		path.resize(path.size()-1);
+  
 	if(mkdir(path.c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
 }
@@ -84,11 +95,13 @@ Directory::~Directory(void)
 	close();
 }
 
-void Directory::open(const String &path)
+void Directory::open(String path)
 {
 	close();
 	if(path.empty()) return;
-
+	if(path.size() >= 2 && path[path.size()-1] == Separator)
+		path.resize(path.size()-1);
+	
 	mDir = opendir(path.c_str());
 	if(!mDir) throw IOException(String("Unable to open directory: ")+path);
 

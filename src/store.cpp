@@ -407,12 +407,10 @@ void Store::http(const String &prefix, Http::Request &request)
 #endif
 			}
 			
-			Assert(!path.empty());
+			if(!Directory::Exist(path)) throw 404;
 			
 			if(path[path.size()-1] != Directory::Separator)
 				path+= Directory::Separator;
-			
-			if(!Directory::Exist(path)) throw 404;
 		  
 			if(request.get.contains("add")) 
 			{

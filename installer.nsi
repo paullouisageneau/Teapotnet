@@ -2,13 +2,10 @@
 !define APPNAME "TeapotNet"
 !define AUTHOR "Paul-Louis Ageneau"
 !define DESCRIPTION "TeapotNet is an Easy but Advanced Privacy-Oriented Transmission Network"
-!define VERSIONMAJOR 0
-!define VERSIONMINOR 3
-!define VERSIONBUILD 5
 
 !define HELPURL "http://teapotnet.org/help/" # "Support Information" link
 !define UPDATEURL "http://teapotnet.org/download/" # "Product Updates" link
-!define ABOUTURL "http://teapotnet.org/about/" # "Publisher" link
+!define ABOUTURL "http://teapotnet.org/" # "Publisher" link
  
 RequestExecutionLevel admin ;Require admin rights on NT6+ (When UAC is turned on)
  
@@ -73,7 +70,6 @@ section "install"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "HelpLink" "${HELPURL}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "URLUpdateInfo" "${UPDATEURL}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "URLInfoAbout" "${ABOUTURL}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayVersion" "${VERSIONMAJOR}.${VERSIONMINOR}.${VERSIONBUILD}"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "VersionMajor" ${VERSIONMAJOR}
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "VersionMinor" ${VERSIONMINOR}
 	# There is no option for modifying or repairing the install

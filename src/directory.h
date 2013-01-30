@@ -34,15 +34,15 @@ class Directory
 public:
 	static const char Separator;
 
-	static bool Exist(const String &path);
-	static bool Remove(const String &path);
-	static void Create(const String &path);
+	static bool Exist(String path);
+	static bool Remove(String path);
+	static void Create(String path);
 
 	Directory(void);
 	Directory(const String &path);
 	~Directory(void);
 
-	void open(const String &path);
+	void open(String path);
 	void close(void);
 
 	String path(void) const;	// trailing separator added if necessary

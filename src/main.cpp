@@ -84,6 +84,7 @@ int main(int argc, char** argv)
 
 	unsigned appVersion = String(APPVERSION).dottedToInt();
 	Assert(appVersion != 0);
+	Assert(argc >= 1);
 	
 #ifndef WINDOWS
 		// Main config file name
@@ -116,8 +117,6 @@ int main(int argc, char** argv)
 		
 		if(Config::Get("tpot_timeout").toInt() < 15000)
 			Config::Put("tpot_timeout", "15000");
-		
-		Config::Save(configFileName);
 		
 		StringMap args;
 		String last;
@@ -184,6 +183,17 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
+		try {
+			Config::Save(configFileName);
+		}
+		catch(...)
+		{
+			Log("main", "Unable to save the configuration file, trying to restart as administrator..."); 
+			Sleep(100);
+			if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) > 32)
+				return 0;
+		}
+		
 		if(!args.contains("noupdate"))
 		{
 			unsigned currentDay = Time::Now().toDays();
