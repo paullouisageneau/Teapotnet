@@ -34,8 +34,9 @@ dist-clean: clean
 	$(RM) src/*~ ./.depend
 	cd winupdater && make dist-clean
 
-res.o:
-	echo 1 ICON "teapotnet.ico" > res.rc
+res.o: teapotnet.ico teapotnet.exe.manifest
+	echo 1 24 "teapotnet.exe.manifest" > res.rc
+	echo 2 ICON "teapotnet.ico" >> res.rc
 	$(RES) res.rc res.o
 
 winupdater.exe:
