@@ -311,7 +311,7 @@ void AddressBook::update(void)
 		Contact *contact = NULL;
 		if(mContacts.get(keys[i], contact))
 		{
-			Synchonize(contact);
+			Synchronize(contact);
 			Desynchronize(this);
 			Assert(contact);
 			contact->update();
