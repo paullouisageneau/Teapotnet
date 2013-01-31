@@ -536,6 +536,7 @@ int String::toInt() const
 
 bool String::toBool() const
 {
+	if(empty()) return false;
 	String s(*this);
 	return s.readBool();
 }
