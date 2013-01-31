@@ -41,38 +41,26 @@ namespace tpot
 
 const char Directory::Separator = PATH_SEPARATOR;
 
-bool Directory::Exist(String path)
+bool Directory::Exist(const String &path)
 {
-	/*DIR *dir = opendir(path.c_str());
+	/*DIR *dir = opendir(fixPath(path).pathEncode().c_str());
 	if(!dir) return false;
 	closedir(dir);
 	return true;*/
-  
-	if(path.empty()) return false;	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
-	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
 	
 	stat_t st;
-	if(stat(path.c_str(), &st)) return false;
+	if(stat(fixPath(path).pathEncode().c_str(), &st)) return false;
 	return S_ISDIR(st.st_mode);
 }
 
-bool Directory::Remove(String path)
+bool Directory::Remove(const String &path)
 {
-	if(path.empty()) return false;	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
-	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
-	
-	return (rmdir(path.c_str()) == 0);
+	return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
 }
 
-void Directory::Create(String path)
+void Directory::Create(const String &path)
 {
-	if(path.empty()) throw IOException("Cannot create directory: empty path");	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
-	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
-  
-	if(mkdir(path.c_str(), 0770) != 0)
+	if(mkdir(fixPath(path).pathEncode().c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
 }
 
@@ -95,14 +83,11 @@ Directory::~Directory(void)
 	close();
 }
 
-void Directory::open(String path)
+void Directory::open(const String &path)
 {
 	close();
-	if(path.empty()) return;
-  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
-	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
-	
-	mDir = opendir(path.c_str());
+
+	mDir = opendir(fixPath(path).pathEncode().c_str());
 	if(!mDir) throw IOException(String("Unable to open directory: ")+path);
 
 	mPath = path;
@@ -140,25 +125,24 @@ bool Directory::nextFile(void)
 String Directory::filePath(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
-	return mPath+String(mDirent->d_name);
+	return mPath + String(mDirent->d_name).pathDecode();
 }
-
 
 String Directory::fileName(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
-	return String(mDirent->d_name);
+	return String(mDirent->d_name).pathDecode();
 }
 
-time_t Directory::fileTime(void) const
+Time Directory::fileTime(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
 	struct stat attrib;
-	stat(filePath().c_str(), &attrib);
-	return attrib.st_mtime;
+	stat(filePath().pathEncode().c_str(), &attrib);
+	return Time(attrib.st_mtime);
 }
 
-size_t Directory::fileSize(void) const
+uint64_t Directory::fileSize(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
 	if(fileIsDir()) return 0;
@@ -185,6 +169,16 @@ void Directory::getFileInfo(StringMap &map) const
 		map["type"] =  "file";
 		map["size"] << fileSize();
 	}
+}
+
+String Directory::fixPath(String path)
+{
+	if(path.empty()) throw IOException("Empty path");	
+  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+#ifdef WINDOWS
+	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
+#endif
+	return path;
 }
 
 }

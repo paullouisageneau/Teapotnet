@@ -90,6 +90,10 @@ public:
 	String urlDecode(void) const;
 	String base64Encode(void) const;
 	String base64Decode(void) const;
+	String windowsEncode(void) const;
+	String windowsDecode(void) const;
+	String pathEncode(void) const;
+	String pathDecode(void) const;
 	unsigned dottedToInt(unsigned base = 256) const;
 	
 	double toDouble() const;

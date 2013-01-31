@@ -24,6 +24,7 @@
 
 #include "include.h"
 #include "string.h"
+#include "time.h"
 #include "map.h"
 
 namespace tpot
@@ -34,15 +35,15 @@ class Directory
 public:
 	static const char Separator;
 
-	static bool Exist(String path);
-	static bool Remove(String path);
-	static void Create(String path);
+	static bool Exist(const String &path);
+	static bool Remove(const String &path);
+	static void Create(const String &path);
 
 	Directory(void);
 	Directory(const String &path);
 	~Directory(void);
 
-	void open(String path);
+	void open(const String &path);
 	void close(void);
 
 	String path(void) const;	// trailing separator added if necessary
@@ -54,13 +55,15 @@ public:
 
 	// Attributes
 	String fileName(void) const;
-	time_t fileTime(void) const;
-	size_t fileSize(void) const;
+	Time fileTime(void) const;
+	uint64_t fileSize(void) const;
 	bool fileIsDir(void)  const;
 
 	void getFileInfo(StringMap &map) const;	// Get all attributes
 
 private:
+	static String fixPath(String path);
+  
 	String mPath;
 	DIR *mDir;
 	struct dirent *mDirent;

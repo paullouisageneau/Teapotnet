@@ -492,6 +492,78 @@ String String::base64Decode(void) const
 	return out;
 }
 
+String String::windowsDecode(void) const
+{
+	String result;
+  
+	for(int i=0; i<size(); ++i)
+	{
+		char chr = at(i);
+		if(chr & 0x80)
+		{
+			result+= char(0xC0) | ((chr & 0xC0) >> 6);	// 1st byte
+			result+= char(0x80) | (chr & ~0xC0);		// 2nd byte
+		}
+		else {
+			result+= chr;
+		}
+	}
+	
+	return result;
+}
+
+String String::windowsEncode(void) const
+{
+	String result;
+  
+	for(int i=0; i<size(); ++i)
+	{
+		char chr = at(i);
+		if(chr & 0x80)		// 2 bytes
+		{
+			++i;
+			if(chr & 0x20)	// 3 bytes
+			{
+				result+= '?';
+				++i;
+				if(chr & 0x10) ++i;	// 4 bytes
+			}
+			else {
+				chr = (chr & ~0xE0) << 6;
+				if(i != size()) 
+				{
+					chr|= at(i) & ~0xC0;
+					++i;
+				}
+				result+= chr;
+			}
+		}
+		else {
+			result+= chr;
+		}
+	}
+	
+	return result;
+}
+
+String String::pathEncode(void) const
+{
+#ifdef WINDOWS
+	return windowsEncode();
+#else
+	return *this;
+#endif
+}
+
+String String::pathDecode(void) const
+{
+#ifdef WINDOWS
+	return windowsDecode();
+#else
+	return *this;
+#endif 
+}
+
 unsigned String::dottedToInt(unsigned base) const
 {
 	List<String> l;

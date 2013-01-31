@@ -34,24 +34,24 @@ bool File::Exist(const String &filename)
 	if(filename.empty()) return false;
   
 	/*std::fstream file;
-	file.open(filename.c_str(), std::ios_base::in);
+	file.open(filename.pathEncode().c_str(), std::ios_base::in);
 	return file.is_open();*/
 	
 	stat_t st;
-	if(stat(filename.c_str(), &st)) return false;
+	if(stat(filename.pathEncode().c_str(), &st)) return false;
 	if(!S_ISDIR(st.st_mode)) return true;
 	else return false;
 }
 
 bool File::Remove(const String &filename)
 {
-	return (std::remove(filename.c_str()) == 0);
+	return (std::remove(filename.pathEncode().c_str()) == 0);
 }
 
 void File::Rename(const String &source, const String &destination)
 {
 	if(!Exist(source)) throw IOException(String("Rename: source file does not exist: ") + source);
-	if(std::rename(source.c_str(), destination.c_str()) == 0) return;
+	if(std::rename(source.pathEncode().c_str(), destination.pathEncode().c_str()) == 0) return;
 	
 	// std::rename will fail to copy between filesystems, so we need to try manually
 	File sourceFile(source, Read);
@@ -65,14 +65,14 @@ void File::Rename(const String &source, const String &destination)
 uint64_t File::Size(const String &filename)
 {
 	stat_t st;
-	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
+	if(stat(filename.pathEncode().c_str(), &st)) throw IOException("File does not exist: "+filename);
 	return uint64_t(st.st_size);
 }
 
 tpot::Time File::Time(const String &filename)
 {
 	stat_t st;
-	if(stat(filename.c_str(), &st)) throw IOException("File does not exist: "+filename);
+	if(stat(filename.pathEncode().c_str(), &st)) throw IOException("File does not exist: "+filename);
 	return tpot::Time(st.st_mtime);
 }
 
@@ -160,7 +160,7 @@ void File::open(const String &filename, OpenMode mode)
 	default:		m = std::ios_base::in|std::ios_base::out;			break;
 	}
 
-	std::fstream::open(filename.c_str(), m|std::ios_base::binary);
+	std::fstream::open(filename.pathEncode().c_str(), m|std::ios_base::binary);
 	if(!std::fstream::is_open() || std::fstream::bad()) throw IOException(String("Unable to open file: ")+filename);
 }
 

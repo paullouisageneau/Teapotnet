@@ -75,16 +75,16 @@ int main(int argc, char** argv)
 	try {
 	  
 /*	
-	Assert(Address("127.0.0.1:80").isLocal());
-	Assert(Address("::1:80").isLocal());
-	Assert(Address("::FFFF:127.0.0.1:80").isLocal());
-	Assert(Address("192.168.0.1:80").isPrivate());
-	Assert(Address("::FFFF:192.168.0.1:80").isPrivate());
+		Assert(Address("127.0.0.1:80").isLocal());
+		Assert(Address("::1:80").isLocal());
+		Assert(Address("::FFFF:127.0.0.1:80").isLocal());
+		Assert(Address("192.168.0.1:80").isPrivate());
+		Assert(Address("::FFFF:192.168.0.1:80").isPrivate());
 */
 
-	unsigned appVersion = String(APPVERSION).dottedToInt();
-	Assert(appVersion != 0);
-	Assert(argc >= 1);
+		unsigned appVersion = String(APPVERSION).dottedToInt();
+		Assert(appVersion != 0);
+		Assert(argc >= 1);
 	
 #ifndef WINDOWS
 		// Main config file name
@@ -183,15 +183,22 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
+		if(args.contains("nointerface"))
+		{
+			HWND hWnd = GetConsoleWindow();
+			ShowWindow(hWnd, SW_HIDE);
+		}
+		
 		try {
 			Config::Save(configFileName);
 		}
 		catch(...)
 		{
-			Log("main", "Unable to save the configuration file, trying to restart as administrator..."); 
+			//Log("main", "Trying to run as administrator..."); 
 			Sleep(100);
-			if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) > 32)
-				return 0;
+			if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) <= 32)
+				throw Exception("Unable to run as administrator");
+			return 0;
 		}
 		
 		if(!args.contains("noupdate"))
@@ -217,6 +224,7 @@ int main(int argc, char** argv)
 						if(lastVersion && appVersion <= lastVersion)
 						{
 							Config::Put("last_update_day", String::number(currentDay));
+							Log("main", "Downloading update...");
 							if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
 								return 0;
 							else Log("main", "Warning: Unable to run the updater, skipping program update.");
@@ -230,6 +238,8 @@ int main(int argc, char** argv)
 				}
 			}
 		}
+#else
+		Config::Save(configFileName);
 #endif
 		
 		Log("main", "Starting...");
@@ -345,7 +355,7 @@ int main(int argc, char** argv)
 		if(!args.contains("nointerface"))
 			openUserInterface();
 		
-		if(!args.contains("debug") && !Config::Get("debug").toBool())
+		if(!args.contains("debug") || !Config::Get("debug").toBool())
 		{
 			HWND hWnd = GetConsoleWindow();
 			ShowWindow(hWnd, SW_HIDE);
