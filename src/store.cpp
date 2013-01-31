@@ -455,7 +455,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.header("Add directory");
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
 				page.openFieldset("Add directory");
-				page.label("", "Path"); page.text(path); page.br();
+				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
 				page.label("add"); page.button("add","Add directory");
 				page.closeFieldset();
