@@ -4,7 +4,6 @@
 !define DESCRIPTION "TeapotNet is an Easy but Advanced Privacy-Oriented Transmission Network"
 
 !define HELPURL "http://teapotnet.org/help/" # "Support Information" link
-!define UPDATEURL "http://teapotnet.org/download/" # "Product Updates" link
 !define ABOUTURL "http://teapotnet.org/" # "Publisher" link
  
 RequestExecutionLevel admin ;Require admin rights on NT6+ (When UAC is turned on)
@@ -68,7 +67,6 @@ section "install"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayIcon" "$\"$INSTDIR\teapotnet.ico$\""
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "Publisher" "${AUTHOR}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "HelpLink" "${HELPURL}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "URLUpdateInfo" "${UPDATEURL}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "URLInfoAbout" "${ABOUTURL}"
 	# There is no option for modifying or repairing the install
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "NoModify" 1
