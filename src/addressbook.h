@@ -59,7 +59,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
+	class Contact : public Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
