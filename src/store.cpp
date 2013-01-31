@@ -384,7 +384,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					if(disks & (0x1 << i)) 
 					{
 						char letter = 0x41+i;
-						String name = String(letter) + ':';
+						String name = String(letter) + ":\\";
 						String hrName = String("Drive ") + letter;
 						String link = prefix + "/?path=" + name.urlEncode();
 						
@@ -407,11 +407,11 @@ void Store::http(const String &prefix, Http::Request &request)
 #endif
 			}
 			
-			if(!Directory::Exist(path)) throw 404;
-			
 			if(path[path.size()-1] != Directory::Separator)
 				path+= Directory::Separator;
 		  
+			if(!Directory::Exist(path)) throw 404;
+			
 			if(request.get.contains("add")) 
 			{
 				path.resize(path.size()-1);

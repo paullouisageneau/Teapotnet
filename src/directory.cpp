@@ -49,8 +49,8 @@ bool Directory::Exist(String path)
 	return true;*/
   
 	if(path.empty()) return false;	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator)
-		path.resize(path.size()-1);
+  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
 	
 	stat_t st;
 	if(stat(path.c_str(), &st)) return false;
@@ -60,17 +60,17 @@ bool Directory::Exist(String path)
 bool Directory::Remove(String path)
 {
 	if(path.empty()) return false;	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator)
-		path.resize(path.size()-1);
-  
+  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
+	
 	return (rmdir(path.c_str()) == 0);
 }
 
 void Directory::Create(String path)
 {
 	if(path.empty()) throw IOException("Cannot create directory: empty path");	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator)
-		path.resize(path.size()-1);
+  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
   
 	if(mkdir(path.c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
@@ -99,8 +99,8 @@ void Directory::open(String path)
 {
 	close();
 	if(path.empty()) return;
-	if(path.size() >= 2 && path[path.size()-1] == Separator)
-		path.resize(path.size()-1);
+  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
 	
 	mDir = opendir(path.c_str());
 	if(!mDir) throw IOException(String("Unable to open directory: ")+path);
