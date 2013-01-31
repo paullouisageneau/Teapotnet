@@ -385,7 +385,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					{
 						char letter = 0x41+i;
 						String name = String(letter) + ':';
-						String hrName = String("Disk ") + letter;
+						String hrName = String("Drive ") + letter;
 						String link = prefix + "/?path=" + name.urlEncode();
 						
 						page.open("tr");
