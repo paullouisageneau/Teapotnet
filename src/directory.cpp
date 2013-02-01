@@ -137,7 +137,7 @@ String Directory::fileName(void) const
 Time Directory::fileTime(void) const
 {
 	if(!mDirent) throw IOException("No more files in directory");
-	stat_t attrib;
+	stat_t st;
 	if(stat(filePath().pathEncode().c_str(), &st)) return 0;
 	return Time(st.st_mtime);
 }
@@ -147,7 +147,7 @@ uint64_t Directory::fileSize(void) const
 	if(!mDirent) throw IOException("No more files in directory");
 	if(fileIsDir()) return 0;
 	stat_t st;
-	if(stat(filename.pathEncode().c_str(), &st)) return 0;
+	if(stat(filePath().pathEncode().c_str(), &st)) return 0;
 	return uint64_t(st.st_size);
 }
 
