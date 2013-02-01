@@ -501,8 +501,8 @@ String String::windowsDecode(void) const
 		char chr = at(i);
 		if(chr & 0x80)
 		{
-			result+= char(0xC0) | (chr >> 6);	// 1st byte
-			result+= char(0x80) | (chr & ~0xC0);		// 2nd byte
+			result+= (chr >> 6) | 0xC0;	// 1st byte
+			result+= (chr & ~0xC0) | 0x80;	// 2nd byte
 		}
 		else {
 			result+= chr;
