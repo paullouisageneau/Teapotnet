@@ -13,7 +13,7 @@ LDLIBS=-lws2_32 -lsqlite3 -L win32 -lpthreadGC2
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: teapotnet.exe winupdater.exe
+all: teapotnet.exe winservice.exe winupdater.exe
 
 teapotnet.exe: $(OBJS) res.o
 	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) res.o $(LDLIBS) 
@@ -38,6 +38,9 @@ res.o: teapotnet.ico teapotnet.exe.manifest
 	echo 1 24 "teapotnet.exe.manifest" > res.rc
 	echo 2 ICON "teapotnet.ico" >> res.rc
 	$(RES) res.rc res.o
+
+winservice.exe: winservice.c
+	$(CC) -o winservice.exe winservice.c
 
 winupdater.exe:
 	cd winupdater && make all && cp winupdater.exe ..
