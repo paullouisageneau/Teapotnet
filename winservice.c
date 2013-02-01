@@ -10,6 +10,7 @@ BOOL bServiceStarted = FALSE;
 void WINAPI ServiceMain(DWORD argc, LPTSTR *argv); 
 void WINAPI ServCtrlHandler(DWORD Opcode); 
 
+
 int main(int argc, char **argv)
 {
 	if(argc >= 2)
@@ -17,22 +18,25 @@ int main(int argc, char **argv)
 		if(argc >= 3)
 		{
 			fprintf(stderr, "Too many arguments\n");
-			return 1;	
+			return 1;
 		}
 		
 		char *szAction = argv[1];
-		if(strcmp(szAction, "install"))
+		if(!strcmp(szAction, "install"))
 		{
-			char szPath[MAX_PATH]; 
-			GetCurrentDirectory(MAX_PATH, szPath); 
-			strcat(szPath, "\\winservice.exe"); 
+			char szPath[MAX_PATH];
+			GetModuleFileName(NULL, szPath, MAX_PATH);
 
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS); 
 			SC_HANDLE hService = CreateService(hSCManager, "TeapotNet", "TeapotNet", 
 				SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, 
 				SERVICE_ERROR_NORMAL, szPath, NULL, NULL, NULL, NULL, NULL); 
 
-			if(!hService) return 1;
+			if(!hService)
+			{
+				fprintf(stderr, "Unable to install the service\n");
+				return 1;
+			}
 			
 			SERVICE_DESCRIPTION sd;
 			sd.lpDescription = "TeapotNet service"; 
@@ -40,8 +44,8 @@ int main(int argc, char **argv)
 			CloseServiceHandle(hService);
 			return 0;
 		}
-		 
-		if(strcmp(szAction, "uninstall"))
+		
+		if(!strcmp(szAction, "uninstall"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL,NULL,SC_MANAGER_ALL_ACCESS); 
 			SC_HANDLE hService = OpenService(hSCManager,"TeapotNet",SERVICE_ALL_ACCESS); 
@@ -52,18 +56,18 @@ int main(int argc, char **argv)
 			return 0;
 		 }
 		 
-		if(strcmp(szAction, "start"))
+		if(!strcmp(szAction, "start"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
 			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_START); 
 			if(!hService) return 1;
-			StartService(hService, 0, NULL); 
+			StartService(hService, 0, NULL);
 			CloseServiceHandle(hService); 
 			CloseServiceHandle(hSCManager); 
 			return 0;
 		}
-		 
-		if(strcmp(szAction, "stop"))
+		
+		if(!strcmp(szAction, "stop"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
 			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_STOP);
@@ -74,13 +78,20 @@ int main(int argc, char **argv)
 			CloseServiceHandle(hSCManager); 
 			return 0;
 		}
-		 
+		
 		fprintf(stderr, "Unknown operation: %s\n", szAction);
 		return 1;
 	}
-  
-	SERVICE_TABLE_ENTRY table[] = {{"TeapotNet",ServiceMain},{NULL,NULL}}; 
-        StartServiceCtrlDispatcher(table); 
+	
+	SERVICE_TABLE_ENTRY table[] = {{"TeapotNet", ServiceMain}, {NULL, NULL}}; 
+        if(!StartServiceCtrlDispatcher(table))
+	{
+		DWORD error = GetLastError();
+		if(error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT)
+			fprintf(stderr, "Missing argument\n");
+		return 1;
+	}
+	
         return 0; 
 } 
 
@@ -92,16 +103,21 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 	szDirectory[dwLength] = '\0';
 	if(!SetCurrentDirectory(szDirectory)) return;
 	
-	PROCESS_INFORMATION processInformation;
-	BOOL result = CreateProcess("teapotnet.exe", "--nointerface", 
-			NULL, NULL, 
+	STARTUPINFO startupInfo;
+	PROCESS_INFORMATION processInfo;
+	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
+	ZeroMemory(&processInfo, sizeof(PROCESS_INFORMATION));
+	startupInfo.cb = sizeof(STARTUPINFO);
+	
+	BOOL result = CreateProcessA("teapotnet.exe", "--nointerface", 
+			NULL, NULL,
 			FALSE, 
 			CREATE_NO_WINDOW|BELOW_NORMAL_PRIORITY_CLASS,
 			NULL,
 			szDirectory,
-			NULL,
-			&processInformation);
-
+			&startupInfo,
+			&processInfo);
+	
 	if(!result) return;
 	
 	ZeroMemory(&serviceStatus, sizeof(SERVICE_STATUS)); 
@@ -111,24 +127,28 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 
 	hServiceStatus = RegisterServiceCtrlHandler("TeapotNet", ServCtrlHandler); 
 
-        serviceStatus.dwCurrentState = SERVICE_RUNNING; 
-        serviceStatus.dwCheckPoint = 0; 
-        serviceStatus.dwWaitHint = 0; 
+	serviceStatus.dwWin32ExitCode = 0;
+        serviceStatus.dwCurrentState = SERVICE_RUNNING;
+        serviceStatus.dwCheckPoint = 0;
+        serviceStatus.dwWaitHint = 0;
 
         SetServiceStatus (hServiceStatus, &serviceStatus);
         bServiceStarted = TRUE;
 	
-        while(WaitForSingleObject(processInformation.hProcess, 2000) == WAIT_TIMEOUT)
+	CloseHandle(processInfo.hThread);
+        while(WaitForSingleObject(processInfo.hProcess, 1000) == WAIT_TIMEOUT)
 	{	
 		if(!bServiceStarted)
 		{
-			TerminateProcess(processInformation.hProcess, 0);
+			TerminateProcess(processInfo.hThread, 0);
 			break;
 		}
         } 
         
-        CloseHandle(processInformation.hThread);
-        CloseHandle(processInformation.hProcess);
+        CloseHandle(processInfo.hProcess);
+	
+	serviceStatus.dwCurrentState = SERVICE_STOPPED;
+	SetServiceStatus(hServiceStatus,&serviceStatus); 
 } 
 
 void WINAPI ServCtrlHandler(DWORD SCCode) 
@@ -146,11 +166,6 @@ void WINAPI ServCtrlHandler(DWORD SCCode)
 		  break; 
 
 	case SERVICE_CONTROL_STOP:
-		  serviceStatus.dwWin32ExitCode = 0;
-		  serviceStatus.dwCurrentState = SERVICE_STOPPED;
-		  serviceStatus.dwCheckPoint = 0;
-		  serviceStatus.dwWaitHint = 0;
-		  SetServiceStatus(hServiceStatus,&serviceStatus); 
 		  bServiceStarted = FALSE; 
 		  break; 
 	}

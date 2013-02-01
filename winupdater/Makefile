@@ -24,8 +24,7 @@ dist-clean: clean
 	$(RM) *~
 	$(RM) winupdater.exe
 
-res.o: winupdater.ico winupdater.exe.manifest
+res.o: winupdater.exe.manifest
 	echo 1 24 "winupdater.exe.manifest" > res.rc
-	echo 2 ICON "winupdater.ico" >> res.rc
 	$(RES) res.rc res.o
 

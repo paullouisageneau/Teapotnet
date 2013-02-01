@@ -176,17 +176,18 @@ int main(int argc, char** argv)
 		}
 		
 #ifdef WINDOWS
+		if(!InterfacePort) try {
+			int port = Config::Get("interface_port").toInt();
+			Socket sock(Address("127.0.0.1", port), 100);
+			InterfacePort = port;
+		}
+		catch(...) {}
+
 		if(InterfacePort)
 		{
 			if(!args.contains("nointerface"))
 				openUserInterface();
 			return 0;
-		}
-
-		if(args.contains("nointerface"))
-		{
-			HWND hWnd = GetConsoleWindow();
-			ShowWindow(hWnd, SW_HIDE);
 		}
 		
 		try {

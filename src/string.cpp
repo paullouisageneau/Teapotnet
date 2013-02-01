@@ -501,8 +501,8 @@ String String::windowsDecode(void) const
 		char chr = at(i);
 		if(chr & 0x80)
 		{
-			result+= (chr >> 6) | 0xC0;	// 1st byte
-			result+= (chr & ~0xC0) | 0x80;	// 2nd byte
+			result+= char((uint8_t(chr) >> 6) | uint8_t(0xC0));	// 1st byte
+			result+= char((uint8_t(chr) & ~0xC0) | uint8_t(0x80));	// 2nd byte
 		}
 		else {
 			result+= chr;
@@ -529,9 +529,9 @@ String String::windowsEncode(void) const
 				if(chr & 0x10) ++i;	// 4 bytes
 			}
 			else {
-				chr = chr << 6;
+				chr = char(uint8_t(chr) << 6);
 				if(i != size()) 
-					chr|= at(i) & ~0xC0;
+					chr|= char(uint8_t(at(i)) & ~uint8_t(0xC0));
 				result+= chr;
 			}
 		}

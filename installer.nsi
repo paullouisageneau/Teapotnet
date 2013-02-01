@@ -28,9 +28,9 @@ Page instfiles
 UserInfo::GetAccountType
 pop $0
 ${If} $0 != "admin" ;Require admin rights on NT4+
-        messageBox mb_iconstop "Administrator rights required!"
+        MessageBox mb_iconstop "Administrator rights required!"
         setErrorLevel 740 ;ERROR_ELEVATION_REQUIRED
-        quit
+        Quit
 ${EndIf}
 !macroend
  
@@ -43,22 +43,22 @@ section "install"
 	# Files for the install directory - to build the installer, these should be in the same directory as the install script (this file)
 	setOutPath $INSTDIR
 	# Files added here should be removed by the uninstaller (see section "uninstall")
-	file /R "static"
-	file "teapotnet.exe"
-	file "teapotnet.ico"
-	file "winservice.exe"
-	file "winupdater.exe"
+	File /R "static"
+	File "teapotnet.exe"
+	File "teapotnet.ico"
+	File "winservice.exe"
+	File "winupdater.exe"
 	# Add any other files for the install directory (license files, app data, etc) here
  
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
-	writeUninstaller "$INSTDIR\uninstall.exe"
+	WriteUninstaller "$INSTDIR\uninstall.exe"
  
  	# Desktop
- 	createShortCut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\teapotnet.exe" "" "$INSTDIR\teapotnet.ico"
+ 	CreateShortCut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\teapotnet.exe" "" "$INSTDIR\teapotnet.ico"
  
 	# Start Menu
-	createDirectory "$SMPROGRAMS\${APPNAME}"
-	createShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\teapotnet.exe" "" "$INSTDIR\teapotnet.ico"
+	CreateDirectory "$SMPROGRAMS\${APPNAME}"
+	CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\teapotnet.exe" "" "$INSTDIR\teapotnet.ico"
  
 	# Registry information for add/remove programs
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
@@ -77,18 +77,19 @@ section "install"
 	#WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
 
 	# Install and start the service
-	Exec '$INSTDIR\winservice.exe" install'
-        Exec '$INSTDIR\winservice.exe" start'
+	setOutPath $INSTDIR
+	ExecWait '"$INSTDIR\winservice.exe" install'
+        ExecWait '"$INSTDIR\winservice.exe" start'
 
 sectionEnd
  
 # Uninstaller
  
 function un.onInit
-	SetShellVarContext all
+	setShellVarContext all
  
 	#Verify the uninstaller - last chance to back out
-	MessageBox MB_OKCANCEL "Uninstall  ${APPNAME} ?" IDOK next
+	MessageBox MB_OKCANCEL "Uninstall ${APPNAME} ?" IDOK next
 		Abort
 	next:
 	!insertmacro VerifyUserIsAdmin
@@ -100,32 +101,33 @@ section "uninstall"
         #DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet"
 
 	# Stop and uninstall the service
-	Exec '"$INSTDIR\winservice.exe" stop'
-	Exec '"$INSTDIR\winservice.exe" uninstall'
+	ExecWait '"$INSTDIR\winservice.exe" stop'
+	ExecWait '"$INSTDIR\winservice.exe" uninstall'
+	ExecWait 'taskkill /FIM teapotnet.exe'
 
 	# Remove desktop shortcut
-	delete "$DESKTOP\${APPNAME}.lnk"
+	Delete "$DESKTOP\${APPNAME}.lnk"
 
 	# Remove Start Menu launcher
-	delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
+	Delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
 	# Try to remove the Start Menu folder
-	rmDir "$SMPROGRAMS\${APPNAME}"
+	RmDir "$SMPROGRAMS\${APPNAME}"
  
 	# Remove files
-	rmDir /R $INSTDIR\static
-	delete $INSTDIR\teapotnet.exe
-	delete $INSTDIR\teapotnet.ico
-	delete $INSTDIR\winservice.exe
-	delete $INSTDIR\winupdater.exe 
+	RmDir /R $INSTDIR\static
+	Delete $INSTDIR\teapotnet.exe
+	Delete $INSTDIR\teapotnet.ico
+	Delete $INSTDIR\winservice.exe
+	Delete $INSTDIR\winupdater.exe 
 
 	# Others
-	rmDir /R $INSTDIR\temp
+	RmDir /R $INSTDIR\temp
 
 	# Always delete uninstaller as the last action
-	delete $INSTDIR\uninstall.exe
+	Delete $INSTDIR\uninstall.exe
  
 	# Try to remove the install directory
-	rmDir $INSTDIR
+	RmDir $INSTDIR
  
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
