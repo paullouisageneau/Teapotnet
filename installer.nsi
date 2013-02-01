@@ -43,9 +43,10 @@ section "install"
 	# Files for the install directory - to build the installer, these should be in the same directory as the install script (this file)
 	setOutPath $INSTDIR
 	# Files added here should be removed by the uninstaller (see section "uninstall")
+	file /R "static"
 	file "teapotnet.exe"
 	file "teapotnet.ico"
-	file /R "static"
+	file "winservice.exe"
 	file "winupdater.exe"
 	# Add any other files for the install directory (license files, app data, etc) here
  
@@ -73,7 +74,12 @@ section "install"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "NoRepair" 1
 
 	# Registry information for startup
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
+	#WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
+
+	# Install and start the service
+	Exec '$INSTDIR\winservice.exe" install'
+        Exec '$INSTDIR\winservice.exe" start'
+
 sectionEnd
  
 # Uninstaller
@@ -90,6 +96,13 @@ functionEnd
  
 section "uninstall"
 
+	# Remove startup information from the registry  
+        #DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet"
+
+	# Stop and uninstall the service
+	Exec '"$INSTDIR\winservice.exe" stop'
+	Exec '"$INSTDIR\winservice.exe" uninstall'
+
 	# Remove desktop shortcut
 	delete "$DESKTOP\${APPNAME}.lnk"
 
@@ -99,11 +112,13 @@ section "uninstall"
 	rmDir "$SMPROGRAMS\${APPNAME}"
  
 	# Remove files
+	rmDir /R $INSTDIR\static
 	delete $INSTDIR\teapotnet.exe
 	delete $INSTDIR\teapotnet.ico
-	rmDir /R $INSTDIR\static
- 
-	# Others  
+	delete $INSTDIR\winservice.exe
+	delete $INSTDIR\winupdater.exe 
+
+	# Others
 	rmDir /R $INSTDIR\temp
 
 	# Always delete uninstaller as the last action
@@ -115,7 +130,5 @@ section "uninstall"
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
 
-	# Remove startup information from the registry	
-	DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet"
 sectionEnd
 

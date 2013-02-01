@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 		{
 			char szPath[MAX_PATH]; 
 			GetCurrentDirectory(MAX_PATH, szPath); 
-			strcat(strDir,"\\winservice.exe"); 
+			strcat(szPath, "\\winservice.exe"); 
 
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS); 
 			SC_HANDLE hService = CreateService(hSCManager, "TeapotNet", "TeapotNet", 
@@ -45,14 +45,38 @@ int main(int argc, char **argv)
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL,NULL,SC_MANAGER_ALL_ACCESS); 
 			SC_HANDLE hService = OpenService(hSCManager,"TeapotNet",SERVICE_ALL_ACCESS); 
+			if(!hService) return 1;
 			DeleteService(hService); 
 			CloseServiceHandle(hService); 
 			CloseServiceHandle(hSCManager); 
 			return 0;
 		 }
 		 
-		 fprintf(stderr, "Unknown operation: %s\n", szAction);
-		 return 1;
+		if(strcmp(szAction, "start"))
+		{
+			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
+			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_START); 
+			if(!hService) return 1;
+			StartService(hService, 0, NULL); 
+			CloseServiceHandle(hService); 
+			CloseServiceHandle(hSCManager); 
+			return 0;
+		}
+		 
+		if(strcmp(szAction, "stop"))
+		{
+			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
+			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_STOP);
+			if(!hService) return 1;
+			SERVICE_STATUS_PROCESS ssp; 
+			ControlService(hService, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS) &ssp);
+			CloseServiceHandle(hService); 
+			CloseServiceHandle(hSCManager); 
+			return 0;
+		}
+		 
+		fprintf(stderr, "Unknown operation: %s\n", szAction);
+		return 1;
 	}
   
 	SERVICE_TABLE_ENTRY table[] = {{"TeapotNet",ServiceMain},{NULL,NULL}}; 
@@ -63,7 +87,7 @@ int main(int argc, char **argv)
 void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) 
 {  
 	char szDirectory[MAX_PATH];
-	DWORD dwLength = GetModuleFileName(NULL, szDirectory, MAX_PATH];
+	DWORD dwLength = GetModuleFileName(NULL, szDirectory, MAX_PATH);
 	while(dwLength && szDirectory[dwLength] != '\\') --dwLength;
 	szDirectory[dwLength] = '\0';
 	if(!SetCurrentDirectory(szDirectory)) return;
