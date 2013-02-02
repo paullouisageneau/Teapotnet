@@ -502,7 +502,7 @@ String String::windowsDecode(void) const
 		if(chr & 0x80)
 		{
 			result+= char((uint8_t(chr) >> 6) | uint8_t(0xC0));		// 1st byte
-			result+= char((uint8_t(chr) & ~uint8_t(0xC0) | uint8_t(0x80));	// 2nd byte
+			result+= char((uint8_t(chr) & ~uint8_t(0xC0)) | uint8_t(0x80));	// 2nd byte
 		}
 		else {
 			result+= chr;
