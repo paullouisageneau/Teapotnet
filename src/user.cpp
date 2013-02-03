@@ -180,6 +180,8 @@ void User::http(const String &prefix, Http::Request &request)
 	Synchronize(this);
 	
 	try {
+		setOnline();
+		
 		String url = request.url;
 		if(url.empty() || url[0] != '/') throw 404;
 		

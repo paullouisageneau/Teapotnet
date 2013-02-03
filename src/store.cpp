@@ -347,10 +347,11 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 void Store::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
-	
 	const String &url = request.url;
 	
 	try {
+		user()->setOnline();
+		
 		if(prefix.afterLast('/') == "explore")
 		{
 			if(url != "/") throw 404;

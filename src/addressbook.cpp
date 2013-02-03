@@ -935,13 +935,15 @@ void AddressBook::Contact::request(Request *request)
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
-  	Synchronize(this);
-	
-	String base(prefix+request.url);
-	base = base.substr(base.lastIndexOf('/')+1);
-	if(!base.empty()) base+= '/';
+	Synchronize(this);
 	
 	try {
+		user()->setOnline();
+		
+		String base(prefix+request.url);
+		base = base.substr(base.lastIndexOf('/')+1);
+		if(!base.empty()) base+= '/';
+	
 		if(request.url.empty() || request.url == "/")
 		{
 			Http::Response response(request,200);
