@@ -48,9 +48,13 @@ public:
 	
 	const String &name(void) const;
 	String profilePath(void) const;
-	
 	AddressBook *addressBook(void) const;
 	Store *store(void) const;
+	
+	bool isOnline(void) const;
+	void setOnline(void);
+	void setInfo(const StringMap &info);
+	void sendInfo(const Identifier &identifier = Identifier::Null);
 	
 	void http(const String &prefix, Http::Request &request);
 	
@@ -61,6 +65,9 @@ private:
 	Identifier mHash;
 	AddressBook *mAddressBook;
 	Store *mStore;
+	StringMap mInfo;
+	Time mLastOnlineTime;
+	Time mLastInfoTime;
 	
 	static Map<String, User*>	UsersByName;
 	static Map<Identifier, User*>	UsersByAuth;

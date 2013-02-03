@@ -692,9 +692,17 @@ bool AddressBook::Contact::isConnected(const String &instance) const
 	return Core::Instance->hasPeer(Identifier(mPeering, instance)); 
 }
 
+bool AddressBook::Contact::isOnline(void) const
+{
+	if(!isConnected()) return false;
+	if(!mInfo.contains("last")) return false;
+	return (Time::Now()-Time(mInfo.get("last")) < 30);	// 30 sec
+}
+
 String AddressBook::Contact::status(void) const
 {
-	if(isConnected()) return "connected";
+	if(isOnline()) return "online";
+	else if(isConnected()) return "connected";
 	else if(isFound()) return "found";
 	else return "disconnected";
 }
@@ -736,6 +744,10 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		if(Core::Instance->addPeer(sock, identifier))
 		{
 			if(save) mAddrs[instance][addr] = Time::Now();
+			
+			// Initial messages
+			mAddressBook->user()->sendInfo(identifier);
+			
 			return true;
 		}
 		
@@ -787,6 +799,7 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
 		}
 			
 	}
+	
 	return success;
 }
 
@@ -826,7 +839,7 @@ void AddressBook::Contact::update(void)
 	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
 	{
 		//Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		mFound = true;		
+		mFound = true;	
 		connectAddresses(newAddrs, true);
 	}
 	else {
@@ -891,6 +904,15 @@ void AddressBook::Contact::message(Message *message)
 		mMessages.push_back(*message);
 		++mMessagesCount;
 		notifyAll();
+	}
+	else if(type == "info")
+	{
+		String data = message->content();
+		YamlSerializer serializer(&data);
+		serializer.input(mInfo);
+		
+		if(mUniqueName == mAddressBook->userName())
+			mAddressBook->user()->setInfo(mInfo);
 	}
 	else if(type == "contacts")
 	{
@@ -1517,12 +1539,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
 
-	if(map.contains("time")) 
-	{
-		time_t tmp;
-		map["time"] >> tmp;
-		mTime = tmp;
-	}
+	if(map.contains("time")) map["time"] >> mTime;
 	else mTime = Time::Now();
 	
 	// TODO: checks

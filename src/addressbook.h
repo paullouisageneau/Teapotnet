@@ -82,6 +82,7 @@ public:
 		bool isFound(void) const;
 		bool isConnected(void) const;
 		bool isConnected(const String &instance) const;
+		bool isOnline(void) const;
 		String status(void) const;
 		const AddressMap &addresses(void) const;
 		
@@ -114,6 +115,7 @@ public:
 		AddressMap mAddrs;
 		Deque<Message> mMessages;
 		unsigned mMessagesCount;
+		StringMap mInfo;
 	};
 	
 	const Identifier &addContact(String name, const ByteString &secret);

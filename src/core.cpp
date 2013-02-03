@@ -1259,7 +1259,7 @@ void Core::Handler::Sender::run(void)
 	}
 	catch(const std::exception &e)
 	{
-		Log("Core::Handler::Sender", String("Stopping: ") + e.what()); 
+		Log("Core::Handler::Sender", String("Error: ") + e.what()); 
 	}
 }
 

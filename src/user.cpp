@@ -25,6 +25,7 @@
 #include "directory.h"
 #include "sha512.h"
 #include "html.h"
+#include "yamlserializer.h"
 
 namespace tpot
 {
@@ -79,7 +80,8 @@ User *User::Authenticate(const String &name, const String &password)
 User::User(const String &name, const String &password) :
 	mName(name),
 	mAddressBook(new AddressBook(this)),
-	mStore(new Store(this))
+	mStore(new Store(this)),
+	mLastOnlineTime(0)
 {
 	if(password.empty())
 	{
@@ -137,6 +139,40 @@ AddressBook *User::addressBook(void) const
 Store *User::store(void) const
 {
 	return mStore;
+}
+
+bool User::isOnline(void) const
+{
+	return (Time::Now()-mLastOnlineTime < 30);	// 30 sec
+}
+
+void User::setOnline(void)
+{
+	mLastOnlineTime = Time::Now();
+	mInfo["last"] = String::number(mLastOnlineTime);
+}
+
+void User::setInfo(const StringMap &info)
+{
+	if(info.contains("last") && Time(info.get("last")) >= Time(mInfo.get("last")))
+		mInfo["last"] = info.get("last");
+	
+	if(info.contains("time") && 
+		(!mInfo.contains("time") || Time(info.get("time")) >= Time(mInfo.get("time"))))
+		mInfo = info;
+	else sendInfo();
+}
+
+void User::sendInfo(const Identifier &identifier)
+{
+	String content;
+	YamlSerializer serializer(&content);
+	serializer.output(mInfo);
+	
+	Message message(content);
+	message.setParameter("type", "info");
+	if(identifier == Identifier::Null) message.send();
+	else message.send(identifier);
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -204,7 +240,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("span");
 					page.close("td");
 					
-					page.open("td",".status");
+					page.open("td",".info");
 					page.span(contact->status().capitalized(), String(".") + contact->status());
 					page.close("td");
 					
@@ -232,8 +268,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("function updateContacts() {\n\
 				$.getJSON('"+prefix+"/contacts/?json', function(data) {\n\
   					$.each(data, function(uname, info) {\n\
-			  			transition($('#contact_'+uname+' .status'),\n\
-							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+			  			transition($('#contact_'+uname+' .info'),\n\
+							'<span class=\"'+info.info+'\">'+info.info.capitalize()+'</span>\\n');\n\
 						var msg = '';\n\
 						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 						transition($('#contact_'+uname+' .messagescount'), msg);\n\
@@ -466,9 +502,19 @@ void User::http(const String &prefix, Http::Request &request)
 
 void User::run(void)
 {
+	Time oldLastOnlineTime = mLastOnlineTime;
 	while(true)
 	{
-		wait(5*60*1000);
+		for(unsigned t=0; t<2*5; ++t)
+		{
+			wait(30000);
+			if(oldLastOnlineTime != mLastOnlineTime)
+			{
+				oldLastOnlineTime = mLastOnlineTime;
+				sendInfo();
+			}
+		}
+		
 		if(!mAddressBook->isRunning()) mAddressBook->start();
 		if(!mStore->isRunning()) mStore->start();
 	}
