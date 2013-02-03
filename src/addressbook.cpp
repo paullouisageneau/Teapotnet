@@ -327,6 +327,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	Synchronize(this);
 
 	try {
+		user()->setOnline();
+		
 		if(request.url.empty() || request.url == "/")
 		{
 			if(request.method == "POST")
@@ -938,7 +940,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	Synchronize(this);
 	
 	try {
-		user()->setOnline();
+		mAddressBook->user()->setOnline();
 		
 		String base(prefix+request.url);
 		base = base.substr(base.lastIndexOf('/')+1);
