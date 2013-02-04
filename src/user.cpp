@@ -259,7 +259,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("span");
 					page.close("td");
 					
-					page.open("td",".info");
+					page.open("td",".status");
 					page.span(contact->status().capitalized(), String(".") + contact->status());
 					page.close("td");
 					
@@ -291,8 +291,8 @@ void User::http(const String &prefix, Http::Request &request)
 					timeout: 2000,\n\
 					success: function(data) {\n\
 						$.each(data, function(uname, info) {\n\
-							transition($('#contact_'+uname+' .info'),\n\
-								'<span class=\"'+info.info+'\">'+info.info.capitalize()+'</span>\\n');\n\
+							transition($('#contact_'+uname+' .status'),\n\
+								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
 							var msg = '';\n\
 							if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 							transition($('#contact_'+uname+' .messagescount'), msg);\n\
