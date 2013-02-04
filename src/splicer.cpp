@@ -372,7 +372,7 @@ bool Splicer::CacheEntry::finished(void) const
 {
 	Synchronize(this);
 	if(mFinishedBlocks.size() < (mSize + mBlockSize - 1) / mBlockSize) return false;
-	if(std::find(mFinishedBlocks.begin(), mFinishedBlocks.end(), false) == mFinishedBlocks.end()) return false;
+	if(std::find(mFinishedBlocks.begin(), mFinishedBlocks.end(), false) != mFinishedBlocks.end()) return false;
 	return true;
 }
 
