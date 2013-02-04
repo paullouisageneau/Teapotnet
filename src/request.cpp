@@ -186,6 +186,14 @@ bool Request::execute(User *user)
 					addResponse(createResponse(entry, parameters, store));
 					return true;
 				}
+				
+				Store::Query query;
+				query.setDigest(identifier);
+				if(store->queryEntry(query, entry))
+				{
+					addResponse(createResponse(entry, parameters, store));
+					return true;
+				}
 			}
 		}
 	}
