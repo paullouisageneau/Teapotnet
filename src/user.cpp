@@ -301,7 +301,7 @@ void User::http(const String &prefix, Http::Request &request)
 				});\n\
 				setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
 			}\n\
-			updateContact();");
+			setTimeout('updateContact()',100);");
 			
 			page.open("div","files.box");
 			page.open("h2");
