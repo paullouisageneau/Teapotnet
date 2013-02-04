@@ -154,7 +154,8 @@ void User::setOnline(void)
 
 void User::setInfo(const StringMap &info)
 {
-	if(info.contains("last") && Time(info.get("last")) >= Time(mInfo.get("last")))
+	if(info.contains("last") && 
+		(!mInfo.contains("last") || Time(info.get("last")) >= Time(mInfo.get("last"))))
 		mInfo["last"] = info.get("last");
 	
 	if(info.contains("time") && 
