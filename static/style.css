@@ -285,13 +285,13 @@ input
 .online
 {
 	font-weight: bold;
-	color: #0000FF;
+	color: #00A000;
 }
 
 .connected
 {
 	font-weight: bold;
-	color: #00A000;
+	color: #0000FF;
 }
 
 .disconnected

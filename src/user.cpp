@@ -154,16 +154,18 @@ void User::setOnline(void)
 
 void User::setInfo(const StringMap &info)
 {
+	bool isNew = (info.contains("time") &&
+		(!mInfo.contains("time") || Time(info.get("time")) > Time(mInfo.get("time"))));
+		
+	if(isNew)
+		mInfo = info;
+	
 	if(info.contains("last") && 
-		(!mInfo.contains("last") || Time(info.get("last")) >= Time(mInfo.get("last"))))
+		(!mInfo.contains("last") || Time(info.get("last")) > Time(mInfo.get("last"))))
 		mInfo["last"] = info.get("last");
 	
-	if(info.contains("time"))
-	{
-		if(!mInfo.contains("time") || Time(info.get("time")) >= Time(mInfo.get("time")))
-			mInfo = info;
-		else sendInfo();
-	}
+	if(!isNew && mInfo.contains("time"))
+		sendInfo();
 }
 
 void User::sendInfo(const Identifier &identifier)
@@ -509,12 +511,13 @@ void User::http(const String &prefix, Http::Request &request)
 
 void User::run(void)
 {
-	Time oldLastOnlineTime = mLastOnlineTime;
+	Time oldLastOnlineTime(0);
 	while(true)
 	{
 		for(unsigned t=0; t<2*5; ++t)
 		{
 			wait(30000);
+			Synchronize(this);
 			if(oldLastOnlineTime != mLastOnlineTime)
 			{
 				oldLastOnlineTime = mLastOnlineTime;
