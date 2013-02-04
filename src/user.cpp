@@ -158,14 +158,18 @@ void User::setInfo(const StringMap &info)
 		(!mInfo.contains("last") || Time(info.get("last")) >= Time(mInfo.get("last"))))
 		mInfo["last"] = info.get("last");
 	
-	if(info.contains("time") && 
-		(!mInfo.contains("time") || Time(info.get("time")) >= Time(mInfo.get("time"))))
-		mInfo = info;
-	else sendInfo();
+	if(info.contains("time"))
+	{
+		if(!mInfo.contains("time") || Time(info.get("time")) >= Time(mInfo.get("time")))
+			mInfo = info;
+		else sendInfo();
+	}
 }
 
 void User::sendInfo(const Identifier &identifier)
 {
+	Synchronize(this);
+	
 	String content;
 	YamlSerializer serializer(&content);
 	serializer.output(mInfo);

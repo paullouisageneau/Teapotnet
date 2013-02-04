@@ -914,7 +914,11 @@ void AddressBook::Contact::message(Message *message)
 		serializer.input(mInfo);
 		
 		if(mUniqueName == mAddressBook->userName())
-			mAddressBook->user()->setInfo(mInfo);
+		{
+			StringMap info = mInfo;
+			Desynchronize(this);
+			mAddressBook->user()->setInfo(info);
+		}
 	}
 	else if(type == "contacts")
 	{
