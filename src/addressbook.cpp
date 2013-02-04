@@ -1020,7 +1020,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				});\n\
 				setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
 			}\n\
-			updateContact();");
+			setTimeout('updateContact()',100);");
 			
 			page.footer();
 			return;
@@ -1418,7 +1418,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					});\n\
 					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
 				}\n\
-				updateContact();");
+				setTimeout('updateContact()',100);");
 				
 				page.open("div", "chatmessages");
 				for(int i=mMessages.size()-1; i>=0; --i)
