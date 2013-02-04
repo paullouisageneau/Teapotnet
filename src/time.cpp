@@ -72,7 +72,7 @@ Time::Time(const String &str)
 	}
 	
 	List<String> list;
-	str.explode(list, ' ');
+	str.trimmed().explode(list, ' ');
 
 	struct tm tms;
 	std::memset(&tms, 0, sizeof(tms));
