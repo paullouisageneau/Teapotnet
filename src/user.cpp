@@ -154,18 +154,28 @@ void User::setOnline(void)
 
 void User::setInfo(const StringMap &info)
 {
-	bool isNew = (info.contains("time") &&
-		(!mInfo.contains("time") || Time(info.get("time")) > Time(mInfo.get("time"))));
-		
-	if(isNew)
+	Time l1(info.getOrDefault("last", Time(0)));
+	Time l2(mInfo.getOrDefault("last", Time(0)));
+	if(l1 > Time::Now()) l1 = Time::Now();
+	if(l2 > Time::Now()) l2 = Time::Now();
+	String last;
+	last << std::max(l1,l2);
+	
+	Time t1(info.getOrDefault("time", Time(0)));
+	Time t2(mInfo.getOrDefault("time", Time(0)));
+	if(t1 > Time::Now()) t1 = Time::Now();
+	if(t2 > Time::Now()) t2 = Time::Now();
+	if(t1 > t2)
+	{
 		mInfo = info;
-	
-	if(info.contains("last") && 
-		(!mInfo.contains("last") || Time(info.get("last")) > Time(mInfo.get("last"))))
-		mInfo["last"] = info.get("last");
-	
-	if(!isNew && mInfo.contains("time"))
-		sendInfo();
+		mInfo["last"] = last;
+		return;
+	}
+	else {
+		mInfo["last"] = last;
+		if(mInfo.contains("time"))
+			sendInfo();
+	}
 }
 
 void User::sendInfo(const Identifier &identifier)
