@@ -251,9 +251,10 @@ void Time::serialize(Serializer &s) const
 
 bool Time::deserialize(Serializer &s)
 {
-	int64_t tmp;
+	int64_t tmp = 0;
 	s.input(tmp);
 	mTime = time_t(tmp);
+	return true;
 }
 
 bool operator < (const Time &t1, const Time &t2)
