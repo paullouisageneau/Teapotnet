@@ -284,19 +284,24 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("function updateContacts() {\n\
-				$.getJSON('"+prefix+"/contacts/?json', function(data) {\n\
-  					$.each(data, function(uname, info) {\n\
-			  			transition($('#contact_'+uname+' .info'),\n\
-							'<span class=\"'+info.info+'\">'+info.info.capitalize()+'</span>\\n');\n\
-						var msg = '';\n\
-						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
-						transition($('#contact_'+uname+' .messagescount'), msg);\n\
-  					});\n\
-  					setTimeout('updateContacts()',"+String::number(refreshPeriod)+");\n\
+			page.javascript("function updateContact() {\n\
+				$.ajax({\n\
+					url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
+					dataType: 'json',\n\
+					timeout: 2000,\n\
+					success: function(data) {\n\
+						$.each(data, function(uname, info) {\n\
+							transition($('#contact_'+uname+' .info'),\n\
+								'<span class=\"'+info.info+'\">'+info.info.capitalize()+'</span>\\n');\n\
+							var msg = '';\n\
+							if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+							transition($('#contact_'+uname+' .messagescount'), msg);\n\
+						});\n\
+					}\n\
 				});\n\
+				setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
 			}\n\
-			updateContacts();");
+			updateContact();");
 			
 			page.open("div","files.box");
 			page.open("h2");
