@@ -833,12 +833,13 @@ void AddressBook::Contact::update(void)
 	}
 	
 	//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-	AddressBook::publish(mRemotePeering);
+	DesynchronizeStatement(this, AddressBook::publish(mRemotePeering));
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	
 	AddressMap newAddrs;
-	if(AddressBook::query(mPeering, mTracker, newAddrs, false))
+	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, false));
+	if(!newAddrs.empty())
 	{
 		//Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		mFound = true;	
@@ -852,7 +853,8 @@ void AddressBook::Contact::update(void)
 	//if(!Core::Instance->isPublicConnectable())	// Can actually be connectable with IPv6 only
 	//{
 		AddressMap altAddrs;
-		if(AddressBook::query(mPeering, mTracker, altAddrs, true))
+		DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, altAddrs, true));
+		if(!altAddrs.empty())
 		{
 			//Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(altAddrs.size()) + " instance(s))");
 			
