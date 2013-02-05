@@ -698,7 +698,7 @@ bool AddressBook::Contact::isOnline(void) const
 {
 	if(!isConnected()) return false;
 	if(!mInfo.contains("last")) return false;
-	return (Time::Now()-Time(mInfo.get("last")) < 30);	// 30 sec
+	return (Time::Now()-Time(mInfo.get("last")) < 60);	// 60 sec
 }
 
 String AddressBook::Contact::status(void) const
@@ -920,8 +920,7 @@ void AddressBook::Contact::message(Message *message)
 		Time l2(mInfo.getOrDefault("last", Time(0)));
 		if(l1 > Time::Now()) l1 = Time::Now();
 		if(l2 > Time::Now()) l2 = Time::Now();
-		String last;
-		last << std::max(l1,l2);
+		String last = std::max(l1,l2).toString();
 		
 		Time t1(info.getOrDefault("time", Time(0)));
 		Time t2(mInfo.getOrDefault("time", Time(0)));

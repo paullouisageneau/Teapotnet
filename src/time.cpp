@@ -65,7 +65,7 @@ Time::Time(const String &str)
 {
 	const String months[] = {"jan","feb","mar","apr","may","jun","sep","oct","nov","dec"};
 
-	if(str.empty())
+	if(str.trimmed().empty())
 	{
 		mTime = time_t(0);
 		return;
