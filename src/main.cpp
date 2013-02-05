@@ -42,6 +42,7 @@ Mutex tpot::LogMutex;
 #ifdef WINDOWS
 
 #include <shellapi.h>
+#include <wininet.h>
 
 #define SHARED __attribute__((section(".shared"), shared))
 int InterfacePort SHARED = 0;
@@ -208,14 +209,26 @@ int main(int argc, char** argv)
 			unsigned updateDay = 0;
 			if(!Config::Get("last_update_day").empty())
 				Config::Get("last_update_day").extract(updateDay);
-			
-			if(updateDay != currentDay)
+			if(updateDay > currentDay) updateDay = 0;		
+	
+			if(updateDay + 1 < currentDay)
 			{
 				Log("main", "Looking for updates...");
-
 				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
 				
 				try {
+					if(args.contains("boot"))
+					{
+						int attempts = 30;
+						DWORD flags = 0;
+						while(!InternetGetConnectedState(&flags, 0))
+						{
+							if(--attempts == 0) break;
+							Log("main", "Waiting for network availability...");
+							Sleep(1000);
+						}
+					}
+
 					String content;
 					if(Http::Get(url, &content) == 200)
 					{

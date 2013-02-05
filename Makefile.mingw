@@ -8,7 +8,7 @@ RM=rm -f
 #LDLIBS=-lws2_32 -lpthread -lsqlite3
 CPPFLAGS=-O -DPTW32_STATIC_LIB
 LDFLAGS=-O -static -static-libgcc
-LDLIBS=-lws2_32 -lsqlite3 -L win32 -lpthreadGC2
+LDLIBS=-lws2_32 -lwininet -lsqlite3 -L win32 -lpthreadGC2
 
 SRCS=$(shell printf "%s " src/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))

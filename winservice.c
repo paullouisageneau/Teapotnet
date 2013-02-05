@@ -126,13 +126,15 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 	szDirectory[dwLength] = '\0';
 	if(!SetCurrentDirectory(szDirectory)) return;
 	
+	Sleep(1000);
+
 	STARTUPINFO startupInfo;
 	PROCESS_INFORMATION processInfo;
 	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
 	ZeroMemory(&processInfo, sizeof(PROCESS_INFORMATION));
 	startupInfo.cb = sizeof(STARTUPINFO);
 	
-	BOOL result = CreateProcessA("teapotnet.exe", "--nointerface", 
+	BOOL result = CreateProcessA("teapotnet.exe", "--boot --nointerface", 
 			NULL, NULL,
 			FALSE, 
 			CREATE_NO_WINDOW|BELOW_NORMAL_PRIORITY_CLASS,
@@ -147,15 +149,13 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 	serviceStatus.dwServiceType = SERVICE_WIN32; 
 	serviceStatus.dwCurrentState = SERVICE_START_PENDING; 
 	serviceStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP; 
-
-	hServiceStatus = RegisterServiceCtrlHandler("TeapotNet", ServCtrlHandler); 
-
 	serviceStatus.dwWin32ExitCode = 0;
         serviceStatus.dwCurrentState = SERVICE_RUNNING;
         serviceStatus.dwCheckPoint = 0;
         serviceStatus.dwWaitHint = 0;
 
-        SetServiceStatus (hServiceStatus, &serviceStatus);
+	hServiceStatus = RegisterServiceCtrlHandler("TeapotNet", ServCtrlHandler);
+        SetServiceStatus(hServiceStatus, &serviceStatus);
         bServiceStarted = TRUE;
 	
 	CloseHandle(processInfo.hThread);
