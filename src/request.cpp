@@ -420,6 +420,7 @@ Request::Response::Response(int status, const StringMap &parameters, ByteStream 
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),
+	mChannel(0),
 	mTransfertStarted(false),
 	mTransfertFinished(false)
 {
