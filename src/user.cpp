@@ -143,17 +143,23 @@ Store *User::store(void) const
 
 bool User::isOnline(void) const
 {
+	Synchronize(this);
 	return (Time::Now()-mLastOnlineTime < 30);	// 30 sec
 }
 
 void User::setOnline(void)
 {
+	Synchronize(this);
+	bool wasOnline = isOnline();
 	mLastOnlineTime = Time::Now();
 	mInfo["last"] = mLastOnlineTime.toString();
+	if(!wasOnline) sendInfo();
 }
 
 void User::setInfo(const StringMap &info)
 {
+	Synchronize(this);
+	
 	Time l1(info.getOrDefault("last", Time(0)));
 	Time l2(mInfo.getOrDefault("last", Time(0)));
 	if(l1 > Time::Now()) l1 = Time::Now();
