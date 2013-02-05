@@ -67,8 +67,7 @@ private:
 	Store *mStore;
 	StringMap mInfo;
 	Time mLastOnlineTime;
-	Time mLastInfoTime;
-	
+
 	static Map<String, User*>	UsersByName;
 	static Map<Identifier, User*>	UsersByAuth;
 	static Mutex			UsersMutex;
