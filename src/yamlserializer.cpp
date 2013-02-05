@@ -67,7 +67,7 @@ bool YamlSerializer::input(Element &element)
 		mLine.clear();
 		if(!mStream->readLine(mLine))
 		{
-			mIndent.pop();
+			if(!mIndent.empty()) mIndent.pop();
 			return false;
 		}
 		
@@ -101,7 +101,7 @@ bool YamlSerializer::input(Element &element)
 	
 	mIndent.push(-1);
 	AssertIO(element.deserialize(*this));
-	mIndent.pop();
+	if(!mIndent.empty()) mIndent.pop();
 	return true;
 }
 
@@ -114,7 +114,7 @@ bool YamlSerializer::input(Pair &pair)
 		mLine.clear();
 		if(!mStream->readLine(mLine))
 		{
-			mIndent.pop();
+			if(!mIndent.empty()) mIndent.pop();
 			return false;
 		}
 		
@@ -153,7 +153,7 @@ bool YamlSerializer::input(Pair &pair)
 	AssertIO(pair.deserializeKey(keySerializer));
 	mIndent.push(-1);
 	AssertIO(pair.deserializeValue(*this));
-	mIndent.pop();
+	if(!mIndent.empty()) mIndent.pop();
 	return true;
 }
 
