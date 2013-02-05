@@ -219,7 +219,7 @@ int main(int argc, char** argv)
 				try {
 					if(args.contains("boot"))
 					{
-						int attempts = 30;
+						int attempts = 20;
 						DWORD flags = 0;
 						while(!InternetGetConnectedState(&flags, 0))
 						{
