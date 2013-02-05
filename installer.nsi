@@ -122,6 +122,7 @@ section "uninstall"
 
 	# Others
 	RmDir /R $INSTDIR\temp
+	RmDir /R $INSTDIR\shared
 
 	# Always delete uninstaller as the last action
 	Delete $INSTDIR\uninstall.exe
