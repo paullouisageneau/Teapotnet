@@ -177,30 +177,37 @@ int main(int argc, char** argv)
 		}
 		
 #ifdef WINDOWS
-		if(!InterfacePort) try {
-			int port = Config::Get("interface_port").toInt();
-			Socket sock(Address("127.0.0.1", port), 100);
-			InterfacePort = port;
-		}
-		catch(...) {}
-
-		if(InterfacePort)
+		if(args.contains("boot"))
 		{
-			if(!args.contains("nointerface"))
-				openUserInterface();
-			return 0;
-		}
-		
-		try {
 			Config::Save(configFileName);
+			Sleep(1000);
 		}
-		catch(...)
-		{
-			//Log("main", "Trying to run as administrator..."); 
-			Sleep(100);
-			if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) <= 32)
-				throw Exception("Unable to run as administrator");
-			return 0;
+		else {
+			if(!InterfacePort) try {
+				int port = Config::Get("interface_port").toInt();
+				Socket sock(Address("127.0.0.1", port), 100);
+				InterfacePort = port;
+			}
+			catch(...) {}
+
+			if(InterfacePort)
+			{
+				if(!args.contains("nointerface"))
+					openUserInterface();
+				return 0;
+			}
+			
+			try {
+				Config::Save(configFileName);
+			}
+			catch(...)
+			{
+				//Log("main", "Trying to run as administrator..."); 
+				Sleep(100);
+				if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) <= 32)
+					throw Exception("Unable to run as administrator");
+				return 0;
+			}
 		}
 		
 		if(!args.contains("noupdate"))
@@ -366,7 +373,7 @@ int main(int argc, char** argv)
 
 #ifdef WINDOWS
 		InterfacePort = ifport;
-		if(!args.contains("nointerface"))
+		if(!args.contains("boot") && !args.contains("nointerface"))
 			openUserInterface();
 		
 		if(!args.contains("debug") || !Config::Get("debug").toBool())

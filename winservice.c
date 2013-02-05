@@ -125,8 +125,6 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 	while(dwLength && szDirectory[dwLength] != '\\') --dwLength;
 	szDirectory[dwLength] = '\0';
 	if(!SetCurrentDirectory(szDirectory)) return;
-	
-	Sleep(1000);
 
 	STARTUPINFO startupInfo;
 	PROCESS_INFORMATION processInfo;
