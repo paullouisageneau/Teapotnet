@@ -71,9 +71,7 @@ void Address::set(const String &host, const String &service)
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
 		throw NetException("Address resolution failed for "+host+":"+service);
 
-	mAddrLen = aiList->ai_addrlen;
-	std::memcpy(&mAddr,aiList->ai_addr,aiList->ai_addrlen);
-
+	set(aiList->ai_addr, aiList->ai_addrlen);
 	freeaddrinfo(aiList);
 }
 
@@ -91,6 +89,8 @@ void Address::set(const String &str)
 
 void Address::set(const sockaddr *addr, socklen_t addrlen)
 {
+	//std::memset(&mAddr, 0, sizeof(mAddr));
+	
 	if(!addr || !addrlen)
 	{
 		mAddrLen = 0;
@@ -98,12 +98,12 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 	}
 
 	mAddrLen = addrlen;
-	std::memcpy(&mAddr,addr,addrlen);
+	std::memcpy(&mAddr, addr, addrlen);
 }
 
 void Address::setNull(void)
 {
-	mAddrLen = 0;
+	set(NULL, 0);
 }
 
 bool Address::isNull(void) const
@@ -336,9 +336,7 @@ bool Address::deserialize(Stream &s)
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
 		throw InvalidData("Invalid network Address: " + str);
 
-	mAddrLen = aiList->ai_addrlen;
-	std::memcpy(&mAddr,aiList->ai_addr,aiList->ai_addrlen);
-
+	set(aiList->ai_addr, aiList->ai_addrlen);
 	freeaddrinfo(aiList);
 	return true;
 }
