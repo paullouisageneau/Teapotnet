@@ -505,26 +505,29 @@ void Store::http(const String &prefix, Http::Request &request)
 					String childPath = path + name;
 					String link = prefix + "/?path=" + childPath.urlEncode();
 					
+					page.open("tr");
+					page.open("td",".icon");
+					page.image("/dir.png");
+					page.close("td");
+					
 					if(existingPathsSet.find(childPath) == existingPathsSet.end())
 					{
-						page.open("tr");
-						page.open("td",".dirname");
+						page.open("td",".filename");
 						page.link(link, name);
 						page.close("td");
 						page.open("td",".add");
 						page.link(link+"&add=1", "share");
 						page.close("td");
-						page.close("tr");
 					}
 					else {
-						page.open("tr");
-						page.open("td",".dirname");
+						page.open("td",".filename");
 						page.text(name);
 						page.close("td");
 						page.open("td",".add");
 						page.close("td");
-						page.close("tr");
 					}
+					
+					page.close("tr");
 				}
 				page.close("table");
 			}
