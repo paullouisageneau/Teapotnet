@@ -258,10 +258,13 @@ void User::http(const String &prefix, Http::Request &request)
 					AddressBook::Contact *contact = contacts[i];
 					
 					page.open("tr", String("contact_")+contact->uniqueName());
-					page.open("td");
-					page.open("span",".contact");
-					page.link(contact->urlPrefix(), contact->name() + "@" + contact->tracker());
-					page.close("span");
+					
+					page.open("td",".contact");
+					page.link(contact->urlPrefix(), contact->name());
+					page.close("td");
+					
+					page.open("td",".tracker");
+					page.text(String("@") + contact->tracker());
 					page.close("td");
 					
 					page.open("td",".status");
@@ -330,11 +333,13 @@ void User::http(const String &prefix, Http::Request &request)
 					String directoryUrl = prefix + "/files/" + directory + "/";
 					
 					page.open("tr");
-					page.open("td");
-					page.open("span",".file");
-					page.link(directoryUrl, directory);
-					page.close("span");
+					page.open("td",".icon");
+					page.image("/dir.png");
 					page.close("td");
+					page.open("td",".filename");
+					page.link(directoryUrl, directory);
+					page.close("td");
+					page.close("tr");
 				}
 				page.close("table");
 			}
@@ -356,10 +361,11 @@ void User::http(const String &prefix, Http::Request &request)
 					String directoryUrl = prefix + "/files/" + directory + "/";
 					
 					page.open("tr");
-					page.open("td");
-					page.open("span",".file");
+					page.open("td",".icon");
+					page.image("/dir.png");
+					page.close("td");
+					page.open("td",".filename");
 					page.link(directoryUrl, directory);
-					page.close("span");
 					page.close("td");
 				}
 				page.close("table");
@@ -422,8 +428,12 @@ void User::http(const String &prefix, Http::Request &request)
 					if(entry.url.empty()) continue;
 					
 					page.open("tr");
-					page.open("td");
+					page.open("td",".owner");
 					page.text("(" + mName + ")");
+					page.close("td");
+					page.open("td",".icon");
+					if(!entry.type) page.image("/dir.png");
+					else page.image("/file.png");
 					page.close("td");
 					page.open("td",".filename"); 
 					page.link("/" + mName + "/files" + entry.url, entry.name);
@@ -465,8 +475,17 @@ void User::http(const String &prefix, Http::Request &request)
 					if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 					
 					page.open("tr");
-					page.open("td");
-					page.text("("); page.link(contact->urlPrefix()+"/", contact->name()); page.text(")");
+					page.open("td", ".owner");
+					if(contact->uniqueName() == mName) page.text("(" + mName + ")");
+					else {
+						page.text("("); 
+						page.link(contact->urlPrefix()+"/", contact->name());
+						page.text(")");
+					}
+					page.close("td");
+					page.open("td",".icon");
+					if(map.get("type") == "directory") page.image("/dir.png");
+					else page.image("/file.png");
 					page.close("td");
 					page.open("td",".filename");
 					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));

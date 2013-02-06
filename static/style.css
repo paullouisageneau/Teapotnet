@@ -329,6 +329,7 @@ td.delete
 
 .files tr
 {
+	min-height: 16px;
 	vertical-align: middle;
 }
 
@@ -350,6 +351,29 @@ td.delete
 .files td.size
 {
 	width: 10em; 
+}
+
+.contacts tr
+{
+	min-height: 16px;
+	vertical-align: middle;
+}
+
+.contacts td.contact
+{
+ 	text-align: right;
+	padding-right: 0;
+}
+
+.contacts td.tracker
+{
+ 	text-align: left;
+	padding-left: 0;
+}
+
+.contacts td.status
+{
+	
 }
 
 .contacts td.files

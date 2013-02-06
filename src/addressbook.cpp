@@ -426,13 +426,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
 					page.open("tr");
-					page.open("td");
-					page.open("span",".contact");
-					page.link(contactUrl, contact->name() + "@" + contact->tracker());
-					page.close("span");
+					page.open("td",".contact");
+					page.link(contact->urlPrefix(), contact->name());
 					page.close("td");
-					page.open("td");
-					page.text(" "+String::hexa(contact->peeringChecksum(),8));
+					page.open("td",".tracker");
+					page.text(String("@") + contact->tracker());
+					page.close("td");
+					page.open("td",".checksum");
+					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
 					page.close("td");
 					page.open("td",".delete");
 					page.openLink("javascript:deleteContact('"+contact->name()+"','"+contact->peering().toString()+"')");
@@ -1278,6 +1279,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 						
 						page.open("tr");
+						page.open("td",".icon");
+						if(map.get("type") == "directory") page.image("/dir.png");
+						else page.image("/file.png");
+						page.close("td");
 						page.open("td",".filename"); 
 						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
 						else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
