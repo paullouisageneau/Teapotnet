@@ -556,11 +556,18 @@ void User::run(void)
 		for(unsigned t=0; t<2*5; ++t)
 		{
 			wait(30000);
-			Synchronize(this);
-			if(oldLastOnlineTime != mLastOnlineTime)
+			
+			try {
+				Synchronize(this);
+				if(oldLastOnlineTime != mLastOnlineTime)
+				{
+					oldLastOnlineTime = mLastOnlineTime;
+					sendInfo();
+				}
+			}
+			catch(const Exception &e)
 			{
-				oldLastOnlineTime = mLastOnlineTime;
-				sendInfo();
+				Log("User::run", String("Warning: ") + e.what());
 			}
 		}
 		
