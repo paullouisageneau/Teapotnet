@@ -58,7 +58,8 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 
 void Error(const char *szMessage)
 {
-	MessageBox(NULL, szMessage, "Error during TeapotNet update process", MB_OK|MB_ICONERROR|MB_SETFOREGROUND);
+	//MessageBox(NULL, szMessage, "Error during TeapotNet update process", MB_OK|MB_ICONERROR|MB_SETFOREGROUND);
+	fprintf(stderr, "Error: %s\n", szMessage);
 }
 
 int DoUpdate(void)
@@ -128,20 +129,12 @@ int DoUpdate(void)
 				szReferrer, lpszAcceptTypes,
 				dwOpenRequestFlags, dwOpenRequestContext);
 	
-	while(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
+	/*while(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
 	{
 		DWORD dwError = GetLastError();
 		
 		if(dwError == ERROR_INTERNET_INVALID_CA)
 		{
-			/*
-			DWORD dwFlags = 0;
-			DWORD dwLen = sizeof(dwFlags);
-			InternetQueryOption (hRequest, INTERNET_OPTION_SECURITY_FLAGS, (LPVOID)&dwFlags, &dwLen);
-			dwFlags |= SECURITY_FLAG_IGNORE_UNKNOWN_CA;
-			InternetSetOption (hRequest, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof (dwFlags));
-			*/
-			
 			DWORD dwRet = InternetErrorDlg (GetDesktopWindow(),
 					hRequest,
 					ERROR_INTERNET_INVALID_CA,
@@ -152,10 +145,19 @@ int DoUpdate(void)
 	
 			if(dwRet == ERROR_SUCCESS) continue;
 		}
+		else {
+			Error("Invalid SSL certificate");
+		}
 		
 		return 1;
-	}
+	}*/
 
+	if(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
+	{
+		Error("Invalid SSL certificate");
+		return 1;
+	}
+	
 	char szTempPath[MAX_PATH];
 	char szTempFileName[MAX_PATH];
 	if(!GetTempPath(MAX_PATH, szTempPath)) return 1;
