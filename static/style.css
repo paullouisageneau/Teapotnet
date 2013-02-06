@@ -336,8 +336,7 @@ td.delete
 {
 	width: 16px;
 	min-height: 16px;
-	padding: 0;
-	margin-left: 0.5em;
+	padding-right: 0.5em;
 }
 
 .files td.filename
