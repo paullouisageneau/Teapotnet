@@ -327,11 +327,17 @@ td.delete
 	margin-top: 0.5em;
 }
 
+.files tr
+{
+	vertical-align: middle;
+}
+
 .files td.icon
 {
 	width: 16px;
-	height: 16px;
+	min-height: 16px;
 	padding: 0;
+	margin-left: 0.5em;
 }
 
 .files td.filename
