@@ -390,6 +390,9 @@ void Store::http(const String &prefix, Http::Request &request)
 						String link = prefix + "/?path=" + name.urlEncode();
 						
 						page.open("tr");
+						page.open("td",".icon");
+						page.image("/dir.png");
+						page.close("td");
 						page.open("td",".filename");
 						page.link(link, hrName);
 						page.close("td");
@@ -616,6 +619,9 @@ void Store::http(const String &prefix, Http::Request &request)
 							++it)
 				{
 					page.open("tr");
+					page.open("td",".icon");
+					page.image("/dir.png");
+					page.close("td");
 					page.open("td",".filename");
 					page.link(it->first, it->first);
 					page.close("td");
@@ -786,6 +792,10 @@ void Store::http(const String &prefix, Http::Request &request)
 					{
 						StringMap &info = it->second;
 						page.open("tr");
+						page.open("td",".icon");
+						if(info.get("type") == "directory") page.image("/dir.png");
+						else page.image("/file.png");
+						page.close("td");
 						page.open("td",".filename"); page.link(info.get("name"),info.get("name")); page.close("td");
 						page.open("td",".size"); 
 						if(info.get("type") == "directory") page.text("directory");

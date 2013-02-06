@@ -1089,7 +1089,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 				}
 				
-				if(trequest.responsesCount() == 0) throw Exception("No responses");
+				if(trequest.responsesCount() == 0) throw Exception("No response");
 				if(!trequest.isSuccessful()) throw 404;
 					
 				try {
@@ -1183,6 +1183,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							StringMap &map = it->second;
 
 							page.open("tr");
+							page.open("td",".icon");
+							if(map.get("type") == "directory") page.image("/dir.png");
+							else page.image("/file.png");
+							page.close("td");
 							page.open("td",".filename"); 
 							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
 							else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));

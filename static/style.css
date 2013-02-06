@@ -327,6 +327,13 @@ td.delete
 	margin-top: 0.5em;
 }
 
+.files td.icon
+{
+	width: 16px;
+	height: 16px;
+	padding: 0;
+}
+
 .files td.filename
 {
 	max-width: 25em;
