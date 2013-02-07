@@ -166,7 +166,7 @@ void Core::run(void)
 			mSock.accept(*sock);
 			
 			Address addr = sock->getRemoteAddress();
-			Log("Core", "Incoming connexion from " + addr.toString());
+			Log("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null, true);	// async
 			msleep(250);
@@ -543,7 +543,7 @@ void Core::Handler::run(void)
 	  
 		if(!mIsIncoming)	
 		{
-			Log("Handler", "Initiating handshake...");
+			//Log("Handler", "Initiating handshake...");
 
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
