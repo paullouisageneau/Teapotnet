@@ -231,6 +231,7 @@ int64_t Splicer::process(ByteStream *output)
 	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
+		Log("Splicer::process", String("Error on request ") + String::number(i));
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
@@ -252,6 +253,12 @@ int64_t Splicer::process(ByteStream *output)
 					return written;
 				}
 
+				if(sources.find(formerSource) != sources.end())
+				{
+					if(sources.size()> 1) sources.erase(formerSource);
+					else msleep(30000);
+				}
+				
 				Set<Identifier>::iterator jt = sources.begin();
 				int r = rand() % sources.size();
 				for(int i=0; i<r; ++i) jt++;

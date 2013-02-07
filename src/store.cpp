@@ -1100,10 +1100,14 @@ void Store::run(void)
 {
 	// TODO
 	while(true)
-	{
+	try {
 		update();
 		if(this != GlobalInstance) break;
-		msleep(12*60*60*1000);	// 12h
+		msleep(6*60*60*1000);	// 6h
+	}
+	catch(const Exception &e)
+	{
+			Log("Store::run", String("Warning: ") + e.what());
 	}
 }
 
