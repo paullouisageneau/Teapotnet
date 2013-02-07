@@ -610,8 +610,9 @@ void Core::Handler::run(void)
 						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
 						mCore->mMeetingPoint.notifyAll();
 						wait(meetingStepTimeout);
+						SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
 					}
-				  
+		
 					return;
 				}
 				
