@@ -184,26 +184,32 @@ void Core::sendMessage(const Message &message)
 {
 	Synchronize(this);
 	
+	Array<Identifier> identifiers;
+	
 	if(message.mReceiver == Identifier::Null)
 	{
-		for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-				it != mHandlers.end();
-				++it)
-		{
-			Handler *handler = it->second;
-			handler->sendMessage(message);
-		}
+		mHandlers.getKeys(identifiers);
 	}
 	else {
 		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(message.mReceiver);
 		if(it == mHandlers.end() || it->first != message.mReceiver)
 			throw Exception("Request receiver is not connected");
 		
+		Array<Handler*> handlers;
 		while(it != mHandlers.end() && it->first == message.mReceiver)
 		{
-			Handler *handler = it->second;
-			handler->sendMessage(message);
+			identifiers.push_back(it->first);
 			++it;
+		}
+	}
+	
+	for(int i=0; i<identifiers.size(); ++i)
+	{
+		Handler *handler;
+		if(mHandlers.get(identifiers[i], handler))
+		{
+			Desynchronize(this);
+			handler->sendMessage(message);
 		}
 	}
 }
