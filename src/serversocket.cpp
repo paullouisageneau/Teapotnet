@@ -181,7 +181,7 @@ void ServerSocket::listen(int port)
 		}
 		if(!ai) ai = aiList;
 		
-		// Create chunk socket
+		// Create socket
 		mSock = socket(ai->ai_family,ai->ai_socktype,ai->ai_protocol);
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
