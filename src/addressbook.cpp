@@ -697,6 +697,8 @@ bool AddressBook::Contact::isConnected(const String &instance) const
 
 bool AddressBook::Contact::isOnline(void) const
 {
+	Synchronize(this);
+	
 	if(!isConnected()) return false;
 	if(!mInfo.contains("last")) return false;
 	return (Time::Now()-Time(mInfo.get("last")) < 60);	// 60 sec
@@ -704,6 +706,8 @@ bool AddressBook::Contact::isOnline(void) const
 
 String AddressBook::Contact::status(void) const
 {
+	Synchronize(this);
+	
 	if(isOnline()) return "online";
 	else if(isConnected()) return "connected";
 	else if(isFound()) return "found";
@@ -902,7 +906,7 @@ void AddressBook::Contact::message(Message *message)
 	Assert(message->receiver() == mPeering);
 	
 	String type;
-	message->parameters().get("type",type);
+	message->parameters().get("type", type);
 	
 	if(type.empty() || type == "text")
 	{
@@ -921,18 +925,18 @@ void AddressBook::Contact::message(Message *message)
 		
 		Time l1(info.getOrDefault("last", Time(0)));
 		Time l2(mInfo.getOrDefault("last", Time(0)));
-		if(l1 > Time::Now()) l1 = Time::Now();
-		if(l2 > Time::Now()) l2 = Time::Now();
+		l1 = std::min(l1, Time::Now());
+		l2 = std::min(l2, Time::Now());
 		String last = std::max(l1,l2).toString();
 		
 		Time t1(info.getOrDefault("time", Time(0)));
 		Time t2(mInfo.getOrDefault("time", Time(0)));
-		if(t1 > Time::Now()) t1 = Time::Now();
-		if(t2 > Time::Now()) t2 = Time::Now();
+		t1 = std::min(t1, Time::Now());
+		t2 = std::min(t2, Time::Now());
 		if(t1 > t2)
 		{
+			info["last"] = last;
 			mInfo = info;
-			mInfo["last"] = last;
 			
 			if(mUniqueName == mAddressBook->userName())
 			{
