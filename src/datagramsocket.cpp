@@ -166,43 +166,75 @@ void DatagramSocket::bind(int port, bool broadcast)
 	String service;
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException("Local binding address resolution failed for port "+port);
+		throw NetException("Local binding address resolution failed for UDP port "+port);
+	
+	try {
+		// Prefer IPv6
+		addrinfo *ai = aiList;
+		while(ai && ai->ai_family != AF_INET6)
+			ai = ai->ai_next;
+		if(!ai) ai = aiList;
+			
+		// Create socket
+		mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if(mSock == INVALID_SOCKET)
+		{
+			addrinfo *first = ai;
+			ai = aiList;
+			while(ai)
+			{
+				if(ai != first) mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+				if(mSock != INVALID_SOCKET) break;
+				ai = ai->ai_next;
+			}
+			if(!ai) throw NetException("Datagram socket creation failed");
+		}
 
-	// Prefer IPv6
-	addrinfo *ai = aiList;
-	while(ai)
-	{
-		if(ai->ai_family == AF_INET6) break;
-		ai = ai->ai_next;
-	}
-	if(!ai) ai = aiList;
-	
-	Address local(ai->ai_addr,ai->ai_addrlen);
+
+		// Set options
+		int enabled = 1;
+		int disabled = 0;
+		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		if(ai->ai_family == AF_INET6) 
+			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
-	// Clean up
-	freeaddrinfo(aiList);
+		// Bind it
+		if(::bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)
+			throw NetException(String("Binding failed on UDP port ") + String::number(port));
+
+		/*
+		ctl_t b = 1;
+		if(ioctl(mSock,FIONBIO,&b) < 0)
+		throw Exception("Cannot use non-blocking mode");
+		 */
+	}
+	catch(...)
+	{
+		freeaddrinfo(aiList);
+		close();
+		throw;
+	}
 	
-	bind(local, broadcast);
+	freeaddrinfo(aiList);
 }
 
 void DatagramSocket::bind(const Address &local, bool broadcast)
 {
 	close();
 	
-  	mPort = local.port();
-
-	// Create datagram socket
-	mSock = ::socket(local.addrFamily(), SOCK_DGRAM, 0);
-	if(mSock == INVALID_SOCKET)
-		throw NetException("Socket creation failed");
-
 	try {
+		mPort = local.port();
+
+		// Create datagram socket
+		mSock = ::socket(local.addrFamily(), SOCK_DGRAM, 0);
+		if(mSock == INVALID_SOCKET)
+			throw NetException("Datagram socket creation failed");
+
 		// Set options
 		int enabled = 1;
-		int disabled = 0;
 		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
 		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char*>(&enabled), sizeof(enabled));
-		if(local.addrFamily() == AF_INET6) setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
 		// Bind it
 		if(::bind(mSock, local.addr(), local.addrLen()) != 0)
@@ -216,7 +248,7 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 	}
 	catch(...)
 	{
-		::closesocket(mSock);
+		close();
 		throw;
 	} 
 }

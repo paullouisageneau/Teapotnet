@@ -174,17 +174,24 @@ void ServerSocket::listen(int port)
 	try {
 		// Prefer IPv6
 		addrinfo *ai = aiList;
-		while(ai)
-		{
-			if(ai->ai_family == AF_INET6) break;
+		while(ai && ai->ai_family != AF_INET6)
 			ai = ai->ai_next;
-		}
 		if(!ai) ai = aiList;
 		
 		// Create socket
-		mSock = socket(ai->ai_family,ai->ai_socktype,ai->ai_protocol);
+		mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if(mSock == INVALID_SOCKET)
-			throw NetException("Socket creation failed");
+		{
+			addrinfo *first = ai;
+			ai = aiList;
+			while(ai)
+			{
+				if(ai != first) mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+				if(mSock != INVALID_SOCKET) break;
+				ai = ai->ai_next;
+			}
+			if(!ai) throw NetException("Socket creation failed");
+		}
 
 		// Set options
 		int enabled = 1;

@@ -551,9 +551,10 @@ void User::http(const String &prefix, Http::Request &request)
 void User::run(void)
 {
 	Time oldLastOnlineTime(0);
+	unsigned m = 0;	// minutes
 	while(true)
 	{
-		for(unsigned t=0; t<2*5; ++t)
+		for(int t=0; t<2; ++t)
 		{
 			wait(30000);
 			
@@ -571,8 +572,9 @@ void User::run(void)
 			}
 		}
 		
-		if(!mAddressBook->isRunning()) mAddressBook->start();
-		if(!mStore->isRunning()) mStore->start();
+		++m;
+		if((m%5 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
+		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
 }
 
