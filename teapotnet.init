@@ -19,6 +19,9 @@ DESC="TeapotNet"
 NAME=teapotnet
 DAEMON=/usr/bin/teapotnet
 DAEMON_ARGS=""
+USER=teapotnet
+GROUP=teapotnet
+DIR=/var/lib/teapotnet
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
@@ -47,7 +50,7 @@ do_start()
 	#   2 if daemon could not be started
 	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
 		|| return 1
-	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- \
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -c $USER -g $GROUP -d $DIR --background -- \
 		$DAEMON_ARGS \
 		|| return 2
 }
