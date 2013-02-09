@@ -834,9 +834,29 @@ void Core::Handler::run(void)
 	
 	try {
 	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
-	  
+		Listener *listener = NULL;
+
+		// Initialization
+		{
+			Synchronize(this);
+			mSock->setTimeout(readTimeout);	  
+                	SynchronizeStatement(mCore, mCore->mListeners.get(mPeering, listener));
+		
+			if(listener)
+			{
+				try {
+					Identifier peering(mPeering);
+					DesynchronizeStatement(this, listener->welcome(peering));
+				}
+				catch(const Exception &e)
+				{
+					Log("Core::Handler", String("Warning: Listener failed to welcome the new peer: ")+e.what());
+				}
+			}
+		}
+
+		// Main loop
 		//Log("Core::Handler", "Entering main loop");
-		mSock->setTimeout(readTimeout);
 		while(recvCommand(mStream, command, args, parameters))
 		{
 			Synchronize(this);
@@ -963,9 +983,6 @@ void Core::Handler::run(void)
 				String &target = args;
 			  	//Log("Core::Handler", "Received request "+String::number(id));
 
-				Listener *listener;
-				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
-				
 				Request *request = new Request;
 				request->setTarget(target, (command == "G"));
 				request->setParameters(parameters);
@@ -975,6 +992,7 @@ void Core::Handler::run(void)
 				if(!listener) Log("Core::Handler", "Warning: No listener for request " + String::number(id));
 				else {
 					try {
+						Desynchronize(this);
 						listener->request(request);
 					}
 					catch(const Exception &e)
@@ -1008,16 +1026,13 @@ void Core::Handler::run(void)
 				Message message;
 				message.mReceiver = mPeering;
 				message.mParameters = parameters;
-				message.mContent.reserve(length);
-				
+				message.mContent.reserve(length);	
 				mStream->read(message.mContent, length);
-				
-				Listener *listener;
-				if(SynchronizeTest(mCore, !mCore->mListeners.get(mPeering, listener))) listener = NULL;
 				
 				if(!listener) Log("Core::Handler", "Warning: No listener, dropping message");
 				else {
 					try {
+						Desynchronize(this);
 						listener->message(&message);
 					}
 					catch(const Exception &e)

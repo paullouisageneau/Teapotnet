@@ -89,7 +89,7 @@ int AddressBook::unreadMessagesCount(void) const
 	return count;
 }
 
-const Identifier &AddressBook::addContact(String name, const ByteString &secret)
+Identifier AddressBook::addContact(String name, const ByteString &secret)
 {
 	Synchronize(this);
 
@@ -163,7 +163,7 @@ void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 	if(self) array.remove(self);
 }
 
-const Identifier &AddressBook::setSelf(const ByteString &secret)
+Identifier AddressBook::setSelf(const ByteString &secret)
 {
 	Synchronize(this);
   
@@ -311,7 +311,6 @@ void AddressBook::update(void)
 		Contact *contact = NULL;
 		if(mContacts.get(keys[i], contact))
 		{
-			Synchronize(contact);
 			Desynchronize(this);
 			Assert(contact);
 			contact->update();
@@ -381,7 +380,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					++it)
 				{
 					Contact *contact = it->second;
-					
+	
 					StringMap map;
 					map["name"] << contact->name();
 					map["tracker"] << contact->tracker();
@@ -628,49 +627,59 @@ AddressBook::Contact::~Contact(void)
 	Interface::Instance->remove(urlPrefix(), this);
 }
 
-const String &AddressBook::Contact::uniqueName(void) const
+String AddressBook::Contact::uniqueName(void) const
 {
+	Synchronize(this);
 	return mUniqueName;
 }
 
-const String &AddressBook::Contact::name(void) const
+String AddressBook::Contact::name(void) const
 {
+	Synchronize(this);
 	return mName;
 }
 
-const String &AddressBook::Contact::tracker(void) const
+String AddressBook::Contact::tracker(void) const
 {
+	Synchronize(this);
 	return mTracker;
 }
 
-const Identifier &AddressBook::Contact::peering(void) const
+Identifier AddressBook::Contact::peering(void) const
 {
+	Synchronize(this);
 	return mPeering;
 }
 
-const Identifier &AddressBook::Contact::remotePeering(void) const
+Identifier AddressBook::Contact::remotePeering(void) const
 {
+	Synchronize(this);
 	return mRemotePeering;
 }
 
-const Time &AddressBook::Contact::time(void) const
+Time AddressBook::Contact::time(void) const
 {
+	Synchronize(this);
 	return mTime; 
 }
 
 uint32_t AddressBook::Contact::peeringChecksum(void) const
 {
+	Synchronize(this);
 	return mPeering.getDigest().checksum32() + mRemotePeering.getDigest().checksum32(); 
 }
 
 String AddressBook::Contact::urlPrefix(void) const
 {
+	Synchronize(this);
 	if(mUniqueName.empty()) return "";
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
 int AddressBook::Contact::unreadMessagesCount(void) const
 {
+	Synchronize(this);
+
 	int count = 0;
 	for(int i=mMessages.size()-1; i>=0; --i)
 	{
@@ -687,11 +696,13 @@ bool AddressBook::Contact::isFound(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
+	Synchronize(this);
 	return Core::Instance->hasPeer(mPeering); 
 }
 
 bool AddressBook::Contact::isConnected(const String &instance) const
 {
+	Synchronize(this);
 	return Core::Instance->hasPeer(Identifier(mPeering, instance)); 
 }
 
@@ -714,8 +725,9 @@ String AddressBook::Contact::status(void) const
 	else return "disconnected";
 }
 
-const AddressBook::AddressMap &AddressBook::Contact::addresses(void) const
+AddressBook::AddressMap AddressBook::Contact::addresses(void) const
 {
+	Synchronize(this);
 	return mAddrs;
 }
 
@@ -750,17 +762,12 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
 		if(Core::Instance->addPeer(sock, identifier))
 		{
-			if(save) mAddrs[instance][addr] = Time::Now();
-			
-			// Initial messages
-			mAddressBook->user()->sendInfo(identifier);
-			
+			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
 			return true;
 		}
 		
 		// A node is running at this address but the user does not exist
-		if(mAddrs.contains(instance))
-			mAddrs[instance].erase(addr);
+		SynchronizeStatement(this, if(mAddrs.contains(instance)) mAddrs[instance].erase(addr));
 	}
 	catch(...)
 	{
@@ -896,6 +903,25 @@ void AddressBook::Contact::update(void)
                                  mMessages.pop_front();
                 }
         }
+}
+
+void AddressBook::Contact::welcome(const Identifier &peering)
+{
+	Synchronize(this);
+	Assert(peering == mPeering);	
+
+	// Send info
+	mAddressBook->user()->sendInfo(peering);
+
+	// Send contacts if self
+        if(mUniqueName == mAddressBook->userName())
+        {
+                String data;
+        	mAddressBook->save(data);
+                Message message(data);
+                message.setParameter("type", "contacts");
+                message.send(peering);
+	}
 }
 
 void AddressBook::Contact::message(Message *message)

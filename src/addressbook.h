@@ -59,7 +59,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : public Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
+	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -70,12 +70,12 @@ public:
 		Contact(AddressBook *addressBook);
 		~Contact(void);
 
-		const String &uniqueName(void) const;
-		const String &name(void) const;
-		const String &tracker(void) const;
-		const Identifier &peering(void) const;
-		const Identifier &remotePeering(void) const;
-		const Time &time(void) const;
+		String uniqueName(void) const;
+		String name(void) const;
+		String tracker(void) const;
+		Identifier peering(void) const;
+		Identifier remotePeering(void) const;
+		Time time(void) const;
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
@@ -84,7 +84,7 @@ public:
 		bool isConnected(const String &instance) const;
 		bool isOnline(void) const;
 		String status(void) const;
-		const AddressMap &addresses(void) const;
+		AddressMap addresses(void) const;
 		
 		bool addAddresses(const AddressMap &map);
 		
@@ -93,7 +93,8 @@ public:
 		bool connectAddresses(const AddressMap &map, bool save = true);
 		
 		void update(void);
-		
+
+		void welcome(const Identifier &peering);		
 		void message(Message *message);
 		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);
@@ -118,13 +119,13 @@ public:
 		StringMap mInfo;
 	};
 	
-	const Identifier &addContact(String name, const ByteString &secret);
+	Identifier addContact(String name, const ByteString &secret);
 	void removeContact(const Identifier &peering);
 	Contact *getContact(const Identifier &peering);
 	const Contact *getContact(const Identifier &peering) const;
 	void getContacts(Array<Contact *> &array);
 	
-	const Identifier &setSelf(const ByteString &secret);
+	Identifier setSelf(const ByteString &secret);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
 	
