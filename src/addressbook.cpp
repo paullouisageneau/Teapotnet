@@ -1559,6 +1559,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 void AddressBook::Contact::messageToHtml(Html &html, const Message &message, bool old) const
 {
+	Desynchronize(this);
+
 	if(old) html.open("span",".oldmessage");
 	else html.open("span",".message");
 	html.open("span",".date");
