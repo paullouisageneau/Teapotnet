@@ -78,14 +78,20 @@ int AddressBook::unreadMessagesCount(void) const
 {
 	Synchronize(this);
   
+	Array<Identifier> keys;
+        mContacts.getKeys(keys);
+        
 	int count = 0;
-	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		const Contact *contact = it->second;
-		count+= contact->unreadMessagesCount();
-	}
+        for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = NULL;
+                if(mContacts.get(keys[i], contact))
+                {
+                        Desynchronize(this);
+                        count+= contact->unreadMessagesCount();
+                }
+        }
+
 	return count;
 }
 
@@ -312,7 +318,6 @@ void AddressBook::update(void)
 		if(mContacts.get(keys[i], contact))
 		{
 			Desynchronize(this);
-			Assert(contact);
 			contact->update();
 		}
 	}
@@ -373,22 +378,26 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 
+				Array<Identifier> keys;
+ 				mContacts.getKeys(keys);
+
 				JsonSerializer json(response.sock);
 				json.outputMapBegin();
-				for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-					it != mContacts.end();
-					++it)
-				{
-					Contact *contact = it->second;
-	
-					StringMap map;
-					map["name"] << contact->name();
-					map["tracker"] << contact->tracker();
-					map["status"] << contact->status();
-					map["messages"] << contact->unreadMessagesCount();
-					
-					json.outputMapElement(contact->uniqueName(), map);
-				}
+				for(int i=0; i<keys.size(); ++i)
+        			{
+                			Contact *contact = NULL;
+                			if(mContacts.get(keys[i], contact))
+                			{
+                        			Desynchronize(this);
+
+						StringMap map;
+                                        	map["name"] << contact->name();
+                                        	map["tracker"] << contact->tracker();
+                                        	map["status"] << contact->status();
+                                        	map["messages"] << contact->unreadMessagesCount();
+                                        	json.outputMapElement(contact->uniqueName(), map);
+					}
+                		}
 				json.outputMapEnd();
 				return;
 			}
