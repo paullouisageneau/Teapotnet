@@ -1056,7 +1056,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Processing failed for ") + path + ": " + e.what());
+		Log("Store", String("Warning: Processing failed for ") + path + ": " + e.what());
 
 	}
 }
