@@ -116,7 +116,7 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 		delete contact;
 		throw Exception("The contact already exists");
 	}
-	
+
 	mContacts.insert(contact->peering(), contact);
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	Interface::Instance->add(contact->urlPrefix(), contact);
@@ -179,12 +179,12 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 	if(self) removeContact(self->peering());
 	
 	self = new Contact(this, userName(), userName(), tracker, secret);
-	if(mContacts.contains(self->peering())) 
+	if(mContacts.contains(self->peering()))
 	{
 		delete self;
 		throw Exception("a contact with the same peering already exists");
 	}
-	
+
 	mContacts.insert(self->peering(), self);
 	mContactsByUniqueName.insert(userName(), self);
 	Interface::Instance->add(self->urlPrefix(), self);
@@ -240,7 +240,7 @@ void AddressBook::load(Stream &stream)
 	//while(serializer.input(*contact))
 	while(true)
 	{
-		// Not really clean but protect from parse errors propagation
+		// Not really clean but it protects from parse errors propagation
 		YamlSerializer serializer(&stream);
 		if(!serializer.input(*contact)) break;
 
@@ -249,6 +249,8 @@ void AddressBook::load(Stream &stream)
 		{
 			if(oldContact->time() >= contact->time()) continue;
 			contact->addAddresses(oldContact->addresses());
+			mContacts.erase(oldContact->peering());
+			mContactsByUniqueName.erase(oldContact->uniqueName());
 			delete oldContact;
 		}
 
@@ -269,13 +271,19 @@ void AddressBook::save(Stream &stream) const
 	Synchronize(this);
   
 	YamlSerializer serializer(&stream);
-	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		const Contact *contact = it->second;
-		serializer.output(*contact);
-	}	
+	
+	Array<Identifier> keys;
+        mContacts.getKeys(keys);
+
+        for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = NULL;
+                if(mContacts.get(keys[i], contact))
+                {
+			Desynchronize(this);
+			serializer.output(*contact);
+		}
+        }
 }
 
 void AddressBook::save(void) const
