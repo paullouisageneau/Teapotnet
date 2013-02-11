@@ -40,7 +40,7 @@ public:
 	static void Transfert(Socket *sock1, Socket *sock2);
 	
 	Socket(void);
-	Socket(const Address &Address, unsigned msecs = 0);
+	Socket(const Address &a, unsigned msecs = 0);
 	Socket(socket_t sock);
 	virtual ~Socket(void);
 
@@ -49,7 +49,7 @@ public:
 
 	void setTimeout(unsigned msecs);
 	
-	void connect(const Address &Address);
+	void connect(const Address &addr);
 	void close(void);
 
 	// Stream, ByteStream

@@ -71,11 +71,11 @@ Socket::Socket(void) :
 
 }
 
-Socket::Socket(const Address &Address, unsigned msecs) :
+Socket::Socket(const Address &a, unsigned msecs) :
 		mSock(INVALID_SOCKET),
 		mTimeout(msecs)
 {
-	connect(Address);
+	connect(a);
 }
 
 Socket::Socket(socket_t sock) :
@@ -109,21 +109,21 @@ void Socket::setTimeout(unsigned msecs)
 	mTimeout = msecs; 
 }
 
-void Socket::connect(const Address &Address)
+void Socket::connect(const Address &addr)
 {
 	close();
 
 	try {
-		// Create chunk socket
-		mSock = ::socket(Address.addrFamily(),SOCK_STREAM,0);
+		// Create socket
+		mSock = ::socket(addr.addrFamily(),SOCK_STREAM,0);
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
 		if(!mTimeout)
 		{
 			// Connect it
-			if(::connect(mSock,Address.addr(),Address.addrLen()) != 0)
-				throw NetException(String("Connection to ")+Address.toString()+" failed");
+			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
+				throw NetException(String("Connection to ")+addr.toString()+" failed");
 		}
 		else {
 			ctl_t b = 1;
@@ -131,7 +131,7 @@ void Socket::connect(const Address &Address)
 				throw Exception("Cannot set non-blocking mode");
 		
 			// Initiate connection
-			::connect(mSock,Address.addr(),Address.addrLen());
+			::connect(mSock, addr.addr(), addr.addrLen());
 
 			fd_set writefds;
 			FD_ZERO(&writefds);
@@ -146,7 +146,7 @@ void Socket::connect(const Address &Address)
 			  	throw Exception("Unable to wait on socket");
 			
 			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
-				throw NetException(String("Connection to ")+Address.toString()+" failed"); 
+				throw NetException(String("Connection to ")+addr.toString()+" failed"); 
 			
 			b = 0;
 			if(ioctl(mSock,FIONBIO,&b) < 0)
