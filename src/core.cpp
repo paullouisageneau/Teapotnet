@@ -834,15 +834,14 @@ void Core::Handler::run(void)
 	
 	try {
 	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
-		Listener *listener = NULL;
 
 		// Initialization
 		{
 			Synchronize(this);
 			mSock->setTimeout(readTimeout);	  
-                	SynchronizeStatement(mCore, mCore->mListeners.get(mPeering, listener));
-		
-			if(listener)
+                	
+			Listener *listener = NULL;
+			if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
 			{
 				try {
 					Identifier peering(mPeering);
@@ -989,7 +988,11 @@ void Core::Handler::run(void)
 				request->mId = id;
 				request->mRemoteAddr = mRemoteAddr;
 				
-				if(!listener) Log("Core::Handler", "Warning: No listener for request " + String::number(id));
+				Listener *listener = NULL;
+				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+				{
+					Log("Core::Handler", "Warning: No listener for request " + String::number(id));
+				}
 				else {
 					try {
 						Desynchronize(this);
@@ -1029,7 +1032,11 @@ void Core::Handler::run(void)
 				message.mContent.reserve(length);	
 				mStream->read(message.mContent, length);
 				
-				if(!listener) Log("Core::Handler", "Warning: No listener, dropping message");
+				Listener *listener = NULL;
+				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+				{
+					Log("Core::Handler", "Warning: No listener, dropping message");
+				}
 				else {
 					try {
 						Desynchronize(this);
