@@ -249,6 +249,7 @@ void AddressBook::load(Stream &stream)
 		{
 			if(oldContact->time() >= contact->time()) continue;
 			contact->addAddresses(oldContact->addresses());
+			Core::Instance->unregisterPeering(oldContact->peering());
 			mContacts.erase(oldContact->peering());
 			mContactsByUniqueName.erase(oldContact->uniqueName());
 			delete oldContact;
@@ -943,22 +944,27 @@ void AddressBook::Contact::welcome(const Identifier &peering)
 
 void AddressBook::Contact::message(Message *message)
 {
-	Synchronize(this);
-	
-	Assert(message);
-	Assert(message->receiver() == mPeering);
+	{
+		Synchronize(this);
+		Assert(message);
+		Assert(message->receiver() == mPeering);
+	}
 	
 	String type;
 	message->parameters().get("type", type);
 	
 	if(type.empty() || type == "text")
 	{
+		Synchronize(this);
+		
 		mMessages.push_back(*message);
 		++mMessagesCount;
 		notifyAll();
 	}
 	else if(type == "info")
 	{
+		Synchronize(this);
+	  
 		String data = message->content();
 		YamlSerializer serializer(&data);
 		StringMap info;
@@ -993,12 +999,13 @@ void AddressBook::Contact::message(Message *message)
 	}
 	else if(type == "contacts")
 	{
-		if(mUniqueName != mAddressBook->userName())
+		if(SynchronizeTest(this, mUniqueName != mAddressBook->userName()))
 		{
 			Log("AddressBook::Contact::message", "Warning: received contacts update from other than self, dropping");
 			return;
 		}
 		
+		// DO NOT synchronize here, as the contact could disappear during load
 		String data = message->content();
 		mAddressBook->load(data);
 	}
