@@ -1439,24 +1439,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.open("div", "chat");
 				}
 				else {
+					String popupUrl = prefix + "/chat?popup=1";
+					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+					page.text(" - ");
+					page.open("span", "status.status");
+					page.span(status().capitalized(), String(".")+status());
+					page.close("span");
+					
 					page.open("div", "chat.box");
 				}
-				
-				unsigned refreshPeriod = 5000;
-				page.javascript("function updateContact() {\n\
-					$.ajax({\n\
-						url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
-						dataType: 'json',\n\
-						timeout: 2000,\n\
-						success: function(data) {\n\
-							var info = data."+uniqueName()+";\n\
-							transition($('#status'),\n\
-								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-						}\n\
-					});\n\
-					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
-				}\n\
-				setTimeout('updateContact()',100);");
 				
 				page.open("div", "chatmessages");
 				for(int i=0; i<mMessages.size(); ++i)
@@ -1468,20 +1459,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				page.open("div", "chatpanel");
 				page.openForm(prefix + "/chat", "post", "chatForm");
-				page.input("text","message");
-				page.button("send","Send");
-				page.space();
-				
-				if(!isPopup)
-				{
-					String popupUrl = prefix + "/chat?popup=1";
-					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
-					page.space();
-					page.open("span", "status.status");
-					page.span(status().capitalized(), String(".")+status());
-					page.close("span");
-				}
-
+				page.textarea("message");
+				//page.button("send","Send");
+				//page.br();
 				page.closeForm();
 				page.javascript("document.chatForm.message.focus();");
 				page.close("div"); // chatpanel
@@ -1511,9 +1491,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						request.done(function(html) {\n\
 							if($.trim(html) != '')\n\
 							{\n\
-								$(\"#chatmessages\").append(html);\n\
+								$('#chatmessages').append(html);\n\
 								var text = $('#chatmessages span.text:first');\n\
 								if(text) text.html(text.html().linkify());\n\
+								$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
 								if(!hasFocus)\n\
 								{\n\
 									nbNewMessages+= 1;\n\
@@ -1538,8 +1519,35 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							alert('The message could not be sent. Is this user online ?');\n\
 						});\n\
 					}\n\
+					document.chatForm.onsubmit = function()\n\
+					{\n\
+						post();\n\
+						return false;\n\
+					}\n\
+					$('textarea.message').keypress(function(e) {\n\
+    						if (e.keyCode == 13 && !e.shiftKey) {\n\
+       							e.preventDefault();\n\
+        						post();\n\
+    						}\n\
+					});\n\
 					setTimeout('update()', 1000);\n\
-					document.chatForm.onsubmit = function() {post(); return false;}");
+					$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);");
+				
+				unsigned refreshPeriod = 5000;
+				page.javascript("function updateContact() {\n\
+					$.ajax({\n\
+						url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
+						dataType: 'json',\n\
+						timeout: 2000,\n\
+						success: function(data) {\n\
+							var info = data."+uniqueName()+";\n\
+							transition($('#status'),\n\
+								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+						}\n\
+					});\n\
+					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
+				}\n\
+				setTimeout('updateContact()',100);");
 				
 				page.footer();
 				return;
