@@ -1436,30 +1436,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.span(status().capitalized(), String(".")+status());
 					page.close("span");
 					page.close("b");
+					page.open("div", "chat");
 				}
 				else {
 					page.open("div", "chat.box");
-					page.open("span", "status.status");
-					page.span(status().capitalized(), String(".")+status());
-					page.close("span");
 				}
-				
-				page.openForm(prefix + "/chat", "post", "chatForm");
-				page.input("text","message");
-				page.button("send","Send");
-				page.space();
-				
-				if(!isPopup)
-				{
-					String popupUrl = prefix + "/chat?popup=1";
-					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
-				}
-				
-				page.br();
-				page.br();
-				page.closeForm();
-				page.javascript("document.chatForm.message.focus();");
-				
 				
 				unsigned refreshPeriod = 5000;
 				page.javascript("function updateContact() {\n\
@@ -1478,13 +1459,34 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				setTimeout('updateContact()',100);");
 				
 				page.open("div", "chatmessages");
-				for(int i=mMessages.size()-1; i>=0; --i)
+				for(int i=0; i<mMessages.size(); ++i)
 				{
 	  				messageToHtml(page, mMessages[i], mMessages[i].isRead());
 					mMessages[i].markRead();
 				}
+				page.close("div"); // chatmessages
+				
+				page.open("div", "chatpanel");
+				page.openForm(prefix + "/chat", "post", "chatForm");
+				page.input("text","message");
+				page.button("send","Send");
+				page.space();
+				
+				if(!isPopup)
+				{
+					String popupUrl = prefix + "/chat?popup=1";
+					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+					page.space();
+					page.open("span", "status.status");
+					page.span(status().capitalized(), String(".")+status());
+					page.close("span");
+				}
+
+				page.closeForm();
+				page.javascript("document.chatForm.message.focus();");
+				page.close("div"); // chatpanel
+				
 				page.close("div");
-				if(!isPopup) page.close("div");
 				
 				page.javascript("var count = "+String::number(mMessagesCount)+";\n\
 					var title = document.title;\n\
@@ -1509,7 +1511,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						request.done(function(html) {\n\
 							if($.trim(html) != '')\n\
 							{\n\
-								$(\"#chatmessages\").prepend(html);\n\
+								$(\"#chatmessages\").append(html);\n\
 								var text = $('#chatmessages span.text:first');\n\
 								if(text) text.html(text.html().linkify());\n\
 								if(!hasFocus)\n\

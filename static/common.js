@@ -40,3 +40,22 @@ function transition(selector, html) {
 		$(this).fadeIn('slow');
 	});
 }
+
+function resizeContent() {
+  
+	var content = $('#content');
+	if(content)
+	{
+		var wh = $(window).height();
+		var ct = content.offset().top;
+		content.height(wh - ct - 40);
+	}
+}
+
+$(document).ready( function() {
+	resizeContent();
+});
+
+$(window).resize( function() {
+	resizeContent();
+});
