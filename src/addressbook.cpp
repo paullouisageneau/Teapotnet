@@ -337,11 +337,11 @@ void AddressBook::update(void)
 
 void AddressBook::http(const String &prefix, Http::Request &request)
 {
+	user()->setOnline();
+
 	Synchronize(this);
 
 	try {
-		user()->setOnline();
-		
 		if(request.url.empty() || request.url == "/")
 		{
 			if(request.method == "POST")
@@ -1019,11 +1019,11 @@ void AddressBook::Contact::request(Request *request)
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
+	mAddressBook->user()->setOnline();
+
 	Synchronize(this);
 	
 	try {
-		mAddressBook->user()->setOnline();
-		
 		String base(prefix+request.url);
 		base = base.substr(base.lastIndexOf('/')+1);
 		if(!base.empty()) base+= '/';

@@ -44,13 +44,20 @@ function transition(selector, html) {
 function resizeContent() {
   
 	var content = $('#content');
-	if(content)
+	if(content.length)
 	{
 		var wh = $(window).height();
 		var ct = content.offset().top;
 		var h = Math.max(wh - ct - 40, 240);
 		content.height(h);
 	}
+
+	var chatpanel = $('#chatpanel');
+	var chatpanelmessage = $('#chatpanel .message');
+	if(chatpanel.length && chatpanelmessage.length)
+        {
+		chatpanelmessage.height(Math.max(chatpanel.height()-10, 20));
+        }
 }
 
 $(document).ready( function() {
