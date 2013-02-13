@@ -26,13 +26,26 @@ namespace tpot
 
 StringMap Mime::Types;
 Mutex Mime::TypesMutex;
-  
+
+bool Mime::IsAudio(const String &fileName)
+{
+  	String extension = fileName.afterLast('.').toLower();
+	return  (  extension == "ogg" 
+		|| extension == "mp3"
+		|| extension == "flac"
+		|| extension == "wav"
+		|| extension == "ape"
+		|| extension == "aac"
+		|| extension == "wma");
+}
+
 String Mime::GetType(const String &fileName)
 {
+	String extension = fileName.afterLast('.').toLower();
 	TypesMutex.lock();
 	if(Types.empty()) Init();
 	String type;
-	if(Types.get(fileName.afterLast('.'), type))
+	if(Types.get(extension, type))
 	{
 	 	TypesMutex.unlock();
 		return type;

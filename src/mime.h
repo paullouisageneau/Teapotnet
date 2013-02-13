@@ -32,7 +32,8 @@ namespace tpot
 class Mime
 {
 public:
-	static String GetType(const String &extension);
+	static bool IsAudio(const String &fileName);
+	static String GetType(const String &fileName);
 	
 private:
   	static void Init(void);

@@ -1187,14 +1187,28 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						throw 404;
 					}
 					
+					bool playlistMode = request.get.contains("playlist");
+					
 					Http::Response response(request,200);
+					if(playlistMode)
+					{
+					 	response.headers["Content-Disposition"] = "inline; filename=\"playlist.m3u\"";
+						response.headers["Content-Type"] = "audio/x-mpegurl";
+						
+					}
 					response.send();
 					
 					Html page(response.sock);
-					if(target.empty() || target == "/") page.header(mName+": Browse files");
-					else page.header(mName+": "+target.substr(1));
-					page.link(prefix+"/search/","Search files");
 					
+					if(!playlistMode)
+					{
+						if(target.empty() || target == "/") page.header(mName+": Browse files");
+						else page.header(mName+": "+target.substr(1));
+						page.link(prefix+"/search/","Search files");
+						page.br();
+					}
+					
+					bool hasAudio = false;
 					Set<String> instances;
 					Map<String, StringMap> files;
 					for(int i=0; i<trequest.responsesCount(); ++i)
@@ -1216,8 +1230,36 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						// Files with identical content appears only once
 						if(params.get("type") == "directory") files.insert("0"+params.get("name"),params);
 						else files.insert("1"+params.get("name")+params.get("hash"), params);
+						
+						if(Mime::IsAudio(params.get("name")) && !params.get("hash").empty())
+							hasAudio = true;
 					}
 
+					if(playlistMode)
+					{
+						String host;
+						if(!request.headers.get("Host", host))
+							host = String("localhost:") + Config::Get("interface_port");
+					  
+						for(Map<String, StringMap>::iterator it = files.begin();
+							it != files.end();
+							++it)
+						{
+							StringMap &map = it->second;
+							if(map.get("type") == "directory") continue;
+							if(!Mime::IsAudio(map.get("name"))) continue;
+							String link = "http://" + host + "/" + map.get("hash");
+							page.stream()->writeLine(link);
+						}
+						return;
+					}
+					
+					if(hasAudio)
+					{
+						page.link(prefix + request.url + "?playlist=1", "Play this directory");
+						page.br();
+					}
+					
 					page.open("div",".box");
 					if(files.empty()) page.text("No shared files");
 					else {
