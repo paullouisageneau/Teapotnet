@@ -347,7 +347,7 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 void Store::http(const String &prefix, Http::Request &request)
 {
 	const String &url = request.url;
-	user()->setOnline();
+	if(mUser) mUser->setOnline();
 
 	Synchronize(this);
 	
