@@ -231,7 +231,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.open("h1");
-			page.text(String("Welcome, ")+mName+" !");
+			page.text(mName + " on " + Core::Instance->getName());
 			page.close("h1");
 			
 			/*
