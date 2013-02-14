@@ -764,8 +764,8 @@ void Store::http(const String &prefix, Http::Request &request)
 						continue;
 					
 					dir.getFileInfo(info);
-					if(info.get("type") == "directory") files.insert("0"+info.get("name"),info);
-					else files.insert("1"+info.get("name"),info);
+					if(info.get("type") == "directory") files.insert("0"+info.get("name").toLower()+info.get("name"),info);
+					else files.insert("1"+info.get("name").toLower()+info.get("name"),info);
 				}
 				
 				if(!info.empty())

@@ -1228,8 +1228,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						// Sort
 						// Directories with the same name appears only once
 						// Files with identical content appears only once
-						if(params.get("type") == "directory") files.insert("0"+params.get("name"),params);
-						else files.insert("1"+params.get("name")+params.get("hash"), params);
+						if(params.get("type") == "directory") files.insert("0"+params.get("name").toLower(),params);
+						else files.insert("1"+params.get("name").toLower()+params.get("hash"), params);
 						
 						if(Mime::IsAudio(params.get("name")) && !params.get("hash").empty())
 							hasAudio = true;
