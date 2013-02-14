@@ -206,7 +206,7 @@ void Interface::process(Http::Request &request)
 	
 	if(list.front().empty()
 		|| User::Exist(list.front()) 
-		|| (!remoteAddr.isLocal() && !remoteAddr.isPrivate()))
+		|| (!user && !remoteAddr.isLocal() && !remoteAddr.isPrivate()))
 	{
 		if(!user || list.front() != user->name())
 		{
