@@ -1208,7 +1208,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						page.br();
 					}
 					
-					bool hasAudio = false;
+					bool isPlayable = false;
 					Set<String> instances;
 					Map<String, StringMap> files;
 					for(int i=0; i<trequest.responsesCount(); ++i)
@@ -1231,8 +1231,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(params.get("type") == "directory") files.insert("0"+params.get("name").toLower(),params);
 						else files.insert("1"+params.get("name").toLower()+params.get("hash"), params);
 						
-						if(Mime::IsAudio(params.get("name")) && !params.get("hash").empty())
-							hasAudio = true;
+						isPlayable|= ((Mime::IsAudio(params.get("name")) || Mime::IsVideo(params.get("name")))
+								&& !params.get("hash").empty());
 					}
 
 					if(playlistMode)
@@ -1248,7 +1248,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						{
 							StringMap &map = it->second;
 							if(map.get("type") == "directory") continue;
-							if(!Mime::IsAudio(map.get("name"))) continue;
+							if(!Mime::IsAudio(map.get("name")) && !Mime::IsVideo(map.get("name"))) continue;
 							String link = "http://" + host + "/" + map.get("hash");
 							page.stream()->writeLine("#EXTINF:-1," + map.get("name").beforeLast('.'));
 							page.stream()->writeLine(link);
@@ -1256,7 +1256,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						return;
 					}
 					
-					if(hasAudio)
+					if(isPlayable)
 					{
 						page.link(prefix + request.url + "?playlist=1", "Play this directory");
 						page.br();

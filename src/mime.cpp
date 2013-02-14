@@ -39,6 +39,27 @@ bool Mime::IsAudio(const String &fileName)
 		|| extension == "wma");
 }
 
+bool Mime::IsVideo(const String &fileName)
+{
+        String extension = fileName.afterLast('.').toLower();
+        return  (  extension == "avi"
+                || extension == "mkv"
+                || extension == "ogv"
+                || extension == "wmv"
+                || extension == "asf"
+                || extension == "flv"
+                || extension == "mpg"
+		|| extension == "mpeg"
+		|| extension == "mp4"
+		|| extension == "mov"
+		|| extension == "3gp"
+		|| extension == "3g2"
+		|| extension == "divx"
+		|| extension == "xvid"
+		|| extension == "rm"
+		|| extension == "rv");
+}
+
 String Mime::GetType(const String &fileName)
 {
 	String extension = fileName.afterLast('.').toLower();

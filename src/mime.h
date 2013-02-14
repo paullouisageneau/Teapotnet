@@ -33,6 +33,7 @@ class Mime
 {
 public:
 	static bool IsAudio(const String &fileName);
+	static bool IsVideo(const String &fileName);
 	static String GetType(const String &fileName);
 	
 private:
