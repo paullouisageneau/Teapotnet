@@ -1240,7 +1240,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						String host;
 						if(!request.headers.get("Host", host))
 							host = String("localhost:") + Config::Get("interface_port");
-					  
+					 
+						page.stream()->writeLine("#EXTM3U"); 
 						for(Map<String, StringMap>::iterator it = files.begin();
 							it != files.end();
 							++it)
@@ -1249,6 +1250,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(map.get("type") == "directory") continue;
 							if(!Mime::IsAudio(map.get("name"))) continue;
 							String link = "http://" + host + "/" + map.get("hash");
+							page.stream()->writeLine("#EXTINF:-1," + map.get("name").beforeLast('.'));
 							page.stream()->writeLine(link);
 						}
 						return;
