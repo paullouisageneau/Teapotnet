@@ -53,7 +53,8 @@ public:
 	void submit(const Identifier &receiver);
 	void cancel(void);
 	bool execute(User *user);
-
+	bool executeDummy(void);
+	
 	const Identifier &receiver(void) const;
 	
 	bool isPending() const;

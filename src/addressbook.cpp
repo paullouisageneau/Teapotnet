@@ -1053,8 +1053,8 @@ void AddressBook::Contact::message(Message *message)
 void AddressBook::Contact::request(Request *request)
 {
 	Assert(request);
-	if(mDeleted) return;
-	request->execute(mAddressBook->user());
+	if(!mDeleted) request->execute(mAddressBook->user());
+	else request->executeDummy();
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

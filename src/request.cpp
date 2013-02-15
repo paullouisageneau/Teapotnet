@@ -240,6 +240,12 @@ bool Request::execute(User *user)
 	return false;
 }
 
+bool Request::executeDummy(void)
+{
+	addResponse(new Response(Response::NotFound));
+	return false;
+}
+
 Request::Response *Request::createResponse(Store::Entry &entry, const StringMap &parameters, Store *store)
 {
 	StringMap rparameters;
