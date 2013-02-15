@@ -98,7 +98,8 @@ private:
 		void sendMessage(const Message &message);
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
-
+		void shouldStop(void);
+		
 		bool isIncoming(void) const;
 		bool isAuthenticated(void) const;
 

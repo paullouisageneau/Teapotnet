@@ -104,10 +104,21 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 	
 	String uname = name;
 	unsigned i = 1;
-	while(mContactsByUniqueName.contains(uname) || uname == userName())	// userName reserved for self
+	while((mContactsByUniqueName.contains(uname) && !mContactsByUniqueName.get(uname)->isDeleted())
+		|| uname == userName())	// userName reserved for self
 	{
 		uname = name;
 		uname << ++i;
+	}
+	
+	Contact *oldContact;
+	if(mContactsByUniqueName.get(uname, oldContact))
+	{
+		mContacts.erase(oldContact->peering());
+		mContactsByUniqueName.erase(oldContact->uniqueName());
+		Core::Instance->unregisterPeering(oldContact->peering());
+		Interface::Instance->remove(oldContact->urlPrefix(), oldContact);
+		delete oldContact;
 	}
 	
 	Contact *contact = new Contact(this, uname, name, tracker, secret);
@@ -131,14 +142,12 @@ void AddressBook::removeContact(const Identifier &peering)
 	Synchronize(this);
 	
 	Contact *contact;
-	if(mContacts.get(peering, contact))
+	if(mContacts.get(peering, contact) && !contact->isDeleted())
 	{
-		Core::Instance->unregisterPeering(peering);
-		mContactsByUniqueName.erase(contact->uniqueName());
- 		mContacts.erase(peering);
-		delete contact;
+		contact->setDeleted();
+		Core::Instance->unregisterPeering(contact->peering());
+		Interface::Instance->remove(contact->urlPrefix(), contact);
 		save();
-		start();
 	}
 }
 
@@ -165,8 +174,16 @@ void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 	Synchronize(this); 
   
 	mContactsByUniqueName.getValues(array);
+	
 	Contact *self = getSelf();
 	if(self) array.remove(self);
+	
+	int i=0; 
+	while(i<array.size())
+	{
+		if(array[i]->isDeleted()) array.erase(i);
+		else ++i;
+	}
 }
 
 Identifier AddressBook::setSelf(const ByteString &secret)
@@ -222,7 +239,7 @@ void AddressBook::clear(void)
 	{
 		const Contact *contact = it->second;
 		delete contact;
-	} 
+	}
 	
 	mContacts.clear();
 	mContactsByUniqueName.clear();
@@ -248,16 +265,19 @@ void AddressBook::load(Stream &stream)
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
 			if(oldContact->time() >= contact->time()) continue;
-			contact->addAddresses(oldContact->addresses());
-			Core::Instance->unregisterPeering(oldContact->peering());
+			
 			mContacts.erase(oldContact->peering());
+			Core::Instance->unregisterPeering(oldContact->peering());
 			mContactsByUniqueName.erase(oldContact->uniqueName());
+			
+			oldContact->copy(contact);
+			std::swap(oldContact, contact);
 			delete oldContact;
 		}
-
+		
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
-		Interface::Instance->add(contact->urlPrefix(), contact);
+		if(!contact->isDeleted()) Interface::Instance->add(contact->urlPrefix(), contact);
 		changed = true;
 		
 		contact = new Contact(this);
@@ -326,6 +346,7 @@ void AddressBook::update(void)
 		Contact *contact = NULL;
 		if(mContacts.get(keys[i], contact))
 		{
+			if(contact->isDeleted()) continue;
 			Desynchronize(this);
 			contact->update();
 		}
@@ -397,6 +418,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
                 			Contact *contact = NULL;
                 			if(mContacts.get(keys[i], contact))
                 			{
+						if(contact->isDeleted()) continue;
                         			Desynchronize(this);
 
 						StringMap map;
@@ -440,6 +462,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				for(int i=0; i<contacts.size(); ++i)
 				{
 					Contact *contact = contacts[i];
+					if(contact->isDeleted()) continue;
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
 					page.open("tr");
@@ -610,6 +633,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mTracker(tracker),
 	mSecret(secret),
 	mTime(Time::Now()),
+	mDeleted(false),
 	mFound(false)
 {	
 	Assert(addressBook != NULL);
@@ -749,6 +773,19 @@ AddressBook::AddressMap AddressBook::Contact::addresses(void) const
 	return mAddrs;
 }
 
+bool AddressBook::Contact::isDeleted(void) const
+{
+	Synchronize(this);
+	return mDeleted;
+}
+
+void AddressBook::Contact::setDeleted(void)
+{
+	Synchronize(this);
+	mDeleted = true;
+	mTime = Time::Now();
+}
+
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
 {
 	Synchronize(this);
@@ -839,6 +876,8 @@ void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
         
+	if(mDeleted) return;
+	
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 		
@@ -1643,6 +1682,27 @@ void AddressBook::Contact::messageToHtml(Html &html, const Message &message, boo
 	html.br(); 
 }
 
+void AddressBook::Contact::copy(const AddressBook::Contact *contact)
+{
+	Assert(contact);
+	Synchronize(this);
+	
+	{
+		Synchronize(contact);
+		
+		mUniqueName = contact->mUniqueName;
+		mName = contact->mName;
+		mTracker = contact->mTracker;
+		mSecret = contact->mSecret;
+		mPeering = contact->mPeering;
+		mRemotePeering = contact->mRemotePeering;
+		mTime = contact->mTime;
+		mDeleted = contact->mDeleted;
+	}
+	
+	addAddresses(contact->addresses());
+}
+
 void AddressBook::Contact::serialize(Serializer &s) const
 {
 	Synchronize(this);
@@ -1655,6 +1715,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["peering"] << mPeering;
 	map["remote"] << mRemotePeering;
 	map["time"] << mTime;
+	map["deleted"] << mDeleted;
 	
 	s.outputMapBegin(2);
 	s.outputMapElement(String("info"),map);
@@ -1701,6 +1762,9 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 
 	if(map.contains("time")) map["time"] >> mTime;
 	else mTime = Time::Now();
+	
+	if(map.contains("deleted")) map["deleted"] >> mDeleted;
+	else mDeleted = false;
 	
 	// TODO: checks
 	

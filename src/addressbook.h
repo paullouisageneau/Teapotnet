@@ -85,6 +85,8 @@ public:
 		bool isOnline(void) const;
 		String status(void) const;
 		AddressMap addresses(void) const;
+		bool isDeleted(void) const;
+		void setDeleted(void);
 		
 		bool addAddresses(const AddressMap &map);
 		
@@ -99,6 +101,7 @@ public:
 		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);
 		
+		void copy(const Contact *contact);
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
 		bool isInlineSerializable(void) const;
@@ -111,6 +114,7 @@ public:
 		Identifier mPeering, mRemotePeering;
 		ByteString mSecret;
 		Time mTime;
+		bool mDeleted;
 		
 		bool mFound;
 		AddressMap mAddrs;

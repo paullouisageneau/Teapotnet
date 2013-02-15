@@ -53,12 +53,6 @@ void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 		cprefix = "/" + cprefix;
 	
 	mMutex.lock();
-	if(mPrefixes.contains(cprefix))
-	{
-		mMutex.unlock();
-		throw Exception("URL prefix \""+cprefix+"\" is already registered");
-
-	}
 	mPrefixes.insert(cprefix, interfaceable);
 	mMutex.unlock();
 }
