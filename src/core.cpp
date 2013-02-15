@@ -96,24 +96,6 @@ void Core::unregisterPeering(const Identifier &peering)
 	
 	mPeerings.erase(peering);
 	mSecrets.erase(peering);
-	
-	Array<Identifier> identifiers;
-	Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(peering);
-	while(it != mHandlers.end() && it->first == peering)
-	{
-		identifiers.push_back(it->first);
-		++it;
-	}
-
-	for(int i=0; i<identifiers.size(); ++i)
-	{
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
-		{
-			Desynchronize(this);
-			handler->shouldStop();
-		}
-	}
 }
 
 bool Core::hasRegisteredPeering(const Identifier &peering)
@@ -517,12 +499,6 @@ void Core::Handler::removeRequest(unsigned id)
 		request->removePending(mPeering);
 		mRequests.erase(it);
 	}
-}
-
-void Core::Handler::shouldStop(void)
-{
-	Synchronize(this);
-	if(mSock) mSock->close();
 }
 
 bool Core::Handler::isIncoming(void) const

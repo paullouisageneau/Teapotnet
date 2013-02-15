@@ -875,7 +875,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
 void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
-        
 	if(mDeleted) return;
 	
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
@@ -987,6 +986,7 @@ void AddressBook::Contact::message(Message *message)
 		Synchronize(this);
 		Assert(message);
 		Assert(message->receiver() == mPeering);
+		if(mDeleted) return;
 	}
 	
 	String type;
@@ -1053,6 +1053,7 @@ void AddressBook::Contact::message(Message *message)
 void AddressBook::Contact::request(Request *request)
 {
 	Assert(request);
+	if(mDeleted) return;
 	request->execute(mAddressBook->user());
 }
 
