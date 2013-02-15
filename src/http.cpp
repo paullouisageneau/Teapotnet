@@ -93,10 +93,13 @@ void Http::Request::send(Socket &sock)
 		postData<<it->first.urlEncode()<<'='<<it->second.urlEncode();
 	}
 
-	headers["Content-Length"] = "";
-	headers["Content-Length"] << postData.size();
-	headers["Content-Type"] = "application/x-www-form-urlencoded";
-
+	if(!postData.empty())
+	{
+		headers["Content-Length"] = "";
+		headers["Content-Length"] << postData.size();
+		headers["Content-Type"] = "application/x-www-form-urlencoded";
+	}
+	
 	String buf;
 	buf<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
 
