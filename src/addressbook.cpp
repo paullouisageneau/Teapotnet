@@ -832,7 +832,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	return false; 
 }
 
-bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save)
+bool AddressBook::Contact::connectAddresses(AddressMap map, bool save)
 {
 	Synchronize(this);
   
