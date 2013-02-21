@@ -122,10 +122,11 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 	}
 	
 	Contact *contact = new Contact(this, uname, name, tracker, secret);
-	if(mContacts.contains(contact->peering()))
+	if(mContacts.get(contact->peering(), oldContact))
 	{
+		oldContact->copy(contact);
 		delete contact;
-		throw Exception("The contact already exists");
+		contact = oldContact;
 	}
 
 	mContacts.insert(contact->peering(), contact);
@@ -192,14 +193,15 @@ Identifier AddressBook::setSelf(const ByteString &secret)
   
 	const String tracker = Config::Get("tracker");
 	
-	Contact *self = getSelf();
-	if(self) removeContact(self->peering());
+	Contact *oldSelf = getSelf();
+	if(oldSelf) removeContact(oldSelf->peering());
 	
-	self = new Contact(this, userName(), userName(), tracker, secret);
-	if(mContacts.contains(self->peering()))
+	Contact *self = new Contact(this, userName(), userName(), tracker, secret);
+	if(mContacts.get(self->peering(), oldSelf))
 	{
+		oldSelf->copy(self);
 		delete self;
-		throw Exception("a contact with the same peering already exists");
+		self = oldSelf;
 	}
 
 	mContacts.insert(self->peering(), self);
