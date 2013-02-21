@@ -271,7 +271,7 @@ void Html::input(const String &type, const String &name, const String &value, bo
 {
 	String t(type);
 	if(t == "button") t = "submit";
- 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\"\""<<value;
+ 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"";
  	if(noautocomplete) *mStream<<" autocomplete=\"off\"";
  	*mStream<<">\n";
 }
