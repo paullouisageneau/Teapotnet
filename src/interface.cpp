@@ -295,13 +295,12 @@ void Interface::process(Http::Request &request)
 					// TODO: Missing headers
 					response.send();
 					
-					uint64_t total = 0;
+					uint64_t total = splicer.process(response.sock);
 					while(!splicer.finished())
 					{
-						total+= splicer.process(response.sock);
 						msleep(100);
+						total+= splicer.process(response.sock);
 					}
-					
 					splicer.close();
 					
 					if(total == contentLength)
