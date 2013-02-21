@@ -93,18 +93,22 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	
 	// Request stripes
 	int nbStripes = std::max(1, int(sources.size()));	// TODO
-	mRequests.fill(NULL, nbStripes);
-	mStripes.fill(NULL, nbStripes);
 
-	Set<Identifier>::iterator it = sources.begin();
-	for(int i=0; i<nbStripes; ++i)
+	if(!finished())
 	{
-		query(i, *it);
-		++it;
-		if(it == sources.end()) it = sources.begin();
-	}
+		mRequests.fill(NULL, nbStripes);
+        	mStripes.fill(NULL, nbStripes);
+
+		Set<Identifier>::iterator it = sources.begin();
+		for(int i=0; i<nbStripes; ++i)
+		{
+			query(i, *it);
+			++it;
+			if(it == sources.end()) it = sources.begin();
+		}
 	
-	Log("Splicer", "Transfers launched successfully");
+		//Log("Splicer", "Transfers launched successfully");
+	}
 }
 
 Splicer::~Splicer(void)
