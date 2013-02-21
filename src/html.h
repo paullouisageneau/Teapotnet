@@ -78,7 +78,7 @@ public:
 	void openFieldset(const String &legend);
 	void closeFieldset(void);
 	void label(const String &name, const String &label = "");
-	void input(const String &type, const String &name, const String &value = "");
+	void input(const String &type, const String &name, const String &value = "", bool noautocomplete = false);
 	void checkbox(const String &name, const String &value, bool checked = false);
 	void textarea(const String &name, const String &value = "");
 	void select(const String &name, const StringMap &options, const String &def = "");

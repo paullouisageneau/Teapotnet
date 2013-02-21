@@ -267,11 +267,13 @@ void Html::label(const String &name, const String &label)
 	*mStream<<">"<<label<<"</label>\n";
 }
 
-void Html::input(const String &type, const String &name, const String &value)
+void Html::input(const String &type, const String &name, const String &value, bool noautocomplete)
 {
 	String t(type);
 	if(t == "button") t = "submit";
- 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\">\n";
+ 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"";
+ 	if(noautocomplete) *mStream<<" autocomplete=\"off\"";
+ 	*mStream<<">\n";
 }
 
 void Html::checkbox(const String &name, const String &value, bool checked)

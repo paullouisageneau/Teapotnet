@@ -491,7 +491,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.openForm(prefix+"/","post");
 			page.openFieldset("New contact");
 			page.label("name","Name"); page.input("text","name"); page.br();
-			page.label("secret","Secret"); page.input("text","secret"); page.br();
+			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); page.button("add","Add contact");
 			page.closeFieldset();
 			page.closeForm();
@@ -504,7 +504,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization.");
 			page.br();
 			page.br();
-			page.label("secret","Secret"); page.input("text","secret"); page.br();
+			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); page.button("add","Set secret");
 			page.closeFieldset();
 			page.closeForm();
