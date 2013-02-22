@@ -143,7 +143,7 @@ void AddressBook::removeContact(const Identifier &peering)
 	Synchronize(this);
 	
 	Contact *contact;
-	if(mContacts.get(peering, contact) && !contact->isDeleted())
+	if(mContacts.get(peering, contact))
 	{
 		contact->setDeleted();
 		Core::Instance->unregisterPeering(contact->peering());
@@ -191,21 +191,28 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 {
 	Synchronize(this);
   
-	const String tracker = Config::Get("tracker");
+	const String tracker = Config::Get("tracker");	
+	Contact *self = new Contact(this, userName(), userName(), tracker, secret);
+
+	Contact *tmp;
+        if(mContacts.get(self->peering(), tmp))
+        	if(tmp->uniqueName() != userName())
+			throw Exception("a contact with the same peering already exists");
 	
 	Contact *oldSelf = getSelf();
-	if(oldSelf) removeContact(oldSelf->peering());
-	
-	Contact *self = new Contact(this, userName(), userName(), tracker, secret);
-	if(mContacts.get(self->peering(), oldSelf))
+        if(oldSelf)
 	{
+		mContacts.erase(oldSelf->peering());
+                Core::Instance->unregisterPeering(oldSelf->peering());
+                Interface::Instance->remove(oldSelf->urlPrefix(), oldSelf);
+		
 		oldSelf->copy(self);
 		delete self;
 		self = oldSelf;
 	}
 
 	mContacts.insert(self->peering(), self);
-	mContactsByUniqueName.insert(userName(), self);
+	mContactsByUniqueName.insert(self->uniqueName(), self);
 	Interface::Instance->add(self->urlPrefix(), self);
 	
 	save();
@@ -267,7 +274,7 @@ void AddressBook::load(Stream &stream)
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
 			if(oldContact->time() >= contact->time()) continue;
-			
+		
 			mContacts.erase(oldContact->peering());
 			Core::Instance->unregisterPeering(oldContact->peering());
 			mContactsByUniqueName.erase(oldContact->uniqueName());
@@ -878,10 +885,10 @@ void AddressBook::Contact::update(void)
 {
 	Synchronize(this);
 	if(mDeleted) return;
+	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 	
 	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
-	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
-		
+	
 	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
 	{
 		Identifier identifier(mPeering, Core::Instance->getName());
