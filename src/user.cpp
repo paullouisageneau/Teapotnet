@@ -232,7 +232,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.open("h1");
-			page.text(mName + " on " + Core::Instance->getName());
+			page.text(mName + " / " + Core::Instance->getName());
 			page.close("h1");
 			
 			/*
