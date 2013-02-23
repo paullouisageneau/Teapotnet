@@ -397,6 +397,7 @@ td.delete
 	width: 16px;
 	min-height: 16px;
 	padding-right: 0.5em;
+	text-align: left;
 }
 
 .files td.filename
@@ -410,6 +411,14 @@ td.delete
 .files td.size
 {
 	width: 10em; 
+}
+
+.files td.actions
+{
+	width: 32px;
+	min-height: 16px;
+	padding-left: 0.5em;
+	text-align: left;
 }
 
 .contacts tr

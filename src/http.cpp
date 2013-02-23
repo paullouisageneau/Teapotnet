@@ -840,4 +840,11 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 	}
 }
 
+String Http::AppendGet(const String &url, const String &name, const String &value)
+{
+	char separator = '?';
+	if(url.contains(separator)) separator = '&';
+	return url + separator + name + "=" + value;
+}
+
 }

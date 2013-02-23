@@ -1137,6 +1137,28 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			url = "/" + directory.cut('/');
 			if(directory.empty()) throw 404;
 			  
+			if(request.get.contains("play"))
+			{			  	
+				String host;
+				if(!request.headers.get("Host", host))
+				host = String("localhost:") + Config::Get("interface_port");
+					 
+				Http::Response response(request, 200);
+				response.headers["Content-Disposition"] = "inline; filename=\"stream.m3u\"";
+				response.headers["Content-Type"] = "audio/x-mpegurl";
+				response.send();
+				
+				String link = "http://" + host + prefix + request.url + "?file=1";
+				String instance;
+				if(request.get.get("instance", instance))
+					link+= "&instance=" + instance; 
+				
+				response.sock->writeLine("#EXTM3U");
+				response.sock->writeLine("#EXTINF:-1, Stream");
+				response.sock->writeLine(link);
+				return;
+			}
+			
 			if(directory == "files")
 			{
 				String target(url);
@@ -1157,7 +1179,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(isFile) trequest.setContentSink(new TempFile);
 				
 				String instance;
-				if(request.get.get("instance", instance));
+				request.get.get("instance", instance);
 				
 				// Self
 				if(mUniqueName == mAddressBook->userName()
@@ -1214,11 +1236,19 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(params.contains("time")) params.get("time").extract(time);
 							
 							Http::Response response(request,200);
-							response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
-							response.headers["Content-Type"] = Mime::GetType(params.get("name"));
-							if(params.contains("size")) response.headers["Content-Length"] = params.get("size");
 							response.headers["Last-Modified"] = time.toHttpDate();
+							if(params.contains("size")) response.headers["Content-Length"] = params.get("size");
 							
+							if(request.get.contains("download"))
+							{
+							 	response.headers["Content-Disposition"] = "attachement; filename=\"" + params.get("name") + "\"";
+								response.headers["Content-Type"] = "application/octet-stream";
+							}
+							else {
+								response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
+								response.headers["Content-Type"] = Mime::GetType(params.get("name"));
+							}
+														
 							response.send();
 							
 							try {
@@ -1329,20 +1359,36 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							++it)
 						{
 							StringMap &map = it->second;
-
+							String name = map.get("name");
+							String link;
+							if(map.get("type") == "directory") link = base + name;
+							else if(!map.get("hash").empty()) link = "/" + map.get("hash");
+							else link = base + name + "?instance=" + map.get("instance").urlEncode() + "&file=1";
+							
 							page.open("tr");
 							page.open("td",".icon");
 							if(map.get("type") == "directory") page.image("/dir.png");
 							else page.image("/file.png");
 							page.close("td");
 							page.open("td",".filename"); 
-							if(map.get("type") == "directory") page.link(base + map.get("name"), map.get("name"));
-							else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
-							else page.link(base + map.get("name") + "?instance=" + map.get("instance").urlEncode() + "&file=1", map.get("name"));
+							page.link(link, name);
 							page.close("td");
 							page.open("td",".size"); 
 							if(map.get("type") == "directory") page.text("directory");
 							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+							page.close("td");
+							if(map.get("type") != "directory")
+							{
+								page.openLink(Http::AppendGet(link,"download"));
+								page.image("/down.png");
+								page.closeLink();
+								if(Mime::IsAudio(name) || Mime::IsVideo(name))
+								{
+									page.openLink(Http::AppendGet(link,"play"));
+									page.image("/play.png");
+									page.closeLink();
+								}
+							}
 							page.close("td");
 							page.close("tr");
 						}
@@ -1425,20 +1471,37 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(!map.contains("hash")) map["hash"] = "";
 						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 						
+						String name = map.get("name");
+						String link;
+						if(map.get("type") == "directory") link = urlPrefix() + "/files" + map.get("path");
+						else if(!map.get("hash").empty()) link = "/" + map.get("hash");
+						else link = urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1";
+						
 						page.open("tr");
 						page.open("td",".icon");
 						if(map.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
 						page.open("td",".filename"); 
-						if(map.get("type") == "directory") page.link(urlPrefix() + "/files" + map.get("path"), map.get("name"));
-						else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
-						else page.link(urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
+						page.link(link, name);
 						page.close("td");
 						page.open("td",".size"); 
 						if(map.get("type") == "directory") page.text("directory");
 						else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 						page.close("td");
+						page.open("td",".actions"); 
+						if(map.get("type") != "directory")
+						{
+							page.openLink(Http::AppendGet(link,"download"));
+							page.image("/down.png");
+							page.closeLink();
+							if(Mime::IsAudio(name) || Mime::IsVideo(name))
+							{
+								page.openLink(Http::AppendGet(link,"play"));
+								page.image("/play.png");
+								page.closeLink();
+							}
+						}
 						page.close("tr");
 					}
 					page.close("table");

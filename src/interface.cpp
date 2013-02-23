@@ -257,17 +257,42 @@ void Interface::process(Http::Request &request)
 			try { tmp >> digest; }
 			catch(...) { throw 404; }
 		
+			if(request.get.contains("play"))
+			{			  	
+				String host;
+				if(!request.headers.get("Host", host))
+				host = String("localhost:") + Config::Get("interface_port");
+					 
+				Http::Response response(request, 200);
+				response.headers["Content-Disposition"] = "inline; filename=\"stream.m3u\"";
+				response.headers["Content-Type"] = "audio/x-mpegurl";
+				response.send();
+				
+				response.sock->writeLine("#EXTM3U");
+				response.sock->writeLine("#EXTINF:-1, Stream");
+				response.sock->writeLine("http://" + host + "/" + digest.toString());
+				return;
+			}			
+		
 			Store::Entry entry;
 			if(Store::GetResource(digest, entry) && !entry.path.empty())
 			{
 				File file(entry.path);
 				
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "inline; filename=\"" + entry.name + "\"";
-				response.headers["Content-Type"] = Mime::GetType(entry.name);
 				response.headers["Content-Length"] << entry.size;
 				response.headers["Last-Modified"] = entry.time.toHttpDate();
 				response.headers["Content-SHA512"] = entry.digest.toString();
+				
+				if(request.get.contains("download"))
+				{
+					response.headers["Content-Disposition"] = "attachement; filename=\"" + entry.name + "\"";
+					response.headers["Content-Type"] = "application/octet-stream";
+				}
+				else {
+					response.headers["Content-Disposition"] = "inline; filename=\"" + entry.name + "\"";
+					response.headers["Content-Type"] = Mime::GetType(entry.name);
+				}
 				
 				response.send();
 				response.sock->write(file);
@@ -286,13 +311,22 @@ void Interface::process(Http::Request &request)
 					int code = 200;
 					
 					Http::Response response(request, code);
-					response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
-					response.headers["Content-Type"] = Mime::GetType(splicer.name());
 					response.headers["Content-Length"] << contentLength;
 					response.headers["Accept-Ranges"] = "bytes";
+					
 					if(hasRange) response.headers["Content-Range"] << splicer.begin() << '-' << splicer.end() << '/' << splicer.size();
 					else response.headers["Content-SHA512"] = digest.toString();
-					// TODO: Missing headers
+					
+				   	if(request.get.contains("download")) 
+					{
+						response.headers["Content-Disposition"] = "attachement; filename=\"" + splicer.name() + "\"";
+						response.headers["Content-Type"] = "application/octet-stream";
+					}
+					else {
+						response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
+						response.headers["Content-Type"] = Mime::GetType(splicer.name());
+					}
+				   
 					response.send();
 					
 					uint64_t total = splicer.process(response.sock);

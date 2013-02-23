@@ -26,6 +26,7 @@
 #include "sha512.h"
 #include "html.h"
 #include "yamlserializer.h"
+#include "mime.h"
 
 namespace tpot
 {
@@ -428,6 +429,9 @@ void User::http(const String &prefix, Http::Request &request)
 					Store::Entry &entry = *it;
 					if(entry.url.empty()) continue;
 					
+					String name = entry.name;
+					String link = "/" + mName + "/files" + entry.url;
+					
 					page.open("tr");
 					page.open("td",".owner");
 					page.text("(" + mName + ")");
@@ -437,11 +441,25 @@ void User::http(const String &prefix, Http::Request &request)
 					else page.image("/file.png");
 					page.close("td");
 					page.open("td",".filename"); 
-					page.link("/" + mName + "/files" + entry.url, entry.name);
+					page.link(link, entry.name);
 					page.close("td");
 					page.open("td",".size"); 
 					if(!entry.type) page.text("directory");
 					else page.text(String::hrSize(entry.size));
+					page.close("td");
+					page.open("td",".actions");
+					if(entry.type)
+					{
+						page.openLink(Http::AppendGet(link,"download"));
+						page.image("/down.png");
+						page.closeLink();
+						if(Mime::IsAudio(name) || Mime::IsVideo(name))
+						{
+							page.openLink(Http::AppendGet(link,"play"));
+							page.image("/play.png");
+							page.closeLink();
+						}
+					}
 					page.close("td");
 					page.close("tr");
 					
@@ -475,6 +493,12 @@ void User::http(const String &prefix, Http::Request &request)
 					if(!map.contains("hash")) map["hash"] = "";
 					if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
 					
+					String name = map.get("name");
+					String link;
+					if(map.get("type") == "directory") link = contact->urlPrefix() + "/files" + map.get("path");
+					else if(!map.get("hash").empty()) link = "/" + map.get("hash");
+					else link = contact->urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1";
+						
 					page.open("tr");
 					page.open("td", ".owner");
 					if(contact->uniqueName() == mName) page.text("(" + mName + ")");
@@ -489,13 +513,25 @@ void User::http(const String &prefix, Http::Request &request)
 					else page.image("/file.png");
 					page.close("td");
 					page.open("td",".filename");
-					if(map.get("type") == "directory") page.link(contact->urlPrefix() + "/files" + map.get("path"), map.get("name"));
-					else if(!map.get("hash").empty()) page.link("/" + map.get("hash"), map.get("name"));
-					else page.link(contact->urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1", map.get("name"));
+					page.link(link, name);
 					page.close("td");
 					page.open("td",".size"); 
 					if(map.get("type") == "directory") page.text("directory");
 					else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
+					page.close("td");
+					page.open("td",".actions");
+					if(map.get("type") != "directory")
+					{
+						page.openLink(Http::AppendGet(link,"download"));
+						page.image("/down.png");
+						page.closeLink();
+						if(Mime::IsAudio(name) || Mime::IsVideo(name))
+						{
+							page.openLink(Http::AppendGet(link,"play"));
+							page.image("/play.png");
+							page.closeLink();
+						}
+					}
 					page.close("td");
 					page.close("tr");
 					

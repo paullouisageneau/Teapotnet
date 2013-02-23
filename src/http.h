@@ -104,11 +104,10 @@ public:
 		ServerSocket mSock;
 	};
 
-
 	static int Get(const String &url, Stream *output = NULL);
 	static int Post(const String &url, const StringMap &post, Stream *output = NULL);
-
 	static void RespondWithFile(const Request &request, const String &fileName);
+	static String AppendGet(const String &url, const String &name, const String &value = "1");
 	
 private:
 	Http(void);
