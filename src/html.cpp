@@ -205,7 +205,7 @@ void Html::image(	const String &url,
 	if(!alt.empty()) *mStream<<" alt=\""<<alt<<"\"";
 	if(!id.empty())  *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty())  *mStream<<" class=\""<<cl<<"\"";
-	*mStream<<"/>\n";
+	*mStream<<"/>";
 }
 
 void Html::javascript(const String &code)

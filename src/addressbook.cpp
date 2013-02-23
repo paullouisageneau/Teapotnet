@@ -1144,7 +1144,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				host = String("localhost:") + Config::Get("interface_port");
 					 
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "inline; filename=\"stream.m3u\"";
+				response.headers["Content-Disposition"] = "attachement; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
@@ -1271,7 +1271,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request,200);
 					if(playlistMode)
 					{
-					 	response.headers["Content-Disposition"] = "inline; filename=\"playlist.m3u\"";
+					 	response.headers["Content-Disposition"] = "attachement; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
 						
 					}
@@ -1377,15 +1377,16 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(map.get("type") == "directory") page.text("directory");
 							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
 							page.close("td");
+							page.open("td",".actions");
 							if(map.get("type") != "directory")
 							{
 								page.openLink(Http::AppendGet(link,"download"));
-								page.image("/down.png");
+								page.image("/down.png", "Download");
 								page.closeLink();
 								if(Mime::IsAudio(name) || Mime::IsVideo(name))
 								{
 									page.openLink(Http::AppendGet(link,"play"));
-									page.image("/play.png");
+									page.image("/play.png", "Play");
 									page.closeLink();
 								}
 							}
@@ -1493,12 +1494,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(map.get("type") != "directory")
 						{
 							page.openLink(Http::AppendGet(link,"download"));
-							page.image("/down.png");
+							page.image("/down.png", "Download");
 							page.closeLink();
 							if(Mime::IsAudio(name) || Mime::IsVideo(name))
 							{
 								page.openLink(Http::AppendGet(link,"play"));
-								page.image("/play.png");
+								page.image("/play.png", "Play");
 								page.closeLink();
 							}
 						}

@@ -451,12 +451,12 @@ void User::http(const String &prefix, Http::Request &request)
 					if(entry.type)
 					{
 						page.openLink(Http::AppendGet(link,"download"));
-						page.image("/down.png");
+						page.image("/down.png", "Download");
 						page.closeLink();
 						if(Mime::IsAudio(name) || Mime::IsVideo(name))
 						{
 							page.openLink(Http::AppendGet(link,"play"));
-							page.image("/play.png");
+							page.image("/play.png", "Play");
 							page.closeLink();
 						}
 					}
@@ -523,12 +523,12 @@ void User::http(const String &prefix, Http::Request &request)
 					if(map.get("type") != "directory")
 					{
 						page.openLink(Http::AppendGet(link,"download"));
-						page.image("/down.png");
+						page.image("/down.png", "Download");
 						page.closeLink();
 						if(Mime::IsAudio(name) || Mime::IsVideo(name))
 						{
 							page.openLink(Http::AppendGet(link,"play"));
-							page.image("/play.png");
+							page.image("/play.png", "Play");
 							page.closeLink();
 						}
 					}

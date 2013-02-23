@@ -264,7 +264,7 @@ void Interface::process(Http::Request &request)
 				host = String("localhost:") + Config::Get("interface_port");
 					 
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "inline; filename=\"stream.m3u\"";
+				response.headers["Content-Disposition"] = "attachement; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
