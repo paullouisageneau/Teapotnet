@@ -148,7 +148,7 @@ void Interface::process(Http::Request &request)
 				Html page(response.sock);
 				page.header();
 				page.open("h1");
-				page.text("Welcome to TeapotNet !");
+				page.text(String("Welcome to ") + APPNAME + " !");
 				page.close("h1");
 				page.open("p");
 				page.text("No user has been configured yet, please enter your new username and password.");
@@ -172,7 +172,7 @@ void Interface::process(Http::Request &request)
 				Html page(response.sock);
 				page.header();
 				page.open("h1");
-				page.text("Welcome to TeapotNet !");
+				page.text(String("Welcome to ") + APPNAME + " !");
 				page.close("h1");
 				page.text("No user has been configured yet.");
 				page.footer();
@@ -204,7 +204,7 @@ void Interface::process(Http::Request &request)
 	{
 		if(!user || list.front() != user->name())
 		{
-			String realm = "TeapotNet";
+			String realm = APPNAME;
 			
 			Http::Response response(request, 401);
 			response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
@@ -264,12 +264,12 @@ void Interface::process(Http::Request &request)
 				host = String("localhost:") + Config::Get("interface_port");
 					 
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachement; filename=\"stream.m3u\"";
+				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
 				response.sock->writeLine("#EXTM3U");
-				response.sock->writeLine("#EXTINF:-1, Stream");
+				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
 				response.sock->writeLine("http://" + host + "/" + digest.toString());
 				return;
 			}			
@@ -286,7 +286,7 @@ void Interface::process(Http::Request &request)
 				
 				if(request.get.contains("download"))
 				{
-					response.headers["Content-Disposition"] = "attachement; filename=\"" + entry.name + "\"";
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + entry.name + "\"";
 					response.headers["Content-Type"] = "application/octet-stream";
 				}
 				else {
@@ -319,7 +319,7 @@ void Interface::process(Http::Request &request)
 					
 				   	if(request.get.contains("download")) 
 					{
-						response.headers["Content-Disposition"] = "attachement; filename=\"" + splicer.name() + "\"";
+						response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
 						response.headers["Content-Type"] = "application/octet-stream";
 					}
 					else {

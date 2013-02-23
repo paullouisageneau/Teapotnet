@@ -84,7 +84,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	while(mCacheEntry->isBlockFinished(mFirstBlock))
 		++mFirstBlock;
 	
-	Log("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
+	//Log("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
 	
 	// Open file to read
 	mFile = new File(mCacheEntry->fileName(), File::Read);

@@ -192,6 +192,10 @@ textarea
 	margin-top: 1em;
 	font-weight: bold;
 	font-size: 1.6em;
+	max-width: 66%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 #content

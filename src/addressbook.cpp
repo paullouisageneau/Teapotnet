@@ -1144,7 +1144,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				host = String("localhost:") + Config::Get("interface_port");
 					 
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachement; filename=\"stream.m3u\"";
+				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
@@ -1154,7 +1154,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					link+= "&instance=" + instance; 
 				
 				response.sock->writeLine("#EXTM3U");
-				response.sock->writeLine("#EXTINF:-1, Stream");
+				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
 				response.sock->writeLine(link);
 				return;
 			}
@@ -1241,7 +1241,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							
 							if(request.get.contains("download"))
 							{
-							 	response.headers["Content-Disposition"] = "attachement; filename=\"" + params.get("name") + "\"";
+							 	response.headers["Content-Disposition"] = "attachment; filename=\"" + params.get("name") + "\"";
 								response.headers["Content-Type"] = "application/octet-stream";
 							}
 							else {
@@ -1271,7 +1271,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request,200);
 					if(playlistMode)
 					{
-					 	response.headers["Content-Disposition"] = "attachement; filename=\"playlist.m3u\"";
+					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
 						
 					}
