@@ -5,7 +5,10 @@ if [ -z "$PREFIX" ]; then
 	PREFIX="/usr/local"
 fi
 
-TPROOT="/var/lib/teapotnet"
+TPROOT=$3
+if [ -z "$TPROOT" ]; then
+	TPROOT="/var/lib/teapotnet"
+fi
 
 install_all()
 {
@@ -26,7 +29,7 @@ if which systemctl &> /dev/null; then
 	case "$1" in
 	"install")
 		install_all
-		sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.service > /etc/systemd/system/teapotnet.service
+		sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.service | sed "s/\/var\/lib\/teapotnet/$(echo $TPROOT | sed -e 's/\//\\\//g')/g" - > /etc/systemd/system/teapotnet.service
 		echo "Run \"systemctl start teapotnet.service\" to start the daemon and go to http://localhost:8080/"
 		echo "Run \"systemctl enable teapotnet.service\" to start it at each boot"
 	;;
@@ -41,7 +44,7 @@ elif [ -d /etc/init.d ]; then
 	case "$1" in
         "install")
 		install_all
-                sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.init > /etc/init.d/teapotnet
+                sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.init | sed "s/\/var\/lib\/teapotnet/$(echo $TPROOT | sed -e 's/\//\\\//g')/g" - > /etc/init.d/teapotnet
                 chmod +x /etc/init.d/teapotnet
 		update-rc.d teapotnet defaults
 		echo "Run \"/etc/init.d/teapotnet start\" to start the daemon and go to http://localhost:8080/"
