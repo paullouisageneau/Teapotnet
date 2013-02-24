@@ -233,6 +233,8 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.open("h1");
 			page.text(mName + " / " + Core::Instance->getName());
+			page.text(" - ");
+			page.link(prefix+"/myself/","All my files");
 			page.close("h1");
 			
 			/*
@@ -252,7 +254,7 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
-			if(contacts.empty()) page.link(prefix+"/contacts/","Add a contact !");
+			if(contacts.empty()) page.link(prefix+"/contacts/","Add a contact");
 			else {
 				page.open("table",".contacts");
 				for(int i=0; i<contacts.size(); ++i)
@@ -317,16 +319,13 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Shared folders - ");
 			page.link(prefix+"/files/","Edit");
-			if(mAddressBook->getSelf())
-			{
-				page.text(" - ");
-				page.link(prefix+"/myself/","Show all my files");
-			}
+			page.text(" - ");
+			page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh");
 			page.close("h2");
 			
 			Array<String> directories;
 			mStore->getDirectories(directories);
-			if(directories.empty()) page.link(prefix+"/files/","Add a shared personal folder !");
+			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
 			else {
 				page.open("table",".files");
 				for(int i=0; i<directories.size(); ++i)
@@ -353,12 +352,13 @@ void User::http(const String &prefix, Http::Request &request)
 			{
 				page.open("div","otherfiles.box");
 				page.open("h2");
-				page.text("Other shared folders");
+				page.text("Other shared folders - ");
+				page.link(prefix+"/files/?action=refreshglobal&redirect="+String(prefix+url).urlEncode(), "Refresh");
 				page.close("h2");
 			
 				page.open("table",".files");
 				for(int i=0; i<directories.size(); ++i)
-				{	
+				{
 					const String &directory = directories[i];
 					String directoryUrl = prefix + "/files/" + directory + "/";
 					

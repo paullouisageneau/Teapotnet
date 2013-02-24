@@ -590,6 +590,39 @@ void Store::http(const String &prefix, Http::Request &request)
 				return;
 			}
 		  
+		  	String action;
+		  	if(request.get.get("action", action))
+			{
+				String redirect = prefix + url;
+			  	request.get.get("redirect", redirect);
+				
+				if(action == "refresh" || action == "refreshglobal")
+				{
+					if(action == "refreshglobal")
+					{
+						if(!GlobalInstance->isRunning())
+							GlobalInstance->start();
+					}
+					else {
+						if(!isRunning()) 
+							start();
+					}
+					
+					Http::Response response(request, 200);
+					response.send();
+					Html page(response.sock);
+					page.header("Refreshing directories...", false, redirect);
+					page.text("Updating files database in background");
+					page.footer();
+					return;
+				}
+				
+				Http::Response response(request,303);
+				response.headers["Location"] = redirect;
+				response.send();
+				return;
+			}
+		  
 			Http::Response response(request,200);
 			response.send();
 
@@ -693,10 +726,10 @@ void Store::http(const String &prefix, Http::Request &request)
 							String filePath = path + Directory::Separator + fileName;
 							if(File::Exist(filePath))
 							{
-				  				File::Remove(filePath);
 								Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE url = ?1");
 								statement.bind(1, url);
 								statement.execute();
+								File::Remove(filePath);
 							}
 							// TODO: recursively delete repertories
 						}
@@ -794,19 +827,38 @@ void Store::http(const String &prefix, Http::Request &request)
 						++it)
 					{
 						StringMap &info = it->second;
+						String name = info.get("name");
+						String link = name;
+						
 						page.open("tr");
 						page.open("td",".icon");
 						if(info.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".filename"); page.link(info.get("name"),info.get("name")); page.close("td");
+						page.open("td",".filename"); page.link(link,name); page.close("td");
 						page.open("td",".size"); 
 						if(info.get("type") == "directory") page.text("directory");
 						else page.text(String::hrSize(info.get("size"))); 
 						page.close("td");
 						
+						page.open("td",".actions");
+						if(info.get("type") != "directory")
+						{
+							page.openLink(Http::AppendGet(link,"download"));
+							page.image("/down.png", "Download");
+							page.closeLink();
+							
+							if(Mime::IsAudio(name) || Mime::IsVideo(name))
+							{
+								page.openLink(Http::AppendGet(link,"play"));
+								page.image("/play.png", "Play");
+								page.closeLink();
+							}
+						}
+						page.close("td");
+						
 						if(this != GlobalInstance)
-						{	
+						{
 							page.open("td",".delete");
 							page.openLink("javascript:deleteFile('"+info.get("name")+"')");
 							page.image("/delete.png", "Delete");
@@ -824,8 +876,26 @@ void Store::http(const String &prefix, Http::Request &request)
 			}
 			else if(File::Exist(path))
 			{
+				if(request.get.contains("play"))
+				{
+					String host;
+					if(!request.headers.get("Host", host))
+					host = String("localhost:") + Config::Get("interface_port");
+					
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
+					response.send();
+					
+					response.sock->writeLine("#EXTM3U");
+					response.sock->writeLine(String("#EXTINF:-1, ") + path.afterLast(Directory::Separator));
+					response.sock->writeLine("http://" + host + prefix + request.url);
+					return;
+				}
+			  
 				Http::Response response(request,200);
-				response.headers["Content-Type"] = Mime::GetType(path);
+				if(request.get.contains("download")) response.headers["Content-Type"] = "application/octet-stream";
+				else response.headers["Content-Type"] = Mime::GetType(path);
 				response.headers["Content-Length"] << File::Size(path);
 				response.headers["Last-Modified"] = File::Time(path).toHttpDate();
 				response.send();
