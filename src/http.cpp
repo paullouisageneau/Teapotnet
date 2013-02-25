@@ -786,7 +786,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
 	if(hasRange) code = 206;
 	
-	if(code != 200)
+	if(code != 200 && code != 206)
 	{
 		Response response(request, code);
 		response.headers["Content-Type"] = "text/html; charset=UTF-8";

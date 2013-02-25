@@ -671,6 +671,7 @@ void Mime::Init(void)
 	Types["mp4a"] = "audio/mp4";
 	Types["mpga"] = "audio/mpeg";
 	Types["oga"] = "audio/ogg";
+	Types["ogg"] = "audio/ogg";
 	Types["s3m"] = "audio/s3m";
 	Types["sil"] = "audio/silk";
 	Types["uva"] = "audio/vnd.dece.audio";

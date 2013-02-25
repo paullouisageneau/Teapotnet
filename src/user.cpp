@@ -284,7 +284,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.text("chat");
 					page.open("span",".messagescount");
 					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) page.text(String("(")+String::number(msgcount)+String(")"));
+					if(msgcount) page.text(String(" (")+String::number(msgcount)+String(")"));
 					page.close("span");
 					page.closeLink();
 					page.close("td");
@@ -296,24 +296,15 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("function updateContact() {\n\
-				$.ajax({\n\
-					url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
-					dataType: 'json',\n\
-					timeout: 2000,\n\
-					success: function(data) {\n\
-						$.each(data, function(uname, info) {\n\
-							transition($('#contact_'+uname+' .status'),\n\
-								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-							var msg = '';\n\
-							if(info.messages != 0) msg = ' ('+info.messages+')';\n\
-							transition($('#contact_'+uname+' .messagescount'), msg);\n\
-						});\n\
-					}\n\
-				});\n\
-				setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
-			}\n\
-			setTimeout('updateContact()',100);");
+			page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+					$.each(data, function(uname, info) {\n\
+						transition($('#contact_'+uname+' .status'),\n\
+							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+						var msg = '';\n\
+						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+						transition($('#contact_'+uname+' .messagescount'), msg);\n\
+					});\n\
+			});");
 			
 			page.open("div","files.box");
 			page.open("h2");

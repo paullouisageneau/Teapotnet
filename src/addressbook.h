@@ -79,6 +79,7 @@ public:
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
+		bool hasNewMessages(void);
 		bool isFound(void) const;
 		bool isConnected(void) const;
 		bool isConnected(const String &instance) const;
@@ -120,6 +121,7 @@ public:
 		AddressMap mAddrs;
 		Deque<Message> mMessages;
 		unsigned mMessagesCount;
+		bool mHasNewMessages;
 		StringMap mInfo;
 	};
 	

@@ -67,3 +67,45 @@ $(document).ready( function() {
 $(window).resize( function() {
 	resizeContent();
 });
+
+MessageSound = new Audio('/message.ogg');
+MessageSound.load();
+
+function playMessageSound() {
+	MessageSound.play();
+}
+
+var queryContactsUserName = '';
+var queryContactsTimeout = 5000;
+var queryContactsCallback;
+
+function queryContactsInfo(userName, timeout, callback) {
+	$.ajax({
+		url: '/'+userName+'/contacts/?json',
+		dataType: 'json',
+		timeout: timeout,
+		success: function(data) {
+			play = false;
+			$.each(data, function(uname, info) {
+				if(info['newmessages'] == 'true') {
+					play = true;
+				}
+			});
+			if(play) playMessageSound();
+			callback(data);
+		}
+	});
+}
+
+function setContactsInfoCallback(userName, period, callback) {
+	
+	queryContactsUserName = userName;
+	queryContactsTimeout = period;
+	queryContactsCallback = callback;
+	setInterval( function() {
+		queryContactsInfo(queryContactsUserName, queryContactsTimeout, queryContactsCallback);
+	}, period);
+	$(document).ready( function() {
+		queryContactsInfo(queryContactsUserName, queryContactsTimeout, queryContactsCallback);
+	});
+}

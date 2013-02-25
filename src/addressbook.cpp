@@ -435,6 +435,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
                                         	map["tracker"] << contact->tracker();
                                         	map["status"] << contact->status();
                                         	map["messages"] << contact->unreadMessagesCount();
+						map["newmessages"] << contact->hasNewMessages();
                                         	json.outputMapElement(contact->uniqueName(), map);
 					}
                 		}
@@ -668,7 +669,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
   	mAddressBook(addressBook),
-	mMessagesCount(0)
+	mMessagesCount(0),
+	mHasNewMessages(false)
 {
   
 }
@@ -738,6 +740,13 @@ int AddressBook::Contact::unreadMessagesCount(void) const
 		++count;
 	}
 	return count;
+}
+
+bool AddressBook::Contact::hasNewMessages(void)
+{
+	bool tmp = false;
+	std::swap(mHasNewMessages, tmp);
+	return tmp;
 }
 
 bool AddressBook::Contact::isFound(void) const
@@ -1007,6 +1016,7 @@ void AddressBook::Contact::message(Message *message)
 		
 		mMessages.push_back(*message);
 		++mMessagesCount;
+		mHasNewMessages = true;
 		notifyAll();
 	}
 	else if(type == "info")
@@ -1109,23 +1119,16 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("function updateContact() {\n\
-				$.ajax({\n\
-					url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
-					dataType: 'json',\n\
-					timeout: 2000,\n\
-					success: function(data) {\n\
+			page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+					$.each(data, function(uname, info) {\n\
 						var info = data."+uniqueName()+";\n\
 						transition($('#status'),\n\
 							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
 						var msg = '';\n\
 						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 						transition($('#messagescount'), msg);\n\
-					}\n\
-				});\n\
-				setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
-			}\n\
-			setTimeout('updateContact()',100);");
+					});\n\
+			});");
 			
 			page.footer();
 			return;
@@ -1532,7 +1535,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					response.send();
 					
 					if(count == mMessagesCount)
+					{
+						mHasNewMessages = false;
 						wait(120000);
+					}
 					
 					if(count < mMessagesCount && mMessagesCount-count <= mMessages.size())
 					{
@@ -1665,6 +1671,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 									document.title = title+' ('+nbNewMessages+')';\n\
 								}\n\
 								count+= 1;\n\
+								playMessageSound();\n\
 							}\n\
 							setTimeout('update()', 100);\n\
 						});\n\
@@ -1698,20 +1705,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);");
 				
 				unsigned refreshPeriod = 5000;
-				page.javascript("function updateContact() {\n\
-					$.ajax({\n\
-						url: '/"+mAddressBook->userName()+"/contacts/?json',\n\
-						dataType: 'json',\n\
-						timeout: 2000,\n\
-						success: function(data) {\n\
+				page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+						$.each(data, function(uname, info) {\n\
 							var info = data."+uniqueName()+";\n\
 							transition($('#status'),\n\
 								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-						}\n\
-					});\n\
-					setTimeout('updateContact()',"+String::number(refreshPeriod)+");\n\
-				}\n\
-				setTimeout('updateContact()',100);");
+						});\n\
+				});");
 				
 				page.footer();
 				return;
