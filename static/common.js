@@ -68,7 +68,9 @@ $(window).resize( function() {
 	resizeContent();
 });
 
-MessageSound = new Audio('/message.ogg');
+var MessageSound;
+if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
+else MessageSound= new Audio('/message.aac');
 MessageSound.load();
 
 function playMessageSound() {
