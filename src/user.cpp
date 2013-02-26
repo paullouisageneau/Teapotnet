@@ -296,14 +296,20 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+			page.javascript("var title = document.title;\n\
+					setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+					var totalmessages = 0;\n\
 					$.each(data, function(uname, info) {\n\
 						transition($('#contact_'+uname+' .status'),\n\
 							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-						var msg = '';\n\
-						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
-						transition($('#contact_'+uname+' .messagescount'), msg);\n\
+						var count = parseInt(info.messages);\n\
+						var tmp = '';\n\
+						if(count != 0) tmp = ' ('+count+')';\n\
+						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
+						totalmessages+= count;\n\
 					});\n\
+					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
+					else document.title = title;\n\
 			});");
 			
 			page.open("div","files.box");
