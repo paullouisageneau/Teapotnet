@@ -70,11 +70,11 @@ $(window).resize( function() {
 
 var MessageSound;
 if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
-else MessageSound= new Audio('/message.aac');
-MessageSound.load();
+else MessageSound = new Audio('/message.m4a');
+if(MessageSound != null) MessageSound.load();
 
 function playMessageSound() {
-	MessageSound.play();
+	if(MessageSound != null) MessageSound.play();
 }
 
 var queryContactsUserName = '';

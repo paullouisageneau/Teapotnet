@@ -31,11 +31,14 @@ bool Mime::IsAudio(const String &fileName)
 {
   	String extension = fileName.afterLast('.').toLower();
 	return  (  extension == "ogg" 
+		|| extension == "oga"
 		|| extension == "mp3"
 		|| extension == "flac"
 		|| extension == "wav"
 		|| extension == "ape"
 		|| extension == "aac"
+		|| extension == "m4a"
+		|| extension == "mp4a"
 		|| extension == "wma");
 }
 
@@ -51,6 +54,7 @@ bool Mime::IsVideo(const String &fileName)
                 || extension == "mpg"
 		|| extension == "mpeg"
 		|| extension == "mp4"
+		|| extension == "m4v"
 		|| extension == "mov"
 		|| extension == "3gp"
 		|| extension == "3g2"
@@ -669,6 +673,7 @@ void Mime::Init(void)
 	Types["au"] = "audio/basic";
 	Types["mid"] = "audio/midi";
 	Types["mp4a"] = "audio/mp4";
+	Types["m4a"] = "audio/mp4";
 	Types["mpga"] = "audio/mpeg";
 	Types["oga"] = "audio/ogg";
 	Types["ogg"] = "audio/ogg";
@@ -813,6 +818,7 @@ void Mime::Init(void)
 	Types["jpm"] = "video/jpm";
 	Types["mj2"] = "video/mj2";
 	Types["mp4"] = "video/mp4";
+	Types["m4v"] = "video/mp4";
 	Types["mpeg"] = "video/mpeg";
 	Types["ogv"] = "video/ogg";
 	Types["qt"] = "video/quicktime";
