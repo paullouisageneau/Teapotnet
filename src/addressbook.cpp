@@ -349,7 +349,9 @@ void AddressBook::update(void)
 	
 	Array<Identifier> keys;
 	mContacts.getKeys(keys);
-	
+	std::random_shuffle(keys.begin(), keys.end());
+
+	// Normal
 	for(int i=0; i<keys.size(); ++i)
 	{
 		Contact *contact = NULL;
@@ -357,9 +359,21 @@ void AddressBook::update(void)
 		{
 			if(contact->isDeleted()) continue;
 			Desynchronize(this);
-			contact->update();
+			contact->update(false);
 		}
 	}
+
+	// Alternate
+	for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = NULL;
+                if(mContacts.get(keys[i], contact))
+                {
+                        if(contact->isDeleted()) continue;
+                        Desynchronize(this);
+                        contact->update(true);
+                }
+        }
 		
 	//Log("AddressBook::update", "Finished");
 	save();
@@ -890,7 +904,7 @@ bool AddressBook::Contact::connectAddresses(AddressMap map, bool save)
 	return success;
 }
 
-void AddressBook::Contact::update(void)
+void AddressBook::Contact::update(bool alternate)
 {
 	Synchronize(this);
 	if(mDeleted) return;
@@ -918,38 +932,27 @@ void AddressBook::Contact::update(void)
 		}
 	}
 	
-	//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-	DesynchronizeStatement(this, AddressBook::publish(mRemotePeering));
+	if(!alternate) 
+	{
+		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+		DesynchronizeStatement(this, AddressBook::publish(mRemotePeering));
+	}
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
-	
 	AddressMap newAddrs;
-	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, false));
+	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, alternate));
 	if(!newAddrs.empty())
 	{
-		//Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		//if(!alternate) Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		//else Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		mFound = true;	
-		connectAddresses(newAddrs, true);
+		connectAddresses(newAddrs, !alternate);
 	}
-	else {
+	else if(!alternate) 
+	{
 		mFound = false;
 		connectAddresses(mAddrs, true);
 	}
-	
-	//if(!Core::Instance->isPublicConnectable())	// Can actually be connectable with IPv6 only
-	//{
-		AddressMap altAddrs;
-		DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, altAddrs, true));
-		if(!altAddrs.empty())
-		{
-			//Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(altAddrs.size()) + " instance(s))");
-			
-			if(!mFound) Log("AddressBook::Contact", "Warning: Contact " + mName + " registered alternative addresses but no direct addresses !"); 
-			
-			mFound = true;
-			connectAddresses(altAddrs, false);
-		}
-	//}
 	
 	AddressMap::iterator it = mAddrs.begin();
 	while(it != mAddrs.end())

@@ -95,7 +95,7 @@ public:
 		bool connectAddress(const Address &addr, const String &instance, bool save = true);
 		bool connectAddresses(AddressMap map, bool save = true);
 		
-		void update(void);
+		void update(bool alternate = false);
 
 		void welcome(const Identifier &peering);		
 		void message(Message *message);
