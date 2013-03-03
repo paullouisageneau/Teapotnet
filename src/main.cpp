@@ -112,6 +112,7 @@ int main(int argc, char** argv)
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("tpot_read_timeout", "60000");
 		Config::Default("user_global_shares", "true");
+		Config::Default("relay_enabled", "true");
 		
 		if(Config::Get("request_timeout").toInt() < 10000)
 			Config::Put("request_timeout", "10000");	

@@ -576,6 +576,7 @@ void Core::Handler::run(void)
 		parameters["version"] >> appversion;
 		parameters["nonce"] >> nonce_b;
 		parameters.get("instance", instance);
+		bool relayEnabled = (!parameters.contains("relay") || parameters["relay"].toBool());
 		
 		if(!mIsIncoming && mPeering != peering) 
 			throw Exception("Peering in response does not match");
@@ -593,6 +594,8 @@ void Core::Handler::run(void)
 			if((!instance.empty() && instance != mCore->getName())
 				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
+				if(!Config::Get("relay_enabled").toBool()) return;
+			  
 				const unsigned meetingStepTimeout = std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt());
 			  
 				unsigned timeout = meetingStepTimeout;
@@ -725,6 +728,7 @@ void Core::Handler::run(void)
 			parameters["version"] << APPVERSION;
 			parameters["nonce"] << nonce_a;
 			parameters["instance"] << mPeering.getName();
+			parameters["relay"] << Config::Get("relay_enabled").toBool();
 			sendCommand(mStream, "H", args, parameters);
 		}
 		
@@ -803,7 +807,7 @@ void Core::Handler::run(void)
 		if(!mRemoteAddr.isPrivate() && !mRemoteAddr.isLocal())
 		{
 			Synchronize(mCore);
-			if(!mIsIncoming)
+			if(!mIsIncoming && relayEnabled)
 			{
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
