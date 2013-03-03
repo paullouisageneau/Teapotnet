@@ -74,7 +74,10 @@ void Core::getKnownPublicAdresses(List<Address> &list) const
 
 bool Core::isPublicConnectable(void) const
 {
-	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
+	String externalAddress = Config::Get("external_address");
+	if(!externalAddress.empty() && externalAddress != "auto") return true;
+	
+	return (Time::Now()-mLastPublicIncomingTime <= 2*3600.); 
 }
 
 void Core::registerPeering(	const Identifier &peering,

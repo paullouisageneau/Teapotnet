@@ -364,17 +364,20 @@ void AddressBook::update(void)
 	}
 
 	// Alternate
-	for(int i=0; i<keys.size(); ++i)
-        {
-                Contact *contact = NULL;
-                if(mContacts.get(keys[i], contact))
-                {
-                        if(contact->isDeleted()) continue;
-                        Desynchronize(this);
-                        contact->update(true);
-                }
-        }
-		
+	if(!Core::Instance->isPublicConnectable())
+	{
+		for(int i=0; i<keys.size(); ++i)
+		{
+			Contact *contact = NULL;
+			if(mContacts.get(keys[i], contact))
+			{
+				if(contact->isDeleted()) continue;
+				Desynchronize(this);
+				contact->update(true);
+			}
+		}
+	}
+	
 	//Log("AddressBook::update", "Finished");
 	save();
 }
@@ -864,7 +867,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	return false; 
 }
 
-bool AddressBook::Contact::connectAddresses(AddressMap map, bool save)
+bool AddressBook::Contact::connectAddresses(AddressMap map, bool save, bool shuffle)
 {
 	Synchronize(this);
   
@@ -885,14 +888,18 @@ bool AddressBook::Contact::connectAddresses(AddressMap map, bool save)
 			success = true;
 			continue;
 		}
-	  
-		//Log("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(block.size()) + " address(es))...");
 
-		for(AddressBlock::const_reverse_iterator jt = block.rbegin();
-			jt != block.rend();
+		Array<Address> addrs;
+		block.getKeys(addrs);
+		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
+		
+		//Log("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(addrs.size()) + " address(es))...");
+		
+		for(Array<Address>::const_reverse_iterator jt = addrs.rbegin();
+			jt != addrs.rend();
 			++jt)
 		{
-			if(connectAddress(jt->first, instance, save))
+			if(connectAddress(*jt, instance, save))
 			{
 				success = true;
 				break;
@@ -946,12 +953,12 @@ void AddressBook::Contact::update(bool alternate)
 		//if(!alternate) Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		//else Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		mFound = true;	
-		connectAddresses(newAddrs, !alternate);
+		connectAddresses(newAddrs, !alternate, alternate);
 	}
 	else if(!alternate) 
 	{
 		mFound = false;
-		connectAddresses(mAddrs, true);
+		connectAddresses(mAddrs, true, false);
 	}
 	
 	AddressMap::iterator it = mAddrs.begin();

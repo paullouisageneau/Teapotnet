@@ -93,7 +93,7 @@ public:
 		
 		// These functions return true if addr is successfully connected
 		bool connectAddress(const Address &addr, const String &instance, bool save = true);
-		bool connectAddresses(AddressMap map, bool save = true);
+		bool connectAddresses(AddressMap map, bool save = true, bool shuffle = false);
 		
 		void update(bool alternate = false);
 
