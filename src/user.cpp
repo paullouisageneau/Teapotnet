@@ -414,11 +414,12 @@ void User::http(const String &prefix, Http::Request &request)
 			int count = 0;
 			page.open("div",".box");
 			page.open("table",".files");
-			
+		
+			AddressBook::Contact *self = mAddressBook->getSelf();
+	
 			List<Store::Entry> list;
-			if(mStore->queryList(squery, list))
+			if(!self && mStore->queryList(squery, list))
 			{	
-				
 				for(List<Store::Entry>::iterator it = list.begin();
 					it != list.end();
 					++it)
@@ -463,12 +464,14 @@ void User::http(const String &prefix, Http::Request &request)
 					++count;
 				}
 			}
-			
+		
+			const unsigned timeout = Config::Get("request_timeout").toInt();
+	
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
+			
 			Synchronize(&trequest);
-
-			const unsigned timeout = Config::Get("request_timeout").toInt();
+			if(self) self->request(&trequest);
 			trequest.submit();
 			trequest.wait(timeout);
 			

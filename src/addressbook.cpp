@@ -36,7 +36,8 @@ namespace tpot
 {
 
 AddressBook::AddressBook(User *user) :
-	mUser(user)
+	mUser(user),
+	mUpdateCount(0)
 {
 	Assert(mUser != NULL);
 	mFileName = mUser->profilePath() + "contacts";
@@ -364,7 +365,7 @@ void AddressBook::update(void)
 	}
 
 	// Alternate
-	if(!Core::Instance->isPublicConnectable())
+	if(!Core::Instance->isPublicConnectable() && mUpdateCount > 0)
 	{
 		for(int i=0; i<keys.size(); ++i)
 		{
@@ -379,6 +380,7 @@ void AddressBook::update(void)
 	}
 	
 	//Log("AddressBook::update", "Finished");
+	++mUpdateCount;
 	save();
 }
 

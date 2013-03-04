@@ -144,9 +144,8 @@ private:
 	User *mUser;
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
-	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
-	
-	SerializableMap<Identifier, Time> mDeleted;
+	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name	
+	unsigned mUpdateCount;
 };
 
 }

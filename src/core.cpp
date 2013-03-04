@@ -74,9 +74,6 @@ void Core::getKnownPublicAdresses(List<Address> &list) const
 
 bool Core::isPublicConnectable(void) const
 {
-	String externalAddress = Config::Get("external_address");
-	if(!externalAddress.empty() && externalAddress != "auto") return true;
-	
 	return (Time::Now()-mLastPublicIncomingTime <= 2*3600.); 
 }
 
@@ -812,6 +809,7 @@ void Core::Handler::run(void)
 			Synchronize(mCore);
 			if(!mIsIncoming && relayEnabled)
 			{
+				Log("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 			}
