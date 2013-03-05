@@ -60,8 +60,26 @@ function resizeContent() {
         }
 }
 
+function displayLoading()
+{
+	if($(document.documentElement).hasClass('loading'))
+		$(document.documentElement).addClass('animloading');
+}
+
+if (document.documentElement) {
+	$(document.documentElement).addClass('loading');
+	setTimeout(displayLoading, 400);
+}
+
 $(document).ready( function() {
 	resizeContent();
+	if($(document.documentElement).hasClass('loading')) {
+		$(document.documentElement).removeClass('loading');
+		if($(document.documentElement).hasClass('animloading')) {
+			  $(document.documentElement).removeClass('animloading');
+			  $(document.body).fadeIn(200);
+		}
+	}
 });
 
 $(window).resize( function() {

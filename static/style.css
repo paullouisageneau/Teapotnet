@@ -153,6 +153,21 @@ textarea
 	resize: none;
 }
 
+.loading > body > * 
+{
+    display: none;
+}
+
+.loading body
+{
+    background: #F0F0F0;
+}
+
+.animloading body 
+{
+    background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
+}
+
 #page
 {
 	width: 100%;
