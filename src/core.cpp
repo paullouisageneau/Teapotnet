@@ -396,46 +396,8 @@ Core::Handler::~Handler(void)
 {	
 	notifyAll();
 	Synchronize(this);
-
-	{
-		Synchronize(mCore);
-		
-		mCore->removeHandler(mPeering, this);
-		
-		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
-		{
-			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
-			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
-				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
-	}
-  
-	for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
-		it != mResponses.end();
-		++it)
-	{	
-		it->second->mStatus = Request::Response::Interrupted;
-		it->second->content()->close();
-	}
-  
-	for(Map<unsigned, Request*>::iterator it = mRequests.begin();
-		it != mRequests.end();
-		++it)
-	{
-		it->second->removePending(mPeering);
-	}
-  
-	if(mSender && mSender->isRunning())
-	{
-		mSender->lock();
-		mSender->mShouldStop = true;
-		mSender->unlock();
-		mSender->notify();
-		mSender->join();	
-	}
-
-	if(mSender) delete mSender;
 	
+	if(mSender) delete mSender;
 	if(mStream != mSock) delete mStream;
 	delete mSock;
 }
@@ -1071,6 +1033,46 @@ void Core::Handler::run(void)
 	}
 	
 	mSock->close();
+	
+	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
+	msleep(1000);
+	
+	{
+		Synchronize(mCore);
+		
+		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
+		{
+			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
+			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
+				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
+		}
+	}
+  
+	{
+		Synchronize(this);
+  
+		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
+			it != mResponses.end();
+			++it)
+		{	
+			it->second->mStatus = Request::Response::Interrupted;
+			it->second->content()->close();
+		}
+	  
+		for(Map<unsigned, Request*>::iterator it = mRequests.begin();
+			it != mRequests.end();
+			++it)
+		{
+			it->second->removePending(mPeering);
+		}
+	}
+	
+	if(mSender && mSender->isRunning())
+	{
+		SynchronizeStatement(mSender, mSender->mShouldStop = true);
+		mSender->notify();
+		mSender->join();	
+	}
 }
 
 const size_t Core::Handler::Sender::ChunkSize = BufferSize;
