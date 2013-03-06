@@ -69,7 +69,8 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	
 	Set<Identifier> sources;
 	mCacheEntry->getSources(sources);
-	if(sources.empty()) throw Exception("No sources found for " + target.toString());
+	if(sources.empty()) 
+		throw Exception("No sources found for " + target.toString());
 	
 	// OK, the cache entry is initialized
 	
@@ -100,10 +101,22 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
         	mStripes.fill(NULL, nbStripes);
 
 		Set<Identifier>::iterator it = sources.begin();
-		for(int i=0; i<nbStripes; ++i)
+		int i = 0;
+		while(i<nbStripes)
 		{
-			query(i, *it);
-			++it;
+			if(!query(i, *it))
+			{
+				mCacheEntry->refreshSources();
+				mCacheEntry->getSources(sources);
+				it = sources.begin();
+				
+				if(sources.empty())
+					throw Exception("No sources found for " + target.toString());
+				
+				continue;
+			}
+			
+			++i; ++it;
 			if(it == sources.end()) it = sources.begin();
 		}
 	
@@ -294,7 +307,7 @@ void Splicer::close(void)
 	mStripes.clear();
 }
 
-void Splicer::query(int i, const Identifier &source)
+bool Splicer::query(int i, const Identifier &source)
 {
 	Assert(i < mRequests.size());
 	Assert(i < mStripes.size());
@@ -329,8 +342,17 @@ void Splicer::query(int i, const Identifier &source)
 	request->setTarget(mCacheEntry->target().toString(),true);
 	request->setParameters(parameters);
 	request->setContentSink(striped);
-	request->submit(source);
+	
+	try {
+		request->submit(source);
+	}
+	catch(...)
+	{
+		return false;
+	}
+	
 	mRequests[i] = request;
+	return true;
 }
 
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :

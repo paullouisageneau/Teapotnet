@@ -50,7 +50,7 @@ public:
 	void close(void);
 	
 private:
-	void query(int i, const Identifier &source);
+	bool query(int i, const Identifier &source);
   
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;

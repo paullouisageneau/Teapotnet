@@ -411,10 +411,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div",".box");
 			page.open("table",".files");
 		
-			AddressBook::Contact *self = mAddressBook->getSelf();
-	
 			List<Store::Entry> list;
-			if(!self && mStore->queryList(squery, list))
+			if(mStore->queryList(squery, list))
 			{	
 				for(List<Store::Entry>::iterator it = list.begin();
 					it != list.end();
@@ -428,7 +426,7 @@ void User::http(const String &prefix, Http::Request &request)
 					
 					page.open("tr");
 					page.open("td",".owner");
-					page.text("(" + mName + ")");
+					page.text("(local)");
 					page.close("td");
 					page.open("td",".icon");
 					if(!entry.type) page.image("/dir.png");
@@ -467,7 +465,6 @@ void User::http(const String &prefix, Http::Request &request)
 			Request trequest("search:"+query, false);	// no data
 			
 			Synchronize(&trequest);
-			if(self) self->request(&trequest);
 			trequest.submit();
 			trequest.wait(timeout);
 			
