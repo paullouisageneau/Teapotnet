@@ -68,7 +68,7 @@ function displayLoading()
 
 if (document.documentElement) {
 	$(document.documentElement).addClass('loading');
-	setTimeout(displayLoading, 400);
+	setTimeout(displayLoading, 300);
 }
 
 $(document).ready( function() {
@@ -77,7 +77,8 @@ $(document).ready( function() {
 		$(document.documentElement).removeClass('loading');
 		if($(document.documentElement).hasClass('animloading')) {
 			  $(document.documentElement).removeClass('animloading');
-			  $(document.body).fadeIn(200);
+			  $(document.body).hide();
+			  $(document.body).fadeIn(300);
 		}
 	}
 });

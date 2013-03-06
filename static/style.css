@@ -438,6 +438,11 @@ td.delete
 	vertical-align: middle;
 }
 
+.files tr:hover
+{
+	background-color: #C0C0C0;
+}
+
 .files td.icon
 {
 	width: 16px;
@@ -471,6 +476,11 @@ td.delete
 {
 	min-height: 16px;
 	vertical-align: middle;
+}
+
+.contacts tr:hover
+{
+	background-color: #C0C0C0;
 }
 
 .contacts td.contact
@@ -508,16 +518,6 @@ td.delete
 .contacts tr.connected
 {
 	background-color: #FFDC0A;
-}
-
-.contacts tr.disconnected
-{
-	background-color: #FFFFFF;
-}
-
-.contacts tr.found
-{
-	background-color: #FFFFFF;
 }
 
 .status .online
