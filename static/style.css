@@ -171,7 +171,7 @@ input[type="submit"]
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
 	text-align: center;
-	text-shadow: 0.1em 0.1em 0em #A0A0A0;
+	text-shadow: 1px 1px 0em #A0A0A0;
 }
 
 input[type="submit"]:hover
