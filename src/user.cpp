@@ -272,7 +272,6 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					
 					page.open("td",".status");
-					page.span(contact->status().capitalized(), String(".") + contact->status());
 					page.close("td");
 					
 					page.open("td",".files");
@@ -282,10 +281,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("td",".chat");
 					page.openLink(contact->urlPrefix()+"/chat/");
 					page.text("chat");
-					page.open("span",".messagescount");
-					int msgcount = contact->unreadMessagesCount();
-					if(msgcount) page.text(String(" (")+String::number(msgcount)+String(")"));
-					page.close("span");
+					page.span("", ".messagescount");
 					page.closeLink();
 					page.close("td");
 					
@@ -300,8 +296,8 @@ void User::http(const String &prefix, Http::Request &request)
 					setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
 					$.each(data, function(uname, info) {\n\
-						transition($('#contact_'+uname+' .status'),\n\
-							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+						$('#contact_'+uname).attr('class', info.status);;\n\
+						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
 						var count = parseInt(info.messages);\n\
 						var tmp = '';\n\
 						if(count != 0) tmp = ' ('+count+')';\n\

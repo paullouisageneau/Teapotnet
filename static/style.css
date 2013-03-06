@@ -10,7 +10,7 @@ body
 {
 	font-family: Sans-Serif;
 	font-size: 80%;
-	background-color: #F0F0F0;
+	background: #F0F0F0 url(/background.png) repeat-x;
 	width: 100%;
 	height: 95%;
 	margin: 0;
@@ -20,6 +20,7 @@ body
 a:link, a:visited
 {
 	text-decoration: none;
+	color: #550AAA;
 }
 
 a:hover
@@ -58,6 +59,7 @@ h1
 	margin-bottom: 0.5em;
 	font-size: 1.3em;
 	font-weight: bold;
+	text-shadow: 0.1em 0.1em 0.05em #A0A0A0;
 }
 
 h2
@@ -67,6 +69,7 @@ h2
 	margin-bottom: 0.5em;
 	font-size: 1.2em;
 	font-weight: bold;
+	text-shadow: 0.1em 0.1em 0.05em #A0A0A0;
 }
 
 h3
@@ -76,6 +79,7 @@ h3
 	margin-bottom: 0.5em;
 	font-size: 1.1em;
 	font-weight: bold;
+	text-shadow: 0.1em 0.1em 0.05em #A0A0A0;
 }
 
 table 
@@ -112,14 +116,17 @@ td
 
 fieldset 
 {
-	margin: 0;
+	margin: 0em;
+	margin-top: 2em;
 	margin-bottom: 0.5em;
 	padding: 0.5em;
+	padding-top: 1.5em;
 	padding-left: 1em;
 	padding-right: 1em;
 	background-color: #FFFFFF;
-	border: 1px solid black;
+	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
+	box-shadow: 0em 0em 0.5em 0.10em #404040;
 }
 
 label 
@@ -135,16 +142,41 @@ label
 
 legend 
 {
+	position: absolute;
 	padding: 0.2em 0.5em;
+	margin-top: -2.5em;
 	text-align: right;
 	background-color: #FFFFFF;
-	border: 1px solid black;
+	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
+	box-shadow: 0em 0em 0.5em 0.10em #404040;
 }
 
 input
 {
+	display: inline-block;
+	height: 1.75em;
 	margin: 0.2em;
+	padding: 0.2em;
+	color: black;
+	background-color: #FFFFFF;
+	border: 1px solid #606060;
+	border-radius: 0.5em;
+	vertical-align: middle;
+}
+
+input[type="submit"]
+{
+	cursor: pointer;
+	background-color: #FFDC0A;
+	border: 1px solid #E0BC00;
+	text-align: center;
+	text-shadow: 0.1em 0.1em 0em #A0A0A0;
+}
+
+input[type="submit"]:hover
+{
+	background-color: #FFF040;
 }
 
 textarea
@@ -299,6 +331,19 @@ textarea
 
 }
 
+#error
+{
+	margin-top: 5em;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+}
+
+.huge
+{
+	font-size: 3em;
+}
+
 .title
 {
 	font-weight: bold; 
@@ -359,28 +404,9 @@ textarea
 	text-decoration: blink;
 }
 
-.online
+.status
 {
 	font-weight: bold;
-	color: #00A000;
-}
-
-.connected
-{
-	font-weight: bold;
-	color: #0000FF;
-}
-
-.disconnected
-{
-	font-weight: bold;
-	color: #FF0000;
-}
-
-.found
-{
-	font-weight: bold;
-	color: #FFA500;
 }
 
 td.delete
@@ -394,9 +420,10 @@ td.delete
 	margin-top: 0.5em;
 	margin-bottom: 0.5em;
 	padding: 0.5em;
-	border: 1px solid black;
-	border-radius: 0.5em;
 	background-color: #FFFFFF;
+	border: 2px solid #E0E0E0;
+	border-radius: 0.5em;
+	box-shadow: 0em 0em 0.5em 0.10em #404040;
 	overflow: hidden;
 }
 
@@ -460,7 +487,7 @@ td.delete
 
 .contacts td.status
 {
-	
+	width: 14em;
 }
 
 .contacts td.files
@@ -471,4 +498,30 @@ td.delete
 .contacts td.chat
 {
 	width: 6em; 
+}
+
+.contacts tr.online
+{
+	background-color: #00E000;
+}
+
+.contacts tr.connected
+{
+	background-color: #FFDC0A;
+}
+
+.contacts tr.disconnected
+{
+	background-color: #FFFFFF;
+}
+
+.contacts tr.found
+{
+	background-color: #FFFFFF;
+}
+
+.status .online
+{
+	color: #00E000;
+	text-shadow: 0.1em 0.1em 0.05em #000000;
 }

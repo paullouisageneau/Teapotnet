@@ -1110,9 +1110,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.open("div",".menu");
 				
 			page.span("Status:", ".title");
-			page.open("span", "status.status");
-			page.span(status().capitalized(), String(".")+status());
-			page.close("span");
+			page.span("", "status.status");
 			page.br();
 			page.br();
 			
@@ -1122,10 +1120,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.br();
 			page.openLink(prefix+"/chat/");
 			page.text("Chat");
-			page.open("span", "messagescount.messagescount");
-			int msgcount = unreadMessagesCount();
-			if(msgcount) page.text(String(" (")+String::number(msgcount)+String(")"));
-			page.close("span");
+			page.span("", "messagescount.messagescount");
 			page.closeLink();
 			page.br();
 			page.close("div");
@@ -1614,9 +1609,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				{
 					page.open("b");
 					page.text("Chat with "+mName+" - ");
-					page.open("span", "status.status");
-					page.span(status().capitalized(), String(".")+status());
-					page.close("span");
+					page.span("", "status.status");
 					page.close("b");
 					page.open("div", "chat");
 				}
@@ -1624,10 +1617,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					String popupUrl = prefix + "/chat?popup=1";
 					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 					page.text(" - ");
-					page.open("span", "status.status");
-					page.span(status().capitalized(), String(".")+status());
-					page.close("span");
-					
+					page.span("", "status.status");
 					page.open("div", "chat.box");
 				}
 				

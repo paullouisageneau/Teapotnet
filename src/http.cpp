@@ -665,10 +665,19 @@ void Http::Server::Handler::run(void)
 			if(request.method != "HEAD")
 			{
 				Html page(response.sock);
-				page.header(response.message);
-				page.open("h1");
-				page.text(String::number(response.code) + " - " + response.message);
+				page.header(response.message, true);
+				page.open("div", "error");
+				page.openLink("/");
+				page.image("/error.png", "Error");
+				page.closeLink();
+				page.br();
+				page.br();
+				page.open("h1",".huge");
+				page.text(String::number(response.code));
+				page.br();
+				page.text(response.message);
 				page.close("h1");
+				page.close("div");
 				page.footer();
 			}
 		}
