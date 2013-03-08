@@ -246,6 +246,8 @@ int main(int argc, char** argv)
 						if(lastVersion && appVersion <= lastVersion)
 						{
 							Config::Put("last_update_day", String::number(currentDay));
+							Config::Save(configFileName);
+							
 							Log("main", "Downloading update...");
 							if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
 								return 0;
