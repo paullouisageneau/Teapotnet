@@ -28,6 +28,16 @@ a:hover
 	text-decoration: underline;
 }
 
+:focus, :active
+{
+	outline: none;
+}
+
+::-moz-focus-inner
+{
+	border: 0;
+}
+
 div
 {
 	margin: 0;
