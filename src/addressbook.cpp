@@ -862,7 +862,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier identifier(mPeering, instance);
 	try {
 		Desynchronize(this);
-		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
+		Socket *sock = new Socket(addr, 1500);	// TODO: timeout
 		if(Core::Instance->addPeer(sock, identifier))
 		{
 			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
@@ -955,12 +955,15 @@ void AddressBook::Contact::update(bool alternate)
 	if(!alternate) 
 	{
 		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-		DesynchronizeStatement(this, AddressBook::publish(mRemotePeering));
+		Identifier remotePeering(mRemotePeering);
+		DesynchronizeStatement(this, AddressBook::publish(remotePeering));
 	}
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	AddressMap newAddrs;
-	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, alternate));
+	Identifier peering(mPeering);
+	String tracker(mTracker);
+	DesynchronizeStatement(this, AddressBook::query(peering, tracker, newAddrs, alternate));
 	
 	if(!newAddrs.empty())
 	{
