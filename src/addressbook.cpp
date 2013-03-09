@@ -1400,7 +1400,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(map.get("type") == "directory") page.image("/dir.png");
 							else page.image("/file.png");
 							page.close("td");
-							page.open("td",".filename"); 
+							page.open("td",".filename");
+							if(map.get("type") != "directory" && name.contains('.'))
+								page.span(name.afterLast('.').toUpper(), ".type");
 							page.link(link, name);
 							page.close("td");
 							page.open("td",".size"); 
@@ -1513,7 +1515,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(map.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".filename"); 
+						page.open("td",".filename");
+						if(map.get("type") != "directory" && name.contains('.'))
+							page.span(name.afterLast('.').toUpper(), ".type");
 						page.link(link, name);
 						page.close("td");
 						page.open("td",".size"); 

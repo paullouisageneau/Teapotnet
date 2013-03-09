@@ -430,6 +430,7 @@ td.delete
 .files
 {
 	margin-top: 0.5em;
+	white-space: nowrap;
 }
 
 .files tr
@@ -447,7 +448,7 @@ td.delete
 {
 	width: 16px;
 	min-height: 16px;
-	padding-right: 0.5em;
+	padding-right: 0.25em;
 	text-align: left;
 }
 
@@ -457,6 +458,14 @@ td.delete
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis; 
+}
+
+.files td.filename .type
+{
+	padding-right: 0.25em;
+	font-family: monospace;
+	font-weight: bold;
+	vertical-align: middle;
 }
 
 .files td.size
