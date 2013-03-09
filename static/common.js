@@ -72,7 +72,6 @@ if (document.documentElement) {
 }
 
 $(document).ready( function() {
-	resizeContent();
 	if($(document.documentElement).hasClass('loading')) {
 		$(document.documentElement).removeClass('loading');
 		if($(document.documentElement).hasClass('animloading')) {
@@ -81,6 +80,7 @@ $(document).ready( function() {
 			  $(document.body).fadeIn(300);
 		}
 	}
+	resizeContent();
 });
 
 $(window).resize( function() {
