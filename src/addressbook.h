@@ -97,7 +97,8 @@ public:
 		
 		void update(bool alternate = false);
 
-		void welcome(const Identifier &peering);		
+		void connected(const Identifier &peering);
+		void disconnected(const Identifier &peering);
 		void message(Message *message);
 		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);

@@ -812,11 +812,11 @@ void Core::Handler::run(void)
 			{
 				try {
 					Identifier peering(mPeering);
-					DesynchronizeStatement(this, listener->welcome(peering));
+					DesynchronizeStatement(this, listener->connected(peering));
 				}
 				catch(const Exception &e)
 				{
-					Log("Core::Handler", String("Warning: Listener failed to welcome the new peer: ")+e.what());
+					Log("Core::Handler", String("Warning: Listener connected callback failed: ")+e.what());
 				}
 			}
 		}
@@ -1036,6 +1036,19 @@ void Core::Handler::run(void)
 	
 	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
 	msleep(1000);
+	
+	Listener *listener = NULL;
+	if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+	{
+		try {
+			Identifier peering(mPeering);
+			DesynchronizeStatement(this, listener->disconnected(peering));
+		}
+		catch(const Exception &e)
+		{
+			Log("Core::Handler", String("Warning: Listener disconnected callback failed: ")+e.what());
+		}
+	}
 	
 	{
 		Synchronize(mCore);

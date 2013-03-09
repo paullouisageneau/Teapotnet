@@ -957,11 +957,12 @@ void AddressBook::Contact::update(bool alternate)
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	AddressMap newAddrs;
 	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, alternate));
+	
 	if(!newAddrs.empty())
 	{
 		//if(!alternate) Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		//else Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		mFound = true;	
+		mFound = true;
 		connectAddresses(newAddrs, !alternate, alternate);
 	}
 	else if(!alternate) 
@@ -998,7 +999,7 @@ void AddressBook::Contact::update(bool alternate)
         }
 }
 
-void AddressBook::Contact::welcome(const Identifier &peering)
+void AddressBook::Contact::connected(const Identifier &peering)
 {
 	Synchronize(this);
 	Assert(peering == mPeering);	
@@ -1015,6 +1016,14 @@ void AddressBook::Contact::welcome(const Identifier &peering)
                 message.setParameter("type", "contacts");
                 message.send(peering);
 	}
+}
+
+void AddressBook::Contact::disconnected(const Identifier &peering)
+{
+	Synchronize(this);
+	Assert(peering == mPeering);
+	
+	// TODO
 }
 
 void AddressBook::Contact::message(Message *message)
