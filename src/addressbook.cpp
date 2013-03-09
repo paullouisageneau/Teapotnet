@@ -593,14 +593,17 @@ bool AddressBook::publish(const Identifier &remotePeering)
 			post["alternate"] = altAddresses;
 		}
 		
-		if(Http::Post(url, post) != 200) return false;
+		return (Http::Post(url, post) == 200);
+	}
+	catch(const NetException &e)
+	{
+		return false;
 	}
 	catch(const std::exception &e)
 	{
 		Log("AddressBook::publish", e.what()); 
 		return false;
 	}
-	return true;
 }
 
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
@@ -643,6 +646,10 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		}
 		
 		return !output.empty();
+	}
+	catch(const NetException &e)
+	{
+		return false;
 	}
 	catch(const std::exception &e)
 	{
