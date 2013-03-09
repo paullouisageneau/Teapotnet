@@ -274,7 +274,11 @@ void AddressBook::load(Stream &stream)
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
-			if(oldContact->time() >= contact->time()) continue;
+			if(oldContact->time() >= contact->time())
+			{
+				oldContact->addAddresses(contact->addresses());
+				continue;
+			}
 		
 			mContacts.erase(oldContact->peering());
 			Core::Instance->unregisterPeering(oldContact->peering());
