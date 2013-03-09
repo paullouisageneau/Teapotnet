@@ -211,8 +211,17 @@ void Interface::process(Http::Request &request)
 			response.send();
 				
 			Html page(response.sock);
-			page.header("Authentication required");
-			
+			page.header(response.message, true);
+			page.open("div", "error");
+			page.openLink("/");
+			page.image("/error.png", "Error");
+			page.closeLink();
+			page.br();
+			page.br();
+			page.open("h1",".huge");
+			page.text("Authentication required");
+			page.close("h1");
+			page.close("div");
 			page.footer();
 			return;
 		}
