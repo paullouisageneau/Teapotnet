@@ -506,10 +506,9 @@ void User::http(const String &prefix, Http::Request &request)
 					if(map.get("type") == "directory") page.image("/dir.png");
 					else page.image("/file.png");
 					page.close("td");
-					page.open("td",".type");
-					if(map.get("type") != "directory" && name.contains('.')) page.text(name.afterLast('.').toUpper());
-					page.close("td");
 					page.open("td",".filename");
+					if(map.get("type") != "directory" && name.contains('.'))
+						page.span(name.afterLast('.').toUpper(), ".type");
 					page.link(link, name);
 					page.close("td");
 					page.open("td",".size"); 
