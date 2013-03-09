@@ -772,7 +772,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				{
 					page.openForm(prefix+url,"post", "uploadForm", true);
 					page.openFieldset("Upload a file");
-					page.label("file"); page.file("file"); page.br();
+					page.label("file"); page.file("file", "Select a file"); page.br();
 					page.label("send"); page.button("send","Send");
 					page.closeFieldset();
 					page.closeForm();

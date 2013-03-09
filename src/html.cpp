@@ -304,15 +304,19 @@ void Html::select(const String &name, const StringMap &options, const String &de
 	*mStream<<"</select>\n";
 }
 
-void Html::button(const String &name, const String &text)
+void Html::button(const String &name, String text)
 {
   	if(text.empty()) input("submit", name, name);
 	else input("submit", name, text);
 }
 
-void Html::file(const String &name)
+void Html::file(const String &name, String text)
 {
- 	*mStream<<"<input type=\"file\" class=\""<<name<<"\" name=\""<<name<<"\" size=\"30\">\n";
+	if(text.empty()) text = name;
+	String id = String("input_file_") + name;
+ 	*mStream<<"<input type=\"file\" id=\""<<id<<"\" class=\""<<name<<"\" name=\""<<name<<"\" size=\"30\">\n";
+	javascript("$('#"+id+"').hide();\n\
+		$('#"+id+"').after('<a class=\"button\" href=\"javascript:void(0)\" onclick=\"$(\\'#"+id+"\\').click()\">"+escape(text)+"</a>');");
 }
 
 Stream *Html::stream(void)
