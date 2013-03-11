@@ -1842,19 +1842,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	String key;
 	AssertIO(s.inputMapBegin());
 	AssertIO(s.inputMapElement(key, map) && key == "info");
-	
-	// TEMPORARY : try/catch block should be removed
-	try {
-		AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
-	}
-	catch(...) {
-		// HACK
-		Log("AddressBook::Contact::deserialize", "Warning: bad or outdated addresses block, ignoring...");
-		String hack;
-		do s.input(hack);
-		while(!hack.empty());
-	}
-	//
+	AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
 
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;

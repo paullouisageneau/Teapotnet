@@ -233,18 +233,12 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.open("h1");
 			page.text(mName + " / " + Core::Instance->getName());
-			page.text(" - ");
-			page.link(prefix+"/myself/","All my files");
-			page.close("h1");
-			
-			/*
-			int msgcount = mAddressBook->unreadMessagesCount();
-			if(msgcount) 
+			if(mAddressBook->getSelf())
 			{
-				page.span(String("You have ")+String::number(msgcount)+String(" new messages"), ".important");
-				page.br();
+				page.text(" - ");
+				page.link(prefix+"/myself/","All my files");
 			}
-			*/
+			page.close("h1");
 			
 			page.open("div","contacts.box");
 			page.open("h2");
