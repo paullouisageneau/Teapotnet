@@ -17,4 +17,4 @@ If not, see <http://www.gnu.org/licenses/>.
 
 Media files are available under the Creative Commons
 Attribution-ShareAlike License (CC-BY-NC)
-See http://creativecommons.org/licenses/by-sa/3.0/
+See <http://creativecommons.org/licenses/by-sa/3.0/>

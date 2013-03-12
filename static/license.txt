@@ -3,7 +3,7 @@ paul-louis (at) ageneau (dot) org
 
 Media files contained in this directory are available under the 
 Creative Commons Attribution-ShareAlike License (CC-BY-NC)
-See http://creativecommons.org/licenses/by-sa/3.0/
+See <http://creativecommons.org/licenses/by-sa/3.0/>
 
 
 Creative Commons Legal Code
