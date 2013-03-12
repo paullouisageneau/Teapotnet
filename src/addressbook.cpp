@@ -980,15 +980,13 @@ void AddressBook::Contact::update(bool alternate)
 			mAddrs.erase(it++);
 		else it++;
 	}
-	
-	if(!mMessages.empty())
-        {
-                while(!mMessages.front().isRead()
-                        && Time::Now() - mMessages.front().time() >= 7200)        // 2h
-                {
-                                 mMessages.pop_front();
-                }
-        }
+
+        while(!mMessages.empty()
+		&& !mMessages.front().isRead()
+		&& Time::Now() - mMessages.front().time() >= 7200)        // 2h
+	{
+		mMessages.pop_front();
+	}
 }
 
 void AddressBook::Contact::welcome(const Identifier &peering)
