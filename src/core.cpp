@@ -812,11 +812,11 @@ void Core::Handler::run(void)
 			{
 				try {
 					Identifier peering(mPeering);
-					DesynchronizeStatement(this, listener->welcome(peering));
+					DesynchronizeStatement(this, listener->connected(peering));
 				}
 				catch(const Exception &e)
 				{
-					Log("Core::Handler", String("Warning: Listener failed to welcome the new peer: ")+e.what());
+					Log("Core::Handler", String("Warning: Listener connected callback failed: ")+e.what());
 				}
 			}
 		}
@@ -876,10 +876,8 @@ void Core::Handler::run(void)
 				unsigned channel;
 				args.read(channel);
 				
-				// TODO: backward compatibility, should be removed
 				unsigned size = 0;
 				if(parameters.contains("length")) parameters["length"].extract(size);
-				else args.read(size);
 
 				Request::Response *response;
 				if(mResponses.get(channel,response))
@@ -982,14 +980,12 @@ void Core::Handler::run(void)
 			}
 			else if(command == "M")
 			{
-				// TODO: backward compatibility, should be removed
 				unsigned length = 0;
 				if(parameters.contains("length")) 
 				{
 					parameters["length"].extract(length);
 					parameters.erase("length");
 				}
-				else args.read(length);
 			  
 				//Log("Core::Handler", "Received message");
 				
@@ -1017,8 +1013,7 @@ void Core::Handler::run(void)
 			}
 			else {
 				Log("Core::Handler", "Warning: unknown command: " + command);
-			  
-				// TODO: backward compatibility, should be removed
+
 				unsigned length = 0;
 				if(parameters.contains("length")) parameters["length"].extract(length);
 				if(length) AssertIO(mStream->ignore(length));
@@ -1036,6 +1031,19 @@ void Core::Handler::run(void)
 	
 	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
 	msleep(1000);
+	
+	Listener *listener = NULL;
+	if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+	{
+		try {
+			Identifier peering(mPeering);
+			DesynchronizeStatement(this, listener->disconnected(peering));
+		}
+		catch(const Exception &e)
+		{
+			Log("Core::Handler", String("Warning: Listener disconnected callback failed: ")+e.what());
+		}
+	}
 	
 	{
 		Synchronize(mCore);
@@ -1176,8 +1184,7 @@ void Core::Handler::Sender::run(void)
 				
 				//Log("Core::Handler::Sender", "Sending message");
 
-				String args;
-				args << length;	// TODO: backward compatibility, should be removed
+				String args = "";
 				StringMap parameters = message.parameters();
 				parameters["length"] << length;
 				
@@ -1253,7 +1260,6 @@ void Core::Handler::Sender::run(void)
 
 				String args;
 				args << channel;
-				args << " " << size;	// TODO: backward compatibility, should be removed
 				StringMap parameters;
 				parameters["length"] << size;
 				Handler::sendCommand(mStream, "D", args, parameters);

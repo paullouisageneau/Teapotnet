@@ -26,15 +26,52 @@
 #include <cstring>
 
 #include <windows.h>
-#include <wininet.h>
 #include <wincrypt.h>
 #include <shlwapi.h>
 #include <psapi.h> 
 #include <malloc.h>
-
 #include "unzip.h"
 
 #define BUFFERSIZE 2048
+#define USE_WINHTTP
+
+
+#ifdef USE_WINHTTP
+
+typedef LPVOID HINTERNET;
+typedef HINTERNET * LPHINTERNET;
+typedef WORD INTERNET_PORT;
+typedef INTERNET_PORT * LPINTERNET_PORT;
+
+#define WINHTTP_ACCESS_TYPE_DEFAULT_PROXY	0
+#define WINHTTP_FLAG_SECURE			0x00800000
+#define WINHTTP_ERROR_BASE			12000
+#define ERROR_WINHTTP_SECURE_FAILURE		(WINHTTP_ERROR_BASE + 175)
+
+typedef HINTERNET (WINAPI *WINHTTPOPEN)(LPCWSTR pwszUserAgent, DWORD dwAccessType, LPCWSTR pwszProxyName, LPCWSTR pwszProxyBypass, DWORD dwFlags);
+typedef HINTERNET (WINAPI *WINHTTPCONNECT)(HINTERNET hSession, LPCWSTR pswzServerName, INTERNET_PORT nServerPort, DWORD dwReserved);
+typedef HINTERNET (WINAPI *WINHTTPOPENREQUEST)(HINTERNET hConnect, LPCWSTR pwszVerb, LPCWSTR pwszObjectName, LPCWSTR pwszVersion, LPCWSTR pwszReferrer, LPCWSTR *ppwszAcceptTypes, DWORD dwFlags);
+typedef BOOL (WINAPI *WINHTTPSENDREQUEST)(HINTERNET hRequest, LPCWSTR pwszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength, DWORD dwTotalLength, DWORD_PTR dwContext);
+typedef BOOL (WINAPI *WINHTTPRECEIVERESPONSE)(HINTERNET hRequest, LPVOID lpReserved);
+typedef BOOL (WINAPI *WINHTTPQUERYHEADERS)(HINTERNET hRequest, DWORD dwInfoLevel, LPCWSTR pwszName, LPVOID lpBuffer, LPDWORD lpdwBufferLength, LPDWORD lpdwIndex);
+typedef BOOL (WINAPI *WINHTTPQUERYDATAAVAILABLE)(HINTERNET hRequest, LPDWORD lpdwNumberOfBytesAvailable);
+typedef BOOL (WINAPI *WINHTTPREADDATA)(HINTERNET hRequest, LPVOID lpBuffer, DWORD dwNumberOfBytesToRead, LPDWORD lpdwNumberOfBytesRead);
+typedef BOOL (WINAPI *WINHTTPCLOSEHANDLE)(HINTERNET hInternet);
+
+WINHTTPOPEN			WinHttpOpen;
+WINHTTPCONNECT			WinHttpConnect;
+WINHTTPOPENREQUEST		WinHttpOpenRequest;
+WINHTTPSENDREQUEST		WinHttpSendRequest;
+WINHTTPRECEIVERESPONSE		WinHttpReceiveResponse;
+WINHTTPQUERYHEADERS		WinHttpQueryHeaders;
+WINHTTPQUERYDATAAVAILABLE 	WinHttpQueryDataAvailable;
+WINHTTPREADDATA			WinHttpReadData;
+WINHTTPCLOSEHANDLE		WinHttpCloseHandle;
+
+#else
+#include <wininet.h>
+#endif
+
 
 int CALLBACK WinMain(   HINSTANCE hInstance,
                         HINSTANCE hPrevInstance,
@@ -51,8 +88,32 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 			LPSTR lpCmdLine,
 			int nCmdShow)
 {
+#ifdef USE_WINHTTP
+	HMODULE hWinHttp = LoadLibrary("winhttp.dll");
+	if(!hWinHttp)
+	{
+		Error("Unable to find winhttp.dll");
+		return 1;
+	}
+	
+	WinHttpOpen			= (WINHTTPOPEN)			GetProcAddress(hWinHttp, "WinHttpOpen");
+	WinHttpConnect			= (WINHTTPCONNECT)		GetProcAddress(hWinHttp, "WinHttpConnect");
+	WinHttpOpenRequest 		= (WINHTTPOPENREQUEST)		GetProcAddress(hWinHttp, "WinHttpOpenRequest");
+	WinHttpSendRequest 		= (WINHTTPSENDREQUEST)		GetProcAddress(hWinHttp, "WinHttpSendRequest");
+	WinHttpReceiveResponse 		= (WINHTTPRECEIVERESPONSE)	GetProcAddress(hWinHttp, "WinHttpReceiveResponse");
+	WinHttpQueryHeaders		= (WINHTTPQUERYHEADERS)		GetProcAddress(hWinHttp, "WinHttpQueryHeaders");
+	WinHttpQueryDataAvailable	= (WINHTTPQUERYDATAAVAILABLE)	GetProcAddress(hWinHttp, "WinHttpQueryDataAvailable");
+	WinHttpReadData			= (WINHTTPREADDATA)		GetProcAddress(hWinHttp, "WinHttpReadData");
+	WinHttpCloseHandle		= (WINHTTPCLOSEHANDLE)		GetProcAddress(hWinHttp, "WinHttpCloseHandle");
+#endif
+	
 	int ret = DoUpdate();
 	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, NULL, nCmdShow);
+
+#ifdef USE_WINHTTP
+	FreeLibrary(hWinHttp);
+#endif
+	
 	return ret;
 }
 
@@ -64,6 +125,88 @@ void Error(const char *szMessage)
 
 int DoUpdate(void)
 {
+#ifdef USE_WINHTTP
+	HINTERNET hOpen = WinHttpOpen(L"TeapotNet-WinUpdater", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
+	if(!hOpen)
+	{
+		Error("WinHttpOpen failed");
+		return 2;
+	}
+
+	HINTERNET hConnect = WinHttpConnect(hOpen, L"www.teapotnet.org", 443, 0);
+	if(!hConnect)
+	{
+		Error("WinHttpConnect failed");
+		return 2;
+	}
+	
+	LPCWSTR types[2];
+	types[0] = L"application/zip";
+	types[1] = NULL;
+
+	// use flag WINHTTP_FLAG_SECURE to initiate SSL
+	HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/download/?release=win32", NULL, NULL, types, WINHTTP_FLAG_SECURE);
+	if(!hRequest)
+	{
+		Error("WinHttpOpenRequest failed");
+		return 2;
+	}
+
+	if(!WinHttpSendRequest(hRequest, NULL, 0, NULL, 0, 0, 0))
+	{
+		if(GetLastError() == ERROR_WINHTTP_SECURE_FAILURE) Error("Invalid SSL certificate");
+		else Error("Connection failed");
+		return 3;
+	}
+	
+	if(!WinHttpReceiveResponse(hRequest, 0))
+	{
+		Error("No response from server");
+		return 4;
+	}
+		
+	char szTempPath[MAX_PATH];
+	char szTempFileName[MAX_PATH];
+	if(!GetTempPath(MAX_PATH, szTempPath)) return 5;
+	if(!GetTempFileName(szTempPath, "teapotnet", 0, szTempFileName)) return 5;
+	
+	HANDLE hTempFile = CreateFile(szTempFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
+	if(hTempFile == INVALID_HANDLE_VALUE)
+	{
+		Error("Unable to open temporary file");
+		return 5;
+	}
+	
+	char pBuffer[BUFFERSIZE];
+	DWORD dwAvailable = 0;
+	while(WinHttpQueryDataAvailable(hRequest, &dwAvailable) && dwAvailable)
+	{
+		if(dwAvailable > BUFFERSIZE) dwAvailable = BUFFERSIZE;
+	  
+		DWORD dwRead = 0;
+		if(!WinHttpReadData(hRequest, pBuffer, dwAvailable, &dwRead))
+		{
+			Error("Error while downloading the update");
+			return 6;
+		}
+
+		DWORD dwWritten = 0;
+		WriteFile(hTempFile, pBuffer, dwRead, &dwWritten, NULL);
+		if(dwWritten != dwRead)
+		{
+			Error("Error while writing to temporary file");
+			return 5;
+		}
+	}
+	
+	CloseHandle(hTempFile);
+	
+	WinHttpCloseHandle(hRequest);
+	WinHttpCloseHandle(hConnect);
+	WinHttpCloseHandle(hOpen);
+  
+#else
+  
 	/*
 	PCSTR szCertFileName = "root.der";
 	HANDLE hCertFile = CreateFile(szCertFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -92,9 +235,8 @@ int DoUpdate(void)
 		free(pCertData);
 	}
 	*/
-
-	PCSTR szAgent = "TeapotNet-WinUpdater/0.1";	
-	HINTERNET hInternet = InternetOpen(szAgent,
+	
+	HINTERNET hInternet = InternetOpen("TeapotNet-WinUpdater",
 				INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
 	
 	PCSTR szServerName = "teapotnet.org";
@@ -154,20 +296,21 @@ int DoUpdate(void)
 
 	if(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
 	{
-		Error("Invalid SSL certificate");
-		return 1;
+		if(dwError == ERROR_INTERNET_INVALID_CA) Error("Invalid SSL certificate");
+		else Error("Connection failed");
+		return 3;
 	}
 	
 	char szTempPath[MAX_PATH];
 	char szTempFileName[MAX_PATH];
-	if(!GetTempPath(MAX_PATH, szTempPath)) return 1;
-	if(!GetTempFileName(szTempPath, "teapotnet", 0, szTempFileName)) return false;
+	if(!GetTempPath(MAX_PATH, szTempPath)) return 5;
+	if(!GetTempFileName(szTempPath, "teapotnet", 0, szTempFileName)) return 5;
 	
 	HANDLE hTempFile = CreateFile(szTempFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
 	if(hTempFile == INVALID_HANDLE_VALUE)
 	{
-			Error("Unable to open a temporary file");
-			return 1;
+			Error("Unable to open temporary file");
+			return 5;
 	}
 	
 	char pBuffer[BUFFERSIZE];
@@ -177,7 +320,7 @@ int DoUpdate(void)
 		if(!InternetReadFile(hRequest, pBuffer, BUFFERSIZE, &dwRead))
 		{
 			Error("Error while downloading the update");
-			return 1;
+			return 6;
 		}
 		
 		if (dwRead == 0)
@@ -187,13 +330,15 @@ int DoUpdate(void)
 		WriteFile(hTempFile, pBuffer, dwRead, &dwWritten, NULL);
 		if(dwWritten != dwRead)
 		{
-				Error("Error while writing to a temporary file");
-				return 1;
+				Error("Error while writing to temporary file");
+				return 6;
 		}
 	}
 	
 	CloseHandle(hTempFile);
+#endif
 	
+	// Unzip files
 	HZIP hZip = OpenZip(szTempFileName, 0);
 	ZIPENTRY ze; 
 	GetZipItem(hZip, -1, &ze);

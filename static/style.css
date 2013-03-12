@@ -155,10 +155,9 @@ legend
 input
 {
 	display: inline-block;
-	height: 1.75em;
 	margin: 0.2em;
-	padding: 0.2em;
-	color: black;
+	padding: 0.4em;
+	color: #000000;
 	background-color: #FFFFFF;
 	border: 1px solid #606060;
 	border-radius: 0.5em;
@@ -177,6 +176,29 @@ input[type="submit"]
 input[type="submit"]:hover
 {
 	background-color: #FFF040;
+}
+
+a.button
+{
+	display: inline-block;
+	min-width: 6em;
+	margin: 0.2em;
+	padding: 0.4em;
+	color: #000000;
+	cursor: pointer;
+	background-color: #FFDC0A;
+	border: 1px solid #E0BC00;
+	border-radius: 0.5em;
+	text-align: center;
+	vertical-align: middle;
+	text-align: center;
+	text-shadow: 1px 1px 0em #A0A0A0;
+}
+
+a.button:hover
+{
+	background-color: #FFF040;
+	text-decoration: none;
 }
 
 textarea
@@ -430,6 +452,7 @@ td.delete
 .files
 {
 	margin-top: 0.5em;
+	white-space: nowrap;
 }
 
 .files tr
@@ -447,7 +470,7 @@ td.delete
 {
 	width: 16px;
 	min-height: 16px;
-	padding-right: 0.5em;
+	padding-right: 0.25em;
 	text-align: left;
 }
 
@@ -457,6 +480,14 @@ td.delete
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis; 
+}
+
+.files td.filename .type
+{
+	padding-right: 0.25em;
+	font-family: monospace;
+	font-weight: bold;
+	vertical-align: middle;
 }
 
 .files td.size

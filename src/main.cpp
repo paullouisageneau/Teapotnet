@@ -113,12 +113,8 @@ int main(int argc, char** argv)
 		Config::Default("tpot_read_timeout", "60000");
 		Config::Default("user_global_shares", "true");
 		Config::Default("relay_enabled", "true");
-		
-		if(Config::Get("request_timeout").toInt() < 10000)
-			Config::Put("request_timeout", "10000");	
-		
-		if(Config::Get("tpot_timeout").toInt() < 15000)
-			Config::Put("tpot_timeout", "15000");
+		Config::Default("request_timeout", "10000");	
+		Config::Default("tpot_timeout", "15000");
 		
 		StringMap args;
 		String last;
@@ -178,26 +174,26 @@ int main(int argc, char** argv)
 		}
 		
 #ifdef WINDOWS
+		if(!InterfacePort) try {
+			int port = Config::Get("interface_port").toInt();
+			Socket sock(Address("127.0.0.1", port), 100);
+			InterfacePort = port;
+		}
+		catch(...) {}
+
+		if(InterfacePort)
+		{
+			if(!args.contains("nointerface") && !args.contains("boot"))
+				openUserInterface();
+			return 0;
+		}
+			
 		if(args.contains("boot"))
 		{
 			Config::Save(configFileName);
 			Sleep(1000);
 		}
 		else {
-			if(!InterfacePort) try {
-				int port = Config::Get("interface_port").toInt();
-				Socket sock(Address("127.0.0.1", port), 100);
-				InterfacePort = port;
-			}
-			catch(...) {}
-
-			if(InterfacePort)
-			{
-				if(!args.contains("nointerface"))
-					openUserInterface();
-				return 0;
-			}
-			
 			try {
 				Config::Save(configFileName);
 			}
@@ -225,20 +221,36 @@ int main(int argc, char** argv)
 				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
 				
 				try {
+					String content;
+					int result = 0;
+					
 					if(args.contains("boot"))
 					{
 						int attempts = 20;
-						DWORD flags = 0;
-						while(!InternetGetConnectedState(&flags, 0))
+						while(true)
 						{
-							if(--attempts == 0) break;
-							Log("main", "Waiting for network availability...");
-							Sleep(1000);
+							try {
+								result = Http::Get(url, &content);
+							}
+							catch(const NetException &e)
+							{
+								if(--attempts == 0) break;
+								content.clear();
+								Log("main", "Waiting for network availability...");
+								Sleep(1000);
+								continue;
+							}
+							catch(...)
+							{
+							  
+							}
+							
+							break;
 						}
 					}
-
-					String content;
-					if(Http::Get(url, &content) == 200)
+					else result = Http::Get(url, &content);
+					
+					if(result == 200)
 					{
 						content.trim();
 

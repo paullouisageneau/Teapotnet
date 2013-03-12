@@ -233,18 +233,12 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.open("h1");
 			page.text(mName + " / " + Core::Instance->getName());
-			page.text(" - ");
-			page.link(prefix+"/myself/","All my files");
-			page.close("h1");
-			
-			/*
-			int msgcount = mAddressBook->unreadMessagesCount();
-			if(msgcount) 
+			if(mAddressBook->getSelf())
 			{
-				page.span(String("You have ")+String::number(msgcount)+String(" new messages"), ".important");
-				page.br();
+				page.text(" - ");
+				page.link(prefix+"/myself/","All my files");
 			}
-			*/
+			page.close("h1");
 			
 			page.open("div","contacts.box");
 			page.open("h2");
@@ -431,8 +425,9 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("td",".icon");
 					if(!entry.type) page.image("/dir.png");
 					else page.image("/file.png");
-					page.close("td");
-					page.open("td",".filename"); 
+					page.open("td",".filename");
+					if(entry.type && entry.name.contains('.'))
+						page.span(entry.name.afterLast('.').toUpper(), ".type");
 					page.link(link, entry.name);
 					page.close("td");
 					page.open("td",".size"); 
@@ -506,6 +501,8 @@ void User::http(const String &prefix, Http::Request &request)
 					else page.image("/file.png");
 					page.close("td");
 					page.open("td",".filename");
+					if(map.get("type") != "directory" && name.contains('.'))
+						page.span(name.afterLast('.').toUpper(), ".type");
 					page.link(link, name);
 					page.close("td");
 					page.open("td",".size"); 
@@ -603,7 +600,7 @@ void User::run(void)
 		}
 		
 		++m;
-		if((m%5 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
+		if((m%4 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
 		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
 }

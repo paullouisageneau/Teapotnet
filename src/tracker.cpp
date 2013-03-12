@@ -41,7 +41,6 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
-	Synchronize(this);
 	//Log("Tracker", "URL " + request.url);	
 
 	try {
@@ -86,7 +85,7 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				insert(mStorage, identifier, addr);
+				SynchronizeStatement(this, insert(mStorage, identifier, addr));
 				++count;
 				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
@@ -105,11 +104,11 @@ void Tracker::process(Http::Request &request)
 				      	if(alternate)
 					{
 						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
-						insert(mAlternate, identifier, addr);
+						SynchronizeStatement(this, insert(mAlternate, identifier, addr));
 					}
 				      	else {
 						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
-						insert(mStorage, identifier, addr);
+						SynchronizeStatement(this, insert(mStorage, identifier, addr));
 					}
 					
 					++count;
@@ -130,7 +129,7 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      Address addr(*it);
-				      insert(mAlternate, identifier, addr);
+				      SynchronizeStatement(this, insert(mAlternate, identifier, addr));
 				      ++count;
 				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
 				}
@@ -140,8 +139,8 @@ void Tracker::process(Http::Request &request)
 				}
 			}
 			
-			clean(mStorage, 2*count+1);
-			clean(mAlternate, 2*count+1);
+			SynchronizeStatement(this, clean(mStorage, 2*count+1));
+			SynchronizeStatement(this, clean(mAlternate, 2*count+1));
 			
 			Http::Response response(request,200);
 			response.send();
@@ -154,11 +153,11 @@ void Tracker::process(Http::Request &request)
 			if(alternate) 
 			{
 				//Log("Tracker", "GET " + identifier.toString() + " (alternate)");
-				retrieve(mAlternate, identifier, *response.sock);
+				SynchronizeStatement(this, retrieve(mAlternate, identifier, *response.sock));
 			}
 			else {
 				//Log("Tracker", "GET " + identifier.toString());
-				retrieve(mStorage, identifier, *response.sock);
+				SynchronizeStatement(this, retrieve(mStorage, identifier, *response.sock));
 			}
 		}
 	}

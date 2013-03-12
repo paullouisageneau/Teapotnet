@@ -274,7 +274,11 @@ void AddressBook::load(Stream &stream)
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
 		{
-			if(oldContact->time() >= contact->time()) continue;
+			if(oldContact->time() >= contact->time())
+			{
+				oldContact->addAddresses(contact->addresses());
+				continue;
+			}
 		
 			mContacts.erase(oldContact->peering());
 			Core::Instance->unregisterPeering(oldContact->peering());
@@ -593,14 +597,17 @@ bool AddressBook::publish(const Identifier &remotePeering)
 			post["alternate"] = altAddresses;
 		}
 		
-		if(Http::Post(url, post) != 200) return false;
+		return (Http::Post(url, post) == 200);
+	}
+	catch(const NetException &e)
+	{
+		return false;
 	}
 	catch(const std::exception &e)
 	{
 		Log("AddressBook::publish", e.what()); 
 		return false;
 	}
-	return true;
 }
 
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
@@ -643,6 +650,10 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		}
 		
 		return !output.empty();
+	}
+	catch(const NetException &e)
+	{
+		return false;
 	}
 	catch(const std::exception &e)
 	{
@@ -851,7 +862,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier identifier(mPeering, instance);
 	try {
 		Desynchronize(this);
-		Socket *sock = new Socket(addr, 1000);	// TODO: timeout
+		Socket *sock = new Socket(addr, 1500);	// TODO: timeout
 		if(Core::Instance->addPeer(sock, identifier))
 		{
 			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
@@ -944,17 +955,21 @@ void AddressBook::Contact::update(bool alternate)
 	if(!alternate) 
 	{
 		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
-		DesynchronizeStatement(this, AddressBook::publish(mRemotePeering));
+		Identifier remotePeering(mRemotePeering);
+		DesynchronizeStatement(this, AddressBook::publish(remotePeering));
 	}
 		  
 	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	AddressMap newAddrs;
-	DesynchronizeStatement(this, AddressBook::query(mPeering, mTracker, newAddrs, alternate));
+	Identifier peering(mPeering);
+	String tracker(mTracker);
+	DesynchronizeStatement(this, AddressBook::query(peering, tracker, newAddrs, alternate));
+	
 	if(!newAddrs.empty())
 	{
 		//if(!alternate) Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		//else Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		mFound = true;	
+		mFound = true;
 		connectAddresses(newAddrs, !alternate, alternate);
 	}
 	else if(!alternate) 
@@ -989,7 +1004,7 @@ void AddressBook::Contact::update(bool alternate)
 	}
 }
 
-void AddressBook::Contact::welcome(const Identifier &peering)
+void AddressBook::Contact::connected(const Identifier &peering)
 {
 	Synchronize(this);
 	Assert(peering == mPeering);	
@@ -1006,6 +1021,14 @@ void AddressBook::Contact::welcome(const Identifier &peering)
                 message.setParameter("type", "contacts");
                 message.send(peering);
 	}
+}
+
+void AddressBook::Contact::disconnected(const Identifier &peering)
+{
+	Synchronize(this);
+	Assert(peering == mPeering);
+	
+	// TODO
 }
 
 void AddressBook::Contact::message(Message *message)
@@ -1378,7 +1401,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							if(map.get("type") == "directory") page.image("/dir.png");
 							else page.image("/file.png");
 							page.close("td");
-							page.open("td",".filename"); 
+							page.open("td",".filename");
+							if(map.get("type") != "directory" && name.contains('.'))
+								page.span(name.afterLast('.').toUpper(), ".type");
 							page.link(link, name);
 							page.close("td");
 							page.open("td",".size"); 
@@ -1491,7 +1516,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(map.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".filename"); 
+						page.open("td",".filename");
+						if(map.get("type") != "directory" && name.contains('.'))
+							page.span(name.afterLast('.').toUpper(), ".type");
 						page.link(link, name);
 						page.close("td");
 						page.open("td",".size"); 
@@ -1813,19 +1840,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	String key;
 	AssertIO(s.inputMapBegin());
 	AssertIO(s.inputMapElement(key, map) && key == "info");
-	
-	// TEMPORARY : try/catch block should be removed
-	try {
-		AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
-	}
-	catch(...) {
-		// HACK
-		Log("AddressBook::Contact::deserialize", "Warning: bad or outdated addresses block, ignoring...");
-		String hack;
-		do s.input(hack);
-		while(!hack.empty());
-	}
-	//
+	AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
 
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;

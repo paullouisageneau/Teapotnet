@@ -685,7 +685,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.label("name","Name"); page.input("text","name"); page.br();
 				page.label("add"); page.button("add","Create directory"); page.br();
 				page.br();
-				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory"); page.br();
+				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory", ".button"); page.br();
 				page.br();
 				page.closeFieldset();
 				page.closeForm();
@@ -772,7 +772,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				{
 					page.openForm(prefix+url,"post", "uploadForm", true);
 					page.openFieldset("Upload a file");
-					page.label("file"); page.file("file"); page.br();
+					page.label("file"); page.file("file", "Select a file"); page.br();
 					page.label("send"); page.button("send","Send");
 					page.closeFieldset();
 					page.closeForm();
@@ -835,12 +835,15 @@ void Store::http(const String &prefix, Http::Request &request)
 						if(info.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".filename"); page.link(link,name); page.close("td");
+						page.open("td",".filename");
+						if(info.get("type") != "directory" && name.contains('.'))
+							page.span(name.afterLast('.').toUpper(), ".type");
+						page.link(link,name);
+						page.close("td");
 						page.open("td",".size"); 
 						if(info.get("type") == "directory") page.text("directory");
 						else page.text(String::hrSize(info.get("size"))); 
 						page.close("td");
-						
 						page.open("td",".actions");
 						if(info.get("type") != "directory")
 						{

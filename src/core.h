@@ -54,7 +54,8 @@ public:
 	class Listener
 	{
 	public:
-		virtual void welcome(const Identifier &peering) = 0;
+		virtual void connected(const Identifier &peering) = 0;
+		virtual void disconnected(const Identifier &peering) = 0;
 		virtual void message(Message *message) = 0;
 		virtual void request(Request *request) = 0;
 	};
