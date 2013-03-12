@@ -174,26 +174,26 @@ int main(int argc, char** argv)
 		}
 		
 #ifdef WINDOWS
+		if(!InterfacePort) try {
+			int port = Config::Get("interface_port").toInt();
+			Socket sock(Address("127.0.0.1", port), 100);
+			InterfacePort = port;
+		}
+		catch(...) {}
+
+		if(InterfacePort)
+		{
+			if(!args.contains("nointerface") && !args.contains("boot"))
+				openUserInterface();
+			return 0;
+		}
+			
 		if(args.contains("boot"))
 		{
 			Config::Save(configFileName);
 			Sleep(1000);
 		}
 		else {
-			if(!InterfacePort) try {
-				int port = Config::Get("interface_port").toInt();
-				Socket sock(Address("127.0.0.1", port), 100);
-				InterfacePort = port;
-			}
-			catch(...) {}
-
-			if(InterfacePort)
-			{
-				if(!args.contains("nointerface"))
-					openUserInterface();
-				return 0;
-			}
-			
 			try {
 				Config::Save(configFileName);
 			}
@@ -221,20 +221,22 @@ int main(int argc, char** argv)
 				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
 				
 				try {
+					String content;
+					int result = 0;
+					
 					if(args.contains("boot"))
 					{
 						int attempts = 20;
-						DWORD flags = 0;
-						while(!InternetGetConnectedState(&flags, 0))
+						while((result = Http::Get(url, &content)) != 200)
 						{
 							if(--attempts == 0) break;
 							Log("main", "Waiting for network availability...");
 							Sleep(1000);
 						}
 					}
-
-					String content;
-					if(Http::Get(url, &content) == 200)
+					else result = Http::Get(url, &content);
+					
+					if(result == 200)
 					{
 						content.trim();
 
