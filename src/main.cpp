@@ -229,6 +229,7 @@ int main(int argc, char** argv)
 						int attempts = 20;
 						while((result = Http::Get(url, &content)) != 200)
 						{
+							content.clear();
 							if(--attempts == 0) break;
 							Log("main", "Waiting for network availability...");
 							Sleep(1000);
