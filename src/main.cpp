@@ -227,12 +227,25 @@ int main(int argc, char** argv)
 					if(args.contains("boot"))
 					{
 						int attempts = 20;
-						while((result = Http::Get(url, &content)) != 200)
+						while(true)
 						{
-							content.clear();
-							if(--attempts == 0) break;
-							Log("main", "Waiting for network availability...");
-							Sleep(1000);
+							try {
+								result = Http::Get(url, &content);
+							}
+							catch(const NetException &e)
+							{
+								if(--attempts == 0) break;
+								content.clear();
+								Log("main", "Waiting for network availability...");
+								Sleep(1000);
+								continue;
+							}
+							catch(...)
+							{
+							  
+							}
+							
+							break;
 						}
 					}
 					else result = Http::Get(url, &content);
