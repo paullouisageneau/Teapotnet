@@ -600,7 +600,7 @@ void User::run(void)
 		}
 		
 		++m;
-		if((m%4 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
+		if((m%5 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
 		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
 }
