@@ -126,6 +126,7 @@ private:
 		bool mIsAuthenticated;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
+		Set<unsigned> mCancelled;
 
 		ByteString mObfuscatedHello;
 		

@@ -899,12 +899,17 @@ void Core::Handler::run(void)
 					//Log("Core::Handler", "Received data for unknown channel "+String::number(channel));
 					AssertIO(mStream->ignore(size));
 					
-					args.clear();
-					args.write(channel);
-					parameters.clear();
-					
-					Desynchronize(this);
-					SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
+					if(mCancelled.find(channel) != mCancelled.end())
+					{
+						mCancelled.insert(channel);
+					  
+						args.clear();
+						args.write(channel);
+						parameters.clear();
+						
+						Desynchronize(this);
+						SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
+					}
 				}
 			}
 			else if(command == "E")	// Error
@@ -979,6 +984,8 @@ void Core::Handler::run(void)
 				request->mResponseSender = mSender;
 				mSender->unlock();
 				mSender->notify();
+				
+				mCancelled.clear();
 			}
 			else if(command == "M")
 			{
