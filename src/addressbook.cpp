@@ -1458,7 +1458,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.input("text","query",query);
 				page.button("search","Search");
 				page.closeForm();
-				page.javascript("document.searchForm.query.focus();");
+				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 				page.br();
 				
 				if(query.empty())
@@ -1660,7 +1660,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				//page.button("send","Send");
 				//page.br();
 				page.closeForm();
-				page.javascript("document.chatForm.message.focus();");
+				page.javascript("$(document).ready(function() { document.chatForm.message.focus(); });");
 				page.close("div"); // chatpanel
 				
 				page.close("div");

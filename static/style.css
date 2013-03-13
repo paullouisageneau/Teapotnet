@@ -553,6 +553,11 @@ td.delete
 
 .status .online
 {
-	color: #00E000;
-	text-shadow: 1px 1px 2px #000000;
+	color: #00F000;
 }
+
+.status .connected
+{
+        color: #FFDC0A;
+}
+

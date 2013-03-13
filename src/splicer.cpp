@@ -33,10 +33,9 @@ Mutex Splicer::CacheMutex;
 Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mFirstBlock(0),
 	mCurrentBlock(0),
-	mOffset(0),
 	mBegin(begin),
 	mEnd(end),
-	mLeft(0)
+	mPosition(0)
 {
 	{
 		CacheMutex.lock();
@@ -78,7 +77,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mBegin = bounds(mBegin, int64_t(0), mCacheEntry->size());
 	if(mEnd < 0) mEnd = mCacheEntry->size();
 	else mEnd = bounds(mEnd, mBegin, mCacheEntry->size());
-	mLeft = mEnd-mBegin;
+	mPosition = mBegin;
 	
 	mCurrentBlock = mCacheEntry->block(mBegin);
 	mFirstBlock = mCurrentBlock;
@@ -86,11 +85,6 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 		++mFirstBlock;
 	
 	//Log("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
-	
-	// Open file to read
-	mFile = new File(mCacheEntry->fileName(), File::Read);
-	mFile->seekRead(mCurrentBlock*mCacheEntry->blockSize());
-	mOffset = mBegin - mCurrentBlock*mCacheEntry->blockSize();
 	
 	// Request stripes
 	int nbStripes = std::max(1, int(sources.size()));	// TODO
@@ -127,8 +121,6 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 Splicer::~Splicer(void)
 {
 	close();
-	
-	delete mFile;
 }
 
 const String &Splicer::name(void) const
@@ -183,32 +175,27 @@ int64_t Splicer::process(ByteStream *output)
 	}
 
 	if(!nbPending) ++currentBlock;
-	else if(currentBlock > 0) --currentBlock;
 	
-	if(mCurrentBlock < currentBlock)
+	while(mCurrentBlock < currentBlock)
 	{
-		while(mCurrentBlock < currentBlock)
+		mCacheEntry->markBlockFinished(mCurrentBlock);
+			
+		if(output && mPosition < mEnd)
 		{
-			mCacheEntry->markBlockFinished(mCurrentBlock);
+			// Open file to read
+        		File file(mCacheEntry->fileName(), File::Read);
+        		file.seekRead(mPosition);
 			
-			if(output && mLeft)
-			{
-				if(mOffset)
-				{
-					mFile->ignore(mOffset);
-					mOffset = 0;
-				}
-			  
-				size_t size = size_t(std::min(int64_t(mCacheEntry->blockSize()), mLeft));
-				Assert(size = mFile->readBinary(*output, size));
-				mLeft-= size;
-				written+= size;
-				
-				if(!mLeft) return written;
-			}
+			size_t size = size_t(std::min(int64_t(mCacheEntry->blockSize()), mEnd-mPosition));
+			Assert(size == file.readBinary(*output, size));
+			mPosition+= size;
+			written+= size;
 			
-			++mCurrentBlock;
+			file.close();
+			if(mPosition == mEnd) return written;
 		}
+			
+		++mCurrentBlock;
 	}
 	
 	std::vector<int>		onError;

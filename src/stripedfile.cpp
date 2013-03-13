@@ -110,7 +110,7 @@ void StripedFile::seekWrite(unsigned block, size_t offset)
 {
 	// WARNING: seekp() MUST allow seeking past the end of the file.
 	// If it is not the case, this WILL NOT work correctly.
-	
+
 	if(mWriteBlock <= block)
 	{
 		mFile->seekp(File::streamoff(offset)-mWriteOffset, File::cur);

@@ -225,7 +225,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.input("text","query");
 			page.button("search","Search");
 			page.closeForm();
-			page.javascript("document.searchForm.query.focus();");
+			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			page.br();
 			page.close("div");
 			

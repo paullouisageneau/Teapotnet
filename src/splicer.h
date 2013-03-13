@@ -54,9 +54,8 @@ private:
   
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
-	unsigned mFirstBlock, mCurrentBlock, mOffset;
-	File *mFile;
-	int64_t mBegin, mEnd, mLeft;
+	unsigned mFirstBlock, mCurrentBlock;
+	int64_t mBegin, mEnd, mPosition;
 	
 	class CacheEntry : protected Synchronizable
 	{
