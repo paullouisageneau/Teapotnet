@@ -899,7 +899,7 @@ void Core::Handler::run(void)
 					//Log("Core::Handler", "Received data for unknown channel "+String::number(channel));
 					AssertIO(mStream->ignore(size));
 					
-					if(mCancelled.find(channel) != mCancelled.end())
+					if(mCancelled.find(channel) == mCancelled.end())
 					{
 						mCancelled.insert(channel);
 					  
