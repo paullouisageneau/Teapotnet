@@ -175,6 +175,7 @@ int64_t Splicer::process(ByteStream *output)
 	}
 
 	if(!nbPending) ++currentBlock;
+	else if(currentBlock > 0) --currentBlock;
 	
 	while(mCurrentBlock < currentBlock)
 	{
