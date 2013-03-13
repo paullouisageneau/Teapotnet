@@ -802,7 +802,9 @@ void Store::http(const String &prefix, Http::Request &request)
 				StringMap info;
 				while(dir.nextFile())
 				{
-					if(dir.fileName() == ".directory" || dir.fileName().toLower() == "thumbs.db")
+					if(dir.fileName() == ".directory" 
+						|| dir.fileName().toLower() == "thumbs.db"
+						|| dir.fileName().substr(0,7) == ".Trash-")
 						continue;
 					
 					dir.getFileInfo(info);
@@ -1120,7 +1122,9 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			Directory dir(absPath);
 			while(dir.nextFile())
 			{
-				if(dir.fileName() == ".directory" || dir.fileName().toLower() == "thumbs.db")
+				if(dir.fileName() == ".directory" 
+					|| dir.fileName().toLower() == "thumbs.db"
+					|| dir.fileName().substr(0,7) == ".Trash-")
 					continue;
 				
 				String childPath = path + Directory::Separator + dir.fileName();
