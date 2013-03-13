@@ -610,9 +610,18 @@ void Store::http(const String &prefix, Http::Request &request)
 					
 					Http::Response response(request, 200);
 					response.send();
+					
 					Html page(response.sock);
-					page.header("Refreshing directories...", false, redirect);
-					page.text("Updating files database in background");
+					page.header("Refreshing in background...", true, redirect);
+					page.open("div", "notification");
+					page.openLink("/");
+					page.image("/refresh.png", "Refresh");
+					page.closeLink();
+					page.br();
+					page.open("h1",".huge");
+					page.text("Refreshing in background...");
+					page.close("h1");
+					page.close("div");
 					page.footer();
 					return;
 				}

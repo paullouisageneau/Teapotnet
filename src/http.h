@@ -56,6 +56,7 @@ public:
 		StringMap post;         // POST parameters
 		Map<String, TempFile*> files; // Files posted with POST
 		
+		String fullUrl;		// URL with parameters, used only by recv
 		Socket *sock;		// Internal use for Response construction
 	};
 

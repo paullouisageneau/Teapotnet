@@ -353,12 +353,17 @@ textarea
 
 }
 
-#error
+#error, #notification
 {
 	margin-top: 5em;
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
+}
+
+#error img, #notification img
+{
+	padding-bottom: 2em;
 }
 
 .huge

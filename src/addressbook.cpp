@@ -1232,21 +1232,44 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					if(mUniqueName != mAddressBook->userName())
 					{
 						Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
-						
-						Http::Response response(request,200);
-						response.send();
 
+						Http::Response response(request, 404);
+						response.send();
 						Html page(response.sock);
-						page.header(mName+": Files");
-						page.open("div",".box");
-						page.text("Not connected...");
+						page.header(response.message, true);
+						page.open("div", "error");
+						page.openLink("/");
+						page.image("/error.png", "Error");
+						page.closeLink();
+						page.br();
+						page.open("h1",".huge");
+						page.text(String::number("Not connected"));
+						page.close("h1");
 						page.close("div");
 						page.footer();
 						return;
 					}
 				}
 				
-				if(trequest.responsesCount() == 0) throw Exception("No response");
+				if(trequest.responsesCount() == 0)
+				{
+					Http::Response response(request, 404);
+					response.send();
+					Html page(response.sock);
+					page.header(response.message, true, request.fullUrl);
+					page.open("div", "error");
+					page.openLink("/");
+					page.image("/error.png", "Error");
+					page.closeLink();
+					page.br();
+					page.open("h1",".huge");
+					page.text(String::number("No response, retrying..."));
+					page.close("h1");
+					page.close("div");
+					page.footer();
+					return;
+				}
+				
 				if(!trequest.isSuccessful()) throw 404;
 					
 				try {

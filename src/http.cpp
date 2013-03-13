@@ -201,6 +201,7 @@ void Http::Request::recv(Socket &sock)
 	}
 
 	url = url.urlDecode();
+	fullUrl = url;
 	
 	String expect;
 	if((headers.get("Expect",expect) && expect.toLower() == "100-continue")
@@ -400,6 +401,7 @@ void Http::Request::clear(void)
 	cookies.clear();
 	get.clear();
 	post.clear();
+	fullUrl.clear();
 	
 	for(Map<String, TempFile*>::iterator it = files.begin(); it != files.end(); ++it)
 	 	delete it->second;
@@ -670,7 +672,6 @@ void Http::Server::Handler::run(void)
 				page.openLink("/");
 				page.image("/error.png", "Error");
 				page.closeLink();
-				page.br();
 				page.br();
 				page.open("h1",".huge");
 				page.text(String::number(response.code));
