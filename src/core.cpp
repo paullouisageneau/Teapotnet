@@ -857,6 +857,7 @@ void Core::Handler::run(void)
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
 						mResponses.insert(channel,response);
+						mCancelled.clear();
 					}
 					else {
 						//Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
@@ -984,8 +985,6 @@ void Core::Handler::run(void)
 				request->mResponseSender = mSender;
 				mSender->unlock();
 				mSender->notify();
-				
-				mCancelled.clear();
 			}
 			else if(command == "M")
 			{
