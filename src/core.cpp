@@ -902,6 +902,8 @@ void Core::Handler::run(void)
 					args.clear();
 					args.write(channel);
 					parameters.clear();
+					
+					Desynchronize(this);
 					SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
 				}
 			}
