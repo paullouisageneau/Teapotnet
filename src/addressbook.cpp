@@ -1256,7 +1256,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 404);
 					response.send();
 					Html page(response.sock);
-					page.header(response.message, true, request.fullUrl);
+					page.header("No response", true, request.fullUrl);
 					page.open("div", "error");
 					page.openLink("/");
 					page.image("/error.png", "Error");
