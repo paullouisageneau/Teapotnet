@@ -997,7 +997,7 @@ void AddressBook::Contact::update(bool alternate)
 	}
 
         while(!mMessages.empty()
-		&& !mMessages.front().isRead()
+		&& mMessages.front().isRead()
 		&& Time::Now() - mMessages.front().time() >= 7200)        // 2h
 	{
 		mMessages.pop_front();

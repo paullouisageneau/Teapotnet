@@ -48,6 +48,8 @@ bool Mime::IsVideo(const String &fileName)
         return  (  extension == "avi"
                 || extension == "mkv"
                 || extension == "ogv"
+		|| extension == "ogx"
+		|| extension == "ogm"
                 || extension == "wmv"
                 || extension == "asf"
                 || extension == "flv"
@@ -821,6 +823,7 @@ void Mime::Init(void)
 	Types["m4v"] = "video/mp4";
 	Types["mpeg"] = "video/mpeg";
 	Types["ogv"] = "video/ogg";
+	Types["ogm"] = "video/ogg";
 	Types["qt"] = "video/quicktime";
 	Types["uvh"] = "video/vnd.dece.hd";
 	Types["uvm"] = "video/vnd.dece.mobile";
