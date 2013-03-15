@@ -49,7 +49,7 @@ public:
 
 	void setTimeout(unsigned msecs);
 	
-	void connect(const Address &addr);
+	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
 
 	// Stream, ByteStream

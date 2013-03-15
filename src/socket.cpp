@@ -111,14 +111,14 @@ void Socket::setTimeout(unsigned msecs)
 	mTimeout = msecs; 
 }
 
-void Socket::connect(const Address &addr)
+void Socket::connect(const Address &addr, bool noproxy)
 {
 	String proxy = Config::Get("http_proxy").trimmed();
-	if(!proxy.empty())
+	if(!noproxy && !proxy.empty())
 	{
 		String service(proxy.cut(':'));
 		if(service.empty()) service = "80";
-		connect(Address(proxy, service));
+		connect(Address(proxy, service), true);
 		
 		uint16_t port = addr.port();
 		if(port != 80 && port != 8080)
@@ -139,11 +139,9 @@ void Socket::connect(const Address &addr)
 			close();
 			throw Exception(String("HTTP proxy error: ") + e.what());
 		}
-		
-		return;
 	}
-	
-	try {
+	else try {
+
 		close();
 	  
 		// Create socket
