@@ -72,7 +72,7 @@ bool LineSerializer::input(Pair &pair)
 	LineSerializer keySerializer(&line);
 	LineSerializer valueSerializer(&value);
 	AssertIO(pair.deserializeKey(keySerializer));
-	AssertIO(pair.deserializeValue(valueSerializer));
+	pair.deserializeValue(valueSerializer);
 	return true;
 }
 
