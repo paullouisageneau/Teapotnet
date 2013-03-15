@@ -132,12 +132,16 @@ void Socket::connect(const Address &addr, bool noproxy)
 			Http::Response response;
 			response.recv(*this);
 			if(response.code != 200)
-				throw Exception(String::number(response.code) + " " + response.message);
+			{
+				String msg = String::number(response.code) + " " + response.message;
+				Log("Socket::connect", String("HTTP proxy error: ") + msg);
+				throw Exception(msg);
+			}
 		}
 		catch(const Exception &e)
 		{
 			close();
-			throw Exception(String("HTTP proxy error: ") + e.what());
+			throw NetException(String("Connection to ") + addr.toString() + " with proxy failed: " + e.what());
 		}
 	}
 	else try {
@@ -177,11 +181,11 @@ void Socket::connect(const Address &addr, bool noproxy)
 			
 			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed"); 
-		}
 		
-		ctl_t b = 0;
-		if(ioctl(mSock,FIONBIO,&b) < 0)
-			throw Exception("Cannot set blocking mode");
+			b = 0;
+                	if(ioctl(mSock,FIONBIO,&b) < 0)
+                        	throw Exception("Cannot set blocking mode");
+		}
 	}
 	catch(...)
 	{

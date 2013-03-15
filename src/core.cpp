@@ -1035,8 +1035,6 @@ void Core::Handler::run(void)
 		Log("Core::Handler", String("Stopping: ") + e.what()); 
 	}
 	
-	mSock->close();
-	
 	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
 	msleep(1000);
 	
