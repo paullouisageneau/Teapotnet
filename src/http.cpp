@@ -697,6 +697,9 @@ int Http::Get(const String &url, Stream *output)
 	if(!request.headers.get("Host",host))
 		throw Exception("Invalid URL");
 
+	String proxy = Config::Get("http_proxy").trimmed();
+	if(!proxy.empty()) host = proxy;
+	
 	String service(host.cut(':'));
 	if(service.empty()) service = "80";
 
@@ -730,6 +733,9 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	if(!request.headers.get("Host",host))
 		throw Exception("Invalid URL");
 
+	String proxy = Config::Get("http_proxy").trimmed();
+	if(!proxy.empty()) host = proxy;
+	
 	String service(host.cut(':'));
         if(service.empty()) service = "80";
 

@@ -21,6 +21,8 @@
 
 #include "socket.h"
 #include "exception.h"
+#include "config.h"
+#include "http.h"
 
 namespace tpot
 {
@@ -111,9 +113,39 @@ void Socket::setTimeout(unsigned msecs)
 
 void Socket::connect(const Address &addr)
 {
-	close();
-
+	String proxy = Config::Get("http_proxy").trimmed();
+	if(!proxy.empty())
+	{
+		String service(proxy.cut(':'));
+		if(service.empty()) service = "80";
+		connect(Address(proxy, service));
+		
+		uint16_t port = addr.port();
+		if(port != 80 && port != 8080)
+		try {
+			String target = addr.toString();
+			Http::Request request(target, "CONNECT");
+			request.version = "1.0";
+			request.headers.clear();
+			request.send(*this);
+			
+			Http::Response response;
+			response.recv(*this);
+			if(response.code != 200)
+				throw Exception(String::number(response.code) + " " + response.message);
+		}
+		catch(const Exception &e)
+		{
+			close();
+			throw Exception(String("HTTP proxy error: ") + e.what());
+		}
+		
+		return;
+	}
+	
 	try {
+		close();
+	  
 		// Create socket
 		mSock = ::socket(addr.addrFamily(),SOCK_STREAM,0);
 		if(mSock == INVALID_SOCKET)
@@ -132,7 +164,7 @@ void Socket::connect(const Address &addr)
 		
 			// Initiate connection
 			::connect(mSock, addr.addr(), addr.addrLen());
-
+			
 			fd_set writefds;
 			FD_ZERO(&writefds);
 			FD_SET(mSock, &writefds);
@@ -143,15 +175,15 @@ void Socket::connect(const Address &addr)
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
 			if (ret == -1) 
-			  	throw Exception("Unable to wait on socket");
+				throw Exception("Unable to wait on socket");
 			
 			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed"); 
-			
-			b = 0;
-			if(ioctl(mSock,FIONBIO,&b) < 0)
-				throw Exception("Cannot set blocking mode");
 		}
+		
+		ctl_t b = 0;
+		if(ioctl(mSock,FIONBIO,&b) < 0)
+			throw Exception("Cannot set blocking mode");
 	}
 	catch(...)
 	{

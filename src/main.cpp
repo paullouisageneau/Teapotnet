@@ -115,6 +115,7 @@ int main(int argc, char** argv)
 		Config::Default("relay_enabled", "true");
 		Config::Default("request_timeout", "10000");	
 		Config::Default("tpot_timeout", "15000");
+		Config::Default("http_proxy", "");
 		
 		StringMap args;
 		String last;
