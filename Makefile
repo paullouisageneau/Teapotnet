@@ -6,8 +6,8 @@ TPROOT=/var/lib/teapotnet
 CC=gcc
 CXX=g++
 RM=rm -f
-CPPFLAGS=-O
-LDFLAGS=-O
+CPPFLAGS=-O2 -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
+LDFLAGS=-O2
 LDLIBS=-lpthread -ldl
 
 SRCS=$(shell printf "%s " tpn/*.cpp)
@@ -21,10 +21,10 @@ teapotnet: $(OBJS) include/sqlite3.o
 depend: .depend
 
 .depend: $(SRCS)
-	$(CXX) $(CPPFLAGS) -I. -MM $^ > ./.depend
+	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
 
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) -I. -c -o $@ $<
+	$(CXX) $(CPPFLAGS) -c -o $@ $<
 	
 clean:
 	$(RM) tpn/*.o include/*.o
