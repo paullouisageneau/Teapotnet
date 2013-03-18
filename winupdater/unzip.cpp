@@ -40,7 +40,7 @@ typedef unsigned short WORD;
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
-#include "tpn/unzip.h"
+#include "unzip.h"
 #endif
 //
 #ifdef UNICODE
