@@ -336,7 +336,7 @@ bool Address::deserialize(Stream &s)
 	}
 
 	if(!host.empty() && host[0] == '[')
-		host = host.substr(1, host.find(']'));
+		host = host.substr(1, host.find(']')-1);
 	if(host.empty() || service.empty()) throw InvalidData("Invalid network Address: " + str);
 
 	addrinfo aiHints;
