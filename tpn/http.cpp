@@ -64,7 +64,7 @@ void Http::Request::send(Socket &sock)
 {
 	this->sock = &sock;
 
-	if(version == "1.1" && !headers.contains("Connexion"))
+	if(method != "CONNECT" && version == "1.1" && !headers.contains("Connexion"))
                 headers["Connection"] = "close";
 
 	//if(!headers.contains("Accept-Encoding"))
@@ -126,7 +126,6 @@ void Http::Request::send(Socket &sock)
 	}
 
 	buf<<"\r\n";
-
 	sock<<buf;
 
 	if(!postData.empty())
@@ -699,11 +698,8 @@ int Http::Get(const String &url, Stream *output)
 
 	String proxy = Config::Get("http_proxy").trimmed();
 	if(!proxy.empty()) host = proxy;
-	
-	String service(host.cut(':'));
-	if(service.empty()) service = "80";
 
-	Socket sock(Address(host, service));
+	Socket sock(host);
 	sock.setTimeout(Config::Get("http_timeout").toInt());
 	request.send(sock);
 	Response response;
@@ -736,10 +732,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	String proxy = Config::Get("http_proxy").trimmed();
 	if(!proxy.empty()) host = proxy;
 	
-	String service(host.cut(':'));
-        if(service.empty()) service = "80";
-
-	Socket sock(Address(host, service));
+	Socket sock(host);
 	sock.setTimeout(Config::Get("http_timeout").toInt());
 	request.send(sock);
 	Response response;

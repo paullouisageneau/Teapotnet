@@ -116,19 +116,17 @@ void Socket::connect(const Address &addr, bool noproxy)
 	String proxy = Config::Get("http_proxy").trimmed();
 	if(!noproxy && !proxy.empty())
 	{
-		String service(proxy.cut(':'));
-		if(service.empty()) service = "80";
-		connect(Address(proxy, service), true);
+		connect(Address(proxy), true);
 		
 		uint16_t port = addr.port();
 		if(port != 80 && port != 8080)
 		try {
 			String target = addr.toString();
 			Http::Request request(target, "CONNECT");
-			request.version = "1.0";
-			request.headers.clear();
+			request.version = "1.1";
+			request.headers["Host"] = target;
 			request.send(*this);
-			
+		
 			Http::Response response;
 			response.recv(*this);
 			if(response.code != 200)

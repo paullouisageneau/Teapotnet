@@ -8,15 +8,15 @@ CXX=g++
 RM=rm -f
 CPPFLAGS=-O
 LDFLAGS=-O
-LDLIBS=-lpthread -lsqlite3
+LDLIBS=-lpthread -ldl
 
 SRCS=$(shell printf "%s " tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet
 
-teapotnet: $(OBJS)
-	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) $(LDLIBS) 
+teapotnet: $(OBJS) include/sqlite3.o
+	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS) 
 
 depend: .depend
 
@@ -27,7 +27,7 @@ depend: .depend
 	$(CXX) $(CPPFLAGS) -I. -c -o $@ $<
 	
 clean:
-	$(RM) $(OBJS)
+	$(RM) tpn/*.o include/*.o
 
 dist-clean: clean
 	$(RM) teapotnet

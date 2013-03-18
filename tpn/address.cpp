@@ -311,18 +311,33 @@ void Address::serialize(Stream &s) const
 	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network Address");
 	
-	s<<host<<':'<<service;
+	if(addrFamily() == AF_INET6) s<<'['<<host<<']'<<':'<<service;
+	else s<<host<<':'<<service;
 }
 
 bool Address::deserialize(Stream &s)
 {
 	String str;
 	if(!s.read(str)) return false;
-  
+  	str.trim();
+	if(str.empty()) throw InvalidData("Invalid network Address");
+	
+	String host, service;
+
 	int separator = str.find_last_of(':');
-	if(separator == String::NotFound) throw InvalidData("Invalid network Address: " + str);
-	String host(str,0,separator);
-	String service(str,separator+1);
+	if(separator != String::NotFound && !String(str,separator+1).contains(']'))
+	{
+		host = str.substr(0,separator);
+		service = str.substr(separator+1);
+	}
+	else {
+		host = str;
+		service = "80";
+	}
+
+	if(!host.empty() && host[0] == '[')
+		host = host.substr(1, host.find(']'));
+	if(host.empty() || service.empty()) throw InvalidData("Invalid network Address: " + str);
 
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
