@@ -17,7 +17,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "unzip.h"
+#include "tpn/unzip.h"
 //
 typedef unsigned short WORD;
 #define _tcslen strlen
@@ -40,7 +40,7 @@ typedef unsigned short WORD;
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
-#include "unzip.h"
+#include "tpn/unzip.h"
 #endif
 //
 #ifdef UNICODE

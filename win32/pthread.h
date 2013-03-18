@@ -212,7 +212,7 @@ typedef unsigned long ULONG_PTR;
  */
 
 #if defined(HAVE_PTW32_CONFIG_H)
-#include "config.h"
+#include "tpn/config.h"
 #endif /* HAVE_PTW32_CONFIG_H */
 
 #if !defined(NEED_FTIME)
@@ -259,7 +259,7 @@ enum {
 
 #if PTW32_LEVEL >= PTW32_LEVEL_MAX
 #if defined(NEED_ERRNO)
-#include "need_errno.h"
+#include "tpn/need_errno.h"
 #else
 #include <errno.h>
 #endif

@@ -10,7 +10,7 @@ CPPFLAGS=-O
 LDFLAGS=-O
 LDLIBS=-lpthread -lsqlite3
 
-SRCS=$(shell printf "%s " src/*.cpp)
+SRCS=$(shell printf "%s " tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet
@@ -21,14 +21,17 @@ teapotnet: $(OBJS)
 depend: .depend
 
 .depend: $(SRCS)
-	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
+	$(CXX) $(CPPFLAGS) -I. -MM $^ > ./.depend
 
+%.o: %.cpp
+	$(CXX) $(CPPFLAGS) -I. -c -o $@ $<
+	
 clean:
 	$(RM) $(OBJS)
 
 dist-clean: clean
 	$(RM) teapotnet
-	$(RM) src/*~ ./.depend
+	$(RM) tpn/*~ ./.depend
 
 include .depend
 

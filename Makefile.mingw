@@ -6,32 +6,35 @@ RM=rm -f
 #CPPFLAGS=-O
 #LDFLAGS=-O -static-libgcc
 #LDLIBS=-lws2_32 -lpthread -lsqlite3
-CPPFLAGS=-O -DPTW32_STATIC_LIB
+CPPFLAGS=-O -DPTW32_STATIC_LIB -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
 LDFLAGS=-O -static -static-libgcc
-LDLIBS=-lws2_32 -lwininet -lsqlite3 -L win32 -lpthreadGC2
+LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2
 
-SRCS=$(shell printf "%s " src/*.cpp)
+SRCS=$(shell printf "%s " tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet.exe winservice.exe winupdater.exe
 
-teapotnet.exe: $(OBJS) res.o
-	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) res.o $(LDLIBS) 
+teapotnet.exe: $(OBJS) include/sqlite3.o res.o
+	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
 	$(STRIP) teapotnet.exe
 
 depend: .depend
 
 .depend: $(SRCS)
-	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
+	$(CXX) $(CPPFLAGS) -I. -MM $^ > ./.depend
 
+%.o: %.cpp
+	$(CXX) $(CPPFLAGS) -I. -c -o $@ $<
+	
 clean:
-	$(RM) $(OBJS) res.o
+	$(RM) tpn/*.o include/*.o res.o
 	$(RM) res.rc
 	cd winupdater && make clean
 	
 dist-clean: clean
 	$(RM) teapotnet.exe winupdater.exe
-	$(RM) src/*~ ./.depend
+	$(RM) tpn/*~ ./.depend
 	cd winupdater && make dist-clean
 
 res.o: teapotnet.ico teapotnet.exe.manifest

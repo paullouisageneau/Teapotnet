@@ -1,0 +1,85 @@
+/*************************************************************************
+ *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
+ *   paul-louis (at) ageneau (dot) org                                   *
+ *                                                                       *
+ *   This file is part of TeapotNet.                                     *
+ *                                                                       *
+ *   TeapotNet is free software: you can redistribute it and/or modify   *
+ *   it under the terms of the GNU Affero General Public License as      *
+ *   published by the Free Software Foundation, either version 3 of      *
+ *   the License, or (at your option) any later version.                 *
+ *                                                                       *
+ *   TeapotNet is distributed in the hope that it will be useful, but    *
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+ *   GNU Affero General Public License for more details.                 *
+ *                                                                       *
+ *   You should have received a copy of the GNU Affero General Public    *
+ *   License along with TeapotNet.                                       *
+ *   If not, see <http://www.gnu.org/licenses/>.                         *
+ *************************************************************************/
+
+#include "tpn/synchronizable.h"
+
+namespace tpn
+{
+
+Synchronizable::Synchronizable(void) :
+	mMutex(new Mutex),
+	mSignal(new Signal)
+{
+
+}
+
+Synchronizable::~Synchronizable(void)
+{
+	delete mMutex;
+	delete mSignal;
+}
+
+void Synchronizable::lock(int count) const
+{
+	mMutex->lock(count);
+}
+
+void Synchronizable::unlock(void) const
+{
+	mMutex->unlock();
+}
+
+int Synchronizable::unlockAll(void) const
+{
+	return mMutex->unlockAll();
+}
+
+void Synchronizable::relockAll(void) const
+{
+	mMutex->relockAll();
+}
+
+void Synchronizable::notify(void) const
+{
+	mSignal->launch();
+}
+
+void Synchronizable::notifyAll(void) const
+{
+	mSignal->launchAll();
+}
+
+void Synchronizable::wait(void) const
+{
+	mSignal->wait(*mMutex);
+}
+
+bool Synchronizable::wait(unsigned &timeout) const
+{
+	return mSignal->wait(*mMutex, timeout);
+}
+
+bool Synchronizable::wait(const unsigned &timeout) const
+{
+	return mSignal->wait(*mMutex, timeout);
+}
+
+}
