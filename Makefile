@@ -22,9 +22,6 @@ depend: .depend
 
 .depend: $(SRCS)
 	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
-
-%.o: %.cpp
-	$(CXX) $(CPPFLAGS) -c -o $@ $<
 	
 clean:
 	$(RM) tpn/*.o include/*.o
