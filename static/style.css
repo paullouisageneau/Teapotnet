@@ -389,9 +389,11 @@ textarea
 	margin-bottom: 0.5em;
   	padding: 1em;
 	padding-left: 2em;
-	border: 1px solid black;
-	border-radius: 0.5em;
 	background-color: #FFFFFF;
+        border: 2px solid #E0E0E0;
+        border-radius: 0.5em;
+        box-shadow: 0em 0em 0.5em 0.10em #404040;
+        overflow: hidden;
 }
 
 .user

@@ -116,7 +116,11 @@ void Interface::process(Http::Request &request)
 					if(request.post.contains("name"))
 					{
 						String name = request.post["name"].trimmed();
+#ifdef ANDROID
+						String password = String::random(32);
+#else
 						String password = request.post["password"];
+#endif
 						try {
 							if(!name.empty() && !password.empty())
 							{
@@ -164,13 +168,21 @@ void Interface::process(Http::Request &request)
 				page.text(String("Welcome to ") + APPNAME + " !");
 				page.close("h1");
 				page.open("p");
+#ifdef ANDROID
+				page.text("Please enter your new username.");
+#else
 				page.text("No user has been configured yet, please enter your new username and password.");
+#endif
 				page.close("p");
 				
 				page.openForm("/","post");
 				page.openFieldset("New user");
+#ifdef ANDROID
+				page.label("name",""); page.input("text","name"); page.br();
+#else
 				page.label("name","Name"); page.input("text","name"); page.br();
 				page.label("password","Password"); page.input("password","password"); page.br();
+#endif
 				page.label("add"); page.button("add","OK");
 				page.closeFieldset();
 				page.closeForm();
