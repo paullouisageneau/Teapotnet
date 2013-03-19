@@ -1753,7 +1753,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
     						}\n\
 					});\n\
 					setTimeout('update()', 1000);\n\
-					$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);");
+					$(document).ready( function() {\n\
+						$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
+					});");
 				
 				unsigned refreshPeriod = 5000;
 				page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
