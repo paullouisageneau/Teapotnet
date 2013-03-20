@@ -119,14 +119,16 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 	Assert(sock);
 	Synchronize(this);
 	
-	if(peering != Identifier::Null && !mPeerings.contains(peering))
+	bool hasPeering = (peering != Identifier::Null);
+	
+	if(hasPeering && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
 	
 	{
 		Desynchronize(this);
 		//Log("Core", "Spawning new handler");
-		Handler *handler = new Handler(this,sock);
-		if(peering != Identifier::Null) handler->setPeering(peering);
+		Handler *handler = new Handler(this, sock, !hasPeering);
+		if(hasPeering) handler->setPeering(peering);
 
 		if(async)
 		{
@@ -391,13 +393,14 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Socket *sock) :
+Core::Handler::Handler(Core *core, Socket *sock, bool relayEnabled) :
 	mCore(core),
 	mSock(sock),
 	mStream(sock),
 	mSender(NULL),
 	mIsIncoming(true),
-	mIsAuthenticated(false)
+	mIsAuthenticated(false),
+	mRelayEnabled(relayEnabled)
 {
 	mRemoteAddr = mSock->getRemoteAddress();
 }
@@ -548,7 +551,9 @@ void Core::Handler::run(void)
 		parameters["version"] >> appversion;
 		parameters["nonce"] >> nonce_b;
 		parameters.get("instance", instance);
-		bool relayEnabled = (!parameters.contains("relay") || parameters["relay"].toBool());
+		
+		if(mIsIncoming) mRelayEnabled|= Config::Get("relay_enabled").toBool();
+		else mRelayEnabled = (!parameters.contains("relay") || parameters["relay"].toBool());
 		
 		if(!mIsIncoming && mPeering != peering) 
 			throw Exception("Peering in response does not match");
@@ -700,7 +705,7 @@ void Core::Handler::run(void)
 			parameters["version"] << APPVERSION;
 			parameters["nonce"] << nonce_a;
 			parameters["instance"] << mPeering.getName();
-			parameters["relay"] << Config::Get("relay_enabled").toBool();
+			parameters["relay"] << mRelayEnabled;
 			sendCommand(mStream, "H", args, parameters);
 		}
 		
@@ -779,7 +784,7 @@ void Core::Handler::run(void)
 		if(!mRemoteAddr.isPrivate() && !mRemoteAddr.isLocal())
 		{
 			Synchronize(mCore);
-			if(!mIsIncoming && relayEnabled)
+			if(!mIsIncoming && mRelayEnabled)
 			{
 				Log("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
