@@ -91,7 +91,7 @@ private:
 	class Handler : public Thread, public Synchronizable
 	{
 	public:
-		Handler(Core *core, Socket *sock, bool relayEnabled = true);
+		Handler(Core *core, Socket *sock);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
@@ -124,7 +124,6 @@ private:
 		Address mRemoteAddr;
 		bool mIsIncoming;
 		bool mIsAuthenticated;
-		bool mRelayEnabled;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
