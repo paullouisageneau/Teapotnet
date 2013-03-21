@@ -81,7 +81,7 @@ User *User::Authenticate(const String &name, const String &password)
 		return user;
 	}
 	UsersMutex.unlock();
-	Log("User::Authenticate", "Authentication failed for \""+name+"\"");
+	LogWarn("User::Authenticate", "Authentication failed for \""+name+"\"");
 	return NULL;
 }
 
@@ -538,7 +538,7 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			catch(const Exception &e)
 			{
-				Log("User::http", String("Unable to list files: ") + e.what());
+				LogWarn("User::http", String("Unable to list files: ") + e.what());
 			}
 			
 			page.close("table");
@@ -575,7 +575,7 @@ void User::http(const String &prefix, Http::Request &request)
 	}
 	catch(const Exception &e)
 	{
-		Log("User::http",e.what());
+		LogWarn("User::http", e.what());
 		throw 404;	// Httpd handles integer exceptions
 	}
 			
@@ -602,7 +602,7 @@ void User::run(void)
 			}
 			catch(const Exception &e)
 			{
-				Log("User::run", String("Warning: ") + e.what());
+				LogWarn("User::run", e.what());
 			}
 		}
 		

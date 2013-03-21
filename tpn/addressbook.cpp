@@ -53,7 +53,7 @@ AddressBook::AddressBook(User *user) :
 		}
 		catch(const Exception &e)
 		{
-			Log("AddressBook", String("Loading failed: ") + e.what());
+			LogError("AddressBook", String("Loading failed: ") + e.what());
 		}
 	}
 }
@@ -342,7 +342,7 @@ void AddressBook::save(void) const
 		}
 		catch(Exception &e)
 		{
-			Log("AddressBook::Save", String("Contacts synchronization failed: ") + e.what()); 
+			LogWarn("AddressBook::Save", String("Contacts synchronization failed: ") + e.what()); 
 		}
 	}
 }
@@ -350,7 +350,7 @@ void AddressBook::save(void) const
 void AddressBook::update(void)
 {
 	Synchronize(this);
-	//Log("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
+	LogDebug("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
 	Array<Identifier> keys;
 	mContacts.getKeys(keys);
@@ -384,7 +384,7 @@ void AddressBook::update(void)
 		}
 	}
 	
-	//Log("AddressBook::update", "Finished");
+	LogDebug("AddressBook::update", "Finished");
 	++mUpdateCount;
 	save();
 }
@@ -425,7 +425,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::http", String("Error: ") + e.what());
+					LogWarn("AddressBook::http", e.what());
 					throw 400;
 				}				
 				
@@ -547,7 +547,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	}
 	catch(const Exception &e)
 	{
-		Log("AddressBook::http",e.what());
+		LogWarn("AddressBook::http",e.what());
 		throw 500;	// Httpd handles integer exceptions
 	}
 	
@@ -602,11 +602,12 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	}
 	catch(const NetException &e)
 	{
+		LogDebug("AddressBook::publish", e.what()); 
 		return false;
 	}
 	catch(const std::exception &e)
 	{
-		Log("AddressBook::publish", e.what()); 
+		LogWarn("AddressBook::publish", e.what()); 
 		return false;
 	}
 }
@@ -658,7 +659,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	}
 	catch(const std::exception &e)
 	{
-		Log("AddressBook::query", e.what()); 
+		LogWarn("AddressBook::query", e.what()); 
 		return false;
 	}
 }
@@ -858,7 +859,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
-	//Log("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
+	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
 	Identifier identifier(mPeering, instance);
 	try {
@@ -907,7 +908,7 @@ bool AddressBook::Contact::connectAddresses(AddressMap map, bool save, bool shuf
 		block.getKeys(addrs);
 		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
 		
-		//Log("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(addrs.size()) + " address(es))...");
+		LogDebug("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(addrs.size()) + " address(es))...");
 		
 		for(Array<Address>::const_reverse_iterator jt = addrs.rbegin();
 			jt != addrs.rend();
@@ -931,14 +932,14 @@ void AddressBook::Contact::update(bool alternate)
 	if(mDeleted) return;
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
 	
-	//Log("AddressBook::Contact", "Looking for " + mUniqueName);
+	LogDebug("AddressBook::Contact", "Looking for " + mUniqueName);
 	
 	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
 	{
 		Identifier identifier(mPeering, Core::Instance->getName());
 		if(!Core::Instance->hasPeer(identifier))
 		{
-			Log("AddressBook::Contact", mUniqueName + " found locally");
+			LogDebug("AddressBook::Contact", mUniqueName + " found locally");
 			  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
@@ -948,19 +949,19 @@ void AddressBook::Contact::update(bool alternate)
 			}
 			catch(...)
 			{
-				Log("AddressBook::Contact", "Warning: Unable to connect the local core");	 
+				LogDebug("AddressBook::Contact", "Warning: Unable to connect the local core");	 
 			}
 		}
 	}
 	
 	if(!alternate) 
 	{
-		//Log("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
+		LogDebug("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
 		Identifier remotePeering(mRemotePeering);
 		DesynchronizeStatement(this, AddressBook::publish(remotePeering));
 	}
 		  
-	//Log("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
+	LogDebug("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	AddressMap newAddrs;
 	Identifier peering(mPeering);
 	String tracker(mTracker);
@@ -968,8 +969,8 @@ void AddressBook::Contact::update(bool alternate)
 	
 	if(!newAddrs.empty())
 	{
-		//if(!alternate) Log("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		//else Log("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		else LogDebug("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		mFound = true;
 		connectAddresses(newAddrs, !alternate, alternate);
 	}
@@ -1093,7 +1094,7 @@ void AddressBook::Contact::message(Message *message)
 	{
 		if(SynchronizeTest(this, mUniqueName != mAddressBook->userName()))
 		{
-			Log("AddressBook::Contact::message", "Warning: received contacts update from other than self, dropping");
+			LogWarn("AddressBook::Contact::message", "Received contacts update from other than self, dropping");
 			return;
 		}
 		
@@ -1232,7 +1233,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					// If not self
 					if(mUniqueName != mAddressBook->userName())
 					{
-						Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+						LogWarn("AddressBook::Contact::http", "Cannot send request, peer not connected");
 
 						Http::Response response(request, 404);
 						response.send();
@@ -1457,7 +1458,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::Contact::http", String("Error during access to remote file or directory: ") + e.what());
+					LogWarn("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
 				}
 				
 				return;
@@ -1498,7 +1499,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::Contact::http", "Cannot send request, peer not connected");
+					LogWarn("AddressBook::Contact::http", "Cannot send request, peer not connected");
 					page.open("div",".box");
 					page.text("Not connected...");
 					page.close("div");
@@ -1569,7 +1570,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
+					LogWarn("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
 					page.close("table");
 					page.text("Error, unable to list files");
 				}
@@ -1639,7 +1640,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						}
 						catch(const Exception &e)
 						{
-							Log("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
+							LogWarn("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
 							throw 409;
 						}
 						
@@ -1777,7 +1778,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	}
 	catch(const Exception &e)
 	{
-		Log("AddressBook::Contact::http", e.what());
+		LogWarn("AddressBook::Contact::http", e.what());
 		throw 500;
 	}
 	

@@ -36,8 +36,8 @@
 
 using namespace tpn;
 
-Mutex tpn::LogMutex;
-
+Mutex	tpn::LogMutex;
+int	tpn::LogLevel = LEVEL_INFO;
 
 #ifdef WINDOWS
 
@@ -167,13 +167,16 @@ int main(int argc, char** argv)
 			std::cout<<" --port port\t\tSet the TPN port"<<std::endl;
 			std::cout<<" --ifport port\t\tSet the HTTP interface port"<<std::endl;
 			std::cout<<" --tracker [port]\tEnable the local tracker"<<std::endl;
+			std::cout<<" --verbose\tVerbose output"<<std::endl;
 #ifdef WINDOWS
 			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
 			std::cout<<" --noupdate\t\tPrevent trying to update the program"<<std::endl;
-			std::cout<<" --debug\t\tKeep the console window on screen"<<std::endl;
+			std::cout<<" --nohide\t\tKeep the console window on screen"<<std::endl;
 #endif
 			return 0;
 		}
+		
+		if(args.contains("verbose")) LogLevel = LEVEL_DEBUG;
 		
 #ifndef WINDOWS
 #ifndef ANDROID
@@ -221,7 +224,7 @@ int main(int argc, char** argv)
 				openUserInterface();
 			return 0;
 		}
-			
+		
 		if(args.contains("boot"))
 		{
 			Config::Save(configFileName);
@@ -233,7 +236,7 @@ int main(int argc, char** argv)
 			}
 			catch(...)
 			{
-				//Log("main", "Trying to run as administrator..."); 
+				LogInfo("main", "Trying to run as administrator..."); 
 				Sleep(100);
 				if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) <= 32)
 					throw Exception("Unable to run as administrator");
@@ -251,7 +254,7 @@ int main(int argc, char** argv)
 	
 			if(updateDay + 1 < currentDay)
 			{
-				Log("main", "Looking for updates...");
+				LogInfo("main", "Looking for updates...");
 				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
 				
 				try {
@@ -270,7 +273,7 @@ int main(int argc, char** argv)
 							{
 								if(--attempts == 0) break;
 								content.clear();
-								Log("main", "Waiting for network availability...");
+								LogInfo("main", "Waiting for network availability...");
 								Sleep(1000);
 								continue;
 							}
@@ -294,17 +297,17 @@ int main(int argc, char** argv)
 							Config::Put("last_update_day", String::number(currentDay));
 							Config::Save(configFileName);
 							
-							Log("main", "Downloading update...");
+							LogInfo("main", "Downloading update...");
 							if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
 								return 0;
-							else Log("main", "Warning: Unable to run the updater, skipping program update.");
+							else LogWarn("main", "Unable to run the updater, skipping program update.");
 						}
 					}
-					else Log("main", "Warning: Failed to query the last available version");
+					else LogWarn("main", "Failed to query the last available version");
 				}
 				catch(const Exception &e)
 				{
-					Log("main", String("Warning: Unable to look for updates: ") + e.what());
+					LogWarn("main", String("Unable to look for updates: ") + e.what());
 				}
 			}
 		}
@@ -312,7 +315,7 @@ int main(int argc, char** argv)
 		Config::Save(configFileName);
 #endif
 		
-		Log("main", "Starting...");
+		LogInfo("main", "Starting...");
 		File::CleanTemp();
 		
 		Tracker *tracker = NULL;
@@ -323,7 +326,7 @@ int main(int argc, char** argv)
 			int port;
 			args["tracker"] >> port;
 			
-			Log("main", "Launching the tracker");
+			LogInfo("main", "Launching the tracker...");
 			tracker = new Tracker(port);
 			tracker->start();
 		}
@@ -361,12 +364,12 @@ int main(int argc, char** argv)
 		if(Config::Get("external_address").empty()
 			|| Config::Get("external_address") == "auto")
 		{
-			Log("main", "NAT port mapping is enabled");
+			LogInfo("main", "NAT port mapping is enabled");
 			PortMapping::Instance->init();
 			PortMapping::Instance->addTcp(port, port);
 			PortMapping::Instance->start();
 		}
-		else Log("main", "NAT port mapping is disabled");
+		else LogInfo("main", "NAT port mapping is disabled");
 		
 		if(!Directory::Exist(Config::Get("profiles_dir")))
 			Directory::Create(Config::Get("profiles_dir"));
@@ -379,14 +382,14 @@ int main(int argc, char** argv)
 				String name = profilesDir.fileName();
 				User *user;
 				
-				Log("main", String("Loading user ") + name + "...");
+				LogInfo("main", String("Loading user ") + name + "...");
 				
 				try {
 					user = new User(name);	
 				}
 				catch(const std::exception &e)
 				{
-					Log("main", "ERROR: Unable to load user \"" + name + "\": " + e.what());
+					LogError("main", "Unable to load user \"" + name + "\": " + e.what());
 					continue;
 				}
 				
@@ -409,7 +412,7 @@ int main(int argc, char** argv)
 				String password = name.cut(' ');
 				password.trim();
 				if(name.empty()) continue;
-				Log("main", String("Creating user ") + name + "...");
+				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
 				user->start();
 				msleep(100);
@@ -425,20 +428,20 @@ int main(int argc, char** argv)
 		if(!args.contains("boot") && !args.contains("nointerface"))
 			openUserInterface();
 		
-		if(!args.contains("debug") || !Config::Get("debug").toBool())
+		if(!args.contains("verbose") && !args.contains("nohide"))
 		{
 			HWND hWnd = GetConsoleWindow();
 			ShowWindow(hWnd, SW_HIDE);
 		}
 #endif
 		
-		Log("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
+		LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
 		Core::Instance->join();
-		Log("main", "Finished");
+		LogInfo("main", "Finished");
 	}
 	catch(const std::exception &e)
 	{
-		Log("main", String("ERROR: ") + e.what());
+		LogError("main", e.what());
 #ifdef WINDOWS
 		HWND hWnd = GetConsoleWindow();
                 ShowWindow(hWnd, SW_SHOW);

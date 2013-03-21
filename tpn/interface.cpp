@@ -70,7 +70,7 @@ void Interface::process(Http::Request &request)
 {
 	Address remoteAddr = request.sock->getRemoteAddress();
   	
-	//Log("Interface", "Request for URL \""+request.url+"\"");
+	LogDebug("Interface", "Request for URL \""+request.url+"\"");
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
@@ -266,7 +266,7 @@ void Interface::process(Http::Request &request)
 				
 				request.url.ignore(prefix.size());
 				
-				//Log("Interface", "Matched prefix \""+prefix+"\"");
+				LogDebug("Interface", "Matched prefix \""+prefix+"\"");
 				
 				if(prefix != "/" && request.url.empty())
 				{
@@ -375,7 +375,7 @@ void Interface::process(Http::Request &request)
 					{
 						// TODO: copy in incoming if finished
 					}
-					else Log("Interface::http", String("Warning: Splicer downloaded ") + String::number(total) + " bytes whereas length was " + String::number(contentLength));
+					else LogWarn("Interface::http", String("Splicer downloaded ") + String::number(total) + " bytes whereas length was " + String::number(contentLength));
 				}
 				catch(const NetException &e)
 				{
@@ -383,7 +383,7 @@ void Interface::process(Http::Request &request)
 				}
 				catch(const Exception &e)
 				{
-					Log("Interface::process", String("Error during file transfer: ") + e.what());
+					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
 				}
 				
 				return;
@@ -395,7 +395,7 @@ void Interface::process(Http::Request &request)
 		}
 		catch(const std::exception &e)
 		{
-			Log("Interface::process", String("Error: ") + e.what());
+			LogWarn("Interface::process", e.what());
 			throw 404;
 		}
 	}

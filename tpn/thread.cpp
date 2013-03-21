@@ -116,17 +116,17 @@ void *Thread::ThreadRun(void *myThread)
 	pthread_win32_thread_attach_np();
 #endif
 	
-	//try {
+	try {
 		thread->run();
-	//}
-	/*catch(const std::exception &e)
+	}
+	catch(const std::exception &e)
 	{
-		Log("Thread::ThreadRun", String("WARNING: Unhandled exception in thread: ") + e.what()); 
+		LogWarn("Thread::ThreadRun", String("Unhandled exception in thread: ") + e.what()); 
 	}
 	catch(...)
 	{
-		Log("Thread::ThreadRun", String("WARNING: Unhandled unknown exception in thread")); 
-	}*/
+		LogWarn("Thread::ThreadRun", String("Unhandled unknown exception in thread")); 
+	}
 	
 	thread->mRunning = false;
 	if(thread->mAutoDelete) delete thread;
@@ -152,11 +152,11 @@ void *Thread::ThreadCall(void *myWrapper)
 	}
 	catch(const std::exception &e)
 	{
-		Log("Thread::ThreadCall", String("WARNING: Unhandled exception in thread: ") + e.what()); 
+		LogWarn("Thread::ThreadCall", String("Unhandled exception in thread: ") + e.what()); 
 	}
 	catch(...)
 	{
-		Log("Thread::ThreadCall", String("WARNING: Unhandled unknown exception in thread")); 
+		LogWarn("Thread::ThreadCall", String("Unhandled unknown exception in thread")); 
 	}
 	
 	delete wrapper;

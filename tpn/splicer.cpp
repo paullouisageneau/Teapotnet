@@ -41,7 +41,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 		CacheMutex.lock();
 		if(!Cache.get(target, mCacheEntry))
 		{
-			Log("Splicer", "No cached file, creating a new one");
+			LogDebug("Splicer", "No cached file, creating a new one");
 			
 			try {
 				mCacheEntry = new CacheEntry(target);
@@ -84,7 +84,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	while(mCacheEntry->isBlockFinished(mFirstBlock))
 		++mFirstBlock;
 	
-	//Log("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
+	LogDebug("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
 	
 	// Request stripes
 	int nbStripes = std::max(1, int(sources.size()));	// TODO
@@ -114,7 +114,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 			if(it == sources.end()) it = sources.begin();
 		}
 	
-		//Log("Splicer", "Transfers launched successfully");
+		LogDebug("Splicer", "Transfers launched successfully");
 	}
 }
 
@@ -236,7 +236,7 @@ int64_t Splicer::process(ByteStream *output)
 	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
-		Log("Splicer::process", String("Error on request ") + String::number(i));
+		LogWarn("Splicer::process", String("Error on request ") + String::number(i));
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
@@ -427,7 +427,7 @@ void Splicer::CacheEntry::refreshSources(void)
 {
 	Synchronize(this);  
 
-	Log("Splicer", "Requesting available sources...");
+	LogDebug("Splicer", "Requesting available sources...");
 	
 	const unsigned timeout = Config::Get("request_timeout").toInt();
 	
@@ -459,7 +459,7 @@ void Splicer::CacheEntry::refreshSources(void)
 	
 	if(mName.empty()) throw Exception("Unable to retrieve the file name");
 	
-	Log("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
+	LogDebug("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
 }
 
 bool Splicer::CacheEntry::isBlockFinished(unsigned block) const

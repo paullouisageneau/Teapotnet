@@ -249,21 +249,59 @@ namespace tpn
 {
 
 extern Mutex LogMutex;
+extern int LogLevel;
 
-#define Log(prefix, value) LogImpl(__FILE__, __LINE__, prefix, value)
-
-template<typename T> void LogImpl(const char *file, int line, const char *prefix, const T &value)
+inline unsigned threadId(pthread_t thread)
 {
+	static unsigned next = 0;
+	static std::map<pthread_t, unsigned> ids;
+	if (ids.find(thread) == ids.end()) ids[thread] = next++;
+	return ids[thread];
+}
+
+#define LEVEL_TRACE	0
+#define LEVEL_DEBUG	1
+#define LEVEL_INFO	2
+#define LEVEL_WARN	3
+#define LEVEL_ERROR	4
+
+#define LogTrace(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_TRACE, prefix, value)
+#define LogDebug(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_DEBUG, prefix, value)
+#define LogInfo(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_INFO, prefix, value)
+#define LogWarn(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_WARN, prefix, value)
+#define LogError(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_ERROR, prefix, value)
+
+#define Log(prefix, value)		LogInfo(prefix, value)
+
+template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)
+{
+	if(level < LogLevel) return;
+  
+	const char *strLevel;
+	switch(level)
+	{
+	  case LEVEL_TRACE:	strLevel = "Trace:";	break;
+	  case LEVEL_DEBUG:	strLevel = "Debug:";	break;
+	  case LEVEL_INFO:	strLevel = "Info:";	break;
+	  case LEVEL_WARN:	strLevel = "WARNING:";	break;
+	  default:		strLevel = "ERROR:";	break;
+	}
+	
+	std::ostringstream oss;
+	oss.fill(' ');
+#ifdef DEBUG
+	oss<<file<<':'<<std::dec<<line;
+	std::string tmp = oss.str();
+	oss.str("");
+	oss<<tmp;
+	if(tmp.size() < 25) oss<<std::string(25-tmp.size(), ' ');
+	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' ';
+#endif
+	oss<<std::setw(25)<<prefix<<' '<<std::setw(8)<<strLevel<<' '<<value;
+
 	LogMutex.lock();
 	
 	try {
-	std::ostringstream oss;
-#ifdef DEBUG
-	oss<<file<<":"<<std::dec<<line<<" "<<prefix<<": "<<value;
-#else
-	oss<<prefix<<": "<<value;
-#endif
-
 #ifdef ANDROID
 	__android_log_print(ANDROID_LOG_VERBOSE, "teapotnet", oss.str().c_str());
 #else

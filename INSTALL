@@ -6,7 +6,6 @@ You can compile the program with a simple:
 $ make
 
 This should work for any more or less POSIX-compliant system.
-Note you need libpthread and libsqlite3 for the compilation to succeed.
 
 You can then run the application:
 $ ./teapotnet
@@ -14,7 +13,8 @@ $ ./teapotnet
 Or with the local tracker enabled:
 $ ./teapotnet --tracker
 
-You will be prompted to add a new user if users.txt does not exist (see below).
+Once the program is running, point your web browser to http://localhost:8080/
+to access the interface.
 
 Alternatively, you can install it:
 # make install
@@ -26,13 +26,11 @@ By default, it listens for TPOT connections on port 8480.
 The interface listens by defaut on port 8080, and the tracker on port 8488.
 This can be changed in config.txt (created at first startup)
 
-To create a new user, write the username and password to users.txt
+You can create a new user directly from the interface.
+Alternatively, write the username and password to users.txt
 (emptied during startup) before launching the program, as follow:
 $ echo myusername mypassword > users.txt
 $ ./teapotnet
-
-Once the program is running, point your web browser to http://localhost:8080/
-to access the interface.
 
 Note directories.txt (created at first startup) contains global shared directories
 (ie for all users of the program).

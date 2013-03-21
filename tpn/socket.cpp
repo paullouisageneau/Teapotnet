@@ -132,7 +132,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			if(response.code != 200)
 			{
 				String msg = String::number(response.code) + " " + response.message;
-				Log("Socket::connect", String("HTTP proxy error: ") + msg);
+				LogWarn("Socket::connect", String("HTTP proxy error: ") + msg);
 				throw Exception(msg);
 			}
 		}

@@ -69,7 +69,7 @@ void Config::Load(const String &filename)
 	}
 	catch(const Exception &e) 
 	{
-		Log("Config", String("Unable to load config: ") + e.what());
+		LogError("Config", String("Unable to load config: ") + e.what());
 	}
 	ParamsMutex.unlock();
 }

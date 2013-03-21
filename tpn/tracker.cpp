@@ -41,7 +41,7 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
-	//Log("Tracker", "URL " + request.url);	
+	LogDebug("Tracker", "URL " + request.url);	
 
 	try {
 		if(request.url != "/tracker" && request.url != "/tracker/")
@@ -87,7 +87,7 @@ void Tracker::process(Http::Request &request)
 				Address addr(host, port);
 				SynchronizeStatement(this, insert(mStorage, identifier, addr));
 				++count;
-				//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
 			
 			String addresses;
@@ -103,11 +103,11 @@ void Tracker::process(Http::Request &request)
 				      	Address addr(*it);
 				      	if(alternate)
 					{
-						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
+						LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
 						SynchronizeStatement(this, insert(mAlternate, identifier, addr));
 					}
 				      	else {
-						//Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+						LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 						SynchronizeStatement(this, insert(mStorage, identifier, addr));
 					}
 					
@@ -131,7 +131,7 @@ void Tracker::process(Http::Request &request)
 				      Address addr(*it);
 				      SynchronizeStatement(this, insert(mAlternate, identifier, addr));
 				      ++count;
-				      //Log("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
+				      LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
 				}
 				catch(...)
 				{
@@ -152,11 +152,11 @@ void Tracker::process(Http::Request &request)
 			
 			if(alternate) 
 			{
-				//Log("Tracker", "GET " + identifier.toString() + " (alternate)");
+				LogDebug("Tracker", "GET " + identifier.toString() + " (alternate)");
 				SynchronizeStatement(this, retrieve(mAlternate, identifier, *response.sock));
 			}
 			else {
-				//Log("Tracker", "GET " + identifier.toString());
+				LogDebug("Tracker", "GET " + identifier.toString());
 				SynchronizeStatement(this, retrieve(mStorage, identifier, *response.sock));
 			}
 		}
@@ -168,8 +168,8 @@ void Tracker::process(Http::Request &request)
 	}
 	catch(const Exception &e)
 	{
-		Log("Tracker", String("Error: ") + e.what());
-		Http::Response response(request,400);
+		LogWarn("Tracker", e.what());
+		Http::Response response(request, 400);
                 response.send();
 	}
 }

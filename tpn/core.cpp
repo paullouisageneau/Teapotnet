@@ -126,7 +126,7 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 	
 	{
 		Desynchronize(this);
-		//Log("Core", "Spawning new handler");
+		LogDebug("Core", "Spawning new handler");
 		Handler *handler = new Handler(this, sock);
 		if(hasPeering) handler->setPeering(peering);
 
@@ -169,7 +169,7 @@ bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
 
 void Core::run(void)
 {
-	Log("Core", "Starting...");
+	LogDebug("Core", "Starting...");
 	
 	try {
 		while(true)
@@ -178,7 +178,7 @@ void Core::run(void)
 			mSock.accept(*sock);
 			
 			Address addr = sock->getRemoteAddress();
-			Log("Core", "Incoming connection from " + addr.toString());
+			LogInfo("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null, true);	// async
 			msleep(250);
@@ -189,7 +189,7 @@ void Core::run(void)
 
 	}
 	
-	Log("Core", "Finished");
+	LogDebug("Core", "Finished");
 }
 
 void Core::sendMessage(const Message &message)
@@ -352,7 +352,7 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 {
 	String line;
 	line << command << " " << args;
-	//Log("Core::Handler", "<< " + line);
+	LogTrace("Core::Handler", "<< " + line);
 	
 	line << Stream::NewLine;
   	*stream << line;
@@ -363,6 +363,7 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 	{
 	  	line.clear();
 		line << it->first.capitalized() << ": " << it->second << Stream::NewLine;
+		LogTrace("Core::Handler", "<< " + line);
 		*stream << line;
 	}
 	*stream << Stream::NewLine;
@@ -372,7 +373,7 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 {
 	command.clear();
 	if(!stream->readLine(command)) return false;
-	//Log("Core::Handler", ">> " + command);
+	LogTrace("Core::Handler", ">> " + command);
 	
 	args = command.cut(' ');
 	command = command.toUpper();
@@ -383,7 +384,8 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 		String name;
 		AssertIO(stream->readLine(name));
 		if(name.empty()) break;
-
+		LogTrace("Core::Handler", ">> " + name);
+		
 		String value = name.cut(':');
 		name.trim();
 		value.trim();
@@ -423,7 +425,7 @@ void Core::Handler::setPeering(const Identifier &peering)
 		mIsIncoming = false;
 		if(mPeering.getName().empty())
 		{
-			Log("Core::Handler", "Warning: set peering with undefined instance");
+			LogWarn("Core::Handler", "setPeering() called with undefined instance");
 			mPeering.setName("default");
 		}
 	}
@@ -433,7 +435,7 @@ void Core::Handler::sendMessage(const Message &message)
 {
 	Synchronize(this);
 	
-	//Log("Core::Handler", "New message");
+	LogDebug("Core::Handler", "New message");
 	
 	mSender->lock();
 	mSender->mMessagesQueue.push(message);
@@ -445,7 +447,7 @@ void Core::Handler::addRequest(Request *request)
 {
 	Synchronize(this);
 	
-	//Log("Core::Handler", "New request " + String::number(request->id()));
+	LogDebug("Core::Handler", "New request " + String::number(request->id()));
 	
 	mSender->lock();
 	request->addPending(mPeering);
@@ -492,7 +494,7 @@ void Core::Handler::run(void)
   
 	try {
 		Synchronize(this);
-		Log("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
+		LogInfo("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
 	  
 		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
 		
@@ -523,10 +525,10 @@ void Core::Handler::run(void)
 	  
 		if(!mIsIncoming)	
 		{
-			//Log("Handler", "Initiating handshake...");
+			LogDebug("Handler", "Initiating handshake...");
 
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
-				throw Exception("Warning: Peering is not registered: " + mPeering.toString());
+				throw Exception("Peering is not registered: " + mPeering.toString());
 			
 			mRemotePeering.setName(mCore->getName());
 			
@@ -565,7 +567,7 @@ void Core::Handler::run(void)
 			
 			if(mPeering.getName().empty())
 			{
-				Log("Core::Handler", "Warning: got peering with undefined instance");
+				LogWarn("Core::Handler", "Got peering with undefined instance");
 				mPeering.setName("default");
 			}
 	
@@ -590,7 +592,7 @@ void Core::Handler::run(void)
 				{
 					if(handler)
 					{
-						Log("Core::Handler", "Connection already forwarded");
+						LogDebug("Core::Handler", "Connection already forwarded");
 					}
 					else {
 					  	//Log("Core::Handler", "Reached forwarding meeting point");
@@ -603,7 +605,7 @@ void Core::Handler::run(void)
 					return;
 				}
 				
-				Log("Core::Handler", "Got non local peering, asking peers");
+				LogDebug("Core::Handler", "Got non local peering, asking peers");
 				
 				String adresses;
 				List<Address> list;
@@ -637,7 +639,7 @@ void Core::Handler::run(void)
 				
 				if(!remote.empty())
 				{
-					Log("Core::Handler", "Got positive response for peering");
+					LogDebug("Core::Handler", "Got positive response for peering");
 						
 					remote >> mRemotePeering;
 					SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
@@ -677,7 +679,7 @@ void Core::Handler::run(void)
 						
 						otherHandler = NULL;
 						
-						Log("Core::Handler", "Successfully forwarded connection");
+						LogInfo("Core::Handler", "Successfully forwarded connection");
 						
 						// Transfert
 						Socket::Transfert(mSock, otherSock);
@@ -688,7 +690,7 @@ void Core::Handler::run(void)
 						delete otherSock;
 					}
 					else {
-						Log("Core::Handler", "No other handler reached forwarding meeting point");
+						LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
 					}
 				}
 					
@@ -697,7 +699,7 @@ void Core::Handler::run(void)
 			}
 			
 			if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
-				throw Exception("Warning: Tried to connect same user on same instance");
+				throw Exception("Tried to connect same user on same instance");
 			
 			args.clear();
 			args << mRemotePeering;
@@ -754,7 +756,7 @@ void Core::Handler::run(void)
 		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
 		
 		if(test_b != hash_b) throw Exception("Authentication failed");
-		Log("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
+		LogInfo("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
 		mIsAuthenticated = true;		
 
 		// Set encryption key and IV
@@ -787,7 +789,7 @@ void Core::Handler::run(void)
 			Synchronize(mCore);
 			if(!mIsIncoming && relayEnabled)
 			{
-				Log("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
+				LogDebug("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
 				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 			}
@@ -796,7 +798,7 @@ void Core::Handler::run(void)
 		// Register the handler
 		if(!mCore->addHandler(mPeering,this))
 		{
-			Log("Core::Handler", "Duplicate handler for the peering, exiting."); 
+			LogDebug("Core::Handler", "Duplicate handler for the peering, exiting."); 
 			mSock->close();
 			return;
 		}
@@ -808,9 +810,15 @@ void Core::Handler::run(void)
 
 		notifyAll();
 	}
+	catch(const IOException &e)
+	{
+		LogDebug("Core::Handler", "Handshake aborted");
+		mSock->close();
+		return;
+	}
 	catch(const std::exception &e)
 	{
-		Log("Core::Handler", String("Handshake failed: ") + e.what()); 
+		LogWarn("Core::Handler", String("Handshake failed: ") + e.what()); 
 		mSock->close();
 		return;
 	}
@@ -832,13 +840,13 @@ void Core::Handler::run(void)
 				}
 				catch(const Exception &e)
 				{
-					Log("Core::Handler", String("Warning: Listener connected callback failed: ")+e.what());
+					LogWarn("Core::Handler", String("Listener connected callback failed: ")+e.what());
 				}
 			}
 		}
 
 		// Main loop
-		//Log("Core::Handler", "Entering main loop");
+		LogDebug("Core::Handler", "Entering main loop");
 		while(recvCommand(mStream, command, args, parameters))
 		{
 			Synchronize(this);
@@ -865,7 +873,7 @@ void Core::Handler::run(void)
 				  	Request::Response *response;
 					if(channel)
 					{
-						//Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
+						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
 						ByteStream *sink = request->mContentSink; 	// TODO
 						if(!sink) sink = new ByteString;		// TODO
@@ -876,7 +884,7 @@ void Core::Handler::run(void)
 						mCancelled.clear();
 					}
 					else {
-						//Log("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
+						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
 						response = new Request::Response(status, parameters);
 					}
 
@@ -886,7 +894,7 @@ void Core::Handler::run(void)
 					if(response->status() != Request::Response::Pending) 
 						request->removePending(mPeering);	// this triggers the notification
 				}
-				else Log("Core::Handler", "Received response for unknown request "+String::number(id));
+				else LogDebug("Core::Handler", "Received response for unknown request "+String::number(id));
 			}
 			else if(command == "D")	// Data block
 			{
@@ -905,7 +913,7 @@ void Core::Handler::run(void)
 						if(len != size) throw IOException("Incomplete data chunk");
 					}
 					else {
-						//Log("Core::Handler", "Finished receiving on channel "+String::number(channel));
+						LogDebug("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
 						response->mTransfertFinished = true;
 						response->mStatus = Request::Response::Finished;
@@ -913,7 +921,6 @@ void Core::Handler::run(void)
 					}
 				}
 				else {
-					//Log("Core::Handler", "Received data for unknown channel "+String::number(channel));
 					AssertIO(mStream->ignore(size));
 					
 					if(mCancelled.find(channel) == mCancelled.end())
@@ -925,6 +932,7 @@ void Core::Handler::run(void)
 						parameters.clear();
 						
 						Desynchronize(this);
+						LogDebug("Core::Handler", "Sending cancel on channel "+String::number(channel));
 						SynchronizeStatement(mSender, Handler::sendCommand(mStream, "C", args, parameters));
 					}
 				}
@@ -941,7 +949,7 @@ void Core::Handler::run(void)
 				{
 				 	Assert(response->content() != NULL);
 					
-					Log("Core::Handler", "Error on channel "+String::number(channel)+", status "+String::number(status));
+					LogDebug("Core::Handler", "Error on channel "+String::number(channel)+", status "+String::number(status));
 					
 					Assert(status > 0);
 				
@@ -949,7 +957,7 @@ void Core::Handler::run(void)
 					response->content()->close();
 					mResponses.erase(channel);
 				}
-				else Log("Core::Handler", "Received error for unknown channel "+String::number(channel));
+				//else LogDebug("Core::Handler", "Received error for unknown channel "+String::number(channel));
 			}
 			else if(command == "C")	// Cancel
 			{
@@ -959,17 +967,17 @@ void Core::Handler::run(void)
 				Synchronize(mSender);
 				if(mSender->mTransferts.contains(channel))
 				{
-					//Log("Core::Handler", "Stopping on channel "+String::number(channel));
+					LogDebug("Core::Handler", "Received cancel for channel "+String::number(channel));
 					mSender->mTransferts.erase(channel);
 				}
-				//else Log("Core::Handler", "Received stop for unknown channel "+String::number(channel));
+				//else LogDebug("Core::Handler", "Received cancel for unknown channel "+String::number(channel));
 			}
 			else if(command == "I" || command == "G") // Request
 			{
 			  	unsigned id;
 				args.read(id);
 				String &target = args;
-			  	//Log("Core::Handler", "Received request "+String::number(id));
+			  	LogDebug("Core::Handler", "Received request "+String::number(id));
 
 				Request *request = new Request;
 				request->setTarget(target, (command == "G"));
@@ -980,7 +988,7 @@ void Core::Handler::run(void)
 				Listener *listener = NULL;
 				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
 				{
-					Log("Core::Handler", "Warning: No listener for request " + String::number(id));
+					LogDebug("Core::Handler", "No listener for request " + String::number(id));
 				}
 				else {
 					try {
@@ -989,7 +997,7 @@ void Core::Handler::run(void)
 					}
 					catch(const Exception &e)
 					{
-						Log("Core::Handler", String("Warning: Listener failed to process request: ")+e.what()); 
+						LogWarn("Core::Handler", String("Listener failed to process request: ")+e.what()); 
 					}
 				}
 					
@@ -1011,7 +1019,7 @@ void Core::Handler::run(void)
 					parameters.erase("length");
 				}
 			  
-				//Log("Core::Handler", "Received message");
+				LogDebug("Core::Handler", "Received message");
 				
 				Message message;
 				message.mReceiver = mPeering;
@@ -1022,7 +1030,7 @@ void Core::Handler::run(void)
 				Listener *listener = NULL;
 				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
 				{
-					Log("Core::Handler", "Warning: No listener, dropping message");
+					LogDebug("Core::Handler", "No listener, dropping message");
 				}
 				else {
 					try {
@@ -1031,12 +1039,12 @@ void Core::Handler::run(void)
 					}
 					catch(const Exception &e)
 					{
-						Log("Core::Handler", String("Warning: Listener failed to process the message: ")+e.what()); 
+						LogWarn("Core::Handler", String("Listener failed to process the message: ") + e.what()); 
 					}
 				}
 			}
 			else {
-				Log("Core::Handler", "Warning: unknown command: " + command);
+				LogWarn("Core::Handler", "Unknown command: " + command);
 
 				unsigned length = 0;
 				if(parameters.contains("length")) parameters["length"].extract(length);
@@ -1044,11 +1052,11 @@ void Core::Handler::run(void)
 			}
 		}
 
-		Log("Core::Handler", "Finished");
+		LogDebug("Core::Handler", "Finished");
 	}
 	catch(const std::exception &e)
 	{
-		Log("Core::Handler", String("Stopping: ") + e.what()); 
+		LogError("Core::Handler", e.what()); 
 	}
 	
 	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
@@ -1063,7 +1071,7 @@ void Core::Handler::run(void)
 		}
 		catch(const Exception &e)
 		{
-			Log("Core::Handler", String("Warning: Listener disconnected callback failed: ")+e.what());
+			LogWarn("Core::Handler", String("Listener disconnected callback failed: ") + e.what());
 		}
 	}
 	
@@ -1139,7 +1147,7 @@ Core::Handler::Sender::~Sender(void)
 void Core::Handler::Sender::run(void)
 {
 	try {
-		Log("Core::Handler::Sender", "Starting");
+		LogDebug("Core::Handler::Sender", "Starting");
 		Assert(mStream);
 		
 		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
@@ -1153,7 +1161,7 @@ void Core::Handler::Sender::run(void)
 				&& mRequestsQueue.empty()
 			  	&& mTransferts.empty())
 			{
-				//Log("Core::Handler::Sender", "No pending tasks, waiting");
+				//LogDebug("Core::Handler::Sender", "No pending tasks, waiting");
 				wait(readTimeout/2);
 				if(mShouldStop) break;
 				
@@ -1174,8 +1182,6 @@ void Core::Handler::Sender::run(void)
 					Request::Response *response = request->response(j);
 					if(!response->mTransfertStarted)
 					{
-						//Log("Core::Handler::Sender", "Sending response");
-						
 						unsigned channel = 0;
 
 						response->mTransfertStarted = true;
@@ -1184,9 +1190,11 @@ void Core::Handler::Sender::run(void)
 							++mLastChannel;
 							channel = mLastChannel;
 							
-							//Log("Core::Handler::Sender", "Start sending channel "+String::number(channel));
+							LogDebug("Core::Handler::Sender", "Start sending on channel "+String::number(channel));
 							mTransferts.insert(channel,response);
 						}
+						
+						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()) + " on channel " + String::number(channel));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
@@ -1204,7 +1212,7 @@ void Core::Handler::Sender::run(void)
 				const Message &message = mMessagesQueue.front();
 				unsigned length = message.content().size();
 				
-				//Log("Core::Handler::Sender", "Sending message");
+				LogDebug("Core::Handler::Sender", "Sending message");
 
 				String args = "";
 				StringMap parameters = message.parameters();
@@ -1220,7 +1228,7 @@ void Core::Handler::Sender::run(void)
 			if(!mRequestsQueue.empty())
 			{
 				Request *request = mRequestsQueue.front();
-				//Log("Core::Handler::Sender", "Sending request "+String::number(request->id()));
+				LogDebug("Core::Handler::Sender", "Sending request "+String::number(request->id()));
 				
 				String command;
 				if(request->mIsData) command = "G";
@@ -1265,7 +1273,7 @@ void Core::Handler::Sender::run(void)
 				}
 				catch(const Exception &e)
 				{
-					Log("Core::Handler::Sender", "Error on channel "+String::number(channel));
+					LogWarn("Core::Handler::Sender", "Error on channel " + String::number(channel) + ": " + e.what());
 					
 					int status = Request::Response::ReadFailed;
 					
@@ -1288,7 +1296,7 @@ void Core::Handler::Sender::run(void)
 
 				if(size == 0)
 				{
-					//Log("Core::Handler::Sender", "Finished sending on channel "+String::number(channel));
+					LogDebug("Core::Handler::Sender", "Finished sending on channel "+String::number(channel));
 					response->mTransfertFinished = true;
 					mTransferts.erase(channel);
 				}
@@ -1319,11 +1327,11 @@ void Core::Handler::Sender::run(void)
 			}
 		}
 		
-		Log("Core::Handler::Sender", "Finished");
+		LogDebug("Core::Handler::Sender", "Finished");
 	}
 	catch(const std::exception &e)
 	{
-		Log("Core::Handler::Sender", String("Error: ") + e.what()); 
+		LogError("Core::Handler::Sender", e.what()); 
 	}
 }
 

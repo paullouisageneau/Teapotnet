@@ -312,7 +312,7 @@ void Http::Request::recv(Socket &sock)
 						TempFile *tempFile = new TempFile();
 						files[name] = tempFile;
 						stream = tempFile;
-						Log("Http::Request", String("File upload: ") + fileName);
+						LogDebug("Http::Request", String("File upload: ") + fileName);
 					}
 					
 					String contentLength;
@@ -384,7 +384,7 @@ void Http::Request::recv(Socket &sock)
 				}
 			}
 			else {
-				Log("Http::Request", String("Warning: Unknown encoding: ") + contentType);
+				LogWarn("Http::Request", String("Unknown encoding: ") + contentType);
 				sock.ignore(contentLength);
 			}
 		}
@@ -649,11 +649,11 @@ void Http::Server::Handler::run(void)
 			}
 			catch(const NetException &e)
 			{
-				//Log("Http::Server::Handler", e.what()); 
+				LogDebug("Http::Server::Handler", e.what()); 
 			}
 			catch(const Exception &e)
 			{
-				Log("Http::Server::Handler", String("Error: ") + e.what());
+				LogWarn("Http::Server::Handler", e.what());
 				throw 500;
 			}
 		}
@@ -684,7 +684,7 @@ void Http::Server::Handler::run(void)
 	}
 	catch(const NetException &e)
 	{
-		Log("Http::Server::Handler", e.what()); 
+		LogWarn("Http::Server::Handler", e.what()); 
 	}
 }
 
@@ -776,7 +776,7 @@ void Http::RespondWithFile(const Request &request, const String &fileName)
 				}
 				catch(const Exception &e)
 				{
-					Log("Http::RespondWithFile", String("Warning: ") + e.what()); 
+					LogWarn("Http::RespondWithFile", e.what()); 
 				}
 			}
 		  

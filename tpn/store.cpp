@@ -44,7 +44,7 @@ bool Store::GetResource(const ByteString &digest, Entry &entry)
 	ResourcesMutex.unlock();
 	if(!found) return false;
 	
-	//Log("Store::GetResource", "Requested " + digest.toString());  
+	LogDebug("Store::GetResource", "Requested " + digest.toString());  
 	
 	if(!File::Exist(path))
 	{
@@ -221,7 +221,7 @@ void Store::save(void) const
 void Store::update(void)
 {
 	Synchronize(this);
-	//Log("Store::update", "Started");
+	LogDebug("Store::update", "Started");
 	
 	mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
 	
@@ -242,7 +242,7 @@ void Store::update(void)
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Update failed for directory ") + names[i] + ": " + e.what());
+		LogWarn("Store", String("Update failed for directory ") + names[i] + ": " + e.what());
 	}
 	
 	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
@@ -258,11 +258,11 @@ void Store::update(void)
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Hashing failed for directory ") + names[i] + ": " + e.what());
+		LogWarn("Store", String("Hashing failed for directory ") + names[i] + ": " + e.what());
 
 	}
 	
-	//Log("Store::update", "Finished");
+	LogDebug("Store::update", "Finished");
 }
 
 bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
@@ -761,7 +761,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						String filePath = path + Directory::Separator + fileName;
 						File::Rename(tempFile->name(), filePath);
 						
-						Log("Store::Http", String("Uploaded: ") + fileName);
+						LogDebug("Store::Http", String("Uploaded: ") + fileName);
 						start();
 					}
 					
@@ -922,7 +922,7 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 	catch(const std::exception &e)
 	{
-		Log("Store::http", e.what());
+		LogWarn("Store::http", e.what());
 		throw 500;	// Httpd handles integer exceptions
 	}
 }
@@ -1050,7 +1050,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			}
 			else {	// file has changed
 				  
-			  	if(computeDigests) Log("Store", String("Processing: ") + path);
+			  	if(computeDigests) LogInfo("Store", String("Processing: ") + path);
 			  
 				if(type && computeDigests)
 				{
@@ -1074,8 +1074,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		}
 		else {
 			statement.finalize();
-			if(computeDigests) Log("Store", String("Processing new: ") + path);
-			else Log("Store", String("Indexing: ") + path);
+			if(computeDigests) LogInfo("Store", String("Processing new: ") + path);
+			else LogInfo("Store", String("Indexing: ") + path);
 			
 			if(type && computeDigests)
 			{
@@ -1142,7 +1142,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	}
 	catch(const Exception &e)
 	{
-		Log("Store", String("Warning: Processing failed for ") + path + ": " + e.what());
+		LogWarn("Store", String("Processing failed for ") + path + ": " + e.what());
 
 	}
 }
@@ -1193,7 +1193,7 @@ void Store::run(void)
 	}
 	catch(const Exception &e)
 	{
-			Log("Store::run", String("Warning: ") + e.what());
+		LogWarn("Store::run", e.what());
 	}
 }
 

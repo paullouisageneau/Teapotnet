@@ -141,7 +141,7 @@ bool Request::execute(User *user)
 		{
 			if(command == "peer")
 			{
-				Log("Request::execute", "Got request for peer " + identifier.toString());
+				LogDebug("Request::execute", "Got request for peer (" + identifier.getName()+")");
 				
 				if(!mParameters.contains("adresses"))
 					throw Exception("Missing addresses in peer request");
@@ -163,7 +163,7 @@ bool Request::execute(User *user)
 						Address addr(*it);
 						Socket *sock = new Socket(addr, 1000);	// TODO: timeout
 						Core::Instance->addPeer(sock, identifier, true);	// async					
-						Log("Request::execute", "Socket connected to peer");						
+						LogDebug("Request::execute", "Socket connected to peer");						
 						StringMap parameters;
 						parameters["remote"] = contact->remotePeering().toString();
 						Response *response = new Response(Response::Success, parameters);
@@ -236,7 +236,7 @@ bool Request::execute(User *user)
 	}
 	
 	addResponse(new Response(Response::NotFound));
-	//Log("Request", "Target not Found");
+	LogDebug("Request", "Target not Found");
 	return false;
 }
 

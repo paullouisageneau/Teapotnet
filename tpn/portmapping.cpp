@@ -42,7 +42,7 @@ PortMapping::PortMapping(void) :
 		}
 		catch(const Exception &e)
 		{
-			Log("PortMapping", String("Warning: ") + e.what());
+			LogWarn("PortMapping", e.what());
 		}
 	}
   
@@ -75,17 +75,17 @@ bool PortMapping::init(void)
 		mSock.write(dgram, mGatewayAddr);
 		if(mSock.read(dgram, sender))
 		{
-			Log("PortMapping", String("Got response from ") + sender.toString());
+			LogDebug("PortMapping", String("Got response from ") + sender.toString());
 			if(parse(dgram, 0, 0))
 			{
 				mEnabled = true;
-				Log("PortMapping", "NAT-PMP is available");
+				LogInfo("PortMapping", "NAT-PMP is available");
 				return true;
 			}
 		}
 	}
 	
-	//Log("PortMapping", "NAT-PMP is not available");
+	LogDebug("PortMapping", "NAT-PMP is not available");
 	return false;
 }
 
@@ -181,7 +181,7 @@ void PortMapping::run(void)
 			{
 				// TODO
 				mGatewayAddr = sender;	
-				Log("PortMapping", String("Gateway internal address updated to ") + mGatewayAddr.toString());
+				LogDebug("PortMapping", String("Gateway internal address updated to ") + mGatewayAddr.toString());
 			}
 		}
 		else refresh();
@@ -244,11 +244,11 @@ bool PortMapping::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal)
 			if(!dgram.readBinary(c)) return false;
 			if(!dgram.readBinary(d)) return false;
 		
-			if(mExternalHost.empty()) Log("PortMapping", "NAT-PMP compliant gateway found");
+			if(mExternalHost.empty()) LogDebug("PortMapping", "NAT-PMP compliant gateway found");
 			
 			mExternalHost.clear();
 			mExternalHost<<a<<'.'<<b<<'.'<<c<<'.'<<d;
-			Log("PortMapping", "External address is " + mExternalHost);
+			LogDebug("PortMapping", "External address is " + mExternalHost);
 			return true;	
 		}
 	
@@ -268,12 +268,12 @@ bool PortMapping::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal)
 			if(op == 129)
 			{
 				mUdpMap.insert(internal, external);
-				Log("PortMapping", String("Mapped UDP external port ") + String::number(external) 
+				LogDebug("PortMapping", String("Mapped UDP external port ") + String::number(external) 
 						+ " to internal port " + String::number(internal));
 			}
 			else {
 				mTcpMap.insert(internal, external);
-				Log("PortMapping", String("Mapped TCP external port ") + String::number(external) 
+				LogDebug("PortMapping", String("Mapped TCP external port ") + String::number(external) 
 						+ " to internal port " + String::number(internal));
 			}
 			
