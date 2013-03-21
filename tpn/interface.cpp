@@ -70,7 +70,7 @@ void Interface::process(Http::Request &request)
 {
 	Address remoteAddr = request.sock->getRemoteAddress();
   	
-	LogDebug("Interface", "Request for URL \""+request.url+"\"");
+	LogDebug("Interface", "Request for URL \""+request.fullUrl+"\"");
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
