@@ -1194,7 +1194,7 @@ void Core::Handler::Sender::run(void)
 							mTransferts.insert(channel,response);
 						}
 						
-						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()) + " on channel " + String::number(channel));
+						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
