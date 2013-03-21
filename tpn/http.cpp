@@ -184,6 +184,8 @@ void Http::Request::recv(Socket &sock)
 		}
 	}
 
+	fullUrl = url;
+	
 	// Read URL variables
 	String getData = url.cut('?');
 	if(!getData.empty())
@@ -200,7 +202,6 @@ void Http::Request::recv(Socket &sock)
 	}
 
 	url = url.urlDecode();
-	fullUrl = url;
 	
 	String expect;
 	if((headers.get("Expect",expect) && expect.toLower() == "100-continue")
