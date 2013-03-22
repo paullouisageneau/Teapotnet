@@ -168,6 +168,7 @@ int main(int argc, char** argv)
 			std::cout<<" --ifport port\t\tSet the HTTP interface port"<<std::endl;
 			std::cout<<" --tracker [port]\tEnable the local tracker"<<std::endl;
 			std::cout<<" --verbose\tVerbose output"<<std::endl;
+			std::cout<<" --trace\tProtocol tracing output"<<std::endl;
 #ifdef WINDOWS
 			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
 			std::cout<<" --noupdate\t\tPrevent trying to update the program"<<std::endl;
@@ -176,7 +177,8 @@ int main(int argc, char** argv)
 			return 0;
 		}
 		
-		if(args.contains("verbose")) LogLevel = LEVEL_DEBUG;
+		if(args.contains("verbose"))	LogLevel = LEVEL_DEBUG;
+		if(args.contains("trace"))	LogLevel = LEVEL_TRACE;
 		
 #ifndef WINDOWS
 #ifndef ANDROID
@@ -428,7 +430,7 @@ int main(int argc, char** argv)
 		if(!args.contains("boot") && !args.contains("nointerface"))
 			openUserInterface();
 		
-		if(!args.contains("verbose") && !args.contains("nohide"))
+		if(!args.contains("verbose") && !args.contains("trace") && !args.contains("nohide"))
 		{
 			HWND hWnd = GetConsoleWindow();
 			ShowWindow(hWnd, SW_HIDE);

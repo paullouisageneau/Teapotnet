@@ -362,8 +362,9 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 		++it)
 	{
 	  	line.clear();
-		line << it->first.capitalized() << ": " << it->second << Stream::NewLine;
+		line << it->first.capitalized() << ": " << it->second;
 		LogTrace("Core::Handler", "<< " + line);
+		line << Stream::NewLine;
 		*stream << line;
 	}
 	*stream << Stream::NewLine;
