@@ -467,6 +467,8 @@ void Core::Handler::removeRequest(unsigned id)
 	if(it != mRequests.end())
 	{
 		Request *request = it->second;
+		Synchronize(request);
+		
 		for(int i=0; i<request->responsesCount(); ++i)
 		{
 			Request::Response *response = request->response(i);

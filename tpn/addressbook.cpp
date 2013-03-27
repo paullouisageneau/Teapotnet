@@ -1017,6 +1017,7 @@ void AddressBook::Contact::connected(const Identifier &peering)
 	// Send contacts if self
         if(mUniqueName == mAddressBook->userName())
         {
+		Desynchronize(this);
                 String data;
         	mAddressBook->save(data);
                 Message message(data);
@@ -1030,7 +1031,8 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 	Synchronize(this);
 	Assert(peering == mPeering);
 	
-	// TODO
+	update(false);
+	update(true);
 }
 
 void AddressBook::Contact::message(Message *message)
@@ -1221,11 +1223,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					trequest.execute(mAddressBook->user());
 				}
 				
-				Synchronize(&trequest);
 				try {
 					const unsigned timeout = Config::Get("request_timeout").toInt();
 				  	if(!instance.empty()) trequest.submit(Identifier(mPeering, instance));
 					else trequest.submit(mPeering);
+					Desynchronize(this);
 					trequest.wait(timeout);
 				}
 				catch(const Exception &e)
@@ -1493,7 +1495,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				Request trequest("search:"+query, false);	// no data
-				Synchronize(&trequest);
 				try {
 					trequest.submit(mPeering);
 				}

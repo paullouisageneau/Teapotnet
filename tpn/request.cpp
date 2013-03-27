@@ -48,32 +48,38 @@ Request::~Request(void)
 
 unsigned Request::id(void) const
 {
+	Synchronize(this);
 	return mId;
 }
 
-const String &Request::target(void) const
+String Request::target(void) const
 {
+	Synchronize(this);
 	return mTarget;
 }
 
 void Request::setContentSink(ByteStream *bs)
 {
+	Synchronize(this);
 	mContentSink = bs;
 }
 
 void Request::setTarget(const String &target, bool data)
 {
+	Synchronize(this);
 	mTarget = target;
 	mIsData = data;
 }
 
 void Request::setParameters(StringMap &params)
 {
+	Synchronize(this);
 	mParameters = params;
 }
 
 void Request::setParameter(const String &name, const String &value)
 {
+	Synchronize(this);
 	mParameters.insert(name, value);
 }
 
@@ -81,6 +87,7 @@ void Request::submit(void)
 {
 	if(!mId)
 	{
+		Synchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
@@ -89,6 +96,7 @@ void Request::submit(const Identifier &receiver)
 {
 	if(!mId)
 	{
+		Synchronize(this);
 		mReceiver = receiver;
 		mId = Core::Instance->addRequest(this);
 	}
@@ -98,6 +106,7 @@ void Request::cancel(void)
 {
 	if(mId)
 	{
+		Synchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
 }
@@ -242,6 +251,7 @@ bool Request::execute(User *user)
 
 bool Request::executeDummy(void)
 {
+	Synchronize(this);
 	addResponse(new Response(Response::NotFound));
 	return false;
 }
@@ -353,23 +363,27 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	
 }
 
-const Identifier &Request::receiver(void) const
+Identifier Request::receiver(void) const
 {
+	Synchronize(this);
 	return mReceiver; 
 }
 
 bool Request::isPending() const
 {
+	Synchronize(this);	
 	return !mPending.empty();
 }
 
 void Request::addPending(const Identifier &peering)
 {
+	Synchronize(this);
 	mPending.insert(peering);
 }
 
 void Request::removePending(const Identifier &peering)
 {
+	Synchronize(this);
 	Set<Identifier>::iterator it = mPending.find(peering);
 	if(it != mPending.end())
 	{
@@ -380,11 +394,13 @@ void Request::removePending(const Identifier &peering)
 
 int Request::responsesCount(void) const
 {
+	Synchronize(this);
 	return mResponses.size();
 }
 
 int Request::addResponse(Response *response)
 {
+	Synchronize(this);
 	Assert(response != NULL);
 	//Assert(!mResponses.contains(response));
 	
@@ -395,16 +411,20 @@ int Request::addResponse(Response *response)
 
 Request::Response *Request::response(int num)
 {
+	Synchronize(this);
 	return mResponses.at(num);
 }
 
 const Request::Response *Request::response(int num) const
 {
+	Synchronize(this);
 	return mResponses.at(num);
 }
 
 bool Request::isSuccessful(void) const
 {
+	Synchronize(this);
+  
 	for(int i=0; i<responsesCount(); ++i)
 		if(!response(i)->error())
 			return true;

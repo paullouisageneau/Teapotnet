@@ -465,8 +465,6 @@ void User::http(const String &prefix, Http::Request &request)
 	
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
-			
-			Synchronize(&trequest);
 			trequest.submit();
 			trequest.wait(timeout);
 			

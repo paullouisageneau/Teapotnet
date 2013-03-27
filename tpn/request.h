@@ -42,7 +42,7 @@ public:
 	virtual ~Request(void);
 
 	unsigned id() const;
-	const String &target(void) const;
+	String target(void) const;
 
 	void setContentSink(ByteStream *bs);
 	void setTarget(const String &target, bool data);
@@ -55,7 +55,7 @@ public:
 	bool execute(User *user);
 	bool executeDummy(void);
 	
-	const Identifier &receiver(void) const;
+	Identifier receiver(void) const;
 	
 	bool isPending() const;
 	void addPending(const Identifier &peering);
