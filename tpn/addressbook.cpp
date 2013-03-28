@@ -870,15 +870,14 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
 			return true;
 		}
-		
-		// A node is running at this address but the user does not exist
-		SynchronizeStatement(this, if(mAddrs.contains(instance)) mAddrs[instance].erase(addr));
 	}
 	catch(...)
 	{
-
+		return false;
 	}
 
+	// A node is running at this address but the user does not exist
+	if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
 	return false; 
 }
 

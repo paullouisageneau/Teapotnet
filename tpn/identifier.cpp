@@ -44,12 +44,12 @@ Identifier::~Identifier(void)
 
 }
 
-const ByteString &Identifier::getDigest(void) const
+ByteString Identifier::getDigest(void) const
 {
 	return mDigest;
 }
 
-const String &Identifier::getName(void) const
+String Identifier::getName(void) const
 {
 	return mName;
 }
@@ -77,7 +77,7 @@ void Identifier::clear(void)
 
 Identifier::operator ByteString &(void)
 {
-	return mDigest;  
+	return mDigest; 
 }
 
 Identifier::operator const ByteString &(void) const

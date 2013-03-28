@@ -39,8 +39,8 @@ public:
 	Identifier(const ByteString &digest, const String &name = "");
 	~Identifier(void);
 
-	const ByteString &getDigest(void) const;
-	const String &getName(void) const;
+	ByteString getDigest(void) const;
+	String getName(void) const;
 	void setDigest(const ByteString &digest);
 	void setName(const String &name);
 	
