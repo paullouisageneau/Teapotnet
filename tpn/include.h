@@ -255,7 +255,8 @@ inline unsigned threadId(pthread_t thread)
 {
 	static unsigned next = 0;
 	static std::map<char*, unsigned> ids;
-	char *p = (char*)thread;
+	char *p = 0;
+	std::memcpy(&p, &thread, std::min(sizeof(thread),sizeof(p)));
 	if(ids.find(p) == ids.end()) ids[p] = next++;
 	return ids[p];
 }
