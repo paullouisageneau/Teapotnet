@@ -254,9 +254,10 @@ extern int LogLevel;
 inline unsigned threadId(pthread_t thread)
 {
 	static unsigned next = 0;
-	static std::map<pthread_t, unsigned> ids;
-	if (ids.find(thread) == ids.end()) ids[thread] = next++;
-	return ids[thread];
+	static std::map<char*, unsigned> ids;
+	char *p = (char*)thread;
+	if(ids.find(p) == ids.end()) ids[p] = next++;
+	return ids[p];
 }
 
 #define LEVEL_TRACE	0
