@@ -323,14 +323,15 @@ void AddressBook::save(Stream &stream) const
 
 void AddressBook::save(void) const
 {
-	Synchronize(this);
-  
 	String data;
-	save(data);
 	
-	SafeWriteFile file(mFileName);
-	file.write(data);
-	file.close();
+	{
+		Synchronize(this);
+		save(data);
+		SafeWriteFile file(mFileName);
+		file.write(data);
+		file.close();
+	}
 	
 	const Contact *self = getSelf();
 	if(self && self->isConnected())
@@ -500,7 +501,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
 					
 					page.open("tr");
-					page.open("td",".contact");
+					page.open("td",".name");
 					page.link(contact->urlPrefix(), contact->name());
 					page.close("td");
 					page.open("td",".tracker");
@@ -758,6 +759,7 @@ String AddressBook::Contact::urlPrefix(void) const
 {
 	Synchronize(this);
 	if(mUniqueName.empty()) return "";
+	if(isSelf()) return String("/")+mAddressBook->userName()+"/myself";
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
@@ -781,6 +783,11 @@ bool AddressBook::Contact::hasNewMessages(void)
 	return tmp;
 }
 
+bool AddressBook::Contact::isSelf(void) const
+{
+	return (mUniqueName == mAddressBook->userName());
+}
+
 bool AddressBook::Contact::isFound(void) const
 {
 	return mFound;
@@ -802,6 +809,7 @@ bool AddressBook::Contact::isOnline(void) const
 {
 	Synchronize(this);
 	
+	if(isSelf() && mAddressBook->user()->isOnline()) return true;
 	if(!isConnected()) return false;
 	if(!mInfo.contains("last")) return false;
 	return (Time::Now()-Time(mInfo.get("last")) < 60);	// 60 sec
@@ -811,6 +819,7 @@ String AddressBook::Contact::status(void) const
 {
 	Synchronize(this);
 	
+	if(isSelf()) return "myself";
 	if(isOnline()) return "online";
 	else if(isConnected()) return "connected";
 	else if(isFound()) return "found";
@@ -834,6 +843,11 @@ void AddressBook::Contact::setDeleted(void)
 	Synchronize(this);
 	mDeleted = true;
 	mTime = Time::Now();
+}
+
+void AddressBook::Contact::getInstances(Array<String> &array)
+{
+	mAddrs.getKeys(array);
 }
 
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
@@ -881,7 +895,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	return false; 
 }
 
-bool AddressBook::Contact::connectAddresses(AddressMap map, bool save, bool shuffle)
+bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
 {
 	Synchronize(this);
   
@@ -976,7 +990,8 @@ void AddressBook::Contact::update(bool alternate)
 	else if(!alternate) 
 	{
 		mFound = false;
-		connectAddresses(mAddrs, true, false);
+		AddressMap tmpAddrs(mAddrs);
+		connectAddresses(tmpAddrs, true, false);
 	}
 	
 	AddressMap::iterator it = mAddrs.begin();
@@ -1014,7 +1029,7 @@ void AddressBook::Contact::connected(const Identifier &peering)
 	mAddressBook->user()->sendInfo(peering);
 
 	// Send contacts if self
-        if(mUniqueName == mAddressBook->userName())
+        if(isSelf())
         {
 		Desynchronize(this);
                 String data;
@@ -1030,8 +1045,8 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 	Synchronize(this);
 	Assert(peering == mPeering);
 	
-	update(false);
-	update(true);
+	//update(false);
+	//update(true);
 }
 
 void AddressBook::Contact::message(Message *message)
@@ -1081,7 +1096,7 @@ void AddressBook::Contact::message(Message *message)
 			info["last"] = last;
 			mInfo = info;
 			
-			if(mUniqueName == mAddressBook->userName())
+			if(isSelf())
 			{
 				Desynchronize(this);
 				mAddressBook->user()->setInfo(info);
@@ -1119,46 +1134,116 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	Synchronize(this);
 	
 	try {
-		String base(prefix+request.url);
-		base = base.substr(base.lastIndexOf('/')+1);
-		if(!base.empty()) base+= '/';
-	
 		if(request.url.empty() || request.url == "/")
 		{
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/json";
+				response.send();
+				
+				JsonSerializer json(response.sock);
+				json.outputMapBegin();
+				json.outputMapElement(String("name"), mName);
+				json.outputMapElement(String("tracker"), mTracker);
+                                json.outputMapElement(String("status"), status());
+                                json.outputMapElement(String("messages"), unreadMessagesCount());
+				json.outputMapElement(String("newmessages"), hasNewMessages());
+				
+				Array<String> instances;
+ 				getInstances(instances);
+				StringMap map;
+				for(int i=0; i<instances.size(); ++i)
+        			{
+                			if(isConnected(instances[i])) map[instances[i]] = "connected";
+					else map[instances[i]] = "disconnected";
+                		}
+				
+                		json.outputMapElement(String("instances"), map);
+				json.outputMapEnd();
+				return;
+			}
+		  
 			Http::Response response(request,200);
 			response.send();
 
 			Html page(response.sock);
-			page.header("Contact: "+mName);
+			if(isSelf()) page.header("Myself");
+			else page.header("Contact: "+mName);
 				
-			page.open("div",".menu");
-				
-			page.span("Status:", ".title");
-			page.span("", "status.status");
-			page.br();
-			page.br();
+			if(mUniqueName != mAddressBook->userName())
+			{
+				page.open("div", "topmenu");
+				page.span("Status:", ".title");
+				page.span("", "status.status");
+				page.close("div");
+			}
 			
-			page.link(prefix+"/files/","Files");
-			page.br();
-			page.link(prefix+"/search/","Search");
-			page.br();
-			page.openLink(prefix+"/chat/");
-			page.text("Chat");
-			page.span("", "messagescount.messagescount");
-			page.closeLink();
-			page.br();
+			page.open("div",".box");
+				
+			page.open("table", ".menu");
+			page.open("tr");
+			page.open("td");
+				page.openLink(prefix + "/files/");
+				page.image("/icon_files.png", "Files", ".bigicon");
+				page.closeLink();
+			page.close("td");
+			page.open("td", ".title");
+				page.text("Files");
+			page.close("td");
+			page.close("tr");
+			page.open("tr");
+			page.open("td");
+				page.openLink(prefix + "/search/");
+				page.image("/icon_search.png", "Search", ".bigicon");
+				page.closeLink();
+			page.close("td");
+			page.open("td", ".title");
+				page.text("Search");
+			page.close("td");
+			page.close("tr");
+			
+			if(mUniqueName != mAddressBook->userName())
+			{
+				page.open("tr");
+				page.open("td");
+					page.openLink(prefix + "/chat/");
+					page.image("/icon_chat.png", "Chat", ".bigicon");
+					page.closeLink();
+				page.close("td");
+				page.open("td",".title");
+					page.text("Chat");
+					page.span("", "messagescount.messagescount");
+				page.close("td");
+				page.close("tr");
+			}
+			
+			page.close("table");
+			page.close("div");
+			
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Instances");
+			page.close("h2");
+			page.open("table", "instances");
+			page.close("table");
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
-					$.each(data, function(uname, info) {\n\
-						var info = data."+uniqueName()+";\n\
-						transition($('#status'),\n\
-							'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-						var msg = '';\n\
-						if(info.messages != 0) msg = ' ('+info.messages+')';\n\
-						transition($('#messagescount'), msg);\n\
-					});\n\
+			page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+				transition($('#status'),\n\
+					'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+				var msg = '';\n\
+				if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+				transition($('#messagescount'), msg);\n\
+				$('#instances').empty();\n\
+				if($.isEmptyObject(info.instances)) $('#instances').text('No connected instance');\n\
+				else $.each(info.instances, function(instance, status) {\n\
+					$('#instances').append($('<tr>')\n\
+						.addClass(status)\n\
+						.append($('<td>').addClass('name').text(instance))\n\
+						.append($('<td>').addClass('status').text(status.capitalize())));\n\
+				});\n\
 			});");
 			
 			page.footer();
@@ -1216,7 +1301,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				request.get.get("instance", instance);
 				
 				// Self
-				if(mUniqueName == mAddressBook->userName()
+				if(isSelf()
 					&& (instance.empty() || instance == Core::Instance->getName()))
 				{
 					trequest.execute(mAddressBook->user());
@@ -1323,15 +1408,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						throw 404;
 					}
 					
-					bool playlistMode = request.get.contains("playlist");
+					Http::Response response(request, 200);
 					
-					Http::Response response(request,200);
+					bool playlistMode = request.get.contains("playlist");
 					if(playlistMode)
 					{
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
-						
 					}
+					
 					response.send();
 					
 					Html page(response.sock);
@@ -1340,122 +1425,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					{
 						if(target.empty() || target == "/") page.header(mName+": Browse files");
 						else page.header(mName+": "+target.substr(1));
+						page.open("div","topmenu");
 						page.link(prefix+"/search/","Search files");
 						page.br();
+						page.close("div");
 					}
 					
-					bool isPlayable = false;
-					Set<String> instances;
-					Map<String, StringMap> files;
-					for(int i=0; i<trequest.responsesCount(); ++i)
-					{
-					  	Request::Response *tresponse = trequest.response(i);
-						if(tresponse->error()) continue;
+					page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user(), playlistMode);
 					
-						StringMap params = tresponse->parameters();
-						instances.insert(tresponse->instance());
-						params.insert("instance", tresponse->instance());
-
-						// Check info
-						if(!params.contains("type")) continue;
-						if(!params.contains("name")) continue;
-						if(!params.contains("hash")) params.insert("hash", "");
-						
-						// Sort
-						// Directories with the same name appears only once
-						// Files with identical content appears only once
-						if(params.get("type") == "directory") files.insert("0"+params.get("name").toLower(),params);
-						else files.insert("1"+params.get("name").toLower()+params.get("hash"), params);
-						
-						isPlayable|= ((Mime::IsAudio(params.get("name")) || Mime::IsVideo(params.get("name")))
-								&& !params.get("hash").empty());
-					}
-
-					if(playlistMode)
-					{
-						String host;
-						if(!request.headers.get("Host", host))
-							host = String("localhost:") + Config::Get("interface_port");
-					 
-						page.stream()->writeLine("#EXTM3U"); 
-						for(Map<String, StringMap>::iterator it = files.begin();
-							it != files.end();
-							++it)
-						{
-							StringMap &map = it->second;
-							if(map.get("type") == "directory") continue;
-							if(!Mime::IsAudio(map.get("name")) && !Mime::IsVideo(map.get("name"))) continue;
-							String link = "http://" + host + "/" + map.get("hash");
-							page.stream()->writeLine("#EXTINF:-1," + map.get("name").beforeLast('.'));
-							page.stream()->writeLine(link);
-						}
-						return;
-					}
-					
-					if(isPlayable)
-					{
-						page.link(prefix + request.url + "?playlist=1", "Play this directory");
-						page.br();
-					}
-					
-					page.open("div",".box");
-					if(files.empty()) page.text("No shared files");
-					else {
-					  	String desc;
-						if(instances.size() == 1) desc << files.size() << " files";
-						else desc << files.size() << " files on " << instances.size() << " instances";
-						page.text(desc);
-						page.text(" - ");
-						if(url[url.size()-1] == '/') page.link("..", "Parent");
-						else page.link(".", "Parent");
-						page.br();
-						
-						page.open("table",".files");
-						for(Map<String, StringMap>::iterator it = files.begin();
-							it != files.end();
-							++it)
-						{
-							StringMap &map = it->second;
-							String name = map.get("name");
-							String link;
-							if(map.get("type") == "directory") link = base + name;
-							else if(!map.get("hash").empty()) link = "/" + map.get("hash");
-							else link = base + name + "?instance=" + map.get("instance").urlEncode() + "&file=1";
-							
-							page.open("tr");
-							page.open("td",".icon");
-							if(map.get("type") == "directory") page.image("/dir.png");
-							else page.image("/file.png");
-							page.close("td");
-							page.open("td",".filename");
-							if(map.get("type") != "directory" && name.contains('.'))
-								page.span(name.afterLast('.').toUpper(), ".type");
-							page.link(link, name);
-							page.close("td");
-							page.open("td",".size"); 
-							if(map.get("type") == "directory") page.text("directory");
-							else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
-							page.close("td");
-							page.open("td",".actions");
-							if(map.get("type") != "directory")
-							{
-								page.openLink(Http::AppendGet(link,"download"));
-								page.image("/down.png", "Download");
-								page.closeLink();
-								if(Mime::IsAudio(name) || Mime::IsVideo(name))
-								{
-									page.openLink(Http::AppendGet(link,"play"));
-									page.image("/play.png", "Play");
-									page.closeLink();
-								}
-							}
-							page.close("td");
-							page.close("tr");
-						}
-						page.close("table");
-					}
-					page.close("div");
-					page.footer();
+					if(!playlistMode) page.footer();
 				}
 				catch(const Exception &e)
 				{
@@ -1479,7 +1457,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();
 				
 				Html page(response.sock);
-				page.header(mName+": Search");
+				if(query.empty()) page.header(mName + ": Search");
+				else page.header(mName + ": Searching " + query);
 				page.openForm(prefix + "/search", "post", "searchForm");
 				page.input("text","query",query);
 				page.button("search","Search");
@@ -1513,74 +1492,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					trequest.wait(timeout);
 				}
 				
-				page.open("div",".box");
-				if(!trequest.isSuccessful()) page.text("No files found");
-				else try {
-					
-					page.open("table",".files");
-					for(int i=0; i<trequest.responsesCount(); ++i)
-					{
-						Request::Response *tresponse = trequest.response(i);
-						if(tresponse->error()) continue;
-					
-						// Check info
-						StringMap map = tresponse->parameters();
-						if(!map.contains("type")) continue;
-						if(!map.contains("path")) continue;
-						if(!map.contains("hash")) map["hash"] = "";
-						if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
-						
-						String name = map.get("name");
-						String link;
-						if(map.get("type") == "directory") link = urlPrefix() + "/files" + map.get("path");
-						else if(!map.get("hash").empty()) link = "/" + map.get("hash");
-						else link = urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1";
-						
-						page.open("tr");
-						page.open("td",".icon");
-						if(map.get("type") == "directory") page.image("/dir.png");
-						else page.image("/file.png");
-						page.close("td");
-						page.open("td",".filename");
-						if(map.get("type") != "directory" && name.contains('.'))
-							page.span(name.afterLast('.').toUpper(), ".type");
-						page.link(link, name);
-						page.close("td");
-						page.open("td",".size"); 
-						if(map.get("type") == "directory") page.text("directory");
-						else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
-						page.close("td");
-						page.open("td",".actions"); 
-						if(map.get("type") != "directory")
-						{
-							page.openLink(Http::AppendGet(link,"download"));
-							page.image("/down.png", "Download");
-							page.closeLink();
-							if(Mime::IsAudio(name) || Mime::IsVideo(name))
-							{
-								page.openLink(Http::AppendGet(link,"play"));
-								page.image("/play.png", "Play");
-								page.closeLink();
-							}
-						}
-						page.close("tr");
-					}
-					page.close("table");
-					
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", String("Unable to list files: ") + e.what());
-					page.close("table");
-					page.text("Error, unable to list files");
-				}
-				page.close("div");
-				
+				page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user());
 				page.footer();
 				return;
 			}
 			else if(directory == "chat")
 			{
+				if(isSelf()) throw 404;
+			  
 				if(url != "/")
 				{
 				  	url.ignore();
@@ -1657,17 +1576,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.header("Chat with "+mName, isPopup);
 				if(isPopup)
 				{
+					page.open("div","topmenu");
 					page.open("b");
 					page.text("Chat with "+mName+" - ");
 					page.span("", "status.status");
 					page.close("b");
+					page.close("div");
 					page.open("div", "chat");
 				}
 				else {
 					String popupUrl = prefix + "/chat?popup=1";
+					page.open("div","topmenu");
+#ifndef ANDROID
 					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 					page.text(" - ");
+#endif
 					page.span("", "status.status");
+					page.close("div");
 					page.open("div", "chat.box");
 				}
 				
@@ -1759,11 +1684,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					});");
 				
 				unsigned refreshPeriod = 5000;
-				page.javascript("setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
-						$.each(data, function(uname, info) {\n\
-							var info = data."+uniqueName()+";\n\
+				page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 							transition($('#status'),\n\
 								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+							if(info.newmessages) playMessageSound();\n\
 						});\n\
 				});");
 				

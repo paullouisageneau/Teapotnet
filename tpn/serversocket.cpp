@@ -58,20 +58,18 @@ int ServerSocket::getPort(void) const
 
 Address ServerSocket::getBindAddress(void) const
 {
-	char hostname[HOST_NAME_MAX];
-	if(gethostname(hostname,HOST_NAME_MAX))
-		throw NetException("Cannot retrieve hostname");
-
 	sockaddr_storage sa;
 	socklen_t sl = sizeof(sa);
 	int ret = ::getsockname(mSock, reinterpret_cast<sockaddr*>(&sa), &sl);
-	if(ret < 0) throw NetException("Cannot obtain Address of socket");
+	if(ret < 0) throw NetException("Cannot obtain address of socket");
 
 	return Address(reinterpret_cast<sockaddr*>(&sa), sl);
 }
 
 void ServerSocket::getLocalAddresses(List<Address> &list) const
 {
+	list.clear();
+  
 	Address bindAddr = getBindAddress();
   
 #ifdef NO_IFADDRS
@@ -91,7 +89,14 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 	String service;
 	service << mPort;
 	if(getaddrinfo(hostname, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException(String("Address resolution failed for ")+String(hostname));
+	{
+		LogWarn("ServerSocket", "Local hostname is not resolvable !");
+		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
+		{
+			list.push_back(bindAddr);
+			return;
+		}
+	}
 	
 	addrinfo *ai = aiList;  
 	while(ai)
@@ -169,7 +174,7 @@ void ServerSocket::listen(int port)
 	String service;
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException(String("Local binding address resolution failed for port ")+String::number(port));
+		throw NetException(String("Local binding address resolution failed for TCP port ")+String::number(port));
 		
 	try {
 		// Prefer IPv6

@@ -49,6 +49,7 @@ public:
 	
 	const String &name(void) const;
 	String profilePath(void) const;
+	String urlPrefix(void) const;
 	AddressBook *addressBook(void) const;
 	Store *store(void) const;
 	

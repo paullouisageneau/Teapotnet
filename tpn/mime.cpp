@@ -699,6 +699,7 @@ void Mime::Init(void)
 	Types["flac"] = "audio/x-flac";
 	Types["mka"] = "audio/x-matroska";
 	Types["m3u"] = "audio/x-mpegurl";
+	Types["mp3"] = "audio/mpeg";
 	Types["wax"] = "audio/x-ms-wax";
 	Types["wma"] = "audio/x-ms-wma";
 	Types["ram"] = "audio/x-pn-realaudio";

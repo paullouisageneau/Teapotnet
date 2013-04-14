@@ -38,18 +38,26 @@ Core::Core(int port) :
 {
 	Interface::Instance->add("/peers", this);
 	
-	char hostname[HOST_NAME_MAX];
-	if(gethostname(hostname,HOST_NAME_MAX))
-		throw NetException("Cannot retrieve hostname");
-	mName = hostname;
+	mName = Config::Get("instance_name");
 	
-	if(mName == "localhost")
+	if(mName.empty())
 	{
-#ifdef ANDROID
-		mName = String("android") + String::number(unsigned(std::rand()%1000), 3);
-#else
-		mName = String::random(6);
-#endif
+		char hostname[HOST_NAME_MAX];
+		if(!gethostname(hostname,HOST_NAME_MAX)) 
+			mName = hostname;
+		
+		if(mName.empty() || mName == "localhost")
+		{
+		#ifdef ANDROID
+			mName = String("android.") + String::number(unsigned(std::rand()%1000), 3);
+		#else
+			mName = String(".") + String::random(6);
+		#endif
+			Config::Put("instance_name", mName);
+			
+			const String configFileName = "config.txt";
+			Config::Save(configFileName);
+		}
 	}
 }
 
@@ -628,6 +636,7 @@ void Core::Handler::run(void)
 				String remote;
 				
 				{
+					Desynchronize(this);
 					Synchronize(&request);
 					
 					request.submit();

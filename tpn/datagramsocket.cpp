@@ -63,6 +63,8 @@ Address DatagramSocket::getBindAddress(void) const
 
 void DatagramSocket::getLocalAddresses(List<Address> &list) const
 {
+	list.clear();
+  
 	Address bindAddr = getBindAddress();
   
 #ifdef NO_IFADDRS
@@ -82,7 +84,14 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 	String service;
 	service << mPort;
 	if(getaddrinfo(hostname, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException(String("Address resolution failed for ")+String(hostname));
+	{
+		LogWarn("DatagramSocket", "Local hostname is not resolvable !");
+		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
+		{
+			list.push_back(bindAddr);
+			return;
+		}
+	}
 	
 	addrinfo *ai = aiList;  
 	while(ai)

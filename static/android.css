@@ -123,8 +123,7 @@ fieldset
 	padding-left: 1em;
 	padding-right: 1em;
 	background-color: #FFFFFF;
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
+	border: 1px solid #E0E0E0;
 	box-shadow: 0em 0em 0.5em 0.10em #404040;
 }
 
@@ -146,7 +145,7 @@ legend
 	margin-top: -2.5em;
 	text-align: right;
 	background-color: #FFFFFF;
-	border: 2px solid #E0E0E0;
+	border: 1px solid #E0E0E0;
 	border-radius: 0.5em;
 	box-shadow: 0em 0em 0.5em 0.10em #404040;
 }
@@ -225,12 +224,11 @@ textarea
 {
 	width: 100%;
 	height: 100%;
-	max-width: 50em;
 	margin-top: 0.5em;
 	margin-bottom: 0.5em;
 	margin-left: auto;
 	margin-right: auto;
-	padding: 0.25em;
+	padding: 0;
 }
 
 #header
@@ -313,8 +311,7 @@ textarea
 
 #chat
 {
-	width: 100%;
-	height: 95%;
+	height: 100%;
 	margin-top: 0.5em;
 	background-color: #FFFFFF;
 }
@@ -374,7 +371,7 @@ textarea
 
 .huge
 {
-	font-size: 3em;
+	font-size: 2em;
 }
 
 .title
@@ -385,6 +382,16 @@ textarea
 .value
 {
   
+}
+
+.icon
+{
+  
+}
+
+.bigicon
+{
+
 }
 
 .user
@@ -442,8 +449,7 @@ td.delete
 	margin-bottom: 0.5em;
 	padding: 0.5em;
 	background-color: #FFFFFF;
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
+	border: 1px solid #E0E0E0;
 	box-shadow: 0em 0em 0.5em 0.10em #404040;
 	overflow: hidden;
 }
@@ -451,22 +457,25 @@ td.delete
 .files
 {
 	margin-top: 0.5em;
-	white-space: nowrap;
 }
 
 .files tr
 {
+	height: 3em;
+	max-height: 3em;
 	min-height: 16px;
-}
-
-.files tr:hover
-{
-	background-color: #C0C0C0;
+	border-top: 1px solid #B0B0B0;
 }
 
 .files tr td
 {
 	vertical-align: middle;
+	
+}
+
+.files tr:hover
+{
+	background-color: #C0C0C0;
 }
 
 .files td.icon
@@ -480,7 +489,6 @@ td.delete
 .files td.filename
 {
 	max-width: 24em;
-	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis; 
 }
@@ -500,25 +508,24 @@ td.delete
 
 .files td.actions
 {
-	width: 32px;
-	min-height: 16px;
-	padding-left: 0.5em;
-	text-align: left;
+	display: none;
 }
 
 .contacts tr
 {
+	height: 3em;
 	min-height: 16px;
-}
-
-.contacts tr:hover
-{
-	background-color: #C0C0C0;
+	border-top: 1px solid #B0B0B0;
 }
 
 .contacts tr td
 {
 	vertical-align: middle;
+}
+
+.contacts tr:hover
+{
+	background-color: #C0C0C0;
 }
 
 .contacts td.name
@@ -535,23 +542,24 @@ td.delete
 
 .contacts td.status
 {
-	width: 14em;
+	min-width: 10em;
 }
 
 .contacts td.files
 {
- 	width: 6em;
+	padding-right: 0.5em;
 }
 
 .contacts td.chat
 {
-	width: 6em; 
+	padding-right: 0.5em;
 }
 
 #instances tr
 {
+	height: 3em;
 	min-height: 16px;
-	vertical-align: middle;
+	border-top: 1px solid #B0B0B0;
 }
 
 #instances tr:hover
@@ -567,6 +575,7 @@ td.delete
 .menu tr
 {
 	height: 5em;
+	border-top: 1px solid #B0B0B0;
 }
 
 .menu tr td
@@ -582,7 +591,7 @@ td.delete
 .menu td.title
 {
 	font-weight: bold;
-	font-size: 1.33em;
+	font-size: 1.5em;
 }
 
 .menu .bigicon

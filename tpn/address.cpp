@@ -69,7 +69,12 @@ void Address::set(const String &host, const String &service)
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException("Address resolution failed for "+host+":"+service);
+	{
+		String str;
+		if(host.contains(':')) str = "[" + host + "]:" + service;
+		else str = host + ":" +service;
+		throw NetException("Unable to resolve address: " + str);
+	}
 
 	set(aiList->ai_addr, aiList->ai_addrlen);
 	freeaddrinfo(aiList);
@@ -320,7 +325,7 @@ bool Address::deserialize(Stream &s)
 	String str;
 	if(!s.read(str)) return false;
   	str.trim();
-	if(str.empty()) throw InvalidData("Invalid network Address");
+	if(str.empty()) throw InvalidData("Invalid network address");
 	
 	String host, service;
 
@@ -337,7 +342,7 @@ bool Address::deserialize(Stream &s)
 
 	if(!host.empty() && host[0] == '[')
 		host = host.substr(1, host.find(']')-1);
-	if(host.empty() || service.empty()) throw InvalidData("Invalid network Address: " + str);
+	if(host.empty() || service.empty()) throw InvalidData("Invalid network address: " + str);
 
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
@@ -349,7 +354,7 @@ bool Address::deserialize(Stream &s)
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
-		throw InvalidData("Invalid network Address: " + str);
+		throw NetException("Unable to resolve address: " + str);
 
 	set(aiList->ai_addr, aiList->ai_addrlen);
 	freeaddrinfo(aiList);

@@ -780,7 +780,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(this != GlobalInstance)
 				{
 					page.openForm(prefix+url,"post", "uploadForm", true);
-					page.openFieldset("Upload a file");
+					page.openFieldset("Add a file");
 					page.label("file"); page.file("file", "Select a file"); page.br();
 					page.label("send"); page.button("send","Send");
 					page.closeFieldset();
@@ -815,6 +815,16 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(!info.empty())
 				{
 					page.open("div", ".box");
+				
+					String desc;
+					desc << files.size() << " files";
+					page.text(desc);
+					
+					page.text(" - ");
+					if(request.url[request.url.size()-1] == '/') page.link("..", "Parent");
+					else page.link(".", "Parent");
+					
+					page.br();
 					
 					if(this != GlobalInstance)
 					{

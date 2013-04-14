@@ -19,6 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+var deviceAgent = navigator.userAgent.toLowerCase();
+if(deviceAgent.indexOf("android") > -1) $('#csslink').attr('href', '/android.css');
+
 if(!String.linkify) {
 	String.prototype.linkify = function() {
 
@@ -102,6 +105,18 @@ $(document).ready( function() {
 		}
 	}
 	resizeContent();
+	
+	$('table.files tr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
+	
+	$('table.contacts tr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
+	
+	$('table.menu tr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
 });
 
 $(window).resize( function() {
@@ -117,37 +132,30 @@ function playMessageSound() {
 	if(MessageSound != null) MessageSound.play();
 }
 
-var queryContactsUserName = '';
-var queryContactsTimeout = 5000;
-var queryContactsCallback;
+var queryInfoUrl = '';
+var queryInfoTimeout = 5000;
+var queryInfoCallback;
 
-function queryContactsInfo(userName, timeout, callback) {
+function queryInfo(url, timeout, callback) {
 	$.ajax({
-		url: '/'+userName+'/contacts/?json',
+		url: url,
 		dataType: 'json',
 		timeout: timeout,
 		success: function(data) {
-			play = false;
-			$.each(data, function(uname, info) {
-				if(info['newmessages'] == 'true') {
-					play = true;
-				}
-			});
-			if(play) playMessageSound();
 			callback(data);
 		}
 	});
 }
 
-function setContactsInfoCallback(userName, period, callback) {
+function setInfoCallback(url, period, callback) {
 	
-	queryContactsUserName = userName;
-	queryContactsTimeout = period;
-	queryContactsCallback = callback;
+	queryInfoUrl = url;
+	queryInfoTimeout = period;
+	queryInfoCallback = callback;
 	setInterval( function() {
-		queryContactsInfo(queryContactsUserName, queryContactsTimeout, queryContactsCallback);
+		queryInfo(queryInfoUrl, queryInfoTimeout, queryInfoCallback);
 	}, period);
 	$(document).ready( function() {
-		queryContactsInfo(queryContactsUserName, queryContactsTimeout, queryContactsCallback);
+		queryInfo(queryInfoUrl, queryInfoTimeout, queryInfoCallback);
 	});
 }

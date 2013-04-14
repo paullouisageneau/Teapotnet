@@ -110,7 +110,7 @@ User::User(const String &name, const String &password) :
 	UsersByAuth.insert(mHash, this);
 	UsersMutex.unlock();
 	
-	Interface::Instance->add("/"+mName, this);
+	Interface::Instance->add(urlPrefix(), this);
 }
 
 User::~User(void)
@@ -120,7 +120,7 @@ User::~User(void)
   	UsersByAuth.erase(mHash);
 	UsersMutex.unlock();
 	
-	Interface::Instance->remove("/"+mName);
+	Interface::Instance->remove(urlPrefix());
 	
 	delete mAddressBook;
 	delete mStore;
@@ -137,6 +137,11 @@ String User::profilePath(void) const
 	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
 	if(!Directory::Exist(path)) Directory::Create(path);
 	return path + Directory::Separator;
+}
+
+String User::urlPrefix(void) const
+{
+	return String("/") + mName;
 }
 
 AddressBook *User::addressBook(void) const
@@ -239,12 +244,9 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.open("h1");
-			page.text(mName + " / " + Core::Instance->getName());
-			if(mAddressBook->getSelf())
-			{
-				page.text(" - ");
-				page.link(prefix+"/myself/","All my files");
-			}
+			String instance = Core::Instance->getName().before('.');
+			if(!instance.empty()) page.text(mName + " / " + instance);
+			else page.text(mName);
 			page.close("h1");
 			
 			page.open("div","contacts.box");
@@ -253,18 +255,47 @@ void User::http(const String &prefix, Http::Request &request)
 			page.link(prefix+"/contacts/","Edit");
 			page.close("h2");
 			
+			AddressBook::Contact *self = mAddressBook->getSelf();
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
-			if(contacts.empty()) page.link(prefix+"/contacts/","Add a contact");
+			
+			if(contacts.empty() || !self) page.link(prefix+"/contacts/","Add a contact");
 			else {
 				page.open("table",".contacts");
+				
+				if(self)
+				{
+					page.open("tr", String("contact_")+self->uniqueName());
+					
+					page.open("td",".name");
+					page.link(self->urlPrefix(), self->name());
+					page.close("td");
+						
+					page.open("td",".tracker");
+					page.text(String("@") + self->tracker());
+					page.close("td");
+						
+					page.open("td",".status");
+					page.close("td");
+					
+					page.open("td",".files");
+					page.link(self->urlPrefix()+"/files/", "Files");
+					page.close("td");
+					
+					page.open("td",".chat");
+					// Dummy
+					page.close("td");
+					
+					page.close("tr");
+				}
+			    
 				for(int i=0; i<contacts.size(); ++i)
 				{	
 					AddressBook::Contact *contact = contacts[i];
 					
 					page.open("tr", String("contact_")+contact->uniqueName());
 					
-					page.open("td",".contact");
+					page.open("td",".name");
 					page.link(contact->urlPrefix(), contact->name());
 					page.close("td");
 					
@@ -276,12 +307,12 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					
 					page.open("td",".files");
-					page.link(contact->urlPrefix()+"/files/", "files");
+					page.link(contact->urlPrefix()+"/files/", "Files");
 					page.close("td");
 					
 					page.open("td",".chat");
 					page.openLink(contact->urlPrefix()+"/chat/");
-					page.text("chat");
+					page.text("Chat");
 					page.span("", ".messagescount");
 					page.closeLink();
 					page.close("td");
@@ -294,19 +325,22 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			unsigned refreshPeriod = 5000;
 			page.javascript("var title = document.title;\n\
-					setContactsInfoCallback(\""+mAddressBook->userName()+"\", "+String::number(refreshPeriod)+", function(data) {\n\
+					setInfoCallback(\"/"+mAddressBook->userName()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
+					play = false;\n\
 					$.each(data, function(uname, info) {\n\
-						$('#contact_'+uname).attr('class', info.status);;\n\
+						$('#contact_'+uname).attr('class', info.status);\n\
 						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
 						var count = parseInt(info.messages);\n\
 						var tmp = '';\n\
 						if(count != 0) tmp = ' ('+count+')';\n\
 						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
 						totalmessages+= count;\n\
+						if(info.newmessages == 'true') play = true;\n\
 					});\n\
 					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
 					else document.title = title;\n\
+					if(play) playMessageSound();\n\
 			});");
 			
 			page.open("div","files.box");
@@ -391,10 +425,11 @@ void User::http(const String &prefix, Http::Request &request)
 			response.send();
 				
 			Html page(response.sock);
-			page.header("Search");
-				
+			if(query.empty()) page.header("Search");
+			else page.header(String("Searching ") + query);
+			
 			page.openForm(prefix + "/search", "post", "searchform");
-			page.input("text","query",query);
+			page.input("text","query", query);
 			page.button("search","Search");
 			page.closeForm();
 			page.br();
@@ -405,145 +440,15 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
-			Store::Query squery;
-			squery.setMatch(query);
-		
-			int count = 0;
-			page.open("div",".box");
-			page.open("table",".files");
-		
-			List<Store::Entry> list;
-			if(mStore->queryList(squery, list))
-			{	
-				for(List<Store::Entry>::iterator it = list.begin();
-					it != list.end();
-					++it)
-				{
-					Store::Entry &entry = *it;
-					if(entry.url.empty()) continue;
-					
-					String name = entry.name;
-					String link = "/" + mName + "/files" + entry.url;
-					
-					page.open("tr");
-					page.open("td",".owner");
-					page.text("(local)");
-					page.close("td");
-					page.open("td",".icon");
-					if(!entry.type) page.image("/dir.png");
-					else page.image("/file.png");
-					page.open("td",".filename");
-					if(entry.type && entry.name.contains('.'))
-						page.span(entry.name.afterLast('.').toUpper(), ".type");
-					page.link(link, entry.name);
-					page.close("td");
-					page.open("td",".size"); 
-					if(!entry.type) page.text("directory");
-					else page.text(String::hrSize(entry.size));
-					page.close("td");
-					page.open("td",".actions");
-					if(entry.type)
-					{
-						page.openLink(Http::AppendGet(link,"download"));
-						page.image("/down.png", "Download");
-						page.closeLink();
-						if(Mime::IsAudio(name) || Mime::IsVideo(name))
-						{
-							page.openLink(Http::AppendGet(link,"play"));
-							page.image("/play.png", "Play");
-							page.closeLink();
-						}
-					}
-					page.close("td");
-					page.close("tr");
-					
-					++count;
-				}
-			}
-		
 			const unsigned timeout = Config::Get("request_timeout").toInt();
 	
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
+			trequest.execute(this);
 			trequest.submit();
 			trequest.wait(timeout);
 			
-			if(trequest.isSuccessful())
-			try {
-				for(int i=0; i<trequest.responsesCount(); ++i)
-				{
-					Request::Response *tresponse = trequest.response(i);
-					if(tresponse->error()) continue;
-					
-					// Check contact
-					const AddressBook::Contact *contact = mAddressBook->getContact(tresponse->peering());
-					if(!contact) continue;
-					
-					// Check info
-					StringMap map = tresponse->parameters();
-					if(!map.contains("type")) continue;
-					if(!map.contains("path")) continue;
-					if(!map.contains("hash")) map["hash"] = "";
-					if(!map.contains("name")) map["name"] = map["path"].afterLast('/');
-					
-					String name = map.get("name");
-					String link;
-					if(map.get("type") == "directory") link = contact->urlPrefix() + "/files" + map.get("path");
-					else if(!map.get("hash").empty()) link = "/" + map.get("hash");
-					else link = contact->urlPrefix() + "/files" + map.get("path") + "?instance=" + tresponse->instance().urlEncode() + "&file=1";
-						
-					page.open("tr");
-					page.open("td", ".owner");
-					if(contact->uniqueName() == mName) page.text("(" + mName + ")");
-					else {
-						page.text("("); 
-						page.link(contact->urlPrefix()+"/", contact->name());
-						page.text(")");
-					}
-					page.close("td");
-					page.open("td",".icon");
-					if(map.get("type") == "directory") page.image("/dir.png");
-					else page.image("/file.png");
-					page.close("td");
-					page.open("td",".filename");
-					if(map.get("type") != "directory" && name.contains('.'))
-						page.span(name.afterLast('.').toUpper(), ".type");
-					page.link(link, name);
-					page.close("td");
-					page.open("td",".size"); 
-					if(map.get("type") == "directory") page.text("directory");
-					else if(map.contains("size")) page.text(String::hrSize(map.get("size")));
-					page.close("td");
-					page.open("td",".actions");
-					if(map.get("type") != "directory")
-					{
-						page.openLink(Http::AppendGet(link,"download"));
-						page.image("/down.png", "Download");
-						page.closeLink();
-						if(Mime::IsAudio(name) || Mime::IsVideo(name))
-						{
-							page.openLink(Http::AppendGet(link,"play"));
-							page.image("/play.png", "Play");
-							page.closeLink();
-						}
-					}
-					page.close("td");
-					page.close("tr");
-					
-					++count;
-				}
-
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("User::http", String("Unable to list files: ") + e.what());
-			}
-			
-			page.close("table");
-			
-			if(!count) page.text("No files found");
-			
-			page.close("div");
+			page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user());
 			page.footer();
 			return;
 		}
@@ -554,20 +459,9 @@ void User::http(const String &prefix, Http::Request &request)
 		
 		if(url == "/myself")
 		{
-			AddressBook::Contact *self = mAddressBook->getSelf();
-			if(!self)
-			{
-				Http::Response response(request, 303);
-				response.headers["Location"] = prefix + "/files/";
-				response.send();
-				return;
-			}
-			
-			request.url = String("/files") + urlLeft;
-			String newPrefix = prefix + "/contacts/" + self->uniqueName();
-			
-			Desynchronize(this);
-			self->http(newPrefix, request);
+			Http::Response response(request, 303);
+			response.headers["Location"] = prefix + "/files/";
+			response.send();
 			return;
 		}
 	}
@@ -588,10 +482,9 @@ void User::run(void)
 	{
 		for(int t=0; t<2; ++t)
 		{
-			wait(30000);
-			
 			try {
-				Synchronize(this);
+				msleep(30000);
+				
 				if(oldLastOnlineTime != mLastOnlineTime)
 				{
 					oldLastOnlineTime = mLastOnlineTime;

@@ -27,9 +27,13 @@
 #include "tpn/socket.h"
 #include "tpn/serializable.h"
 #include "tpn/map.h"
+#include "tpn/http.h"
 
 namespace tpn
 {
+
+class Request;
+class User;
 
 class Html
 {
@@ -84,9 +88,11 @@ public:
 	void select(const String &name, const StringMap &options, const String &def = "");
 	void button(const String &name, String text = "");
 	void file(const String &name, String text = "");
+
+	void listFilesFromRequest(Request &trequest, const String &prefix, Http::Request &request, const User *user = NULL, bool playlistMode = false);
 	
 	Stream *stream(void);
-
+	
 private:
 	Stream *mStream;
 	bool mBlank;

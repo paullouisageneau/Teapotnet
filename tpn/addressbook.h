@@ -80,6 +80,7 @@ public:
 		String urlPrefix(void) const;
 		int unreadMessagesCount(void) const;
 		bool hasNewMessages(void);
+		bool isSelf(void) const;
 		bool isFound(void) const;
 		bool isConnected(void) const;
 		bool isConnected(const String &instance) const;
@@ -88,12 +89,13 @@ public:
 		AddressMap addresses(void) const;
 		bool isDeleted(void) const;
 		void setDeleted(void);
+		void getInstances(Array<String> &array);
 		
 		bool addAddresses(const AddressMap &map);
 		
 		// These functions return true if addr is successfully connected
 		bool connectAddress(const Address &addr, const String &instance, bool save = true);
-		bool connectAddresses(AddressMap map, bool save = true, bool shuffle = false);
+		bool connectAddresses(const AddressMap &map, bool save = true, bool shuffle = false);
 		
 		void update(bool alternate = false);
 

@@ -61,21 +61,32 @@ void openUserInterface(void)
 #ifdef ANDROID
 void mainWrapper(void)
 {
+	/*
 	char tmp[] = {"teapotnet"};
 	char *argv[1];
 	argv[0] = tmp;
 	main(1, argv);
+	*/
+	
+	char command[] = {"teapotnet"};
+	char param[] = {"--verbose"};
+	char *argv[2];
+	argv[0] = command;
+	argv[1] = param;
+	main(2, argv);
 }
 
 Thread *MainThread = NULL;
 
 extern "C" 
 {
-	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setDirectory(JNIEnv *env, jobject obj, jstring dir);
+	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir);
+	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir);
+	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env, jobject obj);
 };
 
-JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setDirectory(JNIEnv *env, jobject obj, jstring dir)
+JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
         String str = env->GetStringUTFChars(dir, NULL);
 	
@@ -86,7 +97,42 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setDirectory(
 	}
 	catch(const Exception &e)
 	{
-		Log("main", String("ERROR: ") + e.what());
+		LogError("main", e.what());
+		return JNI_FALSE;
+	}
+}
+
+String TempDirectory;
+String SharedDirectory;
+
+JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir)
+{
+        String str = env->GetStringUTFChars(dir, NULL);
+	
+	try {
+		if(!Directory::Exist(str)) Directory::Create(str);
+		TempDirectory = str;
+		return JNI_TRUE;
+	}
+	catch(const Exception &e)
+	{
+		LogError("main", e.what());
+		return JNI_FALSE;
+	}
+}
+
+JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir)
+{
+        String str = env->GetStringUTFChars(dir, NULL);
+	
+	try {
+		if(!Directory::Exist(str)) Directory::Create(str);
+		SharedDirectory = str;
+		return JNI_TRUE;
+	}
+	catch(const Exception &e)
+	{
+		LogError("main", e.what());
 		return JNI_FALSE;
 	}
 }
@@ -96,6 +142,7 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env
 	Log("main", "Starting main thread...");
 	MainThread = new Thread(mainWrapper);
 }
+
 #endif
 
 int main(int argc, char** argv)
@@ -189,7 +236,7 @@ int main(int argc, char** argv)
 #endif
 #endif
 
-		const String configFileName = "config.txt";
+		const String configFileName = "config.txt";	// TODO: also defined in core.cpp
 		if(File::Exist(configFileName)) Config::Load(configFileName);
 
 		Config::Default("tracker", "teapotnet.org");
@@ -211,6 +258,11 @@ int main(int argc, char** argv)
 		Config::Default("request_timeout", "10000");	
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("http_proxy", "");
+		
+#ifdef ANDROID
+		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
+		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
+#endif
 		
 #ifdef WINDOWS
 		if(!InterfacePort) try {
