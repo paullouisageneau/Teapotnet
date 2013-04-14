@@ -61,19 +61,17 @@ void openUserInterface(void)
 #ifdef ANDROID
 void mainWrapper(void)
 {
-	/*
 	char tmp[] = {"teapotnet"};
 	char *argv[1];
 	argv[0] = tmp;
 	main(1, argv);
-	*/
 	
-	char command[] = {"teapotnet"};
+	/*char command[] = {"teapotnet"};
 	char param[] = {"--verbose"};
 	char *argv[2];
 	argv[0] = command;
 	argv[1] = param;
-	main(2, argv);
+	main(2, argv);*/
 }
 
 Thread *MainThread = NULL;
