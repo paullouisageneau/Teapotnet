@@ -1685,10 +1685,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				unsigned refreshPeriod = 5000;
 				page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-							transition($('#status'),\n\
-								'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
-							if(info.newmessages) playMessageSound();\n\
-						});\n\
+					transition($('#status'),\n\
+						'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+					if(info.newmessages) playMessageSound();\n\
 				});");
 				
 				page.footer();
