@@ -69,6 +69,7 @@ Core::~Core(void)
 
 String Core::getName(void) const
 {
+	Synchronize(this);
 	return mName;
 }
 
