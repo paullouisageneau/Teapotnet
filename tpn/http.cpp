@@ -700,8 +700,9 @@ int Http::Get(const String &url, Stream *output)
 	String proxy = Config::Get("http_proxy").trimmed();
 	if(!proxy.empty()) host = proxy;
 
-	Socket sock(host);
+	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
+	sock.connect(host);
 	request.send(sock);
 	Response response;
 	response.recv(sock);
@@ -733,8 +734,9 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	String proxy = Config::Get("http_proxy").trimmed();
 	if(!proxy.empty()) host = proxy;
 	
-	Socket sock(host);
+	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
+	sock.connect(host);
 	request.send(sock);
 	Response response;
 	response.recv(sock);

@@ -82,11 +82,15 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">\n";
 	*mStream<<"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n";
-	*mStream<<"<link id=\"csslink\" rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n";	// TODO
+	*mStream<<"<link id=\"csslink\" rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n";
 	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\">\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
+	
+	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
+		if(deviceAgent.indexOf('android') > -1) $('#csslink').attr('href', '/android.css');");
+	
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 

@@ -85,6 +85,24 @@ User *User::Authenticate(const String &name, const String &password)
 	return NULL;
 }
 
+void User::UpdateAll(void)
+{
+	Array<String> names;
+	UsersMutex.lock();
+	UsersByName.getKeys(names);
+	UsersMutex.unlock();
+	
+	for(int i=0; i<names.size(); ++i)
+	{
+		User *user = NULL;
+		UsersMutex.lock();
+		UsersByName.get(names[i], user);
+		UsersMutex.unlock();
+		
+		if(user && !user->isRunning()) user->start();
+	}
+}
+
 User::User(const String &name, const String &password) :
 	mName(name),
 	mAddressBook(new AddressBook(this)),
@@ -167,7 +185,12 @@ void User::setOnline(void)
 	bool wasOnline = isOnline();
 	mLastOnlineTime = Time::Now();
 	mInfo["last"] = mLastOnlineTime.toString();
-	if(!wasOnline) sendInfo();
+	
+	if(!wasOnline) 
+	{
+		if(!isRunning()) start();
+		sendInfo();
+	}
 }
 
 void User::setInfo(const StringMap &info)

@@ -43,6 +43,7 @@ public:
   	static bool Exist(const String &name);
 	static User *Get(const String &name);
 	static User *Authenticate(const String &name, const String &password);
+	static void UpdateAll(void);
 	
 	User(const String &name, const String &password = "");
 	~User(void);

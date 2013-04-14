@@ -108,7 +108,14 @@ Address Socket::getRemoteAddress(void) const
 
 void Socket::setTimeout(unsigned msecs)
 {
-	mTimeout = msecs; 
+	mTimeout = msecs;
+	
+	struct timeval tv;
+	tv.tv_sec = mTimeout/1000;
+	tv.tv_usec = (mTimeout%1000)*1000;
+	
+	setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
+	setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));	
 }
 
 void Socket::connect(const Address &addr, bool noproxy)
@@ -183,6 +190,8 @@ void Socket::connect(const Address &addr, bool noproxy)
 			b = 0;
                 	if(ioctl(mSock,FIONBIO,&b) < 0)
                         	throw Exception("Cannot set blocking mode");
+			
+			setTimeout(mTimeout);
 		}
 	}
 	catch(...)
@@ -220,6 +229,7 @@ size_t Socket::readData(char *buffer, size_t size)
 	
 	int count = ::recv(mSock,buffer,size,0);
 	if(count < 0) throw NetException("Connection lost");
+	if(sockerrno == EAGAIN || sockerrno == EWOULDBLOCK) throw Timeout();
 	return count;
 }
 
@@ -227,10 +237,11 @@ void Socket::writeData(const char *data, size_t size)
 {
 	while(size)
 	{
-		int count = ::send(mSock,data,size,0);
+		int count = ::send(mSock, data, size, 0);
 		if(count == 0) throw NetException("Connection closed");
 		if(count < 0)  throw NetException("Connection lost");
-
+		if(sockerrno == EAGAIN || sockerrno == EWOULDBLOCK) throw Timeout();
+		
 		data+= count;
 		size-= count;
 	}

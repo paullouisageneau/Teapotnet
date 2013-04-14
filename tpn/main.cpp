@@ -84,6 +84,7 @@ extern "C"
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env, jobject obj);
+	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv *env, jobject obj);
 };
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir)
@@ -141,6 +142,12 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env
 {
 	Log("main", "Starting main thread...");
 	MainThread = new Thread(mainWrapper);
+}
+
+JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv *env, jobject obj)
+{
+	Log("main", "Updating all users...");
+	User::UpdateAll();
 }
 
 #endif
@@ -248,7 +255,7 @@ int main(int argc, char** argv)
 		Config::Default("shared_dir", "shared");
 		Config::Default("temp_dir", "temp");
 		Config::Default("external_address", "auto");
-		Config::Default("http_timeout", "10000");
+		Config::Default("http_timeout", "5000");
 		Config::Default("request_timeout", "10000");
 		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "15000");

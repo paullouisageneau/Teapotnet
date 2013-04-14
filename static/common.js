@@ -19,9 +19,6 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-var deviceAgent = navigator.userAgent.toLowerCase();
-if(deviceAgent.indexOf("android") > -1) $('#csslink').attr('href', '/android.css');
-
 if(!String.linkify) {
 	String.prototype.linkify = function() {
 
