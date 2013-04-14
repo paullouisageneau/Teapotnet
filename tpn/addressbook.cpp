@@ -878,7 +878,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier identifier(mPeering, instance);
 	try {
 		Desynchronize(this);
-		Socket *sock = new Socket(addr, 1500);	// TODO: timeout
+		Socket *sock = new Socket(addr, 2000);	// TODO: timeout
 		if(Core::Instance->addPeer(sock, identifier))
 		{
 			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	

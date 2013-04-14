@@ -352,7 +352,7 @@ void Html::listFilesFromRequest(Request &trequest, const String &prefix, Http::R
 			{
 				if(!user) continue;
 				const AddressBook::Contact *self = user->addressBook()->getSelf();
-				if(self) params["_url"] = user->urlPrefix() + "/myself" + params.get("path");
+				if(self) params["_url"] = user->urlPrefix() + "/myself/files" + params.get("path");
 				else params["_url"] = user->urlPrefix() + "/files" + params.get("path");
 			}
 			else {
