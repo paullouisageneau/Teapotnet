@@ -96,7 +96,7 @@ typedef SOCKADDR sockaddr;
 typedef int socklen_t;
 typedef u_long ctl_t;
 #define ioctl ioctlsocket
-#define sockerrno WSAGetLasterror()
+#define sockerrno WSAGetLastError()
 #define EWOULDBLOCK	WSAEWOULDBLOCK
 #define EADDRINUSE	WSAEADDRINUSE
 #define SOCK_TO_INT(x) 0
