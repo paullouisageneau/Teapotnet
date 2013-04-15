@@ -139,8 +139,8 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
-	static bool publish(const Identifier &remotePeering);
-	static bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);
+	bool publish(const Identifier &remotePeering);
+	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);
 	
 	void run(void);
 	
@@ -149,6 +149,7 @@ private:
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name	
 	unsigned mUpdateCount;
+	Set<String> mBogusTrackers;
 };
 
 }

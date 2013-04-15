@@ -34,7 +34,7 @@
 
 namespace tpn
 {
-
+ 
 AddressBook::AddressBook(User *user) :
 	mUser(user),
 	mUpdateCount(0)
@@ -353,6 +353,8 @@ void AddressBook::update(void)
 	Synchronize(this);
 	LogDebug("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
 	
+	mBogusTrackers.clear();
+	
 	Array<Identifier> keys;
 	mContacts.getKeys(keys);
 	std::random_shuffle(keys.begin(), keys.end());
@@ -562,8 +564,12 @@ void AddressBook::run(void)
 
 bool AddressBook::publish(const Identifier &remotePeering)
 {
+	Synchronize(this);
+	String tracker = Config::Get("tracker");
+	if(SynchronizeTest(this, mBogusTrackers.find(tracker) != mBogusTrackers.end())) return false;
+	
 	try {
-		String url("http://" + Config::Get("tracker") + "/tracker?id=" + remotePeering.toString());
+		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
 		
 		List<Address> list;
 		Config::GetExternalAddresses(list);
@@ -601,8 +607,15 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		
 		return (Http::Post(url, post) == 200);
 	}
+	catch(const Timeout &e)
+	{
+		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+		LogDebug("AddressBook::publish", e.what()); 
+		return false;
+	}
 	catch(const NetException &e)
 	{
+		mBogusTrackers.insert(tracker);
 		LogDebug("AddressBook::publish", e.what()); 
 		return false;
 	}
@@ -616,11 +629,13 @@ bool AddressBook::publish(const Identifier &remotePeering)
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
 {
 	output.clear();
-  
+	
+	String host(tracker);
+	if(host.empty()) host = Config::Get("tracker");
+	if(SynchronizeTest(this, mBogusTrackers.find(host) != mBogusTrackers.end())) return false;
+	
 	try {
-	  	String url;
-	  	if(tracker.empty()) url = "http://" + Config::Get("tracker") + "/tracker?id=" + peering.toString();
-		else url = "http://" + tracker + "/tracker?id=" + peering.toString();
+		String url = "http://" + host + "/tracker?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
@@ -654,8 +669,16 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 		
 		return !output.empty();
 	}
+	catch(const Timeout &e)
+	{
+		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+		LogDebug("AddressBook::query", e.what()); 
+		return false;
+	}
 	catch(const NetException &e)
 	{
+		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+		LogDebug("AddressBook::query", e.what()); 
 		return false;
 	}
 	catch(const std::exception &e)
@@ -966,19 +989,19 @@ void AddressBook::Contact::update(bool alternate)
 			}
 		}
 	}
-	
+
 	if(!alternate) 
 	{
-		LogDebug("AddressBook::Contact", "Publishing to tracker " + mTracker + " for " + mUniqueName);
 		Identifier remotePeering(mRemotePeering);
-		DesynchronizeStatement(this, AddressBook::publish(remotePeering));
+		if(DesynchronizeTest(this, mAddressBook->publish(remotePeering)))
+			LogDebug("AddressBook::Contact", "Published to tracker " + mTracker + " for " + mUniqueName);
 	}
 		  
-	LogDebug("AddressBook::Contact", "Querying tracker " + mTracker + " for " + mUniqueName);	
 	AddressMap newAddrs;
 	Identifier peering(mPeering);
 	String tracker(mTracker);
-	DesynchronizeStatement(this, AddressBook::query(peering, tracker, newAddrs, alternate));
+	if(DesynchronizeTest(this, mAddressBook->query(peering, tracker, newAddrs, alternate)))
+		LogDebug("AddressBook::Contact", "Queried tracker " + mTracker + " for " + mUniqueName);	
 	
 	if(!newAddrs.empty())
 	{
