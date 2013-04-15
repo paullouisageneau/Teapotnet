@@ -638,8 +638,7 @@ void Core::Handler::run(void)
 				
 				{
 					Desynchronize(this);
-					Synchronize(&request);
-					
+
 					request.submit();
 					request.wait(meetingStepTimeout);
 						

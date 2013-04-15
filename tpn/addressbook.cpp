@@ -1372,8 +1372,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							ByteStream *content = tresponse->content();
 							if(!content) continue;
 							
-							Desynchronize(&trequest);
-							
 							Time time = Time::Now();
 							if(params.contains("time")) params.get("time").extract(time);
 							
