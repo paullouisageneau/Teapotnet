@@ -98,7 +98,7 @@ typedef u_long ctl_t;
 #define ioctl ioctlsocket
 #define sockerrno WSAGetLastError()
 #define EWOULDBLOCK	WSAEWOULDBLOCK
-#define EAGAIN		WSAEAGAIN
+#define EAGAIN		WSAEWOULDBLOCK
 #define EADDRINUSE	WSAEADDRINUSE
 #define SOCK_TO_INT(x) 0
 
