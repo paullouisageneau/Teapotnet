@@ -229,7 +229,7 @@ size_t Socket::readData(char *buffer, size_t size)
 	
 	int count = ::recv(mSock,buffer,size,0);
 	if(count < 0) throw NetException("Connection lost");
-	if(sockerrno == EAGAIN || sockerrno == EWOULDBLOCK) throw Timeout();
+	if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
 	return count;
 }
 
@@ -240,7 +240,7 @@ void Socket::writeData(const char *data, size_t size)
 		int count = ::send(mSock, data, size, 0);
 		if(count == 0) throw NetException("Connection closed");
 		if(count < 0)  throw NetException("Connection lost");
-		if(sockerrno == EAGAIN || sockerrno == EWOULDBLOCK) throw Timeout();
+		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
 		
 		data+= count;
 		size-= count;

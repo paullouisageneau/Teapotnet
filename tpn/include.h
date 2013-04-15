@@ -97,9 +97,9 @@ typedef int socklen_t;
 typedef u_long ctl_t;
 #define ioctl ioctlsocket
 #define sockerrno WSAGetLastError()
-#define EWOULDBLOCK	WSAEWOULDBLOCK
-#define EAGAIN		WSAEWOULDBLOCK
-#define EADDRINUSE	WSAEADDRINUSE
+#define SEWOULDBLOCK	WSAEWOULDBLOCK
+#define SEAGAIN		WSAEWOULDBLOCK
+#define SEADDRINUSE	WSAEADDRINUSE
 #define SOCK_TO_INT(x) 0
 
 #define mkdir(d,x) _mkdir(d)
@@ -141,6 +141,9 @@ typedef int socket_t;
 typedef int ctl_t;
 #define closesocket close
 #define sockerrno errno
+#define SEWOULDBLOCK	EWOULDBLOCK
+#define SEAGAIN		EAGAIN
+#define SEADDRINUSE	EADDRINUSE
 #define INVALID_SOCKET -1
 #define SOCK_TO_INT(x) (x)
 
