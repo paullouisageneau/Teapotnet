@@ -62,7 +62,7 @@ public:
 	bool contains(char chr) const;
 	bool containsDigits(void) const;
 	bool containsLetters(void) const;
-	void remove(int pos, int nb = String::npos);
+	void remove(int pos, int n = -1);
 	bool isEmpty() const;
 
 	int indexOf(char c, int from = 0) const;
@@ -73,7 +73,7 @@ public:
 	bool remove(char chr);
 	bool replace(char a, char b);
 
-	String mid(int pos, int n = String::npos) const;
+	String mid(int pos, int n = -1) const;
 	String left(int pos) const;
 	String right(int pos) const;
 	

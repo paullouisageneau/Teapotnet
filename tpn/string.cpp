@@ -226,9 +226,11 @@ bool String::containsLetters(void) const
 	return false;
 }
 
-void String::remove(int pos, int nb)
+void String::remove(int pos, int n)
 {
-    *this = String(this->substr(0, pos) + this->substr(pos+nb, std::string::npos));
+    std::string::size_type end = std::string::npos;
+    if(n >= 0) end = pos + n;
+    *this = String(this->substr(0, pos) + this->substr(end, std::string::npos));
 }
 
 bool String::isEmpty() const
@@ -291,7 +293,8 @@ bool String::replace(char a, char b)
 
 String String::mid(int pos, int n) const
 {
-    return this->substr(pos, n);
+    if(n >= 0) return this->substr(pos, n);
+    else return this->substr(pos, std::string::npos);
 }
 
 String String::left(int n) const
