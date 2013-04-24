@@ -411,7 +411,8 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 	mStream(sock),
 	mSender(NULL),
 	mIsIncoming(true),
-	mIsAuthenticated(false)
+	mIsAuthenticated(false),
+	mStopping(false)
 {
 	mRemoteAddr = mSock->getRemoteAddress();
 }
@@ -443,9 +444,10 @@ void Core::Handler::setPeering(const Identifier &peering)
 
 void Core::Handler::sendMessage(const Message &message)
 {
+	if(mStopping) return;
 	Synchronize(this);
 	
-	LogDebug("Core::Handler", "New message");
+	LogDebug("Core::Handler", "Sending message");
 	
 	mSender->lock();
 	mSender->mMessagesQueue.push(message);
@@ -455,9 +457,10 @@ void Core::Handler::sendMessage(const Message &message)
 
 void Core::Handler::addRequest(Request *request)
 {
+	if(mStopping) return;
 	Synchronize(this);
 	
-	LogDebug("Core::Handler", "New request " + String::number(request->id()));
+	LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
 	
 	mSender->lock();
 	request->addPending(mPeering);
@@ -465,16 +468,19 @@ void Core::Handler::addRequest(Request *request)
 	mSender->unlock();
 	mSender->notify();
 	
-	mRequests.insert(request->id(),request);
+	mRequests.insert(request->id(), request);
 }
 
 void Core::Handler::removeRequest(unsigned id)
 {
+	if(mStopping) return;
 	Synchronize(this);
 	
 	Map<unsigned, Request*>::iterator it = mRequests.find(id);
 	if(it != mRequests.end())
 	{
+		LogDebug("Core::Handler", "Removing request " + String::number(id));
+	  
 		Request *request = it->second;
 		Synchronize(request);
 		
@@ -1071,6 +1077,7 @@ void Core::Handler::run(void)
 		LogError("Core::Handler", e.what()); 
 	}
 	
+	mStopping = true;
 	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
 	msleep(1000);
 	

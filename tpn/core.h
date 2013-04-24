@@ -127,6 +127,7 @@ private:
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
+		bool mStopping;
 
 		ByteString mObfuscatedHello;
 		
