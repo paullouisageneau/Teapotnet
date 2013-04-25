@@ -171,6 +171,7 @@ bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
 		String name = it->first.getName();
 		if(name.empty()) name = "default";
 		array.push_back(name);
+		++it;
 	}
 	
 	return true;

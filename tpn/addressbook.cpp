@@ -870,16 +870,16 @@ void AddressBook::Contact::setDeleted(void)
 
 void AddressBook::Contact::getInstancesNames(Array<String> &array)
 {
-	Identifier peering;
-  
-	{
-		Synchronize(this);
-		peering = mPeering;
-		mAddrs.getKeys(array);
-	}
+	Synchronize(this);
+	
+	mAddrs.getKeys(array);
 	
 	Array<String> others;
-	Core::Instance->getInstancesNames(peering, others);
+	{
+		Identifier peering = mPeering;
+		Desynchronize(this);
+		Core::Instance->getInstancesNames(peering, others);
+	}
 	
 	for(int i=0; i<others.size(); ++i)
 		if(!array.contains(others[i]))
@@ -904,31 +904,35 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
+	Synchronize(this);
+  
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
-	Identifier peering;
-	SynchronizeStatement(this, peering = mPeering);
-
+	Identifier peering = mPeering;
+	bool added = false;
 	try {
+		Desynchronize(this);
 		Socket *sock = new Socket(addr, 2000);	// TODO: timeout
-		if(Core::Instance->addPeer(sock, Identifier(peering, instance)))
-		{
-			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
-			return true;
-		}
+		added = Core::Instance->addPeer(sock, Identifier(peering, instance));
 	}
 	catch(...)
 	{
 		return false;
 	}
 
-	// A node is running at this address but the user does not exist
-	Synchronize(this);
-	if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
-	return false; 
+	if(added)
+	{
+		if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
+		return true;
+	}
+	else {
+		// A node is running at this address but the user does not exist
+		if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
+		return false;
+	}
 }
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
