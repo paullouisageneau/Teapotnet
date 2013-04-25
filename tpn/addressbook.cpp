@@ -868,9 +868,22 @@ void AddressBook::Contact::setDeleted(void)
 	mTime = Time::Now();
 }
 
-void AddressBook::Contact::getInstances(Array<String> &array)
+void AddressBook::Contact::getInstancesNames(Array<String> &array)
 {
-	mAddrs.getKeys(array);
+	Identifier peering;
+  
+	{
+		Synchronize(this);
+		peering = mPeering;
+		mAddrs.getKeys(array);
+	}
+	
+	Array<String> others;
+	Core::Instance->getInstancesNames(peering, others);
+	
+	for(int i=0; i<others.size(); ++i)
+		if(!array.contains(others[i]))
+			array.append(others[i]);
 }
 
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
@@ -896,7 +909,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
-	ByteString peering;
+	Identifier peering;
 	SynchronizeStatement(this, peering = mPeering);
 
 	try {
@@ -1174,7 +1187,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				json.outputMapElement(String("newmessages"), hasNewMessages());
 				
 				Array<String> instances;
- 				getInstances(instances);
+ 				getInstancesNames(instances);
 				StringMap map;
 				for(int i=0; i<instances.size(); ++i)
         			{

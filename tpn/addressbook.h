@@ -89,7 +89,7 @@ public:
 		AddressMap addresses(void) const;
 		bool isDeleted(void) const;
 		void setDeleted(void);
-		void getInstances(Array<String> &array);
+		void getInstancesNames(Array<String> &array);
 		
 		bool addAddresses(const AddressMap &map);
 		
