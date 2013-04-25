@@ -56,12 +56,12 @@ String Identifier::getName(void) const
 	
 void Identifier::setDigest(const ByteString &digest)
 {
-	mDigest = digest;  
+	mDigest = digest;
 }
 
 void Identifier::setName(const String &name)
 {
-	mName = name;  
+	mName = name;
 }
 
 bool Identifier::empty(void)

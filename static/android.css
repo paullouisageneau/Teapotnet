@@ -176,6 +176,12 @@ input[type="submit"]:hover
 	background-color: #FFF040;
 }
 
+p
+{
+	margin-left: 0.5em;
+	margin-right: 0.5em;
+}
+
 a.button
 {
 	display: inline-block;

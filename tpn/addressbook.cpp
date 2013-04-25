@@ -891,18 +891,17 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
- 	Synchronize(this);
-	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
-	Identifier identifier(mPeering, instance);
+	ByteString peering;
+	SynchronizeStatement(this, peering = mPeering);
+
 	try {
-		Desynchronize(this);
 		Socket *sock = new Socket(addr, 2000);	// TODO: timeout
-		if(Core::Instance->addPeer(sock, identifier))
+		if(Core::Instance->addPeer(sock, Identifier(peering, instance)))
 		{
 			if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());	
 			return true;
@@ -914,6 +913,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	}
 
 	// A node is running at this address but the user does not exist
+	Synchronize(this);
 	if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
 	return false; 
 }

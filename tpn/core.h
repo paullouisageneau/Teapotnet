@@ -82,7 +82,7 @@ public:
 	void sendMessage(const Message &message);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
-
+	
 	void http(const String &prefix, Http::Request &request);
 
 private:
