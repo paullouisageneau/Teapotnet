@@ -446,30 +446,37 @@ void Core::Handler::setPeering(const Identifier &peering)
 void Core::Handler::sendMessage(const Message &message)
 {
 	if(mStopping) return;
-	Synchronize(this);
 	
 	LogDebug("Core::Handler", "Sending message");
 	
-	mSender->lock();
-	mSender->mMessagesQueue.push(message);
-	mSender->unlock();
-	mSender->notify();
+	{
+		Synchronize(mSender);
+		mSender->mMessagesQueue.push(message);
+		mSender->notify();
+	}
 }
 
 void Core::Handler::addRequest(Request *request)
 {
 	if(mStopping) return;
-	Synchronize(this);
-	
+
 	LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
 	
-	mSender->lock();
-	request->addPending(mPeering);
-	mSender->mRequestsQueue.push(request);
-	mSender->unlock();
-	mSender->notify();
+	Identifier peering;
 	
-	mRequests.insert(request->id(), request);
+	{
+		Synchronize(this);
+		peering = mPeering;
+		request->addPending(peering);
+		mRequests.insert(request->id(), request);
+	}
+	
+	{
+		Synchronize(mSender);
+		mSender->mRequestsQueue.push(request);
+		mSender->notify();
+	}
+	
 }
 
 void Core::Handler::removeRequest(unsigned id)
