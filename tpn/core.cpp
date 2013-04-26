@@ -848,23 +848,20 @@ void Core::Handler::run(void)
 	
 	try {
 	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
-
-		// Initialization
+		
+		Identifier peering;
+		SynchronizeStatement(this, peering = mPeering);
+		SynchronizeStatement(this, mSock->setTimeout(readTimeout));
+		
+		Listener *listener = NULL;
+		if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 		{
-			Synchronize(this);
-			mSock->setTimeout(readTimeout);	  
-                	
-			Listener *listener = NULL;
-			if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+			try {
+				listener->connected(peering);
+			}
+			catch(const Exception &e)
 			{
-				try {
-					Identifier peering(mPeering);
-					DesynchronizeStatement(this, listener->connected(peering));
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Core::Handler", String("Listener connected callback failed: ")+e.what());
-				}
+				LogWarn("Core::Handler", String("Listener connected callback failed: ")+e.what());
 			}
 		}
 
@@ -1116,12 +1113,14 @@ void Core::Handler::run(void)
 		}
 	}
 	
+	Identifier peering;
+	SynchronizeStatement(this, peering = mPeering);
+	
 	Listener *listener = NULL;
-	if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+	if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 	{
 		try {
-			Identifier peering(mPeering);
-			DesynchronizeStatement(this, listener->disconnected(peering));
+			listener->disconnected(peering);
 		}
 		catch(const Exception &e)
 		{
