@@ -462,12 +462,9 @@ void Core::Handler::addRequest(Request *request)
 
 	LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
 	
-	Identifier peering;
-	
 	{
 		Synchronize(this);
-		peering = mPeering;
-		request->addPending(peering);
+		request->addPending(mPeering);
 		mRequests.insert(request->id(), request);
 	}
 	
