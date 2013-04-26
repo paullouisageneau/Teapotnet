@@ -1082,37 +1082,11 @@ void Core::Handler::run(void)
 		LogError("Core::Handler", e.what()); 
 	}
 	
-	mStopping = true;
-	SynchronizeStatement(mCore, mCore->removeHandler(mPeering, this));
-	msleep(1000);
-	
-	Listener *listener = NULL;
-	if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
-	{
-		try {
-			Identifier peering(mPeering);
-			DesynchronizeStatement(this, listener->disconnected(peering));
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Core::Handler", String("Listener disconnected callback failed: ") + e.what());
-		}
-	}
-	
-	{
-		Synchronize(mCore);
-		
-		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
-		{
-			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
-			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
-				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
-	}
-  
 	{
 		Synchronize(this);
-  
+		
+		mStopping = true;
+		
 		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
 			it != mResponses.end();
 			++it)
@@ -1128,6 +1102,34 @@ void Core::Handler::run(void)
 			it->second->removePending(mPeering);
 		}
 	}
+	
+	{
+		Synchronize(mCore);
+		
+		mCore->removeHandler(mPeering, this);
+		 
+		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
+		{
+			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
+			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
+				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
+		}
+	}
+	
+	Listener *listener = NULL;
+	if(SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+	{
+		try {
+			Identifier peering(mPeering);
+			DesynchronizeStatement(this, listener->disconnected(peering));
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Core::Handler", String("Listener disconnected callback failed: ") + e.what());
+		}
+	}
+	
+	msleep(1000);
 	
 	if(mSender && mSender->isRunning())
 	{
