@@ -445,9 +445,12 @@ void Core::Handler::setPeering(const Identifier &peering)
 
 void Core::Handler::sendMessage(const Message &message)
 {
-	if(mStopping) return;
-	
-	LogDebug("Core::Handler", "Sending message");
+	{
+		Synchronize(this);
+		if(mStopping) return;
+		
+		LogDebug("Core::Handler", "Sending message");
+	}
 	
 	{
 		Synchronize(mSender);
@@ -458,12 +461,12 @@ void Core::Handler::sendMessage(const Message &message)
 
 void Core::Handler::addRequest(Request *request)
 {
-	if(mStopping) return;
-
-	LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
-	
 	{
 		Synchronize(this);
+		if(mStopping) return;
+		
+		LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
+		
 		request->addPending(mPeering);
 		mRequests.insert(request->id(), request);
 	}
