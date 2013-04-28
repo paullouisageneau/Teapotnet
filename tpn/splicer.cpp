@@ -175,12 +175,11 @@ int64_t Splicer::process(ByteStream *output)
 	}
 
 	if(!nbPending) ++currentBlock;
-	else if(currentBlock > 0) --currentBlock;
 	
 	while(mCurrentBlock < currentBlock)
 	{
 		mCacheEntry->markBlockFinished(mCurrentBlock);
-			
+		
 		if(output && mPosition < mEnd)
 		{
 			// Open file to read

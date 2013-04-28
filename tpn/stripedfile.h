@@ -24,11 +24,12 @@
 
 #include "tpn/include.h"
 #include "tpn/file.h"
+#include "tpn/synchronizable.h"
 
 namespace tpn
 {
 
-class StripedFile : public ByteStream
+class StripedFile : public ByteStream, protected Synchronizable
 {
 public:
 	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);

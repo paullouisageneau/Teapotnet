@@ -512,7 +512,7 @@ bool Request::Response::error(void) const
 
 bool Request::Response::finished(void) const
 {
-	return status() < 0; 
+	return status() < 0;
 }
 
 }

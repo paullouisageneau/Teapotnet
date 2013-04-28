@@ -48,41 +48,50 @@ StripedFile::~StripedFile(void)
 
 uint64_t StripedFile::tellRead(void) const
 {
+	Synchronize(this);
 	return uint64_t(tellReadBlock())*mStripeSize + uint64_t(tellReadOffset());
 }
 
 unsigned StripedFile::tellReadBlock(void) const
 {
+	Synchronize(this);
 	return mReadBlock;
 }
 
 size_t StripedFile::tellReadOffset(void) const
 {
+	Synchronize(this);
 	return mReadOffset;
 }
 
 uint64_t StripedFile::tellWrite(void) const
 {
+	Synchronize(this);
 	return uint64_t(tellWriteBlock())*mStripeSize + uint64_t(tellWriteOffset());
 }
 
 unsigned StripedFile::tellWriteBlock(void) const
 {
+	Synchronize(this);
 	return mWriteBlock;
 }
 
 size_t StripedFile::tellWriteOffset(void) const
 {
+	Synchronize(this);
 	return mWriteOffset;
 }
 
 void StripedFile::seekRead(uint64_t position)
 {
+	Synchronize(this);
 	seekRead(position / mStripeSize, position % mStripeSize);
 }
 
 void StripedFile::seekRead(unsigned block, size_t offset)
 {
+	Synchronize(this);
+  
 	if(mReadBlock <= block)
 	{
 		mFile->seekg(File::streamoff(offset)-mReadOffset, File::cur);
@@ -103,11 +112,14 @@ void StripedFile::seekRead(unsigned block, size_t offset)
 
 void StripedFile::seekWrite(uint64_t position)
 {
+	Synchronize(this);
 	seekWrite(position / mStripeSize, position % mStripeSize);
 }
 
 void StripedFile::seekWrite(unsigned block, size_t offset)
 {
+	Synchronize(this);
+  
 	// WARNING: seekp() MUST allow seeking past the end of the file.
 	// If it is not the case, this WILL NOT work correctly.
 
@@ -133,6 +145,8 @@ size_t StripedFile::readData(char *buffer, size_t size)
 {
 	if(!size) return 0;
 
+	Synchronize(this);
+	
 	const size_t left = std::min(mStripeSize - mReadOffset, size);
 	const size_t len = mFile->readData(buffer, left);
 	mReadOffset+= len;
@@ -150,7 +164,9 @@ size_t StripedFile::readData(char *buffer, size_t size)
 void StripedFile::writeData(const char *buffer, size_t size)
 {
 	if(!size) return;
-
+	
+	Synchronize(this);
+	
 	const size_t len = std::min(mStripeSize - mWriteOffset, size);
 
 	mFile->writeData(buffer, len);
@@ -166,6 +182,7 @@ void StripedFile::writeData(const char *buffer, size_t size)
 
 void StripedFile::flush(void)
 {
+  	Synchronize(this);
 	mFile->flush(); 
 }
 
