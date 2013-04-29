@@ -185,8 +185,9 @@ int64_t Splicer::process(ByteStream *output)
 			// Open file to read
         		File file(mCacheEntry->fileName(), File::Read);
         		file.seekRead(mPosition);
-			
-			size_t size = size_t(std::min(int64_t(mCacheEntry->blockSize()), mEnd-mPosition));
+
+			size_t size = size_t(std::min(int64_t((mCurrentBlock+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
+			Assert(size <= mCacheEntry->blockSize());
 			Assert(size == file.readBinary(*output, size));
 			mPosition+= size;
 			written+= size;
