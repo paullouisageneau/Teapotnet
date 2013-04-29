@@ -267,8 +267,9 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.open("h1");
-			String instance = Core::Instance->getName().before('.');
-			if(!instance.empty()) page.text(mName + " / " + instance);
+			const String tracker = Config::Get("tracker");
+			const String instance = Core::Instance->getName().before('.');
+			if(!instance.empty()) page.text(mName + "@" + tracker + " / " + instance);
 			else page.text(mName);
 			page.close("h1");
 			
