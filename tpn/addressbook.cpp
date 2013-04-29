@@ -825,6 +825,7 @@ bool AddressBook::Contact::isConnected(void) const
 bool AddressBook::Contact::isConnected(const String &instance) const
 {
 	Synchronize(this);
+	if(isSelf() && instance == Core::Instance->getName()) return true;
 	return Core::Instance->hasPeer(Identifier(mPeering, instance)); 
 }
 
