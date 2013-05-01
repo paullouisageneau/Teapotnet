@@ -283,7 +283,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
 			
-			if(contacts.empty() || !self) page.link(prefix+"/contacts/","Add a contact");
+			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add a contact");
 			else {
 				page.open("table",".contacts");
 				
