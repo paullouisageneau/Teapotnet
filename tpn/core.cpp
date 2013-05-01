@@ -123,7 +123,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
+bool Core::addPeer(Socket *sock, Identifier peering, bool async)
 {
 	Assert(sock);
 	Synchronize(this);
@@ -147,7 +147,10 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 		else {
 			Synchronize(handler);
 			handler->start(true);	// autodelete
-			if(!handler->wait(10000)) return false;	// TODO: timeout
+			
+			// Timeout is just a security here
+			const unsigned timeout = Config::Get("tpot_timeout").toInt();
+			if(!handler->wait(timeout*4)) return false;
 			return handler->isAuthenticated();
 		}
 	}
@@ -820,21 +823,6 @@ void Core::Handler::run(void)
 				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 			}
 		}
-		
-		// Register the handler
-		if(!mCore->addHandler(mPeering,this))
-		{
-			LogDebug("Core::Handler", "Duplicate handler for the peering, exiting."); 
-			mSock->close();
-			return;
-		}
-		
-		// Start the sender
-		mSender = new Sender;
-		mSender->mStream = mStream;
-		mSender->start();
-
-		notifyAll();
 	}
 	catch(const IOException &e)
 	{
@@ -850,7 +838,22 @@ void Core::Handler::run(void)
 	}
 	
 	try {
-	 	const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+		// Register the handler
+		if(!mCore->addHandler(mPeering,this))
+		{
+			LogDebug("Core::Handler", "Duplicate handler for the peering, exiting."); 
+			mSock->close();
+			return;
+		}
+		
+		// Start the sender
+		mSender = new Sender;
+		mSender->mStream = mStream;
+		mSender->start();
+
+		notifyAll();
+	  
+		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
 		
 		Identifier peering;
 		SynchronizeStatement(this, peering = mPeering);

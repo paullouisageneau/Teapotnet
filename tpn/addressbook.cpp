@@ -407,10 +407,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			  		String command = request.post["command"];
 			  		if(command == "delete")
 					{
-				  		Identifier peering;
-						request.post["argument"] >> peering;
-						
-						removeContact(peering);
+						String uname = request.post["argument"];
+						removeContact(mContactsByUniqueName.get(uname)->peering());
 					}
 					else {
 						String name, csecret;
@@ -481,21 +479,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(!contacts.empty())
 			{
 				page.open("div",".box");
-				
-				page.openForm(prefix+"/", "post", "executeForm");
-				page.input("hidden", "command");
-				page.input("hidden", "argument");
-				page.closeForm();
-				
-				page.javascript("function deleteContact(name, identifier) {\n\
-					if(confirm('Do you really want to delete '+name+' ?')) {\n\
-						document.executeForm.command.value = 'delete';\n\
-						document.executeForm.argument.value = identifier;\n\
-						document.executeForm.submit();\n\
-					}\n\
-				}");
-				
 				page.open("table",".contacts");
+				
 				for(int i=0; i<contacts.size(); ++i)
 				{
 					Contact *contact = contacts[i];
@@ -509,18 +494,40 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.open("td",".tracker");
 					page.text(String("@") + contact->tracker());
 					page.close("td");
+					page.open("td",".uname");
+					page.text(contact->uniqueName());
+					page.close("td");
 					page.open("td",".checksum");
 					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
 					page.close("td");
 					page.open("td",".delete");
-					page.openLink("javascript:deleteContact('"+contact->name()+"','"+contact->peering().toString()+"')");
 					page.image("/delete.png", "Delete");
 					page.closeLink();
 					page.close("td");
 					page.close("tr");
 				}
+				
 				page.close("table");
 				page.close("div");
+				
+				page.openForm(prefix+"/", "post", "executeForm");
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.closeForm();
+				
+				page.javascript("function deleteContact(uname) {\n\
+					if(confirm('Do you really want to delete '+uname+' ?')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = uname;\n\
+						document.executeForm.submit();\n\
+					}\n\
+				}");
+				
+				page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var uname = $(this).closest('tr').find('td.uname').text();\n\
+					deleteContact(uname);\n\
+				});");
 			}
 			
 			page.openForm(prefix+"/","post");
@@ -912,12 +919,12 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
-	Identifier peering = mPeering;
+	Identifier peering(mPeering, instance);
 	bool added = false;
 	try {
 		Desynchronize(this);
 		Socket *sock = new Socket(addr, 2000);	// TODO: timeout
-		added = Core::Instance->addPeer(sock, Identifier(peering, instance));
+		added = Core::Instance->addPeer(sock, peering);
 	}
 	catch(...)
 	{
