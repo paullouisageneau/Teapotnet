@@ -75,7 +75,7 @@ public:
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
-	bool addPeer(Socket *sock, Identifier peering, bool async = false);
+	bool addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	

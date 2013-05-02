@@ -123,7 +123,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-bool Core::addPeer(Socket *sock, Identifier peering, bool async)
+bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 {
 	Assert(sock);
 	Synchronize(this);
@@ -424,6 +424,7 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 Core::Handler::~Handler(void)
 {	
 	notifyAll();
+	msleep(1000);	// TODO
 	Synchronize(this);
 	
 	if(mSender) delete mSender;
