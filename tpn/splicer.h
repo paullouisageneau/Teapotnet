@@ -45,6 +45,7 @@ public:
 	int64_t begin(void) const;
 	int64_t end(void) const;
 	bool finished(void) const;	// true if the splicer has finished
+	bool outputFinished(void) const;
 	
 	int64_t process(ByteStream *output);
 	void close(void);

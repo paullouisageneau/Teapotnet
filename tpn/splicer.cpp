@@ -148,6 +148,11 @@ bool Splicer::finished(void) const
 	return mCacheEntry->finished(); 
 }
 
+bool Splicer::outputFinished(void) const
+{
+	return (mPosition == mEnd);
+}
+
 int64_t Splicer::process(ByteStream *output)
 {
 	int64_t written = 0;

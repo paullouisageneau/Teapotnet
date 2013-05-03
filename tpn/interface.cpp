@@ -363,17 +363,17 @@ void Interface::process(Http::Request &request)
 				   
 					response.send();
 					
-					uint64_t total = splicer.process(response.sock);
-					while(!splicer.finished())
+					uint64_t total = 0;
+					while(!splicer.outputFinished())
 					{
-						msleep(100);
 						total+= splicer.process(response.sock);
+						msleep(100);
 					}
 					splicer.close();
 					
 					if(total == contentLength)
 					{
-						// TODO: copy in incoming if finished
+						// TODO: copy in incoming if splicer.finished() == true
 					}
 					else LogWarn("Interface::http", String("Splicer downloaded ") + String::number(total) + " bytes whereas length was " + String::number(contentLength));
 				}
