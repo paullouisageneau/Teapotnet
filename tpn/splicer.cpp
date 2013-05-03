@@ -179,6 +179,8 @@ int64_t Splicer::process(ByteStream *output)
 	int64_t written = 0;
 
 	mCacheEntry->setAccessTime();
+	if(!mRequests.size()) return 0;
+	
 	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size()) + 1;
 	unsigned currentBlock = lastBlock;
 	int nbPending = 0;
@@ -200,13 +202,13 @@ int64_t Splicer::process(ByteStream *output)
 		mStripes[i]->flush();
 		++nbPending;
 	}
-
+	
 	if(!nbPending) ++currentBlock;
 	
-	//if(mCurrentBlock != currentBlock)
+	//if(mCurrentBlock < currentBlock)
 	//{
 	//	double progress = double(currentBlock) / double(lastBlock);
-	//	LogDebug("Splicer", "Downloading position: " + String::number(progress*100,2) + "%");
+	//	LogDebug("Splicer", "Download position: " + String::number(progress*100,2) + "%");
 	//}
 	
 	while(mCurrentBlock < currentBlock)
@@ -215,9 +217,9 @@ int64_t Splicer::process(ByteStream *output)
 		++mCurrentBlock;
 	}
 	
-	if(mPosition < mEnd)
+	unsigned block = mCacheEntry->block(mPosition);
+	if(mPosition < mEnd && block < currentBlock)
 	{
-		unsigned block = mCacheEntry->block(mPosition);
 		size_t size = size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
 		Assert(size <= mCacheEntry->blockSize());
 
