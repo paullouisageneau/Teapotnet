@@ -66,9 +66,8 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 		CacheMutex.unlock();
 	}
 	
-	Set<Identifier> sources;
-	mCacheEntry->getSources(sources);
-	if(sources.empty()) 
+	mCacheEntry->getSources(mSources);
+	if(mSources.empty()) 
 		throw Exception("No sources found for " + target.toString());
 	
 	// OK, the cache entry is initialized
@@ -83,47 +82,14 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mFirstBlock = mCurrentBlock;
 	while(mCacheEntry->isBlockFinished(mFirstBlock))
 		++mFirstBlock;
-	
-	LogDebug("Splicer", "Starting for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
-	
-	// Request stripes
-	int nbStripes = std::max(1, int(sources.size()));	// TODO
-
-	if(!finished())
-	{
-		mRequests.fill(NULL, nbStripes);
-        	mStripes.fill(NULL, nbStripes);
-
-		Set<Identifier>::iterator it = sources.begin();
-		int i = 0;
-		while(i<nbStripes)
-		{
-			if(!query(i, *it))
-			{
-				mCacheEntry->refreshSources();
-				mCacheEntry->getSources(sources);
-				it = sources.begin();
-				
-				if(sources.empty())
-					throw Exception("No sources found for " + target.toString());
-				
-				continue;
-			}
-			
-			++i; ++it;
-			if(it == sources.end()) it = sources.begin();
-		}
-	
-		LogDebug("Splicer", "Transfers launched successfully");
-	}
 }
 
 Splicer::~Splicer(void)
 {
-	close();
+	stop();
 }
 
-const String &Splicer::name(void) const
+String Splicer::name(void) const
 {
 	return mCacheEntry->name(); 
 }
@@ -153,12 +119,68 @@ bool Splicer::outputFinished(void) const
 	return (mPosition == mEnd);
 }
 
+void Splicer::start(void)
+{
+	stop();
+	if(finished()) return;
+	     
+	LogDebug("Splicer", "Starting splicer for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
+	
+	// Request stripes
+	int nbStripes = std::max(1, int(mSources.size()));	// TODO
+
+	mRequests.fill(NULL, nbStripes);
+        mStripes.fill(NULL, nbStripes);
+
+	Set<Identifier>::iterator it = mSources.begin();
+	int i = 0;
+	while(i<nbStripes)
+	{
+		if(!query(i, *it))
+		{
+			mCacheEntry->refreshSources();
+			mCacheEntry->getSources(mSources);
+			it = mSources.begin();
+				
+			if(mSources.empty())
+				throw Exception("No sources found for " + mCacheEntry->name());
+				
+			continue;
+		}
+			
+		++i; ++it;
+		if(it == mSources.end()) it = mSources.begin();
+	}
+	
+	LogDebug("Splicer", "Transfers launched successfully");
+}
+
+void Splicer::stop(void)
+{
+	if(!mRequests.empty())
+	{
+		LogDebug("Splicer", "Stopping splicer for " + mCacheEntry->name());
+	  
+		for(int i=0; i<mRequests.size(); ++i)
+			delete mRequests[i];
+			
+		mRequests.clear();
+	}
+	
+	// Deleting the requests deletes the responses
+	// Deleting the responses deletes the contents
+	// So the stripes are already deleted
+	
+	mStripes.clear();
+}
+
 int64_t Splicer::process(ByteStream *output)
 {
 	int64_t written = 0;
 
 	mCacheEntry->setAccessTime();
-	unsigned currentBlock = mCacheEntry->block(mCacheEntry->size());
+	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size()) + 1;
+	unsigned currentBlock = lastBlock;
 	int nbPending = 0;
 	for(int i=0; i<mRequests.size(); ++i)
 	{
@@ -181,23 +203,36 @@ int64_t Splicer::process(ByteStream *output)
 
 	if(!nbPending) ++currentBlock;
 	
-	while(mCurrentBlock < currentBlock)
+	if(mCurrentBlock < currentBlock)
 	{
 		mCacheEntry->markBlockFinished(mCurrentBlock);
 		
-		if(output && mPosition < mEnd)
+		//double progress = double(currentBlock) / double(lastBlock);
+		//LogDebug("Splicer", "Downloading position: " + String::number(progress*100,2) + "%");
+		
+		if(mPosition < mEnd)
 		{
-			// Open file to read
-        		File file(mCacheEntry->fileName(), File::Read);
-        		file.seekRead(mPosition);
-
 			size_t size = size_t(std::min(int64_t((mCurrentBlock+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
 			Assert(size <= mCacheEntry->blockSize());
-			Assert(size == file.readBinary(*output, size));
+
+			if(output)
+			{
+				// Open file to read
+				File file(mCacheEntry->fileName(), File::Read);
+				file.seekRead(mPosition);
+				Assert(size == file.readBinary(*output, size));
+				file.close();
+			}
+
 			mPosition+= size;
 			written+= size;
 			
-			file.close();
+			//if(output)
+			//{
+			//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
+			//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
+			//}
+			
 			if(mPosition == mEnd) return written;
 		}
 			
@@ -283,23 +318,6 @@ int64_t Splicer::process(ByteStream *output)
 	return written;
 }
 
-void Splicer::close(void)
-{
-	if(!mRequests.empty())
-	{
-		for(int i=0; i<mRequests.size(); ++i)
-			delete mRequests[i];
-			
-		mRequests.clear();
-	}
-	
-	// Deleting the requests deletes the responses
-	// Deleting the responses deletes the contents
-	// So the stripes are already deleted
-	
-	mStripes.clear();
-}
-
 bool Splicer::query(int i, const Identifier &source)
 {
 	Assert(i < mRequests.size());
@@ -364,22 +382,23 @@ Splicer::CacheEntry::~CacheEntry(void)
 	File::Remove(mFileName);
 }
 
-const ByteString &Splicer::CacheEntry::target(void) const
+ByteString Splicer::CacheEntry::target(void) const
 {
 	Synchronize(this);
 	return mTarget;
 }
 
-const String &Splicer::CacheEntry::fileName(void) const
+String Splicer::CacheEntry::fileName(void) const
 {
 	Synchronize(this);
 	return mFileName;
 }
 
-const String &Splicer::CacheEntry::name(void) const
+String Splicer::CacheEntry::name(void) const
 {
 	Synchronize(this); 
-	return mName;
+	if(!mName.empty()) return mName;
+	else return "unknwon";
 }
 
 int64_t Splicer::CacheEntry::size(void) const

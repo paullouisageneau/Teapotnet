@@ -40,15 +40,16 @@ public:
 	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
 	~Splicer(void);
 	
-	const String &name(void) const;
+	String name(void) const;
 	int64_t size(void) const;	// range size
 	int64_t begin(void) const;
 	int64_t end(void) const;
 	bool finished(void) const;	// true if the splicer has finished
 	bool outputFinished(void) const;
 	
+	void start(void);
+	void stop(void);
 	int64_t process(ByteStream *output);
-	void close(void);
 	
 private:
 	bool query(int i, const Identifier &source);
@@ -64,9 +65,9 @@ private:
 		CacheEntry(const ByteString &target);
 		~CacheEntry(void);
 		
-		const ByteString &target(void) const;
-		const String &fileName(void) const;
-		const String &name(void) const;
+		ByteString target(void) const;
+		String fileName(void) const;
+		String name(void) const;
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
@@ -94,6 +95,7 @@ private:
 	};
 	
 	CacheEntry *mCacheEntry;
+	Set<Identifier> mSources;
 	
 	static Map<ByteString, CacheEntry*> Cache;
 	static Mutex CacheMutex;

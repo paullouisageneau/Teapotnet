@@ -305,6 +305,14 @@ void Interface::process(Http::Request &request)
 				response.sock->writeLine("#EXTM3U");
 				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
 				response.sock->writeLine("http://" + host + "/" + digest.toString());
+				
+				Store::Entry entry;
+				if(!Store::GetResource(digest, entry))
+				{
+					// Request the sources
+					Splicer splicer(digest);
+				}
+				
 				return;
 			}			
 		
@@ -338,8 +346,11 @@ void Interface::process(Http::Request &request)
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd);
 				
 				try {
+					LogDebug("Interface::process", "Starting transfer");
+				  
 				  	// TODO: range error
 					Splicer splicer(digest, rangeBegin, rangeEnd);
+					splicer.start();
 					
 					int64_t contentLength = splicer.size();
 					int code = 200;
@@ -363,13 +374,19 @@ void Interface::process(Http::Request &request)
 				   
 					response.send();
 					
-					uint64_t total = 0;
+					response.sock->setTimeout(0);
+					
+					int64_t total = 0;
 					while(!splicer.outputFinished())
 					{
-						total+= splicer.process(response.sock);
-						msleep(100);
+						int64_t size = splicer.process(response.sock);
+						total+= size;
+						if(!size) msleep(100);
 					}
-					splicer.close();
+					
+					splicer.stop();
+					
+					LogDebug("Interface::process", "Transfer finished");
 					
 					if(total == contentLength)
 					{
@@ -379,7 +396,7 @@ void Interface::process(Http::Request &request)
 				}
 				catch(const NetException &e)
 				{
-					// nothing to do
+					LogDebug("Interface::process", e.what());
 				}
 				catch(const Exception &e)
 				{
