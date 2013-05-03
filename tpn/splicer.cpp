@@ -203,40 +203,43 @@ int64_t Splicer::process(ByteStream *output)
 
 	if(!nbPending) ++currentBlock;
 	
-	if(mCurrentBlock < currentBlock)
+	//if(mCurrentBlock != currentBlock)
+	//{
+	//	double progress = double(currentBlock) / double(lastBlock);
+	//	LogDebug("Splicer", "Downloading position: " + String::number(progress*100,2) + "%");
+	//}
+	
+	while(mCurrentBlock < currentBlock)
 	{
 		mCacheEntry->markBlockFinished(mCurrentBlock);
-		
-		//double progress = double(currentBlock) / double(lastBlock);
-		//LogDebug("Splicer", "Downloading position: " + String::number(progress*100,2) + "%");
-		
-		if(mPosition < mEnd)
-		{
-			size_t size = size_t(std::min(int64_t((mCurrentBlock+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
-			Assert(size <= mCacheEntry->blockSize());
-
-			if(output)
-			{
-				// Open file to read
-				File file(mCacheEntry->fileName(), File::Read);
-				file.seekRead(mPosition);
-				Assert(size == file.readBinary(*output, size));
-				file.close();
-			}
-
-			mPosition+= size;
-			written+= size;
-			
-			//if(output)
-			//{
-			//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
-			//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
-			//}
-			
-			if(mPosition == mEnd) return written;
-		}
-			
 		++mCurrentBlock;
+	}
+	
+	if(mPosition < mEnd)
+	{
+		unsigned block = mCacheEntry->block(mPosition);
+		size_t size = size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
+		Assert(size <= mCacheEntry->blockSize());
+
+		if(output)
+		{
+			// Open file to read
+			File file(mCacheEntry->fileName(), File::Read);
+			file.seekRead(mPosition);
+			size = file.readBinary(*output, size);
+			file.close();
+		}
+
+		mPosition+= size;
+		written+= size;
+			
+		//if(output)
+		//{
+		//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
+		//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
+		//}
+		
+		if(mPosition == mEnd) return written;
 	}
 	
 	std::vector<int>		onError;

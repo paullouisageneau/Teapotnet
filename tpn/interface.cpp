@@ -305,14 +305,17 @@ void Interface::process(Http::Request &request)
 				response.sock->writeLine("#EXTM3U");
 				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
 				response.sock->writeLine("http://" + host + "/" + digest.toString());
+				response.sock->close();
 				
-				Store::Entry entry;
-				if(!Store::GetResource(digest, entry))
-				{
-					// Request the sources
-					Splicer splicer(digest);
+				try {
+					Store::Entry entry;
+					if(!Store::GetResource(digest, entry))
+					{
+						// Request the sources
+						Splicer splicer(digest);
+					}
 				}
-				
+				catch(...) {}
 				return;
 			}			
 		
