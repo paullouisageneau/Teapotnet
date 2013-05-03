@@ -115,6 +115,7 @@ private:
 					StringMap &parameters);
 		
 	private:
+		void process(void);
 		void run(void);
 
 		Identifier mPeering, mRemotePeering;

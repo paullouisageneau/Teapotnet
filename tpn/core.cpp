@@ -423,10 +423,6 @@ Core::Handler::Handler(Core *core, Socket *sock) :
 
 Core::Handler::~Handler(void)
 {	
-	notifyAll();
-	msleep(1000);	// TODO
-	Synchronize(this);
-	
 	if(mSender) delete mSender;
 	if(mStream != mSock) delete mStream;
 	delete mSock;
@@ -517,7 +513,7 @@ bool Core::Handler::isAuthenticated(void) const
 	return mIsAuthenticated;
 }
 
-void Core::Handler::run(void)
+void Core::Handler::process(void)
 {
 	String command, args;
 	StringMap parameters;
@@ -1135,14 +1131,20 @@ void Core::Handler::run(void)
 		}
 	}
 	
-	msleep(1000);
-	
 	if(mSender && mSender->isRunning())
 	{
 		SynchronizeStatement(mSender, mSender->mShouldStop = true);
 		mSender->notify();
 		mSender->join();	
 	}
+}
+
+void Core::Handler::run(void)
+{
+	process();
+	notifyAll();
+	msleep(1000);	// TODO
+	Synchronize(this);
 }
 
 const size_t Core::Handler::Sender::ChunkSize = BufferSize;
