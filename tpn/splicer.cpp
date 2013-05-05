@@ -281,13 +281,14 @@ int64_t Splicer::process(ByteStream *output)
 	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
-		LogWarn("Splicer::process", String("Error on request ") + String::number(i));
+		LogDebug("Splicer::process", String("Request ") + String::number(i) + " is in error state");
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
 		Map<unsigned, int>::reverse_iterator it = byBlocks.rbegin();
 		while(true)
 		{
+			Assert(it->second < mRequests.size());
 			source = mRequests[it->second]->receiver();
 			if(source != formerSource) break;
 			++it;
@@ -299,19 +300,21 @@ int64_t Splicer::process(ByteStream *output)
 	
 				if(sources.empty())
 				{
+					LogDebug("Splicer::process", "No sources found, waiting...");
 					msleep(30000);
 					return written;
 				}
 
-				if(sources.find(formerSource) != sources.end())
-				{
-					if(sources.size()> 1) sources.erase(formerSource);
-					else msleep(30000);
-				}
+				if(sources.size() > 1 && sources.find(formerSource) != sources.end())
+					sources.erase(formerSource);
 				
+				Assert(!sources.empty());
 				Set<Identifier>::iterator jt = sources.begin();
-				int r = rand() % sources.size();
-				for(int i=0; i<r; ++i) jt++;
+				if(sources.size() > 1)
+				{
+					int r = rand() % sources.size();
+					while(r--) ++jt;
+				}
 				source = *jt;
 				break;
 			}
