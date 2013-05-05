@@ -281,7 +281,7 @@ int64_t Splicer::process(ByteStream *output)
 	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
-		LogDebug("Splicer::process", String("Request ") + String::number(i) + " is in error state");
+		LogDebug("Splicer::process", "Stripe " + String::number(i) + ": Request is in error state");
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
@@ -320,6 +320,7 @@ int64_t Splicer::process(ByteStream *output)
 			}
 		}
 		
+		LogDebug("Splicer::process", "Stripe " + String::number(i) + ": Sending new request");
 		query(i, source);
 	}
 	
