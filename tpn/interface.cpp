@@ -349,7 +349,7 @@ void Interface::process(Http::Request &request)
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd);
 				
 				try {
-					LogDebug("Interface::process", "Starting transfer");
+					LogDebug("Interface::process", "Starting download");
 				  
 				  	// TODO: range error
 					Splicer splicer(digest, rangeBegin, rangeEnd);
@@ -389,7 +389,7 @@ void Interface::process(Http::Request &request)
 					
 					splicer.stop();
 					
-					LogDebug("Interface::process", "Transfer finished");
+					LogDebug("Interface::process", "Download finished");
 					
 					if(total == contentLength)
 					{

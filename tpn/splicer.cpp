@@ -176,12 +176,11 @@ void Splicer::stop(void)
 
 int64_t Splicer::process(ByteStream *output)
 {
-	int64_t written = 0;
-
 	mCacheEntry->setAccessTime();
-	if(!mRequests.size()) return 0;
 	
-	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size()) + 1;
+	int64_t written = 0;
+	
+	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
 	unsigned currentBlock = lastBlock;
 	int nbPending = 0;
 	for(int i=0; i<mRequests.size(); ++i)
@@ -207,7 +206,7 @@ int64_t Splicer::process(ByteStream *output)
 	
 	//if(mCurrentBlock < currentBlock)
 	//{
-	//	double progress = double(currentBlock) / double(lastBlock);
+	//	double progress = double(currentBlock) / double(lastBlock+1);
 	//	LogDebug("Splicer", "Download position: " + String::number(progress*100,2) + "%");
 	//}
 	
