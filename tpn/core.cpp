@@ -835,6 +835,11 @@ void Core::Handler::process(void)
 	}
 	
 	try {
+		// Start the sender
+		mSender = new Sender;
+		mSender->mStream = mStream;
+		mSender->start();
+	  
 		// Register the handler
 		if(!mCore->addHandler(mPeering,this))
 		{
@@ -842,11 +847,6 @@ void Core::Handler::process(void)
 			mSock->close();
 			return;
 		}
-		
-		// Start the sender
-		mSender = new Sender;
-		mSender->mStream = mStream;
-		mSender->start();
 
 		notifyAll();
 	  
