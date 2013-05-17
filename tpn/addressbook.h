@@ -29,9 +29,10 @@
 #include "tpn/socket.h"
 #include "tpn/identifier.h"
 #include "tpn/core.h"
-#include "tpn/message.h"
+#include "tpn/messagequeue.h"
 #include "tpn/array.h"
 #include "tpn/map.h"
+#include "tpn/set.h"
 
 namespace tpn
 {
@@ -53,6 +54,9 @@ public:
 	void save(Stream &stream) const;
 	void save(void) const;
 	void update(void);
+	
+	void sendMessage(const Message &message, const Identifier &receiver);
+	void receiveMessage(const Message &message);
 	
 	void http(const String &prefix, Http::Request &request);
 	
@@ -122,10 +126,9 @@ public:
 		
 		bool mFound;
 		AddressMap mAddrs;
-		Deque<Message> mMessages;
-		unsigned mMessagesCount;
-		bool mHasNewMessages;
 		StringMap mInfo;
+		
+		MessageQueue mMessages;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);
@@ -147,7 +150,8 @@ private:
 	User *mUser;
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
-	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name	
+	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
+	
 	unsigned mUpdateCount;
 	Set<String> mBogusTrackers;
 };

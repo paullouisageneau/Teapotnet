@@ -28,6 +28,7 @@
 #include "tpn/request.h"
 #include "tpn/time.h"
 #include "tpn/array.h"
+#include "tpn/set.h"
 
 namespace tpn
 {

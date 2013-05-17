@@ -465,6 +465,11 @@ td.delete
 	margin-top: 0.5em;
 }
 
+.files button
+{
+	float: left;
+}
+
 .files tr
 {
 	height: 3em;
@@ -515,6 +520,11 @@ td.delete
 .files td.actions
 {
 	display: none;
+}
+
+.contacts button
+{
+	float: left;
 }
 
 .contacts tr

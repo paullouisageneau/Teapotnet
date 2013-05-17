@@ -21,6 +21,8 @@
 
 #include "tpn/message.h"
 #include "tpn/core.h"
+#include "tpn/bytestring.h"
+#include "tpn/sha512.h"
 
 namespace tpn
 {
@@ -98,5 +100,26 @@ void Message::send(const Identifier &receiver)
 	mReceiver = receiver;
 	Core::Instance->sendMessage(*this);
 }
-  
+
+bool operator < (const Message &m1, const Message &m2)
+{
+	return m1.time() < m2.time();
+}
+
+bool operator > (const Message &m1, const Message &m2)
+{
+	return m1.time() > m2.time();
+}
+
+bool operator == (const Message &m1, const Message &m2)
+{
+	return ((m1.time() != m2.time())
+		&& (m1.content() != m2.content()));   
+}
+
+bool operator != (const Message &m1, const Message &m2)
+{
+	return !(m1 == m2);
+}
+
 }

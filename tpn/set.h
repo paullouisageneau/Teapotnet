@@ -1,0 +1,159 @@
+/*************************************************************************
+ *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
+ *   paul-louis (at) ageneau (dot) org                                   *
+ *                                                                       *
+ *   This file is part of TeapotNet.                                     *
+ *                                                                       *
+ *   TeapotNet is free software: you can redistribute it and/or modify   *
+ *   it under the terms of the GNU Affero General Public License as      *
+ *   published by the Free Software Foundation, either version 3 of      *
+ *   the License, or (at your option) any later version.                 *
+ *                                                                       *
+ *   TeapotNet is distributed in the hope that it will be useful, but    *
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+ *   GNU Affero General Public License for more details.                 *
+ *                                                                       *
+ *   You should have received a copy of the GNU Affero General Public    *
+ *   License along with TeapotNet.                                       *
+ *   If not, see <http://www.gnu.org/licenses/>.                         *
+ *************************************************************************/
+
+#ifndef TPN_SET_H
+#define TPN_SET_H
+
+#include "tpn/include.h"
+#include "tpn/exception.h"
+
+#include <set>
+
+namespace tpn
+{
+
+template<typename T>
+class Set : public std::set<T>
+{
+public:
+	bool remove(const T &value);
+	bool contains(const T &value);
+};
+
+template<typename T>
+class SerializableSet : public Set<T>, public Serializable
+{
+public:
+	class SerializableElement : public Serializer::Element
+	{
+	public:
+		 T value;
+		 
+		 SerializableElement(void);
+		 SerializableElement(const T &value);
+
+		 void serialize(Serializer &s) const;
+		 bool deserialize(Serializer &s);
+	};
+  
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
+};
+
+typedef SerializableSet<String> StringSet;
+
+
+template<typename T>
+bool Set<T>::remove(const T &value)
+{
+	return (this->erase(value) == 1);
+}
+
+template<typename T>
+bool Set<T>::contains(const T &value)
+{
+	return (this->find(value) != this->end());
+}
+
+template<typename T>
+void SerializableSet<T>::serialize(Serializer &s) const
+{
+	s.outputSetBegin(this->size());
+
+	for(iterator it = this->begin(); it != this->end(); ++it)
+	{
+		SerializableElement element(*it);
+		s.output(element);
+	}
+	
+	s.outputSetEnd();
+}
+
+template<typename T>
+bool SerializableSet<T>::deserialize(Serializer &s)
+{
+	this->clear();
+	if(!s.inputSetBegin()) return false;
+
+	while(s.inputSetCheck())
+	{
+		SerializableElement element;
+		if(!s.input(element)) break;
+		this->insert(element.value);
+	}
+	
+	return true;
+}
+
+template<typename T>
+bool SerializableSet<T>::isInlineSerializable(void) const
+{
+	return false;  	// recursive, no inlining
+}
+
+template<typename T>
+SerializableSet<T>::SerializableElement::SerializableElement(void)
+{
+	 
+}
+
+template<typename T>
+SerializableSet<T>::SerializableElement::SerializableElement(const T &value) :
+	value(value)
+{
+	 
+}
+
+template<typename T>
+void SerializableSet<T>::SerializableElement::serialize(Serializer &s) const
+{
+	s.output(value);
+}
+
+template<typename T>
+bool SerializableSet<T>::SerializableElement::deserialize(Serializer &s)
+{
+	return s.input(value);
+}
+
+// Functions Serilizer::inputSetElement and Serializer::outputSetElement defined here
+
+template<class T>
+bool Serializer::inputSetElement(T &element)
+{
+	 if(!this->inputSetCheck()) return false;
+	 typename SerializableSet<T>::SerializableElement tmp;
+	 if(!this->input(tmp)) return false;
+	 element = tmp.value;
+	 return true;
+}
+
+template<class T> 
+void Serializer::outputSetElement(const T &element)
+{
+	typename SerializableSet<T>::SerializableElement tmp(element);
+	this->output(tmp);
+}
+
+}
+
+#endif

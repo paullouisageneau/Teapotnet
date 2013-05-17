@@ -236,7 +236,6 @@ inline void yield(void)
 
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
-#define Set std::set
 #define List std::list
 #define Queue std::queue
 #define Stack std::stack

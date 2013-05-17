@@ -275,8 +275,8 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.open("div","contacts.box");
 			page.open("h2");
-			page.text("Contacts - ");
-			page.link(prefix+"/contacts/","Edit");
+			page.text("Contacts");
+			page.link(prefix+"/contacts/","Edit",".button");
 			page.close("h2");
 			
 			AddressBook::Contact *self = mAddressBook->getSelf();
@@ -370,9 +370,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","files.box");
 			page.open("h2");
 			page.text("Shared folders - ");
-			page.link(prefix+"/files/","Edit");
-			page.text(" - ");
-			page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh");
+			page.link(prefix+"/files/","Edit",".button");
+			page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
 			page.close("h2");
 			
 			Array<String> directories;

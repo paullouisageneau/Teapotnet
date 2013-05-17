@@ -1099,12 +1099,11 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 
 void AddressBook::Contact::message(Message *message)
 {
-	{
-		Synchronize(this);
-		Assert(message);
-		Assert(message->receiver() == mPeering);
-		if(mDeleted) return;
-	}
+	Assert(message);
+	SynchronizeStatement(this, if(mDeleted) return);
+	
+	//if(message->receiver() != mPeering)
+	//	mAddressBook->receiveMessage(*message);
 	
 	String type;
 	message->parameters().get("type", type);

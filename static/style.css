@@ -448,6 +448,11 @@ td.delete
 	overflow: hidden;
 }
 
+.files button
+{
+	float: left;
+}
+
 .files
 {
 	margin-top: 0.5em;
@@ -504,6 +509,11 @@ td.delete
 	min-height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
+}
+
+.contacts button
+{
+	float: left;
 }
 
 .contacts tr

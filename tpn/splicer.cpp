@@ -304,7 +304,7 @@ int64_t Splicer::process(ByteStream *output)
 					return written;
 				}
 
-				if(sources.size() > 1 && sources.find(formerSource) != sources.end())
+				if(sources.size() > 1 && sources.contains(formerSource))
 					sources.erase(formerSource);
 				
 				Assert(!sources.empty());
@@ -425,7 +425,7 @@ bool Splicer::CacheEntry::finished(void) const
 {
 	Synchronize(this);
 	if(mFinishedBlocks.size() < (mSize + mBlockSize - 1) / mBlockSize) return false;
-	if(std::find(mFinishedBlocks.begin(), mFinishedBlocks.end(), false) != mFinishedBlocks.end()) return false;
+	if(mFinishedBlocks.contains(false)) return false;
 	return true;
 }
 

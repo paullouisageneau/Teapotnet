@@ -19,65 +19,40 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_MESSAGE_H
-#define TPN_MESSAGE_H
+#ifndef TPN_MESSAGEQUEUE_H
+#define TPN_MESSAGEQUEUE_H
 
 #include "tpn/include.h"
-#include "tpn/serializable.h"
+#include "tpn/synchronizable.h"
+#include "tpn/message.h"
 #include "tpn/string.h"
-#include "tpn/identifier.h"
+#include "tpn/array.h"
 #include "tpn/map.h"
-#include "tpn/html.h"
-#include "tpn/time.h"
 
 namespace tpn
 {
 
-class Message : public Serializable
+class MessageQueue : public Synchronizable
 {
 public:
-	Message(const String &content = "");
-	virtual ~Message(void);
+	MessageQueue(void);
+	~MessageQueue(void);
+	
+	unsigned count(void) const;
+	unsigned unreadCount(void) const;
+	bool add(const Message &message);
+	bool markRead(const String &stamp, bool read = true);
 
-	Time time(void) const;
-	String stamp(void) const;
-	const Identifier &receiver(void) const;
-	const String &content(void) const;
-	const StringMap &parameters(void) const;
-	bool parameter(const String &name, String &value) const;
-	
-	void setContent(const String &content);
-	void setParameters(StringMap &params);
-	void setParameter(const String &name, const String &value);
-
-	bool isRead(void) const;
-	void markRead(bool read = true);
-	
-	void send(void);
-	void send(const Identifier &receiver);
-	
-	// TODO
-	
-	// Serializable
-	virtual void serialize(Serializer &s) const;
-	virtual bool deserialize(Serializer &s);
-	virtual void serialize(Stream &s) const;
-	virtual bool deserialize(Stream &s);
+	bool get(const String &stamp, Message &result);
+	bool getAllStamps(StringSet &result);
+	bool getUnreadStamps(StringSet &result);
+	bool getNewStamps(const StringSet &old, StringSet &result);
 	
 private:
-  	Time mTime;
-	Identifier mReceiver;
-	StringMap mParameters;
-	String mContent;
-	bool mIsRead;
-	
-	friend class Core;
+	Set<Message> mMessages;
+	Map<String, Set<Message>::iterator> mByStamp;
+	StringSet mUnread;
 };
-
-bool operator <  (const Message &m1, const Message &m2);
-bool operator >  (const Message &m1, const Message &m2);
-bool operator == (const Message &m1, const Message &m2);
-bool operator != (const Message &m1, const Message &m2);
 
 }
 
