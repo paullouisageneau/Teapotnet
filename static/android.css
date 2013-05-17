@@ -54,31 +54,29 @@ hr
 
 h1
 {
-	margin: 0.5em;
+	margin: 0.25em;
 	padding: 0;
+	margin-bottom: 0.5em;
 	font-size: 1.3em;
 	font-weight: bold;
-	text-shadow: 2px 2px 1px #A0A0A0;
 }
 
 h2
 {
-	margin: 0;
+	margin: 0.25;
 	padding: 0;
 	margin-bottom: 0.5em;
 	font-size: 1.2em;
 	font-weight: bold;
-	text-shadow: 2px 2px 1px #A0A0A0;
 }
 
 h3
 {
-	margin: 0;
+	margin: 0.25em;
 	padding: 0;
 	margin-bottom: 0.5em;
 	font-size: 1.1em;
 	font-weight: bold;
-	text-shadow: 0.1em 0.1em 0.05em #A0A0A0;
 }
 
 table 
@@ -168,7 +166,6 @@ input[type="submit"]
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
 	text-align: center;
-	text-shadow: 1px 1px 0em #A0A0A0;
 }
 
 input[type="submit"]:hover
@@ -182,21 +179,27 @@ p
 	margin-right: 0.5em;
 }
 
+.button
+{
+        display: inline-block;
+        min-width: 6em;
+        margin: 0.2em;
+        margin-bottom: 0.5em;
+        padding: 0.4em;
+        color: #000000;
+        background-color: #B0B0B0;
+        border: 1px solid #A0A0A0;
+        border-radius: 0.5em;
+        text-align: center;
+        vertical-align: middle;
+}
+
 a.button
 {
-	display: inline-block;
-	min-width: 6em;
-	margin: 0.2em;
-	padding: 0.4em;
-	color: #000000;
-	cursor: pointer;
-	background-color: #FFDC0A;
-	border: 1px solid #E0BC00;
-	border-radius: 0.5em;
-	text-align: center;
-	vertical-align: middle;
-	text-align: center;
-	text-shadow: 1px 1px 0em #A0A0A0;
+        color: #000000;
+        cursor: pointer;
+        background-color: #FFDC0A;
+        border: 1px solid #E0BC00;
 }
 
 a.button:hover
@@ -281,7 +284,7 @@ textarea
 
 #topmenu
 {
-	margin: 0.5em;
+	margin: 0.25em;
 	text-align: left;
 }
 
@@ -344,7 +347,7 @@ textarea
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	display: 0;
+	padding: 0;
 }
 
 #chatpanel .message
@@ -561,6 +564,16 @@ td.delete
 	padding-right: 0.5em;
 }
 
+#files .button
+{
+        float: right;
+}
+
+#contacts .button
+{
+        float: right;
+}
+
 #instances tr
 {
 	height: 3em;
@@ -621,12 +634,17 @@ tr.connected
 	background-color: #FFDC0A;
 }
 
-.status .online
+#status.button
 {
-	color: #00F000;
+	font-weight: bold;
 }
 
-.status .connected
+#status.button.online
 {
-        color: #FFDC0A;
+	background-color: #00E000;
+}
+
+#status.button.connected
+{
+        background-color: #FFDC0A;
 }

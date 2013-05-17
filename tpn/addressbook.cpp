@@ -1217,13 +1217,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 			Html page(response.sock);
 			if(isSelf()) page.header("Myself");
-			else page.header("Contact: "+mName);
-				
-			if(mUniqueName != mAddressBook->userName())
-			{
+			else {
+				page.header("Contact: "+mName);
 				page.open("div", "topmenu");
-				page.span("Status:", ".title");
-				page.span("", "status.status");
+				page.span(status().capitalized(), "status.button");
 				page.close("div");
 			}
 			
@@ -1279,8 +1276,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			unsigned refreshPeriod = 5000;
 			page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-				transition($('#status'),\n\
-					'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+				transition($('#status'), info.status.capitalize());\n\
+				$('#status').removeClass().addClass('button').addClass(info.status);\n\
 				var msg = '';\n\
 				if(info.messages != 0) msg = ' ('+info.messages+')';\n\
 				transition($('#messagescount'), msg);\n\
@@ -1472,9 +1469,17 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(target.empty() || target == "/") page.header(mName+": Browse files");
 						else page.header(mName+": "+target.substr(1));
 						page.open("div","topmenu");
-						page.link(prefix+"/search/","Search files");
+						if(!isSelf()) page.span(status().capitalized(), "status.button");
+						page.link(prefix+"/search/","Search files",".button");
 						page.br();
 						page.close("div");
+
+						unsigned refreshPeriod = 5000;
+                                		page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+                                        		transition($('#status'), info.status.capitalize());\n\
+                                        		$('#status').removeClass().addClass('button').addClass(info.status);\n\
+                                        		if(info.newmessages) playMessageSound();\n\
+                                		});");
 					}
 					
 					page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user(), playlistMode);
@@ -1623,21 +1628,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(isPopup)
 				{
 					page.open("div","topmenu");
-					page.open("b");
-					page.text("Chat with "+mName+" - ");
-					page.span("", "status.status");
-					page.close("b");
+					page.span("Chat with "+mName, ".button");
+					page.span(status().capitalized(), "status.button");
 					page.close("div");
 					page.open("div", "chat");
 				}
 				else {
 					String popupUrl = prefix + "/chat?popup=1";
 					page.open("div","topmenu");
+                                	page.span(status().capitalized(), "status.button");
 #ifndef ANDROID
-					page.raw("<a href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
-					page.text(" - ");
+					page.raw("<a class=\"button\" ref=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 #endif
-					page.span("", "status.status");
 					page.close("div");
 					page.open("div", "chat.box");
 				}
@@ -1731,8 +1733,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				unsigned refreshPeriod = 5000;
 				page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-					transition($('#status'),\n\
-						'<span class=\"'+info.status+'\">'+info.status.capitalize()+'</span>\\n');\n\
+					transition($('#status'), info.status.capitalize());\n\
+					$('#status').removeClass().addClass('button').addClass(info.status);\n\
 					if(info.newmessages) playMessageSound();\n\
 				});");
 				
