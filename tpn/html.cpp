@@ -398,22 +398,22 @@ void Html::listFilesFromRequest(Request &trequest, const String &prefix, Http::R
 		else if(files.empty()) text("No files");
 		else {
 			String desc;
-			if(instances.size() == 1) desc << files.size() << " files";
-			else desc << files.size() << " files on " << instances.size() << " instances";
-			text(desc);
-			
+                        if(instances.size() == 1) desc << files.size() << " files";
+                        else desc << files.size() << " files on " << instances.size() << " instances";
+                        span(desc, ".button");
+
 			if(request.post.empty())
 			{
-				text(" - ");
-				if(request.url[request.url.size()-1] == '/') link("..", "Parent");
-				else link(".", "Parent");
+				if(request.url[request.url.size()-1] == '/') link("..", "Parent", ".button");
+                                else link(".", "Parent", ".button");
+
 				if(isPlayable)
 				{
-					text(" - ");
-					link(prefix + request.url + "?playlist=1", "Play this directory");
+					link(prefix + request.url + "?playlist=1", "Play this directory", ".button");
 				}
 			}
-			br();
+
+                        br();
 			
 			open("table",".files");
 			try {

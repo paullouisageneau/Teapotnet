@@ -274,11 +274,13 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 			
 			page.open("div","contacts.box");
+			
+			page.link(prefix+"/contacts/","Edit",".button");
+		
 			page.open("h2");
 			page.text("Contacts");
-			page.link(prefix+"/contacts/","Edit",".button");
 			page.close("h2");
-			
+	
 			AddressBook::Contact *self = mAddressBook->getSelf();
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
@@ -368,12 +370,14 @@ void User::http(const String &prefix, Http::Request &request)
 			});");
 			
 			page.open("div","files.box");
-			page.open("h2");
-			page.text("Shared folders - ");
-			page.link(prefix+"/files/","Edit",".button");
-			page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
-			page.close("h2");
 			
+			page.link(prefix+"/files/","Edit",".button");
+                        page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+
+			page.open("h2");
+			page.text("Shared folders");
+			page.close("h2");
+		
 			Array<String> directories;
 			mStore->getDirectories(directories);
 			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");

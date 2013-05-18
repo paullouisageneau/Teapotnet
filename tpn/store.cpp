@@ -834,12 +834,11 @@ void Store::http(const String &prefix, Http::Request &request)
 				
 					String desc;
 					desc << files.size() << " files";
-					page.text(desc);
+					page.span(desc, ".button");
 					
-					page.text(" - ");
-					if(request.url[request.url.size()-1] == '/') page.link("..", "Parent");
-					else page.link(".", "Parent");
-					
+					if(request.url[request.url.size()-1] == '/') page.link("..", "Parent", ".button");
+                                        else page.link(".", "Parent", ".button");
+
 					page.br();
 					
 					page.open("table", ".files");
