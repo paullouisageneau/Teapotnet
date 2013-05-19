@@ -406,9 +406,11 @@ void User::http(const String &prefix, Http::Request &request)
 			if(!directories.empty())
 			{
 				page.open("div","otherfiles.box");
+				
+				page.link(prefix+"/files/?action=refreshglobal&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+		
 				page.open("h2");
 				page.text("Other shared folders - ");
-				page.link(prefix+"/files/?action=refreshglobal&redirect="+String(prefix+url).urlEncode(), "Refresh");
 				page.close("h2");
 			
 				page.open("table",".files");
