@@ -559,6 +559,11 @@ td.delete
         float: right;
 }
 
+#otherfiles .button
+{
+        float: right;
+}
+
 #contacts .button
 {
         float: right;

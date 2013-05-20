@@ -410,7 +410,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.link(prefix+"/files/?action=refreshglobal&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
 		
 				page.open("h2");
-				page.text("Other shared folders - ");
+				page.text("Other shared folders");
 				page.close("h2");
 			
 				page.open("table",".files");
