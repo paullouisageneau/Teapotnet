@@ -47,29 +47,27 @@ public:
 	bool parameter(const String &name, String &value) const;
 	
 	void setContent(const String &content);
-	void setParameters(StringMap &params);
+	void setParameters(const StringMap &params);
 	void setParameter(const String &name, const String &value);
 
 	bool isRead(void) const;
-	void markRead(bool read = true);
+	void markRead(bool read = true) const;
 	
 	void send(void);
 	void send(const Identifier &receiver);
-	
-	// TODO
-	
+
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
-	virtual void serialize(Stream &s) const;
-	virtual bool deserialize(Stream &s);
+	virtual bool isInlineSerializable(void) const;
 	
 private:
   	Time mTime;
 	Identifier mReceiver;
+	String mStamp;
 	StringMap mParameters;
 	String mContent;
-	bool mIsRead;
+	mutable bool mIsRead;
 	
 	friend class Core;
 };

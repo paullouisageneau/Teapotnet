@@ -21,6 +21,9 @@
 
 #include "tpn/string.h"
 #include "tpn/exception.h"
+#include "tpn/array.h"
+#include "tpn/set.h"
+#include "tpn/map.h"
 
 namespace tpn
 {

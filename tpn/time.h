@@ -41,14 +41,31 @@ public:
 	Time(time_t time);
 	Time(const String &str);
 	~Time(void);
-
+	
+	int hour(void) const;
+	int minute(void) const;
+	int second(void) const;
+	int day(void) const;
+	int month(void) const;
+	int year(void) const;
+	
 	String toDisplayDate(void) const;
 	String toHttpDate(void) const;
+	String toIsoDate(void) const;
+	String toIsoTime(void) const;
 	time_t toUnixTime(void) const;
-	unsigned toDays(void) const;
-	unsigned toHours(void) const;
 	
-	double operator - (const Time &t);
+	double toSeconds(void) const;
+	int toHours(void) const;
+	int toDays(void) const;
+	
+	void addSeconds(double seconds);
+	void addHours(int hours);
+	void addDays(int days);
+	
+	Time &operator += (double seconds);
+	Time operator + (double seconds) const;
+	double operator - (const Time &t) const;
 	operator time_t(void) const;
 	
 	// Serializable
@@ -57,6 +74,7 @@ public:
 
 private:
   	static Mutex TimeMutex;
+
 	time_t mTime;
 };
 

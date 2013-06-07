@@ -28,7 +28,11 @@
 
 namespace tpn
 {
-
+  
+template<typename T> class Array;
+template<typename T> class Set;
+template<typename K, typename V> class Map;
+  
 class String : public Stream, public Serializable, public std::string
 {
 public:

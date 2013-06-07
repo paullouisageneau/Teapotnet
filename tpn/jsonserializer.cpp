@@ -222,6 +222,7 @@ void JsonSerializer::outputArrayEnd(void)
 	--mLevel;
 	*mStream<<Stream::NewLine;
 	*mStream<<String(mLevel*2, ' ')<<']';
+	mFirst = false;	// useful for higher level array or map
 }
 
 void JsonSerializer::outputMapBegin(int size)
@@ -237,6 +238,7 @@ void JsonSerializer::outputMapEnd(void)
 	--mLevel;
 	*mStream<<Stream::NewLine;
 	*mStream<<String(mLevel*2, ' ')<<'}';
+	mFirst = false;	// useful for higher level array or map
 }
 
 }

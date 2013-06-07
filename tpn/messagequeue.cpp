@@ -20,88 +20,157 @@
  *************************************************************************/
 
 #include "tpn/messagequeue.h"
+#include "tpn/yamlserializer.h"
 
 namespace tpn
 {
+
+MessageQueue::MessageQueue(User *user) :
+	mUser(user)
+	mHasNew(false)
+{
+	if(mUser) mDatabase = new Database(mUser->profilePath() + "messages.db");
+	else mDatabase = new Database("messages.db");
+	
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
+	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+	stamp TEXT UNIQUE,\
+	content TEXT,\
+	time INTEGER(8),\
+	isread INTEGER(1))");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
+}
 
 MessageQueue::MessageQueue(void)
 {
 
 }
 
-MessageQueue::~MessageQueue(void)
-{
-	for(int i=0; i<mMessages.size(); ++i)
-		delete mMessages[i];
-	
-	mMessages.clear();
-	mMessagesByStamp.clear();
-}
-
 unsigned MessageQueue::count(void) const
 {
-	return unsigned(mMessages.size());
+	unsigned count;
+	Database::Statement statement = mDatabase->prepare("SELECT COUNT(*) FROM messages");
+	statement.step();
+	statement.input(count);
+	statement.finalize();
+	return count;
 }
 
 unsigned MessageQueue::unreadCount(void) const
 {
-	return unsigned(mUnread.size());
+	unsigned count;
+        Database::Statement statement = mDatabase->prepare("SELECT COUNT(*) FROM messages WHERE isread=1");
+        statement.step();
+        statement.input(count);
+        statement.finalize();
+        return count;
+}
+
+bool MessageQueue::hasNew(void) const
+{
+	bool old = mHasNew;
+	mHasNew = false;
+	return old;
 }
 
 bool MessageQueue::add(const Message &message)
 {
 	Synchronize(this);
 	
-	String stamp = message.stamp();
-	if(mByStamp.contains(stamp))
-		return false;
+	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+        statement.bind(1, message.stamp());
+	bool exists = statement.step();
+        statement.finalize();
+	if(exists) return false;
 
-	Set<Message>::iterator it = mMessages.insert(mMessages.end(), message);
-	mByStamp.insert(stamp, it);
-	if(!message.isRead()) mUnread.insert(stamp);
-	return true;
-}
-
-bool MessageQueue::markRead(const String &stamp, bool read)
-{
-	Synchronize(this);
-  
-	Map<String, Set<Message>::iterator>::iterator it = mByStamp.find(stamp);
-	if(it == mByStamp.end()) return false;
-	it->second->markRead(read);
-	if(read) mUnread.remove(stamp);
-	else mUnread.insert(stamp);
+	mDatabase->insert("messages", message);
+	mHasNew = true;
+	notifyAll();
 	return true;
 }
 
 bool MessageQueue::get(const String &stamp, Message &result)
 {
 	Synchronize(this);
+ 
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE stamp=?1 LIMIT 1");
+        statement.bind(1, stamp);
+        if(statement.step())
+	{
+		result.deserialize(statement);
+        	statement.finalize(); 
+		return true;
+	}
+
+	statement.finalize();
+        return false;
+}
+
+bool MessageQueue::markRead(const String &stamp, bool read)
+{
+	Synchronize(this);
   
-	Map<String, Set<Message>::iterator>::iterator it = mByStamp.find(stamp);
-	if(it == mByStamp.end()) return false;
-	result = *it->second;
+	Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=?1 WHERE stamp=?2");
+        statement.bind(1, read);
+	statement.bind(2, stamp);
+	statement.execute();
 	return true;
 }
 
-bool MessageQueue::getAllStamps(StringSet &result)
+bool MessageQueue::getAllStamps(StringArray &result)
 {
 	Synchronize(this);
-	
+
+	// TODO	
 	result.clear();
 	mByStamp.getKeys(result);
 	return (!result.empty());
 }
 
-bool MessageQueue::getUnreadStamps(StringSet &result)
+bool MessageQueue::getUnreadStamps(StringArray &result)
 {
 	Synchronize(this);
 	
-	result = mUnread;
+	result.clear();
+	
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE isread=0");
+        while(statement.step())
+	{
+		result.deserialize(statement);
+        	statement.finalize(); 
+		return true;
+	}
+
+	statement.finalize();
+        return false;
+}
+
+bool MessageQueue::getLastStamps(const String &oldLast, StringArray &result)
+{
+	Synchronize(this);
+
+	result.clear();
+	
+        Set<Message>::iterator it = mMessages.begin();
+	if(!oldLast.empty())
+	{
+		Map<String, Set<Message>::iterator>::iterator jt = mByStamp.find(oldLast);
+		if(jt != mByStamp.end())
+		{	it = jt->second;
+			++it;
+		}
+	}
+	
+	while(it != mMessages.end())
+	{
+		result.append(it->stamp());
+		++it;
+	}
+	
 	return (!result.empty());
 }
 
-bool MessageQueue::getNewStamps(const StringSet &old, StringSet &result)
+bool MessageQueue::getNewStamps(const StringArray &oldStamps, StringArray &result)
 {
 	Synchronize(this);
 	
@@ -111,12 +180,32 @@ bool MessageQueue::getNewStamps(const StringSet &old, StringSet &result)
 		it != mMessages.end();
 		++it)
 	{
-		String stamp = it->getStamp();
-		if(!old.contains(stamp))
-			result.insert(stamp);
+		String stamp = it->stamp();
+		if(!oldStamps.contains(stamp))
+			result.append(stamp);
 	}
 	
 	return (!result.empty());
 }
 
+String MessageQueue::getFileName(int daysAgo) const
+{
+	Time time = Time::Now();
+	time.addDays(-daysAgo);
+	return mPath + time.toIsoDate();
 }
+
+String MessageQueue::getLastFileName(void) const
+{
+	for(int d=1; d<31; ++d)
+	{
+		String path = getFileName(d);
+		if(File::Exist(path)) 
+			return path;
+	}
+	
+	return "";
+}
+
+}
+				

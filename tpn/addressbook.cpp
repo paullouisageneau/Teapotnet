@@ -89,7 +89,7 @@ int AddressBook::unreadMessagesCount(void) const
                 if(mContacts.get(keys[i], contact))
                 {
                         Desynchronize(this);
-                        count+= contact->unreadMessagesCount();
+                        count+= contact->messages().unreadCount();
                 }
         }
 
@@ -459,8 +459,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
                                         	map["name"] << contact->name();
                                         	map["tracker"] << contact->tracker();
                                         	map["status"] << contact->status();
-                                        	map["messages"] << contact->unreadMessagesCount();
-						map["newmessages"] << contact->hasNewMessages();
+                                        	map["messages"] << contact->messages().unreadCount();
+						map["newmessages"] << contact->messages().hasNew();
                                         	json.outputMapElement(contact->uniqueName(), map);
 					}
                 		}
@@ -731,11 +731,9 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
-  	mAddressBook(addressBook),
-	mMessagesCount(0),
-	mHasNewMessages(false)
+	mAddressBook(addressBook)
 {
-  
+
 }
 
 AddressBook::Contact::~Contact(void)
@@ -791,26 +789,6 @@ String AddressBook::Contact::urlPrefix(void) const
 	if(mUniqueName.empty()) return "";
 	if(isSelf()) return String("/")+mAddressBook->userName()+"/myself";
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
-}
-
-int AddressBook::Contact::unreadMessagesCount(void) const
-{
-	Synchronize(this);
-
-	int count = 0;
-	for(int i=mMessages.size()-1; i>=0; --i)
-	{
-		if(mMessages[i].isRead()) break;
-		++count;
-	}
-	return count;
-}
-
-bool AddressBook::Contact::hasNewMessages(void)
-{
-	bool tmp = false;
-	std::swap(mHasNewMessages, tmp);
-	return tmp;
 }
 
 bool AddressBook::Contact::isSelf(void) const
@@ -892,6 +870,11 @@ void AddressBook::Contact::getInstancesNames(Array<String> &array)
 	for(int i=0; i<others.size(); ++i)
 		if(!array.contains(others[i]))
 			array.append(others[i]);
+}
+
+const MessageQueue &AddressBook::Contact::messages(void) const
+{
+	return mMessages;
 }
 
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
@@ -1059,13 +1042,6 @@ void AddressBook::Contact::update(bool alternate)
 			mAddrs.erase(it++);
 		else it++;
 	}
-
-        while(!mMessages.empty()
-		&& mMessages.front().isRead()
-		&& Time::Now() - mMessages.front().time() >= 7200)        // 2h
-	{
-		mMessages.pop_front();
-	}
 }
 
 void AddressBook::Contact::connected(const Identifier &peering)
@@ -1112,9 +1088,7 @@ void AddressBook::Contact::message(Message *message)
 	{
 		Synchronize(this);
 		
-		mMessages.push_back(*message);
-		++mMessagesCount;
-		mHasNewMessages = true;
+		mMessages.add(*message);
 		notifyAll();
 	}
 	else if(type == "info")
@@ -1194,8 +1168,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				json.outputMapElement(String("name"), mName);
 				json.outputMapElement(String("tracker"), mTracker);
                                 json.outputMapElement(String("status"), status());
-                                json.outputMapElement(String("messages"), unreadMessagesCount());
-				json.outputMapElement(String("newmessages"), hasNewMessages());
+                                json.outputMapElement(String("messages"), mMessages.unreadCount());
+				json.outputMapElement(String("newmessages"), mMessages.hasNew());
 				
 				Array<String> instances;
  				getInstancesNames(instances);
@@ -1274,7 +1248,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			unsigned refreshPeriod = 5000;
-			page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
 				var msg = '';\n\
@@ -1474,7 +1448,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						page.close("div");
 
 						unsigned refreshPeriod = 5000;
-                                		page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+                                		page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
                                         		transition($('#status'), info.status.capitalize());\n\
                                         		$('#status').removeClass().addClass('button').addClass(info.status);\n\
                                         		if(info.newmessages) playMessageSound();\n\
@@ -1503,7 +1477,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					query.trim();
 				}
 				
-				Http::Response response(request,200);
+				Http::Response response(request, 200);
 				response.send();
 				
 				Html page(response.sock);
@@ -1550,30 +1524,32 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				if(isSelf()) throw 404;
 			  
-				if(url != "/")
+				if(url == "/messages" || url == "/messages/")
 				{
-				  	url.ignore();
-					unsigned count = 0;
-					try { url>>count; }
-					catch(...) { throw 404; }
+					String last;
+					request.get.get("last", last);
 					
-					Http::Response response(request,200);
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
 					response.send();
 					
-					if(count == mMessagesCount)
+					StringArray stamps;
+					while(!mMessages.getLastStamps(last, stamps))
 					{
-						mHasNewMessages = false;
-						wait(120000);
+						Desynchronize(this);
+						mMessages.wait();
 					}
 					
-					if(count < mMessagesCount && mMessagesCount-count <= mMessages.size())
+					SerializableArray<Message> lastMessages;
+					lastMessages.resize(stamps.size());
+					for(int i=0; i<stamps.size(); ++i)
 					{
-						Html html(response.sock);
-						int i = mMessages.size() - (mMessagesCount-count);
-						messageToHtml(html, mMessages[i], false);
-						mMessages[i].markRead();
+						mMessages.get(stamps[i], lastMessages[i]);
+						mMessages.markRead(stamps[i]);
 					}
 					
+					JsonSerializer serializer(response.sock);
+					serializer.output(lastMessages);
 					return;
 				}
 			  
@@ -1585,27 +1561,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							Message message(request.post["message"]);
 						  	message.send(mPeering);	// send to other
 							
-							// TODO
-							//Contact *self = mAddressBook->getSelf();
-							//if(self && self->isConnected()) message.send(self->peering());
-							
-							mMessages.push_back(Message(request.post["message"]));	// thus receiver is null
-							++mMessagesCount;
-							notifyAll();
-							
-							if(request.post.contains("ajax") && request.post["ajax"].toBool())	//ajax
-							{
-								Http::Response response(request, 200);
-								response.send();
-								/*Html html(response.sock);
-								messageToHtml(html, mMessages.back(), false);
-								mMessages.back().markRead();*/
-							}
-							else {	// form submit
-							 	Http::Response response(request, 303);
-								response.headers["Location"] = prefix + "/chat";
-								response.send();
-							}
+							mMessages.add(Message(request.post["message"]));	// thus receiver is null
 						}
 						catch(const Exception &e)
 						{
@@ -1613,6 +1569,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 							throw 409;
 						}
 						
+						Http::Response response(request, 200);
+						response.send();
 						return;
 					}
 				}
@@ -1644,12 +1602,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				page.open("div", "chatmessages");
-				for(int i=0; i<mMessages.size(); ++i)
-				{
-	  				messageToHtml(page, mMessages[i], mMessages[i].isRead());
-					mMessages[i].markRead();
-				}
-				page.close("div"); // chatmessages
+				page.close("div");
 				
 				page.open("div", "chatpanel");
 				page.openForm(prefix + "/chat", "post", "chatForm");
@@ -1658,60 +1611,19 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				//page.br();
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.chatForm.message.focus(); });");
-				page.close("div"); // chatpanel
+				page.close("div");
 				
 				page.close("div");
 				
-				page.javascript("var count = "+String::number(mMessagesCount)+";\n\
-					var title = document.title;\n\
-					var hasFocus = true;\n\
-					var nbNewMessages = 0;\n\
-					$(window).blur(function() {\n\
-						hasFocus = false;\n\
-						$('span.message').attr('class', 'oldmessage');\n\
-					});\n\
-					$(window).focus(function() {\n\
-						hasFocus = true;\n\
-						nbNewMessages = 0;\n\
-						document.title = title;\n\
-					});\n\
-					function update()\n\
-					{\n\
-						var request = $.ajax({\n\
-							url: '"+prefix+"/chat/'+count,\n\
-							dataType: 'html',\n\
-							timeout: 300000\n\
-						});\n\
-						request.done(function(html) {\n\
-							if($.trim(html) != '')\n\
-							{\n\
-								$('#chatmessages').append(html);\n\
-								var text = $('#chatmessages span.text:first');\n\
-								if(text) text.html(text.html().linkify());\n\
-								$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
-								if(!hasFocus)\n\
-								{\n\
-									nbNewMessages+= 1;\n\
-									document.title = title+' ('+nbNewMessages+')';\n\
-								}\n\
-								count+= 1;\n\
-								playMessageSound();\n\
-							}\n\
-							setTimeout('update()', 100);\n\
-						});\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							setTimeout('update()', 10000);\n\
-						});\n\
-					}\n\
-					function post()\n\
+				page.javascript("function post()\n\
 					{\n\
 						var message = document.chatForm.message.value;\n\
 						if(!message) return false;\n\
 						document.chatForm.message.value = '';\n\
 						var request = $.post('"+prefix+"/chat',\n\
-							{ 'message': message, 'ajax': 1 });\n\
+							{ 'message': message });\n\
 						request.fail(function(jqXHR, textStatus) {\n\
-							alert('The message could not be sent. Is this user online ?');\n\
+							alert('The message could not be sent.');\n\
 						});\n\
 					}\n\
 					document.chatForm.onsubmit = function()\n\
@@ -1725,13 +1637,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
         						post();\n\
     						}\n\
 					});\n\
-					setTimeout('update()', 1000);\n\
 					$(document).ready( function() {\n\
 						$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
-					});");
+					});\n\
+					setMessagesReceiver('"+prefix+"/chat/messages?json','#chatmessages');");
 				
 				unsigned refreshPeriod = 5000;
-				page.javascript("setInfoCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+				page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 					transition($('#status'), info.status.capitalize());\n\
 					$('#status').removeClass().addClass('button').addClass(info.status);\n\
 					if(info.newmessages) playMessageSound();\n\
@@ -1853,9 +1765,8 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	else mDeleted = false;
 	
 	// TODO: checks
+	// TODO: mMessages ?
 	
-	mMessages.clear();
-	mMessagesCount = 0;
 	mFound = false;
 	return true;
 }

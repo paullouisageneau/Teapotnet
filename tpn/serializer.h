@@ -24,12 +24,13 @@
 
 #include "tpn/include.h"
 #include "tpn/serializable.h"
+#include <map>
 
 namespace tpn
 {
 
 class String;
-
+	
 class Serializer
 {
 public:
@@ -99,6 +100,10 @@ public:
 	virtual void	outputMapEnd(void)		{}
 	
 	virtual void	outputClose(void)		{}
+
+	// input/output for pointers
+        template<class T> bool input(T *ptr);
+	template<class T> void output(const T *ptr);
 	
 	// Shortcuts replacing element output or check + element input
 	template<class T>		bool inputArrayElement(T &element);
@@ -106,10 +111,55 @@ public:
 	template<class K, class V>	bool inputMapElement(K &key, V &value);
 	template<class K, class V>	void outputMapElement(const K &key, const V &value);
 	
-        template<class T> bool input(T *ptr);
-	template<class T> void output(const T *ptr);
+	class ObjectMapping : public Pair, public std::map<String, Serializable*>
+	{
+	public:
+		ObjectMapping(void);
+		~ObjectMapping(void);
+		
+		void serializeKey(Serializer &s) const;
+		void serializeValue(Serializer &s) const;
+		bool deserializeKey(Serializer &s);
+		bool deserializeValue(Serializer &s);
+		
+	private:
+		String *mLastKey;	// String is an incomplete type here for includes coherence
+	};
+	
+	class ConstObjectMapping : public std::map<String, const Serializable*>
+	{
+
+	};
+	
+	// Functions for simple object input/output
+	bool inputObject(ObjectMapping &mapping);
+	void outputObject(ConstObjectMapping &mapping);
 };
 
+template<typename T> 
+class SerializableWrapper : public Serializable
+{
+public:
+	SerializableWrapper(T *ptr)		{ this->ptr = ptr; }
+	void serialize(Serializer &s) const	{ return s.output(*ptr); }
+	bool deserialize(Serializer &s)		{ return s.input(*ptr); }
+	bool isInlineSerializable(void) const	{ return true; }
+
+private:
+	T *ptr;
+};
+
+template<typename T> 
+class ConstSerializableWrapper : public Serializable
+{
+public:
+	ConstSerializableWrapper(const T *ptr)	{ this->ptr = ptr; }
+	void serialize(Serializer &s) const	{ return s.output(*ptr); }
+	bool isInlineSerializable(void) const	{ return true; }
+
+private:
+	const T *ptr;
+};
 
 template<class T>
 bool Serializer::input(T *ptr)

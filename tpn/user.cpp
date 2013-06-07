@@ -351,7 +351,7 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			unsigned refreshPeriod = 5000;
 			page.javascript("var title = document.title;\n\
-					setInfoCallback(\"/"+mAddressBook->userName()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
+					setCallback(\"/"+mAddressBook->userName()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
 					play = false;\n\
 					$.each(data, function(uname, info) {\n\

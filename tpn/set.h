@@ -35,7 +35,7 @@ class Set : public std::set<T>
 {
 public:
 	bool remove(const T &value);
-	bool contains(const T &value);
+	bool contains(const T &value) const;
 };
 
 template<typename T>
@@ -69,7 +69,7 @@ bool Set<T>::remove(const T &value)
 }
 
 template<typename T>
-bool Set<T>::contains(const T &value)
+bool Set<T>::contains(const T &value) const
 {
 	return (this->find(value) != this->end());
 }
@@ -77,24 +77,24 @@ bool Set<T>::contains(const T &value)
 template<typename T>
 void SerializableSet<T>::serialize(Serializer &s) const
 {
-	s.outputSetBegin(this->size());
+	s.outputArrayBegin(this->size());
 
-	for(iterator it = this->begin(); it != this->end(); ++it)
+	for(typename Set<T>::iterator it = this->begin(); it != this->end(); ++it)
 	{
 		SerializableElement element(*it);
 		s.output(element);
 	}
 	
-	s.outputSetEnd();
+	s.outputArrayEnd();
 }
 
 template<typename T>
 bool SerializableSet<T>::deserialize(Serializer &s)
 {
 	this->clear();
-	if(!s.inputSetBegin()) return false;
+	if(!s.inputArrayBegin()) return false;
 
-	while(s.inputSetCheck())
+	while(s.inputArrayCheck())
 	{
 		SerializableElement element;
 		if(!s.input(element)) break;
@@ -133,25 +133,6 @@ template<typename T>
 bool SerializableSet<T>::SerializableElement::deserialize(Serializer &s)
 {
 	return s.input(value);
-}
-
-// Functions Serilizer::inputSetElement and Serializer::outputSetElement defined here
-
-template<class T>
-bool Serializer::inputSetElement(T &element)
-{
-	 if(!this->inputSetCheck()) return false;
-	 typename SerializableSet<T>::SerializableElement tmp;
-	 if(!this->input(tmp)) return false;
-	 element = tmp.value;
-	 return true;
-}
-
-template<class T> 
-void Serializer::outputSetElement(const T &element)
-{
-	typename SerializableSet<T>::SerializableElement tmp(element);
-	this->output(tmp);
 }
 
 }

@@ -46,8 +46,8 @@ public:
 	bool wait(const unsigned &timeout) const;
 	
 private:
-	Mutex *mMutex;		// Pointers are used here to keep functions const
-	Signal *mSignal;
+	mutable Mutex mMutex;
+	mutable Signal mSignal;
 };
 
 class Synchronizer

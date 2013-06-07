@@ -25,7 +25,10 @@
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
 #include "tpn/message.h"
+#include "tpn/user.h"
+#include "tpn/database.h"
 #include "tpn/string.h"
+#include "tpn/set.h"
 #include "tpn/array.h"
 #include "tpn/map.h"
 
@@ -35,23 +38,36 @@ namespace tpn
 class MessageQueue : public Synchronizable
 {
 public:
-	MessageQueue(void);
+	MessageQueue(User *user);
 	~MessageQueue(void);
 	
 	unsigned count(void) const;
 	unsigned unreadCount(void) const;
+	bool hasNew(void) const;
+	
 	bool add(const Message &message);
-	bool markRead(const String &stamp, bool read = true);
-
 	bool get(const String &stamp, Message &result);
-	bool getAllStamps(StringSet &result);
-	bool getUnreadStamps(StringSet &result);
-	bool getNewStamps(const StringSet &old, StringSet &result);
+	bool markRead(const String &stamp, bool read = true);
+	
+	bool getLast(const String &oldLast, Array<Message> &result);
+	bool getLast(const Time &time, Array<Message> &result);
+	bool getLast(int count, Array<Message> &result);
+	
+	
+	// TODO
+	bool getAllStamps(StringArray &result);
+	bool getUnreadStamps(StringArray &result);
+	bool getLastStamps(const String &oldLast, StringArray &result);
+	bool getNewStamps(const StringArray &oldStamps, StringArray &result);
 	
 private:
-	Set<Message> mMessages;
-	Map<String, Set<Message>::iterator> mByStamp;
-	StringSet mUnread;
+	String getFileName(int daysAgo = 0) const;
+	String getLastFileName(void) const;
+	
+	User *mUser;
+	Database *mDatabase;
+	
+	mutable bool mHasNew;
 };
 
 }

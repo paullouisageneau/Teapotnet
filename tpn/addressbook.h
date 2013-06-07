@@ -82,8 +82,6 @@ public:
 		Time time(void) const;
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
-		int unreadMessagesCount(void) const;
-		bool hasNewMessages(void);
 		bool isSelf(void) const;
 		bool isFound(void) const;
 		bool isConnected(void) const;
@@ -94,6 +92,7 @@ public:
 		bool isDeleted(void) const;
 		void setDeleted(void);
 		void getInstancesNames(Array<String> &array);
+		const MessageQueue &messages(void) const;
 		
 		bool addAddresses(const AddressMap &map);
 		

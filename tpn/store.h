@@ -27,6 +27,7 @@
 #include "tpn/synchronizable.h"
 #include "tpn/file.h"
 #include "tpn/map.h"
+#include "tpn/set.h"
 #include "tpn/http.h"
 #include "tpn/interface.h"
 #include "tpn/mutex.h"

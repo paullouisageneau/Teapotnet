@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/database.h"
+#include "tpn/lineserializer.h"
 
 namespace tpn
 {
@@ -57,6 +58,52 @@ int64_t Database::insertId(void) const
 	return sqlite3_last_insert_rowid(mDb); 
 }
 
+int64_t Database::insert(const String &table, const Serializable &serializable)
+{
+	Statement dummy = prepare("SELECT * FROM `" + table + "` LIMIT 1");
+	dummy.step();
+
+	String columns;
+	String values;
+
+	for(int i=0; i<dummy.columnsCount(); ++i)
+	{
+		String name = dummy.columnName(i);
+		if(name == "rowid" || name == "id")
+			continue;		
+
+		if(i) 
+		{
+			columns+= ',';
+			values+= ',';
+		}
+		columns+= name;
+		values+= "@" + name;
+	}
+
+	dummy.finalize();
+
+	String request = "INSERT INTO `" + table + "` (" + columns + ") VALUES (" + values ")";
+	Statement statement = prepare(request);
+	statement.output(serializable);
+	statement.execute();	// unbound parameters will be interpreted as null
+
+	return insertId();
+}
+
+bool Database::retrieve(const String &table, int64_t id, Serializable &serializable)
+{
+	Statement statement = prepare("SELECT * FROM `" + table + "` WHERE rowid=?1");
+	statement.bind(1, id);
+
+	bool success = false;
+	if(statement.step())
+		success = statement.input(serializable);	
+		
+	statement.finalize();
+	return success;
+}
+
 Database::Statement::Statement(void) :
 	mDb(NULL),
 	mStmt(NULL)
@@ -66,7 +113,9 @@ Database::Statement::Statement(void) :
 
 Database::Statement::Statement(sqlite3 *db, sqlite3_stmt *stmt) :
 	mDb(db),
-	mStmt(stmt)
+	mStmt(stmt),
+	mInputColumn(0),
+	mOutputParameter(1)
 {
 
 }
@@ -106,6 +155,16 @@ void Database::Statement::execute(void)
 int Database::Statement::parametersCount(void) const
 {
 	return sqlite3_bind_parameter_count(mStmt);
+}
+
+String Database::Statement::parameterName(int parameter) const
+{
+	return String(sqlite3_bind_parameter_name(mStmt, parameter));
+}
+
+int Database::Statement::parameterIndex(const String &name) const
+{
+	return sqlite3_bind_parameter_index(mStmt, name.c_str());
 }
 
 void Database::Statement::bind(int parameter, int value)
@@ -190,7 +249,7 @@ String Database::Statement::name(int column) const
 
 String Database::Statement::value(int column) const
 {
-	const char * text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+	const char *text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
 	if(text) return String(text);
 	else return String();
 }
@@ -238,6 +297,207 @@ void Database::Statement::value(int column, ByteString &v) const
 	const char *data = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
 	if(data) v.assign(data, data+size);
 	else v.clear();
+}
+
+bool Database::Statement::input(Serializable &s)
+{
+	return s.deserialize(*this);
+}
+
+bool Database::Statement::input(Element &element)
+{
+	return element.deserialize(*this);
+}
+
+bool Database::Statement::input(Pair &pair);
+{
+	String key = name(mInputParameter);
+	LineSerializer keySerializer(&key);
+	pair.deserializeKey(keySerializer);
+	pair.deserializeValue(*this);
+}
+
+bool Database::Statement::input(String &str)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, str);
+	return true;
+}
+
+bool Database::Statement::input(int8_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	int v = 0;
+	value(mInputColumn++, v);
+	i = int8_t(v);
+	return true;
+}
+
+bool Database::Statement::input(int16_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	int v = 0;
+	value(mInputColumn++, v);
+	i = int16_t(v);
+	return true;
+}
+	
+bool Database::Statement::input(int32_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	int v = 0;
+	value(mInputColumn++, v);
+	i = int32_t(v);
+	return true;
+}
+
+bool Database::Statement::input(int64_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, i);
+	return true;
+}
+
+bool Database::Statement::input(uint8_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	unsigned v = 0;
+	value(mInputColumn++, v);
+	i = uint8_t(v);
+	return false;
+}
+
+bool Database::Statement::input(uint16_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	unsigned v = 0;
+	value(mInputColumn++, v);
+	i = uint16_t(v);
+	return true;
+}
+
+bool Database::Statement::input(uint32_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	unsigned v = 0;
+	value(mInputColumn++, v);
+	i = uint32_t(v);
+	return true;
+}
+
+bool Database::Statement::input(uint64_t &i)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, i);
+	return true;
+}
+
+bool Database::Statement::input(bool &b)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	int8_t i = 0;
+	input(i);
+	b = (i != 0);
+	return true;
+}
+
+bool Database::Statement::input(float &f)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, f);
+	return true;
+}
+
+bool Database::Statement::input(double &f)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, f);
+	return true;
+}
+
+void Database::Statement::output(const Serializable &s)
+{
+	s.serialize(*this);
+}
+	
+void Database::Statement::output(const Element &element)
+{
+	element.serialize(*this);
+}
+
+void Database::Statement::output(const Pair &pair)
+{
+	String key;
+	LineSerializer keySerializer(&key);
+	pair.serializeKey(key);
+	key.trim();
+	
+	mOutputParameter = parameterIndex("@"+key);
+	if(mOutputParameter != 0) pair.serializeValue(*this);
+	mOutputParameter = 1;
+}
+
+void Database::Statement::output(const String &str)
+{
+	bind(mOutputParameter++, str);
+}
+
+void Database::Statement::output(int8_t i)
+{
+	bind(mOutputParameter++, int(i));
+}
+
+void Database::Statement::output(int16_t i)
+{
+	bind(mOutputParameter++, int(i));
+}
+
+void Database::Statement::output(int32_t i)
+{
+	bind(mOutputParameter++, int(i));
+}
+
+void Database::Statement::output(int64_t i)
+{
+	bind(mOutputParameter++, i);
+}
+
+void Database::Statement::output(uint8_t i)
+{
+	bind(mOutputParameter++, unsigned(i));
+}
+
+void Database::Statement::output(uint16_t i)
+{
+	bind(mOutputParameter++, unsigned(i));
+}
+
+void Database::Statement::output(uint32_t i)
+{
+	bind(mOutputParameter++, unsigned(i));
+}
+
+void Database::Statement::output(uint64_t i)
+{
+	bind(mOutputParameter++, i);
+}
+
+void Database::Statement::output(bool b)
+{
+	int8_t i;
+	if(b) i = 1;
+	else i = 0;
+	bind(mOutputParameter++, i);
+}
+
+void Database::Statement::output(float f)
+{
+	bind(mOutputParameter++, f);
+}
+
+void Database::Statement::output(double f)
+{
+	bind(mOutputParameter++, f);
 }
 
 DatabaseException::DatabaseException(sqlite3 *db, const String &message) :

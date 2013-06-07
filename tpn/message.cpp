@@ -45,6 +45,11 @@ Time Message::time(void) const
 	return mTime; 
 }
 
+String Message::stamp(void) const
+{
+	return mStamp;
+}
+
 const Identifier &Message::receiver(void) const
 {
 	return mReceiver;
@@ -70,9 +75,11 @@ void Message::setContent(const String &content)
 	mContent = content;
 }
 
-void Message::setParameters(StringMap &params)
+void Message::setParameters(const StringMap &params)
 {
 	mParameters = params;
+	if(!mParameters.get("stamp", mStamp))
+		mStamp = String::number(Time::Now().toUnixTime()) + String::random(4);
 }
 
 void Message::setParameter(const String &name, const String &value)
@@ -85,7 +92,7 @@ bool Message::isRead(void) const
 	return mIsRead;  
 }
 
-void Message::markRead(bool read)
+void Message::markRead(bool read) const
 {
 	mIsRead = read; 
 }
@@ -99,6 +106,48 @@ void Message::send(const Identifier &receiver)
 {
 	mReceiver = receiver;
 	Core::Instance->sendMessage(*this);
+}
+
+void Message::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<bool> isReadWrapper(&mIsRead);
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["time"] = &mTime;
+	mapping["receiver"] = &mReceiver;
+	mapping["stamp"] = &mStamp;
+	mapping["parameters"] = &mParameters;
+	mapping["content"] = &mContent;
+	mapping["isread"] = &isReadWrapper;
+	
+	s.outputObject(mapping);
+}
+
+bool Message::deserialize(Serializer &s)
+{
+	mTime = Time::Now();
+	mReceiver.clear();
+	mStamp.clear();
+	mParameters.clear();
+	mContent.clear();
+	mIsRead = false;
+	
+	SerializableWrapper<bool> isReadWrapper(&mIsRead);
+	
+	Serializer::ObjectMapping mapping;
+	mapping["time"] = &mTime;
+	mapping["receiver"] = &mReceiver;
+	mapping["stamp"] = &mStamp;
+	mapping["parameters"] = &mParameters;
+	mapping["content"] = &mContent;
+	mapping["isread"] = &isReadWrapper;
+	
+	return s.inputObject(mapping);
+}
+
+bool Message::isInlineSerializable(void) const
+{
+	return false;
 }
 
 bool operator < (const Message &m1, const Message &m2)

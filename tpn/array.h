@@ -44,7 +44,7 @@ public:
 	void fill(const T &value, int n);
 	void erase(int i);
 	bool remove(const T &value);
-	bool contains(const T &value);
+	bool contains(const T &value) const;
 };
 
 template<typename T>
@@ -131,7 +131,7 @@ void Array<T>::erase(int i)
 }
 
 template<typename T>
-bool Array<T>::contains(const T &value)
+bool Array<T>::contains(const T &value) const
 {
 	for(int i=0; i<this->size(); ++i)
 		if(this->at(i) == value)

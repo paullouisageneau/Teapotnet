@@ -24,62 +24,59 @@
 namespace tpn
 {
 
-Synchronizable::Synchronizable(void) :
-	mMutex(new Mutex),
-	mSignal(new Signal)
+Synchronizable::Synchronizable(void)
 {
 
 }
 
 Synchronizable::~Synchronizable(void)
 {
-	delete mMutex;
-	delete mSignal;
+
 }
 
 void Synchronizable::lock(int count) const
 {
-	mMutex->lock(count);
+	mMutex.lock(count);
 }
 
 void Synchronizable::unlock(void) const
 {
-	mMutex->unlock();
+	mMutex.unlock();
 }
 
 int Synchronizable::unlockAll(void) const
 {
-	return mMutex->unlockAll();
+	return mMutex.unlockAll();
 }
 
 void Synchronizable::relockAll(void) const
 {
-	mMutex->relockAll();
+	mMutex.relockAll();
 }
 
 void Synchronizable::notify(void) const
 {
-	mSignal->launch();
+	mSignal.launch();
 }
 
 void Synchronizable::notifyAll(void) const
 {
-	mSignal->launchAll();
+	mSignal.launchAll();
 }
 
 void Synchronizable::wait(void) const
 {
-	mSignal->wait(*mMutex);
+	mSignal.wait(mMutex);
 }
 
 bool Synchronizable::wait(unsigned &timeout) const
 {
-	return mSignal->wait(*mMutex, timeout);
+	return mSignal.wait(mMutex, timeout);
 }
 
 bool Synchronizable::wait(const unsigned &timeout) const
 {
-	return mSignal->wait(*mMutex, timeout);
+	return mSignal.wait(mMutex, timeout);
 }
 
 }

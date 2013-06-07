@@ -19,13 +19,19 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+if(!String.escape) {
+	String.prototype.escape = function() {
+		return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+	}
+}
+
 if(!String.linkify) {
 	String.prototype.linkify = function() {
 
 		// http://, https://, ftp://
 		var urlPattern = /\b(?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|]/gim;
 
-		// www. sans http:// or https://
+		// www. without http:// or https://
 		var pseudoUrlPattern = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
 
 		// Email addresses
@@ -41,6 +47,12 @@ if(!String.linkify) {
 if(!String.capitalize) {
 	String.prototype.capitalize = function () {
 		return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+	};
+}
+
+if(!String.contains) {
+	String.prototype.contains = function(it) { 
+		return this.indexOf(it) != -1;
 	};
 }
 
@@ -129,30 +141,78 @@ function playMessageSound() {
 	if(MessageSound != null) MessageSound.play();
 }
 
-var queryInfoUrl = '';
-var queryInfoTimeout = 5000;
-var queryInfoCallback;
 
-function queryInfo(url, timeout, callback) {
+
+function setCallback(url, period, callback) {
+	
 	$.ajax({
 		url: url,
 		dataType: 'json',
-		timeout: timeout,
+		timeout: period,
 		success: function(data) {
 			callback(data);
 		}
+	})
+	.done(function(data) {
+		setTimeout(function() {
+			setCallback(url, period, callback);
+		}, period);
+	})
+	.fail(function(jqXHR, textStatus) {
+		setTimeout(function() {
+			setCallback(url, period, callback);
+		}, period);
 	});
 }
 
-function setInfoCallback(url, period, callback) {
+function setMessagesReceiver(url, object) {
+
+	$(window).blur(function() {
+		$(object).find('.message').attr('class', 'oldmessage');
+	});
 	
-	queryInfoUrl = url;
-	queryInfoTimeout = period;
-	queryInfoCallback = callback;
-	setInterval( function() {
-		queryInfo(queryInfoUrl, queryInfoTimeout, queryInfoCallback);
-	}, period);
-	$(document).ready( function() {
-		queryInfo(queryInfoUrl, queryInfoTimeout, queryInfoCallback);
+	setMessagesReceiverRec(url, object, '');
+}
+
+var BaseDocumentTitle = document.title;
+var NbNewMessages = 0;
+
+$(window).focus(function() {
+	document.title = BaseDocumentTitle;
+	NbNewMessages = 0;
+});
+
+function setMessagesReceiverRec(url, object, last) {
+
+	var baseUrl = url;
+	
+	if(last != '')
+	{
+		if(url.contains('?')) url+= '&last=' + last;
+		else url+= '?last=' + last;
+	}
+	
+	$.ajax({
+		url: url,
+		dataType: 'json',
+		timeout: 300000
+	})
+	.done(function(data) {
+		for(var i=0; i<data.length; i++) {
+			var message = data[i];
+			$(object).append('<div class=\"message\"><span class=\"date\">'+message.time.escape()+'</span> <span class=\"text\">'+message.content.escape().linkify()+'</span></div>');
+			last = message.stamp;
+			NbNewMessages++;
+		}
+		document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
+		if(data.length) playMessageSound();
+		setTimeout(function() {
+			setMessagesReceiverRec(baseUrl, object, last);
+		}, 10);
+	})
+	.fail(function(jqXHR, textStatus) {
+		setTimeout(function() {
+			setMessagesReceiverRec(baseUrl, object, last);
+		}, 1000);
 	});
 }

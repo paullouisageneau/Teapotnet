@@ -835,11 +835,6 @@ void Core::Handler::process(void)
 	}
 	
 	try {
-		// Start the sender
-		mSender = new Sender;
-		mSender->mStream = mStream;
-		mSender->start();
-	  
 		// Register the handler
 		if(!mCore->addHandler(mPeering,this))
 		{
@@ -847,8 +842,14 @@ void Core::Handler::process(void)
 			mSock->close();
 			return;
 		}
-
+		
+		// WARNING: Do not simply return after this point, sender is starting
 		notifyAll();
+		
+		// Start the sender
+		mSender = new Sender;
+		mSender->mStream = mStream;
+		mSender->start();
 	  
 		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
 		
@@ -1046,8 +1047,8 @@ void Core::Handler::process(void)
 				
 				Message message;
 				message.mReceiver = mPeering;
-				message.mParameters = parameters;
-				message.mContent.reserve(length);	
+				message.mContent.reserve(length);
+				message.setParameters(parameters);
 				mStream->read(message.mContent, length);
 				
 				Listener *listener = NULL;

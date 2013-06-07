@@ -206,11 +206,59 @@ Time::~Time(void)
   
 }
 
+int Time::hour(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_hour;	// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
+int Time::minute(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_min;		// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
+int Time::second(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_sec;		// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
+int Time::day(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_mday;	// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
+int Time::month(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_mon;		// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
+int Time::year(void) const
+{
+	TimeMutex.lock();
+	int result = localtime(&mTime)->tm_year;	// not thread safe
+	TimeMutex.unlock();
+	return result;
+}
+
 String Time::toDisplayDate(void) const
 {
 	TimeMutex.lock();
 	char buffer[256];
-	strftime (buffer, 256, "%x %X", localtime(&mTime));
+	strftime(buffer, 256, "%x %X", localtime(&mTime));
 	TimeMutex.unlock();
 	return String(buffer);
 }
@@ -218,11 +266,28 @@ String Time::toDisplayDate(void) const
 String Time::toHttpDate(void) const
 {
 	TimeMutex.lock();
-	struct tm *tmptr = gmtime(&mTime);	// not necessarily thread safe
 	char buffer[256];
-	strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S", tmptr);
+	strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S", gmtime(&mTime));
 	TimeMutex.unlock();
 	return String(buffer) + " GMT";
+}
+
+String Time::toIsoDate(void) const
+{
+	TimeMutex.lock();
+	char buffer[256];
+	strftime(buffer, 256, "%Y-%m-%d", localtime(&mTime));
+	TimeMutex.unlock();
+	return String(buffer);
+}
+
+String Time::toIsoTime(void) const
+{
+	TimeMutex.lock();
+	char buffer[256];
+	strftime(buffer, 256, "%H:%M:%S", localtime(&mTime));
+	TimeMutex.unlock();
+	return String(buffer);
 }
 
 time_t Time::toUnixTime(void) const
@@ -230,17 +295,54 @@ time_t Time::toUnixTime(void) const
 	return mTime; 
 }
 
-unsigned Time::toDays(void) const
+double Time::toSeconds(void) const
 {
-	return unsigned((*this - Time(0))/86400); 
+	return (*this - Time(0)); 
 }
 
-unsigned Time::toHours(void) const
+int Time::toHours(void) const
 {
-	return unsigned((*this - Time(0))/3600); 
+	return int(toSeconds()/3600); 
 }
 
-double Time::operator - (const Time &t)
+int Time::toDays(void) const
+{
+	return int(toSeconds()/86400); 
+}
+
+void Time::addSeconds(double seconds)
+{
+	(*this)+= seconds;
+}
+
+void Time::addHours(int hours)
+{
+	addSeconds(double(hours)*3600);
+}
+
+void Time::addDays(int days)
+{
+	addSeconds(double(days)*86400);
+}
+
+Time &Time::operator += (double seconds)
+{
+	TimeMutex.lock();
+	struct tm tms = *localtime(&mTime);	// not thread safe
+	tms.tm_sec += int(seconds);
+	mTime = std::mktime(&tms);
+	TimeMutex.unlock();
+	return *this;
+}
+
+Time Time::operator + (double seconds) const
+{
+	Time result(*this);
+	result+= seconds;
+	return result;
+}
+
+double Time::operator - (const Time &t) const
 {
 	return difftime(mTime, t.mTime);
 }
