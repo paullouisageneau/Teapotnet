@@ -263,6 +263,7 @@ int main(int argc, char** argv)
 		Config::Default("request_timeout", "10000");	
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("http_proxy", "");
+		Config::Default("http_proxy_connect", "true");
 	
 #ifdef ANDROID
 		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);

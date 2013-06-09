@@ -121,12 +121,11 @@ void Socket::setTimeout(unsigned msecs)
 void Socket::connect(const Address &addr, bool noproxy)
 {
 	String proxy = Config::Get("http_proxy").trimmed();
-	if(!noproxy && !proxy.empty())
+	if(!noproxy && !proxy.empty() && Config::Get("http_proxy_connect").toBool())
 	{
 		connect(Address(proxy), true);
 		
 		uint16_t port = addr.port();
-		if(port != 80 && port != 8080)
 		try {
 			String target = addr.toString();
 			Http::Request request(target, "CONNECT");
