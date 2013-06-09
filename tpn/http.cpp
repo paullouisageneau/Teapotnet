@@ -692,14 +692,18 @@ void Http::Server::Handler::run(void)
 int Http::Get(const String &url, Stream *output)
 {
 	Request request(url,"GET");
+	request.url = url;		// Full URL for proxy
 
 	String host;
-	if(!request.headers.get("Host",host))
+	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
+
+	String proxy = Config::Get("http_proxy").trimmed();
+        if(!proxy.empty()) host = proxy;
 
 	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
-	sock.connect(host);
+	sock.connect(host, true);	// Connect without proxy
 	request.send(sock);
 	Response response;
 	response.recv(sock);
@@ -723,14 +727,18 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 {
 	Request request(url,"POST");
 	request.post = post;
+	request.url = url;		// Full URL for proxy
 
 	String host;
-	if(!request.headers.get("Host",host))
+	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 	
+	String proxy = Config::Get("http_proxy").trimmed();
+        if(!proxy.empty()) host = proxy;
+
 	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
-	sock.connect(host);
+	sock.connect(host, true);	// Connect without proxy
 	request.send(sock);
 	Response response;
 	response.recv(sock);
