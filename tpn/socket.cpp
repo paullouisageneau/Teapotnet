@@ -98,6 +98,8 @@ bool Socket::isConnected(void) const
 
 Address Socket::getRemoteAddress(void) const
 {
+	if(!mProxifiedAddr.isNull()) return mProxifiedAddr;
+
 	sockaddr_storage addr;
 	socklen_t len = sizeof(addr);
 	if(getpeername(mSock, reinterpret_cast<sockaddr*>(&addr), &len))
@@ -147,6 +149,8 @@ void Socket::connect(const Address &addr, bool noproxy)
 			close();
 			throw NetException(String("Connection to ") + addr.toString() + " with proxy failed: " + e.what());
 		}
+
+		mProxifiedAddr = addr;
 	}
 	else try {
 
@@ -207,6 +211,8 @@ void Socket::close(void)
 		::closesocket(mSock);
 		mSock = INVALID_SOCKET;
 	}
+
+	mProxifiedAddr.setNull();
 }
 
 size_t Socket::readData(char *buffer, size_t size)
