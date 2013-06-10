@@ -60,6 +60,8 @@ private:
 	socket_t mSock;
 	unsigned mTimeout;
 	
+	Address mProxifiedAddr;
+	
 	friend class ServerSocket;
 };
 
