@@ -21,12 +21,13 @@
 
 #include "tpn/messagequeue.h"
 #include "tpn/yamlserializer.h"
+#include "tpn/user.h"
 
 namespace tpn
 {
 
 MessageQueue::MessageQueue(User *user) :
-	mUser(user)
+	mUser(user),
 	mHasNew(false)
 {
 	if(mUser) mDatabase = new Database(mUser->profilePath() + "messages.db");
@@ -39,9 +40,10 @@ MessageQueue::MessageQueue(User *user) :
 	time INTEGER(8),\
 	isread INTEGER(1))");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
 }
 
-MessageQueue::MessageQueue(void)
+MessageQueue::~MessageQueue(void)
 {
 
 }
@@ -117,94 +119,127 @@ bool MessageQueue::markRead(const String &stamp, bool read)
 	return true;
 }
 
-bool MessageQueue::getAllStamps(StringArray &result)
+bool MessageQueue::getLast(int count, Array<Message> &result)
 {
 	Synchronize(this);
-
-	// TODO	
+	
 	result.clear();
-	mByStamp.getKeys(result);
+	
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages ORDER BY time DESC LIMIT ?1");
+	statement.bind(1, count);
+        while(statement.step())
+	{
+		Message message;
+		message.deserialize(statement);
+		result.push_back(message);
+	}
+	statement.finalize();
+	
+	result.reverse();
+        return (!result.empty());
+}
+
+bool MessageQueue::getLast(const Time &time, int max, Array<Message> &result)
+{
+	Synchronize(this);
+	
+	result.clear();
+	
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE time>=?1 ORDER BY time DESC LIMIT ?2");
+	statement.bind(1, time);
+	statement.bind(2, max);
+        while(statement.step())
+	{
+		Message message;
+		message.deserialize(statement);
+		result.push_back(message);
+	}
+	statement.finalize();
+	
+	result.reverse();
+        return (!result.empty());
+}
+
+bool MessageQueue::getLast(const String &oldLast, int count, Array<Message> &result)
+{
+	Synchronize(this);
+	
+	result.clear();
+	
+	if(oldLast.empty()) 
+		return getLast(count, result);
+	
+	int64_t oldLastId = -1;
+	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+	statement.bind(1, oldLast);
+        if(!statement.step())
+	{
+		statement.finalize();
+		return getLast(count, result);
+	}
+	statement.value(0, oldLastId);
+	statement.finalize();
+
+	statement = mDatabase->prepare("SELECT * FROM messages WHERE id>?1 ORDER BY time DESC");
+	statement.bind(1, oldLastId);
+	while(statement.step())
+	{
+		Message message;
+		message.deserialize(statement);
+		result.push_back(message);
+	}
+	statement.finalize();
+	
+        result.reverse();
 	return (!result.empty());
 }
 
-bool MessageQueue::getUnreadStamps(StringArray &result)
+
+bool MessageQueue::getDiff(const Array<String> &oldStamps, Array<Message> &result)
+{
+	Synchronize(this);
+	result.clear();
+	
+	const int maxAge = 48 + 1;	// hours
+	
+	Time time(Time::Now());
+	time.addHours(-maxAge);
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE time>=?1 OR isread=0 ORDER BY time");
+	statement.bind(1, time);
+	
+	Map<String, Message> tmp;
+        while(statement.step())
+	{
+		Message message;
+		message.deserialize(statement);
+		tmp.insert(message.stamp(), message);
+	}
+	
+	statement.finalize();
+	
+	for(int i=0; i<oldStamps.size(); ++i)
+		tmp.erase(oldStamps[i]);
+	
+	tmp.getValues(result);
+        return (!result.empty());
+}
+
+bool MessageQueue::getUnread(Array<Message> &result)
 {
 	Synchronize(this);
 	
 	result.clear();
 	
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE isread=0");
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE isread=0 ORDER BY time");
         while(statement.step())
 	{
-		result.deserialize(statement);
-        	statement.finalize(); 
-		return true;
+		Message message;
+		message.deserialize(statement);
+		result.push_back(message);
 	}
 
 	statement.finalize();
-        return false;
-}
-
-bool MessageQueue::getLastStamps(const String &oldLast, StringArray &result)
-{
-	Synchronize(this);
-
-	result.clear();
-	
-        Set<Message>::iterator it = mMessages.begin();
-	if(!oldLast.empty())
-	{
-		Map<String, Set<Message>::iterator>::iterator jt = mByStamp.find(oldLast);
-		if(jt != mByStamp.end())
-		{	it = jt->second;
-			++it;
-		}
-	}
-	
-	while(it != mMessages.end())
-	{
-		result.append(it->stamp());
-		++it;
-	}
-	
-	return (!result.empty());
-}
-
-bool MessageQueue::getNewStamps(const StringArray &oldStamps, StringArray &result)
-{
-	Synchronize(this);
-	
-	result.clear();
-	
-	for(	Set<Message>::iterator it = mMessages.begin();
-		it != mMessages.end();
-		++it)
-	{
-		String stamp = it->stamp();
-		if(!oldStamps.contains(stamp))
-			result.append(stamp);
-	}
-	
-	return (!result.empty());
-}
-
-String MessageQueue::getFileName(int daysAgo) const
-{
-	Time time = Time::Now();
-	time.addDays(-daysAgo);
-	return mPath + time.toIsoDate();
-}
-
-String MessageQueue::getLastFileName(void) const
-{
-	for(int d=1; d<31; ++d)
-	{
-		String path = getFileName(d);
-		if(File::Exist(path)) 
-			return path;
-	}
-	
-	return "";
+        return (!result.empty());
 }
 
 }

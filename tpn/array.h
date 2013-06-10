@@ -45,6 +45,7 @@ public:
 	void erase(int i);
 	bool remove(const T &value);
 	bool contains(const T &value) const;
+	void reverse(void);
 };
 
 template<typename T>
@@ -137,6 +138,14 @@ bool Array<T>::contains(const T &value) const
 		if(this->at(i) == value)
 			return true;
 	return false;
+}
+
+template<typename T>
+void Array<T>::reverse(void)
+{
+	int n = this->size()/2;
+	for(int i=0; i<n; ++i)
+		std::swap(this->at(i), this->at(this->size()-1-i));
 }
 
 template<typename T>

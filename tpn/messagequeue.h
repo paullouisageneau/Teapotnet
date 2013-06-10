@@ -25,7 +25,6 @@
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
 #include "tpn/message.h"
-#include "tpn/user.h"
 #include "tpn/database.h"
 #include "tpn/string.h"
 #include "tpn/set.h"
@@ -35,6 +34,8 @@
 namespace tpn
 {
 
+class User;
+	
 class MessageQueue : public Synchronizable
 {
 public:
@@ -49,21 +50,14 @@ public:
 	bool get(const String &stamp, Message &result);
 	bool markRead(const String &stamp, bool read = true);
 	
-	bool getLast(const String &oldLast, Array<Message> &result);
-	bool getLast(const Time &time, Array<Message> &result);
 	bool getLast(int count, Array<Message> &result);
+	bool getLast(const Time &time, int max, Array<Message> &result);
+	bool getLast(const String &oldLast, int count, Array<Message> &result);
 	
-	
-	// TODO
-	bool getAllStamps(StringArray &result);
-	bool getUnreadStamps(StringArray &result);
-	bool getLastStamps(const String &oldLast, StringArray &result);
-	bool getNewStamps(const StringArray &oldStamps, StringArray &result);
+	bool getDiff(const Array<String> &oldStamps, Array<Message> &result);
+	bool getUnread(Array<Message> &result);
 	
 private:
-	String getFileName(int daysAgo = 0) const;
-	String getLastFileName(void) const;
-	
 	User *mUser;
 	Database *mDatabase;
 	

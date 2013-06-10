@@ -1533,23 +1533,20 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					response.headers["Content-Type"] = "application/json";
 					response.send();
 					
-					StringArray stamps;
-					while(!mMessages.getLastStamps(last, stamps))
+					const int count = 10;
+					
+					SerializableArray<Message> array;
+					while(!mMessages.getLast(last, count, array))
 					{
 						Desynchronize(this);
 						mMessages.wait();
 					}
 					
-					SerializableArray<Message> lastMessages;
-					lastMessages.resize(stamps.size());
-					for(int i=0; i<stamps.size(); ++i)
-					{
-						mMessages.get(stamps[i], lastMessages[i]);
-						mMessages.markRead(stamps[i]);
-					}
+					for(int i=0; i<array.size(); ++i)
+						mMessages.markRead(array[i].stamp());
 					
 					JsonSerializer serializer(response.sock);
-					serializer.output(lastMessages);
+					serializer.output(array);
 					return;
 				}
 			  

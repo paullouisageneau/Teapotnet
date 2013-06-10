@@ -68,7 +68,7 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 
 	for(int i=0; i<dummy.columnsCount(); ++i)
 	{
-		String name = dummy.columnName(i);
+		String name = dummy.name(i);
 		if(name == "rowid" || name == "id")
 			continue;		
 
@@ -83,7 +83,7 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 
 	dummy.finalize();
 
-	String request = "INSERT INTO `" + table + "` (" + columns + ") VALUES (" + values ")";
+	String request = "INSERT INTO `" + table + "` (" + columns + ") VALUES (" + values + ")";
 	Statement statement = prepare(request);
 	statement.output(serializable);
 	statement.execute();	// unbound parameters will be interpreted as null
@@ -218,6 +218,11 @@ void Database::Statement::bind(int parameter, const ByteString &value)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
+void Database::Statement::bind(int parameter, const Time &value)
+{
+	bind(parameter, int64_t(value.toUnixTime()));
+}
+
 void Database::Statement::bindNull(int parameter)
 {
 	if(sqlite3_bind_null(mStmt, parameter) != SQLITE_OK)
@@ -299,6 +304,13 @@ void Database::Statement::value(int column, ByteString &v) const
 	else v.clear();
 }
 
+void Database::Statement::value(int column, Time &v) const
+{
+	int64_t t = 0;
+	value(column, t);
+	v = time_t(t);
+}
+
 bool Database::Statement::input(Serializable &s)
 {
 	return s.deserialize(*this);
@@ -309,12 +321,13 @@ bool Database::Statement::input(Element &element)
 	return element.deserialize(*this);
 }
 
-bool Database::Statement::input(Pair &pair);
+bool Database::Statement::input(Pair &pair)
 {
-	String key = name(mInputParameter);
+	if(mInputColumn >= columnsCount()) return false;
+	String key = name(mInputColumn);
 	LineSerializer keySerializer(&key);
 	pair.deserializeKey(keySerializer);
-	pair.deserializeValue(*this);
+	return pair.deserializeValue(*this);
 }
 
 bool Database::Statement::input(String &str)
@@ -429,7 +442,7 @@ void Database::Statement::output(const Pair &pair)
 {
 	String key;
 	LineSerializer keySerializer(&key);
-	pair.serializeKey(key);
+	pair.serializeKey(keySerializer);
 	key.trim();
 	
 	mOutputParameter = parameterIndex("@"+key);

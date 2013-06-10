@@ -27,6 +27,7 @@
 #include "tpn/bytestring.h"
 #include "tpn/exception.h"
 #include "tpn/serializer.h"
+#include "tpn/time.h"
 
 #ifdef USE_SYSTEM_SQLITE3
 #include <sqlite3.h>
@@ -69,6 +70,7 @@ public:
 		void bind(int parameter, double value);
 		void bind(int parameter, const String &value);
 		void bind(int parameter, const ByteString &value);
+		void bind(int parameter, const Time &value);
 		void bindNull(int parameter);
 		
 		int columnsCount(void) const;
@@ -83,8 +85,9 @@ public:
 		void value(int column, double &v) const;
 		void value(int column, String &v) const;
 		void value(int column, ByteString &v) const;
+		void value(int column, Time &v) const;
 	
-		inline void retrieve(Serializable &s) { input(s); }
+		inline bool retrieve(Serializable &s) { return input(s); }
 	
 		// --- Serializer interface
 		virtual bool    input(Serializable &s);
@@ -136,7 +139,7 @@ public:
 	int64_t insertId(void) const;
 
 	int64_t insert(const String &table, const Serializable &serializable);
-	void retrieve(const String &table, int64_t id, Serializable &serializable);
+	bool retrieve(const String &table, int64_t id, Serializable &serializable);
 
 private:
 	sqlite3 *mDb;
