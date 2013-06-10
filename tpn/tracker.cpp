@@ -80,7 +80,7 @@ void Tracker::process(Http::Request &request)
 				if(!request.post.get("host", host))
 				{
 					if(request.headers.contains("X-Forwarded-For")) 
-						host = request.headers["X-Forwarded-For"];
+						host = request.headers["X-Forwarded-For"].beforeLast(',').trimmed();
 					else host = request.sock->getRemoteAddress().host();
 				}
 				
