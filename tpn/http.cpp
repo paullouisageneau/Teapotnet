@@ -703,10 +703,18 @@ int Http::Get(const String &url, Stream *output)
 
 	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
-	sock.connect(host, true);	// Connect without proxy
-	request.send(sock);
+	try {
+		sock.connect(host, true);	// Connect without proxy
+		request.send(sock);
+	}
+	catch(const NetException &e)
+	{
+		LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+		throw;
+	}
+
 	Response response;
-	response.recv(sock);
+        response.recv(sock);
 
 	if(response.code/100 == 3 && response.headers.contains("Location"))
 	{
@@ -737,11 +745,19 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
         if(!proxy.empty()) host = proxy;
 
 	Socket sock;
-	sock.setTimeout(Config::Get("http_timeout").toInt());
-	sock.connect(host, true);	// Connect without proxy
-	request.send(sock);
+        sock.setTimeout(Config::Get("http_timeout").toInt());
+	try {
+                sock.connect(host, true);       // Connect without proxy
+                request.send(sock);
+        }
+        catch(const NetException &e)
+        {
+                LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+                throw;
+        }
+
 	Response response;
-	response.recv(sock);
+        response.recv(sock);
 
 	if(response.code/100 == 3 && response.headers.contains("Location"))
 	{
