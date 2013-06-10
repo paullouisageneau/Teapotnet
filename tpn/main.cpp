@@ -253,6 +253,7 @@ int main(int argc, char** argv)
 		Config::Default("shared_dir", "shared");
 		Config::Default("temp_dir", "temp");
 		Config::Default("external_address", "auto");
+		Config::Default("external_port", "auto");
 		Config::Default("http_timeout", "5000");
 		Config::Default("request_timeout", "10000");
 		Config::Default("meeting_timeout", "15000");
