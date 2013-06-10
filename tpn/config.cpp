@@ -99,7 +99,12 @@ void Config::GetExternalAddresses(List<Address> &list)
 	{
 		Address addr;
 		if(externalAddress.contains(':')) addr.set(externalAddress);
-		else addr.set(externalAddress, Config::Get("port"));
+		else {
+			String port = Config::Get("port");
+			String externalPort = Config::Get("external_port");
+                	if(!externalPort.empty() && externalPort != "auto") port = externalPort;
+			addr.set(externalAddress, port);
+		}
 		list.push_back(addr);
 	}
 

@@ -592,9 +592,12 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		
 		StringMap post;
 		post["instance"] = Core::Instance->getName();
-		post["port"] = Config::Get("port");
 		post["addresses"] = addresses;
-		
+	
+		String externalPort = Config::Get("external_port");
+		if(!externalPort.empty() && externalPort != "auto") post["port"] = externalPort;
+                else post["port"] = Config::Get("port");
+	
 		if(!Core::Instance->isPublicConnectable())
 		{
 			list.clear();
