@@ -692,14 +692,17 @@ void Http::Server::Handler::run(void)
 int Http::Get(const String &url, Stream *output)
 {
 	Request request(url,"GET");
-	request.url = url;		// Full URL for proxy
 
 	String host;
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 
 	String proxy = Config::Get("http_proxy").trimmed();
-        if(!proxy.empty()) host = proxy;
+        if(!proxy.empty()) 
+	{
+		host = proxy;
+		request.url = url;              // Full URL for proxy
+	}
 
 	Socket sock;
 	sock.setTimeout(Config::Get("http_timeout").toInt());
@@ -735,14 +738,17 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 {
 	Request request(url,"POST");
 	request.post = post;
-	request.url = url;		// Full URL for proxy
 
 	String host;
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 	
 	String proxy = Config::Get("http_proxy").trimmed();
-        if(!proxy.empty()) host = proxy;
+        if(!proxy.empty())
+	{
+		host = proxy;
+		request.url = url;              // Full URL for proxy
+	}
 
 	Socket sock;
         sock.setTimeout(Config::Get("http_timeout").toInt());
