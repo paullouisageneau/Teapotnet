@@ -1065,9 +1065,13 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	if(incoming) 
 	{
 		MessageQueue::Selection selection = selectMessages();
-		Message base;
-		if(selection.getOffset(std::max(int(selection.count()) - MaxChecksumDistance, 0), base))
-			selection.setBaseStamp(base.stamp());
+		int total = selection.count();
+		if(total > MaxChecksumDistance)
+		{
+			Message base;
+			if(selection.getOffset(total - MaxChecksumDistance, base))
+				Assert(selection.setBaseStamp(base.stamp()));
+		}
 		
 		sendMessagesChecksum(selection, 0, selection.count(), true);
 	}
