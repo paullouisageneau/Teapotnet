@@ -450,7 +450,7 @@ void Core::Handler::sendNotification(const Notification &notification)
 		Synchronize(this);
 		if(mStopping) return;
 		
-		LogDebug("Core::Handler", "Sending notification");
+		//LogDebug("Core::Handler", "Sending notification");
 	}
 	
 	{
