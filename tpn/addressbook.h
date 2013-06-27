@@ -142,9 +142,10 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
+	static const int MaxChecksumDistance; // for messages synchronization
+
 	bool publish(const Identifier &remotePeering);
-	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);
-	
+	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
 	void run(void);
 	
 	User *mUser;

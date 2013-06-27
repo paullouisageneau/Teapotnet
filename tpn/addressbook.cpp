@@ -34,7 +34,9 @@
 
 namespace tpn
 {
- 
+
+const int AddressBook::MaxChecksumDistance = 1000;
+
 AddressBook::AddressBook(User *user) :
 	mUser(user),
 	mUpdateCount(0)
@@ -440,6 +442,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 				Array<Contact*> contacts;
 				getContacts(contacts);
+				Contact *self = getSelf();
+				if(self) contacts.append(self);
 
 				JsonSerializer json(response.sock);
 				json.outputMapBegin();
@@ -448,15 +452,20 @@ void AddressBook::http(const String &prefix, Http::Request &request)
                 			Contact *contact = contacts[i];
                 			if(contact->isDeleted()) continue;
                         			
-					StringMap map;
-					map["name"] << contact->name();
-					map["tracker"] << contact->tracker();
-					map["status"] << contact->status();
-						
+					String name = contact->name();
+					String tracker = contact->tracker();
+					String status = contact->status();
+					
 					MessageQueue *messageQueue = mUser->messageQueue();
-					map["messages"] << messageQueue->select(contact->peering()).unreadCount();
-					map["newmessages"] << messageQueue->hasNew();
-						
+					ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(contact->peering()).unreadCount());
+					ConstSerializableWrapper<bool> newMessagesWrapper(messageQueue->hasNew());
+					
+					SerializableMap<String, Serializable*> map;
+					map["name"] = &name;
+					map["tracker"] = &tracker;
+					map["status"] = &status;
+					map["messages"] = &messagesWrapper;
+					map["newmessages"] = &newMessagesWrapper;
 					json.outputMapElement(contact->uniqueName(), map);
 				}
 				json.outputMapEnd();
@@ -1056,8 +1065,14 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
                 notification.send(peering);
 	}
 	
-	MessageQueue::Selection selection = selectMessages();
-	if(incoming) sendMessagesChecksum(0, selection.count(), true);
+	if(incoming) 
+	{
+		MessageQueue::Selection selection = selectMessages();
+		int total = selection.count();
+		int offset = std::max(MaxChecksumDistance, total) - MaxChecksumDistance;
+                int count = total - offset;
+		sendMessagesChecksum(offset, count, true);
+	}
 }
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
@@ -1171,35 +1186,53 @@ void AddressBook::Contact::notification(Notification *notification)
 		{
 			throw InvalidData("checksum notification content: " + notification->content());
 		}
-		
+	
 		MessageQueue::Selection selection = selectMessages();
 		int localTotal = selection.count();
-		
-		ByteString result;
-		if(offset + count <= localTotal) 
+		bool isLastIteration = false;
+		if(offset + count <= localTotal && offset + MaxChecksumDistance >= localTotal)
+		{
+			ByteString result;
 			selection.checksum(offset, count, result);
 		
-		if(result != checksum)
-		{
-			LogDebug("AddressBook::Contact", "Synchronization: No match: " + String::number(offset) + ", " + String::number(count));
-			
-			if(count == 1)	// TODO
+			if(result != checksum)
 			{
-				sendMessages(offset, count);
-				if(recursion) sendMessagesChecksum(offset, count, false);
-			}
-			else if(recursion)
-			{
-				sendMessagesChecksum(offset, count/2, true);
-				sendMessagesChecksum(offset + count/2, count - count/2, true);
-			}
+				LogDebug("AddressBook::Contact", "Synchronization: No match: " + String::number(offset) + ", " + String::number(count));
 			
-			if(!recursion) sendUnread();
+				if(count == 1)	// TODO
+				{
+					sendMessages(offset, count);
+					if(recursion)
+					{
+						sendMessagesChecksum(offset, count, false);
+						isLastIteration = true;
+					}
+				}
+				else if(recursion)
+				{
+					sendMessagesChecksum(offset, count/2, true);
+					sendMessagesChecksum(offset + count/2, count - count/2, true);
+				}
+			
+				if(!recursion) 
+					isLastIteration = true;
+			}
+			else isLastIteration = true;
 		}
-		else sendUnread();
-		
-		if(total < localTotal)
-			sendMessages(total, localTotal - total);
+		else {
+			int newOffset = std::max(offset+MaxChecksumDistance, localTotal) - MaxChecksumDistance;
+			int newCount = std::min(offset+count, localTotal) - newOffset;
+			sendMessagesChecksum(newOffset, newCount, true);
+		}
+
+		if(isLastIteration)
+		{
+			sendUnread();
+
+			// If messages are missing remotely
+			if(total < localTotal)
+				sendMessages(total, localTotal - total);
+		}
 	}
 	else if(type == "info")
 	{
@@ -1341,26 +1374,32 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();
 				
 				JsonSerializer json(response.sock);
-				json.outputMapBegin();
-				json.outputMapElement(String("name"), name());
-				json.outputMapElement(String("tracker"), tracker());
-                                json.outputMapElement(String("status"), status());
 				
+				String strName = name();
+				String strTracker = tracker();
+				String strStatus = status();
+					
 				MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-                                json.outputMapElement(String("messages"), messageQueue->select(peering()).unreadCount());
-				json.outputMapElement(String("newmessages"), messageQueue->hasNew());
+				ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(peering()).unreadCount());
+				ConstSerializableWrapper<bool> newMessagesWrapper(messageQueue->hasNew());
 				
 				Array<String> instances;
  				getInstancesNames(instances);
-				StringMap map;
+				StringMap instancesMap;
 				for(int i=0; i<instances.size(); ++i)
         			{
-                			if(isConnected(instances[i])) map[instances[i]] = "connected";
-					else map[instances[i]] = "disconnected";
+                			if(isConnected(instances[i])) instancesMap[instances[i]] = "connected";
+					else instancesMap[instances[i]] = "disconnected";
                 		}
 				
-                		json.outputMapElement(String("instances"), map);
-				json.outputMapEnd();
+				SerializableMap<String, Serializable*> map;
+				map["name"] = &strName;
+				map["tracker"] = &strTracker;
+				map["status"] = &strStatus;
+				map["messages"] = &messagesWrapper;
+				map["newmessages"] = &newMessagesWrapper;
+				map["instances"] = &instancesMap;
+				json.output(map);
 				return;
 			}
 		  
