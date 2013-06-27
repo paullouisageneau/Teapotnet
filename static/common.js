@@ -56,6 +56,11 @@ if(!String.contains) {
 	};
 }
 
+function formatTime(timestamp) {
+	var date = new Date(timestamp*1000);
+	return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+}
+
 function popup(url, redirect) {
   
 	w = window.open(url, "_blank", "status=0,toolbar=0,scrollbars=0,menubar=0,directories=0,resizeable=1,width=310,height=500");
@@ -168,7 +173,7 @@ function setCallback(url, period, callback) {
 function setMessagesReceiver(url, object) {
 
 	$(window).blur(function() {
-		$(object).find('.message').attr('class', 'oldmessage');
+		$(object).find('.message').addClass('oldmessage');
 	});
 	
 	setMessagesReceiverRec(url, object, '');
@@ -200,12 +205,18 @@ function setMessagesReceiverRec(url, object, last) {
 	.done(function(data) {
 		for(var i=0; i<data.length; i++) {
 			var message = data[i];
-			$(object).append('<div class=\"message\"><span class=\"date\">'+message.time.escape()+'</span> <span class=\"text\">'+message.content.escape().linkify()+'</span></div>');
+			var id = "message_" + message.stamp;
+			$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
 			last = message.stamp;
-			NbNewMessages++;
+			if(message.incoming && !message.isread) NbNewMessages++;
+			if(message.isread) $('#'+id).addClass('oldmessage');
+			if(message.incoming) $('#'+id).addClass('in');
+			else $('#'+id).addClass('out');
 		}
-		document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-		if(data.length) playMessageSound();
+		if(NbNewMessages) {
+			document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
+			playMessageSound();
+		}
 		setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
 		}, 10);

@@ -21,6 +21,7 @@
 
 #include "tpn/database.h"
 #include "tpn/lineserializer.h"
+#include "tpn/yamlserializer.h"
 
 namespace tpn
 {
@@ -66,19 +67,22 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 	String columns;
 	String values;
 
+	int count = 0;
 	for(int i=0; i<dummy.columnsCount(); ++i)
 	{
 		String name = dummy.name(i);
 		if(name == "rowid" || name == "id")
 			continue;		
 
-		if(i) 
+		if(count) 
 		{
 			columns+= ',';
 			values+= ',';
 		}
 		columns+= name;
 		values+= "@" + name;
+		
+		++count;
 	}
 
 	dummy.finalize();
@@ -99,7 +103,7 @@ bool Database::retrieve(const String &table, int64_t id, Serializable &serializa
 	bool success = false;
 	if(statement.step())
 		success = statement.input(serializable);	
-		
+	
 	statement.finalize();
 	return success;
 }
@@ -115,7 +119,9 @@ Database::Statement::Statement(sqlite3 *db, sqlite3_stmt *stmt) :
 	mDb(db),
 	mStmt(stmt),
 	mInputColumn(0),
-	mOutputParameter(1)
+	mOutputParameter(1),
+	mInputLevel(0),
+	mOutputLevel(0)
 {
 
 }
@@ -131,6 +137,11 @@ bool Database::Statement::step(void)
 	if(status != SQLITE_DONE && status != SQLITE_ROW)
 		throw DatabaseException(mDb, "Statement execution failed");
 	  
+	mInputColumn = 0;
+	mOutputParameter = 1;
+	mInputLevel = 0;
+	mOutputLevel = 0;
+	
 	return (status == SQLITE_ROW);
 }
 
@@ -138,6 +149,11 @@ void Database::Statement::reset(void)
 {
 	if(sqlite3_reset(mStmt) != SQLITE_OK)
 		throw DatabaseException(mDb, "Unable to reset statement");
+	
+	mInputColumn = 0;
+	mOutputParameter = 1;
+	mInputLevel = 0;
+	mOutputLevel = 0;
 }
 
 void Database::Statement::finalize(void)
@@ -159,58 +175,67 @@ int Database::Statement::parametersCount(void) const
 
 String Database::Statement::parameterName(int parameter) const
 {
-	return String(sqlite3_bind_parameter_name(mStmt, parameter));
+	String name = sqlite3_bind_parameter_name(mStmt, parameter);
+	return name.substr(1);
 }
 
 int Database::Statement::parameterIndex(const String &name) const
 {
-	return sqlite3_bind_parameter_index(mStmt, name.c_str());
+	return sqlite3_bind_parameter_index(mStmt, (String("@")+name).c_str());
 }
 
 void Database::Statement::bind(int parameter, int value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_int(mStmt, parameter, value) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
 void Database::Statement::bind(int parameter, int64_t value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_int64(mStmt, parameter, sqlite3_int64(value)) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, unsigned value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_int(mStmt, parameter, int(value)) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
 void Database::Statement::bind(int parameter, uint64_t value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_int64(mStmt, parameter, sqlite3_int64(value)) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, float value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_double(mStmt, parameter, double(value)) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, double value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_double(mStmt, parameter, value) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, const String &value)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_text(mStmt, parameter, value.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
 void Database::Statement::bind(int parameter, const ByteString &value)
 {
+	if(!parameter) return;
 	// TODO
 	std::vector<char> tmp;
 	tmp.assign(value.begin(), value.end());
@@ -220,11 +245,13 @@ void Database::Statement::bind(int parameter, const ByteString &value)
 
 void Database::Statement::bind(int parameter, const Time &value)
 {
+	if(!parameter) return;
 	bind(parameter, int64_t(value.toUnixTime()));
 }
 
 void Database::Statement::bindNull(int parameter)
 {
+	if(!parameter) return;
 	if(sqlite3_bind_null(mStmt, parameter) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
@@ -313,12 +340,22 @@ void Database::Statement::value(int column, Time &v) const
 
 bool Database::Statement::input(Serializable &s)
 {
-	return s.deserialize(*this);
+	if(mInputLevel == 0 || s.isInlineSerializable()) return s.deserialize(*this);
+	else {
+		String tmp;
+		if(!input(tmp)) return false;
+		YamlSerializer serializer(&tmp);
+		s.deserialize(serializer);
+		return true;
+	}
 }
 
 bool Database::Statement::input(Element &element)
 {
-	return element.deserialize(*this);
+	++mInputLevel;
+	bool result = element.deserialize(*this);
+	--mInputLevel;
+	return result;
 }
 
 bool Database::Statement::input(Pair &pair)
@@ -327,10 +364,21 @@ bool Database::Statement::input(Pair &pair)
 	String key = name(mInputColumn);
 	LineSerializer keySerializer(&key);
 	pair.deserializeKey(keySerializer);
-	return pair.deserializeValue(*this);
+	
+	++mInputLevel;
+	bool result = pair.deserializeValue(*this);
+	--mInputLevel;
+	return result;
 }
 
 bool Database::Statement::input(String &str)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, str);
+	return true;
+}
+
+bool Database::Statement::input(ByteString &str)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, str);
@@ -430,12 +478,20 @@ bool Database::Statement::input(double &f)
 
 void Database::Statement::output(const Serializable &s)
 {
-	s.serialize(*this);
+	if(mOutputLevel == 0 || s.isInlineSerializable()) s.serialize(*this);
+	else {
+		String tmp;
+		YamlSerializer serializer(&tmp);
+		s.serialize(serializer);
+		output(tmp);
+	}
 }
 	
 void Database::Statement::output(const Element &element)
 {
+	++mOutputLevel;
 	element.serialize(*this);
+	--mOutputLevel;
 }
 
 void Database::Statement::output(const Pair &pair)
@@ -445,12 +501,22 @@ void Database::Statement::output(const Pair &pair)
 	pair.serializeKey(keySerializer);
 	key.trim();
 	
-	mOutputParameter = parameterIndex("@"+key);
-	if(mOutputParameter != 0) pair.serializeValue(*this);
-	mOutputParameter = 1;
+	int parameter = parameterIndex(key);
+	if(parameter != 0) 
+	{
+		mOutputParameter = parameter;
+		++mOutputLevel;
+		pair.serializeValue(*this);
+		--mOutputLevel;
+	}
 }
 
 void Database::Statement::output(const String &str)
+{
+	bind(mOutputParameter++, str);
+}
+
+void Database::Statement::output(const ByteString &str)
 {
 	bind(mOutputParameter++, str);
 }
@@ -516,7 +582,7 @@ void Database::Statement::output(double f)
 DatabaseException::DatabaseException(sqlite3 *db, const String &message) :
 	Exception(String("Database error: ") + message + String(": ") + String(sqlite3_errmsg(db)))
 {
-  
+
 }
 
 }

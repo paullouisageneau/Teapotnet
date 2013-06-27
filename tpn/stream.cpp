@@ -236,7 +236,7 @@ bool Stream::read(String &s)
 		s+= chr;
 		if(!get(chr)) break;
 	}
-	
+
 	return true;
 }
 

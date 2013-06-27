@@ -43,9 +43,10 @@ public:
 	virtual bool deserialize(Stream &s);
 	
 	virtual bool isInlineSerializable(void) const;
+	virtual bool isNativeSerializable(void) const;
 	
-	String toString(void) const;
-	void fromString(String str);
+	virtual String toString(void) const;
+	virtual void fromString(String str);
 	operator String(void) const;
 };
 

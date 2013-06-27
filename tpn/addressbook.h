@@ -28,8 +28,8 @@
 #include "tpn/address.h"
 #include "tpn/socket.h"
 #include "tpn/identifier.h"
-#include "tpn/core.h"
 #include "tpn/messagequeue.h"
+#include "tpn/core.h"
 #include "tpn/array.h"
 #include "tpn/map.h"
 #include "tpn/set.h"
@@ -47,7 +47,6 @@ public:
 	
 	User *user(void) const;
 	String userName(void) const;
-	int unreadMessagesCount(void) const;
 	
 	void clear(void);
 	void load(Stream &stream);
@@ -55,8 +54,8 @@ public:
 	void save(void) const;
 	void update(void);
 	
-	void sendMessage(const Message &message, const Identifier &receiver);
-	void receiveMessage(const Message &message);
+	void sendNotification(const Notification &notification, const Identifier &receiver);
+	void receiveNotification(const Notification &notification);
 	
 	void http(const String &prefix, Http::Request &request);
 	
@@ -92,7 +91,6 @@ public:
 		bool isDeleted(void) const;
 		void setDeleted(void);
 		void getInstancesNames(Array<String> &array);
-		const MessageQueue &messages(void) const;
 		
 		bool addAddresses(const AddressMap &map);
 		
@@ -102,9 +100,9 @@ public:
 		
 		void update(bool alternate = false);
 
-		void connected(const Identifier &peering);
+		void connected(const Identifier &peering, bool incoming);
 		void disconnected(const Identifier &peering);
-		void message(Message *message);
+		void notification(Notification *notification);
 		void request(Request *request);
 		void http(const String &prefix, Http::Request &request);
 		
@@ -114,8 +112,11 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
-	  	void messageToHtml(Html &html, const Message &message, bool old = false) const;
-	  
+		MessageQueue::Selection selectMessages(void) const;
+		void sendMessages(int offset, int count) const;
+		void sendMessagesChecksum(int offset, int count, bool recursion) const;
+		void sendUnread(void) const;
+		
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;
 		Identifier mPeering, mRemotePeering;
@@ -126,14 +127,14 @@ public:
 		bool mFound;
 		AddressMap mAddrs;
 		StringMap mInfo;
-		
-		MessageQueue mMessages;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);
 	void removeContact(const Identifier &peering);
 	Contact *getContact(const Identifier &peering);
 	const Contact *getContact(const Identifier &peering) const;
+	Contact *getContactByUniqueName(const String &uname);
+	const Contact *getContactByUniqueName(const String &uname) const;
 	void getContacts(Array<Contact *> &array);
 	
 	Identifier setSelf(const ByteString &secret);

@@ -19,71 +19,49 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_TIME_H
-#define TPN_TIME_H
+#ifndef TPN_NOTIFICATION_H
+#define TPN_NOTIFICATION_H
 
 #include "tpn/include.h"
-#include "tpn/serializable.h"
-#include "tpn/thread.h"
-#include "tpn/mutex.h"
+#include "tpn/string.h"
+#include "tpn/identifier.h"
+#include "tpn/map.h"
+#include "tpn/time.h"
 
 namespace tpn
 {
 
-class Time : public Serializable
+class Notification
 {
 public:
-  	static Time Now(void);
-	static uint64_t Milliseconds(void);
-	static void Schedule(const Time &when, Thread *thread);
+	Notification(const String &content = "");
+	virtual ~Notification(void);
 	
-	Time(void);
-	Time(time_t time);
-	Time(const String &str);
-	~Time(void);
+	Time time(void) const;
+	const Identifier &peering(void) const;
+	const String &content(void) const;
+	const StringMap &parameters(void) const;
+	bool parameter(const String &name, String &value) const;
+	String parameter(const String &name) const;
 	
-	int hour(void) const;
-	int minute(void) const;
-	int second(void) const;
-	int day(void) const;
-	int month(void) const;
-	int year(void) const;
-	
-	String toDisplayDate(void) const;
-	String toHttpDate(void) const;
-	String toIsoDate(void) const;
-	String toIsoTime(void) const;
-	time_t toUnixTime(void) const;
-	
-	double toSeconds(void) const;
-	int toHours(void) const;
-	int toDays(void) const;
-	
-	void addSeconds(double seconds);
-	void addHours(int hours);
-	void addDays(int days);
-	
-	Time &operator += (double seconds);
-	Time operator + (double seconds) const;
-	double operator - (const Time &t) const;
-	operator time_t(void) const;
-	
-	// Serializable
-	void serialize(Serializer &s) const;
-	bool deserialize(Serializer &s);
-	bool isNativeSerializable(void) const;
+	void setContent(const String &content);
+	void setParameters(const StringMap &parameters);
+	void setParameter(const String &name, const String &value);
 
+	bool send(void);
+	bool send(const Identifier &peering);
+	
 private:
-  	static Mutex TimeMutex;
-
-	time_t mTime;
+	Identifier mPeering;
+	Time mTime;
+	
+	StringMap mParameters;
+        String mContent;
+	
+	friend class Core;
 };
-
-bool operator < (const Time &t1, const Time &t2);
-bool operator > (const Time &t1, const Time &t2);
-bool operator == (const Time &a1, const Time &t2);
-bool operator != (const Time &a1, const Time &t2);
 
 }
 
 #endif
+

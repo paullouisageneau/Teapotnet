@@ -53,10 +53,12 @@ public:
 		
 		bool step(void);
 		void reset(void);
-		void finalize(void);
-		
+		void finalize(void);		
 		void execute(void);	// step + finalize
-		
+
+		template<typename T> bool fetch(Array<T> &result);
+		template<typename T> bool fetchColumn(int index, Array<T> &result);
+	
 		enum type_t { Null, Integer, Float, Text, Blob };
 		
 		int parametersCount(void) const;
@@ -95,6 +97,7 @@ public:
 		virtual bool	input(Pair &pair);
 	
 		virtual bool    input(String &str);
+		virtual bool    input(ByteString &str);
 		virtual bool	input(int8_t &i);
 		virtual bool	input(int16_t &i);
 		virtual bool	input(int32_t &i);
@@ -112,6 +115,7 @@ public:
 		virtual void	output(const Pair &pair);
 		
 		virtual void    output(const String &str);
+		virtual void    output(const ByteString &str);
 		virtual void	output(int8_t i);
 		virtual void	output(int16_t i);
 		virtual void	output(int32_t i);
@@ -132,6 +136,7 @@ public:
 		// For serializer
 		int mInputColumn;
 		int mOutputParameter;
+		int mInputLevel, mOutputLevel;
 	};
 	
 	Statement prepare(const String &request);
@@ -150,6 +155,34 @@ class DatabaseException : public Exception
 public:
 	DatabaseException(sqlite3 *db, const String &message);
 };
+
+template<typename T> bool Database::Statement::fetch(Array<T> &result)
+{
+	result.clear();
+	while(step())
+	{
+		T tmp;
+		tmp.deserialize(*this);
+		result.append(tmp);
+	}
+
+	// finalize is not called here
+	return (!result.empty());
+}
+
+template<typename T> bool Database::Statement::fetchColumn(int index, Array<T> &result)
+{
+	result.clear();
+	while(step())
+	{
+		T tmp;
+		value(index, tmp);
+		result.append(tmp);
+	}
+
+	// finalize is not called here
+	return (!result.empty());
+}
 
 }
 

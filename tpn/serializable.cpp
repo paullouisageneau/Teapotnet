@@ -66,6 +66,11 @@ bool Serializable::isInlineSerializable(void) const
 	return true;	// Most objects allow inline serialization
 }
 
+bool Serializable::isNativeSerializable(void) const
+{
+	return false;	// Most objects are not equivalent to native types
+}
+
 String Serializable::toString(void) const
 {
 	String str;

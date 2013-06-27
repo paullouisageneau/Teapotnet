@@ -94,16 +94,25 @@ private:
 template<typename T> 
 bool YamlSerializer::read(T &value)
 {
-	return mStream->read(value);
+	if(mIndent.empty())
+	{
+		if(mLine.empty() && !mStream->readLine(mLine))
+			return false;
+		
+		if(mLine.trimmed() == "...") return false;
+		if(mLine.trimmed() == "---") mLine.clear();
+	}
+	
+	return mLine.read(value);
 }
 
 template<typename T> 
 void YamlSerializer::write(const T &value)
 {
-	if(mLevel) mStream->space();
-	else *mStream<<"---"<<Stream::NewLine;
+	if(!mLevel) *mStream<<"---"<<Stream::NewLine;
+	else *mStream<<Stream::Space;
 	mStream->write(value);
-	if(mIndent.empty()) *mStream << Stream::NewLine;	
+	if(!mLevel) *mStream << Stream::NewLine;	
 }
 
 }

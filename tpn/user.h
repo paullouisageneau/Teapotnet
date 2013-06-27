@@ -28,6 +28,7 @@
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 #include "tpn/addressbook.h"
+#include "tpn/messagequeue.h"
 #include "tpn/store.h"
 #include "tpn/mutex.h"
 #include "tpn/map.h"
@@ -52,6 +53,7 @@ public:
 	String profilePath(void) const;
 	String urlPrefix(void) const;
 	AddressBook *addressBook(void) const;
+	MessageQueue *messageQueue(void) const;
 	Store *store(void) const;
 	
 	bool isOnline(void) const;
@@ -67,6 +69,7 @@ private:
 	String mName;
 	ByteString mHash;
 	AddressBook *mAddressBook;
+	MessageQueue *mMessageQueue;
 	Store *mStore;
 	StringMap mInfo;
 	Time mLastOnlineTime;

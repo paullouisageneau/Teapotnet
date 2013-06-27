@@ -75,27 +75,6 @@ String AddressBook::userName(void) const
  	return mUser->name(); 
 }
 
-int AddressBook::unreadMessagesCount(void) const
-{
-	Synchronize(this);
-  
-	Array<Identifier> keys;
-        mContacts.getKeys(keys);
-        
-	int count = 0;
-        for(int i=0; i<keys.size(); ++i)
-        {
-                Contact *contact = NULL;
-                if(mContacts.get(keys[i], contact))
-                {
-                        Desynchronize(this);
-                        count+= contact->messages().unreadCount();
-                }
-        }
-
-	return count;
-}
-
 Identifier AddressBook::addContact(String name, const ByteString &secret)
 {
 	Synchronize(this);
@@ -166,8 +145,26 @@ const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) c
 {
 	Synchronize(this);
   
-	Contact *contact;
-	if(mContacts.contains(peering)) return mContacts.get(peering);
+	Contact *contact = NULL;
+	if(mContacts.get(peering, contact)) return contact;
+	else return NULL;
+}
+
+AddressBook::Contact *AddressBook::getContactByUniqueName(const String &uname)
+{
+	Synchronize(this);
+  
+	Contact *contact = NULL;
+	if(mContactsByUniqueName.get(uname, contact)) return contact;
+	else return NULL;
+}
+
+const AddressBook::Contact *AddressBook::getContactByUniqueName(const String &uname) const
+{
+	Synchronize(this);
+  
+	Contact *contact = NULL;
+	if(mContactsByUniqueName.get(uname, contact)) return contact;
 	else return NULL;
 }
 
@@ -337,9 +334,9 @@ void AddressBook::save(void) const
 	if(self && self->isConnected())
 	{
 		try {
-			Message message(data);
-			message.setParameter("type", "contacts");
-			message.send(self->peering());
+			Notification notification(data);
+			notification.setParameter("type", "contacts");
+			notification.send(self->peering());
 		}
 		catch(Exception &e)
 		{
@@ -395,9 +392,7 @@ void AddressBook::update(void)
 void AddressBook::http(const String &prefix, Http::Request &request)
 {
 	user()->setOnline();
-
-	Synchronize(this);
-
+	
 	try {
 		if(request.url.empty() || request.url == "/")
 		{
@@ -407,6 +402,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			  		String command = request.post["command"];
 			  		if(command == "delete")
 					{
+						Synchronize(this);
 						String uname = request.post["argument"];
 						removeContact(mContactsByUniqueName.get(uname)->peering());
 					}
@@ -442,28 +438,27 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 
-				Array<Identifier> keys;
- 				mContacts.getKeys(keys);
+				Array<Contact*> contacts;
+				getContacts(contacts);
 
 				JsonSerializer json(response.sock);
 				json.outputMapBegin();
-				for(int i=0; i<keys.size(); ++i)
+				for(int i=0; i<contacts.size(); ++i)
         			{
-                			Contact *contact = NULL;
-                			if(mContacts.get(keys[i], contact))
-                			{
-						if(contact->isDeleted()) continue;
-                        			Desynchronize(this);
-
-						StringMap map;
-                                        	map["name"] << contact->name();
-                                        	map["tracker"] << contact->tracker();
-                                        	map["status"] << contact->status();
-                                        	map["messages"] << contact->messages().unreadCount();
-						map["newmessages"] << contact->messages().hasNew();
-                                        	json.outputMapElement(contact->uniqueName(), map);
-					}
-                		}
+                			Contact *contact = contacts[i];
+                			if(contact->isDeleted()) continue;
+                        			
+					StringMap map;
+					map["name"] << contact->name();
+					map["tracker"] << contact->tracker();
+					map["status"] << contact->status();
+						
+					MessageQueue *messageQueue = mUser->messageQueue();
+					map["messages"] << messageQueue->select(contact->peering()).unreadCount();
+					map["newmessages"] << messageQueue->hasNew();
+						
+					json.outputMapElement(contact->uniqueName(), map);
+				}
 				json.outputMapEnd();
 				return;
 			}
@@ -875,11 +870,6 @@ void AddressBook::Contact::getInstancesNames(Array<String> &array)
 			array.append(others[i]);
 }
 
-const MessageQueue &AddressBook::Contact::messages(void) const
-{
-	return mMessages;
-}
-
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
 {
 	Synchronize(this);
@@ -1047,10 +1037,10 @@ void AddressBook::Contact::update(bool alternate)
 	}
 }
 
-void AddressBook::Contact::connected(const Identifier &peering)
+void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
 	Synchronize(this);
-	Assert(peering == mPeering);	
+	Assert(peering == mPeering);
 
 	// Send info
 	mAddressBook->user()->sendInfo(peering);
@@ -1061,10 +1051,13 @@ void AddressBook::Contact::connected(const Identifier &peering)
 		Desynchronize(this);
                 String data;
         	mAddressBook->save(data);
-                Message message(data);
-                message.setParameter("type", "contacts");
-                message.send(peering);
+                Notification notification(data);
+                notification.setParameter("type", "contacts");
+                notification.send(peering);
 	}
+	
+	MessageQueue::Selection selection = selectMessages();
+	if(incoming) sendMessagesChecksum(0, selection.count(), true);
 }
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
@@ -1076,29 +1069,143 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 	//update(true);
 }
 
-void AddressBook::Contact::message(Message *message)
+void AddressBook::Contact::notification(Notification *notification)
 {
-	Assert(message);
+	Assert(notification);
 	SynchronizeStatement(this, if(mDeleted) return);
-	
-	//if(message->receiver() != mPeering)
-	//	mAddressBook->receiveMessage(*message);
+
+	StringMap parameters = notification->parameters();
 	
 	String type;
-	message->parameters().get("type", type);
+	parameters.get("type", type);
+	LogDebug("AddressBook::Contact", "Incoming notification (type='" + type + "')");
 	
-	if(type.empty() || type == "text")
+	if(type.empty() || type == "message")
 	{
-		Synchronize(this);
+		Message message;
+		Assert(message.recv(*notification));
 		
-		mMessages.add(*message);
-		notifyAll();
+		if(!isSelf())
+		{
+			message.toggleIncoming();
+			message.setPeering(peering());
+			message.setDefaultHeader("from", name());
+		}
+		
+		mAddressBook->user()->messageQueue()->add(message);
+	}
+	else if(type == "read" || type == "ack")
+	{
+		String data = notification->content();
+                YamlSerializer serializer(&data);
+		StringArray stamps;
+		serializer.input(stamps);
+
+		// Mark messages as read
+		MessageQueue::Selection selection = selectMessages();
+		for(int i=0; i<stamps.size(); ++i)
+			selection.markRead(stamps[i]);
+	}
+	else if(type == "unread")
+	{
+		String data = notification->content();
+                YamlSerializer serializer(&data);
+		StringSet recvStamps;
+		serializer.input(recvStamps);
+
+		MessageQueue::Selection selection = selectMessages();
+		Array<Message> unread;
+		selection.getUnread(unread);
+		
+		// Mark not present stamps as read
+		for(int i=0; i<unread.size(); ++i)
+		{
+			String stamp = unread[i].stamp();
+			if(recvStamps.contains(stamp)) recvStamps.erase(stamp);
+			else selection.markRead(stamp);
+		}
+		
+		// Ack left stamps
+		if(!recvStamps.empty())
+		{
+			StringArray ackedStamps;
+			ackedStamps.assign(recvStamps.begin(), recvStamps.end());
+			
+			String tmp;
+			YamlSerializer outSerializer(&tmp);
+			outSerializer.output(ackedStamps);
+
+			Notification notification(tmp);
+			notification.setParameter("type", "read");
+			notification.send(peering());
+		}
+	}
+	else if(type == "checksum")
+	{
+		int offset = 0;
+		int count = 0;
+		int total = 0;
+		bool recursion = false;
+		
+		try {
+			parameters["offset"] >> offset;
+			parameters["count"] >> count;
+			parameters["total"] >> total;
+			parameters["recursion"] >> recursion;
+		
+			Assert(offset >= 0);
+			Assert(count > 0);
+			Assert(offset + count <= total);
+		}
+		catch(const Exception &e)
+		{
+			throw InvalidData("checksum notification parameters: " + String(e.what()));
+		}
+		
+		ByteString checksum;
+		
+		try {
+			notification->content().extract(checksum);
+		}
+		catch(...)
+		{
+			throw InvalidData("checksum notification content: " + notification->content());
+		}
+		
+		MessageQueue::Selection selection = selectMessages();
+		int localTotal = selection.count();
+		
+		ByteString result;
+		if(offset + count <= localTotal) 
+			selection.checksum(offset, count, result);
+		
+		if(result != checksum)
+		{
+			LogDebug("AddressBook::Contact", "Synchronization: No match: " + String::number(offset) + ", " + String::number(count));
+			
+			if(count == 1)	// TODO
+			{
+				sendMessages(offset, count);
+				if(recursion) sendMessagesChecksum(offset, count, false);
+			}
+			else if(recursion)
+			{
+				sendMessagesChecksum(offset, count/2, true);
+				sendMessagesChecksum(offset + count/2, count - count/2, true);
+			}
+			
+			if(!recursion) sendUnread();
+		}
+		else sendUnread();
+		
+		if(total < localTotal)
+			sendMessages(total, localTotal - total);
 	}
 	else if(type == "info")
 	{
 		Synchronize(this);
 	  
-		String data = message->content();
+		String data = notification->content();
 		YamlSerializer serializer(&data);
 		StringMap info;
 		serializer.input(info);
@@ -1134,14 +1241,83 @@ void AddressBook::Contact::message(Message *message)
 	{
 		if(SynchronizeTest(this, mUniqueName != mAddressBook->userName()))
 		{
-			LogWarn("AddressBook::Contact::message", "Received contacts update from other than self, dropping");
+			LogWarn("AddressBook::Contact::notification", "Received contacts update from other than self, dropping");
 			return;
 		}
 		
 		// DO NOT synchronize here, as the contact could disappear during load
-		String data = message->content();
+		String data = notification->content();
 		mAddressBook->load(data);
 	}
+	else if(type == "text")
+	{
+		LogDebug("AddressBook::Contact", "Got deprecated notification with type 'text'");
+	}
+	else LogDebug("AddressBook::Contact", "Unknown notification type '" + type + "'");
+}
+
+MessageQueue::Selection AddressBook::Contact::selectMessages(void) const
+{
+	MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
+	MessageQueue::Selection selection;
+	if(isSelf()) return messageQueue->selectAll();
+	else return messageQueue->select(peering());
+}
+
+void AddressBook::Contact::sendMessages(int offset, int count) const
+{
+	if(!count) return;
+
+	LogDebug("AddressBook::Contact", "Synchronization: Sending messages: " + String::number(offset) + ", " + String::number(count));
+
+	MessageQueue::Selection selection = selectMessages();
+	Array<Message> messages;
+	selection.getRange(offset, count, messages);
+	
+	for(int i=0; i<messages.size(); ++i)
+		messages[i].send(peering());
+}
+
+void AddressBook::Contact::sendMessagesChecksum(int offset, int count, bool recursion) const
+{
+	MessageQueue::Selection selection = selectMessages();
+
+	int total = selection.count();
+	offset = bounds(offset, 0, total);
+	count = bounds(count, 0, total - offset); 
+	if(!count) return;
+	
+	LogDebug("AddressBook::Contact", "Synchronization: Sending checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
+
+	ByteString result;
+	selection.checksum(offset, count, result);
+	
+	StringMap parameters;
+	parameters["type"] << "checksum";
+	parameters["offset"] << offset;
+	parameters["count"] << count;
+	parameters["total"] << total;
+	parameters["recursion"] << recursion;
+		
+	Notification notification(result.toString());
+	notification.setParameters(parameters);
+	notification.send(peering());
+}
+
+void AddressBook::Contact::sendUnread(void) const
+{
+	MessageQueue::Selection selection = selectMessages();
+	
+	StringArray unreadStamps;
+	selection.getUnreadStamps(unreadStamps);
+	
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serializer.output(unreadStamps);
+
+	Notification notification(tmp);
+	notification.setParameter("type", "unread");
+	notification.send(peering());
 }
 
 void AddressBook::Contact::request(Request *request)
@@ -1155,8 +1331,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
 	mAddressBook->user()->setOnline();
 
-	Synchronize(this);
-	
 	try {
 		if(request.url.empty() || request.url == "/")
 		{
@@ -1168,11 +1342,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				JsonSerializer json(response.sock);
 				json.outputMapBegin();
-				json.outputMapElement(String("name"), mName);
-				json.outputMapElement(String("tracker"), mTracker);
+				json.outputMapElement(String("name"), name());
+				json.outputMapElement(String("tracker"), tracker());
                                 json.outputMapElement(String("status"), status());
-                                json.outputMapElement(String("messages"), mMessages.unreadCount());
-				json.outputMapElement(String("newmessages"), mMessages.hasNew());
+				
+				MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
+                                json.outputMapElement(String("messages"), messageQueue->select(peering()).unreadCount());
+				json.outputMapElement(String("newmessages"), messageQueue->hasNew());
 				
 				Array<String> instances;
  				getInstancesNames(instances);
@@ -1194,7 +1370,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			if(isSelf()) page.header("Myself");
 			else {
-				page.header("Contact: "+mName);
+				page.header("Contact: "+name());
 				page.open("div", "topmenu");
 				page.span(status().capitalized(), "status.button");
 				page.close("div");
@@ -1224,7 +1400,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("td");
 			page.close("tr");
 			
-			if(mUniqueName != mAddressBook->userName())
+			if(uniqueName() != mAddressBook->userName())
 			{
 				page.open("tr");
 				page.open("td");
@@ -1442,8 +1618,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					if(!playlistMode)
 					{
-						if(target.empty() || target == "/") page.header(mName+": Browse files");
-						else page.header(mName+": "+target.substr(1));
+						if(target.empty() || target == "/") page.header(name()+": Browse files");
+						else page.header(name()+": "+target.substr(1));
 						page.open("div","topmenu");
 						if(!isSelf()) page.span(status().capitalized(), "status.button");
 						page.link(prefix+"/search/","Search files",".button");
@@ -1454,7 +1630,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
                                 		page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
                                         		transition($('#status'), info.status.capitalize());\n\
                                         		$('#status').removeClass().addClass('button').addClass(info.status);\n\
-                                        		if(info.newmessages) playMessageSound();\n\
+                                        		if(info.newnotifications) playNotificationSound();\n\
                                 		});");
 					}
 					
@@ -1484,8 +1660,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.send();
 				
 				Html page(response.sock);
-				if(query.empty()) page.header(mName + ": Search");
-				else page.header(mName + ": Searching " + query);
+				if(query.empty()) page.header(name() + ": Search");
+				else page.header(name() + ": Searching " + query);
 				page.openForm(prefix + "/search", "post", "searchForm");
 				page.input("text","query",query);
 				page.button("search","Search");
@@ -1527,129 +1703,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				if(isSelf()) throw 404;
 			  
-				if(url == "/messages" || url == "/messages/")
-				{
-					String last;
-					request.get.get("last", last);
-					
-					Http::Response response(request, 200);
-					response.headers["Content-Type"] = "application/json";
-					response.send();
-					
-					const int count = 10;
-					
-					SerializableArray<Message> array;
-					while(!mMessages.getLast(last, count, array))
-					{
-						Desynchronize(this);
-						mMessages.wait();
-					}
-					
-					for(int i=0; i<array.size(); ++i)
-						mMessages.markRead(array[i].stamp());
-					
-					JsonSerializer serializer(response.sock);
-					serializer.output(array);
-					return;
-				}
-			  
-				if(request.method == "POST")
-				{
-					if(request.post.contains("message") && !request.post["message"].empty())
-					{
-						try {
-							Message message(request.post["message"]);
-						  	message.send(mPeering);	// send to other
-							
-							mMessages.add(Message(request.post["message"]));	// thus receiver is null
-						}
-						catch(const Exception &e)
-						{
-							LogWarn("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
-							throw 409;
-						}
-						
-						Http::Response response(request, 200);
-						response.send();
-						return;
-					}
-				}
-			  
-				bool isPopup = request.get.contains("popup");
-			  
-				Http::Response response(request,200);
-				response.send();	
-				
-				Html page(response.sock);
-				page.header("Chat with "+mName, isPopup);
-				if(isPopup)
-				{
-					page.open("div","topmenu");
-					page.span("Chat with "+mName, ".button");
-					page.span(status().capitalized(), "status.button");
-					page.close("div");
-					page.open("div", "chat");
-				}
-				else {
-					String popupUrl = prefix + "/chat?popup=1";
-					page.open("div","topmenu");
-                                	page.span(status().capitalized(), "status.button");
-#ifndef ANDROID
-					page.raw("<a class=\"button\" ref=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
-#endif
-					page.close("div");
-					page.open("div", "chat.box");
-				}
-				
-				page.open("div", "chatmessages");
-				page.close("div");
-				
-				page.open("div", "chatpanel");
-				page.openForm(prefix + "/chat", "post", "chatForm");
-				page.textarea("message");
-				//page.button("send","Send");
-				//page.br();
-				page.closeForm();
-				page.javascript("$(document).ready(function() { document.chatForm.message.focus(); });");
-				page.close("div");
-				
-				page.close("div");
-				
-				page.javascript("function post()\n\
-					{\n\
-						var message = document.chatForm.message.value;\n\
-						if(!message) return false;\n\
-						document.chatForm.message.value = '';\n\
-						var request = $.post('"+prefix+"/chat',\n\
-							{ 'message': message });\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							alert('The message could not be sent.');\n\
-						});\n\
-					}\n\
-					document.chatForm.onsubmit = function()\n\
-					{\n\
-						post();\n\
-						return false;\n\
-					}\n\
-					$('textarea.message').keypress(function(e) {\n\
-    						if (e.keyCode == 13 && !e.shiftKey) {\n\
-       							e.preventDefault();\n\
-        						post();\n\
-    						}\n\
-					});\n\
-					$(document).ready( function() {\n\
-						$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
-					});\n\
-					setMessagesReceiver('"+prefix+"/chat/messages?json','#chatmessages');");
-				
-				unsigned refreshPeriod = 5000;
-				page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-					transition($('#status'), info.status.capitalize());\n\
-					$('#status').removeClass().addClass('button').addClass(info.status);\n\
-					if(info.newmessages) playMessageSound();\n\
-				});");
-				
-				page.footer();
+				Http::Response response(request, 303);
+                                response.headers["Location"] = mAddressBook->user()->urlPrefix() + "/messages/" + uniqueName().urlEncode() + "/";
+                                response.send();
 				return;
 			}
 		}
@@ -1665,31 +1721,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	}
 	
 	throw 404;
-}
-
-void AddressBook::Contact::messageToHtml(Html &html, const Message &message, bool old) const
-{
-	Desynchronize(this);
-
-	if(old) html.open("span",".oldmessage");
-	else html.open("span",".message");
-	html.open("span",".date");
-	html.text(message.time().toDisplayDate());
-	html.close("span");
-	html.text(" ");
-	if(message.receiver() == Identifier::Null) html.open("span",".out");
-	else html.open("span",".in");
-	html.open("span",".user");
-	if(message.receiver() == Identifier::Null) html.text(mAddressBook->userName());
-	else html.text(mAddressBook->getContact(message.receiver())->name());
-	html.close("span");
-	html.text(": ");
-	html.open("span",".text");
-	html.text(message.content());
-	html.close("span");
-	html.close("span");
-	html.close("span");
-	html.br(); 
 }
 
 void AddressBook::Contact::copy(const AddressBook::Contact *contact)
@@ -1765,7 +1796,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	else mDeleted = false;
 	
 	// TODO: checks
-	// TODO: mMessages ?
+	// TODO: mNotifications ?
 	
 	mFound = false;
 	return true;

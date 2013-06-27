@@ -365,6 +365,11 @@ bool Time::deserialize(Serializer &s)
 	return true;
 }
 
+bool Time::isNativeSerializable(void) const
+{
+	return true;
+}
+
 bool operator < (const Time &t1, const Time &t2)
 {
 	return (t1-t2 < 0.);

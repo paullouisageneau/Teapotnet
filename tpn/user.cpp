@@ -106,6 +106,7 @@ void User::UpdateAll(void)
 User::User(const String &name, const String &password) :
 	mName(name),
 	mAddressBook(new AddressBook(this)),
+	mMessageQueue(new MessageQueue(this)),
 	mStore(new Store(this)),
 	mLastOnlineTime(0)
 {
@@ -141,6 +142,7 @@ User::~User(void)
 	Interface::Instance->remove(urlPrefix());
 	
 	delete mAddressBook;
+	delete mMessageQueue;
 	delete mStore;
 }
 
@@ -165,6 +167,11 @@ String User::urlPrefix(void) const
 AddressBook *User::addressBook(void) const
 {
 	return mAddressBook;
+}
+
+MessageQueue *User::messageQueue(void) const
+{
+	return mMessageQueue;
 }
 
 Store *User::store(void) const
@@ -224,20 +231,19 @@ void User::sendInfo(const Identifier &identifier)
 {
 	Synchronize(this);
 	
+	StringMap tmp(mInfo);	// WTF
 	String content;
 	YamlSerializer serializer(&content);
-	serializer.output(mInfo);
+	serializer.output(tmp);
 	
-	Message message(content);
-	message.setParameter("type", "info");
-	if(identifier == Identifier::Null) message.send();
-	else message.send(identifier);
+	Notification notification(content);
+	notification.setParameter("type", "info");
+	if(identifier == Identifier::Null) notification.send();
+	else notification.send(identifier);
 }
 
 void User::http(const String &prefix, Http::Request &request)
 {
-	Synchronize(this);
-	
 	try {
 		setOnline();
 		
@@ -269,8 +275,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
-			if(!instance.empty()) page.text(mName + "@" + tracker + " / " + instance);
-			else page.text(mName);
+			if(!instance.empty()) page.text(name() + "@" + tracker + " / " + instance);
+			else page.text(name());
 			page.close("h1");
 			
 			page.open("div","contacts.box");
@@ -351,7 +357,7 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			unsigned refreshPeriod = 5000;
 			page.javascript("var title = document.title;\n\
-					setCallback(\"/"+mAddressBook->userName()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
+					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
 					play = false;\n\
 					$.each(data, function(uname, info) {\n\
@@ -477,7 +483,7 @@ void User::http(const String &prefix, Http::Request &request)
 			trequest.submit();
 			trequest.wait(timeout);
 			
-			page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user());
+			page.listFilesFromRequest(trequest, prefix, request, addressBook()->user());
 			page.footer();
 			return;
 		}

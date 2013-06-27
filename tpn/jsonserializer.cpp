@@ -40,7 +40,7 @@ JsonSerializer::~JsonSerializer(void)
  
 bool JsonSerializer::input(Serializable &s)
 {
-	if(s.isInlineSerializable())
+	if(s.isInlineSerializable() && !s.isNativeSerializable())
 	{
 		String str;
 		if(!input(str)) return false;
@@ -133,7 +133,7 @@ bool JsonSerializer::input(String &str)
 
 void JsonSerializer::output(const Serializable &s)
 {
-	if(s.isInlineSerializable()) output(s.toString());
+	if(s.isInlineSerializable() && !s.isNativeSerializable()) output(s.toString());
 	else s.serialize(*this);
 }
 
@@ -175,9 +175,7 @@ void JsonSerializer::output(const String &str)
 		case '\n': mStream->write("\\n");  break;
 		case '\r': mStream->write("\\r");  break;
 		case '\t': mStream->write("\\t");  break;
-		default:
-			if(chr <= 0x1F) mStream->write("\\u"+String::hexa(unsigned(chr),4));
-			else mStream->put(chr); break;
+		default: mStream->put(chr); break;
 		}
 	}
 	*mStream<<'\"';

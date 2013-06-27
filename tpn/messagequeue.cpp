@@ -20,8 +20,12 @@
  *************************************************************************/
 
 #include "tpn/messagequeue.h"
-#include "tpn/yamlserializer.h"
 #include "tpn/user.h"
+#include "tpn/html.h"
+#include "tpn/sha512.h"
+#include "tpn/yamlserializer.h"
+#include "tpn/jsonserializer.h"
+#include "tpn/notification.h"
 
 namespace tpn
 {
@@ -36,40 +40,38 @@ MessageQueue::MessageQueue(User *user) :
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 	stamp TEXT UNIQUE,\
+	parent TEXT,\
+	headers TEXT,\
 	content TEXT,\
+	peering BLOB,\
 	time INTEGER(8),\
+	incoming INTEGER(1),\
+	public INTEGER(1),\
 	isread INTEGER(1))");
+
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS peering ON messages (peering)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
+
+	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
 
 MessageQueue::~MessageQueue(void)
 {
+	Interface::Instance->remove("/"+mUser->name()+"/messages", this);
 
+	delete mDatabase;
 }
 
-unsigned MessageQueue::count(void) const
+User *MessageQueue::user(void) const
 {
-	unsigned count;
-	Database::Statement statement = mDatabase->prepare("SELECT COUNT(*) FROM messages");
-	statement.step();
-	statement.input(count);
-	statement.finalize();
-	return count;
-}
-
-unsigned MessageQueue::unreadCount(void) const
-{
-	unsigned count;
-        Database::Statement statement = mDatabase->prepare("SELECT COUNT(*) FROM messages WHERE isread=1");
-        statement.step();
-        statement.input(count);
-        statement.finalize();
-        return count;
+	return mUser;
 }
 
 bool MessageQueue::hasNew(void) const
 {
+	Synchronize(this);
+	
 	bool old = mHasNew;
 	mHasNew = false;
 	return old;
@@ -79,11 +81,22 @@ bool MessageQueue::add(const Message &message)
 {
 	Synchronize(this);
 	
+	if(message.stamp().empty()) 
+	{
+		LogWarn("MessageQueue::add", "Message with empty stamp, dropping");
+		return false;
+	}
+
 	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
         statement.bind(1, message.stamp());
 	bool exists = statement.step();
         statement.finalize();
-	if(exists) return false;
+	
+	if(exists) 
+	{
+		LogDebug("MessageQueue::add", "Message '" + message.stamp() + "' is already in queue");
+		return false;
+	}
 
 	mDatabase->insert("messages", message);
 	mHasNew = true;
@@ -108,139 +121,407 @@ bool MessageQueue::get(const String &stamp, Message &result)
         return false;
 }
 
-bool MessageQueue::markRead(const String &stamp, bool read)
+void MessageQueue::markRead(const String &stamp)
 {
 	Synchronize(this);
   
-	Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=?1 WHERE stamp=?2");
-        statement.bind(1, read);
-	statement.bind(2, stamp);
+	Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=?1");
+	statement.bind(1, stamp);
 	statement.execute();
-	return true;
 }
 
-bool MessageQueue::getLast(int count, Array<Message> &result)
+void MessageQueue::ack(const Array<Message> &messages)
 {
-	Synchronize(this);
+	Map<Identifier, StringArray> stamps;
+	for(int i=0; i<messages.size(); ++i)
+		if(!messages[i].isRead() && messages[i].isIncoming())
+		{
+			stamps[messages[i].peering()].append(messages[i].stamp());
+
+			Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=?1");
+        		statement.bind(1, messages[i].stamp());
+        		statement.execute();
+		}
+
+	for(Map<Identifier, StringArray>::iterator it = stamps.begin();
+		it != stamps.end();
+		++it)
+	{
+		String tmp;
+		YamlSerializer serializer(&tmp);
+		serializer.output(it->second);
+
+		Notification notification(tmp);
+		notification.setParameter("type", "ack");
+		notification.send(it->first);
+		
+		const AddressBook::Contact *self = mUser->addressBook()->getSelf();
+		if(self && self->peering() != it->first) 
+			notification.send(self->peering());
+	}
+}
+
+void MessageQueue::http(const String &prefix, Http::Request &request)
+{
+	String url = request.url;
+	url.ignore();	// removes first '/'
+	String uname = url;
+	url = uname.cut('/');
+	if(!url.empty()) throw 404;
+	url = "/" + uname + "/";
 	
+	const AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(uname);
+	const AddressBook::Contact *self = mUser->addressBook()->getSelf();
+	if(!contact) throw 404;
+		
+	String name = contact->name();
+	String status = contact->status();
+	Identifier peering = contact->peering();
+	
+	if(request.method == "POST")
+        {
+                if(request.post.contains("message") && !request.post["message"].empty())
+                {
+                        try {
+                                Message message(request.post["message"]);
+				message.setPeering(peering);
+				message.setHeader("from", mUser->name());
+				message.send(peering);
+				if(self && self->peering() != peering) 
+					message.send(self->peering());
+                                add(message);
+                        }
+                        catch(const Exception &e)
+                        {
+                                LogWarn("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
+                                throw 409;
+                        }
+
+                        Http::Response response(request, 200);
+                        response.send();
+                        return;
+                }
+        }
+        
+	if(request.get.contains("json"))
+	{
+		String last;
+		request.get.get("last", last);
+
+		Http::Response response(request, 200);
+		response.headers["Content-Type"] = "application/json";
+		response.send();
+
+		const int count = 10;
+
+		SerializableArray<Message> array;
+		while(!select(peering).getLast(last, count, array))
+			wait();
+
+		ack(array);
+		
+		JsonSerializer serializer(response.sock);
+		serializer.output(array);
+		return;
+	}
+	
+	bool isPopup = request.get.contains("popup");
+
+	Http::Response response(request,200);
+	response.send();
+
+	Html page(response.sock);
+	
+	String title= "Chat with "+name;
+	page.header(title, isPopup);
+	
+	if(isPopup)
+	{
+		page.open("div","topmenu");
+		page.span(title, ".button");
+		page.span(status.capitalized(), "status.button");
+		page.close("div");
+		page.open("div", "chat");
+	}
+	else {
+		String popupUrl = prefix + url + "?popup=1";
+		page.open("div","topmenu");
+		page.span(status.capitalized(), "status.button");
+#ifndef ANDROID
+		page.raw("<a class=\"button\" ref=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+#endif
+		page.close("div");
+		page.open("div", "chat.box");
+	}
+
+	page.open("div", "chatmessages");
+	page.close("div");
+
+	page.open("div", "chatpanel");
+	page.openForm("#", "post", "chatform");
+	page.textarea("chatinput");
+	//page.button("send","Send");
+	//page.br();
+	page.closeForm();
+	page.javascript("$(document).ready(function() { document.chatform.chatinput.focus(); });");
+	page.close("div");
+
+	page.close("div");
+ 
+	page.javascript("function post()\n\
+		{\n\
+			var message = document.chatform.chatinput.value;\n\
+			if(!message) return false;\n\
+			document.chatform.chatinput.value = '';\n\
+			var request = $.post('"+prefix+url+"',\n\
+				{ 'message': message });\n\
+			request.fail(function(jqXHR, textStatus) {\n\
+				alert('The message could not be sent.');\n\
+			});\n\
+		}\n\
+		document.chatform.onsubmit = function()\n\
+		{\n\
+			post();\n\
+			return false;\n\
+		}\n\
+		$('textarea.chatinput').keypress(function(e) {\n\
+			if (e.keyCode == 13 && !e.shiftKey) {\n\
+				e.preventDefault();\n\
+				post();\n\
+			}\n\
+		});\n\
+		$(document).ready( function() {\n\
+			$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
+		});\n\
+		setMessagesReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmessages');");
+
+	unsigned refreshPeriod = 5000;
+	page.javascript("setCallback(\""+contact->urlPrefix()+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+		transition($('#status'), info.status.capitalize());\n\
+		$('#status').removeClass().addClass('button').addClass(info.status);\n\
+		if(info.newmessages) playMessageSound();\n\
+	});");
+
+	page.footer();
+	return;
+}
+
+MessageQueue::Selection MessageQueue::select(const Identifier &peering) const
+{
+	return Selection(this, peering);
+}
+
+MessageQueue::Selection MessageQueue::selectAll(void) const
+{
+	return Selection(this, Identifier::Null);
+}
+
+MessageQueue::Selection::Selection(void) :
+	mMessageQueue(NULL)
+{
+	
+}
+
+MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering) :
+	mMessageQueue(messageQueue),
+	mPeering(peering)
+{
+	
+}
+	
+MessageQueue::Selection::~Selection(void)
+{
+	
+}
+
+unsigned MessageQueue::Selection::count(void) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	
+	unsigned count = 0;
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter());
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	if(!statement.step()) return 0;
+	statement.input(count);
+	statement.finalize();
+	return count;
+}
+
+unsigned MessageQueue::Selection::unreadCount(void) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	
+	unsigned count = 0;
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter()+" AND isread=0");
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	if(!statement.step()) return 0;
+        statement.input(count);
+        statement.finalize();
+        return count;
+}
+
+bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &result) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages ORDER BY time DESC LIMIT ?1");
-	statement.bind(1, count);
-        while(statement.step())
-	{
-		Message message;
-		message.deserialize(statement);
-		result.push_back(message);
-	}
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time,stamp LIMIT @offset,@count");
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("offset"), offset);
+	statement.bind(statement.parameterIndex("count"), count);
+        statement.fetch(result);
 	statement.finalize();
 	
-	result.reverse();
         return (!result.empty());
 }
 
-bool MessageQueue::getLast(const Time &time, int max, Array<Message> &result)
+bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 {
-	Synchronize(this);
-	
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
 	result.clear();
-	
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE time>=?1 ORDER BY time DESC LIMIT ?2");
-	statement.bind(1, time);
-	statement.bind(2, max);
-        while(statement.step())
-	{
-		Message message;
-		message.deserialize(statement);
-		result.push_back(message);
-	}
+
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time DESC LIMIT @count");
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("count"), count);
+        statement.fetch(result);
 	statement.finalize();
 	
-	result.reverse();
-        return (!result.empty());
+	if(!result.empty())
+	{
+		result.reverse();
+		mMessageQueue->mHasNew = false;
+		return true;
+	}
+        return false;
 }
 
-bool MessageQueue::getLast(const String &oldLast, int count, Array<Message> &result)
+bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> &result) const
 {
-	Synchronize(this);
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	result.clear();
 	
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time ORDER BY time DESC LIMIT @max");
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("time"), time);
+	statement.bind(statement.parameterIndex("max"), max);
+        statement.fetch(result);
+	statement.finalize();
+	
+	if(!result.empty())
+	{
+		result.reverse();
+		mMessageQueue->mHasNew = false;
+		return true;
+	}
+        return false;
+}
+
+bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Message> &result) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
 	result.clear();
 	
 	if(oldLast.empty()) 
 		return getLast(count, result);
 	
-	int64_t oldLastId = -1;
-	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT time FROM messages WHERE stamp=?1");
 	statement.bind(1, oldLast);
         if(!statement.step())
 	{
 		statement.finalize();
 		return getLast(count, result);
 	}
-	statement.value(0, oldLastId);
+	Time time;
+	statement.input(time);
 	statement.finalize();
 
-	statement = mDatabase->prepare("SELECT * FROM messages WHERE id>?1 ORDER BY time DESC");
-	statement.bind(1, oldLastId);
-	while(statement.step())
-	{
-		Message message;
-		message.deserialize(statement);
-		result.push_back(message);
-	}
-	statement.finalize();
-	
-        result.reverse();
+	if(!getLast(time, count, result)) 
+		return false;
+
+	int i = 0;
+	while(i < result.size())
+		if(result[i++].stamp() == oldLast)
+			break;
+	result.erase(0, i);
 	return (!result.empty());
 }
 
-
-bool MessageQueue::getDiff(const Array<String> &oldStamps, Array<Message> &result)
+bool MessageQueue::Selection::getUnread(Array<Message> &result) const
 {
-	Synchronize(this);
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
 	result.clear();
 	
-	const int maxAge = 48 + 1;	// hours
-	
-	Time time(Time::Now());
-	time.addHours(-maxAge);
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE time>=?1 OR isread=0 ORDER BY time");
-	statement.bind(1, time);
-	
-	Map<String, Message> tmp;
-        while(statement.step())
-	{
-		Message message;
-		message.deserialize(statement);
-		tmp.insert(message.stamp(), message);
-	}
-	
-	statement.finalize();
-	
-	for(int i=0; i<oldStamps.size(); ++i)
-		tmp.erase(oldStamps[i]);
-	
-	tmp.getValues(result);
-        return (!result.empty());
-}
-
-bool MessageQueue::getUnread(Array<Message> &result)
-{
-	Synchronize(this);
-	
-	result.clear();
-	
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE isread=0 ORDER BY time");
-        while(statement.step())
-	{
-		Message message;
-		message.deserialize(statement);
-		result.push_back(message);
-	}
-
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
+        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.fetch(result);
 	statement.finalize();
         return (!result.empty());
 }
 
+bool MessageQueue::Selection::getUnreadStamps(StringArray &result) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	result.clear();
+	
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
+        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.fetchColumn(0, result);
+	statement.finalize();
+        return (!result.empty());
 }
-				
+
+void MessageQueue::Selection::markRead(const String &stamp)
+{
+        Assert(mMessageQueue);
+        Synchronize(mMessageQueue);
+
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("UPDATE messages SET isread=1 WHERE "+filter()+" AND stamp=@stamp");
+        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("stamp"), stamp);
+        statement.execute();
+}
+
+int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	result.clear();
+	
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp AS sum FROM messages WHERE "+filter()+"  ORDER BY time,stamp LIMIT @offset,@count");
+        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+        statement.bind(statement.parameterIndex("offset"), offset);
+	statement.bind(statement.parameterIndex("count"), count);
+       
+	Sha512 sha512;
+	sha512.init();
+	count = 0;
+	while(statement.step())
+	{
+		String stamp;
+		statement.value(0, stamp);
+		if(count) sha512.process(",", 1);
+		sha512.process(stamp.data(), stamp.size());
+		++count;
+	}
+	sha512.finalize(result);
+	statement.finalize();
+	return count;
+}
+
+String MessageQueue::Selection::filter(void) const
+{
+	String condition;
+	if(mPeering != Identifier::Null) return "peering=@peering";
+	else return "1=1"; // TODO
+}
+
+}
+

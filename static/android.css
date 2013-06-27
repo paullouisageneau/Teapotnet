@@ -350,7 +350,7 @@ textarea
 	padding: 0;
 }
 
-#chatpanel .message
+#chatpanel .chatinput
 {
 	width: 99%;
 	height: 99%;
@@ -410,12 +410,12 @@ textarea
 
 .message
 {
-  
+
 }
 
 .oldmessage
 {
-	opacity: 0.7; 
+	opacity: 0.7;
 }
 
 .out

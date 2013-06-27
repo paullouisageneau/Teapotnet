@@ -30,7 +30,8 @@ namespace tpn
 {
 
 class String;
-	
+class ByteString;
+
 class Serializer
 {
 public:
@@ -61,6 +62,7 @@ public:
 	virtual bool	input(Pair &pair);
 	
 	virtual bool    input(String &str) = 0;
+	virtual bool    input(ByteString &str);
 	virtual bool	input(int8_t &i) = 0;
 	virtual bool	input(int16_t &i) = 0;
 	virtual bool	input(int32_t &i) = 0;
@@ -78,6 +80,7 @@ public:
 	virtual void	output(const Pair &pair);
 	
 	virtual void    output(const String &str) = 0;
+	virtual void    output(const ByteString &str);
 	virtual void	output(int8_t i) = 0;
 	virtual void	output(int16_t i) = 0;
 	virtual void	output(int32_t i) = 0;
@@ -144,6 +147,7 @@ public:
 	void serialize(Serializer &s) const	{ return s.output(*ptr); }
 	bool deserialize(Serializer &s)		{ return s.input(*ptr); }
 	bool isInlineSerializable(void) const	{ return true; }
+	bool isNativeSerializable(void) const	{ return true; }
 
 private:
 	T *ptr;
@@ -156,6 +160,7 @@ public:
 	ConstSerializableWrapper(const T *ptr)	{ this->ptr = ptr; }
 	void serialize(Serializer &s) const	{ return s.output(*ptr); }
 	bool isInlineSerializable(void) const	{ return true; }
+	bool isNativeSerializable(void) const	{ return true; }
 
 private:
 	const T *ptr;

@@ -75,27 +75,14 @@ void ByteString::fill(char value, int n)
 
 void ByteString::serialize(Serializer &s) const
 {
-	s.output(uint32_t(size()));
-
-	for(int i=0; i<size(); ++i)
-		s.output(uint8_t(at(i)));	
+	// implemented in Serializer::output(const ByteString &)
+	s.output(*this);
 }
 
 bool ByteString::deserialize(Serializer &s)
 {
-	clear();
-
-	uint32_t count;
-	if(!s.input(count)) return false;
-
-	uint8_t b;
-	for(uint32_t i=0; i<count; ++i)
-	{
-		AssertIO(!s.input(b));
-		push_back(b);
-	}
-
-	return true;
+	// implemented in Serializer::input(ByteString &)
+	return s.input(*this);
 }
 
 void ByteString::serialize(Stream &s) const
@@ -117,6 +104,7 @@ bool ByteString::deserialize(Stream &s)
 	
 	String str;
 	if(!s.read(str)) return false;
+	if(str.empty()) return true;
 	
 	int count = (str.size()+1)/2;
 	for(int i=0; i<count; ++i)

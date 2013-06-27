@@ -661,6 +661,16 @@ bool String::deserialize(Stream &s)
 	return s.read(*this); 
 }
 
+String String::toString(void) const
+{
+	return *this;
+}
+
+void String::fromString(String str)
+{
+	*this = str;
+}
+
 size_t String::readData(char *buffer, size_t size)
 {
 	size = std::min(size,this->size());

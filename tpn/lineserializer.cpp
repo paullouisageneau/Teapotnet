@@ -39,7 +39,7 @@ LineSerializer::~LineSerializer(void)
  
 bool LineSerializer::input(Serializable &s)
 {
-	if(s.isInlineSerializable())
+	if(s.isInlineSerializable() && !s.isNativeSerializable())
 	{
 		String line;
 		if(!input(line)) return false;
@@ -84,7 +84,7 @@ bool LineSerializer::input(String &str)
 
 void LineSerializer::output(const Serializable &s)
 {
-	if(s.isInlineSerializable()) output(s.toString());
+	if(s.isInlineSerializable() && !s.isNativeSerializable()) output(s.toString());
 	else s.serialize(*this);
 	
 	mStream->newline();

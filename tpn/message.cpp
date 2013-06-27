@@ -23,13 +23,22 @@
 #include "tpn/core.h"
 #include "tpn/bytestring.h"
 #include "tpn/sha512.h"
+#include "tpn/yamlserializer.h"
 
 namespace tpn
 {
 
+String Message::GenerateStamp(void)
+{
+	return String::random(4) + String::hexa(Time::Now().toUnixTime());
+}
+
 Message::Message(const String &content) :
-	mTime(Time::Now()),
 	mContent(content),
+	mTime(Time::Now()),
+	mStamp(GenerateStamp()),
+	mIsPublic(false),
+	mIsIncoming(false),
 	mIsRead(false)
 {
 
@@ -45,14 +54,19 @@ Time Message::time(void) const
 	return mTime; 
 }
 
+Identifier Message::peering(void) const
+{
+	return mPeering;
+}
+
 String Message::stamp(void) const
 {
 	return mStamp;
 }
 
-const Identifier &Message::receiver(void) const
+bool Message::isPublic(void) const
 {
-	return mReceiver;
+	return mIsPublic;
 }
 
 const String &Message::content(void) const
@@ -60,14 +74,26 @@ const String &Message::content(void) const
 	return mContent;
 }
 
-const StringMap &Message::parameters(void) const
+const StringMap &Message::headers(void) const
 {
-	return mParameters;
+	return mHeaders;
 }
 
-bool Message::parameter(const String &name, String &value) const
+bool Message::header(const String &name, String &value) const
 {
-	return mParameters.get(name, value);
+	return mHeaders.get(name, value);
+}
+
+String Message::header(const String &name) const
+{
+	String value;
+	if(mHeaders.get(name, value)) return value;
+	else return String();
+}
+
+void Message::setPeering(const Identifier &peering)
+{
+	mPeering = peering.getDigest();
 }
 
 void Message::setContent(const String &content)
@@ -75,16 +101,31 @@ void Message::setContent(const String &content)
 	mContent = content;
 }
 
-void Message::setParameters(const StringMap &params)
+void Message::setHeaders(const StringMap &headers)
 {
-	mParameters = params;
-	if(!mParameters.get("stamp", mStamp))
-		mStamp = String::number(Time::Now().toUnixTime()) + String::random(4);
+	mHeaders = headers;
 }
 
-void Message::setParameter(const String &name, const String &value)
+void Message::setHeader(const String &name, const String &value)
 {
-	mParameters[name] = value; 
+	mHeaders[name] = value; 
+}
+
+void Message::setDefaultHeader(const String &name, const String &value)
+{
+	if(!mHeaders.contains(name))
+		mHeaders[name] = value;
+}
+
+bool Message::toggleIncoming(void)
+{
+	mIsIncoming = !mIsIncoming;
+	return mIsIncoming;
+}
+
+bool Message::isIncoming(void) const
+{
+	return mIsIncoming;
 }
 
 bool Message::isRead(void) const
@@ -97,27 +138,55 @@ void Message::markRead(bool read) const
 	mIsRead = read; 
 }
 
-void Message::send(void)
+bool Message::send(void) const
 {
-	Core::Instance->sendMessage(*this);
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serializer.output(*this);
+	
+	Notification notification(tmp);
+	notification.setParameter("type", "message");
+	return notification.send();
 }
 
-void Message::send(const Identifier &receiver)
+bool Message::send(const Identifier &peering) const
 {
-	mReceiver = receiver;
-	Core::Instance->sendMessage(*this);
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serializer.output(*this);
+
+	Notification notification(tmp);
+	notification.setParameter("type", "message");
+	return notification.send(peering);
+}
+
+bool Message::recv(const Notification &notification)
+{
+	String type;
+	notification.parameter("type", type);
+	if(!type.empty() && type != "message") return false;
+	
+	String tmp = notification.content();
+	YamlSerializer serializer(&tmp);
+	serializer.input(*this);
+	return true;
 }
 
 void Message::serialize(Serializer &s) const
 {
+	ConstSerializableWrapper<bool> isPublicWrapper(&mIsPublic);
+	ConstSerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	ConstSerializableWrapper<bool> isReadWrapper(&mIsRead);
 	
 	Serializer::ConstObjectMapping mapping;
-	mapping["time"] = &mTime;
-	mapping["receiver"] = &mReceiver;
-	mapping["stamp"] = &mStamp;
-	mapping["parameters"] = &mParameters;
-	mapping["content"] = &mContent;
+	mapping["headers"] = &mHeaders;
+        mapping["content"] = &mContent;
+        mapping["peering"] = &mPeering;
+        mapping["stamp"] = &mStamp;
+	mapping["parent"] = &mParent;
+        mapping["time"] = &mTime;
+	mapping["public"] = &isPublicWrapper;
+        mapping["incoming"] = &isIncomingWrapper;
 	mapping["isread"] = &isReadWrapper;
 	
 	s.outputObject(mapping);
@@ -125,21 +194,28 @@ void Message::serialize(Serializer &s) const
 
 bool Message::deserialize(Serializer &s)
 {
-	mTime = Time::Now();
-	mReceiver.clear();
+	mHeaders.clear();
+        mContent.clear();
 	mStamp.clear();
-	mParameters.clear();
-	mContent.clear();
+	mPeering = Identifier::Null;
+	mTime = Time::Now();
+	mIsPublic = false;
+	mIsIncoming = false;
 	mIsRead = false;
 	
+	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
+	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isReadWrapper(&mIsRead);
 	
 	Serializer::ObjectMapping mapping;
-	mapping["time"] = &mTime;
-	mapping["receiver"] = &mReceiver;
+	mapping["headers"] = &mHeaders;
+        mapping["content"] = &mContent;
+	mapping["peering"] = &mPeering;
 	mapping["stamp"] = &mStamp;
-	mapping["parameters"] = &mParameters;
-	mapping["content"] = &mContent;
+	mapping["parent"] = &mParent;
+	mapping["time"] = &mTime;
+	mapping["public"] = &isPublicWrapper;
+	mapping["incoming"] = &isIncomingWrapper;
 	mapping["isread"] = &isReadWrapper;
 	
 	return s.inputObject(mapping);

@@ -118,6 +118,8 @@ public:
 	virtual bool deserialize(Serializer &s);
 	virtual void serialize(Stream &s) const;
 	virtual bool deserialize(Stream &s);
+	virtual String toString(void) const;
+        virtual void fromString(String str);
 
 protected:
 	// Stream

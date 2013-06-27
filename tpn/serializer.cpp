@@ -23,6 +23,7 @@
 #include "tpn/serializable.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
+#include "tpn/bytestring.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
 
@@ -69,15 +70,41 @@ void Serializer::output(const Pair &pair)
         pair.serialize(*this);  
 }
 
+bool Serializer::input(ByteString &str)
+{
+	// Default behaviour
+	str.clear();
+
+	uint32_t count;
+	if(!input(count)) return false;
+
+	uint8_t b;
+	for(uint32_t i=0; i<count; ++i)
+	{
+		AssertIO(input(b));
+		str.push_back(b);
+	}
+
+	return true;
+}
+
+void Serializer::output(const ByteString &str)
+{
+	// Default behaviour
+	output(uint32_t(str.size()));
+
+	for(int i=0; i<str.size(); ++i)
+		output(uint8_t(str.at(i)));
+}
+
 bool Serializer::inputObject(ObjectMapping &mapping)
 {
 	if(!inputMapBegin()) return false;
 
 	while(inputMapCheck())
-	{
-		if(!input(mapping)) break;
-	}
-	
+		if(!input(mapping))
+			break;
+
 	return true;
 }
 
@@ -139,11 +166,18 @@ bool Serializer::ObjectMapping::deserializeKey(Serializer &s)
 bool Serializer::ObjectMapping::deserializeValue(Serializer &s)
 {
 	ObjectMapping::iterator it = this->find(*mLastKey);
-	if(it != this->end()) s.input(*it->second);
+	if(it != this->end()) return s.input(*it->second);
+
+	// Special case for id field (used by Database)
+	if(*mLastKey == "id" || *mLastKey == "rowid")
+	{
+		int64_t dummy;
+		return s.input(dummy);
+	}
 	else {
-		LogDebug("Serializer::ObjectMapping", String("Ignoring unknown entry: ") + *mLastKey);
+		LogDebug("Serializer::ObjectMapping", String("Warning: Ignoring unknown entry: ") + *mLastKey);
 		String dummy;
-		s.input(dummy);
+		return s.input(dummy);
 	}
 }
 

@@ -41,6 +41,7 @@ public:
 	bool get(const K &key, V &value) const;
 	const V &get(const K &key) const;
 	V &get(const K &key);
+	bool getAndRemove(const K &key, V &value) const;
 	const V &getOrDefault(const K &key, const V &defaultValue) const;
 	
 	int getKeys(Array<K> &array) const;
@@ -109,6 +110,14 @@ V &Map<K,V>::get(const K &key)
 	typename std::map<K,V>::iterator it = this->find(key);
 	if(it == this->end()) throw OutOfBounds("Map key does not exist");
 	return it->second;
+}
+
+template<typename K, typename V>
+bool Map<K,V>::getAndRemove(const K &key, V &value) const
+{
+	if(!this->get(key, value)) return false;
+	this->erase(key);
+	return true;
 }
 
 template<typename K, typename V>

@@ -26,6 +26,8 @@
 #include "tpn/synchronizable.h"
 #include "tpn/message.h"
 #include "tpn/database.h"
+#include "tpn/interface.h"
+#include "tpn/identifier.h"
 #include "tpn/string.h"
 #include "tpn/set.h"
 #include "tpn/array.h"
@@ -36,26 +38,53 @@ namespace tpn
 
 class User;
 	
-class MessageQueue : public Synchronizable
+class MessageQueue : public Synchronizable, public HttpInterfaceable
 {
 public:
 	MessageQueue(User *user);
 	~MessageQueue(void);
+
+	User *user(void) const;
 	
-	unsigned count(void) const;
-	unsigned unreadCount(void) const;
 	bool hasNew(void) const;
-	
 	bool add(const Message &message);
 	bool get(const String &stamp, Message &result);
-	bool markRead(const String &stamp, bool read = true);
+	void markRead(const String &stamp);
+	void ack(const Array<Message> &messages);
+
+	void http(const String &prefix, Http::Request &request);
 	
-	bool getLast(int count, Array<Message> &result);
-	bool getLast(const Time &time, int max, Array<Message> &result);
-	bool getLast(const String &oldLast, int count, Array<Message> &result);
+	class Selection
+	{
+	public:
+		Selection(void);
+		Selection(const MessageQueue *messageQueue, const Identifier &peering = Identifier::Null);
+		~Selection(void);
+		
+		unsigned count(void) const;
+		unsigned unreadCount(void) const;
+
+		bool getRange(int offset, int count, Array<Message> &result) const;
+		
+		bool getLast(int count, Array<Message> &result) const;
+		bool getLast(const Time &time, int max, Array<Message> &result) const;
+		bool getLast(const String &oldLast, int count, Array<Message> &result) const;
 	
-	bool getDiff(const Array<String> &oldStamps, Array<Message> &result);
-	bool getUnread(Array<Message> &result);
+		bool getUnread(Array<Message> &result) const;
+		bool getUnreadStamps(StringArray &result) const;
+		void markRead(const String &stamp);
+
+		int checksum(int offset, int count, ByteStream &result) const;
+	
+	private:
+		String filter(void) const;
+		
+		const MessageQueue *mMessageQueue;
+		Identifier mPeering;
+	};
+	
+	Selection select(const Identifier &peering) const;
+	Selection selectAll(void) const;
 	
 private:
 	User *mUser;

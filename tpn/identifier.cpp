@@ -107,8 +107,10 @@ void Identifier::serialize(Stream &s) const
 
 bool Identifier::deserialize(Stream &s)
 {
+	clear();
 	String str;
 	if(!s.read(str)) return false;
+	if(str.empty()) return true;
 	mName = str.cut(':');
 	AssertIO(str.read(mDigest));
 	return true;

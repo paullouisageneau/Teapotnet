@@ -24,10 +24,10 @@
 
 #include "tpn/include.h"
 #include "tpn/serializable.h"
+#include "tpn/notification.h"
 #include "tpn/string.h"
 #include "tpn/identifier.h"
 #include "tpn/map.h"
-#include "tpn/html.h"
 #include "tpn/time.h"
 
 namespace tpn
@@ -40,33 +40,48 @@ public:
 	virtual ~Message(void);
 
 	Time time(void) const;
+	Identifier peering(void) const;
 	String stamp(void) const;
-	const Identifier &receiver(void) const;
+	bool isPublic(void) const;
 	const String &content(void) const;
-	const StringMap &parameters(void) const;
-	bool parameter(const String &name, String &value) const;
+	const StringMap &headers(void) const;
+	bool header(const String &name, String &value) const;
+	String header(const String &name) const;
 	
+	void setPeering(const Identifier &peering);
 	void setContent(const String &content);
-	void setParameters(const StringMap &params);
-	void setParameter(const String &name, const String &value);
+	void setHeaders(const StringMap &headers);
+	void setHeader(const String &name, const String &value);
+	void setDefaultHeader(const String &name, const String &value);
+	
+	bool toggleIncoming(void);
+	bool isIncoming(void) const;
 
 	bool isRead(void) const;
 	void markRead(bool read = true) const;
-	
-	void send(void);
-	void send(const Identifier &receiver);
 
+	bool send(void) const;
+	bool send(const Identifier &peering) const;
+	bool recv(const Notification &notification);
+	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
 	
 private:
-  	Time mTime;
-	Identifier mReceiver;
+	static String GenerateStamp(void);
+	
+	StringMap mHeaders;
+        String mContent;
+
+	Time mTime;
+	ByteString mPeering;	// no instance information
 	String mStamp;
-	StringMap mParameters;
-	String mContent;
+	String mParent;
+	bool mIsIncoming;
+	bool mIsPublic;
+	
 	mutable bool mIsRead;
 	
 	friend class Core;

@@ -205,23 +205,22 @@ void Core::run(void)
 	LogDebug("Core", "Finished");
 }
 
-void Core::sendMessage(const Message &message)
+bool Core::sendNotification(const Notification &notification)
 {
 	Synchronize(this);
 	
 	Array<Identifier> identifiers;
 	
-	if(message.mReceiver == Identifier::Null)
+	if(notification.mPeering == Identifier::Null)
 	{
 		mHandlers.getKeys(identifiers);
 	}
 	else {
-		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(message.mReceiver);
-		if(it == mHandlers.end() || it->first != message.mReceiver)
-			throw Exception("Request receiver is not connected");
-		
+		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(notification.mPeering);
+		if(it == mHandlers.end() || it->first != notification.mPeering) return false;
+			
 		Array<Handler*> handlers;
-		while(it != mHandlers.end() && it->first == message.mReceiver)
+		while(it != mHandlers.end() && it->first == notification.mPeering)
 		{
 			identifiers.push_back(it->first);
 			++it;
@@ -234,9 +233,11 @@ void Core::sendMessage(const Message &message)
 		if(mHandlers.get(identifiers[i], handler))
 		{
 			Desynchronize(this);
-			handler->sendMessage(message);
+			handler->sendNotification(notification);
 		}
 	}
+	
+	return (!identifiers.empty());
 }
 
 unsigned Core::addRequest(Request *request)
@@ -443,18 +444,18 @@ void Core::Handler::setPeering(const Identifier &peering)
 	}
 }
 
-void Core::Handler::sendMessage(const Message &message)
+void Core::Handler::sendNotification(const Notification &notification)
 {
 	{
 		Synchronize(this);
 		if(mStopping) return;
 		
-		LogDebug("Core::Handler", "Sending message");
+		LogDebug("Core::Handler", "Sending notification");
 	}
 	
 	{
 		Synchronize(mSender);
-		mSender->mMessagesQueue.push(message);
+		mSender->mNotificationsQueue.push(notification);
 		mSender->notify();
 	}
 }
@@ -766,7 +767,7 @@ void Core::Handler::process(void)
 		if(parameters.contains("method") && parameters["method"].toUpper() != "DIGEST")
 			throw Exception("Unknown authentication method: " + parameters["method"]);
 		if(parameters.contains("cipher") && parameters["cipher"].toUpper() != "AES256")
-			throw Exception("Unknown authentication method: " + parameters["cipher"]);
+			throw Exception("Unknown authentication cipher: " + parameters["cipher"]);
 		
 		ByteString salt_b, test_b;
 		args >> test_b;
@@ -861,7 +862,7 @@ void Core::Handler::process(void)
 		if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 		{
 			try {
-				listener->connected(peering);
+				listener->connected(peering, mIsIncoming);
 			}
 			catch(const Exception &e)
 			{
@@ -1043,27 +1044,27 @@ void Core::Handler::process(void)
 					parameters.erase("length");
 				}
 			  
-				LogDebug("Core::Handler", "Received message");
+				LogDebug("Core::Handler", "Received notification");
 				
-				Message message;
-				message.mReceiver = mPeering;
-				message.mContent.reserve(length);
-				message.setParameters(parameters);
-				mStream->read(message.mContent, length);
+				Notification notification;
+				notification.setParameters(parameters);
+				notification.mPeering = mPeering;
+				notification.mContent.reserve(length);
+				mStream->read(notification.mContent, length);
 				
 				Listener *listener = NULL;
 				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
 				{
-					LogDebug("Core::Handler", "No listener, dropping message");
+					LogDebug("Core::Handler", "No listener, dropping notification");
 				}
 				else {
 					try {
 						Desynchronize(this);
-						listener->message(&message);
+						listener->notification(&notification);
 					}
 					catch(const Exception &e)
 					{
-						LogWarn("Core::Handler", String("Listener failed to process the message: ") + e.what()); 
+						LogWarn("Core::Handler", String("Listener failed to process the notification: ") + e.what()); 
 					}
 				}
 			}
@@ -1192,7 +1193,7 @@ void Core::Handler::Sender::run(void)
 			Synchronize(this);
 			if(mShouldStop) break;
 
-			if(mMessagesQueue.empty()
+			if(mNotificationsQueue.empty()
 				&& mRequestsQueue.empty()
 			  	&& mTransferts.empty())
 			{
@@ -1242,22 +1243,22 @@ void Core::Handler::Sender::run(void)
 				}
 			}
 			
-			if(!mMessagesQueue.empty())
+			if(!mNotificationsQueue.empty())
 			{
-				const Message &message = mMessagesQueue.front();
-				unsigned length = message.content().size();
+				const Notification &notification = mNotificationsQueue.front();
+				unsigned length = notification.content().size();
 				
-				LogDebug("Core::Handler::Sender", "Sending message");
+				LogDebug("Core::Handler::Sender", "Sending notification");
 
 				String args = "";
-				StringMap parameters = message.parameters();
+				StringMap parameters = notification.parameters();
 				parameters["length"] << length;
 				
 				Handler::sendCommand(mStream, "M", args, parameters);
 				
-				mStream->write(message.mContent);
+				mStream->write(notification.mContent);
 				
-				mMessagesQueue.pop();
+				mNotificationsQueue.pop();
 			}
 			  
 			if(!mRequestsQueue.empty())
@@ -1283,7 +1284,7 @@ void Core::Handler::Sender::run(void)
 				UnPrioritize(this);
 			  
 				// Check for tasks with higher priority
-				if(!mMessagesQueue.empty()
+				if(!mNotificationsQueue.empty()
 				|| !mRequestsQueue.empty())
 					break;
 			  	
@@ -1315,7 +1316,7 @@ void Core::Handler::Sender::run(void)
 					String args;
 					args << channel << " " << status;
 					StringMap parameters;
-					parameters["message"] = e.what();
+					parameters["notification"] = e.what();
 					Handler::sendCommand(mStream, "E", args, parameters);
 					
 					response->mTransfertFinished = true;

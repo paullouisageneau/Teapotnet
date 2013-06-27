@@ -32,7 +32,7 @@
 #include "tpn/mutex.h"
 #include "tpn/signal.h"
 #include "tpn/identifier.h"
-#include "tpn/message.h"
+#include "tpn/notification.h"
 #include "tpn/request.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
@@ -54,9 +54,9 @@ public:
 	class Listener
 	{
 	public:
-		virtual void connected(const Identifier &peering) = 0;
+		virtual void connected(const Identifier &peering, bool incoming) = 0;
 		virtual void disconnected(const Identifier &peering) = 0;
-		virtual void message(Message *message) = 0;
+		virtual void notification(Notification *notification) = 0;
 		virtual void request(Request *request) = 0;
 	};
 	
@@ -79,7 +79,7 @@ public:
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
-	void sendMessage(const Message &message);
+	bool sendNotification(const Notification &notification);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
 	
@@ -96,7 +96,7 @@ private:
 
 		void setPeering(const Identifier &peering);
 		
-		void sendMessage(const Message &message);
+		void sendNotification(const Notification &notification);
 		void addRequest(Request *request);
 		void removeRequest(unsigned id);
 		
@@ -146,7 +146,7 @@ private:
 			Stream *mStream;
 			unsigned mLastChannel;
 			Map<unsigned, Request::Response*> mTransferts;
-			Queue<Message>	mMessagesQueue;
+			Queue<Notification>	mNotificationsQueue;
 			Queue<Request*> mRequestsQueue;
 			Array<Request*> mRequestsToRespond;
 			bool mShouldStop;
