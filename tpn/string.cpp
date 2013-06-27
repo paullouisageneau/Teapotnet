@@ -661,6 +661,11 @@ bool String::deserialize(Stream &s)
 	return s.read(*this); 
 }
 
+bool String::isNativeSerializable(void) const
+{
+	return true;
+}
+
 String String::toString(void) const
 {
 	return *this;

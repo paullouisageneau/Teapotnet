@@ -113,8 +113,8 @@ public:
 		
 	private:
 		MessageQueue::Selection selectMessages(void) const;
-		void sendMessages(int offset, int count) const;
-		void sendMessagesChecksum(int offset, int count, bool recursion) const;
+		void sendMessages(const MessageQueue::Selection &selection, int offset, int count) const;
+		void sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
 		void sendUnread(void) const;
 		
 	  	AddressBook *mAddressBook;
@@ -142,8 +142,8 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
-	static const int MaxChecksumDistance; // for messages synchronization
-
+	static const int MaxChecksumDistance;	// for message synchronization
+	
 	bool publish(const Identifier &remotePeering);
 	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
 	void run(void);

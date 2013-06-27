@@ -48,7 +48,7 @@ public:
 	
 	bool hasNew(void) const;
 	bool add(const Message &message);
-	bool get(const String &stamp, Message &result);
+	bool get(const String &stamp, Message &result) const;
 	void markRead(const String &stamp);
 	void ack(const Array<Message> &messages);
 
@@ -61,9 +61,13 @@ public:
 		Selection(const MessageQueue *messageQueue, const Identifier &peering = Identifier::Null);
 		~Selection(void);
 		
-		unsigned count(void) const;
-		unsigned unreadCount(void) const;
+		bool setBaseStamp(const String &stamp);
+		String baseStamp(void) const;
+		
+		int count(void) const;
+		int unreadCount(void) const;
 
+		bool getOffset(int offset, Message &result) const;
 		bool getRange(int offset, int count, Array<Message> &result) const;
 		
 		bool getLast(int count, Array<Message> &result) const;
@@ -78,9 +82,13 @@ public:
 	
 	private:
 		String filter(void) const;
+		void filterBind(Database::Statement &statement) const;
 		
 		const MessageQueue *mMessageQueue;
 		Identifier mPeering;
+		
+		String mBaseStamp;
+		Time mBaseTime;
 	};
 	
 	Selection select(const Identifier &peering) const;

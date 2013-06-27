@@ -104,7 +104,7 @@ bool MessageQueue::add(const Message &message)
 	return true;
 }
 
-bool MessageQueue::get(const String &stamp, Message &result)
+bool MessageQueue::get(const String &stamp, Message &result) const
 {
 	Synchronize(this);
  
@@ -324,7 +324,8 @@ MessageQueue::Selection::Selection(void) :
 
 MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering) :
 	mMessageQueue(messageQueue),
-	mPeering(peering)
+	mPeering(peering),
+	mBaseTime(time_t(0))
 {
 	
 }
@@ -334,32 +335,73 @@ MessageQueue::Selection::~Selection(void)
 	
 }
 
-unsigned MessageQueue::Selection::count(void) const
+bool MessageQueue::Selection::setBaseStamp(const String &stamp)
+{
+	/*if(!stamp.empty())
+	{
+		Message base;
+		if(mMessageQueue->get(stamp, base))
+		{
+			mBaseStamp = base.stamp();
+			mBaseTime = base.time();
+			return true;
+		}
+	}
+	
+	mBaseStamp.clear();*/
+	return false;
+}
+	
+String MessageQueue::Selection::baseStamp(void) const
+{
+	return "";//mBaseStamp;
+}
+
+int MessageQueue::Selection::count(void) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	
-	unsigned count = 0;
+	int count = 0;
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter());
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	filterBind(statement);
 	if(!statement.step()) return 0;
 	statement.input(count);
 	statement.finalize();
 	return count;
 }
 
-unsigned MessageQueue::Selection::unreadCount(void) const
+int MessageQueue::Selection::unreadCount(void) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	
-	unsigned count = 0;
+	int count = 0;
         Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter()+" AND isread=0");
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	filterBind(statement);
 	if(!statement.step()) return 0;
         statement.input(count);
         statement.finalize();
         return count;
+}
+
+bool MessageQueue::Selection::getOffset(int offset, Message &result) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time,stamp LIMIT @offset,1");
+	filterBind(statement);
+	statement.bind(statement.parameterIndex("offset"), offset);
+	if(!statement.step())
+	{
+		statement.finalize();
+		return false;
+	}
+	
+        statement.input(result);
+	statement.finalize();
+        return true;
 }
 
 bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &result) const
@@ -369,7 +411,7 @@ bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &re
 	result.clear();
 	
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time,stamp LIMIT @offset,@count");
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	filterBind(statement);
 	statement.bind(statement.parameterIndex("offset"), offset);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
@@ -385,7 +427,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	result.clear();
 
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time DESC LIMIT @count");
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
 	statement.finalize();
@@ -406,7 +448,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	result.clear();
 	
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time ORDER BY time DESC LIMIT @max");
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
         statement.fetch(result);
@@ -459,7 +501,7 @@ bool MessageQueue::Selection::getUnread(Array<Message> &result) const
 	result.clear();
 	
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
-        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+        filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
         return (!result.empty());
@@ -472,7 +514,7 @@ bool MessageQueue::Selection::getUnreadStamps(StringArray &result) const
 	result.clear();
 	
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
-        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+        filterBind(statement);
 	statement.fetchColumn(0, result);
 	statement.finalize();
         return (!result.empty());
@@ -484,7 +526,7 @@ void MessageQueue::Selection::markRead(const String &stamp)
         Synchronize(mMessageQueue);
 
         Database::Statement statement = mMessageQueue->mDatabase->prepare("UPDATE messages SET isread=1 WHERE "+filter()+" AND stamp=@stamp");
-        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+        filterBind(statement);
 	statement.bind(statement.parameterIndex("stamp"), stamp);
         statement.execute();
 }
@@ -496,7 +538,7 @@ int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result)
 	result.clear();
 	
         Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp AS sum FROM messages WHERE "+filter()+"  ORDER BY time,stamp LIMIT @offset,@count");
-        statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+        filterBind(statement);
         statement.bind(statement.parameterIndex("offset"), offset);
 	statement.bind(statement.parameterIndex("count"), count);
        
@@ -519,8 +561,20 @@ int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result)
 String MessageQueue::Selection::filter(void) const
 {
 	String condition;
-	if(mPeering != Identifier::Null) return "peering=@peering";
-	else return "1=1"; // TODO
+	if(mPeering != Identifier::Null) condition = "peering=@peering";
+	else condition = "1=1"; // TODO
+	
+	if(!mBaseStamp.empty())
+		condition+=" AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
+	
+	return condition;
+}
+
+void MessageQueue::Selection::filterBind(Database::Statement &statement) const
+{
+	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("basestamp"), mBaseStamp);
+	statement.bind(statement.parameterIndex("basetime"), mBaseTime);
 }
 
 }

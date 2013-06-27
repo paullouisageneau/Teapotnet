@@ -297,7 +297,8 @@ void AddressBook::load(Stream &stream)
 	}
 	delete contact;
 	
-	if(changed) start();
+	if(changed && !isRunning())
+		start();
 }
 
 void AddressBook::save(Stream &stream) const
@@ -1048,16 +1049,12 @@ void AddressBook::Contact::update(bool alternate)
 
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
-	Synchronize(this);
-	Assert(peering == mPeering);
-
 	// Send info
 	mAddressBook->user()->sendInfo(peering);
 
 	// Send contacts if self
         if(isSelf())
         {
-		Desynchronize(this);
                 String data;
         	mAddressBook->save(data);
                 Notification notification(data);
@@ -1068,20 +1065,20 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	if(incoming) 
 	{
 		MessageQueue::Selection selection = selectMessages();
-		int total = selection.count();
-		int offset = std::max(MaxChecksumDistance, total) - MaxChecksumDistance;
-                int count = total - offset;
-		sendMessagesChecksum(offset, count, true);
+		Message base;
+		if(selection.getOffset(std::max(int(selection.count()) - MaxChecksumDistance, 0), base))
+			selection.setBaseStamp(base.stamp());
+		
+		sendMessagesChecksum(selection, 0, selection.count(), true);
 	}
 }
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	Synchronize(this);
-	Assert(peering == mPeering);
+	//Synchronize(this);
+	//Assert(peering == mPeering);
 	
-	//update(false);
-	//update(true);
+	// TODO: try to reconnect
 }
 
 void AddressBook::Contact::notification(Notification *notification)
@@ -1161,13 +1158,16 @@ void AddressBook::Contact::notification(Notification *notification)
 		int count = 0;
 		int total = 0;
 		bool recursion = false;
+		String base;
 		
 		try {
 			parameters["offset"] >> offset;
 			parameters["count"] >> count;
 			parameters["total"] >> total;
 			parameters["recursion"] >> recursion;
-		
+			if(parameters.contains("base"))
+				parameters["base"] >> base;
+			
 			Assert(offset >= 0);
 			Assert(count > 0);
 			Assert(offset + count <= total);
@@ -1187,10 +1187,12 @@ void AddressBook::Contact::notification(Notification *notification)
 			throw InvalidData("checksum notification content: " + notification->content());
 		}
 	
-		MessageQueue::Selection selection = selectMessages();
+		MessageQueue::Selection selection = selectMessages();		
+		selection.setBaseStamp(base);
+		
 		int localTotal = selection.count();
 		bool isLastIteration = false;
-		if(offset + count <= localTotal && offset + MaxChecksumDistance >= localTotal)
+		if(offset + count <= localTotal)
 		{
 			ByteString result;
 			selection.checksum(offset, count, result);
@@ -1201,17 +1203,17 @@ void AddressBook::Contact::notification(Notification *notification)
 			
 				if(count == 1)	// TODO
 				{
-					sendMessages(offset, count);
+					sendMessages(selection, offset, count);
 					if(recursion)
 					{
-						sendMessagesChecksum(offset, count, false);
+						sendMessagesChecksum(selection, offset, count, false);
 						isLastIteration = true;
 					}
 				}
 				else if(recursion)
 				{
-					sendMessagesChecksum(offset, count/2, true);
-					sendMessagesChecksum(offset + count/2, count - count/2, true);
+					sendMessagesChecksum(selection, offset, count/2, true);
+					sendMessagesChecksum(selection, offset + count/2, count - count/2, true);
 				}
 			
 				if(!recursion) 
@@ -1220,18 +1222,16 @@ void AddressBook::Contact::notification(Notification *notification)
 			else isLastIteration = true;
 		}
 		else {
-			int newOffset = std::max(offset+MaxChecksumDistance, localTotal) - MaxChecksumDistance;
-			int newCount = std::min(offset+count, localTotal) - newOffset;
-			sendMessagesChecksum(newOffset, newCount, true);
+			sendMessagesChecksum(selection, offset, localTotal-offset, true);
 		}
 
 		if(isLastIteration)
 		{
-			sendUnread();
-
 			// If messages are missing remotely
 			if(total < localTotal)
-				sendMessages(total, localTotal - total);
+				sendMessages(selection, total, localTotal - total);
+			
+			sendUnread();
 		}
 	}
 	else if(type == "info")
@@ -1292,18 +1292,16 @@ void AddressBook::Contact::notification(Notification *notification)
 MessageQueue::Selection AddressBook::Contact::selectMessages(void) const
 {
 	MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-	MessageQueue::Selection selection;
 	if(isSelf()) return messageQueue->selectAll();
 	else return messageQueue->select(peering());
 }
 
-void AddressBook::Contact::sendMessages(int offset, int count) const
+void AddressBook::Contact::sendMessages(const MessageQueue::Selection &selection, int offset, int count) const
 {
 	if(!count) return;
 
 	LogDebug("AddressBook::Contact", "Synchronization: Sending messages: " + String::number(offset) + ", " + String::number(count));
 
-	MessageQueue::Selection selection = selectMessages();
 	Array<Message> messages;
 	selection.getRange(offset, count, messages);
 	
@@ -1311,10 +1309,8 @@ void AddressBook::Contact::sendMessages(int offset, int count) const
 		messages[i].send(peering());
 }
 
-void AddressBook::Contact::sendMessagesChecksum(int offset, int count, bool recursion) const
+void AddressBook::Contact::sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const
 {
-	MessageQueue::Selection selection = selectMessages();
-
 	int total = selection.count();
 	offset = bounds(offset, 0, total);
 	count = bounds(count, 0, total - offset); 
@@ -1331,6 +1327,9 @@ void AddressBook::Contact::sendMessagesChecksum(int offset, int count, bool recu
 	parameters["count"] << count;
 	parameters["total"] << total;
 	parameters["recursion"] << recursion;
+	
+	String base = selection.baseStamp();
+	if(!base.empty()) parameters["base"] << base;
 		
 	Notification notification(result.toString());
 	notification.setParameters(parameters);
