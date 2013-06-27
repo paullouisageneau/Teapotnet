@@ -1044,7 +1044,7 @@ void Core::Handler::process(void)
 					parameters.erase("length");
 				}
 			  
-				LogDebug("Core::Handler", "Received notification");
+				//LogDebug("Core::Handler", "Received notification");
 				
 				Notification notification;
 				notification.setParameters(parameters);
