@@ -1094,7 +1094,7 @@ void AddressBook::Contact::notification(Notification *notification)
 	
 	String type;
 	parameters.get("type", type);
-	LogDebug("AddressBook::Contact", "Incoming notification (type='" + type + "')");
+	LogDebug("AddressBook::Contact", "Incoming notification from "+uniqueName()+" (type='" + type + "')");
 	
 	if(type.empty() || type == "message")
 	{
@@ -1229,7 +1229,7 @@ void AddressBook::Contact::notification(Notification *notification)
 			sendMessagesChecksum(selection, offset, localTotal-offset, true);
 		}
 
-		if(isLastIteration)
+		if(isLastIteration && offset == 0)
 		{
 			// If messages are missing remotely
 			if(total < localTotal)

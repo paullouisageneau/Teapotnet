@@ -1248,7 +1248,7 @@ void Core::Handler::Sender::run(void)
 				const Notification &notification = mNotificationsQueue.front();
 				unsigned length = notification.content().size();
 				
-				LogDebug("Core::Handler::Sender", "Sending notification");
+				//LogDebug("Core::Handler::Sender", "Sending notification");
 
 				String args = "";
 				StringMap parameters = notification.parameters();
