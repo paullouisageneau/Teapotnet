@@ -200,7 +200,7 @@ function setMessagesReceiverRec(url, object, last) {
 	$.ajax({
 		url: url,
 		dataType: 'json',
-		timeout: 300000
+		timeout: 60000
 	})
 	.done(function(data) {
 		for(var i=0; i<data.length; i++) {
@@ -219,11 +219,11 @@ function setMessagesReceiverRec(url, object, last) {
 		}
 		setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
-		}, 10);
+		}, 100);
 	})
 	.fail(function(jqXHR, textStatus) {
 		setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
-		}, 1000);
+		}, 100);
 	});
 }
