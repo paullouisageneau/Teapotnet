@@ -167,10 +167,8 @@ bool Message::recv(const Notification &notification)
 	if(!type.empty() && type != "message") return false;
 	
 	String tmp = notification.content();
-	VAR(tmp);
 	YamlSerializer serializer(&tmp);
 	serializer.input(*this);
-	VAR(mContent);
 	return true;
 }
 
