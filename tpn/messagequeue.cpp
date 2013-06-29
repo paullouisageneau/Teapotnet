@@ -377,7 +377,7 @@ int MessageQueue::Selection::unreadCount(void) const
 	Synchronize(mMessageQueue);
 	
 	int count = 0;
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter()+" AND isread=0");
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter()+" AND isread=0 AND incoming=1");
 	filterBind(statement);
 	if(!statement.step()) return 0;
         statement.input(count);
