@@ -434,7 +434,6 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	
 	if(!result.empty())
 	{
-		result.reverse();
 		mMessageQueue->mHasNew = false;
 		return true;
 	}
@@ -456,7 +455,6 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	
 	if(!result.empty())
 	{
-		result.reverse();
 		mMessageQueue->mHasNew = false;
 		return true;
 	}
@@ -472,26 +470,28 @@ bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Me
 	if(oldLast.empty()) 
 		return getLast(count, result);
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT time FROM messages WHERE stamp=?1");
+	int64_t oldLastId = 0;
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
 	statement.bind(1, oldLast);
-        if(!statement.step())
+        if(statement.step())
 	{
+		statement.input(oldLastId);
 		statement.finalize();
-		return getLast(count, result);
 	}
-	Time time;
-	statement.input(time);
+	
+	statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND id>@id LIMIT @count");
+	filterBind(statement);
+	statement.bind(statement.parameterIndex("id"), oldLastId);
+	statement.bind(statement.parameterIndex("count"), count);
+        statement.fetch(result);
 	statement.finalize();
-
-	if(!getLast(time, count, result)) 
-		return false;
-
-	int i = 0;
-	while(i < result.size())
-		if(result[i++].stamp() == oldLast)
-			break;
-	result.erase(0, i);
-	return (!result.empty());
+	
+	if(!result.empty())
+	{
+		mMessageQueue->mHasNew = false;
+		return true;
+	}
+        return false;
 }
 
 bool MessageQueue::Selection::getUnread(Array<Message> &result) const
