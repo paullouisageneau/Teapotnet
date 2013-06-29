@@ -426,7 +426,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" DESC LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
@@ -447,7 +447,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time DESC LIMIT @max");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time LIMIT @max");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
