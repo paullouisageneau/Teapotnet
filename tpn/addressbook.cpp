@@ -1318,7 +1318,6 @@ void AddressBook::Contact::sendMessagesChecksum(const MessageQueue::Selection &s
 	int total = selection.count();
 	offset = bounds(offset, 0, total);
 	count = bounds(count, 0, total - offset); 
-	if(!count) return;
 	
 	LogDebug("AddressBook::Contact", "Synchronization: Sending checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
 
