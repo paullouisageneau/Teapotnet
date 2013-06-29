@@ -187,6 +187,11 @@ $(window).focus(function() {
 	NbNewMessages = 0;
 });
 
+$(window).blur(function() {
+	document.title = BaseDocumentTitle;
+	NbNewMessages = 0;
+});
+
 function setMessagesReceiverRec(url, object, last) {
 
 	var baseUrl = url;
