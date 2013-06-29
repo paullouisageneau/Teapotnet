@@ -168,8 +168,9 @@ void JsonSerializer::output(const String &str)
 		
 		switch(chr)
 		{
+		case '\\': mStream->write("\\\\"); break;
 		case '\"': mStream->write("\\\""); break;
-		case '\'': mStream->write("\\\'"); break;
+		//case '\'': mStream->write("\\\'"); break;
 		case '\b': mStream->write("\\b");  break;
 		case '\f': mStream->write("\\f");  break;
 		case '\n': mStream->write("\\n");  break;
