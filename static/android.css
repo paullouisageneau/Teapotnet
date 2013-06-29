@@ -418,6 +418,21 @@ textarea
 	opacity: 0.7;
 }
 
+.message .date
+{
+
+}
+
+.message .author
+{
+	font-weight: bold;
+}
+
+.message .content
+{
+
+}
+
 .out
 {
 	color: #1010F0;

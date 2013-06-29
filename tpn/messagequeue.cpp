@@ -470,7 +470,7 @@ bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Me
 	if(oldLast.empty()) 
 		return getLast(count, result);
 	
-	int64_t oldLastId = 0;
+	int64_t oldLastId = -1;
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
 	statement.bind(1, oldLast);
         if(statement.step())
