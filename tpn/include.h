@@ -28,6 +28,7 @@
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://www.teapotnet.org/"
 #define SOURCELINK	"http://www.teapotnet.org/source/"
+#define HELPLINK	"http://www.teapotnet.org/wiki/"
 #define DOWNLOADURL	"http://www.teapotnet.org/download/"
 
 

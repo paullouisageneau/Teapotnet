@@ -440,6 +440,8 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
+			page.link(HELPLINK, "Help", "", true);
+			page.text(" - ");
 			page.link(SOURCELINK, "Source code", "", true);
 			page.close("div");
 			
