@@ -1281,7 +1281,7 @@ void Core::Handler::Sender::run(void)
 			
 			for(int i=0; i<channels.size(); ++i)
 			{
-				Yield(this);
+				SyncYield(this);
 			  
 				// Check for tasks with higher priority
 				if(!mNotificationsQueue.empty()

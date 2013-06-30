@@ -101,7 +101,7 @@ bool MessageQueue::add(const Message &message)
 	mDatabase->insert("messages", message);
 	mHasNew = true;
 	notifyAll();
-	Yield(this);
+	SyncYield(this);
 	return true;
 }
 
