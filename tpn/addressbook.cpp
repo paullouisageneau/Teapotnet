@@ -1173,7 +1173,7 @@ void AddressBook::Contact::notification(Notification *notification)
 				parameters["base"] >> base;
 			
 			Assert(offset >= 0);
-			Assert(count > 0);
+			Assert(count >= 0);
 			Assert(offset + count <= total);
 		}
 		catch(const Exception &e)

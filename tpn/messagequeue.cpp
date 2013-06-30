@@ -101,6 +101,7 @@ bool MessageQueue::add(const Message &message)
 	mDatabase->insert("messages", message);
 	mHasNew = true;
 	notifyAll();
+	Yield(this);
 	return true;
 }
 
@@ -290,9 +291,6 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				post();\n\
 			}\n\
 		});\n\
-		$(document).ready( function() {\n\
-			$('#chatmessages').scrollTop($('#chatmessages')[0].scrollHeight);\n\
-		});\n\
 		setMessagesReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmessages');");
 
 	unsigned refreshPeriod = 5000;
@@ -426,7 +424,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
@@ -434,6 +432,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	
 	if(!result.empty())
 	{
+		result.reverse();
 		mMessageQueue->mHasNew = false;
 		return true;
 	}
@@ -446,7 +445,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time LIMIT @max");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time ORDER BY id DESC LIMIT @max");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
@@ -455,6 +454,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	
 	if(!result.empty())
 	{
+		result.reverse();
 		mMessageQueue->mHasNew = false;
 		return true;
 	}

@@ -1043,7 +1043,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	Synchronize(this);
 
 	try {
-		UnPrioritize(this);
+		Unprioritize(this);
 	  
 		String absPath = absolutePath(path);
 		
@@ -1083,8 +1083,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			  
 				if(type && computeDigests)
 				{
-					digest.clear();
 					Desynchronize(this);
+					digest.clear();
 					File data(absPath, File::Read);
 					Sha512::Hash(data, digest);
 					data.close();
@@ -1108,8 +1108,8 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			
 			if(type && computeDigests)
 			{
-				digest.clear();
 				Desynchronize(this);
+				digest.clear();
 				File data(absPath, File::Read);
 				Sha512::Hash(data, digest);
 				data.close();
@@ -1148,6 +1148,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 			
 		if(!type)	// directory
 		{
+			Desynchronize(this);
 			Directory dir(absPath);
 			while(dir.nextFile())
 			{

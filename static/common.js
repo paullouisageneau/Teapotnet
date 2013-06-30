@@ -218,6 +218,8 @@ function setMessagesReceiverRec(url, object, last) {
 			if(message.incoming) $('#'+id).addClass('in');
 			else $('#'+id).addClass('out');
 		}
+		$(object).scrollTop($(object)[0].scrollHeight);
+		
 		if(NbNewMessages) {
 			document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
 			playMessageSound();
