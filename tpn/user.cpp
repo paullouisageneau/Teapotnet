@@ -359,7 +359,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("var title = document.title;\n\
 					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
-					play = false;\n\
+					var play = false;\n\
 					$.each(data, function(uname, info) {\n\
 						$('#contact_'+uname).attr('class', info.status);\n\
 						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
