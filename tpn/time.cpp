@@ -63,7 +63,7 @@ Time::Time(time_t time = 0) :
 // 
 Time::Time(const String &str)
 {
-	const String months[] = {"jan","feb","mar","apr","may","jun","sep","oct","nov","dec"};
+	const String months[] = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"};
 
 	if(str.trimmed().empty())
 	{
@@ -94,7 +94,7 @@ Time::Time(const String &str)
                         tmp.explode(dateParts, '-');
                         Assert(dateParts.size() == 3);
 			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
-                        tmp  = dateParts.front().toInt(); dateParts.pop_front();
+                        tmp  = dateParts.front().toLower(); dateParts.pop_front();
                         int m = 0; while(m < 12 && months[m] != tmp) ++m;
                         Assert(m < 12);
                         tms.tm_mon = m;
