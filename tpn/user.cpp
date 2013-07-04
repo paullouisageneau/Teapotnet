@@ -276,8 +276,6 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
-			/*if(!instance.empty()) page.text(name() + "@" + tracker + " / " + instance);
-			else page.text(name());*/
 			if(!instance.empty()) page.text(instance + " (" + name() + "@" + tracker + ")");
 			else page.text(name());
 			page.close("h1");
@@ -395,6 +393,55 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 			
+			// TODO: newsFeed et post statuts
+
+			page.open("div", "newsFeed");
+			page.close("div");
+
+			page.open("div", "statuspanel");
+			page.openForm("#", "post", "statusform");
+			page.textarea("statusinput");
+			page.closeForm();
+			page.javascript("$(document).ready(function() { document.statusform.statusinput.focus(); });\n\
+document.statusform.onblur = function()\n\
+				{\n\
+					value='Express yourself !';\n\
+				}\n\")\n\
+document.statusform.onfocus = function()\n\
+				{\n\
+					value='';\n\
+				}\n\
+");
+			page.close("div");
+
+			String urlBroadcastPost = "/messages/";
+		 
+			page.javascript("function post()\n\
+				{\n\
+					var message = document.statusform.statusinput.value;\n\
+					if(!message) return false;\n\
+					document.statusform.statusinput.value = '';\n\
+					var request = $.post('"+prefix+urlBroadcastPost+"',\n\
+						{ 'message': message ; 'public':1 });\n\
+					request.fail(function(jqXHR, textStatus) {\n\
+						alert('The message could not be sent.');\n\
+					});\n\
+				}\n\
+				document.statusform.onsubmit = function()\n\
+				{\n\
+					alert('Test submit');\n\
+					//post();\n\
+					return false;\n\
+				}\n\
+				$('textarea.statusinput').keypress(function(e) {\n\
+					if (e.keyCode == 13 /*&& !e.shiftKey*/) {\n\
+						e.preventDefault();\n\
+						//post();\n\
+					}\n\
+				});\n\
+				//setMessagesReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#newsFeed');");
+				// TODO : modifier l'url de setMessagesReceiver
+
 			unsigned refreshPeriod = 5000;
 			page.javascript("var title = document.title;\n\
 					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
@@ -415,7 +462,6 @@ void User::http(const String &prefix, Http::Request &request)
 					if(play) playMessageSound();\n\
 			});");
 
-			// Emplacement ancien de files
 			
 			directories.clear();
 			Store::GlobalInstance->getDirectories(directories);

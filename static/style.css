@@ -514,7 +514,7 @@ td.delete
 	height: 20%;
 	padding-top: 15px;
 	padding-left: 4px;
-	background-color: rgba(24,24,24,0.7);
+	background-color: rgba(24,24,24,0.5);
 	color: rgba(24,24,24,0.7);
 }
 
@@ -596,17 +596,14 @@ td.delete
 
 #contacts
 {
-	/*position: absolute;
-	top: 0;
-	left: 0;*/
 	position: float;
 	border-radius: 0px 0px 5px 5px;
 	width: 95%;
 	height: 70%;
 	padding-top: 15px;
 	padding-left: 4px;
-	background-color: rgba(24,24,24,0.7);
-	color: rgba(24,24,24,0.7);
+	background-color: rgba(24,24,24,0.5);
+	color: #000000;
 }
 
 .contacts button
