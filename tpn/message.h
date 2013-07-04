@@ -49,6 +49,7 @@ public:
 	String header(const String &name) const;
 	
 	void setPeering(const Identifier &peering);
+	void setPublic(bool ispublic);
 	void setContent(const String &content);
 	void setHeaders(const StringMap &headers);
 	void setHeader(const String &name, const String &value);
@@ -60,8 +61,7 @@ public:
 	bool isRead(void) const;
 	void markRead(bool read = true) const;
 
-	bool send(void) const;
-	bool send(const Identifier &peering) const;
+	bool send(const Identifier &peering = Identifier::Null) const;
 	bool recv(const Notification &notification);
 	
 	// Serializable

@@ -85,12 +85,6 @@ void Notification::setParameter(const String &name, const String &value)
 	mParameters[name] = value; 
 }
 
-bool Notification::send(void)
-{
-	mPeering = Identifier::Null;
-	return Core::Instance->sendNotification(*this);
-}
-
 bool Notification::send(const Identifier &peering)
 {
 	mPeering = peering;

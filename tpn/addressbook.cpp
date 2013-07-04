@@ -1296,7 +1296,7 @@ void AddressBook::Contact::notification(Notification *notification)
 MessageQueue::Selection AddressBook::Contact::selectMessages(void) const
 {
 	MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-	if(isSelf()) return messageQueue->selectAll();
+	if(isSelf()) return messageQueue->select();
 	else return messageQueue->select(peering());
 }
 

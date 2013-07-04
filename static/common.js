@@ -208,21 +208,23 @@ function setMessagesReceiverRec(url, object, last) {
 		timeout: 60000
 	})
 	.done(function(data) {
-		for(var i=0; i<data.length; i++) {
-			var message = data[i];
-			var id = "message_" + message.stamp;
-			$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
-			last = message.stamp;
-			if(message.incoming && !message.isread) NbNewMessages++;
-			if(message.isread) $('#'+id).addClass('oldmessage');
-			if(message.incoming) $('#'+id).addClass('in');
-			else $('#'+id).addClass('out');
-		}
-		$(object).scrollTop($(object)[0].scrollHeight);
-		
-		if(NbNewMessages) {
-			document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-			playMessageSound();
+		if(data != null) {
+			for(var i=0; i<data.length; i++) {
+				var message = data[i];
+				var id = "message_" + message.stamp;
+				$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
+				last = message.stamp;
+				if(message.incoming && !message.isread) NbNewMessages++;
+				if(message.isread) $('#'+id).addClass('oldmessage');
+				if(message.incoming) $('#'+id).addClass('in');
+				else $('#'+id).addClass('out');
+			}
+			$(object).scrollTop($(object)[0].scrollHeight);
+			
+			if(NbNewMessages) {
+				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
+				playMessageSound();
+			}
 		}
 		setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
