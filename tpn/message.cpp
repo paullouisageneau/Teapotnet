@@ -91,6 +91,11 @@ String Message::header(const String &name) const
 	else return String();
 }
 
+void Message::setPublic(bool ispublic)
+{
+	mIsPublic = ispublic;
+}
+
 void Message::setPeering(const Identifier &peering)
 {
 	mPeering = peering.getDigest();
@@ -136,17 +141,6 @@ bool Message::isRead(void) const
 void Message::markRead(bool read) const
 {
 	mIsRead = read; 
-}
-
-bool Message::send(void) const
-{
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serializer.output(*this);
-	
-	Notification notification(tmp);
-	notification.setParameter("type", "message");
-	return notification.send();
 }
 
 bool Message::send(const Identifier &peering) const

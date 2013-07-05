@@ -58,11 +58,13 @@ public:
 	{
 	public:
 		Selection(void);
-		Selection(const MessageQueue *messageQueue, const Identifier &peering = Identifier::Null);
+		Selection(const MessageQueue *messageQueue, const Identifier &peering, bool includePrivate, bool includePublic);
 		~Selection(void);
 		
 		bool setBaseStamp(const String &stamp);
 		String baseStamp(void) const;
+		bool includePrivate(bool enabled);
+		bool includePublic(bool enabled);
 		
 		int count(void) const;
 		int unreadCount(void) const;
@@ -89,10 +91,13 @@ public:
 		
 		String mBaseStamp;
 		Time mBaseTime;
+		bool mIncludePrivate;
+		bool mIncludePublic;
 	};
 	
-	Selection select(const Identifier &peering) const;
-	Selection selectAll(void) const;
+	Selection select(const Identifier &peering = Identifier::Null) const;
+	Selection selectPrivate(const Identifier &peering = Identifier::Null) const;
+	Selection selectPublic(const Identifier &peering = Identifier::Null) const;
 	
 private:
 	User *mUser;

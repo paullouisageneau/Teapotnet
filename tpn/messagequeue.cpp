@@ -99,7 +99,7 @@ bool MessageQueue::add(const Message &message)
 	}
 
 	mDatabase->insert("messages", message);
-	mHasNew = true;
+	if(message.isIncoming()) mHasNew = true;
 	notifyAll();
 	SyncYield(this);
 	return true;
@@ -169,39 +169,46 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	String uname = url;
 	url = uname.cut('/');
 	if(!url.empty()) throw 404;
-	url = "/" + uname + "/";
+	url = "/";
+	if(!uname.empty()) url+= uname + "/";
 	
-	const AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(uname);
+	Identifier peering;
+	const AddressBook::Contact *contact = NULL;
+	if(!uname.empty()) 
+	{
+		contact = mUser->addressBook()->getContactByUniqueName(uname);
+		if(!contact) throw 404;
+		peering = contact->peering();
+	}
+	
 	const AddressBook::Contact *self = mUser->addressBook()->getSelf();
-	if(!contact) throw 404;
-		
-	String name = contact->name();
-	String status = contact->status();
-	Identifier peering = contact->peering();
 	
 	if(request.method == "POST")
         {
-                if(request.post.contains("message") && !request.post["message"].empty())
-                {
-                        try {
-                                Message message(request.post["message"]);
-				message.setPeering(peering);
-				message.setHeader("from", mUser->name());
-				message.send(peering);
-				if(self && self->peering() != peering) 
-					message.send(self->peering());
-                                add(message);
-                        }
-                        catch(const Exception &e)
-                        {
-                                LogWarn("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
-                                throw 409;
-                        }
+                if(!request.post.contains("message") || request.post["message"].empty())
+			throw 400;
+		
+		bool isPublic = request.post["public"].toBool();
+		
+		try {
+			Message message(request.post["message"]);
+			message.setPeering(peering);
+			message.setPublic(isPublic);
+			message.setHeader("from", mUser->name());
+			message.send(peering);
+			if(self && self->peering() != peering) 
+				message.send(self->peering());
+			add(message);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("AddressBook::Contact::http", String("Cannot post message: ") + e.what());
+			throw 409;
+		}
 
-                        Http::Response response(request, 200);
-                        response.send();
-                        return;
-                }
+		Http::Response response(request, 200);
+		response.send();
+		return;
         }
         
 	if(request.get.contains("json"))
@@ -215,8 +222,12 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 
 		const int count = 10;
 
+		Selection selection;
+		if(request.get["public"].toBool()) selection = selectPublic(peering);
+		else  selection = selectPrivate(peering);
+		
 		SerializableArray<Message> array;
-		while(!select(peering).getLast(last, count, array))
+		while(!selection.getLast(last, count, array))
 			wait();
 
 		ack(array);
@@ -225,6 +236,10 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		serializer.output(array);
 		return;
 	}
+	
+	if(!contact) throw 400;
+	String name = contact->name();
+	String status = contact->status();
 	
 	bool isPopup = request.get.contains("popup");
 
@@ -306,24 +321,34 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 
 MessageQueue::Selection MessageQueue::select(const Identifier &peering) const
 {
-	return Selection(this, peering);
+	return Selection(this, peering, true, true);
 }
 
-MessageQueue::Selection MessageQueue::selectAll(void) const
+MessageQueue::Selection MessageQueue::selectPrivate(const Identifier &peering) const
 {
-	return Selection(this, Identifier::Null);
+	return Selection(this, peering, true, false);
+}
+
+MessageQueue::Selection MessageQueue::selectPublic(const Identifier &peering) const
+{
+	return Selection(this, peering, false, true);
 }
 
 MessageQueue::Selection::Selection(void) :
-	mMessageQueue(NULL)
+	mMessageQueue(NULL),
+	mBaseTime(time_t(0)),
+	mIncludePrivate(true),
+	mIncludePublic(true)
 {
 	
 }
 
-MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering) :
+MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering, bool includePrivate, bool includePublic) :
 	mMessageQueue(messageQueue),
 	mPeering(peering),
-	mBaseTime(time_t(0))
+	mBaseTime(time_t(0)),
+	mIncludePrivate(includePrivate),
+	mIncludePublic(includePublic)
 {
 	
 }
@@ -564,8 +589,10 @@ String MessageQueue::Selection::filter(void) const
 	if(mPeering != Identifier::Null) condition = "peering=@peering";
 	else condition = "1=1"; // TODO
 	
-	if(!mBaseStamp.empty())
-		condition+=" AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
+	if(!mBaseStamp.empty()) condition+= " AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
+	
+	if( mIncludePrivate && !mIncludePublic) condition+= " AND public=0";
+	if(!mIncludePrivate &&  mIncludePublic) condition+= " AND public=1";
 	
 	return condition;
 }

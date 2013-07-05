@@ -48,8 +48,7 @@ public:
 	void setParameters(const StringMap &parameters);
 	void setParameter(const String &name, const String &value);
 
-	bool send(void);
-	bool send(const Identifier &peering);
+	bool send(const Identifier &peering = Identifier::Null);
 	
 private:
 	Identifier mPeering;
