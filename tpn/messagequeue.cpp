@@ -220,12 +220,13 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		response.headers["Content-Type"] = "application/json";
 		response.send();
 
-		const int count = 10;
-
 		Selection selection;
 		if(request.get["public"].toBool()) selection = selectPublic(peering);
 		else  selection = selectPrivate(peering);
 		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
+		
+		int count = 10;
+		if(request.get.contains("count")) count = request.get["count"].toInt();
 		
 		SerializableArray<Message> array;
 		while(!selection.getLast(last, count, array))
