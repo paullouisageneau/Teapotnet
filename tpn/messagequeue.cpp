@@ -225,6 +225,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		Selection selection;
 		if(request.get["public"].toBool()) selection = selectPublic(peering);
 		else  selection = selectPrivate(peering);
+		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
 		
 		SerializableArray<Message> array;
 		while(!selection.getLast(last, count, array))
@@ -321,34 +322,37 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 
 MessageQueue::Selection MessageQueue::select(const Identifier &peering) const
 {
-	return Selection(this, peering, true, true);
+	return Selection(this, peering, true, true, true);
 }
 
 MessageQueue::Selection MessageQueue::selectPrivate(const Identifier &peering) const
 {
-	return Selection(this, peering, true, false);
+	return Selection(this, peering, true, false, true);
 }
 
-MessageQueue::Selection MessageQueue::selectPublic(const Identifier &peering) const
+MessageQueue::Selection MessageQueue::selectPublic(const Identifier &peering, bool includeOutgoing) const
 {
-	return Selection(this, peering, false, true);
+	return Selection(this, peering, false, true, includeOutgoing);
 }
 
 MessageQueue::Selection::Selection(void) :
 	mMessageQueue(NULL),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(true),
-	mIncludePublic(true)
+	mIncludePublic(true),
+	mIncludeOutgoing(true)
 {
 	
 }
 
-MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering, bool includePrivate, bool includePublic) :
+MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering, 
+				   bool includePrivate, bool includePublic, bool includeOutgoing) :
 	mMessageQueue(messageQueue),
 	mPeering(peering),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(includePrivate),
-	mIncludePublic(includePublic)
+	mIncludePublic(includePublic),
+	mIncludeOutgoing(includeOutgoing)
 {
 	
 }
@@ -360,7 +364,7 @@ MessageQueue::Selection::~Selection(void)
 
 bool MessageQueue::Selection::setBaseStamp(const String &stamp)
 {
-	/*if(!stamp.empty())
+	if(!stamp.empty())
 	{
 		Message base;
 		if(mMessageQueue->get(stamp, base))
@@ -371,13 +375,28 @@ bool MessageQueue::Selection::setBaseStamp(const String &stamp)
 		}
 	}
 	
-	mBaseStamp.clear();*/
+	mBaseStamp.clear();
 	return false;
 }
-	
+
 String MessageQueue::Selection::baseStamp(void) const
 {
-	return "";//mBaseStamp;
+	return mBaseStamp;
+}
+
+void MessageQueue::Selection::includePrivate(bool enabled)
+{
+	mIncludePrivate = enabled;
+}
+
+void MessageQueue::Selection::includePublic(bool enabled)
+{
+	mIncludePublic = enabled;
+}
+
+void MessageQueue::Selection::includeOutgoing(bool enabled)
+{
+	mIncludeOutgoing = enabled;
 }
 
 int MessageQueue::Selection::count(void) const
@@ -593,6 +612,7 @@ String MessageQueue::Selection::filter(void) const
 	
 	if( mIncludePrivate && !mIncludePublic) condition+= " AND public=0";
 	if(!mIncludePrivate &&  mIncludePublic) condition+= " AND public=1";
+	if(!mIncludeOutgoing) condition+= " AND incoming=1";
 	
 	return condition;
 }
