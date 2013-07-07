@@ -78,6 +78,8 @@ public:
 	virtual void discard(void);
 	virtual bool ignore(size_t size = 1);
 	
+	void writeRandom(size_t size = 1);
+	
 private:
 	virtual ByteStream *pipeIn(void);	// return the write end for a pipe
 

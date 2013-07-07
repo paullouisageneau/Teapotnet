@@ -54,12 +54,13 @@ String String::random(size_t nbr)
 	String result;
 	while(nbr--)
 	{
-		// TODO
-		switch(rand()%3)
-		{
-		case 0: result+= char('0' + rand()%10);
-		case 1: result+= char('a' + rand()%26);
-		case 2: result+= char('A' + rand()%26);
+		int i = cryptrand() % (26 + 26 + 10);
+		
+		if(i < 26) result+= char('a' + i);
+		else {
+			i-= 26;
+			if(i < 26) result+= char('A' + i);
+			else result+= char('0' + i%10);
 		}
 	}
 

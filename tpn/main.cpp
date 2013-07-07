@@ -153,11 +153,12 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv 
 int main(int argc, char** argv)
 {
 	srand(time(NULL));
-  
+	
 #ifdef WINDOWS
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
 #else
+	srandom(time(NULL));
 	signal(SIGPIPE, SIG_IGN);
 #endif
 	
