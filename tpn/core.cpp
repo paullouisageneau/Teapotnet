@@ -537,7 +537,7 @@ void Core::Handler::process(void)
 		cipher->setEncryptionInit(tmpiv);
 		cipher->setDecryptionKey(tmpkey);
 		cipher->setDecryptionInit(tmpiv);
-		mStream = cipher;	// IVs are zeroes
+		mStream = cipher;
 		
 		cipher->dumpStream(&mObfuscatedHello);
 		
