@@ -49,7 +49,7 @@ Core::Core(int port) :
 		if(mName.empty() || mName == "localhost")
 		{
 		#ifdef ANDROID
-			mName = String("android.") + String::number(unsigned(std::rand()%1000), 3);
+			mName = String("android.") + String::number(unsigned(pseudorand()%1000), 4);
 		#else
 			mName = String(".") + String::random(6);
 		#endif
@@ -542,14 +542,9 @@ void Core::Handler::process(void)
 		cipher->dumpStream(&mObfuscatedHello);
 		
 		ByteString nonce_a, salt_a;
-		for(int i=0; i<16; ++i)
-		{
-			char c = char(rand()%256);	// TODO
-			nonce_a.push_back(c);
-			c = char(rand()%256);		// TODO
-			salt_a.push_back(c);  
-		}
-	  
+		nonce_a.writeRandom(16);
+		salt_a.writeRandom(16);
+		
 		if(!mIsIncoming)	
 		{
 			LogDebug("Handler", "Initiating handshake...");
@@ -1203,7 +1198,7 @@ void Core::Handler::Sender::run(void)
 				
 				// Keep Alive
 				String args;
-				args << unsigned(std::rand());
+				args << unsigned(pseudorand());
 				StringMap parameters;
 				Handler::sendCommand(mStream, "K", args, parameters);
 			}

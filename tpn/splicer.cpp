@@ -311,7 +311,7 @@ int64_t Splicer::process(ByteStream *output)
 				Set<Identifier>::iterator jt = sources.begin();
 				if(sources.size() > 1)
 				{
-					int r = rand() % sources.size();
+					int r = pseudorand() % sources.size();
 					while(r--) ++jt;
 				}
 				source = *jt;

@@ -250,6 +250,18 @@ void ByteStream::discard(void)
 	}
 }
 
+void ByteStream::writeRandom(size_t size)
+{
+	char buffer[BufferSize];
+	while(size)
+	{
+		size_t len = std::min(size, BufferSize);
+		cryptrand(buffer, len);
+		writeData(buffer,len);
+		size-= len;
+	}
+}
+
 ByteStream *ByteStream::pipeIn(void)
 {
 	return this;
