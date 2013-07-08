@@ -30,7 +30,7 @@ a:hover
 
 div
 {
-	margin: 0;
+	margin-left: 26%;
 	padding: 0;
 }
 
@@ -289,9 +289,15 @@ textarea
 
 #footer
 {
-	margin: 0.5em;
+	float: left;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	margin-left: 26%;
 	font-size: 0.8em;
-	text-align: right;
+	text-align: center;
+	padding-top: 2em;
+	background-color: rgba(24,24,24,0);
 }
 
 #logo
@@ -353,6 +359,55 @@ textarea
 #chatpanel .chatinput
 {
 	width: 99%;
+	height: 99%;
+	margin: 0;
+	border: 0;
+	color: #000000;
+	background-color: #FFFFFF;
+}
+
+
+#status
+{
+	width: 100%;
+	height: 95%;
+	margin-top: 0.5em;
+	background-color: #FFFFFF;	
+}
+
+#statusmessages
+{
+	float: left;
+	height: auto;
+	width: 95%;
+	overflow-y: auto;
+	border: 2px solid black;
+	padding-top: 2px;
+	padding-bottom: 4px;
+}
+
+#statuspanel
+{
+	display: table;
+	width: 100%;
+	height: auto;
+	padding-top: 0.5em;
+	padding-bottom: 2em;
+	overflow: hidden;
+}
+
+#statuspanel form
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+#statuspanel .statusinput
+{
+	width: 96%;
 	height: 99%;
 	margin: 0;
 	border: 0;
@@ -469,6 +524,18 @@ td.delete
 	overflow: hidden;
 }
 
+
+#files
+{
+	float: left;
+	border-radius: 0px 0px 5px 5px;
+	width: 95%;
+	height: 20%;
+	padding-top: 15px;
+	padding-left: 4px;
+	background-color: rgba(24,24,24,0.5);
+}
+
 .files button
 {
 	float: left;
@@ -530,6 +597,31 @@ td.delete
 	min-height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
+}
+
+
+#leftcolumn
+{
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 25%;
+	height: 97%;
+	background-color: rgba(255,255,255,0);
+	border: none;
+	box-shadow: none;
+}
+
+#contacts
+{
+	float: left;
+	border-radius: 0px 0px 5px 5px;
+	width: 95%;
+	height: 68%;
+	padding-top: 15px;
+	padding-left: 4px;
+	background-color: rgba(24,24,24,0.5);
+	color: #000000;
 }
 
 .contacts button
@@ -665,5 +757,10 @@ tr.connected
 #status.button.connected
 {
         background-color: #FFDC0A;
+}
+
+.search
+{
+	margin-left: 0;
 }
 

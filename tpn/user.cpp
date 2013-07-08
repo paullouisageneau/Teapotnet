@@ -272,13 +272,17 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.close("div");
 			
+			page.open("div");
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
-			if(!instance.empty()) page.text(name() + "@" + tracker + " / " + instance);
+			if(!instance.empty()) page.text(instance + " (" + name() + "@" + tracker + ")");
 			else page.text(name());
 			page.close("h1");
-			
+			page.close("div");
+
+
+			page.open("div","leftcolumn.box");
 			page.open("div","contacts.box");
 			
 			page.link(prefix+"/contacts/","Edit",".button");
@@ -353,28 +357,8 @@ void User::http(const String &prefix, Http::Request &request)
 				}
 				page.close("table");
 			}
+			
 			page.close("div");
-			
-			unsigned refreshPeriod = 5000;
-			page.javascript("var title = document.title;\n\
-					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
-					var totalmessages = 0;\n\
-					var play = false;\n\
-					$.each(data, function(uname, info) {\n\
-						$('#contact_'+uname).attr('class', info.status);\n\
-						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
-						var count = parseInt(info.messages);\n\
-						var tmp = '';\n\
-						if(count != 0) tmp = ' ('+count+')';\n\
-						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
-						totalmessages+= count;\n\
-						if(info.newmessages == 'true') play = true;\n\
-					});\n\
-					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
-					else document.title = title;\n\
-					if(play) playMessageSound();\n\
-			});");
-			
 			page.open("div","files.box");
 			
 			page.link(prefix+"/files/","Edit",".button");
@@ -406,6 +390,90 @@ void User::http(const String &prefix, Http::Request &request)
 				page.close("table");
 			}
 			page.close("div");
+
+			page.close("div");
+			
+			// TODO: newsFeed et post statuts
+
+
+			page.open("div", "statuspanel");
+			page.openForm("#", "post", "statusform");
+			page.textarea("statusinput");
+			//page.button("send","Send");
+			//page.br();
+			page.closeForm();
+			page.javascript("$(document).ready(function() { document.statusform.statusinput.focus(); });");
+			page.close("div");
+
+
+			String broadcastUrl = "/messages/";
+		 
+			page.javascript("function post()\n\
+				{\n\
+					var message = document.statusform.statusinput.value;\n\
+					if(!message) return false;\n\
+					document.statusform.statusinput.value = '';\n\
+					var request = $.post('"+prefix+broadcastUrl+"',\n\
+						{ 'message': message , 'public': 1});\n\
+					request.fail(function(jqXHR, textStatus) {\n\
+						alert('The message could not be sent.');\n\
+					});\n\
+				}\n\
+				document.statusform.onsubmit = function()\n\
+				{\n\
+					post();\n\
+					return false;\n\
+				}\n\
+				document.statusform.statusinput.onblur = function()\n\
+				{\n\
+					document.statusform.statusinput.style.color = 'grey';\n\
+					document.statusform.statusinput.value = 'What is on your mind ?';\n\
+				}\n\
+				document.statusform.statusinput.onfocus = function()\n\
+				{\n\
+					document.statusform.statusinput.style.color = 'black';\n\
+					document.statusform.statusinput.value = '';\n\
+				}\n\
+				$('textarea.statusinput').keypress(function(e) {\n\
+					if (e.keyCode == 13 && !e.shiftKey) {\n\
+						e.preventDefault();\n\
+						post();\n\
+					}\n\
+				});\n\
+				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl, "json")+"','#statusmessages');");
+
+
+			page.open("div", "statusmessages");
+
+			page.open("h2");
+			page.text("News Feed");
+			page.close("h2");
+
+			page.close("div");
+
+			/******* fin ********/
+
+
+			unsigned refreshPeriod = 5000;
+			page.javascript("var title = document.title;\n\
+					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
+					var totalmessages = 0;\n\
+					var play = false;\n\
+					$.each(data, function(uname, info) {\n\
+						$('#contact_'+uname).attr('class', info.status);\n\
+						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
+						var count = parseInt(info.messages);\n\
+						var tmp = '';\n\
+						if(count != 0) tmp = ' ('+count+')';\n\
+						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
+						totalmessages+= count;\n\
+						if(info.newmessages == 'true') play = true;\n\
+					});\n\
+					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
+					else document.title = title;\n\
+					if(play) playMessageSound();\n\
+			});");
+
 			
 			directories.clear();
 			Store::GlobalInstance->getDirectories(directories);
