@@ -195,9 +195,13 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			message.setPeering(peering);
 			message.setPublic(isPublic);
 			message.setHeader("from", mUser->name());
+			if(request.post.contains("parent"))
+				message.setParent(request.post["parent"]);
+			
 			message.send(peering);
-			if(self && self->peering() != peering) 
+			if(self && self->peering() != peering)
 				message.send(self->peering());
+			
 			add(message);
 		}
 		catch(const Exception &e)
@@ -224,6 +228,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		if(request.get["public"].toBool()) selection = selectPublic(peering);
 		else  selection = selectPrivate(peering);
 		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
+		if(request.get.contains("parent")) selection.setParentStamp(request.get["parent"]);
 		
 		int count = 10;
 		if(request.get.contains("count")) count = request.get["count"].toInt();
@@ -336,6 +341,11 @@ MessageQueue::Selection MessageQueue::selectPublic(const Identifier &peering, bo
 	return Selection(this, peering, false, true, includeOutgoing);
 }
 
+MessageQueue::Selection MessageQueue::selectChilds(const String &parentStamp) const
+{
+	return Selection(this, parentStamp);
+}
+
 MessageQueue::Selection::Selection(void) :
 	mMessageQueue(NULL),
 	mBaseTime(time_t(0)),
@@ -357,10 +367,26 @@ MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Ident
 {
 	
 }
+
+MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const String &parent) :
+	mMessageQueue(messageQueue),
+	mBaseTime(time_t(0)),
+	mIncludePrivate(true),
+	mIncludePublic(true),
+	mIncludeOutgoing(true),
+	mParentStamp(parent)
+{
 	
+}
+
 MessageQueue::Selection::~Selection(void)
 {
 	
+}
+
+void MessageQueue::Selection::setParentStamp(const String &stamp)
+{
+	mParentStamp = stamp;
 }
 
 bool MessageQueue::Selection::setBaseStamp(const String &stamp)
@@ -611,6 +637,8 @@ String MessageQueue::Selection::filter(void) const
 	
 	if(!mBaseStamp.empty()) condition+= " AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
 	
+	if(!mParentStamp.empty()) condition+= " AND parent=@parentstamp";
+	
 	if( mIncludePrivate && !mIncludePublic) condition+= " AND public=0";
 	if(!mIncludePrivate &&  mIncludePublic) condition+= " AND public=1";
 	if(!mIncludeOutgoing) condition+= " AND incoming=1";
@@ -621,6 +649,7 @@ String MessageQueue::Selection::filter(void) const
 void MessageQueue::Selection::filterBind(Database::Statement &statement) const
 {
 	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("parentstamp"), mParentStamp);
 	statement.bind(statement.parameterIndex("basestamp"), mBaseStamp);
 	statement.bind(statement.parameterIndex("basetime"), mBaseTime);
 }

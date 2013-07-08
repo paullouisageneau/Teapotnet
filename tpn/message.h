@@ -42,6 +42,7 @@ public:
 	Time time(void) const;
 	Identifier peering(void) const;
 	String stamp(void) const;
+	String parent(void) const;
 	bool isPublic(void) const;
 	const String &content(void) const;
 	const StringMap &headers(void) const;
@@ -49,6 +50,7 @@ public:
 	String header(const String &name) const;
 	
 	void setPeering(const Identifier &peering);
+	void setParent(const String &stamp);
 	void setPublic(bool ispublic);
 	void setContent(const String &content);
 	void setHeaders(const StringMap &headers);

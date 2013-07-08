@@ -64,6 +64,11 @@ String Message::stamp(void) const
 	return mStamp;
 }
 
+String Message::parent(void) const
+{
+	return mParent;
+}
+
 bool Message::isPublic(void) const
 {
 	return mIsPublic;
@@ -99,6 +104,11 @@ void Message::setPublic(bool ispublic)
 void Message::setPeering(const Identifier &peering)
 {
 	mPeering = peering.getDigest();
+}
+
+void Message::setParent(const String &stamp)
+{
+	mParent = stamp;
 }
 
 void Message::setContent(const String &content)
