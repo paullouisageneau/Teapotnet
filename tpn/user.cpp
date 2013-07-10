@@ -393,8 +393,13 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 			
-			// TODO: newsFeed et post statuts
+			String broadcastUrl = "/messages";
+			String publicUrl = "?public=1";
+			String displayOthersUrl = "&incoming=1";
+			String displaySelfUrl = "&incoming=0";
+			String setDisplayUrl = displaySelfUrl;
 
+			Identifier peering = Identifier::Null;			
 
 			page.open("div", "statuspanel");
 			page.openForm("#", "post", "statusform");
@@ -402,18 +407,15 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
-			page.javascript("$(document).ready(function() { document.statusform.statusinput.focus(); });");
+			page.javascript("$(document).ready(function() { document.statusform.statusinput.style.color = 'grey'; });");
 			page.close("div");
-
-
-			String broadcastUrl = "/messages/";
 		 
 			page.javascript("function post()\n\
 				{\n\
 					var message = document.statusform.statusinput.value;\n\
 					if(!message) return false;\n\
 					document.statusform.statusinput.value = '';\n\
-					var request = $.post('"+prefix+broadcastUrl+"',\n\
+					var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
 						{ 'message': message , 'public': 1});\n\
 					request.fail(function(jqXHR, textStatus) {\n\
 						alert('The message could not be sent.');\n\
@@ -431,8 +433,8 @@ void User::http(const String &prefix, Http::Request &request)
 				}\n\
 				document.statusform.statusinput.onfocus = function()\n\
 				{\n\
-					document.statusform.statusinput.style.color = 'black';\n\
 					document.statusform.statusinput.value = '';\n\
+					document.statusform.statusinput.style.color = 'black';\n\
 				}\n\
 				$('textarea.statusinput').keypress(function(e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
@@ -440,8 +442,7 @@ void User::http(const String &prefix, Http::Request &request)
 						post();\n\
 					}\n\
 				});\n\
-				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl, "json")+"','#statusmessages');");
-
+				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl, "json")+"','#statusmessages');");
 
 			page.open("div", "statusmessages");
 
@@ -450,8 +451,6 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 
 			page.close("div");
-
-			/******* fin ********/
 
 
 			unsigned refreshPeriod = 5000;
