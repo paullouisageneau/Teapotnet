@@ -34,6 +34,17 @@ div
 	padding: 0;
 }
 
+div.message
+{
+	margin-left: 5%;
+	margin-right: 5%;
+	padding: 5px;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	padding-left: 1px;
+	padding-right: 1px;
+}
+
 img
 {
 	margin: 0em;
@@ -384,6 +395,9 @@ textarea
 	border: 2px solid black;
 	padding-top: 2px;
 	padding-bottom: 4px;
+	background-color: rgba(255,255,255,1);
+	border: 2px solid #E0E0E0;
+	border-radius: 0.5em;
 }
 
 #statuspanel
@@ -465,12 +479,16 @@ textarea
 
 .message .date
 {
-
+	font-size: 0.8em;
+	padding-top: 2px;
+	padding-left: 2px;
+	color: grey;
 }
 
 .message .author
 {
 	font-weight: bold;
+	padding-left: 5px;
 }
 
 .message .content
@@ -486,6 +504,17 @@ textarea
 .in
 {
 	color: #F01010; 
+}
+
+.statusdisplay
+{
+	color: #000000;
+	background-color: #FEF86C;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	padding-left: 3px;
+	padding-right: 3px;
+	border: 1px solid white;
 }
 
 .important
@@ -533,7 +562,7 @@ td.delete
 	height: 20%;
 	padding-top: 15px;
 	padding-left: 4px;
-	background-color: rgba(24,24,24,0.5);
+	background-color: rgba(255,255,255,1);
 }
 
 .files button
@@ -607,7 +636,7 @@ td.delete
 	left: 0;
 	width: 25%;
 	height: 97%;
-	background-color: rgba(255,255,255,0);
+	background : transparent;
 	border: none;
 	box-shadow: none;
 }
@@ -620,7 +649,7 @@ td.delete
 	height: 68%;
 	padding-top: 15px;
 	padding-left: 4px;
-	background-color: rgba(24,24,24,0.5);
+	background-color: rgba(255,255,255,1);
 	color: #000000;
 }
 

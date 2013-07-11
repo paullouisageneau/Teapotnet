@@ -212,12 +212,21 @@ function setMessagesReceiverRec(url, object, last) {
 			for(var i=0; i<data.length; i++) {
 				var message = data[i];
 				var id = "message_" + message.stamp;
-				$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
+				//$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
 				last = message.stamp;
-				if(message.incoming && !message.isread) NbNewMessages++;
-				if(message.isread) $('#'+id).addClass('oldmessage');
-				if(message.incoming) $('#'+id).addClass('in');
-				else $('#'+id).addClass('out');
+				if(message.public)
+				{
+					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> </div>');
+					$('#'+id).addClass('statusdisplay');
+				}
+				else
+				{
+					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
+					if(message.incoming && !message.isread) NbNewMessages++;
+					if(message.isread) $('#'+id).addClass('oldmessage');
+					if(message.incoming) $('#'+id).addClass('in');
+					else $('#'+id).addClass('out');
+				}
 			}
 			$(object).scrollTop($(object)[0].scrollHeight);
 			
