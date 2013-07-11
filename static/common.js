@@ -212,12 +212,13 @@ function setMessagesReceiverRec(url, object, last) {
 			for(var i=0; i<data.length; i++) {
 				var message = data[i];
 				var id = "message_" + message.stamp;
-				//$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
 				last = message.stamp;
+
 				if(message.public)
 				{
 					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> </div>');
 					$('#'+id).addClass('statusdisplay');
+					if(!message.incoming) $('#'+id).addClass('me');
 				}
 				else
 				{

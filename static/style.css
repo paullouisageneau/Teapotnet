@@ -517,6 +517,17 @@ textarea
 	border: 1px solid white;
 }
 
+.me
+{
+	color: #000000;
+	background-color: #FFFFFF;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	padding-left: 3px;
+	padding-right: 3px;
+	border: 1px solid #FEF86C;
+}
+
 .important
 {
 	font-weight: bold;

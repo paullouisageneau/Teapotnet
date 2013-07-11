@@ -395,8 +395,10 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			String broadcastUrl = "/messages";
 			String publicUrl = "?public=1";
+			String countUrl = "&count=20";
 			String displayOthersUrl = "&incoming=1";
 			String displaySelfUrl = "&incoming=0";
+
 			String setDisplayUrl = displaySelfUrl;
 
 			Identifier peering = Identifier::Null;			
@@ -407,7 +409,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
-			page.javascript("$(document).ready(function() { document.statusform.statusinput.style.color = 'grey'; document.statusform.statusinput.value = 'What is on your mind ?';});");
+			page.javascript("$(document).ready(function() { formTextBlur();});");
 			page.close("div");
 		 
 			page.javascript("function post()\n\
@@ -426,10 +428,14 @@ void User::http(const String &prefix, Http::Request &request)
 					post();\n\
 					return false;\n\
 				}\n\
-				document.statusform.statusinput.onblur = function()\n\
+				function formTextBlur()\n\
 				{\n\
 					document.statusform.statusinput.style.color = 'grey';\n\
-					document.statusform.statusinput.value = 'What is on your mind ?';\n\
+					document.statusform.statusinput.value = 'What do you have in mind ?';\n\
+				}\n\
+				document.statusform.statusinput.onblur = function()\n\
+				{\n\
+					formTextBlur();\n\
 				}\n\
 				document.statusform.statusinput.onfocus = function()\n\
 				{\n\
@@ -442,13 +448,21 @@ void User::http(const String &prefix, Http::Request &request)
 						post();\n\
 					}\n\
 				});\n\
-				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl, "json")+"','#statusmessages');");
+				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+countUrl, "json")+"','#statusmessages');");
 
 			page.open("div", "statusmessages");
 
 			page.open("h2");
 			page.text("News Feed");
 			page.close("h2");
+
+			// TODO: lists/checkboxes to change count, order of display and display of incoming/outgoing messages 
+			page.raw("<select id=\"list\"> <option>Last 20</option> <option>Last 50</option> <option>All</option> </select>");
+
+			page.javascript("var list = document.getElementById('list');\n\
+					list.addEventListener('change', function() {\n\
+      					alert(list.options[list.selectedIndex].innerHTML);\n\
+  					}, true);");
 
 			page.close("div");
 
