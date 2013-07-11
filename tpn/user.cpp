@@ -407,7 +407,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
-			page.javascript("$(document).ready(function() { document.statusform.statusinput.style.color = 'grey'; });");
+			page.javascript("$(document).ready(function() { document.statusform.statusinput.style.color = 'grey'; document.statusform.statusinput.value = 'What is on your mind ?';});");
 			page.close("div");
 		 
 			page.javascript("function post()\n\
