@@ -196,12 +196,11 @@ var stopBool = false;
 
 function updateMessagesReceiver(url, object) {
 	stopBool = true;
-	alert('update'+stopBool);
 	$(object).html("");
 	setTimeout(function() {
 		setMessagesReceiver(url, object);
 		stopBool = false;
-	}, 1000);
+	}, 100);
 }
 
 
@@ -211,9 +210,8 @@ function setMessagesReceiverRec(url, object, last) {
 
 	if(stopBool)
 	{
-		//alert('Function stopped 1 !');
+		//alert('Function stopped !');
 		clearTimeout(timeout);
-		//return;
 	}
 
 	var baseUrl = url;
@@ -261,22 +259,19 @@ function setMessagesReceiverRec(url, object, last) {
 
 		timeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
-			return;
-		}, 100);
+		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
 		timeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
-			return;
-		}, 100);
+		}, 1000);
 
 	});
 
 	if(stopBool)
 	{
-		//alert('Function stopped 2 !');
-		clearTimeout(timeout);
-		//return;
+		//alert('Function stopped !');
+		timeout = setTimeout(function() {clearTimeout(timeout);}, 1000); // ugly but tricks slowness of javascript
 	}
 }
