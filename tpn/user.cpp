@@ -306,11 +306,13 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("td",".name");
 					page.link(self->urlPrefix(), self->name());
 					page.close("td");
-						
+					
+					/*	
 					page.open("td",".tracker");
 					page.text(String("@") + self->tracker());
 					page.close("td");
-						
+					*/
+	
 					page.open("td",".status");
 					page.close("td");
 					
@@ -335,10 +337,12 @@ void User::http(const String &prefix, Http::Request &request)
 					page.link(contact->urlPrefix(), contact->name());
 					page.close("td");
 					
+					/*
 					page.open("td",".tracker");
 					page.text(String("@") + contact->tracker());
 					page.close("td");
-					
+					*/
+
 					page.open("td",".status");
 					page.close("td");
 					
@@ -395,13 +399,12 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			String broadcastUrl = "/messages";
 			String publicUrl = "?public=1";
-			String countUrl = "&count=20";
+			String countUrl = "&count=";
+			String defaultCount = "20";
 			String displayOthersUrl = "&incoming=1";
 			String displaySelfUrl = "&incoming=0";
 
-			String setDisplayUrl = displaySelfUrl;
-
-			Identifier peering = Identifier::Null;			
+			String setDisplayUrl = displaySelfUrl;		
 
 			page.open("div", "statuspanel");
 			page.openForm("#", "post", "statusform");
@@ -410,6 +413,20 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.br();
 			page.closeForm();
 			page.javascript("$(document).ready(function() { formTextBlur();});");
+			page.close("div");
+
+			page.open("div", "newsfeed");
+
+			page.open("h2");
+			page.text("News Feed");
+			page.close("h2");
+
+			// TODO: lists/checkboxes to change count, order of display and display of incoming/outgoing messages 
+			page.raw("<select id=\"list\"> <option selected value=\"20\">Last 20</option> <option value=\"50\">Last 50</option> <option value=\"7\">Last 7</option> </select>");
+
+			page.open("div", "statusmessages");
+
+			page.close("div");
 			page.close("div");
 		 
 			page.javascript("function post()\n\
@@ -448,23 +465,11 @@ void User::http(const String &prefix, Http::Request &request)
 						post();\n\
 					}\n\
 				});\n\
-				setMessagesReceiver('"+Http::AppendGet(prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+countUrl, "json")+"','#statusmessages');");
-
-			page.open("div", "statusmessages");
-
-			page.open("h2");
-			page.text("News Feed");
-			page.close("h2");
-
-			// TODO: lists/checkboxes to change count, order of display and display of incoming/outgoing messages 
-			page.raw("<select id=\"list\"> <option>Last 20</option> <option>Last 50</option> <option>All</option> </select>");
-
-			page.javascript("var list = document.getElementById('list');\n\
-					list.addEventListener('change', function() {\n\
-      					alert(list.options[list.selectedIndex].innerHTML);\n\
-  					}, true);");
-
-			page.close("div");
+				var list = document.getElementById('list');\n\
+					 list.addEventListener('change', function() {\n\
+						updateMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"&count='+list.value.toString(),'#statusmessages');\n\
+					  }, true);\n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"&count='+list.value.toString(),'#statusmessages');");
 
 
 			unsigned refreshPeriod = 5000;

@@ -192,7 +192,29 @@ $(window).blur(function() {
 	NbNewMessages = 0;
 });
 
+var stopBool = false;
+
+function updateMessagesReceiver(url, object) {
+	stopBool = true;
+	alert('update'+stopBool);
+	$(object).html("");
+	setTimeout(function() {
+		setMessagesReceiver(url, object);
+		stopBool = false;
+	}, 1000);
+}
+
+
 function setMessagesReceiverRec(url, object, last) {
+
+	var timeout;
+
+	if(stopBool)
+	{
+		//alert('Function stopped 1 !');
+		clearTimeout(timeout);
+		//return;
+	}
 
 	var baseUrl = url;
 	
@@ -236,13 +258,25 @@ function setMessagesReceiverRec(url, object, last) {
 				playMessageSound();
 			}
 		}
-		setTimeout(function() {
+
+		timeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
+			return;
 		}, 100);
+
 	})
 	.fail(function(jqXHR, textStatus) {
-		setTimeout(function() {
+		timeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, last);
+			return;
 		}, 100);
+
 	});
+
+	if(stopBool)
+	{
+		//alert('Function stopped 2 !');
+		clearTimeout(timeout);
+		//return;
+	}
 }
