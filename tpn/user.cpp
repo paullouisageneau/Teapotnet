@@ -415,18 +415,33 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("$(document).ready(function() { formTextBlur();});");
 			page.close("div");
 
+
 			page.open("div", "newsfeed");
 
-			page.open("h2");
+			page.open("div", "optionsnewsfeed");
+
 			page.text("News Feed");
-			page.close("h2");
 
-			// TODO: lists/checkboxes to change count, order of display and display of incoming/outgoing messages 
-			page.raw("<select id=\"list\"> <option selected value=\"20\">Last 20</option> <option value=\"50\">Last 50</option> <option value=\"7\">Last 7</option> </select>");
+			StringMap optionsCount;
+			optionsCount["&count=15"] << "Last 15";
+			optionsCount["&count=30"] << "Last 30";
+			optionsCount[""] << "All";
+			page.raw("<span class=\"customselect\">");
+			page.select("listCount", optionsCount, "&count=15");
+			page.raw("</span>");
 
-			page.open("div", "statusmessages");
+			StringMap optionsIncoming;
+			optionsIncoming["0"] << "Mine & others";
+			optionsIncoming["1"] << "Others only";
+			page.raw("<span class=\"customselect\">");
+			page.select("listIncoming", optionsIncoming, "0");
+			page.raw("</span>");
 
 			page.close("div");
+
+			page.open("div", "statusmessages");
+			page.close("div");
+
 			page.close("div");
 		 
 			page.javascript("function post()\n\
@@ -465,11 +480,17 @@ void User::http(const String &prefix, Http::Request &request)
 						post();\n\
 					}\n\
 				});\n\
-				var list = document.getElementById('list');\n\
-					 list.addEventListener('change', function() {\n\
-						updateMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"&count='+list.value.toString(),'#statusmessages');\n\
-					  }, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"&count='+list.value.toString(),'#statusmessages');");
+				\n\
+				var listCount = document.getElementsByName(\"listCount\")[0];\n\
+				listCount.addEventListener('change', function() {\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+				}, true);\n\
+				\n\
+				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
+				listIncoming.addEventListener('change', function() {\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+				}, true);\n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');");
 
 
 			unsigned refreshPeriod = 5000;

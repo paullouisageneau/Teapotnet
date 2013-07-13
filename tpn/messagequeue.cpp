@@ -230,7 +230,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
 		if(request.get.contains("parent")) selection.setParentStamp(request.get["parent"]);
 		
-		int count = 10;
+		int count = 100; // TODO: 100 messages selected is max
 		if(request.get.contains("count")) count = request.get["count"].toInt();
 		
 		SerializableArray<Message> array;

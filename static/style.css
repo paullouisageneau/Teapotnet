@@ -386,7 +386,7 @@ textarea
 	background-color: #FFFFFF;	
 }
 
-#statusmessages
+#newsfeed
 {
 	float: left;
 	height: auto;
@@ -398,6 +398,75 @@ textarea
 	background-color: rgba(255,255,255,1);
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
+}
+
+#optionsnewsfeed
+{
+	margin: 0.25em;
+	padding: 0;
+	margin-bottom: 0.5em;
+	font-size: 1.2em;
+	font-weight: bold;
+	text-shadow: 2px 2px 1px #A0A0A0;
+}
+
+select
+{
+	background:transparent;
+	font-size:0.75em;
+	float: right;
+	width: 130px;
+	overflow: hidden;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	text-align: left;
+	border: none;
+}
+
+select, x:-moz-any-link, x:default 
+{
+	background: transparent;
+	font-size: 0.75em;
+	float: right;
+	width: 140px;	
+	text-indent: 13px; /* To make browser arrow disappear on Firefox */
+	overflow: hidden;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	text-align: left;
+	border: none;
+}
+
+
+.customselect 
+{
+	float: right;
+	width: 130px;
+	height: auto;
+	overflow: hidden;
+	background: url(/select_arrow.png) no-repeat right #1E7FCB;
+	border: 2px solid #E0E0E0;
+	border-radius: 0.5em;
+}
+
+.customselect, x:-moz-any-link
+{
+	width: 115px; /* = (approx.) width of select - text-indent of select */
+}
+
+#statusmessages
+{
+	float: left;
+	margin-left:3px;
+	margin-top:3px;
+	height: auto;
+	width: 95%;
+	overflow-y: auto;
+	padding-top: 2px;
+	padding-bottom: 4px;
+	background-color: rgba(255,255,255,1);
 }
 
 #statuspanel
