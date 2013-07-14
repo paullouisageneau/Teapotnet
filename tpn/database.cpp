@@ -87,7 +87,7 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 
 	dummy.finalize();
 
-	String request = "INSERT INTO `" + table + "` (" + columns + ") VALUES (" + values + ")";
+	String request = "INSERT OR REPLACE INTO `" + table + "` (" + columns + ") VALUES (" + values + ")";
 	Statement statement = prepare(request);
 	statement.output(serializable);
 	statement.execute();	// unbound parameters will be interpreted as null

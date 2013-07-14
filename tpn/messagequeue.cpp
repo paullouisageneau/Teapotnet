@@ -86,22 +86,22 @@ bool MessageQueue::add(const Message &message)
 		LogWarn("MessageQueue::add", "Message with empty stamp, dropping");
 		return false;
 	}
-
-	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
-        statement.bind(1, message.stamp());
-	bool exists = statement.step();
-        statement.finalize();
 	
-	if(exists) 
-	{
-		LogDebug("MessageQueue::add", "Message '" + message.stamp() + "' is already in queue");
-		return false;
-	}
-
+	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+	statement.bind(1, message.stamp());
+	bool exists = statement.step();
+	statement.finalize();
+	if(exists && !message.isIncoming()) return false;
+	
 	mDatabase->insert("messages", message);
-	if(message.isIncoming()) mHasNew = true;
-	notifyAll();
-	SyncYield(this);
+	
+	if(!exists) 
+	{
+		if(message.isIncoming()) mHasNew = true;
+		notifyAll();
+		SyncYield(this);
+	}
+	
 	return true;
 }
 

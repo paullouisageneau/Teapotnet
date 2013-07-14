@@ -1191,6 +1191,8 @@ void AddressBook::Contact::notification(Notification *notification)
 			throw InvalidData("checksum notification content: " + notification->content());
 		}
 	
+		LogDebug("AddressBook::Contact", "Synchronization: Received checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
+	
 		MessageQueue::Selection selection = selectMessages();		
 		selection.setBaseStamp(base);
 		
@@ -1232,7 +1234,7 @@ void AddressBook::Contact::notification(Notification *notification)
 		if(isLastIteration && offset == 0)
 		{
 			// If messages are missing remotely
-			if(total < localTotal)
+			if(total < localTotal)	// this is OK since offset == 0 here
 				sendMessages(selection, total, localTotal - total);
 			
 			sendUnread();
