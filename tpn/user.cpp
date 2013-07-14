@@ -258,7 +258,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header(APPNAME, true);
 
-			page.open("div", "mainheader");
+			/*page.open("div", "mainheader");
 			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
 			
 			page.open("div", ".search");
@@ -270,7 +270,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.br();
 			page.close("div");
 			
-			page.close("div");
+			page.close("div");*/
+
 			
 			page.open("div");
 			page.open("h1");
@@ -281,8 +282,27 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 			page.close("div");
 
-
 			page.open("div","leftcolumn.box");
+
+			page.open("div", "logo");
+			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
+			page.close("div");
+
+			page.open("div","search");
+			page.raw("<span class=\"searchinput\">");
+
+			page.openForm(prefix + "/search", "post", "searchForm");
+			page.input("text","query");
+			page.button("search","Search");
+			page.closeForm();
+			page.raw("</span>");
+
+			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
+			//page.br();
+			page.close("div");
+
+
+
 			page.open("div","contacts.box");
 			
 			page.link(prefix+"/contacts/","Edit",".button");

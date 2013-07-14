@@ -10,7 +10,8 @@ body
 {
 	font-family: Sans-Serif;
 	font-size: 80%;
-	background: #F0F0F0 url(/background.png) repeat-x;
+	/*background: #F0F0F0 url(/background.png) repeat-x;*/
+	background: white;
 	width: 100%;
 	height: 95%;
 	margin: 0;
@@ -177,6 +178,7 @@ input
 
 input[type="submit"]
 {
+	margin-left:1px;
 	cursor: pointer;
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
@@ -219,8 +221,32 @@ a.button:hover
 
 textarea
 {
-	margin: 0.2em;
 	resize: none;
+	width: 94%;
+	height: 99%;
+	border: 1px solid #000000;
+	border-radius: 0.5em;
+	padding-left: 5px;
+	padding-top: 2px;
+}
+
+
+
+.searchinput
+{
+	padding:0;
+}
+
+.searchinput form
+{
+	float: left;
+	width: 100%;
+}
+
+.searchinput input[type="text"]
+{
+	float: left;
+	width: 70%;
 }
 
 .loading > body > * 
@@ -313,7 +339,8 @@ textarea
 
 #logo
 {
-	width: 20%;
+	margin-left: 25%;
+	width: 60%;
 	max-width: 128px;
 	min-width: 64px;
 }
@@ -391,13 +418,14 @@ textarea
 	float: left;
 	height: auto;
 	width: 95%;
-	overflow-y: auto;
-	border: 2px solid black;
 	padding-top: 2px;
 	padding-bottom: 4px;
 	background-color: rgba(255,255,255,1);
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
+	border: 2px solid #E0E0E0;
+	box-shadow: 0em 0em 0.5em 0.10em #404040;
+	overflow: hidden;
 }
 
 #optionsnewsfeed
@@ -440,13 +468,13 @@ select, x:-moz-any-link, x:default
 }
 
 
-.customselect 
+.customselect
 {
 	float: right;
 	width: 130px;
 	height: auto;
 	overflow: hidden;
-	background: url(/select_arrow.png) no-repeat right #1E7FCB;
+	background: url(/select_arrow.png) no-repeat right #BBD2E1;
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
 }
@@ -486,16 +514,6 @@ select, x:-moz-any-link, x:default
 	height: 100%;
 	margin: 0;
 	padding: 0;
-}
-
-#statuspanel .statusinput
-{
-	width: 96%;
-	height: 99%;
-	margin: 0;
-	border: 0;
-	color: #000000;
-	background-color: #FFFFFF;
 }
 
 #info
@@ -594,7 +612,7 @@ select, x:-moz-any-link, x:default
 	padding-bottom: 3px;
 	padding-left: 3px;
 	padding-right: 3px;
-	border: 1px solid #FEF86C;
+	border: 1px solid #FCDC12;
 }
 
 .important
@@ -639,7 +657,7 @@ td.delete
 	float: left;
 	border-radius: 0px 0px 5px 5px;
 	width: 95%;
-	height: 20%;
+	height: 15%;
 	padding-top: 15px;
 	padding-left: 4px;
 	background-color: rgba(255,255,255,1);
@@ -721,12 +739,37 @@ td.delete
 	box-shadow: none;
 }
 
+#rightcolumn
+{
+	position: absolute;
+	top: 20px;
+	right: 0;
+	width: auto;
+	height: 100px;
+	background : transparent;
+	border: none;
+	box-shadow: none;
+}
+
+#search
+{
+	float: left;
+	margin: 0;
+	border-radius: 0px 0px 5px 5px;
+	width: 95%;
+	height: 8%;
+	padding-top: 15px;
+	padding-left: 4px;
+	background-color: rgba(255,255,255,1);
+	color: #000000;
+}
+
 #contacts
 {
 	float: left;
 	border-radius: 0px 0px 5px 5px;
 	width: 95%;
-	height: 68%;
+	height: 49%;
 	padding-top: 15px;
 	padding-left: 4px;
 	background-color: rgba(255,255,255,1);
@@ -845,12 +888,16 @@ tr.myself
 
 tr.online
 {
-	background-color: #00E000;
+	/*background-color: #00E000;*/
+	/*background-color: #FFDC0A;*/
+	background-color: #BBD2E1;
 }
 
 tr.connected
 {
-	background-color: #FFDC0A;
+	/*background-color: #FFDC0A;*/
+	background-color: #FFF48D;
+	/* background-color: FEF86C;*/
 }
 
 #status.button
@@ -872,4 +919,3 @@ tr.connected
 {
 	margin-left: 0;
 }
-
