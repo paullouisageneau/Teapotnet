@@ -1234,7 +1234,7 @@ void AddressBook::Contact::notification(Notification *notification)
 		if(isLastIteration && offset == 0)
 		{
 			// If messages are missing remotely
-			if(total < localTotal)	// this is OK since offset == 0 here
+			if(total < localTotal)
 				sendMessages(selection, total, localTotal - total);
 			
 			sendUnread();
