@@ -899,7 +899,7 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
 	Synchronize(this);
-  
+	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
@@ -1193,8 +1193,12 @@ void AddressBook::Contact::notification(Notification *notification)
 	
 		LogDebug("AddressBook::Contact", "Synchronization: Received checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
 	
-		MessageQueue::Selection selection = selectMessages();		
-		selection.setBaseStamp(base);
+		MessageQueue::Selection selection = selectMessages();
+		if(!base.empty())
+		{
+			if(!selection.setBaseStamp(base))
+				LogDebug("AddressBook::Contact", "Synchronization: Base message '"+base+"' does not exist");
+		}
 		
 		int localTotal = selection.count();
 		bool isLastIteration = false;
@@ -1225,10 +1229,17 @@ void AddressBook::Contact::notification(Notification *notification)
 				if(!recursion) 
 					isLastIteration = true;
 			}
-			else isLastIteration = true;
+			else {
+				LogDebug("AddressBook::Contact", "Synchronization: Match: " + String::number(offset) + ", " + String::number(count));
+				isLastIteration = true;
+			}
 		}
 		else {
-			sendMessagesChecksum(selection, offset, localTotal-offset, true);
+			if(offset == 0)
+			{
+				LogDebug("AddressBook::Contact", "Synchronization: Remote has more messages");
+				sendMessagesChecksum(selection, 0, localTotal, true);
+			}
 		}
 
 		if(isLastIteration && offset == 0)
