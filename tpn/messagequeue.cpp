@@ -87,24 +87,23 @@ bool MessageQueue::add(const Message &message)
 		return false;
 	}
 	
-	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'");
-	
 	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
 	statement.bind(1, message.stamp());
 	bool exists = statement.step();
 	statement.finalize();
 	
-	if(exists)
-	{
-		LogDebug("MessageQueue::add", "Message '"+message.stamp()+"' already in queue");
-		return false;
-	}
+	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exists ? " (already in queue)" : ""));
+	if(exists && !message.isIncoming()) return false;
 	
 	mDatabase->insert("messages", message);
 	
-	if(message.isIncoming()) mHasNew = true;
-	notifyAll();
-	SyncYield(this);
+	if(!exists) 
+	{
+		if(message.isIncoming()) mHasNew = true;
+		notifyAll();
+		SyncYield(this);
+	}
+	
 	return true;
 }
 
@@ -635,7 +634,7 @@ int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result)
 String MessageQueue::Selection::filter(void) const
 {
 	String condition;
-	if(mPeering != Identifier::Null) condition = "peering=@peering OR peering='' OR peering IS NULL";
+	if(mPeering != Identifier::Null) condition = "(peering=@peering OR peering='' OR peering IS NULL)";
 	else condition = "1=1"; // TODO
 	
 	if(!mBaseStamp.empty()) condition+= " AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
