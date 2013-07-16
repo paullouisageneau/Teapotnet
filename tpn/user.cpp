@@ -394,6 +394,11 @@ void User::http(const String &prefix, Http::Request &request)
 		
 			Array<String> directories;
 			mStore->getDirectories(directories);
+			
+			Array<String> globalDirectories;
+			Store::GlobalInstance->getDirectories(globalDirectories);
+			directories.append(globalDirectories);
+			
 			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
 			else {
 				page.open("table",".files");
@@ -414,7 +419,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.close("table");
 			}
 			page.close("div");
-
+			
 			page.close("div");
 			
 			String broadcastUrl = "/messages";
@@ -532,38 +537,6 @@ void User::http(const String &prefix, Http::Request &request)
 					else document.title = title;\n\
 					if(play) playMessageSound();\n\
 			});");
-
-			
-			directories.clear();
-			Store::GlobalInstance->getDirectories(directories);
-			if(!directories.empty())
-			{
-				page.open("div","otherfiles.box");
-				
-				page.link(prefix+"/files/?action=refreshglobal&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
-		
-				page.open("h2");
-				page.text("Other shared folders");
-				page.close("h2");
-			
-				page.open("table",".files");
-				for(int i=0; i<directories.size(); ++i)
-				{
-					const String &directory = directories[i];
-					String directoryUrl = prefix + "/files/" + directory + "/";
-					
-					page.open("tr");
-					page.open("td",".icon");
-					page.image("/dir.png");
-					page.close("td");
-					page.open("td",".filename");
-					page.link(directoryUrl, directory);
-					page.close("td");
-				}
-				page.close("table");
-				
-				page.close("div");
-			}
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");

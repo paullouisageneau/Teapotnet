@@ -596,17 +596,13 @@ void Store::http(const String &prefix, Http::Request &request)
 				String redirect = prefix + url;
 			  	request.get.get("redirect", redirect);
 				
-				if(action == "refresh" || action == "refreshglobal")
+				if(action == "refresh")
 				{
-					if(action == "refreshglobal")
-					{
-						if(!GlobalInstance->isRunning())
-							GlobalInstance->start();
-					}
-					else {
-						if(!isRunning()) 
-							start();
-					}
+					if(!GlobalInstance->isRunning())
+						GlobalInstance->start();
+					
+					if(!isRunning())
+						start();
 					
 					Http::Response response(request, 200);
 					response.send();
