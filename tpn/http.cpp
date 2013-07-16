@@ -712,7 +712,7 @@ int Http::Get(const String &url, Stream *output)
 	}
 	catch(const NetException &e)
 	{
-		LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+		if(!proxy.empty()) LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
 		throw;
 	}
 
@@ -758,7 +758,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
         }
         catch(const NetException &e)
         {
-                LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+                if(!proxy.empty()) LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
                 throw;
         }
 
