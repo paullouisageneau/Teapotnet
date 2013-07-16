@@ -3,13 +3,13 @@ html
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	padding: 0;  
+	padding: 0;
 }
 
 body
 {
 	font-family: Sans-Serif;
-	font-size: 80%;
+	font-size: 100%;
 	background: #F0F0F0 url(/background.png) repeat-x;
 	width: 100%;
 	height: 95%;
@@ -17,160 +17,56 @@ body
 	padding: 0;
 }
 
-a:link, a:visited
-{
-	text-decoration: none;
-	color: #550AAA;
-}
-
-a:hover
-{
-	text-decoration: underline;
-}
-
-div
-{
-	margin: 0;
-	padding: 0;
-}
-
-img
-{
-	margin: 0em;
-	padding: 0em;
-	border: 0;
-}
-
-form
-{
-	display: inline;	
-}
-
-hr 
-{
-	clear: both;
-	
-}
-
 h1
 {
-	margin: 0.25em;
-	padding: 0;
-	margin-bottom: 0.5em;
-	font-size: 1.3em;
-	font-weight: bold;
+	text-shadow: none;
 }
 
 h2
 {
-	margin: 0.25;
-	padding: 0;
-	margin-bottom: 0.5em;
-	font-size: 1.2em;
-	font-weight: bold;
+	text-shadow: none;
 }
 
 h3
 {
-	margin: 0.25em;
-	padding: 0;
-	margin-bottom: 0.5em;
-	font-size: 1.1em;
-	font-weight: bold;
+	text-shadow: none;
 }
 
 table 
 {
-	width: 100%;
-	margin: 0em;
-	padding: 0em;
-	border: 0; 
-	border-collapse: collapse;
-	border-style: none;
-	border-width:0
+	border-width: 1px;
+	border-radius: 0;
 }
 
 tr
 {
-	margin: 0;
-	border: 0;
-	padding: 0;
-	border-width:0;
+
 }
 
 td
 {
-	margin: 0;
-	border: 0;
-	padding-top: 0.1em;
-	padding-bottom: 0.1em;
-	padding-left: 0.2em;
-	padding-right: 0.2em;
-	border-width:0;
-	vertical-align: top;
-	text-align: left;
+
 }
 
 fieldset 
 {
-	margin: 0em;
-	margin-top: 2em;
-	margin-bottom: 0.5em;
-	padding: 0.5em;
-	padding-top: 1.5em;
-	padding-left: 1em;
-	padding-right: 1em;
-	background-color: #FFFFFF;
-	border: 1px solid #E0E0E0;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
+	border-width: 1px;
+	border-radius: 0;
 }
 
 label 
 {
-	float: left;
-	clear: both;
-	width: 20%;
-	margin-right: 0.5em;
-	padding-top: 0.4em;
-	text-align: right;
-	font-weight: bold;
+	border-width: 1px;
 }
 
 legend 
 {
-	position: absolute;
-	padding: 0.2em 0.5em;
-	margin-top: -2.5em;
-	text-align: right;
-	background-color: #FFFFFF;
-	border: 1px solid #E0E0E0;
-	border-radius: 0.5em;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
+
 }
 
 input
 {
-	display: inline-block;
-	margin: 0.2em;
-	padding: 0.4em;
-	color: #000000;
-	background-color: #FFFFFF;
-	border: 1px solid #606060;
-	border-radius: 0.5em;
-	vertical-align: middle;
-}
 
-input[type="submit"]
-{
-	cursor: pointer;
-	background-color: #FFDC0A;
-	border: 1px solid #E0BC00;
-	text-align: center;
-}
-
-input[type="submit"]:hover
-{
-	background-color: #FFF040;
 }
 
 p
@@ -179,203 +75,20 @@ p
 	margin-right: 0.5em;
 }
 
-.button
-{
-        display: inline-block;
-        min-width: 6em;
-        margin: 0.2em;
-        margin-bottom: 0.5em;
-        padding: 0.4em;
-        color: #000000;
-        background-color: #B0B0B0;
-        border: 1px solid #A0A0A0;
-        border-radius: 0.5em;
-        text-align: center;
-        vertical-align: middle;
-}
-
-a.button
-{
-        color: #000000;
-        cursor: pointer;
-        background-color: #FFDC0A;
-        border: 1px solid #E0BC00;
-}
-
-a.button:hover
-{
-	background-color: #FFF040;
-	text-decoration: none;
-}
-
 textarea
 {
-	margin: 0.2em;
 	resize: none;
-}
-
-.loading > body > * 
-{
-    display: none;
-}
-
-.loading body
-{
-    background: #F0F0F0;
-}
-
-.animloading body 
-{
-    background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
+	border-radius: 0;
 }
 
 #page
 {
-	width: 100%;
-	height: 100%;
-	margin-top: 0.5em;
-	margin-bottom: 0.5em;
-	margin-left: auto;
-	margin-right: auto;
-	padding: 0;
+	max-width: none;
 }
 
 #header
 {
-	width: 100%;
-	text-align: left;
-	vertical-align: middle;
-	margin-bottom: 1em;
-}
 
-#mainheader
-{
-	width: 100%;
-	text-align: center;
-	vertical-align: middle;
-	margin-top: 1em;
-	margin-bottom: 2em;
-}
-
-#header div
-{
-	display: inline-block;
-}
-
-#title
-{
-	margin: 0.5em;
-	margin-top: 1em;
-	font-weight: bold;
-	font-size: 1.6em;
-	max-width: 66%;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-#content
-{
-	clear: both;
-	width: 100%;
-	height: 20em;
-	text-align: justify;
-}
-
-#topmenu
-{
-	margin: 0.25em;
-	text-align: left;
-}
-
-#footer
-{
-	margin: 0.5em;
-	font-size: 0.8em;
-	text-align: right;
-}
-
-#logo
-{
-	width: 20%;
-	max-width: 128px;
-	min-width: 64px;
-}
-
-#logo.small
-{
-	width: 64px;
-}
-
-#header #logo
-{
-	float: left;
-	margin-bottom: 1em;
-}
-
-#mainheader #logo
-{
-	margin: 1em;
-}
-
-#chat
-{
-	height: 100%;
-	margin-top: 0.5em;
-	background-color: #FFFFFF;
-}
-
-#chatmessages
-{
-	height: 80%;
-	overflow-y: auto;
-}
-
-#chatpanel
-{
-	display: table;
-	width: 100%;
-	height: 20%;
-	padding-top: 0.5em;
-	border-top: 1px solid black;
-	overflow: hidden;
-}
-
-#chatpanel form
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-	margin: 0;
-	padding: 0;
-}
-
-#chatpanel .chatinput
-{
-	width: 99%;
-	height: 99%;
-	margin: 0;
-	border: 0;
-	color: #000000;
-	background-color: #FFFFFF;
-}
-
-#info
-{
-
-}
-
-#error, #notification
-{
-	width: 100%;
-	margin-top: 5em;
-	text-align: center;
-}
-
-#error img, #notification img
-{
-	max-width: 50%;
-	padding-bottom: 2em;
 }
 
 .huge
@@ -383,156 +96,29 @@ textarea
 	font-size: 2em;
 }
 
-.title
-{
-	font-weight: bold; 
-}
-
-.value
-{
-  
-}
-
-.icon
-{
-  
-}
-
-.bigicon
-{
-
-}
-
-.user
-{
-	font-weight: bold;
-}
-
-.message
-{
-
-}
-
-.oldmessage
-{
-	opacity: 0.7;
-}
-
-.message .date
-{
-
-}
-
-.message .author
-{
-	font-weight: bold;
-}
-
-.message .content
-{
-
-}
-
-.out
-{
-	color: #1010F0;
-}
-
-.in
-{
-	color: #F01010; 
-}
-
-.important
-{
-	font-weight: bold;
-	color: blue;
-	text-decoration: blink;
-}
-
-.messagescount
-{
-	font-weight: bold;
-	text-decoration: blink;
-}
-
-.status
-{
-	font-weight: bold;
-}
-
-td.delete
-{
-	width: 16px; 
-}
-
 .box
 {
-	margin: 0em;
-	margin-top: 0.5em;
-	margin-bottom: 0.5em;
-	padding: 0.5em;
-	background-color: #FFFFFF;
-	border: 1px solid #E0E0E0;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
-	overflow: hidden;
+	border-width: 1px;
+	border-radius: 0;
 }
 
 .files
 {
-	margin-top: 0.5em;
-}
-
-.files button
-{
-	float: left;
+	white-space: normal;
 }
 
 .files tr
 {
 	height: 3em;
 	max-height: 3em;
-	min-height: 16px;
 	border-top: 1px solid #B0B0B0;
-}
-
-.files tr td
-{
-	vertical-align: middle;
-	
-}
-
-.files tr:hover
-{
-	background-color: #C0C0C0;
-}
-
-.files td.icon
-{
-	width: 16px;
-	min-height: 16px;
-	padding-right: 0.25em;
-	text-align: left;
 }
 
 .files td.filename
 {
-	max-width: 24em;
+	white-space: normal;
 	overflow: hidden;
 	text-overflow: ellipsis; 
-}
-
-.files td.filename .type
-{
-	padding-right: 0.25em;
-	font-family: monospace;
-	font-weight: bold;
-	vertical-align: middle;
-}
-
-.files td.size
-{
-	width: 6em; 
 }
 
 .files td.actions
@@ -540,85 +126,36 @@ td.delete
 	display: none;
 }
 
-.contacts button
-{
-	float: left;
-}
-
 .contacts tr
 {
 	height: 3em;
-	min-height: 16px;
+	max-height: 3em;
 	border-top: 1px solid #B0B0B0;
-}
-
-.contacts tr td
-{
-	vertical-align: middle;
-}
-
-.contacts tr:hover
-{
-	background-color: #C0C0C0;
-}
-
-.contacts td.name
-{
- 	text-align: right;
-	padding-right: 0;
-}
-
-.contacts td.tracker
-{
- 	text-align: left;
-	padding-left: 0;
 }
 
 .contacts td.status
 {
+	width: auto;
 	min-width: 10em;
 }
 
 .contacts td.files
 {
+	width: auto;
 	padding-right: 0.5em;
 }
 
 .contacts td.chat
 {
+	width: auto;
 	padding-right: 0.5em;
-}
-
-#files .button
-{
-        float: right;
-}
-
-#otherfiles .button
-{
-        float: right;
-}
-
-#contacts .button
-{
-        float: right;
 }
 
 #instances tr
 {
 	height: 3em;
-	min-height: 16px;
+	max-height: 3em;
 	border-top: 1px solid #B0B0B0;
-}
-
-#instances tr:hover
-{
-	background-color: #C0C0C0;
-}
-
-#instances tr td
-{
-	vertical-align: middle;
 }
 
 .menu tr
@@ -627,54 +164,12 @@ td.delete
 	border-top: 1px solid #B0B0B0;
 }
 
-.menu tr td
-{
-	vertical-align: middle;
-}
-
-.menu tr:hover
-{
-	background-color: #C0C0C0;
-}
-
 .menu td.title
 {
-	font-weight: bold;
 	font-size: 1.5em;
 }
 
 .menu .bigicon
 {
 	height: 5em;
-}
-
-tr.myself
-{
-	background-color: #00E000;
-	border: 1px solid black;
-}
-
-tr.online
-{
-	background-color: #00E000;
-}
-
-tr.connected
-{
-	background-color: #FFDC0A;
-}
-
-#status.button
-{
-	font-weight: bold;
-}
-
-#status.button.online
-{
-	background-color: #00E000;
-}
-
-#status.button.connected
-{
-        background-color: #FFDC0A;
 }
