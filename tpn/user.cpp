@@ -277,8 +277,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
-			if(!instance.empty()) page.text(instance + " (" + name() + "@" + tracker + ")");
-			else page.text(name());
+			page.text(name() + "@" + tracker);
+			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.close("h1");
 			page.close("div");
 
@@ -324,10 +324,10 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("tr", String("contact_")+self->uniqueName());
 					
 					page.open("td",".name");
-					page.link(self->urlPrefix(), self->name());
+					page.link(self->urlPrefix(), self->uniqueName());
 					page.close("td");
 					
-					/*	
+					/*
 					page.open("td",".tracker");
 					page.text(String("@") + self->tracker());
 					page.close("td");
@@ -354,10 +354,13 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("tr", String("contact_")+contact->uniqueName());
 					
 					page.open("td",".name");
-					page.link(contact->urlPrefix(), contact->name());
+					page.link(contact->urlPrefix(), contact->uniqueName());
 					page.close("td");
 					
 					/*
+					page.open("td",".name");
+					page.link(contact->urlPrefix(), contact->name());
+					page.close("td");
 					page.open("td",".tracker");
 					page.text(String("@") + contact->tracker());
 					page.close("td");
