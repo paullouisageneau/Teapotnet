@@ -40,11 +40,6 @@ uint64_t Time::Milliseconds(void)
 	return uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000;
 }
 
-void Time::Schedule(const Time &when, Thread *thread)
-{
-	// TODO 
-}
-
 Time::Time(void) :
 	mTime(0)
 {

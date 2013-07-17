@@ -28,6 +28,8 @@
 namespace tpn
 {
 
+class Scheduler;
+
 class Thread
 {
 public:
@@ -40,7 +42,7 @@ public:
 	void join(void);
 	void terminate(void);
 	bool isRunning(void);
-
+	
 protected:
 	virtual void run(void);
 

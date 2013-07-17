@@ -20,10 +20,11 @@
  *************************************************************************/
 
 #include "tpn/thread.h"
+#include "tpn/scheduler.h"
 
 namespace tpn
 {
-
+	
 Thread::Thread(void) :
 		mRunning(false),
 		mJoined(true),
