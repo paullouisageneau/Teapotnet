@@ -134,7 +134,8 @@ Store::Store(User *user) :
 				++it;
 			}
 			
-	  		start();
+			// TODO
+	  		//start();
 		}
 		catch(...) {}
 	}
