@@ -628,6 +628,7 @@ select, x:-moz-any-link, x:default
 
 .status
 {
+	float: right;
 	font-weight: bold;
 }
 
@@ -759,6 +760,7 @@ td.delete
 
 #contacts
 {
+	margin-left: 0;
 	float: left;
 	width: 95%;
 	height: 49%;
@@ -768,12 +770,31 @@ td.delete
 	color: #000000;
 }
 
-.contacts button
+#contactsTable
+{
+	margin-left:0;
+}
+
+.contactstr
+{
+	float: left;
+	margin-left: 0;
+	min-height: 16px;
+	vertical-align: middle;
+	width: 100%;
+}
+
+.contactstr button
 {
 	float: left;
 }
 
-.contacts tr
+.contactstr:hover
+{
+	background-color: #C0C0C0;
+}
+
+/*.contacts tr
 {
 	min-height: 16px;
 }
@@ -786,12 +807,18 @@ td.delete
 .contacts tr td
 {
 	vertical-align: middle;
-}
+}*/
 
-.contacts td.name
+/*.contacts td.name
 {
  	text-align: right;
 	padding-right: 0;
+}*/
+
+.contactstr .name
+{
+	float: left;
+	margin-left: 0;
 }
 
 .contacts td.tracker
@@ -867,20 +894,20 @@ td.delete
 	height: 5em;
 }
 
-tr.myself
+.myself
 {
 	background-color: #00E000;
 	border: 1px solid black;
 }
 
-tr.online
+.online
 {
 	/*background-color: #00E000;*/
 	/*background-color: #FFDC0A;*/
 	background-color: #BBD2E1;
 }
 
-tr.connected
+.connected
 {
 	/*background-color: #FFDC0A;*/
 	background-color: #FFF48D;
@@ -905,4 +932,17 @@ tr.connected
 .search
 {
 	margin-left: 0;
+}
+
+.infoscontact
+{
+	margin-left: 0;
+	float: left;
+	height: 0;
+	width: 100%;
+	background-color: #FFFFFF;
+	border: 2px solid #E0E0E0;
+	text-align: center;
+	vertical-align: text-bottom;
+	visibility: hidden;
 }
