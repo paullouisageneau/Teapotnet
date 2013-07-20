@@ -99,6 +99,7 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 		mContacts.erase(oldContact->peering());
 		mContactsByUniqueName.erase(oldContact->uniqueName());
 		Core::Instance->unregisterPeering(oldContact->peering());
+		mScheduler.remove(oldContact);
 		Interface::Instance->remove(oldContact->urlPrefix(), oldContact);
 		delete oldContact;
 	}
@@ -114,6 +115,8 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 	mContacts.insert(contact->peering(), contact);
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	Interface::Instance->add(contact->urlPrefix(), contact);
+	mScheduler.repeat(contact, 5*60*1000);	// TODO
+	mScheduler.schedule(contact);	// TODO
 	
 	save();
 	start();
@@ -130,6 +133,7 @@ void AddressBook::removeContact(const Identifier &peering)
 		contact->setDeleted();
 		Core::Instance->unregisterPeering(contact->peering());
 		Interface::Instance->remove(contact->urlPrefix(), contact);
+		mScheduler.remove(contact);
 		save();
 	}
 }
@@ -205,6 +209,7 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 		mContacts.erase(oldSelf->peering());
                 Core::Instance->unregisterPeering(oldSelf->peering());
                 Interface::Instance->remove(oldSelf->urlPrefix(), oldSelf);
+		mScheduler.remove(oldSelf);
 		
 		oldSelf->copy(self);
 		delete self;
@@ -214,6 +219,8 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 	mContacts.insert(self->peering(), self);
 	mContactsByUniqueName.insert(self->uniqueName(), self);
 	Interface::Instance->add(self->urlPrefix(), self);
+	mScheduler.repeat(self, 5*60*1000);	// TODO
+	mScheduler.schedule(self);	// TODO
 	
 	save();
 	start();
@@ -242,6 +249,8 @@ void AddressBook::clear(void)
 {
 	Synchronize(this);
   
+	mScheduler.clear();	// we make sure no task is running
+	
 	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
@@ -280,8 +289,9 @@ void AddressBook::load(Stream &stream)
 			}
 		
 			mContacts.erase(oldContact->peering());
-			Core::Instance->unregisterPeering(oldContact->peering());
 			mContactsByUniqueName.erase(oldContact->uniqueName());
+			Core::Instance->unregisterPeering(oldContact->peering());
+			mScheduler.remove(oldContact);
 			
 			oldContact->copy(contact);
 			std::swap(oldContact, contact);
@@ -290,7 +300,12 @@ void AddressBook::load(Stream &stream)
 		
 		mContacts.insert(contact->peering(), contact);
 		mContactsByUniqueName.insert(contact->uniqueName(), contact);
-		if(!contact->isDeleted()) Interface::Instance->add(contact->urlPrefix(), contact);
+		if(!contact->isDeleted())
+		{
+			Interface::Instance->add(contact->urlPrefix(), contact);
+			mScheduler.repeat(contact, 5*60*1000);	// TODO
+			mScheduler.schedule(contact);	// TODO
+		}
 		changed = true;
 		
 		contact = new Contact(this);
@@ -1859,6 +1874,14 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 bool AddressBook::Contact::isInlineSerializable(void) const
 {
 	return false; 
+}
+
+void AddressBook::Contact::run(void)
+{
+	update(false);
+	
+	//if(mUpdateCount > 0)
+		update(true);
 }
 
 }

@@ -30,6 +30,8 @@
 #include "tpn/identifier.h"
 #include "tpn/messagequeue.h"
 #include "tpn/core.h"
+#include "tpn/scheduler.h"
+#include "tpn/task.h"
 #include "tpn/array.h"
 #include "tpn/map.h"
 #include "tpn/set.h"
@@ -62,7 +64,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
+	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Task, public Core::Listener
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -112,6 +114,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void run(void);
+		
 		MessageQueue::Selection selectMessages(void) const;
 		void sendMessages(const MessageQueue::Selection &selection, int offset, int count) const;
 		void sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
@@ -152,6 +156,7 @@ private:
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
+	Scheduler mScheduler;
 	
 	unsigned mUpdateCount;
 	Set<String> mBogusTrackers;

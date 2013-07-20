@@ -25,15 +25,17 @@
 namespace tpn
 {
 	
-Thread::Thread(void) :
+Thread::Thread(Task *task) :
+		mTask(task),
 		mRunning(false),
 		mJoined(true),
 		mAutoDelete(false)
 {	
-
+	if(!mTask) mTask = this;
 }
 
 Thread::Thread(void (*func)(void)) :
+		mTask(this),
 		mRunning(false),
 		mJoined(true),
 		mAutoDelete(false)
@@ -118,7 +120,7 @@ void *Thread::ThreadRun(void *myThread)
 #endif
 	
 	try {
-		thread->run();
+		thread->mTask->run();
 	}
 	catch(const std::exception &e)
 	{

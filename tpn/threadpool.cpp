@@ -26,104 +26,106 @@
 namespace tpn
 {
 
-Scheduler::Scheduler(void)
+ThreadPool::ThreadPool(void)
 {
 	
 }
 
-Scheduler::~Scheduler(void)
+ThreadPool::~ThreadPool(void)
 {
-	clear();	// wait for threads to finish
+
 }
 
-void Scheduler::schedule(Task *task, unsigned msecs)
+void ThreadPool::launch(Task *task)
 {
 	Synchronize(this);
 	
-	schedule(task, Time::Now() + double(msecs)/1000);
+	Worker *worker;
+	if(!mAvailableWorkers.empty())
+	{
+		worker = *mAvailableWorkers.begin();
+		mAvailableWorkers.erase(worker);
+	}
+	else {
+		worker = new Worker(this);
+		mWorkers.insert(worker);
+		worker->start();
+	}
+	
+	worker->runTask(task);
 }
 
-void Scheduler::schedule(Task *task, const Time &when)
+void ThreadPool::join(void)
 {
 	Synchronize(this);
 	
-	remove(task);
+	// Threads are always running so we can't use join() here
+	while(mAvailableWorkers.size() < mWorkers.size())
+		wait();
+}
+
+void ThreadPool::clear(void)
+{
+	Synchronize(this);
 	
-	mSchedule[when].insert(task);
-	mNextTimes[task] = when;
+	for(	Set<Worker*>::iterator it = mWorkers.begin(); 
+		it != mWorkers.end();
+		++it)
+	{
+		Worker *worker = *it;
+		worker->runTask(NULL);
+		delete worker;		// join the thread
+	}
 	
-	if(!isRunning()) start();
+	mWorkers.clear();
+	mAvailableWorkers.clear();
+}
+
+ThreadPool::Worker::Worker(ThreadPool *scheduler) :
+	mThreadPool(scheduler),
+	mTask(NULL)
+{
+
+}
+
+ThreadPool::Worker::~Worker(void)
+{
+	Synchronize(mThreadPool);
+	
+	mThreadPool->mWorkers.erase(this);
+	mThreadPool->mAvailableWorkers.erase(this);
+}
+
+void ThreadPool::Worker::runTask(Task *task)
+{
+	Synchronize(this);
+	
+	mTask = task;
 	notifyAll();
 }
 
-void Scheduler::repeat(Task *task, unsigned period)
+void ThreadPool::Worker::run(void)
 {
 	Synchronize(this);
 	
-	if(!period)
+	while(true)
 	{
-		remove(task);
-		return;
-	}
-	
-	if(!mNextTimes.contains(task))
-		schedule(task, period);
-	
-	mPeriods[task] = period;
-}
-
-void Scheduler::remove(Task *task)
-{
-	Synchronize(this);
-	
-	Time nextTime;
-	if(mNextTimes.get(task, nextTime))
-	{
-		mSchedule[nextTime].erase(task);
-		mNextTimes.erase(task);
-	}
-	
-	mPeriods.erase(task);
-}
-
-void Scheduler::clear(void)
-{
-	Synchronize(this);
-	
-	mSchedule.clear();
-	mNextTimes.clear();
-	mPeriods.clear();
-	
-	ThreadPool::clear();	// wait for threads to finish
-}
-
-void Scheduler::run(void)
-{
-	Synchronize(this);
-	
-	while(!mSchedule.empty())
-	{
-		double diff =  mSchedule.begin()->first - Time::Now();
-		if(diff > 0.)
+		wait();
+		
+		if(!mTask) break;
+		
+		try {
+			mTask->run();
+		}
+		catch(...)
 		{
-			wait(unsigned(diff*1000 + 0.5));
-			continue;
+			LogWarn("ThreadPool::Worker", "Unhandled exception in task");
 		}
 		
-		const Set<Task*> &set = mSchedule.begin()->second;
-		for(Set<Task*>::iterator it = set.begin(); it != set.end(); ++it)
-		{
-			Task *task = *it;
-			launch(task);
-			
-			mNextTimes.erase(task);
-			
-			unsigned msecs = 0;
-			if(mPeriods.get(task, msecs))
-				schedule(task, Time::Now() + double(msecs)/1000);
-		}
+		mTask = NULL;
 		
-		mSchedule.erase(mSchedule.begin());
+		SynchronizeStatement(mThreadPool, mThreadPool->mAvailableWorkers.insert(this));
+		mThreadPool->notifyAll();
 	}
 }
 

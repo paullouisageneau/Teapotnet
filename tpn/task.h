@@ -19,39 +19,24 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_SCHEDULER_H
-#define TPN_SCHEDULER_H
+#ifndef TPN_TASK_H
+#define TPN_TASK_H
 
 #include "tpn/include.h"
-#include "tpn/threadpool.h"
-#include "tpn/time.h"
-#include "tpn/map.h"
 
 namespace tpn
 {
 
-class Scheduler : public Thread, protected ThreadPool
+class Task
 {
 public:
-	Scheduler(void);
-	~Scheduler(void);
+	Task(void) {}
+	virtual ~Task(void) {}
 	
-	void schedule(Task *task, unsigned msecs = 0);
-	void schedule(Task *task, const Time &when);
-	
-	void repeat(Task *task, unsigned period);
-	
-	void remove(Task *task);
-	void clear(void);
-	
-private:
-	void run(void);
-	
-	Map<Time, Set<Task*> > mSchedule;
-	Map<Task*, Time> mNextTimes;
-	Map<Task*, unsigned> mPeriods;
+	virtual void run(void) = 0;
 };
 
 }
 
 #endif
+
