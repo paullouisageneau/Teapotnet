@@ -762,8 +762,8 @@ td.delete
 
 #contacts
 {
-	margin-left: 0;
 	float: left;
+	margin-left: 0;
 	width: 95%;
 	height: 49%;
 	padding-top: 15px;
@@ -775,9 +775,8 @@ td.delete
 #contactsTable
 {
 	float: left;
-	width: 100%;
 	margin:0;
-
+	width: 100%;
 }
 
 .contactstr
@@ -902,8 +901,19 @@ td.delete
 	height: 5em;
 }
 
+.disconnected
+{
+	margin: 0;
+}
+
+.found
+{
+	margin: 0;
+}
+
 .myself
 {
+	margin: 0;
 	background-color: #00E000;
 	border: 1px solid black;
 }
