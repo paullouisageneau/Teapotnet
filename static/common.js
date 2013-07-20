@@ -25,6 +25,34 @@ if(!String.escape) {
 	}
 }
 
+String.prototype.smileys = function() {
+	var smileys = {
+		':)' : 'smile.png\" height=15 width=24',
+		':-)' : 'smile.png\" height=15 width=24',
+		':-('  : 'sad.png\" height=15 width=24',
+		':('  : 'sad.png\" height=15 width=24',
+		':\'-('  : 'sad.png\" height=15 width=24',
+		':S'  : 'embarrassed.png\" height=17 width=26',
+		':@'  : 'angry.png\" height=24 width=36'
+	}, url = "\"../", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
+
+	for (var i in smileys) 
+	{
+		if (smileys.hasOwnProperty(i))
+		{
+			patterns.push('('+i.replace(metachars, "\\$&")+')');
+		}
+	}
+
+  	return this.replace(new RegExp(patterns.join('|'),'g'), function (match) 
+		{
+	   		 return typeof smileys[match] != 'undefined' ?
+		   	'<img src='+url+smileys[match]+'/>' :
+		   	match;
+ 		 });
+
+}
+
 if(!String.linkify) {
 	String.prototype.linkify = function() {
 
@@ -236,13 +264,13 @@ function setMessagesReceiverRec(url, object, last) {
 
 				if(message.public)
 				{
-					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> </div>');
+					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> </div>');
 					$('#'+id).addClass('statusdisplay');
 					if(!message.incoming) $('#'+id).addClass('me');
 				}
 				else
 				{
-					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().linkify()+'</span></div>');
+					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>');
 					if(message.incoming && !message.isread) NbNewMessages++;
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');

@@ -529,7 +529,6 @@ void User::http(const String &prefix, Http::Request &request)
 					var play = false;\n\
 					var visible = false;\n\
 					$.each(data, function(uname, info) {\n\
-						//document.getElementById('InfosContact_'+uname).classList.add('infoscontact');\n\
 						document.getElementById('contact_'+uname).onmouseover = function()\n\
 						{\n\
 							if(visible)\n\
@@ -545,9 +544,8 @@ document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
 								timeout = setTimeout(function() { visible = true; }, 100); \n\
 							}\n\
 						}\n\
-						//$('#contact_'+uname).attr('class', info.status);\n\
-						document.getElementById('contact_'+uname).classList.add(info.status);\n\
-						//alert(info.status);\n\
+						$('#contact_'+uname).attr('class', info.status);\n\
+						//document.getElementById('contact_'+uname).classList.add(info.status);\n\
 						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
 						var count = parseInt(info.messages);\n\
 						var tmp = '';\n\

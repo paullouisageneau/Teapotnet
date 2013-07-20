@@ -630,6 +630,7 @@ select, x:-moz-any-link, x:default
 {
 	float: right;
 	font-weight: bold;
+	margin-right: 1px;
 }
 
 td.delete
@@ -654,7 +655,8 @@ td.delete
 {
 	float: left;
 	width: 95%;
-	height: 15%;
+	height: auto;
+	min-height: 15%;
 	padding-top: 15px;
 	padding-left: 4px;
 	background-color: rgba(255,255,255,1);
@@ -726,7 +728,7 @@ td.delete
 
 #leftcolumn
 {
-	position: fixed;
+	position: absolute;
 	top: 0;
 	left: 0;
 	width: 25%;
@@ -772,13 +774,16 @@ td.delete
 
 #contactsTable
 {
-	margin-left:0;
+	float: left;
+	width: 100%;
+	margin:0;
+
 }
 
 .contactstr
 {
 	float: left;
-	margin-left: 0;
+	margin: 0;
 	min-height: 16px;
 	vertical-align: middle;
 	width: 100%;
@@ -813,12 +818,6 @@ td.delete
 {
  	text-align: right;
 	padding-right: 0;
-}*/
-
-.contactstr .name
-{
-	float: left;
-	margin-left: 0;
 }
 
 .contacts td.tracker
@@ -829,6 +828,7 @@ td.delete
 
 .contacts td.status
 {
+	margin: 0;
 	width: 14em;
 }
 
@@ -840,6 +840,14 @@ td.delete
 .contacts td.chat
 {
 	width: 6em; 
+}
+
+*/
+
+.name
+{
+	float: left;
+	margin-left: 0;
 }
 
 #files .button
@@ -904,13 +912,15 @@ td.delete
 {
 	/*background-color: #00E000;*/
 	/*background-color: #FFDC0A;*/
+	margin: 0;
 	background-color: #BBD2E1;
 }
 
 .connected
 {
-	/*background-color: #FFDC0A;*/
+	margin: 0;
 	background-color: #FFF48D;
+	/*background-color: #FFDC0A;*/
 	/* background-color: FEF86C;*/
 }
 
