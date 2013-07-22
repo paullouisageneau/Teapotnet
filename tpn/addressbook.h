@@ -148,6 +148,8 @@ public:
 private:
 	static const int MaxChecksumDistance;	// for message synchronization
 	
+	void registerContact(Contact *contact);
+	void unregisterContact(Contact *contact);
 	bool publish(const Identifier &remotePeering);
 	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
 	void run(void);
