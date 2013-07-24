@@ -3,7 +3,7 @@ html
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	padding: 0;  
+	padding: 0;
 }
 
 body
@@ -965,4 +965,21 @@ td.delete
 	text-align: center;
 	vertical-align: text-bottom;
 	visibility: hidden;
+}
+
+.childmessage
+{
+	position: relative;
+	right: 1px;
+	width: 70%;
+}
+
+.invisible
+{
+	display: none;
+}
+
+.visible
+{
+	display: block;
 }

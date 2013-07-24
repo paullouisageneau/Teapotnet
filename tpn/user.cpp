@@ -474,7 +474,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 		 
-			page.javascript("function post()\n\
+			page.javascript("function postStatus()\n\
 				{\n\
 					var message = document.statusform.statusinput.value;\n\
 					if(!message) return false;\n\
@@ -485,9 +485,28 @@ void User::http(const String &prefix, Http::Request &request)
 						alert('The message could not be sent.');\n\
 					});\n\
 				}\n\
+				function post(object, idParent)\n\
+				{\n\
+					var message = $(object).val();\n\
+					if(!message) return false;\n\
+					$(object).val('');\n\
+					if(!idParent)\n\
+					{\n\
+						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
+							{ 'message': message , 'public': 1});\n\
+					}\n\
+					else\n\
+					{\n\
+						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
+							{ 'message': message , 'public': 1, 'parent': idParent});\n\
+					}\n\
+					request.fail(function(jqXHR, textStatus) {\n\
+						alert('The message could not be sent.');\n\
+					});\n\
+				}\n\
 				document.statusform.onsubmit = function()\n\
 				{\n\
-					post();\n\
+					postStatus();\n\
 					return false;\n\
 				}\n\
 				function formTextBlur()\n\
@@ -507,7 +526,7 @@ void User::http(const String &prefix, Http::Request &request)
 				$('textarea.statusinput').keypress(function(e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						e.preventDefault();\n\
-						post();\n\
+						postStatus();\n\
 					}\n\
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
@@ -519,7 +538,16 @@ void User::http(const String &prefix, Http::Request &request)
 				listIncoming.addEventListener('change', function() {\n\
 					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');");
+				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
+				//Events for the reply textareas : \n\
+				$('#newsfeed').on('keypress','textarea', function (e) {\n\
+				if (e.keyCode == 13 && !e.shiftKey) {\n\
+				var name = $(this).attr('name');\n\
+				var id = name.split(\"replyTo\").pop();\n\
+				post(this, id);\n\
+				return false; \n\
+				}\n\
+});");
 
 
 			unsigned refreshPeriod = 5000;
