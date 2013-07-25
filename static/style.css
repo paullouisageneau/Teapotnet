@@ -244,7 +244,7 @@ textarea
 .searchinput input[type="text"]
 {
 	float: left;
-	width: 70%;
+	width: 90%;
 }
 
 .loading > body > * 
@@ -984,4 +984,18 @@ td.delete
 	margin-right: 10px;
 	margin-bottom: 2%;
 	width: 70%;
+}
+
+.replybutton
+{
+	float: right;
+	margin-right: 3px;
+	height: 17px;
+	width: 17px;
+}
+
+.replybutton:hover
+{
+	float: right;
+	border: 1px inset #C1BFB1;
 }

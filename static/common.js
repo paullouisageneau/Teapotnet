@@ -280,7 +280,7 @@ function setMessagesReceiverRec(url, object, last) {
 					{
 						var idReply = "replyTo" + id;
 
-						$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
+						$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div>');
 						$('#'+id).addClass('statusdisplay');
 						if(!message.incoming) $('#'+id).addClass('me');
 
@@ -292,7 +292,7 @@ function setMessagesReceiverRec(url, object, last) {
 							var idReplyChild = "replyTo" + idChild;
 							if(messageChild.parent == id)
 							{
-								$(object).append('<div id=\"'+idChild+'\" class=\"message\"> <span class=\"author\">'+messageChild.headers.from.escape()+'</span> <span class=\"content\">'+messageChild.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(messageChild.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
+								$(object).append('<div id=\"'+idChild+'\" class=\"message\"> <span class=\"author\">'+messageChild.headers.from.escape()+'</span> <span class=\"content\">'+messageChild.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(messageChild.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div>');
 								$('#'+idChild).addClass('statusdisplay');
 								$('#'+idChild).addClass('childmessage');
 								if(!message.incoming) $('#'+idChild).addClass('me');
