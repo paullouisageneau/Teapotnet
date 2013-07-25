@@ -554,7 +554,9 @@ select, x:-moz-any-link, x:default
 
 .message
 {
-	
+	float: left;
+	margin: 1px;
+	width: 90%;
 }
 
 .oldmessage
@@ -969,17 +971,17 @@ td.delete
 
 .childmessage
 {
-	position: relative;
-	right: 1px;
-	width: 70%;
+	float: right;
+	margin: 1px;
+	width: 71%;
 }
 
-.invisible
+.reply
 {
 	display: none;
-}
-
-.visible
-{
-	display: block;
+	float: left;
+	margin-top: 3px;
+	margin-right: 10px;
+	margin-bottom: 2%;
+	width: 70%;
 }

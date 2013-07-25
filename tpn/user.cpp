@@ -539,15 +539,22 @@ void User::http(const String &prefix, Http::Request &request)
 					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
 				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
-				//Events for the reply textareas : \n\
+				// Events for the reply textareas : \n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
-				if (e.keyCode == 13 && !e.shiftKey) {\n\
-				var name = $(this).attr('name');\n\
-				var id = name.split(\"replyTo\").pop();\n\
-				post(this, id);\n\
-				return false; \n\
-				}\n\
-});");
+					if (e.keyCode == 13 && !e.shiftKey) {\n\
+						var name = $(this).attr('name');\n\
+						var id = name.split(\"replyTo\").pop();\n\
+						post(this, id);\n\
+						return false; \n\
+					}\n\
+				});\n\
+				$('#newsfeed').on('blur','textarea', function (e) {\n\
+					$(this).css('display','none');\n\
+				});\n\
+				$('#newsfeed').on('focus','textarea', function (e) {\n\
+					$(this).css('display','block');\n\
+				});\n\
+");
 
 
 			unsigned refreshPeriod = 5000;

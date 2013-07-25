@@ -234,6 +234,7 @@ function updateMessagesReceiver(url, object) {
 function clickedReply(id) 
 {
 	$('#'+id.id).css('display','block');
+	$('textarea[name=\"'+id.id+'\"]').focus();
 }
 
 function submitReply(object, idParent) 
@@ -275,41 +276,41 @@ function setMessagesReceiverRec(url, object, last) {
 
 				if(!message.parent)
 				{
-				if(message.public)
-				{
-					var idReply = "replyTo" + id;
-
-					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
-					$('#'+id).addClass('statusdisplay');
-					if(!message.incoming) $('#'+id).addClass('me');
-
-					// Search for children and display in case found
-					for(var j=0; j<data.length; j++) 
+					if(message.public)
 					{
-						var messageChild = data[j];
-						var idChild = "message_" + messageChild.stamp;
-						var idReplyChild = "replyTo" + idChild;
-						if(messageChild.parent == id)
-						{
-							$(object).append('<div id=\"'+idChild+'\" class=\"message\"> <span class=\"author\">'+messageChild.headers.from.escape()+'</span> <span class=\"content\">'+messageChild.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(messageChild.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
-							$('#'+idChild).addClass('statusdisplay');
-							$('#'+idChild).addClass('childmessage');
-							if(!message.incoming) $('#'+idChild).addClass('me');
-						}
-					}
+						var idReply = "replyTo" + id;
 
-					// Reply form
-					$(object).append('<div id='+idReply+' class=\"invisible\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
+						$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
+						$('#'+id).addClass('statusdisplay');
+						if(!message.incoming) $('#'+id).addClass('me');
+
+						// Search for children and display in case found
+						for(var j=0; j<data.length; j++) 
+						{
+							var messageChild = data[j];
+							var idChild = "message_" + messageChild.stamp;
+							var idReplyChild = "replyTo" + idChild;
+							if(messageChild.parent == id)
+							{
+								$(object).append('<div id=\"'+idChild+'\" class=\"message\"> <span class=\"author\">'+messageChild.headers.from.escape()+'</span> <span class=\"content\">'+messageChild.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(messageChild.time).escape()+'</span> <img src="/reply.png" alt="Reply" onclick="clickedReply('+idReply+');" height=20 width=20 /> </div>');
+								$('#'+idChild).addClass('statusdisplay');
+								$('#'+idChild).addClass('childmessage');
+								if(!message.incoming) $('#'+idChild).addClass('me');
+							}
+						}
+
+						// Reply form
+						$(object).append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
 					
-				}
-				else
-				{
-					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>');
-					if(message.incoming && !message.isread) NbNewMessages++;
-					if(message.isread) $('#'+id).addClass('oldmessage');
-					if(message.incoming) $('#'+id).addClass('in');
-					else $('#'+id).addClass('out');
-				}
+					}
+					else
+					{
+						$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>');
+						if(message.incoming && !message.isread) NbNewMessages++;
+						if(message.isread) $('#'+id).addClass('oldmessage');
+						if(message.incoming) $('#'+id).addClass('in');
+						else $('#'+id).addClass('out');
+					}
 				}
 			}
 			$(object).scrollTop($(object)[0].scrollHeight);
