@@ -272,15 +272,16 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.close("div");*/
 
+			page.open("div", "wrapper");
 			
-			page.open("div");
+			/*page.open("div");
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
 			page.text(name() + "@" + tracker);
 			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.close("h1");
-			page.close("div");
+			page.close("div");*/
 
 			page.open("div","leftcolumn.box");
 
@@ -292,8 +293,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.raw("<span class=\"searchinput\">");
 
 			page.openForm(prefix + "/search", "post", "searchForm");
+			//page.button("search","Search");
 			page.input("text","query");
-			page.button("search","Search");
 			page.closeForm();
 			page.raw("</span>");
 
@@ -426,6 +427,19 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.close("div");
+
+// End of leftcolumn
+
+			page.open("div", "content");
+
+			page.open("div");
+			page.open("h1");
+			const String tracker = Config::Get("tracker");
+			const String instance = Core::Instance->getName().before('.');
+			page.text(name() + "@" + tracker);
+			if(!instance.empty()) page.text(" (" + instance + ")");
+			page.close("h1");
+			page.close("div");
 			
 			String broadcastUrl = "/messages";
 			String publicUrl = "?public=1";
@@ -523,6 +537,16 @@ void User::http(const String &prefix, Http::Request &request)
 					document.statusform.statusinput.value = '';\n\
 					document.statusform.statusinput.style.color = 'black';\n\
 				}\n\
+				document.searchForm.query.onfocus = function()\n\
+				{\n\
+					document.searchForm.query.value = '';\n\
+					document.searchForm.query.style.color = 'black';\n\
+				}\n\
+				document.searchForm.query.onblur = function()\n\
+				{\n\
+					document.searchForm.query.style.color = 'grey';\n\
+					document.searchForm.query.value = 'Search for files...';\n\
+				}\n\
 				$('textarea.statusinput').keypress(function(e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						e.preventDefault();\n\
@@ -600,6 +624,9 @@ document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
 			page.text(" - ");
 			page.link(SOURCELINK, "Source code", "", true);
 			page.close("div");
+
+page.close("div");
+page.close("div");
 			
 			page.footer();
 			return;
