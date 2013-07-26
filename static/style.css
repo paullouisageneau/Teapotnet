@@ -1001,7 +1001,7 @@ td.delete
 .reply
 {
 	display: none;
-	float: left;
+	float: right;
 	margin-top: 3px;
 	margin-right: 10px;
 	margin-bottom: 2%;
