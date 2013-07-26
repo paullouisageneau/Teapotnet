@@ -280,11 +280,11 @@ function setMessagesReceiverRec(url, object, last) {
 
 					if(!message.parent)
 					{
-						$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div>');
+						$(object).prepend('<div class=\"messagewrapper\"> <div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div></div>');
 					}
 					else
 					{						
-						$('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span></div>').insertAfter('#'+message.parent);
+						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span></div>');
 						$('#'+id).addClass('childmessage');
 					}
 
@@ -293,7 +293,7 @@ function setMessagesReceiverRec(url, object, last) {
 					if(!message.incoming) $('#'+id).addClass('me');
 
 					// Reply form
-					$(object).append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
+					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
 				
 				}
 				else
