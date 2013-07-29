@@ -48,9 +48,10 @@ void Scheduler::schedule(Task *task, const Time &when)
 	Synchronize(this);
 	
 	remove(task);
-	
 	mSchedule[when].insert(task);
 	mNextTimes[task] = when;
+	
+	LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
 	
 	if(!isRunning()) start();
 	notifyAll();
@@ -103,10 +104,14 @@ void Scheduler::run(void)
 	
 	while(!mSchedule.empty())
 	{
+		LogDebug("Scheduler::run", "Total: " + String::number(mNextTimes.size()) + " tasks");
+		
 		double diff =  mSchedule.begin()->first - Time::Now();
 		if(diff > 0.)
 		{
-			wait(unsigned(diff*1000 + 0.5));
+			unsigned msecs = unsigned(diff*1000 + 0.5);
+			LogDebug("Scheduler::run", "Next task in " + String::number(msecs) + " msecs");
+			wait(msecs);
 			continue;
 		}
 		
@@ -114,8 +119,9 @@ void Scheduler::run(void)
 		for(Set<Task*>::iterator it = set.begin(); it != set.end(); ++it)
 		{
 			Task *task = *it;
-			launch(task);
 			
+			LogDebug("Scheduler::run", "Launching task...");
+			launch(task);
 			mNextTimes.erase(task);
 			
 			unsigned msecs = 0;
@@ -125,6 +131,8 @@ void Scheduler::run(void)
 		
 		mSchedule.erase(mSchedule.begin());
 	}
+	
+	LogDebug("Scheduler::run", "No more tasks");
 }
 
 }

@@ -99,7 +99,7 @@ void User::UpdateAll(void)
 		UsersByName.get(names[i], user);
 		UsersMutex.unlock();
 		
-		if(user && !user->addressBook()->isRunning()) user->addressBook()->start();
+		user->addressBook()->update();
 	}
 }
 
@@ -195,7 +195,7 @@ void User::setOnline(void)
 	
 	if(!wasOnline) 
 	{
-		if(!mAddressBook->isRunning()) mAddressBook->start();
+		mAddressBook->update();
 		sendInfo();
 	}
 }
@@ -638,7 +638,6 @@ void User::run(void)
 		}
 		
 		++m;
-		if((m%5 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
 		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
 }

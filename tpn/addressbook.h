@@ -41,7 +41,7 @@ namespace tpn
 
 class User;
   
-class AddressBook : public Thread, public Synchronizable, public HttpInterfaceable
+class AddressBook : public Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -131,6 +131,7 @@ public:
 		bool mFound;
 		AddressMap mAddrs;
 		StringMap mInfo;
+		Time mFirstUpdateTime;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);
@@ -146,13 +147,14 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
+	static const unsigned UpdateInterval;	// for contacts connection attemps (milliseconds)
+	static const unsigned UpdateStep;	// between contacts (milliseconds)
 	static const int MaxChecksumDistance;	// for message synchronization
 	
-	void registerContact(Contact *contact);
+	void registerContact(Contact *contact, int ordinal = 0);
 	void unregisterContact(Contact *contact);
 	bool publish(const Identifier &remotePeering);
 	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
-	void run(void);
 	
 	User *mUser;
 	String mFileName;
@@ -160,7 +162,6 @@ private:
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
 	Scheduler mScheduler;
 	
-	unsigned mUpdateCount;
 	Set<String> mBogusTrackers;
 };
 

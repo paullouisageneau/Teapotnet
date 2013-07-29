@@ -33,7 +33,7 @@ namespace tpn
 class ThreadPool : protected Synchronizable
 {
 public:
-	ThreadPool(void);
+	ThreadPool(unsigned limit = 8);	// 0 means unlimited
 	~ThreadPool(void);
 	
 	void launch(Task *task);
@@ -58,6 +58,7 @@ private:
 	
 	Set<Worker*> mWorkers;
 	Set<Worker*> mAvailableWorkers;
+	unsigned mLimit;
 };
 
 }

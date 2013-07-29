@@ -30,7 +30,7 @@
 namespace tpn
 {
 
-class Scheduler : public Thread, protected ThreadPool
+class Scheduler : public Thread, public ThreadPool
 {
 public:
 	Scheduler(void);

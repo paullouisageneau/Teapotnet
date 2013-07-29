@@ -26,7 +26,8 @@
 namespace tpn
 {
 
-ThreadPool::ThreadPool(void)
+ThreadPool::ThreadPool(unsigned limit) :
+	mLimit(limit)
 {
 	
 }
@@ -38,18 +39,34 @@ ThreadPool::~ThreadPool(void)
 
 void ThreadPool::launch(Task *task)
 {
-	Synchronize(this);
-	
 	Worker *worker;
-	if(!mAvailableWorkers.empty())
+	
+	try
 	{
-		worker = *mAvailableWorkers.begin();
-		mAvailableWorkers.erase(worker);
+		Synchronize(this);
+		
+		if(!mAvailableWorkers.empty())
+		{
+			worker = *mAvailableWorkers.begin();
+			mAvailableWorkers.erase(worker);
+		}
+		else {
+			if(!mLimit || mWorkers.size() < mLimit)
+			{
+				worker = new Worker(this);
+				mWorkers.insert(worker);
+				worker->start();
+			}
+			else {
+				worker = new Worker(this);
+				worker->start(true);
+			}
+		}
 	}
-	else {
-		worker = new Worker(this);
-		mWorkers.insert(worker);
-		worker->start();
+	catch(const Exception &e)
+	{
+		LogWarn("ThreadPool::launch", String("Failed: ") + e.what());
+		throw;
 	}
 	
 	worker->runTask(task);
@@ -106,26 +123,35 @@ void ThreadPool::Worker::runTask(Task *task)
 
 void ThreadPool::Worker::run(void)
 {
-	Synchronize(this);
-	
 	while(true)
 	{
-		wait();
-		
-		if(!mTask) break;
-		
-		try {
-			mTask->run();
-		}
-		catch(...)
 		{
-			LogWarn("ThreadPool::Worker", "Unhandled exception in task");
+			Synchronize(this);
+
+			if(!mTask) wait();
+			if(!mTask) break;
+			
+			try {
+				mTask->run();
+			}
+			catch(...)
+			{
+				LogWarn("ThreadPool::Worker", "Unhandled exception in task");
+			}
+			
+			// Caution: Task might be autodeleted here
+			mTask = NULL;
 		}
 		
-		mTask = NULL;
-		
-		SynchronizeStatement(mThreadPool, mThreadPool->mAvailableWorkers.insert(this));
-		mThreadPool->notifyAll();
+		{
+			Synchronize(mThreadPool);
+			
+			if(mThreadPool->mWorkers.contains(this))
+			{
+				mThreadPool->mAvailableWorkers.insert(this);
+				mThreadPool->notifyAll();
+			}
+		}
 	}
 }
 

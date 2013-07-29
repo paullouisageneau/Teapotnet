@@ -595,6 +595,7 @@ void Http::Response::clear(void)
 }
 
 Http::Server::Server(int port) :
+	ThreadPool(16),
 	mSock(port)
 {
 
@@ -613,7 +614,7 @@ void Http::Server::run(void)
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			Handler *client = new Handler(this, sock);
-			client->start(true); // client will destroy itself
+			launch(client);
 		}
 	}
 	catch(const NetException &e)
@@ -636,6 +637,8 @@ Http::Server::Handler::~Handler(void)
 
 void Http::Server::Handler::run(void)
 {
+	// Warning: no return in this function (autodelete at the end)
+	
 	Request request;
 	try {
 		try {
@@ -687,6 +690,8 @@ void Http::Server::Handler::run(void)
 	{
 		LogWarn("Http::Server::Handler", e.what()); 
 	}
+	
+	delete this;	// autodelete
 }
 
 int Http::Get(const String &url, Stream *output)

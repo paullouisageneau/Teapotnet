@@ -35,13 +35,16 @@
 namespace tpn
 {
 
+const unsigned AddressBook::UpdateInterval = 300000;
+const unsigned AddressBook::UpdateStep = 250;
 const int AddressBook::MaxChecksumDistance = 1000;
 
 AddressBook::AddressBook(User *user) :
-	mUser(user),
-	mUpdateCount(0)
+	mUser(user)
 {
+	Assert(UpdateInterval > 0);
 	Assert(mUser != NULL);
+	
 	mFileName = mUser->profilePath() + "contacts";
 	
 	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
@@ -111,7 +114,6 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 	registerContact(contact);
 	
 	save();
-	start();
 	return contact->peering();
 }
 
@@ -206,7 +208,6 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 
 	registerContact(self);
 	save();
-	start();
 	return self->peering();
 }
 
@@ -250,10 +251,9 @@ void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
-	bool changed = false;
-
 	Contact *contact = new Contact(this);
 	
+	int i = 0;
 	//YamlSerializer serializer(&stream);
 	//while(serializer.input(*contact))
 	while(true)
@@ -277,15 +277,12 @@ void AddressBook::load(Stream &stream)
 			delete oldContact;
 		}
 		
-		registerContact(contact);
-		changed = true;
-		
+		registerContact(contact, i);
 		contact = new Contact(this);
+		++i;
 	}
-	delete contact;
 	
-	if(changed && !isRunning())
-		start();
+	delete contact;
 }
 
 void AddressBook::save(Stream &stream) const
@@ -338,45 +335,18 @@ void AddressBook::save(void) const
 void AddressBook::update(void)
 {
 	Synchronize(this);
-	LogDebug("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
-	
-	mBogusTrackers.clear();
 	
 	Array<Identifier> keys;
 	mContacts.getKeys(keys);
 	std::random_shuffle(keys.begin(), keys.end());
 
-	// Normal
 	for(int i=0; i<keys.size(); ++i)
 	{
-		Contact *contact = NULL;
-		if(mContacts.get(keys[i], contact))
-		{
-			if(contact->isDeleted()) continue;
-			Desynchronize(this);
-			contact->update(false);
-		}
+		Contact *contact;
+		if(!mContacts.get(keys[i], contact)) continue;
+		
+		mScheduler.schedule(contact, UpdateStep*i + rand()%UpdateStep);
 	}
-
-	// Alternate
-	// isPublicConnectable could be valid only for IPv6
-	if(/*!Core::Instance->isPublicConnectable() &&*/ mUpdateCount > 0)
-	{
-		for(int i=0; i<keys.size(); ++i)
-		{
-			Contact *contact = NULL;
-			if(mContacts.get(keys[i], contact))
-			{
-				if(contact->isDeleted()) continue;
-				Desynchronize(this);
-				contact->update(true);
-			}
-		}
-	}
-	
-	LogDebug("AddressBook::update", "Finished");
-	++mUpdateCount;
-	save();
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -556,7 +526,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void AddressBook::registerContact(Contact *contact)
+void AddressBook::registerContact(Contact *contact, int ordinal)
 {
 	Synchronize(this);
 	
@@ -566,8 +536,8 @@ void AddressBook::registerContact(Contact *contact)
 	if(!contact->isDeleted())
 	{
 		Interface::Instance->add(contact->urlPrefix(), contact);
-		mScheduler.repeat(contact, 5*60*1000);	// TODO
-		mScheduler.schedule(contact);	// TODO
+		mScheduler.repeat(contact, UpdateInterval);
+		mScheduler.schedule(contact, UpdateStep*ordinal + rand()%UpdateStep);
 	}
 }
 
@@ -585,9 +555,7 @@ void AddressBook::unregisterContact(Contact *contact)
 
 bool AddressBook::publish(const Identifier &remotePeering)
 {
-	Synchronize(this);
 	String tracker = Config::Get("tracker");
-	if(SynchronizeTest(this, mBogusTrackers.find(tracker) != mBogusTrackers.end())) return false;
 	
 	try {
 		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
@@ -629,25 +597,27 @@ bool AddressBook::publish(const Identifier &remotePeering)
 			post["alternate"] = altAddresses;
 		}
 		
-		return (Http::Post(url, post) == 200);
+		if(Http::Post(url, post) == 200)
+		{
+			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
+			return true;
+		}
 	}
 	catch(const Timeout &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::publish", e.what()); 
-		return false;
 	}
 	catch(const NetException &e)
 	{
-		mBogusTrackers.insert(tracker);
 		LogDebug("AddressBook::publish", e.what()); 
-		return false;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("AddressBook::publish", e.what()); 
-		return false;
 	}
+	
+	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+	return false;
 }
 
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
@@ -656,65 +626,61 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	
 	String host(tracker);
 	if(host.empty()) host = Config::Get("tracker");
-	if(SynchronizeTest(this, mBogusTrackers.find(host) != mBogusTrackers.end())) return false;
 	
 	try {
 		String url = "http://" + host + "/tracker?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
-		if(Http::Get(url, &tmp) != 200) return false;
-		tmp.trim();
-		if(tmp.empty()) return false;
-	
-		YamlSerializer serializer(&tmp);
-		typedef SerializableMap<String, SerializableArray<Address> > content_t;
-		content_t content;
-		
-		while(true)
-		try {
-			serializer.input(content);
-			break;
-		}
-		catch(const InvalidData &e)
+		if(Http::Get(url, &tmp) == 200) 
 		{
-			 
-		}
+			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
+			
+			tmp.trim();
+			if(tmp.empty()) return false;
 		
-		for(content_t::const_iterator it = content.begin();
-			it != content.end();
-			++it)
-		{
-			const String &instance = it->first;
-			const Array<Address> &addrs = it->second;
-			for(int i=0; i<addrs.size(); ++i)
-				output[instance].insert(addrs[i], Time::Now());
+			YamlSerializer serializer(&tmp);
+			typedef SerializableMap<String, SerializableArray<Address> > content_t;
+			content_t content;
+			
+			while(true)
+			try {
+				serializer.input(content);
+				break;
+			}
+			catch(const InvalidData &e)
+			{
+				
+			}
+			
+			for(content_t::const_iterator it = content.begin();
+				it != content.end();
+				++it)
+			{
+				const String &instance = it->first;
+				const Array<Address> &addrs = it->second;
+				for(int i=0; i<addrs.size(); ++i)
+					output[instance].insert(addrs[i], Time::Now());
+			}
+			
+			return !output.empty();
 		}
-		
-		return !output.empty();
 	}
 	catch(const Timeout &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::query", e.what()); 
-		return false;
 	}
 	catch(const NetException &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::query", e.what()); 
-		return false;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("AddressBook::query", e.what()); 
-		return false;
 	}
-}
-
-void AddressBook::run(void)
-{
-	update();
+	
+	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+	return false;
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
@@ -729,7 +695,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mSecret(secret),
 	mTime(Time::Now()),
 	mDeleted(false),
-	mFound(false)
+	mFound(false),
+	mFirstUpdateTime(0)
 {	
 	Assert(addressBook != NULL);
 	Assert(!uname.empty());
@@ -896,24 +863,38 @@ void AddressBook::Contact::getInstancesNames(Array<String> &array)
 
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
 {
-	Synchronize(this);
-  
+	bool changed = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
 		++it)
 	{
+		Synchronize(this);
+		
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
-		mAddrs.insert(instance, block);
+		AddressBlock &target = mAddrs[instance];
+		
+		for(AddressBlock::const_iterator jt = block.begin();
+			jt != block.end();
+			++jt)
+		{
+			const Address &addr = jt->first;
+			const Time &time = jt->second;
+			
+			if(!target.contains(addr) || target[addr] < time)
+			{
+				target[addr] = time;
+				changed = true;
+			}
+		}
 	}
 	
+	if(changed) SynchronizeStatement(mAddressBook, mAddressBook->save());
 	return true;
 }
 
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
-	Synchronize(this);
-	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
@@ -933,20 +914,26 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	if(added)
 	{
-		if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
+		if(save)
+		{
+			SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
+			SynchronizeStatement(mAddressBook, mAddressBook->save());
+		}
 		return true;
 	}
 	else {
 		// A node is running at this address but the user does not exist
-		if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
+		if(save && mAddrs.contains(instance)) 
+		{
+			mAddrs[instance].erase(addr);
+			SynchronizeStatement(mAddressBook, mAddressBook->save());
+		}
 		return false;
 	}
 }
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
 {
-	Synchronize(this);
-  
 	bool success = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
@@ -1059,6 +1046,17 @@ void AddressBook::Contact::update(bool alternate)
 			mAddrs.erase(it++);
 		else it++;
 	}
+}
+
+void AddressBook::Contact::run(void)
+{
+	if(mFirstUpdateTime == Time(0))
+		mFirstUpdateTime = Time::Now();
+	
+	update(false);
+	
+	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval-1)
+		update(true);
 }
 
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
@@ -1873,14 +1871,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 bool AddressBook::Contact::isInlineSerializable(void) const
 {
 	return false; 
-}
-
-void AddressBook::Contact::run(void)
-{
-	update(false);
-	
-	//if(mUpdateCount > 0)
-		update(true);
 }
 
 }
