@@ -30,7 +30,7 @@
 namespace tpn
 {
 
-class ThreadPool : protected Synchronizable
+class ThreadPool : public Synchronizable
 {
 public:
 	ThreadPool(unsigned limit = 8);	// 0 means unlimited

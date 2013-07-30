@@ -100,12 +100,11 @@ void Scheduler::clear(void)
 
 void Scheduler::run(void)
 {
-	Synchronize(this);
-	
-	while(!mSchedule.empty())
+	while(true)
 	{
-		LogDebug("Scheduler::run", "Total: " + String::number(mNextTimes.size()) + " tasks");
-		
+		Synchronize(this);
+		if(mSchedule.empty()) break;
+
 		double diff =  mSchedule.begin()->first - Time::Now();
 		if(diff > 0.)
 		{
