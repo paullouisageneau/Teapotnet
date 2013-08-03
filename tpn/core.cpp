@@ -194,7 +194,7 @@ void Core::run(void)
 			LogInfo("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null, true);	// async
-			Time::Sleep(0.25);
+			Thread::Sleep(0.25);
 		}
 	}
 	catch(const NetException &e)
@@ -1140,7 +1140,7 @@ void Core::Handler::run(void)
 {
 	process();
 	notifyAll();
-	Time::Sleep(1.);	// TODO
+	Thread::Sleep(1.);	// TODO
 	Synchronize(this);
 }
 

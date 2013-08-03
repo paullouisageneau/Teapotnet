@@ -384,7 +384,7 @@ void Interface::process(Http::Request &request)
 					{
 						int64_t size = splicer.process(response.sock);
 						total+= size;
-						if(!size) Time::Sleep(0.1);
+						if(!size) Thread::Sleep(0.1);
 					}
 					
 					splicer.stop();

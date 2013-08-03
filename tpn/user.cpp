@@ -623,7 +623,7 @@ void User::run(void)
 		for(int t=0; t<2; ++t)
 		{
 			try {
-				Time::Sleep(30.);
+				Thread::Sleep(30.);
 				
 				if(oldLastOnlineTime != mLastOnlineTime)
 				{

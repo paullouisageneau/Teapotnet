@@ -1216,7 +1216,7 @@ void Store::run(void)
 	try {
 		update();
 		if(this != GlobalInstance) break;
-		Time::Sleep(6.*60.*60.);	// 6h
+		Thread::Sleep(6.*60.*60.);	// 6h
 	}
 	catch(const Exception &e)
 	{

@@ -31,6 +31,7 @@
 #include "tpn/user.h"
 #include "tpn/directory.h"
 #include "tpn/portmapping.h"
+#include "tpn/thread.h"
 
 #include <signal.h>
 
@@ -461,7 +462,7 @@ int main(int argc, char** argv)
 				}
 				
 				user->start();
-				Time::Sleep(0.1);
+				Thread::Sleep(0.1);
 			}
 		}
 		
@@ -482,7 +483,7 @@ int main(int argc, char** argv)
 				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
 				user->start();
-				Time::Sleep(0.1);
+				Thread::Sleep(0.1);
 				line.clear();
 			}
 			usersFile.close();

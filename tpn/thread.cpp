@@ -24,6 +24,11 @@
 
 namespace tpn
 {
+
+void Thread::Sleep(double secs)
+{
+	tpn::sleep(secs);
+}
 	
 Thread::Thread(Task *task) :
 		mTask(task),

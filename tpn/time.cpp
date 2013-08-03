@@ -33,11 +33,6 @@ Time Time::Now(void)
 	return Time(); 
 }
 
-void Time::Sleep(double secs)
-{
-	tpn::sleep(secs);
-}
-
 uint64_t Time::Milliseconds(void)
 {
 	timeval tv;

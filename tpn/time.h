@@ -34,7 +34,6 @@ class Time : public Serializable
 {
 public:
   	static Time Now(void);
-	static void Sleep(double secs);
 	static uint64_t Milliseconds(void);
 	
 	Time(void);

@@ -300,7 +300,7 @@ int64_t Splicer::process(ByteStream *output)
 				if(sources.empty())
 				{
 					LogDebug("Splicer::process", "No sources found, waiting...");
-					Time::Sleep(30.);
+					Thread::Sleep(30.);
 					return written;
 				}
 

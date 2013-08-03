@@ -31,7 +31,9 @@ namespace tpn
 
 class Thread : public Task
 {
-public:					
+public:
+	static void Sleep(double secs);
+	
 	Thread(Task *task = NULL);				// start the run() member function on start()
 	Thread(void (*func)(void));				// start func() immediately
 	template<typename T> Thread(void (*func)(T*), T *arg);	// start func(arg) immediately
