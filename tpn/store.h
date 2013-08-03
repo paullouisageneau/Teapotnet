@@ -111,7 +111,7 @@ private:
 	String mBasePath;
 	StringMap mDirectories;
 	
-	static void keywords(String name, Set<String> &result);
+	//static void keywords(String name, Set<String> &result);
 	
 	static Map<ByteString,String> Resources;	// absolute path by data hash
 	static Mutex ResourcesMutex;

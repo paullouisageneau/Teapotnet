@@ -1223,7 +1223,7 @@ void Store::run(void)
 		LogWarn("Store::run", e.what());
 	}
 }
-
+/*
 void Store::keywords(String name, Set<String> &result)
 {
 	const int minLength = 3;
@@ -1240,7 +1240,7 @@ void Store::keywords(String name, Set<String> &result)
 	for(List<String>::iterator it = lst.begin(); it != lst.end(); ++it)
 		it->substrings(result, minLength);
 }
-
+*/
 
 Store::Query::Query(const String &url) :
 	mUrl(url),
