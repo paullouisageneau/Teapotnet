@@ -26,41 +26,56 @@
 namespace tpn
 {
 
-ThreadPool::ThreadPool(unsigned limit) :
+ThreadPool::ThreadPool(unsigned min, unsigned max, unsigned limit) :
+	mMin(min),
+	mMax(max),
 	mLimit(limit)
 {
-	
+	while(mWorkers.size() < mMin)
+	{
+		Worker *worker = new Worker(this);
+		mWorkers.insert(worker);
+		worker->start();
+	}
 }
 
 ThreadPool::~ThreadPool(void)
 {
-
+	clear();
 }
 
 void ThreadPool::launch(Task *task)
 {
 	Worker *worker;
-	
 	try
 	{
 		Synchronize(this);
 		
-		if(!mAvailableWorkers.empty())
+		while(true)
 		{
-			worker = *mAvailableWorkers.begin();
-			mAvailableWorkers.erase(worker);
-		}
-		else {
-			if(!mLimit || mWorkers.size() < mLimit)
+			String status;
+			status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
+			LogDebug("ThreadPool::launch", status);
+		
+			
+			if(!mAvailableWorkers.empty())
 			{
-				worker = new Worker(this);
-				mWorkers.insert(worker);
-				worker->start();
+				worker = *mAvailableWorkers.begin();
+				mAvailableWorkers.erase(worker);
+				break;
 			}
 			else {
-				worker = new Worker(this);
-				worker->start(true);
+				
+				if(!mLimit || mWorkers.size() < mLimit)
+				{
+					worker = new Worker(this);
+					mWorkers.insert(worker);
+					worker->start();
+					break;
+				}
 			}
+			
+			wait();
 		}
 	}
 	catch(const Exception &e)
@@ -108,15 +123,14 @@ ThreadPool::Worker::Worker(ThreadPool *scheduler) :
 ThreadPool::Worker::~Worker(void)
 {
 	Synchronize(mThreadPool);
-	
 	mThreadPool->mWorkers.erase(this);
 	mThreadPool->mAvailableWorkers.erase(this);
+	mThreadPool->notifyAll();
 }
 
 void ThreadPool::Worker::runTask(Task *task)
 {
 	Synchronize(this);
-	
 	mTask = task;
 	notifyAll();
 }
@@ -135,7 +149,7 @@ void ThreadPool::Worker::run(void)
 				mTask->run();
 			}
 			catch(...)
-			{
+			{	
 				LogWarn("ThreadPool::Worker", "Unhandled exception in task");
 			}
 			
@@ -150,6 +164,13 @@ void ThreadPool::Worker::run(void)
 			{
 				mThreadPool->mAvailableWorkers.insert(this);
 				mThreadPool->notifyAll();
+			}
+			
+			wait(1.);
+			if(!mThreadPool->mMax || mThreadPool->mWorkers.size() > mThreadPool->mMax)
+			{
+				mThreadPool->mAvailableWorkers.erase(this);
+				break;
 			}
 		}
 	}

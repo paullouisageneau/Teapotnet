@@ -33,7 +33,7 @@ namespace tpn
 class Scheduler : public Thread, public ThreadPool
 {
 public:
-	Scheduler(void);
+	Scheduler(unsigned maxWaitingThreads = 1);
 	~Scheduler(void);
 	
 	void schedule(Task *task, unsigned msecs = 0);

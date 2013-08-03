@@ -26,7 +26,8 @@
 namespace tpn
 {
 
-Scheduler::Scheduler(void)
+Scheduler::Scheduler(unsigned maxWaitingThreads) :
+	ThreadPool(0, maxWaitingThreads, 0)
 {
 	
 }
@@ -108,7 +109,7 @@ void Scheduler::run(void)
 		double d =  mSchedule.begin()->first - Time::Now();
 		if(d > 0.)
 		{
-			LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
+			//LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
 			wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
 			continue;
 		}
