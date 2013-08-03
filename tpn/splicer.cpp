@@ -300,7 +300,7 @@ int64_t Splicer::process(ByteStream *output)
 				if(sources.empty())
 				{
 					LogDebug("Splicer::process", "No sources found, waiting...");
-					msleep(30000);
+					Time::Sleep(30.);
 					return written;
 				}
 
@@ -461,7 +461,7 @@ void Splicer::CacheEntry::refreshSources(void)
 
 	LogDebug("Splicer", "Requesting available sources...");
 	
-	const unsigned timeout = Config::Get("request_timeout").toInt();
+	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
 	Request request(mTarget.toString(), false);
 	request.submit();

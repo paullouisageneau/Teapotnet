@@ -580,7 +580,7 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
-			const unsigned timeout = Config::Get("request_timeout").toInt();
+			const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
@@ -623,7 +623,7 @@ void User::run(void)
 		for(int t=0; t<2; ++t)
 		{
 			try {
-				msleep(30000);
+				Time::Sleep(30.);
 				
 				if(oldLastOnlineTime != mLastOnlineTime)
 				{

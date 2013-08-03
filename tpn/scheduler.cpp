@@ -105,12 +105,11 @@ void Scheduler::run(void)
 		Synchronize(this);
 		if(mSchedule.empty()) break;
 
-		double diff =  mSchedule.begin()->first - Time::Now();
-		if(diff > 0.)
+		double d =  mSchedule.begin()->first - Time::Now();
+		if(d > 0.)
 		{
-			unsigned msecs = unsigned(diff*1000 + 0.5);
-			LogDebug("Scheduler::run", "Next task in " + String::number(msecs) + " msecs");
-			wait(msecs);
+			LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
+			wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
 			continue;
 		}
 		

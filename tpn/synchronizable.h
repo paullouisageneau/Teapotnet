@@ -42,8 +42,8 @@ public:
 	void notify(void) const;
 	void notifyAll(void) const;
 	void wait(void) const;
-	bool wait(unsigned &timeout) const;
-	bool wait(const unsigned &timeout) const;
+	bool wait(double &timeout) const;
+	bool wait(const double &timeout) const;
 	
 private:
 	mutable Mutex mMutex;
@@ -97,7 +97,7 @@ inline bool boolUnlockAll(Synchronizable *s, bool b)
 
 #define Synchronize(x)   Synchronizer	__sync(x); 
 #define Desynchronize(x) Desynchronizer	__desync(x)
-#define Unprioritize(x)  {int __c = (x)->unlockAll(); msleep(1); (x)->lock(__c);}
+#define Unprioritize(x)  {int __c = (x)->unlockAll(); tpn::sleep(1); (x)->lock(__c);}
 #define SyncYield(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 #define SynchronizeTest(x,test) (boolLock(x,true) && boolUnlock(x,(test)))
 #define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }

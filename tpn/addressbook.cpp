@@ -1571,7 +1571,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				try {
-					const unsigned timeout = Config::Get("request_timeout").toInt();
+					const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 				  	if(!instance.empty()) trequest.submit(Identifier(mPeering, instance));
 					else trequest.submit(mPeering);
 					Desynchronize(this);
@@ -1756,7 +1756,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				{
-					const unsigned timeout = Config::Get("request_timeout").toInt();
+					const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 					Desynchronize(this);
 					trequest.wait(timeout);
 				}

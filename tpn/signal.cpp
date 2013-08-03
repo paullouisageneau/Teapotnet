@@ -61,13 +61,12 @@ void Signal::wait(Mutex &mutex)
 	if(ret) throw Exception("Unable to wait for signal");
 }
 
-bool Signal::wait(Mutex &mutex, unsigned &timeout)
+bool Signal::wait(Mutex &mutex, double &timeout)
 {
-	uint64_t t1 = Time::Milliseconds();
-	
-	timespec ts;
-	ts.tv_sec = (t1+timeout)/1000;
-	ts.tv_nsec = ((t1+timeout)%1000)*1000000;
+	Time t1;
+	t1+= timeout;
+	struct timespec ts;
+	t1.toTimespec(ts);
 	
 	mutex.lock();
 	int oldLockCount = mutex.mLockCount;
@@ -80,20 +79,20 @@ bool Signal::wait(Mutex &mutex, unsigned &timeout)
 
 	if(ret == ETIMEDOUT) 
 	{
-		timeout = 0;
+		timeout = 0.;
 		return false;
 	}
 	
-	uint64_t t2 = Time::Milliseconds();
-	timeout-= unsigned(std::max(t1,t2)-t1);
+	Time t2;
+	timeout = std::max(t1-t2, 0.);	// time left
 	
 	if(ret == 0) return true;
 	else throw Exception("Unable to wait for signal");
 }
 
-bool Signal::wait(Mutex &mutex, const unsigned &timeout)
+bool Signal::wait(Mutex &mutex, const double &timeout)
 {
-	unsigned tmp = timeout;
+	double tmp = timeout;
 	return wait(mutex, tmp);
 }
   
