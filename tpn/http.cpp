@@ -213,7 +213,7 @@ void Http::Request::recv(Socket &sock)
 	// Read post variables
 	if(method == "POST")
 	{
-		sock.setTimeout(0);
+		sock.setTimeout(-1.);	// Disable timeout
 	  
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");
@@ -643,7 +643,7 @@ void Http::Server::Handler::run(void)
 	try {
 		try {
 			try {
-			  	mSock->setTimeout(Config::Get("http_timeout").toInt());
+			  	mSock->setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
 				request.recv(*mSock);
 				mServer->process(request);
 			}
@@ -710,7 +710,7 @@ int Http::Get(const String &url, Stream *output)
 	}
 
 	Socket sock;
-	sock.setTimeout(Config::Get("http_timeout").toInt());
+	sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
 	try {
 		sock.connect(host, true);	// Connect without proxy
 		request.send(sock);
@@ -756,7 +756,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	}
 
 	Socket sock;
-        sock.setTimeout(Config::Get("http_timeout").toInt());
+        sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
 	try {
                 sock.connect(host, true);       // Connect without proxy
                 request.send(sock);

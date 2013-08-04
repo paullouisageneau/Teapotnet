@@ -523,7 +523,7 @@ void Core::Handler::process(void)
 		Synchronize(this);
 		LogInfo("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
 	  
-		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
+		mSock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
 		
 		// Set up obfuscation cipher
 		ByteString tmpkey;

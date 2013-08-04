@@ -46,8 +46,8 @@ PortMapping::PortMapping(void) :
 		}
 	}
   
-	mSock.setTimeout(250);
-	mAnnounceSock.setTimeout(300000);		// TODO
+	mSock.setTimeout(0.250);
+	mAnnounceSock.setTimeout(300.);			// TODO
 	mGatewayAddr.set("255.255.255.255", 5351);	// TODO
 }
 

@@ -377,7 +377,7 @@ void Interface::process(Http::Request &request)
 				   
 					response.send();
 					
-					response.sock->setTimeout(0);
+					response.sock->setTimeout(-1.);	// Disable timeout
 					
 					int64_t total = 0;
 					while(!splicer.outputFinished())

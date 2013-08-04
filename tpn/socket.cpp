@@ -159,13 +159,8 @@ void Socket::connect(const Address &addr, bool noproxy)
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
-		if(!mTimeout)
+		if(mTimeout > 0.)
 		{
-			// Connect it
-			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
-				throw NetException(String("Connection to ")+addr.toString()+" failed");
-		}
-		else {
 			ctl_t b = 1;
 			if(ioctl(mSock,FIONBIO,&b) < 0)
 				throw Exception("Cannot set non-blocking mode");
@@ -193,6 +188,12 @@ void Socket::connect(const Address &addr, bool noproxy)
 			
 			setTimeout(mTimeout);
 		}
+		else {
+			// Connect it
+			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
+				throw NetException(String("Connection to ")+addr.toString()+" failed");
+		}
+		else 
 	}
 	catch(...)
 	{
@@ -214,7 +215,7 @@ void Socket::close(void)
 
 size_t Socket::readData(char *buffer, size_t size)
 {
-	if(mTimeout)
+	if(mTimeout > 0.)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);

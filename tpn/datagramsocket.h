@@ -38,7 +38,7 @@ public:
 	DatagramSocket(const Address &local, bool broadcast = false);
 	~DatagramSocket(void);
 
-	void setTimeout(unsigned msecs);
+	void setTimeout(double timeout);
 	Address getBindAddress(void) const;
 	void getLocalAddresses(List<Address> &list) const;
 	
@@ -55,7 +55,7 @@ public:
 private:
 	socket_t mSock;
 	int mPort;
-	unsigned mTimeout;
+	double mTimeout;
 };
 
 }
