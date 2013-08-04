@@ -595,7 +595,7 @@ void Http::Response::clear(void)
 }
 
 Http::Server::Server(int port) :
-	ThreadPool(4, 16, 64),
+	ThreadPool(4, 16, 128),
 	mSock(port)
 {
 
