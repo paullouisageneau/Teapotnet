@@ -40,6 +40,32 @@ uint64_t Time::Milliseconds(void)
 	return uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000;
 }
 
+double Time::StructToSeconds(const struct timeval &tv)
+{
+	return double(tv.tv_sec) + double(tv.tv_usec)/1000000.;
+}
+
+double Time::StructToSeconds(const struct timespec &ts)
+{
+	return double(ts.tv_sec) + double(ts.tv_nsec)/1000000000.;
+}
+
+void Time::SecondsToStruct(double secs, struct timeval &tv)
+{
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	tv.tv_sec = time_t(isecs);
+	tv.tv_usec = long(fsecs*1000000.);
+}
+
+void Time::SecondsToStruct(double secs, struct timespec &ts)
+{
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	ts.tv_sec = time_t(isecs);
+	ts.tv_nsec = long(fsecs*100000000.);
+}
+
 Time::Time(void)
 {
 	timeval tv;
@@ -305,7 +331,13 @@ time_t Time::toUnixTime(void) const
 	return mTime; 
 }
 
-void Time::toTimespec(struct timespec &ts) const
+void Time::toStruct(struct timeval &tv) const
+{
+	tv.tv_sec = mTime;
+	tv.tv_usec = mUsec;
+}
+
+void Time::toStruct(struct timespec &ts) const
 {
 	ts.tv_sec = mTime;
 	ts.tv_nsec = mUsec*1000;

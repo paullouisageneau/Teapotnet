@@ -68,20 +68,20 @@ void Socket::Transfert(Socket *sock1, Socket *sock2)
   
 Socket::Socket(void) :
 		mSock(INVALID_SOCKET),
-		mTimeout(0)
+		mTimeout(-1.)
 {
 
 }
 
-Socket::Socket(const Address &a, unsigned msecs) :
+Socket::Socket(const Address &a, double timeout) :
 		mSock(INVALID_SOCKET),
-		mTimeout(msecs)
+		mTimeout(timeout)
 {
 	connect(a);
 }
 
 Socket::Socket(socket_t sock) :
-		mTimeout(0)
+		mTimeout(-1.)
 {
 	mSock = sock;
 }
@@ -108,14 +108,12 @@ Address Socket::getRemoteAddress(void) const
 	return Address(reinterpret_cast<sockaddr*>(&addr), len);
 }
 
-void Socket::setTimeout(unsigned msecs)
+void Socket::setTimeout(double timeout)
 {
-	mTimeout = msecs;
+	mTimeout = timeout;
 	
 	struct timeval tv;
-	tv.tv_sec = mTimeout/1000;
-	tv.tv_usec = (mTimeout%1000)*1000;
-	
+	Time::SecondsToStruct(mTimeout, tv);
 	setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
 	setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));	
 }
@@ -180,8 +178,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			FD_SET(mSock, &writefds);
 
 			struct timeval tv;
-			tv.tv_sec = mTimeout/1000;
-			tv.tv_usec = (mTimeout%1000)*1000;
+			Time::SecondsToStruct(mTimeout, tv);
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
 			if (ret == -1) 
@@ -224,8 +221,7 @@ size_t Socket::readData(char *buffer, size_t size)
 		FD_SET(mSock, &readfds);
 
 		struct timeval tv;
-		tv.tv_sec = mTimeout/1000;
-		tv.tv_usec = (mTimeout%1000)*1000;
+		Time::SecondsToStruct(mTimeout, tv);
 		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 
 		if (ret == -1) throw Exception("Unable to wait on socket");

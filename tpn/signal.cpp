@@ -66,7 +66,7 @@ bool Signal::wait(Mutex &mutex, double &timeout)
 	Time t1;
 	t1+= timeout;
 	struct timespec ts;
-	t1.toTimespec(ts);
+	t1.toStruct(ts);
 	
 	mutex.lock();
 	int oldLockCount = mutex.mLockCount;

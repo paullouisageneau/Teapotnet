@@ -57,7 +57,6 @@ void ThreadPool::launch(Task *task)
 			status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
 			LogDebug("ThreadPool::launch", status);
 		
-			
 			if(!mAvailableWorkers.empty())
 			{
 				worker = *mAvailableWorkers.begin();

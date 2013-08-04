@@ -33,8 +33,12 @@ namespace tpn
 class Time : public Serializable
 {
 public:
-  	static Time Now(void);
+	static Time Now(void);
 	static uint64_t Milliseconds(void);
+	static double StructToSeconds(const struct timeval &tv);
+	static double StructToSeconds(const struct timespec &ts);
+	static void SecondsToStruct(double secs, struct timeval &tv);
+	static void SecondsToStruct(double secs, struct timespec &ts);
 	
 	Time(void);
 	Time(time_t time, int usec = 0);
@@ -55,7 +59,8 @@ public:
 	String toIsoDate(void) const;
 	String toIsoTime(void) const;
 	time_t toUnixTime(void) const;
-	void   toTimespec(struct timespec &ts) const;
+	void   toStruct(struct timeval &ts) const;
+	void   toStruct(struct timespec &ts) const;
 	
 	int64_t toMicroseconds(void) const;
 	int64_t toMilliseconds(void) const;
