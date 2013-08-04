@@ -35,8 +35,8 @@
 namespace tpn
 {
 
-const unsigned AddressBook::UpdateInterval = 300000;
-const unsigned AddressBook::UpdateStep = 250;
+const double AddressBook::UpdateInterval = 300.;
+const double AddressBook::UpdateStep = 0.25;
 const int AddressBook::MaxChecksumDistance = 1000;
 
 AddressBook::AddressBook(User *user) :
@@ -345,7 +345,7 @@ void AddressBook::update(void)
 		Contact *contact;
 		if(!mContacts.get(keys[i], contact)) continue;
 		
-		mScheduler.schedule(contact, UpdateStep*i + rand()%UpdateStep);
+		mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
 	}
 }
 
@@ -536,7 +536,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 	if(!contact->isDeleted())
 	{
 		Interface::Instance->add(contact->urlPrefix(), contact);
-		mScheduler.schedule(contact, UpdateStep*ordinal + rand()%UpdateStep);
+		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
@@ -1055,7 +1055,7 @@ void AddressBook::Contact::run(void)
 	
 	update(false);
 	
-	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval-1)
+	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval)
 		update(true);
 }
 
@@ -1091,10 +1091,8 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	//Synchronize(this);
-	//Assert(peering == mPeering);
-	
-	// TODO: try to reconnect
+	Synchronize(mAddressBook);
+	mAddressBook->mScheduler.schedule(this, 1.);
 }
 
 void AddressBook::Contact::notification(Notification *notification)

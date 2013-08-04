@@ -36,10 +36,10 @@ public:
 	Scheduler(unsigned maxWaitingThreads = 1);
 	~Scheduler(void);
 	
-	void schedule(Task *task, unsigned msecs = 0);
+	void schedule(Task *task, double timeout = 0.);
 	void schedule(Task *task, const Time &when);
 	
-	void repeat(Task *task, unsigned period);
+	void repeat(Task *task, double period);
 	
 	void remove(Task *task);
 	void clear(void);
@@ -49,7 +49,7 @@ private:
 	
 	Map<Time, Set<Task*> > mSchedule;
 	Map<Task*, Time> mNextTimes;
-	Map<Task*, unsigned> mPeriods;
+	Map<Task*, double> mPeriods;
 };
 
 }

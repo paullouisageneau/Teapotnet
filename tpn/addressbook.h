@@ -147,8 +147,8 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
-	static const unsigned UpdateInterval;	// for contacts connection attemps (milliseconds)
-	static const unsigned UpdateStep;	// between contacts (milliseconds)
+	static const double UpdateInterval;	// for contacts connection attemps
+	static const double UpdateStep;		// between contacts
 	static const int MaxChecksumDistance;	// for message synchronization
 	
 	void registerContact(Contact *contact, int ordinal = 0);

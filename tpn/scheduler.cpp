@@ -37,11 +37,11 @@ Scheduler::~Scheduler(void)
 	clear();	// wait for threads to finish
 }
 
-void Scheduler::schedule(Task *task, unsigned msecs)
+void Scheduler::schedule(Task *task, double timeout)
 {
 	Synchronize(this);
 	
-	schedule(task, Time::Now() + double(msecs)/1000);
+	schedule(task, Time::Now() + timeout);
 }
 
 void Scheduler::schedule(Task *task, const Time &when)
@@ -58,7 +58,7 @@ void Scheduler::schedule(Task *task, const Time &when)
 	notifyAll();
 }
 
-void Scheduler::repeat(Task *task, unsigned period)
+void Scheduler::repeat(Task *task, double period)
 {
 	Synchronize(this);
 	
@@ -123,9 +123,9 @@ void Scheduler::run(void)
 			launch(task);
 			mNextTimes.erase(task);
 			
-			unsigned msecs = 0;
-			if(mPeriods.get(task, msecs))
-				schedule(task, Time::Now() + double(msecs)/1000);
+			double period = 0.;
+			if(mPeriods.get(task, period))
+				schedule(task, Time::Now() + period);
 		}
 		
 		mSchedule.erase(mSchedule.begin());

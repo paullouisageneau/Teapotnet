@@ -286,6 +286,12 @@ inline int cryptrand(void)
 	return int(u/2);
 }
 
+template<typename T> T uniform(T min, T max)
+{
+	double r = double(pseudorand())/double(RAND_MAX);
+	return min + T((max-min)*r);
+}
+
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
 #define List std::list
