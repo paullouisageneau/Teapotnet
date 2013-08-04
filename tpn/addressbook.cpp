@@ -536,8 +536,8 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 	if(!contact->isDeleted())
 	{
 		Interface::Instance->add(contact->urlPrefix(), contact);
-		mScheduler.repeat(contact, UpdateInterval);
 		mScheduler.schedule(contact, UpdateStep*ordinal + rand()%UpdateStep);
+		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
 

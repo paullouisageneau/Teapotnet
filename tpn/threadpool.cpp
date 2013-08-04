@@ -31,10 +31,13 @@ ThreadPool::ThreadPool(unsigned min, unsigned max, unsigned limit) :
 	mMax(max),
 	mLimit(limit)
 {
+	Synchronize(this);
+	
 	while(mWorkers.size() < mMin)
 	{
 		Worker *worker = new Worker(this);
 		mWorkers.insert(worker);
+		mAvailableWorkers.insert(worker);
 		worker->start();
 	}
 }
