@@ -22,6 +22,7 @@
 #include "tpn/datagramsocket.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
+#include "tpn/time.h"
 
 namespace tpn
 {
