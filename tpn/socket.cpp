@@ -193,7 +193,6 @@ void Socket::connect(const Address &addr, bool noproxy)
 			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed");
 		}
-		else 
 	}
 	catch(...)
 	{
