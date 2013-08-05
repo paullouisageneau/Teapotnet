@@ -389,10 +389,11 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			
 			page.close("div");
+
 			page.open("div","files.box");
 			
 			page.link(prefix+"/files/","Edit",".button");
-                        page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+                        //page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
 
 			page.open("h2");
 			page.text("Shared folders");
@@ -430,7 +431,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 // End of leftcolumn
 
-			page.open("div", "content");
+			page.open("div", "rightcolumn");
 
 			page.open("div");
 			page.open("h1");
@@ -625,8 +626,8 @@ document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
 			page.link(SOURCELINK, "Source code", "", true);
 			page.close("div");
 
-page.close("div");
-page.close("div");
+			page.close("div");
+			page.close("div");
 			
 			page.footer();
 			return;
