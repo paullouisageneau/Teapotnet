@@ -589,20 +589,28 @@ void User::http(const String &prefix, Http::Request &request)
 					var play = false;\n\
 					var visible = false;\n\
 					$.each(data, function(uname, info) {\n\
-						document.getElementById('contact_'+uname).onmouseover = function()\n\
+						function displayInfosContact(uname)\n\
 						{\n\
 							if(visible)\n\
 							{\n\
 								document.getElementById('InfosContact_'+uname).style.visibility = 'hidden';\n\
-document.getElementById('InfosContact_'+uname).style.height = '0';\n\
-								timeout = setTimeout(function() { visible = false; }, 100); \n\
+			document.getElementById('InfosContact_'+uname).style.height = '0';\n\
+								timeout = setTimeout(function() { visible = false; }, 400); \n\
 							}\n\
 							else\n\
 							{\n\
 								document.getElementById('InfosContact_'+uname).style.visibility = 'visible';\n\
-document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
-								timeout = setTimeout(function() { visible = true; }, 100); \n\
+			document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
+								timeout = setTimeout(function() { visible = true; }, 400); \n\
 							}\n\
+						}\n\
+						document.getElementById('contact_'+uname).onmouseover = function()\n\
+						{\n\
+							displayInfosContact(uname)\n\
+						}\n\
+						document.getElementById('contact_'+uname).onclick = function()\n\
+						{\n\
+							displayInfosContact(uname)\n\
 						}\n\
 						$('#contact_'+uname).attr('class', info.status);\n\
 						//document.getElementById('contact_'+uname).classList.add(info.status);\n\
