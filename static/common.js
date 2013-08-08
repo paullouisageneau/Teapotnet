@@ -245,6 +245,75 @@ function submitReply(object, idParent)
 }
 
 
+var title = document.title;
+
+var saveData;
+
+function displayContacts(url, period, object) {
+
+	setCallback(url, period, function(data) 
+	{
+
+		if(data!=null)
+		{
+				saveData = data;
+				var totalmessages = 0;
+				var play = false;
+				var visible = false;
+				$.each(data, function(uname, info) 
+				{
+					if ($('#contact_'+info.name).length == 0) // if div does not exist
+					{
+						$(object).append('<div id=\"contact_'+info.name+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+info.name+'\">'+info.name+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+info.name+'\" class=\"infoscontact\"><span class=\"tracker\"></span>'+info.name+'@'+info.tracker+' <span class=\"files\"></span><a href=\"contacts/'+info.name+'/files/\"> Files</a><span class=\"chat\"></span><a href=\"contacts/'+info.name+'/chat/\"> Chat</a></div>');
+						$('#InfosContact_'+uname).hide();
+					}
+
+					function displayInfosContact(uname)
+					{
+						if(visible)
+						{
+							$('#InfosContact_'+uname).slideUp();
+							timeout = setTimeout(function() { visible = false; }, 200);
+						}
+						else
+						{
+							$('#InfosContact_'+uname).slideDown();
+							timeout = setTimeout(function() { visible = true; }, 200);
+						}
+					}
+					/*document.getElementById('contact_'+uname).onmouseover = function()
+					{
+						displayInfosContact(uname);
+					}*/
+					document.getElementById('contact_'+uname).onclick = function()
+					{
+						displayInfosContact(uname)
+					}
+					$('#contact_'+uname).attr('class', info.status);
+					//document.getElementById('contact_'+uname).classList.add(info.status);
+					transition($('#contact_'+uname+' .status'), info.status.capitalize());
+					var count = parseInt(info.messages);
+					var tmp = '';
+					if(count != 0) tmp = ' ('+count+')';
+					transition($('#contact_'+uname+' .messagescount'), tmp);
+					totalmessages+= count;
+					if(info.newmessages == 'true') play = true;
+				});
+				if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
+				else document.title = title;
+				if(play) playMessageSound();
+
+
+		}
+		else
+		{
+			// TODO
+		}
+	});
+
+}
+
+
 function setMessagesReceiverRec(url, object, last) {
 
 	var timeout;
@@ -304,9 +373,10 @@ function setMessagesReceiverRec(url, object, last) {
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');
 					else $('#'+id).addClass('out');
+$(object).scrollTop($(object)[0].scrollHeight);
 				}
 			}
-			$(object).scrollTop($(object)[0].scrollHeight);
+			
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;

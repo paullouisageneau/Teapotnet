@@ -268,7 +268,7 @@ textarea
 {
 	width: 100%;
 	height: 100%;
-	/*max-width: 50em;*/
+	max-width: 50em;
 	margin-top: 0.5em;
 	margin-bottom: 0.5em;
 	margin-left: auto;
@@ -314,19 +314,14 @@ textarea
 {
 	width: auto;
 	min-height: 100%;
-	/*padding: 0 200px;*/
-	/*background: orange;*/
 }
 
 #rightcolumn
 {
 	float: left;
 	width: 71%;
-	/*min-width: 640px;
-	max-width: 780px;*/
 	margin: 0px 0px;
 	text-align: justify;
-	/*background: blue;*/
 }
 
 #leftcolumn
@@ -342,7 +337,6 @@ textarea
 	border: none;
 	box-shadow: none;
 	padding: 0 20px;
-	/*background: yellow;*/
 }
 
 /*#content
@@ -351,18 +345,6 @@ textarea
 	width: 100%;
 	height: 20em;
 	text-align: justify;
-}*/
-
-/*#rightcolumn
-{
-	position: absolute;
-	top: 20px;
-	right: 0;
-	width: auto;
-	height: 100px;
-	background : transparent;
-	border: none;
-	box-shadow: none;
 }*/
 
 
@@ -383,7 +365,6 @@ textarea
 		/*float: left;*/
 		width: 320px;
 		margin-right: 0px;
-		/*background: red;*/
 	}
 
 	#rightcolumn 
@@ -392,7 +373,6 @@ textarea
 		width: 320px;
 		margin-left: 20px;
 		max-width: 400px;
-		/*background: green;*/
 	}
 
 }
@@ -415,7 +395,6 @@ textarea
 		float: left;
 		width: 910px;
 		margin-left: 110px;
-		/*background: red;*/
 	}
 
 	#rightcolumn 
@@ -423,7 +402,6 @@ textarea
 		float: left;
 		width: 700px;
 		margin-left: 55px;
-		/*background: green;*/
 	}
 
 
@@ -1053,13 +1031,14 @@ td.delete
 {
 	margin-left: 0;
 	float: left;
-	height: 0;
 	width: 100%;
+	height: 100px;
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	text-align: center;
 	vertical-align: text-bottom;
-	visibility: hidden;
+	/*visibility: hidden;
+	height: 0;*/
 }
 
 .childmessage

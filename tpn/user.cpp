@@ -273,6 +273,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");*/
 
 			page.open("div", "wrapper");
+
+			page.javascript("$('#page').css('max-width','100%');");
 			
 			/*page.open("div");
 			page.open("h1");
@@ -319,8 +321,11 @@ void User::http(const String &prefix, Http::Request &request)
 			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add a contact");
 			else {
 				page.open("div","contactsTable");
+
+				unsigned refreshPeriod = 5000;
+				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
 				
-				if(self)
+				/*if(self)
 				{
 					page.open("div", String("contact_")+self->uniqueName());
 					
@@ -328,11 +333,11 @@ void User::http(const String &prefix, Http::Request &request)
 					page.link(self->urlPrefix(), self->uniqueName());
 					//page.close("td");
 					
-					/*
-					page.open("td",".tracker");
-					page.text(String("@") + self->tracker());
-					page.close("td");
-					*/
+					
+					//page.open("td",".tracker");
+					//page.text(String("@") + self->tracker());
+					//page.close("td");
+					
 	
 					//page.open("td",".status");
 					//page.close("td");
@@ -359,14 +364,14 @@ void User::http(const String &prefix, Http::Request &request)
 					page.link(contact->urlPrefix(), contact->uniqueName());
 					page.span("", ".messagescount");
 					
-					/*
-					page.open("td",".name");
-					page.link(contact->urlPrefix(), contact->name());
-					page.close("td");
-					page.open("td",".tracker");
-					page.text(String("@") + contact->tracker());
-					page.close("td");
-					*/
+					
+					//page.open("td",".name");
+					//page.link(contact->urlPrefix(), contact->name());
+					//page.close("td");
+					//page.open("td",".tracker");
+					//page.text(String("@") + contact->tracker());
+					//page.close("td");
+					
 
 					page.span("", ".status");
 					page.close("div");
@@ -384,7 +389,7 @@ void User::http(const String &prefix, Http::Request &request)
 						page.closeLink();
 					page.close("div");
 
-				}
+				}*/
 				page.close("div");
 			}
 			
@@ -582,7 +587,7 @@ void User::http(const String &prefix, Http::Request &request)
 ");
 
 
-			unsigned refreshPeriod = 5000;
+			/*unsigned refreshPeriod = 5000;
 			page.javascript("var title = document.title;\n\
 					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
 					var totalmessages = 0;\n\
@@ -625,7 +630,7 @@ void User::http(const String &prefix, Http::Request &request)
 					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
 					else document.title = title;\n\
 					if(play) playMessageSound();\n\
-			});");
+			});");*/
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
