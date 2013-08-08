@@ -256,52 +256,68 @@ function displayContacts(url, period, object) {
 
 		if(data!=null)
 		{
-				saveData = data;
-				var totalmessages = 0;
-				var play = false;
-				var visible = false;
-				$.each(data, function(uname, info) 
+			saveData = data;
+			var totalmessages = 0;
+			var play = false;
+			var visible = false;
+			$.each(data, function(uname, info) 
+			{
+				if ($('#contact_'+info.name).length == 0) // if div does not exist
 				{
-					if ($('#contact_'+info.name).length == 0) // if div does not exist
-					{
-						$(object).append('<div id=\"contact_'+info.name+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+info.name+'\">'+info.name+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+info.name+'\" class=\"infoscontact\"><span class=\"tracker\"></span>'+info.name+'@'+info.tracker+' <span class=\"files\"></span><a href=\"contacts/'+info.name+'/files/\"> Files</a><span class=\"chat\"></span><a href=\"contacts/'+info.name+'/chat/\"> Chat</a></div>');
-						$('#InfosContact_'+uname).hide();
-					}
+					$(object).append('<div id=\"contact_'+info.name+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+info.name+'\">'+info.name+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+info.name+'\" class=\"infoscontact\"><span class=\"tracker\"></span>'+info.name+'@'+info.tracker+' <span class=\"files\"></span><a href=\"contacts/'+info.name+'/files/\"> Files</a><span class=\"chat\"></span><a href=\"contacts/'+info.name+'/chat/\"> Chat</a></div>');
+					$('#InfosContact_'+uname).hide();
+				}
 
-					function displayInfosContact(uname)
+				function displayInfosContact(uname)
+				{
+					if(visible)
 					{
-						if(visible)
+						if ($("#rightcolumn").css("width") == "320px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
 						{
-							$('#InfosContact_'+uname).slideUp();
-							timeout = setTimeout(function() { visible = false; }, 200);
+							$('#InfosContact_'+uname).hide();
 						}
 						else
 						{
-							$('#InfosContact_'+uname).slideDown();
-							timeout = setTimeout(function() { visible = true; }, 200);
+						$('#InfosContact_'+uname).slideUp();
 						}
+
+						timeout = setTimeout(function() { visible = false; }, 200);
 					}
-					/*document.getElementById('contact_'+uname).onmouseover = function()
+					else
 					{
-						displayInfosContact(uname);
-					}*/
-					document.getElementById('contact_'+uname).onclick = function()
-					{
-						displayInfosContact(uname)
+						if ($("#rightcolumn").css("width") == "320px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
+						{
+							$('#InfosContact_'+uname).show();
+						}
+						else
+						{
+						$('#InfosContact_'+uname).slideDown();
+						}
+
+						timeout = setTimeout(function() { visible = true; }, 200);
 					}
-					$('#contact_'+uname).attr('class', info.status);
-					//document.getElementById('contact_'+uname).classList.add(info.status);
-					transition($('#contact_'+uname+' .status'), info.status.capitalize());
-					var count = parseInt(info.messages);
-					var tmp = '';
-					if(count != 0) tmp = ' ('+count+')';
-					transition($('#contact_'+uname+' .messagescount'), tmp);
-					totalmessages+= count;
-					if(info.newmessages == 'true') play = true;
-				});
-				if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
-				else document.title = title;
-				if(play) playMessageSound();
+				}
+				/*document.getElementById('contact_'+uname).onmouseover = function()
+				{
+					displayInfosContact(uname);
+				}*/
+				document.getElementById('contact_'+uname).onclick = function()
+				{
+					displayInfosContact(uname)
+				}
+				$('#contact_'+uname).attr('class', info.status);
+				//document.getElementById('contact_'+uname).classList.add(info.status);
+				transition($('#contact_'+uname+' .status'), info.status.capitalize());
+				var count = parseInt(info.messages);
+				var tmp = '';
+				if(count != 0) tmp = ' ('+count+')';
+				transition($('#contact_'+uname+' .messagescount'), tmp);
+				totalmessages+= count;
+				if(info.newmessages == 'true') play = true;
+			});
+			if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
+			else document.title = title;
+			if(play) playMessageSound();
 
 
 		}
