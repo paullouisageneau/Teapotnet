@@ -366,22 +366,23 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
 			else {
-				page.open("table",".files");
+				page.open("div",".files");
 				for(int i=0; i<directories.size(); ++i)
 				{	
 					const String &directory = directories[i];
 					String directoryUrl = prefix + "/files/" + directory + "/";
+
+					page.open("div");
 					
-					page.open("tr");
-					page.open("td",".icon");
+					page.span("", ".icon");
 					page.image("/dir.png");
-					page.close("td");
-					page.open("td",".filename");
+					
+					page.span("", ".filename");
 					page.link(directoryUrl, directory);
-					page.close("td");
-					page.close("tr");
+					
+					page.close("div");
 				}
-				page.close("table");
+				page.close("div");
 			}
 			page.close("div");
 			
