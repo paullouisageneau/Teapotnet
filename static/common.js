@@ -248,6 +248,7 @@ function submitReply(object, idParent)
 var title = document.title;
 
 var saveData;
+var toShow = true;
 
 function displayContacts(url, period, object) {
 
@@ -278,7 +279,7 @@ function displayContacts(url, period, object) {
 						}
 						else
 						{
-						$('#InfosContact_'+uname).slideUp();
+							$('#InfosContact_'+uname).slideUp();
 						}
 
 						timeout = setTimeout(function() { visible = false; }, 200);
@@ -287,11 +288,11 @@ function displayContacts(url, period, object) {
 					{
 						if ($("#rightcolumn").css("width") == "320px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
 						{
-							$('#InfosContact_'+uname).show();
+							if(toShow) $('#InfosContact_'+uname).show();
 						}
 						else
 						{
-						$('#InfosContact_'+uname).slideDown();
+							if(toShow) $('#InfosContact_'+uname).slideDown();
 						}
 
 						timeout = setTimeout(function() { visible = true; }, 200);
@@ -303,8 +304,12 @@ function displayContacts(url, period, object) {
 				}*/
 				document.getElementById('contact_'+uname).onclick = function()
 				{
-					displayInfosContact(uname)
+					displayInfosContact(uname);
 				}
+				$('#contact_'+uname+' a').click(function()
+				{
+					toShow = false; // So the div infosContact is not displayed when clicked on contact link
+				});
 				$('#contact_'+uname).attr('class', info.status);
 				//document.getElementById('contact_'+uname).classList.add(info.status);
 				transition($('#contact_'+uname+' .status'), info.status.capitalize());
