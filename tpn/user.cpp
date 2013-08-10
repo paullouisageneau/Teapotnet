@@ -321,75 +321,28 @@ void User::http(const String &prefix, Http::Request &request)
 			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add a contact");
 			else {
 				page.open("div","contactsTable");
-
-				unsigned refreshPeriod = 5000;
-				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
 				
-				/*if(self)
+				if(self)
 				{
 					page.open("div", String("contact_")+self->uniqueName());
 					
-					//page.open("td",".name");
-					page.link(self->urlPrefix(), self->uniqueName());
-					//page.close("td");
-					
-					
-					//page.open("td",".tracker");
-					//page.text(String("@") + self->tracker());
-					//page.close("td");
-					
-	
-					//page.open("td",".status");
-					//page.close("td");
-					
-					//page.open("td",".files");
-					page.link(self->urlPrefix()+"/files/", "Files");
-					//page.close("td");
-					
-					//page.open("td",".chat");
-					// Dummy
-					//page.close("td");
-					
-					page.close("div");
-
-				}
-			    
-				for(int i=0; i<contacts.size(); ++i)
-				{	
-					AddressBook::Contact *contact = contacts[i];
-
-					page.open("div", String("contact_")+contact->uniqueName()+".contactstr");
-					
 					page.span("", ".name");
-					page.link(contact->urlPrefix(), contact->uniqueName());
-					page.span("", ".messagescount");
+					page.link(self->urlPrefix(), self->uniqueName());
 					
+					page.span("",".tracker");
+					page.text(String("@") + self->tracker());
 					
-					//page.open("td",".name");
-					//page.link(contact->urlPrefix(), contact->name());
-					//page.close("td");
-					//page.open("td",".tracker");
-					//page.text(String("@") + contact->tracker());
-					//page.close("td");
-					
-
 					page.span("", ".status");
+					
+					page.span("", ".files");
+					page.link(self->urlPrefix()+"/files/", "Files");
+					
 					page.close("div");
+				}
 
-					page.open("div", String("InfosContact_")+contact->uniqueName()+".infoscontact");
-						page.span("",".tracker");
-						page.text(contact->name()+String("@") + contact->tracker());
+				unsigned refreshPeriod = 5000;
+				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
 
-						page.span("", ".files");
-						page.link(contact->urlPrefix()+"/files/", "Files");
-
-						page.span("", ".chat");
-						page.openLink(contact->urlPrefix()+"/chat/");
-						page.text("Chat");
-						page.closeLink();
-					page.close("div");
-
-				}*/
 				page.close("div");
 			}
 			
@@ -585,52 +538,6 @@ void User::http(const String &prefix, Http::Request &request)
 					$(this).css('display','block');\n\
 				});\n\
 ");
-
-
-			/*unsigned refreshPeriod = 5000;
-			page.javascript("var title = document.title;\n\
-					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
-					var totalmessages = 0;\n\
-					var play = false;\n\
-					var visible = false;\n\
-					$.each(data, function(uname, info) {\n\
-						function displayInfosContact(uname)\n\
-						{\n\
-							if(visible)\n\
-							{\n\
-								document.getElementById('InfosContact_'+uname).style.visibility = 'hidden';\n\
-			document.getElementById('InfosContact_'+uname).style.height = '0';\n\
-								timeout = setTimeout(function() { visible = false; }, 400); \n\
-							}\n\
-							else\n\
-							{\n\
-								document.getElementById('InfosContact_'+uname).style.visibility = 'visible';\n\
-			document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
-								timeout = setTimeout(function() { visible = true; }, 400); \n\
-							}\n\
-						}\n\
-						document.getElementById('contact_'+uname).onmouseover = function()\n\
-						{\n\
-							displayInfosContact(uname)\n\
-						}\n\
-						document.getElementById('contact_'+uname).onclick = function()\n\
-						{\n\
-							displayInfosContact(uname)\n\
-						}\n\
-						$('#contact_'+uname).attr('class', info.status);\n\
-						//document.getElementById('contact_'+uname).classList.add(info.status);\n\
-						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
-						var count = parseInt(info.messages);\n\
-						var tmp = '';\n\
-						if(count != 0) tmp = ' ('+count+')';\n\
-						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
-						totalmessages+= count;\n\
-						if(info.newmessages == 'true') play = true;\n\
-					});\n\
-					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
-					else document.title = title;\n\
-					if(play) playMessageSound();\n\
-			});");*/
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
