@@ -774,7 +774,30 @@ td.delete
 {
 	margin-top: 0.5em;
 	white-space: nowrap;
+	padding: 2px;
 }
+
+.filestr
+{
+	min-height: 16px;
+	vertical-align: middle;
+	margin-top: 2px;
+	/*border-bottom: 1px solid grey;*/
+}
+
+.filestr:hover
+{
+	background-color: #C0C0C0;
+}
+
+.filestr .icon
+{
+	width: 16px;
+	min-height: 16px;
+	padding-right: 0.25em;
+	text-align: left;
+}
+
 
 .files tr
 {

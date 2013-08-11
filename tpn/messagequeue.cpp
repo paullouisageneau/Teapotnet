@@ -322,7 +322,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			{\n\
 				document.chatform.chatinput.blur();\n\
 				document.chatform.chatinput.style.color = 'grey';\n\
-				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection to Teapotnet.';\n\
+				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
 			}\n\
 			else\n\
 			{\n\
@@ -344,7 +344,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			if(status != \"Online\")\n\
 			{\n\
 				document.chatform.chatinput.style.color = 'grey';\n\
-				document.chatform.chatinput.value = '"+name+" is not online for now, and will receive your message on his/her next connection to Teapotnet.';\n\
+				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
 			}\n\
 		}\n\
 		$('textarea.chatinput').keypress(function(e) {\n\
