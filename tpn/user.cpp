@@ -372,7 +372,7 @@ void User::http(const String &prefix, Http::Request &request)
 					const String &directory = directories[i];
 					String directoryUrl = prefix + "/files/" + directory + "/";
 
-					page.open("div");
+					page.open("div", ".filestr");
 					
 					page.span("", ".icon");
 					page.image("/dir.png");
