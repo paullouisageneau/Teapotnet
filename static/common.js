@@ -33,8 +33,8 @@ String.prototype.smileys = function() {
 		':-('  : 'sad.png\" height=15 width=24',
 		':('  : 'sad.png\" height=15 width=24',
 		':\'-('  : 'sad.png\" height=15 width=24',
-		':S'  : 'embarrassed.png\" height=17 width=26',
-		':@'  : 'angry.png\" height=24 width=36'
+		':S'  : 'embarrassed.png\" height=15 width=24',
+		':@'  : 'angry.png\" height=20 width=30'
 	}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
 
 	for (var i in smileys) 
