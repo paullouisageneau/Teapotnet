@@ -285,7 +285,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 			page.close("div");*/
 
-			page.open("div","leftcolumn.box");
+			page.open("div","leftcolumn");
 
 			page.open("div", "logo");
 			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();

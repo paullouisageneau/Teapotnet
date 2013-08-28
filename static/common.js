@@ -273,7 +273,7 @@ function displayContacts(url, period, object) {
 				{
 					if(visible)
 					{
-						if ($("#rightcolumn").css("width") == "320px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
 						{
 							$('#InfosContact_'+uname).hide();
 						}
@@ -286,7 +286,7 @@ function displayContacts(url, period, object) {
 					}
 					else
 					{
-						if ($("#rightcolumn").css("width") == "320px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
 						{
 							if(toShow) $('#InfosContact_'+uname).show();
 						}

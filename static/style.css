@@ -354,68 +354,6 @@ textarea
 	text-align: justify;
 }
 
-
-
-/* Mobile version */  
-
-@media screen and (max-width: 480px)
-{
-
-	#wrapper 
-	{
-		width: 320px;
-		margin: 0 auto;
-	}
-
-	#leftcolumn
-	{
-		/*float: left;*/
-		width: 320px;
-		margin-right: 0px;
-	}
-
-	#rightcolumn 
-	{
-		/*float: right;*/
-		width: 320px;
-		margin-left: 20px;
-		max-width: 400px;
-	}
-
-}
-
-/* End of mobile version */
-
-/* Tablet version */  
-
-@media screen and (min-width : 768px) and (max-width : 1024px)
-{
-
-	#wrapper 
-	{
-		width: 1024px;
-		margin: 0 auto;
-	}
-
-	#leftcolumn
-	{
-		float: left;
-		width: 910px;
-		margin-left: 110px;
-	}
-
-	#rightcolumn 
-	{
-		float: left;
-		width: 700px;
-		margin-left: 55px;
-	}
-
-
-}
-
-/* End of Tablet version */
-
 #topmenu
 {
 	margin: 0.25em;
@@ -1140,3 +1078,95 @@ td.delete
 	float: left;
 	width: auto;
 }
+
+
+
+
+
+/* Mobile version */  
+
+@media screen and (max-width: 480px)
+{
+
+	#page
+	{
+		width: 100%;
+		margin: 0;
+		padding: 0;
+	}
+
+	#wrapper 
+	{
+		width: 100%;
+		margin: 0;
+	}
+
+	#leftcolumn
+	{
+		/*float: left;*/
+		width: 100%;
+		margin-right: 0;
+		margin-left: 0;
+		padding: 0;
+	}
+
+	#rightcolumn 
+	{
+		/*float: right;*/
+		width: 100%;
+		margin-right: 0;
+		margin-left: 0;
+		max-width: 481px;
+	}
+
+	div
+	{
+		margin: 0;
+		padding: 0;
+	}
+
+	#newsfeed
+	{
+		width: 99%;
+		margin: 0;
+	}
+
+	#statusmessages
+	{
+		width: 99%;
+		margin: 0;
+	}
+
+}
+
+/* End of mobile version */
+
+/* Tablet version */  
+
+@media screen and (min-width : 768px) and (max-width : 1024px)
+{
+
+	#wrapper 
+	{
+		width: 1024px;
+		margin: 0 auto;
+	}
+
+	#leftcolumn
+	{
+		float: left;
+		width: 910px;
+		margin-left: 110px;
+	}
+
+	#rightcolumn 
+	{
+		float: left;
+		width: 700px;
+		margin-left: 55px;
+	}
+
+
+}
+
+/* End of Tablet version */
