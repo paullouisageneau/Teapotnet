@@ -263,9 +263,9 @@ function displayContacts(url, period, object) {
 			var visible = false;
 			$.each(data, function(uname, info) 
 			{
-				if ($('#contact_'+info.name).length == 0) // if div does not exist
+				if ($('#contact_'+uname).length == 0) // if div does not exist
 				{
-					$(object).append('<div id=\"contact_'+info.name+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+info.name+'\">'+info.name+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+info.name+'\" class=\"infoscontact\"><span class=\"tracker\"></span>'+info.name+'@'+info.tracker+' <span class=\"files\"></span><a href=\"contacts/'+info.name+'/files/\"> Files</a><span class=\"chat\"></span><a href=\"contacts/'+info.name+'/chat/\"> Chat</a></div>');
+					$(object).append('<div id=\"contact_'+uname+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+uname+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+uname+'\" class=\"infoscontact\"><span class=\"tracker\">'+uname+'@'+info.tracker+'</span> <span class=\"linkfiles\"><a href=\"contacts/'+uname+'/files/\"> <img src="/icon_files.png" alt="Files" height=35 widht=35 /></a></span> <span class=\"linkchat\"><a href=\"contacts/'+uname+'/chat/\"> <img src="/icon_chat.png" alt="Chat" height=35 widht=35 /></a></span></div>');
 					$('#InfosContact_'+uname).hide();
 				}
 
