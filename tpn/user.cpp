@@ -128,6 +128,10 @@ User::User(const String &name, const String &password) :
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mHash, this);
 	UsersMutex.unlock();
+
+// TODO : added
+	mProfile = new Profile(this);
+// end
 	
 	Interface::Instance->add(urlPrefix(), this);
 }
@@ -242,8 +246,173 @@ void User::sendInfo(const Identifier &identifier)
 	else notification.send(identifier);
 }
 
+
+User::Profile::Profile(User *user):
+	mUser(user)
+{
+	mProfileFileName = mUser->profilePath() + "profile";
+
+	Interface::Instance->add("/"+mUser->name()+"/profile", this);
+}
+
+// TODO: constructeur avec tous les attributs
+
+User::Profile::~Profile()
+{
+	Interface::Instance->remove("/"+mUser->name()+"/profile");
+}
+
+void User::Profile::deserialize()
+{
+ 	File *mProfileFile = new File(mProfileFileName);
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	serializer->input(usersProfile);
+	StringMap mUserProfile;
+	mUserProfile = usersProfile.get(mUser->name()); // Deserializes mUser infos
+	
+	if(mUserProfile.contains("firstname"))
+		mFirstName = mUserProfile.get("firstname");
+
+	if(mUserProfile.contains("middlename"))
+		mMiddleName = mUserProfile.get("middlename");
+
+	if(mUserProfile.contains("lastname"))
+		mLastName = mUserProfile.get("lastname");
+
+	if(mUserProfile.contains("birthday"))
+		mBirthday = mUserProfile.get("birthday");
+
+	if(mUserProfile.contains("sex"))
+		mSex = mUserProfile.get("sex");
+
+	if(mUserProfile.contains("religion"))
+		mReligion = mUserProfile.get("religion");
+
+	if(mUserProfile.contains("relationship"))
+		mRelationship = mUserProfile.get("relationship");
+
+	if(mUserProfile.contains("description"))
+		mDescription = mUserProfile.get("description");
+
+	if(mUserProfile.contains("status"))
+		mStatus = mUserProfile.get("status");
+}
+
+
+void User::Profile::http(const String &prefix, Http::Request &request)
+{
+	try {
+		String url = request.url;
+		if(url.empty() || url[0] != '/') throw 404;
+		if(url == "/")
+		{
+			Http::Response response(request,200);
+			response.send();
+		
+			Html page(response.sock);
+			page.header(APPNAME, true);
+
+			// Pour tests : écrire dans le fichier quelques champs tests
+			try
+			{
+	         		SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+
+				serializer = new YamlSerializer(mProfileFile);
+
+				SerializableMap<String,StringMap> usersProfile;
+				StringMap fields;
+				fields["firstname"] << "Richard";
+				fields["middlename"] << "Lloyd";
+				fields["lastname"] << "Taylor";
+				fields["birthday"] << "1989-07-10";
+				fields["sex"] << "Male";
+				fields["religion"] << "None";
+				fields["relationship"] << "Married";
+				fields["description"] << "Big Basketball Fan";
+				fields["status"] << "Programming...";
+
+				String userName = mUser->name();
+				usersProfile.insert(userName, fields);
+		
+				serializer->output(usersProfile);
+				mProfileFile->close();
+			}
+			catch(IOException &e)
+			{
+				// TODO : log
+				return;
+			}
+
+			// Ouvrir le fichier (en utilisant les méthodes tpn !)
+
+			try
+			{
+
+				deserialize();
+
+				page.header("My profile : "+mUser->name());
+
+				page.open("div","profile.box");
+
+				page.open("h2");
+				page.text("My personal information");
+				page.close("h2");
+
+				// TODO : ne pas afficher champ si non renseigné
+
+				page.open("div","personalstatus");
+					page.raw("<span class=\"statusquotemark\"> “ </span>");
+					page.text(mStatus);
+					page.raw("<span class=\"statusquotemark\"> ” </span>");
+				page.close("div");
+
+				page.text("First Name : "+mFirstName); page.br();
+				page.text("Middle Name : "+mMiddleName); page.br();
+				page.text("Last Name : "+mLastName); page.br();
+				page.text("Birthday : "+mBirthday); page.br();
+				page.text("Relationship : "+mRelationship); page.br();
+				page.text("Sex : "+mSex); page.br();
+				page.text("Religion : "+mReligion); page.br();
+
+				page.open("div","description");
+					page.text("Description : ");
+					page.text(mDescription);
+				page.close("div");
+
+
+				page.close("div");
+
+			}
+			catch(IOException &e)
+			{
+				// TODO : log
+				return;
+			}
+
+
+			// Faire le formulaire pour modifier les infos fichier
+
+			// Ecrire dans le fichier (via une méthode qui ressemblera à un "post")
+
+
+			page.footer();
+			return;
+		}
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("User::Profile::http", e.what());
+		throw 404;	// Httpd handles integer exceptions
+	}
+			
+	throw 404;
+}
+
 void User::http(const String &prefix, Http::Request &request)
 {
+
 	try {
 		setOnline();
 		
@@ -396,8 +565,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
+			page.raw("<a href='profile'>");			
 			page.text(name() + "@" + tracker);
 			if(!instance.empty()) page.text(" (" + instance + ")");
+			page.raw("</a>");
 			page.close("h1");
 			page.close("div");
 			

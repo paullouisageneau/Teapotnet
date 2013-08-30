@@ -32,6 +32,7 @@
 #include "tpn/store.h"
 #include "tpn/mutex.h"
 #include "tpn/map.h"
+#include "tpn/yamlserializer.h"
 
 namespace tpn
 {
@@ -62,6 +63,31 @@ public:
 	void sendInfo(const Identifier &identifier = Identifier::Null);
 	
 	void http(const String &prefix, Http::Request &request);
+
+	class Profile : public HttpInterfaceable
+	{
+		public:
+			Profile(User *user);
+			~Profile(void);
+			void http(const String &prefix, Http::Request &request);
+			void deserialize(void);
+
+		private:
+			String mProfileFileName;
+			User *mUser;
+			YamlSerializer *serializer;
+
+			String mFirstName;
+			String mMiddleName;
+			String mLastName;
+			String mBirthday; // TODO : should be a Time ?
+			String mSex;
+			String mReligion;
+			String mRelationship;
+			String mDescription;
+			String mStatus;
+	
+	};
 	
 private:
 	void run(void);
@@ -74,9 +100,12 @@ private:
 	StringMap mInfo;
 	Time mLastOnlineTime;
 
+	Profile *mProfile;
+
 	static Map<String, User*>	UsersByName;
 	static Map<ByteString, User*>	UsersByAuth;
 	static Mutex			UsersMutex;
+
 };
 
 }

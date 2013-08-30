@@ -28,6 +28,21 @@ a:hover
 	text-decoration: underline;
 }
 
+h1 a
+{
+	color: #000000;
+}
+
+h1 a:visited
+{
+	color: #000000;
+}
+
+h1 a:hover
+{
+	text-decoration: underline;
+}
+
 div
 {
 	margin-left: 2px;
@@ -1079,9 +1094,20 @@ td.delete
 	width: auto;
 }
 
+#personalstatus
+{
+	font-size: 1.2em;
+	
+	text-align: center;
+}
 
-
-
+.statusquotemark
+{
+	font-family: Times New Roman;
+	font-style: bold;
+	font-size: 1.4em;
+	color: black;
+}
 
 /* Mobile version */  
 
