@@ -1120,6 +1120,23 @@ td.delete
 	width: 95%;
 }
 
+.inlinetitle
+{
+	display: inline;
+}
+
+.inlinetitle h2
+{
+	display: inline;
+}
+
+.clearprofilebutton
+{
+	display: inline;
+	margin-top: -1px;
+}
+
+
 #personalstatus
 {
 	float: left;

@@ -535,9 +535,13 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 
 				page.open("div","profile.box");
 
+				page.open("div",".inlinetitle");
 				page.open("h2");
 				page.text("My personal information");
 				page.close("h2");
+
+				page.button("clearprofilebutton","Clear profile");
+				page.close("div");
 
 				page.open("div",".profileinfoswrapper");
 
@@ -592,10 +596,10 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 					page.close("h2");
 
 					displayProfileInfo(page,"Religion","religion", mReligion);
-					displayProfileInfo(page,"Books","books", mBooks);
-					displayProfileInfo(page,"Movies","movies", mMovies);
-					displayProfileInfo(page,"Hobbies","hobbies", mHobbies);
-					displayProfileInfo(page,"Politics","politics", mPolitics);
+					displayProfileInfo(page,"Books", " : ", "What are your favorite books ?", "books", mBooks);
+					displayProfileInfo(page,"Movies", " : ", "What are your favorite movies ?", "movies", mMovies);
+					displayProfileInfo(page,"Hobbies", " : ", "What are your favorite hobbies ?","hobbies", mHobbies);
+					displayProfileInfo(page,"Politics", " : ", "What are your political opinions ?","politics", mPolitics);
 					page.close("div");
 
 				//page.close("div");
@@ -607,10 +611,10 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 					page.text("Skills and jobs");
 					page.close("h2");
 
-					displayProfileInfo(page,"Computer Skills","computer", mComputer);
-					displayProfileInfo(page,"Resume","resume", mResume);
+					displayProfileInfo(page,"Computer Skills", " : ", "What are your computer skills ?","computer", mComputer);
+					displayProfileInfo(page,"Resume", " : ", "Put a link to your resume","resume", mResume);
 					displayProfileInfo(page,"Current Job","job", mJob);
-					displayProfileInfo(page,"Last Internship","internship", mInternship);
+					displayProfileInfo(page,"Last Internship", " : ", "Where did you do your last internship ?","internship", mInternship);
 
 					page.close("div");
 
@@ -620,8 +624,8 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 					page.text("Education");
 					page.close("h2");
 
-					displayProfileInfo(page,"College","college", mCollege);
-					displayProfileInfo(page,"University","university", mUniversity);
+					displayProfileInfo(page,"College", " : ", "Where did you go to college ?","college", mCollege);
+					displayProfileInfo(page,"University", " : ", "What University did you attend ?","university", mUniversity);
 
 					page.close("div");
 				//page.close("div");
@@ -660,7 +664,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 						if (e.keyCode == 13 && !e.shiftKey) {\n\
 						e.preventDefault();\n\
 						var field = currentId;\n\
-						valueField = $('input').attr('value');\n\
+						valueField = $('input[type=text]').attr('value');\n\
 						postVariable(field, valueField);\n\
 						}\n\
 							});\n\
@@ -673,10 +677,10 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 						}\n\
 						postVariable = function(field, valueFieldRaw)\n\
 						{\n\
-							valueField = valueFieldRaw;\n\
-							if(valueField == '') valueField = 'emptyfield';\n\
+							valueFieldPost = valueFieldRaw;\n\
+							if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
 							var request = $.post('"+prefix+"/profile"+"',\n\
-								{ 'field': field , 'valueField': valueField });\n\
+								{ 'field': field , 'valueField': valueFieldPost });\n\
 							request.fail(function(jqXHR, textStatus) {\n\
 								alert('The profile update could not be made.');\n\
 							});\n\
@@ -684,7 +688,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 							setTimeout(function(){location.reload();},100);\n\
 						}\n\
 						loadClickHandlers();\n\
-						$('.empty').click(function() {isEmpty = true; valueField = ''; \n\
+						$('.empty').click(function() {isEmpty = true; valueField = 'emptyfield'; \n\
 							if(!blocked)\n\
 							{\n\
 								blocked = true;\n\
@@ -697,7 +701,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 							if (e.keyCode == 13 && !e.shiftKey) {\n\
 							e.preventDefault();\n\
 							var field = currentId;\n\
-							valueField = $('input').attr('value');\n\
+							valueField = $('input[type=text]').attr('value');\n\
 							postVariable(field, valueField);\n\
 							}\n\
 								});\n\
@@ -708,6 +712,15 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 								);\n\
 							}\n\
 						});\n\
+						$('.clearprofilebutton').click(function() {\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'clear': 1 });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('Profile clear could not be made.');\n\
+							});\n\
+							setTimeout(function(){location.reload();},100);\n\
+						}\n\
+						);\n\
 						");
 
 			}
