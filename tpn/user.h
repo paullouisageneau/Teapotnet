@@ -33,6 +33,7 @@
 #include "tpn/mutex.h"
 #include "tpn/map.h"
 #include "tpn/yamlserializer.h"
+#include "tpn/html.h"
 
 namespace tpn
 {
@@ -71,6 +72,11 @@ public:
 			~Profile(void);
 			void http(const String &prefix, Http::Request &request);
 			void deserialize(void);
+			void displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field);
+			void displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field);
+			void updateField(String &key, String &value);
+			void initializeFile(void);
+			StringMap getmUserStringMap(void);
 
 		private:
 			String mProfileFileName;
@@ -81,11 +87,29 @@ public:
 			String mMiddleName;
 			String mLastName;
 			String mBirthday; // TODO : should be a Time ?
-			String mSex;
+			String mGender;
 			String mReligion;
 			String mRelationship;
 			String mDescription;
 			String mStatus;
+
+			String mCity;
+			String mAddress;
+			String mMail;
+			String mTwitter;
+			String mFacebook;
+			String mPhone;
+			String mCollege;
+			String mUniversity;
+			String mJob;
+			String mProfilePhoto;
+			String mBooks;
+			String mHobbies;
+			String mMovies;
+			String mPolitics;
+			String mInternship;
+			String mComputer;
+			String mResume;
 	
 	};
 	

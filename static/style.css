@@ -1094,12 +1094,99 @@ td.delete
 	width: auto;
 }
 
+.profileinfo
+{
+	font-size: 1.1em;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+.inputprofile
+{
+	width: 97%;
+}
+
+.profileinfoswrapper
+{
+	padding: 5px;
+	width: 100%;
+	min-height: 150px;
+	margin-bottom: 20px;
+	margin-top: 20px;
+}
+
+.profileinfoswrapper .box
+{
+	width: 95%;
+}
+
 #personalstatus
 {
+	float: left;
 	font-size: 1.2em;
-	
+	width: 70%;
+	height: 150px;
+	margin-top: 40px;
+	line-height: 40px;
 	text-align: center;
+	vertical-align: middle;
 }
+
+#personalstatus input
+{
+	display: inline;
+	float: left;
+	width: auto;
+	height: auto;
+	margin-top: 40px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+#profilephoto
+{
+	float: right;
+	border: 2px solid black;
+	width: 20%;
+	height: 150px;
+	margin-right: 20px;
+}
+
+/*#personalinfos
+{
+	float: left;
+	width: 45%;
+	height: auto;
+	min-height: 150px;
+}
+
+#culture
+{
+	float: right;
+	width: 45%;
+	height: auto;
+	min-height: 150px;
+}
+
+#jobs
+{
+	float: left;
+	width: 45%;
+	min-height: 150px;
+}
+
+#education
+{
+	float: right;
+	width: 45%;
+	min-height: 150px;
+}
+
+#description
+{
+	width: 97%;
+	min-height: 150px;
+}*/
 
 .statusquotemark
 {
@@ -1107,6 +1194,11 @@ td.delete
 	font-style: bold;
 	font-size: 1.4em;
 	color: black;
+}
+
+.empty
+{
+	color: gray;
 }
 
 /* Mobile version */  

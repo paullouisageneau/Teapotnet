@@ -252,6 +252,11 @@ User::Profile::Profile(User *user):
 {
 	mProfileFileName = mUser->profilePath() + "profile";
 
+	if(!File::Exist(mProfileFileName))
+	{
+		initializeFile();
+	}
+
 	Interface::Instance->add("/"+mUser->name()+"/profile", this);
 }
 
@@ -262,15 +267,25 @@ User::Profile::~Profile()
 	Interface::Instance->remove("/"+mUser->name()+"/profile");
 }
 
-void User::Profile::deserialize()
+StringMap User::Profile::getmUserStringMap()
 {
  	File *mProfileFile = new File(mProfileFileName);
 	serializer = new YamlSerializer(mProfileFile);
 
 	SerializableMap<String,StringMap> usersProfile;
 	serializer->input(usersProfile);
+
+	mProfileFile->close();
+
 	StringMap mUserProfile;
 	mUserProfile = usersProfile.get(mUser->name()); // Deserializes mUser infos
+
+	return mUserProfile;
+}
+
+void User::Profile::deserialize()
+{
+	StringMap mUserProfile = getmUserStringMap();
 	
 	if(mUserProfile.contains("firstname"))
 		mFirstName = mUserProfile.get("firstname");
@@ -284,8 +299,8 @@ void User::Profile::deserialize()
 	if(mUserProfile.contains("birthday"))
 		mBirthday = mUserProfile.get("birthday");
 
-	if(mUserProfile.contains("sex"))
-		mSex = mUserProfile.get("sex");
+	if(mUserProfile.contains("gender"))
+		mGender = mUserProfile.get("gender");
 
 	if(mUserProfile.contains("religion"))
 		mReligion = mUserProfile.get("religion");
@@ -298,14 +313,194 @@ void User::Profile::deserialize()
 
 	if(mUserProfile.contains("status"))
 		mStatus = mUserProfile.get("status");
+
+	if(mUserProfile.contains("city"))
+		mCity = mUserProfile.get("city");
+
+	if(mUserProfile.contains("address"))
+		mAddress = mUserProfile.get("address");
+
+	if(mUserProfile.contains("mail"))
+		mMail = mUserProfile.get("mail");
+
+	if(mUserProfile.contains("twitter"))
+		mTwitter = mUserProfile.get("twitter");
+
+	if(mUserProfile.contains("facebook"))
+		mFacebook = mUserProfile.get("facebook");
+
+	if(mUserProfile.contains("phone"))
+		mPhone = mUserProfile.get("phone");
+
+	if(mUserProfile.contains("college"))
+		mCollege = mUserProfile.get("college");
+
+	if(mUserProfile.contains("university"))
+		mUniversity = mUserProfile.get("university");
+
+	if(mUserProfile.contains("job"))
+		mJob = mUserProfile.get("job");
+
+	if(mUserProfile.contains("internship"))
+		mInternship = mUserProfile.get("internship");
+
+	if(mUserProfile.contains("books"))
+		mBooks = mUserProfile.get("books");
+
+	if(mUserProfile.contains("movies"))
+		mMovies = mUserProfile.get("movies");
+
+	if(mUserProfile.contains("hobbies"))
+		mHobbies = mUserProfile.get("hobbies");
+
+	if(mUserProfile.contains("politics"))
+		mPolitics = mUserProfile.get("politics");
+
+	if(mUserProfile.contains("computer"))
+		mComputer = mUserProfile.get("computer");
+
+	if(mUserProfile.contains("resume"))
+		mResume = mUserProfile.get("resume");
+
+	if(mUserProfile.contains("profilephoto"))
+		mProfilePhoto = mUserProfile.get("profilephoto");
 }
 
+void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field)
+{
+	if(field!="emptyfield")
+	{
+		page.open("div",fieldName+"div.profileinfo");
+		page.text(fieldText+showPunctuation);
+		page.open("span",fieldName+".editable");
+		page.text(field);
+		page.close("span");
+		//page.br();
+		page.close("div");
+	}
+	else
+	{
+		page.open("div",fieldName+".empty");
+		page.open("span",".profileinfo");
+		page.text(emptyQuestion);
+		page.close("span");
+		page.close("div");
+	}
+}
+
+void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field)
+{
+	displayProfileInfo(page, fieldText, " : ", "What is your "+fieldText+" ?", fieldName, field);
+}
+
+void User::Profile::updateField(String &key, String &value)
+{
+	// Read the file to get the stringMap
+	StringMap mUserProfile = getmUserStringMap();
+
+	// Replace with new stringMap
+	if(mUserProfile.contains(key))
+		mUserProfile.erase(key);
+	mUserProfile[key] << value;
+
+	// Write to file
+
+	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	String userName = mUser->name();
+	usersProfile.insert(userName, mUserProfile);
+
+	serializer->output(usersProfile);
+	mProfileFile->close();
+	
+}
+
+void User::Profile::initializeFile()
+{
+	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	StringMap fields;
+	fields["status"] << "emptyfield";
+	fields["profilephoto"] << "emptyfield";
+
+	fields["firstname"] << "emptyfield";
+	fields["middlename"] << "emptyfield";
+	fields["lastname"] << "emptyfield";
+	fields["birthday"] << "emptyfield";
+	fields["gender"] << "emptyfield";
+	fields["relationship"] << "emptyfield";
+
+	fields["city"] << "emptyfield";
+	fields["address"] << "emptyfield";
+	fields["mail"] << "emptyfield";
+	fields["twitter"] << "emptyfield";
+	fields["facebook"] << "emptyfield";
+	fields["phone"] << "emptyfield";
+
+	fields["college"] << "emptyfield";
+	fields["university"] << "emptyfield";
+
+	fields["job"] << "emptyfield";
+	fields["computer"] << "emptyfield";
+	fields["resume"] << "emptyfield";
+	fields["internship"] << "emptyfield";
+
+	fields["religion"] << "emptyfield";
+	fields["books"] << "emptyfield";
+	fields["movies"] << "emptyfield";
+	fields["hobbies"] << "emptyfield";
+	fields["politics"] << "emptyfield";
+
+	fields["description"] << "emptyfield";
+	
+	
+
+	String userName = mUser->name();
+	usersProfile.insert(userName, fields);
+
+	serializer->output(usersProfile);
+	mProfileFile->close();
+}
 
 void User::Profile::http(const String &prefix, Http::Request &request)
 {
 	try {
+
+		if(!File::Exist(mProfileFileName))
+		{
+			initializeFile();
+		}
+
 		String url = request.url;
 		if(url.empty() || url[0] != '/') throw 404;
+
+		if(request.method == "POST")
+		{
+			String field, valueField;
+
+			if(request.post.contains("clear"))
+			{
+				initializeFile();
+			}
+			else
+			{
+				field = request.post["field"];
+				valueField = request.post["valueField"];
+
+				updateField(field, valueField);
+			}
+			
+			Http::Response response(request, 303);
+			response.headers["Location"] = prefix + "/";
+			response.send();
+			return;
+		}
 		if(url == "/")
 		{
 			Http::Response response(request,200);
@@ -314,38 +509,17 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header(APPNAME, true);
 
+
 			// Pour tests : écrire dans le fichier quelques champs tests
 			try
 			{
-	         		SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
-
-				serializer = new YamlSerializer(mProfileFile);
-
-				SerializableMap<String,StringMap> usersProfile;
-				StringMap fields;
-				fields["firstname"] << "Richard";
-				fields["middlename"] << "Lloyd";
-				fields["lastname"] << "Taylor";
-				fields["birthday"] << "1989-07-10";
-				fields["sex"] << "Male";
-				fields["religion"] << "None";
-				fields["relationship"] << "Married";
-				fields["description"] << "Big Basketball Fan";
-				fields["status"] << "Programming...";
-
-				String userName = mUser->name();
-				usersProfile.insert(userName, fields);
-		
-				serializer->output(usersProfile);
-				mProfileFile->close();
+				//initializeFile();
 			}
 			catch(IOException &e)
 			{
 				// TODO : log
 				return;
 			}
-
-			// Ouvrir le fichier (en utilisant les méthodes tpn !)
 
 			try
 			{
@@ -354,35 +528,187 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 
 				page.header("My profile : "+mUser->name());
 
+				page.javascript("var valueField;\n\
+						var currentId;\n\
+						var blocked = false;\n\
+						var isEmpty = false;");
+
 				page.open("div","profile.box");
 
 				page.open("h2");
 				page.text("My personal information");
 				page.close("h2");
 
-				// TODO : ne pas afficher champ si non renseigné
+				page.open("div",".profileinfoswrapper");
 
-				page.open("div","personalstatus");
-					page.raw("<span class=\"statusquotemark\"> “ </span>");
-					page.text(mStatus);
-					page.raw("<span class=\"statusquotemark\"> ” </span>");
+					page.open("div","personalstatus");
+						page.raw("<span class=\"statusquotemark\"> “ </span>");
+						page.open("span","status.editable");
+						if(mStatus!="emptyfield")
+						{
+							page.text(mStatus);
+						}
+						else
+						{
+							page.open("span","status.empty");
+							page.text("(click here to post a status)");
+							page.close("span");
+						}
+						page.close("span");
+						page.raw("<span class=\"statusquotemark\"> ” </span>");
+					page.close("div");
+
+					page.open("div","profilephoto");
+					page.close("div");
+
 				page.close("div");
 
-				page.text("First Name : "+mFirstName); page.br();
-				page.text("Middle Name : "+mMiddleName); page.br();
-				page.text("Last Name : "+mLastName); page.br();
-				page.text("Birthday : "+mBirthday); page.br();
-				page.text("Relationship : "+mRelationship); page.br();
-				page.text("Sex : "+mSex); page.br();
-				page.text("Religion : "+mReligion); page.br();
+				page.open("div", ".profileinfoswrapper");
 
-				page.open("div","description");
-					page.text("Description : ");
-					page.text(mDescription);
+					page.open("div","personalinfos.box");
+
+					page.open("h2");
+					page.text("Personal Information");
+					page.close("h2");
+
+					displayProfileInfo(page,"First Name","firstname", mFirstName);
+					displayProfileInfo(page,"Middle Name","middlename", mMiddleName);
+					displayProfileInfo(page,"Last Name","lastname", mLastName);
+					displayProfileInfo(page,"Birthday", " : ", "When were you born ?", "birthday", mBirthday);
+					displayProfileInfo(page,"Gender","gender", mGender);
+					displayProfileInfo(page,"Relationship Status","relationship", mRelationship);
+					displayProfileInfo(page,"City","city", mCity);
+					displayProfileInfo(page,"Address","address", mAddress);
+					displayProfileInfo(page,"Mail","mail", mMail);
+					displayProfileInfo(page,"Twitter","twitter", mTwitter);
+					displayProfileInfo(page,"Facebook","facebook", mFacebook);
+					displayProfileInfo(page,"Phone Number","phone", mPhone);
+					page.close("div");
+
+					page.open("div","culture.box");
+
+					page.open("h2");
+					page.text("Culture");
+					page.close("h2");
+
+					displayProfileInfo(page,"Religion","religion", mReligion);
+					displayProfileInfo(page,"Books","books", mBooks);
+					displayProfileInfo(page,"Movies","movies", mMovies);
+					displayProfileInfo(page,"Hobbies","hobbies", mHobbies);
+					displayProfileInfo(page,"Politics","politics", mPolitics);
+					page.close("div");
+
+				//page.close("div");
+
+				//page.open("div",".profileinfoswrapper");
+					page.open("div","jobs.box");
+
+					page.open("h2");
+					page.text("Skills and jobs");
+					page.close("h2");
+
+					displayProfileInfo(page,"Computer Skills","computer", mComputer);
+					displayProfileInfo(page,"Resume","resume", mResume);
+					displayProfileInfo(page,"Current Job","job", mJob);
+					displayProfileInfo(page,"Last Internship","internship", mInternship);
+
+					page.close("div");
+
+					page.open("div","education.box");
+
+					page.open("h2");
+					page.text("Education");
+					page.close("h2");
+
+					displayProfileInfo(page,"College","college", mCollege);
+					displayProfileInfo(page,"University","university", mUniversity);
+
+					page.close("div");
+				//page.close("div");
+
+				//page.open("div",".profileinfoswrapper");
+					page.open("div","description.box");
+
+					page.open("h2");
+					page.text("Description");
+					page.close("h2");
+
+					displayProfileInfo(page,"", "", "Describe yourself", "description", mDescription);
+
+					page.close("div");
 				page.close("div");
 
 
 				page.close("div");
+
+				page.javascript("loadClickHandlers = function()\n\
+						{\n\
+							$('.editable').click(onEditableClick);\n\
+						}\n\
+						onEditableClick = function()\n\
+						{\n\
+						if(!blocked)\n\
+						{\n\
+							blocked = true;\n\
+							currentId = $(this).attr('id');\n\
+							var currentText = $(this).html();\n\
+							if (!isEmpty) valueField = currentText;\n\
+							$(this).after('<div><input type=\"text\" value=\"'+valueField+'\" class=\"inputprofile\"></div>');\n\
+							$(this).css('display','none');\n\
+							$('input').focus();\n\
+							$('input').keypress(function(e) {\n\
+						if (e.keyCode == 13 && !e.shiftKey) {\n\
+						e.preventDefault();\n\
+						var field = currentId;\n\
+						valueField = $('input').attr('value');\n\
+						postVariable(field, valueField);\n\
+						}\n\
+							});\n\
+							$('input').blur(function()\n\
+							{\n\
+								setTimeout(function(){location.reload();},100);\n\
+							}\n\
+							);\n\
+						}\n\
+						}\n\
+						postVariable = function(field, valueFieldRaw)\n\
+						{\n\
+							valueField = valueFieldRaw;\n\
+							if(valueField == '') valueField = 'emptyfield';\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'field': field , 'valueField': valueField });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('The profile update could not be made.');\n\
+							});\n\
+							isEmpty = false;\n\
+							setTimeout(function(){location.reload();},100);\n\
+						}\n\
+						loadClickHandlers();\n\
+						$('.empty').click(function() {isEmpty = true; valueField = ''; \n\
+							if(!blocked)\n\
+							{\n\
+								blocked = true;\n\
+								currentId = $(this).attr('id');\n\
+								var currentText = $(this).html();\n\
+								$(this).after('<div><input type=\"text\" class=\"inputprofile\"></div>');\n\
+								$(this).css('display','none');\n\
+								$('input').focus();\n\
+								$('input').keypress(function(e) {\n\
+							if (e.keyCode == 13 && !e.shiftKey) {\n\
+							e.preventDefault();\n\
+							var field = currentId;\n\
+							valueField = $('input').attr('value');\n\
+							postVariable(field, valueField);\n\
+							}\n\
+								});\n\
+								$('input').blur(function()\n\
+								{\n\
+									setTimeout(function(){location.reload();},100);\n\
+								}\n\
+								);\n\
+							}\n\
+						});\n\
+						");
 
 			}
 			catch(IOException &e)
@@ -390,12 +716,6 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 				// TODO : log
 				return;
 			}
-
-
-			// Faire le formulaire pour modifier les infos fichier
-
-			// Ecrire dans le fichier (via une méthode qui ressemblera à un "post")
-
 
 			page.footer();
 			return;
