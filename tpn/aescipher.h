@@ -34,6 +34,7 @@ namespace tpn
 #define AES_MAX_KEY_SIZE 32
 #define AES_MAXNR 14
 
+// Implements AES-CBC with PKCS7 padding
 class AesCipher : public Stream, public ByteString
 {
 public:
@@ -69,7 +70,6 @@ private:
 	void decrypt(char *in, char *out);
   
 	size_t readBlock(char *out);
-	
 	
 	ByteStream *mByteStream;
 	ByteStream *mDumpStream;

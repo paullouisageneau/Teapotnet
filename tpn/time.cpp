@@ -22,6 +22,7 @@
 #include "tpn/time.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
+#include "tpn/list.h"
 
 namespace tpn
 {

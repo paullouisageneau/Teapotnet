@@ -35,8 +35,9 @@ namespace tpn
 Store *Store::GlobalInstance = NULL;
 Map<ByteString,String> Store::Resources;
 Mutex Store::ResourcesMutex;
-  
-bool Store::GetResource(const ByteString &digest, Entry &entry)
+const String Store::CacheDirectoryName = "_cache";  
+
+bool Store::Get(const ByteString &digest, Resource &resource)
 {
 	String path;
 	ResourcesMutex.lock();
@@ -54,14 +55,12 @@ bool Store::GetResource(const ByteString &digest, Entry &entry)
 		return false;
 	}
 	
-	entry.digest = digest;
-	entry.path = path;
-	entry.url.clear();	// no url
-	entry.type = 1;		// file
-	entry.size = File::Size(path);
-	entry.time = File::Time(path);
-	entry.name = path.afterLast(Directory::Separator);
-
+	resource.clear();
+	resource.mDigest = digest;
+	resource.mPath = path;
+	resource.mSize = File::Size(path);
+	resource.mTime = File::Time(path);
+	resource.mStore = Store::GlobalInstance;
 	return true;
 }
 
@@ -133,14 +132,18 @@ Store::Store(User *user) :
 				
 				++it;
 			}
-			
-			// TODO
-	  		//start();
 		}
 		catch(...) {}
 	}
 	
+	// Special cache directory
+	if(this != GlobalInstance)
+		addDirectory(CacheDirectoryName, CacheDirectoryName);
+	
 	save();
+	
+	// TODO
+	//start();
 	
 	if(mUser)
 	{
@@ -180,15 +183,22 @@ void Store::addDirectory(const String &name, String path)
 		throw Exception("Invalid directory");
 	
 	String absPath = absolutePath(path);
-	if(!Directory::Exist(absPath)) 
-		throw Exception("The directory does not exist: " + absPath);
+	if(!Directory::Exist(absPath))
+	{
+		if(absPath != path) Directory::Create(absPath);
+		else throw Exception("The directory does not exist: " + absPath);
+	}
 	
 	Directory test(absPath);
 	test.close();
 	
-	mDirectories.insert(name, path);
-	save();
-	start();
+	String oldPath;
+	if(!mDirectories.get(name, oldPath) || oldPath != path)
+	{
+		mDirectories.insert(name, path);
+		save();
+		start();
+	}
 }
 
 void Store::removeDirectory(const String &name)
@@ -207,6 +217,8 @@ void Store::getDirectories(Array<String> &array) const
 {
 	Synchronize(this);
 	mDirectories.getKeys(array);
+	if(this != GlobalInstance)
+		array.remove(CacheDirectoryName);
 }
 
 void Store::save(void) const
@@ -266,18 +278,17 @@ void Store::update(void)
 	LogDebug("Store::update", "Finished");
 }
 
-bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
+bool Store::query(const Resource::Query &query, Resource &resource)
 {
 	Synchronize(this);
 	
 	if(query.mUrl == "/")	// root directory
 	{
-		entry.path = "";
-		entry.url = "/";
-		entry.type = 0;
-		entry.size = 0;
-		entry.time = Time::Now();
-		entry.digest.clear();
+		resource.clear();
+		resource.mUrl = "/";
+		resource.mType = 0;	// directory
+		resource.mTime = Time::Now();
+		resource.mStore = this;
 		return true;
 	}
 	
@@ -287,18 +298,10 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 	{
 		if(statement.step())
 		{
-			statement.value(0, entry.url);
-			statement.value(1, entry.digest);
-			statement.value(2, entry.type);
-			statement.value(3, entry.size);
-			
-			int64_t time;
-			statement.value(4, time);
-			entry.time = time;
-			
-			entry.path = urlToPath(entry.url);
-			entry.name = entry.url.afterLast('/');
-			
+			resource.clear();
+			statement.retrieve(resource);
+			resource.mPath = urlToPath(resource.mUrl);
+			resource.mStore = this;
 			statement.finalize();
 			return true;
 		}
@@ -306,11 +309,11 @@ bool Store::queryEntry(const Store::Query &query, Store::Entry &entry)
 		statement.finalize();
 	}
 	
-	if(this != GlobalInstance) return GlobalInstance->queryEntry(query, entry);
+	if(this != GlobalInstance) return GlobalInstance->query(query, resource);
 	else return false;
 }
 
-bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
+bool Store::query(const Resource::Query &query, Array<Resource> &resources)
 {
 	Synchronize(this);
 	
@@ -319,29 +322,21 @@ bool Store::queryList(const Store::Query &query, List<Store::Entry> &list)
 	Database::Statement statement;
 	if(prepareQuery(statement, query, fields, false))
 	{
-		while(statement.step())
-		{
-			Entry entry;
-			statement.value(0, entry.url);
-			statement.value(1, entry.digest);
-			statement.value(2, entry.type);
-			statement.value(3, entry.size);
-			
-			int64_t time;
-			statement.value(4, time);
-			entry.time = time;
-			
-			entry.path = urlToPath(entry.url);
-			entry.name = entry.url.afterLast('/');
-			
-			list.push_back(entry);
-		}
-		
+		SerializableArray<Resource> result;
+		statement.retrieve(result);
 		statement.finalize();
-		success = true;
+		
+		if(!result.empty())
+		{
+			for(int i=0; i<result.size(); ++i)
+				result[i].mPath = urlToPath(result[i].mUrl);
+
+			resources.append(result);
+			success = true;
+		}
 	}
 	
-	if(this != GlobalInstance) success|= GlobalInstance->queryList(query, list);
+	if(this != GlobalInstance) success|= GlobalInstance->query(query, resources);
 	return success;
 }
 
@@ -566,10 +561,6 @@ void Store::http(const String &prefix, Http::Request &request)
 						// TODO: sanitize dirname
 						
 						Assert(!dirname.empty());
-						String path = mBasePath + dirname;
-						if(!Directory::Exist(path))
-							Directory::Create(path);
-					
 					 	addDirectory(name, dirname);
 					}
 					catch(const Exception &e)
@@ -953,7 +944,7 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Store::prepareQuery(Database::Statement &statement, const Store::Query &query, const String &fields, bool oneRowOnly)
+bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly)
 {
 	String url = query.mUrl;
 	int count = query.mCount;
@@ -964,6 +955,9 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	if(!oneRowOnly && !url.empty() && url[url.size()-1] == '/')
 	{
 		url.resize(url.size()-1);
+		
+		// Do not allow listing cache directory
+		if(url == "/" + CacheDirectoryName) return false;
 		
 		if(url.empty()) parentId = 0;
 		else {
@@ -994,19 +988,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
 	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
 	
-	/*if(!query.mTypes.empty())
-	{
-		sql<<"AND (";
-		for(List<String>::iterator it = query.mTypes.begin(); it != query.mTypes.end(); ++it)
-		{
-			if(it != query.mTypes.begin()) sql<<"OR ";
-			sql<<"type = ?";
-		}
-		sql<<") ";
-	}*/
-	
-	if(query.mMinAge.toUnixTime() > 0) sql<<"AND time >= ? "; 
-	if(query.mMaxAge.toUnixTime() > 0) sql<<"AND time <= ? ";
+	if(query.mMinAge > Time(0)) sql<<"AND time >= ? "; 
+	if(query.mMaxAge > Time(0)) sql<<"AND time <= ? ";
 	
 	sql<<"ORDER BY time DESC "; // Newer files first
 	
@@ -1022,12 +1005,6 @@ bool Store::prepareQuery(Database::Statement &statement, const Store::Query &que
 	else if(!url.empty())		statement.bind(++parameter, url);
 	if(!query.mDigest.empty())	statement.bind(++parameter, query.mDigest);
 	if(!query.mMatch.empty())	statement.bind(++parameter, query.mMatch);
-	
-	/*if(!query.mTypes.empty())
-	{
-		for(List<String>::iterator it = query.mTypes.begin(); it != query.mTypes.end(); ++it)
-		statement.bind(++parameter, *it);
-	}*/
 	
 	if(query.mMinAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMinAge));
 	if(query.mMaxAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMaxAge));
@@ -1055,7 +1032,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		int64_t id;
 		ByteString digest;
 		
-		if(statement.step())	// Entry already exists
+		if(statement.step())	// entry already exists
 		{
 			uint64_t dbSize;
 			int64_t  dbTime;
@@ -1241,50 +1218,5 @@ void Store::keywords(String name, Set<String> &result)
 		it->substrings(result, minLength);
 }
 */
-
-Store::Query::Query(const String &url) :
-	mUrl(url),
-	mMinAge(0), mMaxAge(0),
-	mOffset(0), mCount(-1)
-{
-  
-}
-		
-void Store::Query::setLocation(const String &url)
-{
-	mUrl = url;
-}
-
-void Store::Query::setDigest(const ByteString &digest)
-{
-	mDigest = digest;
-}
-
-void Store::Query::setAge(Time min, Time max)
-{
-	mMinAge = min;
-	mMaxAge = max;
-}
-
-void Store::Query::setRange(int first, int last)
-{
-	mOffset = std::max(first,0);
-	mCount  = std::max(last-mOffset,0);
-}
-
-void Store::Query::setLimit(int count)
-{
-	mCount = count;
-}
-	  
-void Store::Query::setMatch(const String &match)
-{
-	mMatch = match;
-}
-
-void Store::Query::addType(const String &type)
-{
-	mTypes.push_back(type);
-}
 
 }

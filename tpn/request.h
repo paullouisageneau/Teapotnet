@@ -27,6 +27,7 @@
 #include "tpn/identifier.h"
 #include "tpn/bytestream.h"
 #include "tpn/array.h"
+#include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/store.h"
 
@@ -106,9 +107,9 @@ public:
 	Response *response(int num);
 	const Response *response(int num) const;
 	bool isSuccessful(void) const;
-
+	
 private:
-	Response *createResponse(Store::Entry &entry, const StringMap &parameters, Store *store);
+	Response *createResponse(Resource &resource, const StringMap &parameters, Store *store);
 	int addResponse(Response *response);
 
 	Identifier mReceiver;

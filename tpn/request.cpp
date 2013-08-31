@@ -131,7 +131,7 @@ bool Request::execute(User *user)
 	else {
 		if(mTarget.contains('/')) command  = "file";
 		else command == "digest";
-		argument = mTarget; 
+		argument = mTarget;
 	}
 
 	if(mParameters.contains("instance") && mParameters["instance"] != Core::Instance->getName())
@@ -189,18 +189,13 @@ bool Request::execute(User *user)
 				}
 			}
 			else {
-				Store::Entry entry;
-				if(Store::GetResource(identifier, entry))
-				{
-					addResponse(createResponse(entry, parameters, store));
-					return true;
-				}
-				
-				Store::Query query;
+				Resource resource;
+				Resource::Query query;
 				query.setDigest(identifier);
-				if(store->queryEntry(query, entry))
+	
+				if(query.submitLocal(resource, store))
 				{
-					addResponse(createResponse(entry, parameters, store));
+					addResponse(createResponse(resource, parameters, store));
 					return true;
 				}
 			}
@@ -208,15 +203,15 @@ bool Request::execute(User *user)
 	}
 	else if(command == "file")
 	{
-		List<Store::Entry> list;
-		if(store->queryList(Store::Query(argument), list))
+		Array<Resource> resources;
+		if(store->query(Resource::Query(argument), resources))
 		{
-			if(list.empty())
+			if(resources.empty())
 			{
 				addResponse(new Response(Response::Empty));
 			}
-			else for(List<Store::Entry>::iterator it = list.begin();
-				it != list.end();
+			else for(Array<Resource>::iterator it = resources.begin();
+				it != resources.end();
 				++it)
 			{
 				addResponse(createResponse(*it, parameters, store));
@@ -227,14 +222,15 @@ bool Request::execute(User *user)
 	}
 	else if(command == "search")
 	{
-		Store::Query query;
-		query.setMatch(argument);
+		Resource::Query query;
+		query.deserialize(parameters);
+		if(!argument.empty() || argument != "*") query.setMatch(argument);
 		
-		List<Store::Entry> list;
-		if(store->queryList(query, list) && !list.empty())
-		{		
-			for(List<Store::Entry>::iterator it = list.begin();
-				it != list.end();
+		Array<Resource> resources;
+		if(store->query(query, resources) && !resources.empty())
+		{
+			for(Array<Resource>::iterator it = resources.begin();
+				it != resources.end();
 				++it)
 			{
 				addResponse(createResponse(*it, parameters, store));
@@ -256,22 +252,19 @@ bool Request::executeDummy(void)
 	return false;
 }
 
-Request::Response *Request::createResponse(Store::Entry &entry, const StringMap &parameters, Store *store)
+Request::Response *Request::createResponse(Resource &resource, const StringMap &parameters, Store *store)
 {
 	StringMap rparameters;
-	rparameters["name"] << entry.name;
-	rparameters["size"] << entry.size;
-	rparameters["time"] << entry.time;
-	if(!entry.url.empty()) rparameters["path"] = entry.url;	// Warning: path in parameters is url in store
-	if(!entry.type) rparameters["type"] = "directory";
-	else {
-		rparameters["type"] = "file";
-		if(!entry.digest.empty()) rparameters["hash"] << entry.digest;
-	}
-		  
+	resource.serialize(rparameters);
+
+	// TODO: Backward compatibility, should be removed (08/2013)
+	rparameters["hash"] = rparameters["digest"];	// hash in parameters is digest in store
+	rparameters.erase("digest");
+	//
+	
 	if(!mIsData) return new Response(Response::Success, rparameters, NULL);
 		
-	if(!entry.type)	// directory
+	if(!resource.isDirectory())
 	{
 		rparameters["processing"] = "none";
 		rparameters["formatting"] = "YAML";
@@ -282,30 +275,14 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 		Assert(response->content());
 		
 		// The trailing '/' means it's a directory listing
-		String url = entry.url;
+		String url = resource.url();
 		if(url.empty() || url[url.size()-1] != '/') url+= '/';
 		
-		List<Store::Entry> list;
-		if(store->queryList(Store::Query(url), list))
+		SerializableArray<Resource> resources;
+		if(store->query(Resource::Query(url), resources))
 		{
 			YamlSerializer serializer(response->content());
-					
-			for(List<Store::Entry>::iterator it = list.begin();
-				it != list.end();
-				++it)
-			{
-				const Store::Entry &entry = *it;
-				StringMap map;
-				map["name"] = entry.name;
-				map["size"] << entry.size;
-				map["time"] << entry.time;
-				if(!entry.type) map["type"] = "directory";
-				else {
-					map["type"] = "file";
-					if(!entry.digest.empty()) map["hash"] << entry.digest;
-				}
-				serializer.output(map);
-			}
+			serializer.output(resources);
 		}
 				
 		response->content()->close();	// no more content
@@ -315,7 +292,17 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 	ByteStream *content = NULL;
 	if(!parameters.contains("stripe")) 
 	{
-		content = new File(entry.path, File::Read);
+		content = resource.accessor();
+		resource.dissociateAccessor();
+		
+		if(parameters.contains("position"))
+		{
+			int64_t position = 0;
+			parameters.get("position").extract(position);
+			content->seekRead(position);
+			rparameters["position"] << position;
+		}
+		
 		rparameters["processing"] = "none";
 	}
 	else {
@@ -333,9 +320,10 @@ Request::Response *Request::createResponse(Store::Entry &entry, const StringMap 
 		StripedFile *stripedFile = NULL;
 					
 		try {
-			file = new File(entry.path, File::Read);
+			// TODO: Request should not be Resource's friend
+			file = new File(resource.mPath, File::Read);
 			stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
-					
+			
 			size_t block = 0;
 			size_t offset = 0;
 			if(parameters.contains("block")) parameters.get("block").extract(block);

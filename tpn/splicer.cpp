@@ -29,7 +29,47 @@ namespace tpn
 	
 Map<ByteString, Splicer::CacheEntry*> Splicer::Cache;
 Mutex Splicer::CacheMutex;
-  
+
+Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
+{
+	CacheEntry *entry = NULL;
+	
+	CacheMutex.lock();
+	if(!Cache.get(target, entry))
+	{
+		LogDebug("Splicer", "No cached file, creating a new one");
+		
+		try {
+			entry = new CacheEntry(target);
+		}
+		catch(...)
+		{
+			CacheMutex.unlock();
+			throw;
+		}
+		
+		Cache.insert(target, entry);
+	}
+	
+	entry->setAccessTime();
+	
+	Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
+	while(it != Cache.end())
+	{
+		if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
+			Cache.erase(it++);
+		else it++;
+	}
+	CacheMutex.unlock();
+	
+	return entry;
+}
+
+void Splicer::HintSources(const ByteString &target, const Set<Identifier> &sources)
+{
+	GetCacheEntry(target)->addSources(sources);
+}
+
 Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mFirstBlock(0),
 	mCurrentBlock(0),
@@ -37,34 +77,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mEnd(end),
 	mPosition(0)
 {
-	{
-		CacheMutex.lock();
-		if(!Cache.get(target, mCacheEntry))
-		{
-			LogDebug("Splicer", "No cached file, creating a new one");
-			
-			try {
-				mCacheEntry = new CacheEntry(target);
-			}
-			catch(...)
-			{
-				CacheMutex.unlock();
-				throw;
-			}
-			
-			Cache.insert(target, mCacheEntry);
-		}
-		
-		Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
-		while(it != Cache.end())
-		{
-			if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
-				Cache.erase(it++);
-			else it++;
-		}
-		
-		CacheMutex.unlock();
-	}
+	mCacheEntry = GetCacheEntry(target);
 	
 	mCacheEntry->getSources(mSources);
 	if(mSources.empty()) 
@@ -89,9 +102,12 @@ Splicer::~Splicer(void)
 	stop();
 }
 
-String Splicer::name(void) const
+void Splicer::addSources(const Set<Identifier> &sources)
 {
-	return mCacheEntry->name(); 
+	mCacheEntry->addSources(sources);
+	
+	for(Set<Identifier>::iterator it = sources.begin(); it != sources.end(); ++it)
+		mSources.insert(*it);
 }
 
 int64_t Splicer::size(void) const
@@ -114,17 +130,12 @@ bool Splicer::finished(void) const
 	return mCacheEntry->finished(); 
 }
 
-bool Splicer::outputFinished(void) const
-{
-	return (mPosition == mEnd);
-}
-
 void Splicer::start(void)
 {
 	stop();
 	if(finished()) return;
 	     
-	LogDebug("Splicer", "Starting splicer for " + mCacheEntry->name() + " [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
+	LogDebug("Splicer", "Starting splicer [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
 	
 	// Request stripes
 	int nbStripes = std::max(1, int(mSources.size()));	// TODO
@@ -143,7 +154,7 @@ void Splicer::start(void)
 			it = mSources.begin();
 				
 			if(mSources.empty())
-				throw Exception("No sources found for " + mCacheEntry->name());
+				throw Exception("No sources found");
 				
 			continue;
 		}
@@ -159,7 +170,7 @@ void Splicer::stop(void)
 {
 	if(!mRequests.empty())
 	{
-		LogDebug("Splicer", "Stopping splicer for " + mCacheEntry->name());
+		LogDebug("Splicer", "Stopping splicer");
 	  
 		for(int i=0; i<mRequests.size(); ++i)
 			delete mRequests[i];
@@ -174,74 +185,9 @@ void Splicer::stop(void)
 	mStripes.clear();
 }
 
-int64_t Splicer::process(ByteStream *output)
+bool Splicer::process(void)
 {
 	mCacheEntry->setAccessTime();
-	
-	int64_t written = 0;
-	
-	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
-	unsigned currentBlock = lastBlock;
-	int nbPending = 0;
-	for(int i=0; i<mRequests.size(); ++i)
-	{
-		Assert(mRequests[i]);
-		Assert(mStripes[i]);
-		Synchronize(mRequests[i]);
-		
-		if(mRequests[i]->responsesCount()) 
-		{
-			const Request::Response *response = mRequests[i]->response(0);
-			Assert(response != NULL);
-			if(response->finished()) continue;
-		}
-		
-		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
-		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
-		mStripes[i]->flush();
-		++nbPending;
-	}
-	
-	if(!nbPending) ++currentBlock;
-	
-	//if(mCurrentBlock < currentBlock)
-	//{
-	//	double progress = double(currentBlock) / double(lastBlock+1);
-	//	LogDebug("Splicer", "Download position: " + String::number(progress*100,2) + "%");
-	//}
-	
-	while(mCurrentBlock < currentBlock)
-	{
-		mCacheEntry->markBlockFinished(mCurrentBlock);
-		++mCurrentBlock;
-	}
-	
-	unsigned block = mCacheEntry->block(mPosition);
-	if(mPosition < mEnd && block < currentBlock)
-	{
-		size_t size = size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition));
-		Assert(size <= mCacheEntry->blockSize());
-
-		if(output)
-		{
-			// Open file to read
-			File file(mCacheEntry->fileName(), File::Read);
-			file.seekRead(mPosition);
-			size = file.readBinary(*output, size);
-			file.close();
-		}
-
-		mPosition+= size;
-		written+= size;
-			
-		//if(output)
-		//{
-		//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
-		//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
-		//}
-		
-		if(mPosition == mEnd) return written;
-	}
 	
 	std::vector<int>		onError;
 	std::multimap<unsigned, int> 	byBlocks;
@@ -301,7 +247,7 @@ int64_t Splicer::process(ByteStream *output)
 				{
 					LogDebug("Splicer::process", "No sources found, waiting...");
 					Thread::Sleep(30.);
-					return written;
+					return (mPosition < mEnd);
 				}
 
 				if(sources.size() > 1 && sources.contains(formerSource))
@@ -323,7 +269,73 @@ int64_t Splicer::process(ByteStream *output)
 		query(i, source);
 	}
 	
-	return written;
+	return (mPosition < mEnd);
+}
+
+size_t Splicer::read(char *buffer, size_t size)
+{
+	mCacheEntry->setAccessTime();
+	
+	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
+	unsigned currentBlock = lastBlock;
+	int nbPending = 0;
+	for(int i=0; i<mRequests.size(); ++i)
+	{
+		Assert(mRequests[i]);
+		Assert(mStripes[i]);
+		Synchronize(mRequests[i]);
+		
+		if(mRequests[i]->responsesCount()) 
+		{
+			const Request::Response *response = mRequests[i]->response(0);
+			Assert(response != NULL);
+			if(response->finished()) continue;
+		}
+		
+		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
+		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
+		mStripes[i]->flush();
+		++nbPending;
+	}
+	
+	if(!nbPending) ++currentBlock;
+	
+	//if(mCurrentBlock < currentBlock)
+	//{
+	//	double progress = double(currentBlock) / double(lastBlock+1);
+	//	LogDebug("Splicer", "Download position: " + String::number(progress*100,2) + "%");
+	//}
+	
+	while(mCurrentBlock < currentBlock)
+	{
+		mCacheEntry->markBlockFinished(mCurrentBlock);
+		++mCurrentBlock;
+	}
+	
+	unsigned block = mCacheEntry->block(mPosition);
+	if(mPosition < mEnd && block < currentBlock)
+	{
+		size = std::min(size, size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition)));
+		Assert(size <= mCacheEntry->blockSize());
+
+		// Open file to read
+		File file(mCacheEntry->fileName(), File::Read);
+		file.seekRead(mPosition);
+		size = file.readData(buffer, size);
+		file.close();
+
+		mPosition+= size;
+			
+		//if(output)
+		//{
+		//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
+		//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
+		//}
+		
+		return size;
+	}
+	
+	return 0;
 }
 
 bool Splicer::query(int i, const Identifier &source)
@@ -402,13 +414,6 @@ String Splicer::CacheEntry::fileName(void) const
 	return mFileName;
 }
 
-String Splicer::CacheEntry::name(void) const
-{
-	Synchronize(this); 
-	if(!mName.empty()) return mName;
-	else return "unknwon";
-}
-
 int64_t Splicer::CacheEntry::size(void) const
 {
 	Synchronize(this); 
@@ -447,6 +452,12 @@ unsigned Splicer::CacheEntry::block(int64_t position) const
 	return unsigned(position / int64_t(mBlockSize));  
 }
 
+void Splicer::CacheEntry::addSources(const Set<Identifier> &sources)
+{
+	for(Set<Identifier>::iterator it = sources.begin(); it != sources.end(); ++it)
+		mSources.insert(*it);
+}
+
 bool Splicer::CacheEntry::getSources(Set<Identifier> &sources)
 {
 	Synchronize(this);
@@ -477,9 +488,6 @@ void Splicer::CacheEntry::refreshSources(void)
 			
 			if(!response->error())
 			{
-				if(mName.empty() && parameters.contains("name")) 
-					mName = parameters.get("name");
-				
 				// TODO: check size
 				if(mSize == 0 && parameters.contains("size")) 
 					parameters.get("size").extract(mSize);
@@ -488,8 +496,6 @@ void Splicer::CacheEntry::refreshSources(void)
 			}
 		}
 	}
-	
-	if(mName.empty()) throw Exception("Unable to retrieve the file name");
 	
 	LogDebug("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
 }

@@ -38,19 +38,22 @@ namespace tpn
 class Splicer
 {
 public:
+	static void HintSources(const ByteString &target, const Set<Identifier> &sources);
+	
 	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
 	~Splicer(void);
 	
-	String name(void) const;
+	void addSources(const Set<Identifier> &sources);
+	
 	int64_t size(void) const;	// range size
 	int64_t begin(void) const;
 	int64_t end(void) const;
-	bool finished(void) const;	// true if the splicer has finished
-	bool outputFinished(void) const;
+	bool finished(void) const;	// true if the whole file is downloaded
 	
 	void start(void);
 	void stop(void);
-	int64_t process(ByteStream *output);
+	bool process(void);
+	size_t read(char *buffer, size_t size);
 	
 private:
 	bool query(int i, const Identifier &source);
@@ -68,7 +71,6 @@ private:
 		
 		ByteString target(void) const;
 		String fileName(void) const;
-		String name(void) const;
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
@@ -77,6 +79,7 @@ private:
 		
 		unsigned block(int64_t position) const;
 		
+		void addSources(const Set<Identifier> &sources);
 		bool getSources(Set<Identifier> &sources);
 		void refreshSources(void);
 		
@@ -98,6 +101,7 @@ private:
 	CacheEntry *mCacheEntry;
 	Set<Identifier> mSources;
 	
+	static Splicer::CacheEntry *GetCacheEntry(const ByteString &target);
 	static Map<ByteString, CacheEntry*> Cache;
 	static Mutex CacheMutex;
 };

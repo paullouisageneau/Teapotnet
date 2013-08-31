@@ -308,106 +308,62 @@ void Interface::process(Http::Request &request)
 				response.sock->close();
 				
 				try {
-					Store::Entry entry;
-					if(!Store::GetResource(digest, entry))
-					{
-						// Request the sources
-						Splicer splicer(digest);
-					}
+					// Request the sources now to gain some time afterwards
+					Resource resource(digest);
+					resource.refresh();
 				}
 				catch(...) {}
 				return;
 			}			
 		
-			Store::Entry entry;
-			if(Store::GetResource(digest, entry) && !entry.path.empty())
+			// Query resource
+			Resource resource(digest);
+			resource.refresh();		// this can take some time
+			
+			// Get range
+			int64_t rangeBegin = 0;
+			int64_t rangeEnd = 0;
+			bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+			int64_t rangeSize = rangeEnd - rangeBegin;
+			
+			// Get resource accessor
+			Resource::Accessor *accessor = resource.accessor();
+			if(hasRange) accessor->seekRead(rangeBegin);
+			
+			// Forge HTTP response header
+			Http::Response response(request, 200);
+			if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+			response.headers["Content-Length"] << rangeSize;
+			response.headers["Last-Modified"] = resource.time().toHttpDate();
+			response.headers["Accept-Ranges"] = "bytes";
+			
+			if(request.get.contains("download"))
 			{
-				File file(entry.path);
-				
-				Http::Response response(request, 200);
-				response.headers["Content-Length"] << entry.size;
-				response.headers["Last-Modified"] = entry.time.toHttpDate();
-				response.headers["Content-SHA512"] = entry.digest.toString();
-				
-				if(request.get.contains("download"))
-				{
-					response.headers["Content-Disposition"] = "attachment; filename=\"" + entry.name + "\"";
-					response.headers["Content-Type"] = "application/octet-stream";
-				}
-				else {
-					response.headers["Content-Disposition"] = "inline; filename=\"" + entry.name + "\"";
-					response.headers["Content-Type"] = Mime::GetType(entry.name);
-				}
-				
-				response.send();
-				response.sock->write(file);
-				return;
+				response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+				response.headers["Content-Type"] = "application/octet-stream";
 			}
 			else {
-				int64_t rangeBegin = 0;
-				int64_t rangeEnd = 0;
-				bool hasRange = request.extractRange(rangeBegin, rangeEnd);
-				
-				try {
-					LogDebug("Interface::process", "Starting download");
-				  
-				  	// TODO: range error
-					Splicer splicer(digest, rangeBegin, rangeEnd);
-					splicer.start();
-					
-					int64_t contentLength = splicer.size();
-					int code = 200;
-					
-					Http::Response response(request, code);
-					response.headers["Content-Length"] << contentLength;
-					response.headers["Accept-Ranges"] = "bytes";
-					
-					if(hasRange) response.headers["Content-Range"] << splicer.begin() << '-' << splicer.end() << '/' << splicer.size();
-					else response.headers["Content-SHA512"] = digest.toString();
-					
-				   	if(request.get.contains("download")) 
-					{
-						response.headers["Content-Disposition"] = "attachment; filename=\"" + splicer.name() + "\"";
-						response.headers["Content-Type"] = "application/octet-stream";
-					}
-					else {
-						response.headers["Content-Disposition"] = "inline; filename=\"" + splicer.name() + "\"";
-						response.headers["Content-Type"] = Mime::GetType(splicer.name());
-					}
-				   
-					response.send();
-					
-					response.sock->setTimeout(-1.);	// Disable timeout
-					
-					int64_t total = 0;
-					while(!splicer.outputFinished())
-					{
-						int64_t size = splicer.process(response.sock);
-						total+= size;
-						if(!size) Thread::Sleep(0.1);
-					}
-					
-					splicer.stop();
-					
-					LogDebug("Interface::process", "Download finished");
-					
-					if(total == contentLength)
-					{
-						// TODO: copy in incoming if splicer.finished() == true
-					}
-					else LogWarn("Interface::http", String("Splicer downloaded ") + String::number(total) + " bytes whereas length was " + String::number(contentLength));
-				}
-				catch(const NetException &e)
-				{
-					LogDebug("Interface::process", e.what());
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
-				}
-				
-				return;
+				response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+				response.headers["Content-Type"] = Mime::GetType(resource.name());
 			}
+			
+			response.send();
+			
+			try {
+				// Launch transfer
+				response.sock->setTimeout(-1.);				// disable timeout
+				accessor->readBinary(*response.sock, rangeSize);	// let's go !
+			}
+			catch(const NetException &e)
+			{
+				return;	// nothing to do
+			}
+			catch(const Exception &e)
+			{
+				LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+			}
+				
+			return;
 		}
 		catch(const NetException &e)
 		{

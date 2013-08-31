@@ -72,9 +72,9 @@ public:
 	bool readUntil(Stream &output, const String &delimiters);
 	
 	// Reading
-	size_t	read(Stream &s);
+	int64_t	read(Stream &s);
 	bool	read(Serializable &s);
-	size_t	read(Stream &s, size_t max);
+	int64_t	read(Stream &s, int64_t max);
 	bool	read(String &s);
 	bool	read(bool &b);
 

@@ -294,7 +294,6 @@ template<typename T> T uniform(T min, T max)
 
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
-#define List std::list
 #define Queue std::queue
 #define Stack std::stack
 #define Deque std::deque

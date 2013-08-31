@@ -186,10 +186,10 @@ bool Stream::readUntil(Stream &output, const String &delimiters)
 	return true;
 }
 
-size_t Stream::read(Stream &s)
+int64_t Stream::read(Stream &s)
 {
 	char buffer[BufferSize];
-	size_t total = 0;
+	int64_t total = 0;
 	size_t size;
 	while((size = readData(buffer,BufferSize)))
 	{
@@ -201,12 +201,12 @@ size_t Stream::read(Stream &s)
 	return total;
 }
 
-size_t Stream::read(Stream &s, size_t max)
+int64_t Stream::read(Stream &s, int64_t max)
 {
 	char buffer[BufferSize];
-	size_t left = max;
+	int64_t left = max;
 	size_t size;
-	while(left && (size = readData(buffer,std::min(BufferSize,left))))
+	while(left && (size = readData(buffer,size_t(std::min(int64_t(BufferSize),left)))))
 	{
 		left-=size;
 		mLast = buffer[size-1];

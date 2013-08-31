@@ -198,15 +198,6 @@ void Message::serialize(Serializer &s) const
 
 bool Message::deserialize(Serializer &s)
 {
-	mHeaders.clear();
-        mContent.clear();
-	mStamp.clear();
-	mPeering = Identifier::Null;
-	mTime = Time::Now();
-	mIsPublic = false;
-	mIsIncoming = false;
-	mIsRead = false;
-	
 	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isReadWrapper(&mIsRead);

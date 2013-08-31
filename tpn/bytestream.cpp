@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/bytestream.h"
+#include "tpn/exception.h"
 #include "tpn/serializable.h"
 #include "tpn/byteserializer.h"
 #include "tpn/bytestring.h"
@@ -37,10 +38,53 @@ ByteStream::~ByteStream(void)
 
 }
 
-size_t ByteStream::readBinary(ByteStream &s)
+void ByteStream::seekRead(int64_t position)
+{
+	throw Unsupported("seekRead");
+}
+
+void ByteStream::seekWrite(int64_t position)
+{
+	throw Unsupported("seekWrite");
+}
+
+void ByteStream::clear(void)
+{
+	char dummy;
+	while(readData(&dummy,1));
+}
+
+void ByteStream::flush(void)
+{
+
+}
+
+bool ByteStream::ignore(size_t size)
 {
 	char buffer[BufferSize];
-	size_t total = 0;
+	size_t len;
+	while(size && (len = readData(buffer, std::min(size, BufferSize))))
+	{
+		if(!len) return false;
+		size-= len;
+	}
+
+	return true;
+}
+
+void ByteStream::discard(void)
+{
+	char buffer[BufferSize];
+	while(readData(buffer,BufferSize))
+	{
+		// do nothing
+	}
+}
+
+int64_t ByteStream::readBinary(ByteStream &s)
+{
+	char buffer[BufferSize];
+	int64_t total = 0;
 	size_t size;
 	while((size = readData(buffer,BufferSize)))
 	{
@@ -50,12 +94,12 @@ size_t ByteStream::readBinary(ByteStream &s)
 	return total;
 }
 
-size_t ByteStream::readBinary(ByteStream &s, size_t max)
+int64_t ByteStream::readBinary(ByteStream &s, int64_t max)
 {
 	char buffer[BufferSize];
-	size_t left = max;
+	int64_t left = max;
 	size_t size;
-	while(left && (size = readData(buffer,std::min(BufferSize,left))))
+	while(left && (size = readData(buffer,size_t(std::min(int64_t(BufferSize),left)))))
 	{
 		left-= size;
 		s.writeData(buffer,size);
@@ -63,7 +107,7 @@ size_t ByteStream::readBinary(ByteStream &s, size_t max)
 	return max-left;
 }
 
-size_t ByteStream::readBinary(ByteString &s)
+int64_t ByteStream::readBinary(ByteString &s)
 {
 	ByteStream &stream = s;
 	return readBinary(stream);
@@ -215,39 +259,6 @@ void ByteStream::writeBinary(float32_t f)
 void ByteStream::writeBinary(float64_t f)
 {
 	writeData(reinterpret_cast<char*>(&f),8);
-}
-
-void ByteStream::clear(void)
-{
-	char dummy;
-	while(readData(&dummy,1));
-}
-
-void ByteStream::flush(void)
-{
-
-}
-
-bool ByteStream::ignore(size_t size)
-{
-	char buffer[BufferSize];
-	size_t len;
-	while(size && (len = readData(buffer, std::min(size, BufferSize))))
-	{
-		if(!len) return false;
-		size-= len;
-	}
-
-	return true;
-}
-
-void ByteStream::discard(void)
-{
-	char buffer[BufferSize];
-	while(readData(buffer,BufferSize))
-	{
-		// do nothing
-	}
 }
 
 void ByteStream::writeRandom(size_t size)

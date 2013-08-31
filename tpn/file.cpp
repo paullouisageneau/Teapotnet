@@ -148,6 +148,7 @@ void File::open(const String &filename, OpenMode mode)
 	if(filename.empty()) throw IOException("Empty file name");
 
 	mName = filename;
+	mMode = mode;
 
 	std::ios_base::openmode m;
 	switch(mode)
@@ -173,24 +174,31 @@ void File::close(void)
 	std::fstream::clear();	// clear state
 }
 
-void File::seekRead(uint64_t position)
+void  File::reopen(OpenMode mode)
 {
-	uint64_t step = std::numeric_limits<std::streamoff>::max();
+	close();
+	mMode = mode;
+	open(mName, mode);
+}
+
+void File::seekRead(int64_t position)
+{
+	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekg(0, std::fstream::beg);
 	do {
-		uint64_t offset = std::min(position, step);
+		int64_t offset = std::min(position, step);
 		position-= offset;
 		std::fstream::seekg(std::streamoff(offset), std::fstream::cur);
 	}
 	while(position != 0);
 }
 
-void File::seekWrite(uint64_t position)
+void File::seekWrite(int64_t position)
 {
-	uint64_t step = std::numeric_limits<std::streamoff>::max();
+	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekp(0, std::fstream::beg);
 	do {
-		uint64_t offset = std::min(position, step);
+		int64_t offset = std::min(position, step);
 		position-= offset;
 		std::fstream::seekp(std::streamoff(offset), std::fstream::cur);
 	}
@@ -200,6 +208,11 @@ void File::seekWrite(uint64_t position)
 String File::name(void) const
 {
 	return mName; 
+}
+
+File::OpenMode File::mode(void) const
+{
+	return mMode;
 }
 
 uint64_t File::size(void) const

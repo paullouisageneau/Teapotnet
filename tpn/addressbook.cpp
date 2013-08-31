@@ -1669,6 +1669,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					Http::Response response(request, 200);
 					
+					// TODO: add selection mode
+					
 					bool playlistMode = request.get.contains("playlist");
 					if(playlistMode)
 					{

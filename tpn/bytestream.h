@@ -39,10 +39,16 @@ public:
 
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-
-	size_t	readBinary(ByteStream &s);
-	size_t	readBinary(ByteStream &s, size_t max);
-	size_t	readBinary(ByteString &s);
+	virtual void seekRead(int64_t position);
+	virtual void seekWrite(int64_t position);
+	virtual void clear(void);
+	virtual void flush(void);
+	virtual void discard(void);
+	virtual bool ignore(size_t size = 1);
+	
+	int64_t	readBinary(ByteStream &s);
+	int64_t	readBinary(ByteStream &s, int64_t max);
+	int64_t	readBinary(ByteString &s);
 	bool	readBinary(Serializable &s);
 	bool	readBinary(int8_t &i);
 	bool	readBinary(int16_t &i);
@@ -72,11 +78,6 @@ public:
 	void	writeBinary(float64_t f);
 
 	template<class T> void writeBinary(const T *ptr);
-
-	virtual void clear(void);
-	virtual void flush(void);
-	virtual void discard(void);
-	virtual bool ignore(size_t size = 1);
 	
 	void writeRandom(size_t size = 1);
 	

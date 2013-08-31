@@ -25,6 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/address.h"
 #include "tpn/bytestream.h"
+#include "tpn/list.h"
 
 namespace tpn
 {
