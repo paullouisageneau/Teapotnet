@@ -107,6 +107,7 @@ public:
 	Response *response(int num);
 	const Response *response(int num) const;
 	bool isSuccessful(void) const;
+	bool hasContent(void) const;
 	
 private:
 	Response *createResponse(Resource &resource, const StringMap &parameters, Store *store);

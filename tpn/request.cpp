@@ -420,6 +420,17 @@ bool Request::isSuccessful(void) const
 	return false;
 }
 
+bool Request::hasContent(void) const
+{
+	Synchronize(this);
+  
+	for(int i=0; i<responsesCount(); ++i)
+		if(!response(i)->content())
+			return true;
+	
+	return false;
+}
+
 Request::Response::Response(int status) :
 	mStatus(status),
 	mContent(NULL),

@@ -895,12 +895,17 @@ void Core::Handler::process(void)
 					{
 						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
-						ByteStream *sink = request->mContentSink; 	// TODO
-						if(!sink) sink = new ByteString;		// TODO
+						ByteStream *sink = NULL;
+						if(request->mContentSink)
+						{
+							if(!request->hasContent())
+								sink = request->mContentSink;
+						}
+						else sink = new TempFile;	// TODO: or ByteString ?
 						
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
-						mResponses.insert(channel,response);
+						if(sink) mResponses.insert(channel, response);
 						mCancelled.clear();
 					}
 					else {

@@ -544,6 +544,7 @@ void Resource::RemoteAccessor::initRequest(void)
 	StringMap parameters;
 	parameters["position"] << mPosition;
 	mRequest->setParameters(parameters);
+	mRequest->setContentSink(new TempFile);
 	mRequest->submit(mPeering);
 	mRequest->wait(timeout);
 	
@@ -557,12 +558,15 @@ void Resource::RemoteAccessor::initRequest(void)
 		parameters.input(resource);
 		merge(resource);*/
 		
-		if(!mByteStream) 
+		if(!mByteStream)
 		{
 			mByteStream = response->content();
 			mPeering = response->peering();
 		}
-		else response->content()->close();
+		else {
+			if(response->content())
+				response->content()->close();
+		}
 	}
 	
 	if(!mByteStream) 
