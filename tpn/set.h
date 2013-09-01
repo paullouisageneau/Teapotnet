@@ -36,6 +36,7 @@ class Set : public std::set<T>
 public:
 	bool remove(const T &value);
 	bool contains(const T &value) const;
+	void insertAll(const Set<T> &set) const;
 };
 
 template<typename T>

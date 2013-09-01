@@ -110,7 +110,7 @@ public:
 	bool hasContent(void) const;
 	
 private:
-	Response *createResponse(Resource &resource, const StringMap &parameters, Store *store);
+	Response *createResponse(const Resource &resource, const StringMap &parameters, Store *store);
 	int addResponse(Response *response);
 
 	Identifier mReceiver;

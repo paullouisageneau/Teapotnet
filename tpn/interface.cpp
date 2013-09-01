@@ -328,6 +328,7 @@ void Interface::process(Http::Request &request)
 			
 			// Get resource accessor
 			Resource::Accessor *accessor = resource.accessor();
+			if(!accessor) throw 404;
 			if(hasRange) accessor->seekRead(rangeBegin);
 			
 			// Forge HTTP response header

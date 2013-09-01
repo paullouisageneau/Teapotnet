@@ -89,19 +89,19 @@ void Resource::refresh(void)
 
 	Query query;
 	createQuery(query);
-	Array<Resource> result;
+	Set<Resource> result;
 	query.submit(result, mStore, mPeering);
 
 	if(result.empty())
 		throw Exception("Resource not found");
 	
-	for(int i=0; i<result.size(); ++i)
+	for(Set<Resource>::iterator it = result.begin(); it != result.end(); ++it)
 	{
 		// Merge resources
-		merge(result[i]);
+		merge(*it);
 		
 		// Add peering as source if remote
-		Identifier peering = result[i].peering();
+		Identifier peering = it->peering();
 		if(peering != Identifier::Null)
 			mSources.insert(peering);
 	}
@@ -153,7 +153,7 @@ bool Resource::isDirectory(void) const
 	return (mType == 0);
 }
 
-Resource::Accessor *Resource::accessor(void)
+Resource::Accessor *Resource::accessor(void) const
 {
 	if(isDirectory()) return NULL;
 	
@@ -161,10 +161,11 @@ Resource::Accessor *Resource::accessor(void)
 	{
 		Query query;
 		createQuery(query);
-		if(query.submitLocal(*this, mStore))
+		Resource dummy;		// TODO: rather stupid
+		if(query.submitLocal(dummy, mStore))
 		{
-			Assert(!mPath.empty());
-			mAccessor = new LocalAccessor(mPath);
+			Assert(!dummy.mPath.empty());
+			mAccessor = new LocalAccessor(dummy.mPath);
 		}
 		else if(!mDigest.empty())
 		{
@@ -179,7 +180,7 @@ Resource::Accessor *Resource::accessor(void)
 	return mAccessor;
 }
 
-void Resource::dissociateAccessor(void)
+void Resource::dissociateAccessor(void) const
 {
 	mAccessor = NULL;
 }
@@ -268,22 +269,23 @@ bool Resource::isInlineSerializable(void) const
 
 bool operator <  (const Resource &r1, const Resource &r2)
 {
-	return r1.digest() < r2.digest();
+	return r1.name() < r2.name();
 }
 
 bool operator >  (const Resource &r1, const Resource &r2)
 {
-	return r1.digest() > r2.digest();
+	return r1.name() > r2.name();
 }
 
 bool operator == (const Resource &r1, const Resource &r2)
 {
+	if(r1.name() != r2.name()) return false;
 	return r1.digest() == r2.digest();
 }
 
 bool operator != (const Resource &r1, const Resource &r2)
 {
-	return r1.digest() != r2.digest();
+	return !(r1 == r2);
 }
 
 Resource::Query::Query(const String &url) :
@@ -339,7 +341,7 @@ bool Resource::Query::submitLocal(Resource &result, Store *store)
 	else return store->query(*this, result);
 }
 
-bool Resource::Query::submitLocal(Array<Resource> &result, Store *store)
+bool Resource::Query::submitLocal(Set<Resource> &result, Store *store)
 {
 	if(!store) store = Store::GlobalInstance;
 	
@@ -347,7 +349,7 @@ bool Resource::Query::submitLocal(Array<Resource> &result, Store *store)
 	{
 		Resource resource;
 		if(!Store::Get(mDigest, resource)) return false;
-		result.append(resource);
+		result.insert(resource);
 		return true;
 	}
 	else {
@@ -355,7 +357,7 @@ bool Resource::Query::submitLocal(Array<Resource> &result, Store *store)
 	}
 }
 
-bool Resource::Query::submitRemote(Array<Resource> &result, const Identifier &peering)
+bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 
@@ -365,8 +367,6 @@ bool Resource::Query::submitRemote(Array<Resource> &result, const Identifier &pe
         request.submit(peering);
 	request.wait(timeout);
 	
-	bool success = false;
-	result.reserve(result.size() + request.responsesCount());
 	for(int i=result.size(); i<request.responsesCount(); ++i)
 	{
 		const Request::Response *response = request.response(i);		
@@ -378,8 +378,7 @@ bool Resource::Query::submitRemote(Array<Resource> &result, const Identifier &pe
 			parameters = response->parameters();
 			resource.deserialize(parameters);
 			resource.setPeering(response->peering());
-                        result.append(resource);
-			success = true;
+                        result.insert(resource);
                 }
 		catch(const Exception &e)
 		{
@@ -387,10 +386,10 @@ bool Resource::Query::submitRemote(Array<Resource> &result, const Identifier &pe
 		}
 	}
 
-	return success;
+	return (request.responsesCount() != 0);
 }
 
-bool Resource::Query::submit(Array<Resource> &result, Store *store, const Identifier &peering)
+bool Resource::Query::submit(Set<Resource> &result, Store *store, const Identifier &peering)
 {
 	if(!store) store = Store::GlobalInstance;
 	

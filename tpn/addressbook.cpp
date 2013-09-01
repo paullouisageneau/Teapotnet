@@ -1542,171 +1542,158 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(directory == "files")
 			{
 				String target(url);
+				Assert(!target.empty());
 				
-				bool isFile = request.get.contains("file");
-				
-				if(isFile)
+				if(request.get.contains("json") || request.get.contains("playlist"))
 				{
-					while(!target.empty() && target[target.size()-1] == '/')
-						target.resize(target.size()-1);
-				}
-				else {
-					if(target.empty() || target[target.size()-1] != '/') 
-						target+= '/';
-				}
-				
-				Request trequest(target, isFile);
-				if(isFile) trequest.setContentSink(new TempFile);
-				
-				String instance;
-				request.get.get("instance", instance);
-				
-				// Self
-				if(isSelf()
-					&& (instance.empty() || instance == Core::Instance->getName()))
-				{
-					trequest.execute(mAddressBook->user());
-				}
-				
-				try {
-					const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-				  	if(!instance.empty()) trequest.submit(Identifier(mPeering, instance));
-					else trequest.submit(mPeering);
-					Desynchronize(this);
-					trequest.wait(timeout);
-				}
-				catch(const Exception &e)
-				{
-					// If not self
-					if(mUniqueName != mAddressBook->userName())
-					{
-						LogWarn("AddressBook::Contact::http", "Cannot send request, peer not connected");
-
-						Http::Response response(request, 404);
-						response.send();
-						Html page(response.sock);
-						page.header(response.message, true);
-						page.open("div", "error");
-						page.openLink("/");
-						page.image("/error.png", "Error");
-						page.closeLink();
-						page.br();
-						page.open("h1",".huge");
-						page.text(String::number("Not connected"));
-						page.close("h1");
-						page.close("div");
-						page.footer();
-						return;
-					}
-				}
-				
-				if(trequest.responsesCount() == 0)
-				{
-					Http::Response response(request, 404);
-					response.send();
-					Html page(response.sock);
-					page.header("No response", true, request.fullUrl);
-					page.open("div", "error");
-					page.openLink("/");
-					page.image("/error.png", "Error");
-					page.closeLink();
-					page.br();
-					page.open("h1",".huge");
-					page.text(String::number("No response, retrying..."));
-					page.close("h1");
-					page.close("div");
-					page.footer();
-					return;
-				}
-				
-				if(!trequest.isSuccessful()) throw 404;
+					// Query resources
+					SerializableSet<Resource> resources;
+					Resource::Query query;
+					query.setLocation(url);
+					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					
-				try {
-					if(request.get.contains("file"))
+					Identifier peering(mPeering);
+					Desynchronize(this);
+					try {
+						while(!query.submitRemote(resources, peering))
+							Thread::Sleep(5.);
+					}
+					catch(...)
 					{
-						for(int i=0; i<trequest.responsesCount(); ++i)
-						{
-					  		Request::Response *tresponse = trequest.response(i);
-							if(tresponse->error()) continue;
-							StringMap params = tresponse->parameters();
-					 		if(!params.contains("name")) continue;
-							ByteStream *content = tresponse->content();
-							if(!content) continue;
-							
-							Time time = Time::Now();
-							if(params.contains("time")) params.get("time").extract(time);
-							
-							Http::Response response(request,200);
-							response.headers["Last-Modified"] = time.toHttpDate();
-							if(params.contains("size")) response.headers["Content-Length"] = params.get("size");
-							
-							if(request.get.contains("download"))
-							{
-							 	response.headers["Content-Disposition"] = "attachment; filename=\"" + params.get("name") + "\"";
-								response.headers["Content-Type"] = "application/octet-stream";
-							}
-							else {
-								response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
-								response.headers["Content-Type"] = Mime::GetType(params.get("name"));
-							}
-														
-							response.send();
-							
-							try {
-								Desynchronize(this);
-								response.sock->writeBinary(*content);
-							}
-							catch(const NetException &e)
-							{
-				  
-							}
-							
-							return;
-						}
-						
+						// Peer not connected
 						throw 404;
 					}
 					
-					Http::Response response(request, 200);
+					if(resources.empty()) throw 404;
 					
-					// TODO: add selection mode
-					
-					bool playlistMode = request.get.contains("playlist");
-					if(playlistMode)
+					if(request.get.contains("json"))
 					{
+						Http::Response response(request, 200);
+						response.headers["Content-Type"] = "application/json";
+						response.send();
+						JsonSerializer json(response.sock);
+						json.output(resources);
+					}
+					else {
+						Http::Response response(request, 200);
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
+		
+						String host;
+						if(!request.headers.get("Host", host))
+							host = String("localhost:") + Config::Get("interface_port");
+					
+						response.sock->writeLine("#EXTM3U");
+						for(Set<Resource>::iterator it = resources.begin(); it != resources.end(); ++it)
+						{
+							const Resource &resource = *it;
+							if(resource.isDirectory() || resource.digest().empty()) continue;
+							if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
+							String link = "http://" + host + "/" + resource.digest().toString();
+							response.sock->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
+							response.sock->writeLine(link);
+						}
+					}
+					return;
+				}
+				
+				// if it seems to be a file
+				if(target[target.size()-1] != '/')
+				{
+					String instance;
+					request.get.get("instance", instance);
+					
+					Identifier peering(mPeering);
+					if(!instance.empty()) peering.setName(instance);
+					
+					Desynchronize(this);
+					Resource resource(peering, url);
+					try {
+						resource.refresh();	// we might find a better way to access it
+					}
+					catch(...)
+					{
+						throw 404;
+					}
+					
+					// redirect if it's a directory
+					if(resource.isDirectory())
+					{
+						if(request.get.contains("download"))
+							throw 404;
+						
+						Http::Response response(request, 301);	// Moved permanently
+						response.headers["Location"] = prefix + request.url + '/';
+						response.send();
+						return;
+					}
+					
+					// Get range
+					int64_t rangeBegin = 0;
+					int64_t rangeEnd = 0;
+					bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+					int64_t rangeSize = rangeEnd - rangeBegin;
+					
+					// Get resource accessor
+					Resource::Accessor *accessor = resource.accessor();
+					if(!accessor) throw 404;
+					if(hasRange) accessor->seekRead(rangeBegin);
+					
+					// Forge HTTP response header
+					Http::Response response(request, 200);
+					if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+					response.headers["Content-Length"] << rangeSize;
+					response.headers["Last-Modified"] = resource.time().toHttpDate();
+					response.headers["Accept-Ranges"] = "bytes";
+					
+					if(request.get.contains("download"))
+					{
+						response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+						response.headers["Content-Type"] = "application/octet-stream";
+					}
+					else {
+						response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+						response.headers["Content-Type"] = Mime::GetType(resource.name());
 					}
 					
 					response.send();
 					
+					try {
+						// Launch transfer
+						response.sock->setTimeout(-1.);				// disable timeout
+						accessor->readBinary(*response.sock, rangeSize);	// let's go !
+					}
+					catch(const NetException &e)
+					{
+						return;	// nothing to do
+					}
+					catch(const Exception &e)
+					{
+						LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+					}
+				}
+				else {
+					Http::Response response(request, 200);
 					Html page(response.sock);
 					
-					if(!playlistMode)
-					{
-						if(target.empty() || target == "/") page.header(name()+": Browse files");
-						else page.header(name()+": "+target.substr(1));
-						page.open("div","topmenu");
-						if(!isSelf()) page.span(status().capitalized(), "status.button");
-						page.link(prefix+"/search/","Search files",".button");
-						page.br();
-						page.close("div");
+					if(target == "/") page.header(name()+": Browse files");
+					else page.header(name()+": "+target.substr(1));
+					page.open("div","topmenu");
+					if(!isSelf()) page.span(status().capitalized(), "status.button");
+					page.link(prefix+"/search/","Search files",".button");
+					page.br();
+					page.close("div");
 
-						unsigned refreshPeriod = 5000;
-                                		page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-                                        		transition($('#status'), info.status.capitalize());\n\
-                                        		$('#status').removeClass().addClass('button').addClass(info.status);\n\
-                                        		if(info.newnotifications) playNotificationSound();\n\
-                                		});");
-					}
-					
-					page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user(), playlistMode);
-					
-					if(!playlistMode) page.footer();
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
+					unsigned refreshPeriod = 5000;
+					page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+						transition($('#status'), info.status.capitalize());\n\
+						$('#status').removeClass().addClass('button').addClass(info.status);\n\
+						if(info.newnotifications) playNotificationSound();\n\
+					});");
+				
+					page.div("", "#files");
+					page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#files');");
+					page.footer();
 				}
 				
 				return;
@@ -1715,33 +1702,33 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				if(url != "/") throw 404;
 				
-				String query;
+				String strQuery;
 				if(request.post.contains("query"))
 				{
-					query = request.post.get("query");
-					query.trim();
+					strQuery = request.post.get("query");
+					strQuery.trim();
 				}
 				
 				Http::Response response(request, 200);
 				response.send();
 				
 				Html page(response.sock);
-				if(query.empty()) page.header(name() + ": Search");
-				else page.header(name() + ": Searching " + query);
+				if(strQuery.empty()) page.header(name() + ": Search");
+				else page.header(name() + ": Searching " + strQuery);
 				page.openForm(prefix + "/search", "post", "searchForm");
-				page.input("text","query",query);
+				page.input("text", "query", strQuery);
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 				page.br();
 				
-				if(query.empty())
+				if(strQuery.empty())
 				{
 					page.footer();
 					return;
 				}
 				
-				Request trequest("search:"+query, false);	// no data
+				Request trequest("search:"+strQuery, false);	// no data
 				try {
 					trequest.submit(mPeering);
 				}

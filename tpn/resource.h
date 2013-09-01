@@ -57,9 +57,9 @@ public:
 		void setMatch(const String &match);
 
 		bool submitLocal(Resource &result, Store *store = NULL);
-		bool submitLocal(Array<Resource> &result, Store *store = NULL);
-		bool submitRemote(Array<Resource> &result, const Identifier &peering = Identifier::Null);
-		bool submit(Array<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null);
+		bool submitLocal(Set<Resource> &result, Store *store = NULL);
+		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
+		bool submit(Set<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null);
 
 		// Serializable
 		virtual void serialize(Serializer &s) const;
@@ -105,8 +105,8 @@ public:
 	String		name(void) const;
 	bool		isDirectory(void) const;
 	
-	Accessor *accessor(void);
-	void dissociateAccessor(void);
+	Accessor *accessor(void) const;
+	void dissociateAccessor(void) const;
 	
 	void setPeering(const Identifier &peering);
 	
@@ -130,7 +130,8 @@ private:
 	Set<Identifier>	mSources;
 	
 	Store 		*mStore;
-	Accessor	*mAccessor;
+	
+	mutable Accessor *mAccessor;
 	
 	class LocalAccessor : public Accessor
 	{

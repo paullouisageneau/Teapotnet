@@ -203,14 +203,14 @@ bool Request::execute(User *user)
 	}
 	else if(command == "file")
 	{
-		Array<Resource> resources;
+		Set<Resource> resources;
 		if(store->query(Resource::Query(argument), resources))
 		{
 			if(resources.empty())
 			{
 				addResponse(new Response(Response::Empty));
 			}
-			else for(Array<Resource>::iterator it = resources.begin();
+			else for(Set<Resource>::iterator it = resources.begin();
 				it != resources.end();
 				++it)
 			{
@@ -226,10 +226,10 @@ bool Request::execute(User *user)
 		query.deserialize(parameters);
 		if(!argument.empty() || argument != "*") query.setMatch(argument);
 		
-		Array<Resource> resources;
+		Set<Resource> resources;
 		if(store->query(query, resources) && !resources.empty())
 		{
-			for(Array<Resource>::iterator it = resources.begin();
+			for(Set<Resource>::iterator it = resources.begin();
 				it != resources.end();
 				++it)
 			{
@@ -252,7 +252,7 @@ bool Request::executeDummy(void)
 	return false;
 }
 
-Request::Response *Request::createResponse(Resource &resource, const StringMap &parameters, Store *store)
+Request::Response *Request::createResponse(const Resource &resource, const StringMap &parameters, Store *store)
 {
 	StringMap rparameters;
 	resource.serialize(rparameters);
@@ -278,7 +278,7 @@ Request::Response *Request::createResponse(Resource &resource, const StringMap &
 		String url = resource.url();
 		if(url.empty() || url[url.size()-1] != '/') url+= '/';
 		
-		SerializableArray<Resource> resources;
+		SerializableSet<Resource> resources;
 		if(store->query(Resource::Query(url), resources))
 		{
 			YamlSerializer serializer(response->content());

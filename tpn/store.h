@@ -63,7 +63,7 @@ public:
 	void update(void);
 
 	bool query(const Resource::Query &query, Resource &resource);
-	bool query(const Resource::Query &query, Array<Resource> &resources);
+	bool query(const Resource::Query &query, Set<Resource> &resources);
 	
 	void http(const String &prefix, Http::Request &request);
 

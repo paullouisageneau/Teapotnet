@@ -313,7 +313,7 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 	else return false;
 }
 
-bool Store::query(const Resource::Query &query, Array<Resource> &resources)
+bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 {
 	Synchronize(this);
 	
@@ -325,14 +325,12 @@ bool Store::query(const Resource::Query &query, Array<Resource> &resources)
 		SerializableArray<Resource> result;
 		statement.retrieve(result);
 		statement.finalize();
+		success = true;
 		
-		if(!result.empty())
+		for(int i=0; i<result.size(); ++i)
 		{
-			for(int i=0; i<result.size(); ++i)
-				result[i].mPath = urlToPath(result[i].mUrl);
-
-			resources.append(result);
-			success = true;
+			result[i].mPath = urlToPath(result[i].mUrl);
+			resources.insert(result[i]);
 		}
 	}
 	
