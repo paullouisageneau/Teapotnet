@@ -137,8 +137,7 @@ Store::Store(User *user) :
 	}
 	
 	// Special cache directory
-	if(this != GlobalInstance)
-		addDirectory(CacheDirectoryName, CacheDirectoryName);
+	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
 	
 	save();
 	
@@ -217,8 +216,7 @@ void Store::getDirectories(Array<String> &array) const
 {
 	Synchronize(this);
 	mDirectories.getKeys(array);
-	if(this != GlobalInstance)
-		array.remove(CacheDirectoryName);
+	if(mUser) array.remove(CacheDirectoryName);
 }
 
 void Store::save(void) const

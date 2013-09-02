@@ -1674,8 +1674,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				else {
 					Http::Response response(request, 200);
-					Html page(response.sock);
+					response.send();
 					
+					Html page(response.sock);
 					if(target == "/") page.header(name()+": Browse files");
 					else page.header(name()+": "+target.substr(1));
 					page.open("div","topmenu");

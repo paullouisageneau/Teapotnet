@@ -38,7 +38,8 @@ Resource::Resource(const Identifier &peering, const String &url) :
 	mPeering(peering),
 	mSize(0),
 	mType(1),
-	mStore(Store::GlobalInstance)
+	mStore(Store::GlobalInstance),
+	mAccessor(NULL)
 {
 
 }
@@ -47,7 +48,8 @@ Resource::Resource(const ByteString &digest) :
 	mDigest(digest),
 	mSize(0),
 	mType(1),
-	mStore(Store::GlobalInstance)
+	mStore(Store::GlobalInstance),
+	mAccessor(NULL)
 {
 	
 }
@@ -55,7 +57,8 @@ Resource::Resource(const ByteString &digest) :
 Resource::Resource(void) :
         mSize(0),
         mType(1),
-	mStore(Store::GlobalInstance)
+	mStore(Store::GlobalInstance),
+	mAccessor(NULL)
 {
 
 }
