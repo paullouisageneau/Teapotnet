@@ -144,8 +144,11 @@ void ThreadPool::Worker::run(void)
 		{
 			Synchronize(this);
 
-			if(!mTask) wait();
-			if(!mTask) break;
+			if(!mTask) 
+			{
+				wait();
+				if(!mTask) break;
+			}
 			
 			try {
 				mTask->run();
@@ -167,12 +170,20 @@ void ThreadPool::Worker::run(void)
 				mThreadPool->mAvailableWorkers.insert(this);
 				mThreadPool->notifyAll();
 			}
+		}
 			
+		if(!mTask) 
+		{
 			wait(1.);
-			if(!mThreadPool->mMax || mThreadPool->mWorkers.size() > mThreadPool->mMax)
+			if(!mTask)
 			{
-				mThreadPool->mAvailableWorkers.erase(this);
-				break;
+				Synchronize(mThreadPool);
+				
+				if(!mThreadPool->mMax || mThreadPool->mWorkers.size() > mThreadPool->mMax)
+				{
+					mThreadPool->mAvailableWorkers.erase(this);
+					break;
+				}
 			}
 		}
 	}
