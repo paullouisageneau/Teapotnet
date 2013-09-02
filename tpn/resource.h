@@ -59,7 +59,7 @@ public:
 		bool submitLocal(Resource &result, Store *store = NULL);
 		bool submitLocal(Set<Resource> &result, Store *store = NULL);
 		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
-		bool submit(Set<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null);
+		bool submit(Set<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null, bool forceLocal = false);
 
 		// Serializable
 		virtual void serialize(Serializer &s) const;
@@ -87,13 +87,13 @@ public:
 		virtual void seekWrite(int64_t position) = 0;
 	};
 	
-	Resource(const Identifier &peering, const String &url);
-	Resource(const ByteString &digest);
-	Resource(void);
+	Resource(const Identifier &peering, const String &url, Store *store = NULL);
+	Resource(const ByteString &digest, Store *store = NULL);
+	Resource(Store *store = NULL);
 	~Resource(void);
 
 	void clear(void);
-	void refresh(void);
+	void refresh(bool forceLocal = false);
 	
 	ByteString 	digest(void) const;
 	Time		time(void) const;

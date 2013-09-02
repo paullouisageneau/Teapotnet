@@ -294,11 +294,12 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 	Database::Statement statement;
 	if(prepareQuery(statement, query, fields, true))
 	{
-		if(statement.step())
+		while(statement.step())
 		{
 			resource.clear();
 			statement.retrieve(resource);
-			resource.mPath = urlToPath(resource.mUrl);
+			if(resource.mUrl == "/" + CacheDirectoryName) continue; 
+			resource.mPath = urlToPath(resource.mUrl); 
 			resource.mStore = this;
 			statement.finalize();
 			return true;
@@ -314,22 +315,24 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 {
 	Synchronize(this);
-	
+
 	bool success = false;
 	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
 	if(prepareQuery(statement, query, fields, false))
 	{
-		SerializableArray<Resource> result;
-		statement.retrieve(result);
-		statement.finalize();
-		success = true;
-		
-		for(int i=0; i<result.size(); ++i)
+		while(statement.step())
 		{
-			result[i].mPath = urlToPath(result[i].mUrl);
-			resources.insert(result[i]);
+			Resource resource;
+			statement.retrieve(resource);
+			if(resource.mUrl == "/" + CacheDirectoryName) continue;
+			resource.mPath = urlToPath(resource.mUrl);
+			resource.mStore = this;
+			resources.insert(resource);
 		}
+
+		statement.finalize();
+                success = true;
 	}
 	
 	if(this != GlobalInstance) success|= GlobalInstance->query(query, resources);
@@ -1017,10 +1020,14 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 	  
 		String absPath = absolutePath(path);
 		
+		int64_t time = File::Time(absPath);
+		int64_t size = 0;
 		int type = 0;
-		if(!Directory::Exist(absPath)) type = 1;
-		uint64_t size = File::Size(absPath);
-		int64_t  time = File::Time(absPath);
+		if(!Directory::Exist(absPath)) 
+		{
+			type = 1;
+			size = File::Size(absPath);
+		}
 		
 		Database::Statement statement = mDatabase->prepare("SELECT id, digest, size, time, type FROM files WHERE url = ?1");
 		statement.bind(1, url);
@@ -1030,9 +1037,9 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 		
 		if(statement.step())	// entry already exists
 		{
-			uint64_t dbSize;
-			int64_t  dbTime;
-			int      dbType;
+			int64_t dbSize;
+			int64_t dbTime;
+			int     dbType;
 			statement.value(0, id);
 			statement.value(1, digest);
 			statement.value(2, dbSize);

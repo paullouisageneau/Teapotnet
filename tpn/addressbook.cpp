@@ -1092,7 +1092,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
 	Synchronize(mAddressBook);
-	mAddressBook->mScheduler.schedule(this, 1.);
+	mAddressBook->mScheduler.schedule(this, 10.);
 }
 
 void AddressBook::Contact::notification(Notification *notification)
@@ -1549,7 +1549,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					// Query resources
 					SerializableSet<Resource> resources;
 					Resource::Query query;
-					query.setLocation(url);
+					query.setLocation(target);
 					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					
 					Identifier peering(mPeering);
@@ -1607,12 +1607,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					if(!instance.empty()) peering.setName(instance);
 					
 					Desynchronize(this);
-					Resource resource(peering, url);
+					Resource resource(peering, url, mAddressBook->user()->store());
 					try {
-						resource.refresh();	// we might find a better way to access it
+						resource.refresh(isSelf());	// we might find a better way to access it
 					}
-					catch(...)
+					catch(const Exception &e)
 					{
+						LogWarn("AddressBook::Contant::http", String("Resource lookup failed: ") + e.what());
 						throw 404;
 					}
 					

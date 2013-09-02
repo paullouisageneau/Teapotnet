@@ -33,7 +33,7 @@
 namespace tpn
 {
 
-Resource::Resource(const Identifier &peering, const String &url) :
+Resource::Resource(const Identifier &peering, const String &url, Store *store) :
         mUrl(url),
 	mPeering(peering),
 	mSize(0),
@@ -41,26 +41,26 @@ Resource::Resource(const Identifier &peering, const String &url) :
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
-
+	if(store) mStore = store;
 }
 
-Resource::Resource(const ByteString &digest) :
+Resource::Resource(const ByteString &digest, Store *store) :
 	mDigest(digest),
 	mSize(0),
 	mType(1),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
-	
+	if(store) mStore = store;
 }
 
-Resource::Resource(void) :
+Resource::Resource(Store *store) :
         mSize(0),
         mType(1),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
-
+	if(store) mStore = store;
 }
 
 Resource::~Resource(void)
@@ -86,14 +86,14 @@ void Resource::clear(void)
 	}
 }
 
-void Resource::refresh(void)
+void Resource::refresh(bool forceLocal)
 {
 	mSources.clear();
 
 	Query query;
 	createQuery(query);
 	Set<Resource> result;
-	query.submit(result, mStore, mPeering);
+	query.submit(result, mStore, mPeering, forceLocal);
 
 	if(result.empty())
 		throw Exception("Resource not found");
@@ -195,6 +195,9 @@ void Resource::setPeering(const Identifier &peering)
 
 void Resource::merge(const Resource &resource)
 {
+	mTime = std::min(mTime, resource.mTime);
+	mSize = std::max(mSize, resource.mSize);
+
 	if(mDigest.empty())
 	{
 		mDigest = resource.mDigest;
@@ -207,8 +210,6 @@ void Resource::merge(const Resource &resource)
 		mUrl = resource.mUrl;
 		mPeering = resource.mPeering;
 	}
-	
-	mTime = std::min(mTime, resource.mTime);
 }
 
 void Resource::createQuery(Query &query) const
@@ -222,13 +223,15 @@ void Resource::createQuery(Query &query) const
 
 void Resource::serialize(Serializer &s) const
 {
+	// TODO: WARNING: This will break if serialized to database (wrong type field and digest is called hash)
+
 	String strType = (mType == 0 ? "directory" : "file");
 	String tmpName = name();
 	ConstSerializableWrapper<int64_t> sizeWrapper(mSize);
 	
 	// Note path is not serialized
 	Serializer::ConstObjectMapping mapping;
-	if(!mDigest.empty()) mapping["digest"] = &mDigest;
+	if(!mDigest.empty()) mapping["hash"] = &mDigest;	// backward compatibility, should be digest
 	if(!mUrl.empty()) mapping["url"] = &mUrl;
 	mapping["name"] = &tmpName;
 	mapping["time"] = &mTime;
@@ -258,8 +261,16 @@ bool Resource::deserialize(Serializer &s)
 	
 	if(!s.inputObject(mapping)) return false;
 	
-	if(strType == "directory") mType = 0;
-	else mType = 1;
+	if(strType.containsLetters())
+	{
+		if(strType == "directory") mType = 0;
+		else mType = 1;
+	}
+	else {
+		// Compatibility with database
+		strType.extract(mType);
+	}
+
 	if(mUrl.empty()) mUrl = tmpName;
 	
 	return true;
@@ -340,24 +351,32 @@ bool Resource::Query::submitLocal(Resource &result, Store *store)
 {
 	if(!store) store = Store::GlobalInstance;
 	
-	if(!mDigest.empty()) return Store::Get(mDigest, result);
-	else return store->query(*this, result);
+	if(!mDigest.empty())
+	{
+		if(Store::Get(mDigest, result))
+			return true;
+		// TODO: if Get was reliable at startup calling query would not be necessary here
+	}
+	
+	return store->query(*this, result);
 }
 
 bool Resource::Query::submitLocal(Set<Resource> &result, Store *store)
 {
 	if(!store) store = Store::GlobalInstance;
-	
+
 	if(!mDigest.empty())
 	{
 		Resource resource;
-		if(!Store::Get(mDigest, resource)) return false;
-		result.insert(resource);
-		return true;
+		if(Store::Get(mDigest, resource))
+		{
+			result.insert(resource);
+			return true;
+		}
+		// TODO: if Get was reliable at startup calling query would not be necessary here
 	}
-	else {
-		return store->query(*this, result);
-	}
+	
+	return store->query(*this, result);
 }
 
 bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
@@ -392,14 +411,14 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 	return (request.responsesCount() != 0);
 }
 
-bool Resource::Query::submit(Set<Resource> &result, Store *store, const Identifier &peering)
+bool Resource::Query::submit(Set<Resource> &result, Store *store, const Identifier &peering, bool forceLocal)
 {
 	if(!store) store = Store::GlobalInstance;
 	
 	bool success = false;
-	if(peering == Identifier::Null) 
+	if(forceLocal || peering == Identifier::Null) 
 	{
-		success|= submitLocal(result, store);
+		success = submitLocal(result, store);
 		if(!mDigest.empty() && success) return true;
 	}
 	
