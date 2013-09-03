@@ -1693,8 +1693,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(info.newnotifications) playNotificationSound();\n\
 					});");
 				
-					page.div("", "#files");
-					page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#files');");
+					page.div("Loading...", "#list.box");
+					page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#list');");
 					page.footer();
 				}
 				

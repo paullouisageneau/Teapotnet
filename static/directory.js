@@ -39,6 +39,10 @@ function listDirectory(url, object) {
 				table.append(line);
 			}
 		}
+		
+		$('table.files tr').css('cursor', 'pointer').click(function() {
+			window.location.href = $(this).find('a').attr('href');
+		});
 	})
 	.fail(function(jqXHR, textStatus) {
 		$(object).html('Failed');

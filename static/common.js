@@ -120,10 +120,12 @@ $(document).ready( function() {
 	}
 	resizeContent();
 	
+	// Deprecated
 	$('table.files tr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
 	});
 	
+	// Deprecated
 	$('table.contacts tr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
 	});
