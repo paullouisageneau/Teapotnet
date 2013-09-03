@@ -290,7 +290,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	//page.button("send","Send");
 	//page.br();
 	page.closeForm();
-	page.javascript("$(document).ready(function() { document.chatform.chatinput.focus(); });");
+	page.javascript("$(document).ready(function() { checkStatus(); });");
+	
 	page.close("div");
 
 	page.close("div");
@@ -306,10 +307,47 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				alert('The message could not be sent.');\n\
 			});\n\
 		}\n\
+		var status = \""+status+"\";\n\
+		var statusBackup;\n\
+		function checkStatus() \n\
+		{\n\
+			status = $('#status').text()\n\
+			if(statusBackup != status) updateStatus();\n\
+			statusBackup = status;\n\
+			timeout = setTimeout(function() {\n\
+			checkStatus();\n\
+			}, 1000);\n\
+		}\n\
+		function updateStatus()\n\
+		{\n\
+			if(status != \"Online\")\n\
+			{\n\
+				document.chatform.chatinput.blur();\n\
+				document.chatform.chatinput.style.color = 'grey';\n\
+				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
+			}\n\
+			else\n\
+			{\n\
+				document.chatform.chatinput.focus();\n\
+			}\n\
+		}\n\
 		document.chatform.onsubmit = function()\n\
 		{\n\
 			post();\n\
 			return false;\n\
+		}\n\
+		document.chatform.chatinput.onfocus = function()\n\
+		{\n\
+			document.chatform.chatinput.value = '';\n\
+			document.chatform.chatinput.style.color = 'black';\n\
+		}\n\
+		document.chatform.chatinput.onblur = function()\n\
+		{\n\
+			if(status != \"Online\")\n\
+			{\n\
+				document.chatform.chatinput.style.color = 'grey';\n\
+				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
+			}\n\
 		}\n\
 		$('textarea.chatinput').keypress(function(e) {\n\
 			if (e.keyCode == 13 && !e.shiftKey) {\n\

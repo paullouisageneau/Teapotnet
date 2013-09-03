@@ -128,6 +128,10 @@ User::User(const String &name, const String &password) :
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mHash, this);
 	UsersMutex.unlock();
+
+// TODO : added
+	mProfile = new Profile(this);
+// end
 	
 	Interface::Instance->add(urlPrefix(), this);
 }
@@ -242,8 +246,506 @@ void User::sendInfo(const Identifier &identifier)
 	else notification.send(identifier);
 }
 
+
+User::Profile::Profile(User *user):
+	mUser(user)
+{
+	mProfileFileName = mUser->profilePath() + "profile";
+
+	if(!File::Exist(mProfileFileName))
+	{
+		initializeFile();
+	}
+
+	Interface::Instance->add("/"+mUser->name()+"/profile", this);
+}
+
+// TODO: constructeur avec tous les attributs
+
+User::Profile::~Profile()
+{
+	Interface::Instance->remove("/"+mUser->name()+"/profile");
+}
+
+StringMap User::Profile::getmUserStringMap()
+{
+ 	File *mProfileFile = new File(mProfileFileName);
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	serializer->input(usersProfile);
+
+	mProfileFile->close();
+
+	StringMap mUserProfile;
+	mUserProfile = usersProfile.get(mUser->name()); // Deserializes mUser infos
+
+	return mUserProfile;
+}
+
+void User::Profile::deserialize()
+{
+	StringMap mUserProfile = getmUserStringMap();
+	
+	if(mUserProfile.contains("firstname"))
+		mFirstName = mUserProfile.get("firstname");
+
+	if(mUserProfile.contains("middlename"))
+		mMiddleName = mUserProfile.get("middlename");
+
+	if(mUserProfile.contains("lastname"))
+		mLastName = mUserProfile.get("lastname");
+
+	if(mUserProfile.contains("birthday"))
+		mBirthday = mUserProfile.get("birthday");
+
+	if(mUserProfile.contains("gender"))
+		mGender = mUserProfile.get("gender");
+
+	if(mUserProfile.contains("religion"))
+		mReligion = mUserProfile.get("religion");
+
+	if(mUserProfile.contains("relationship"))
+		mRelationship = mUserProfile.get("relationship");
+
+	if(mUserProfile.contains("description"))
+		mDescription = mUserProfile.get("description");
+
+	if(mUserProfile.contains("status"))
+		mStatus = mUserProfile.get("status");
+
+	if(mUserProfile.contains("city"))
+		mCity = mUserProfile.get("city");
+
+	if(mUserProfile.contains("address"))
+		mAddress = mUserProfile.get("address");
+
+	if(mUserProfile.contains("mail"))
+		mMail = mUserProfile.get("mail");
+
+	if(mUserProfile.contains("twitter"))
+		mTwitter = mUserProfile.get("twitter");
+
+	if(mUserProfile.contains("facebook"))
+		mFacebook = mUserProfile.get("facebook");
+
+	if(mUserProfile.contains("phone"))
+		mPhone = mUserProfile.get("phone");
+
+	if(mUserProfile.contains("college"))
+		mCollege = mUserProfile.get("college");
+
+	if(mUserProfile.contains("university"))
+		mUniversity = mUserProfile.get("university");
+
+	if(mUserProfile.contains("job"))
+		mJob = mUserProfile.get("job");
+
+	if(mUserProfile.contains("internship"))
+		mInternship = mUserProfile.get("internship");
+
+	if(mUserProfile.contains("books"))
+		mBooks = mUserProfile.get("books");
+
+	if(mUserProfile.contains("movies"))
+		mMovies = mUserProfile.get("movies");
+
+	if(mUserProfile.contains("hobbies"))
+		mHobbies = mUserProfile.get("hobbies");
+
+	if(mUserProfile.contains("politics"))
+		mPolitics = mUserProfile.get("politics");
+
+	if(mUserProfile.contains("computer"))
+		mComputer = mUserProfile.get("computer");
+
+	if(mUserProfile.contains("resume"))
+		mResume = mUserProfile.get("resume");
+
+	if(mUserProfile.contains("profilephoto"))
+		mProfilePhoto = mUserProfile.get("profilephoto");
+}
+
+void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field)
+{
+	if(field!="emptyfield")
+	{
+		page.open("div",fieldName+"div.profileinfo");
+		page.text(fieldText+showPunctuation);
+		page.open("span",fieldName+".editable");
+		page.text(field);
+		page.close("span");
+		//page.br();
+		page.close("div");
+	}
+	else
+	{
+		page.open("div",fieldName+".empty");
+		page.open("span",".profileinfo");
+		page.text(emptyQuestion);
+		page.close("span");
+		page.close("div");
+	}
+}
+
+void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field)
+{
+	displayProfileInfo(page, fieldText, " : ", "What is your "+fieldText+" ?", fieldName, field);
+}
+
+void User::Profile::updateField(String &key, String &value)
+{
+	// Read the file to get the stringMap
+	StringMap mUserProfile = getmUserStringMap();
+
+	// Replace with new stringMap
+	if(mUserProfile.contains(key))
+		mUserProfile.erase(key);
+	mUserProfile[key] << value;
+
+	// Write to file
+
+	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	String userName = mUser->name();
+	usersProfile.insert(userName, mUserProfile);
+
+	serializer->output(usersProfile);
+	mProfileFile->close();
+	
+}
+
+void User::Profile::initializeFile()
+{
+	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+
+	serializer = new YamlSerializer(mProfileFile);
+
+	SerializableMap<String,StringMap> usersProfile;
+	StringMap fields;
+	fields["status"] << "emptyfield";
+	fields["profilephoto"] << "emptyfield";
+
+	fields["firstname"] << "emptyfield";
+	fields["middlename"] << "emptyfield";
+	fields["lastname"] << "emptyfield";
+	fields["birthday"] << "emptyfield";
+	fields["gender"] << "emptyfield";
+	fields["relationship"] << "emptyfield";
+
+	fields["city"] << "emptyfield";
+	fields["address"] << "emptyfield";
+	fields["mail"] << "emptyfield";
+	fields["twitter"] << "emptyfield";
+	fields["facebook"] << "emptyfield";
+	fields["phone"] << "emptyfield";
+
+	fields["college"] << "emptyfield";
+	fields["university"] << "emptyfield";
+
+	fields["job"] << "emptyfield";
+	fields["computer"] << "emptyfield";
+	fields["resume"] << "emptyfield";
+	fields["internship"] << "emptyfield";
+
+	fields["religion"] << "emptyfield";
+	fields["books"] << "emptyfield";
+	fields["movies"] << "emptyfield";
+	fields["hobbies"] << "emptyfield";
+	fields["politics"] << "emptyfield";
+
+	fields["description"] << "emptyfield";
+	
+	
+
+	String userName = mUser->name();
+	usersProfile.insert(userName, fields);
+
+	serializer->output(usersProfile);
+	mProfileFile->close();
+}
+
+void User::Profile::http(const String &prefix, Http::Request &request)
+{
+	try {
+
+		if(!File::Exist(mProfileFileName))
+		{
+			initializeFile();
+		}
+
+		String url = request.url;
+		if(url.empty() || url[0] != '/') throw 404;
+
+		if(request.method == "POST")
+		{
+			String field, valueField;
+
+			if(request.post.contains("clear"))
+			{
+				initializeFile();
+			}
+			else
+			{
+				field = request.post["field"];
+				valueField = request.post["valueField"];
+
+				updateField(field, valueField);
+			}
+			
+			Http::Response response(request, 303);
+			response.headers["Location"] = prefix + "/";
+			response.send();
+			return;
+		}
+		if(url == "/")
+		{
+			Http::Response response(request,200);
+			response.send();
+		
+			Html page(response.sock);
+			page.header(APPNAME, true);
+
+
+			// Pour tests : écrire dans le fichier quelques champs tests
+			try
+			{
+				//initializeFile();
+			}
+			catch(IOException &e)
+			{
+				// TODO : log
+				return;
+			}
+
+			try
+			{
+
+				deserialize();
+
+				page.header("My profile : "+mUser->name());
+
+				page.javascript("var valueField;\n\
+						var currentId;\n\
+						var blocked = false;\n\
+						var isEmpty = false;");
+
+				page.open("div","profile.box");
+
+				page.open("div",".inlinetitle");
+				page.open("h2");
+				page.text("My personal information");
+				page.close("h2");
+
+				page.button("clearprofilebutton","Clear profile");
+				page.close("div");
+
+				page.open("div",".profileinfoswrapper");
+
+					page.open("div","personalstatus");
+						page.raw("<span class=\"statusquotemark\"> “ </span>");
+						page.open("span","status.editable");
+						if(mStatus!="emptyfield")
+						{
+							page.text(mStatus);
+						}
+						else
+						{
+							page.open("span","status.empty");
+							page.text("(click here to post a status)");
+							page.close("span");
+						}
+						page.close("span");
+						page.raw("<span class=\"statusquotemark\"> ” </span>");
+					page.close("div");
+
+					page.open("div","profilephoto");
+					page.close("div");
+
+				page.close("div");
+
+				page.open("div", ".profileinfoswrapper");
+
+					page.open("div","personalinfos.box");
+
+					page.open("h2");
+					page.text("Personal Information");
+					page.close("h2");
+
+					displayProfileInfo(page,"First Name","firstname", mFirstName);
+					displayProfileInfo(page,"Middle Name","middlename", mMiddleName);
+					displayProfileInfo(page,"Last Name","lastname", mLastName);
+					displayProfileInfo(page,"Birthday", " : ", "When were you born ?", "birthday", mBirthday);
+					displayProfileInfo(page,"Gender","gender", mGender);
+					displayProfileInfo(page,"Relationship Status","relationship", mRelationship);
+					displayProfileInfo(page,"City","city", mCity);
+					displayProfileInfo(page,"Address","address", mAddress);
+					displayProfileInfo(page,"Mail","mail", mMail);
+					displayProfileInfo(page,"Twitter","twitter", mTwitter);
+					displayProfileInfo(page,"Facebook","facebook", mFacebook);
+					displayProfileInfo(page,"Phone Number","phone", mPhone);
+					page.close("div");
+
+					page.open("div","culture.box");
+
+					page.open("h2");
+					page.text("Culture");
+					page.close("h2");
+
+					displayProfileInfo(page,"Religion","religion", mReligion);
+					displayProfileInfo(page,"Books", " : ", "What are your favorite books ?", "books", mBooks);
+					displayProfileInfo(page,"Movies", " : ", "What are your favorite movies ?", "movies", mMovies);
+					displayProfileInfo(page,"Hobbies", " : ", "What are your favorite hobbies ?","hobbies", mHobbies);
+					displayProfileInfo(page,"Politics", " : ", "What are your political opinions ?","politics", mPolitics);
+					page.close("div");
+
+				//page.close("div");
+
+				//page.open("div",".profileinfoswrapper");
+					page.open("div","jobs.box");
+
+					page.open("h2");
+					page.text("Skills and jobs");
+					page.close("h2");
+
+					displayProfileInfo(page,"Computer Skills", " : ", "What are your computer skills ?","computer", mComputer);
+					displayProfileInfo(page,"Resume", " : ", "Put a link to your resume","resume", mResume);
+					displayProfileInfo(page,"Current Job","job", mJob);
+					displayProfileInfo(page,"Last Internship", " : ", "Where did you do your last internship ?","internship", mInternship);
+
+					page.close("div");
+
+					page.open("div","education.box");
+
+					page.open("h2");
+					page.text("Education");
+					page.close("h2");
+
+					displayProfileInfo(page,"College", " : ", "Where did you go to college ?","college", mCollege);
+					displayProfileInfo(page,"University", " : ", "What University did you attend ?","university", mUniversity);
+
+					page.close("div");
+				//page.close("div");
+
+				//page.open("div",".profileinfoswrapper");
+					page.open("div","description.box");
+
+					page.open("h2");
+					page.text("Description");
+					page.close("h2");
+
+					displayProfileInfo(page,"", "", "Describe yourself", "description", mDescription);
+
+					page.close("div");
+				page.close("div");
+
+
+				page.close("div");
+
+				page.javascript("loadClickHandlers = function()\n\
+						{\n\
+							$('.editable').click(onEditableClick);\n\
+						}\n\
+						onEditableClick = function()\n\
+						{\n\
+						if(!blocked)\n\
+						{\n\
+							blocked = true;\n\
+							currentId = $(this).attr('id');\n\
+							var currentText = $(this).html();\n\
+							if (!isEmpty) valueField = currentText;\n\
+							$(this).after('<div><input type=\"text\" value=\"'+valueField+'\" class=\"inputprofile\"></div>');\n\
+							$(this).css('display','none');\n\
+							$('input').focus();\n\
+							$('input').keypress(function(e) {\n\
+						if (e.keyCode == 13 && !e.shiftKey) {\n\
+						e.preventDefault();\n\
+						var field = currentId;\n\
+						valueField = $('input[type=text]').attr('value');\n\
+						postVariable(field, valueField);\n\
+						}\n\
+							});\n\
+							$('input').blur(function()\n\
+							{\n\
+								setTimeout(function(){location.reload();},100);\n\
+							}\n\
+							);\n\
+						}\n\
+						}\n\
+						postVariable = function(field, valueFieldRaw)\n\
+						{\n\
+							valueFieldPost = valueFieldRaw;\n\
+							if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'field': field , 'valueField': valueFieldPost });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('The profile update could not be made.');\n\
+							});\n\
+							isEmpty = false;\n\
+							setTimeout(function(){location.reload();},100);\n\
+						}\n\
+						loadClickHandlers();\n\
+						$('.empty').click(function() {isEmpty = true; valueField = 'emptyfield'; \n\
+							if(!blocked)\n\
+							{\n\
+								blocked = true;\n\
+								currentId = $(this).attr('id');\n\
+								var currentText = $(this).html();\n\
+								$(this).after('<div><input type=\"text\" class=\"inputprofile\"></div>');\n\
+								$(this).css('display','none');\n\
+								$('input').focus();\n\
+								$('input').keypress(function(e) {\n\
+							if (e.keyCode == 13 && !e.shiftKey) {\n\
+							e.preventDefault();\n\
+							var field = currentId;\n\
+							valueField = $('input[type=text]').attr('value');\n\
+							postVariable(field, valueField);\n\
+							}\n\
+								});\n\
+								$('input').blur(function()\n\
+								{\n\
+									setTimeout(function(){location.reload();},100);\n\
+								}\n\
+								);\n\
+							}\n\
+						});\n\
+						$('.clearprofilebutton').click(function() {\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'clear': 1 });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('Profile clear could not be made.');\n\
+							});\n\
+							setTimeout(function(){location.reload();},100);\n\
+						}\n\
+						);\n\
+						");
+
+			}
+			catch(IOException &e)
+			{
+				// TODO : log
+				return;
+			}
+
+			page.footer();
+			return;
+		}
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("User::Profile::http", e.what());
+		throw 404;	// Httpd handles integer exceptions
+	}
+			
+	throw 404;
+}
+
 void User::http(const String &prefix, Http::Request &request)
 {
+
 	try {
 		setOnline();
 		
@@ -272,17 +774,20 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			page.close("div");*/
 
+			page.open("div", "wrapper");
+
+			page.javascript("$('#page').css('max-width','100%');");
 			
-			page.open("div");
+			/*page.open("div");
 			page.open("h1");
 			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
 			page.text(name() + "@" + tracker);
 			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.close("h1");
-			page.close("div");
+			page.close("div");*/
 
-			page.open("div","leftcolumn.box");
+			page.open("div","leftcolumn");
 
 			page.open("div", "logo");
 			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
@@ -292,8 +797,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.raw("<span class=\"searchinput\">");
 
 			page.openForm(prefix + "/search", "post", "searchForm");
+			//page.button("search","Search");
 			page.input("text","query");
-			page.button("search","Search");
 			page.closeForm();
 			page.raw("</span>");
 
@@ -323,75 +828,32 @@ void User::http(const String &prefix, Http::Request &request)
 				{
 					page.open("div", String("contact_")+self->uniqueName());
 					
-					//page.open("td",".name");
-					page.link(self->urlPrefix(), self->uniqueName());
-					//page.close("td");
-					
-					/*
-					page.open("td",".tracker");
-					page.text(String("@") + self->tracker());
-					page.close("td");
-					*/
-	
-					//page.open("td",".status");
-					//page.close("td");
-					
-					//page.open("td",".files");
-					page.link(self->urlPrefix()+"/files/", "Files");
-					//page.close("td");
-					
-					//page.open("td",".chat");
-					// Dummy
-					//page.close("td");
-					
-					page.close("div");
-
-				}
-			    
-				for(int i=0; i<contacts.size(); ++i)
-				{	
-					AddressBook::Contact *contact = contacts[i];
-
-					page.open("div", String("contact_")+contact->uniqueName()+".contactstr");
-					
 					page.span("", ".name");
-					page.link(contact->urlPrefix(), contact->uniqueName());
-					page.span("", ".messagescount");
+					page.link(self->urlPrefix(), self->uniqueName());
 					
-					/*
-					page.open("td",".name");
-					page.link(contact->urlPrefix(), contact->name());
-					page.close("td");
-					page.open("td",".tracker");
-					page.text(String("@") + contact->tracker());
-					page.close("td");
-					*/
-
+					page.span("",".tracker");
+					page.text(String("@") + self->tracker());
+					
 					page.span("", ".status");
+					
+					page.span("", ".files");
+					page.link(self->urlPrefix()+"/files/", "Files");
+					
 					page.close("div");
-
-					page.open("div", String("InfosContact_")+contact->uniqueName()+".infoscontact");
-						page.span("",".tracker");
-						page.text(contact->name()+String("@") + contact->tracker());
-
-						page.span("", ".files");
-						page.link(contact->urlPrefix()+"/files/", "Files");
-
-						page.span("", ".chat");
-						page.openLink(contact->urlPrefix()+"/chat/");
-						page.text("Chat");
-						page.closeLink();
-					page.close("div");
-
 				}
+
+				unsigned refreshPeriod = 5000;
+				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
+
 				page.close("div");
 			}
 			
 			page.close("div");
+
 			page.open("div","files.box");
 			
 			page.link(prefix+"/files/","Edit",".button");
-                        page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+                        //page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
 
 			page.open("h2");
 			page.text("Shared folders");
@@ -406,25 +868,41 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
 			else {
-				page.open("table",".files");
+				page.open("div",".files");
 				for(int i=0; i<directories.size(); ++i)
 				{	
 					const String &directory = directories[i];
 					String directoryUrl = prefix + "/files/" + directory + "/";
+
+					page.open("div", ".filestr");
 					
-					page.open("tr");
-					page.open("td",".icon");
+					page.span("", ".icon");
 					page.image("/dir.png");
-					page.close("td");
-					page.open("td",".filename");
+					
+					page.span("", ".filename");
 					page.link(directoryUrl, directory);
-					page.close("td");
-					page.close("tr");
+					
+					page.close("div");
 				}
-				page.close("table");
+				page.close("div");
 			}
 			page.close("div");
 			
+			page.close("div");
+
+// End of leftcolumn
+
+			page.open("div", "rightcolumn");
+
+			page.open("div");
+			page.open("h1");
+			const String tracker = Config::Get("tracker");
+			const String instance = Core::Instance->getName().before('.');
+			page.raw("<a href='profile'>");			
+			page.text(name() + "@" + tracker);
+			if(!instance.empty()) page.text(" (" + instance + ")");
+			page.raw("</a>");
+			page.close("h1");
 			page.close("div");
 			
 			String broadcastUrl = "/messages";
@@ -474,7 +952,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 		 
-			page.javascript("function post()\n\
+			page.javascript("function postStatus()\n\
 				{\n\
 					var message = document.statusform.statusinput.value;\n\
 					if(!message) return false;\n\
@@ -485,9 +963,28 @@ void User::http(const String &prefix, Http::Request &request)
 						alert('The message could not be sent.');\n\
 					});\n\
 				}\n\
+				function post(object, idParent)\n\
+				{\n\
+					var message = $(object).val();\n\
+					if(!message) return false;\n\
+					$(object).val('');\n\
+					if(!idParent)\n\
+					{\n\
+						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
+							{ 'message': message , 'public': 1});\n\
+					}\n\
+					else\n\
+					{\n\
+						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
+							{ 'message': message , 'public': 1, 'parent': idParent});\n\
+					}\n\
+					request.fail(function(jqXHR, textStatus) {\n\
+						alert('The message could not be sent.');\n\
+					});\n\
+				}\n\
 				document.statusform.onsubmit = function()\n\
 				{\n\
-					post();\n\
+					postStatus();\n\
 					return false;\n\
 				}\n\
 				function formTextBlur()\n\
@@ -504,10 +1001,20 @@ void User::http(const String &prefix, Http::Request &request)
 					document.statusform.statusinput.value = '';\n\
 					document.statusform.statusinput.style.color = 'black';\n\
 				}\n\
+				document.searchForm.query.onfocus = function()\n\
+				{\n\
+					document.searchForm.query.value = '';\n\
+					document.searchForm.query.style.color = 'black';\n\
+				}\n\
+				document.searchForm.query.onblur = function()\n\
+				{\n\
+					document.searchForm.query.style.color = 'grey';\n\
+					document.searchForm.query.value = 'Search for files...';\n\
+				}\n\
 				$('textarea.statusinput').keypress(function(e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						e.preventDefault();\n\
-						post();\n\
+						postStatus();\n\
 					}\n\
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
@@ -519,51 +1026,32 @@ void User::http(const String &prefix, Http::Request &request)
 				listIncoming.addEventListener('change', function() {\n\
 					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');");
-
-
-			unsigned refreshPeriod = 5000;
-			page.javascript("var title = document.title;\n\
-					setCallback(\"/"+name()+"/contacts/?json\", "+String::number(refreshPeriod)+", function(data) {\n\
-					var totalmessages = 0;\n\
-					var play = false;\n\
-					var visible = false;\n\
-					$.each(data, function(uname, info) {\n\
-						document.getElementById('contact_'+uname).onmouseover = function()\n\
-						{\n\
-							if(visible)\n\
-							{\n\
-								document.getElementById('InfosContact_'+uname).style.visibility = 'hidden';\n\
-document.getElementById('InfosContact_'+uname).style.height = '0';\n\
-								timeout = setTimeout(function() { visible = false; }, 100); \n\
-							}\n\
-							else\n\
-							{\n\
-								document.getElementById('InfosContact_'+uname).style.visibility = 'visible';\n\
-document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
-								timeout = setTimeout(function() { visible = true; }, 100); \n\
-							}\n\
-						}\n\
-						$('#contact_'+uname).attr('class', info.status);\n\
-						//document.getElementById('contact_'+uname).classList.add(info.status);\n\
-						transition($('#contact_'+uname+' .status'), info.status.capitalize());\n\
-						var count = parseInt(info.messages);\n\
-						var tmp = '';\n\
-						if(count != 0) tmp = ' ('+count+')';\n\
-						transition($('#contact_'+uname+' .messagescount'), tmp);\n\
-						totalmessages+= count;\n\
-						if(info.newmessages == 'true') play = true;\n\
-					});\n\
-					if(totalmessages != 0) document.title = title+' ('+totalmessages+')';\n\
-					else document.title = title;\n\
-					if(play) playMessageSound();\n\
-			});");
+				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
+				// Events for the reply textareas : \n\
+				$('#newsfeed').on('keypress','textarea', function (e) {\n\
+					if (e.keyCode == 13 && !e.shiftKey) {\n\
+						var name = $(this).attr('name');\n\
+						var id = name.split(\"replyTo\").pop();\n\
+						post(this, id);\n\
+						return false; \n\
+					}\n\
+				});\n\
+				$('#newsfeed').on('blur','textarea', function (e) {\n\
+					$(this).css('display','none');\n\
+				});\n\
+				$('#newsfeed').on('focus','textarea', function (e) {\n\
+					$(this).css('display','block');\n\
+				});\n\
+");
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
 			page.link(HELPLINK, "Help", "", true);
 			page.text(" - ");
 			page.link(SOURCELINK, "Source code", "", true);
+			page.close("div");
+
+			page.close("div");
 			page.close("div");
 			
 			page.footer();

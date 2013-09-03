@@ -21,7 +21,8 @@
 
 if(!String.escape) {
 	String.prototype.escape = function() {
-		return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+		return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/([^ ]{50})/g, "$1\- ");
+		// Last "replace" adds dash and space when a single words has more than 50 chars
 	}
 }
 
@@ -32,8 +33,8 @@ String.prototype.smileys = function() {
 		':-('  : 'sad.png\" height=15 width=24',
 		':('  : 'sad.png\" height=15 width=24',
 		':\'-('  : 'sad.png\" height=15 width=24',
-		':S'  : 'embarrassed.png\" height=17 width=26',
-		':@'  : 'angry.png\" height=24 width=36'
+		':S'  : 'embarrassed.png\" height=15 width=24',
+		':@'  : 'angry.png\" height=20 width=30'
 	}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
 
 	for (var i in smileys) 
@@ -233,6 +234,108 @@ function updateMessagesReceiver(url, object) {
 	}, 100);
 }
 
+function clickedReply(id) 
+{
+	$('#'+id.id).css('display','block');
+	$('textarea[name=\"'+id.id+'\"]').focus();
+}
+
+function submitReply(object, idParent) 
+{
+	post(object, idParent); 
+	return false;
+}
+
+
+var title = document.title;
+
+var saveData;
+var toShow = true;
+
+function displayContacts(url, period, object) {
+
+	setCallback(url, period, function(data) 
+	{
+
+		if(data!=null)
+		{
+			saveData = data;
+			var totalmessages = 0;
+			var play = false;
+			var visible = false;
+			$.each(data, function(uname, info) 
+			{
+				if ($('#contact_'+uname).length == 0) // if div does not exist
+				{
+					$(object).append('<div id=\"contact_'+uname+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+uname+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+uname+'\" class=\"infoscontact\"><span class=\"tracker\">'+uname+'@'+info.tracker+'</span> <span class=\"linkfiles\"><a href=\"contacts/'+uname+'/files/\"> <img src="/icon_files.png" alt="Files" height=35 widht=35 /></a></span> <span class=\"linkchat\"><a href=\"contacts/'+uname+'/chat/\"> <img src="/icon_chat.png" alt="Chat" height=35 widht=35 /></a></span></div>');
+					$('#InfosContact_'+uname).hide();
+				}
+
+				function displayInfosContact(uname)
+				{
+					if(visible)
+					{
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
+						{
+							$('#InfosContact_'+uname).hide();
+						}
+						else
+						{
+							$('#InfosContact_'+uname).slideUp();
+						}
+
+						timeout = setTimeout(function() { visible = false; }, 200);
+					}
+					else
+					{
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
+						{
+							if(toShow) $('#InfosContact_'+uname).show();
+						}
+						else
+						{
+							if(toShow) $('#InfosContact_'+uname).slideDown();
+						}
+
+						timeout = setTimeout(function() { visible = true; }, 200);
+					}
+				}
+				/*document.getElementById('contact_'+uname).onmouseover = function()
+				{
+					displayInfosContact(uname);
+				}*/
+				document.getElementById('contact_'+uname).onclick = function()
+				{
+					displayInfosContact(uname);
+				}
+				$('#contact_'+uname+' a').click(function()
+				{
+					toShow = false; // So the div infosContact is not displayed when clicked on contact link
+				});
+				$('#contact_'+uname).attr('class', info.status);
+				//document.getElementById('contact_'+uname).classList.add(info.status);
+				transition($('#contact_'+uname+' .status'), info.status.capitalize());
+				var count = parseInt(info.messages);
+				var tmp = '';
+				if(count != 0) tmp = ' ('+count+')';
+				transition($('#contact_'+uname+' .messagescount'), tmp);
+				totalmessages+= count;
+				if(info.newmessages == 'true') play = true;
+			});
+			if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
+			else document.title = title;
+			if(play) playMessageSound();
+
+
+		}
+		else
+		{
+			// TODO
+		}
+	});
+
+}
+
 
 function setMessagesReceiverRec(url, object, last) {
 
@@ -266,9 +369,25 @@ function setMessagesReceiverRec(url, object, last) {
 
 				if(message.public)
 				{
-					$(object).append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> </div>');
+					var idReply = "replyTo" + id;
+
+					if(!message.parent)
+					{
+						$(object).prepend('<div class=\"messagewrapper\"> <div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div></div>');
+					}
+					else
+					{						
+						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span></div>');
+						$('#'+id).addClass('childmessage');
+					}
+
+
 					$('#'+id).addClass('statusdisplay');
 					if(!message.incoming) $('#'+id).addClass('me');
+
+					// Reply form
+					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
+				
 				}
 				else
 				{
@@ -277,9 +396,10 @@ function setMessagesReceiverRec(url, object, last) {
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');
 					else $('#'+id).addClass('out');
+$(object).scrollTop($(object)[0].scrollHeight);
 				}
 			}
-			$(object).scrollTop($(object)[0].scrollHeight);
+			
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;

@@ -1439,6 +1439,22 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.span(status().capitalized(), "status.button");
 				page.close("div");
 			}
+
+
+			// TODO: insert here profile infos
+
+			page.open("div","profileinfos.box");
+
+			page.open("h2");
+			page.text("Personal Info");
+			page.close("h2");
+
+			// TODO : retrieve personal info from files
+			
+
+			page.close("div");
+
+			// End of profile
 			
 			page.open("div",".box");
 				

@@ -3,7 +3,7 @@ html
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	padding: 0;  
+	padding: 0;
 }
 
 body
@@ -28,9 +28,24 @@ a:hover
 	text-decoration: underline;
 }
 
+h1 a
+{
+	color: #000000;
+}
+
+h1 a:visited
+{
+	color: #000000;
+}
+
+h1 a:hover
+{
+	text-decoration: underline;
+}
+
 div
 {
-	margin-left: 26%;
+	margin-left: 2px;
 	padding: 0;
 }
 
@@ -43,6 +58,8 @@ div.message
 	padding-bottom: 3px;
 	padding-left: 1px;
 	padding-right: 1px;
+
+	/* TODO : word overflow */
 }
 
 img
@@ -188,10 +205,17 @@ input[type="submit"]:hover
 	background-color: #FFF040;
 }
 
+input[type="text"]
+{
+	height: auto;
+	float: left;
+	margin: 3px;
+}
+
 .button
 {
         display: inline-block;
-        min-width: 6em;
+	min-width: 6em;
         margin: 0.2em;
         margin-bottom: 0.5em;
         padding: 0.4em;
@@ -244,7 +268,7 @@ textarea
 .searchinput input[type="text"]
 {
 	float: left;
-	width: 70%;
+	width: 90%;
 }
 
 .loading > body > * 
@@ -308,6 +332,35 @@ textarea
 	text-overflow: ellipsis;
 }
 
+#wrapper
+{
+	width: auto;
+	min-height: 100%;
+}
+
+#rightcolumn
+{
+	float: left;
+	width: 71%;
+	margin: 0px 0px;
+	text-align: justify;
+}
+
+#leftcolumn
+{
+	float: left;
+	width: 25%;
+	height: 100%;
+	min-width: 320px;
+	max-width: 480px;
+	min-height: 100%;
+	max-height: 1500px;
+	background : transparent;
+	border: none;
+	box-shadow: none;
+	padding: 0 20px;
+}
+
 #content
 {
 	clear: both;
@@ -328,7 +381,7 @@ textarea
 	bottom: 0;
 	left: 0;
 	width: 100%;
-	margin-left: 26%;
+	margin-left: 4px;
 	font-size: 0.8em;
 	text-align: center;
 	padding-top: 2em;
@@ -554,7 +607,9 @@ select, x:-moz-any-link, x:default
 
 .message
 {
-	
+	float: left;
+	margin: 1px;
+	width: 90%;
 }
 
 .oldmessage
@@ -644,6 +699,7 @@ td.delete
 	margin-top: 0.5em;
 	margin-bottom: 0.5em;
 	padding: 0.5em;
+	width: 100%;
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
@@ -655,8 +711,8 @@ td.delete
 {
 	float: left;
 	width: 95%;
-	height: auto;
-	min-height: 15%;
+	height: 15%;
+	min-height: 100px;
 	padding-top: 15px;
 	padding-left: 4px;
 	background-color: rgba(255,255,255,1);
@@ -671,7 +727,30 @@ td.delete
 {
 	margin-top: 0.5em;
 	white-space: nowrap;
+	padding: 2px;
 }
+
+.filestr
+{
+	min-height: 16px;
+	vertical-align: middle;
+	margin-top: 2px;
+	/*border-bottom: 1px solid grey;*/
+}
+
+.filestr:hover
+{
+	background-color: #C0C0C0;
+}
+
+.filestr .icon
+{
+	width: 16px;
+	min-height: 16px;
+	padding-right: 0.25em;
+	text-align: left;
+}
+
 
 .files tr
 {
@@ -725,31 +804,6 @@ td.delete
 	text-align: left;
 }
 
-
-#leftcolumn
-{
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 25%;
-	height: 97%;
-	background : transparent;
-	border: none;
-	box-shadow: none;
-}
-
-#rightcolumn
-{
-	position: absolute;
-	top: 20px;
-	right: 0;
-	width: auto;
-	height: 100px;
-	background : transparent;
-	border: none;
-	box-shadow: none;
-}
-
 #search
 {
 	float: left;
@@ -765,11 +819,14 @@ td.delete
 	float: left;
 	margin-left: 0;
 	width: 95%;
-	height: 49%;
+	height: auto;
+	min-height: 200px;
+	max-height: 600px;
 	padding-top: 15px;
 	padding-left: 4px;
 	background-color: rgba(255,255,255,1);
 	color: #000000;
+	overflow: auto;
 }
 
 #contactsTable
@@ -937,16 +994,26 @@ td.delete
 #status.button
 {
 	font-weight: bold;
+	width: auto;
+	display: inline-block;
+	min-width: 6em;
+        margin: 0.2em;
+        margin-bottom: 0.5em;
+        padding: 0.4em;
+	border: 1px solid #A0A0A0;
+	border-radius: 0.5em;
+	text-align: center;
+        vertical-align: middle;
 }
 
 #status.button.online
 {
-	background-color: #00E000;
+	background-color: #BBD2E1;
 }
 
 #status.button.connected
 {
-        background-color: #FFDC0A;
+        background-color: #FFF48D;
 }
 
 .search
@@ -958,11 +1025,283 @@ td.delete
 {
 	margin-left: 0;
 	float: left;
-	height: 0;
 	width: 100%;
+	height: 100px;
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	text-align: center;
 	vertical-align: text-bottom;
-	visibility: hidden;
+	/*visibility: hidden;
+	height: 0;*/
 }
+
+.tracker
+{
+	float: left;
+	margin-left: 2px;
+	margin-top: 2px;
+}
+
+.linkfiles
+{
+
+}
+
+.linkchat
+{
+
+}
+
+.childmessage
+{
+	float: right;
+	margin: 1px;
+	width: 71%;
+}
+
+.reply
+{
+	display: none;
+	float: right;
+	margin-top: 3px;
+	margin-right: 10px;
+	margin-bottom: 2%;
+	width: 70%;
+}
+
+.replybutton
+{
+	float: right;
+	margin-right: 3px;
+	height: 17px;
+	width: 17px;
+}
+
+.replybutton:hover
+{
+	float: right;
+	border: 1px inset #C1BFB1;
+}
+
+.messagewrapper
+{
+
+}
+
+.add
+{
+	float: left;
+	width: auto;
+}
+
+.profileinfo
+{
+	font-size: 1.1em;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+.inputprofile
+{
+	width: 97%;
+}
+
+.profileinfoswrapper
+{
+	padding: 5px;
+	width: 100%;
+	min-height: 150px;
+	margin-bottom: 20px;
+	margin-top: 20px;
+}
+
+.profileinfoswrapper .box
+{
+	width: 95%;
+}
+
+.inlinetitle
+{
+	display: inline;
+}
+
+.inlinetitle h2
+{
+	display: inline;
+}
+
+.clearprofilebutton
+{
+	display: inline;
+	margin-top: -1px;
+}
+
+
+#personalstatus
+{
+	float: left;
+	font-size: 1.2em;
+	width: 70%;
+	height: 150px;
+	margin-top: 40px;
+	line-height: 40px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+#personalstatus input
+{
+	display: inline;
+	float: left;
+	width: auto;
+	height: auto;
+	margin-top: 40px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+#profilephoto
+{
+	float: right;
+	border: 2px solid black;
+	width: 20%;
+	height: 150px;
+	margin-right: 20px;
+}
+
+/*#personalinfos
+{
+	float: left;
+	width: 45%;
+	height: auto;
+	min-height: 150px;
+}
+
+#culture
+{
+	float: right;
+	width: 45%;
+	height: auto;
+	min-height: 150px;
+}
+
+#jobs
+{
+	float: left;
+	width: 45%;
+	min-height: 150px;
+}
+
+#education
+{
+	float: right;
+	width: 45%;
+	min-height: 150px;
+}
+
+#description
+{
+	width: 97%;
+	min-height: 150px;
+}*/
+
+.statusquotemark
+{
+	font-family: Times New Roman;
+	font-style: bold;
+	font-size: 1.4em;
+	color: black;
+}
+
+.empty
+{
+	color: gray;
+}
+
+/* Mobile version */  
+
+@media screen and (max-width: 480px)
+{
+
+	#page
+	{
+		width: 100%;
+		margin: 0;
+		padding: 0;
+	}
+
+	#wrapper 
+	{
+		width: 100%;
+		margin: 0;
+	}
+
+	#leftcolumn
+	{
+		/*float: left;*/
+		width: 100%;
+		margin-right: 0;
+		margin-left: 0;
+		padding: 0;
+	}
+
+	#rightcolumn 
+	{
+		/*float: right;*/
+		width: 100%;
+		margin-right: 0;
+		margin-left: 0;
+		max-width: 481px;
+	}
+
+	div
+	{
+		margin: 0;
+		padding: 0;
+	}
+
+	#newsfeed
+	{
+		width: 99%;
+		margin: 0;
+	}
+
+	#statusmessages
+	{
+		width: 99%;
+		margin: 0;
+	}
+
+}
+
+/* End of mobile version */
+
+/* Tablet version */  
+
+@media screen and (min-width : 768px) and (max-width : 1024px)
+{
+
+	#wrapper 
+	{
+		width: 1024px;
+		margin: 0 auto;
+	}
+
+	#leftcolumn
+	{
+		float: left;
+		width: 910px;
+		margin-left: 110px;
+	}
+
+	#rightcolumn 
+	{
+		float: left;
+		width: 700px;
+		margin-left: 55px;
+	}
+
+
+}
+
+/* End of Tablet version */
