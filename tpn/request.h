@@ -35,6 +35,7 @@ namespace tpn
 {
 
 class AddressBook;
+class Resource;
 
 class Request : public Synchronizable
 {

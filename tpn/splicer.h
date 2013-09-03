@@ -38,7 +38,7 @@ namespace tpn
 class Splicer
 {
 public:
-	static void HintSources(const ByteString &target, const Set<Identifier> &sources);
+	static void Hint(const ByteString &target, const Set<Identifier> &sources, int64_t size = -1);
 	
 	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
 	~Splicer(void);
@@ -79,7 +79,8 @@ private:
 		
 		unsigned block(int64_t position) const;
 		
-		void addSources(const Set<Identifier> &sources);
+		void hintSize(int64_t size);
+		void hintSources(const Set<Identifier> &sources);
 		bool getSources(Set<Identifier> &sources);
 		void refreshSources(void);
 		

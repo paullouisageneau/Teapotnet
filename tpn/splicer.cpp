@@ -65,9 +65,11 @@ Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
 	return entry;
 }
 
-void Splicer::HintSources(const ByteString &target, const Set<Identifier> &sources)
+void Splicer::Hint(const ByteString &target, const Set<Identifier> &sources, int64_t size)
 {
-	GetCacheEntry(target)->addSources(sources);
+	CacheEntry *entry = GetCacheEntry(target);
+	entry->hintSources(sources);
+	if(size >= 0) entry->hintSize(size);
 }
 
 Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
@@ -82,6 +84,8 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 	mCacheEntry->getSources(mSources);
 	if(mSources.empty()) 
 		throw Exception("No sources found for " + target.toString());
+	
+	LogDebug("Splicer", String::number(mSources.size()) + " sources found");
 	
 	// OK, the cache entry is initialized
 	
@@ -104,7 +108,7 @@ Splicer::~Splicer(void)
 
 void Splicer::addSources(const Set<Identifier> &sources)
 {
-	mCacheEntry->addSources(sources);
+	mCacheEntry->hintSources(sources);
 	
 	for(Set<Identifier>::iterator it = sources.begin(); it != sources.end(); ++it)
 		mSources.insert(*it);
@@ -275,6 +279,7 @@ bool Splicer::process(void)
 size_t Splicer::read(char *buffer, size_t size)
 {
 	mCacheEntry->setAccessTime();
+	if(!size) return 0;
 	
 	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
 	unsigned currentBlock = lastBlock;
@@ -317,7 +322,7 @@ size_t Splicer::read(char *buffer, size_t size)
 	{
 		size = std::min(size, size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition)));
 		Assert(size <= mCacheEntry->blockSize());
-
+		
 		// Open file to read
 		File file(mCacheEntry->fileName(), File::Read);
 		file.seekRead(mPosition);
@@ -388,7 +393,7 @@ bool Splicer::query(int i, const Identifier &source)
 
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :
 	mTarget(target),
-	mSize(0),
+	mSize(-1),
 	mBlockSize(128*1024),	// TODO
 	mTime(Time::Now())
 {
@@ -417,7 +422,7 @@ String Splicer::CacheEntry::fileName(void) const
 int64_t Splicer::CacheEntry::size(void) const
 {
 	Synchronize(this); 
-	return mSize;
+	return std::max(mSize, int64_t(0));
 }
 
 size_t Splicer::CacheEntry::blockSize(void) const
@@ -452,7 +457,12 @@ unsigned Splicer::CacheEntry::block(int64_t position) const
 	return unsigned(position / int64_t(mBlockSize));  
 }
 
-void Splicer::CacheEntry::addSources(const Set<Identifier> &sources)
+void Splicer::CacheEntry::hintSize(int64_t size)
+{
+	mSize = std::max(mSize, size);
+}
+
+void Splicer::CacheEntry::hintSources(const Set<Identifier> &sources)
 {
 	for(Set<Identifier>::iterator it = sources.begin(); it != sources.end(); ++it)
 		mSources.insert(*it);
@@ -461,7 +471,7 @@ void Splicer::CacheEntry::addSources(const Set<Identifier> &sources)
 bool Splicer::CacheEntry::getSources(Set<Identifier> &sources)
 {
 	Synchronize(this);
-	if(mSources.empty()) refreshSources();
+	if(mSources.empty() || mSize < 0) refreshSources();
 	sources = mSources;
 	return !sources.empty();
 }
@@ -488,9 +498,12 @@ void Splicer::CacheEntry::refreshSources(void)
 			
 			if(!response->error())
 			{
-				// TODO: check size
-				if(mSize == 0 && parameters.contains("size")) 
-					parameters.get("size").extract(mSize);
+				if(parameters.contains("size"))
+				{
+					int64_t size = 0;
+					parameters.get("size").extract(size);
+					hintSize(size);
+				}
 				
 				mSources.insert(response->peering());
 			}

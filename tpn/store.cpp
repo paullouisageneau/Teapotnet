@@ -329,10 +329,10 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 			resource.mPath = urlToPath(resource.mUrl);
 			resource.mStore = this;
 			resources.insert(resource);
+			success = true;
 		}
 
 		statement.finalize();
-                success = true;
 	}
 	
 	if(this != GlobalInstance) success|= GlobalInstance->query(query, resources);

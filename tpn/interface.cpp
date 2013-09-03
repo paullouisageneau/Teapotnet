@@ -352,7 +352,7 @@ void Interface::process(Http::Request &request)
 			
 			try {
 				// Launch transfer
-				response.sock->setTimeout(-1.);				// disable timeout
+				response.sock->setTimeout(-1.);			// disable timeout
 				accessor->readBinary(*response.sock, rangeSize);	// let's go !
 			}
 			catch(const NetException &e)

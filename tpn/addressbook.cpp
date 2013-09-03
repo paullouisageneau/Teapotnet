@@ -1550,10 +1550,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					SerializableSet<Resource> resources;
 					Resource::Query query;
 					query.setLocation(target);
-					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					
 					Identifier peering(mPeering);
 					Desynchronize(this);
+					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					try {
 						while(!query.submitRemote(resources, peering))
 							Thread::Sleep(5.);

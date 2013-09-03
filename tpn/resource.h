@@ -56,11 +56,13 @@ public:
 		void setLimit(int count);
 		void setMatch(const String &match);
 
-		bool submitLocal(Resource &result, Store *store = NULL);
-		bool submitLocal(Set<Resource> &result, Store *store = NULL);
-		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
+		bool submitLocal(Resource &result, Store *store = NULL);	// true if success
+		bool submitLocal(Set<Resource> &result, Store *store = NULL);	// true if success
+		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);	// true if peer responded
 		bool submit(Set<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null, bool forceLocal = false);
 
+		void createRequest(Request &request) const;
+		
 		// Serializable
 		virtual void serialize(Serializer &s) const;
 		virtual bool deserialize(Serializer &s);

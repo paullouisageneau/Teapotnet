@@ -34,10 +34,11 @@ namespace tpn
 {
 
 Resource::Resource(const Identifier &peering, const String &url, Store *store) :
-        mUrl(url),
-	mPeering(peering),
+		mUrl(url),
+	mTime(0),
 	mSize(0),
 	mType(1),
+	mPeering(peering),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
@@ -46,6 +47,7 @@ Resource::Resource(const Identifier &peering, const String &url, Store *store) :
 
 Resource::Resource(const ByteString &digest, Store *store) :
 	mDigest(digest),
+	mTime(0),
 	mSize(0),
 	mType(1),
 	mStore(Store::GlobalInstance),
@@ -55,8 +57,9 @@ Resource::Resource(const ByteString &digest, Store *store) :
 }
 
 Resource::Resource(Store *store) :
-        mSize(0),
-        mType(1),
+	mTime(0),
+	mSize(0),
+	mType(1),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
@@ -109,9 +112,9 @@ void Resource::refresh(bool forceLocal)
 			mSources.insert(peering);
 	}
 	
-	// Hint sources to splicer system
+	// Hints for the splicer system
 	if(!mDigest.empty())
-		Splicer::HintSources(mDigest, mSources);
+		Splicer::Hint(mDigest, mSources, mSize);
 }
 
 ByteString Resource::digest(void) const
@@ -195,20 +198,18 @@ void Resource::setPeering(const Identifier &peering)
 
 void Resource::merge(const Resource &resource)
 {
-	mTime = std::min(mTime, resource.mTime);
-	mSize = std::max(mSize, resource.mSize);
-
-	if(mDigest.empty())
+	if(resource.mTime > mTime)
 	{
-		mDigest = resource.mDigest;
+		mTime = resource.mTime;
 		mSize = resource.mSize;
+		mDigest = resource.mDigest;
 		mType = resource.mType;
-	}
-	
-	if(mUrl.empty())
-	{
-		mUrl = resource.mUrl;
-		mPeering = resource.mPeering;
+		
+		if(mUrl.empty())
+		{
+			mUrl = resource.mUrl;
+			mPeering = resource.mPeering;
+		}
 	}
 }
 
@@ -383,13 +384,13 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 
-	StringMap parameters;
-	parameters.output(*this);
-	Request request(parameters);
+	Request request;
+	createRequest(request);
         request.submit(peering);
 	request.wait(timeout);
 	
-	for(int i=result.size(); i<request.responsesCount(); ++i)
+	Synchronize(&request);
+	for(int i=0; i<request.responsesCount(); ++i)
 	{
 		const Request::Response *response = request.response(i);		
                 if(response->error()) continue;
@@ -397,7 +398,7 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 		try
 		{
 			Resource resource;
-			parameters = response->parameters();
+			StringMap parameters = response->parameters();
 			resource.deserialize(parameters);
 			resource.setPeering(response->peering());
                         result.insert(resource);
@@ -426,6 +427,30 @@ bool Resource::Query::submit(Set<Resource> &result, Store *store, const Identifi
 	return success;
 }
 
+void Resource::Query::createRequest(Request &request) const
+{
+	StringMap parameters;
+	serialize(parameters);
+	
+	if(!mDigest.empty()) 
+	{
+		request.setTarget(mDigest.toString(), false);
+		parameters.erase("digest");
+	}
+	else if(!mUrl.empty()) 
+	{
+		request.setTarget(mUrl, false);
+		parameters.erase("url");
+	}
+	else {
+		if(!mMatch.empty()) request.setTarget("search:"+mMatch, false);
+		else request.setTarget("search:*", false);
+		parameters.erase("match");
+	}
+	
+	request.setParameters(parameters);
+}
+
 void Resource::Query::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
@@ -433,7 +458,7 @@ void Resource::Query::serialize(Serializer &s) const
 	
 	Serializer::ConstObjectMapping mapping;
 	if(!mUrl.empty())     mapping["url"] = &mUrl;
-	if(mMatch.empty())    mapping["match"] = &mMatch;
+	if(!mMatch.empty())    mapping["match"] = &mMatch;
 	if(!mDigest.empty())  mapping["digest"] = &mDigest;
 	if(mMinAge > Time(0)) mapping["minAge"] = &mMinAge;
 	if(mMaxAge > Time(0)) mapping["maxAge"] = &mMaxAge;
@@ -635,10 +660,11 @@ size_t Resource::SplicerAccessor::readData(char *buffer, size_t size)
 
 	while(mSplicer->process())
 	{
-		if(size = mSplicer->read(buffer, size))
+		size_t s;
+		if(s = mSplicer->read(buffer, size))
 		{
-			mPosition+= size;
-			return size;
+			mPosition+= s;
+			return s;
 		}
 		
 		Thread::Sleep(milliseconds(10));
