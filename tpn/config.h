@@ -27,6 +27,7 @@
 #include "tpn/mutex.h"
 #include "tpn/file.h"
 #include "tpn/map.h"
+#include "tpn/list.h"
 #include "tpn/address.h"
 
 namespace tpn

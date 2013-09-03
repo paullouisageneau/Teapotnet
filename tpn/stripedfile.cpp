@@ -82,7 +82,7 @@ size_t StripedFile::tellWriteOffset(void) const
 	return mWriteOffset;
 }
 
-void StripedFile::seekRead(uint64_t position)
+void StripedFile::seekRead(int64_t position)
 {
 	Synchronize(this);
 	seekRead(position / mStripeSize, position % mStripeSize);
@@ -110,7 +110,7 @@ void StripedFile::seekRead(unsigned block, size_t offset)
 	}
 }
 
-void StripedFile::seekWrite(uint64_t position)
+void StripedFile::seekWrite(int64_t position)
 {
 	Synchronize(this);
 	seekWrite(position / mStripeSize, position % mStripeSize);

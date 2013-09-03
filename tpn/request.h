@@ -27,6 +27,7 @@
 #include "tpn/identifier.h"
 #include "tpn/bytestream.h"
 #include "tpn/array.h"
+#include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/store.h"
 
@@ -34,6 +35,7 @@ namespace tpn
 {
 
 class AddressBook;
+class Resource;
 
 class Request : public Synchronizable
 {
@@ -106,9 +108,10 @@ public:
 	Response *response(int num);
 	const Response *response(int num) const;
 	bool isSuccessful(void) const;
-
+	bool hasContent(void) const;
+	
 private:
-	Response *createResponse(Store::Entry &entry, const StringMap &parameters, Store *store);
+	Response *createResponse(const Resource &resource, const StringMap &parameters, Store *store);
 	int addResponse(Response *response);
 
 	Identifier mReceiver;

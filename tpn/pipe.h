@@ -39,8 +39,8 @@ public:
 	Pipe(ByteStream *buffer, bool readOnly = false);	// buffer destroyed at deletion
 	virtual ~Pipe(void);
 
-	void close(void);		// closes then write end
-	bool is_open(void) const;	// true is write end is open
+	void close(void);		// closes the write end
+	bool is_open(void) const;	// true if the write end is open
 	
 	// Stream, ByteStream
 	size_t readData(char *buffer, size_t size);

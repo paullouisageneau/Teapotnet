@@ -22,6 +22,7 @@
 #include "tpn/time.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
+#include "tpn/list.h"
 
 namespace tpn
 {
@@ -36,20 +37,49 @@ Time Time::Now(void)
 uint64_t Time::Milliseconds(void)
 {
 	timeval tv;
-	gettimeofday(&tv, NULL);
+	Assert(gettimeofday(&tv, NULL) == 0);
 	return uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000;
 }
 
-Time::Time(void) :
-	mTime(0)
+double Time::StructToSeconds(const struct timeval &tv)
 {
-	time(&mTime);
+	return double(tv.tv_sec) + double(tv.tv_usec)/1000000.;
 }
 
-Time::Time(time_t time = 0) :
-	mTime(time)
+double Time::StructToSeconds(const struct timespec &ts)
 {
-  
+	return double(ts.tv_sec) + double(ts.tv_nsec)/1000000000.;
+}
+
+void Time::SecondsToStruct(double secs, struct timeval &tv)
+{
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	tv.tv_sec = time_t(isecs);
+	tv.tv_usec = long(fsecs*1000000.);
+}
+
+void Time::SecondsToStruct(double secs, struct timespec &ts)
+{
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	ts.tv_sec = time_t(isecs);
+	ts.tv_nsec = long(fsecs*100000000.);
+}
+
+Time::Time(void)
+{
+	timeval tv;
+	Assert(gettimeofday(&tv, NULL) == 0);
+	mTime = tv.tv_sec;
+	mUsec = tv.tv_usec;
+}
+
+Time::Time(time_t time, int usec) :
+	mTime(time),
+	mUsec(0)
+{
+	addMicroseconds(usec);
 }
 
 // Sun, 06 Nov 1994 08:49:37 GMT  ; RFC 822, updated by RFC 1123
@@ -63,6 +93,7 @@ Time::Time(const String &str)
 	if(str.trimmed().empty())
 	{
 		mTime = time_t(0);
+		mUsec = 0;
 		return;
 	}
 	
@@ -174,7 +205,8 @@ Time::Time(const String &str)
 	tzset();
 	
 	mTime = std::mktime(&tms);
-	
+	mUsec = 0;	
+
 	if(tz)
 	{
 		char *buf = reinterpret_cast<char*>(std::malloc(3 + strlen(tz) + 1));
@@ -249,6 +281,16 @@ int Time::year(void) const
 	return result;
 }
 
+int Time::millisecond(void) const
+{
+	return int(mUsec/1000);
+}
+
+int Time::microsecond(void) const
+{
+	return int(mUsec%1000);
+}
+
 String Time::toDisplayDate(void) const
 {
 	TimeMutex.lock();
@@ -290,43 +332,94 @@ time_t Time::toUnixTime(void) const
 	return mTime; 
 }
 
+void Time::toStruct(struct timeval &tv) const
+{
+	tv.tv_sec = mTime;
+	tv.tv_usec = mUsec;
+}
+
+void Time::toStruct(struct timespec &ts) const
+{
+	ts.tv_sec = mTime;
+	ts.tv_nsec = mUsec*1000;
+}
+
+int64_t Time::toMicroseconds(void) const
+{
+	return int64_t(difftime(mTime, time_t(0)))*1000000 + mUsec;
+}
+
+int64_t Time::toMilliseconds(void) const
+{
+	return toMicroseconds()/1000;
+}
+
 double Time::toSeconds(void) const
 {
-	return (*this - Time(0)); 
+	return double(toMicroseconds())/1000000;
 }
 
-int Time::toHours(void) const
+double Time::toHours(void) const
 {
-	return int(toSeconds()/3600); 
+	return toSeconds()/3600; 
 }
 
-int Time::toDays(void) const
+double Time::toDays(void) const
 {
-	return int(toSeconds()/86400); 
+	return toSeconds()/86400; 
+}
+
+void Time::addMicroseconds(int64_t usec)
+{
+	usec+= mUsec;	// usec is 64 bits
+	int64_t d = usec/1000000;
+	
+	if(usec >= 0)
+	{
+		usec = usec % 1000000;
+	}
+	else {
+		usec = (-usec) % 1000000;
+		if(usec)
+		{
+			d-= 1;
+			usec = 1000000 - usec;
+		}
+	}
+
+	mUsec = int(usec);
+
+	TimeMutex.lock();
+        struct tm tms = *localtime(&mTime);     // not thread safe
+	tms.tm_year+= d / 86400;
+	tms.tm_sec+= d % 86400;
+	mTime = std::mktime(&tms);
+        TimeMutex.unlock();
+}
+
+void Time::addMilliseconds(int64_t msec)
+{
+	addMicroseconds(msec*1000);
 }
 
 void Time::addSeconds(double seconds)
 {
-	(*this)+= seconds;
+	addMicroseconds(int64_t(seconds*1000000));
 }
 
-void Time::addHours(int hours)
+void Time::addHours(double hours)
 {
-	addSeconds(double(hours)*3600);
+	addSeconds(hours*3600);
 }
 
-void Time::addDays(int days)
+void Time::addDays(double days)
 {
-	addSeconds(double(days)*86400);
+	addSeconds(days*86400);
 }
 
 Time &Time::operator += (double seconds)
 {
-	TimeMutex.lock();
-	struct tm tms = *localtime(&mTime);	// not thread safe
-	tms.tm_sec += int(seconds);
-	mTime = std::mktime(&tms);
-	TimeMutex.unlock();
+	addSeconds(seconds);
 	return *this;
 }
 
@@ -339,7 +432,16 @@ Time Time::operator + (double seconds) const
 
 double Time::operator - (const Time &t) const
 {
-	return difftime(mTime, t.mTime);
+	double d = difftime(mTime, t.mTime);
+	
+	int u;
+	if(mUsec >= t.mUsec) u = mUsec - t.mUsec;
+	else {
+		u = 1000000 - (t.mUsec - mUsec);
+		d-= 1.;
+	}
+	
+	return d + double(u)/1000000;
 }
 
 Time::operator time_t(void) const
@@ -357,6 +459,7 @@ bool Time::deserialize(Serializer &s)
 	int64_t tmp = 0;
 	s.input(tmp);
 	mTime = time_t(tmp);
+	mUsec = 0;
 	return true;
 }
 
@@ -367,17 +470,17 @@ bool Time::isNativeSerializable(void) const
 
 bool operator < (const Time &t1, const Time &t2)
 {
-	return (t1-t2 < 0.);
+	return t1.toMicroseconds() < t2.toMicroseconds();
 }
 
 bool operator > (const Time &t1, const Time &t2)
 {
-	return (t1-t2 > 0.);	
+	return t1.toMicroseconds() > t2.toMicroseconds();
 }
 
 bool operator == (const Time &t1, const Time &t2)
 {
-	return t1.toUnixTime() == t2.toUnixTime();	
+	return t1.toMicroseconds() == t2.toMicroseconds();	
 }
 
 bool operator != (const Time &t1, const Time &t2)

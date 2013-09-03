@@ -149,7 +149,7 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 			handler->start(true);	// autodelete
 			
 			// Timeout is just a security here
-			const unsigned timeout = Config::Get("tpot_timeout").toInt();
+			const double timeout = milliseconds(Config::Get("tpot_timeout").toInt());
 			if(!handler->wait(timeout*4)) return false;
 			return handler->isAuthenticated();
 		}
@@ -194,7 +194,7 @@ void Core::run(void)
 			LogInfo("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 			addPeer(sock, Identifier::Null, true);	// async
-			msleep(250);
+			Thread::Sleep(0.25);
 		}
 	}
 	catch(const NetException &e)
@@ -523,7 +523,7 @@ void Core::Handler::process(void)
 		Synchronize(this);
 		LogInfo("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
 	  
-		mSock->setTimeout(Config::Get("tpot_timeout").toInt());
+		mSock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
 		
 		// Set up obfuscation cipher
 		ByteString tmpkey;
@@ -598,9 +598,9 @@ void Core::Handler::process(void)
 			{
 				if(!Config::Get("relay_enabled").toBool()) return;
 			  
-				const unsigned meetingStepTimeout = std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt());
+				const double meetingStepTimeout = milliseconds(std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt()));
 			  
-				unsigned timeout = meetingStepTimeout;
+				double timeout = meetingStepTimeout;
 				mCore->mMeetingPoint.lock();
 				while(timeout)
 				{
@@ -668,7 +668,7 @@ void Core::Handler::process(void)
 						
 					Handler *otherHandler = NULL;
 					
-					unsigned timeout = meetingStepTimeout;
+					double timeout = meetingStepTimeout;
 					mCore->mMeetingPoint.lock();
 					mCore->mMeetingPoint.notifyAll();
 					while(timeout)
@@ -847,7 +847,7 @@ void Core::Handler::process(void)
 		mSender->mStream = mStream;
 		mSender->start();
 	  
-		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+		const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 		
 		Identifier peering;
 		SynchronizeStatement(this, peering = mPeering);
@@ -895,12 +895,17 @@ void Core::Handler::process(void)
 					{
 						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
-						ByteStream *sink = request->mContentSink; 	// TODO
-						if(!sink) sink = new ByteString;		// TODO
+						ByteStream *sink = NULL;
+						if(request->mContentSink)
+						{
+							if(!request->hasContent())
+								sink = request->mContentSink;
+						}
+						else sink = new TempFile;	// TODO: or ByteString ?
 						
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
-						mResponses.insert(channel,response);
+						if(sink) mResponses.insert(channel, response);
 						mCancelled.clear();
 					}
 					else {
@@ -1140,7 +1145,7 @@ void Core::Handler::run(void)
 {
 	process();
 	notifyAll();
-	msleep(1000);	// TODO
+	Thread::Sleep(1.);	// TODO
 	Synchronize(this);
 }
 

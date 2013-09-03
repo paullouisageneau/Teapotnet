@@ -49,10 +49,12 @@ MessageQueue::MessageQueue(User *user) :
 	public INTEGER(1),\
 	isread INTEGER(1))");
 
+	// TODO: retro-compatibility, should be removed
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS peering ON messages (peering)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
-
+	//
+	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
 
@@ -97,7 +99,7 @@ bool MessageQueue::add(const Message &message)
 	
 	mDatabase->insert("messages", message);
 	
-	if(!exists) 
+	if(!exists)
 	{
 		if(message.isIncoming()) mHasNew = true;
 		notifyAll();

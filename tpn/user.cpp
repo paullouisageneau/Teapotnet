@@ -99,7 +99,7 @@ void User::UpdateAll(void)
 		UsersByName.get(names[i], user);
 		UsersMutex.unlock();
 		
-		if(user && !user->addressBook()->isRunning()) user->addressBook()->start();
+		user->addressBook()->update();
 	}
 }
 
@@ -195,7 +195,7 @@ void User::setOnline(void)
 	
 	if(!wasOnline) 
 	{
-		if(!mAddressBook->isRunning()) mAddressBook->start();
+		mAddressBook->update();
 		sendInfo();
 	}
 }
@@ -598,7 +598,7 @@ document.getElementById('InfosContact_'+uname).style.height = '100px';\n\
 				return;
 			}
 			
-			const unsigned timeout = Config::Get("request_timeout").toInt();
+			const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
 			Desynchronize(this);
 			Request trequest("search:"+query, false);	// no data
@@ -641,7 +641,7 @@ void User::run(void)
 		for(int t=0; t<2; ++t)
 		{
 			try {
-				msleep(30000);
+				Thread::Sleep(30.);
 				
 				if(oldLastOnlineTime != mLastOnlineTime)
 				{
@@ -656,7 +656,6 @@ void User::run(void)
 		}
 		
 		++m;
-		if((m%5 == 0) && !mAddressBook->isRunning()) mAddressBook->start();
 		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
 }

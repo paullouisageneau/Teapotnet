@@ -22,6 +22,7 @@
 #include "tpn/datagramsocket.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
+#include "tpn/time.h"
 
 namespace tpn
 {
@@ -30,14 +31,14 @@ const int DatagramSocket::MaxDatagramSize = 1500;
 
 DatagramSocket::DatagramSocket(int port, bool broadcast) :
 		mSock(INVALID_SOCKET),
-		mTimeout(0)
+		mTimeout(-1.)
 {
 	bind(port, broadcast);
 }
 
 DatagramSocket::DatagramSocket(const Address &local, bool broadcast) :
 		mSock(INVALID_SOCKET),
-		mTimeout(0)
+		mTimeout(-1.)
 {
  	bind(local, broadcast);  
 }
@@ -151,9 +152,9 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 #endif
 }
 
-void DatagramSocket::setTimeout(unsigned msecs)
+void DatagramSocket::setTimeout(double timeout)
 {
-	mTimeout = msecs; 
+	mTimeout = timeout; 
 }
 
 void DatagramSocket::bind(int port, bool broadcast)
@@ -272,15 +273,14 @@ void DatagramSocket::close(void)
 
 int DatagramSocket::read(char *buffer, size_t size, Address &sender)
 {
-	if(mTimeout)
+	if(mTimeout > 0.)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(mSock, &readfds);
 
 		struct timeval tv;
-		tv.tv_sec = mTimeout/1000;
-		tv.tv_usec = (mTimeout%1000)*1000;
+		Time::SecondsToStruct(mTimeout, tv);
 		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 		if (ret == -1) throw Exception("Unable to wait on socket");
 		if (ret ==  0) return -1;

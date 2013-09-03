@@ -43,10 +43,10 @@ public:
 	unsigned tellWriteBlock(void) const;
 	size_t   tellWriteOffset(void) const;
 	
-	void seekRead(uint64_t position);
+	void seekRead(int64_t position);
 	void seekRead(unsigned block, size_t offset);
 
-	void seekWrite(uint64_t position);
+	void seekWrite(int64_t position);
 	void seekWrite(unsigned block, size_t offset);
 	
 	size_t readData(char *buffer, size_t size);

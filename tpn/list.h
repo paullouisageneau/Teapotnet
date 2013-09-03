@@ -19,28 +19,27 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_SET_H
-#define TPN_SET_H
+#ifndef TPN_LIST_H
+#define TPN_LIST_H
 
 #include "tpn/include.h"
 #include "tpn/exception.h"
 
-#include <set>
+#include <list>
 
 namespace tpn
 {
 
 template<typename T>
-class Set : public std::set<T>
+class List : public std::list<T>
 {
 public:
 	bool remove(const T &value);
 	bool contains(const T &value) const;
-	void insertAll(const Set<T> &set) const;
 };
 
 template<typename T>
-class SerializableSet : public Set<T>, public Serializable
+class SerializableList : public List<T>, public Serializable
 {
 public:
 	class SerializableElement : public Serializer::Element
@@ -60,27 +59,40 @@ public:
 	bool isInlineSerializable(void) const;
 };
 
-typedef SerializableSet<String> StringSet;
+typedef SerializableList<String> StringList;
 
 
 template<typename T>
-bool Set<T>::remove(const T &value)
+bool List<T>::remove(const T &value)
 {
-	return (this->erase(value) == 1);
+	bool found = false;
+	typename List<T>::iterator it = this->begin();
+	while(it != this->end())
+		  if(*it == value) 
+		  {
+			  this->erase(it++);
+			  found = true;
+		  }
+		  else ++it;
+	return found;
 }
 
 template<typename T>
-bool Set<T>::contains(const T &value) const
+bool List<T>::contains(const T &value) const
 {
-	return (this->find(value) != this->end());
+	for(typename List<T>::iterator it = this->begin(); it != this->end(); ++it)
+		  if(*it == value)
+			  return true;
+	
+	return false;
 }
 
 template<typename T>
-void SerializableSet<T>::serialize(Serializer &s) const
+void SerializableList<T>::serialize(Serializer &s) const
 {
 	s.outputArrayBegin(this->size());
 
-	for(typename Set<T>::iterator it = this->begin(); it != this->end(); ++it)
+	for(typename List<T>::iterator it = this->begin(); it != this->end(); ++it)
 	{
 		SerializableElement element(*it);
 		s.output(element);
@@ -90,7 +102,7 @@ void SerializableSet<T>::serialize(Serializer &s) const
 }
 
 template<typename T>
-bool SerializableSet<T>::deserialize(Serializer &s)
+bool SerializableList<T>::deserialize(Serializer &s)
 {
 	this->clear();
 	if(!s.inputArrayBegin()) return false;
@@ -106,32 +118,32 @@ bool SerializableSet<T>::deserialize(Serializer &s)
 }
 
 template<typename T>
-bool SerializableSet<T>::isInlineSerializable(void) const
+bool SerializableList<T>::isInlineSerializable(void) const
 {
 	return false;  	// recursive, no inlining
 }
 
 template<typename T>
-SerializableSet<T>::SerializableElement::SerializableElement(void)
+SerializableList<T>::SerializableElement::SerializableElement(void)
 {
 	 
 }
 
 template<typename T>
-SerializableSet<T>::SerializableElement::SerializableElement(const T &value) :
+SerializableList<T>::SerializableElement::SerializableElement(const T &value) :
 	value(value)
 {
 	 
 }
 
 template<typename T>
-void SerializableSet<T>::SerializableElement::serialize(Serializer &s) const
+void SerializableList<T>::SerializableElement::serialize(Serializer &s) const
 {
 	s.output(value);
 }
 
 template<typename T>
-bool SerializableSet<T>::SerializableElement::deserialize(Serializer &s)
+bool SerializableList<T>::SerializableElement::deserialize(Serializer &s)
 {
 	return s.input(value);
 }

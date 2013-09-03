@@ -72,7 +72,41 @@ public:
 	bool isInlineSerializable(void) const;
 };
 
-typedef SerializableMap<String,String> StringMap;
+class StringMap : public SerializableMap<String,String>, public Serializer
+{
+public:
+	bool input(Pair &pair);
+	bool input(String &str);
+	bool input(int8_t &i)		{ inputAsString(i); }
+	bool input(int16_t &i)		{ inputAsString(i); }
+	bool input(int32_t &i)		{ inputAsString(i); }
+	bool input(int64_t &i)		{ inputAsString(i); }
+	bool input(uint8_t &i)		{ inputAsString(i); }
+	bool input(uint16_t &i)		{ inputAsString(i); }
+	bool input(uint32_t &i)		{ inputAsString(i); }
+	bool input(uint64_t &i)		{ inputAsString(i); }
+	bool input(bool &b)		{ inputAsString(b); }
+	bool input(float &f)		{ inputAsString(f); }
+	bool input(double &f)		{ inputAsString(f); }
+	
+	void output(const Pair &pair);
+	void output(const String &str);
+	void output(int8_t i)		{ outputAsString(i); }
+	void output(int16_t i)		{ outputAsString(i); }
+	void output(int32_t i)		{ outputAsString(i); }
+	void output(int64_t i)		{ outputAsString(i); }
+	void output(uint8_t i)		{ outputAsString(i); }
+	void output(uint16_t i)		{ outputAsString(i); }
+	void output(uint32_t i)		{ outputAsString(i); }
+	void output(uint64_t i)		{ outputAsString(i); }
+	void output(bool b)		{ outputAsString(b); }
+	void output(float f)		{ outputAsString(f); }
+	void output(double f)		{ outputAsString(f); }
+	
+private:
+	template<typename T> bool inputAsString(T &v);
+	template<typename T> void outputAsString(const T &v);
+};
 
 template<typename K, typename V>
 void Map<K,V>::insert(const K &key, const V &value)
@@ -232,6 +266,21 @@ template<typename K, typename V>
 bool SerializableMap<K,V>::SerializablePair::deserializeValue(Serializer &s)
 {
 	return s.input(value);
+}
+
+template<typename T> bool StringMap::inputAsString(T &v)
+{
+	String tmp;
+	if(!input(tmp)) return false;
+	tmp.read(v);
+	return true;
+}
+
+template<typename T> void StringMap::outputAsString(const T &v)
+{
+	String tmp;
+	tmp.write(v);
+	output(tmp);
 }
 
 // Functions Serilizer::inputMapElement and Serializer::outputMapElement defined here

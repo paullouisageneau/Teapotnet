@@ -23,59 +23,33 @@
 #define TPN_SCHEDULER_H
 
 #include "tpn/include.h"
+#include "tpn/threadpool.h"
 #include "tpn/time.h"
-#include "tpn/thread.h"
 #include "tpn/map.h"
-#include "tpn/set.h"
 
 namespace tpn
 {
 
-class Task
+class Scheduler : public Thread, public ThreadPool
 {
 public:
-	virtual void run(void);
-};
-	
-class Scheduler : public Thread, public Synchronizable
-{
-public:
-	Scheduler(void);
+	Scheduler(unsigned maxWaitingThreads = 1);
 	~Scheduler(void);
 	
-	void schedule(Task *task, unsigned msecs = 0);
+	void schedule(Task *task, double timeout = 0.);
 	void schedule(Task *task, const Time &when);
 	
-	void repeat(Task *task, unsigned period);
+	void repeat(Task *task, double period);
 	
 	void remove(Task *task);
 	void clear(void);
 	
 private:
 	void run(void);
-	void launch(Task *task);
 	
 	Map<Time, Set<Task*> > mSchedule;
 	Map<Task*, Time> mNextTimes;
-	Map<Task*, unsigned> mPeriods;
-	
-	class Worker : public Thread
-	{
-	public:
-		Worker(Scheduler *scheduler);
-		~Worker(void);
-	
-		void setTask(Task *task);
-		
-	private:
-		void run(void);
-		
-		Scheduler *mScheduler;
-		Task *mTask;
-	};
-	
-	Set<Worker*> mWorkers;
-	Set<Worker*> mAvailableWorkers;
+	Map<Task*, double> mPeriods;
 };
 
 }

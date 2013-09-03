@@ -35,13 +35,16 @@
 namespace tpn
 {
 
+const double AddressBook::UpdateInterval = 300.;
+const double AddressBook::UpdateStep = 0.25;
 const int AddressBook::MaxChecksumDistance = 1000;
 
 AddressBook::AddressBook(User *user) :
-	mUser(user),
-	mUpdateCount(0)
+	mUser(user)
 {
+	Assert(UpdateInterval > 0);
 	Assert(mUser != NULL);
+	
 	mFileName = mUser->profilePath() + "contacts";
 	
 	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
@@ -96,10 +99,7 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 	Contact *oldContact;
 	if(mContactsByUniqueName.get(uname, oldContact))
 	{
-		mContacts.erase(oldContact->peering());
-		mContactsByUniqueName.erase(oldContact->uniqueName());
-		Core::Instance->unregisterPeering(oldContact->peering());
-		Interface::Instance->remove(oldContact->urlPrefix(), oldContact);
+		unregisterContact(oldContact);
 		delete oldContact;
 	}
 	
@@ -111,12 +111,9 @@ Identifier AddressBook::addContact(String name, const ByteString &secret)
 		contact = oldContact;
 	}
 
-	mContacts.insert(contact->peering(), contact);
-	mContactsByUniqueName.insert(contact->uniqueName(), contact);
-	Interface::Instance->add(contact->urlPrefix(), contact);
+	registerContact(contact);
 	
 	save();
-	start();
 	return contact->peering();
 }
 
@@ -130,6 +127,7 @@ void AddressBook::removeContact(const Identifier &peering)
 		contact->setDeleted();
 		Core::Instance->unregisterPeering(contact->peering());
 		Interface::Instance->remove(contact->urlPrefix(), contact);
+		mScheduler.remove(contact);
 		save();
 	}
 }
@@ -202,21 +200,14 @@ Identifier AddressBook::setSelf(const ByteString &secret)
 	Contact *oldSelf = getSelf();
         if(oldSelf)
 	{
-		mContacts.erase(oldSelf->peering());
-                Core::Instance->unregisterPeering(oldSelf->peering());
-                Interface::Instance->remove(oldSelf->urlPrefix(), oldSelf);
-		
+		unregisterContact(oldSelf);
 		oldSelf->copy(self);
 		delete self;
 		self = oldSelf;
 	}
 
-	mContacts.insert(self->peering(), self);
-	mContactsByUniqueName.insert(self->uniqueName(), self);
-	Interface::Instance->add(self->urlPrefix(), self);
-	
+	registerContact(self);
 	save();
-	start();
 	return self->peering();
 }
 
@@ -242,6 +233,8 @@ void AddressBook::clear(void)
 {
 	Synchronize(this);
   
+	mScheduler.clear();	// we make sure no task is running
+	
 	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
@@ -258,10 +251,9 @@ void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
-	bool changed = false;
-
 	Contact *contact = new Contact(this);
 	
+	int i = 0;
 	//YamlSerializer serializer(&stream);
 	//while(serializer.input(*contact))
 	while(true)
@@ -279,26 +271,18 @@ void AddressBook::load(Stream &stream)
 				continue;
 			}
 		
-			mContacts.erase(oldContact->peering());
-			Core::Instance->unregisterPeering(oldContact->peering());
-			mContactsByUniqueName.erase(oldContact->uniqueName());
-			
+			unregisterContact(oldContact);
 			oldContact->copy(contact);
 			std::swap(oldContact, contact);
 			delete oldContact;
 		}
 		
-		mContacts.insert(contact->peering(), contact);
-		mContactsByUniqueName.insert(contact->uniqueName(), contact);
-		if(!contact->isDeleted()) Interface::Instance->add(contact->urlPrefix(), contact);
-		changed = true;
-		
+		registerContact(contact, i);
 		contact = new Contact(this);
+		++i;
 	}
-	delete contact;
 	
-	if(changed && !isRunning())
-		start();
+	delete contact;
 }
 
 void AddressBook::save(Stream &stream) const
@@ -351,45 +335,18 @@ void AddressBook::save(void) const
 void AddressBook::update(void)
 {
 	Synchronize(this);
-	LogDebug("AddressBook::update", "Updating " + String::number(unsigned(mContacts.size())) + " contacts");
-	
-	mBogusTrackers.clear();
 	
 	Array<Identifier> keys;
 	mContacts.getKeys(keys);
 	std::random_shuffle(keys.begin(), keys.end());
 
-	// Normal
 	for(int i=0; i<keys.size(); ++i)
 	{
-		Contact *contact = NULL;
-		if(mContacts.get(keys[i], contact))
-		{
-			if(contact->isDeleted()) continue;
-			Desynchronize(this);
-			contact->update(false);
-		}
+		Contact *contact;
+		if(!mContacts.get(keys[i], contact)) continue;
+		
+		mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
 	}
-
-	// Alternate
-	// isPublicConnectable could be valid only for IPv6
-	if(/*!Core::Instance->isPublicConnectable() &&*/ mUpdateCount > 0)
-	{
-		for(int i=0; i<keys.size(); ++i)
-		{
-			Contact *contact = NULL;
-			if(mContacts.get(keys[i], contact))
-			{
-				if(contact->isDeleted()) continue;
-				Desynchronize(this);
-				contact->update(true);
-			}
-		}
-	}
-	
-	LogDebug("AddressBook::update", "Finished");
-	++mUpdateCount;
-	save();
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -569,16 +526,36 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void AddressBook::run(void)
+void AddressBook::registerContact(Contact *contact, int ordinal)
 {
-	update();
+	Synchronize(this);
+	
+	mContacts.insert(contact->peering(), contact);
+	mContactsByUniqueName.insert(contact->uniqueName(), contact);
+	
+	if(!contact->isDeleted())
+	{
+		Interface::Instance->add(contact->urlPrefix(), contact);
+		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
+		mScheduler.repeat(contact, UpdateInterval);
+	}
+}
+
+void AddressBook::unregisterContact(Contact *contact)
+{
+	Synchronize(this);
+	
+	mContacts.erase(contact->peering());
+	mContactsByUniqueName.erase(contact->uniqueName());
+	
+	Core::Instance->unregisterPeering(contact->peering());
+	Interface::Instance->remove(contact->urlPrefix(), contact);
+	mScheduler.remove(contact);
 }
 
 bool AddressBook::publish(const Identifier &remotePeering)
 {
-	Synchronize(this);
 	String tracker = Config::Get("tracker");
-	if(SynchronizeTest(this, mBogusTrackers.find(tracker) != mBogusTrackers.end())) return false;
 	
 	try {
 		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
@@ -620,25 +597,27 @@ bool AddressBook::publish(const Identifier &remotePeering)
 			post["alternate"] = altAddresses;
 		}
 		
-		return (Http::Post(url, post) == 200);
+		if(Http::Post(url, post) == 200)
+		{
+			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
+			return true;
+		}
 	}
 	catch(const Timeout &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::publish", e.what()); 
-		return false;
 	}
 	catch(const NetException &e)
 	{
-		mBogusTrackers.insert(tracker);
 		LogDebug("AddressBook::publish", e.what()); 
-		return false;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("AddressBook::publish", e.what()); 
-		return false;
 	}
+	
+	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+	return false;
 }
 
 bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
@@ -647,60 +626,61 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	
 	String host(tracker);
 	if(host.empty()) host = Config::Get("tracker");
-	if(SynchronizeTest(this, mBogusTrackers.find(host) != mBogusTrackers.end())) return false;
 	
 	try {
 		String url = "http://" + host + "/tracker?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
-		if(Http::Get(url, &tmp) != 200) return false;
-		tmp.trim();
-		if(tmp.empty()) return false;
-	
-		YamlSerializer serializer(&tmp);
-		typedef SerializableMap<String, SerializableArray<Address> > content_t;
-		content_t content;
-		
-		while(true)
-		try {
-			serializer.input(content);
-			break;
-		}
-		catch(const InvalidData &e)
+		if(Http::Get(url, &tmp) == 200) 
 		{
-			 
-		}
+			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
+			
+			tmp.trim();
+			if(tmp.empty()) return false;
 		
-		for(content_t::const_iterator it = content.begin();
-			it != content.end();
-			++it)
-		{
-			const String &instance = it->first;
-			const Array<Address> &addrs = it->second;
-			for(int i=0; i<addrs.size(); ++i)
-				output[instance].insert(addrs[i], Time::Now());
+			YamlSerializer serializer(&tmp);
+			typedef SerializableMap<String, SerializableArray<Address> > content_t;
+			content_t content;
+			
+			while(true)
+			try {
+				serializer.input(content);
+				break;
+			}
+			catch(const InvalidData &e)
+			{
+				
+			}
+			
+			for(content_t::const_iterator it = content.begin();
+				it != content.end();
+				++it)
+			{
+				const String &instance = it->first;
+				const Array<Address> &addrs = it->second;
+				for(int i=0; i<addrs.size(); ++i)
+					output[instance].insert(addrs[i], Time::Now());
+			}
+			
+			return !output.empty();
 		}
-		
-		return !output.empty();
 	}
 	catch(const Timeout &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::query", e.what()); 
-		return false;
 	}
 	catch(const NetException &e)
 	{
-		SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 		LogDebug("AddressBook::query", e.what()); 
-		return false;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("AddressBook::query", e.what()); 
-		return false;
 	}
+	
+	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+	return false;
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
@@ -715,7 +695,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mSecret(secret),
 	mTime(Time::Now()),
 	mDeleted(false),
-	mFound(false)
+	mFound(false),
+	mFirstUpdateTime(0)
 {	
 	Assert(addressBook != NULL);
 	Assert(!uname.empty());
@@ -882,24 +863,38 @@ void AddressBook::Contact::getInstancesNames(Array<String> &array)
 
 bool AddressBook::Contact::addAddresses(const AddressMap &map)
 {
-	Synchronize(this);
-  
+	bool changed = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
 		++it)
 	{
+		Synchronize(this);
+		
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
-		mAddrs.insert(instance, block);
+		AddressBlock &target = mAddrs[instance];
+		
+		for(AddressBlock::const_iterator jt = block.begin();
+			jt != block.end();
+			++jt)
+		{
+			const Address &addr = jt->first;
+			const Time &time = jt->second;
+			
+			if(!target.contains(addr) || target[addr] < time)
+			{
+				target[addr] = time;
+				changed = true;
+			}
+		}
 	}
 	
+	if(changed) SynchronizeStatement(mAddressBook, mAddressBook->save());
 	return true;
 }
 
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
-	Synchronize(this);
-	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
@@ -919,20 +914,26 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	if(added)
 	{
-		if(save) SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
+		if(save)
+		{
+			SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
+			SynchronizeStatement(mAddressBook, mAddressBook->save());
+		}
 		return true;
 	}
 	else {
 		// A node is running at this address but the user does not exist
-		if(mAddrs.contains(instance)) mAddrs[instance].erase(addr);
+		if(save && mAddrs.contains(instance)) 
+		{
+			mAddrs[instance].erase(addr);
+			SynchronizeStatement(mAddressBook, mAddressBook->save());
+		}
 		return false;
 	}
 }
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
 {
-	Synchronize(this);
-  
 	bool success = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
@@ -1047,6 +1048,17 @@ void AddressBook::Contact::update(bool alternate)
 	}
 }
 
+void AddressBook::Contact::run(void)
+{
+	if(mFirstUpdateTime == Time(0))
+		mFirstUpdateTime = Time::Now();
+	
+	update(false);
+	
+	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval)
+		update(true);
+}
+
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
 	// Send info
@@ -1079,10 +1091,8 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	//Synchronize(this);
-	//Assert(peering == mPeering);
-	
-	// TODO: try to reconnect
+	Synchronize(mAddressBook);
+	mAddressBook->mScheduler.schedule(this, 10.);
 }
 
 void AddressBook::Contact::notification(Notification *notification)
@@ -1532,169 +1542,160 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(directory == "files")
 			{
 				String target(url);
+				Assert(!target.empty());
 				
-				bool isFile = request.get.contains("file");
-				
-				if(isFile)
+				if(request.get.contains("json") || request.get.contains("playlist"))
 				{
-					while(!target.empty() && target[target.size()-1] == '/')
-						target.resize(target.size()-1);
-				}
-				else {
-					if(target.empty() || target[target.size()-1] != '/') 
-						target+= '/';
-				}
-				
-				Request trequest(target, isFile);
-				if(isFile) trequest.setContentSink(new TempFile);
-				
-				String instance;
-				request.get.get("instance", instance);
-				
-				// Self
-				if(isSelf()
-					&& (instance.empty() || instance == Core::Instance->getName()))
-				{
-					trequest.execute(mAddressBook->user());
-				}
-				
-				try {
-					const unsigned timeout = Config::Get("request_timeout").toInt();
-				  	if(!instance.empty()) trequest.submit(Identifier(mPeering, instance));
-					else trequest.submit(mPeering);
-					Desynchronize(this);
-					trequest.wait(timeout);
-				}
-				catch(const Exception &e)
-				{
-					// If not self
-					if(mUniqueName != mAddressBook->userName())
-					{
-						LogWarn("AddressBook::Contact::http", "Cannot send request, peer not connected");
-
-						Http::Response response(request, 404);
-						response.send();
-						Html page(response.sock);
-						page.header(response.message, true);
-						page.open("div", "error");
-						page.openLink("/");
-						page.image("/error.png", "Error");
-						page.closeLink();
-						page.br();
-						page.open("h1",".huge");
-						page.text(String::number("Not connected"));
-						page.close("h1");
-						page.close("div");
-						page.footer();
-						return;
-					}
-				}
-				
-				if(trequest.responsesCount() == 0)
-				{
-					Http::Response response(request, 404);
-					response.send();
-					Html page(response.sock);
-					page.header("No response", true, request.fullUrl);
-					page.open("div", "error");
-					page.openLink("/");
-					page.image("/error.png", "Error");
-					page.closeLink();
-					page.br();
-					page.open("h1",".huge");
-					page.text(String::number("No response, retrying..."));
-					page.close("h1");
-					page.close("div");
-					page.footer();
-					return;
-				}
-				
-				if(!trequest.isSuccessful()) throw 404;
+					// Query resources
+					SerializableSet<Resource> resources;
+					Resource::Query query;
+					query.setLocation(target);
 					
-				try {
-					if(request.get.contains("file"))
+					Identifier peering(mPeering);
+					Desynchronize(this);
+					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
+					try {
+						while(!query.submitRemote(resources, peering))
+							Thread::Sleep(5.);
+					}
+					catch(...)
 					{
-						for(int i=0; i<trequest.responsesCount(); ++i)
-						{
-					  		Request::Response *tresponse = trequest.response(i);
-							if(tresponse->error()) continue;
-							StringMap params = tresponse->parameters();
-					 		if(!params.contains("name")) continue;
-							ByteStream *content = tresponse->content();
-							if(!content) continue;
-							
-							Time time = Time::Now();
-							if(params.contains("time")) params.get("time").extract(time);
-							
-							Http::Response response(request,200);
-							response.headers["Last-Modified"] = time.toHttpDate();
-							if(params.contains("size")) response.headers["Content-Length"] = params.get("size");
-							
-							if(request.get.contains("download"))
-							{
-							 	response.headers["Content-Disposition"] = "attachment; filename=\"" + params.get("name") + "\"";
-								response.headers["Content-Type"] = "application/octet-stream";
-							}
-							else {
-								response.headers["Content-Disposition"] = "inline; filename=\"" + params.get("name") + "\"";
-								response.headers["Content-Type"] = Mime::GetType(params.get("name"));
-							}
-														
-							response.send();
-							
-							try {
-								Desynchronize(this);
-								response.sock->writeBinary(*content);
-							}
-							catch(const NetException &e)
-							{
-				  
-							}
-							
-							return;
-						}
-						
+						// Peer not connected
 						throw 404;
 					}
 					
-					Http::Response response(request, 200);
+					if(resources.empty()) throw 404;
 					
-					bool playlistMode = request.get.contains("playlist");
-					if(playlistMode)
+					if(request.get.contains("json"))
 					{
+						Http::Response response(request, 200);
+						response.headers["Content-Type"] = "application/json";
+						response.send();
+						JsonSerializer json(response.sock);
+						json.output(resources);
+					}
+					else {
+						Http::Response response(request, 200);
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
+		
+						String host;
+						if(!request.headers.get("Host", host))
+							host = String("localhost:") + Config::Get("interface_port");
+					
+						response.sock->writeLine("#EXTM3U");
+						for(Set<Resource>::iterator it = resources.begin(); it != resources.end(); ++it)
+						{
+							const Resource &resource = *it;
+							if(resource.isDirectory() || resource.digest().empty()) continue;
+							if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
+							String link = "http://" + host + "/" + resource.digest().toString();
+							response.sock->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
+							response.sock->writeLine(link);
+						}
+					}
+					return;
+				}
+				
+				// if it seems to be a file
+				if(target[target.size()-1] != '/')
+				{
+					String instance;
+					request.get.get("instance", instance);
+					
+					Identifier peering(mPeering);
+					if(!instance.empty()) peering.setName(instance);
+					
+					Desynchronize(this);
+					Resource resource(peering, url, mAddressBook->user()->store());
+					try {
+						resource.refresh(isSelf());	// we might find a better way to access it
+					}
+					catch(const Exception &e)
+					{
+						LogWarn("AddressBook::Contant::http", String("Resource lookup failed: ") + e.what());
+						throw 404;
+					}
+					
+					// redirect if it's a directory
+					if(resource.isDirectory())
+					{
+						if(request.get.contains("download"))
+							throw 404;
+						
+						Http::Response response(request, 301);	// Moved permanently
+						response.headers["Location"] = prefix + request.url + '/';
+						response.send();
+						return;
+					}
+					
+					// Get range
+					int64_t rangeBegin = 0;
+					int64_t rangeEnd = 0;
+					bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+					int64_t rangeSize = rangeEnd - rangeBegin;
+					
+					// Get resource accessor
+					Resource::Accessor *accessor = resource.accessor();
+					if(!accessor) throw 404;
+					if(hasRange) accessor->seekRead(rangeBegin);
+					
+					// Forge HTTP response header
+					Http::Response response(request, 200);
+					if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+					response.headers["Content-Length"] << rangeSize;
+					response.headers["Last-Modified"] = resource.time().toHttpDate();
+					response.headers["Accept-Ranges"] = "bytes";
+					
+					if(request.get.contains("download"))
+					{
+						response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+						response.headers["Content-Type"] = "application/octet-stream";
+					}
+					else {
+						response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+						response.headers["Content-Type"] = Mime::GetType(resource.name());
 					}
 					
 					response.send();
 					
-					Html page(response.sock);
-					
-					if(!playlistMode)
-					{
-						if(target.empty() || target == "/") page.header(name()+": Browse files");
-						else page.header(name()+": "+target.substr(1));
-						page.open("div","topmenu");
-						if(!isSelf()) page.span(status().capitalized(), "status.button");
-						page.link(prefix+"/search/","Search files",".button");
-						page.br();
-						page.close("div");
-
-						unsigned refreshPeriod = 5000;
-                                		page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-                                        		transition($('#status'), info.status.capitalize());\n\
-                                        		$('#status').removeClass().addClass('button').addClass(info.status);\n\
-                                        		if(info.newnotifications) playNotificationSound();\n\
-                                		});");
+					try {
+						// Launch transfer
+						response.sock->setTimeout(-1.);				// disable timeout
+						accessor->readBinary(*response.sock, rangeSize);	// let's go !
 					}
-					
-					page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user(), playlistMode);
-					
-					if(!playlistMode) page.footer();
+					catch(const NetException &e)
+					{
+						return;	// nothing to do
+					}
+					catch(const Exception &e)
+					{
+						LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+					}
 				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", String("Unable to access remote file or directory: ") + e.what());
+				else {
+					Http::Response response(request, 200);
+					response.send();
+					
+					Html page(response.sock);
+					if(target == "/") page.header(name()+": Browse files");
+					else page.header(name()+": "+target.substr(1));
+					page.open("div","topmenu");
+					if(!isSelf()) page.span(status().capitalized(), "status.button");
+					page.link(prefix+"/search/","Search files",".button");
+					page.br();
+					page.close("div");
+
+					unsigned refreshPeriod = 5000;
+					page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+						transition($('#status'), info.status.capitalize());\n\
+						$('#status').removeClass().addClass('button').addClass(info.status);\n\
+						if(info.newnotifications) playNotificationSound();\n\
+					});");
+				
+					page.div("Loading...", "#list.box");
+					page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#list');");
+					page.footer();
 				}
 				
 				return;
@@ -1703,33 +1704,33 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				if(url != "/") throw 404;
 				
-				String query;
+				String strQuery;
 				if(request.post.contains("query"))
 				{
-					query = request.post.get("query");
-					query.trim();
+					strQuery = request.post.get("query");
+					strQuery.trim();
 				}
 				
 				Http::Response response(request, 200);
 				response.send();
 				
 				Html page(response.sock);
-				if(query.empty()) page.header(name() + ": Search");
-				else page.header(name() + ": Searching " + query);
+				if(strQuery.empty()) page.header(name() + ": Search");
+				else page.header(name() + ": Searching " + strQuery);
 				page.openForm(prefix + "/search", "post", "searchForm");
-				page.input("text","query",query);
+				page.input("text", "query", strQuery);
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 				page.br();
 				
-				if(query.empty())
+				if(strQuery.empty())
 				{
 					page.footer();
 					return;
 				}
 				
-				Request trequest("search:"+query, false);	// no data
+				Request trequest("search:"+strQuery, false);	// no data
 				try {
 					trequest.submit(mPeering);
 				}
@@ -1744,7 +1745,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 				
 				{
-					const unsigned timeout = Config::Get("request_timeout").toInt();
+					const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 					Desynchronize(this);
 					trequest.wait(timeout);
 				}

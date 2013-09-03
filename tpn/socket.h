@@ -40,14 +40,14 @@ public:
 	static void Transfert(Socket *sock1, Socket *sock2);
 	
 	Socket(void);
-	Socket(const Address &a, unsigned msecs = 0);
+	Socket(const Address &a, double timeout = -1.);
 	Socket(socket_t sock);
 	virtual ~Socket(void);
 
 	bool isConnected(void) const;
 	Address getRemoteAddress(void) const;
 
-	void setTimeout(unsigned msecs);
+	void setTimeout(double timeout);
 	
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
@@ -58,7 +58,7 @@ public:
 
 private:
 	socket_t mSock;
-	unsigned mTimeout;
+	double mTimeout;
 	
 	Address mProxifiedAddr;
 	

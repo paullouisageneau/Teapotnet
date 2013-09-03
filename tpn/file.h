@@ -57,10 +57,13 @@ public:
 	virtual void open(const String &filename, OpenMode mode = Read);
 	virtual void close(void);
 	
-	void seekRead(uint64_t position);
-	void seekWrite(uint64_t position);
+	void reopen(OpenMode mode);
+	
+	void seekRead(int64_t position);
+	void seekWrite(int64_t position);
 	
 	String name(void) const;
+	OpenMode mode(void) const;
 	uint64_t size(void) const;
 	
 	// Stream, ByteStream
@@ -74,6 +77,7 @@ protected:
 	
 	ByteStream *pipeIn(void);
 	String mName;
+	OpenMode mMode;
 };
 
 class SafeWriteFile : public File

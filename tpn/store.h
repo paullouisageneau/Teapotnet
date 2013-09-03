@@ -25,9 +25,13 @@
 #include "tpn/include.h"
 #include "tpn/thread.h"
 #include "tpn/synchronizable.h"
+#include "tpn/serializable.h"
+#include "tpn/resource.h"
 #include "tpn/file.h"
 #include "tpn/map.h"
 #include "tpn/set.h"
+#include "tpn/array.h"
+#include "tpn/list.h"
 #include "tpn/http.h"
 #include "tpn/interface.h"
 #include "tpn/mutex.h"
@@ -42,42 +46,7 @@ class Store : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static Store *GlobalInstance;
-  
-	class Query
-	{
-	public:
-		Query(const String &url = "");
-		
-		void setLocation(const String &url);
-		void setDigest(const ByteString &digest);
-		void setAge(Time min, Time max);
-		void setRange(int first, int last);
-		void setLimit(int count);
-	  	void setMatch(const String &match);
-		void addType(const String &type);
-		
-	private:
-		String mUrl, mMatch;
-		ByteString mDigest;
-		List<String> mTypes;
-		Time mMinAge, mMaxAge;
-		int mOffset, mCount;
-		
-		friend class Store;
-	};
-  
-	struct Entry
-	{
-		ByteString 	digest;
-		String		url;
-		String		path;
-		String		name;
-		int		type;
-		uint64_t	size;
-		Time		time;
-	};
-  
-  	static bool GetResource(const ByteString &digest, Entry &entry);
+  	static bool Get(const ByteString &digest, Resource &resource);
 	static const size_t ChunkSize;
 
 	Store(User *user);
@@ -93,13 +62,18 @@ public:
 	void save(void) const;
 	void update(void);
 
-	bool queryEntry(const Query &query, Entry &entry);
-	bool queryList(const Query &query, List<Entry> &list);
+	bool query(const Resource::Query &query, Resource &resource);
+	bool query(const Resource::Query &query, Set<Resource> &resources);
 	
 	void http(const String &prefix, Http::Request &request);
 
 private:
-  	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
+	static Map<ByteString,String> Resources;	// absolute path by data hash
+	static Mutex ResourcesMutex;
+	
+	static const String CacheDirectoryName;
+	
+	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
 	void updateRec(const String &url, const String &path, int64_t parentId, bool computeDigests);
 	String urlToPath(const String &url) const;
 	String absolutePath(const String &path) const;
@@ -110,11 +84,6 @@ private:
 	String mFileName;
 	String mBasePath;
 	StringMap mDirectories;
-	
-	static void keywords(String name, Set<String> &result);
-	
-	static Map<ByteString,String> Resources;	// absolute path by data hash
-	static Mutex ResourcesMutex;
 };
 
 }

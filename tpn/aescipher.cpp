@@ -191,12 +191,12 @@ size_t AesCipher::setDecryptionKey(const char *key, size_t size)
 
 size_t AesCipher::setDecryptionKey(const char *key, size_t size, AesCipher::Key &out)
 {
-	/* first, start with an encryption schedule */
+	// Start with an encryption schedule
 	size = setEncryptionKey(key, size, out);
 
 	uint32_t *rk = out.rd_key;
 
-	/* invert the order of the round mKeys: */
+	// Invert the order of the round mKeys
 	int i = 0;
 	int j = out.rounds*4; 
 	while(i < j)
@@ -211,7 +211,7 @@ size_t AesCipher::setDecryptionKey(const char *key, size_t size, AesCipher::Key 
 		j -= 4;
 	}
 	
-	/* apply the inverse MixColumn transform to all round mKeys but the first and the last: */
+	// Apply the inverse MixColumn transform to all round mKeys but the first and the last
 	for (int i = 1; i < out.rounds; ++i) 
 	{
 		rk += 4;
@@ -292,18 +292,13 @@ void AesCipher::encrypt(char *in, char *out)
 	uint32_t s0, s1, s2, s3, t0, t1, t2, t3;
 	const uint32_t *rk = mEncryptionKey.rd_key;
 
-	/*
-	 * map byte array block to cipher state
-	 * and add initial round key:
-	 */
+	// Map byte array block to cipher state and add initial round key
 	s0 = GETU32(in     ) ^ rk[0];
 	s1 = GETU32(in +  4) ^ rk[1];
 	s2 = GETU32(in +  8) ^ rk[2];
 	s3 = GETU32(in + 12) ^ rk[3];
 	
-	/*
-	* Nr - 1 full rounds:
-	*/
+	// Nr - 1 full rounds
 	int r = mEncryptionKey.rounds >> 1;
 	while(true)
 	{
@@ -356,10 +351,7 @@ void AesCipher::encrypt(char *in, char *out)
 			rk[3];
 	}
 	
-	/*
-	 * apply last round and
-	 * map cipher state to byte array block:
-	 */
+	// Apply last round and map cipher state to byte array block
 	s0 =	(Te4[(t0 >> 24)       ] & 0xff000000) ^
 		(Te4[(t1 >> 16) & 0xff] & 0x00ff0000) ^
 		(Te4[(t2 >>  8) & 0xff] & 0x0000ff00) ^
@@ -398,18 +390,13 @@ void AesCipher::decrypt(char *in, char *out)
 	uint32_t s0, s1, s2, s3, t0, t1, t2, t3;
 	const uint32_t *rk = mDecryptionKey.rd_key;
 
-	/*
-	 * map byte array block to cipher state
-	 * and add initial round key:
-	 */
+	// Map byte array block to cipher state and add initial round key
 	s0 = GETU32(in     ) ^ rk[0];
 	s1 = GETU32(in +  4) ^ rk[1];
 	s2 = GETU32(in +  8) ^ rk[2];
 	s3 = GETU32(in + 12) ^ rk[3];
 
-	/*
-	* Nr - 1 full rounds:
-	*/
+	// Nr - 1 full rounds
 	int r = mDecryptionKey.rounds >> 1;
 	while(true)
 	{
@@ -465,10 +452,7 @@ void AesCipher::decrypt(char *in, char *out)
 			rk[3];
 	}
 
-	/*
-	 * apply last round and
-	 * map cipher state to byte array block:
-	 */
+	// Apply last round and map cipher state to byte array block
    	s0 =	(Td4[(t0 >> 24)       ] & 0xff000000) ^
    		(Td4[(t3 >> 16) & 0xff] & 0x00ff0000) ^
    		(Td4[(t2 >>  8) & 0xff] & 0x0000ff00) ^
@@ -540,6 +524,7 @@ size_t AesCipher::readBlock(char *out)
 
 		if(mDumpStream) mDumpStream->writeData(mTempBlockIn, AES_BLOCK_SIZE);
 		
+		// CBC block cipher
 		decrypt(mTempBlockIn, out);
 
 		for(size_t n=0; n < AES_BLOCK_SIZE; ++n)
@@ -571,6 +556,7 @@ void AesCipher::writeData(const char *data, size_t size)
 		for(size_t n=len; n<AES_BLOCK_SIZE; ++n)
 			tmp[n] = uint8_t(padding);
 		
+		// CBC block cipher
 		for(size_t n=0; n<AES_BLOCK_SIZE; ++n)
 			tmp[n] = tmp[n] ^ mEncryptionInit[n];
 		

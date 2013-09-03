@@ -26,7 +26,7 @@
 #include "tpn/string.h"
 #include "tpn/socket.h"
 #include "tpn/serversocket.h"
-#include "tpn/thread.h"
+#include "tpn/threadpool.h"
 #include "tpn/map.h"
 #include "tpn/file.h"
 
@@ -78,7 +78,7 @@ public:
 		Socket *sock;		// Socket where to send/receive data
 	};
 
-	class Server : public Thread
+	class Server : public Thread, public ThreadPool
 	{
 	public:
 		Server(int port = 80);
@@ -89,7 +89,7 @@ public:
 	private:
 		void run(void);
 
-		class Handler : public Thread
+		class Handler : public Task
 		{
 		public:
 			Handler(Server *server, Socket *sock);

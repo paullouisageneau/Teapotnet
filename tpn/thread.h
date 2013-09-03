@@ -23,17 +23,18 @@
 #define TPN_THREAD_H
 
 #include "tpn/include.h"
+#include "tpn/task.h"
 #include "tpn/synchronizable.h"
 
 namespace tpn
 {
 
-class Scheduler;
-
-class Thread
+class Thread : public Task
 {
 public:
-	Thread(void);						// start the run() member function on start()
+	static void Sleep(double secs);
+	
+	Thread(Task *task = NULL);				// start the run() member function on start()
 	Thread(void (*func)(void));				// start func() immediately
 	template<typename T> Thread(void (*func)(T*), T *arg);	// start func(arg) immediately
 	virtual ~Thread(void);
@@ -75,12 +76,14 @@ private:
 	void start(Wrapper *wrapper);
 
 	pthread_t 	mThread;
+	Task		*mTask;
 	bool		mRunning;
 	bool		mJoined;
 	bool		mAutoDelete;
 };
 
 template<typename T> Thread::Thread(void (*func)(T*), T *arg) :
+		mTask(this),
 		mRunning(false),
 		mJoined(true),
 		mAutoDelete(false)

@@ -54,8 +54,9 @@ LoadingFailed::LoadingFailed(const String& File, const String &message)
 
 Unsupported::Unsupported(const String &feature)
 {
-	mMessage = "Unsupported feature";
+	mMessage = "Unsupported";
 	if(!feature.empty()) mMessage+= ": " + feature;
+	else mMessage+= " feature";
 }
 
 InvalidData::InvalidData(const String &dataName)

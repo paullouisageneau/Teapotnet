@@ -30,6 +30,8 @@
 #include "tpn/identifier.h"
 #include "tpn/messagequeue.h"
 #include "tpn/core.h"
+#include "tpn/scheduler.h"
+#include "tpn/task.h"
 #include "tpn/array.h"
 #include "tpn/map.h"
 #include "tpn/set.h"
@@ -39,7 +41,7 @@ namespace tpn
 
 class User;
   
-class AddressBook : public Thread, public Synchronizable, public HttpInterfaceable
+class AddressBook : public Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -62,7 +64,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
+	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Task, public Core::Listener
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -112,6 +114,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void run(void);
+		
 		MessageQueue::Selection selectMessages(void) const;
 		void sendMessages(const MessageQueue::Selection &selection, int offset, int count) const;
 		void sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
@@ -127,6 +131,7 @@ public:
 		bool mFound;
 		AddressMap mAddrs;
 		StringMap mInfo;
+		Time mFirstUpdateTime;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);
@@ -142,18 +147,21 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
+	static const double UpdateInterval;	// for contacts connection attemps
+	static const double UpdateStep;		// between contacts
 	static const int MaxChecksumDistance;	// for message synchronization
 	
+	void registerContact(Contact *contact, int ordinal = 0);
+	void unregisterContact(Contact *contact);
 	bool publish(const Identifier &remotePeering);
 	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
-	void run(void);
 	
 	User *mUser;
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
+	Scheduler mScheduler;
 	
-	unsigned mUpdateCount;
 	Set<String> mBogusTrackers;
 };
 

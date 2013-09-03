@@ -87,6 +87,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/directory.js\"></script>\n";
 	
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 		if(deviceAgent.indexOf('android') > -1) $('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/android.css\">');");

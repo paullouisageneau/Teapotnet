@@ -215,14 +215,17 @@ template<typename T> T sqr(T x)
 	return x*x;
 }
 
-inline void msleep(unsigned msecs)
+inline void sleep(double secs)
 {
 #ifdef WINDOWS
-	Sleep(msecs);
+	Sleep(unsigned(secs*1000));
 #else
+	// nanosleep needs relative time
+	double isecs;
+	double fsecs = std::modf(secs, &isecs);
 	struct timespec ts;
-	ts.tv_sec = msecs/1000;
-	ts.tv_nsec = (msecs%1000)*1000000;
+	ts.tv_sec = time_t(isecs);
+	ts.tv_nsec = long(fsecs*1000000000);
 	nanosleep(&ts, NULL);
 #endif
 }
@@ -234,6 +237,11 @@ inline void yield(void)
 #else
 	sched_yield();
 #endif
+}
+
+inline double milliseconds(int msecs)
+{
+	return double(msecs)*0.001;
 }
 
 inline int pseudorand(void)
@@ -278,9 +286,14 @@ inline int cryptrand(void)
 	return int(u/2);
 }
 
+template<typename T> T uniform(T min, T max)
+{
+	double r = double(pseudorand())/double(RAND_MAX);
+	return min + T((max-min)*r);
+}
+
 #define VAR(x) std::cout<<""#x"="<<x<<std::endl;
 
-#define List std::list
 #define Queue std::queue
 #define Stack std::stack
 #define Deque std::deque

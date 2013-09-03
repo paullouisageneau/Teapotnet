@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -19,35 +19,48 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_SERVERSOCKET_H
-#define TPN_SERVERSOCKET_H
+#ifndef TPN_THREADPOOL_H
+#define TPN_THREADPOOL_H
 
 #include "tpn/include.h"
-#include "tpn/list.h"
-#include "tpn/./socket.h"
+#include "tpn/thread.h"
+#include "tpn/task.h"
+#include "tpn/set.h"
 
 namespace tpn
 {
 
-class ServerSocket
+class ThreadPool : public Synchronizable
 {
 public:
-	ServerSocket(void);
-	ServerSocket(int port);
-	~ServerSocket(void);
-
-	bool isListening(void) const;
-	int getPort(void) const;
-	Address getBindAddress(void) const;
-	void getLocalAddresses(List<Address> &list) const;
-
-	void listen(int port);
-	void close(void);
-	void accept(Socket &sock);
-
+	ThreadPool(unsigned min = 1,
+		   unsigned max = 0,
+		   unsigned limit = 0);	// 0 means unlimited
+	~ThreadPool(void);
+	
+	void launch(Task *task);
+	void join(void);
+	void clear(void);
+	
 private:
-	socket_t	mSock;
-	int		mPort;
+	class Worker : public Thread, protected Synchronizable
+	{
+	public:
+		Worker(ThreadPool *scheduler);
+		~Worker(void);
+	
+		void runTask(Task *task);
+		
+	private:
+		void run(void);
+		
+		ThreadPool *mThreadPool;
+		Task *mTask;
+	};
+	
+	Set<Worker*> mWorkers;
+	Set<Worker*> mAvailableWorkers;
+	unsigned mMin, mMax, mLimit;
 };
 
 }

@@ -31,6 +31,7 @@
 #include "tpn/user.h"
 #include "tpn/directory.h"
 #include "tpn/portmapping.h"
+#include "tpn/thread.h"
 
 #include <signal.h>
 
@@ -152,13 +153,18 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv 
 
 int main(int argc, char** argv)
 {
-	srand(time(NULL));
-	
+	struct timeval tv;
+  	Assert(gettimeofday(&tv, 0) == 0);
+  	unsigned seed = unsigned(tv.tv_sec) ^ unsigned(tv.tv_usec); 
+
 #ifdef WINDOWS
+	srand(seed);
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
 #else
-	srandom(time(NULL));
+	seed^= getpid();
+	srand(seed);
+	srandom(seed);
 	signal(SIGPIPE, SIG_IGN);
 #endif
 	
@@ -456,7 +462,7 @@ int main(int argc, char** argv)
 				}
 				
 				user->start();
-				msleep(100);
+				Thread::Sleep(0.1);
 			}
 		}
 		
@@ -477,7 +483,7 @@ int main(int argc, char** argv)
 				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
 				user->start();
-				msleep(100);
+				Thread::Sleep(0.1);
 				line.clear();
 			}
 			usersFile.close();

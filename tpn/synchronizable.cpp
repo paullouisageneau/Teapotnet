@@ -69,12 +69,12 @@ void Synchronizable::wait(void) const
 	mSignal.wait(mMutex);
 }
 
-bool Synchronizable::wait(unsigned &timeout) const
+bool Synchronizable::wait(double &timeout) const
 {
 	return mSignal.wait(mMutex, timeout);
 }
 
-bool Synchronizable::wait(const unsigned &timeout) const
+bool Synchronizable::wait(const double &timeout) const
 {
 	return mSignal.wait(mMutex, timeout);
 }

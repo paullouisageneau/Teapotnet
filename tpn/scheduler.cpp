@@ -26,27 +26,22 @@
 namespace tpn
 {
 
-Scheduler::Scheduler(void)
+Scheduler::Scheduler(unsigned maxWaitingThreads) :
+	ThreadPool(0, maxWaitingThreads, 0)
 {
 	
 }
 
 Scheduler::~Scheduler(void)
 {
-	for(	Set<Worker*>::iterator it = mWorkers.begin(); 
-		it != mWorkers.end();
-		++it)
-	{
-		Worker *worker = *it;
-		delete worker;
-	}
+	clear();	// wait for threads to finish
 }
 
-void Scheduler::schedule(Task *task, unsigned msecs)
+void Scheduler::schedule(Task *task, double timeout)
 {
 	Synchronize(this);
 	
-	schedule(task, Time::Now() + double(msecs)/1000);
+	schedule(task, Time::Now() + timeout);
 }
 
 void Scheduler::schedule(Task *task, const Time &when)
@@ -54,15 +49,16 @@ void Scheduler::schedule(Task *task, const Time &when)
 	Synchronize(this);
 	
 	remove(task);
-	
 	mSchedule[when].insert(task);
 	mNextTimes[task] = when;
+	
+	LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
 	
 	if(!isRunning()) start();
 	notifyAll();
 }
 
-void Scheduler::repeat(Task *task, unsigned period)
+void Scheduler::repeat(Task *task, double period)
 {
 	Synchronize(this);
 	
@@ -99,18 +95,22 @@ void Scheduler::clear(void)
 	mSchedule.clear();
 	mNextTimes.clear();
 	mPeriods.clear();
+	
+	ThreadPool::clear();	// wait for threads to finish
 }
 
 void Scheduler::run(void)
 {
-	Synchronize(this);
-	
-	while(!mSchedule.empty())
+	while(true)
 	{
-		double diff =  mSchedule.begin()->first - Time::Now();
-		if(diff > 0.)
+		Synchronize(this);
+		if(mSchedule.empty()) break;
+
+		double d =  mSchedule.begin()->first - Time::Now();
+		if(d > 0.)
 		{
-			wait(unsigned(diff*1000 + 0.5));
+			//LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
+			wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
 			continue;
 		}
 		
@@ -118,64 +118,20 @@ void Scheduler::run(void)
 		for(Set<Task*>::iterator it = set.begin(); it != set.end(); ++it)
 		{
 			Task *task = *it;
-			launch(task);
 			
+			LogDebug("Scheduler::run", "Launching task...");
+			launch(task);
 			mNextTimes.erase(task);
 			
-			unsigned msecs = 0;
-			if(mPeriods.get(task, msecs))
-				schedule(task, Time::Now() + double(msecs)/1000);
+			double period = 0.;
+			if(mPeriods.get(task, period))
+				schedule(task, Time::Now() + period);
 		}
 		
 		mSchedule.erase(mSchedule.begin());
 	}
-}
-
-void Scheduler::launch(Task *task)
-{
-	Synchronize(this);
 	
-	Worker *worker;
-	if(!mAvailableWorkers.empty())
-	{
-		worker = *mAvailableWorkers.begin();
-		mAvailableWorkers.erase(worker);
-		worker->join();
-	}
-	else {
-		worker = new Worker(this);
-		mWorkers.insert(worker);
-	}
-	
-	worker->setTask(task);
-	worker->start();
-}
-
-Scheduler::Worker::Worker(Scheduler *scheduler) :
-	mScheduler(scheduler),
-	mTask(NULL)
-{
-
-}
-
-Scheduler::Worker::~Worker(void)
-{
-	Synchronize(mScheduler);
-	mScheduler->mWorkers.erase(this);
-	mScheduler->mAvailableWorkers.erase(this);
-}
-
-void Scheduler::Worker::setTask(Task *task)
-{
-	mTask = task;
-}
-
-void Scheduler::Worker::run(void)
-{
-	if(!mTask) return;
-	mTask->run();
-	mTask = NULL;
-	SynchronizeStatement(mScheduler, mScheduler->mAvailableWorkers.insert(this));
+	LogDebug("Scheduler::run", "No more tasks");
 }
 
 }

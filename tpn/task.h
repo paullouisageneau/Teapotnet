@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -19,37 +19,24 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_SERVERSOCKET_H
-#define TPN_SERVERSOCKET_H
+#ifndef TPN_TASK_H
+#define TPN_TASK_H
 
 #include "tpn/include.h"
-#include "tpn/list.h"
-#include "tpn/./socket.h"
 
 namespace tpn
 {
 
-class ServerSocket
+class Task
 {
 public:
-	ServerSocket(void);
-	ServerSocket(int port);
-	~ServerSocket(void);
-
-	bool isListening(void) const;
-	int getPort(void) const;
-	Address getBindAddress(void) const;
-	void getLocalAddresses(List<Address> &list) const;
-
-	void listen(int port);
-	void close(void);
-	void accept(Socket &sock);
-
-private:
-	socket_t	mSock;
-	int		mPort;
+	Task(void) {}
+	virtual ~Task(void) {}
+	
+	virtual void run(void) = 0;
 };
 
 }
 
 #endif
+

@@ -24,7 +24,7 @@
 
 namespace tpn
 {
-
+	
 Mutex::Mutex(void) :
 	mLockCount(0),
 	mRelockCount(0)
