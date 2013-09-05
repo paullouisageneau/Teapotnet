@@ -118,13 +118,19 @@ void Http::Request::send(Socket &sock)
 		}
 	}
 
-	for(	StringMap::iterator it = cookies.begin();
-			it != cookies.end();
-			++it)
+	if(!cookies.empty())
 	{
-		buf<<"Set-Cookie: "<< it->first<<'='<<it->second<<"\r\n";
+		buf<<"Cookie: ";
+		for(	StringMap::iterator it = cookies.begin();
+				it != cookies.end();
+				++it)
+		{
+			if(it != cookies.begin()) buf<<"; ";
+			buf<<it->first<<'='<<it->second;
+		}
+		buf<<"\r\n";
 	}
-
+	
 	buf<<"\r\n";
 	sock<<buf;
 
@@ -171,7 +177,7 @@ void Http::Request::recv(Socket &sock)
 
 	// Read cookies
 	String cookie;
-	if(headers.get("Cookie",cookie))
+	if(headers.get("Cookie", cookie))
 	{
 		while(!cookie.empty())
 		{
@@ -473,6 +479,7 @@ Http::Response::Response(const Request &request, int code)
 
 void Http::Response::send(void)
 {
+	if(!sock) throw Exception("No socket for HTTP response");
 	send(*sock);
 }
 
@@ -548,6 +555,13 @@ void Http::Response::send(Socket &sock)
 		}
 	}
 
+	for(	StringMap::iterator it = cookies.begin();
+			it != cookies.end();
+			++it)
+	{
+		buf<<"Set-Cookie: "<<it->first<<'='<<it->second<<"\r\n";
+	}
+	
 	buf<<"\r\n";
 	sock<<buf;
 }
@@ -582,7 +596,16 @@ void Http::Response::recv(Socket &sock)
 		String value = line.cut(':');
 		line.trim();
 		value.trim();
-		headers.insert(line,value);
+		
+		if(line == "Set-Cookie")
+		{
+			String cookie = value.cut(';');
+			value = cookie.cut('=');
+			cookies.insert(cookie, value);
+		}
+		else {
+			headers.insert(line,value);
+		}
 	}
 }
 
@@ -592,6 +615,7 @@ void Http::Response::clear(void)
 	version = "1.0";
 	message.clear();
 	version.clear();
+	cookies.clear();
 }
 
 Http::Server::Server(int port) :
@@ -642,27 +666,27 @@ void Http::Server::Handler::run(void)
 	Request request;
 	try {
 		try {
-			try {
-			  	mSock->setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
-				request.recv(*mSock);
-				mServer->process(request);
-			}
-			catch(const Timeout &e)
-			{
-				// Do nothing
-			}
-			catch(const NetException &e)
-			{
-				LogDebug("Http::Server::Handler", e.what()); 
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("Http::Server::Handler", e.what());
-				throw 500;
-			}
+			mSock->setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
+			request.recv(*mSock);
+			mServer->process(request);
 		}
-		catch(int code)
+		catch(const Timeout &e)
 		{
+			throw 408;
+		}
+		catch(const NetException &e)
+		{
+			LogDebug("Http::Server::Handler", e.what()); 
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Http::Server::Handler", e.what());
+			throw 500;
+		}
+	}
+	catch(int code)
+	{
+		try {
 			Response response(request, code);
 			response.headers["Content-Type"] = "text/html; charset=UTF-8";
 			response.send();
@@ -685,10 +709,10 @@ void Http::Server::Handler::run(void)
 				page.footer();
 			}
 		}
-	}
-	catch(const NetException &e)
-	{
-		LogWarn("Http::Server::Handler", e.what()); 
+		catch(...)
+		{
+
+		}
 	}
 	
 	delete this;	// autodelete

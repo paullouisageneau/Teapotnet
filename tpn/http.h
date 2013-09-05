@@ -74,7 +74,8 @@ public:
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
-
+		StringMap cookies;      // Cookies
+		
 		Socket *sock;		// Socket where to send/receive data
 	};
 

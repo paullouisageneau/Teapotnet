@@ -33,6 +33,8 @@ namespace tpn
 class Scheduler : public Thread, public ThreadPool
 {
 public:
+	static Scheduler *Global;
+
 	Scheduler(unsigned maxWaitingThreads = 1);
 	~Scheduler(void);
 	

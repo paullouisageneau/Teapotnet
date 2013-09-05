@@ -261,6 +261,18 @@ void ByteStream::writeBinary(float64_t f)
 	writeData(reinterpret_cast<char*>(&f),8);
 }
 
+void ByteStream::writeZero(size_t size)
+{
+	char buffer[BufferSize];
+	std::memset(buffer, 0, std::min(size, BufferSize));
+	while(size)
+	{
+		size_t len = std::min(size, BufferSize);
+		writeData(buffer,len);
+		size-= len;
+	}
+}
+
 void ByteStream::writeRandom(size_t size)
 {
 	char buffer[BufferSize];

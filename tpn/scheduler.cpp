@@ -26,6 +26,8 @@
 namespace tpn
 {
 
+Scheduler *Scheduler::Global = new Scheduler(1);
+
 Scheduler::Scheduler(unsigned maxWaitingThreads) :
 	ThreadPool(0, maxWaitingThreads, 0)
 {

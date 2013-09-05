@@ -23,6 +23,7 @@
 #define TPN_BYTESTREAM_H
 
 #include "tpn/include.h"
+#include "tpn/task.h"
 
 namespace tpn
 {
@@ -78,9 +79,20 @@ public:
 	void	writeBinary(float64_t f);
 
 	template<class T> void writeBinary(const T *ptr);
-	
+
+	void writeZero(size_t size = 1);	
 	void writeRandom(size_t size = 1);
 	
+	// Handy task to schedule flushing
+	class FlushTask : public Task
+        {
+        public:
+                FlushTask(ByteStream *bs) { this->bs = bs; }
+                void run(void) { bs->flush(); }
+        private:
+                ByteStream *bs;
+        };
+
 private:
 	virtual ByteStream *pipeIn(void);	// return the write end for a pipe
 
