@@ -250,24 +250,31 @@ void User::sendInfo(const Identifier &identifier)
 User::Profile::Profile(User *user):
 	mUser(user)
 {
-	mProfileFileName = mUser->profilePath() + "profile";
+	mProfileFileName = profileInfoPath() + mUser->name();
+	mEmptyField = "emptyfield";
 
 	if(!File::Exist(mProfileFileName))
 	{
 		initializeFile();
 	}
-
 	Interface::Instance->add("/"+mUser->name()+"/profile", this);
 }
 
-// TODO: constructeur avec tous les attributs
+// TODO: constructor with all attributes
 
 User::Profile::~Profile()
 {
 	Interface::Instance->remove("/"+mUser->name()+"/profile");
 }
 
-StringMap User::Profile::getmUserStringMap()
+String User::Profile::profileInfoPath(void) const
+{
+	String path = mUser->profilePath()+"profiles_infos";
+	if(!Directory::Exist(path)) Directory::Create(path);
+	return path + Directory::Separator;
+}
+
+StringMap User::Profile::getmUserStringMap() // TODO : supprimer
 {
  	File *mProfileFile = new File(mProfileFileName);
 	serializer = new YamlSerializer(mProfileFile);
@@ -283,92 +290,111 @@ StringMap User::Profile::getmUserStringMap()
 	return mUserProfile;
 }
 
-void User::Profile::deserialize()
+void User::Profile::serialize(Serializer &s) const
 {
-	StringMap mUserProfile = getmUserStringMap();
+	Serializer::ConstObjectMapping fields;
+	fields["status"] = &mStatus;
+	fields["profilephoto"] = &mProfilePhoto;
+
+	fields["firstname"] = &mFirstName;
+	fields["middlename"] = &mMiddleName;
+	fields["lastname"] = &mLastName;
+	fields["birthday"] = &mBirthday;
+	fields["gender"] = &mGender;
+	fields["relationship"] = &mRelationship;
+
+	fields["city"] = &mCity;
+	fields["address"] = &mAddress;
+	fields["mail"] = &mMail;
+	fields["twitter"] = &mTwitter;
+	fields["facebook"] = &mFacebook;
+	fields["phone"] = &mPhone;
+
+	fields["college"] = &mCollege;
+	fields["university"] = &mUniversity;
+
+	fields["job"] = &mJob;
+	fields["computer"] = &mComputer;
+	fields["resume"] = &mResume;
+	fields["internship"] = &mInternship;
+
+	fields["religion"] = &mReligion;
+	fields["books"] = &mBooks;
+	fields["movies"] = &mMovies;
+	fields["hobbies"] = &mHobbies;
+	fields["politics"] = &mPolitics;
+
+	fields["description"] = &mDescription;
 	
-	if(mUserProfile.contains("firstname"))
-		mFirstName = mUserProfile.get("firstname");
+	s.outputObject(fields);
+}
 
-	if(mUserProfile.contains("middlename"))
-		mMiddleName = mUserProfile.get("middlename");
+bool User::Profile::deserialize(Serializer &s)
+{	
+	Serializer::ObjectMapping fields;
+	fields["status"] = &mStatus;
+	fields["profilephoto"] = &mProfilePhoto;
 
-	if(mUserProfile.contains("lastname"))
-		mLastName = mUserProfile.get("lastname");
+	fields["firstname"] = &mFirstName;
+	fields["middlename"] = &mMiddleName;
+	fields["lastname"] = &mLastName;
+	fields["birthday"] = &mBirthday;
+	fields["gender"] = &mGender;
+	fields["relationship"] = &mRelationship;
 
-	if(mUserProfile.contains("birthday"))
-		mBirthday = mUserProfile.get("birthday");
+	fields["city"] = &mCity;
+	fields["address"] = &mAddress;
+	fields["mail"] = &mMail;
+	fields["twitter"] = &mTwitter;
+	fields["facebook"] = &mFacebook;
+	fields["phone"] = &mPhone;
 
-	if(mUserProfile.contains("gender"))
-		mGender = mUserProfile.get("gender");
+	fields["college"] = &mCollege;
+	fields["university"] = &mUniversity;
 
-	if(mUserProfile.contains("religion"))
-		mReligion = mUserProfile.get("religion");
+	fields["job"] = &mJob;
+	fields["computer"] = &mComputer;
+	fields["resume"] = &mResume;
+	fields["internship"] = &mInternship;
 
-	if(mUserProfile.contains("relationship"))
-		mRelationship = mUserProfile.get("relationship");
+	fields["religion"] = &mReligion;
+	fields["books"] = &mBooks;
+	fields["movies"] = &mMovies;
+	fields["hobbies"] = &mHobbies;
+	fields["politics"] = &mPolitics;
 
-	if(mUserProfile.contains("description"))
-		mDescription = mUserProfile.get("description");
+	fields["description"] = &mDescription;
+	
+	return s.inputObject(fields);
+}
 
-	if(mUserProfile.contains("status"))
-		mStatus = mUserProfile.get("status");
+void User::Profile::load()
+{
 
-	if(mUserProfile.contains("city"))
-		mCity = mUserProfile.get("city");
+	File *mProfileFile = new File(mProfileFileName);
+	serializer = new YamlSerializer(mProfileFile);
 
-	if(mUserProfile.contains("address"))
-		mAddress = mUserProfile.get("address");
+	deserialize(*serializer);
 
-	if(mUserProfile.contains("mail"))
-		mMail = mUserProfile.get("mail");
+	mProfileFile->close();
 
-	if(mUserProfile.contains("twitter"))
-		mTwitter = mUserProfile.get("twitter");
+}
 
-	if(mUserProfile.contains("facebook"))
-		mFacebook = mUserProfile.get("facebook");
+void User::Profile::save()
+{
 
-	if(mUserProfile.contains("phone"))
-		mPhone = mUserProfile.get("phone");
+	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+	//serializer = new YamlSerializer(mProfileFile);
 
-	if(mUserProfile.contains("college"))
-		mCollege = mUserProfile.get("college");
+	serializer->output(*this);
 
-	if(mUserProfile.contains("university"))
-		mUniversity = mUserProfile.get("university");
+	mProfileFile->close();
 
-	if(mUserProfile.contains("job"))
-		mJob = mUserProfile.get("job");
-
-	if(mUserProfile.contains("internship"))
-		mInternship = mUserProfile.get("internship");
-
-	if(mUserProfile.contains("books"))
-		mBooks = mUserProfile.get("books");
-
-	if(mUserProfile.contains("movies"))
-		mMovies = mUserProfile.get("movies");
-
-	if(mUserProfile.contains("hobbies"))
-		mHobbies = mUserProfile.get("hobbies");
-
-	if(mUserProfile.contains("politics"))
-		mPolitics = mUserProfile.get("politics");
-
-	if(mUserProfile.contains("computer"))
-		mComputer = mUserProfile.get("computer");
-
-	if(mUserProfile.contains("resume"))
-		mResume = mUserProfile.get("resume");
-
-	if(mUserProfile.contains("profilephoto"))
-		mProfilePhoto = mUserProfile.get("profilephoto");
 }
 
 void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field)
 {
-	if(field!="emptyfield")
+	if(field!="emptyField")
 	{
 		page.open("div",fieldName+"div.profileinfo");
 		page.text(fieldText+showPunctuation);
@@ -395,77 +421,46 @@ void User::Profile::displayProfileInfo(Html &page, const String &fieldText, cons
 
 void User::Profile::updateField(String &key, String &value)
 {
-	// Read the file to get the stringMap
-	StringMap mUserProfile = getmUserStringMap();
 
-	// Replace with new stringMap
-	if(mUserProfile.contains(key))
-		mUserProfile.erase(key);
-	mUserProfile[key] << value;
-
-	// Write to file
-
-	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
-
-	serializer = new YamlSerializer(mProfileFile);
-
-	SerializableMap<String,StringMap> usersProfile;
-	String userName = mUser->name();
-	usersProfile.insert(userName, mUserProfile);
-
-	serializer->output(usersProfile);
-	mProfileFile->close();
+	// TODO
+	save();
 	
 }
 
 void User::Profile::initializeFile()
 {
-	SafeWriteFile *mProfileFile = new SafeWriteFile(mProfileFileName);
+	// TODO : Do the same thing without repeating "emtyfield" 30 times ?
 
-	serializer = new YamlSerializer(mProfileFile);
+	mFirstName= mEmptyField;
+	mMiddleName= mEmptyField;
+	mLastName= mEmptyField;
+	mBirthday= mEmptyField;
+	mGender= mEmptyField;
+	mReligion= mEmptyField;
+	mRelationship= mEmptyField;
+	mDescription= mEmptyField;
+	mStatus= mEmptyField;
 
-	SerializableMap<String,StringMap> usersProfile;
-	StringMap fields;
-	fields["status"] << "emptyfield";
-	fields["profilephoto"] << "emptyfield";
+	mCity= mEmptyField;
+	mAddress= mEmptyField;
+	mMail= mEmptyField;
+	mTwitter= mEmptyField;
+	mFacebook= mEmptyField;
+	mPhone= mEmptyField;
+	mCollege= mEmptyField;
+	mUniversity= mEmptyField;
+	mJob= mEmptyField;
+	mProfilePhoto= mEmptyField;
+	mBooks= mEmptyField;
+	mHobbies= mEmptyField;
+	mMovies= mEmptyField;
+	mPolitics= mEmptyField;
+	mInternship= mEmptyField;
+	mComputer= mEmptyField;
+	mResume= mEmptyField;
 
-	fields["firstname"] << "emptyfield";
-	fields["middlename"] << "emptyfield";
-	fields["lastname"] << "emptyfield";
-	fields["birthday"] << "emptyfield";
-	fields["gender"] << "emptyfield";
-	fields["relationship"] << "emptyfield";
+	save();
 
-	fields["city"] << "emptyfield";
-	fields["address"] << "emptyfield";
-	fields["mail"] << "emptyfield";
-	fields["twitter"] << "emptyfield";
-	fields["facebook"] << "emptyfield";
-	fields["phone"] << "emptyfield";
-
-	fields["college"] << "emptyfield";
-	fields["university"] << "emptyfield";
-
-	fields["job"] << "emptyfield";
-	fields["computer"] << "emptyfield";
-	fields["resume"] << "emptyfield";
-	fields["internship"] << "emptyfield";
-
-	fields["religion"] << "emptyfield";
-	fields["books"] << "emptyfield";
-	fields["movies"] << "emptyfield";
-	fields["hobbies"] << "emptyfield";
-	fields["politics"] << "emptyfield";
-
-	fields["description"] << "emptyfield";
-	
-	
-
-	String userName = mUser->name();
-	usersProfile.insert(userName, fields);
-
-	serializer->output(usersProfile);
-	mProfileFile->close();
 }
 
 void User::Profile::http(const String &prefix, Http::Request &request)
@@ -509,22 +504,10 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header(APPNAME, true);
 
-
-			// Pour tests : écrire dans le fichier quelques champs tests
-			try
-			{
-				//initializeFile();
-			}
-			catch(IOException &e)
-			{
-				// TODO : log
-				return;
-			}
-
 			try
 			{
 
-				deserialize();
+				load();
 
 				page.header("My profile : "+mUser->name());
 

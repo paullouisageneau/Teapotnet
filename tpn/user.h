@@ -65,23 +65,30 @@ public:
 	
 	void http(const String &prefix, Http::Request &request);
 
-	class Profile : public HttpInterfaceable
+	class Profile : public HttpInterfaceable, public Serializable
 	{
 		public:
 			Profile(User *user);
 			~Profile(void);
 			void http(const String &prefix, Http::Request &request);
-			void deserialize(void);
+			void save(void);
+			void load(void);
+			void serialize(Serializer &s) const;
+			bool deserialize(Serializer &s);
+			Serializer::ObjectMapping loadToObjectMapping(void);
 			void displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field);
 			void displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field);
 			void updateField(String &key, String &value);
 			void initializeFile(void);
 			StringMap getmUserStringMap(void);
+			String profileInfoPath(void) const;
 
 		private:
 			String mProfileFileName;
 			User *mUser;
 			YamlSerializer *serializer;
+
+			String mEmptyField;
 
 			String mFirstName;
 			String mMiddleName;
