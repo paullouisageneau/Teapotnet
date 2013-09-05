@@ -255,7 +255,7 @@ User::Profile::Profile(User *user):
 
 	if(!File::Exist(mProfileFileName))
 	{
-		initializeFile();
+		//initializeFile();
 	}
 	Interface::Instance->add("/"+mUser->name()+"/profile", this);
 }
