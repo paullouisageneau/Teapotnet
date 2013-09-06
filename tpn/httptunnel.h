@@ -45,15 +45,18 @@ public:
 	class Client : protected Synchronizable, public Stream, public ByteStream
 	{
 	public:
-		Client(const Address &a);
+		Client(const Address &a, double timeout = -1.); // timeout used for first connection only
 		~Client(void);
 
+		void close(void);
+		
 		// Stream, ByteStream
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
 		
 	private:
+		void writePaddingUntil(size_t left);
 		void updatePostSize(size_t left);
 		
 		Address mAddress;
@@ -61,12 +64,15 @@ public:
 		ByteStream::FlushTask mFlushTask;
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
+		double mConnTimeout;
 	};
 	
 	class Server : protected Synchronizable, public Stream, public ByteStream
 	{
 	public:
 		~Server(void);
+		
+		void close(void);
 		
 		// Stream, ByteStream
                 size_t readData(char *buffer, size_t size);

@@ -37,7 +37,7 @@ class Socket : public Stream, public ByteStream
 public:
 	using Stream::ignore;
 
-	static void Transfert(Socket *sock1, Socket *sock2);
+	static void Transfer(Socket *sock1, Socket *sock2);
 	
 	Socket(void);
 	Socket(const Address &a, double timeout = -1.);
@@ -56,7 +56,13 @@ public:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
+	// Socket-specific
+	size_t peekData(char *buffer, size_t size);
+
 private:
+	size_t recvData(char *buffer, size_t size, int flags);
+        void sendData(const char *data, size_t size, int flags);
+
 	socket_t mSock;
 	double mTimeout;
 	

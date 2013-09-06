@@ -75,6 +75,7 @@ public:
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
+	bool addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
 	bool addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
@@ -91,7 +92,7 @@ private:
 	class Handler : public Thread, public Synchronizable
 	{
 	public:
-		Handler(Core *core, Socket *sock);
+		Handler(Core *core, ByteStream *bs, const Address &remoteAddr);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
@@ -120,7 +121,7 @@ private:
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
-		Socket  *mSock;
+		ByteStream  *mRawStream;
 		Stream  *mStream;
 		Address mRemoteAddr;
 		bool mIsIncoming;

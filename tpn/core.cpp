@@ -23,6 +23,7 @@
 #include "tpn/html.h"
 #include "tpn/sha512.h"
 #include "tpn/aescipher.h"
+#include "tpn/httptunnel.h"
 #include "tpn/config.h"
 
 namespace tpn
@@ -123,9 +124,9 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
+bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
 {
-	Assert(sock);
+	Assert(bs);
 	Synchronize(this);
 	
 	bool hasPeering = (peering != Identifier::Null);
@@ -136,7 +137,7 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 	{
 		Desynchronize(this);
 		LogDebug("Core", "Spawning new handler");
-		Handler *handler = new Handler(this, sock);
+		Handler *handler = new Handler(this, bs, remoteAddr);
 		if(hasPeering) handler->setPeering(peering);
 
 		if(async)
@@ -154,6 +155,11 @@ bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 			return handler->isAuthenticated();
 		}
 	}
+}
+
+bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
+{
+	return addPeer(static_cast<ByteStream*>(sock), sock->getRemoteAddress(), peering, async);
 }
 
 bool Core::hasPeer(const Identifier &peering)
@@ -187,14 +193,34 @@ void Core::run(void)
 	try {
 		while(true)
 		{
+			Thread::Sleep(0.01);
+
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			
+			const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
+			sock->setTimeout(readTimeout);		
+
 			Address addr = sock->getRemoteAddress();
 			LogInfo("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
-			addPeer(sock, Identifier::Null, true);	// async
-			Thread::Sleep(0.25);
+
+			ByteStream *bs = sock;
+		
+			// TODO: this is not a clean way to proceed
+			const size_t peekSize = 5;	
+			char peekData[peekSize];
+			sock->peekData(peekData, peekSize);
+
+			if(std::memcmp(peekData, "GET ", 4) == 0
+				|| std::memcmp(peekData, "POST ", 5) == 0)
+			{
+				// This is HTTP, forward connection to HttpTunnel
+				ByteStream *bs = HttpTunnel::Incoming(sock);
+				if(!bs) continue;
+			}
+
+			addPeer(bs, addr, Identifier::Null, true);	// async
 		}
 	}
 	catch(const NetException &e)
@@ -410,23 +436,24 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Socket *sock) :
+Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
 	mCore(core),
-	mSock(sock),
-	mStream(sock),
+	mRawStream(bs),
+	mStream(NULL),
+	mRemoteAddr(remoteAddr),
 	mSender(NULL),
 	mIsIncoming(true),
 	mIsAuthenticated(false),
 	mStopping(false)
 {
-	mRemoteAddr = mSock->getRemoteAddress();
+
 }
 
 Core::Handler::~Handler(void)
 {	
-	if(mSender) delete mSender;
-	if(mStream != mSock) delete mStream;
-	delete mSock;
+	delete mSender;
+	delete mStream;
+	delete mRawStream;
 }
 
 void Core::Handler::setPeering(const Identifier &peering)
@@ -521,9 +548,10 @@ void Core::Handler::process(void)
   
 	try {
 		Synchronize(this);
-		LogInfo("Core::Handler", String("Starting for ") + mSock->getRemoteAddress().toString());
+		LogInfo("Core::Handler", "Starting...");
 	  
-		mSock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
+		// TODO
+		//mRawStream->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
 		
 		// Set up obfuscation cipher
 		ByteString tmpkey;
@@ -532,7 +560,7 @@ void Core::Handler::process(void)
 		tmpkey.resize(32);	// 256 bits
 		tmpiv.ignore(32);
 		
-		AesCipher *cipher = new AesCipher(mSock);
+		AesCipher *cipher = new AesCipher(mRawStream);
 		cipher->setEncryptionKey(tmpkey);
 		cipher->setEncryptionInit(tmpiv);
 		cipher->setDecryptionKey(tmpkey);
@@ -681,19 +709,19 @@ void Core::Handler::process(void)
 						
 					if(otherHandler)
 					{
-						Stream *otherStream = NULL;
-						Socket *otherSock   = NULL;
+						Stream     *otherStream    = NULL;
+						ByteStream *otherRawStream = NULL;
 					  
 						{
 							Synchronize(otherHandler);
 							
-							otherStream = otherHandler->mStream;
-							otherSock   = otherHandler->mSock;
-							otherHandler->mStream = NULL;
-							otherHandler->mSock   = NULL;
+							otherStream    = otherHandler->mStream;
+							otherRawStream = otherHandler->mRawStream;
+							otherHandler->mStream      = NULL;
+							otherHandler->mRawStream   = NULL;
 							
-							mSock->writeBinary(otherHandler->mObfuscatedHello);
-							otherSock->writeBinary(mObfuscatedHello);
+							mRawStream->writeBinary(otherHandler->mObfuscatedHello);
+							otherRawStream->writeBinary(mObfuscatedHello);
 							mObfuscatedHello.clear();
 						
 							otherHandler->notifyAll();
@@ -703,13 +731,11 @@ void Core::Handler::process(void)
 						
 						LogInfo("Core::Handler", "Successfully forwarded connection");
 						
-						// Transfert
-						Socket::Transfert(mSock, otherSock);
-						otherSock->close();
-						mSock->close();
+						// Transfer
+						ByteStream::Transfer(mRawStream, otherRawStream);
 						
-						if(otherStream != otherSock) delete otherStream;
-						delete otherSock;
+						delete otherStream;
+						delete otherRawStream;
 					}
 					else {
 						LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
@@ -799,7 +825,7 @@ void Core::Handler::process(void)
 		
 		// Set up new cipher for the connection
 		delete cipher;
-		cipher = new AesCipher(mSock);
+		cipher = new AesCipher(mRawStream);
 		cipher->setEncryptionKey(key_a);
 		cipher->setEncryptionInit(iv_a);
 		cipher->setDecryptionKey(key_b);
@@ -820,13 +846,11 @@ void Core::Handler::process(void)
 	catch(const IOException &e)
 	{
 		LogDebug("Core::Handler", "Handshake aborted");
-		mSock->close();
 		return;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("Core::Handler", String("Handshake failed: ") + e.what()); 
-		mSock->close();
 		return;
 	}
 	
@@ -835,7 +859,6 @@ void Core::Handler::process(void)
 		if(!mCore->addHandler(mPeering,this))
 		{
 			LogDebug("Core::Handler", "Duplicate handler for the peering, exiting."); 
-			mSock->close();
 			return;
 		}
 		
@@ -847,11 +870,12 @@ void Core::Handler::process(void)
 		mSender->mStream = mStream;
 		mSender->start();
 	  
-		const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
-		
 		Identifier peering;
 		SynchronizeStatement(this, peering = mPeering);
-		SynchronizeStatement(this, mSock->setTimeout(readTimeout));
+		
+		// TODO
+		//const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
+		//SynchronizeStatement(this, mRawStream->setTimeout(readTimeout));
 		
 		Listener *listener = NULL;
 		if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))

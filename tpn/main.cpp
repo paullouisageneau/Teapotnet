@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 		unsigned appVersion = String(APPVERSION).dottedToInt();
 		Assert(appVersion != 0);
 		Assert(argc >= 1);
-		
+
 		StringMap args;
 		String last;
 		String commandLine;
@@ -272,6 +272,12 @@ int main(int argc, char** argv)
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("http_proxy", "");
 		Config::Default("http_proxy_connect", "true");
+
+#ifdef ANDROID
+		Config::Default("force_http_tunnel", "true");
+#else
+		Config::Default("force_http_tunnel", "false");
+#endif
 	
 #ifdef ANDROID
 		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);

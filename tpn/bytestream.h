@@ -35,6 +35,8 @@ class Pipe;
 class ByteStream
 {
 public:
+	static void Transfer(ByteStream *bs1, ByteStream *bs2); // Warning: performance issue: uses 2 threads
+
 	ByteStream(void);
 	virtual ~ByteStream(void);
 
@@ -82,7 +84,7 @@ public:
 
 	void writeZero(size_t size = 1);	
 	void writeRandom(size_t size = 1);
-	
+
 	// Handy task to schedule flushing
 	class FlushTask : public Task
         {

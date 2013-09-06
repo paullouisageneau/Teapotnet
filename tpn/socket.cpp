@@ -27,7 +27,7 @@
 namespace tpn
 {
 
-void Socket::Transfert(Socket *sock1, Socket *sock2)
+void Socket::Transfer(Socket *sock1, Socket *sock2)
 {
 	Assert(sock1);
 	Assert(sock2);
@@ -214,38 +214,53 @@ void Socket::close(void)
 
 size_t Socket::readData(char *buffer, size_t size)
 {
-	if(mTimeout > 0.)
-	{
-		fd_set readfds;
-		FD_ZERO(&readfds);
-		FD_SET(mSock, &readfds);
-
-		struct timeval tv;
-		Time::SecondsToStruct(mTimeout, tv);
-		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
-
-		if (ret == -1) throw Exception("Unable to wait on socket");
-		if (ret ==  0) throw Timeout();
-	}
-	
-	int count = ::recv(mSock,buffer,size,0);
-	if(count < 0) throw NetException("Connection lost");
-	if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-	return count;
+	return recvData(buffer, size, 0);
 }
 
 void Socket::writeData(const char *data, size_t size)
 {
-	while(size)
-	{
-		int count = ::send(mSock, data, size, 0);
-		if(count == 0) throw NetException("Connection closed");
-		if(count < 0)  throw NetException("Connection lost");
-		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-		
-		data+= count;
-		size-= count;
-	}
+	sendData(data, size, 0);
+}
+
+size_t Socket::peekData(char *buffer, size_t size)
+{
+        return recvData(buffer, size, MSG_PEEK);
+}
+
+size_t Socket::recvData(char *buffer, size_t size, int flags)
+{
+        if(mTimeout > 0.)
+        {
+                fd_set readfds;
+                FD_ZERO(&readfds);
+                FD_SET(mSock, &readfds);
+
+                struct timeval tv;
+                Time::SecondsToStruct(mTimeout, tv);
+                int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+
+                if (ret == -1) throw Exception("Unable to wait on socket");
+                if (ret ==  0) throw Timeout();
+        }
+
+        int count = ::recv(mSock, buffer, size, flags);
+        if(count < 0) throw NetException("Connection lost");
+        if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
+        return count;
+}
+
+void Socket::sendData(const char *data, size_t size, int flags)
+{
+        while(size)
+        {
+                int count = ::send(mSock, data, size, flags);
+                if(count == 0) throw NetException("Connection closed");
+                if(count < 0)  throw NetException("Connection lost");
+                if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
+
+                data+= count;
+                size-= count;
+        }
 }
 
 }

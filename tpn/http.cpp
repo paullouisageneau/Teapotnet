@@ -474,7 +474,8 @@ Http::Response::Response(const Request &request, int code)
 	this->code = code;
 	this->version = request.version;
 	this->sock = request.sock;
-	this->headers["Content-Type"] = "text/html; charset=UTF-8";
+	if(code != 204)
+		this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 
 void Http::Response::send(void)
@@ -726,22 +727,20 @@ int Http::Get(const String &url, Stream *output)
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 
-	String proxy = Config::Get("http_proxy").trimmed();
-        if(!proxy.empty()) 
-	{
-		host = proxy;
-		request.url = url;              // Full URL for proxy
-	}
-
+	Address addr;
+	bool hasProxy = Config::GetProxyForUrl(url, addr);
+	if(hasProxy) request.url = url;		// Full URL for proxy
+	else addr.fromString(host);
+	
 	Socket sock;
 	sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
 	try {
-		sock.connect(host, true);	// Connect without proxy
+		sock.connect(addr, true);	// Connect without proxy
 		request.send(sock);
 	}
 	catch(const NetException &e)
 	{
-		if(!proxy.empty()) LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+		if(hasProxy) LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
 		throw;
 	}
 
@@ -772,22 +771,20 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 	
-	String proxy = Config::Get("http_proxy").trimmed();
-        if(!proxy.empty())
-	{
-		host = proxy;
-		request.url = url;              // Full URL for proxy
-	}
+	Address addr;
+        bool hasProxy = Config::GetProxyForUrl(url, addr);
+        if(hasProxy) request.url = url;		// Full URL for proxy
+        else addr.fromString(host);
 
 	Socket sock;
         sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
 	try {
-                sock.connect(host, true);       // Connect without proxy
+                sock.connect(addr, true);       // Connect without proxy
                 request.send(sock);
         }
         catch(const NetException &e)
         {
-                if(!proxy.empty()) LogWarn("Http::Get", String("WARNING: HTTP proxy error: ") + e.what());
+                if(hasProxy) LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
                 throw;
         }
 

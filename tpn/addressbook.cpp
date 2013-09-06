@@ -30,6 +30,7 @@
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/portmapping.h"
+#include "tpn/httptunnel.h"
 #include "tpn/mime.h"
 
 namespace tpn
@@ -895,24 +896,41 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
+	// Warning: NOT synchronized !
+	
 	if(addr.isNull()) return false;
 	if(instance == Core::Instance->getName()) return false;
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 	
-	Identifier peering(mPeering, instance);
-	bool added = false;
-	try {
-		Desynchronize(this);
-		Socket *sock = new Socket(addr, 2000);	// TODO: timeout
-		added = Core::Instance->addPeer(sock, peering);
-	}
-	catch(...)
+	Identifier peering(this->peering(), instance);
+	ByteStream *bs = NULL;
+
+	if(!Config::Get("force_http_tunnel").toBool())
 	{
-		return false;
+		try {
+			bs = new Socket(addr, 2000);	// TODO: timeout
+		}
+		catch(...)
+		{
+		
+		}
 	}
 
-	if(added)
+	if(!bs)
+	{
+		try {
+			bs = new HttpTunnel::Client(addr, 2000);
+		}
+		catch(...)
+		{
+		
+		}
+	}
+
+	if(!bs) return false;
+
+	if(Core::Instance->addPeer(bs, addr, peering))
 	{
 		if(save)
 		{
@@ -925,7 +943,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		// A node is running at this address but the user does not exist
 		if(save && mAddrs.contains(instance)) 
 		{
-			mAddrs[instance].erase(addr);
+			SynchronizeStatement(this, mAddrs[instance].erase(addr));
 			SynchronizeStatement(mAddressBook, mAddressBook->save());
 		}
 		return false;
@@ -934,6 +952,8 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
 {
+	// Warning: NOT synchronized !
+	
 	bool success = false;
 	for(AddressMap::const_iterator it = map.begin();
 		it != map.end();
@@ -956,7 +976,7 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 		block.getKeys(addrs);
 		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
 		
-		LogDebug("AddressBook::Contact", "Connecting instance " + instance + " for " + mName + " (" + String::number(addrs.size()) + " address(es))...");
+		LogDebug("AddressBook::Contact", "Connecting instance " + instance + " for " + name() + " (" + String::number(addrs.size()) + " address(es))...");
 		
 		for(Array<Address>::const_reverse_iterator jt = addrs.rbegin();
 			jt != addrs.rend();
@@ -1019,14 +1039,15 @@ void AddressBook::Contact::update(bool alternate)
 	{
 		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		else LogDebug("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		
 		mFound = true;
-		connectAddresses(newAddrs, !alternate, alternate);
+		DesynchronizeStatement(this, connectAddresses(newAddrs, !alternate, alternate));
 	}
 	else if(!alternate) 
 	{
 		mFound = false;
 		AddressMap tmpAddrs(mAddrs);
-		connectAddresses(tmpAddrs, true, false);
+		DesynchronizeStatement(this, connectAddresses(tmpAddrs, true, false));
 	}
 	
 	AddressMap::iterator it = mAddrs.begin();

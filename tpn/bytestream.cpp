@@ -24,9 +24,31 @@
 #include "tpn/serializable.h"
 #include "tpn/byteserializer.h"
 #include "tpn/bytestring.h"
+#include "tpn/thread.h"
 
 namespace tpn
 {
+
+void ByteStream::Transfer(ByteStream *bs1, ByteStream *bs2)
+{
+	class TransferThread : public Thread
+        {
+        public:
+                TransferThread(ByteStream *src, ByteStream *dst) { this->src = src; this->dst = dst; }
+                void run(void) { src->readBinary(*dst); }
+        private:
+                ByteStream *src, *dst;
+        };
+
+	Assert(bs1);
+	Assert(bs2);
+
+	TransferThread thread(bs2, bs1);
+	thread.start();
+
+	bs1->readBinary(*bs2);
+	thread.join();
+}
 
 ByteStream::ByteStream(void)
 {

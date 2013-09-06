@@ -136,4 +136,19 @@ void Config::GetExternalAddresses(List<Address> &list)
 	}
 }
 
+bool Config::GetProxyForUrl(const String &url, Address &addr)
+{
+	// TODO; get proxy from OS
+
+	String proxy = Get("http_proxy").trimmed();
+        if(!proxy.empty())
+        {
+                addr.fromString(proxy);
+                return true;
+        }
+
+	return false;
 }
+
+}
+

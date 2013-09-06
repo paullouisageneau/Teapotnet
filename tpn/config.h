@@ -43,6 +43,7 @@ public:
 	static void Save(const String &filename);
 	
 	static void GetExternalAddresses(List<Address> &list);
+	static bool GetProxyForUrl(const String &url, Address &proxy);
 	
 private:
 	static StringMap Params;
