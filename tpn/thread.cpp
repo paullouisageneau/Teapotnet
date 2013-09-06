@@ -63,6 +63,7 @@ void Thread::start(bool autoDelete)
 	if(!mJoined) join();
 
 	mJoined = mAutoDelete = autoDelete;
+	mRunning = true;
 
 	if(pthread_create(&mThread, NULL, &ThreadRun, reinterpret_cast<void*>(this)) != 0)
 		throw Exception("Thread creation failed");
@@ -77,6 +78,7 @@ void Thread::start(Thread::Wrapper *wrapper)
 	if(!mJoined) join();
 	mJoined = false;
 	mAutoDelete = false;
+	mRunning = true;
 
 	if(pthread_create(&mThread, NULL, &ThreadCall, reinterpret_cast<void*>(wrapper)) != 0)
 		throw Exception("Thread creation failed");
