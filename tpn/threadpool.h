@@ -36,7 +36,7 @@ public:
 	ThreadPool(unsigned min = 1,
 		   unsigned max = 0,
 		   unsigned limit = 0);	// 0 means unlimited
-	~ThreadPool(void);
+	virtual ~ThreadPool(void);
 	
 	void launch(Task *task);
 	void join(void);
