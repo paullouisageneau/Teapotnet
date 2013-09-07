@@ -185,12 +185,18 @@ void HttpTunnel::Client::close(void)
 
 	Scheduler::Global->remove(&mFlushTask);
 	
-	if(mUpSock && mUpSock->isConnected())
-	{	
-		writePaddingUntil(2);
-		mUpSock->writeBinary(TunnelClose);
-		mUpSock->writeBinary(TunnelDisconnect);
-		mPostLeft = 0;
+	try {
+		if(mUpSock && mUpSock->isConnected())
+		{	
+			writePaddingUntil(2);
+			mUpSock->writeBinary(TunnelClose);
+			mUpSock->writeBinary(TunnelDisconnect);
+			mPostLeft = 0;
+		}
+	}
+	catch(const NetException &e)
+	{
+		// Ignored
 	}
 	
 	delete mDownSock; mDownSock = NULL;
