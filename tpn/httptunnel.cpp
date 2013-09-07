@@ -44,7 +44,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 	try {
 		try {
 			sock->setTimeout(ReadTimeout);
-			request.recv(*sock);
+			request.recv(*sock, false); // POST content is not parsed
 		
 			uint32_t session = 0;
 

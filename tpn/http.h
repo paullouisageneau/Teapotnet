@@ -43,7 +43,7 @@ public:
 		~Request(void);
 		
 		void send(Socket &sock);
-		void recv(Socket &sock);
+		void recv(Socket &sock, bool parsePost = true);
 		void clear(void);
 		bool extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t contentLength = -1) const;
 		
