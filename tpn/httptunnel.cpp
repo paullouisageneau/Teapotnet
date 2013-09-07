@@ -202,7 +202,7 @@ void HttpTunnel::Client::close(void)
 
 size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 {
-	// Warning: No synchronization for reading
+	Synchronize(this);
 
 	if(!mDownSock) mDownSock = new Socket;
 
@@ -258,6 +258,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		if(!size) return 0;
 
 		try {
+			Desynchronize(this);
 			size_t ret = mDownSock->readData(buffer, size);
 			if(ret) return ret;
 		}
@@ -449,7 +450,7 @@ void HttpTunnel::Server::close(void)
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 {
-	// Warning: No synchronization for reading
+	Synchronize(this);
 	
 	while(!mPostBlockLeft)
 	{
@@ -467,16 +468,21 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		}
 
 		uint8_t command;
-		if(!mUpSock->readBinary(command))
-		{
-			if(mClosed) return 0;
-			continue;
-		}
-
 		uint16_t len = 0;
-		if(!(command & 0x40))
-			if(!mUpSock->readBinary(len))
+		
+		{
+			Desynchronize(this);
+
+			if(!mUpSock->readBinary(command))
+			{
+				if(mClosed) return 0;
 				continue;
+			}
+			
+			if(!(command & 0x40))
+				if(!mUpSock->readBinary(len))
+					continue;
+		}
 
 		switch(command)
 		{
@@ -485,8 +491,11 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			break;
 
 		case TunnelPadding:
+		{
+			Desynchronize(this);
 			mUpSock->ignore(len);
 			break;
+		}
 
 		case TunnelPad:
 			// Do nothing
@@ -497,14 +506,14 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			break;
 
 		case TunnelDisconnect:
-			{
-				Http::Response response(mUpRequest, 204);	// no content
-				response.send(*mUpSock);
-				mUpRequest.clear();
-                		delete mUpSock;
-                		mUpSock = NULL;
-				break;
-			}
+		{
+			Http::Response response(mUpRequest, 204);	// no content
+			response.send(*mUpSock);
+			mUpRequest.clear();
+			delete mUpSock;
+			mUpSock = NULL;
+			break;
+		}
 
 		default:
 			LogWarn("HttpTunnel::Server", "Unknown command: " + String::hexa(command));	
@@ -517,8 +526,12 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 	
 	size = std::min(size, mPostBlockLeft);
 	
-	if(mUpSock->readData(buffer, size) != size)
-		throw NetException("Connection lost");
+	{
+		Desynchronize(this);
+		
+		if(mUpSock->readData(buffer, size) != size)
+			throw NetException("Connection lost");
+	}
 	
 	mPostBlockLeft-= size;
 }
