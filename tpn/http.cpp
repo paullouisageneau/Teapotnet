@@ -138,7 +138,7 @@ void Http::Request::send(Socket &sock)
 		sock<<postData;
 }
 
-void Http::Request::recv(Socket &sock)
+void Http::Request::recv(Socket &sock, bool parsePost)
 {
 	this->sock = &sock;
 
@@ -217,7 +217,7 @@ void Http::Request::recv(Socket &sock)
 	}
 	
 	// Read post variables
-	if(method == "POST")
+	if(method == "POST" && parsePost)
 	{
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");

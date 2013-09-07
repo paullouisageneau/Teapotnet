@@ -198,29 +198,35 @@ void Core::run(void)
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			
-			const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
-			sock->setTimeout(readTimeout);		
-
 			Address addr = sock->getRemoteAddress();
 			LogInfo("Core", "Incoming connection from " + addr.toString());
 			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 
-			ByteStream *bs = sock;
-		
-			// TODO: this is not a clean way to proceed
-			const size_t peekSize = 5;	
-			char peekData[peekSize];
-			sock->peekData(peekData, peekSize);
+			try {
+				// TODO: this is not a clean way to proceed
+				const size_t peekSize = 5;	
+				char peekData[peekSize];
+				sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
+				if(sock->peekData(peekData, peekSize) != peekSize)
+					continue;
+	
+				sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
 
-			if(std::memcmp(peekData, "GET ", 4) == 0
-				|| std::memcmp(peekData, "POST ", 5) == 0)
-			{
-				// This is HTTP, forward connection to HttpTunnel
-				ByteStream *bs = HttpTunnel::Incoming(sock);
-				if(!bs) continue;
+				ByteStream *bs = sock;
+				if(std::memcmp(peekData, "GET ", 4) == 0
+					|| std::memcmp(peekData, "POST ", 5) == 0)
+				{
+					// This is HTTP, forward connection to HttpTunnel
+					ByteStream *bs = HttpTunnel::Incoming(sock);
+					if(!bs) continue;
+				}
+
+				addPeer(bs, addr, Identifier::Null, true);	// async
 			}
-
-			addPeer(bs, addr, Identifier::Null, true);	// async
+			catch(const Exception &e)
+			{
+				LogDebug("Core::run", String("Processing failed: ") + e.what());
+			}
 		}
 	}
 	catch(const NetException &e)
