@@ -188,7 +188,6 @@ void HttpTunnel::Client::close(void)
 	if(mUpSock && mUpSock->isConnected())
 	{	
 		writePaddingUntil(2);
-		Assert(mPostLeft == 2);
 		mUpSock->writeBinary(TunnelClose);
 		mUpSock->writeBinary(TunnelDisconnect);
 		mPostLeft = 0;
