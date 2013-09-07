@@ -229,6 +229,8 @@ size_t Socket::peekData(char *buffer, size_t size)
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
+	if(!size) return 0;
+	
         if(mTimeout > 0.)
         {
                 fd_set readfds;

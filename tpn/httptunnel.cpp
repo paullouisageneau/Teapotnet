@@ -30,8 +30,8 @@ namespace tpn
 String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:23.0) Gecko/23.0 Firefox/23.0";	// mobile is important
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
 size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
-double HttpTunnel::ConnTimeout = 10.;
-double HttpTunnel::ReadTimeout = 5.;
+double HttpTunnel::ConnTimeout = 20.;
+double HttpTunnel::ReadTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.5;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
@@ -100,7 +100,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					
 					uint8_t command;
 					AssertIO(sock->readBinary(command));
-					if(!command == TunnelOpen)
+					if(command != TunnelOpen)
 					{
 						// Remote implementation is probably bogus
 						LogWarn("HttpTunnel::Incoming", "Invalid tunnel opening sequence");
@@ -202,7 +202,7 @@ void HttpTunnel::Client::close(void)
 
 size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
+	// Warning: No synchronization for reading
 
 	if(!mDownSock) mDownSock = new Socket;
 
@@ -210,6 +210,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 	{
 		if(!mDownSock->isConnected())
 		{
+			LogDebug("HttpTunnel::Client::readData", "Connecting...");
+			
 			String url;
                         url<<"http://"<<mAddress<<"/"<<String::random(8);
 
@@ -244,12 +246,12 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			}
 			
 			String cookie;
-                        if(request.cookies.get("session", cookie))
+                        if(response.cookies.get("session", cookie))
                                 cookie.extract(mSession);
 
 			if(!mSession)
 			{
-				throw NetException("HTTP transaction failed: invalid cookie");
+				throw NetException("HTTP transaction failed: Invalid cookie");
 			}
 		}
 	
@@ -285,6 +287,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 	{
 		if(!mUpSock->isConnected())
 		{
+			LogDebug("HttpTunnel::Client::writeData", "Connecting...");
+			
 			String url;
                         url<<"http://"<<mAddress<<"/"<<String::random(8);
 
@@ -308,10 +312,12 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
                                 throw;
                         }
 
-			mUpSock->setTimeout(ReadTimeout);			
+			mUpSock->setTimeout(ReadTimeout);
+			mPostLeft = mPostSize;
+			
 			mUpSock->writeBinary(TunnelOpen);
 			mUpSock->writeBinary(uint16_t(0));	// no auth data
-			mPostLeft = mPostSize;
+			mPostLeft-= 3;
 		}
 	
 		if(mPostLeft >= 4)
@@ -335,7 +341,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		
 		if(mPostLeft <= 1)
 		{
-			if(mPostLeft == 1) mUpSock->writeBinary(TunnelDisconnect);
+			mUpSock->writeBinary(TunnelDisconnect);
 			mPostLeft = 0;
 			updatePostSize(0);
 			
@@ -352,16 +358,24 @@ void HttpTunnel::Client::flush(void)
 {
 	Synchronize(this);
 
-	if(mUpSock && mUpSock->isConnected())
-	{	
-		updatePostSize(mPostLeft);
-		writePaddingUntil(1);
-		if(mPostLeft == 1) mUpSock->writeBinary(TunnelDisconnect);
-		mPostLeft = 0;
-
-		Http::Response response;
-		response.recv(*mUpSock);
-		mUpSock->close();
+	try {
+		if(mUpSock && mUpSock->isConnected())
+		{
+			LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
+			
+			updatePostSize(mPostLeft);
+			writePaddingUntil(1);
+			mUpSock->writeBinary(TunnelDisconnect);
+			mPostLeft = 0;
+			
+			Http::Response response;
+			response.recv(*mUpSock);
+			mUpSock->close();
+		}
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("HttpTunnel::Client::flush", e.what());
 	}
 }
 
@@ -372,7 +386,7 @@ void HttpTunnel::Client::writePaddingUntil(size_t left)
 	
 	while(mPostLeft >= left + 4)
 	{
-		size_t len = std::min(mPostLeft-3, size_t(0xFFFF));
+		size_t len = std::min(mPostLeft-left-3, size_t(0xFFFF));
 		mUpSock->writeBinary(TunnelPadding);    // 1 byte
 		mUpSock->writeBinary(uint16_t(len));    // 2 bytes
 		mUpSock->writeZero(len);
@@ -435,8 +449,8 @@ void HttpTunnel::Server::close(void)
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
-
+	// Warning: No synchronization for reading
+	
 	while(!mPostBlockLeft)
 	{
 		if(mUpSock && !mUpSock->isConnected())
@@ -502,6 +516,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 	Assert(mUpSock);
 	
 	size = std::min(size, mPostBlockLeft);
+	
 	if(mUpSock->readData(buffer, size) != size)
 		throw NetException("Connection lost");
 	
@@ -535,11 +550,19 @@ void HttpTunnel::Server::flush(void)
 {
 	Synchronize(this);
 
-        if(mDownSock && mDownSock->isConnected())
-        {
-		delete mDownSock;
-		mDownSock = NULL;
+	try {
+		if(mDownSock && mDownSock->isConnected())
+		{
+			LogDebug("HttpTunnel::Server::flush", "Flushing...");
+			
+			delete mDownSock;
+			mDownSock = NULL;
+		}
         }
+	catch(const Exception &e)
+	{
+		LogWarn("HttpTunnel::Server::flush", e.what());
+	}
 }
 
 }

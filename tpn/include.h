@@ -359,7 +359,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	if(tmp.size() < 25) oss<<std::string(25-tmp.size(), ' ');
 	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' ';
 #endif
-	oss<<std::setw(25)<<prefix<<' '<<std::setw(8)<<strLevel<<' '<<value;
+	oss<<std::setw(30)<<prefix<<' '<<std::setw(8)<<strLevel<<' '<<value;
 
 	LogMutex.lock();
 	

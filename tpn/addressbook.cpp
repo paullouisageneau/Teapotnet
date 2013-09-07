@@ -911,9 +911,9 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		try {
 			bs = new Socket(addr, 2000);	// TODO: timeout
 		}
-		catch(...)
+		catch(const Exception &e)
 		{
-		
+			LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
 		}
 	}
 
@@ -922,9 +922,9 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		try {
 			bs = new HttpTunnel::Client(addr, 2000);
 		}
-		catch(...)
+		catch(const Exception &e)
 		{
-		
+			LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
 		}
 	}
 
@@ -964,6 +964,10 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 	  
 		if(instance == Core::Instance->getName()) continue;
 
+		// DEBUG
+		if(instance != "atlas.ageneau.net") continue;
+		//
+		
 	  	// TODO: look for a better address than the already connected one
 		if(isConnected(instance)) 
 		{
@@ -996,6 +1000,10 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 
 void AddressBook::Contact::update(bool alternate)
 {
+	// DEBUG
+	if(name() != "paulo") return;
+	//
+	
 	Synchronize(this);
 	if(mDeleted) return;
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);

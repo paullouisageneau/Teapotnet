@@ -54,7 +54,7 @@ void Scheduler::schedule(Task *task, const Time &when)
 	mSchedule[when].insert(task);
 	mNextTimes[task] = when;
 	
-	LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
+	//LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
 	
 	if(!isRunning()) start();
 	notifyAll();
@@ -121,7 +121,7 @@ void Scheduler::run(void)
 		{
 			Task *task = *it;
 			
-			LogDebug("Scheduler::run", "Launching task...");
+			//LogDebug("Scheduler::run", "Launching task...");
 			launch(task);
 			mNextTimes.erase(task);
 			
@@ -133,7 +133,7 @@ void Scheduler::run(void)
 		mSchedule.erase(mSchedule.begin());
 	}
 	
-	LogDebug("Scheduler::run", "No more tasks");
+	//LogDebug("Scheduler::run", "No more tasks");
 }
 
 }

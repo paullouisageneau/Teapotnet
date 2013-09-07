@@ -219,8 +219,6 @@ void Http::Request::recv(Socket &sock)
 	// Read post variables
 	if(method == "POST")
 	{
-		sock.setTimeout(-1.);	// Disable timeout
-	  
 		if(!headers.contains("Content-Length"))
 			throw Exception("Missing Content-Length header in POST request");
 
@@ -600,7 +598,8 @@ void Http::Response::recv(Socket &sock)
 		
 		if(line == "Set-Cookie")
 		{
-			String cookie = value.cut(';');
+			String cookie = value;
+			cookie.cut(';');
 			value = cookie.cut('=');
 			cookies.insert(cookie, value);
 		}
