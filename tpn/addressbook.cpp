@@ -963,10 +963,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 		const AddressBlock &block = it->second;
 	  
 		if(instance == Core::Instance->getName()) continue;
-
-		// DEBUG
-		if(instance != "atlas.ageneau.net") continue;
-		//
 		
 	  	// TODO: look for a better address than the already connected one
 		if(isConnected(instance)) 
@@ -1000,10 +996,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 
 void AddressBook::Contact::update(bool alternate)
 {
-	// DEBUG
-	if(name() != "paulo") return;
-	//
-	
 	Synchronize(this);
 	if(mDeleted) return;
 	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
