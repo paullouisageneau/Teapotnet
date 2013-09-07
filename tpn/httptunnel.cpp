@@ -354,6 +354,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		}
 		catch(const NetException &e)
 		{
+			delete mUpSock;
+			mUpSock = NULL;
 			mPostLeft = 0;
 		}
 	}
@@ -565,6 +567,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		double timeleft = ConnTimeout;
 		while(!mDownSock)
 		{
+			LogDebug("HttpTunnel::Server::writeData", "Waiting for connection...");
 			if(mClosed) throw NetException("Connection closed");
 			if(!wait(timeleft)) throw Timeout();
 		}
@@ -577,7 +580,8 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		}
 		catch(const NetException &e)
 		{
-			
+			delete mDownSock;
+			mDownSock = NULL;
 		}
 	}
 	
