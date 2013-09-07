@@ -532,14 +532,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 	Assert(mUpSock);
 	
 	size = std::min(size, mPostBlockLeft);
-	
-	{
-		Desynchronize(this);
-		
-		if(mUpSock->readData(buffer, size) != size)
-			throw NetException("Connection lost");
-	}
-	
+	DesynchronizeStatement(this, size = mUpSock->readData(buffer, size));
 	mPostBlockLeft-= size;
 	return size;
 }
