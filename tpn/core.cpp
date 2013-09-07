@@ -217,7 +217,7 @@ void Core::run(void)
 					|| std::memcmp(peekData, "POST ", 5) == 0)
 				{
 					// This is HTTP, forward connection to HttpTunnel
-					ByteStream *bs = HttpTunnel::Incoming(sock);
+					bs = HttpTunnel::Incoming(sock);
 					if(!bs) continue;
 				}
 
