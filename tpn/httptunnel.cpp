@@ -31,7 +31,7 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:23.0) Gecko/23.
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
 size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
 double HttpTunnel::ConnTimeout = 20.;
-double HttpTunnel::ReadTimeout = 10.;
+double HttpTunnel::ReadTimeout = 5.;
 double HttpTunnel::FlushTimeout = 0.5;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
@@ -270,6 +270,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		{
 			// Nothing to do
 		}
+		
+		mDownSock->close();
 	}
 
 	return 0;
