@@ -321,34 +321,40 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			mPostLeft-= 3;
 		}
 	
-		if(mPostLeft >= 4)
-		{
-			size_t len = std::min(size, mPostLeft-3);
-			len = std::min(len, size_t(0xFFFF));
-			mUpSock->writeBinary(TunnelData);	// 1 byte
-			mUpSock->writeBinary(uint16_t(len));	// 2 bytes
-			mUpSock->writeData(data, len);		// len bytes
-			mPostLeft-= len + 3;
-			data+= len;
-			size-= len;
-		}
-		else {
-			while(mPostLeft > 1) 
+		try {
+			if(mPostLeft >= 4)
 			{
-				mUpSock->writeBinary(TunnelPad);
-				mPostLeft-= 1;
+				size_t len = std::min(size, mPostLeft-3);
+				len = std::min(len, size_t(0xFFFF));
+				mUpSock->writeBinary(TunnelData);	// 1 byte
+				mUpSock->writeBinary(uint16_t(len));	// 2 bytes
+				mUpSock->writeData(data, len);		// len bytes
+				mPostLeft-= len + 3;
+				data+= len;
+				size-= len;
+			}
+			else {
+				while(mPostLeft > 1) 
+				{
+					mUpSock->writeBinary(TunnelPad);
+					mPostLeft-= 1;
+				}
+			}
+			
+			if(mPostLeft <= 1)
+			{
+				mUpSock->writeBinary(TunnelDisconnect);
+				mPostLeft = 0;
+				updatePostSize(0);
+				
+				Http::Response response;
+				response.recv(*mUpSock);
+				mUpSock->close();
 			}
 		}
-		
-		if(mPostLeft <= 1)
+		catch(const NetException &e)
 		{
-			mUpSock->writeBinary(TunnelDisconnect);
 			mPostLeft = 0;
-			updatePostSize(0);
-			
-			Http::Response response;
-			response.recv(*mUpSock);
-			mUpSock->close();
 		}
 	}
 
@@ -540,22 +546,33 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 {
 	Synchronize(this);
 
-	if(mDownSock && !mDownSock->isConnected())
+	while(true)
 	{
-		delete mDownSock;
-		mDownSock = NULL;
+		if(mDownSock && !mDownSock->isConnected())
+		{
+			delete mDownSock;
+			mDownSock = NULL;
+		}
+
+		Scheduler::Global->remove(&mFlushTask);
+
+		double timeleft = ConnTimeout;
+		while(!mDownSock)
+		{
+			if(mClosed) throw NetException("Connection closed");
+			if(!wait(timeleft)) throw Timeout();
+		}
+
+		try {
+			mDownSock->writeData(data, size);
+			break;
+		}
+		catch(const NetException &e)
+		{
+			
+		}
 	}
-
-	Scheduler::Global->remove(&mFlushTask);
-
-	double timeleft = ConnTimeout;
-	while(!mDownSock)
-	{
-		if(mClosed) throw NetException("Connection closed");
-		if(!wait(timeleft)) throw Timeout();
-	}
-
-	mDownSock->writeData(data, size);
+	
 	Scheduler::Global->schedule(&mFlushTask, FlushTimeout);
 }
 

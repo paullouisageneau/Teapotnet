@@ -68,7 +68,13 @@ bool Mutex::tryLock(void)
 
 void Mutex::unlock(void)
 {
-	if(mLockCount == 0) throw Exception("Mutex is not locked");
+	if(mLockCount == 0) 
+	{
+		char *p = NULL;
+		*p = 0;
+		
+		throw Exception("Mutex is not locked");
+	}
 
 	mLockCount--;
 	if(mLockCount == 0)
