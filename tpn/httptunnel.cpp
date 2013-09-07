@@ -469,9 +469,12 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		double timeleft = ConnTimeout;
 		while(!mUpSock)
 		{
+			LogDebug("HttpTunnel::Server::readData", "Waiting for connection...");
 			if(mClosed) return 0;
 			if(!wait(timeleft)) throw Timeout();
 		}
+
+		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
 
 		uint8_t command;
 		uint16_t len = 0;
@@ -488,6 +491,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			if(!(command & 0x40))
 				if(!mUpSock->readBinary(len))
 					continue;
+
+			//LogDebug("HttpTunnel::Server::readData", "Incoming command: " + String::hexa(command, 2) + " (length " + String::number(len) + ")");
 		}
 
 		switch(command)
@@ -540,6 +545,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 	}
 	
 	mPostBlockLeft-= size;
+	return size;
 }
 
 void HttpTunnel::Server::writeData(const char *data, size_t size)
@@ -563,6 +569,8 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 			if(!wait(timeleft)) throw Timeout();
 		}
 
+		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
+		
 		try {
 			mDownSock->writeData(data, size);
 			break;
