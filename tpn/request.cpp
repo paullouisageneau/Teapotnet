@@ -258,8 +258,11 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 	resource.serialize(rparameters);
 
 	// TODO: Backward compatibility, should be removed (08/2013)
-	rparameters["hash"] = rparameters["digest"];	// hash in parameters is digest in store
-	rparameters.erase("digest");
+	if(rparameters.contains("digest")) 
+	{
+		rparameters["hash"] = rparameters["digest"];	// hash in parameters is digest in store
+		rparameters.erase("digest");
+	}
 	//
 	
 	if(!mIsData) return new Response(Response::Success, rparameters, NULL);

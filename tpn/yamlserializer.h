@@ -32,7 +32,7 @@ namespace tpn
 class YamlSerializer : public Serializer
 {
 public:
-	YamlSerializer(Stream *stream);	// stream WON'T be destroyed
+	YamlSerializer(Stream *stream, int outputLevel = 0);	// stream WON'T be destroyed
 	virtual ~YamlSerializer(void);
 	
 	bool	input(Serializable &s);

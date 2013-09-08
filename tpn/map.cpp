@@ -35,7 +35,7 @@ bool StringMap::input(Pair &pair)
 	LineSerializer keySerializer(&key);
 	AssertIO(pair.deserializeKey(keySerializer));
 	
-	YamlSerializer valueSerializer(&it->second);
+	YamlSerializer valueSerializer(&it->second, 1);
 	AssertIO(pair.deserializeValue(valueSerializer));
 	
 	this->erase(it);
@@ -56,9 +56,10 @@ void StringMap::output(const Pair &pair)
 	String key;
 	LineSerializer keySerializer(&key);
 	pair.serializeKey(keySerializer);
+	key.trim();
 	
 	String value;
-	YamlSerializer valueSerializer(&value);
+	YamlSerializer valueSerializer(&value, 1);
 	pair.serializeValue(valueSerializer);
 	
 	this->insert(key, value);

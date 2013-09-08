@@ -98,6 +98,8 @@ public:
 	String windowsDecode(void) const;
 	String pathEncode(void) const;
 	String pathDecode(void) const;
+	String lineEncode(void) const;
+	String lineDecode(void) const;
 	unsigned dottedToInt(unsigned base = 256) const;
 	
 	double toDouble() const;

@@ -104,6 +104,7 @@ bool JsonSerializer::input(String &str)
 			case 'r': 	chr = '\r';	break;
 			case 't': 	chr = '\t';	break;
 			case 'u':
+			{
 				String tmp;
 				AssertIO(mStream->read(tmp, 4));
 				unsigned u;
@@ -112,9 +113,13 @@ bool JsonSerializer::input(String &str)
 				chr = u;
 				break;
 			}
+			default: 
+				chr = 0; 
+				break;
+			}
 		}
-		
-		str+= chr;
+
+		if(chr) str+= chr;
 		if(!mStream->get(chr))
 		{
 			if(quotes) throw IOException();

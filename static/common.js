@@ -21,8 +21,8 @@
 
 if(!String.escape) {
 	String.prototype.escape = function() {
-		return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/([^ ]{50})/g, "$1\- ");
-		// Last "replace" adds dash and space when a single words has more than 50 chars
+		// Do not actually modify the string content here, it will break digest handling
+		return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 	}
 }
 

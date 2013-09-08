@@ -32,7 +32,7 @@ function listDirectory(url, object) {
 		if(data != null) {
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
-				var link = (resource.hash ? '/' + resource.hash : resource.name + (resource.type == "directory" ? '/' : ''));
+				var link = (resource.hash ? '/' + resource.hash.escape() : resource.name.escape() + (resource.type == "directory" ? '/' : ''));
 				var line = '<tr>';
 				line+= '<td><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
 				line+= '</tr>';

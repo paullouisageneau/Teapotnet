@@ -569,6 +569,44 @@ String String::pathDecode(void) const
 #endif 
 }
 
+String String::lineEncode(void) const
+{
+	String out;
+	String tr = trimmed();
+	for(int i=0; i<tr.size(); ++i)
+	{
+		char c = tr.at(i);
+		if(c == '\r') continue;
+		if(c == '\n') out+= "\\n";
+		else out+= c;
+	}
+	return out;
+}
+
+String String::lineDecode(void) const
+{
+	String out;
+	for(int i=0; i<size(); ++i)
+	{
+		char c = at(i);
+ 		if(c == '\\') 
+		{
+			++i;
+			if(i == size()) break;
+			c = at(i);
+			switch(c)
+			{
+			case 'b': 	out+='\b';	break;
+			case 'f': 	out+='\f';	break;
+			case 't': 	out+='\t';	break;
+			case 'n': 	out+= Stream::NewLine;	break;
+			}
+		}
+		else out+= c;
+	}
+	return out;
+}
+
 unsigned String::dottedToInt(unsigned base) const
 {
 	List<String> l;

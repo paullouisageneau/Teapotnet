@@ -27,9 +27,9 @@
 namespace tpn
 {
 
-YamlSerializer::YamlSerializer(Stream *stream) :
+YamlSerializer::YamlSerializer(Stream *stream, int outputLevel) :
 	mStream(stream),
-	mLevel(0)
+	mLevel(outputLevel)
 {
 	Assert(stream);
 }

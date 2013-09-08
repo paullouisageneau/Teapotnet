@@ -397,7 +397,7 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
 {
 	String line;
-	line << command << " " << args;
+	line << command << " " << args.lineEncode();
 	LogTrace("Core::Handler", "<< " + line);
 	
 	line << Stream::NewLine;
@@ -408,7 +408,7 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 		++it)
 	{
 	  	line.clear();
-		line << it->first.capitalized() << ": " << it->second;
+		line << it->first.capitalized() << ": " << it->second.lineEncode();
 		LogTrace("Core::Handler", "<< " + line);
 		line << Stream::NewLine;
 		*stream << line;
@@ -422,7 +422,7 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	if(!stream->readLine(command)) return false;
 	LogTrace("Core::Handler", ">> " + command);
 	
-	args = command.cut(' ');
+	args = command.cut(' ').lineDecode();
 	command = command.toUpper();
 	
 	parameters.clear();
@@ -436,7 +436,7 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 		String value = name.cut(':');
 		name.trim();
 		value.trim();
-		parameters.insert(name.toLower(),value);
+		parameters.insert(name.toLower(),value.lineDecode());
 	}
 	
 	return true;

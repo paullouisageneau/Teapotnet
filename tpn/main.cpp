@@ -271,7 +271,7 @@ int main(int argc, char** argv)
 		Config::Default("request_timeout", "10000");	
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("http_proxy", "");
-		Config::Default("http_proxy_connect", "true");
+		Config::Default("http_proxy_connect", "false");
 
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "true");
