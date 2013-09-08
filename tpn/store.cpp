@@ -140,9 +140,7 @@ Store::Store(User *user) :
 	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
 	
 	save();
-	
-	// TODO
-	//start();
+	start();
 	
 	if(mUser)
 	{
