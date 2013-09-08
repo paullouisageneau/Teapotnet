@@ -65,31 +65,36 @@ public:
 	
 	void http(const String &prefix, Http::Request &request);
 
-	class Profile : public HttpInterfaceable, public Serializable
+	class Profile : public Serializable, public HttpInterfaceable
 	{
 		public:
-			Profile(User *user);
+			Profile(User *user, const String &uname = "");
 			~Profile(void);
-			void http(const String &prefix, Http::Request &request);
-			void save(void);
+			
+			String urlPrefix(void) const;
+			
 			void load(void);
+			void save(void);
+			void clear(void);
+			
+			// Serializable
 			void serialize(Serializer &s) const;
 			bool deserialize(Serializer &s);
-			Serializer::ObjectMapping loadToObjectMapping(void);
+			
+			// HttpInterfaceable
+			void http(const String &prefix, Http::Request &request);
+			
+		private:
+			String infoPath(void) const;
+			
 			void displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field);
 			void displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field);
 			void updateField(String &key, String &value);
-			void initializeFile(void);
-			StringMap getmUserStringMap(void);
-			String profileInfoPath(void) const;
-
-		private:
-			String mProfileFileName;
+			
 			User *mUser;
-			YamlSerializer *serializer;
-
-			String mEmptyField;
-
+			String mName;
+			String mFileName;
+			
 			String mFirstName;
 			String mMiddleName;
 			String mLastName;
@@ -103,8 +108,6 @@ public:
 			String mCity;
 			String mAddress;
 			String mMail;
-			String mTwitter;
-			String mFacebook;
 			String mPhone;
 			String mCollege;
 			String mUniversity;
