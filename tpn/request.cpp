@@ -189,10 +189,10 @@ bool Request::execute(User *user)
 				}
 			}
 			else {
-				Resource resource;
 				Resource::Query query;
 				query.setDigest(identifier);
 	
+				Resource resource;
 				if(query.submitLocal(resource, store))
 				{
 					addResponse(createResponse(resource, parameters, store));
@@ -203,8 +203,9 @@ bool Request::execute(User *user)
 	}
 	else if(command == "file")
 	{
+		Resource::Query query(argument);
 		Set<Resource> resources;
-		if(store->query(Resource::Query(argument), resources))
+		if(query.submitLocal(resources, store))
 		{
 			if(resources.empty())
 			{
@@ -227,7 +228,7 @@ bool Request::execute(User *user)
 		if(!argument.empty() || argument != "*") query.setMatch(argument);
 		
 		Set<Resource> resources;
-		if(store->query(query, resources) && !resources.empty())
+		if(query.submitLocal(resources, store) && !resources.empty())
 		{
 			for(Set<Resource>::iterator it = resources.begin();
 				it != resources.end();
