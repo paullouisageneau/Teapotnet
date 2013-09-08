@@ -913,7 +913,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
+			//LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
 		}
 	}
 
@@ -924,7 +924,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
+			//LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
 		}
 	}
 
