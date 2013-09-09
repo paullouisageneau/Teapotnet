@@ -56,9 +56,9 @@ void ThreadPool::launch(Task *task)
 		
 		while(true)
 		{
-			//String status;
-			//status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
-			//LogDebug("ThreadPool::launch", status);
+			String status;
+			status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
+			LogDebug("ThreadPool::launch", status);
 		
 			if(!mAvailableWorkers.empty())
 			{
@@ -79,14 +79,14 @@ void ThreadPool::launch(Task *task)
 			
 			wait();
 		}
+		
+		DesynchronizeStatement(this, worker->runTask(task));
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("ThreadPool::launch", String("Failed: ") + e.what());
 		throw;
 	}
-	
-	worker->runTask(task);
 }
 
 void ThreadPool::join(void)

@@ -122,7 +122,7 @@ void Scheduler::run(void)
 			Task *task = *it;
 			
 			//LogDebug("Scheduler::run", "Launching task...");
-			launch(task);
+			DesynchronizeStatement(this, launch(task));
 			mNextTimes.erase(task);
 			
 			double period = 0.;

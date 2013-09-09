@@ -138,10 +138,9 @@ void Splicer::start(void)
 {
 	stop();
 	if(finished()) return;
-	     
+
 	LogDebug("Splicer", "Starting splicer [" + String::number(mBegin) + "," + String::number(mEnd) + "]");
 	
-	// Request stripes
 	int nbStripes = std::max(1, int(mSources.size()));	// TODO
 
 	mRequests.fill(NULL, nbStripes);
@@ -151,14 +150,14 @@ void Splicer::start(void)
 	int i = 0;
 	while(i<nbStripes)
 	{
-		if(!query(i, *it))
+		if(mSources.empty() || !query(i, *it))
 		{
 			mCacheEntry->refreshSources();
 			mCacheEntry->getSources(mSources);
 			it = mSources.begin();
 				
 			if(mSources.empty())
-				throw Exception("No sources found");
+				throw Exception("No available sources found");
 				
 			continue;
 		}
@@ -192,6 +191,8 @@ void Splicer::stop(void)
 bool Splicer::process(void)
 {
 	mCacheEntry->setAccessTime();
+	
+	if(mRequests.empty()) throw Exception("Splicer is not started");
 	
 	std::vector<int>		onError;
 	std::multimap<unsigned, int> 	byBlocks;
@@ -279,6 +280,8 @@ bool Splicer::process(void)
 size_t Splicer::read(char *buffer, size_t size)
 {
 	mCacheEntry->setAccessTime();
+	
+	if(mRequests.empty()) throw Exception("Splicer is not started");
 	if(!size) return 0;
 	
 	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
@@ -294,13 +297,14 @@ size_t Splicer::read(char *buffer, size_t size)
 		{
 			const Request::Response *response = mRequests[i]->response(0);
 			Assert(response != NULL);
-			if(response->finished()) continue;
+			if(!response->finished())
+				++nbPending;
 		}
 		
 		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
+		
 		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
 		mStripes[i]->flush();
-		++nbPending;
 	}
 	
 	if(!nbPending) ++currentBlock;

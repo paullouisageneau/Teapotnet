@@ -224,7 +224,8 @@ bool Request::execute(User *user)
 	else if(command == "search")
 	{
 		Resource::Query query;
-		query.deserialize(parameters);
+		StringMap tmp(parameters);
+		query.deserialize(tmp);
 		if(!argument.empty() || argument != "*") query.setMatch(argument);
 		
 		Set<Resource> resources;
@@ -257,8 +258,8 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 {
 	StringMap rparameters;
 	resource.serialize(rparameters);
-
-	// TODO: Backward compatibility, should be removed (08/2013)
+	
+	// TODO: Backward compatibility, should be removed (08/2013) when hash is replaced by digest
 	if(rparameters.contains("digest")) 
 	{
 		rparameters["hash"] = rparameters["digest"];	// hash in parameters is digest in store
@@ -343,7 +344,6 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 		}
 		catch(...)
 		{
-			delete file;
 			delete stripedFile;
 			throw;
 		}

@@ -199,7 +199,7 @@ void User::setOnline(void)
 	
 	if(!wasOnline) 
 	{
-		mAddressBook->update();
+		DesynchronizeStatement(this, mAddressBook->update());
 		sendInfo();
 	}
 }

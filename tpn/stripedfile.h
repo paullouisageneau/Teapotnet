@@ -32,7 +32,7 @@ namespace tpn
 class StripedFile : public ByteStream, protected Synchronizable
 {
 public:
-	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);
+	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);	// file is destroyed
 	~StripedFile(void);
 
 	uint64_t tellRead(void) const;
