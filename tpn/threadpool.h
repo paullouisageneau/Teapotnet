@@ -30,7 +30,7 @@
 namespace tpn
 {
 
-class ThreadPool : public Synchronizable
+class ThreadPool : protected Synchronizable
 {
 public:
 	ThreadPool(unsigned min = 1,
@@ -43,19 +43,21 @@ public:
 	void clear(void);
 	
 private:
-	class Worker : public Thread, protected Synchronizable
+	class Worker : public Thread
 	{
 	public:
-		Worker(ThreadPool *scheduler);
+		Worker(ThreadPool *pool);
 		~Worker(void);
 	
-		void runTask(Task *task);
-		
+		void setTask(Task *task);
+		void stop(void);		
+
 	private:
 		void run(void);
 		
 		ThreadPool *mThreadPool;
 		Task *mTask;
+		bool mShouldStop;
 	};
 	
 	Set<Worker*> mWorkers;

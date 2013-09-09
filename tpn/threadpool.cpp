@@ -32,13 +32,12 @@ ThreadPool::ThreadPool(unsigned min, unsigned max, unsigned limit) :
 	mLimit(limit)
 {
 	Synchronize(this);
-	
+
 	while(mWorkers.size() < mMin)
 	{
 		Worker *worker = new Worker(this);
 		mWorkers.insert(worker);
-		mAvailableWorkers.insert(worker);
-		worker->start();
+		worker->start(true);
 	}
 }
 
@@ -72,7 +71,7 @@ void ThreadPool::launch(Task *task)
 				{
 					worker = new Worker(this);
 					mWorkers.insert(worker);
-					worker->start();
+					worker->start(true);
 					break;
 				}
 			}
@@ -80,7 +79,8 @@ void ThreadPool::launch(Task *task)
 			wait();
 		}
 		
-		DesynchronizeStatement(this, worker->runTask(task));
+		worker->setTask(task);
+		notifyAll();
 	}
 	catch(const Exception &e)
 	{
@@ -102,22 +102,28 @@ void ThreadPool::clear(void)
 {
 	Synchronize(this);
 	
-	for(	Set<Worker*>::iterator it = mWorkers.begin(); 
-		it != mWorkers.end();
-		++it)
+	while(!mWorkers.empty())
 	{
-		Worker *worker = *it;
-		worker->runTask(NULL);
-		delete worker;		// join the thread
+		for(	Set<Worker*>::iterator it = mWorkers.begin(); 
+			it != mWorkers.end();
+			++it)
+		{
+			Worker *worker = *it;
+			worker->stop();
+		}
+
+		notifyAll();
+		wait();
 	}
-	
+		
 	mWorkers.clear();
 	mAvailableWorkers.clear();
 }
 
-ThreadPool::Worker::Worker(ThreadPool *scheduler) :
-	mThreadPool(scheduler),
-	mTask(NULL)
+ThreadPool::Worker::Worker(ThreadPool *pool) :
+	mThreadPool(pool),
+	mTask(NULL),
+	mShouldStop(false)
 {
 
 }
@@ -125,66 +131,66 @@ ThreadPool::Worker::Worker(ThreadPool *scheduler) :
 ThreadPool::Worker::~Worker(void)
 {
 	Synchronize(mThreadPool);
-	mThreadPool->mWorkers.erase(this);
 	mThreadPool->mAvailableWorkers.erase(this);
+	mThreadPool->mWorkers.erase(this);
 	mThreadPool->notifyAll();
 }
 
-void ThreadPool::Worker::runTask(Task *task)
+void ThreadPool::Worker::setTask(Task *task)
 {
-	Synchronize(this);
 	mTask = task;
-	notifyAll();
+}
+
+void ThreadPool::Worker::stop(void)
+{
+	mShouldStop = true;
 }
 
 void ThreadPool::Worker::run(void)
 {
 	while(true)
 	{
-		{
-			Synchronize(this);
+		Synchronize(mThreadPool);
 
-			if(!mTask) 
-			{
-				wait();
-				if(!mTask) break;
-			}
-			
-			try {
-				mTask->run();
-			}
-			catch(...)
-			{	
-				LogWarn("ThreadPool::Worker", "Unhandled exception in task");
-			}
-			
-			// Caution: Task might be autodeleted here
-			mTask = NULL;
+		if(!mTask)
+		{
+			// Worker is now available      
+                        mThreadPool->mAvailableWorkers.insert(this);
+                        mThreadPool->notifyAll();
 		}
+
+		// Wait for Task
+                while(!mTask)
+                { 
+			double timeout = 10.;
+                        while(!mTask && !mShouldStop) 
+			{
+				mThreadPool->wait(timeout);
+			}
 		
-		{
-			Synchronize(mThreadPool);
-			
-			if(mThreadPool->mWorkers.contains(this))
-			{
-				mThreadPool->mAvailableWorkers.insert(this);
-				mThreadPool->notifyAll();
-			}
+			// Terminate if necessary
+                        if(!mTask)
+                        {
+                                if(mShouldStop || mThreadPool->mWorkers.size() > mThreadPool->mMax)
+                                {
+                                        mThreadPool->mAvailableWorkers.erase(this);
+                                        mThreadPool->mWorkers.erase(this);
+					return;
+                                }
+                        }
+                }
+
+		// Run task		
+		Task *task = mTask;
+                mTask = NULL;
+
+		try {
+			Desynchronize(mThreadPool);	
+			task->run();
 		}
-			
-		if(!mTask) 
-		{
-			wait(1.);
-			if(!mTask)
-			{
-				Synchronize(mThreadPool);
-				
-				if(!mThreadPool->mMax || mThreadPool->mWorkers.size() > mThreadPool->mMax)
-				{
-					mThreadPool->mAvailableWorkers.erase(this);
-					break;
-				}
-			}
+		catch(...)
+		{	
+			LogWarn("ThreadPool::Worker", "Unhandled exception in task");
 		}
 	}
 }

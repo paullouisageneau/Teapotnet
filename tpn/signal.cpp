@@ -55,6 +55,8 @@ void Signal::wait(Mutex &mutex)
 	mutex.mLockCount = 0;
 	
 	int ret = pthread_cond_wait(&mCond, &mutex.mMutex);
+	
+	mutex.mLockedBy = pthread_self();
 	mutex.mLockCount = oldLockCount;
 	mutex.unlock();
 
@@ -74,6 +76,7 @@ bool Signal::wait(Mutex &mutex, double &timeout)
 	
 	int ret = pthread_cond_timedwait(&mCond, &mutex.mMutex, &ts);
 
+	mutex.mLockedBy = pthread_self();
 	mutex.mLockCount = oldLockCount;
 	mutex.unlock();
 

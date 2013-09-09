@@ -619,7 +619,7 @@ void Http::Response::clear(void)
 }
 
 Http::Server::Server(int port) :
-	ThreadPool(4, 16, 128),
+	mPool(4, 16, 128),
 	mSock(port)
 {
 
@@ -638,7 +638,7 @@ void Http::Server::run(void)
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			Handler *client = new Handler(this, sock);
-			launch(client);
+			mPool.launch(client);
 		}
 	}
 	catch(const NetException &e)

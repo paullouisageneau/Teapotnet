@@ -79,7 +79,7 @@ public:
 		Socket *sock;		// Socket where to send/receive data
 	};
 
-	class Server : public Thread, public ThreadPool
+	class Server : public Thread
 	{
 	public:
 		Server(int port = 80);
@@ -104,6 +104,7 @@ public:
 		};
 
 		ServerSocket mSock;
+		ThreadPool mPool;
 	};
 
 	static int Get(const String &url, Stream *output = NULL);

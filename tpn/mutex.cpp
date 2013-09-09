@@ -29,7 +29,14 @@ Mutex::Mutex(void) :
 	mLockCount(0),
 	mRelockCount(0)
 {
-	 if(pthread_mutex_init(&mMutex,NULL) != 0)
+
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+	//pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+	//pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+
+	 if(pthread_mutex_init(&mMutex, &attr) != 0)
 		 throw Exception("Unable to create mutex");
 }
 
@@ -40,39 +47,43 @@ Mutex::~Mutex(void)
 
 void Mutex::lock(int count)
 {
-	if(!count) return;
+	if(count <= 0) return;
 	
-	if(mLockCount == 0 || !pthread_equal(mLockedBy, pthread_self()))
+	int ret = pthread_mutex_trylock(&mMutex);
+	if(ret == EBUSY)
 	{
-		if(pthread_mutex_lock(&mMutex) != 0)
-			throw Exception("Unable to lock mutex");
+		ret = 0;
+		if(!pthread_equal(mLockedBy, pthread_self()))
+                	ret = pthread_mutex_lock(&mMutex);
 	}
-
+	
+	if(ret != 0 && ret != EDEADLK)
+		throw Exception("Unable to lock mutex");
+	
 	mLockedBy = pthread_self();
 	mLockCount+= count;
 }
 
 bool Mutex::tryLock(void)
 {
-	if(mLockCount == 0 || !pthread_equal(mLockedBy, pthread_self()))
-	{
-		int ret = pthread_mutex_trylock(&mMutex);
-		if(ret == EBUSY) return false;
-		else if(ret != 0) throw Exception("Unable to lock mutex");
-	}
+	int ret = pthread_mutex_trylock(&mMutex);
+        if(ret == EBUSY)
+        {
+		if(!pthread_equal(mLockedBy, pthread_self())) return false;
+		ret = 0;
+        }
+          
+        if(ret != 0 && ret != EDEADLK)
+                throw Exception("Unable to lock mutex");
 
-	mLockedBy = pthread_self();
-	mLockCount++;
+        mLockedBy = pthread_self();
+        mLockCount++;
 	return true;
 }
 
 void Mutex::unlock(void)
 {
-	if(mLockCount == 0) 
-	{
-		//throw Exception("Mutex is not locked");
-		return;
-	}
+	if(mLockCount == 0) throw Exception("Mutex is not locked");
 
 	mLockCount--;
 	if(mLockCount == 0)

@@ -30,7 +30,7 @@
 namespace tpn
 {
 
-class Scheduler : public Thread, public ThreadPool
+class Scheduler : protected ThreadPool, public Thread
 {
 public:
 	static Scheduler *Global;

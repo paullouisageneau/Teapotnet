@@ -34,7 +34,7 @@
 namespace tpn
 {
 
-class Tracker : public Http::Server
+class Tracker : protected Synchronizable, public Http::Server
 {
 public:
 	static const double EntryLife;

@@ -37,7 +37,7 @@ namespace tpn
 {
 
 const double AddressBook::UpdateInterval = 300.;
-const double AddressBook::UpdateStep = 0.25;
+const double AddressBook::UpdateStep = 0.20;
 const int AddressBook::MaxChecksumDistance = 1000;
 
 AddressBook::AddressBook(User *user) :

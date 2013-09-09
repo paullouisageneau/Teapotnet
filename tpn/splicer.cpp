@@ -221,7 +221,8 @@ bool Splicer::process(void)
 		{
 			int slowest = byBlocks.begin()->second;
 			int fastest = byBlocks.rbegin()->second;
-			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
+			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
+				|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
 			{
 				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
 					query(slowest, mRequests[fastest]->receiver());
