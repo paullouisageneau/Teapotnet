@@ -266,9 +266,7 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 	}
 	//
 	
-	if(!mIsData) return new Response(Response::Success, rparameters, NULL);
-		
-	if(!resource.isDirectory())
+	if(resource.isDirectory())
 	{
 		rparameters["processing"] = "none";
 		rparameters["formatting"] = "YAML";
@@ -281,9 +279,10 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 		// The trailing '/' means it's a directory listing
 		String url = resource.url();
 		if(url.empty() || url[url.size()-1] != '/') url+= '/';
-		
+	
+		Resource::Query query(url);	
 		SerializableSet<Resource> resources;
-		if(store->query(Resource::Query(url), resources))
+		if(query.submitLocal(resources, store))
 		{
 			YamlSerializer serializer(response->content());
 			serializer.output(resources);
