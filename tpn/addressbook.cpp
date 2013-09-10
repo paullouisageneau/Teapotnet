@@ -1650,7 +1650,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 					catch(const Exception &e)
 					{
-						LogWarn("AddressBook::Contant::http", String("Resource lookup failed: ") + e.what());
+						LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
 						throw 404;
 					}
 					
