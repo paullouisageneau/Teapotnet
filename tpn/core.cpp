@@ -486,6 +486,7 @@ void Core::Handler::sendNotification(const Notification &notification)
 		//LogDebug("Core::Handler", "Sending notification");
 	}
 	
+	if(mSender)
 	{
 		Synchronize(mSender);
 		mSender->mNotificationsQueue.push(notification);
@@ -505,12 +506,12 @@ void Core::Handler::addRequest(Request *request)
 		mRequests.insert(request->id(), request);
 	}
 	
+	if(mSender)
 	{
 		Synchronize(mSender);
 		mSender->mRequestsQueue.push(request);
 		mSender->notify();
 	}
-	
 }
 
 void Core::Handler::removeRequest(unsigned id)
