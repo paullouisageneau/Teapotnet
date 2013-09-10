@@ -27,6 +27,7 @@ namespace tpn
 {
 
 ThreadPool::ThreadPool(unsigned min, unsigned max, unsigned limit) :
+	mTask(NULL),
 	mMin(min),
 	mMax(max),
 	mLimit(limit)
@@ -52,35 +53,30 @@ void ThreadPool::launch(Task *task)
 	try
 	{
 		Synchronize(this);
+		Assert(!mTask);
 		
-		while(true)
+		String status;
+		status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
+		LogDebug("ThreadPool::launch", status);
+		
+		while(mAvailableWorkers.empty())
 		{
-			String status;
-			status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
-			LogDebug("ThreadPool::launch", status);
-		
-			if(!mAvailableWorkers.empty())
+			if(!mLimit || mWorkers.size() < mLimit)
 			{
-				worker = *mAvailableWorkers.begin();
-				mAvailableWorkers.erase(worker);
+				worker = new Worker(this);
+				mWorkers.insert(worker);
+				worker->start(true);
 				break;
-			}
-			else {
-				
-				if(!mLimit || mWorkers.size() < mLimit)
-				{
-					worker = new Worker(this);
-					mWorkers.insert(worker);
-					worker->start(true);
-					break;
-				}
 			}
 			
 			wait();
 		}
 		
-		worker->setTask(task);
-		notifyAll();
+		mTask = task;
+		notify();
+
+		while(mTask)
+                        mBackSignal.wait(*this);
 	}
 	catch(const Exception &e)
 	{
@@ -122,7 +118,6 @@ void ThreadPool::clear(void)
 
 ThreadPool::Worker::Worker(ThreadPool *pool) :
 	mThreadPool(pool),
-	mTask(NULL),
 	mShouldStop(false)
 {
 
@@ -136,11 +131,6 @@ ThreadPool::Worker::~Worker(void)
 	mThreadPool->notifyAll();
 }
 
-void ThreadPool::Worker::setTask(Task *task)
-{
-	mTask = task;
-}
-
 void ThreadPool::Worker::stop(void)
 {
 	mShouldStop = true;
@@ -152,7 +142,7 @@ void ThreadPool::Worker::run(void)
 	{
 		Synchronize(mThreadPool);
 
-		if(!mTask)
+		if(!mThreadPool->mTask)
 		{
 			// Worker is now available      
                         mThreadPool->mAvailableWorkers.insert(this);
@@ -160,16 +150,14 @@ void ThreadPool::Worker::run(void)
 		}
 
 		// Wait for Task
-                while(!mTask)
+                while(!mThreadPool->mTask)
                 { 
 			double timeout = 10.;
-                        while(!mTask && !mShouldStop) 
-			{
+                        while(!mThreadPool->mTask && !mShouldStop) 
 				mThreadPool->wait(timeout);
-			}
 		
 			// Terminate if necessary
-                        if(!mTask)
+                        if(!mThreadPool->mTask)
                         {
                                 if(mShouldStop || mThreadPool->mWorkers.size() > mThreadPool->mMax)
                                 {
@@ -180,9 +168,11 @@ void ThreadPool::Worker::run(void)
                         }
                 }
 
-		// Run task		
-		Task *task = mTask;
-                mTask = NULL;
+		// Run task
+		mThreadPool->mAvailableWorkers.erase(this);
+		Task *task = mThreadPool->mTask;
+                mThreadPool->mTask = NULL;
+		mThreadPool->mBackSignal.launchAll();
 
 		try {
 			Desynchronize(mThreadPool);	

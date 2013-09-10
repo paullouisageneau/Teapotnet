@@ -23,6 +23,8 @@
 #define TPN_THREADPOOL_H
 
 #include "tpn/include.h"
+#include "tpn/synchronizable.h"
+#include "tpn/signal.h"
 #include "tpn/thread.h"
 #include "tpn/task.h"
 #include "tpn/set.h"
@@ -49,19 +51,19 @@ private:
 		Worker(ThreadPool *pool);
 		~Worker(void);
 	
-		void setTask(Task *task);
 		void stop(void);		
 
 	private:
 		void run(void);
 		
 		ThreadPool *mThreadPool;
-		Task *mTask;
 		bool mShouldStop;
 	};
 	
 	Set<Worker*> mWorkers;
 	Set<Worker*> mAvailableWorkers;
+	Task *mTask;
+	Signal mBackSignal;
 	unsigned mMin, mMax, mLimit;
 };
 

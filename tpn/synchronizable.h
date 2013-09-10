@@ -44,6 +44,8 @@ public:
 	void wait(void) const;
 	bool wait(double &timeout) const;
 	bool wait(const double &timeout) const;
+
+	operator Mutex&(void) const;
 	
 private:
 	mutable Mutex mMutex;

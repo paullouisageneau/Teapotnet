@@ -79,4 +79,9 @@ bool Synchronizable::wait(const double &timeout) const
 	return mSignal.wait(mMutex, timeout);
 }
 
+Synchronizable::operator Mutex&(void) const
+{
+	return mMutex;
+}
+
 }
