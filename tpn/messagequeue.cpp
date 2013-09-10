@@ -239,7 +239,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		
 		SerializableArray<Message> array;
 		while(!selection.getLast(last, count, array))
-			wait();
+			if(!wait(60.)) return;
 
 		ack(array);
 		

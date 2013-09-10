@@ -1584,11 +1584,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("json") || request.get.contains("playlist"))
 				{
 					// Query resources
-					SerializableSet<Resource> resources;
 					Resource::Query query;
 					query.setLocation(target);
-					
+					SerializableSet<Resource> resources;
 					Identifier peering(mPeering);
+					
 					Desynchronize(this);
 					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					try {
@@ -1615,21 +1615,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						Http::Response response(request, 200);
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
-		
+
 						String host;
-						if(!request.headers.get("Host", host))
-							host = String("localhost:") + Config::Get("interface_port");
-					
-						response.sock->writeLine("#EXTM3U");
-						for(Set<Resource>::iterator it = resources.begin(); it != resources.end(); ++it)
-						{
-							const Resource &resource = *it;
-							if(resource.isDirectory() || resource.digest().empty()) continue;
-							if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
-							String link = "http://" + host + "/" + resource.digest().toString();
-							response.sock->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
-							response.sock->writeLine(link);
-						}
+						request.headers.get("Host", host);
+						Resource::CreatePlaylist(resources, response.sock, host);
 					}
 					return;
 				}
@@ -1741,53 +1730,84 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				if(url != "/") throw 404;
 				
-				String strQuery;
+				String match;
 				if(request.post.contains("query"))
 				{
-					strQuery = request.post.get("query");
-					strQuery.trim();
+					match = request.post.get("query");
+					match.trim();
+				}
+				
+				if(request.get.contains("json") || request.get.contains("playlist"))
+				{
+					if(match.empty()) throw 400;
+					
+					Resource::Query query;
+					query.setMatch(match);
+					
+					SerializableSet<Resource> resources;
+					
+					Identifier peering(mPeering);
+					Desynchronize(this);
+					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
+					try {
+						while(!query.submitRemote(resources, peering))
+							Thread::Sleep(5.);
+					}
+					catch(...)
+					{
+						// Peer not connected
+						throw 404;
+					}
+					
+					if(resources.empty()) throw 404;
+					
+					if(request.get.contains("json"))
+					{
+						Http::Response response(request, 200);
+						response.headers["Content-Type"] = "application/json";
+						response.send();
+						JsonSerializer json(response.sock);
+						json.output(resources);
+					}
+					else {
+						Http::Response response(request, 200);
+					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+						response.headers["Content-Type"] = "audio/x-mpegurl";
+		
+						String host;
+						request.headers.get("Host", host);
+						Resource::CreatePlaylist(resources, response.sock, host);
+					}
+					return;
 				}
 				
 				Http::Response response(request, 200);
 				response.send();
-				
+					
 				Html page(response.sock);
-				if(strQuery.empty()) page.header(name() + ": Search");
-				else page.header(name() + ": Searching " + strQuery);
+				
+				if(match.empty()) page.header(name() + ": Search");
+				else page.header(name() + ": Searching " + match);
+				
+				page.open("div","topmenu");
+				if(!isSelf()) page.span(status().capitalized(), "status.button");
 				page.openForm(prefix + "/search", "post", "searchForm");
-				page.input("text", "query", strQuery);
+				page.input("text", "query", match);
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 				page.br();
+				page.close("div");
+
+				unsigned refreshPeriod = 5000;
+				page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+					transition($('#status'), info.status.capitalize());\n\
+					$('#status').removeClass().addClass('button').addClass(info.status);\n\
+					if(info.newnotifications) playNotificationSound();\n\
+				});");
 				
-				if(strQuery.empty())
-				{
-					page.footer();
-					return;
-				}
-				
-				Request trequest("search:"+strQuery, false);	// no data
-				try {
-					trequest.submit(mPeering);
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", "Cannot send request, peer not connected");
-					page.open("div",".box");
-					page.text("Not connected...");
-					page.close("div");
-					page.footer();
-					return;
-				}
-				
-				{
-					const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-					Desynchronize(this);
-					trequest.wait(timeout);
-				}
-				
-				page.listFilesFromRequest(trequest, prefix, request, mAddressBook->user());
+				page.div("Loading...", "#list.box");
+				page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#list');");
 				page.footer();
 				return;
 			}

@@ -31,7 +31,7 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:23.0) Gecko/23.
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
 size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
 double HttpTunnel::ConnTimeout = 20.;
-double HttpTunnel::ReadTimeout = 5.;
+double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.5;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
@@ -43,7 +43,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 	Http::Request request;
 	try {
 		try {
-			sock->setTimeout(ReadTimeout);
+			sock->setTimeout(SockTimeout);
 			request.recv(*sock, false); // POST content is not parsed
 		
 			uint32_t session = 0;
@@ -239,7 +239,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
                 		throw;
         		}
  
-			mDownSock->setTimeout(ReadTimeout);
+			mDownSock->setTimeout(SockTimeout);
 
 			Http::Response response;
 			response.recv(*mDownSock);
@@ -320,7 +320,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
                                 throw;
                         }
 
-			mUpSock->setTimeout(ReadTimeout);
+			mUpSock->setTimeout(SockTimeout);
 			mPostLeft = mPostSize;
 			
 			mUpSock->writeBinary(TunnelOpen);

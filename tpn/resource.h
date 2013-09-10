@@ -89,6 +89,8 @@ public:
 		virtual void seekWrite(int64_t position) = 0;
 	};
 	
+	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
+	
 	Resource(const Identifier &peering, const String &url, Store *store = NULL);
 	Resource(const ByteString &digest, Store *store = NULL);
 	Resource(Store *store = NULL);

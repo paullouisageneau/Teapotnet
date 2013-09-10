@@ -352,6 +352,7 @@ void Interface::process(Http::Request &request)
 			
 			try {
 				// Launch transfer
+				response.sock->setTimeout(-1.);		// disable timeout
 				int64_t size = accessor->readBinary(*response.sock, rangeSize);	// let's go !
 				if(size != rangeSize)
 					throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
