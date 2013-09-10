@@ -32,8 +32,7 @@ Mutex::Mutex(void) :
 
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
-	//pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
 	//pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
 
 	 if(pthread_mutex_init(&mMutex, &attr) != 0)
@@ -49,17 +48,11 @@ void Mutex::lock(int count)
 {
 	if(count <= 0) return;
 	
-	int ret = pthread_mutex_trylock(&mMutex);
-	if(ret == EBUSY)
-	{
-		ret = 0;
-		if(!pthread_equal(mLockedBy, pthread_self()))
-                	ret = pthread_mutex_lock(&mMutex);
-	}
-	
+	int ret = pthread_mutex_lock(&mMutex);
 	if(ret != 0 && ret != EDEADLK)
 		throw Exception("Unable to lock mutex");
-	
+
+	if(ret == 0) Assert(mLockCount == 0);
 	mLockedBy = pthread_self();
 	mLockCount+= count;
 }
@@ -67,23 +60,24 @@ void Mutex::lock(int count)
 bool Mutex::tryLock(void)
 {
 	int ret = pthread_mutex_trylock(&mMutex);
-        if(ret == EBUSY)
-        {
-		if(!pthread_equal(mLockedBy, pthread_self())) return false;
-		ret = 0;
-        }
-          
+        if(ret == EBUSY) return false;
+       
         if(ret != 0 && ret != EDEADLK)
                 throw Exception("Unable to lock mutex");
 
-        mLockedBy = pthread_self();
+	if(ret == 0) Assert(mLockCount == 0);
+	mLockedBy = pthread_self();
         mLockCount++;
 	return true;
 }
 
 void Mutex::unlock(void)
 {
-	if(mLockCount == 0) throw Exception("Mutex is not locked");
+	if(mLockedBy != pthread_self())
+		throw Exception("Mutex is locked by another thread");
+
+	if(mLockCount == 0) 
+		throw Exception("Mutex is not locked");
 
 	mLockCount--;
 	if(mLockCount == 0)
