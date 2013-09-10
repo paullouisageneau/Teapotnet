@@ -44,7 +44,9 @@ public:
 	Socket(socket_t sock);
 	virtual ~Socket(void);
 
-	bool isConnected(void) const;
+	bool isConnected(void) const;	// Does not garantee the connection isn't actually lost
+	bool isReadable(void) const;
+	bool isWriteable(void) const;
 	Address getRemoteAddress(void) const;
 
 	void setTimeout(double timeout);

@@ -96,6 +96,36 @@ bool Socket::isConnected(void) const
 	return (mSock != INVALID_SOCKET);
 }
 
+bool Socket::isReadable(void) const
+{
+	if(!isConnected()) return false;
+	
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET(mSock, &readfds);
+
+	struct timeval tv;
+	tv.tv_sec = 0;
+        tv.tv_usec = 0;
+	::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+	return FD_ISSET(mSock, &readfds);
+}
+
+bool Socket::isWriteable(void) const
+{
+	if(!isConnected()) return false;
+	
+	fd_set writefds;
+	FD_ZERO(&writefds);
+	FD_SET(mSock, &writefds);
+
+	struct timeval tv;
+	tv.tv_sec = 0;
+        tv.tv_usec = 0;
+	::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
+	return FD_ISSET(mSock, &writefds);
+}
+
 Address Socket::getRemoteAddress(void) const
 {
 	if(!mProxifiedAddr.isNull()) return mProxifiedAddr;
@@ -162,7 +192,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 		if(mTimeout > 0.)
 		{
 			ctl_t b = 1;
-			if(ioctl(mSock,FIONBIO,&b) < 0)
+			if(ioctl(mSock, FIONBIO, &b) < 0)
 				throw Exception("Cannot set non-blocking mode");
 		
 			// Initiate connection
@@ -183,7 +213,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 				throw NetException(String("Connection to ")+addr.toString()+" failed"); 
 		
 			b = 0;
-                	if(ioctl(mSock,FIONBIO,&b) < 0)
+                	if(ioctl(mSock, FIONBIO, &b) < 0)
                         	throw Exception("Cannot set blocking mode");
 			
 			setTimeout(mTimeout);
@@ -229,40 +259,44 @@ size_t Socket::peekData(char *buffer, size_t size)
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
-	if(!size) return 0;
+	if(mTimeout > 0.)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(mSock, &readfds);
 
-        if(mTimeout > 0.)
-        {
-                fd_set readfds;
-                FD_ZERO(&readfds);
-                FD_SET(mSock, &readfds);
+		struct timeval tv;
+		Time::SecondsToStruct(mTimeout, tv);
+		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 
-                struct timeval tv;
-                Time::SecondsToStruct(mTimeout, tv);
-                int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+		if (ret == -1) throw Exception("Unable to wait on socket");
+		if (ret ==  0) throw Timeout();
+	}
 
-                if (ret == -1) throw Exception("Unable to wait on socket");
-                if (ret ==  0) throw Timeout();
-        }
-
-        int count = ::recv(mSock, buffer, size, flags);
-        if(count < 0) throw NetException("Connection lost");
-        if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-        return count;
+	int count = ::recv(mSock, buffer, size, flags);
+	if(count < 0)
+	{
+		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
+		else throw NetException("Connection lost");
+		
+	}
+	return count;
 }
 
 void Socket::sendData(const char *data, size_t size, int flags)
 {
-        while(size)
-        {
-                int count = ::send(mSock, data, size, flags);
-                if(count == 0) throw NetException("Connection closed");
-                if(count < 0)  throw NetException("Connection lost");
-                if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-
-                data+= count;
-                size-= count;
-        }
+	do {
+		int count = ::send(mSock, data, size, flags);
+		if(count < 0)  
+		{
+			if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
+			else throw NetException("Connection lost");
+		}
+		
+		data+= count;
+		size-= count;
+	}
+	while(size);
 }
 
 }
