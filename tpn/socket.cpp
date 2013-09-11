@@ -143,7 +143,12 @@ void Socket::setTimeout(double timeout)
 	mTimeout = timeout;
 	
 	struct timeval tv;
-	Time::SecondsToStruct(mTimeout, tv);
+	if(timeout > 0.) Time::SecondsToStruct(mTimeout, tv);
+	else {
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+	}
+	
 	setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
 	setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));	
 }

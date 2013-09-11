@@ -31,7 +31,7 @@
 namespace tpn
 {
 
-const int Sha512::CryptRounds = 5000;
+const int Sha512::CryptRounds = 5000;	// TODO: should be MUCH higher (100 000 seems reasonable)
   
 void Sha512::Hash(const char *data, size_t size, ByteStream &out, int rounds)
 {

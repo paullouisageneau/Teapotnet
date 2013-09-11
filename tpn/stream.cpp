@@ -28,7 +28,7 @@ namespace tpn
 {
 
 const String Stream::IgnoredCharacters = "\r\0";
-const String Stream::BlankCharacters = " \t\n";
+const String Stream::BlankCharacters = " \t\r\n";
 const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
 

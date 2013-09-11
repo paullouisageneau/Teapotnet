@@ -140,47 +140,59 @@ void ThreadPool::Worker::run(void)
 {
 	while(true)
 	{
-		Synchronize(mThreadPool);
-
-		if(!mThreadPool->mTask)
-		{
-			// Worker is now available      
-                        mThreadPool->mAvailableWorkers.insert(this);
-                        mThreadPool->notifyAll();
-		}
-
-		// Wait for Task
-                while(!mThreadPool->mTask)
-                { 
-			double timeout = 10.;
-                        while(!mThreadPool->mTask && !mShouldStop) 
-				mThreadPool->wait(timeout);
+		Task *task = NULL;
 		
-			// Terminate if necessary
-                        if(!mThreadPool->mTask)
-                        {
-                                if(mShouldStop || mThreadPool->mWorkers.size() > mThreadPool->mMax)
-                                {
-                                        mThreadPool->mAvailableWorkers.erase(this);
-                                        mThreadPool->mWorkers.erase(this);
-					return;
-                                }
-                        }
-                }
-
-		// Run task
-		mThreadPool->mAvailableWorkers.erase(this);
-		Task *task = mThreadPool->mTask;
-                mThreadPool->mTask = NULL;
-		mThreadPool->mBackSignal.launchAll();
-
 		try {
-			Desynchronize(mThreadPool);	
+			Synchronize(mThreadPool);
+
+			if(!mThreadPool->mTask)
+			{
+				// Worker is now available      
+				mThreadPool->mAvailableWorkers.insert(this);
+				mThreadPool->notifyAll();
+			}
+
+			// Wait for Task
+			while(!mThreadPool->mTask)
+			{ 
+				double timeout = 10.;
+				while(!mThreadPool->mTask && !mShouldStop) 
+					mThreadPool->wait(timeout);
+			
+				// Terminate if necessary
+				if(!mThreadPool->mTask)
+				{
+					if(mShouldStop || mThreadPool->mWorkers.size() > mThreadPool->mMax)
+					{
+						mThreadPool->mAvailableWorkers.erase(this);
+						mThreadPool->mWorkers.erase(this);
+						return;
+					}
+				}
+			}
+
+			// Run task
+			mThreadPool->mAvailableWorkers.erase(this);
+			task = mThreadPool->mTask;
+			mThreadPool->mTask = NULL;
+			mThreadPool->mBackSignal.launchAll();
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("ThreadPool::Worker", e.what());
+			break;
+		}
+		
+		try {
 			task->run();
+		}
+		catch(const std::exception &e)
+		{	
+			LogWarn("ThreadPool::Worker", String("Unhandled exception in task: ") + e.what());
 		}
 		catch(...)
 		{	
-			LogWarn("ThreadPool::Worker", "Unhandled exception in task");
+			LogWarn("ThreadPool::Worker", String("Unknown handled exception in task"));
 		}
 	}
 }

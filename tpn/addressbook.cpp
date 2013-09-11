@@ -308,23 +308,26 @@ void AddressBook::save(Stream &stream) const
 
 void AddressBook::save(void) const
 {
+	Synchronize(this);
+
 	String data;
-	
-	{
-		Synchronize(this);
-		save(data);
-		SafeWriteFile file(mFileName);
-		file.write(data);
-		file.close();
-	}
+	save(data);
+		
+	SafeWriteFile file(mFileName);
+	file.write(data);
+	file.close();
 	
 	const Contact *self = getSelf();
-	if(self && self->isConnected())
+	if(self)
 	{
+		Desynchronize(this);
 		try {
-			Notification notification(data);
-			notification.setParameter("type", "contacts");
-			notification.send(self->peering());
+			if(self->isConnected())
+			{
+				Notification notification(data);
+				notification.setParameter("type", "contacts");
+				notification.send(self->peering());
+			}
 		}
 		catch(Exception &e)
 		{
@@ -344,9 +347,11 @@ void AddressBook::update(void)
 	for(int i=0; i<keys.size(); ++i)
 	{
 		Contact *contact;
-		if(!mContacts.get(keys[i], contact)) continue;
-		
-		mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
+		if(mContacts.get(keys[i], contact))
+		{
+			Desynchronize(this);
+			mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
+		}
 	}
 }
 
@@ -781,6 +786,12 @@ String AddressBook::Contact::urlPrefix(void) const
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
+ByteString AddressBook::Contact::secret(void) const
+{
+        Synchronize(this);
+        return mSecret;
+}
+
 bool AddressBook::Contact::isSelf(void) const
 {
 	return (mUniqueName == mAddressBook->userName());
@@ -890,7 +901,7 @@ bool AddressBook::Contact::addAddresses(const AddressMap &map)
 		}
 	}
 	
-	if(changed) SynchronizeStatement(mAddressBook, mAddressBook->save());
+	if(changed) mAddressBook->save();
 	return true;
 }
 
@@ -935,7 +946,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		if(save)
 		{
 			SynchronizeStatement(this, mAddrs[instance][addr] = Time::Now());
-			SynchronizeStatement(mAddressBook, mAddressBook->save());
+			mAddressBook->save();
 		}
 		return true;
 	}
@@ -944,7 +955,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		if(save && mAddrs.contains(instance)) 
 		{
 			SynchronizeStatement(this, mAddrs[instance].erase(addr));
-			SynchronizeStatement(mAddressBook, mAddressBook->save());
+			mAddressBook->save();
 		}
 		return false;
 	}
@@ -996,18 +1007,19 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 
 void AddressBook::Contact::update(bool alternate)
 {
-	Synchronize(this);
-	if(mDeleted) return;
-	Core::Instance->registerPeering(mPeering, mRemotePeering, mSecret, this);
+	// Warning: NOT synchronized !
 	
-	LogDebug("AddressBook::Contact", "Looking for " + mUniqueName);
+	if(isDeleted()) return;
+	Core::Instance->registerPeering(peering(), remotePeering(), secret(), this);
 	
-	if(mPeering != mRemotePeering && Core::Instance->hasRegisteredPeering(mRemotePeering))	// the user is local
+	LogDebug("AddressBook::Contact", "Looking for " + uniqueName());
+	
+	if(peering() != remotePeering() && Core::Instance->hasRegisteredPeering(remotePeering()))	// the user is local
 	{
-		Identifier identifier(mPeering, Core::Instance->getName());
+		Identifier identifier(peering(), Core::Instance->getName());
 		if(!Core::Instance->hasPeer(identifier))
 		{
-			LogDebug("AddressBook::Contact", mUniqueName + " found locally");
+			LogDebug("AddressBook::Contact", uniqueName() + " found locally");
 			  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
@@ -1024,48 +1036,48 @@ void AddressBook::Contact::update(bool alternate)
 
 	if(!alternate) 
 	{
-		Identifier remotePeering(mRemotePeering);
-		if(DesynchronizeTest(this, mAddressBook->publish(remotePeering)))
-			LogDebug("AddressBook::Contact", "Published to tracker " + mTracker + " for " + mUniqueName);
+		if(mAddressBook->publish(remotePeering()))
+			LogDebug("AddressBook::Contact", "Published to tracker " + tracker() + " for " + uniqueName());
 	}
 		  
 	AddressMap newAddrs;
-	Identifier peering(mPeering);
-	String tracker(mTracker);
-	if(DesynchronizeTest(this, mAddressBook->query(peering, tracker, newAddrs, alternate)))
-		LogDebug("AddressBook::Contact", "Queried tracker " + mTracker + " for " + mUniqueName);	
+	if(mAddressBook->query(peering(), tracker(), newAddrs, alternate))
+		LogDebug("AddressBook::Contact", "Queried tracker " + tracker() + " for " + uniqueName());	
 	
 	if(!newAddrs.empty())
 	{
-		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		else LogDebug("AddressBook::Contact", "Alternative addresses for " + mName + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
+		else LogDebug("AddressBook::Contact", "Alternative addresses for " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		
 		mFound = true;
-		DesynchronizeStatement(this, connectAddresses(newAddrs, !alternate, alternate));
+		connectAddresses(newAddrs, !alternate, alternate);
 	}
 	else if(!alternate) 
 	{
 		mFound = false;
-		AddressMap tmpAddrs(mAddrs);
-		DesynchronizeStatement(this, connectAddresses(tmpAddrs, true, false));
+		connectAddresses(addresses(), true, false);
 	}
 	
-	AddressMap::iterator it = mAddrs.begin();
-	while(it != mAddrs.end())
 	{
-		const String &instance = it->first;
-		AddressBlock &block = it->second;
-		AddressBlock::iterator jt = block.begin();
-		while(jt != block.end())
+		Synchronize(this);
+
+		AddressMap::iterator it = mAddrs.begin();
+		while(it != mAddrs.end())
 		{
-			if(Time::Now() - jt->second >= 3600*24*8)	// 8 days
-				block.erase(jt++);
-			else jt++;
+			const String &instance = it->first;
+			AddressBlock &block = it->second;
+			AddressBlock::iterator jt = block.begin();
+			while(jt != block.end())
+			{
+				if(Time::Now() - jt->second >= 3600*24*8)	// 8 days
+					block.erase(jt++);
+				else jt++;
+			}
+			
+			if(block.empty())
+				mAddrs.erase(it++);
+			else it++;
 		}
-		
-		if(block.empty())
-			mAddrs.erase(it++);
-		else it++;
 	}
 }
 
@@ -1112,14 +1124,13 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	Synchronize(mAddressBook);
 	mAddressBook->mScheduler.schedule(this, 10.);
 }
 
 void AddressBook::Contact::notification(Notification *notification)
 {
 	Assert(notification);
-	SynchronizeStatement(this, if(mDeleted) return);
+	if(isDeleted()) return;
 
 	StringMap parameters = notification->parameters();
 	
@@ -1310,7 +1321,6 @@ void AddressBook::Contact::notification(Notification *notification)
 			
 			if(isSelf())
 			{
-				Desynchronize(this);
 				mAddressBook->user()->setInfo(info);
 			}
 		}
@@ -1320,7 +1330,7 @@ void AddressBook::Contact::notification(Notification *notification)
 	}
 	else if(type == "contacts")
 	{
-		if(SynchronizeTest(this, mUniqueName != mAddressBook->userName()))
+		if(!isSelf())
 		{
 			LogWarn("AddressBook::Contact::notification", "Received contacts update from other than self, dropping");
 			return;
@@ -1587,12 +1597,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Resource::Query query;
 					query.setLocation(target);
 					SerializableSet<Resource> resources;
-					Identifier peering(mPeering);
-					
-					Desynchronize(this);
+
 					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					try {
-						while(!query.submitRemote(resources, peering))
+						while(!query.submitRemote(resources, peering()))
 							Thread::Sleep(5.);
 					}
 					catch(...)
@@ -1629,11 +1637,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					String instance;
 					request.get.get("instance", instance);
 					
-					Identifier peering(mPeering);
-					if(!instance.empty()) peering.setName(instance);
+					Identifier instancePeering(peering());
+					if(!instancePeering.empty()) instancePeering.setName(instance);
 					
-					Desynchronize(this);
-					Resource resource(peering, url, mAddressBook->user()->store());
+					Resource resource(instancePeering, url, mAddressBook->user()->store());
 					try {
 						resource.refresh(isSelf());	// we might find a better way to access it
 					}
@@ -1746,11 +1753,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					SerializableSet<Resource> resources;
 					
-					Identifier peering(mPeering);
-					Desynchronize(this);
 					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
 					try {
-						while(!query.submitRemote(resources, peering))
+						while(!query.submitRemote(resources, peering()))
 							Thread::Sleep(5.);
 					}
 					catch(...)

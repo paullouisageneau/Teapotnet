@@ -41,7 +41,7 @@ namespace tpn
 
 class User;
   
-class AddressBook : public Synchronizable, public HttpInterfaceable
+class AddressBook : private Synchronizable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -114,6 +114,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		ByteString secret(void) const;
 		void run(void);
 		
 		MessageQueue::Selection selectMessages(void) const;
