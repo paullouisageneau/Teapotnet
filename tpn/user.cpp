@@ -702,6 +702,7 @@ void User::Profile::save()
 	SafeWriteFile profileFile(mFileName);
 	YamlSerializer serializer(&profileFile);
 	serialize(serializer);
+	profileFile.close();
 }
 
 void User::Profile::clear()
@@ -997,7 +998,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 						postVariable = function(field, valueFieldRaw)\n\
 						{\n\
 							valueFieldPost = valueFieldRaw;\n\
-							if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
+							//if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
 							var request = $.post('"+prefix+"/profile"+"',\n\
 								{ 'field': field , 'valueField': valueFieldPost });\n\
 							request.fail(function(jqXHR, textStatus) {\n\
@@ -1007,7 +1008,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 							setTimeout(function(){location.reload();},100);\n\
 						}\n\
 						loadClickHandlers();\n\
-						$('.empty').click(function() {isEmpty = true; valueField = 'emptyfield'; \n\
+						$('.empty').click(function() {isEmpty = true; valueField = ''; //empty Field \n\
 							if(!blocked)\n\
 							{\n\
 								blocked = true;\n\
@@ -1091,7 +1092,7 @@ void User::Profile::displayProfileInfo(Html &page, const String &fieldText, cons
 
 void User::Profile::updateField(String &key, String &value)
 {
-	// TODO
+	// TODO : problem with non string ??
 	
 	save();
 }
