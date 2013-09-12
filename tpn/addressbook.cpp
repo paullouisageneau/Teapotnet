@@ -1463,7 +1463,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 
 			// TODO : retrieve personal info from files
-			
+			User::Profile *profile = mAddressBook->user()->profile();
+
+			page.text("Statut : "+profile->getStatus());
 
 			page.close("div");
 
