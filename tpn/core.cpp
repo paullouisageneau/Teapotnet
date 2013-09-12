@@ -198,11 +198,11 @@ void Core::run(void)
 			Socket *sock = new Socket;
 			mSock.accept(*sock);
 			
-			Address addr = sock->getRemoteAddress();
-			LogInfo("Core", "Incoming connection from " + addr.toString());
-			if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
-
 			try {
+				Address addr = sock->getRemoteAddress();
+                        	LogInfo("Core", "Incoming connection from " + addr.toString());
+                        	if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
+
 				// TODO: this is not a clean way to proceed
 				const size_t peekSize = 5;	
 				char peekData[peekSize];
@@ -226,6 +226,7 @@ void Core::run(void)
 			catch(const Exception &e)
 			{
 				LogDebug("Core::run", String("Processing failed: ") + e.what());
+				delete sock;
 			}
 		}
 	}

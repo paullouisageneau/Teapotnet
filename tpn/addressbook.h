@@ -64,7 +64,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : protected Synchronizable, public Serializable, public HttpInterfaceable, public Task, public Core::Listener
+	class Contact : public Serializable, public HttpInterfaceable, public Task, public Core::Listener
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -158,6 +158,7 @@ private:
 	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
 	
 	User *mUser;
+	String mUserName;
 	String mFileName;
 	Map<Identifier, Contact*> mContacts;			// Sorted by peering
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
