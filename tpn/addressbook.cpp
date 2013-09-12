@@ -1023,7 +1023,6 @@ void AddressBook::Contact::update(bool alternate)
 			  
 			Address addr("127.0.0.1", Config::Get("port"));
 			try {
-				Desynchronize(this);
 				Socket *sock = new Socket(addr);
 				Core::Instance->addPeer(sock, identifier);
 			}
@@ -1811,9 +1810,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					if(info.newnotifications) playNotificationSound();\n\
 				});");
 				
-				page.div("Loading...", "#list.box");
-				page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#list');");
-				page.footer();
+				if(!match.empty())
+				{
+					page.div("Loading...", "#list.box");
+					page.javascript("listDirectory('"+Http::AppendGet(request.fullUrl, "json")+"','#list');");
+					page.footer();
+				}
 				return;
 			}
 			else if(directory == "chat")
