@@ -69,14 +69,14 @@ void ThreadPool::launch(Task *task)
 				break;
 			}
 			
-			wait();
+			mSignal.wait(*this);
 		}
 		
 		mTask = task;
 		notify();
 
 		while(mTask)
-                        mBackSignal.wait(*this);
+                        mSignal.wait(*this);
 	}
 	catch(const Exception &e)
 	{
@@ -91,7 +91,7 @@ void ThreadPool::join(void)
 	
 	// Threads are always running so we can't use join() here
 	while(mAvailableWorkers.size() < mWorkers.size())
-		wait();
+		mSignal.wait(*this);
 }
 
 void ThreadPool::clear(void)
@@ -109,7 +109,7 @@ void ThreadPool::clear(void)
 		}
 
 		notifyAll();
-		wait();
+		mSignal.wait(*this);
 	}
 		
 	mWorkers.clear();
@@ -128,7 +128,7 @@ ThreadPool::Worker::~Worker(void)
 	Synchronize(mThreadPool);
 	mThreadPool->mAvailableWorkers.erase(this);
 	mThreadPool->mWorkers.erase(this);
-	mThreadPool->notifyAll();
+	mThreadPool->mSignal.launchAll();
 }
 
 void ThreadPool::Worker::stop(void)
@@ -149,15 +149,16 @@ void ThreadPool::Worker::run(void)
 			{
 				// Worker is now available      
 				mThreadPool->mAvailableWorkers.insert(this);
-				mThreadPool->notifyAll();
+				mThreadPool->mSignal.launchAll();
 			}
 
 			// Wait for Task
 			while(!mThreadPool->mTask)
 			{ 
 				double timeout = 10.;
-				while(!mThreadPool->mTask && !mShouldStop) 
-					mThreadPool->wait(timeout);
+				while(!mThreadPool->mTask && !mShouldStop)
+					if(!mThreadPool->wait(timeout))
+						break;
 			
 				// Terminate if necessary
 				if(!mThreadPool->mTask)
@@ -175,7 +176,7 @@ void ThreadPool::Worker::run(void)
 			mThreadPool->mAvailableWorkers.erase(this);
 			task = mThreadPool->mTask;
 			mThreadPool->mTask = NULL;
-			mThreadPool->mBackSignal.launchAll();
+			mThreadPool->mSignal.launchAll();
 		}
 		catch(const std::exception &e)
 		{

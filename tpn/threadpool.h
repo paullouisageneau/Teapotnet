@@ -63,7 +63,7 @@ private:
 	Set<Worker*> mWorkers;
 	Set<Worker*> mAvailableWorkers;
 	Task *mTask;
-	Signal mBackSignal;
+	Signal mSignal;
 	unsigned mMin, mMax, mLimit;
 };
 
