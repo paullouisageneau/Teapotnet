@@ -1710,6 +1710,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					});");
 				
 					page.div("Loading...", "#list.box");
+					/*page.javascript("$('#list').;\n\
+							");*/ // TODO : animation
+
 					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
 					page.footer();
 				}
