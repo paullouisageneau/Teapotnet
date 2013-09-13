@@ -268,7 +268,7 @@ void Resource::serialize(Serializer &s) const
 	// Note path is not serialized
 	Serializer::ConstObjectMapping mapping;
 	if(!mDigest.empty()) mapping["hash"] = &mDigest;	// backward compatibility, should be digest
-	if(!mUrl.empty()) mapping["path"] = &mUrl;
+	if(!mUrl.empty()) mapping["url"] = &mUrl;
 	mapping["name"] = &tmpName;
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;
@@ -292,8 +292,8 @@ bool Resource::deserialize(Serializer &s)
 	Serializer::ObjectMapping mapping;
 	mapping["digest"] = &mDigest;
 	mapping["hash"] = &mDigest;	// backward compatibility
-	mapping["path"] = &mUrl;
-	mapping["url"] = &mUrl;		// backward compatibility
+	mapping["url"] = &mUrl;		
+	mapping["path"] = &mUrl;	// backward compatibility
 	mapping["name"] = &tmpName;
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;

@@ -1775,7 +1775,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(!match.empty())
 				{
 					page.div("Loading...", "#list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list');");
+					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+mAddressBook->userName()+"');");
 					page.footer();
 				}
 				return;
