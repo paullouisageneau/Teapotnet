@@ -19,7 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function listDirectory(url, object) {
+function listDirectory(url, object, userName = '') {
 
 	$.ajax({
 		url: url,
@@ -27,19 +27,28 @@ function listDirectory(url, object) {
 		timeout: 60000
 	})
 	.done(function(data) {
-		$(object).html('<table class="files"></table>');
-		var table = $(object).find('table');
-		if(data != null) {
+		if(data && data.length > 0) {
+			$(object).html('<table class="files"></table>');
+                	var table = $(object).find('table');
+
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
-				var link = (resource.hash ? '/' + resource.hash.escape() : resource.name.escape() + (resource.type == "directory" ? '/' : ''));
+				var link =	(resource.hash ? '/' + resource.hash.escape() : 
+						(userName ? '/' + userName + (resource.contact ? '/contacts/' + resource.contact.escape() : 
+						'/myself') + '/files' + resource.url.escape() : 
+						resource.name.escape())
+						+ (resource.type == "directory" ? '/' : ''));
+
 				var line = '<tr>';
 				line+= '<td><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
 				line+= '</tr>';
 				table.append(line);
 			}
 		}
-		
+		else {
+			$(object).html('No files');
+		}
+
 		$('table.files tr').css('cursor', 'pointer').click(function() {
 			window.location.href = $(this).find('a').attr('href');
 		});

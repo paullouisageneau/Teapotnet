@@ -74,7 +74,6 @@ AddressBook::~AddressBook(void)
 
 User *AddressBook::user(void) const
 {
-	Synchronize(this);
  	return mUser; 
 }
 
@@ -1576,23 +1575,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("json") || request.get.contains("playlist"))
 				{
 					// Query resources
-					Resource::Query query;
-					query.setLocation(target);
-					SerializableSet<Resource> resources;
+					Resource::Query query(mAddressBook->user()->store(), target);
 
-					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
-					
-					try {
-						while(!query.submitRemote(resources, peering()))
-							Thread::Sleep(5.);
-					}
-					catch(...)
-					{
-						// Peer not connected
-						if(!isSelf()) throw 404;
-					}
-					
-					if(resources.empty()) throw 404;
+					SerializableSet<Resource> resources;
+					bool success = query.submitRemote(resources, peering());
+					if(isSelf()) success|= query.submitLocal(resources);
+					if(!success) throw 404;
 					
 					if(request.get.contains("json"))
 					{
@@ -1710,7 +1698,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					});");
 				
 					page.div("Loading...", "#list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
+					page.javascript("listDirectory('"+prefix+request.url+"?json','#list','"+mAddressBook->userName()+"');");
 					page.footer();
 				}
 				
@@ -1729,24 +1717,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				{
 					if(match.empty()) throw 400;
 					
-					Resource::Query query;
+					Resource::Query query(mAddressBook->user()->store());
 					query.setMatch(match);
 					
 					SerializableSet<Resource> resources;
-					
-					if(isSelf()) query.submitLocal(resources, mAddressBook->user()->store());
-					
-					try {
-						while(!query.submitRemote(resources, peering()))
-							Thread::Sleep(5.);
-					}
-					catch(...)
-					{
-						// Peer not connected
-						if(!isSelf()) throw 404;
-					}
-					
-					if(resources.empty()) throw 404;
+					bool success = query.submitRemote(resources, peering());
+					if(isSelf()) success|= query.submitLocal(resources);
+					if(!success) throw 404;
 					
 					if(request.get.contains("json"))
 					{
@@ -1796,7 +1773,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if(!match.empty())
 				{
 					page.div("Loading...", "#list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list');");
+					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+mAddressBook->userName()+"');");
 					page.footer();
 				}
 				return;

@@ -26,6 +26,7 @@
 #include "tpn/sha512.h"
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
+#include "tpn/jsonserializer.h"
 #include "tpn/mime.h"
 
 namespace tpn
@@ -234,11 +235,10 @@ void User::setInfo(const StringMap &info)
 void User::sendInfo(const Identifier &identifier)
 {
 	Synchronize(this);
-	
-	StringMap tmp(mInfo);	// WTF
+
 	String content;
 	YamlSerializer serializer(&content);
-	serializer.output(tmp);
+	serializer.output(mInfo);
 	
 	Notification notification(content);
 	notification.setParameter("type", "info");
@@ -308,8 +308,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.br();
 			page.close("div");
 
-
-
+			
 			page.open("div","contacts.box");
 			
 			page.link(prefix+"/contacts/","Edit",".button");
@@ -562,42 +561,70 @@ void User::http(const String &prefix, Http::Request &request)
 		
 		if(url == "/search" || url == "/search/")
 		{
-			String query;
-			if(request.post.contains("query"))
-			{
-				query = request.post.get("query");
-				query.trim();
-			}
-				
-			Http::Response response(request,200);
-			response.send();
-				
-			Html page(response.sock);
-			if(query.empty()) page.header("Search");
-			else page.header(String("Searching ") + query);
+			String match;
+			if(!request.post.get("query", match))
+				request.get.get("query", match);
+			match.trim();
 			
-			page.openForm(prefix + "/search", "post", "searchform");
-			page.input("text","query", query);
-			page.button("search","Search");
-			page.closeForm();
-			page.br();
-				
-			if(query.empty())
+			if(request.get.contains("json") || request.get.contains("playlist"))
 			{
-				page.footer();
+				if(match.empty()) throw 400;
+				
+				Resource::Query query(store());
+				query.setMatch(match);
+				
+				SerializableSet<Resource> resources;
+				if(!query.submit(resources))
+					throw 404;
+
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+					JsonSerializer json(response.sock);
+					json.output(resources);
+				}
+				else {
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
+	
+					String host;
+					request.headers.get("Host", host);
+					Resource::CreatePlaylist(resources, response.sock, host);
+				}
 				return;
 			}
 			
-			const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-	
-			Desynchronize(this);
-			Request trequest("search:"+query, false);	// no data
-			trequest.execute(this);
-			trequest.submit();
-			trequest.wait(timeout);
+			Http::Response response(request, 200);
+			response.send();
+				
+			Html page(response.sock);
 			
-			page.listFilesFromRequest(trequest, prefix, request, addressBook()->user());
-			page.footer();
+			if(match.empty()) page.header("Search");
+			else page.header(String("Searching ") + match);
+			
+			page.openForm(prefix + "/search", "post", "searchform");
+			page.input("text","query", match);
+			page.button("search","Search");
+			page.closeForm();
+			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
+			page.br();
+
+			unsigned refreshPeriod = 5000;
+			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+				transition($('#status'), info.status.capitalize());\n\
+				$('#status').removeClass().addClass('button').addClass(info.status);\n\
+				if(info.newnotifications) playNotificationSound();\n\
+			});");
+			
+			if(!match.empty())
+			{
+				page.div("Loading...", "#list.box");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+name()+"');");
+				page.footer();
+			}
 			return;
 		}
 		

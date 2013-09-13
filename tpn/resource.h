@@ -46,7 +46,7 @@ public:
 	class Query : public Serializable
 	{
 	public:
-		Query(const String &url = "");
+		Query(Store *store = NULL, const String &url = "");
 		~Query(void);
 		
 		void setLocation(const String &url);
@@ -56,10 +56,10 @@ public:
 		void setLimit(int count);
 		void setMatch(const String &match);
 
-		bool submitLocal(Resource &result, Store *store = NULL);	// true if success
-		bool submitLocal(Set<Resource> &result, Store *store = NULL);	// true if success
-		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);	// true if peer responded
-		bool submit(Set<Resource> &result, Store *store = NULL, const Identifier &peering = Identifier::Null, bool forceLocal = false);
+		bool submitLocal(Resource &result);
+		bool submitLocal(Set<Resource> &result);
+		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
+		bool submit(Set<Resource> &result, const Identifier &peering = Identifier::Null, bool forceLocal = false);
 
 		void createRequest(Request &request) const;
 		
@@ -74,6 +74,8 @@ public:
 		Time mMinAge, mMaxAge;
 		int mOffset, mCount;
 		
+		Store *mStore;
+
 		friend class Store;
 	};
 	

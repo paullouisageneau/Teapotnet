@@ -314,10 +314,10 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 {
 	Synchronize(this);
 
-	bool success = false;
 	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
-	if(prepareQuery(statement, query, fields, false))
+	bool success = prepareQuery(statement, query, fields, false);
+	if(success)
 	{
 		while(statement.step())
 		{
@@ -327,7 +327,6 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 			resource.mPath = urlToPath(resource.mUrl);
 			resource.mStore = this;
 			resources.insert(resource);
-			success = true;
 		}
 
 		statement.finalize();

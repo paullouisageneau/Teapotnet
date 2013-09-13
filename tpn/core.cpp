@@ -1237,7 +1237,7 @@ void Core::Handler::Sender::run(void)
 				String args;
 				args << unsigned(pseudorand());
 				StringMap parameters;
-				Handler::sendCommand(mStream, "K", args, parameters);
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, "K", args, parameters));
 			}
 			
 			for(int i=0; i<mRequestsToRespond.size(); ++i)
@@ -1270,7 +1270,7 @@ void Core::Handler::Sender::run(void)
 						
 						String args;
 						args << request->id() << " " << status << " " <<channel;
-						Handler::sendCommand(mStream, "R", args, response->mParameters);
+						DesynchronizeStatement(this, Handler::sendCommand(mStream, "R", args, response->mParameters));
 					}
 				}
 			}
@@ -1286,10 +1286,8 @@ void Core::Handler::Sender::run(void)
 				StringMap parameters = notification.parameters();
 				parameters["length"] << length;
 				
-				Handler::sendCommand(mStream, "M", args, parameters);
-				
-				mStream->write(notification.mContent);
-				
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, "M", args, parameters));
+				DesynchronizeStatement(this, mStream->write(notification.mContent));
 				mNotificationsQueue.pop();
 			}
 			  
@@ -1304,7 +1302,7 @@ void Core::Handler::Sender::run(void)
 				
 				String args;
 				args << request->id() << " " << request->target();
-				Handler::sendCommand(mStream, command, args, request->mParameters);
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, command, args, request->mParameters));
 				mRequestsQueue.pop();
 			}
 
@@ -1343,16 +1341,14 @@ void Core::Handler::Sender::run(void)
 				{
 					LogWarn("Core::Handler::Sender", "Error on channel " + String::number(channel) + ": " + e.what());
 					
-					int status = Request::Response::ReadFailed;
-					
-					String args;
-					args << channel << " " << status;
-					StringMap parameters;
-					parameters["notification"] = e.what();
-					Handler::sendCommand(mStream, "E", args, parameters);
-					
 					response->mTransfertFinished = true;
 					mTransferts.erase(channel);
+					
+					String args;
+					args << channel << " " << Request::Response::ReadFailed;
+					StringMap parameters;
+					parameters["notification"] = e.what();
+					DesynchronizeStatement(this, Handler::sendCommand(mStream, "E", args, parameters));
 					continue;
 				}
 
@@ -1360,7 +1356,7 @@ void Core::Handler::Sender::run(void)
 				args << channel;
 				StringMap parameters;
 				parameters["length"] << size;
-				Handler::sendCommand(mStream, "D", args, parameters);
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, "D", args, parameters));
 
 				if(size == 0)
 				{
@@ -1369,7 +1365,7 @@ void Core::Handler::Sender::run(void)
 					mTransferts.erase(channel);
 				}
 				else {
-				 	mStream->writeData(buffer, size);
+				 	DesynchronizeStatement(this, mStream->writeData(buffer, size));
 				}
 			}
 			

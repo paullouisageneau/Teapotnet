@@ -189,11 +189,11 @@ bool Request::execute(User *user)
 				}
 			}
 			else {
-				Resource::Query query;
+				Resource::Query query(store);
 				query.setDigest(identifier);
 	
 				Resource resource;
-				if(query.submitLocal(resource, store))
+				if(query.submitLocal(resource))
 				{
 					addResponse(createResponse(resource, parameters, store));
 					return true;
@@ -203,9 +203,9 @@ bool Request::execute(User *user)
 	}
 	else if(command == "file")
 	{
-		Resource::Query query(argument);
+		Resource::Query query(store, argument);
 		Set<Resource> resources;
-		if(query.submitLocal(resources, store))
+		if(query.submitLocal(resources))
 		{
 			if(resources.empty())
 			{
@@ -223,13 +223,13 @@ bool Request::execute(User *user)
 	}
 	else if(command == "search")
 	{
-		Resource::Query query;
+		Resource::Query query(store);
 		StringMap tmp(parameters);
 		query.deserialize(tmp);
 		if(!argument.empty() || argument != "*") query.setMatch(argument);
 		
 		Set<Resource> resources;
-		if(query.submitLocal(resources, store) && !resources.empty())
+		if(query.submitLocal(resources) && !resources.empty())
 		{
 			for(Set<Resource>::iterator it = resources.begin();
 				it != resources.end();
@@ -281,9 +281,9 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 		String url = resource.url();
 		if(url.empty() || url[url.size()-1] != '/') url+= '/';
 	
-		Resource::Query query(url);	
+		Resource::Query query(store, url);	
 		SerializableSet<Resource> resources;
-		if(query.submitLocal(resources, store))
+		if(query.submitLocal(resources))
 		{
 			YamlSerializer serializer(response->content());
 			serializer.output(resources);

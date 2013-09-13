@@ -30,6 +30,8 @@
 #include "tpn/pipe.h"
 #include "tpn/thread.h"
 #include "tpn/mime.h"
+#include "tpn/addressbook.h"
+#include "tpn/user.h"
 
 namespace tpn
 {
@@ -114,10 +116,10 @@ void Resource::refresh(bool forceLocal)
 {
 	mSources.clear();
 
-	Query query;
+	Query query(mStore);
 	createQuery(query);
 	Set<Resource> result;
-	query.submit(result, mStore, mPeering, forceLocal);
+	query.submit(result, mPeering, forceLocal);
 
 	if(result.empty())
 		throw Exception("Resource not found");
@@ -186,10 +188,10 @@ Resource::Accessor *Resource::accessor(void) const
 	
 	if(!mAccessor)
 	{
-		Query query;
+		Query query(mStore);
 		createQuery(query);
 		Resource dummy;		// TODO: rather stupid
-		if(query.submitLocal(dummy, mStore))
+		if(query.submitLocal(dummy))
 		{
 			Assert(!dummy.mPath.empty());
 			mAccessor = new LocalAccessor(dummy.mPath);
@@ -249,6 +251,18 @@ void Resource::serialize(Serializer &s) const
 
 	String strType = (mType == 0 ? "directory" : "file");
 	String tmpName = name();
+	String tmpContact;
+
+	if(mPeering != Identifier::Null)
+	{
+		const User *user = mStore->user();
+		if(user)
+		{
+			const AddressBook::Contact *contact = user->addressBook()->getContact(mPeering);
+			if(contact) tmpContact = contact->uniqueName();
+		}
+	}
+	
 	ConstSerializableWrapper<int64_t> sizeWrapper(mSize);
 	
 	// Note path is not serialized
@@ -260,6 +274,8 @@ void Resource::serialize(Serializer &s) const
 	mapping["type"] = &strType;
 	mapping["size"] = &sizeWrapper;
 
+	if(!tmpContact.empty()) mapping["contact"] = &tmpContact;
+	
 	s.outputObject(mapping);
 }
 
@@ -269,6 +285,7 @@ bool Resource::deserialize(Serializer &s)
 	
 	String strType;
 	String tmpName;
+	String tmpContact;
 	SerializableWrapper<int64_t> sizeWrapper(&mSize);
 
 	// Note path is not deserialized
@@ -280,6 +297,8 @@ bool Resource::deserialize(Serializer &s)
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;
 	mapping["size"] = &sizeWrapper;
+
+	mapping["contact"] = &tmpContact;
 	
 	if(!s.inputObject(mapping)) return false;
 	
@@ -293,6 +312,16 @@ bool Resource::deserialize(Serializer &s)
 		strType.extract(mType);
 	}
 
+	if(!tmpContact.empty())
+	{
+		const User *user = mStore->user();
+		if(user)
+		{
+			const AddressBook::Contact *contact = user->addressBook()->getContactByUniqueName(tmpContact);
+			if(contact) mPeering = contact->peering();
+		}
+	}
+	
 	if(mUrl.empty()) mUrl = tmpName;
 	
 	return true;
@@ -324,12 +353,13 @@ bool operator != (const Resource &r1, const Resource &r2)
 	return !(r1 == r2);
 }
 
-Resource::Query::Query(const String &url) :
+Resource::Query::Query(Store *store, const String &url) :
 	mUrl(url),
+	mStore(store),
 	mMinAge(0), mMaxAge(0),
 	mOffset(0), mCount(-1)
 {
-  
+  	if(!mStore) mStore = Store::GlobalInstance;
 }
 
 Resource::Query::~Query(void)
@@ -369,10 +399,8 @@ void Resource::Query::setMatch(const String &match)
 	mMatch = match;
 }
 
-bool Resource::Query::submitLocal(Resource &result, Store *store)
+bool Resource::Query::submitLocal(Resource &result)
 {
-	if(!store) store = Store::GlobalInstance;
-	
 	if(!mDigest.empty())
 	{
 		if(Store::Get(mDigest, result))
@@ -380,13 +408,11 @@ bool Resource::Query::submitLocal(Resource &result, Store *store)
 		// TODO: if Get was reliable at startup calling query would not be necessary here
 	}
 	
-	return store->query(*this, result);
+	return mStore->query(*this, result);
 }
 
-bool Resource::Query::submitLocal(Set<Resource> &result, Store *store)
+bool Resource::Query::submitLocal(Set<Resource> &result)
 {
-	if(!store) store = Store::GlobalInstance;
-
 	if(!mDigest.empty())
 	{
 		Resource resource;
@@ -398,7 +424,7 @@ bool Resource::Query::submitLocal(Set<Resource> &result, Store *store)
 		// TODO: if Get was reliable at startup calling query would not be necessary here
 	}
 	
-	return store->query(*this, result);
+	return mStore->query(*this, result);
 }
 
 bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
@@ -411,36 +437,38 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 	request.wait(timeout);
 	
 	Synchronize(&request);
+	bool success = false;
 	for(int i=0; i<request.responsesCount(); ++i)
 	{
 		const Request::Response *response = request.response(i);		
                 if(response->error()) continue;
-
-		try
+		success = true;
+		
+		if(response->status() != Request::Response::Empty)
 		{
-			Resource resource;
-			StringMap parameters = response->parameters();
-			resource.deserialize(parameters);
-			resource.setPeering(response->peering());
-                        result.insert(resource);
-                }
-		catch(const Exception &e)
-		{
-			LogWarn("Resource::Query::submit", String("Dropping invalid response: ") + e.what());
+			try {
+				Resource resource(mStore);
+				StringMap parameters = response->parameters();
+				resource.deserialize(parameters);
+				resource.setPeering(response->peering());
+				result.insert(resource);
+			}
+			catch(const Exception &e)
+			{
+				LogWarn("Resource::Query::submit", String("Dropping invalid response: ") + e.what());
+			}
 		}
 	}
 
-	return (request.responsesCount() != 0);
+	return success;
 }
 
-bool Resource::Query::submit(Set<Resource> &result, Store *store, const Identifier &peering, bool forceLocal)
+bool Resource::Query::submit(Set<Resource> &result, const Identifier &peering, bool forceLocal)
 {
-	if(!store) store = Store::GlobalInstance;
-	
 	bool success = false;
 	if(forceLocal || peering == Identifier::Null) 
 	{
-		success = submitLocal(result, store);
+		success = submitLocal(result);
 		if(!mDigest.empty() && success) return true;
 	}
 	
