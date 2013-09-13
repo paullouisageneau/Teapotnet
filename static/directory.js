@@ -35,7 +35,7 @@ function listDirectory(url, object, userName = '') {
 				var resource = data[i];
 				if(!resource.url) continue;
 				var link =	(resource.hash ? '/' + resource.hash.escape() : 
-						(userName ? '/' + userName + (resource.contact ? '/contacts/' + resource.contact.escape() : 
+						(userName ? '/' + userName + (resource.contact && resource.contact != userName ? '/contacts/' + resource.contact.escape() : 
 						'/myself') + '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape() : 
 						resource.name.escape())
 						+ (resource.type == "directory" ? '/' : ''));

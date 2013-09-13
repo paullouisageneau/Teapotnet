@@ -436,7 +436,7 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 	createRequest(request);
         request.submit(peering);
 	request.wait(timeout);
-	
+
 	Synchronize(&request);
 	bool success = false;
 	for(int i=0; i<request.responsesCount(); ++i)
@@ -469,8 +469,9 @@ bool Resource::Query::submit(Set<Resource> &result, const Identifier &peering, b
 	bool success = false;
 	if(forceLocal || peering == Identifier::Null) 
 	{
-		success = submitLocal(result);
-		if(!mDigest.empty() && success) return true;
+		int oldSize = result.size();
+		success|= submitLocal(result);
+		if(!mDigest.empty() && result.size() > oldSize) return true;
 	}
 	
 	success|= submitRemote(result, peering);
