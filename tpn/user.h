@@ -41,6 +41,7 @@ namespace tpn
 class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
+
 	static unsigned Count(void);
 	static void GetNames(Array<String> &array);
   	static bool Exist(const String &name);
@@ -83,6 +84,9 @@ public:
 			
 			// HttpInterfaceable
 			void http(const String &prefix, Http::Request &request);
+
+			//Getters
+			String getStatus(void);
 			
 		private:
 			String infoPath(void) const;
@@ -98,7 +102,7 @@ public:
 			String mFirstName;
 			String mMiddleName;
 			String mLastName;
-			String mBirthday; // TODO : should be a Time ?
+			String mBirthday; // TODO : Make it a Time
 			String mGender;
 			String mReligion;
 			String mRelationship;
@@ -122,6 +126,8 @@ public:
 			String mResume;
 	
 	};
+
+	Profile *profile(void) const;
 	
 private:
 	void run(void);

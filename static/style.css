@@ -610,6 +610,7 @@ select, x:-moz-any-link, x:default
 	float: left;
 	margin: 1px;
 	width: 90%;
+	word-wrap: break-word;
 }
 
 .oldmessage

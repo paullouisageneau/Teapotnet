@@ -697,6 +697,7 @@ User::Profile::~Profile()
 	Interface::Instance->remove(urlPrefix());
 }
 
+
 String User::Profile::infoPath(void) const
 {
 	String path = mUser->profilePath() + "infos";
@@ -729,6 +730,7 @@ void User::Profile::save()
 	SafeWriteFile profileFile(mFileName);
 	YamlSerializer serializer(&profileFile);
 	serialize(serializer);
+	profileFile.close();
 }
 
 void User::Profile::clear()
@@ -896,7 +898,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 					page.open("div","personalstatus");
 						page.raw("<span class=\"statusquotemark\"> “ </span>");
 						page.open("span","status.editable");
-						if(mStatus!="emptyfield")
+						if(mStatus!="")
 						{
 							page.text(mStatus);
 						}
@@ -1024,7 +1026,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 						postVariable = function(field, valueFieldRaw)\n\
 						{\n\
 							valueFieldPost = valueFieldRaw;\n\
-							if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
+							//if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
 							var request = $.post('"+prefix+"/profile"+"',\n\
 								{ 'field': field , 'valueField': valueFieldPost });\n\
 							request.fail(function(jqXHR, textStatus) {\n\
@@ -1034,7 +1036,7 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 							setTimeout(function(){location.reload();},100);\n\
 						}\n\
 						loadClickHandlers();\n\
-						$('.empty').click(function() {isEmpty = true; valueField = 'emptyfield'; \n\
+						$('.empty').click(function() {isEmpty = true; valueField = ''; //empty Field \n\
 							if(!blocked)\n\
 							{\n\
 								blocked = true;\n\
@@ -1116,11 +1118,83 @@ void User::Profile::displayProfileInfo(Html &page, const String &fieldText, cons
 	displayProfileInfo(page, fieldText, " : ", "What is your "+fieldText+" ?", fieldName, field);
 }
 
+String User::Profile::getStatus()
+{
+	return mStatus;
+}
+
 void User::Profile::updateField(String &key, String &value)
 {
-	// TODO
+	// TODO : be careful with non string (in particular Time)
+
+	if(key == "status") 
+		mStatus = value;
+
+	if(key == "firstname")
+		mFirstName = value;
+
+	if(key == "middlename")
+		mMiddleName = value;
+
+	if(key == "lastname")
+		mLastName = value;
+
+	if(key == "profilephoto")
+		mProfilePhoto = value;
+
+	if(key == "birthday")
+		mBirthday = value; // TODO
+
+	if(key == "gender")
+		mGender = value;
+
+	if(key == "relationship")
+		mRelationship = value;
+
+	if(key == "city")
+		mCity = value;
+	if(key == "address")
+		mAddress = value;
+	if(key == "mail")
+		mMail = value;
+	if(key == "phone")
+		mPhone = value;
+
+	if(key == "college")
+		mCollege = value;
+	if(key == "university")
+		mUniversity = value;
+
+	if(key == "job")
+		mJob = value;
+	if(key == "computer")
+		mComputer = value;
+	if(key == "resume")
+		mResume = value;
+	if(key == "internship")
+		mInternship = value;
+
+	if(key == "religion")
+		mReligion = value;
+	if(key == "books")
+		mBooks = value;
+	if(key == "movies")
+		mMovies = value;
+	if(key == "hobbies")
+		mHobbies = value;
+	if(key == "politics")
+		mPolitics = value;
+
+	if(key == "description")
+		mDescription = value;
 	
 	save();
+}
+
+User::Profile *User::profile(void) const
+{
+	//Synchronize(this);
+ 	return mProfile; 
 }
 
 }

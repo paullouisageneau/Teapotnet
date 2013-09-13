@@ -312,6 +312,10 @@ function displayContacts(url, period, object) {
 				{
 					toShow = false; // So the div infosContact is not displayed when clicked on contact link
 				});
+				$('#contact_'+uname).hover(
+					function () {
+					$(this).css('cursor','pointer');
+				});
 				$('#contact_'+uname).attr('class', info.status);
 				//document.getElementById('contact_'+uname).classList.add(info.status);
 				transition($('#contact_'+uname+' .status'), info.status.capitalize());
