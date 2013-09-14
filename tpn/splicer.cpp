@@ -402,26 +402,33 @@ Splicer::CacheEntry::CacheEntry(const ByteString &target) :
 	mBlockSize(128*1024),	// TODO
 	mTime(Time::Now())
 {
-	mFileName = File::TempName();
-	File dummy(mFileName, File::TruncateReadWrite);
-	dummy.close();
+	
 }
 
 Splicer::CacheEntry::~CacheEntry(void)
 {
-	File::Remove(mFileName);
+	if(!mFileName.empty())
+		File::Remove(mFileName);
+}
+
+String Splicer::CacheEntry::fileName(void)
+{
+	Synchronize(this);
+	
+	if(mFileName.empty())
+	{
+		mFileName = File::TempName();
+		File dummy(mFileName, File::TruncateReadWrite);
+		dummy.close();
+	}
+	
+	return mFileName;
 }
 
 ByteString Splicer::CacheEntry::target(void) const
 {
 	Synchronize(this);
 	return mTarget;
-}
-
-String Splicer::CacheEntry::fileName(void) const
-{
-	Synchronize(this);
-	return mFileName;
 }
 
 int64_t Splicer::CacheEntry::size(void) const
@@ -503,12 +510,16 @@ void Splicer::CacheEntry::refreshSources(void)
 			
 			if(!response->error())
 			{
-				if(parameters.contains("size"))
-				{
-					int64_t size = 0;
-					parameters.get("size").extract(size);
-					hintSize(size);
+				try {
+					String tmp;
+					if(response->parameter("size", tmp))
+					{
+						int64_t size = -1;
+						tmp.extract(size);
+						hintSize(size);
+					}
 				}
+				catch(...) {}
 				
 				mSources.insert(response->peering());
 			}

@@ -69,8 +69,8 @@ private:
 		CacheEntry(const ByteString &target);
 		~CacheEntry(void);
 		
+		String fileName(void);
 		ByteString target(void) const;
-		String fileName(void) const;
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
