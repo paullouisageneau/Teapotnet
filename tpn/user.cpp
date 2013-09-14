@@ -913,6 +913,12 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 					page.close("div");
 
 					page.open("div","profilephoto");
+
+					// TODO : photo de profil
+					//String urlPhoto = "Images/nebuleuse-tete-de-cheval.jpg";
+					mProfilePhoto = "Images/nebuleuse-tete-de-cheval.jpg";				
+					//mProfilePhoto = Resource(mUser->peering(), urlPhoto);
+
 					page.close("div");
 
 				page.close("div");
@@ -1122,6 +1128,12 @@ String User::Profile::getStatus()
 {
 	return mStatus;
 }
+
+String User::Profile::getProfilePhoto()
+{
+	return mProfilePhoto;
+}
+
 
 void User::Profile::updateField(String &key, String &value)
 {

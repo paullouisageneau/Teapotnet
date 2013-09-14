@@ -1699,7 +1699,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(info.newnotifications) playNotificationSound();\n\
 					});");
 				
-					page.div("Loading...", "#list.box");
+					// TODO : function in html for animation loading
+					page.open("div","list.box");
+					page.raw("<span class='gifloading'><img src='/loading.gif' alt='Loading...'></span>");
+					page.close("div");
 					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
 					page.footer();
 				}
@@ -1774,7 +1777,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				if(!match.empty())
 				{
-					page.div("Loading...", "#list.box");
+					page.open("div","list.box");
+					page.raw("<span class='gifloading'><img src='/loading.gif' alt='Loading...'></span>");
+					page.close("div");
 					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+mAddressBook->userName()+"');");
 					page.footer();
 				}

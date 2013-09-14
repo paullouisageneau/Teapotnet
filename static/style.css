@@ -229,6 +229,7 @@ input[type="text"]
 
 a.button
 {
+	float: left;
         color: #000000;
         cursor: pointer;
         background-color: #FFDC0A;
@@ -856,7 +857,7 @@ td.delete
 	background-color: #C0C0C0;
 }
 
-/*.contacts tr
+.contacts tr
 {
 	min-height: 16px;
 }
@@ -869,9 +870,9 @@ td.delete
 .contacts tr td
 {
 	vertical-align: middle;
-}*/
+}
 
-/*.contacts td.name
+.contacts td.name
 {
  	text-align: right;
 	padding-right: 0;
@@ -898,8 +899,6 @@ td.delete
 {
 	width: 6em; 
 }
-
-*/
 
 .name
 {
@@ -1156,7 +1155,8 @@ td.delete
 	float: left;
 	width: auto;
 	height: auto;
-	margin-top: 40px;
+	margin-top: -1em;
+	margin-left: 25%;
 	text-align: center;
 	vertical-align: middle;
 }
@@ -1217,6 +1217,12 @@ td.delete
 .empty
 {
 	color: gray;
+}
+
+.gifloading img
+{
+	display: block;
+	margin: 0 auto;
 }
 
 /* Mobile version */  
