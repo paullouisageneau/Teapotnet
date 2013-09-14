@@ -154,14 +154,14 @@ void Resource::refresh(bool forceLocal)
 	if(!mDigest.empty())
 	{
 		CacheMutex.lock();
-		Cache.insert(mDigest, *this);
-		while(Cache.size() > 1000)
+		while(Cache.size() >= 1000)
 		{
 			Map<ByteString, Resource>::iterator it = Cache.begin();
 			int r = uniform(0, int(Cache.size())-1);
 			while(r--) it++;
 			Cache.erase(it);
 		}
+		Cache.insert(mDigest, *this);
 		CacheMutex.unlock();
 		
 		// Hints for the splicer system
