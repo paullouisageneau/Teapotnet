@@ -310,7 +310,7 @@ void Interface::process(Http::Request &request)
 				try {
 					// Request the sources now to gain some time afterwards
 					Resource resource(digest);
-					resource.refresh();
+					resource.fetch();
 				}
 				catch(...) {}
 				return;
@@ -318,13 +318,13 @@ void Interface::process(Http::Request &request)
 		
 			// Query resource
 			Resource resource(digest);
-			resource.refresh();		// this can take some time
+			resource.fetch();		// this can take some time
 			
 			// Get range
 			int64_t rangeBegin = 0;
 			int64_t rangeEnd = 0;
 			bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
-			int64_t rangeSize = rangeEnd - rangeBegin;
+			int64_t rangeSize = rangeEnd - rangeBegin + 1;
 			
 			// Get resource accessor
 			Resource::Accessor *accessor = resource.accessor();

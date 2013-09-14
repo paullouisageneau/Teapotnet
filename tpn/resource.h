@@ -31,6 +31,7 @@
 #include "tpn/bytestream.h"
 #include "tpn/time.h"
 #include "tpn/set.h"
+#include "tpn/map.h"
 
 namespace tpn
 {
@@ -82,13 +83,14 @@ public:
 	class Accessor : public Stream, public ByteStream
 	{
 	public:
-		virtual size_t hashData(ByteString &digest, size_t size = -1);
-		
 		// ByteStream
 		virtual size_t readData(char *buffer, size_t size) = 0;
 		virtual void writeData(const char *data, size_t size) = 0;
 		virtual void seekRead(int64_t position) = 0;
 		virtual void seekWrite(int64_t position) = 0;
+		
+		virtual int64_t size(void) = 0;
+		virtual size_t hashData(ByteString &digest, size_t size = -1);
 	};
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
@@ -99,6 +101,7 @@ public:
 	~Resource(void);
 
 	void clear(void);
+	void fetch(bool forceLocal = false);
 	void refresh(bool forceLocal = false);
 	
 	ByteString 	digest(void) const;
@@ -122,6 +125,9 @@ public:
 	virtual bool isInlineSerializable(void) const;
 
 private:
+	static Map<ByteString, Resource> Cache;
+	static Mutex CacheMutex;
+	
 	void merge(const Resource &resource);
 	void createQuery(Query &query) const;
 	
@@ -149,6 +155,7 @@ private:
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
 		void seekWrite(int64_t position);
+		int64_t size(void);
 		
 	private:
 		File *mFile;
@@ -165,6 +172,7 @@ private:
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
 		void seekWrite(int64_t position);
+		int64_t size(void);
 		
 	private:
 		void initRequest(void);
@@ -174,6 +182,7 @@ private:
 		String mUrl;
 
 		int64_t mPosition;
+		int64_t mSize;
 		Request *mRequest;
 		ByteStream *mByteStream;
 	};
@@ -189,6 +198,7 @@ private:
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
 		void seekWrite(int64_t position);
+		int64_t size(void);
 		
 	private:
 		const ByteString mDigest;

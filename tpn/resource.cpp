@@ -36,6 +36,9 @@
 namespace tpn
 {
 
+Map<ByteString, Resource> Resource::Cache;
+Mutex Resource::CacheMutex;
+
 int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, String host)
 {
 	if(host.empty()) host = String("localhost:") + Config::Get("interface_port");
@@ -112,6 +115,19 @@ void Resource::clear(void)
 	}
 }
 
+void Resource::fetch(bool forceLocal)
+{
+	if(!mDigest.empty())
+	{
+		CacheMutex.lock();
+		bool success = Cache.get(mDigest, *this);
+		CacheMutex.unlock();
+		if(success) return;
+	}
+	
+	refresh(forceLocal);
+}
+	
 void Resource::refresh(bool forceLocal)
 {
 	mSources.clear();
@@ -135,9 +151,22 @@ void Resource::refresh(bool forceLocal)
 			mSources.insert(peering);
 	}
 	
-	// Hints for the splicer system
 	if(!mDigest.empty())
+	{
+		CacheMutex.lock();
+		Cache.insert(mDigest, *this);
+		while(Cache.size() > 1000)
+		{
+			Map<ByteString, Resource>::iterator it = Cache.begin();
+			int r = uniform(0, int(Cache.size())-1);
+			while(r--) it++;
+			Cache.erase(it);
+		}
+		CacheMutex.unlock();
+		
+		// Hints for the splicer system
 		Splicer::Hint(mDigest, mSources, mSize);
+	}
 }
 
 ByteString Resource::digest(void) const
@@ -152,7 +181,8 @@ Time Resource::time(void) const
 
 int64_t Resource::size(void) const
 {
-	return mSize;
+	if(mAccessor) return mAccessor->size();
+	else return mSize;
 }
 	
 int Resource::type(void) const
@@ -205,7 +235,7 @@ Resource::Accessor *Resource::accessor(void) const
 		}
 		else throw Exception("Unable to query resource");
 	}
-	
+
 	return mAccessor;
 }
 
@@ -434,8 +464,15 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 
 	Request request;
 	createRequest(request);
-        request.submit(peering);
-	request.wait(timeout);
+	
+	try {
+		request.submit(peering);
+		request.wait(timeout);
+	}
+	catch(const Exception &e)
+	{
+		return false;
+	}
 
 	Synchronize(&request);
 	bool success = false;
@@ -587,10 +624,16 @@ void Resource::LocalAccessor::seekWrite(int64_t position)
 	mFile->seekWrite(position);
 }
 
+int64_t Resource::LocalAccessor::size(void)
+{
+	return mFile->size();
+}
+
 Resource::RemoteAccessor::RemoteAccessor(const Identifier &peering, const String &url) :
 	mPeering(peering),
 	mUrl(url),
 	mPosition(0),
+	mSize(-1),
 	mRequest(NULL),
 	mByteStream(NULL)
 {
@@ -632,6 +675,12 @@ void Resource::RemoteAccessor::seekWrite(int64_t position)
 	throw Unsupported("Writing to remote resource");
 }
 
+int64_t Resource::RemoteAccessor::size(void)
+{
+	if(!mByteStream) initRequest();
+	return mSize;
+}
+
 void Resource::RemoteAccessor::initRequest(void)
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
@@ -650,10 +699,15 @@ void Resource::RemoteAccessor::initRequest(void)
 		Request::Response *response = mRequest->response(i);
 		if(response->error()) continue;
 
-		/*Resource resource;
-		parameters = response->parameters();
-		parameters.input(resource);
-		merge(resource);*/
+		if(mSize < 0)
+		{
+			try {
+				String tmp;
+				if(response->parameter("size", tmp))
+					tmp.extract(mSize);
+			}
+			catch(...) {}
+		}
 		
 		if(!mByteStream)
 		{
@@ -711,6 +765,8 @@ size_t Resource::SplicerAccessor::readData(char *buffer, size_t size)
 
 	while(mSplicer->process())
 	{
+		if(!size) break;
+		
 		size_t s;
 		if(s = mSplicer->read(buffer, size))
 		{
@@ -739,6 +795,12 @@ void Resource::SplicerAccessor::seekRead(int64_t position)
 void Resource::SplicerAccessor::seekWrite(int64_t position)
 {
 	throw Unsupported("Writing to remote resource");
+}
+
+int64_t Resource::SplicerAccessor::size(void)
+{
+	if(!mSplicer) readData(NULL, 0);	// create the splicer
+	return mSplicer->size();
 }
 
 }

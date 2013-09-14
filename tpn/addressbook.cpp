@@ -1615,7 +1615,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					Resource resource(instancePeering, url, mAddressBook->user()->store());
 					try {
-						resource.refresh(isSelf());	// we might find a better way to access it
+						resource.fetch(isSelf());	// we might find a better way to access it
 					}
 					catch(const Exception &e)
 					{
