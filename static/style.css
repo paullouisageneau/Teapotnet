@@ -791,6 +791,8 @@ td.delete
 	font-family: monospace;
 	font-weight: bold;
 	vertical-align: middle;
+	font-variant: small-caps;
+	font-size: 1.3em;
 }
 
 .files td.size
