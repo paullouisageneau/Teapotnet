@@ -71,7 +71,7 @@ function listDirectory(url, object, showButtons) {
 
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					//line+= ''
-					isPlayable ? line+= '<td class="filename"><span class="type">'+extension+'</span><a href="'+link.escape()+'?play=1">'+resource.name.escape()+'</a></td>' : line+= '<td class="filename"><span class="type">'+extension+'  </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>' ;
+					isPlayable ? line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'?play=1">'+resource.name.escape()+'</a></td>' : line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>' ;
 					line+= '<td class="actions"><a href="'+link.escape()+"?download=1"+'"><img src="/down.png" alt="(download)"></a></td>';
 					if(isPlayable) {
 						line+= '<td class="actions"><a href="'+link.escape()+"?play=1"+'"><img src="/play.png" alt="(play)"></a></td>';
