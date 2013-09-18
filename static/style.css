@@ -45,21 +45,8 @@ h1 a:hover
 
 div
 {
-	margin-left: 2px;
+	margin: 0;
 	padding: 0;
-}
-
-div.message
-{
-	margin-left: 5%;
-	margin-right: 5%;
-	padding: 5px;
-	padding-top: 3px;
-	padding-bottom: 3px;
-	padding-left: 1px;
-	padding-right: 1px;
-
-	/* TODO : word overflow */
 }
 
 img
@@ -254,23 +241,24 @@ textarea
 	padding-top: 2px;
 }
 
-
-
-.searchinput
-{
-	padding:0;
-}
-
-.searchinput form
+#leftcolumn #search
 {
 	float: left;
+	width: 95%;
+	margin-top: 1em;
+	padding: 0;
+}
+
+#leftcolumn #search form
+{
+	margin: 0;
+	padding: 0;
+}
+
+#leftcolumn #search input[type="text"]
+{
+	margin: 0;
 	width: 100%;
-}
-
-.searchinput input[type="text"]
-{
-	float: left;
-	width: 90%;
 }
 
 .loading > body > * 
@@ -292,7 +280,7 @@ textarea
 {
 	width: 100%;
 	height: 100%;
-	max-width: 50em;
+	max-width: 60em;
 	margin-top: 0.5em;
 	margin-bottom: 0.5em;
 	margin-left: auto;
@@ -393,15 +381,7 @@ textarea
 
 #logo
 {
-	margin-left: 25%;
-	width: 60%;
-	max-width: 128px;
-	min-width: 64px;
-}
-
-#logo.small
-{
-	width: 64px;
+	width: 128px;
 }
 
 #header #logo
@@ -410,9 +390,10 @@ textarea
 	margin-bottom: 1em;
 }
 
-#mainheader #logo
+#leftcolumn #logo
 {
-	margin: 1em;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 #chat
@@ -616,6 +597,19 @@ select, x:-moz-any-link, x:default
 	word-wrap: break-word;
 }
 
+div.message
+{
+	margin-left: 5%;
+	margin-right: 5%;
+	padding: 5px;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	padding-left: 1px;
+	padding-right: 1px;
+
+	/* TODO : word overflow */
+}
+
 .oldmessage
 {
 	opacity: 0.7;
@@ -808,16 +802,6 @@ td.delete
 	min-height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
-}
-
-#search
-{
-	float: left;
-	margin: 0;
-	width: 95%;
-	height: 8%;
-	padding-top: 15px;
-	padding-left: 4px;
 }
 
 #contacts
@@ -1283,6 +1267,10 @@ td.delete
 		margin: 0;
 	}
 
+	#logo
+	{
+		width: 64px;
+	}	
 }
 
 /* End of mobile version */

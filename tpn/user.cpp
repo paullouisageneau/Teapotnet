@@ -289,18 +289,14 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","leftcolumn");
 
 			page.open("div", "logo");
-			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
+			page.openLink("/"); page.image("/logo.png", APPNAME); page.closeLink();
 			page.close("div");
 
 			page.open("div","search");
-			page.raw("<span class=\"searchinput\">");
-
 			page.openForm(prefix + "/search", "post", "searchForm");
 			//page.button("search","Search");
 			page.input("text","query");
 			page.closeForm();
-			page.raw("</span>");
-
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			//page.br();
 			page.close("div");
