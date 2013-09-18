@@ -201,7 +201,10 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			message.setHeader("from", mUser->name());
 			if(request.post.contains("parent"))
 				message.setParent(request.post["parent"]);
-			
+		
+			if(request.post.contains("attachment"))
+				message.setHeader("attachment", request.post.get("attachment"));
+	
 			message.send(peering);
 			if(self && self->peering() != peering)
 				message.send(self->peering());
@@ -254,32 +257,29 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	
 	bool isPopup = request.get.contains("popup");
 
-	Http::Response response(request,200);
+	Http::Response response(request, 200);
 	response.send();
 
 	Html page(response.sock);
 	
 	String title= "Chat with "+name;
 	page.header(title, isPopup);
-	
-	if(isPopup)
-	{
-		page.open("div","topmenu");
-		page.span(title, ".button");
-		page.span(status.capitalized(), "status.button");
-		page.close("div");
-		page.open("div", "chat");
-	}
-	else {
-		String popupUrl = prefix + url + "?popup=1";
-		page.open("div","topmenu");
-		page.span(status.capitalized(), "status.button");
+
+	page.open("div","topmenu");	
+	if(isPopup) page.span(title, ".button");
+	page.span(status.capitalized(), "status.button");
+	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files?json', '#fileSelector', 'input.attachment', 'textarea.chatinput');\">Send file</a>");
+// TODO: should be hidden in CSS
 #ifndef ANDROID
-		page.raw("<a class=\"button\" ref=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+	String popupUrl = prefix + url + "?popup=1";
+	page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 #endif
-		page.close("div");
-		page.open("div", "chat.box");
-	}
+	page.close("div");
+
+	page.div("", "fileSelector");	
+
+	if(isPopup) page.open("div", "chat");
+	else page.open("div", "chat.box");
 
 	page.open("div", "chatmessages");
 	page.close("div");
@@ -287,11 +287,12 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.open("div", "chatpanel");
 	page.openForm("#", "post", "chatform");
 	page.textarea("chatinput");
+	page.input("hidden", "attachment");
 	//page.button("send","Send");
 	//page.br();
 	page.closeForm();
 	page.javascript("$(document).ready(function() { checkStatus(); });");
-	
+
 	page.close("div");
 
 	page.close("div");
@@ -299,13 +300,17 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.javascript("function post()\n\
 		{\n\
 			var message = document.chatform.chatinput.value;\n\
+			var attachment = document.chatform.attachment.value;\n\
 			if(!message) return false;\n\
-			document.chatform.chatinput.value = '';\n\
-			var request = $.post('"+prefix+url+"',\n\
-				{ 'message': message });\n\
+			var fields = {};\n\
+			fields['message'] = message;\n\
+			if(attachment) fields['attachment'] = attachment;\n\
+			var request = $.post('"+prefix+url+"', fields);\n\
 			request.fail(function(jqXHR, textStatus) {\n\
 				alert('The message could not be sent.');\n\
 			});\n\
+			document.chatform.chatinput.value = '';\n\
+			document.chatform.attachment.value = '';\n\
 		}\n\
 		var status = \""+status+"\";\n\
 		var statusBackup;\n\
@@ -320,16 +325,16 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		}\n\
 		function updateStatus()\n\
 		{\n\
-			if(status != \"Online\")\n\
-			{\n\
-				document.chatform.chatinput.blur();\n\
-				document.chatform.chatinput.style.color = 'grey';\n\
-				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
-			}\n\
-			else\n\
-			{\n\
-				document.chatform.chatinput.focus();\n\
-			}\n\
+			//if(status != \"Online\")\n\
+			//{\n\
+			//	document.chatform.chatinput.blur();\n\
+			//	document.chatform.chatinput.style.color = 'grey';\n\
+			//	document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
+			//}\n\
+			//else\n\
+			//{\n\
+			//	document.chatform.chatinput.focus();\n\
+			//}\n\
 		}\n\
 		document.chatform.onsubmit = function()\n\
 		{\n\
@@ -338,16 +343,21 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		}\n\
 		document.chatform.chatinput.onfocus = function()\n\
 		{\n\
-			document.chatform.chatinput.value = '';\n\
-			document.chatform.chatinput.style.color = 'black';\n\
+			//document.chatform.chatinput.value = '';\n\
+			//document.chatform.chatinput.style.color = 'black';\n\
 		}\n\
 		document.chatform.chatinput.onblur = function()\n\
 		{\n\
-			if(status != \"Online\")\n\
-			{\n\
-				document.chatform.chatinput.style.color = 'grey';\n\
-				document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
-			}\n\
+			//if(status != \"Online\")\n\
+			//{\n\
+			//	document.chatform.chatinput.style.color = 'grey';\n\
+			//	document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
+			//}\n\
+		}\n\
+		document.chatform.attachment.onchange = function()\n\
+		{\n\
+			document.chatform.chatinput.focus();\n\
+			document.chatform.chatinput.select();\n\
 		}\n\
 		$('textarea.chatinput').keypress(function(e) {\n\
 			if (e.keyCode == 13 && !e.shiftKey) {\n\

@@ -62,7 +62,7 @@ public:
 	bool isOnline(void) const;
 	void setOnline(void);
 	void setInfo(const StringMap &info);
-	void sendInfo(const Identifier &identifier = Identifier::Null);
+	void sendInfo(Identifier identifier = Identifier::Null);
 	
 	void http(const String &prefix, Http::Request &request);
 

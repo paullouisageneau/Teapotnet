@@ -365,18 +365,22 @@ bool Resource::isInlineSerializable(void) const
 
 bool operator <  (const Resource &r1, const Resource &r2)
 {
-	return r1.name() < r2.name();
+	if(r1.isDirectory() && !r2.isDirectory()) return true;
+	if(!r1.isDirectory() && r2.isDirectory()) return false;
+	return r1.name().toLower() < r2.name().toLower();
 }
 
 bool operator >  (const Resource &r1, const Resource &r2)
 {
-	return r1.name() > r2.name();
+	if(r1.isDirectory() && !r2.isDirectory()) return false;
+	if(!r1.isDirectory() && r2.isDirectory()) return true;
+	return r1.name().toLower() > r2.name().toLower();
 }
 
 bool operator == (const Resource &r1, const Resource &r2)
 {
 	if(r1.name() != r2.name()) return false;
-	return r1.digest() == r2.digest();
+	return r1.digest() == r2.digest() && r1.isDirectory() == r2.isDirectory();
 }
 
 bool operator != (const Resource &r1, const Resource &r2)

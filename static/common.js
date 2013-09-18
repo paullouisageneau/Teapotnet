@@ -90,6 +90,15 @@ function formatTime(timestamp) {
 	return date.toLocaleDateString() + " " + date.toLocaleTimeString();
 }
 
+function getBasePath(nbFolders = 1) {
+	var pathArray = window.location.pathname.split('/');
+	if(nbFolders > pathArray.length) nbFolders = pathArray.length;
+	var basePath = '';
+	for(var i=0; i<=nbFolders; i++)
+		basePath+= pathArray[i] + '/';
+	return basePath;
+}
+
 function popup(url, redirect) {
   
 	w = window.open(url, "_blank", "status=0,toolbar=0,scrollbars=0,menubar=0,directories=0,resizeable=1,width=310,height=500");
@@ -148,16 +157,6 @@ $(document).ready( function() {
 		}
 	}
 	resizeContent();
-	
-	// Deprecated
-	$('table.files tr').css('cursor', 'pointer').click(function() {
-		window.location.href = $(this).find('a').attr('href');
-	});
-	
-	// Deprecated
-	$('table.contacts tr').css('cursor', 'pointer').click(function() {
-		window.location.href = $(this).find('a').attr('href');
-	});
 	
 	$('table.menu tr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
@@ -395,12 +394,12 @@ function setMessagesReceiverRec(url, object, last) {
 				}
 				else
 				{
-					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>');
+					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span>'+('attachment' in message.headers ? ' <span class=\"attachment\">'+message.headers.attachment+'</span>' : '')+'</div>');
 					if(message.incoming && !message.isread) NbNewMessages++;
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');
 					else $('#'+id).addClass('out');
-$(object).scrollTop($(object)[0].scrollHeight);
+					$(object).scrollTop($(object)[0].scrollHeight);
 				}
 			}
 			

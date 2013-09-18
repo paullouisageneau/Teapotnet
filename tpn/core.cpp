@@ -517,8 +517,8 @@ void Core::Handler::addRequest(Request *request)
 
 void Core::Handler::removeRequest(unsigned id)
 {
-	if(mStopping) return;
 	Synchronize(this);
+	if(mStopping) return;
 	
 	Map<unsigned, Request*>::iterator it = mRequests.find(id);
 	if(it != mRequests.end())

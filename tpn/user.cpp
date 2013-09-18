@@ -232,18 +232,15 @@ void User::setInfo(const StringMap &info)
 	}
 }
 
-void User::sendInfo(const Identifier &identifier)
+void User::sendInfo(Identifier identifier)
 {
-	Synchronize(this);
-
 	String content;
 	YamlSerializer serializer(&content);
-	serializer.output(mInfo);
+	SynchronizeStatement(this, serializer.output(mInfo));
 	
 	Notification notification(content);
 	notification.setParameter("type", "info");
-	if(identifier == Identifier::Null) notification.send();
-	else notification.send(identifier);
+	notification.send(identifier);
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -621,7 +618,7 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			if(!match.empty())
 			{
-				page.div("Loading...", "#list.box");
+				page.div("", "#list.box");
 				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+name()+"');");
 				page.footer();
 			}

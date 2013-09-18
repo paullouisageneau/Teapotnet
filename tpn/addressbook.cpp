@@ -1667,7 +1667,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					try {
 						// Launch transfer
-						response.sock->setTimeout(-1.);				// disable timeout
 						accessor->readBinary(*response.sock, rangeSize);	// let's go !
 					}
 					catch(const NetException &e)
@@ -1699,7 +1698,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(info.newnotifications) playNotificationSound();\n\
 					});");
 				
-					page.div("Loading...", "#list.box");
+					page.div("", "#list.box");
 					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
 					page.footer();
 				}
@@ -1774,8 +1773,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				if(!match.empty())
 				{
-					page.div("Loading...", "#list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+mAddressBook->userName()+"');");
+					page.div("", "#list.box");
+					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list');");
 					page.footer();
 				}
 				return;
