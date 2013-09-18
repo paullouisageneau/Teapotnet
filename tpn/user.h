@@ -34,6 +34,7 @@
 #include "tpn/map.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/html.h"
+#include "resource.h"
 
 namespace tpn
 {
@@ -87,6 +88,7 @@ public:
 
 			//Getters
 			String getStatus(void);
+			String getProfilePhoto(void);
 			
 		private:
 			String infoPath(void) const;

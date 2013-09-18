@@ -1698,7 +1698,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						if(info.newnotifications) playNotificationSound();\n\
 					});");
 				
-					page.div("", "#list.box");
+					page.div("","list.box");
 					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
 					page.footer();
 				}
@@ -1773,10 +1773,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				if(!match.empty())
 				{
-					page.div("", "#list.box");
+					page.div("", "list.box");
 					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list');");
-					page.footer();
 				}
+				
+				page.footer();
 				return;
 			}
 			else if(directory == "chat")
