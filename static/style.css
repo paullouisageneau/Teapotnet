@@ -193,11 +193,15 @@ input
 
 input[type="submit"]
 {
-	margin-left:1px;
+	min-width: 6em;
+	padding: 0.4em;
+	border-radius: 0.5em;
 	cursor: pointer;
+	color: #000000;
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
 	text-align: center;
+        vertical-align: middle;
 }
 
 input[type="submit"]:hover
@@ -208,8 +212,6 @@ input[type="submit"]:hover
 input[type="text"]
 {
 	height: auto;
-	float: left;
-	margin: 3px;
 }
 
 .button
@@ -229,7 +231,6 @@ input[type="text"]
 
 a.button
 {
-	float: left;
         color: #000000;
         cursor: pointer;
         background-color: #FFDC0A;

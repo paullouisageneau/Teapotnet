@@ -586,7 +586,8 @@ void User::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 					response.headers["Content-Type"] = "audio/x-mpegurl";
-	
+					response.send();
+					
 					String host;
 					request.headers.get("Host", host);
 					Resource::CreatePlaylist(resources, response.sock, host);
@@ -602,13 +603,15 @@ void User::http(const String &prefix, Http::Request &request)
 			if(match.empty()) page.header("Search");
 			else page.header(String("Searching ") + match);
 			
+			page.open("div","topmenu");
 			page.openForm(prefix + "/search", "post", "searchform");
 			page.input("text","query", match);
 			page.button("search","Search");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-			page.br();
-
+			if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+			page.close("div");
+			
 			unsigned refreshPeriod = 5000;
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\

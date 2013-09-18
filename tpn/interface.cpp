@@ -291,7 +291,7 @@ void Interface::process(Http::Request &request)
 			try { tmp >> digest; }
 			catch(...) { throw 404; }
 		
-			if(request.get.contains("play"))
+			if(request.get.contains("play") || request.get.contains("playlist"))
 			{			  	
 				String host;
 				if(!request.headers.get("Host", host))

@@ -1596,7 +1596,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						Http::Response response(request, 200);
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
-
+						response.send();
+						
 						String host;
 						request.headers.get("Host", host);
 						Resource::CreatePlaylist(resources, response.sock, host);
@@ -1688,6 +1689,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.open("div","topmenu");
 					if(!isSelf()) page.span(status().capitalized(), "status.button");
 					page.link(prefix+"/search/","Search files",".button");
+					page.link(prefix+request.url+"?playlist","Play all",".button");
 					page.close("div");
 
 					unsigned refreshPeriod = 5000;
@@ -1737,7 +1739,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 						Http::Response response(request, 200);
 					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 						response.headers["Content-Type"] = "audio/x-mpegurl";
-		
+						response.send();
+						
 						String host;
 						request.headers.get("Host", host);
 						Resource::CreatePlaylist(resources, response.sock, host);
@@ -1760,6 +1763,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
+				if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
 				page.close("div");
 
 				unsigned refreshPeriod = 5000;

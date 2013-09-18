@@ -192,7 +192,7 @@ bool Splicer::process(void)
 {
 	mCacheEntry->setAccessTime();
 	
-	if(mRequests.empty()) throw Exception("Splicer is not started");
+	if(!finished() && mRequests.empty()) throw Exception("Splicer is not started");
 	
 	std::vector<int>		onError;
 	std::multimap<unsigned, int> 	byBlocks;
