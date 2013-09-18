@@ -68,20 +68,27 @@ void Socket::Transfer(Socket *sock1, Socket *sock2)
   
 Socket::Socket(void) :
 		mSock(INVALID_SOCKET),
-		mTimeout(-1.)
+		mConnectTimeout(-1.),
+		mReadTimeout(-1.),
+		mWriteTimeout(-1.)
 {
 
 }
 
 Socket::Socket(const Address &a, double timeout) :
 		mSock(INVALID_SOCKET),
-		mTimeout(timeout)
+		mConnectTimeout(-1.),
+		mReadTimeout(-1.),
+		mWriteTimeout(-1.)
 {
+	setTimeout(timeout);
 	connect(a);
 }
 
 Socket::Socket(socket_t sock) :
-		mTimeout(-1.)
+		mConnectTimeout(-1.),
+		mReadTimeout(-1.),
+		mWriteTimeout(-1.)
 {
 	mSock = sock;
 }
@@ -138,19 +145,43 @@ Address Socket::getRemoteAddress(void) const
 	return Address(reinterpret_cast<sockaddr*>(&addr), len);
 }
 
+void Socket::setConnectTimeout(double timeout)
+{
+	mConnectTimeout = timeout;
+}
+
+void Socket::setReadTimeout(double timeout)
+{
+	mReadTimeout = timeout;
+
+	struct timeval tv;
+        if(timeout > 0.) Time::SecondsToStruct(timeout, tv);
+        else {
+                tv.tv_sec = 0;
+                tv.tv_usec = 0;
+        }
+
+        setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
+}
+
+void Socket::setWriteTimeout(double timeout)
+{
+	mWriteTimeout = timeout;
+
+	struct timeval tv;
+        if(timeout > 0.) Time::SecondsToStruct(timeout, tv);
+        else {
+                tv.tv_sec = 0;
+                tv.tv_usec = 0;
+        }
+
+        setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
+}
+
 void Socket::setTimeout(double timeout)
 {
-	mTimeout = timeout;
-	
-	struct timeval tv;
-	if(timeout > 0.) Time::SecondsToStruct(mTimeout, tv);
-	else {
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
-	}
-	
-	setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
-	setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));	
+	setConnectTimeout(timeout);
+	setReadTimeout(timeout);
 }
 
 void Socket::connect(const Address &addr, bool noproxy)
@@ -194,7 +225,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
-		if(mTimeout > 0.)
+		if(mConnectTimeout > 0.)
 		{
 			ctl_t b = 1;
 			if(ioctl(mSock, FIONBIO, &b) < 0)
@@ -208,7 +239,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			FD_SET(mSock, &writefds);
 
 			struct timeval tv;
-			Time::SecondsToStruct(mTimeout, tv);
+			Time::SecondsToStruct(mConnectTimeout, tv);
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
 			if (ret == -1) 
@@ -220,14 +251,15 @@ void Socket::connect(const Address &addr, bool noproxy)
 			b = 0;
                 	if(ioctl(mSock, FIONBIO, &b) < 0)
                         	throw Exception("Cannot set blocking mode");
-			
-			setTimeout(mTimeout);
 		}
 		else {
 			// Connect it
 			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed");
 		}
+
+		setReadTimeout(mReadTimeout);
+		setWriteTimeout(mWriteTimeout);
 	}
 	catch(...)
 	{
@@ -264,27 +296,27 @@ size_t Socket::peekData(char *buffer, size_t size)
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
-	if(mTimeout > 0.)
+	if(mReadTimeout > 0.)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(mSock, &readfds);
 
 		struct timeval tv;
-		Time::SecondsToStruct(mTimeout, tv);
+		Time::SecondsToStruct(mReadTimeout, tv);
 		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
-
 		if (ret == -1) throw Exception("Unable to wait on socket");
-		if (ret ==  0) throw Timeout();
+		if (ret == 0) throw Timeout();
 	}
 
-	int count = ::recv(mSock, buffer, size, flags);
+	int count = ::recv(mSock, buffer, size, flags);	
 	if(count < 0)
 	{
 		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
 		else throw NetException("Connection lost");
 		
 	}
+
 	return count;
 }
 

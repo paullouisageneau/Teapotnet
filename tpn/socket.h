@@ -49,7 +49,10 @@ public:
 	bool isWriteable(void) const;
 	Address getRemoteAddress(void) const;
 
-	void setTimeout(double timeout);
+	void setConnectTimeout(double timeout);
+	void setReadTimeout(double timeout);
+	void setWriteTimeout(double timeout);
+	void setTimeout(double timeout);	// connect + read
 	
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
@@ -66,7 +69,7 @@ private:
         void sendData(const char *data, size_t size, int flags);
 
 	socket_t mSock;
-	double mTimeout;
+	double mConnectTimeout, mReadTimeout, mWriteTimeout;
 	
 	Address mProxifiedAddr;
 	
