@@ -372,6 +372,7 @@ textarea
 
 #topmenu
 {
+	min-height: 2em;
 	margin: 0.25em;
 	text-align: left;
 }

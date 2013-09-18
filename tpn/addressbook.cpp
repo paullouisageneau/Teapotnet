@@ -1688,7 +1688,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.open("div","topmenu");
 					if(!isSelf()) page.span(status().capitalized(), "status.button");
 					page.link(prefix+"/search/","Search files",".button");
-					page.br();
 					page.close("div");
 
 					unsigned refreshPeriod = 5000;
@@ -1699,7 +1698,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					});");
 				
 					page.div("","list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?json','#list');");
+					page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true);");
 					page.footer();
 				}
 				
@@ -1761,7 +1760,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-				page.br();
 				page.close("div");
 
 				unsigned refreshPeriod = 5000;
