@@ -245,8 +245,7 @@ textarea
 {
 	float: left;
 	width: 95%;
-	margin-top: 1em;
-	padding: 0;
+	text-align: center;
 }
 
 #leftcolumn #search form
@@ -258,7 +257,7 @@ textarea
 #leftcolumn #search input[type="text"]
 {
 	margin: 0;
-	width: 100%;
+	width: 90%;
 }
 
 .loading > body > * 
@@ -384,16 +383,24 @@ textarea
 	width: 128px;
 }
 
+#logo img
+{
+	width: 128px;
+}
+
 #header #logo
 {
 	float: left;
-	margin-bottom: 1em;
+	margin: 0.5em;
+	margin-top: 1em;
 }
 
 #leftcolumn #logo
 {
 	margin-left: auto;
 	margin-right: auto;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
 }
 
 #chat
@@ -1268,6 +1275,11 @@ td.delete
 	}
 
 	#logo
+	{
+		width: 64px;
+	}
+	
+	#logo img
 	{
 		width: 64px;
 	}	
