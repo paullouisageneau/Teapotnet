@@ -392,7 +392,12 @@ textarea
 {
 	float: left;
 	margin: 0.5em;
-	margin-top: 1em;
+	width: 64px;
+}
+
+#header #logo img
+{
+	width: 64px;
 }
 
 #leftcolumn #logo
