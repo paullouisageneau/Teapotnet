@@ -1689,7 +1689,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.open("div","topmenu");
 					if(!isSelf()) page.span(status().capitalized(), "status.button");
 					page.link(prefix+"/search/","Search files",".button");
-					page.link(prefix+request.url+"?playlist","Play all",".button");
+					//page.link(prefix+request.url+"?playlist","Play all",".button"); // Replaced by function in javascript
 					page.close("div");
 
 					unsigned refreshPeriod = 5000;
@@ -1763,7 +1763,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.button("search","Search");
 				page.closeForm();
 				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-				if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+				//if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button"); // Replaced by function in javascript
 				page.close("div");
 
 				unsigned refreshPeriod = 5000;

@@ -90,7 +90,11 @@ function formatTime(timestamp) {
 	return date.toLocaleDateString() + " " + date.toLocaleTimeString();
 }
 
-function getBasePath(nbFolders = 1) {
+function getBasePath() {
+	getBasePath(1);
+} // Some browsers don't support = in prototype
+
+function getBasePath(nbFolders) {
 	var pathArray = window.location.pathname.split('/');
 	if(nbFolders > pathArray.length) nbFolders = pathArray.length;
 	var basePath = '';

@@ -86,7 +86,10 @@ function listDirectory(url, object, showButtons) {
 				window.location.href = $(this).find('a').attr('href');
 			});
 
-			//if(isPlayableDirectory) $(object).prepend('<a href="'+urlFile+'?playlist=1" class="button"> Play this directory </a>'); // TODO
+			if(isPlayableDirectory == 1) 
+			{
+				$(object).prepend('<a href="'+location+'?playlist" class="button"> Play this directory </a>');
+			}
 		}
 		else {
 			$(object).html('No files');
@@ -97,7 +100,11 @@ function listDirectory(url, object, showButtons) {
 	});
 }
 
-function listFileSelector(url, object, input, inputName, parents = []) {
+function listFileSelector(url, object, input, inputName) {
+	listFileSelector(url, object, input, inputName, []);
+} // Some browsers don't support = in prototype
+
+function listFileSelector(url, object, input, inputName, parents) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
