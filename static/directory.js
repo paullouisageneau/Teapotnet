@@ -21,7 +21,7 @@
 
 function getResourceLink(resource) {
 	
-	var basePath = getBasePath(1);
+	var basePath = getBasePath();
 	return (resource.hash ? '/' + resource.hash.escape() : 
 		basePath + (resource.contact && basePath != '/'+resource.contact+'/' ? 'contacts/' + resource.contact.escape() : 'myself') 
 		+ '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
@@ -100,11 +100,18 @@ function listDirectory(url, object, showButtons) {
 	});
 }
 
-function listFileSelector(url, object, input, inputName) {
-	listFileSelector(url, object, input, inputName, []);
-} // Some browsers don't support = in prototype
-
 function listFileSelector(url, object, input, inputName, parents) {
+
+switch (arguments.length) { // Is a fix for fact that overloading is not possible in javascript and some browsers don't support = in prototype
+
+	case 4:
+		parents = [];
+	break;
+
+	default:
+
+	break;
+}
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
