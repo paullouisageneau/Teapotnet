@@ -50,9 +50,10 @@ public:
 	bool isIpv4(void) const;
 	bool isIpv6(void) const;
 
-	String host(void) const;
-	String service(void) const;
+	String host(bool numeric = true) const;
+	String service(bool numeric = true) const;
 	uint16_t port(void) const;
+	String reverse(void) const;
 
 	const sockaddr *addr(void) const;
 	int addrFamily(void) const;

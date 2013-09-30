@@ -60,6 +60,7 @@ public:
 		void updatePostSize(size_t left);
 		
 		Address mAddress;
+		String mReverse;
 		Socket *mUpSock, *mDownSock;
 		ByteStream::FlushTask mFlushTask;
 		uint32_t mSession;

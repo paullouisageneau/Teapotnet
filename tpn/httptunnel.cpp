@@ -27,7 +27,12 @@
 namespace tpn
 {
 
+#ifdef ANDROID
 String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:23.0) Gecko/23.0 Firefox/23.0";	// mobile is important
+#else
+String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
+#endif
+
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
 size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
 double HttpTunnel::ConnTimeout = 20.;
@@ -160,6 +165,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 
 HttpTunnel::Client::Client(const Address &addr, double timeout) :
 	mAddress(addr),
+	mReverse(addr.reverse()),
 	mUpSock(NULL), 
 	mDownSock(NULL),
 	mFlushTask(this),
@@ -218,7 +224,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			LogDebug("HttpTunnel::Client::readData", "Connecting...");
 			
 			String url;
-                        url<<"http://"<<mAddress<<"/"<<String::random(8);
+			Assert(!mReverse.empty());
+                        url<<"http://"<<mReverse<<"/"<<String::random(8);
 
 			Http::Request request(url, "GET");
                         request.headers["User-Agent"] = UserAgent;
@@ -298,7 +305,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			LogDebug("HttpTunnel::Client::writeData", "Connecting...");
 			
 			String url;
-                        url<<"http://"<<mAddress<<"/"<<String::random(8);
+			Assert(!mReverse.empty());
+                        url<<"http://"<<mReverse<<"/"<<String::random(8);
 
                         Http::Request request(url, "POST");
                         request.headers["User-Agent"] = UserAgent;

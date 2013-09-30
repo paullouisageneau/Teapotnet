@@ -194,21 +194,22 @@ bool Address::isIpv6(void) const
 	return (addrFamily() == AF_INET6);  
 }
 
-String Address::host(void) const
+String Address::host(bool numeric) const
 {
 	if(isNull()) throw InvalidData("Requested host for null address");
+
 	char host[HOST_NAME_MAX];
-	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, NULL, 0, NI_NUMERICHOST))
+	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, NULL, 0, (numeric ?  NI_NUMERICHOST : 0)))
 		throw InvalidData("Invalid stored network address");
 	return String(host).toLower();
 }
 
-String Address::service(void) const
+String Address::service(bool numeric) const
 {
 	if(isNull()) throw InvalidData("Requested service for null address");
 
 	char service[SERVICE_NAME_MAX];
-	if(getnameinfo(addr(), addrLen(), NULL, 0, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+	if(getnameinfo(addr(), addrLen(), NULL, 0, service, SERVICE_NAME_MAX, (numeric ? NI_NUMERICSERV : 0)))
 		throw InvalidData("Invalid stored network address");
 	return String(service).toLower();
 }
@@ -217,10 +218,30 @@ uint16_t Address::port(void) const
 {
 	if(isNull()) throw InvalidData("Requested port for null address");
 
-	String str(service());
+	String str(service(true));
 	uint16_t port;
 	str >> port;
 	return port;
+}
+
+String Address::reverse(void) const
+{
+	if(isNull()) return "";
+
+        char host[HOST_NAME_MAX];
+	char service[SERVICE_NAME_MAX];
+        if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+                throw InvalidData("Invalid stored network address");
+        
+	String str(host);
+	if(addrFamily() == AF_INET6 && str.contains(':')) 
+	{
+		str.clear();
+		str << '[' + host + ']';
+	}
+
+	str << ':' << service;
+	return str;
 }
 
 void Address::serialize(Serializer &s) const
