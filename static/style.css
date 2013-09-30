@@ -1106,36 +1106,10 @@ td.delete
 	width: 97%;
 }
 
-.profileinfoswrapper
+#profileheader
 {
-	padding: 5px;
-	width: 100%;
-	min-height: 150px;
-	margin-bottom: 20px;
-	margin-top: 20px;
+	height: 200px;
 }
-
-.profileinfoswrapper .box
-{
-	width: 95%;
-}
-
-.inlinetitle
-{
-	display: inline;
-}
-
-.inlinetitle h2
-{
-	display: inline;
-}
-
-.clearprofilebutton
-{
-	display: inline;
-	margin-top: -1px;
-}
-
 
 #personalstatus
 {
@@ -1152,13 +1126,8 @@ td.delete
 #personalstatus input
 {
 	display: inline;
-	float: left;
-	width: auto;
-	height: auto;
-	margin-top: -1em;
-	margin-left: 25%;
+	width: 25em;
 	text-align: center;
-	vertical-align: middle;
 }
 
 #profilephoto
@@ -1170,45 +1139,9 @@ td.delete
 	margin-right: 20px;
 }
 
-/*#personalinfos
-{
-	float: left;
-	width: 45%;
-	height: auto;
-	min-height: 150px;
-}
-
-#culture
-{
-	float: right;
-	width: 45%;
-	height: auto;
-	min-height: 150px;
-}
-
-#jobs
-{
-	float: left;
-	width: 45%;
-	min-height: 150px;
-}
-
-#education
-{
-	float: right;
-	width: 45%;
-	min-height: 150px;
-}
-
-#description
-{
-	width: 97%;
-	min-height: 150px;
-}*/
-
 .statusquotemark
 {
-	font-family: Times New Roman;
+	font-family: serif;
 	font-style: bold;
 	font-size: 1.4em;
 	color: black;

@@ -157,6 +157,7 @@ template<typename T>
 class ConstSerializableWrapper : public Serializable
 {
 public:
+	ConstSerializableWrapper(const T *ptr)        	{ this->value = *ptr; }
 	ConstSerializableWrapper(const T &value)	{ this->value = value; }
 	void serialize(Serializer &s) const		{ return s.output(value); }
 	bool isInlineSerializable(void) const		{ return true; }

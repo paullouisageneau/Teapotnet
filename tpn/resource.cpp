@@ -698,6 +698,7 @@ void Resource::RemoteAccessor::initRequest(void)
 	mRequest->submit(mPeering);
 	mRequest->wait(timeout);
 	
+	mByteStream = NULL;
 	for(int i=0; i<mRequest->responsesCount(); ++i)
 	{
 		Request::Response *response = mRequest->response(i);
@@ -727,6 +728,7 @@ void Resource::RemoteAccessor::initRequest(void)
 	if(!mByteStream) 
 	{
 		delete mRequest;
+		mRequest = NULL;
 		throw IOException("Unable to access resource: " + mUrl);
 	}
 }

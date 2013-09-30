@@ -910,7 +910,8 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			//LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
+			bs = NULL;
+			LogDebug("AddressBook::Contact::connectAddress", String("Direct connection failed: ") + e.what());
 		}
 	}
 
@@ -921,7 +922,8 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			//LogDebug("AddressBook::Contact::connectAddress", String("Failed: ") + e.what());
+			bs = NULL;
+			LogDebug("AddressBook::Contact::connectAddress", String("HTTP tunnel failed: ") + e.what());
 		}
 	}
 
@@ -1454,21 +1456,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 
 			// TODO: insert here profile infos
-
-			page.open("div","profileinfos.box");
-
-			page.open("h2");
-			page.text("Personal Info");
-			page.close("h2");
-
-			// TODO : retrieve personal info from files
-			User::Profile *profile = mAddressBook->user()->profile();
-
-			page.text("Statut : "+profile->getStatus());
-
-			page.close("div");
-
-			// End of profile
 			
 			page.open("div",".box");
 				

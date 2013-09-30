@@ -275,6 +275,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div", "wrapper");
 
+			// TODO: This is awful
 			page.javascript("$('#page').css('max-width','100%');");
 			
 			/*page.open("div");
@@ -681,7 +682,24 @@ User::Profile::Profile(User *user, const String &uname):
 	Assert(mUser);
 	if(mName.empty()) mName = mUser->name();
 	Assert(!mName.empty());
+
+	// Avatar
+	mFields["avatar"]      	= new TypedField<ByteString>("avatar", &mAvatar, "Avatar");
 	
+	// Basic Info
+	mFields["realname"]	= new TypedField<String>("realname", &mRealName, "Name", "What's your name ?");
+	mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
+	mFields["gender"]    	= new TypedField<String>("gender", &mGender, "Gender", "What's your gender ?");	
+	mFields["relationship"]	= new TypedField<String>("relationship", &mRelationship, "Relationship", "What's your relationship status ?");
+
+	// Contact
+	mFields["location"]    	= new TypedField<String>("location", &mLocation, "Address", "What's your address ?");
+	mFields["email"]	= new TypedField<String>("email", &mEmail, "E-mail", "What's your email address ?");
+	mFields["phone"]	= new TypedField<String>("phone", &mPhone, "Phone", "What's your phone number ?");
+
+	// Settings
+	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The teapotnet tracker you use");
+
 	mFileName = infoPath() + mName;
 	load();
 
@@ -690,9 +708,17 @@ User::Profile::Profile(User *user, const String &uname):
 
 User::Profile::~Profile()
 {
+	for(    Map<String, Field*>::iterator it = mFields.begin();
+                it != mFields.end();
+                ++it)
+        {
+		delete it->second;
+        }
+
+	mFields.clear();
+
 	Interface::Instance->remove(urlPrefix());
 }
-
 
 String User::Profile::infoPath(void) const
 {
@@ -731,30 +757,12 @@ void User::Profile::save()
 
 void User::Profile::clear()
 {
-	mFirstName.clear();
-	mMiddleName.clear();
-	mLastName.clear();
-	mBirthday.clear();
-	mGender.clear();
-	mReligion.clear();
-	mRelationship.clear();
-	mDescription.clear();
-	mStatus.clear();
-	mCity.clear();
-	mAddress.clear();
-	mMail.clear();
-	mPhone.clear();
-	mCollege.clear();
-	mUniversity.clear();
-	mJob.clear();
-	mProfilePhoto.clear();
-	mBooks.clear();
-	mHobbies.clear();
-	mMovies.clear();
-	mPolitics.clear();
-	mInternship.clear();
-	mComputer.clear();
-	mResume.clear();
+	for(	Map<String, Field*>::iterator it = mFields.begin();
+		it != mFields.end();
+		++it)
+	{
+		it->second->clear();
+	}
 	
 	// Do not call save() here
 }
@@ -763,36 +771,13 @@ void User::Profile::serialize(Serializer &s) const
 {
 	Serializer::ConstObjectMapping fields;
 	
-	if(!mStatus.empty())		fields["status"] = &mStatus;
-	if(!mProfilePhoto.empty())	fields["profilephoto"] = &mProfilePhoto;
-
-	if(!mFirstName.empty())		fields["firstname"] = &mFirstName;
-	if(!mMiddleName.empty())	fields["middlename"] = &mMiddleName;
-	if(!mLastName.empty())		fields["lastname"] = &mLastName;
-	if(!mBirthday.empty())		fields["birthday"] = &mBirthday;
-	if(!mGender.empty())		fields["gender"] = &mGender;
-	if(!mRelationship.empty())	fields["relationship"] = &mRelationship;
-
-	if(!mCity.empty())		fields["city"] = &mCity;
-	if(!mAddress.empty())		fields["address"] = &mAddress;
-	if(!mMail.empty())		fields["mail"] = &mMail;
-	if(!mPhone.empty())		fields["phone"] = &mPhone;
-
-	if(!mCollege.empty())		fields["college"] = &mCollege;
-	if(!mUniversity.empty())	fields["university"] = &mUniversity;
-
-	if(!mJob.empty())		fields["job"] = &mJob;
-	if(!mComputer.empty())		fields["computer"] = &mComputer;
-	if(!mResume.empty())		fields["resume"] = &mResume;
-	if(!mInternship.empty())	fields["internship"] = &mInternship;
-
-	if(!mReligion.empty())		fields["religion"] = &mReligion;
-	if(!mBooks.empty())		fields["books"] = &mBooks;
-	if(!mMovies.empty())		fields["movies"] = &mMovies;
-	if(!mHobbies.empty())		fields["hobbies"] = &mHobbies;
-	if(!mPolitics.empty())		fields["politics"] = &mPolitics;
-
-	if(!mDescription.empty())	fields["description"] = &mDescription;
+	for(	Map<String, Field*>::const_iterator it = mFields.begin();
+		it != mFields.end();
+		++it)
+	{
+		if(!it->second->empty()) 
+			fields[it->first] = it->second;
+	}
 	
 	s.outputObject(fields);
 }
@@ -801,37 +786,13 @@ bool User::Profile::deserialize(Serializer &s)
 {	
 	Serializer::ObjectMapping fields;
 	
-	fields["status"] = &mStatus;
-	fields["profilephoto"] = &mProfilePhoto;
+	for(	Map<String, Field*>::const_iterator it = mFields.begin();
+		it != mFields.end();
+		++it)
+	{
+		fields[it->first] = it->second;
+	}
 
-	fields["firstname"] = &mFirstName;
-	fields["middlename"] = &mMiddleName;
-	fields["lastname"] = &mLastName;
-	fields["birthday"] = &mBirthday;
-	fields["gender"] = &mGender;
-	fields["relationship"] = &mRelationship;
-
-	fields["city"] = &mCity;
-	fields["address"] = &mAddress;
-	fields["mail"] = &mMail;
-	fields["phone"] = &mPhone;
-
-	fields["college"] = &mCollege;
-	fields["university"] = &mUniversity;
-
-	fields["job"] = &mJob;
-	fields["computer"] = &mComputer;
-	fields["resume"] = &mResume;
-	fields["internship"] = &mInternship;
-
-	fields["religion"] = &mReligion;
-	fields["books"] = &mBooks;
-	fields["movies"] = &mMovies;
-	fields["hobbies"] = &mHobbies;
-	fields["politics"] = &mPolitics;
-
-	fields["description"] = &mDescription;
-	
 	return s.inputObject(fields);
 }
 
@@ -843,18 +804,16 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 
 		if(request.method == "POST")
 		{
-			String field, valueField;
-
-			if(request.post.contains("clear"))
+			if(request.post.contains("clear"))	// Should be removed
 			{
 				clear();
 				save();
 			}
 			else {
-				field = request.post["field"];
-				valueField = request.post["valueField"];
+				String field = request.post["field"];
+				String value = request.post["value"];
 
-				updateField(field, valueField);
+				updateField(field, value);
 			}
 			
 			Http::Response response(request, 303);
@@ -874,207 +833,87 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 			try {
 				page.header("My profile : "+mUser->name());
 
-				page.javascript("var valueField;\n\
-						var currentId;\n\
-						var blocked = false;\n\
-						var isEmpty = false;");
-
 				page.open("div","profile.box");
 
-				page.open("div",".inlinetitle");
 				page.open("h2");
 				page.text("My personal information");
 				page.close("h2");
 
-				page.button("clearprofilebutton","Clear profile");
-				page.close("div");
+				// button() should not be used outside of a form
+				//page.button("clearprofilebutton", "Clear profile");
 
-				page.open("div",".profileinfoswrapper");
+				page.open("div", "profileheader");
 
 					page.open("div","personalstatus");
 						page.raw("<span class=\"statusquotemark\"> “ </span>");
-						page.open("span","status.editable");
-						if(mStatus!="")
-						{
-							page.text(mStatus);
-						}
-						else
-						{
-							page.open("span","status.empty");
-							page.text("(click here to post a status)");
-							page.close("span");
-						}
+						page.open("span","status.empty");
+						page.text("(click here to post a status)");
 						page.close("span");
 						page.raw("<span class=\"statusquotemark\"> ” </span>");
 					page.close("div");
 
-					page.open("div","profilephoto");
+					page.open("div", "profilephoto");
 
 					// TODO : photo de profil
-					//String urlPhoto = "Images/nebuleuse-tete-de-cheval.jpg";
-					mProfilePhoto = "Images/nebuleuse-tete-de-cheval.jpg";				
-					//mProfilePhoto = Resource(mUser->peering(), urlPhoto);
-
+					
 					page.close("div");
 
 				page.close("div");
 
-				page.open("div", ".profileinfoswrapper");
+				
+				page.open("h2");
+				page.text("Personal Information");
+				page.close("h2");
 
-					page.open("div","personalinfos.box");
+				displayField(page, "realname");
+				displayField(page, "birthday");
+				displayField(page, "gender");
+				displayField(page, "relationship");
+				displayField(page, "address");
+				displayField(page, "email");
+				displayField(page, "phone");
 
-					page.open("h2");
-					page.text("Personal Information");
-					page.close("h2");
-
-					displayProfileInfo(page,"First Name","firstname", mFirstName);
-					displayProfileInfo(page,"Middle Name","middlename", mMiddleName);
-					displayProfileInfo(page,"Last Name","lastname", mLastName);
-					displayProfileInfo(page,"Birthday", " : ", "When were you born ?", "birthday", mBirthday);
-					displayProfileInfo(page,"Gender","gender", mGender);
-					displayProfileInfo(page,"Relationship Status","relationship", mRelationship);
-					displayProfileInfo(page,"City","city", mCity);
-					displayProfileInfo(page,"Address","address", mAddress);
-					displayProfileInfo(page,"Mail","mail", mMail);
-					displayProfileInfo(page,"Phone Number","phone", mPhone);
-					page.close("div");
-
-					page.open("div","culture.box");
-
-					page.open("h2");
-					page.text("Culture");
-					page.close("h2");
-
-					displayProfileInfo(page,"Religion","religion", mReligion);
-					displayProfileInfo(page,"Books", " : ", "What are your favorite books ?", "books", mBooks);
-					displayProfileInfo(page,"Movies", " : ", "What are your favorite movies ?", "movies", mMovies);
-					displayProfileInfo(page,"Hobbies", " : ", "What are your favorite hobbies ?","hobbies", mHobbies);
-					displayProfileInfo(page,"Politics", " : ", "What are your political opinions ?","politics", mPolitics);
-					page.close("div");
-
-				//page.close("div");
-
-				//page.open("div",".profileinfoswrapper");
-					page.open("div","jobs.box");
-
-					page.open("h2");
-					page.text("Skills and jobs");
-					page.close("h2");
-
-					displayProfileInfo(page,"Computer Skills", " : ", "What are your computer skills ?","computer", mComputer);
-					displayProfileInfo(page,"Resume", " : ", "Put a link to your resume","resume", mResume);
-					displayProfileInfo(page,"Current Job","job", mJob);
-					displayProfileInfo(page,"Last Internship", " : ", "Where did you do your last internship ?","internship", mInternship);
-
-					page.close("div");
-
-					page.open("div","education.box");
-
-					page.open("h2");
-					page.text("Education");
-					page.close("h2");
-
-					displayProfileInfo(page,"College", " : ", "Where did you go to college ?","college", mCollege);
-					displayProfileInfo(page,"University", " : ", "What University did you attend ?","university", mUniversity);
-
-					page.close("div");
-				//page.close("div");
-
-				//page.open("div",".profileinfoswrapper");
-					page.open("div","description.box");
-
-					page.open("h2");
-					page.text("Description");
-					page.close("h2");
-
-					displayProfileInfo(page,"", "", "Describe yourself", "description", mDescription);
-
-					page.close("div");
-				page.close("div");
-
-
-				page.close("div");
-
-				page.javascript("loadClickHandlers = function()\n\
-						{\n\
-							$('.editable').click(onEditableClick);\n\
-						}\n\
-						onEditableClick = function()\n\
-						{\n\
-						if(!blocked)\n\
-						{\n\
-							blocked = true;\n\
-							currentId = $(this).attr('id');\n\
-							var currentText = $(this).html();\n\
-							if (!isEmpty) valueField = currentText;\n\
-							$(this).after('<div><input type=\"text\" value=\"'+valueField+'\" class=\"inputprofile\"></div>');\n\
-							$(this).css('display','none');\n\
-							$('input').focus();\n\
-							$('input').keypress(function(e) {\n\
-						if (e.keyCode == 13 && !e.shiftKey) {\n\
-						e.preventDefault();\n\
-						var field = currentId;\n\
-						valueField = $('input[type=text]').attr('value');\n\
-						postVariable(field, valueField);\n\
-						}\n\
-							});\n\
-							$('input').blur(function()\n\
-							{\n\
-								setTimeout(function(){location.reload();},100);\n\
-							}\n\
-							);\n\
-						}\n\
-						}\n\
-						postVariable = function(field, valueFieldRaw)\n\
-						{\n\
-							valueFieldPost = valueFieldRaw;\n\
-							//if(valueFieldPost == '') valueFieldPost = 'emptyfield';\n\
-							var request = $.post('"+prefix+"/profile"+"',\n\
-								{ 'field': field , 'valueField': valueFieldPost });\n\
-							request.fail(function(jqXHR, textStatus) {\n\
-								alert('The profile update could not be made.');\n\
-							});\n\
-							isEmpty = false;\n\
-							setTimeout(function(){location.reload();},100);\n\
-						}\n\
-						loadClickHandlers();\n\
-						$('.empty').click(function() {isEmpty = true; valueField = ''; //empty Field \n\
-							if(!blocked)\n\
-							{\n\
-								blocked = true;\n\
-								currentId = $(this).attr('id');\n\
-								var currentText = $(this).html();\n\
-								$(this).after('<div><input type=\"text\" class=\"inputprofile\"></div>');\n\
-								$(this).css('display','none');\n\
-								$('input').focus();\n\
-								$('input').keypress(function(e) {\n\
+				page.javascript("function postField(field, value)\n\
+					{\n\
+						var request = $.post('"+prefix+"/profile"+"',\n\
+							{ 'field': field , 'value': value });\n\
+						request.fail(function(jqXHR, textStatus) {\n\
+							alert('The profile update could not be made.');\n\
+						});\n\
+						setTimeout(function(){location.reload();},100);\n\
+					}\n\
+					var blocked = false;\n\
+					$('.editable,.empty').click(function() {\n\
+						if(blocked) return;\n\
+						blocked = true;\n\
+						var currentId = $(this).attr('id');\n\
+						var currentText = $(this).html();\n\
+						var value = (!$(this).hasClass('empty') ? currentText : '');\n\
+						$(this).after('<div><input type=\"text\" value=\"'+value+'\" class=\"inputprofile\"></div>');\n\
+						$(this).css('display','none');\n\
+						$('input').focus();\n\
+						$('input').keypress(function(e) {\n\
 							if (e.keyCode == 13 && !e.shiftKey) {\n\
-							e.preventDefault();\n\
-							var field = currentId;\n\
-							valueField = $('input[type=text]').attr('value');\n\
-							postVariable(field, valueField);\n\
-							}\n\
-								});\n\
-								$('input').blur(function()\n\
-								{\n\
-									setTimeout(function(){location.reload();},100);\n\
-								}\n\
-								);\n\
+								e.preventDefault();\n\
+								var field = currentId;\n\
+								value = $('input[type=text]').attr('value');\n\
+								postField(field, value);\n\
 							}\n\
 						});\n\
-						$('.clearprofilebutton').click(function() {\n\
-							var request = $.post('"+prefix+"/profile"+"',\n\
-								{ 'clear': 1 });\n\
-							request.fail(function(jqXHR, textStatus) {\n\
-								alert('Profile clear could not be made.');\n\
-							});\n\
+						$('input').blur(function() {\n\
 							setTimeout(function(){location.reload();},100);\n\
-						}\n\
-						);\n\
-						");
-
+						});\n\
+					});\n\
+					$('.clearprofilebutton').click(function() {\n\
+						var request = $.post('"+prefix+"/profile"+"',\n\
+							{ 'clear': 1 });\n\
+						request.fail(function(jqXHR, textStatus) {\n\
+							alert('Profile clear could not be made.');\n\
+						});\n\
+						setTimeout(function(){location.reload();},100);\n\
+					});");
 			}
-			catch(IOException &e)
+			catch(const IOException &e)
 			{
 				LogWarn("User::Profile::http", e.what());
 				return;
@@ -1093,110 +932,43 @@ void User::Profile::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &showPunctuation, const String &emptyQuestion, const String &fieldName, String &field)
+void User::Profile::displayField(Html &page, const String &name) const
 {
-	if(!field.empty())
-	{
-		page.open("div",fieldName+"div.profileinfo");
-		page.text(fieldText+showPunctuation);
-		page.open("span",fieldName+".editable");
-		page.text(field);
-		page.close("span");
-		//page.br();
+	Field *field;
+	if(mFields.get(name, field))
+		displayField(page, field);
+}
+
+void User::Profile::displayField(Html &page, const Field *field) const
+{
+	if(!field->empty())
+        {
+                page.open("div", ".profileinfo");
+                page.text(field->displayName() + ": ");
+                page.open("span", field->name()+".editable");
+                page.text(field->value());
+                page.close("span");
+                //page.br();
 		page.close("div");
-	}
-	else
-	{
-		page.open("div",fieldName+".empty");
-		page.open("span",".profileinfo");
-		page.text(emptyQuestion);
-		page.close("span");
+        }
+        else {
+		page.open("div", ".profileinfo");
+                page.open("span", field->name()+".empty");
+		page.text(field->comment());
+                page.close("span");
+                //page.br();
 		page.close("div");
+        }
+}
+
+void User::Profile::updateField(const String &name, const String &value)
+{
+	Field *field;
+	if(mFields.get(name, field))
+	{
+		field->fromString(value);
+		save();
 	}
-}
-
-void User::Profile::displayProfileInfo(Html &page, const String &fieldText, const String &fieldName, String &field)
-{
-	displayProfileInfo(page, fieldText, " : ", "What is your "+fieldText+" ?", fieldName, field);
-}
-
-String User::Profile::getStatus()
-{
-	return mStatus;
-}
-
-String User::Profile::getProfilePhoto()
-{
-	return mProfilePhoto;
-}
-
-
-void User::Profile::updateField(String &key, String &value)
-{
-	// TODO : be careful with non string (in particular Time)
-
-	if(key == "status") 
-		mStatus = value;
-
-	if(key == "firstname")
-		mFirstName = value;
-
-	if(key == "middlename")
-		mMiddleName = value;
-
-	if(key == "lastname")
-		mLastName = value;
-
-	if(key == "profilephoto")
-		mProfilePhoto = value;
-
-	if(key == "birthday")
-		mBirthday = value; // TODO
-
-	if(key == "gender")
-		mGender = value;
-
-	if(key == "relationship")
-		mRelationship = value;
-
-	if(key == "city")
-		mCity = value;
-	if(key == "address")
-		mAddress = value;
-	if(key == "mail")
-		mMail = value;
-	if(key == "phone")
-		mPhone = value;
-
-	if(key == "college")
-		mCollege = value;
-	if(key == "university")
-		mUniversity = value;
-
-	if(key == "job")
-		mJob = value;
-	if(key == "computer")
-		mComputer = value;
-	if(key == "resume")
-		mResume = value;
-	if(key == "internship")
-		mInternship = value;
-
-	if(key == "religion")
-		mReligion = value;
-	if(key == "books")
-		mBooks = value;
-	if(key == "movies")
-		mMovies = value;
-	if(key == "hobbies")
-		mHobbies = value;
-	if(key == "politics")
-		mPolitics = value;
-
-	if(key == "description")
-		mDescription = value;
-	
-	save();
 }
 
 User::Profile *User::profile(void) const
