@@ -21,7 +21,7 @@
 
 function getResourceLink(resource) {
 	
-	var basePath = getBasePath();
+	var basePath = getBasePath(1);
 	return (resource.hash ? '/' + resource.hash.escape() : 
 		basePath + (resource.contact && basePath != '/'+resource.contact+'/' ? 'contacts/' + resource.contact.escape() : 'myself') 
 		+ '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
@@ -67,7 +67,7 @@ function listDirectory(url, object, showButtons) {
 					var isPlayable;
 					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
 					isPlayable = isPlayableResource(resource.name);
-					isPlayableDirectory |= isPlayable;
+					//isPlayableDirectory |= isPlayable;
 
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					//line+= ''
@@ -86,10 +86,10 @@ function listDirectory(url, object, showButtons) {
 				window.location.href = $(this).find('a').attr('href');
 			});
 
-			if(isPlayableDirectory == 1) 
+			/*if(isPlayableDirectory == 1) 
 			{
 				$(object).prepend('<a href="'+location+'?playlist" class="button"> Play this directory </a>');
-			}
+			}*/
 		}
 		else {
 			$(object).html('No files');

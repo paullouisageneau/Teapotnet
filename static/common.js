@@ -93,6 +93,7 @@ function formatTime(timestamp) {
 function getBasePath() {
 	getBasePath(1);
 } // Some browsers don't support = in prototype
+// TODO : overload doesn't work !!
 
 function getBasePath(nbFolders) {
 	var pathArray = window.location.pathname.split('/');
