@@ -67,7 +67,7 @@ function listDirectory(url, object, showButtons) {
 					var isPlayable;
 					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
 					isPlayable = isPlayableResource(resource.name);
-					isPlayableDirectory |= isPlayable;
+					//isPlayableDirectory |= isPlayable;
 
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					//line+= ''
@@ -86,7 +86,10 @@ function listDirectory(url, object, showButtons) {
 				window.location.href = $(this).find('a').attr('href');
 			});
 
-			//if(isPlayableDirectory) $(object).prepend('<a href="'+urlFile+'?playlist=1" class="button"> Play this directory </a>'); // TODO
+			/*if(isPlayableDirectory == 1) 
+			{
+				$(object).prepend('<a href="'+location+'?playlist" class="button"> Play this directory </a>');
+			}*/
 		}
 		else {
 			$(object).html('No files');
@@ -97,7 +100,18 @@ function listDirectory(url, object, showButtons) {
 	});
 }
 
-function listFileSelector(url, object, input, inputName, parents = []) {
+function listFileSelector(url, object, input, inputName, parents) {
+
+switch (arguments.length) { // Is a fix for fact that overloading is not possible in javascript and some browsers don't support = in prototype
+
+	case 4:
+		parents = [];
+	break;
+
+	default:
+
+	break;
+}
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	

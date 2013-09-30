@@ -168,6 +168,7 @@ legend
 
 input
 {
+	float: left;
 	display: inline-block;
 	margin: 0.2em;
 	padding: 0.4em;
@@ -218,6 +219,7 @@ input[type="text"]
 
 a.button
 {
+	float: left;
         color: #000000;
         cursor: pointer;
         background-color: #FFDC0A;
@@ -244,20 +246,24 @@ textarea
 #leftcolumn #search
 {
 	float: left;
-	width: 95%;
+	width: 100%;
 	text-align: center;
+	display: block;
 }
 
-#leftcolumn #search form
+/*#leftcolumn #search form
 {
+	display: block;
 	margin: 0;
 	padding: 0;
-}
+}*/
 
 #leftcolumn #search input[type="text"]
 {
-	margin: 0;
-	width: 90%;
+	display:block;
+	margin-left: auto;
+	margin-right: auto;
+	width:70%;
 }
 
 .loading > body > * 
@@ -348,6 +354,8 @@ textarea
 	border: none;
 	box-shadow: none;
 	padding: 0 20px;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 #content
@@ -878,6 +886,12 @@ td.delete
 	padding-right: 0;
 }
 
+.name
+{
+	float: left;
+	padding-top: 0.2em;
+}
+
 .contacts td.tracker
 {
  	text-align: left;
@@ -898,12 +912,6 @@ td.delete
 .contacts td.chat
 {
 	width: 6em; 
-}
-
-.name
-{
-	float: left;
-	margin-left: 0;
 }
 
 #files .button
@@ -1160,7 +1168,7 @@ td.delete
 
 /* Mobile version */  
 
-@media screen and (max-width: 480px)
+@media screen and (max-width: 790px)
 {
 
 	#page
@@ -1220,14 +1228,20 @@ td.delete
 	#logo img
 	{
 		width: 64px;
-	}	
+	}
+
+	.name
+	{
+		float: left;
+		padding-top: 0.2em;
+	}
 }
 
 /* End of mobile version */
 
 /* Tablet version */  
 
-@media screen and (min-width : 768px) and (max-width : 1024px)
+@media screen and (min-width : 791px) and (max-width : 1024px)
 {
 
 	#wrapper 
@@ -1250,6 +1264,11 @@ td.delete
 		margin-left: 55px;
 	}
 
+	.name
+	{
+		float: left;
+		padding-top: 0.2em;
+	}
 
 }
 
