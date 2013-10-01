@@ -1853,7 +1853,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	StringMap map;
 	map["uname"] << mUniqueName;
 	map["name"] << mName;
-	map["tracker"] << mTracker;
+	map["tracker"] << tracker();
 	map["secret"] << mSecret;
 	map["peering"] << mPeering;
 	map["remote"] << mRemotePeering;

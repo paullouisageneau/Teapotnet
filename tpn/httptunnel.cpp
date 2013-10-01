@@ -68,8 +68,9 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				}
 				
 				SessionsMutex.lock();
-				do session = pseudorand();
-				while(Sessions.contains(session));
+				while(!session || Sessions.contains(session));
+					session = pseudorand();
+				Sessions.insert(session, NULL);
 				SessionsMutex.unlock();
 
 				server = new Server(session);   // Server registers the session
