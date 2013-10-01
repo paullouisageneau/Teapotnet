@@ -41,7 +41,6 @@ double HttpTunnel::FlushTimeout = 0.5;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
 Mutex					HttpTunnel::SessionsMutex;
-uint32_t				HttpTunnel::LastSession = 0;
 
 HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 {
@@ -69,7 +68,8 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				}
 				
 				SessionsMutex.lock();
-				session = ++LastSession;
+				do session = pseudorand();
+				while(Sessions.contains(session));
 				SessionsMutex.unlock();
 
 				server = new Server(session);   // Server registers the session
@@ -221,11 +221,11 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 	{
 		if(!mDownSock->isConnected())
 		{
-			LogDebug("HttpTunnel::Client::readData", "Connecting...");
-			
 			String url;
 			Assert(!mReverse.empty());
                         url<<"http://"<<mReverse<<"/"<<String::random(8);
+
+			LogDebug("HttpTunnel::Client::readData", "GET " + url);
 
 			Http::Request request(url, "GET");
                         request.headers["User-Agent"] = UserAgent;
@@ -302,11 +302,11 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 	{
 		if(!mUpSock->isConnected())
 		{
-			LogDebug("HttpTunnel::Client::writeData", "Connecting...");
-			
 			String url;
 			Assert(!mReverse.empty());
                         url<<"http://"<<mReverse<<"/"<<String::random(8);
+
+			LogDebug("HttpTunnel::Client::writeData", "POST " + url);
 
                         Http::Request request(url, "POST");
                         request.headers["User-Agent"] = UserAgent;

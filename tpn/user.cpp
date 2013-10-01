@@ -151,13 +151,21 @@ User::~User(void)
 	delete mStore;
 }
 
-const String &User::name(void) const
+String User::name(void) const
 {
+	Synchronize(this);
 	return mName; 
+}
+
+String User::tracker(void) const
+{
+	Synchronize(this);
+        return mProfile->tracker();
 }
 
 String User::profilePath(void) const
 {
+	Synchronize(this);
 	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
 	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
 	if(!Directory::Exist(path)) Directory::Create(path);
@@ -166,6 +174,7 @@ String User::profilePath(void) const
 
 String User::urlPrefix(void) const
 {
+	Synchronize(this);
 	return String("/") + mName;
 }
 
@@ -182,6 +191,11 @@ MessageQueue *User::messageQueue(void) const
 Store *User::store(void) const
 {
 	return mStore;
+}
+
+Profile *User::profile(void) const
+{
+        return mProfile;
 }
 
 bool User::isOnline(void) const
@@ -280,9 +294,8 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			/*page.open("div");
 			page.open("h1");
-			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
-			page.text(name() + "@" + tracker);
+			page.text(name() + "@" + tracker());
 			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.close("h1");
 			page.close("div");*/
@@ -391,10 +404,9 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div");
 			page.open("h1");
-			const String tracker = Config::Get("tracker");
 			const String instance = Core::Instance->getName().before('.');
 			page.raw("<a href='profile'>");			
-			page.text(name() + "@" + tracker);
+			page.text(name() + "@" + tracker());
 			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.raw("</a>");
 			page.close("h1");
@@ -672,309 +684,6 @@ void User::run(void)
 		++m;
 		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
 	}
-}
-
-
-User::Profile::Profile(User *user, const String &uname):
-	mUser(user),
-	mName(uname)
-{
-	Assert(mUser);
-	if(mName.empty()) mName = mUser->name();
-	Assert(!mName.empty());
-
-	// Avatar
-	mFields["avatar"]      	= new TypedField<ByteString>("avatar", &mAvatar, "Avatar");
-	
-	// Basic Info
-	mFields["realname"]	= new TypedField<String>("realname", &mRealName, "Name", "What's your name ?");
-	mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
-	mFields["gender"]    	= new TypedField<String>("gender", &mGender, "Gender", "What's your gender ?");	
-	mFields["relationship"]	= new TypedField<String>("relationship", &mRelationship, "Relationship", "What's your relationship status ?");
-
-	// Contact
-	mFields["location"]    	= new TypedField<String>("location", &mLocation, "Address", "What's your address ?");
-	mFields["email"]	= new TypedField<String>("email", &mEmail, "E-mail", "What's your email address ?");
-	mFields["phone"]	= new TypedField<String>("phone", &mPhone, "Phone", "What's your phone number ?");
-
-	// Settings
-	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The teapotnet tracker you use");
-
-	mFileName = infoPath() + mName;
-	load();
-
-	Interface::Instance->add(urlPrefix(), this);
-}
-
-User::Profile::~Profile()
-{
-	for(    Map<String, Field*>::iterator it = mFields.begin();
-                it != mFields.end();
-                ++it)
-        {
-		delete it->second;
-        }
-
-	mFields.clear();
-
-	Interface::Instance->remove(urlPrefix());
-}
-
-String User::Profile::infoPath(void) const
-{
-	String path = mUser->profilePath() + "infos";
-	if(!Directory::Exist(path)) Directory::Create(path);
-	return path + Directory::Separator;
-}
-
-String User::Profile::urlPrefix(void) const
-{
-	// TODO: redirect /[user]/myself/profile
-	if(mName == mUser->name()) return "/"+mUser->name()+"/profile";
-	else return "/"+mUser->name()+"/contacts/"+mName+"/profile";
-}
-
-void User::Profile::load()
-{
-	if(!File::Exist(mFileName))
-	{
-		clear();
-		return;
-	}
-	
-	File profileFile(mFileName, File::Read);
-	YamlSerializer serializer(&profileFile);
-	deserialize(serializer);
-}
-
-void User::Profile::save()
-{
-	SafeWriteFile profileFile(mFileName);
-	YamlSerializer serializer(&profileFile);
-	serialize(serializer);
-	profileFile.close();
-}
-
-void User::Profile::clear()
-{
-	for(	Map<String, Field*>::iterator it = mFields.begin();
-		it != mFields.end();
-		++it)
-	{
-		it->second->clear();
-	}
-	
-	// Do not call save() here
-}
-
-void User::Profile::serialize(Serializer &s) const
-{
-	Serializer::ConstObjectMapping fields;
-	
-	for(	Map<String, Field*>::const_iterator it = mFields.begin();
-		it != mFields.end();
-		++it)
-	{
-		if(!it->second->empty()) 
-			fields[it->first] = it->second;
-	}
-	
-	s.outputObject(fields);
-}
-
-bool User::Profile::deserialize(Serializer &s)
-{	
-	Serializer::ObjectMapping fields;
-	
-	for(	Map<String, Field*>::const_iterator it = mFields.begin();
-		it != mFields.end();
-		++it)
-	{
-		fields[it->first] = it->second;
-	}
-
-	return s.inputObject(fields);
-}
-
-void User::Profile::http(const String &prefix, Http::Request &request)
-{
-	try {
-		String url = request.url;
-		if(url.empty() || url[0] != '/') throw 404;
-
-		if(request.method == "POST")
-		{
-			if(request.post.contains("clear"))	// Should be removed
-			{
-				clear();
-				save();
-			}
-			else {
-				String field = request.post["field"];
-				String value = request.post["value"];
-
-				updateField(field, value);
-			}
-			
-			Http::Response response(request, 303);
-			response.headers["Location"] = prefix + "/";
-			response.send();
-			return;
-		}
-		
-		if(url == "/")
-		{
-			Http::Response response(request,200);
-			response.send();
-		
-			Html page(response.sock);
-			page.header(APPNAME, true);
-
-			try {
-				page.header("My profile : "+mUser->name());
-
-				page.open("div","profile.box");
-
-				page.open("h2");
-				page.text("My personal information");
-				page.close("h2");
-
-				// button() should not be used outside of a form
-				//page.button("clearprofilebutton", "Clear profile");
-
-				page.open("div", "profileheader");
-
-					page.open("div","personalstatus");
-						page.raw("<span class=\"statusquotemark\"> “ </span>");
-						page.open("span","status.empty");
-						page.text("(click here to post a status)");
-						page.close("span");
-						page.raw("<span class=\"statusquotemark\"> ” </span>");
-					page.close("div");
-
-					page.open("div", "profilephoto");
-
-					// TODO : photo de profil
-					
-					page.close("div");
-
-				page.close("div");
-
-				
-				page.open("h2");
-				page.text("Personal Information");
-				page.close("h2");
-
-				displayField(page, "realname");
-				displayField(page, "birthday");
-				displayField(page, "gender");
-				displayField(page, "relationship");
-				displayField(page, "address");
-				displayField(page, "email");
-				displayField(page, "phone");
-
-				page.javascript("function postField(field, value)\n\
-					{\n\
-						var request = $.post('"+prefix+"/profile"+"',\n\
-							{ 'field': field , 'value': value });\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							alert('The profile update could not be made.');\n\
-						});\n\
-						setTimeout(function(){location.reload();},100);\n\
-					}\n\
-					var blocked = false;\n\
-					$('.editable,.empty').click(function() {\n\
-						if(blocked) return;\n\
-						blocked = true;\n\
-						var currentId = $(this).attr('id');\n\
-						var currentText = $(this).html();\n\
-						var value = (!$(this).hasClass('empty') ? currentText : '');\n\
-						$(this).after('<div><input type=\"text\" value=\"'+value+'\" class=\"inputprofile\"></div>');\n\
-						$(this).css('display','none');\n\
-						$('input').focus();\n\
-						$('input').keypress(function(e) {\n\
-							if (e.keyCode == 13 && !e.shiftKey) {\n\
-								e.preventDefault();\n\
-								var field = currentId;\n\
-								value = $('input[type=text]').attr('value');\n\
-								postField(field, value);\n\
-							}\n\
-						});\n\
-						$('input').blur(function() {\n\
-							setTimeout(function(){location.reload();},100);\n\
-						});\n\
-					});\n\
-					$('.clearprofilebutton').click(function() {\n\
-						var request = $.post('"+prefix+"/profile"+"',\n\
-							{ 'clear': 1 });\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							alert('Profile clear could not be made.');\n\
-						});\n\
-						setTimeout(function(){location.reload();},100);\n\
-					});");
-			}
-			catch(const IOException &e)
-			{
-				LogWarn("User::Profile::http", e.what());
-				return;
-			}
-
-			page.footer();
-			return;
-		}
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("User::Profile::http", e.what());
-		throw 404;	// Httpd handles integer exceptions
-	}
-			
-	throw 404;
-}
-
-void User::Profile::displayField(Html &page, const String &name) const
-{
-	Field *field;
-	if(mFields.get(name, field))
-		displayField(page, field);
-}
-
-void User::Profile::displayField(Html &page, const Field *field) const
-{
-	if(!field->empty())
-        {
-                page.open("div", ".profileinfo");
-                page.text(field->displayName() + ": ");
-                page.open("span", field->name()+".editable");
-                page.text(field->value());
-                page.close("span");
-                //page.br();
-		page.close("div");
-        }
-        else {
-		page.open("div", ".profileinfo");
-                page.open("span", field->name()+".empty");
-		page.text(field->comment());
-                page.close("span");
-                //page.br();
-		page.close("div");
-        }
-}
-
-void User::Profile::updateField(const String &name, const String &value)
-{
-	Field *field;
-	if(mFields.get(name, field))
-	{
-		field->fromString(value);
-		save();
-	}
-}
-
-User::Profile *User::profile(void) const
-{
-	//Synchronize(this);
- 	return mProfile; 
 }
 
 }

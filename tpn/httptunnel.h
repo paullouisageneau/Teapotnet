@@ -104,7 +104,6 @@ private:
 
 	static Map<uint32_t,Server*> 	Sessions;
 	static Mutex			SessionsMutex;
-	static uint32_t			LastSession;
 
 	static const uint8_t TunnelOpen		= 0x01;
 	static const uint8_t TunnelData		= 0x02;

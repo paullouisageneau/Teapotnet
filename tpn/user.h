@@ -23,18 +23,16 @@
 #define TPN_USER_H
 
 #include "tpn/include.h"
+#include "tpn/synchronizable.h"
 #include "tpn/thread.h"
-#include "tpn/http.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 #include "tpn/addressbook.h"
 #include "tpn/messagequeue.h"
 #include "tpn/store.h"
+#include "tpn/profile.h"
 #include "tpn/mutex.h"
 #include "tpn/map.h"
-#include "tpn/yamlserializer.h"
-#include "tpn/html.h"
-#include "resource.h"
 
 namespace tpn
 {
@@ -42,7 +40,6 @@ namespace tpn
 class User : public Thread, protected Synchronizable, public HttpInterfaceable
 {
 public:
-
 	static unsigned Count(void);
 	static void GetNames(Array<String> &array);
   	static bool Exist(const String &name);
@@ -53,12 +50,14 @@ public:
 	User(const String &name, const String &password = "");
 	~User(void);
 	
-	const String &name(void) const;
+	String name(void) const;
+	String tracker(void) const;
 	String profilePath(void) const;
 	String urlPrefix(void) const;
 	AddressBook *addressBook(void) const;
 	MessageQueue *messageQueue(void) const;
 	Store *store(void) const;
+	Profile *profile(void) const;
 	
 	bool isOnline(void) const;
 	void setOnline(void);
@@ -66,113 +65,6 @@ public:
 	void sendInfo(Identifier identifier = Identifier::Null);
 	
 	void http(const String &prefix, Http::Request &request);
-	
-	class Profile : public Serializable, public HttpInterfaceable
-	{
-	public:
-		Profile(User *user, const String &uname = "");
-		~Profile(void);
-		
-		String urlPrefix(void) const;
-		
-		void load(void);
-		void save(void);
-		void clear(void);
-		
-		// Serializable
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-		
-		// HttpInterfaceable
-		void http(const String &prefix, Http::Request &request);
-		
-	private:
-		String infoPath(void) const;		
-
-		class Field : public Serializable
-		{
-		public:
-			Field(const String &name, const String &displayName = "", const String &comment = "") :
-				mName(name), mDisplayName(displayName), mComment(comment) {}
-			virtual ~Field(void) {}
-
-			virtual String name(void) const { return mName; }
-			virtual String displayName(void) const { return (!mDisplayName.empty() ? mDisplayName : mName.capitalized()); }
-			virtual String comment(void) const { return (!mComment.empty() ? mComment : displayName()); }
-			virtual String value(void) const { return toString(); }
-
-			virtual bool empty(void) const	= 0;
-			virtual void clear(void)	= 0;
-			
-		protected:
-			String mName;
-			String mDisplayName;
-			String mComment;
-		};
-
-		template<class T> class TypedField : public Field
-		{
-		public:
-			TypedField(const String &name, T *ptr, const String &displayName = "", const String &comment = "", const T &value = T()) : 
-				Field(name, displayName, comment), mPtr(ptr), mDefault(value) { clear(); }
-			~TypedField(void) {}
-			
-			bool empty(void) const	{ return (*mPtr == mDefault); }
-			void clear(void)	{ *mPtr = mDefault; }
-			
-			// Serializable
-			void serialize(Serializer &s) const	{ s.output(*mPtr); }
-			bool deserialize(Serializer &s)		{ s.input(*mPtr);  }
-		
-		private:
-			T *mPtr;
-			T mDefault;
-		};
-
-		void displayField(Html &page, const String &name) const;
-		void displayField(Html &page, const Field *field) const;
-		void updateField(const String &name, const String &value);
-		
-		User *mUser;
-		String mName;
-		String mFileName;
-		
-		Map<String, Field*> mFields;
-		
-		// Avatar
-		ByteString mAvatar;
-		
-		// Basic Info
-		String mRealName;
-		Time mBirthday;
-		String mGender;
-		String mRelationship;
-		
-		// Contact
-		String mLocation;
-		String mEmail;
-		String mPhone;
-		
-		// Settings
-		String mTracker;
-		
-		// TODO
-		/*String mDescription;
-		String mStatus;
-		String mCity;
-		String mCollege;
-		String mUniversity;
-		String mJob;
-		String mBooks;
-		String mHobbies;
-		String mMovies;
-		String mPolitics;
-		String mInternship;
-		String mComputer;
-		String mResume;*/
-	};
-
-	Profile *profile(void) const;
 	
 private:
 	void run(void);
@@ -182,11 +74,12 @@ private:
 	AddressBook *mAddressBook;
 	MessageQueue *mMessageQueue;
 	Store *mStore;
+	Profile *mProfile;
+	
+	// TODO: deprecated
 	StringMap mInfo;
 	Time mLastOnlineTime;
-
-	Profile *mProfile;
-
+	
 	static Map<String, User*>	UsersByName;
 	static Map<ByteString, User*>	UsersByAuth;
 	static Mutex			UsersMutex;

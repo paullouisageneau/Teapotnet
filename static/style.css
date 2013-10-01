@@ -1133,6 +1133,7 @@ td.delete
 
 #personalstatus input
 {
+	float: none;
 	display: inline;
 	width: 25em;
 	text-align: center;

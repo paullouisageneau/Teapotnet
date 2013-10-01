@@ -237,7 +237,7 @@ String Address::reverse(void) const
 	if(addrFamily() == AF_INET6 && str.contains(':')) 
 	{
 		str.clear();
-		str << '[' + host + ']';
+		str << '[' << host << ']';
 	}
 
 	str << ':' << service;

@@ -693,10 +693,10 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mName(name),
 	mTracker(tracker),
 	mSecret(secret),
-	mTime(Time::Now()),
 	mDeleted(false),
 	mFound(false),
-	mFirstUpdateTime(0)
+	mFirstUpdateTime(0),
+	mProfile(NULL)
 {	
 	Assert(addressBook != NULL);
 	Assert(!uname.empty());
@@ -720,7 +720,11 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
-	mAddressBook(addressBook)
+	mAddressBook(addressBook),
+	mDeleted(false),
+	mFound(false),
+	mFirstUpdateTime(0),
+	mProfile(NULL)
 {
 
 }
@@ -728,6 +732,7 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 AddressBook::Contact::~Contact(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
+	delete mProfile;
 }
 
 String AddressBook::Contact::uniqueName(void) const
@@ -745,7 +750,8 @@ String AddressBook::Contact::name(void) const
 String AddressBook::Contact::tracker(void) const
 {
 	Synchronize(mAddressBook);
-	return mTracker;
+	if(mProfile) return mProfile->tracker();
+	else return mTracker;
 }
 
 Identifier AddressBook::Contact::peering(void) const
@@ -784,6 +790,22 @@ ByteString AddressBook::Contact::secret(void) const
 {
         Synchronize(mAddressBook);
         return mSecret;
+}
+
+Profile *AddressBook::Contact::profile(void) const
+{
+	Synchronize(mAddressBook);
+
+	if(isSelf()) return mAddressBook->user()->profile();
+	else {
+		if(!mProfile) 
+		{
+			mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
+			mProfile->load();
+		}
+		
+		return mProfile;
+	}
 }
 
 bool AddressBook::Contact::isSelf(void) const
@@ -1082,7 +1104,8 @@ void AddressBook::Contact::run(void)
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
 	// Send info
-	mAddressBook->user()->sendInfo(peering);
+	mAddressBook->user()->sendInfo(peering);	// deprecated
+	mAddressBook->user()->profile()->send(peering);
 
 	// Send contacts if self
         if(isSelf())
@@ -1282,6 +1305,8 @@ void AddressBook::Contact::notification(Notification *notification)
 	}
 	else if(type == "info")
 	{
+		// TODO: info message is deprecated, should be removed
+
 		String data = notification->content();
 		YamlSerializer serializer(&data);
 		StringMap info;
@@ -1310,6 +1335,17 @@ void AddressBook::Contact::notification(Notification *notification)
 			if(isSelf())
 				mAddressBook->user()->setInfo(info);
 		}
+	}
+	else if(type == "profile" || type == "profilediff")
+	{
+		String data = notification->content();
+		YamlSerializer serializer(&data);
+		
+		Profile *p = profile();
+		Synchronize(p);
+		if(type != "profilediff") p->clear();
+		p->deserialize(serializer);
+		p->save();
 	}
 	else if(type == "contacts")
 	{

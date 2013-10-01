@@ -556,7 +556,7 @@ void Core::Handler::process(void)
   
 	try {
 		Synchronize(this);
-		LogInfo("Core::Handler", "Starting...");
+		LogDebug("Core::Handler", "Starting...");
 	  
 		// TODO
 		//mRawStream->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));

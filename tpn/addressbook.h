@@ -30,6 +30,8 @@
 #include "tpn/identifier.h"
 #include "tpn/messagequeue.h"
 #include "tpn/core.h"
+#include "tpn/user.h"
+#include "tpn/profile.h"
 #include "tpn/scheduler.h"
 #include "tpn/task.h"
 #include "tpn/array.h"
@@ -40,6 +42,7 @@ namespace tpn
 {
 
 class User;
+class Profile;
   
 class AddressBook : private Synchronizable, public HttpInterfaceable
 {
@@ -83,6 +86,9 @@ public:
 		Time time(void) const;
 		uint32_t peeringChecksum(void) const;
 		String urlPrefix(void) const;
+		
+		Profile *profile(void) const;
+
 		bool isSelf(void) const;
 		bool isFound(void) const;
 		bool isConnected(void) const;
@@ -133,6 +139,8 @@ public:
 		AddressMap mAddrs;
 		StringMap mInfo;
 		Time mFirstUpdateTime;
+		
+		mutable Profile *mProfile;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);

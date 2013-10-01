@@ -64,7 +64,7 @@ void Http::Request::send(Socket &sock)
 {
 	this->sock = &sock;
 
-	if(method != "CONNECT" && version == "1.1" && !headers.contains("Connexion"))
+	if(method != "CONNECT" && version == "1.1" && !headers.contains("Connection"))
                 headers["Connection"] = "close";
 
 	//if(!headers.contains("Accept-Encoding"))
@@ -399,7 +399,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 void Http::Request::clear(void)
 {
 	method = "GET";
-	version = "1.0";
+	version = "1.0";	// 1.1 requires chunked transfer encoding to be implemented
 	url.clear();
 	headers.clear();
 	cookies.clear();
@@ -718,7 +718,7 @@ void Http::Server::Handler::run(void)
 	delete this;	// autodelete
 }
 
-int Http::Get(const String &url, Stream *output)
+int Http::Get(const String &url, Stream *output, int maxRedirections)
 {
 	Request request(url,"GET");
 
@@ -746,13 +746,13 @@ int Http::Get(const String &url, Stream *output)
 	Response response;
         response.recv(sock);
 
-	if(response.code/100 == 3 && response.headers.contains("Location"))
+	if(maxRedirections && response.code/100 == 3 && response.headers.contains("Location"))
 	{
 		sock.discard();
 		sock.close();
 
 		// TODO: relative location (even if not RFC-compliant)
-		return Get(response.headers["Location"], output);
+		return Get(response.headers["Location"], output, maxRedirections-1);
 	}
 
 	if(output) sock.read(*output);
@@ -761,7 +761,7 @@ int Http::Get(const String &url, Stream *output)
 	return response.code;
 }
 
-int Http::Post(const String &url, const StringMap &post, Stream *output)
+int Http::Post(const String &url, const StringMap &post, Stream *output, int maxRedirections)
 {
 	Request request(url,"POST");
 	request.post = post;
@@ -790,13 +790,13 @@ int Http::Post(const String &url, const StringMap &post, Stream *output)
 	Response response;
         response.recv(sock);
 
-	if(response.code/100 == 3 && response.headers.contains("Location"))
+	if(maxRedirections && response.code/100 == 3 && response.headers.contains("Location"))
 	{
 		sock.discard();
 		sock.close();
 
 		// TODO: support relative URLs, even if not RFC-compliant
-		return Get(response.headers["Location"], output);
+		return Get(response.headers["Location"], output, maxRedirections-1);
 	}
 
 	if(output) sock.read(*output);
