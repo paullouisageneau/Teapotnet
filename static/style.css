@@ -251,19 +251,22 @@ textarea
 	display: block;
 }
 
-/*#leftcolumn #search form
+
+#leftcolumn #search form
 {
 	display: block;
 	margin: 0;
 	padding: 0;
-}*/
+	padding-right: 20px;
+}
 
 #leftcolumn #search input[type="text"]
 {
-	display:block;
+	display: block;
+	width: 100%;
+	max-width: 480px;
 	margin-left: auto;
 	margin-right: auto;
-	width:70%;
 }
 
 .loading > body > * 
