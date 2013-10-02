@@ -57,6 +57,8 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 			if(request.cookies.get("session", cookie))
 				cookie.extract(session);	
 
+			//LogDebug("HttpTunnel::Incoming", "Incoming connection (session="+String::number(session)+")");
+
 			Server *server = NULL;
 			bool isNew = false;
 
@@ -69,7 +71,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				}
 				
 				SessionsMutex.lock();
-				while(!session || Sessions.contains(session));
+				while(!session || Sessions.contains(session))
 					session = pseudorand();
 				Sessions.insert(session, NULL);
 				SessionsMutex.unlock();
