@@ -927,20 +927,27 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic())
 	{
+		Socket *sock = NULL;
 		try {
-			bs = new Socket(addr, 5.);	// TODO: timeout
+			sock = new Socket(addr, 4.);
 		}
 		catch(const Exception &e)
 		{
-			bs = NULL;
+			sock = NULL;
 			LogDebug("AddressBook::Contact::connectAddress", String("Direct connection failed: ") + e.what());
+		}
+		
+		if(sock)
+		{
+			sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+			bs = sock;
 		}
 	}
 
 	if(!bs && addr.isPublic())
 	{
 		try {
-			bs = new HttpTunnel::Client(addr, 5.);
+			bs = new HttpTunnel::Client(addr, 4.);
 		}
 		catch(const Exception &e)
 		{
