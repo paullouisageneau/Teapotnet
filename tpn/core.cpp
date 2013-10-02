@@ -1218,7 +1218,7 @@ void Core::Handler::Sender::run(void)
 		LogDebug("Core::Handler::Sender", "Starting");
 		Assert(mStream);
 		
-		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+		const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 		
 		while(true)
 		{
