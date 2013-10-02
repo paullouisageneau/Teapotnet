@@ -925,10 +925,10 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier peering(this->peering(), instance);
 	ByteStream *bs = NULL;
 
-	if(!Config::Get("force_http_tunnel").toBool())
+	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic())
 	{
 		try {
-			bs = new Socket(addr, 2000);	// TODO: timeout
+			bs = new Socket(addr, 5.);	// TODO: timeout
 		}
 		catch(const Exception &e)
 		{
@@ -937,10 +937,10 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 	}
 
-	if(!bs)
+	if(!bs && addr.isPublic())
 	{
 		try {
-			bs = new HttpTunnel::Client(addr, 2000);
+			bs = new HttpTunnel::Client(addr, 5.);
 		}
 		catch(const Exception &e)
 		{
