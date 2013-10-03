@@ -433,7 +433,6 @@ Time Time::operator + (double seconds) const
 double Time::operator - (const Time &t) const
 {
 	double d = difftime(mTime, t.mTime);
-	
 	int u;
 	if(mUsec >= t.mUsec) u = mUsec - t.mUsec;
 	else {

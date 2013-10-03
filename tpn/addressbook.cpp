@@ -925,22 +925,29 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier peering(this->peering(), instance);
 	ByteStream *bs = NULL;
 
-	if(!Config::Get("force_http_tunnel").toBool())
+	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic())
 	{
+		Socket *sock = NULL;
 		try {
-			bs = new Socket(addr, 2000);	// TODO: timeout
+			sock = new Socket(addr, 4.);
 		}
 		catch(const Exception &e)
 		{
-			bs = NULL;
+			sock = NULL;
 			LogDebug("AddressBook::Contact::connectAddress", String("Direct connection failed: ") + e.what());
+		}
+		
+		if(sock)
+		{
+			sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+			bs = sock;
 		}
 	}
 
-	if(!bs)
+	if(!bs && addr.isPublic())
 	{
 		try {
-			bs = new HttpTunnel::Client(addr, 2000);
+			bs = new HttpTunnel::Client(addr, 4.);
 		}
 		catch(const Exception &e)
 		{

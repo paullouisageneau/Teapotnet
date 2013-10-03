@@ -108,18 +108,19 @@ void Scheduler::run(void)
 		Synchronize(this);
 		if(mSchedule.empty()) break;
 
-		double d =  mSchedule.begin()->first - Time::Now();
+		Map<Time, Set<Task*> >::iterator it = mSchedule.begin();
+		double d =  it->first - Time::Now();
 		if(d > 0.)
 		{
 			//LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
 			wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
 			continue;
 		}
-		
-		const Set<Task*> &set = mSchedule.begin()->second;
-		for(Set<Task*>::iterator it = set.begin(); it != set.end(); ++it)
+	
+		const Set<Task*> &set = it->second;
+		for(Set<Task*>::iterator jt = set.begin(); jt != set.end(); ++jt)
 		{
-			Task *task = *it;
+			Task *task = *jt;
 			
 			//LogDebug("Scheduler::run", "Launching task...");
 			launch(task);
@@ -130,7 +131,7 @@ void Scheduler::run(void)
 				schedule(task, Time::Now() + period);
 		}
 		
-		mSchedule.erase(mSchedule.begin());
+		mSchedule.erase(it);
 	}
 	
 	//LogDebug("Scheduler::run", "No more tasks");

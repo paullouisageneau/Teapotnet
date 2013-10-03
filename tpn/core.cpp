@@ -150,7 +150,7 @@ bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &
 			handler->start(true);	// autodelete
 			
 			// Timeout is just a security here
-			const double timeout = milliseconds(Config::Get("tpot_timeout").toInt());
+			const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 			if(!handler->wait(timeout*4)) return false;
 			return handler->isAuthenticated();
 		}
@@ -159,6 +159,8 @@ bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &
 
 bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 {
+	const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
+	sock->setTimeout(timeout);
 	return addPeer(static_cast<ByteStream*>(sock), sock->getRemoteAddress(), peering, async);
 }
 
@@ -1218,7 +1220,7 @@ void Core::Handler::Sender::run(void)
 		LogDebug("Core::Handler::Sender", "Starting");
 		Assert(mStream);
 		
-		const unsigned readTimeout = Config::Get("tpot_read_timeout").toInt();
+		const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 		
 		while(true)
 		{

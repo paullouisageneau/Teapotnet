@@ -153,29 +153,11 @@ void Socket::setConnectTimeout(double timeout)
 void Socket::setReadTimeout(double timeout)
 {
 	mReadTimeout = timeout;
-
-	struct timeval tv;
-        if(timeout > 0.) Time::SecondsToStruct(timeout, tv);
-        else {
-                tv.tv_sec = 0;
-                tv.tv_usec = 0;
-        }
-
-        setsockopt(mSock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
 }
 
 void Socket::setWriteTimeout(double timeout)
 {
 	mWriteTimeout = timeout;
-
-	struct timeval tv;
-        if(timeout > 0.) Time::SecondsToStruct(timeout, tv);
-        else {
-                tv.tv_sec = 0;
-                tv.tv_usec = 0;
-        }
-
-        setsockopt(mSock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<char*>(&tv), sizeof(tv));
 }
 
 void Socket::setTimeout(double timeout)
@@ -225,7 +207,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
-		if(mConnectTimeout > 0.)
+		if(mConnectTimeout >= 0.)
 		{
 			ctl_t b = 1;
 			if(ioctl(mSock, FIONBIO, &b) < 0)
@@ -257,9 +239,6 @@ void Socket::connect(const Address &addr, bool noproxy)
 			if(::connect(mSock,addr.addr(), addr.addrLen()) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed");
 		}
-
-		setReadTimeout(mReadTimeout);
-		setWriteTimeout(mWriteTimeout);
 	}
 	catch(...)
 	{
@@ -296,7 +275,7 @@ size_t Socket::peekData(char *buffer, size_t size)
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
-	if(mReadTimeout > 0.)
+	if(mReadTimeout >= 0.)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);
@@ -322,7 +301,21 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 
 void Socket::sendData(const char *data, size_t size, int flags)
 {
+	struct timeval tv;
+	Time::SecondsToStruct(std::max(mWriteTimeout, 0.), tv);
+	
 	do {
+		if(mWriteTimeout >= 0.)
+		{
+			fd_set writefds;
+			FD_ZERO(&writefds);
+			FD_SET(mSock, &writefds);
+
+			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
+			if (ret == -1) throw Exception("Unable to wait on socket");
+			if (ret == 0) throw Timeout();
+		}
+		
 		int count = ::send(mSock, data, size, flags);
 		if(count < 0)  
 		{

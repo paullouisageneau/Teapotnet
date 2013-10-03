@@ -38,6 +38,7 @@ size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
 double HttpTunnel::ConnTimeout = 20.;
 double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.5;
+double HttpTunnel::ReadTimeout = 300.;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
 Mutex					HttpTunnel::SessionsMutex;
@@ -56,6 +57,8 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 			if(request.cookies.get("session", cookie))
 				cookie.extract(session);	
 
+			//LogDebug("HttpTunnel::Incoming", "Incoming connection (session="+String::number(session)+")");
+
 			Server *server = NULL;
 			bool isNew = false;
 
@@ -68,7 +71,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				}
 				
 				SessionsMutex.lock();
-				while(!session || Sessions.contains(session));
+				while(!session || Sessions.contains(session))
 					session = pseudorand();
 				Sessions.insert(session, NULL);
 				SessionsMutex.unlock();
@@ -94,11 +97,17 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 						response.headers["Cache-Control"] = "no-cache";
 						response.cookies["session"] << session;
 						response.send(*sock);
-						
+				
+						// First response should be forced down the potential proxy as soon as possible	
+						if(isNew)
+						{
+							delete sock;
+							return server;
+						}
+
 						server->mDownSock = sock;
 						server->notifyAll();
-						if(isNew) return server;
-						else return NULL;
+						return NULL;
 					}
 				}
 				else {
@@ -216,15 +225,22 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 {
 	Synchronize(this);
 
-	if(!mDownSock) mDownSock = new Socket;
+	if(!mDownSock)
+	{
+		mDownSock = new Socket;
+		mDownSock->setTimeout(SockTimeout);
+	}
 
+	Time endTime = Time::Now() + (mSession ? ReadTimeout : mConnTimeout);
 	while(true)
 	{
+		if(Time::Now() >= endTime) throw Timeout();
+
 		if(!mDownSock->isConnected())
 		{
 			String url;
 			Assert(!mReverse.empty());
-                        url<<"http://"<<mReverse<<"/"<<String::random(8);
+                        url<<"http://"<<mReverse<<"/"<<String::random(10);
 
 			LogDebug("HttpTunnel::Client::readData", "GET " + url);
 
@@ -237,7 +253,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
         		if(hasProxy) request.url = url;			// Full URL for proxy
 
 			try {
-				mDownSock->setTimeout(mConnTimeout);
+				double timeout = std::max(endTime - Time::Now(), milliseconds(100));
+				mDownSock->setConnectTimeout(std::min(mConnTimeout, timeout));
                 		mDownSock->connect(addr, true);		// Connect without proxy
                 		request.send(*mDownSock);
         		}
@@ -246,15 +263,21 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
                 		if(hasProxy) LogWarn("HttpTunnel::Client", String("HTTP proxy error: ") + e.what());
                 		throw;
         		}
- 
-			mDownSock->setTimeout(SockTimeout);
+
+			double timeout = std::max(endTime - Time::Now(), milliseconds(100));
+			mDownSock->setReadTimeout(timeout);
 
 			Http::Response response;
 			response.recv(*mDownSock);
 
 			if(response.code != 200)
 			{
-				if(mSession) break;	// Connection closed
+				if(mSession)
+				{
+					if(response.code == 504) continue;	// Proxy timeout
+					else break;				// Connection closed
+				}
+
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
 			}
 			
@@ -266,10 +289,12 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			{
 				throw NetException("HTTP transaction failed: Invalid cookie");
 			}
+
+			mDownSock->setReadTimeout(ReadTimeout);
 		}
 	
 		if(!size) return 0;
-
+		
 		try {
 			Desynchronize(this);
 			size_t ret = mDownSock->readData(buffer, size);
@@ -295,7 +320,11 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 	Synchronize(this);
 
 	if(!mSession) readData(NULL, 0);	// ensure session is opened
-	if(!mUpSock) mUpSock = new Socket;	
+	if(!mUpSock) 
+	{
+		mUpSock = new Socket;	
+		mUpSock->setTimeout(SockTimeout);
+	}
 
 	Scheduler::Global->remove(&mFlushTask);
 
@@ -305,7 +334,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		{
 			String url;
 			Assert(!mReverse.empty());
-                        url<<"http://"<<mReverse<<"/"<<String::random(8);
+                        url<<"http://"<<mReverse<<"/"<<String::random(10);
 
 			LogDebug("HttpTunnel::Client::writeData", "POST " + url);
 
@@ -319,7 +348,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
                         if(hasProxy) request.url = url; 	        // Full URL for proxy
 
                         try {
-				mUpSock->setTimeout(mConnTimeout);
+				mUpSock->setConnectTimeout(mConnTimeout);
                                 mUpSock->connect(addr, true);		// Connect without proxy
                         	request.send(*mUpSock);
 			}
@@ -329,7 +358,6 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
                                 throw;
                         }
 
-			mUpSock->setTimeout(SockTimeout);
 			mPostLeft = mPostSize;
 			
 			mUpSock->writeBinary(TunnelOpen);
@@ -476,7 +504,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			mUpSock = NULL;
 		}
 
-		double timeleft = ConnTimeout;
+		double timeleft = ReadTimeout;
 		while(!mUpSock)
 		{
 			LogDebug("HttpTunnel::Server::readData", "Waiting for connection...");

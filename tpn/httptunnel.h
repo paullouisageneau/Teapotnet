@@ -99,6 +99,8 @@ public:
 	static double ConnTimeout;
 	static double SockTimeout;
 	static double FlushTimeout;
+	static double ReadTimeout;
+
 private:
 	HttpTunnel(void);
 
