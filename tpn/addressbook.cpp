@@ -1675,7 +1675,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					// Get resource accessor
 					Resource::Accessor *accessor = resource.accessor();
 					if(!accessor) throw 404;
-					if(hasRange) accessor->seekRead(rangeBegin);
 					
 					// Forge HTTP response header
 					Http::Response response(request, 200);
@@ -1695,9 +1694,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 					
 					response.send();
+					if(request.method == "HEAD") return;
 					
 					try {
 						// Launch transfer
+						if(hasRange) accessor->seekRead(rangeBegin);
 						accessor->readBinary(*response.sock, rangeSize);	// let's go !
 					}
 					catch(const NetException &e)
