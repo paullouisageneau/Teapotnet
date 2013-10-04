@@ -177,7 +177,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	if(!uname.empty()) url+= uname + "/";
 	
 	Identifier peering;
-	const AddressBook::Contact *contact = NULL;
+	AddressBook::Contact *contact = NULL;
 	if(!uname.empty()) 
 	{
 		contact = mUser->addressBook()->getContactByUniqueName(uname);
@@ -185,7 +185,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		peering = contact->peering();
 	}
 	
-	const AddressBook::Contact *self = mUser->addressBook()->getSelf();
+	AddressBook::Contact *self = mUser->addressBook()->getSelf();
 	
 	if(request.method == "POST")
         {
@@ -205,9 +205,15 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			if(request.post.contains("attachment"))
 				message.setHeader("attachment", request.post.get("attachment"));
 	
-			message.send(peering);
-			if(self && self->peering() != peering)
-				message.send(self->peering());
+			if(contact)
+			{
+				contact->send(message);
+				if(self && self->peering() != peering)
+					self->send(message);
+			}
+			else {
+				user()->addressBook()->send(message);
+			}
 			
 			add(message);
 		}

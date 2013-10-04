@@ -38,7 +38,6 @@ public:
 	virtual ~Notification(void);
 	
 	Time time(void) const;
-	const Identifier &peering(void) const;
 	const String &content(void) const;
 	const StringMap &parameters(void) const;
 	bool parameter(const String &name, String &value) const;
@@ -48,14 +47,14 @@ public:
 	void setParameters(const StringMap &parameters);
 	void setParameter(const String &name, const String &value);
 
-	bool send(const Identifier &peering = Identifier::Null);
+	bool send(const Identifier &peering = Identifier::Null) const;
 	
 private:
-	Identifier mPeering;
 	Time mTime;
-	
 	StringMap mParameters;
         String mContent;
+	
+	mutable Identifier mPeering;	// only used by the core
 	
 	friend class Core;
 };

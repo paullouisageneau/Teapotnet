@@ -338,15 +338,44 @@ void AddressBook::update(void)
 	mContacts.getKeys(keys);
 	std::random_shuffle(keys.begin(), keys.end());
 
-	int i = 0;
-	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-                it != mContacts.end();
-                ++it)
+	for(int i=0; i<keys.size(); ++i)
         {
-                Contact *contact = it->second;
-		mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
-		++i;
+                Contact *contact = getContact(keys[i]);
+		if(contact) mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
 	}
+}
+
+bool AddressBook::send(const Notification &notification)
+{
+	Array<Identifier> keys;
+	SynchronizeStatement(this, mContacts.getKeys(keys));
+
+	bool success = false;
+	for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = getContact(keys[i]);
+		if(contact) success|= contact->send(notification);
+	}
+	
+	return success;
+}
+
+bool AddressBook::send(const Message &message)
+{
+	// TODO: could be more efficient
+	// should convert the message and use send(notification)
+	
+	Array<Identifier> keys;
+	SynchronizeStatement(this, mContacts.getKeys(keys));
+
+	bool success = false;
+	for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = getContact(keys[i]);
+		if(contact) success|= contact->send(message);
+	}
+	
+	return success;
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -1440,6 +1469,16 @@ void AddressBook::Contact::request(Request *request)
 	Assert(request);
 	if(!mDeleted) request->execute(mAddressBook->user());
 	else request->executeDummy();
+}
+
+bool AddressBook::Contact::send(const Notification &notification)
+{
+	return notification.send(peering());
+}
+
+bool AddressBook::Contact::send(const Message &message)
+{
+	return message.send(peering());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

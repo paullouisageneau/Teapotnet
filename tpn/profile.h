@@ -49,7 +49,7 @@ public:
 	void load(void);
 	void save(void);
 	void clear(void);
-	void send(Identifier identifier);
+	void send(const Identifier &identifier);
 	
 	// Serializable
 	void serialize(Serializer &s) const;

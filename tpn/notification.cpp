@@ -43,11 +43,6 @@ Time Notification::time(void) const
 	return mTime; 
 }
 
-const Identifier &Notification::peering(void) const
-{
-	return mPeering;
-}
-
 const String &Notification::content(void) const
 {
 	return mContent;
@@ -85,7 +80,7 @@ void Notification::setParameter(const String &name, const String &value)
 	mParameters[name] = value; 
 }
 
-bool Notification::send(const Identifier &peering)
+bool Notification::send(const Identifier &peering) const
 {
 	mPeering = peering;
 	return Core::Instance->sendNotification(*this);

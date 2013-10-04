@@ -254,7 +254,8 @@ void User::sendInfo(Identifier identifier)
 	
 	Notification notification(content);
 	notification.setParameter("type", "info");
-	notification.send(identifier);
+	if(identifier != Identifier::Null) notification.send(identifier);
+	else addressBook()->send(notification);
 }
 
 void User::http(const String &prefix, Http::Request &request)

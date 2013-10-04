@@ -134,7 +134,7 @@ void Profile::save()
 	file.close();
 }
 
-void Profile::send(Identifier identifier)
+void Profile::send(const Identifier &identifier)
 {
 	Synchronize(this);
 	
@@ -144,7 +144,8 @@ void Profile::send(Identifier identifier)
 	
 	Notification notification(tmp);
 	notification.setParameter("type", "profile");
-	notification.send(identifier);
+	if(identifier != Identifier::Null) notification.send(identifier);
+	else mUser->addressBook()->send(notification);
 }
 
 void Profile::clear()
@@ -389,7 +390,7 @@ void Profile::updateField(const String &name, const String &value)
 		
 		Notification notification(tmp);
 		notification.setParameter("type", "profilediff");
-		notification.send();
+		mUser->addressBook()->send(notification);
 	}
 }
 
