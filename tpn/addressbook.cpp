@@ -564,6 +564,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 	
 	if(!contact->isDeleted())
 	{
+		if(contact->isSelf()) Interface::Instance->remove("/"+userName()+"/myself/files");	// overriding Store
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
 		mScheduler.repeat(contact, UpdateInterval);
