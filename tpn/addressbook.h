@@ -59,8 +59,8 @@ public:
 	void save(void) const;
 	void update(void);
 	
-	void sendNotification(const Notification &notification, const Identifier &receiver);
-	void receiveNotification(const Notification &notification);
+	bool send(const Notification &notification);
+	bool send(const Message &message);
 	
 	void http(const String &prefix, Http::Request &request);
 	
@@ -112,9 +112,13 @@ public:
 		void disconnected(const Identifier &peering);
 		void notification(Notification *notification);
 		void request(Request *request);
-		void http(const String &prefix, Http::Request &request);
+		bool send(const Notification &notification);
+		bool send(const Message &message);
 		
+		void http(const String &prefix, Http::Request &request);
 		void copy(const Contact *contact);
+		
+		// Serializable
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
 		bool isInlineSerializable(void) const;

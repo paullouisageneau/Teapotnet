@@ -106,11 +106,12 @@ void User::UpdateAll(void)
 
 User::User(const String &name, const String &password) :
 	mName(name),
-	mAddressBook(new AddressBook(this)),
-	mMessageQueue(new MessageQueue(this)),
-	mStore(new Store(this)),
 	mLastOnlineTime(0)
 {
+	mStore = new Store(this); // must be created first
+	mAddressBook = new AddressBook(this);
+	mMessageQueue = new MessageQueue(this);
+	
 	if(password.empty())
 	{
 		File file(profilePath()+"password", File::Read);
@@ -254,7 +255,8 @@ void User::sendInfo(Identifier identifier)
 	
 	Notification notification(content);
 	notification.setParameter("type", "info");
-	notification.send(identifier);
+	if(identifier != Identifier::Null) notification.send(identifier);
+	else addressBook()->send(notification);
 }
 
 void User::http(const String &prefix, Http::Request &request)

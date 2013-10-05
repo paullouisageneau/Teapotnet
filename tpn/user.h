@@ -61,8 +61,11 @@ public:
 	
 	bool isOnline(void) const;
 	void setOnline(void);
+	
+	// Deprecated
 	void setInfo(const StringMap &info);
 	void sendInfo(Identifier identifier = Identifier::Null);
+	//
 	
 	void http(const String &prefix, Http::Request &request);
 	

@@ -338,15 +338,44 @@ void AddressBook::update(void)
 	mContacts.getKeys(keys);
 	std::random_shuffle(keys.begin(), keys.end());
 
-	int i = 0;
-	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-                it != mContacts.end();
-                ++it)
+	for(int i=0; i<keys.size(); ++i)
         {
-                Contact *contact = it->second;
-		mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
-		++i;
+                Contact *contact = getContact(keys[i]);
+		if(contact) mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
 	}
+}
+
+bool AddressBook::send(const Notification &notification)
+{
+	Array<Identifier> keys;
+	SynchronizeStatement(this, mContacts.getKeys(keys));
+
+	bool success = false;
+	for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = getContact(keys[i]);
+		if(contact) success|= contact->send(notification);
+	}
+	
+	return success;
+}
+
+bool AddressBook::send(const Message &message)
+{
+	// TODO: could be more efficient
+	// should convert the message and use send(notification)
+	
+	Array<Identifier> keys;
+	SynchronizeStatement(this, mContacts.getKeys(keys));
+
+	bool success = false;
+	for(int i=0; i<keys.size(); ++i)
+        {
+                Contact *contact = getContact(keys[i]);
+		if(contact) success|= contact->send(message);
+	}
+	
+	return success;
 }
 
 void AddressBook::http(const String &prefix, Http::Request &request)
@@ -535,6 +564,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 	
 	if(!contact->isDeleted())
 	{
+		if(contact->isSelf()) Interface::Instance->remove("/"+userName()+"/myself/files");	// overriding Store
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
 		mScheduler.repeat(contact, UpdateInterval);
@@ -1442,6 +1472,16 @@ void AddressBook::Contact::request(Request *request)
 	else request->executeDummy();
 }
 
+bool AddressBook::Contact::send(const Notification &notification)
+{
+	return notification.send(peering());
+}
+
+bool AddressBook::Contact::send(const Message &message)
+{
+	return message.send(peering());
+}
+
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
 	mAddressBook->user()->setOnline();
@@ -1675,7 +1715,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					// Get resource accessor
 					Resource::Accessor *accessor = resource.accessor();
 					if(!accessor) throw 404;
-					if(hasRange) accessor->seekRead(rangeBegin);
 					
 					// Forge HTTP response header
 					Http::Response response(request, 200);
@@ -1695,9 +1734,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					}
 					
 					response.send();
+					if(request.method == "HEAD") return;
 					
 					try {
 						// Launch transfer
+						if(hasRange) accessor->seekRead(rangeBegin);
 						accessor->readBinary(*response.sock, rangeSize);	// let's go !
 					}
 					catch(const NetException &e)

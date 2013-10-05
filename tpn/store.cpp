@@ -25,6 +25,7 @@
 #include "tpn/sha512.h"
 #include "tpn/html.h"
 #include "tpn/lineserializer.h"
+#include "tpn/jsonserializer.h"
 #include "tpn/config.h"
 #include "tpn/time.h"
 #include "tpn/mime.h"
@@ -145,6 +146,7 @@ Store::Store(User *user) :
 	if(mUser)
 	{
 		Interface::Instance->add("/"+mUser->name()+"/files", this);
+		Interface::Instance->add("/"+mUser->name()+"/myself/files", this);	// overridden by self contact if it exists
 		Interface::Instance->add("/"+mUser->name()+"/explore", this);
 	}
 }
@@ -154,6 +156,7 @@ Store::~Store(void)
 	if(mUser) 
 	{
 		Interface::Instance->remove("/"+mUser->name()+"/files");
+		Interface::Instance->remove("/"+mUser->name()+"/myself/files");
 		Interface::Instance->remove("/"+mUser->name()+"/explore");
 	}
 }
@@ -529,6 +532,37 @@ void Store::http(const String &prefix, Http::Request &request)
 			
 		} // prefix == "explore"
 
+		if(request.get.contains("json")  || request.get.contains("playlist"))
+		{
+			// Query resources
+			Resource::Query query(this, url);
+
+			SerializableSet<Resource> resources;
+			if(!query.submitLocal(resources)) throw 404;
+			
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/json";
+				response.send();
+				JsonSerializer json(response.sock);
+				json.output(resources);
+			}
+			else {
+				Http::Response response(request, 200);
+				response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+				response.headers["Content-Type"] = "audio/x-mpegurl";
+				response.send();
+				
+				String host;
+				request.headers.get("Host", host);
+				Resource::CreatePlaylist(resources, response.sock, host);
+			}
+			return;
+		}
+		
+		// TODO: the following code should use JSON
+		
 		if(url == "/")
 		{
 		  	if(this != GlobalInstance && request.method == "POST")
@@ -615,7 +649,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				response.send();
 				return;
 			}
-		  
+		
 			Http::Response response(request,200);
 			response.send();
 

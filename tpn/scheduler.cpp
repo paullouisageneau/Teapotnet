@@ -50,7 +50,13 @@ void Scheduler::schedule(Task *task, const Time &when)
 {
 	Synchronize(this);
 	
-	remove(task);
+	Time nextTime;
+        if(mNextTimes.get(task, nextTime))
+        {
+                mSchedule[nextTime].erase(task);
+                mNextTimes.erase(task);
+        }
+
 	mSchedule[when].insert(task);
 	mNextTimes[task] = when;
 	
@@ -105,36 +111,40 @@ void Scheduler::run(void)
 {
 	while(true)
 	{
-		Synchronize(this);
-		if(mSchedule.empty()) break;
+		try {		
+			Synchronize(this);
+			if(mSchedule.empty()) break;
 
-		Map<Time, Set<Task*> >::iterator it = mSchedule.begin();
-		double d =  it->first - Time::Now();
-		if(d > 0.)
-		{
-			//LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
-			wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
-			continue;
-		}
+			Map<Time, Set<Task*> >::iterator it = mSchedule.begin();
+			double d =  it->first - Time::Now();
+			if(d > 0.)
+			{
+				//LogDebug("Scheduler::run", "Next task in " + String::number(d) + " s");
+				wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
+				continue;
+			}
 	
-		const Set<Task*> &set = it->second;
-		for(Set<Task*>::iterator jt = set.begin(); jt != set.end(); ++jt)
-		{
-			Task *task = *jt;
+			const Set<Task*> &set = it->second;
+			for(Set<Task*>::iterator jt = set.begin(); jt != set.end(); ++jt)
+			{
+				Task *task = *jt;
+				
+				//LogDebug("Scheduler::run", "Launching task...");
+				launch(task);
+				mNextTimes.erase(task);
+				
+				double period = 0.;
+				if(mPeriods.get(task, period))
+					schedule(task, Time::Now() + period);
+			}
 			
-			//LogDebug("Scheduler::run", "Launching task...");
-			launch(task);
-			mNextTimes.erase(task);
-			
-			double period = 0.;
-			if(mPeriods.get(task, period))
-				schedule(task, Time::Now() + period);
+			mSchedule.erase(it);
 		}
-		
-		mSchedule.erase(it);
+		catch(const std::exception &e)
+		{
+			LogWarn("Scheduler::run", e.what());
+		}
 	}
-	
-	//LogDebug("Scheduler::run", "No more tasks");
 }
 
 }

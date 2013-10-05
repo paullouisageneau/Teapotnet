@@ -159,7 +159,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 	if(url.empty() || version.empty() || protocol != "HTTP")
 		throw 400;
 
-	if(method != "GET" && method != "POST" /*&& method != "HEAD"*/)
+	if(method != "GET" && method != "POST" && method != "HEAD")
 		throw 405;
 
 	// Read headers
