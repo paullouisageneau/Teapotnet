@@ -66,7 +66,8 @@ bool Store::Get(const ByteString &digest, Resource &resource)
 }
 
 Store::Store(User *user) :
-	mUser(user)
+	mUser(user),
+	mRunning(false)
 {
 	if(mUser) mDatabase = new Database(mUser->profilePath() + "files.db");
 	else mDatabase = new Database("files.db");
@@ -141,7 +142,9 @@ Store::Store(User *user) :
 	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
 	
 	save();
-	start();
+	
+	Scheduler::Global->schedule(this, 60.);		// 1 min
+	Scheduler::Global->repeat(this, 6*60*60.);	// 6h
 	
 	if(mUser)
 	{
@@ -230,51 +233,10 @@ void Store::save(void) const
 	file.close();
 }
 
-void Store::update(void)
+void Store::start(void)
 {
 	Synchronize(this);
-	LogDebug("Store::update", "Started");
-	
-	mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
-	
-	Array<String> names;
-	mDirectories.getKeys(names);
-	
-	for(int i=0; i<names.size(); ++i)
-	try {
-		String name = names[i];
-		String path = mDirectories.get(name);
-		String absPath = absolutePath(path);
-		String url = String("/") + name;
-		
-		if(!Directory::Exist(absPath))
-			Directory::Create(absPath);
-		
-		updateRec(url, path, 0, false);
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("Store", String("Update failed for directory ") + names[i] + ": " + e.what());
-	}
-	
-	mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
-	
-	for(int i=0; i<names.size(); ++i)
-	try {
-		String name = names[i];
-		String path = mDirectories.get(name);
-		String absPath = absolutePath(path);
-		String url = String("/") + name;
-		
-		updateRec(url, path, 0, true);
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("Store", String("Hashing failed for directory ") + names[i] + ": " + e.what());
-
-	}
-	
-	LogDebug("Store::update", "Finished");
+	if(!mRunning) Scheduler::Global->schedule(this);
 }
 
 bool Store::query(const Resource::Query &query, Resource &resource)
@@ -620,11 +582,8 @@ void Store::http(const String &prefix, Http::Request &request)
 				
 				if(action == "refresh")
 				{
-					if(!GlobalInstance->isRunning())
-						GlobalInstance->start();
-					
-					if(!isRunning())
-						start();
+					GlobalInstance->start();
+					start();
 					
 					Http::Response response(request, 200);
 					response.send();
@@ -1042,7 +1001,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	return true;
 }
 
-void Store::updateRec(const String &url, const String &path, int64_t parentId, bool computeDigests)
+void Store::update(const String &url, const String &path, int64_t parentId, bool computeDigests)
 {
 	Synchronize(this);
 
@@ -1167,7 +1126,7 @@ void Store::updateRec(const String &url, const String &path, int64_t parentId, b
 				
 				String childPath = path + Directory::Separator + dir.fileName();
 				String childUrl  = url + '/' + dir.fileName();
-				updateRec(childUrl, childPath, id, computeDigests);
+				update(childUrl, childPath, id, computeDigests);
 			}
 		}
 		else {		// file
@@ -1222,17 +1181,60 @@ String Store::absolutePath(const String &path) const
 
 void Store::run(void)
 {
-	// TODO
-	while(true)
+	Synchronize(this);
+	mRunning = true;
+	
+	// DO NOT return without switching mRunning to false
 	try {
-		update();
-		if(this != GlobalInstance) break;
-		Thread::Sleep(6.*60.*60.);	// 6h
+		LogDebug("Store::run", "Started");
+		
+		mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
+		
+		Array<String> names;
+		mDirectories.getKeys(names);
+		
+		for(int i=0; i<names.size(); ++i)
+		try {
+			String name = names[i];
+			String path = mDirectories.get(name);
+			String absPath = absolutePath(path);
+			String url = String("/") + name;
+			
+			if(!Directory::Exist(absPath))
+				Directory::Create(absPath);
+			
+			update(url, path, 0, false);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Store", String("Update failed for directory ") + names[i] + ": " + e.what());
+		}
+		
+		mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
+		
+		for(int i=0; i<names.size(); ++i)
+		try {
+			String name = names[i];
+			String path = mDirectories.get(name);
+			String absPath = absolutePath(path);
+			String url = String("/") + name;
+			
+			update(url, path, 0, true);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Store", String("Hashing failed for directory ") + names[i] + ": " + e.what());
+
+		}
+		
+		LogDebug("Store::run", "Finished");
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("Store::run", e.what());
 	}
+	
+	mRunning = false;
 }
 /*
 void Store::keywords(String name, Set<String> &result)

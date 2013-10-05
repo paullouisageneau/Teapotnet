@@ -140,8 +140,8 @@ public:
 		bool mDeleted;
 		
 		bool mFound;
+		bool mOnline;
 		AddressMap mAddrs;
-		StringMap mInfo;
 		Time mFirstUpdateTime;
 		
 		mutable Profile *mProfile;

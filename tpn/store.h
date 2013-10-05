@@ -42,7 +42,7 @@ namespace tpn
 
 class User;
   
-class Store : public Thread, protected Synchronizable, public HttpInterfaceable
+class Store : public Task, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static Store *GlobalInstance;
@@ -60,7 +60,7 @@ public:
 	void getDirectories(Array<String> &array) const;
 	
 	void save(void) const;
-	void update(void);
+	void start(void);
 
 	bool query(const Resource::Query &query, Resource &resource);
 	bool query(const Resource::Query &query, Set<Resource> &resources);
@@ -74,16 +74,17 @@ private:
 	static const String CacheDirectoryName;
 	
 	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
-	void updateRec(const String &url, const String &path, int64_t parentId, bool computeDigests);
+	void update(const String &url, const String &path, int64_t parentId, bool computeDigests);
 	String urlToPath(const String &url) const;
 	String absolutePath(const String &path) const;
 	void run(void);
-
+	
 	User *mUser;
 	Database *mDatabase;
 	String mFileName;
 	String mBasePath;
 	StringMap mDirectories;
+	bool mRunning;
 };
 
 }

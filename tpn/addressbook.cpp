@@ -725,6 +725,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mSecret(secret),
 	mDeleted(false),
 	mFound(false),
+	mOnline(false),
 	mFirstUpdateTime(0),
 	mProfile(NULL)
 {	
@@ -753,6 +754,7 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 	mAddressBook(addressBook),
 	mDeleted(false),
 	mFound(false),
+	mOnline(false),
 	mFirstUpdateTime(0),
 	mProfile(NULL)
 {
@@ -863,11 +865,10 @@ bool AddressBook::Contact::isConnected(const String &instance) const
 
 bool AddressBook::Contact::isOnline(void) const
 {
-	Synchronize(mAddressBook);	
+	Synchronize(mAddressBook);
 	if(isSelf() && mAddressBook->user()->isOnline()) return true;
 	if(!isConnected()) return false;
-	if(!mInfo.contains("last")) return false;
-	return (Time::Now()-Time(mInfo.get("last")) < 60.);	// 60 sec
+	return mOnline;
 }
 
 String AddressBook::Contact::status(void) const
@@ -1129,19 +1130,21 @@ void AddressBook::Contact::update(bool alternate)
 
 void AddressBook::Contact::run(void)
 {
+	Synchronize(mAddressBook);
+	
 	if(mFirstUpdateTime == Time(0))
 		mFirstUpdateTime = Time::Now();
 	
-	update(false);
+	DesynchronizeStatement(mAddressBook, update(false));
 	
 	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval)
-		update(true);
+		DesynchronizeStatement(mAddressBook, update(true));
 }
 
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
 	// Send info
-	mAddressBook->user()->sendInfo(peering);	// deprecated
+	mAddressBook->user()->sendStatus(peering);
 	mAddressBook->user()->profile()->send(peering);
 
 	// Send contacts if self
@@ -1172,6 +1175,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
 	mAddressBook->mScheduler.schedule(this, 10.);
+	SynchronizeStatement(mAddressBook, mOnline = false);
 }
 
 void AddressBook::Contact::notification(Notification *notification)
@@ -1340,38 +1344,14 @@ void AddressBook::Contact::notification(Notification *notification)
 			sendUnread();
 		}
 	}
-	else if(type == "info")
+	else if(type == "info")	// TODO: backward compatibility, should be removed
 	{
-		// TODO: info message is deprecated, should be removed
-
-		String data = notification->content();
-		YamlSerializer serializer(&data);
-		StringMap info;
-		serializer.input(info);
-		
-		// TODO: variables for time and last
-		
-		Time l1(info.getOrDefault("last", Time(0)));
-		Time l2(mInfo.getOrDefault("last", Time(0)));
-		l1 = std::min(l1, Time::Now());
-		l2 = std::min(l2, Time::Now());
-		String last = std::max(l1,l2).toString();
-		
-		Time t1(info.getOrDefault("time", Time(0)));
-		Time t2(mInfo.getOrDefault("time", Time(0)));
-		t1 = std::min(t1, Time::Now());
-		t2 = std::min(t2, Time::Now());
-
-		info["last"] = last;
-
-		if(t1 > t2)
-		{
-			Synchronize(mAddressBook);
-			mInfo = info;
-
-			if(isSelf())
-				mAddressBook->user()->setInfo(info);
-		}
+		// deprecated
+	}
+	else if(type == "status")
+	{
+		String status = notification->content().toLower().trimmed();
+		SynchronizeStatement(mAddressBook, mOnline = (status == "online"));
 	}
 	else if(type == "profile" || type == "profilediff")
 	{
