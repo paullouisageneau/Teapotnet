@@ -748,6 +748,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	agregate.writeLine(mName);
 	agregate.writeLine(mAddressBook->userName());
 	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
+	
+	createProfile();
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
@@ -830,12 +832,7 @@ Profile *AddressBook::Contact::profile(void) const
 
 	if(isSelf()) return mAddressBook->user()->profile();
 	else {
-		if(!mProfile) 
-		{
-			mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
-			mProfile->load();
-		}
-		
+		Assert(mProfile);
 		return mProfile;
 	}
 }
@@ -1125,6 +1122,17 @@ void AddressBook::Contact::update(bool alternate)
 				mAddrs.erase(it++);
 			else it++;
 		}
+	}
+}
+
+void AddressBook::Contact::createProfile(void)
+{
+	if(isSelf()) return;
+	
+	if(!mProfile)
+	{
+		mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
+		mProfile->load();
 	}
 }
 
@@ -1521,7 +1529,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			// TODO: insert here profile infos
 			
 			page.open("div",".box");
-				
+			
 			page.open("table", ".menu");
 			page.open("tr");
 			page.open("td");
@@ -1541,6 +1549,16 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("td");
 			page.open("td", ".title");
 				page.text("Search");
+			page.close("td");
+			page.close("tr");
+			page.open("tr");
+			page.open("td");
+				page.openLink(profile()->urlPrefix());
+				page.image("/icon_profile.png", "Profile", ".bigicon");
+				page.closeLink();
+			page.close("td");
+			page.open("td", ".title");
+				page.text("Profile");
 			page.close("td");
 			page.close("tr");
 			
@@ -1951,9 +1969,9 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	else mDeleted = false;
 	
 	// TODO: checks
-	// TODO: mNotifications ?
 	
 	mFound = false;
+	createProfile();
 	return true;
 }
 

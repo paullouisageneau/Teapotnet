@@ -125,6 +125,7 @@ public:
 		
 	private:
 		ByteString secret(void) const;
+		void createProfile(void);
 		void run(void);
 		
 		MessageQueue::Selection selectMessages(void) const;
@@ -144,7 +145,7 @@ public:
 		AddressMap mAddrs;
 		Time mFirstUpdateTime;
 		
-		mutable Profile *mProfile;
+		Profile *mProfile;
 	};
 	
 	Identifier addContact(String name, const ByteString &secret);
