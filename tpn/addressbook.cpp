@@ -1587,6 +1587,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				});\n\
 			});");
 			
+			// Recent files
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Recent files");
+			page.close("h2");
+			page.div("", "recent");
+			page.close("div");
+			
+			int maxAge = 60*60*24*7;	// 7 days
+			int count = 50;
+			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false);");
+			
 			page.footer();
 			return;
 		}
@@ -1768,10 +1780,23 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				if(request.get.contains("json") || request.get.contains("playlist"))
 				{
-					if(match.empty()) throw 400;
+					String tmp;
+					
+					int minAge = 0;
+					int maxAge = 0;
+					if(request.get.get("minage", tmp)) tmp >> minAge;
+					if(request.get.get("maxage", tmp)) tmp >> maxAge;
+					
+					int count = 0;
+					if(request.get.get("count", tmp)) tmp >> count;
+					
+					if(match.empty() && maxAge <= 0) throw 400;
 					
 					Resource::Query query(mAddressBook->user()->store());
-					query.setMatch(match);
+					if(!match.empty()) query.setMatch(match);
+					if(minAge > 0) query.setMinAge(minAge);
+					if(maxAge > 0) query.setMaxAge(maxAge);
+					if(count > 0) query.setLimit(count);
 					
 					SerializableSet<Resource> resources;
 					bool success = query.submitRemote(resources, peering());

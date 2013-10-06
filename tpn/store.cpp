@@ -939,6 +939,9 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	int count = query.mCount;
 	if(oneRowOnly) count = 1;
 	
+	// Limit for security purposes
+	if(!query.mMatch.empty() && (!count || count > 1000)) count = 1000;	// TODO: variable
+	
 	// If multiple rows are expected and url finishes with '/', this is a directory listing
 	int64_t parentId = -1;
 	if(!oneRowOnly && !url.empty() && url[url.size()-1] == '/')
@@ -977,23 +980,28 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
 	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
 	
-	if(query.mMinAge > 0) sql<<"AND time >= ? "; 
-	if(query.mMaxAge > 0) sql<<"AND time <= ? ";
+	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
+	if(query.mMaxAge > 0) sql<<"AND time >= ? ";
 	
 	sql<<"ORDER BY time DESC "; // Newer files first
 	
-	if(count  > 0)
+	if(count > 0)
 	{
 		sql<<"LIMIT "<<String::number(count)<<" ";
 		if(query.mOffset > 0) sql<<"OFFSET "<<String::number(query.mOffset)<<" ";
 	}
-	
+
 	statement = mDatabase->prepare(sql);
 	int parameter = 0;
 	if(parentId >= 0)		statement.bind(++parameter, parentId);
 	else if(!url.empty())		statement.bind(++parameter, url);
 	if(!query.mDigest.empty())	statement.bind(++parameter, query.mDigest);
-	if(!query.mMatch.empty())	statement.bind(++parameter, query.mMatch);
+	if(!query.mMatch.empty())	
+	{
+		String match = query.mMatch;
+		match.replace('*', '%');
+		statement.bind(++parameter, match);
+	}
 	
 	if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMinAge)));
 	if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMaxAge)));

@@ -558,8 +558,8 @@ void Resource::Query::serialize(Serializer &s) const
 	if(!mUrl.empty())	mapping["url"] = &mUrl;
 	if(!mMatch.empty())	mapping["match"] = &mMatch;
 	if(!mDigest.empty())	mapping["digest"] = &mDigest;
-	if(mMinAge > 0)		mapping["minAge"] = &minAgeWrapper;
-	if(mMaxAge > 0)		mapping["maxAge"] = &maxAgeWrapper;
+	if(mMinAge > 0)		mapping["minage"] = &minAgeWrapper;
+	if(mMaxAge > 0)		mapping["maxage"] = &maxAgeWrapper;
 	if(mOffset > 0)		mapping["offset"] = &offsetWrapper;
 	if(mCount > 0)		mapping["count"] = &countWrapper;
 
@@ -577,8 +577,8 @@ bool Resource::Query::deserialize(Serializer &s)
 	mapping["url"] = &mUrl;
 	mapping["match"] = &mMatch;
 	mapping["digest"] = &mDigest;
-	mapping["minAge"] = &minAgeWrapper;
-	mapping["maxAge"] = &maxAgeWrapper;
+	mapping["minage"] = &minAgeWrapper;
+	mapping["maxage"] = &maxAgeWrapper;
 	mapping["offset"] = &offsetWrapper;
 	mapping["count"] = &countWrapper;
 	
