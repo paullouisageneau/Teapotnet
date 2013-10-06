@@ -25,6 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
 #include "tpn/thread.h"
+#include "tpn/task.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 #include "tpn/addressbook.h"
@@ -37,7 +38,7 @@
 namespace tpn
 {
 
-class User : public Thread, protected Synchronizable, public HttpInterfaceable
+class User : protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static unsigned Count(void);
@@ -61,17 +62,13 @@ public:
 	
 	bool isOnline(void) const;
 	void setOnline(void);
+	void setOffline(void);
 	
-	// Deprecated
-	void setInfo(const StringMap &info);
-	void sendInfo(Identifier identifier = Identifier::Null);
-	//
+	void sendStatus(const Identifier &identifier = Identifier::Null);
 	
 	void http(const String &prefix, Http::Request &request);
 	
 private:
-	void run(void);
-	
 	String mName;
 	ByteString mHash;
 	AddressBook *mAddressBook;
@@ -79,9 +76,18 @@ private:
 	Store *mStore;
 	Profile *mProfile;
 	
-	// TODO: deprecated
-	StringMap mInfo;
-	Time mLastOnlineTime;
+	bool mOnline;
+	
+	class SetOfflineTask : public Task
+	{
+	public:
+		SetOfflineTask(User *user)	{ this->user = user; }
+		void run(void)			{ user->setOffline(); } 
+	private:
+		User *user;
+	};
+	
+	SetOfflineTask mSetOfflineTask;
 	
 	static Map<String, User*>	UsersByName;
 	static Map<ByteString, User*>	UsersByAuth;

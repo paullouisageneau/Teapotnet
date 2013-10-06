@@ -52,7 +52,8 @@ public:
 		
 		void setLocation(const String &url);
 		void setDigest(const ByteString &digest);
-		void setAge(Time min, Time max);
+		void setMinAge(int seconds);
+		void setMaxAge(int seconds);
 		void setRange(int first, int last);
 		void setLimit(int count);
 		void setMatch(const String &match);
@@ -72,7 +73,7 @@ public:
 	private:
 		String mUrl, mMatch;
 		ByteString mDigest;
-		Time mMinAge, mMaxAge;
+		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
 		
 		Store *mStore;

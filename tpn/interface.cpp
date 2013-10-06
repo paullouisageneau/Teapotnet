@@ -125,7 +125,7 @@ void Interface::process(Http::Request &request)
 							if(!name.empty() && !password.empty())
 							{
 								User *user = new User(name, password);
-								user->start();
+								// nothing to do
 							}
 						}
 						catch(const Exception &e)

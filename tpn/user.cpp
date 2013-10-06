@@ -106,11 +106,13 @@ void User::UpdateAll(void)
 
 User::User(const String &name, const String &password) :
 	mName(name),
-	mLastOnlineTime(0)
+	mOnline(false),
+	mSetOfflineTask(this)
 {
 	mStore = new Store(this); // must be created first
 	mAddressBook = new AddressBook(this);
 	mMessageQueue = new MessageQueue(this);
+	mProfile = new Profile(this);
 	
 	if(password.empty())
 	{
@@ -131,10 +133,6 @@ User::User(const String &name, const String &password) :
 	UsersByAuth.insert(mHash, this);
 	UsersMutex.unlock();
 
-// TODO : added
-	mProfile = new Profile(this);
-// end
-	
 	Interface::Instance->add(urlPrefix(), this);
 }
 
@@ -146,6 +144,7 @@ User::~User(void)
 	UsersMutex.unlock();
 	
 	Interface::Instance->remove(urlPrefix());
+	Scheduler::Global->remove(&mSetOfflineTask);
 	
 	delete mAddressBook;
 	delete mMessageQueue;
@@ -202,61 +201,50 @@ Profile *User::profile(void) const
 bool User::isOnline(void) const
 {
 	Synchronize(this);
-	return (Time::Now()-mLastOnlineTime < 30);	// 30 sec
+	return mOnline;
 }
 
 void User::setOnline(void)
 {
 	Synchronize(this);
-	
-	bool wasOnline = isOnline();
-	mLastOnlineTime = Time::Now();
-	mInfo["last"] = mLastOnlineTime.toString();
-	
-	if(!wasOnline) 
+	if(!mOnline) 
 	{
+		mOnline = true;
+		sendStatus();
+		
 		DesynchronizeStatement(this, mAddressBook->update());
-		sendInfo();
 	}
+	
+	Scheduler::Global->schedule(&mSetOfflineTask, 60.);
 }
 
-void User::setInfo(const StringMap &info)
+void User::setOffline(void)
 {
 	Synchronize(this);
 	
-	Time l1(info.getOrDefault("last", Time(0)));
-	Time l2(mInfo.getOrDefault("last", Time(0)));
-	l1 = std::min(l1, Time::Now());
-	l2 = std::min(l2, Time::Now());
-	String last = std::max(l1,l2).toString();
-		
-	Time t1(info.getOrDefault("time", Time(0)));
-	Time t2(mInfo.getOrDefault("time", Time(0)));
-	t1 = std::min(t1, Time::Now());
-	t2 = std::min(t2, Time::Now());
-	if(t1 > t2)
+	if(mOnline) 
 	{
-		mInfo = info;
-		mInfo["last"] = last;
-		return;
-	}
-	else {
-		mInfo["last"] = last;
-		if(mInfo.contains("time"))
-			sendInfo();
+		mOnline = false;
+		sendStatus();
 	}
 }
 
-void User::sendInfo(Identifier identifier)
+void User::sendStatus(const Identifier &identifier)
 {
-	String content;
-	YamlSerializer serializer(&content);
-	SynchronizeStatement(this, serializer.output(mInfo));
+	Synchronize(this);
 	
-	Notification notification(content);
-	notification.setParameter("type", "info");
-	if(identifier != Identifier::Null) notification.send(identifier);
-	else addressBook()->send(notification);
+	String status = (mOnline ? "online" : "offline");
+	
+	Notification notification(status);
+	notification.setParameter("type", "status");
+	
+	if(identifier != Identifier::Null)
+	{
+		DesynchronizeStatement(this, notification.send(identifier));
+	}
+	else {
+		DesynchronizeStatement(this, addressBook()->send(notification));
+	}
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -658,34 +646,6 @@ void User::http(const String &prefix, Http::Request &request)
 	}
 			
 	throw 404;
-}
-
-void User::run(void)
-{
-	Time oldLastOnlineTime(0);
-	unsigned m = 0;	// minutes
-	while(true)
-	{
-		for(int t=0; t<2; ++t)
-		{
-			try {
-				Thread::Sleep(30.);
-				
-				if(oldLastOnlineTime != mLastOnlineTime)
-				{
-					oldLastOnlineTime = mLastOnlineTime;
-					sendInfo();
-				}
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("User::run", e.what());
-			}
-		}
-		
-		++m;
-		if((m%60 == 0) && !mStore->isRunning()) mStore->start();
-	}
 }
 
 }

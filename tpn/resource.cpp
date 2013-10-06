@@ -412,10 +412,14 @@ void Resource::Query::setDigest(const ByteString &digest)
 	mDigest = digest;
 }
 
-void Resource::Query::setAge(Time min, Time max)
+void Resource::Query::setMinAge(int seconds)
 {
-	mMinAge = min;
-	mMaxAge = max;
+	mMinAge = seconds;
+}
+
+void Resource::Query::setMaxAge(int seconds)
+{
+	mMaxAge = seconds;
 }
 
 void Resource::Query::setRange(int first, int last)
@@ -545,23 +549,27 @@ void Resource::Query::createRequest(Request &request) const
 
 void Resource::Query::serialize(Serializer &s) const
 {
+	ConstSerializableWrapper<int> minAgeWrapper(mMinAge);
+	ConstSerializableWrapper<int> maxAgeWrapper(mMaxAge);
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
 	ConstSerializableWrapper<int> countWrapper(mCount);
 	
 	Serializer::ConstObjectMapping mapping;
-	if(!mUrl.empty())     mapping["url"] = &mUrl;
-	if(!mMatch.empty())    mapping["match"] = &mMatch;
-	if(!mDigest.empty())  mapping["digest"] = &mDigest;
-	if(mMinAge > Time(0)) mapping["minAge"] = &mMinAge;
-	if(mMaxAge > Time(0)) mapping["maxAge"] = &mMaxAge;
-	if(mOffset > 0)       mapping["offset"] = &offsetWrapper;
-	if(mCount > 0)        mapping["count"] = &countWrapper;
+	if(!mUrl.empty())	mapping["url"] = &mUrl;
+	if(!mMatch.empty())	mapping["match"] = &mMatch;
+	if(!mDigest.empty())	mapping["digest"] = &mDigest;
+	if(mMinAge > 0)		mapping["minage"] = &minAgeWrapper;
+	if(mMaxAge > 0)		mapping["maxage"] = &maxAgeWrapper;
+	if(mOffset > 0)		mapping["offset"] = &offsetWrapper;
+	if(mCount > 0)		mapping["count"] = &countWrapper;
 
 	s.outputObject(mapping);
 }
 
 bool Resource::Query::deserialize(Serializer &s)
 {
+	SerializableWrapper<int> minAgeWrapper(&mMinAge);
+	SerializableWrapper<int> maxAgeWrapper(&mMaxAge);
 	SerializableWrapper<int> offsetWrapper(&mOffset);
 	SerializableWrapper<int> countWrapper(&mCount);
 
@@ -569,8 +577,8 @@ bool Resource::Query::deserialize(Serializer &s)
 	mapping["url"] = &mUrl;
 	mapping["match"] = &mMatch;
 	mapping["digest"] = &mDigest;
-	mapping["minAge"] = &mMinAge;
-	mapping["maxAge"] = &mMaxAge;
+	mapping["minage"] = &minAgeWrapper;
+	mapping["maxage"] = &maxAgeWrapper;
 	mapping["offset"] = &offsetWrapper;
 	mapping["count"] = &countWrapper;
 	

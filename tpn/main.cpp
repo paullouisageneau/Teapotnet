@@ -467,7 +467,6 @@ int main(int argc, char** argv)
 					continue;
 				}
 				
-				user->start();
 				Thread::Sleep(0.1);
 			}
 		}
@@ -488,7 +487,6 @@ int main(int argc, char** argv)
 				if(name.empty()) continue;
 				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
-				user->start();
 				Thread::Sleep(0.1);
 				line.clear();
 			}
