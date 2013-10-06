@@ -381,8 +381,8 @@ void Profile::updateField(const String &name, const String &value)
 		field->fromString(value);
 		save();
 		
-		StringMap map;
-		map[name] = value;
+		SerializableMap<String, Field*> map;
+		map[name] = field;
 		
 		String tmp;
 		YamlSerializer serializer(&tmp);
