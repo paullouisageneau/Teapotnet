@@ -430,6 +430,19 @@ Time Time::operator + (double seconds) const
 	return result;
 }
 
+Time &Time::operator -= (double seconds)
+{
+	addSeconds(-seconds);
+	return *this;
+}
+
+Time Time::operator - (double seconds) const
+{
+	Time result(*this);
+	result-= seconds;
+	return result;
+}
+
 double Time::operator - (const Time &t) const
 {
 	double d = difftime(mTime, t.mTime);

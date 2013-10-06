@@ -76,6 +76,8 @@ public:
 	
 	Time &operator += (double seconds);
 	Time operator + (double seconds) const;
+	Time &operator -= (double seconds);
+	Time operator - (double seconds) const;
 	double operator - (const Time &t) const;
 	operator time_t(void) const;
 	

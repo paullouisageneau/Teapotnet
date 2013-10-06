@@ -977,8 +977,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
 	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
 	
-	if(query.mMinAge > Time(0)) sql<<"AND time >= ? "; 
-	if(query.mMaxAge > Time(0)) sql<<"AND time <= ? ";
+	if(query.mMinAge > 0) sql<<"AND time >= ? "; 
+	if(query.mMaxAge > 0) sql<<"AND time <= ? ";
 	
 	sql<<"ORDER BY time DESC "; // Newer files first
 	
@@ -995,8 +995,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(!query.mDigest.empty())	statement.bind(++parameter, query.mDigest);
 	if(!query.mMatch.empty())	statement.bind(++parameter, query.mMatch);
 	
-	if(query.mMinAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMinAge));
-	if(query.mMaxAge.toUnixTime() > 0)	statement.bind(++parameter, int64_t(Time::Now()-query.mMaxAge));
+	if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMinAge)));
+	if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMaxAge)));
 	
 	return true;
 }
