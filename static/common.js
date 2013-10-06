@@ -266,47 +266,45 @@ var toShow = true;
 
 function displayContacts(url, period, object) {
 
-	setCallback(url, period, function(data) 
-	{
-
-		if(data!=null)
-		{
+	setCallback(url, period, function(data) {
+		if(data!=null) {
 			saveData = data;
 			var totalmessages = 0;
 			var play = false;
 			var visible = false;
-			$.each(data, function(uname, info) 
-			{
-				if ($('#contact_'+uname).length == 0) // if div does not exist
-				{
-					$(object).append('<div id=\"contact_'+uname+'\" class=\"contactstr\"><span class=\"name\"></span><a href=\"contacts/'+uname+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"InfosContact_'+uname+'\" class=\"infoscontact\"><span class=\"tracker\">'+uname+'@'+info.tracker+'</span> <span class=\"linkfiles\"><a href=\"contacts/'+uname+'/files/\"> <img src="/icon_files.png" alt="Files" height=35 widht=35 /></a></span> <span class=\"linkchat\"><a href=\"contacts/'+uname+'/chat/\"> <img src="/icon_chat.png" alt="Chat" height=35 widht=35 /></a></span></div>');
-					$('#InfosContact_'+uname).hide();
+			$.each(data, function(uname, info) {
+				
+				if ($('#contact_'+uname).length == 0) { // if div does not exist
+					$(object).append('<div id=\"contact_'+uname+'\" class=\"contactstr\"><a href=\"'+info.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div>');
 				}
 
-				function displayInfosContact(uname)
-				{
-					if(visible)
-					{
-						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
-						{
-							$('#InfosContact_'+uname).hide();
+				var isSelf = (info.prefix.substr(info.prefix.length-6) == 'myself');
+				
+				$('#contactinfo_'+uname).html('<span class=\"tracker\">'+info.name+'@'+info.tracker+'</span><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
+				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
+				$('#contactinfo_'+uname).hide();
+				
+				function displayContactInfo(uname) {
+					
+					if(visible) {
+						// No animation for tablet and mobile (too slow)
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") {
+							$('#contactinfo_'+uname).hide();
 						}
-						else
-						{
-							$('#InfosContact_'+uname).slideUp();
+						else {
+							$('#contactinfo_'+uname).slideUp();
 						}
 
 						timeout = setTimeout(function() { visible = false; }, 200);
 					}
 					else
 					{
-						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") // No animation for tablet and mobile (too slow)
-						{
-							if(toShow) $('#InfosContact_'+uname).show();
+						// No animation for tablet and mobile (too slow)
+						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") {
+							if(toShow) $('#contactinfo_'+uname).show();
 						}
-						else
-						{
-							if(toShow) $('#InfosContact_'+uname).slideDown();
+						else {
+							if(toShow) $('#contactinfo_'+uname).slideDown();
 						}
 
 						timeout = setTimeout(function() { visible = true; }, 200);
@@ -314,18 +312,16 @@ function displayContacts(url, period, object) {
 				}
 				/*document.getElementById('contact_'+uname).onmouseover = function()
 				{
-					displayInfosContact(uname);
+					displayContactInfo(uname);
 				}*/
-				document.getElementById('contact_'+uname).onclick = function()
-				{
-					displayInfosContact(uname);
+				document.getElementById('contact_'+uname).onclick = function() {
+					displayContactInfo(uname);
 				}
 				$('#contact_'+uname+' a').click(function()
 				{
 					toShow = false; // So the div infosContact is not displayed when clicked on contact link
 				});
-				$('#contact_'+uname).hover(
-					function () {
+				$('#contact_'+uname).hover(function () {
 					$(this).css('cursor','pointer');
 				});
 				$('#contact_'+uname).attr('class', info.status);
@@ -341,11 +337,8 @@ function displayContacts(url, period, object) {
 			if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
 			else document.title = title;
 			if(play) playMessageSound();
-
-
 		}
-		else
-		{
+		else {
 			// TODO
 		}
 	});
@@ -357,16 +350,14 @@ function setMessagesReceiverRec(url, object, last) {
 
 	var timeout;
 
-	if(stopBool)
-	{
+	if(stopBool) {
 		//alert('Function stopped !');
 		clearTimeout(timeout);
 	}
 
 	var baseUrl = url;
 	
-	if(last != '')
-	{
+	if(last != '') {
 		if(url.contains('?')) url+= '&last=' + last;
 		else url+= '?last=' + last;
 	}
@@ -383,16 +374,13 @@ function setMessagesReceiverRec(url, object, last) {
 				var id = "message_" + message.stamp;
 				last = message.stamp;
 
-				if(message.public)
-				{
+				if(message.public) {
 					var idReply = "replyTo" + id;
 
-					if(!message.parent)
-					{
+					if(!message.parent) {
 						$(object).prepend('<div class=\"messagewrapper\"> <div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div></div>');
 					}
-					else
-					{						
+					else {						
 						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span></div>');
 						$('#'+id).addClass('childmessage');
 					}
@@ -405,8 +393,7 @@ function setMessagesReceiverRec(url, object, last) {
 					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
 				
 				}
-				else
-				{
+				else {
 					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span>'+('attachment' in message.headers ? ' <span class=\"attachment\">'+message.headers.attachment+'</span>' : '')+'</div>');
 					if(message.incoming && !message.isread) NbNewMessages++;
 					if(message.isread) $('#'+id).addClass('oldmessage');

@@ -109,6 +109,9 @@ User::User(const String &name, const String &password) :
 	mOnline(false),
 	mSetOfflineTask(this)
 {
+	if(!mName.isAlphanumeric()) 
+		throw Exception("User name must be alphanumeric");
+	
 	mStore = new Store(this); // must be created first
 	mAddressBook = new AddressBook(this);
 	mMessageQueue = new MessageQueue(this);
@@ -324,19 +327,26 @@ void User::http(const String &prefix, Http::Request &request)
 				
 				if(self)
 				{
-					page.open("div", String("contact_")+self->uniqueName());
+					page.open("div", "contact_"+self->uniqueName()+".contactstr");
 					
-					page.span("", ".name");
+					page.open("span", ".name");
 					page.link(self->urlPrefix(), self->uniqueName());
+					page.close("span");
 					
-					page.span("",".tracker");
-					page.text(String("@") + self->tracker());
+					page.open("span",".tracker");
+					page.text("@" + self->tracker());
+					page.close("span");
 					
-					page.span("", ".status");
+					page.open("span", ".status");
+					page.close("span");
 					
-					page.span("", ".files");
+					page.open("span", ".files");
 					page.link(self->urlPrefix()+"/files/", "Files");
+					page.close("span");
 					
+					page.close("div");
+					
+					page.open("div", "contactinfo_" + self->uniqueName() + ".contactinfo");
 					page.close("div");
 				}
 
@@ -350,19 +360,19 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div","files.box");
 			
-			page.link(prefix+"/files/","Edit",".button");
-                        //page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
-
-			page.open("h2");
-			page.text("Shared folders");
-			page.close("h2");
-		
 			Array<String> directories;
 			mStore->getDirectories(directories);
 			
 			Array<String> globalDirectories;
 			Store::GlobalInstance->getDirectories(globalDirectories);
 			directories.append(globalDirectories);
+			
+			page.link(prefix+"/files/","Edit",".button");
+			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+			
+			page.open("h2");
+			page.text("Shared folders");
+			page.close("h2");
 			
 			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
 			else {
@@ -395,10 +405,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div");
 			page.open("h1");
 			const String instance = Core::Instance->getName().before('.');
-			page.raw("<a href='profile'>");			
+			page.openLink(profile()->urlPrefix());			
 			page.text(name() + "@" + tracker());
 			if(!instance.empty()) page.text(" (" + instance + ")");
-			page.raw("</a>");
+			page.closeLink();
 			page.close("h1");
 			page.close("div");
 			

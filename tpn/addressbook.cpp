@@ -442,6 +442,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					String name = contact->name();
 					String tracker = contact->tracker();
 					String status = contact->status();
+					String strPrefix = contact->urlPrefix();
 					
 					MessageQueue *messageQueue = user()->messageQueue();
 					ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(contact->peering()).unreadCount());
@@ -451,6 +452,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					map["name"] = &name;
 					map["tracker"] = &tracker;
 					map["status"] = &status;
+					map["prefix"] = &strPrefix;
 					map["messages"] = &messagesWrapper;
 					map["newmessages"] = &newMessagesWrapper;
 					json.outputMapElement(contact->uniqueName(), map);
@@ -1488,7 +1490,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				String strName = name();
 				String strTracker = tracker();
 				String strStatus = status();
-					
+				
 				MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
 				ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(peering()).unreadCount());
 				ConstSerializableWrapper<bool> newMessagesWrapper(messageQueue->hasNew());

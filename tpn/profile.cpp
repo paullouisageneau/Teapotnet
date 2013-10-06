@@ -97,7 +97,7 @@ String Profile::urlPrefix(void) const
 {
 	Synchronize(this);
 	
-	if(isSelf()) return "/"+mUser->name()+"/profile";
+	if(isSelf()) return "/"+mUser->name()+"/myself/profile";
 	else return "/"+mUser->name()+"/contacts/"+mName+"/profile";
 }
 

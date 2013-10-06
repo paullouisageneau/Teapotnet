@@ -849,6 +849,7 @@ td.delete
 .contactstr
 {
 	float: left;
+	clear: both;
 	margin: 0;
 	min-height: 16px;
 	vertical-align: middle;
@@ -863,55 +864,6 @@ td.delete
 .contactstr:hover
 {
 	background-color: #C0C0C0;
-}
-
-.contacts tr
-{
-	min-height: 16px;
-}
-
-.contacts tr:hover
-{
-	background-color: #C0C0C0;
-}
-
-.contacts tr td
-{
-	vertical-align: middle;
-}
-
-.contacts td.name
-{
- 	text-align: right;
-	padding-right: 0;
-}
-
-.name
-{
-	float: left;
-	padding-top: 0.2em;
-}
-
-.contacts td.tracker
-{
- 	text-align: left;
-	padding-left: 0;
-}
-
-.contacts td.status
-{
-	margin: 0;
-	width: 14em;
-}
-
-.contacts td.files
-{
- 	width: 6em;
-}
-
-.contacts td.chat
-{
-	width: 6em; 
 }
 
 #files .button
@@ -1029,7 +981,7 @@ td.delete
 	margin-left: 0;
 }
 
-.infoscontact
+.contactinfo
 {
 	margin-left: 0;
 	float: left;
@@ -1043,21 +995,38 @@ td.delete
 	height: 0;*/
 }
 
-.tracker
+.contactinfo .name
+{
+	float: left;
+	padding-top: 0.2em;
+}
+
+.contactinfo .tracker
 {
 	float: left;
 	margin-left: 2px;
 	margin-top: 2px;
 }
 
-.linkfiles
+.linkfiles img
 {
-
+	width: 36px;
+	height: 36px;
+	margin: 2px;
 }
 
-.linkchat
+.linkprofile img
 {
+	width: 36px;
+	height: 36px;
+	margin: 2px;
+}
 
+.linkchat img
+{
+	width: 36px;
+	height: 36px;
+	margin: 2px;
 }
 
 .childmessage
@@ -1230,12 +1199,6 @@ td.delete
 	{
 		width: 64px;
 	}
-
-	.name
-	{
-		float: left;
-		padding-top: 0.2em;
-	}
 }
 
 /* End of mobile version */
@@ -1264,13 +1227,7 @@ td.delete
 		width: 700px;
 		margin-left: 55px;
 	}
-
-	.name
-	{
-		float: left;
-		padding-top: 0.2em;
-	}
-
+	
 }
 
 /* End of Tablet version */

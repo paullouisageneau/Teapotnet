@@ -98,6 +98,8 @@ private:
 		bool deserialize(Serializer &s)		{ s.input(*mPtr);  }
 		String toString(void) const		{ return mPtr->toString(); }	
 		void fromString(String str)		{ mPtr->fromString(str); }
+		bool isInlineSerializable(void) const	{ return mPtr->isInlineSerializable(); }
+		bool isNativeSerializable(void) const	{ return mPtr->isNativeSerializable(); }
 	
 	private:
 		T *mPtr;
