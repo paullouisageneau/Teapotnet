@@ -431,7 +431,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 
-			page.open("div", "newsfeed");
+			page.open("div", "newsfeed.box");
 
 			page.open("div", "optionsnewsfeed");
 

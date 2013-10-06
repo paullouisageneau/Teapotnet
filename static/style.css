@@ -47,13 +47,17 @@ div
 {
 	margin: 0;
 	padding: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 img
 {
-	margin: 0em;
-	padding: 0em;
+	margin: 0;
+	padding: 0;
 	border: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 form
@@ -64,7 +68,6 @@ form
 hr 
 {
 	clear: both;
-	
 }
 
 h1
@@ -202,6 +205,17 @@ input[type="text"]
 	height: auto;
 }
 
+textarea
+{
+	display: block;
+	resize: none;
+	border: 1px solid #000000;
+	border-radius: 0.5em;
+	padding: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 .button
 {
         display: inline-block;
@@ -232,38 +246,30 @@ a.button:hover
 	text-decoration: none;
 }
 
-textarea
-{
-	resize: none;
-	width: 94%;
-	height: 99%;
-	border: 1px solid #000000;
-	border-radius: 0.5em;
-	padding-left: 5px;
-	padding-top: 2px;
-}
-
 #leftcolumn #search
 {
 	float: left;
 	width: 100%;
-	text-align: center;
-	display: block;
 }
 
-/*#leftcolumn #search form
+#leftcolumn #search form
 {
 	display: block;
+	width: 80%;
 	margin: 0;
 	padding: 0;
-}*/
+	margin-left: auto;
+	margin-right: auto;
+}
 
 #leftcolumn #search input[type="text"]
 {
-	display:block;
-	margin-left: auto;
-	margin-right: auto;
-	width:70%;
+	display: inline-block;
+	width: 100%;
+	margin: 0;
+	margin-bottom: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 .loading > body > * 
@@ -336,8 +342,8 @@ textarea
 #rightcolumn
 {
 	float: left;
-	width: 71%;
-	margin: 0px 0px;
+	width: 73%;
+	margin: 0;
 	text-align: justify;
 }
 
@@ -399,7 +405,7 @@ textarea
 #header #logo
 {
 	float: left;
-	margin: 0.5em;
+	margin: 0.25em;
 	width: 64px;
 }
 
@@ -451,19 +457,16 @@ textarea
 
 #chatpanel .chatinput
 {
-	width: 99%;
-	height: 99%;
+	width: 100%;
+	height: 100%;
 	margin: 0;
 	border: 0;
 	color: #000000;
 	background-color: #FFFFFF;
 }
 
-
 #status
 {
-	width: 100%;
-	height: 95%;
 	margin-top: 0.5em;
 	background-color: #FFFFFF;	
 }
@@ -471,16 +474,8 @@ textarea
 #newsfeed
 {
 	float: left;
-	height: auto;
-	width: 95%;
 	padding-top: 2px;
 	padding-bottom: 4px;
-	background-color: rgba(255,255,255,1);
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
-	border: 2px solid #E0E0E0;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
-	overflow: hidden;
 }
 
 #optionsnewsfeed
@@ -566,9 +561,12 @@ select, x:-moz-any-link, x:default
 {
 	display: block;
 	width: 100%;
-	height: 100%;
-	margin: 0;
-	padding: 0;
+}
+
+#statuspanel textarea
+{
+	box-sizing: border-box;
+	width: 100%;
 }
 
 #info
@@ -728,7 +726,6 @@ td.delete
 #files
 {
 	float: left;
-	width: 95%;
 	height: 15%;
 	min-height: 100px;
 	padding-top: 15px;
@@ -828,7 +825,6 @@ td.delete
 {
 	float: left;
 	margin-left: 0;
-	width: 95%;
 	height: auto;
 	min-height: 200px;
 	max-height: 600px;
@@ -864,6 +860,49 @@ td.delete
 .contactstr:hover
 {
 	background-color: #C0C0C0;
+}
+
+.contacts tr
+{
+	min-height: 16px;
+}
+
+.contacts tr:hover
+{
+	background-color: #C0C0C0;
+}
+
+.contacts tr td
+{
+	vertical-align: middle;
+}
+
+.contacts td.name
+{
+	text-align: right;
+	padding-right: 0;
+}
+
+.contacts td.tracker
+{
+	text-align: left;
+	padding-left: 0;
+}
+
+.contacts td.status
+{
+	margin: 0;
+	width: 14em;
+}
+
+.contacts td.files
+{
+	width: 6em;
+}
+
+.contacts td.chat
+{
+	width: 6em;
 }
 
 #files .button
@@ -1169,7 +1208,7 @@ td.delete
 		width: 100%;
 		margin-right: 0;
 		margin-left: 0;
-		max-width: 481px;
+		max-width: 480px;
 	}
 
 	div
@@ -1180,13 +1219,13 @@ td.delete
 
 	#newsfeed
 	{
-		width: 99%;
+		width: 100%;
 		margin: 0;
 	}
 
 	#statusmessages
 	{
-		width: 99%;
+		width: 100%;
 		margin: 0;
 	}
 
@@ -1198,6 +1237,18 @@ td.delete
 	#logo img
 	{
 		width: 64px;
+	}
+	
+	.box
+	{
+		border-width: 1px;
+		border-radius: 0;
+	}
+	
+	#statuspanel textarea
+	{
+		border-width: 1px 0px 1px 0px;
+		border-radius: 0;
 	}
 }
 

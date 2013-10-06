@@ -142,10 +142,9 @@ function resizeContent() {
 	}
 
 	var chatpanel = $('#chatpanel');
-	var chatpanelmessage = $('#chatpanel .message');
-	if(chatpanel.length && chatpanelmessage.length)
-        {
-		chatpanelmessage.height(Math.max(chatpanel.height()-10, 20));
+	var chatinput = $('#chatpanel textarea.chatinput');
+	if(chatpanel.length && chatinput.length) {
+		chatinput.height(Math.max(chatpanel.height()-10, 20));
         }
 }
 
