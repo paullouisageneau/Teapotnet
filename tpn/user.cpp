@@ -131,7 +131,7 @@ User::User(const String &name, const String &password) :
 		file.close();
 	}
 	
-	mTokenSecret.writeRandom(64);
+	mTokenSecret.writeRandom(16);
 	
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
@@ -264,7 +264,7 @@ String User::generateToken(const String &action)
 	plain.writeBinary(mTokenSecret);
 
 	ByteString digest;
-	Sha512::Hash(plain, digest, 10);
+	Sha512::Hash(plain, digest);
 	uint64_t checksum = digest.checksum64();
 	
 	ByteString token;
@@ -302,7 +302,7 @@ bool User::checkToken(const String &token, const String &action)
 			plain.writeBinary(mTokenSecret);
 			
 			ByteString digest;
-			Sha512::Hash(plain, digest, 10);
+			Sha512::Hash(plain, digest);
 			
 			if(digest.checksum64() == checksum) 
 				return true;
