@@ -293,8 +293,6 @@ bool User::checkToken(const String &token, const String &action)
 			bs.readBinary(salt, 16);
 			bs.readBinary(digest);
 			
-			VAR(digest);
-			
 			ByteString plain;
 			plain.writeBinary(action);
 			plain.writeBinary(salt);
