@@ -25,8 +25,6 @@
 #include "tpn/user.h"
 #include "tpn/mime.h"
 #include "tpn/config.h"
-#include "tpn/bytestring.h"
-#include "tpn/sha512.h"
 
 namespace tpn
 {
