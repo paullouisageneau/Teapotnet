@@ -45,7 +45,8 @@ public:
 	String name(void) const;
 	String tracker(void) const;
 	String urlPrefix(void) const;	
-
+	bool isSelf(void) const;
+	
 	void load(void);
 	void save(void);
 	void clear(void);
@@ -97,15 +98,17 @@ private:
 		bool deserialize(Serializer &s)		{ s.input(*mPtr);  }
 		String toString(void) const		{ return mPtr->toString(); }	
 		void fromString(String str)		{ mPtr->fromString(str); }
+		bool isInlineSerializable(void) const	{ return mPtr->isInlineSerializable(); }
+		bool isNativeSerializable(void) const	{ return mPtr->isNativeSerializable(); }
 	
 	private:
 		T *mPtr;
 		T mDefault;
 	};
 
-	void displayField(Html &page, const String &name) const;
-	void displayField(Html &page, const Field *field) const;
-	void updateField(const String &name, const String &value);
+	bool displayField(Html &page, const String &name) const;
+	bool displayField(Html &page, const Field *field) const;
+	bool updateField(const String &name, const String &value);
 	
 	User *mUser;
 	String mName;

@@ -97,9 +97,13 @@ String Profile::urlPrefix(void) const
 {
 	Synchronize(this);
 	
-	// TODO: redirect /[user]/myself/profile
-	if(mName == mUser->name()) return "/"+mUser->name()+"/profile";
+	if(isSelf()) return "/"+mUser->name()+"/myself/profile";
 	else return "/"+mUser->name()+"/contacts/"+mName+"/profile";
+}
+
+bool Profile::isSelf(void) const
+{
+	return (mName == mUser->name());
 }
 
 String Profile::infoPath(void) const
@@ -203,6 +207,8 @@ void Profile::http(const String &prefix, Http::Request &request)
 
 		if(request.method == "POST")
 		{
+			if(!isSelf()) throw 403;
+			
 			if(request.post.contains("clear"))	// Should be removed
 			{
 				clear();
@@ -242,28 +248,35 @@ void Profile::http(const String &prefix, Http::Request &request)
 				//page.button("clearprofilebutton", "Clear profile");
 
 				page.open("div", "profileheader");
-
-					page.open("div","personalstatus");
+				
+				page.open("div","personalstatus");
+				if(isSelf())
+				{
+					if(mStatus.empty())
+					{
+						page.span("(click here to post a status)", "status.empty");
+					}
+					else {
 						page.span("“", ".statusquotemark");
-						if(mStatus.empty())
-						{
-							page.open("span","status.empty");
-							page.text("(click here to post a status)");
-							page.close("span");
-						}
-						else {
-							page.open("span","status.editable");
-							page.text(mStatus);
-							page.close("span");
-						}
+						page.span(mStatus,"status.editable");
 						page.span("”", ".statusquotemark");
-					page.close("div");
+					}
+				}
+				else {
+					if(!mStatus.empty())
+					{
+						page.span("“", ".statusquotemark");
+						page.span(mStatus, "status");
+						page.span("”", ".statusquotemark");
+					}
+				}
+				page.close("div");
 
-					page.open("div", "profilephoto");
+				page.open("div", "profilephoto");
 
-					// TODO : photo de profil
-					
-					page.close("div");
+				// TODO : photo de profil
+				
+				page.close("div");
 
 				page.close("div");
 
@@ -272,52 +285,59 @@ void Profile::http(const String &prefix, Http::Request &request)
 				page.text("Personal Information");
 				page.close("h2");
 
-				displayField(page, "realname");
-				displayField(page, "birthday");
-				displayField(page, "gender");
-				displayField(page, "relationship");
-				displayField(page, "address");
-				displayField(page, "email");
-				displayField(page, "phone");
+				bool disp = false;
+				disp|= displayField(page, "realname");
+				disp|= displayField(page, "birthday");
+				disp|= displayField(page, "gender");
+				disp|= displayField(page, "relationship");
+				disp|= displayField(page, "address");
+				disp|= displayField(page, "email");
+				disp|= displayField(page, "phone");
 
-				page.javascript("function postField(field, value)\n\
-					{\n\
-						var request = $.post('"+prefix+"/profile"+"',\n\
-							{ 'field': field , 'value': value });\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							alert('The profile update could not be made.');\n\
-						});\n\
-						setTimeout(function(){location.reload();},100);\n\
-					}\n\
-					var blocked = false;\n\
-					$('.editable,.empty').click(function() {\n\
-						if(blocked) return;\n\
-						blocked = true;\n\
-						var currentId = $(this).attr('id');\n\
-						var currentText = $(this).html();\n\
-						var value = (!$(this).hasClass('empty') ? currentText : '');\n\
-						$(this).html('<input type=\"text\" value=\"'+value+'\" class=\"inputprofile\">');\n\
-						$('input').focus();\n\
-						$('input').keypress(function(e) {\n\
-							if (e.keyCode == 13 && !e.shiftKey) {\n\
-								e.preventDefault();\n\
-								var field = currentId;\n\
-								value = $('input[type=text]').attr('value');\n\
-								postField(field, value);\n\
-							}\n\
-						});\n\
-						$('input').blur(function() {\n\
+				if(isSelf())
+				{
+					page.javascript("function postField(field, value)\n\
+						{\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'field': field , 'value': value });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('The profile update could not be made.');\n\
+							});\n\
 							setTimeout(function(){location.reload();},100);\n\
+						}\n\
+						var blocked = false;\n\
+						$('.editable,.empty').click(function() {\n\
+							if(blocked) return;\n\
+							blocked = true;\n\
+							var currentId = $(this).attr('id');\n\
+							var currentText = $(this).html();\n\
+							var value = (!$(this).hasClass('empty') ? currentText : '');\n\
+							$(this).html('<input type=\"text\" value=\"'+value+'\" class=\"inputprofile\">');\n\
+							$('input').focus();\n\
+							$('input').keypress(function(e) {\n\
+								if (e.keyCode == 13 && !e.shiftKey) {\n\
+									e.preventDefault();\n\
+									var field = currentId;\n\
+									value = $('input[type=text]').attr('value');\n\
+									postField(field, value);\n\
+								}\n\
+							});\n\
+							$('input').blur(function() {\n\
+								setTimeout(function(){location.reload();},100);\n\
+							});\n\
 						});\n\
-					});\n\
-					$('.clearprofilebutton').click(function() {\n\
-						var request = $.post('"+prefix+"/profile"+"',\n\
-							{ 'clear': 1 });\n\
-						request.fail(function(jqXHR, textStatus) {\n\
-							alert('Profile clear could not be made.');\n\
-						});\n\
-						setTimeout(function(){location.reload();},100);\n\
-					});");
+						$('.clearprofilebutton').click(function() {\n\
+							var request = $.post('"+prefix+"/profile"+"',\n\
+								{ 'clear': 1 });\n\
+							request.fail(function(jqXHR, textStatus) {\n\
+								alert('Profile clear could not be made.');\n\
+							});\n\
+							setTimeout(function(){location.reload();},100);\n\
+						});");
+				}
+				else {
+					if(!disp) page.text("The profile has not been filled yet.");
+				}
 			}
 			catch(const IOException &e)
 			{
@@ -338,60 +358,78 @@ void Profile::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void Profile::displayField(Html &page, const String &name) const
+bool Profile::displayField(Html &page, const String &name) const
 {
 	Synchronize(this);
 	
 	Field *field;
-	if(mFields.get(name, field))
-		displayField(page, field);
+	if(!mFields.get(name, field)) return false;
+	return displayField(page, field);
 }
 
-void Profile::displayField(Html &page, const Field *field) const
+bool Profile::displayField(Html &page, const Field *field) const
 {
 	Synchronize(this);
 	
 	if(!field->empty())
         {
-                page.open("div", ".profileinfo");
-                page.text(field->displayName() + ": ");
-                page.open("span", field->name()+".editable");
-                page.text(field->value());
-                page.close("span");
-                //page.br();
-		page.close("div");
+		if(isSelf())
+		{
+			page.open("div", ".profileinfo");
+			page.text(field->displayName() + ": ");
+			page.open("span", field->name()+".editable");
+			page.text(field->value());
+			page.close("span");
+			//page.br();
+			page.close("div");
+			return true;
+		}
+		else {
+			page.open("div", ".profileinfo");
+			page.text(field->displayName() + ": ");
+			page.text(field->value());
+			//page.br();
+			page.close("div");
+			return true;
+		}
         }
         else {
-		page.open("div", ".profileinfo");
-                page.open("span", field->name()+".empty");
-		page.text(field->comment());
-                page.close("span");
-                //page.br();
-		page.close("div");
+		if(isSelf())
+		{
+			page.open("div", ".profileinfo");
+			page.open("span", field->name()+".empty");
+			page.text(field->comment());
+			page.close("span");
+			//page.br();
+			page.close("div");
+			return true;
+		}
         }
+        
+        return false;
 }
 
-void Profile::updateField(const String &name, const String &value)
+bool Profile::updateField(const String &name, const String &value)
 {
 	Synchronize(this);
 	
 	Field *field;
-	if(mFields.get(name, field))
-	{
-		field->fromString(value);
-		save();
+	if(!mFields.get(name, field)) return false;
+	
+	field->fromString(value);
+	save();
 		
-		StringMap map;
-		map[name] = value;
-		
-		String tmp;
-		YamlSerializer serializer(&tmp);
-		map.serialize(serializer);
-		
-		Notification notification(tmp);
-		notification.setParameter("type", "profilediff");
-		mUser->addressBook()->send(notification);
-	}
+	SerializableMap<String, Field*> map;
+	map[name] = field;
+	
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	map.serialize(serializer);
+	
+	Notification notification(tmp);
+	notification.setParameter("type", "profilediff");
+	mUser->addressBook()->send(notification);
+	return true;
 }
 
 }

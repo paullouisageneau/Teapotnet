@@ -47,13 +47,17 @@ div
 {
 	margin: 0;
 	padding: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 img
 {
-	margin: 0em;
-	padding: 0em;
+	margin: 0;
+	padding: 0;
 	border: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 form
@@ -64,7 +68,6 @@ form
 hr 
 {
 	clear: both;
-	
 }
 
 h1
@@ -202,6 +205,17 @@ input[type="text"]
 	height: auto;
 }
 
+textarea
+{
+	display: block;
+	resize: none;
+	border: 1px solid #000000;
+	border-radius: 0.5em;
+	padding: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 .button
 {
         display: inline-block;
@@ -232,41 +246,46 @@ a.button:hover
 	text-decoration: none;
 }
 
-textarea
-{
-	resize: none;
-	width: 94%;
-	height: 99%;
-	border: 1px solid #000000;
-	border-radius: 0.5em;
-	padding-left: 5px;
-	padding-top: 2px;
-}
-
 #leftcolumn #search
 {
 	float: left;
 	width: 100%;
-	text-align: center;
-	display: block;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 #leftcolumn #search form
 {
 	display: block;
+	width: 80%;
 	margin: 0;
 	padding: 0;
+<<<<<<< HEAD
 	padding-right: 20px;
+=======
+	margin-left: auto;
+	margin-right: auto;
+>>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 }
 
 #leftcolumn #search input[type="text"]
 {
+<<<<<<< HEAD
 	display: block;
 	width: 100%;
 	max-width: 480px;
 	margin-left: auto;
 	margin-right: auto;
+=======
+	display: inline-block;
+	width: 100%;
+	margin: 0;
+	margin-bottom: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+>>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 }
 
 .loading > body > * 
@@ -339,8 +358,8 @@ textarea
 #rightcolumn
 {
 	float: left;
-	width: 71%;
-	margin: 0px 0px;
+	width: 73%;
+	margin: 0;
 	text-align: justify;
 }
 
@@ -402,7 +421,7 @@ textarea
 #header #logo
 {
 	float: left;
-	margin: 0.5em;
+	margin: 0.25em;
 	width: 64px;
 }
 
@@ -454,19 +473,16 @@ textarea
 
 #chatpanel .chatinput
 {
-	width: 99%;
-	height: 99%;
+	width: 100%;
+	height: 100%;
 	margin: 0;
 	border: 0;
 	color: #000000;
 	background-color: #FFFFFF;
 }
 
-
 #status
 {
-	width: 100%;
-	height: 95%;
 	margin-top: 0.5em;
 	background-color: #FFFFFF;	
 }
@@ -474,16 +490,8 @@ textarea
 #newsfeed
 {
 	float: left;
-	height: auto;
-	width: 95%;
 	padding-top: 2px;
 	padding-bottom: 4px;
-	background-color: rgba(255,255,255,1);
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
-	border: 2px solid #E0E0E0;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
-	overflow: hidden;
 }
 
 #optionsnewsfeed
@@ -569,9 +577,12 @@ select, x:-moz-any-link, x:default
 {
 	display: block;
 	width: 100%;
-	height: 100%;
-	margin: 0;
-	padding: 0;
+}
+
+#statuspanel textarea
+{
+	box-sizing: border-box;
+	width: 100%;
 }
 
 #info
@@ -731,7 +742,6 @@ td.delete
 #files
 {
 	float: left;
-	width: 95%;
 	height: 15%;
 	min-height: 100px;
 	padding-top: 15px;
@@ -831,7 +841,6 @@ td.delete
 {
 	float: left;
 	margin-left: 0;
-	width: 95%;
 	height: auto;
 	min-height: 200px;
 	max-height: 600px;
@@ -852,6 +861,7 @@ td.delete
 .contactstr
 {
 	float: left;
+	clear: both;
 	margin: 0;
 	min-height: 16px;
 	vertical-align: middle;
@@ -885,19 +895,13 @@ td.delete
 
 .contacts td.name
 {
- 	text-align: right;
+	text-align: right;
 	padding-right: 0;
-}
-
-.name
-{
-	float: left;
-	padding-top: 0.2em;
 }
 
 .contacts td.tracker
 {
- 	text-align: left;
+	text-align: left;
 	padding-left: 0;
 }
 
@@ -909,12 +913,12 @@ td.delete
 
 .contacts td.files
 {
- 	width: 6em;
+	width: 6em;
 }
 
 .contacts td.chat
 {
-	width: 6em; 
+	width: 6em;
 }
 
 #files .button
@@ -1032,7 +1036,7 @@ td.delete
 	margin-left: 0;
 }
 
-.infoscontact
+.contactinfo
 {
 	margin-left: 0;
 	float: left;
@@ -1046,21 +1050,38 @@ td.delete
 	height: 0;*/
 }
 
-.tracker
+.contactinfo .name
+{
+	float: left;
+	padding-top: 0.2em;
+}
+
+.contactinfo .tracker
 {
 	float: left;
 	margin-left: 2px;
 	margin-top: 2px;
 }
 
-.linkfiles
+.linkfiles img
 {
-
+	width: 36px;
+	height: 36px;
+	margin: 2px;
 }
 
-.linkchat
+.linkprofile img
 {
+	width: 36px;
+	height: 36px;
+	margin: 2px;
+}
 
+.linkchat img
+{
+	width: 36px;
+	height: 36px;
+	margin: 2px;
 }
 
 .childmessage
@@ -1203,7 +1224,7 @@ td.delete
 		width: 100%;
 		margin-right: 0;
 		margin-left: 0;
-		max-width: 481px;
+		max-width: 480px;
 	}
 
 	div
@@ -1214,13 +1235,13 @@ td.delete
 
 	#newsfeed
 	{
-		width: 99%;
+		width: 100%;
 		margin: 0;
 	}
 
 	#statusmessages
 	{
-		width: 99%;
+		width: 100%;
 		margin: 0;
 	}
 
@@ -1233,11 +1254,17 @@ td.delete
 	{
 		width: 64px;
 	}
-
-	.name
+	
+	.box
 	{
-		float: left;
-		padding-top: 0.2em;
+		border-width: 1px;
+		border-radius: 0;
+	}
+	
+	#statuspanel textarea
+	{
+		border-width: 1px 0px 1px 0px;
+		border-radius: 0;
 	}
 }
 
@@ -1267,13 +1294,7 @@ td.delete
 		width: 700px;
 		margin-left: 55px;
 	}
-
-	.name
-	{
-		float: left;
-		padding-top: 0.2em;
-	}
-
+	
 }
 
 /* End of Tablet version */

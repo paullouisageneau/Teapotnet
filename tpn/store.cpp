@@ -940,7 +940,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(oneRowOnly) count = 1;
 	
 	// Limit for security purposes
-	if(!query.mMatch.empty() && (!count || count > 1000)) count = 1000;	// TODO: variable
+	if(!query.mMatch.empty() && (count <= 0 || count > 1000)) count = 1000;	// TODO: variable
 	
 	// If multiple rows are expected and url finishes with '/', this is a directory listing
 	int64_t parentId = -1;

@@ -231,6 +231,21 @@ bool String::containsLetters(void) const
 	return false;
 }
 
+bool String::isAlphanumeric(void) const
+{
+	for(int i=0; i<size(); ++i)
+	{
+		unsigned char c = (unsigned char)(at(i));
+		if(c >= 48 && c <= 57) continue;	// digit
+		if(c >= 65 && c <= 90) continue;
+		if(c >= 97 && c <= 122) continue;
+		if(c >= 128) continue;
+		return false;
+	}
+	
+	return true;
+}
+
 void String::remove(int pos, int n)
 {
     std::string::size_type end = std::string::npos;

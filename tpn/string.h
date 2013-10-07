@@ -66,6 +66,7 @@ public:
 	bool contains(char chr) const;
 	bool containsDigits(void) const;
 	bool containsLetters(void) const;
+	bool isAlphanumeric(void) const;
 	void remove(int pos, int n = -1);
 	bool isEmpty() const;
 
