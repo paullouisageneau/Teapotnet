@@ -39,6 +39,27 @@ ByteSerializer::~ByteSerializer(void)
 	 
 }
 
+bool ByteSerializer::input(String &str)
+{
+	str.clear();
+	uint8_t c;
+	while(input(c))
+	{
+		if(!c) return true;
+		str+= char(c);
+	}
+	
+	return (!str.empty());
+}
+
+void ByteSerializer::output(const String &str)
+{
+	for(int i=0; i<str.size(); ++i)
+		output(uint8_t(str[i]));
+	
+	output(uint8_t(0));
+}
+
 bool ByteSerializer::input(bool &b)
 {
 	uint8_t i;

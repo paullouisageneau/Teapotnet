@@ -393,6 +393,10 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 				sock.ignore(contentLength);
 			}
 		}
+		else {
+			LogWarn("Http::Request", "Missing Content-Type header in POST request");
+			sock.ignore(contentLength);
+		}
 	}
 }
 

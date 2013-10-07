@@ -35,7 +35,7 @@ public:
 	ByteSerializer(ByteStream *stream);	// stream WON'T be destroyed
 	virtual ~ByteSerializer(void);
 	
-	inline bool	input(String &str)	{ return mStream->readBinary(str); }
+	bool		input(String &str);
 	inline bool	input(int8_t &i)	{ return mStream->readBinary(i); }
 	inline bool	input(int16_t &i)	{ return mStream->readBinary(i); }
 	inline bool	input(int32_t &i)	{ return mStream->readBinary(i); }
@@ -47,7 +47,7 @@ public:
 	inline bool	input(float &f)		{ return mStream->readBinary(f); }
 	inline bool	input(double &f)	{ return mStream->readBinary(f); }
 	
-	inline void     output(const String &str) { mStream->writeBinary(str); }
+	void		output(const String &str);
 	inline void	output(int8_t i)	{ mStream->writeBinary(i); }
 	inline void	output(int16_t i)	{ mStream->writeBinary(i); }
 	inline void	output(int32_t i)	{ mStream->writeBinary(i); }

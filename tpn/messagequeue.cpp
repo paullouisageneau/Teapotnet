@@ -189,6 +189,9 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	
 	if(request.method == "POST")
         {
+		if(!user()->checkToken(request.post["token"], "message")) 
+			throw 403;
+		
                 if(!request.post.contains("message") || request.post["message"].empty())
 			throw 400;
 		
@@ -294,8 +297,6 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.openForm("#", "post", "chatform");
 	page.textarea("chatinput");
 	page.input("hidden", "attachment");
-	//page.button("send","Send");
-	//page.br();
 	page.closeForm();
 	page.javascript("$(document).ready(function() { checkStatus(); });");
 
@@ -310,6 +311,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			if(!message) return false;\n\
 			var fields = {};\n\
 			fields['message'] = message;\n\
+			fields['token'] = '"+user()->generateToken("message")+"';\n\
 			if(attachment) fields['attachment'] = attachment;\n\
 			var request = $.post('"+prefix+url+"', fields);\n\
 			request.fail(function(jqXHR, textStatus) {\n\
