@@ -255,7 +255,7 @@ void User::sendStatus(const Identifier &identifier)
 String User::generateToken(const String &action)
 {
 	ByteString salt;
-	salt.writeRandom(16);
+	salt.writeRandom(8);
 
 	ByteString plain;
 	plain.writeBinary(action);
@@ -265,12 +265,13 @@ String User::generateToken(const String &action)
 
 	ByteString digest;
 	Sha512::Hash(plain, digest, 10);
+	uint64_t checksum = digest.checksum64();
 	
 	ByteString token;
-	token.writeBinary(salt);
-	token.writeBinary(digest);
+	token.writeBinary(salt);	// 8 bytes
+	token.writeBinary(checksum);	// 8 bytes
 	
-	Assert(token.size() == 16 + 64);
+	Assert(token.size() == 16);
 	return token;
 }
 
@@ -287,11 +288,12 @@ bool User::checkToken(const String &token, const String &action)
 			LogDebug("User::checkToken", String("Error parsing token: ") + e.what());
 		}
 
-		if(bs.size() == 16 + 64)
+		if(bs.size() == 16)
 		{
-			ByteString salt, digest;
-			bs.readBinary(salt, 16);
-			bs.readBinary(digest);
+			ByteString salt;
+			uint64_t checksum;
+			AssertIO(bs.readBinary(salt, 8));
+			AssertIO(bs.readBinary(checksum));
 			
 			ByteString plain;
 			plain.writeBinary(action);
@@ -299,10 +301,10 @@ bool User::checkToken(const String &token, const String &action)
 			plain.writeBinary(name());
 			plain.writeBinary(mTokenSecret);
 			
-			ByteString localDigest;
-			Sha512::Hash(plain, localDigest, 10);
+			ByteString digest;
+			Sha512::Hash(plain, digest, 10);
 			
-			if(digest == localDigest) 
+			if(digest.checksum64() == checksum) 
 				return true;
 		}
 	}
