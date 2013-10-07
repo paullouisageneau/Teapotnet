@@ -464,6 +464,16 @@ a.button:hover
 	background-color: #FFFFFF;
 }
 
+#attachedfile
+{
+	vertical-align: middle;
+}
+
+#attachedfile .filename
+{
+	margin-left: 0.5em;
+}
+
 #status
 {
 	margin-top: 0.5em;
@@ -1017,7 +1027,7 @@ td.delete
 	border: 2px solid #E0E0E0;
 	text-align: center;
 	vertical-align: text-bottom;
-	visibility: hidden;
+	display: none;
 }
 
 .contactinfo .name

@@ -184,6 +184,8 @@ function createFileSelector(url, object, input, inputName)
 {
 	if($(object).html()) {
 		$(object).html("");
+		$(inputName).val("").change();
+		$(input).val("").change();
 		return;
 	}
 

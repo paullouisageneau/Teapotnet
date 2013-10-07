@@ -294,12 +294,11 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.close("div");
 
 	page.open("div", "chatpanel");
+	page.div("","attachedfile");
 	page.openForm("#", "post", "chatform");
 	page.textarea("chatinput");
 	page.input("hidden", "attachment");
 	page.closeForm();
-	page.javascript("$(document).ready(function() { checkStatus(); });");
-
 	page.close("div");
 
 	page.close("div");
@@ -364,6 +363,14 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		}\n\
 		document.chatform.attachment.onchange = function()\n\
 		{\n\
+			$('#attachedfile').html('');\n\
+			$('#attachedfile').hide();\n\
+			var filename = document.chatform.chatinput.value;\n\
+			if(filename != '') {\n\
+				$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
+				$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
+				$('#attachedfile').show();\n\
+			}\n\
 			document.chatform.chatinput.focus();\n\
 			document.chatform.chatinput.select();\n\
 		}\n\
@@ -373,6 +380,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				post();\n\
 			}\n\
 		});\n\
+		$('#attachedfile').hide();\n\
+		$(document).ready(function() { checkStatus(); });\n\
 		setMessagesReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmessages');");
 
 	unsigned refreshPeriod = 5000;
