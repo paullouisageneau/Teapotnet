@@ -89,8 +89,9 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/directory.js\"></script>\n";
 	
+	// TODO: iPhone
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
-		if(deviceAgent.indexOf('android') > -1) $('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/android.css\">');");
+		if(deviceAgent.indexOf('android') > -1) $('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/touchscreen.css\">');");
 	
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";

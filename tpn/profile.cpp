@@ -132,7 +132,7 @@ void Profile::save()
 	String tmp;
 	YamlSerializer serializer(&tmp);
 	serialize(serializer);
-	
+
 	SafeWriteFile file(mFileName);
 	file.write(tmp);
 	file.close();

@@ -274,7 +274,7 @@ function displayContacts(url, period, object) {
 			$.each(data, function(uname, info) {
 				
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
-					$(object).append('<div id=\"contact_'+uname+'\" class=\"contactstr\"><a href=\"'+info.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div>');
+					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+info.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>');
 				}
 
 				var isSelf = (info.prefix.substr(info.prefix.length-6) == 'myself');

@@ -388,6 +388,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(request.method == "POST")
 			{
 				try {
+					if(!user()->checkToken(request.post["token"], "contact")) 
+						throw 403;
+					
 			  		String command = request.post["command"];
 			  		if(command == "delete")
 					{
@@ -467,6 +470,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header("Contacts");
 			
+			String token = user()->generateToken("contact");
+			
 			Array<Contact*> contacts;
 			getContacts(contacts);
 			if(!contacts.empty())
@@ -506,6 +511,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix+"/", "post", "executeForm");
 				page.input("hidden", "command");
 				page.input("hidden", "argument");
+				page.input("hidden", "token", token);
 				page.closeForm();
 				
 				page.javascript("function deleteContact(uname) {\n\
@@ -525,6 +531,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			page.openForm(prefix+"/","post");
 			page.openFieldset("New contact");
+			page.input("hidden", "token", token);
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); page.button("add","Add contact");
@@ -533,6 +540,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");
+			page.input("hidden", "token", token);
 			page.input("hidden","name",userName());
 			page.input("hidden","self","true");
 			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");

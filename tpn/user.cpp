@@ -35,7 +35,7 @@ namespace tpn
 Map<String, User*>	User::UsersByName;
 Map<ByteString, User*>	User::UsersByAuth;
 Mutex			User::UsersMutex;
-  
+
 unsigned User::Count(void)
 {
 	 UsersMutex.lock();
@@ -130,6 +130,8 @@ User::User(const String &name, const String &password) :
 		file.write(mHash);
 		file.close();
 	}
+	
+	mTokenSecret.writeRandom(16);
 	
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
@@ -250,6 +252,67 @@ void User::sendStatus(const Identifier &identifier)
 	}
 }
 
+String User::generateToken(const String &action)
+{
+	ByteString salt;
+	salt.writeRandom(8);
+
+	ByteString plain;
+	plain.writeBinary(action);
+	plain.writeBinary(salt);
+	plain.writeBinary(name());
+	plain.writeBinary(mTokenSecret);
+
+	ByteString digest;
+	Sha512::Hash(plain, digest);
+	uint64_t checksum = digest.checksum64();
+	
+	ByteString token;
+	token.writeBinary(salt);	// 8 bytes
+	token.writeBinary(checksum);	// 8 bytes
+	
+	Assert(token.size() == 16);
+	return token;
+}
+
+bool User::checkToken(const String &token, const String &action)
+{
+	if(!token.empty())
+	{
+		ByteString bs;
+		try {
+			token.extract(bs);
+		}
+		catch(const Exception &e)
+		{
+			LogDebug("User::checkToken", String("Error parsing token: ") + e.what());
+		}
+
+		if(bs.size() == 16)
+		{
+			ByteString salt;
+			uint64_t checksum;
+			AssertIO(bs.readBinary(salt, 8));
+			AssertIO(bs.readBinary(checksum));
+			
+			ByteString plain;
+			plain.writeBinary(action);
+			plain.writeBinary(salt);
+			plain.writeBinary(name());
+			plain.writeBinary(mTokenSecret);
+			
+			ByteString digest;
+			Sha512::Hash(plain, digest);
+			
+			if(digest.checksum64() == checksum) 
+				return true;
+		}
+	}
+	
+	LogWarn("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
+	return false;
+}
+
 void User::http(const String &prefix, Http::Request &request)
 {
 	try {
@@ -266,33 +329,11 @@ void User::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header(APPNAME, true);
 
-			/*page.open("div", "mainheader");
-			page.openLink("/"); page.image("/logo.png", APPNAME, "logo"); page.closeLink();
-			
-			page.open("div", ".search");
-			page.openForm(prefix + "/search", "post", "searchForm");
-			page.input("text","query");
-			page.button("search","Search");
-			page.closeForm();
-			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-			page.br();
-			page.close("div");
-			
-			page.close("div");*/
-
-			page.open("div", "wrapper");
-
 			// TODO: This is awful
 			page.javascript("$('#page').css('max-width','100%');");
 			
-			/*page.open("div");
-			page.open("h1");
-			const String instance = Core::Instance->getName().before('.');
-			page.text(name() + "@" + tracker());
-			if(!instance.empty()) page.text(" (" + instance + ")");
-			page.close("h1");
-			page.close("div");*/
-
+			page.open("div", "wrapper");
+			
 			page.open("div","leftcolumn");
 
 			page.open("div", "logo");
@@ -327,14 +368,16 @@ void User::http(const String &prefix, Http::Request &request)
 				
 				if(self)
 				{
-					page.open("div", "contact_"+self->uniqueName()+".contactstr");
+					page.open("div", ".contactstr");
+					page.open("div", "contact_"+self->uniqueName());
 					
 					page.open("span", ".name");
 					page.link(self->urlPrefix(), self->uniqueName());
-					page.close("span");
 					
 					page.open("span",".tracker");
 					page.text("@" + self->tracker());
+					page.close("span");
+					
 					page.close("span");
 					
 					page.open("span", ".status");
@@ -347,6 +390,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("div");
 					
 					page.open("div", "contactinfo_" + self->uniqueName() + ".contactinfo");
+					page.close("div");
 					page.close("div");
 				}
 
@@ -459,13 +503,15 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 		 
+			String token = generateToken("message");
+			
 			page.javascript("function postStatus()\n\
 				{\n\
 					var message = document.statusform.statusinput.value;\n\
 					if(!message) return false;\n\
 					document.statusform.statusinput.value = '';\n\
 					var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-						{ 'message': message , 'public': 1});\n\
+						{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
 					request.fail(function(jqXHR, textStatus) {\n\
 						alert('The message could not be sent.');\n\
 					});\n\
@@ -478,12 +524,12 @@ void User::http(const String &prefix, Http::Request &request)
 					if(!idParent)\n\
 					{\n\
 						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1});\n\
+							{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
 					}\n\
 					else\n\
 					{\n\
 						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'parent': idParent});\n\
+							{ 'message': message , 'public': 1, 'parent': idParent, 'token': '"+token+"'});\n\
 					}\n\
 					request.fail(function(jqXHR, textStatus) {\n\
 						alert('The message could not be sent.');\n\

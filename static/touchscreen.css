@@ -1,0 +1,59 @@
+
+h1
+{
+	text-shadow: none;
+}
+
+h2
+{
+	text-shadow: none;
+}
+
+h3
+{
+	text-shadow: none;
+}
+
+.files tr
+{
+	height: 3em;
+	max-height: 3em;
+	border-top: 1px solid #B0B0B0;
+}
+
+.contacts tr
+{
+	height: 3em;
+	max-height: 3em;
+	border-top: 1px solid #B0B0B0;
+}
+
+.contactstr
+{
+	min-height: 3em;
+	line-height: 3em;
+	border-top: 1px solid #B0B0B0;
+}
+
+#instances tr
+{
+	height: 3em;
+	max-height: 3em;
+	border-top: 1px solid #B0B0B0;
+}
+
+.menu tr
+{
+	height: 5em;
+	border-top: 1px solid #B0B0B0;
+}
+
+.menu td.title
+{
+	font-size: 1.5em;
+}
+
+.menu .bigicon
+{
+	height: 5em;
+}

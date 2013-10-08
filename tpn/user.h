@@ -63,9 +63,11 @@ public:
 	bool isOnline(void) const;
 	void setOnline(void);
 	void setOffline(void);
-	
 	void sendStatus(const Identifier &identifier = Identifier::Null);
 	
+	String generateToken(const String &action = "");
+	bool checkToken(const String &token, const String &action = "");
+
 	void http(const String &prefix, Http::Request &request);
 	
 private:
@@ -76,6 +78,7 @@ private:
 	Store *mStore;
 	Profile *mProfile;
 	
+	ByteString mTokenSecret;
 	bool mOnline;
 	
 	class SetOfflineTask : public Task

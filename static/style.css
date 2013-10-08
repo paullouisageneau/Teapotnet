@@ -233,7 +233,6 @@ textarea
 
 a.button
 {
-	float: left;
         color: #000000;
         cursor: pointer;
         background-color: #FFDC0A;
@@ -358,7 +357,7 @@ a.button:hover
 #rightcolumn
 {
 	float: left;
-	width: 73%;
+	width: 66%;
 	margin: 0;
 	text-align: justify;
 }
@@ -479,6 +478,16 @@ a.button:hover
 	border: 0;
 	color: #000000;
 	background-color: #FFFFFF;
+}
+
+#attachedfile
+{
+	vertical-align: middle;
+}
+
+#attachedfile .filename
+{
+	margin-left: 0.5em;
 }
 
 #status
@@ -633,8 +642,6 @@ select, x:-moz-any-link, x:default
 
 div.message
 {
-	margin-left: 5%;
-	margin-right: 5%;
 	padding: 5px;
 	padding-top: 3px;
 	padding-bottom: 3px;
@@ -868,6 +875,12 @@ td.delete
 	width: 100%;
 }
 
+.contactstr div
+{
+	padding-left: 0.25em;
+	padding-right: 0.25em;
+}
+
 .contactstr button
 {
 	float: left;
@@ -903,22 +916,6 @@ td.delete
 {
 	text-align: left;
 	padding-left: 0;
-}
-
-.contacts td.status
-{
-	margin: 0;
-	width: 14em;
-}
-
-.contacts td.files
-{
-	width: 6em;
-}
-
-.contacts td.chat
-{
-	width: 6em;
 }
 
 #files .button
@@ -1046,8 +1043,7 @@ td.delete
 	border: 2px solid #E0E0E0;
 	text-align: center;
 	vertical-align: text-bottom;
-	/*visibility: hidden;
-	height: 0;*/
+	display: none;
 }
 
 .contactinfo .name
@@ -1211,28 +1207,28 @@ td.delete
 
 	#leftcolumn
 	{
-		/*float: left;*/
+		float: none;
+		clear: both;
+		display: block;
 		width: 100%;
-		margin-right: 0;
-		margin-left: 0;
+		max-width: 100%;
+		margin-left: auto;
+		margin-right: auto;
 		padding: 0;
 	}
 
 	#rightcolumn 
 	{
-		/*float: right;*/
+		float: none;
+		clear: both;
+		display: block;
 		width: 100%;
-		margin-right: 0;
-		margin-left: 0;
-		max-width: 480px;
-	}
-
-	div
-	{
-		margin: 0;
+		max-width: 100%;
+		margin-left: auto;
+		margin-right: auto;
 		padding: 0;
 	}
-
+	
 	#newsfeed
 	{
 		width: 100%;
@@ -1255,16 +1251,33 @@ td.delete
 		width: 64px;
 	}
 	
+	#statuspanel textarea
+	{
+		border-width: 1px 0px 1px 0px;
+		border-radius: 0;
+	}
+	
 	.box
 	{
 		border-width: 1px;
 		border-radius: 0;
 	}
 	
-	#statuspanel textarea
+	.files
 	{
-		border-width: 1px 0px 1px 0px;
-		border-radius: 0;
+		white-space: normal;
+	}
+	
+	.files td.filename
+	{
+		white-space: normal;
+		overflow: hidden;
+		text-overflow: ellipsis; 
+	}
+	
+	.files td.actions
+	{
+		display: none;
 	}
 }
 
@@ -1277,22 +1290,33 @@ td.delete
 
 	#wrapper 
 	{
-		width: 1024px;
+		max-width: 1024px;
 		margin: 0 auto;
 	}
 
 	#leftcolumn
 	{
-		float: left;
-		width: 910px;
-		margin-left: 110px;
+		float: none;
+		clear: both;
+		display: block;
+		width: 600px;
+		max-width: 600px;
+		margin-left: auto;
+		margin-right: auto;
+		padding: 0;
 	}
 
 	#rightcolumn 
 	{
-		float: left;
-		width: 700px;
-		margin-left: 55px;
+		float: none;
+		clear: both;
+		display: block;
+		width: 600px;
+		max-width: 600px;
+		margin-left: auto;
+		margin-right: auto;
+		margin-top: 1em;
+		padding: 0;
 	}
 	
 }

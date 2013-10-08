@@ -66,14 +66,14 @@ public:
 	class Response
 	{
 	public:
-		static const int Finished = -1;
-		static const int Success = 0;
-		static const int Pending = 1;
-		static const int Failed = 2;
-		static const int NotFound = 3;
-		static const int Empty = 4;
-		static const int Interrupted = 5;
-		static const int ReadFailed = 6;
+		static const int Finished;
+		static const int Success;
+		static const int Pending;
+		static const int Failed;
+		static const int NotFound;
+		static const int Empty;
+		static const int Interrupted;
+		static const int ReadFailed;
 	  
 		Response(int status = 0);
 		Response(int status, const StringMap &parameters, ByteStream *content = NULL, bool readOnly = false);

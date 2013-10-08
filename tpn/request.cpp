@@ -30,6 +30,16 @@
 namespace tpn
 {
 
+const int Request::Response::Finished = -1;
+const int Request::Response::Success = 0;
+const int Request::Response::Pending = 1;
+const int Request::Response::Failed = 2;
+const int Request::Response::NotFound = 3;
+const int Request::Response::Empty = 4;
+const int Request::Response::Interrupted = 5;
+const int Request::Response::ReadFailed = 6;
+
+
 Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
 		mResponseSender(NULL),
