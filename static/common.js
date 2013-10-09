@@ -410,7 +410,10 @@ function setMessagesReceiverRec(url, object, last) {
 					})
 					.done(function(data) {
 						var name = request.getResponseHeader('Content-Name');
-						$('#'+id+' .attachment').html('<a href="'+url+'">'+name+'</a>');
+						$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name+'</a></span>');
+						$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
+							window.location.href = $(this).find('a').attr('href');
+						});
 					})
 					.fail(function(jqXHR, textStatus) {
 						$('#'+id+' .attachment').html('Attachment not available');

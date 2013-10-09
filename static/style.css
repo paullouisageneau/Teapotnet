@@ -662,6 +662,18 @@ div.message
 .message .attachment
 {
 	float: right;
+	padding: 0.25em;
+	vertical-align: middle;
+}
+
+.message .attachment:hover
+{
+	background-color: #C0C0C0;
+}
+
+.message .attachment .filename
+{
+	margin-left: 0.5em;
 }
 
 .out
