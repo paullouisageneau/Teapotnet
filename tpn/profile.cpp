@@ -32,7 +32,8 @@ namespace tpn
 
 Profile::Profile(User *user, const String &uname, const String &tracker):
 	mUser(user),
-	mName(uname)
+	mName(uname),
+	mTracker(tracker)
 {
 	Assert(mUser);
 	if(mName.empty()) mName = mUser->name();
@@ -59,7 +60,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["phone"]	= new TypedField<String>("phone", &mPhone, "Phone", "What's your phone number ?");
 
 	// Settings
-	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use");
+	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use", mTracker);
 
 	mFileName = infoPath() + mName;
 	load();
@@ -295,6 +296,8 @@ void Profile::http(const String &prefix, Http::Request &request)
 				disp|= displayField(page, "email");
 				disp|= displayField(page, "phone");
 
+				page.close("div");
+				
 				if(isSelf())
 				{
 					page.open("div","parameters.box");
@@ -303,7 +306,7 @@ void Profile::http(const String &prefix, Http::Request &request)
                                 	page.text("Parameters");
                                 	page.close("h2");
 
-					displayField(page, "tracker");
+					displayField(page, "tracker", true);
 					
 					page.close("div");
 
@@ -369,20 +372,20 @@ void Profile::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-bool Profile::displayField(Html &page, const String &name) const
+bool Profile::displayField(Html &page, const String &name, bool forceDisplay) const
 {
 	Synchronize(this);
 	
 	Field *field;
 	if(!mFields.get(name, field)) return false;
-	return displayField(page, field);
+	return displayField(page, field, forceDisplay);
 }
 
-bool Profile::displayField(Html &page, const Field *field) const
+bool Profile::displayField(Html &page, const Field *field, bool forceDisplay) const
 {
 	Synchronize(this);
 	
-	if(!field->empty())
+	if(!field->empty() || forceDisplay)
         {
 		if(isSelf())
 		{

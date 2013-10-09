@@ -106,8 +106,8 @@ private:
 		T mDefault;
 	};
 
-	bool displayField(Html &page, const String &name) const;
-	bool displayField(Html &page, const Field *field) const;
+	bool displayField(Html &page, const String &name, bool forceDisplay = false) const;
+	bool displayField(Html &page, const Field *field, bool forceDisplay = false) const;
 	bool updateField(const String &name, const String &value);
 	
 	User *mUser;

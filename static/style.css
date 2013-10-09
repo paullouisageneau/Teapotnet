@@ -659,6 +659,11 @@ div.message
 
 }
 
+.message .attachment
+{
+	float: right;
+}
+
 .out
 {
 	color: #1010F0;
@@ -1111,6 +1116,11 @@ td.delete
 	font-size: 1.1em;
 	margin-top: 2px;
 	margin-bottom: 2px;
+}
+
+.profileinfo input
+{
+
 }
 
 .inputprofile

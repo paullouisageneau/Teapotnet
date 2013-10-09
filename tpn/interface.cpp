@@ -351,6 +351,7 @@ void Interface::process(Http::Request &request)
 			Http::Response response(request, 200);
 			if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
 			response.headers["Content-Length"] << rangeSize;
+			response.headers["Content-Name"] = resource.name();
 			response.headers["Last-Modified"] = resource.time().toHttpDate();
 			response.headers["Accept-Ranges"] = "bytes";
 			

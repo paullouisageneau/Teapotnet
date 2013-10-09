@@ -1622,7 +1622,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			int maxAge = 60*60*24*7;	// 7 days
-			int count = 50;
+			int count = 20;
 			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false);");
 			
 			page.footer();
@@ -1738,6 +1738,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
 					response.headers["Content-Length"] << rangeSize;
+					response.headers["Content-Name"] = resource.name();
 					response.headers["Last-Modified"] = resource.time().toHttpDate();
 					response.headers["Accept-Ranges"] = "bytes";
 					
