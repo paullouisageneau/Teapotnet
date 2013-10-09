@@ -43,7 +43,8 @@ size_t Sha512::Hash(const char *data, size_t size, ByteStream &out)
 size_t Sha512::Hash(const ByteString &message, ByteStream &out)
 {
 	ByteString tmp(message);
-	return Hash(tmp, out);
+	ByteStream *p = &tmp;
+	return Hash(*p, out);
 }
 
 size_t Sha512::Hash(ByteStream &data, ByteStream &out)

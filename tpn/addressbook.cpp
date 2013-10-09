@@ -406,7 +406,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(name.empty() || csecret.empty()) throw 400;
 						
 						ByteString secret;
-						Sha512::RecursiveHash(csecret, String("teapotnet"), secret, Sha512::CryptRounds);
+						Sha512::RecursiveHash(csecret, String("TeapotNet"), secret, Sha512::CryptRounds);
 						
 						if(request.post.contains("self")) setSelf(secret);
 						else addContact(name, secret);

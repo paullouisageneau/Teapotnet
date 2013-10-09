@@ -109,6 +109,21 @@ void Interface::process(Http::Request &request)
 		}
 		else if(User::Count() == 0) 
 		{
+			String name;
+			try {
+				Directory dir(Config::Get("profiles_dir"));
+				while(dir.nextFile())
+					if(dir.fileIsDir())
+					{
+						name = dir.fileName();
+						break;
+					}
+			}
+			catch(...)
+			{
+
+			}
+
 			if(remoteAddr.isLocal() || remoteAddr.isPrivate())
 			{
 				if(request.method == "POST")
@@ -144,9 +159,9 @@ void Interface::process(Http::Request &request)
 					Http::Response response(request,303);
 					response.send();
 					Html page(response.sock);
-					page.header("Account created", false, "/");
+					page.header("Please wait...", false, "/");
 					page.open("h1");
-					page.text("Your account has been created.");
+					page.text("The user has been set up.");
 					page.close("h1");
 					page.open("p");
 #ifdef ANDROID
@@ -158,7 +173,7 @@ void Interface::process(Http::Request &request)
 					page.footer();
 					return;
 				}
-			  
+				
 				Http::Response response(request, 200);
 				response.send();
 			
@@ -169,9 +184,10 @@ void Interface::process(Http::Request &request)
 				page.close("h1");
 				page.open("p");
 #ifdef ANDROID
-				page.text("Please enter your new username.");
+				page.text("Please choose your username.");
 #else
-				page.text("No user has been configured yet, please enter your new username and password.");
+				if(name.empty()) page.text("No user has been configured yet, please choose your username and password.");
+				else page.text("Please reset your password.");
 #endif
 				page.close("p");
 				
@@ -180,7 +196,7 @@ void Interface::process(Http::Request &request)
 #ifdef ANDROID
 				page.label("name",""); page.input("text","name"); page.br();
 #else
-				page.label("name","Name"); page.input("text","name"); page.br();
+				page.label("name","Name"); page.input("text","name",name); page.br();
 				page.label("password","Password"); page.input("password","password"); page.br();
 #endif
 				page.label("add"); page.button("add","OK");
@@ -199,9 +215,10 @@ void Interface::process(Http::Request &request)
 				page.open("h1");
 				page.text(String("Welcome to ") + APPNAME + " !");
 				page.close("h1");
-				page.text("No user has been configured yet.");
+				if(name.empty()) page.text("No user has been configured yet.");
+				else page.text("Local intervention needed.");
 				page.footer();
-				return; 
+				return;
 			}
 		}
 	}

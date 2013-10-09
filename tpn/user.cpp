@@ -112,26 +112,31 @@ User::User(const String &name, const String &password) :
 	if(!mName.isAlphanumeric()) 
 		throw Exception("User name must be alphanumeric");
 	
-	mStore = new Store(this); // must be created first
-	mAddressBook = new AddressBook(this);
-	mMessageQueue = new MessageQueue(this);
-	mProfile = new Profile(this);
-	
+	// TODO: backward compatibility
+	if(File::Exist(profilePath()+"password"))
+		File::Remove(profilePath()+"password");
+	//
+
 	if(password.empty())
 	{
-		File file(profilePath()+"password", File::Read);
+		File file(profilePath()+"auth", File::Read);
 		file.read(mHash);
 		file.close();
 	}
 	else {
-		Sha512::RecursiveHash(password, name, mHash, Sha512::CryptRounds);
+		Sha512::RecursiveHash(password, mName, mHash, Sha512::CryptRounds);
 		
-		File file(profilePath()+"password", File::Write);
+		File file(profilePath()+"auth", File::Write);
 		file.write(mHash);
 		file.close();
 	}
 	
 	mTokenSecret.writeRandom(16);
+
+	mStore = new Store(this); // must be created first
+        mAddressBook = new AddressBook(this);
+        mMessageQueue = new MessageQueue(this);
+        mProfile = new Profile(this);
 	
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);

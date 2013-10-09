@@ -59,7 +59,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["phone"]	= new TypedField<String>("phone", &mPhone, "Phone", "What's your phone number ?");
 
 	// Settings
-	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The teapotnet tracker you use", mTracker);
+	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use");
 
 	mFileName = infoPath() + mName;
 	load();
@@ -90,7 +90,8 @@ String Profile::name(void) const
 String Profile::tracker(void) const
 {
 	Synchronize(this);
-	return mTracker;
+	if(!mTracker.empty()) return mTracker;
+	else return Config::Get("tracker");
 }
 
 String Profile::urlPrefix(void) const
@@ -296,6 +297,16 @@ void Profile::http(const String &prefix, Http::Request &request)
 
 				if(isSelf())
 				{
+					page.open("div","parameters.box");
+					
+					page.open("h2");
+                                	page.text("Parameters");
+                                	page.close("h2");
+
+					displayField(page, "tracker");
+					
+					page.close("div");
+
 					page.javascript("function postField(field, value)\n\
 						{\n\
 							var request = $.post('"+prefix+"/profile"+"',\n\
