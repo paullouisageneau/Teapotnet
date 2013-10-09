@@ -192,7 +192,7 @@ void Interface::process(Http::Request &request)
 				page.close("p");
 				
 				page.openForm("/","post");
-				page.openFieldset("New user");
+				page.openFieldset("User");
 #ifdef ANDROID
 				page.label("name",""); page.input("text","name"); page.br();
 #else
