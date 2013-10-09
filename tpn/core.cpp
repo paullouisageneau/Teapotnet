@@ -564,12 +564,13 @@ void Core::Handler::process(void)
 		//mRawStream->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
 		
 		// Set up obfuscation cipher
-		ByteString tmpkey;
-		Sha512::Hash("TeapotNet", tmpkey);
-		ByteString tmpiv(tmpkey);
-		tmpkey.resize(32);	// 256 bits
-		tmpiv.ignore(32);
-		
+		ByteString tmp;
+		Sha512::Hash(String("TeapotNet"), tmp);
+		ByteString tmpkey, tmpiv;
+		tmp.readBinary(tmpkey, 32);	// 256 bits
+		tmp.readBinary(tmpiv, 16);	// 128 bits
+		tmp.clear();		
+
 		AesCipher *cipher = new AesCipher(mRawStream);
 		cipher->setEncryptionKey(tmpkey);
 		cipher->setEncryptionInit(tmpiv);
@@ -580,8 +581,8 @@ void Core::Handler::process(void)
 		cipher->dumpStream(&mObfuscatedHello);
 		
 		ByteString nonce_a, salt_a;
-		nonce_a.writeRandom(16);
-		salt_a.writeRandom(16);
+		nonce_a.writeRandom(32);	// 256 bits
+		salt_a.writeRandom(32);		// 256 bits
 		
 		if(!mIsIncoming)	
 		{
@@ -776,63 +777,68 @@ void Core::Handler::process(void)
 		ByteString secret;
 		if(SynchronizeTest(mCore, !mCore->mSecrets.get(peering, secret)))
 			throw Exception(String("Warning: No secret for peering: ") + peering.toString());
-		
-		String agregate_a;
-		agregate_a.writeLine(secret);
-		agregate_a.writeLine(salt_a);
-		agregate_a.writeLine(nonce_b);
-		agregate_a.writeLine(mPeering.getDigest());
-		
-		ByteString hash_a;
-		Sha512::Hash(agregate_a, hash_a, Sha512::CryptRounds);
+	
+		// Derivate session key	
+		ByteString key_a;
+                Sha512::DerivateKey(secret, salt_a, key_a, Sha512::CryptRounds);
+
+		// Get authentication key
+		ByteString authkey_a;
+		key_a.readBinary(authkey_a, 16);	// 128 bits
+
+		// Generate HMAC
+		ByteString hmac_a;
+		Sha512::AuthenticationCode(authkey_a, nonce_b, hmac_a);
 		
 		parameters.clear();
 		parameters["method"] << "DIGEST";
 		parameters["cipher"] << "AES256";
 		parameters["salt"] << salt_a;
-		sendCommand(mStream, "A", hash_a.toString(), parameters);
+		sendCommand(mStream, "A", hmac_a.toString(), parameters);
 		
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
-		
+	
 		if(command != "A") throw Exception("Unexpected command: " + command);
-		if(parameters.contains("method") && parameters["method"].toUpper() != "DIGEST")
-			throw Exception("Unknown authentication method: " + parameters["method"]);
-		if(parameters.contains("cipher") && parameters["cipher"].toUpper() != "AES256")
-			throw Exception("Unknown authentication cipher: " + parameters["cipher"]);
+		
+		String strMethod = "DIGEST";
+		String strCipher = "AES256";
+		if(parameters.get("method", strMethod)) strMethod = strMethod.toUpper();
+		if(parameters.get("cipher", strCipher)) strCipher = strCipher.toUpper();
+
+		// Only one method is supported for now
+		if(strMethod != "DIGEST") throw Exception("Unknown authentication method: " + strMethod);
+		if(strCipher != "AES256") throw Exception("Unknown authentication cipher: " + strCipher);
 		
 		ByteString salt_b, test_b;
 		args >> test_b;
 		parameters["salt"] >> salt_b;
 		
-		String agregate_b;
-		agregate_b.writeLine(secret);
-		agregate_b.writeLine(salt_b);
-		agregate_b.writeLine(nonce_a);
-		agregate_b.writeLine(mRemotePeering.getDigest());
+		// Derivate session remote key
+		ByteString key_b;
+                Sha512::DerivateKey(secret, salt_b, key_b, Sha512::CryptRounds);
+	
+		// Get remote authentication key
+		ByteString authkey_b;
+                key_b.readBinary(authkey_b, 16);	// 128 bits
+
+		// Generate HMAC
+		ByteString hmac_b;
+		Sha512::AuthenticationCode(authkey_b, nonce_a, hmac_b);
 		
-		ByteString hash_b;
-		Sha512::Hash(agregate_b, hash_b, Sha512::CryptRounds);
-		
-		if(test_b != hash_b) throw Exception("Authentication failed");
+		if(test_b != hmac_b) throw Exception("Authentication failed");
 		LogInfo("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
 		mIsAuthenticated = true;		
 
 		// Set encryption key and IV
-		ByteString key_a;
-		agregate_a.writeLine(nonce_a);
-		Sha512::Hash(agregate_a, key_a, Sha512::CryptRounds);
-		ByteString iv_a(key_a);
-		key_a.resize(32);	// 256 bits
-		iv_a.ignore(32);
+		ByteString iv_a;
+		key_a.readBinary(iv_a, 16);	// 128 bits
+		Assert(key_a.size() == 32);	// 256 bits
 		
 		// Set decryption key and IV
-		ByteString key_b;
-		agregate_b.writeLine(nonce_b);
-		Sha512::Hash(agregate_b, key_b, Sha512::CryptRounds);
-		ByteString iv_b(key_b);
-		key_b.resize(32);	// 256 bits
-		iv_b.ignore(32);
-		
+		ByteString iv_b;
+                key_b.readBinary(iv_b, 16);     // 128 bits
+                Assert(key_b.size() == 32);     // 256 bits	
+	
 		// Set up new cipher for the connection
 		delete cipher;
 		cipher = new AesCipher(mRawStream);

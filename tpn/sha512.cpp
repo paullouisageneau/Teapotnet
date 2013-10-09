@@ -31,37 +31,26 @@
 namespace tpn
 {
 
-const int Sha512::CryptRounds = 5000;	// TODO: should be MUCH higher (100 000 seems reasonable)
-  
-void Sha512::Hash(const char *data, size_t size, ByteStream &out, int rounds)
+const int Sha512::CryptRounds = 10000;
+
+size_t Sha512::Hash(const char *data, size_t size, ByteStream &out)
 {
 	// TODO: ConstByteArray ?
 	ByteArray array(const_cast<char *>(data), size);
-	Hash(array, out, rounds);
+	return Hash(array, out);
 }
 
-void Sha512::Hash(const String &str, ByteStream &out, int rounds)
+size_t Sha512::Hash(const ByteString &message, ByteStream &out)
 {
-	Hash(str.data(), str.size(), out, rounds);
+	ByteString tmp(message);
+	return Hash(tmp, out);
 }
 
-size_t Sha512::Hash(ByteStream &data, ByteStream &out, int rounds)
+size_t Sha512::Hash(ByteStream &data, ByteStream &out)
 {
-	Assert(rounds > 0);
-  
-	unsigned char buffer[64];
 	Sha512 sha;
 	size_t size = sha.process(data);
-	sha.finalize(buffer);
-	
-	while(--rounds)
-	{
-	  sha.init();
-	  sha.process(reinterpret_cast<char*>(buffer),64);
-	  sha.finalize(buffer);
-	}
-	
-	out.writeData(reinterpret_cast<char*>(buffer),64);
+	sha.finalize(out);
 	return size;
 }
 
@@ -71,6 +60,67 @@ size_t Sha512::Hash(ByteStream &data, size_t size, ByteStream &out)
 	size = sha.process(data, size);
 	sha.finalize(out);
 	return size;
+}
+
+void Sha512::RecursiveHash(const ByteString &message, const ByteString &salt, ByteStream &out, int rounds)
+{
+	Assert(rounds >= 1);
+
+	ByteString buffer(message);
+	while(--rounds)
+	{
+		ByteString tmp(salt);
+
+		Sha512 sha;
+        	sha.process(tmp);
+		sha.process(buffer);
+        	sha.finalize(buffer);
+	}
+
+	out.writeBinary(buffer);
+}
+
+void Sha512::AuthenticationCode(const ByteString &key, ByteStream &data, ByteStream &out)
+{
+	ByteString ikey;
+	ByteString okey;
+
+	// Pad key
+	ByteString tmp(key);
+	if(tmp.size() < 64) tmp.writeZero(64 - tmp.size());
+	
+	// Inner and outer padding
+	uint8_t u;
+	while(tmp.readBinary(u))
+	{
+		ikey.writeBinary(u ^ 0x36);
+		okey.writeBinary(u ^ 0x5C);
+	}
+
+	Sha512 sha;
+        sha.process(ikey);
+        sha.process(data);
+        sha.finalize(tmp);
+
+	sha.init();	// reinit
+	sha.process(okey);
+	sha.process(tmp);
+	sha.finalize(out);
+}
+
+void Sha512::DerivateKey(const ByteString &password, const ByteString &salt, ByteStream &out, int rounds)
+{
+	Assert(rounds >= 1);
+
+	ByteString buffer(salt);
+        while(--rounds)
+        {
+		ByteString tmp;
+		AuthenticationCode(password, buffer, tmp);
+		buffer = tmp;
+        }
+
+        out.writeBinary(buffer);
 }
 
 /* Various macros */

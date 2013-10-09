@@ -35,10 +35,14 @@ class Sha512
 public:
 	static const int CryptRounds;
   
-	static void Hash(const char *data, size_t size, ByteStream &out, int rounds = 1);
-	static void Hash(const String &str, ByteStream &out, int rounds = 1);
-	static size_t Hash(ByteStream &data, ByteStream &out, int rounds = 1);
+	static size_t Hash(const char *data, size_t size, ByteStream &out);
+	static size_t Hash(const ByteString &message, ByteStream &out);
+	static size_t Hash(ByteStream &data, ByteStream &out);
 	static size_t Hash(ByteStream &data, size_t size, ByteStream &out);
+
+	static void RecursiveHash(const ByteString &message, const ByteString &salt, ByteStream &out, int rounds = 1);
+	static void AuthenticationCode(const ByteString &key, ByteStream &data, ByteStream &out);
+	static void DerivateKey(const ByteString &password, const ByteString &salt, ByteStream &out, int rounds = 1);
 
 	Sha512(void);
 	~Sha512(void);

@@ -406,7 +406,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(name.empty() || csecret.empty()) throw 400;
 						
 						ByteString secret;
-						Sha512::Hash(csecret, secret, Sha512::CryptRounds);
+						Sha512::RecursiveHash(csecret, String("teapotnet"), secret, Sha512::CryptRounds);
 						
 						if(request.post.contains("self")) setSelf(secret);
 						else addContact(name, secret);
@@ -746,18 +746,16 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!secret.empty());
 	
 	// Compute peering
-	String agregate;
-	agregate.writeLine(mSecret);
-	agregate.writeLine(mAddressBook->userName());
-	agregate.writeLine(mName);
-	Sha512::Hash(agregate, mPeering, Sha512::CryptRounds);
+	ByteString salt;
+	salt.writeBinary(mAddressBook->userName());
+	salt.writeBinary(mName);
+	Sha512::DerivateKey(mSecret, salt, mPeering, Sha512::CryptRounds);
 	
 	// Compute Remote peering
-	agregate.clear();
-	agregate.writeLine(mSecret);
-	agregate.writeLine(mName);
-	agregate.writeLine(mAddressBook->userName());
-	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
+	salt.clear();
+	salt.writeBinary(mName);
+	salt.writeBinary(mAddressBook->userName());
+	Sha512::DerivateKey(mSecret, salt, mRemotePeering, Sha512::CryptRounds);
 	
 	createProfile();
 }

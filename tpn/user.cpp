@@ -72,7 +72,7 @@ User *User::Get(const String &name)
 User *User::Authenticate(const String &name, const String &password)
 {
 	ByteString hash;
-	Sha512::Hash(name + ':' + password, hash, Sha512::CryptRounds);
+	Sha512::RecursiveHash(password, name, hash, Sha512::CryptRounds);
 	
 	User *user = NULL;
 	UsersMutex.lock();
@@ -124,7 +124,7 @@ User::User(const String &name, const String &password) :
 		file.close();
 	}
 	else {
-		Sha512::Hash(name + ':' + password, mHash, Sha512::CryptRounds);
+		Sha512::RecursiveHash(password, name, mHash, Sha512::CryptRounds);
 		
 		File file(profilePath()+"password", File::Write);
 		file.write(mHash);
