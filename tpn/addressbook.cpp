@@ -537,6 +537,28 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("add"); page.button("add","Add contact");
 			page.closeFieldset();
 			page.closeForm();
+
+			centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends"; // TODO : change
+			String tpn_id_sender = getSelf()->name()+"@"+getSelf()->tracker();
+			page.openForm(centralizedFriendSystemUrl,"post");
+			page.openFieldset("Add contact - method 2");
+			// No possibility to check post by token here
+			page.input("hidden", "tpn_id_sender", tpn_id_sender);
+			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
+			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
+			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
+			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
+			page.label("add"); page.button("add","Send invitation");
+			page.closeFieldset();
+			page.closeForm();
+
+			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
+
+			// TODO : From dealing with : if received a confirmation in mail, paste link and send.
+			// Distinguish between step 2 or 3
+			// Is to be written in AJAX
+
+
 			
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");

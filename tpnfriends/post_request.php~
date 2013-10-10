@@ -1,0 +1,32 @@
+<?php
+
+include_once("mailer.php");
+	
+	$name_sender = 'Jotun';
+	$tpn_id_sender = 'jotun@teapotnet.org';
+	$mail_sender = 'jo@tun.fr';
+	$mail_destination = 'antoine.rebecq@m4x.org';
+	$id_request = '123456789';
+
+	// TODO : TeapotNet sends info via POST
+
+	try {
+		$bdd = new PDO('mysql:host=localhost;dbname=teapot', 'teapot', 'planques_toujours_planques', array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"));
+	}
+	catch (Exception $e)
+	{
+		die('Erreur : ' . $e->getMessage());
+	}
+
+	$req = $bdd->prepare("INSERT INTO `teapot`.`tpn_requests` (`tpn_id_sender`,`mail_sender` ,`mail_receiver` ,`id_request`)
+VALUES (?,?,?,?);");
+	$req->execute(array($tpn_id_sender,$mail_sender ,$mail_destination ,$id_request)) 
+			or die(print_r($req->errorInfo())
+			);
+
+
+
+	// Send e-mail to other guy
+	sendFriendRequestMail($name_sender, $mail_sender, $mail_destination);
+		
+?>
