@@ -377,10 +377,10 @@ function setMessagesReceiverRec(url, object, last) {
 					var idReply = "replyTo" + id;
 
 					if(!message.parent) {
-						$(object).prepend('<div class=\"messagewrapper\"> <div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span> <img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');" /> </div></div>');
+						$(object).prepend('<div class=\"messagewrapper\"><div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span><img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');"></div>' +('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div></div>');
 					}
-					else {						
-						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span> <br/> <span class=\"date\">'+formatTime(message.time).escape()+'</span></div>');
+					else {			
+						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>'+('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div>');
 						$('#'+id).addClass('childmessage');
 					}
 
@@ -393,12 +393,31 @@ function setMessagesReceiverRec(url, object, last) {
 				
 				}
 				else {
-					$(object).append('<div id=\"'+id+'\" class=\"message\"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span>'+('attachment' in message.headers ? ' <span class=\"attachment\">'+message.headers.attachment+'</span>' : '')+'</div>');
+					$(object).append('<div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>'+('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div>');
 					if(message.incoming && !message.isread) NbNewMessages++;
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');
 					else $('#'+id).addClass('out');
 					$(object).scrollTop($(object)[0].scrollHeight);
+				}
+				
+				if('attachment' in message.headers) {
+					var url = '/'+message.headers.attachment;
+					var request = $.ajax({
+						type: "HEAD",
+						url: url,
+						timeout: 60000
+					})
+					.done(function(data) {
+						var name = request.getResponseHeader('Content-Name');
+						$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name+'</a></span>');
+						$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
+							window.location.href = $(this).find('a').attr('href');
+						});
+					})
+					.fail(function(jqXHR, textStatus) {
+						$('#'+id+' .attachment').html('Attachment not available');
+					});
 				}
 			}
 			

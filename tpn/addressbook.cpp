@@ -406,7 +406,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(name.empty() || csecret.empty()) throw 400;
 						
 						ByteString secret;
-						Sha512::Hash(csecret, secret, Sha512::CryptRounds);
+						Sha512::RecursiveHash(csecret, String("TeapotNet"), secret, Sha512::CryptRounds);
 						
 						if(request.post.contains("self")) setSelf(secret);
 						else addContact(name, secret);
@@ -537,6 +537,28 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("add"); page.button("add","Add contact");
 			page.closeFieldset();
 			page.closeForm();
+
+			centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends"; // TODO : change
+			String tpn_id_sender = getSelf()->name()+"@"+getSelf()->tracker();
+			page.openForm(centralizedFriendSystemUrl,"post");
+			page.openFieldset("Add contact - method 2");
+			// No possibility to check post by token here
+			page.input("hidden", "tpn_id_sender", tpn_id_sender);
+			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
+			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
+			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
+			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
+			page.label("add"); page.button("add","Send invitation");
+			page.closeFieldset();
+			page.closeForm();
+
+			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
+
+			// TODO : From dealing with : if received a confirmation in mail, paste link and send.
+			// Distinguish between step 2 or 3
+			// Is to be written in AJAX
+
+
 			
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");
@@ -746,18 +768,16 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!secret.empty());
 	
 	// Compute peering
-	String agregate;
-	agregate.writeLine(mSecret);
-	agregate.writeLine(mAddressBook->userName());
-	agregate.writeLine(mName);
-	Sha512::Hash(agregate, mPeering, Sha512::CryptRounds);
+	ByteString salt;
+	salt.writeBinary(mAddressBook->userName());
+	salt.writeBinary(mName);
+	Sha512::DerivateKey(mSecret, salt, mPeering, Sha512::CryptRounds);
 	
 	// Compute Remote peering
-	agregate.clear();
-	agregate.writeLine(mSecret);
-	agregate.writeLine(mName);
-	agregate.writeLine(mAddressBook->userName());
-	Sha512::Hash(agregate, mRemotePeering, Sha512::CryptRounds);
+	salt.clear();
+	salt.writeBinary(mName);
+	salt.writeBinary(mAddressBook->userName());
+	Sha512::DerivateKey(mSecret, salt, mRemotePeering, Sha512::CryptRounds);
 	
 	createProfile();
 }
@@ -1624,7 +1644,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			int maxAge = 60*60*24*7;	// 7 days
-			int count = 50;
+			int count = 20;
 			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false);");
 			
 			page.footer();
@@ -1740,6 +1760,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
 					response.headers["Content-Length"] << rangeSize;
+					response.headers["Content-Name"] = resource.name();
 					response.headers["Last-Modified"] = resource.time().toHttpDate();
 					response.headers["Accept-Ranges"] = "bytes";
 					

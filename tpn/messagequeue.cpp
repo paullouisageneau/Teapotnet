@@ -317,7 +317,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				alert('The message could not be sent.');\n\
 			});\n\
 			document.chatform.chatinput.value = '';\n\
-			document.chatform.attachment.value = '';\n\
+			$(document.chatform.attachment).val("").change();\n\
 		}\n\
 		var status = \""+status+"\";\n\
 		var statusBackup;\n\

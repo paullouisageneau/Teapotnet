@@ -112,7 +112,7 @@ public:
 	
 	void substrings(Set<String> &result, int minlength = 0) const;
 	
-	operator const char*(void);
+	operator const char*(void) const;
 	char &operator [](int pos);
 	const char &operator [](int pos) const;
 	

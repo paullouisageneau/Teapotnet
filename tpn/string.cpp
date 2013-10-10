@@ -681,7 +681,7 @@ void String::substrings(Set<String> &result, int minlength) const
 	}
 }
 
-String::operator const char*(void)
+String::operator const char*(void) const
 {
 	return this->c_str(); 
 }

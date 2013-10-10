@@ -675,6 +675,23 @@ div.message
 
 }
 
+.message .attachment
+{
+	float: right;
+	padding: 0.25em;
+	vertical-align: middle;
+}
+
+.message .attachment:hover
+{
+	background-color: #C0C0C0;
+}
+
+.message .attachment .filename
+{
+	margin-left: 0.5em;
+}
+
 .out
 {
 	color: #1010F0;
@@ -1127,6 +1144,11 @@ td.delete
 	font-size: 1.1em;
 	margin-top: 2px;
 	margin-bottom: 2px;
+}
+
+.profileinfo input
+{
+
 }
 
 .inputprofile
