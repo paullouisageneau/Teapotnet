@@ -1083,7 +1083,10 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		// A node is running at this address but the user does not exist
 		if(save && mAddrs.contains(instance)) 
 		{
-			SynchronizeStatement(mAddressBook, mAddrs[instance].erase(addr));
+			Synchronize(mAddressBook);
+			mAddrs[instance].erase(addr);
+			if(mAddrs[instance].empty())
+				mAddrs.erase(instance);
 			mAddressBook->save();
 		}
 		return false;
