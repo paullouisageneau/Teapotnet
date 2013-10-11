@@ -251,40 +251,27 @@ a.button:hover
 	width: 100%;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 #leftcolumn #search form
 {
 	display: block;
 	width: 80%;
 	margin: 0;
 	padding: 0;
-<<<<<<< HEAD
-	padding-right: 20px;
-=======
 	margin-left: auto;
 	margin-right: auto;
->>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 }
 
 #leftcolumn #search input[type="text"]
 {
-<<<<<<< HEAD
 	display: block;
 	width: 100%;
 	max-width: 480px;
+	margin-top: 0;
 	margin-left: auto;
 	margin-right: auto;
-=======
-	display: inline-block;
-	width: 100%;
-	margin: 0;
 	margin-bottom: 0.5em;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
->>>>>>> 10251d78335a04fdc9d39a0a08cf0e2f05a6a9a3
 }
 
 .loading > body > * 
