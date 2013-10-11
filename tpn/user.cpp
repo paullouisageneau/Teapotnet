@@ -355,7 +355,8 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("search","Search");
 			page.input("text","query");
 			page.closeForm();
-			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
+			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
+			page.javascript("$(document).ready(function() { document.searchForm.query.style.color = 'grey'; });");
 			//page.br();
 			page.close("div");
 
@@ -422,7 +423,7 @@ void User::http(const String &prefix, Http::Request &request)
 			directories.append(globalDirectories);
 			
 			page.link(prefix+"/files/","Edit",".button");
-			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", ".button");
+			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", "refreshfiles.button");
 			
 			page.open("h2");
 			page.text("Shared folders");
@@ -489,8 +490,6 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div", "optionsnewsfeed");
 
-			page.text("News Feed");
-
 			StringMap optionsCount;
 			optionsCount["&count=15"] << "Last 15";
 			optionsCount["&count=30"] << "Last 30";
@@ -508,6 +507,10 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 
+			page.open("h2");
+			page.text("News Feed");
+			page.close("h2");
+			
 			page.open("div", "statusmessages");
 			page.close("div");
 

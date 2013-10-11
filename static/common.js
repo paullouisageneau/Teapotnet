@@ -286,26 +286,16 @@ function displayContacts(url, period, object) {
 				function displayContactInfo(uname) {
 					
 					if(visible) {
-						// No animation for tablet and mobile (too slow)
-						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") {
-							$('#contactinfo_'+uname).hide();
-						}
-						else {
-							$('#contactinfo_'+uname).slideUp();
-						}
-
+						if($(window).width() < 1024) $('#contactinfo_'+uname).hide();
+						else $('#contactinfo_'+uname).slideUp();
 						timeout = setTimeout(function() { visible = false; }, 200);
 					}
 					else
 					{
-						// No animation for tablet and mobile (too slow)
-						if ($("#rightcolumn").css("max-width") == "481px" || $("#rightcolumn").css("width") == "700px") {
-							if(toShow) $('#contactinfo_'+uname).show();
+						if(toShow) {
+							if ($(window).width() < 1024) $('#contactinfo_'+uname).show();
+							else $('#contactinfo_'+uname).slideDown();
 						}
-						else {
-							if(toShow) $('#contactinfo_'+uname).slideDown();
-						}
-
 						timeout = setTimeout(function() { visible = true; }, 200);
 					}
 				}
@@ -373,27 +363,28 @@ function setMessagesReceiverRec(url, object, last) {
 				var id = "message_" + message.stamp;
 				last = message.stamp;
 
+				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="date">'+formatTime(message.time).escape()+'</span><span class="author">'+message.headers.from.escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify()+'</span></div></div>';
+				
 				if(message.public) {
 					var idReply = "reply_" + id;
-
+					
 					if(!message.parent) {
-						$(object).prepend('<div class=\"messagewrapper\"><div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span><a href=\"#\" class=\"button\" onclick="clickedReply('+idReply+');">Reply</a></div>' +('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div></div>');
+						$(object).prepend(div);
+						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+');">Reply</a>');
 					}
 					else {			
-						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>'+('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div>');
+						$('#'+message.parent).parent().append(div);
 						$('#'+id).addClass('childmessage');
 					}
 
-
-					$('#'+id).addClass('statusdisplay');
 					if(!message.incoming) $('#'+id).addClass('me');
 
 					// Reply form
-					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"replyform'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"reply_'+id+'\"></textarea></form></div>');
+					$('#'+id).parent().append('<div id='+idReply+' class="reply"><form name="replyform'+id+'" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="reply_'+id+'"></textarea></form></div>');
 				
 				}
 				else {
-					$(object).append('<div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span> <span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>'+('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div>');
+					$(object).append(div);
 					if(message.incoming && !message.isread) NbNewMessages++;
 					if(message.isread) $('#'+id).addClass('oldmessage');
 					if(message.incoming) $('#'+id).addClass('in');
@@ -402,6 +393,9 @@ function setMessagesReceiverRec(url, object, last) {
 				}
 				
 				if('attachment' in message.headers) {
+					
+					$('#'+id).append('<span class="attachment">Loading attachment...</span>');
+					
 					var url = '/'+message.headers.attachment;
 					var request = $.ajax({
 						type: "HEAD",

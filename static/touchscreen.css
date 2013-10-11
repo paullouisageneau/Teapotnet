@@ -1,4 +1,10 @@
 
+body
+{
+	font-family: Sans-Serif;
+	font-size: 100%;
+}
+
 h1
 {
 	text-shadow: none;
@@ -18,6 +24,13 @@ h3
 {
 	height: 3em;
 	max-height: 3em;
+	border-top: 1px solid #B0B0B0;
+}
+
+.filestr
+{
+	min-height: 3em;
+	line-height: 3em;
 	border-top: 1px solid #B0B0B0;
 }
 
@@ -56,4 +69,14 @@ h3
 .menu .bigicon
 {
 	height: 5em;
+}
+
+#refreshfiles
+{
+	display: none;
+}
+
+#optionsnewsfeed
+{
+	display: none;
 }

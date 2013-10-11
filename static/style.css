@@ -12,7 +12,7 @@ body
 	font-size: 80%;
 	background: #F0F0F0 url(/background.png) repeat-x;
 	width: 100%;
-	height: 95%;
+	height: 100%;
 	margin: 0;
 	padding: 0;
 }
@@ -28,7 +28,7 @@ a:hover
 	text-decoration: underline;
 }
 
-h1 a
+h1 a:link
 {
 	color: #000000;
 }
@@ -171,7 +171,6 @@ legend
 
 input
 {
-	float: left;
 	display: inline-block;
 	margin: 0.2em;
 	padding: 0.4em;
@@ -180,6 +179,8 @@ input
 	border: 1px solid #606060;
 	border-radius: 0.5em;
 	vertical-align: middle;
+	font-family: inherit;
+	font-size: inherit;
 }
 
 input[type="submit"]
@@ -202,7 +203,7 @@ input[type="submit"]:hover
 
 input[type="text"]
 {
-	height: auto;
+
 }
 
 textarea
@@ -212,6 +213,8 @@ textarea
 	border: 1px solid #000000;
 	border-radius: 0.5em;
 	padding: 0.5em;
+	font-family: inherit;
+	font-size: inherit;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
 }
@@ -219,7 +222,7 @@ textarea
 .button
 {
         display: inline-block;
-	min-width: 6em;
+	min-width: 4em;
         margin: 0.2em;
         margin-bottom: 0.5em;
         padding: 0.4em;
@@ -245,9 +248,60 @@ a.button:hover
 	text-decoration: none;
 }
 
+.customselect
+{
+	display: inline-block;
+	overflow: hidden;
+	min-width: 10em;
+	margin: 0.2em;
+	padding: 0.4em;
+	color: #000000;
+	background: url(/select_arrow.png) no-repeat right #BBD2E1;
+	border: 1px solid #A0A0A0;
+	border-radius: 0.5em;
+	vertical-align: middle;
+}
+
+.customselect select
+{
+	display: inline-block;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	margin-right: 10px;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	background: transparent;
+	border: none;
+	font-family: inherit;
+	font-size: inherit;
+	text-align: left;
+}
+
+.customselect select, .customselect x:-moz-any-link, .customselect x:default 
+{
+	display: inline-block;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	margin-right: 10px;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	background: transparent;
+	border: none;
+	font-family: inherit;
+	font-size: inherit;
+	text-align: left;
+
+	/* Hack to make browser arrow disappear on Firefox */
+	text-indent: 1px;
+	text-overflow: '';
+}
+
 #leftcolumn #search
 {
-	float: left;
 	width: 100%;
 }
 
@@ -345,6 +399,7 @@ a.button:hover
 {
 	float: left;
 	width: 66%;
+	height: auto;
 	margin: 0;
 	text-align: justify;
 }
@@ -353,11 +408,9 @@ a.button:hover
 {
 	float: left;
 	width: 25%;
-	height: 100%;
+	height: auto;
 	min-width: 320px;
 	max-width: 480px;
-	min-height: 100%;
-	max-height: 1500px;
 	background : transparent;
 	border: none;
 	box-shadow: none;
@@ -383,11 +436,10 @@ a.button:hover
 
 #footer
 {
-	float: left;
 	bottom: 0;
 	left: 0;
 	width: 100%;
-	margin-left: 4px;
+	margin-bottom: 1em;
 	font-size: 0.8em;
 	text-align: center;
 	padding-top: 2em;
@@ -485,88 +537,46 @@ a.button:hover
 
 #newsfeed
 {
+	margin-top: 1em;
+}
+
+#newsfeed .message
+{
+	margin: 0;
+	margin-bottom: 0.5em;
+	padding: 0.5em;
+	max-width: 95%;
+	border: 1px solid black;
+	border-radius: 0.5em;
+}
+
+#newsfeed .message .header
+{
+	display: block;
+}
+
+#newsfeed .message .content
+{
+	display: block;
 	float: left;
-	padding-top: 2px;
-	padding-bottom: 4px;
+}
+
+#newsfeed .message .attachment
+{
+	display: block;
+	float: right;
 }
 
 #optionsnewsfeed
 {
+	float: right;
 	margin: 0.25em;
-	padding: 0;
 	margin-bottom: 0.5em;
-	font-size: 1.2em;
-	font-weight: bold;
-	text-shadow: 2px 2px 1px #A0A0A0;
-}
-
-select
-{
-	background:transparent;
-	font-size:0.75em;
-	float: right;
-	width: 130px;
-	overflow: hidden;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	text-align: left;
-	border: none;
-}
-
-select, x:-moz-any-link, x:default 
-{
-	background: transparent;
-	font-size: 0.75em;
-	float: right;
-	width: 140px;	
-	text-indent: 13px; /* To make browser arrow disappear on Firefox */
-	overflow: hidden;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	text-align: left;
-	border: none;
-}
-
-
-.customselect
-{
-	float: right;
-	width: 130px;
-	height: auto;
-	overflow: hidden;
-	background: url(/select_arrow.png) no-repeat right #BBD2E1;
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
-}
-
-.customselect, x:-moz-any-link
-{
-	width: 115px; /* = (approx.) width of select - text-indent of select */
-}
-
-#statusmessages
-{
-	float: left;
-	margin-left:3px;
-	margin-top:3px;
-	height: auto;
-	width: 95%;
-	overflow-y: auto;
-	padding-top: 2px;
-	padding-bottom: 4px;
-	background-color: rgba(255,255,255,1);
 }
 
 #statuspanel
 {
-	display: table;
-	width: 100%;
-	height: auto;
-	padding-top: 0.5em;
-	padding-bottom: 2em;
-	overflow: hidden;
+
 }
 
 #statuspanel form
@@ -621,50 +631,23 @@ select, x:-moz-any-link, x:default
 
 .message
 {
-	float: left;
-	margin: 1px;
-	width: 90%;
+	display: block;
+	clear: both;
+	overflow: auto;
 	word-wrap: break-word;
 }
 
-div.message
-{
-	padding: 5px;
-	padding-top: 3px;
-	padding-bottom: 3px;
-	padding-left: 1px;
-	padding-right: 1px;
-
-	/* TODO : word overflow */
-}
-
-.oldmessage
-{
-	opacity: 0.7;
-}
-
-.message .button
-{
-	float: right;
-}
-
-.message .content
-{
-
-}
-
-.message .content .date
+.message .date
 {
 	font-size: 0.8em;
-	padding-top: 2px;
-	padding-left: 2px;
 	color: grey;
 }
 
-.message .content .author
+.message .author
 {
 	font-weight: bold;
-	padding-left: 5px;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
 }
 
 .message .attachment
@@ -684,6 +667,16 @@ div.message
 	margin-left: 0.5em;
 }
 
+.message .button
+{
+	float: right;
+}
+
+.oldmessage
+{
+	opacity: 0.7;
+}
+
 .out
 {
 	color: #1010F0;
@@ -694,26 +687,9 @@ div.message
 	color: #F01010; 
 }
 
-.statusdisplay
-{
-	color: #000000;
-	background-color: #FEF86C;
-	padding-top: 3px;
-	padding-bottom: 3px;
-	padding-left: 3px;
-	padding-right: 3px;
-	border: 1px solid white;
-}
-
 .me
 {
-	color: #000000;
-	background-color: #FFFFFF;
-	padding-top: 3px;
-	padding-bottom: 3px;
-	padding-left: 3px;
-	padding-right: 3px;
-	border: 1px solid #FCDC12;
+	background-color: #FEF86C;
 }
 
 .important
@@ -757,12 +733,7 @@ td.delete
 
 #files
 {
-	float: left;
-	height: 15%;
-	min-height: 100px;
-	padding-top: 15px;
-	padding-left: 4px;
-	background-color: rgba(255,255,255,1);
+	margin-bottom: 2em;
 }
 
 .files button
@@ -855,28 +826,17 @@ td.delete
 
 #contacts
 {
-	float: left;
-	margin-left: 0;
-	height: auto;
-	min-height: 200px;
-	max-height: 600px;
-	padding-top: 15px;
-	padding-left: 4px;
-	background-color: rgba(255,255,255,1);
-	color: #000000;
-	overflow: auto;
+	margin-top: 1em;
 }
 
 #contactsTable
 {
-	float: left;
-	margin:0;
+	margin: 0;
 	width: 100%;
 }
 
 .contactstr
 {
-	float: left;
 	clear: both;
 	margin: 0;
 	min-height: 16px;
@@ -1017,7 +977,7 @@ td.delete
 	font-weight: bold;
 	width: auto;
 	display: inline-block;
-	min-width: 6em;
+	
         margin: 0.2em;
         margin-bottom: 0.5em;
         padding: 0.4em;
@@ -1044,8 +1004,6 @@ td.delete
 
 .contactinfo
 {
-	margin-left: 0;
-	float: left;
 	width: 100%;
 	height: 100px;
 	background-color: #FFFFFF;
@@ -1202,25 +1160,41 @@ td.delete
 
 @media screen and (max-width: 790px)
 {
-
+	html, body
+	{
+		margin: 0;
+		padding: 0;
+	}
+	
+	h1
+	{
+		display: block;
+		width: 90%;
+		text-align: center;
+		box-sizing: border-box;
+		-moz-box-sizing: border-box;
+	}
+	
 	#page
 	{
 		width: 100%;
 		margin: 0;
 		padding: 0;
+		overflow-x: hidden;
+		
 	}
 
 	#wrapper 
 	{
 		width: 100%;
 		margin: 0;
+		padding: 0;
 	}
 
 	#leftcolumn
 	{
 		float: none;
 		clear: both;
-		display: block;
 		width: 100%;
 		max-width: 100%;
 		margin-left: auto;
@@ -1231,25 +1205,15 @@ td.delete
 	#rightcolumn 
 	{
 		float: none;
+		display: block;
 		clear: both;
 		display: block;
 		width: 100%;
 		max-width: 100%;
+		margin-top: 0.5em;
 		margin-left: auto;
 		margin-right: auto;
 		padding: 0;
-	}
-	
-	#newsfeed
-	{
-		width: 100%;
-		margin: 0;
-	}
-
-	#statusmessages
-	{
-		width: 100%;
-		margin: 0;
 	}
 
 	#logo
@@ -1264,8 +1228,9 @@ td.delete
 	
 	#statuspanel textarea
 	{
-		border-width: 1px 0px 1px 0px;
-		border-radius: 0;
+		width: 90%;
+		margin-left: auto;
+		margin-right: auto;
 	}
 	
 	.box
@@ -1298,7 +1263,6 @@ td.delete
 
 @media screen and (min-width : 791px) and (max-width : 1024px)
 {
-
 	#wrapper 
 	{
 		max-width: 1024px;
@@ -1308,8 +1272,6 @@ td.delete
 	#leftcolumn
 	{
 		float: none;
-		clear: both;
-		display: block;
 		width: 600px;
 		max-width: 600px;
 		margin-left: auto;
@@ -1320,13 +1282,11 @@ td.delete
 	#rightcolumn 
 	{
 		float: none;
-		clear: both;
-		display: block;
 		width: 600px;
 		max-width: 600px;
+		margin-top: 0.5em;
 		margin-left: auto;
 		margin-right: auto;
-		margin-top: 1em;
 		padding: 0;
 	}
 	

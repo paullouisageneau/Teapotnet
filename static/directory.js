@@ -66,7 +66,7 @@ function listDirectory(url, object, showButtons) {
 				else {
 					var isPlayable;
 					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
-					isPlayable = isPlayableResource(resource.name);
+					isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					//isPlayableDirectory |= isPlayable;
 
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
