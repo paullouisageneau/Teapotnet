@@ -22,7 +22,7 @@
 function getResourceLink(resource) {
 	
 	var basePath = getBasePath();
-	return (resource.hash ? '/' + resource.hash.escape() : 
+	return (resource.digest ? '/' + resource.digest.escape() : 
 		basePath + (resource.contact && basePath != '/'+resource.contact+'/' ? 'contacts/' + resource.contact.escape() : 'myself') 
 		+ '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
 		+ (resource.type == "directory" ? '/' : ''));
