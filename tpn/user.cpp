@@ -112,7 +112,7 @@ User::User(const String &name, const String &password) :
 	if(!mName.isAlphanumeric()) 
 		throw Exception("User name must be alphanumeric");
 	
-	// TODO: backward compatibility
+	// TODO: backward compatibility, should be removed
 	if(File::Exist(profilePath()+"password"))
 		File::Remove(profilePath()+"password");
 	//
@@ -263,18 +263,20 @@ String User::generateToken(const String &action)
 	salt.writeRandom(8);
 
 	ByteString plain;
+	plain.writeBinary(name());
 	plain.writeBinary(action);
 	plain.writeBinary(salt);
-	plain.writeBinary(name());
-	plain.writeBinary(mTokenSecret);
+	SynchronizeStatement(this, plain.writeBinary(mTokenSecret));
 
 	ByteString digest;
 	Sha512::Hash(plain, digest);
-	uint64_t checksum = digest.checksum64();
 	
+	ByteString key;
+	digest.readBinary(key, 8);
+
 	ByteString token;
 	token.writeBinary(salt);	// 8 bytes
-	token.writeBinary(checksum);	// 8 bytes
+	token.writeBinary(key);		// 8 bytes
 	
 	Assert(token.size() == 16);
 	return token;
@@ -290,26 +292,29 @@ bool User::checkToken(const String &token, const String &action)
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("User::checkToken", String("Error parsing token: ") + e.what());
+			LogWarn("User::checkToken", String("Error parsing token: ") + e.what());
+			return false;
 		}
 
 		if(bs.size() == 16)
 		{
-			ByteString salt;
-			uint64_t checksum;
+			ByteString salt, remoteKey;
 			AssertIO(bs.readBinary(salt, 8));
-			AssertIO(bs.readBinary(checksum));
+			AssertIO(bs.readBinary(remoteKey, 8));
 			
 			ByteString plain;
+			plain.writeBinary(name());
 			plain.writeBinary(action);
 			plain.writeBinary(salt);
-			plain.writeBinary(name());
-			plain.writeBinary(mTokenSecret);
+			SynchronizeStatement(this, plain.writeBinary(mTokenSecret));
 			
 			ByteString digest;
 			Sha512::Hash(plain, digest);
 			
-			if(digest.checksum64() == checksum) 
+			ByteString key;
+			digest.readBinary(key, 8);
+
+			if(key == remoteKey) 
 				return true;
 		}
 	}
@@ -594,13 +599,10 @@ void User::http(const String &prefix, Http::Request &request)
 						return false; \n\
 					}\n\
 				});\n\
-				$('#newsfeed').on('blur','textarea', function (e) {\n\
-					$(this).css('display','none');\n\
+				$('#newsfeed').on('blur','.reply', function (e) {\n\
+					$(this).hide();\n\
 				});\n\
-				$('#newsfeed').on('focus','textarea', function (e) {\n\
-					$(this).css('display','block');\n\
-				});\n\
-");
+			");
 			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");

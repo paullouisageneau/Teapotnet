@@ -269,14 +269,6 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 	StringMap rparameters;
 	resource.serialize(rparameters);
 	
-	// TODO: Backward compatibility, should be removed (08/2013) when hash is replaced by digest
-	if(rparameters.contains("digest")) 
-	{
-		rparameters["hash"] = rparameters["digest"];	// hash in parameters is digest in store
-		rparameters.erase("digest");
-	}
-	//
-	
 	if(resource.isDirectory())
 	{
 		rparameters["processing"] = "none";

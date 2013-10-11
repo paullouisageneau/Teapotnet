@@ -277,7 +277,7 @@ void Resource::createQuery(Query &query) const
 
 void Resource::serialize(Serializer &s) const
 {
-	// TODO: WARNING: This will break if serialized to database (wrong type field and digest is called hash)
+	// TODO: WARNING: This will break if serialized to database (wrong type field)
 
 	String strType = (mType == 0 ? "directory" : "file");
 	String tmpName = name();
@@ -297,7 +297,7 @@ void Resource::serialize(Serializer &s) const
 	
 	// Note path is not serialized
 	Serializer::ConstObjectMapping mapping;
-	if(!mDigest.empty()) mapping["hash"] = &mDigest;	// backward compatibility, should be digest
+	if(!mDigest.empty()) mapping["digest"] = &mDigest;
 	if(!mUrl.empty()) mapping["url"] = &mUrl;
 	mapping["name"] = &tmpName;
 	mapping["time"] = &mTime;
@@ -321,9 +321,7 @@ bool Resource::deserialize(Serializer &s)
 	// Note path is not deserialized
 	Serializer::ObjectMapping mapping;
 	mapping["digest"] = &mDigest;
-	mapping["hash"] = &mDigest;	// backward compatibility
 	mapping["url"] = &mUrl;		
-	mapping["path"] = &mUrl;	// backward compatibility
 	mapping["name"] = &tmpName;
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;
@@ -615,7 +613,7 @@ size_t Resource::LocalAccessor::readData(char *buffer, size_t size)
 
 void Resource::LocalAccessor::writeData(const char *data, size_t size)
 {
-	// TODO: check if we have right to modify this resource
+	// TODO: check if we have the right to modify this resource
 	if(mFile->mode() == File::Read)
 		mFile->reopen(File::ReadWrite);
 	
@@ -629,7 +627,7 @@ void Resource::LocalAccessor::seekRead(int64_t position)
 
 void Resource::LocalAccessor::seekWrite(int64_t position)
 {
-	// TODO: check if we have right to modify this resource
+	// TODO: check if we have the right to modify this resource
 	if(mFile->mode() == File::Read)
 		mFile->reopen(File::ReadWrite);
 	

@@ -374,10 +374,10 @@ function setMessagesReceiverRec(url, object, last) {
 				last = message.stamp;
 
 				if(message.public) {
-					var idReply = "replyTo" + id;
+					var idReply = "reply_" + id;
 
 					if(!message.parent) {
-						$(object).prepend('<div class=\"messagewrapper\"><div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span><img src="/reply.png" alt="Reply" class=\"replybutton\" onclick="clickedReply('+idReply+');"></div>' +('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div></div>');
+						$(object).prepend('<div class=\"messagewrapper\"><div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span><a href=\"#\" class=\"button\" onclick="clickedReply('+idReply+');">Reply</a></div>' +('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div></div>');
 					}
 					else {			
 						$('#'+message.parent).parent().append('<div id=\"'+id+'\" class=\"message\"><div class="content"><span class=\"date\">'+formatTime(message.time).escape()+'</span><span class=\"author\">'+message.headers.from.escape()+'</span> <span class=\"content\">'+message.content.escape().smileys().linkify()+'</span></div>'+('attachment' in message.headers ? ' <div class=\"attachment\">Loading attachment...</div>' : '')+'</div>');
@@ -389,7 +389,7 @@ function setMessagesReceiverRec(url, object, last) {
 					if(!message.incoming) $('#'+id).addClass('me');
 
 					// Reply form
-					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"formReplyTo'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"replyTo'+id+'\"></textarea></form> </div>');
+					$('#'+id).parent().append('<div id='+idReply+' class=\"reply\"><form name=\"replyform'+id+'\" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name=\"reply_'+id+'\"></textarea></form></div>');
 				
 				}
 				else {

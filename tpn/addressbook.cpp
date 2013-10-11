@@ -1159,7 +1159,7 @@ void AddressBook::Contact::run(void)
 
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
-	// Send info
+	// Send status and profile
 	mAddressBook->user()->sendStatus(peering);
 	mAddressBook->user()->profile()->send(peering);
 
@@ -1359,10 +1359,6 @@ void AddressBook::Contact::notification(Notification *notification)
 			
 			sendUnread();
 		}
-	}
-	else if(type == "info")	// TODO: backward compatibility, should be removed
-	{
-		// deprecated
 	}
 	else if(type == "status")
 	{
