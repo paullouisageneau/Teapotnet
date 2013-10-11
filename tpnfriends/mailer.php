@@ -30,17 +30,17 @@ function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $i
 	{
 		case MODE_FIRST_REQUEST:
 			$message_txt = "Hi ! This mail was sent to you because a friend request was made to you. id_request is : ".$id_request;
-			$message_html = "<html><head></head><body> Hi ! <br> Someone sent you a TeapotNet friend request.<br> id_request is : ".$id_request."</body></html>";
+			$message_html = "<html><head></head><body>Hi !<br>Someone sent you a TeapotNet friend request.<br>id_request is : ".$id_request."</body></html>";
 			break;
 
 		case MODE_REQUEST_ACCEPTED:
 			$message_txt = "Hi, your friend request has been accepted. id_request_2 est : ".$id_request;
-			$message_html = "<html><head></head><body> Hi !<br> Your friend request has been accepted.<br> id_request_2 is : ".$id_request."</body></html>";
+			$message_html = "<html><head></head><body>Hi !<br>Your friend request has been accepted.<br>id_request_2 is : ".$id_request."</body></html>";
 			break;
 
 		default:
 			$message_txt = "Hi ! This mail was sent to you because a friend request was made to you. id_request is : ".$id_request;
-			$message_html = "<html><head></head><body> Hi ! <br> Someone sent you a TeapotNet friend request.<br> id_request is : ".$id_request."</body></html>";
+			$message_html = "<html><head></head><body> Hi !<br>Someone sent you a TeapotNet friend request.<br>id_request is : ".$id_request."</body></html>";
 			break;
 
 	}
