@@ -282,7 +282,7 @@ size_t Splicer::read(char *buffer, size_t size)
 {
 	mCacheEntry->setAccessTime();
 	
-	if(mRequests.empty()) throw Exception("Splicer is not started");
+	if(!finished() && mRequests.empty()) throw Exception("Splicer is not started");
 	if(!size) return 0;
 	
 	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
