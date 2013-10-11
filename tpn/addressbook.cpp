@@ -538,12 +538,15 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 
-			centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends"; // TODO : change
-			String tpn_id_sender = getSelf()->name()+"@"+getSelf()->tracker();
-			page.openForm(centralizedFriendSystemUrl,"post");
+			String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
+			String postrequest = "postrequest.php";
+			String secretgen = "secretgen.php";
+			String tpn_id = user()->name()+"@"+user()->tracker();
+
+			page.openForm(centralizedFriendSystemUrl+postrequest,"post");
 			page.openFieldset("Add contact - method 2");
 			// No possibility to check post by token here
-			page.input("hidden", "tpn_id_sender", tpn_id_sender);
+			page.input("hidden", "tpn_id_sender", tpn_id);
 			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
 			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
 			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
@@ -554,11 +557,62 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
 
-			// TODO : From dealing with : if received a confirmation in mail, paste link and send.
-			// Distinguish between step 2 or 3
-			// Is to be written in AJAX
+			// TODO : Form dealing with : if received a confirmation in mail, paste link and send.
+			// Is not a form because URL is input by user => AJAX
 
+			// TODO : get parameters that are to be posted
+			page.open("div","acceptrequest.box");
+			page.open("h2");
+			page.text("Accept request");
+			page.close("h2");
+			page.input("text","posturl");
+			page.button("postfriendrequest","Go !"); // Acceptable to have a button here ? (is not technically a form but almost...)
+			page.close("div");
 
+			page.javascript("//TODO : checks validity of input url \n\
+					// TODO : Check && Distinguish between step 2 or 3 \n\
+					var checkUrl = false; \n\
+					if(checkUrl)  \n\
+						checkInputUrl();  \n\
+					function isValidUrl() // TODO \n\
+					{\n\
+						var returnBool = false; \n\
+						var str = getInputUrl(); \n\
+						var strlen = str.length;\n\
+						returnBool = ( (str.substring(0,26) == '"+centralizedFriendSystemUrl+"' && ()) ? true : false); \n\
+						//$('#acceptrequest h2').html(str.substring(0,25)); // Just for debugging \n\
+						return returnBool; \n\
+					}\n\
+					function getInputUrl() \n\
+					{ \n\
+						return $('#acceptrequest .posturl').val(); \n\
+					} \n\
+					function checkInputUrl() \n\
+					{ \n\
+						if(isValidUrl()) \n\
+							$('#acceptrequest .posturl').css('background-color', 'green'); \n\
+						else \n\
+							$('#acceptrequest .posturl').css('background-color', 'red') \n\
+						setTimeout(function() { \n\
+							if(checkUrl) { \n\
+								checkInputUrl(); }\n\
+							else {\n\
+								$('#acceptrequest .posturl').val(''); $('#acceptrequest .posturl').css('background', 'none'); return; }\n\
+						}, 200); \n\
+					} \n\
+					// TODO : on click on button 'Go !', post url with requested parameters \n\
+					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkInputUrl(); }); \n\
+					$('#acceptrequest .posturl').blur(function() { checkUrl = false; }); \n\
+					$('#acceptrequest .postfriendrequest').click(function() { \n\
+						var posturl; \n\
+						if(isValidUrl())\n\
+							posturl = getInputUrl();\n\
+						/*$.post( posturl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
+						.done(function( data ) {\n\
+								//TODO\n\
+							});*/\n\
+					}); \n\
+					");
 			
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");

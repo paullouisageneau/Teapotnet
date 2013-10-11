@@ -8,16 +8,17 @@
 include_once("dbfunctions.php");
 include_once("mailer.php");
 
-	// TODO : tpn_id of receiver is sent by POST on an url with id_request as GET parameter
+	// tpn_id of receiver is sent by POST on an url with id_request as GET parameter
 	// (not designed for security, but more for avoiding basic users mistakes)
 
 	// TODO : also check if request hasn't been accepted yet
 
-	$tpn_id_receiver = "groboloss@teapotnet.org"; // Just for tests
+	//$tpn_id_receiver = "groboloss@teapotnet.org"; // Just for tests
 
-	if(isset($_GET['id_request'])) // and $_POST tpn_id of receiver
+	if(isset($_GET['id_request']) && isset($_POST['tpn_id_receiver']))
 	{
 		$id_request = $_GET['id_request'];
+		$tpn_id_receiver = $_POST['tpn_id_receiver'];
 
 		try {
 			$bdd = dbConnect();
@@ -28,7 +29,7 @@ include_once("mailer.php");
 			return;
 		}
 
-		$req = $bdd->prepare("SELECT tpn_id_sender, date_proposed, name_receiver, mail_receiver, mail_sender  FROM teapot.tpn_requests WHERE (id_request = ?);");
+		$req = $bdd->prepare("SELECT tpn_id_sender, date_proposed, name_receiver, mail_receiver, mail_sender, date_accepted_1 FROM teapot.tpn_requests WHERE (id_request = ?);");
 		$req->execute(array($id_request)) 
 		or die(print_r($req->errorInfo())
 		);
@@ -42,6 +43,7 @@ include_once("mailer.php");
 			$name_receiver = $data['name_receiver'];
 			$mail_receiver = $data['mail_receiver'];
 			$mail_sender = $data['mail_sender'];
+			$date_accepted_1 = $data['date_accepted_1'];
 			echo $tpn_id_sender;
 		}
 
@@ -53,7 +55,13 @@ include_once("mailer.php");
 		else
 		{
 
-			// Check if first friend request is not too old or TODO : hasn't already been accepted
+			// Check if first friend request is not too old or hasn't already been accepted
+			if($date_accepted_1 > 0) // TODO : check if this works.
+			{
+				echo 'Request has already been accepted.';
+				return;
+			}
+
 			$date_accepted_1 = date('Y-m-d H:i:s');
 			$d1 = new DateTime($date_proposed);
 			$d2 = new DateTime($date_accepted_1);
