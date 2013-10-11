@@ -59,6 +59,7 @@ bool Store::Get(const ByteString &digest, Resource &resource)
 	resource.clear();
 	resource.mDigest = digest;
 	resource.mPath = path;
+	resource.mUrl = path.afterLast(Directory::Separator);	// this way the name is available
 	resource.mSize = File::Size(path);
 	resource.mTime = File::Time(path);
 	resource.mStore = Store::GlobalInstance;
