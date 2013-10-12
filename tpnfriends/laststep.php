@@ -6,6 +6,8 @@
 	/*** connects to this page to get receiver's ***/
 	/*** info. Connection is complete.           ***/
 	/***********************************************/
+
+include_once("echoes.php");
 include_once("dbfunctions.php");
 
 	// id_request_2 is sent by get (id_request), and tpn_send id as post just to be sure
@@ -74,13 +76,13 @@ include_once("dbfunctions.php");
 		}
 		else
 		{
-			echo 'Your friend request has been accepted too long ago !';
+			echo REQUEST_TOO_OLD;
 		}
 		
 	}
 	else
 	{
-		echo 'Invalid address';
+		echo INVALID_ADDRESS;
 	}
 
 

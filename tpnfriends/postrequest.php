@@ -6,6 +6,7 @@
 	/*** 	Mail is sent to receiver.            ***/
 	/***********************************************/
 
+include_once("echoes.php");
 include_once("dbfunctions.php");
 include_once("mailer.php");
 

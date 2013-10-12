@@ -654,12 +654,17 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							} \n\
 							var idrequest = getIdRequest(str); \n\
 							postUrl += idrequest; \n\
-							alert(postUrl); \n\
-						} \n\
-						$.post( postUrl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
-						.done(function( data ) {\n\
+							//alert(postUrl); \n\
+							$.post( postUrl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
+							.done(function(data) {\n\
 								alert(data);\n\
-							});\n\
+							}) \n\
+							.fail(function() { alert('error'); });\n\
+						} \n\
+						else \n\
+						{ \n\
+							alert('Invalid address'); \n\
+						}\n\
 					}); \n\
 					");
 			

@@ -10,6 +10,8 @@ define("MODE_REQUEST_ACCEPTED", 2, true);
 define("FIRST_REQUEST_PREFIX",1005,true);
 define("REQUEST_ACCEPTED_PREFIX",1921,true);
 
+include_once("echoes.php");
+
 function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $id_request, $mode)
 {
 

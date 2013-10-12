@@ -5,6 +5,7 @@
 	/*** info. Mail is sent back to sender     ***/
 	/*********************************************/
 
+include_once("echoes.php");
 include_once("dbfunctions.php");
 include_once("mailer.php");
 
@@ -42,13 +43,13 @@ include_once("mailer.php");
 			$mail_receiver = $data['mail_receiver'];
 			$mail_sender = $data['mail_sender'];
 			$date_accepted_1 = $data['date_accepted_1'];
-			echo $tpn_id_sender;
+			//echo $tpn_id_sender;
 		}
 
 		// Case empty
 		if($tpn_id_sender == '')
 		{
-			echo 'Empty request. Try again !';
+			echo EMPTY_REQUEST;
 		}
 		else
 		{
@@ -56,7 +57,7 @@ include_once("mailer.php");
 			// Check if first friend request is not too old or hasn't already been accepted
 			if($date_accepted_1 > 0) // TODO : check if this works.
 			{
-				echo 'Request has already been accepted.';
+				echo REQUEST_ALREADY_ACCEPTED;
 				return;
 			}
 
@@ -85,18 +86,20 @@ include_once("mailer.php");
 					$name_receiver = 'TeapotNet';
 
 				sendFriendRequestMail($name_receiver, $mail_receiver, $mail_sender, $id_request_2, MODE_REQUEST_ACCEPTED);
+
+				echo SUCCESS;
 				
 			}
 			else
 			{
-				echo 'Request is too old !';
+				echo REQUEST_TOO_OLD;
 			}
 		}
 
 	}
 	else
 	{
-		echo 'Please specify a mail address for sender and a request id';
+		echo SPECIFY_MAIL;
 	}
 
 ?>

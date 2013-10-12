@@ -4,6 +4,8 @@
 	/***********************************************/
 	/***   Last step : drop line used in db ********/
 	/***********************************************/
+
+include_once("echoes.php");
 include_once("dbfunctions.php");
 
 	// Tpn instance of sender posts id_request_2, his tpn address and his friend's address
