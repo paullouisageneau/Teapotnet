@@ -674,9 +674,8 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix+"/","post");
 				page.openFieldset("New directory");
 				page.label("name","Name"); page.input("text","name"); page.br();
-				page.label("add"); page.button("add","Create directory"); page.br();
-				page.br();
-				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory", ".button"); page.br();
+				page.label("add"); page.button("add","Create directory");
+				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory", ".button"); 
 				page.br();
 				page.closeFieldset();
 				page.closeForm();

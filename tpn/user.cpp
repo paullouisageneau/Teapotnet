@@ -353,7 +353,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","search");
 			page.openForm(prefix + "/search", "post", "searchForm");
 			//page.button("search","Search");
-			page.input("text","query");
+			page.input("text","query", "Search for files...");
 			page.closeForm();
 			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
 			page.javascript("$(document).ready(function() { document.searchForm.query.style.color = 'grey'; });");
