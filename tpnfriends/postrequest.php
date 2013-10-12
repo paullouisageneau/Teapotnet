@@ -21,6 +21,11 @@ include_once("mailer.php");
 	if(isset($_POST['name_sender']) && isset($_POST['tpn_id_sender']) && isset($_POST['mail_sender']) && isset($_POST['mail_receiver']))
 	{
 
+		$name_sender = $_POST['name_sender'];
+		$tpn_id_sender = $_POST['tpn_id_sender'];
+		$mail_sender = $_POST['mail_sender'];
+		$mail_receiver = $_POST['mail_receiver'];
+
 		if(isset($_POST['name_receiver'])) 
 			$name_receiver = $_POST['name_receiver'];
 		else
@@ -59,9 +64,9 @@ include_once("mailer.php");
 			// Current time:
 			$date_proposed = date('Y-m-d H:i:s');
 
-			$req = $bdd->prepare("INSERT INTO `teapot`.`tpn_requests` (`tpn_id_sender`,`mail_sender` ,`mail_receiver` ,`id_request`, `date_proposed`, `name_receiver`)
-		VALUES (?,?,?,?,?,?);");
-			$req->execute(array($tpn_id_sender,$mail_sender ,$mail_receiver ,$id_request, $date_proposed, $name_receiver)) 
+			$req = $bdd->prepare("INSERT INTO `teapot`.`tpn_requests` (`tpn_id_sender`,`mail_sender` ,`mail_receiver` ,`id_request`, `date_proposed`, `name_receiver`, `name_sender`)
+		VALUES (?,?,?,?,?,?,?);");
+			$req->execute(array($tpn_id_sender,$mail_sender ,$mail_receiver ,$id_request, $date_proposed, $name_receiver, $name_sender)) 
 					or die(print_r($req->errorInfo())
 					);
 

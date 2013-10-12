@@ -8,17 +8,15 @@
 	/***********************************************/
 include_once("dbfunctions.php");
 
-	// TODO :id_request_2 is sent by get (id_request), and tpn_send id as post just to be sure
+	// id_request_2 is sent by get (id_request), and tpn_send id as post just to be sure
 
-	// TODO : also check if request hasn't been accepted yet
+	//$tpn_id_sender = "jotun@teapotnet.org"; // Just for tests
 
-	$tpn_id_sender = "jotun@teapotnet.org"; // Just for tests
-
-	if(isset($_GET['id_request'])) // TODO : and POST
+	if(isset($_GET['id_request']) && isset($_POST['tpn_id_sender']))
 	{
 		$id_request_2 = $_GET['id_request'];
-		//$tpn_id_sender = $_POST['tpn_id_sender'];
-
+		$tpn_id_sender = $_POST['tpn_id_sender'];
+	
 
 		// Get dates
 		$date_last_step = date('Y-m-d H:i:s');

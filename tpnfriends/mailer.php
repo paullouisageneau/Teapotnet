@@ -7,6 +7,9 @@ ini_set('smtp_port', 25);
 define("MODE_FIRST_REQUEST", 1, true);
 define("MODE_REQUEST_ACCEPTED", 2, true);
 
+define("FIRST_REQUEST_PREFIX",1005,true);
+define("REQUEST_ACCEPTED_PREFIX",1921,true);
+
 function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $id_request, $mode)
 {
 

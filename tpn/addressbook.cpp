@@ -539,8 +539,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeForm();
 
 			String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
+			int lengthUrl = centralizedFriendSystemUrl.length();
 			String postrequest = "postrequest.php";
 			String secretgen = "secretgen.php";
+			String laststep = "laststep.php";
+			String finalize = "finalize.php";
 			String tpn_id = user()->name()+"@"+user()->tracker();
 
 			page.openForm(centralizedFriendSystemUrl+postrequest,"post");
@@ -571,19 +574,50 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			page.javascript("//TODO : checks validity of input url \n\
 					// TODO : Check && Distinguish between step 2 or 3 \n\
+					var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
+					var lengthUrl = centralizedFriendSystemUrl.length; \n\
+					// Define prefixes sent in mail\n\
+					var FIRST_REQUEST_PREFIX = '1005';\n\
+					var REQUEST_ACCEPTED_PREFIX = '1921'; \n\
 					var checkUrl = false; \n\
 					if(checkUrl)  \n\
 						checkInputUrl();  \n\
 					function isValidUrl() // TODO \n\
 					{\n\
 						var returnBool = false; \n\
-						var str = getInputUrl(); \n\
+						var str = getInputText(); \n\
 						var strlen = str.length;\n\
-						returnBool = ( (str.substring(0,26) == '"+centralizedFriendSystemUrl+"' && ()) ? true : false); \n\
-						//$('#acceptrequest h2').html(str.substring(0,25)); // Just for debugging \n\
+						returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-48,strlen-32) == '.php?id_request=')) ? true : false); \n\
+						returnBool |= ( ((str.substring(0,4) == FIRST_REQUEST_PREFIX || str.substring(0,4) == REQUEST_ACCEPTED_PREFIX) && (strlen == 36)) ? true : false ); \n\
+						//$('#acceptrequest h2').html((str.substring(strlen-48,strlen-32))); // Just for debug \n\
 						return returnBool; \n\
 					}\n\
-					function getInputUrl() \n\
+					function getIdRequest(str) \n\
+					{ \n\
+						var idrequest = ''; \n\
+						var strlen = str.length; \n\
+						// Assumes str is valid text input \n\
+						idrequest = str.substring(strlen-32,strlen); \n\
+						return idrequest; \n\
+					} \n\
+					function getMethod(str) \n\
+					{ \n\
+						var method = '0'; \n\
+						var strlen = str.length; \n\
+						if((str.substring(0,4) == FIRST_REQUEST_PREFIX || str.substring(0,4) == REQUEST_ACCEPTED_PREFIX) && (strlen == 36)) \n\
+							return str.substring(0,4); \n\
+						if(str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-48,strlen-32) == '.php?id_request=')) \n\
+						{ \n\
+							if(str.substring(lengthUrl, strlen-48)=='secretgen') \n\
+								method = FIRST_REQUEST_PREFIX; \n\
+							else if(str.substring(lengthUrl, strlen-48)=='laststep') \n\
+								method = REQUEST_ACCEPTED_PREFIX; \n\
+							else \n\
+								method = '-1'; \n\
+						} \n\
+						return method; \n\
+					} \n\
+					function getInputText() \n\
 					{ \n\
 						return $('#acceptrequest .posturl').val(); \n\
 					} \n\
@@ -604,13 +638,28 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkInputUrl(); }); \n\
 					$('#acceptrequest .posturl').blur(function() { checkUrl = false; }); \n\
 					$('#acceptrequest .postfriendrequest').click(function() { \n\
-						var posturl; \n\
+						var postUrl = centralizedFriendSystemUrl; \n\
 						if(isValidUrl())\n\
-							posturl = getInputUrl();\n\
-						/*$.post( posturl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
+						{ \n\
+							//alert('isValidUrl'); // TODO : remove\n\
+							var str = getInputText();\n\
+							if(getMethod(str) == FIRST_REQUEST_PREFIX) \n\
+								postUrl += 'secretgen.php?id_request='; \n\
+							else if (getMethod(str) == REQUEST_ACCEPTED_PREFIX) \n\
+								postUrl += 'laststep.php?id_request='; \n\
+							else \n\
+							{ \n\
+								alert('Impossible to proceed'); \n\
+								return; \n\
+							} \n\
+							var idrequest = getIdRequest(str); \n\
+							postUrl += idrequest; \n\
+							alert(postUrl); \n\
+						} \n\
+						$.post( postUrl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
 						.done(function( data ) {\n\
-								//TODO\n\
-							});*/\n\
+								alert(data);\n\
+							});\n\
 					}); \n\
 					");
 			

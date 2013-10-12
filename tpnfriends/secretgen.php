@@ -11,8 +11,6 @@ include_once("mailer.php");
 	// tpn_id of receiver is sent by POST on an url with id_request as GET parameter
 	// (not designed for security, but more for avoiding basic users mistakes)
 
-	// TODO : also check if request hasn't been accepted yet
-
 	//$tpn_id_receiver = "groboloss@teapotnet.org"; // Just for tests
 
 	if(isset($_GET['id_request']) && isset($_POST['tpn_id_receiver']))
