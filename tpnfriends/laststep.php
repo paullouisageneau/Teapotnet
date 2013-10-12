@@ -10,14 +10,17 @@
 include_once("echoes.php");
 include_once("dbfunctions.php");
 
+// Allow cross-origin dialog
+header("Access-Control-Allow-Origin: *");
+
 	// id_request_2 is sent by get (id_request), and tpn_send id as post just to be sure
 
 	//$tpn_id_sender = "jotun@teapotnet.org"; // Just for tests
 
-	if(isset($_GET['id_request']) && isset($_POST['tpn_id_sender']))
+	if(isset($_GET['id_request']) && isset($_POST['tpn_id']))
 	{
 		$id_request_2 = $_GET['id_request'];
-		$tpn_id_sender = $_POST['tpn_id_sender'];
+		$tpn_id_sender = $_POST['tpn_id'];
 	
 
 		// Get dates
@@ -71,8 +74,9 @@ include_once("dbfunctions.php");
 			
 
 			// Output in json :
-			$output = array("secret" => $secret, "tpn_id_receiver" => $tpn_id_receiver);
+			$output = array("secret" => $secret, "tpn_id" => $tpn_id_receiver);
 			echo json_encode($output, JSON_PRETTY_PRINT);
+			//echo SUCCESS;
 		}
 		else
 		{

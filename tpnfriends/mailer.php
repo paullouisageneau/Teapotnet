@@ -34,18 +34,18 @@ function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $i
 	switch($mode)
 	{
 		case MODE_FIRST_REQUEST:
-			$message_txt = "Hi ! This mail was sent to you because a friend request was made to you. id_request is : ".$id_request;
-			$message_html = "<html><head></head><body>Hi !<br>Someone sent you a TeapotNet friend request.<br>id_request is : ".$id_request."</body></html>";
+			$message_txt = "Someone sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet : ".FIRST_REQUEST_PREFIX.$id_request.". If you want more information on TeapotNet, you can visit http://teapotnet.org. Sincerely, The TeapotNet Team";
+			$message_html = "<html><head></head><body>Hi !<br>Someone sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet :<br>".FIRST_REQUEST_PREFIX.$id_request."<br>If you have installed the TeapotNet plugin for your browser, you can just click on this link :<br>BOZ<br>If you want more information on TeapotNet, you can visit <a href='http://teapotnet.org'>TeapotNet</a><br>Sincerely,<br>The TeapotNet Team</body></html>";
 			break;
 
 		case MODE_REQUEST_ACCEPTED:
-			$message_txt = "Hi, your friend request has been accepted. id_request_2 est : ".$id_request;
-			$message_html = "<html><head></head><body>Hi !<br>Your friend request has been accepted.<br>id_request_2 is : ".$id_request."</body></html>";
+			$message_txt = "Hi ! Your friend request has been accepted. To finalize connection with your friend, just paste the following code in the 'Accept Request' section of your TeapotNet : ".REQUEST_ACCEPTED_PREFIX.$id_request.". Sincerely,<br>The TeapotNet Team";
+			$message_html = "<html><head></head><body>Hi !<br>Your friend request has been accepted. To finalize connection with your friend, just paste the following code in the 'Accept Request' section of your TeapotNet :<br>".REQUEST_ACCEPTED_PREFIX.$id_request."<br>If you have installed the TeapotNet plugin for your browser, you can just click on this link :<br>BOZ<br>Sincerely,<br>The TeapotNet Team</body></html>";
 			break;
 
 		default:
-			$message_txt = "Hi ! This mail was sent to you because a friend request was made to you. id_request is : ".$id_request;
-			$message_html = "<html><head></head><body> Hi !<br>Someone sent you a TeapotNet friend request.<br>id_request is : ".$id_request."</body></html>";
+			$message_txt = "Someone sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet : ".FIRST_REQUEST_PREFIX.$id_request."If you want more information on TeapotNet, you can visit http://teapotnet.org. Sincerely, The TeapotNet Team";
+			$message_html = "<html><head></head><body>Hi !<br>Someone sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet :<br>".FIRST_REQUEST_PREFIX.$id_request."<br>If you have installed the TeapotNet plugin for your browser, you can just click on this link :<br>BOZ<br>If you want more information on TeapotNet, you can visit <a href='http://teapotnet.org'>TeapotNet</a><br>Sincerely,<br>The TeapotNet Team</body></html>";
 			break;
 
 	}
@@ -110,11 +110,11 @@ function sendMail($subject, $name_sender, $mail_sender, $mail_destination, $mess
 	$result = mail($mail,$subject,$message,$header);
 	if($result)
 	{
-		echo 'Mail was successfully sent to : '.$mail_destination;
+		//echo 'Mail was successfully sent to : '.$mail_destination;
 	}
 	else
 	{
-		echo 'Failure in sending the mail.';
+		echo FAILURE;
 	}
 	//==========
 }

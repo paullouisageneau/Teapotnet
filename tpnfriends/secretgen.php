@@ -9,15 +9,18 @@ include_once("echoes.php");
 include_once("dbfunctions.php");
 include_once("mailer.php");
 
+// Allow cross-origin dialog
+header("Access-Control-Allow-Origin: *");
+
 	// tpn_id of receiver is sent by POST on an url with id_request as GET parameter
 	// (not designed for security, but more for avoiding basic users mistakes)
 
 	//$tpn_id_receiver = "groboloss@teapotnet.org"; // Just for tests
 
-	if(isset($_GET['id_request']) && isset($_POST['tpn_id_receiver']))
+	if(isset($_GET['id_request']) && isset($_POST['tpn_id']))
 	{
 		$id_request = $_GET['id_request'];
-		$tpn_id_receiver = $_POST['tpn_id_receiver'];
+		$tpn_id_receiver = $_POST['tpn_id'];
 
 		try {
 			$bdd = dbConnect();
@@ -28,7 +31,7 @@ include_once("mailer.php");
 			return;
 		}
 
-		$req = $bdd->prepare("SELECT tpn_id_sender, date_proposed, name_receiver, mail_receiver, mail_sender, date_accepted_1 FROM teapot.tpn_requests WHERE (id_request = ?);");
+		$req = $bdd->prepare("SELECT tpn_id_sender, date_proposed, name_receiver, mail_receiver, mail_sender, date_accepted_1, secret FROM teapot.tpn_requests WHERE (id_request = ?);");
 		$req->execute(array($id_request)) 
 		or die(print_r($req->errorInfo())
 		);
@@ -43,6 +46,7 @@ include_once("mailer.php");
 			$mail_receiver = $data['mail_receiver'];
 			$mail_sender = $data['mail_sender'];
 			$date_accepted_1 = $data['date_accepted_1'];
+			$secret = $data['secret'];
 			//echo $tpn_id_sender;
 		}
 
@@ -54,13 +58,18 @@ include_once("mailer.php");
 		else
 		{
 
-			// Check if first friend request is not too old or hasn't already been accepted
-			if($date_accepted_1 > 0) // TODO : check if this works.
+			$already_accepted = false;
+			
+			if($date_accepted_1 > 0)
 			{
-				echo REQUEST_ALREADY_ACCEPTED;
-				return;
+				//echo REQUEST_ALREADY_ACCEPTED;
+				//return;
+
+				// We just dont regenerate id_request_2 and send mail if it has already been accepted
+				$already_accepted = true;
 			}
 
+			// Check if first friend request is not too old
 			$date_accepted_1 = date('Y-m-d H:i:s');
 			$d1 = new DateTime($date_proposed);
 			$d2 = new DateTime($date_accepted_1);
@@ -68,13 +77,15 @@ include_once("mailer.php");
 
 			if($time_between->d < 1) // Less than 24 hours
 			{
-				// Generate secret :
-				$secret = md5(rand());
-				// Generate another id_request (necessity is questionable)
 
-				$id_request_2 = md5(rand());
+				if(!$already_accepted)
+				{
+					// Generate secret :
+					$secret = md5(rand());
+					// Generate another id_request (necessity is questionable)
+
+					$id_request_2 = md5(rand());
 			
-
 				// Record tpn_id of receiver in db and send mail to sender (with id_request)
 				$req = $bdd->prepare("UPDATE `teapot`.`tpn_requests` SET secret = ?, date_accepted_1 = ?, id_request_2 = ?, tpn_id_receiver = ? WHERE (id_request = ?);");
 				$req->execute(array($secret, $date_accepted_1, $id_request_2, $tpn_id_receiver, $id_request)) 
@@ -86,8 +97,12 @@ include_once("mailer.php");
 					$name_receiver = 'TeapotNet';
 
 				sendFriendRequestMail($name_receiver, $mail_receiver, $mail_sender, $id_request_2, MODE_REQUEST_ACCEPTED);
+				}
 
-				echo SUCCESS;
+				// Echoes secret and tpn_id of sender to receiver
+				$output = array("secret" => $secret, "tpn_id" => $tpn_id_sender);
+				echo json_encode($output, JSON_PRETTY_PRINT);
+				//echo SUCCESS;
 				
 			}
 			else

@@ -7,5 +7,6 @@ define("SPECIFY_MAIL",13,true);
 define("REQUEST_TOO_OLD",14,true);
 define("INVALID_ADDRESS",15,true);
 define("SUCCESS",16,true);
+define("FAILURE",17,true);
 
 ?>

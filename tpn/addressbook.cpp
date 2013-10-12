@@ -538,6 +538,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 
+
 			String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
 			int lengthUrl = centralizedFriendSystemUrl.length();
 			String postrequest = "postrequest.php";
@@ -546,9 +547,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			String finalize = "finalize.php";
 			String tpn_id = user()->name()+"@"+user()->tracker();
 
+			// TODO : Form in javascript
 			page.openForm(centralizedFriendSystemUrl+postrequest,"post");
 			page.openFieldset("Add contact - method 2");
-			// No possibility to check post by token here
 			page.input("hidden", "tpn_id_sender", tpn_id);
 			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
 			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
@@ -558,23 +559,17 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 
+
 			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
-
-			// TODO : Form dealing with : if received a confirmation in mail, paste link and send.
-			// Is not a form because URL is input by user => AJAX
-
-			// TODO : get parameters that are to be posted
 			page.open("div","acceptrequest.box");
 			page.open("h2");
 			page.text("Accept request");
 			page.close("h2");
 			page.input("text","posturl");
-			page.button("postfriendrequest","Go !"); // Acceptable to have a button here ? (is not technically a form but almost...)
+			page.button("postfriendrequest","Go !"); 
 			page.close("div");
 
-			page.javascript("//TODO : checks validity of input url \n\
-					// TODO : Check && Distinguish between step 2 or 3 \n\
-					var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
+			page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
 					var lengthUrl = centralizedFriendSystemUrl.length; \n\
 					// Define prefixes sent in mail\n\
 					var FIRST_REQUEST_PREFIX = '1005';\n\
@@ -582,7 +577,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var checkUrl = false; \n\
 					if(checkUrl)  \n\
 						checkInputUrl();  \n\
-					function isValidUrl() // TODO \n\
+					function isValidUrl()\n\
 					{\n\
 						var returnBool = false; \n\
 						var str = getInputText(); \n\
@@ -634,14 +629,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								$('#acceptrequest .posturl').val(''); $('#acceptrequest .posturl').css('background', 'none'); return; }\n\
 						}, 200); \n\
 					} \n\
-					// TODO : on click on button 'Go !', post url with requested parameters \n\
 					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkInputUrl(); }); \n\
-					$('#acceptrequest .posturl').blur(function() { checkUrl = false; }); \n\
+					$('#acceptrequest .posturl').blur(function() { setTimeout(function() {}, 600); checkUrl = false; }); \n\
 					$('#acceptrequest .postfriendrequest').click(function() { \n\
 						var postUrl = centralizedFriendSystemUrl; \n\
 						if(isValidUrl())\n\
 						{ \n\
-							//alert('isValidUrl'); // TODO : remove\n\
 							var str = getInputText();\n\
 							if(getMethod(str) == FIRST_REQUEST_PREFIX) \n\
 								postUrl += 'secretgen.php?id_request='; \n\
@@ -654,10 +647,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							} \n\
 							var idrequest = getIdRequest(str); \n\
 							postUrl += idrequest; \n\
-							//alert(postUrl); \n\
-							$.post( postUrl, { tpn_id_receiver: \""+tpn_id+"\"})\n\
+							$.post( postUrl, { tpn_id: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
-								alert(data);\n\
+								// TODO : if not JSON output because of errors \n\
+								var arr = $.parseJSON(data); \n\
+								var secret = arr['secret'];\n\
+								var tpnid = arr['tpn_id']; \n\
+								addContact(tpnid, secret); \n\
 							}) \n\
 							.fail(function() { alert('error'); });\n\
 						} \n\
@@ -666,8 +662,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							alert('Invalid address'); \n\
 						}\n\
 					}); \n\
+					function addContact(tpnid, secret) { \n\
+						$.post(\""+prefix+"/"+"\", { name: tpnid, secret: secret, token: \""+token+"\"}); \n\
+					} \n\
 					");
 			
+
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");
 			page.input("hidden", "token", token);

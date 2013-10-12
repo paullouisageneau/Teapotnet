@@ -74,6 +74,8 @@ include_once("mailer.php");
 
 			// Send e-mail to other guy
 			sendFriendRequestMail($name_sender, $mail_sender, $mail_receiver, $id_request, MODE_FIRST_REQUEST);
+
+			include("infopost.php");
 		}
 		else
 		{
