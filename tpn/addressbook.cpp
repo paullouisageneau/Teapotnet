@@ -539,6 +539,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeForm();
 
 
+			// Parameters that are to be sent in friend request
 			String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
 			int lengthUrl = centralizedFriendSystemUrl.length();
 			String postrequest = "postrequest.php";
@@ -548,16 +549,73 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			String tpn_id = user()->name()+"@"+user()->tracker();
 
 			// TODO : Form in javascript
-			page.openForm(centralizedFriendSystemUrl+postrequest,"post");
+			/*page.openForm(centralizedFriendSystemUrl+postrequest,"post");
 			page.openFieldset("Add contact - method 2");
-			page.input("hidden", "tpn_id_sender", tpn_id);
+			page.input("hidden", "tpn_id_sender", tpn_id);*/
+			page.open("div","sendrequest.box");
+			page.open("h2");
+			page.text("Send friend request");
+			page.close("h2");
 			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
 			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
 			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("add"); page.button("add","Send invitation");
-			page.closeFieldset();
-			page.closeForm();
+			/*page.closeFieldset();
+			page.closeForm();*/
+			page.close("div");
+
+			page.javascript("var checkMailSender = false; \n\
+					var checkMailReceiver = false; \n\
+					var mailSenderObject = $('#sendrequest .mail_sender'); \n\
+					var mailReceiverObject = $('#sendrequest .mail_receiver'); \n\
+					if(checkMailSender)  \n\
+						checkForm($('#sendrequest .mail_sender'), isValidMail);  \n\
+					if(checkMailReceiver)  \n\
+						checkForm($('#sendrequest .mail_receiver'), isValidMail);  \n\
+					// TODO : could be less ugly with dedicated class (see further)\n\
+					mailSenderObject.focus(function() { checkMailSender = true; checkForm(mailSenderObject, isValidMail); }); \n\
+					mailSenderObject.blur(function() { setTimeout(function() {}, 1000); checkMailSender = false; }); \n\
+					mailReceiverObject.focus(function() { checkMailReceiver = true; checkForm(mailReceiverObject, isValidMail); }); \n\
+					mailReceiverObject.blur(function() { setTimeout(function() {}, 1000); checkMailReceiver = false; }); \n\
+					function isValidMail(object) \n\
+					{ \n\
+						var str = getInputText(object); \n\
+						var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); \n\
+						return mailRegex.test(str); \n\
+					} \n\
+					function getInputText(object) \n\
+					{ \n\
+						return object.val(); \n\
+					} \n\
+					// TODO : would be better off with Object 'checkForm' and check on global variable check belonging to this Object \n\
+					function contCheck(object) \n\
+					{ \n\
+						if(object.is($('#acceptrequest .posturl'))) \n\
+							return checkUrl; \n\
+						if(object.is($('#sendrequest .mail_sender'))) \n\
+							return checkMailSender; \n\
+						if(object.is($('#sendrequest .mail_receiver'))) \n\
+							return checkMailReceiver; \n\
+						return false; \n\
+					} \n\
+					function checkForm(object, isValid) \n\
+					{ \n\
+						if(isValid(object)) \n\
+							object.css('background-color', 'green'); \n\
+						else \n\
+							object.css('background-color', 'red') \n\
+						setTimeout(function() { \n\
+							if(contCheck(object)) { \n\
+								checkForm(object, isValid); }\n\
+							else {\n\
+								//object.val(''); \n\
+								if(object.val()=='') \n\
+									object.css('background', 'none'); \n\
+								return; }\n\
+						}, 200); \n\
+					} \n\
+					");
 
 
 			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
@@ -578,11 +636,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var idLength = 32; \n\
 					var checkUrl = false; \n\
 					if(checkUrl)  \n\
-						checkInputUrl();  \n\
-					function isValidUrl()\n\
+						checkForm($('#acceptrequest .posturl'), isValidUrl);  \n\
+					function isValidUrl(object)\n\
 					{\n\
 						var returnBool = false; \n\
-						var str = getInputText(); \n\
+						var str = getInputText(object); \n\
 						var strlen = str.length;\n\
 						returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) ? true : false); \n\
 						returnBool |= ( ((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) ? true : false ); \n\
@@ -614,30 +672,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						} \n\
 						return method; \n\
 					} \n\
-					function getInputText() \n\
-					{ \n\
-						return $('#acceptrequest .posturl').val(); \n\
-					} \n\
-					function checkInputUrl() \n\
-					{ \n\
-						if(isValidUrl()) \n\
-							$('#acceptrequest .posturl').css('background-color', 'green'); \n\
-						else \n\
-							$('#acceptrequest .posturl').css('background-color', 'red') \n\
-						setTimeout(function() { \n\
-							if(checkUrl) { \n\
-								checkInputUrl(); }\n\
-							else {\n\
-								$('#acceptrequest .posturl').val(''); $('#acceptrequest .posturl').css('background', 'none'); return; }\n\
-						}, 200); \n\
-					} \n\
-					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkInputUrl(); }); \n\
-					$('#acceptrequest .posturl').blur(function() { setTimeout(function() {}, 600); checkUrl = false; }); \n\
+					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkForm($('#acceptrequest .posturl'), isValidUrl); }); \n\
+					$('#acceptrequest .posturl').blur(function() { setTimeout(function() {}, 1000); checkUrl = false; }); \n\
 					$('#acceptrequest .postfriendrequest').click(function() { \n\
 						var postUrl = centralizedFriendSystemUrl; \n\
-						if(isValidUrl())\n\
+						var urlObject = $('#acceptrequest .posturl'); \n\
+						if(isValidUrl(urlObject))\n\
 						{ \n\
-							var str = getInputText();\n\
+							var str = getInputText(urlObject);\n\
 							if(getMethod(str) == FIRST_REQUEST_PREFIX) \n\
 								postUrl += 'secretgen.php?id_request='; \n\
 							else if (getMethod(str) == REQUEST_ACCEPTED_PREFIX) \n\
