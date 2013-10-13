@@ -36,7 +36,8 @@ namespace tpn
 Store *Store::GlobalInstance = NULL;
 Map<ByteString,String> Store::Resources;
 Mutex Store::ResourcesMutex;
-const String Store::CacheDirectoryName = "_cache";  
+const String Store::CacheDirectoryName = "_cache";
+const String Store::UploadDirectoryName = "_upload";  
 
 bool Store::Get(const ByteString &digest, Resource &resource)
 {
@@ -140,7 +141,11 @@ Store::Store(User *user) :
 	}
 	
 	// Special cache directory
-	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
+	if(mUser) 
+	{
+		addDirectory(CacheDirectoryName, CacheDirectoryName);
+		addDirectory(UploadDirectoryName, UploadDirectoryName);
+	}
 	
 	save();
 	
@@ -157,7 +162,7 @@ Store::Store(User *user) :
 
 Store::~Store(void)
 {
-	if(mUser) 
+	if(mUser)
 	{
 		Interface::Instance->remove("/"+mUser->name()+"/files");
 		Interface::Instance->remove("/"+mUser->name()+"/myself/files");
@@ -221,7 +226,11 @@ void Store::getDirectories(Array<String> &array) const
 {
 	Synchronize(this);
 	mDirectories.getKeys(array);
-	if(mUser) array.remove(CacheDirectoryName);
+	if(mUser) 
+	{
+		array.remove(CacheDirectoryName);
+		array.remove(UploadDirectoryName);
+	}
 }
 
 void Store::save(void) const
@@ -262,7 +271,8 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 		{
 			resource.clear();
 			statement.retrieve(resource);
-			if(resource.mUrl == "/" + CacheDirectoryName) continue; 
+			if(resource.mUrl == "/" + CacheDirectoryName
+				|| resource.mUrl == "/" + UploadDirectoryName) continue; 
 			resource.mPath = urlToPath(resource.mUrl); 
 			resource.mStore = this;
 			statement.finalize();
@@ -289,7 +299,8 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 		{
 			Resource resource;
 			statement.retrieve(resource);
-			if(resource.mUrl == "/" + CacheDirectoryName) continue;
+			if(resource.mUrl == "/" + CacheDirectoryName
+				|| resource.mUrl == "/" + UploadDirectoryName) continue; 
 			resource.mPath = urlToPath(resource.mUrl);
 			resource.mStore = this;
 			resources.insert(resource);
@@ -382,6 +393,9 @@ void Store::http(const String &prefix, Http::Request &request)
 				
 				if(request.method == "POST")
 				{
+					if(!user()->checkToken(request.post["token"], "directory_add")) 
+						throw 403;
+					
 					request.post.get("name", name);
 					
 					try {
@@ -416,6 +430,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				Html page(response.sock);
 				page.header("Add directory");
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
+				page.input("hidden", "token", user()->generateToken("directory_add"));
 				page.openFieldset("Add directory");
 				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
@@ -530,6 +545,9 @@ void Store::http(const String &prefix, Http::Request &request)
 		{
 		  	if(this != GlobalInstance && request.method == "POST")
 			{
+				if(!user()->checkToken(request.post["token"], "directory")) 
+					throw 403;
+				
 				String command = request.post["command"];
 			  	if(command == "delete")
 				{
@@ -616,21 +634,22 @@ void Store::http(const String &prefix, Http::Request &request)
 			Html page(response.sock);
 			page.header("Shared folders");
 			
-			if(!mDirectories.empty())
+			Array<String> directories;
+			getDirectories(directories);
+			
+			if(!directories.empty())
 			{
 				page.open("div",".box");
 				page.open("table",".files");
 				
-				for(StringMap::iterator it = mDirectories.begin();
-							it != mDirectories.end();
-							++it)
+				for(int i=0; i<directories.size(); ++i)
 				{
 					page.open("tr");
 					page.open("td",".icon");
 					page.image("/dir.png");
 					page.close("td");
 					page.open("td",".filename");
-					page.link(it->first, it->first);
+					page.link(directories[i], directories[i]);
 					page.close("td");
 					
 					if(this != GlobalInstance)
@@ -649,7 +668,8 @@ void Store::http(const String &prefix, Http::Request &request)
 				if(this != GlobalInstance)
                                 {
                                         page.openForm(prefix+url, "post", "executeForm");
-                                        page.input("hidden", "command");
+                                        page.input("hidden", "token", user()->generateToken("directory"));
+					page.input("hidden", "command");
                                         page.input("hidden", "argument");
                                         page.closeForm();
 
@@ -672,6 +692,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			if(this != GlobalInstance)
 			{
 				page.openForm(prefix+"/","post");
+				page.input("hidden", "token", user()->generateToken("directory_create"));
 				page.openFieldset("New directory");
 				page.label("name","Name"); page.input("text","name"); page.br();
 				page.label("add"); page.button("add","Create directory");
@@ -707,6 +728,9 @@ void Store::http(const String &prefix, Http::Request &request)
 			  
 				if(this != GlobalInstance && request.method == "POST")
 				{
+					if(!user()->checkToken(request.post["token"], "directory")) 
+						throw 403;
+					
 					String command = request.post["command"];
 			  		if(command == "delete")
 					{
@@ -768,11 +792,21 @@ void Store::http(const String &prefix, Http::Request &request)
 				response.send();
 
 				Html page(response.sock);
-				page.header(String("Shared folder: ") + request.url.substr(1,request.url.size()-2));
+				
+				String directory = url.substr(1);
+				directory.cut('/');
+				
+				String title;
+				if(directory == CacheDirectoryName) title = "Cached files";
+				else if(directory == UploadDirectoryName) title = "Recently sent files";
+				else title = "Shared folder: " + request.url.substr(1,request.url.size()-2);
+					
+				page.header(title);
 
 				if(this != GlobalInstance)
 				{
 					page.openForm(prefix+url,"post", "uploadForm", true);
+					page.input("hidden", "token", user()->generateToken("directory"));
 					page.openFieldset("Add a file");
 					page.label("file"); page.file("file", "Select a file"); page.br();
 					page.label("send"); page.button("send","Send");
@@ -872,6 +906,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					if(this != GlobalInstance)
                                         {
                                                 page.openForm(prefix+url, "post", "executeForm");
+						page.input("hidden", "token", user()->generateToken("directory"));
                                                 page.input("hidden", "command");
                                                 page.input("hidden", "argument");
                                                 page.closeForm();
@@ -948,8 +983,10 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	{
 		url.resize(url.size()-1);
 		
-		// Do not allow listing cache directory
-		if(url == "/" + CacheDirectoryName) return false;
+		// Do not allow listing cache or upload directory
+		// TODO: access rights
+		if(url == "/" + CacheDirectoryName 
+			/*|| url == "/" + UploadDirectoryName*/) return false;
 		
 		if(url.empty()) parentId = 0;
 		else {

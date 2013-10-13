@@ -72,6 +72,7 @@ private:
 	static Mutex ResourcesMutex;
 	
 	static const String CacheDirectoryName;
+	static const String UploadDirectoryName;
 	
 	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &url, const String &path, int64_t parentId, bool computeDigests);

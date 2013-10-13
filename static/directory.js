@@ -112,6 +112,14 @@ function listFileSelector(url, object, input, inputName, parents) {
 	.done(function(data) {
 		$(object).html('');
 		
+		var uploadUrl = getBasePath(1) + "files/_upload";
+		
+		/*$(object).append('<form name="uploadform" action="#" method="post" enctype="mutipart/form-data"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
+		$('#selector_file').css('visibility', 'hidden').css('display', 'inline').css('width', '0px');
+		$('#selector_file').after('<a class="button" href="javascript:void(0)" onclick="$(\'#selector_file\').click()">Send a new file</a>');*/
+		
+		$(object).append('<a class="button" href="'+uploadUrl+'">Send a new file</a>');
+		
 		if(parents.length > 0) {
 			$(object).append('<span class="button"> '+data.length+' files</span>');
 			$(object).append('<a href="#" class="button"><img src="/arrow_up.png" alt="Parent"></a>');
@@ -125,6 +133,14 @@ function listFileSelector(url, object, input, inputName, parents) {
 			
 			$(object).append('<table class="files"></table>');
 			var table = $(object).find('table');
+			
+			if(parents.length == 0) {
+				data.unshift({
+					url: "/_upload",
+					name: "Recently sent files",
+					type: "directory"
+				});
+			}
 			
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
@@ -161,7 +177,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 			}
 		}
 		else {
-			$(object).append('No files');
+			$(object).append('<br><span>No files</span>');
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
