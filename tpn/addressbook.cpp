@@ -581,7 +581,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					function isValidMail(object) \n\
 					{ \n\
 						var str = getInputText(object); \n\
-						var mailRegex = new RegExp(\"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$\"); \n\
+						var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); \n\
 						return mailRegex.test(str); \n\
 					} \n\
 					function getInputText(object) \n\
