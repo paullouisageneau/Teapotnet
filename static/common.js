@@ -363,6 +363,9 @@ function setMessagesReceiverRec(url, object, last) {
 				var id = "message_" + message.stamp;
 				last = message.stamp;
 
+				var isLocalRead = (!message.incoming || message.isread);
+				var isRemoteRead = (message.incoming || message.isread);
+				
 				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="date">'+formatTime(message.time).escape()+'</span><span class="author">'+message.headers.from.escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify()+'</span></div></div>';
 				
 				if(message.public) {
@@ -376,22 +379,22 @@ function setMessagesReceiverRec(url, object, last) {
 						$('#'+message.parent).parent().append(div);
 						$('#'+id).addClass('childmessage');
 					}
-
-					if(!message.incoming) $('#'+id).addClass('me');
-
+					
 					// Reply form
 					$('#'+id).parent().append('<div id='+idReply+' class="reply"><form name="replyform'+id+'" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="reply_'+id+'"></textarea></form></div>');
 				
 				}
 				else {
 					$(object).append(div);
-					if(message.incoming && !message.isread) NbNewMessages++;
-					if(message.isread) $('#'+id).addClass('oldmessage');
-					if(message.incoming) $('#'+id).addClass('in');
-					else $('#'+id).addClass('out');
-					$(object).scrollTop($(object)[0].scrollHeight);
+					if(!isLocalRead) NbNewMessages++;
+					setTimeout(function() { 
+						$(object).scrollTop($(object)[0].scrollHeight);
+					}, 100);
 				}
 				
+				if(!message.incoming) $('#'+id).addClass('me');
+				if(isLocalRead) $('#'+id).addClass('oldmessage');
+	      
 				if('attachment' in message.headers) {
 					
 					$('#'+id).append('<span class="attachment">Loading attachment...</span>');
@@ -404,7 +407,16 @@ function setMessagesReceiverRec(url, object, last) {
 					})
 					.done(function(data) {
 						var name = request.getResponseHeader('Content-Name');
-						$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name+'</a></span>');
+						var type = request.getResponseHeader('Content-Type');
+						var media = type.substr(0, type.indexOf('/'));
+						
+						if(media == 'image') {
+							$('#'+id+' .attachment').html('<a href="'+url+'"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+						}
+						else {
+							$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name.escape()+'</a></span>');
+						}
+						
 						$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
 							window.location.href = $(this).find('a').attr('href');
 						});

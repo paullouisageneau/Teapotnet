@@ -143,7 +143,7 @@ fieldset
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
+	box-shadow: 0px 0px 8px 2px #404040;
 }
 
 label 
@@ -166,7 +166,7 @@ legend
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
+	box-shadow: 0px 0px 8px 2px #404040;
 }
 
 input
@@ -544,12 +544,9 @@ a.button:hover
 
 #newsfeed .message
 {
+	max-width: 95%;
 	margin: 0;
 	margin-bottom: 0.5em;
-	padding: 0.5em;
-	max-width: 95%;
-	border: 1px solid black;
-	border-radius: 0.5em;
 }
 
 #newsfeed .message .header
@@ -569,11 +566,16 @@ a.button:hover
 	float: right;
 }
 
+#newsfeed .oldmessage
+{
+	
+}
+
 #optionsnewsfeed
 {
 	float: right;
 	margin: 0.25em;
-	margin-bottom: 0.5em;
+	margin-bottom: 1em;
 }
 
 #statuspanel
@@ -636,6 +638,13 @@ a.button:hover
 	display: block;
 	clear: both;
 	overflow: auto;
+	margin: 0.25em;
+	margin-left: 0.5em;
+	margin-right: 0.5em;
+	padding: 0.5em;
+	border: 1px solid black;
+	border-radius: 0.5em;
+	box-shadow: 0px 0px 8px 4px #FFDC0A;
 	word-wrap: break-word;
 }
 
@@ -659,11 +668,6 @@ a.button:hover
 	vertical-align: middle;
 }
 
-.message .attachment:hover
-{
-	background-color: #C0C0C0;
-}
-
 .message .attachment .filename
 {
 	margin-left: 0.5em;
@@ -676,22 +680,12 @@ a.button:hover
 
 .oldmessage
 {
-	opacity: 0.7;
-}
-
-.out
-{
-	color: #1010F0;
-}
-
-.in
-{
-	color: #F01010; 
+	box-shadow: none;
 }
 
 .me
 {
-	background-color: #FEF86C;
+	background-color: #FFFFA0;
 }
 
 .important
@@ -729,7 +723,7 @@ td.delete
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 0.5em;
-	box-shadow: 0em 0em 0.5em 0.10em #404040;
+	box-shadow: 0px 0px 8px 2px #404040;
 	overflow: hidden;
 }
 
