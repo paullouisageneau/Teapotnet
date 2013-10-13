@@ -129,6 +129,8 @@ function listFileSelector(url, object, input, inputName, parents) {
 			});
 		}
 
+		$(object).append('<br>');
+		
 		if(data && data.length > 0) {
 			
 			$(object).append('<table class="files"></table>');
@@ -177,7 +179,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 			}
 		}
 		else {
-			$(object).append('<br><span>No files</span>');
+			$(object).append('<div class="files">No files</div>');
 		}
 	})
 	.fail(function(jqXHR, textStatus) {

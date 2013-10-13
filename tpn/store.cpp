@@ -839,19 +839,21 @@ void Store::http(const String &prefix, Http::Request &request)
 					else files.insert("1"+info.get("name").toLower()+info.get("name"),info);
 				}
 				
-				if(!info.empty())
-				{
-					page.open("div", ".box");
+				page.open("div", ".box");
 				
-					String desc;
-					desc << files.size() << " files";
-					page.span(desc, ".button");
+				String desc;
+				desc << files.size() << " files";
+				page.span(desc, ".button");
 					
-					if(request.url[request.url.size()-1] == '/') page.link("..", "Parent", ".button");
-                                        else page.link(".", "Parent", ".button");
-
-					page.br();
+				if(request.url[request.url.size()-1] == '/') page.openLink("..", ".button");
+				else page.openLink(".", ".button");
+				page.image("/arrow_up.png", "Parent");
+				page.closeLink();
 					
+				page.br();
+				
+				if(files.empty()) page.div("No files", ".files");
+				else {
 					page.open("table", ".files");
 					for(Map<String, StringMap>::iterator it = files.begin();
 						it != files.end();
@@ -904,27 +906,27 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.close("div");
 
 					if(this != GlobalInstance)
-                                        {
-                                                page.openForm(prefix+url, "post", "executeForm");
+					{
+						page.openForm(prefix+url, "post", "executeForm");
 						page.input("hidden", "token", user()->generateToken("directory"));
-                                                page.input("hidden", "command");
-                                                page.input("hidden", "argument");
-                                                page.closeForm();
+						page.input("hidden", "command");
+						page.input("hidden", "argument");
+						page.closeForm();
 
-                                                page.javascript("function deleteFile(name) {\n\
-                                                        if(confirm('Do you really want to delete '+name+' ?')) {\n\
-                                                                document.executeForm.command.value = 'delete';\n\
-                                                                document.executeForm.argument.value = name;\n\
-                                                                document.executeForm.submit();\n\
-                                                        }\n\
-                                                }");
+						page.javascript("function deleteFile(name) {\n\
+							if(confirm('Do you really want to delete '+name+' ?')) {\n\
+								document.executeForm.command.value = 'delete';\n\
+								document.executeForm.argument.value = name;\n\
+								document.executeForm.submit();\n\
+							}\n\
+						}");
 
 						page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
 							var filename = $(this).closest('tr').find('td.filename a').text();\n\
 							deleteFile(filename);\n\
 						});");
-                                        }
+					}
 				}
 				
 				page.footer();

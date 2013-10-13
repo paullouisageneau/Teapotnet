@@ -741,7 +741,12 @@ td.delete
 {
 	margin-top: 0.5em;
 	white-space: nowrap;
-	padding: 2px;
+	padding: 0.25em;
+}
+
+div.files
+{
+	margin: 0.5em;
 }
 
 .filestr
