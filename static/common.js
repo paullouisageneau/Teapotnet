@@ -92,24 +92,12 @@ function formatTime(timestamp) {
 
 function getBasePath(nbFolders) {
 
-switch (arguments.length) {  // Is a fix for fact that overloading is not possible in javascript and some browsers don't support = in prototype
-
-	case 0:
-		nbFolders = 1;
-	break;
-
-	default:
-
-	break;
-}
-
-		var pathArray = window.location.pathname.split('/');
-		if(nbFolders > pathArray.length) nbFolders = pathArray.length;
-		var basePath = '';
-		for(var i=0; i<=nbFolders; i++)
-			basePath+= pathArray[i] + '/';
-		return basePath;
-
+	var pathArray = window.location.pathname.split('/');
+	if(nbFolders > pathArray.length) nbFolders = pathArray.length;
+	var basePath = '';
+	for(var i=0; i<=nbFolders; i++)
+		basePath+= pathArray[i] + '/';
+	return basePath;
 }
 
 function popup(url, redirect) {
