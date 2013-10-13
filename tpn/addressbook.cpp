@@ -574,6 +574,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					// Define prefixes sent in mail\n\
 					var FIRST_REQUEST_PREFIX = '1005';\n\
 					var REQUEST_ACCEPTED_PREFIX = '1921'; \n\
+					var prefixLength = FIRST_REQUEST_PREFIX.length; \n\
+					var idLength = 32; \n\
 					var checkUrl = false; \n\
 					if(checkUrl)  \n\
 						checkInputUrl();  \n\
@@ -582,9 +584,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						var returnBool = false; \n\
 						var str = getInputText(); \n\
 						var strlen = str.length;\n\
-						returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-48,strlen-32) == '.php?id_request=')) ? true : false); \n\
-						returnBool |= ( ((str.substring(0,4) == FIRST_REQUEST_PREFIX || str.substring(0,4) == REQUEST_ACCEPTED_PREFIX) && (strlen == 36)) ? true : false ); \n\
-						//$('#acceptrequest h2').html((str.substring(strlen-48,strlen-32))); // Just for debug \n\
+						returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) ? true : false); \n\
+						returnBool |= ( ((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) ? true : false ); \n\
+						//$('#acceptrequest h2').html((str.substring(strlen-idLength-16,strlen-idLength))); // Just for debug \n\
 						return returnBool; \n\
 					}\n\
 					function getIdRequest(str) \n\
@@ -592,20 +594,20 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						var idrequest = ''; \n\
 						var strlen = str.length; \n\
 						// Assumes str is valid text input \n\
-						idrequest = str.substring(strlen-32,strlen); \n\
+						idrequest = str.substring(strlen-idLength,strlen); \n\
 						return idrequest; \n\
 					} \n\
 					function getMethod(str) \n\
 					{ \n\
 						var method = '0'; \n\
 						var strlen = str.length; \n\
-						if((str.substring(0,4) == FIRST_REQUEST_PREFIX || str.substring(0,4) == REQUEST_ACCEPTED_PREFIX) && (strlen == 36)) \n\
-							return str.substring(0,4); \n\
-						if(str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-48,strlen-32) == '.php?id_request=')) \n\
+						if((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) \n\
+							return str.substring(0,prefixLength); \n\
+						if(str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) \n\
 						{ \n\
-							if(str.substring(lengthUrl, strlen-48)=='secretgen') \n\
+							if(str.substring(lengthUrl, strlen-16-idLength)=='secretgen') \n\
 								method = FIRST_REQUEST_PREFIX; \n\
-							else if(str.substring(lengthUrl, strlen-48)=='laststep') \n\
+							else if(str.substring(lengthUrl, strlen-16-idLength)=='laststep') \n\
 								method = REQUEST_ACCEPTED_PREFIX; \n\
 							else \n\
 								method = '-1'; \n\
