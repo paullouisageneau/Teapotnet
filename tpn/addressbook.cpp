@@ -548,10 +548,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			String finalize = "finalize.php";
 			String tpn_id = user()->name()+"@"+user()->tracker();
 
-			// TODO : Form in javascript
-			/*page.openForm(centralizedFriendSystemUrl+postrequest,"post");
-			page.openFieldset("Add contact - method 2");
-			page.input("hidden", "tpn_id_sender", tpn_id);*/
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");
@@ -561,11 +557,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("add"); page.button("add","Send invitation");
-			/*page.closeFieldset();
-			page.closeForm();*/
 			page.close("div");
 
-			page.javascript("// Define php prefixes (TODO: automatic change from php to tpn javascript ?) \n\
+			page.javascript("// Define php prefixes (TODO: automatic updates from php to tpn javascript ?) \n\
 					FIRST_REQUEST_PREFIX = '1005';\n\
 					REQUEST_ACCEPTED_PREFIX = '1921'; \n\
 					REQUEST_ALREADY_EXISTS = 10; \n\
@@ -576,14 +570,25 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					INVALID_ADDRESS = 15; \n\
 					SUCCESS = 16; \n\
 					FAILURE = 17; \n\
+					/**************** END OF CONSTANTS *************/ \n\
+					var mailCookie = 'mailCookie'; \n\
+					var nameCookie = 'nameCookie'; \n\
 					var checkMailSender = false; \n\
 					var checkMailReceiver = false; \n\
+					var nameSenderObject = $('#sendrequest .name_sender'); \n\
+					var nameReceiverObject = $('#sendrequest .name_recevier'); \n\
 					var mailSenderObject = $('#sendrequest .mail_sender'); \n\
 					var mailReceiverObject = $('#sendrequest .mail_receiver'); \n\
+					// Pre-fill name and mail by cookie : \n\
+					if(checkCookie(mailCookie)) \n\
+						mailSenderObject.val(getCookie(mailCookie));\n\
+					if(checkCookie(nameCookie)) \n\
+						nameSenderObject.val(getCookie(nameCookie));\n\
+					// TODO : Check if name and mail are set in profile, and rather pre-fill with these\n\
 					if(checkMailSender)  \n\
-						checkForm($('#sendrequest .mail_sender'), isValidMail);  \n\
+						checkForm(mailSenderObject, isValidMail);  \n\
 					if(checkMailReceiver)  \n\
-						checkForm($('#sendrequest .mail_receiver'), isValidMail);  \n\
+						checkForm(mailReceiverObject, isValidMail);  \n\
 					// TODO : could be less ugly with dedicated class (see further)\n\
 					mailSenderObject.focus(function() { checkMailSender = true; checkForm(mailSenderObject, isValidMail); }); \n\
 					mailSenderObject.blur(function() { checkMailSender = false; }); \n\
@@ -634,6 +639,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							var mailSender = getInputText(mailSenderObject); \n\
 							var nameReceiver = getInputText($('#sendrequest .name_receiver'));\n\
 							var nameSender = getInputText($('#sendrequest .name_sender')); \n\
+							// Add mail to cookie if not already set or updated \n\
+							if(!checkCookie(mailCookie) || getCookie(mailCookie) != mailSender) \n\
+								setCookie(mailCookie,mailSender,365); \n\
+							// Add name cookie \n\
+							if(!checkCookie(nameCookie) || getCookie(nameCookie) != nameSender) \n\
+								setCookie(nameCookie,nameSender,365); \n\
 							$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_receiver : nameReceiver, name_sender : nameSender, tpn_id_sender: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
 								// expects echo from php \n\
