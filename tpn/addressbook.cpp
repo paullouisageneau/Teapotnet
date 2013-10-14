@@ -540,7 +540,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 
 			// Parameters that are to be sent in friend request
-			String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
+			const String centralizedFriendSystemUrl = "http://nikanor/tpnfriends/"; // TODO : change
 			int lengthUrl = centralizedFriendSystemUrl.length();
 			String postrequest = "postrequest.php";
 			String secretgen = "secretgen.php";
@@ -565,7 +565,18 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeForm();*/
 			page.close("div");
 
-			page.javascript("var checkMailSender = false; \n\
+			page.javascript("// Define php prefixes (TODO: automatic change from php to tpn javascript ?) \n\
+					FIRST_REQUEST_PREFIX = '1005';\n\
+					REQUEST_ACCEPTED_PREFIX = '1921'; \n\
+					REQUEST_ALREADY_EXISTS = 10; \n\
+					EMPTY_REQUEST = 11; \n\
+					REQUEST_ALREADY_ACCEPTED = 12; \n\
+					SPECIFY_MAIL = 13; \n\
+					REQUEST_TOO_OLD = 14; \n\
+					INVALID_ADDRESS = 15; \n\
+					SUCCESS = 16; \n\
+					FAILURE = 17; \n\
+					var checkMailSender = false; \n\
 					var checkMailReceiver = false; \n\
 					var mailSenderObject = $('#sendrequest .mail_sender'); \n\
 					var mailReceiverObject = $('#sendrequest .mail_receiver'); \n\
@@ -575,9 +586,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						checkForm($('#sendrequest .mail_receiver'), isValidMail);  \n\
 					// TODO : could be less ugly with dedicated class (see further)\n\
 					mailSenderObject.focus(function() { checkMailSender = true; checkForm(mailSenderObject, isValidMail); }); \n\
-					mailSenderObject.blur(function() { setTimeout(function() {}, 1000); checkMailSender = false; }); \n\
+					mailSenderObject.blur(function() { checkMailSender = false; }); \n\
 					mailReceiverObject.focus(function() { checkMailReceiver = true; checkForm(mailReceiverObject, isValidMail); }); \n\
-					mailReceiverObject.blur(function() { setTimeout(function() {}, 1000); checkMailReceiver = false; }); \n\
+					mailReceiverObject.blur(function() { checkMailReceiver = false; }); \n\
 					function isValidMail(object) \n\
 					{ \n\
 						var str = getInputText(object); \n\
@@ -615,7 +626,36 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								return; }\n\
 						}, 200); \n\
 					} \n\
-					");
+					$('#sendrequest .add').click(function() { \n\
+						if( isValidMail(mailSenderObject) && isValidMail(mailReceiverObject)) \n\
+						{ \n\
+							var postUrl = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\"; \n\
+							var mailReceiver = getInputText(mailReceiverObject);\n\
+							var mailSender = getInputText(mailSenderObject); \n\
+							var nameReceiver = getInputText($('#sendrequest .name_receiver'));\n\
+							var nameSender = getInputText($('#sendrequest .name_sender')); \n\
+							$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_receiver : nameReceiver, name_sender : nameSender, tpn_id_sender: \""+tpn_id+"\"}) \n\
+							.done(function(data) {\n\
+								// expects echo from php \n\
+								if(data == SUCCESS) \n\
+									alert('Invitation was successfully sent to : '+mailReceiver); \n\
+								else if(data==FAILURE) \n\
+									alert('Failure in sending mail'); \n\
+								else if(data==REQUEST_ALREADY_EXISTS) \n\
+									alert('A request from '+mailSender+' to : '+mailReceiver+' already exists.'); \n\
+								else if(data==INVALID_ADDRESS) \n\
+									alert('Invalid address'); \n\
+								else \n\
+									alert('Unknown error'); \n\
+							}) \n\
+							.fail(function() { alert('error in send function'); });\n\
+						} \n\
+						else \n\
+						{ \n\
+							alert('Wrong mail addresses'); \n\
+						} \n\
+					} \n\
+					)");
 
 
 			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
@@ -629,9 +669,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
 					var lengthUrl = centralizedFriendSystemUrl.length; \n\
-					// Define prefixes sent in mail\n\
-					var FIRST_REQUEST_PREFIX = '1005';\n\
-					var REQUEST_ACCEPTED_PREFIX = '1921'; \n\
 					var prefixLength = FIRST_REQUEST_PREFIX.length; \n\
 					var idLength = 32; \n\
 					var checkUrl = false; \n\

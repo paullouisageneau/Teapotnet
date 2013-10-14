@@ -1,6 +1,7 @@
 
 <?php
 
+define("REQUEST_ALREADY_EXISTS", 10, true);
 define("EMPTY_REQUEST",11,true);
 define("REQUEST_ALREADY_ACCEPTED",12,true);
 define("SPECIFY_MAIL",13,true);

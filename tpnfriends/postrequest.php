@@ -10,6 +10,9 @@ include_once("echoes.php");
 include_once("dbfunctions.php");
 include_once("mailer.php");
 
+// Allow cross-origin dialog
+header("Access-Control-Allow-Origin: *");
+
 	// TODO : TeapotNet sends this info via POST
 	/*
 	$name_sender = 'Jotun';
@@ -42,8 +45,8 @@ include_once("mailer.php");
 		}
 
 		// before processing, we check that there is not an awaiting request from same sender to same receiver
-		$req = $bdd->prepare("SELECT name_sender FROM tpn_requests WHERE (tpn_id_sender = ? AND mail_receiver = ?);");
-		$req->execute(array($tpn_id_sender, $mail_receiver)) 
+		$req = $bdd->prepare("SELECT name_sender FROM tpn_requests WHERE (tpn_id_sender = ? AND mail_receiver = ? AND mail_sender = ?);");
+		$req->execute(array($tpn_id_sender, $mail_receiver, $mail_sender)) 
 				or die(print_r($req->errorInfo())
 				);
 
@@ -75,17 +78,17 @@ include_once("mailer.php");
 			// Send e-mail to other guy
 			sendFriendRequestMail($name_sender, $mail_sender, $mail_receiver, $id_request, MODE_FIRST_REQUEST);
 
-			include("infopost.php");
+			//include("infopost.php");
 		}
 		else
 		{
-			echo 'There already is a request from you to same friend';
+			echo REQUEST_ALREADY_EXISTS;
 		}
 
 	}
 	else
 	{
-		echo 'Incorrect Form';
+		echo INVALID_ADDRESS;
 	}
 		
 ?>
