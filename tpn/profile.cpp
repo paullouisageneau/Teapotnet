@@ -33,7 +33,8 @@ namespace tpn
 Profile::Profile(User *user, const String &uname, const String &tracker):
 	mUser(user),
 	mName(uname),
-	mTracker(tracker)
+	mTracker(tracker),
+	mTime(0)
 {
 	Assert(mUser);
 	if(mName.empty()) mName = mUser->name();
@@ -41,6 +42,9 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	
 	Assert(!mName.empty());
 	Assert(!mTracker.empty());
+
+	// Time
+	mFields["time"]		= new TypedField<String>("time", &mStatus, "Modification time", "", Time(0));	// internal
 
 	// Status
 	mFields["status"]      	= new TypedField<String>("status", &mStatus, "Status");
@@ -103,6 +107,20 @@ String Profile::urlPrefix(void) const
 	else return "/"+mUser->name()+"/contacts/"+mName+"/profile";
 }
 
+String Profile::avatarUrl(void) const
+{
+	Synchronize(this);
+	
+	if(!mAvatar.empty()) return "/" + mAvatar.toString();
+	else return "/default_avatar.png"; 
+}
+
+Time Profile::time(void) const
+{
+	Synchronize(this);
+	return mTime;
+}
+
 bool Profile::isSelf(void) const
 {
 	return (mName == mUser->name());
@@ -142,14 +160,15 @@ void Profile::save()
 
 void Profile::send(const Identifier &identifier)
 {
-	Synchronize(this);
-	
+	// Not synchronized
+
 	String tmp;
 	YamlSerializer serializer(&tmp);
 	serialize(serializer);
 	
 	Notification notification(tmp);
 	notification.setParameter("type", "profile");
+	notification.setParameter("time", time().toString());
 	if(identifier != Identifier::Null) notification.send(identifier);
 	else mUser->addressBook()->send(notification);
 }
@@ -223,15 +242,18 @@ void Profile::http(const String &prefix, Http::Request &request)
 				updateField(field, value);
 			}
 			
-			Http::Response response(request, 303);
+			/*Http::Response response(request, 303);
 			response.headers["Location"] = prefix + "/";
-			response.send();
+			response.send();*/
+
+			Http::Response response(request, 200);
+                        response.send();
 			return;
 		}
 		
 		if(url == "/")
 		{
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
 			response.send();
 		
 			Html page(response.sock);
@@ -240,6 +262,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 			try {
 				page.header(name()+"'s profile");
 
+				page.div("", "fileSelector");
 				page.open("div","profile.box");
 
 				page.open("h2");
@@ -274,15 +297,18 @@ void Profile::http(const String &prefix, Http::Request &request)
 				}
 				page.close("div");
 
-				page.open("div", "profilephoto");
+				page.image(avatarUrl(), "", "profilephoto");
 
-				// TODO : photo de profil
-				
+				if(isSelf())
+				{
+					page.input("hidden", "avatarDigest");
+					page.input("hidden", "avatarName");
+					page.javascript("$('#profilephoto').css('cursor', 'pointer').click(function() { createFileSelector('/"+mUser->name()+"/myself/files?json', '#fileSelector', 'input.avatarDigest', 'input.avatarName'); $('#profile').hide(); });\n\
+				$('input.avatarDigest').change(function() { if($(this).val() != '') postField('avatar', $(this).val()); else $('#profile').show(); });");
+				}
+
 				page.close("div");
 
-				page.close("div");
-
-				
 				page.open("h2");
 				page.text("Personal Information");
 				page.close("h2");
@@ -312,12 +338,16 @@ void Profile::http(const String &prefix, Http::Request &request)
 
 					page.javascript("function postField(field, value)\n\
 						{\n\
-							var request = $.post('"+prefix+"/profile"+"',\n\
-								{ 'field': field , 'value': value });\n\
-							request.fail(function(jqXHR, textStatus) {\n\
+							$.post('"+prefix+"/profile"+"',{\n\
+								'field': field,\n\
+								'value': value\n\
+							})\n\
+							.done(function(data) {\n\
+								location.reload();\n\
+							})\n\
+							.fail(function(jqXHR, textStatus) {\n\
 								alert('The profile update could not be made.');\n\
 							});\n\
-							setTimeout(function(){location.reload();},100);\n\
 						}\n\
 						var blocked = false;\n\
 						$('.editable,.empty').click(function() {\n\

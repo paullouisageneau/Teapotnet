@@ -44,7 +44,9 @@ public:
 	
 	String name(void) const;
 	String tracker(void) const;
-	String urlPrefix(void) const;	
+	String urlPrefix(void) const;
+	String avatarUrl(void) const;	
+	Time time(void) const;
 	bool isSelf(void) const;
 	
 	void load(void);
@@ -94,8 +96,10 @@ private:
 		void clear(void)	{ *mPtr = mDefault; }
 		
 		// Serializable
-		void serialize(Serializer &s) const	{ s.output(*mPtr); }
-		bool deserialize(Serializer &s)		{ s.input(*mPtr);  }
+		void serialize(Serializer &s) const	{ static_cast<const Serializable*>(mPtr)->serialize(s); }
+		bool deserialize(Serializer &s)		{ static_cast<Serializable*>(mPtr)->deserialize(s);  }
+		void serialize(Stream &s) const     	{ static_cast<const Serializable*>(mPtr)->serialize(s); }
+                bool deserialize(Stream &s)         	{ static_cast<Serializable*>(mPtr)->deserialize(s);  }
 		String toString(void) const		{ return mPtr->toString(); }	
 		void fromString(String str)		{ mPtr->fromString(str); }
 		bool isInlineSerializable(void) const	{ return mPtr->isInlineSerializable(); }
@@ -113,7 +117,8 @@ private:
 	User *mUser;
 	String mName;
 	String mFileName;
-	
+	Time mTime;	
+
 	Map<String, Field*> mFields;
 	
 	// Status

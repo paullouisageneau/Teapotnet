@@ -58,6 +58,7 @@ public:
 	void addDirectory(const String &name, String path);
 	void removeDirectory(const String &name);
 	void getDirectories(Array<String> &array) const;
+	String moveFileToCache(const String &fileName, String name = "");
 	
 	void save(void) const;
 	void start(void);
@@ -75,9 +76,10 @@ private:
 	static const String UploadDirectoryName;
 	
 	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
-	void update(const String &url, const String &path, int64_t parentId, bool computeDigests);
+	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);
 	String urlToPath(const String &url) const;
 	String absolutePath(const String &path) const;
+	bool isHiddenUrl(const String &url) const;
 	void run(void);
 	
 	User *mUser;

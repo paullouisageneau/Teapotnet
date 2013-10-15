@@ -65,10 +65,11 @@ Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
 	return entry;
 }
 
-void Splicer::Hint(const ByteString &target, const Set<Identifier> &sources, int64_t size)
+void Splicer::Hint(const ByteString &target, const String &name, const Set<Identifier> &sources, int64_t size)
 {
 	CacheEntry *entry = GetCacheEntry(target);
 	entry->hintSources(sources);
+	if(!name.empty()) entry->hintName(name);
 	if(size >= 0) entry->hintSize(size);
 }
 
@@ -191,8 +192,14 @@ void Splicer::stop(void)
 bool Splicer::process(void)
 {
 	mCacheEntry->setAccessTime();
+
+	if(finished())
+        {
+                stop();
+                return (mPosition < mEnd);
+        }
 	
-	if(!finished() && mRequests.empty()) throw Exception("Splicer is not started");
+	if(mRequests.empty()) throw Exception("Splicer is not started");
 	
 	std::vector<int>		onError;
 	std::multimap<unsigned, int> 	byBlocks;
@@ -469,6 +476,12 @@ unsigned Splicer::CacheEntry::block(int64_t position) const
 	return unsigned(position / int64_t(mBlockSize));  
 }
 
+void Splicer::CacheEntry::hintName(const String &name)
+{
+	if(!name.empty() && (mName.empty() || name.size() < mName.size()))
+		mName = name;
+}
+
 void Splicer::CacheEntry::hintSize(int64_t size)
 {
 	mSize = std::max(mSize, size);
@@ -511,6 +524,10 @@ void Splicer::CacheEntry::refreshSources(void)
 			if(!response->error())
 			{
 				try {
+					String url;
+					if(response->parameter("url", url))
+						hintName(url.afterLast('/'));
+					
 					String tmp;
 					if(response->parameter("size", tmp))
 					{
@@ -540,9 +557,13 @@ bool Splicer::CacheEntry::isBlockFinished(unsigned block) const
 bool Splicer::CacheEntry::markBlockFinished(unsigned block)
 {
 	Synchronize(this);
-  
+
+	if(isBlockFinished(block)) return true;
+
 	if(block >= mFinishedBlocks.size())
 	{
+		// TODO: check against mSize if mSize >= 0
+
 		unsigned i = mFinishedBlocks.size();
 		mFinishedBlocks.resize(block+1);
 		while(i < mFinishedBlocks.size()-1)
@@ -553,6 +574,18 @@ bool Splicer::CacheEntry::markBlockFinished(unsigned block)
 	}
 	
 	mFinishedBlocks[block] = true;
+	
+	if(finished())
+	{
+		try {
+			mFileName = Store::GlobalInstance->moveFileToCache(mFileName, mName);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Splicer::CacheEntry", String("Unable to move the file to cache: ") + e.what());
+		}
+	}
+
 	return true;
 }
 

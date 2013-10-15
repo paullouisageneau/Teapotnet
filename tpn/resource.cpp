@@ -165,7 +165,7 @@ void Resource::refresh(bool forceLocal)
 		CacheMutex.unlock();
 		
 		// Hints for the splicer system
-		Splicer::Hint(mDigest, mSources, mSize);
+		Splicer::Hint(mDigest, name(), mSources, mSize);
 	}
 }
 
@@ -390,7 +390,8 @@ Resource::Query::Query(Store *store, const String &url) :
 	mUrl(url),
 	mStore(store),
 	mMinAge(0), mMaxAge(0),
-	mOffset(0), mCount(-1)
+	mOffset(0), mCount(-1),
+	mFromSelf(false)
 {
   	if(!mStore) mStore = Store::GlobalInstance;
 }
@@ -434,6 +435,11 @@ void Resource::Query::setLimit(int count)
 void Resource::Query::setMatch(const String &match)
 {
 	mMatch = match;
+}
+
+void Resource::Query::setFromSelf(bool fromSelf)
+{
+	mFromSelf = fromSelf;
 }
 
 bool Resource::Query::submitLocal(Resource &result)
@@ -566,6 +572,8 @@ void Resource::Query::serialize(Serializer &s) const
 
 bool Resource::Query::deserialize(Serializer &s)
 {
+	mFromSelf = false;
+	
 	SerializableWrapper<int> minAgeWrapper(&mMinAge);
 	SerializableWrapper<int> maxAgeWrapper(&mMaxAge);
 	SerializableWrapper<int> offsetWrapper(&mOffset);

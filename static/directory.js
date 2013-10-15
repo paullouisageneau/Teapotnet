@@ -92,7 +92,7 @@ function listDirectory(url, object, showButtons) {
 			}*/
 		}
 		else {
-			$(object).html('No files');
+			$(object).html('<div class="files">No files</div>');
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
@@ -110,7 +110,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 		timeout: 30000
 	})
 	.done(function(data) {
-		$(object).html('');
+		$(object).html('<h2>Select a file</h2>');
 		
 		var uploadUrl = getBasePath(1) + "files/_upload";
 		
@@ -118,7 +118,13 @@ function listFileSelector(url, object, input, inputName, parents) {
 		$('#selector_file').css('visibility', 'hidden').css('display', 'inline').css('width', '0px');
 		$('#selector_file').after('<a class="button" href="javascript:void(0)" onclick="$(\'#selector_file\').click()">Send a new file</a>');*/
 		
+		$(object).append('<a class="button quitbutton" href="#">Cancel</a>');
 		$(object).append('<a class="button" href="'+uploadUrl+'">Send a new file</a>');
+		$(object).find('a.quitbutton').click(function() {
+			$(inputName).val("").change();
+			$(input).val("").change();
+			$(object).remove();
+		});
 		
 		if(parents.length > 0) {
 			$(object).append('<span class="button"> '+data.length+' files</span>');
@@ -167,7 +173,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 						
 						func = function() {
 							$(inputName).val(resource.name).change();
-							$(input).val(resource.hash).change();
+							$(input).val(resource.digest).change();
 							$(object).remove();
 						};
 					}

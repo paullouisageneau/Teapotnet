@@ -126,6 +126,11 @@ bool ByteString::deserialize(Stream &s)
 	return true;
 }
 
+bool ByteString::isNativeSerializable(void) const
+{
+        return false;
+}
+
 size_t ByteString::readData(char *buffer, size_t size)
 {
 	if(this->empty()) return 0;

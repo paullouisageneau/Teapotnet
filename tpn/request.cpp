@@ -121,7 +121,7 @@ void Request::cancel(void)
 	}
 }
 
-bool Request::execute(User *user)
+bool Request::execute(User *user, bool isFromSelf)
 {
 	Assert(user);
 	Synchronize(this);
@@ -201,6 +201,7 @@ bool Request::execute(User *user)
 			else {
 				Resource::Query query(store);
 				query.setDigest(identifier);
+				query.setFromSelf(isFromSelf);
 	
 				Resource resource;
 				if(query.submitLocal(resource))
@@ -214,6 +215,8 @@ bool Request::execute(User *user)
 	else if(command == "file")
 	{
 		Resource::Query query(store, argument);
+		query.setFromSelf(isFromSelf);
+		
 		Set<Resource> resources;
 		if(query.submitLocal(resources))
 		{
@@ -234,6 +237,8 @@ bool Request::execute(User *user)
 	else if(command == "search")
 	{
 		Resource::Query query(store);
+		query.setFromSelf(isFromSelf);
+		
 		StringMap tmp(parameters);
 		query.deserialize(tmp);
 		if(!argument.empty() || argument != "*") query.setMatch(argument);

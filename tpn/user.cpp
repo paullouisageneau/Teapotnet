@@ -133,11 +133,26 @@ User::User(const String &name, const String &password) :
 	
 	mTokenSecret.writeRandom(16);
 
-	mStore = new Store(this); // must be created first
-        mAddressBook = new AddressBook(this);
-        mMessageQueue = new MessageQueue(this);
-        mProfile = new Profile(this);
-	
+	mStore = NULL;
+	mAddressBook = NULL;
+	mMessageQueue = NULL;
+	mProfile = NULL;
+
+	try {
+		mStore = new Store(this); // must be created first
+        	mAddressBook = new AddressBook(this);
+       	 	mMessageQueue = new MessageQueue(this);
+        	mProfile = new Profile(this);
+	}
+	catch(...)
+	{
+		delete mStore;
+		delete mAddressBook;
+		delete mMessageQueue;
+		delete mProfile;
+		throw;
+	}
+
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mHash, this);

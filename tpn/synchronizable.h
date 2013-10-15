@@ -99,7 +99,7 @@ inline bool boolUnlockAll(Synchronizable *s, bool b)
 
 #define Synchronize(x)   Synchronizer	__sync(x); 
 #define Desynchronize(x) Desynchronizer	__desync(x)
-#define Unprioritize(x)  {int __c = (x)->unlockAll(); tpn::sleep(1); (x)->lock(__c);}
+#define Unprioritize(x)  {int __c = (x)->unlockAll(); tpn::sleep(0.01); (x)->lock(__c);}
 #define SyncYield(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 #define SynchronizeTest(x,test) (boolLock(x,true) && boolUnlock(x,(test)))
 #define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }

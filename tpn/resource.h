@@ -57,7 +57,8 @@ public:
 		void setRange(int first, int last);
 		void setLimit(int count);
 		void setMatch(const String &match);
-
+		void setFromSelf(bool fromSelf = true);
+		
 		bool submitLocal(Resource &result);
 		bool submitLocal(Set<Resource> &result);
 		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
@@ -75,6 +76,7 @@ public:
 		ByteString mDigest;
 		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
+		bool mFromSelf;
 		
 		Store *mStore;
 

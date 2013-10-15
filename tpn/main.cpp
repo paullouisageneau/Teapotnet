@@ -259,6 +259,7 @@ int main(int argc, char** argv)
 		Config::Default("static_dir", "static");
 		Config::Default("shared_dir", "shared");
 		Config::Default("temp_dir", "temp");
+		Config::Default("cache_dir", "cache");
 		Config::Default("external_address", "auto");
 		Config::Default("external_port", "auto");
 		Config::Default("http_timeout", "5000");

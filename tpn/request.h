@@ -50,11 +50,11 @@ public:
 	void setTarget(const String &target, bool data);
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
-
+	
 	void submit(void);
 	void submit(const Identifier &receiver);
 	void cancel(void);
-	bool execute(User *user);
+	bool execute(User *user, bool isFromSelf = false);
 	bool executeDummy(void);
 	
 	Identifier receiver(void) const;

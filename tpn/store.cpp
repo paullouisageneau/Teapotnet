@@ -140,12 +140,8 @@ Store::Store(User *user) :
 		catch(...) {}
 	}
 	
-	// Special cache directory
-	if(mUser) 
-	{
-		addDirectory(CacheDirectoryName, CacheDirectoryName);
-		addDirectory(UploadDirectoryName, UploadDirectoryName);
-	}
+	// Special upload directory
+	if(mUser) addDirectory(UploadDirectoryName, UploadDirectoryName);
 	
 	save();
 	
@@ -226,11 +222,54 @@ void Store::getDirectories(Array<String> &array) const
 {
 	Synchronize(this);
 	mDirectories.getKeys(array);
-	if(mUser) 
+	array.remove(CacheDirectoryName);
+	array.remove(UploadDirectoryName);
+}
+
+String Store::moveFileToCache(const String &fileName, String name)
+{
+	Synchronize(this);
+	
+	if(!mDirectories.contains(CacheDirectoryName))
 	{
-		array.remove(CacheDirectoryName);
-		array.remove(UploadDirectoryName);
+        	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
+        	else {
+			String cacheDir = Config::Get("cache_dir");
+			Directory::Create(cacheDir);
+			addDirectory(CacheDirectoryName, cacheDir);
+		}
 	}
+
+	if(name.empty()) name = fileName.afterLast(Directory::Separator);
+	
+	LogInfo("Store", "Moving to cache: " + name);
+	
+	// Find a unique name
+	int count = 0;
+	String url, path;
+	do {
+		url = "/" + CacheDirectoryName + "/" + name.beforeLast('.');
+		if(++count >= 2) url+= "_" + String::number(count);
+		if(name.contains('.')) url+= "." + name.afterLast('.');
+		path = urlToPath(url);
+	} 
+	while(File::Exist(path));
+
+	File placeholder(path, File::Write);
+	placeholder.close();
+
+	try {
+		Desynchronize(this);
+		File::Rename(fileName, path);
+	}
+	catch(...)
+	{
+		File::Remove(path);
+		throw;
+	}
+
+	update(url, path);
+	return path;
 }
 
 void Store::save(void) const
@@ -270,9 +309,7 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 		while(statement.step())
 		{
 			resource.clear();
-			statement.retrieve(resource);
-			if(resource.mUrl == "/" + CacheDirectoryName
-				|| resource.mUrl == "/" + UploadDirectoryName) continue; 
+			statement.retrieve(resource); 
 			resource.mPath = urlToPath(resource.mUrl); 
 			resource.mStore = this;
 			statement.finalize();
@@ -299,8 +336,7 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 		{
 			Resource resource;
 			statement.retrieve(resource);
-			if(resource.mUrl == "/" + CacheDirectoryName
-				|| resource.mUrl == "/" + UploadDirectoryName) continue; 
+			if(query.mUrl == "/" && isHiddenUrl(resource.mUrl)) continue; 
 			resource.mPath = urlToPath(resource.mUrl);
 			resource.mStore = this;
 			resources.insert(resource);
@@ -362,7 +398,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						page.open("td",".icon");
 						page.image("/dir.png");
 						page.close("td");
-						page.open("td",".filename");
+						page.open("td",".fileName");
 						page.link(link, hrName);
 						page.close("td");
 						page.open("td",".add");
@@ -485,7 +521,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					
 					if(existingPathsSet.find(childPath) == existingPathsSet.end())
 					{
-						page.open("td",".filename");
+						page.open("td",".fileName");
 						page.link(link, name);
 						page.close("td");
 						page.open("td",".add");
@@ -493,7 +529,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						page.close("td");
 					}
 					else {
-						page.open("td",".filename");
+						page.open("td",".fileName");
 						page.text(name);
 						page.close("td");
 						page.open("td",".add");
@@ -528,7 +564,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			}
 			else {
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+				response.headers["Content-Disposition"] = "attachment; fileName=\"playlist.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
@@ -648,7 +684,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.open("td",".icon");
 					page.image("/dir.png");
 					page.close("td");
-					page.open("td",".filename");
+					page.open("td",".fileName");
 					page.link(directories[i], directories[i]);
 					page.close("td");
 					
@@ -683,8 +719,8 @@ void Store::http(const String &prefix, Http::Request &request)
 
                                         page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
                                                 event.stopPropagation();\n\
-                                                var filename = $(this).closest('tr').find('td.filename a').text();\n\
-                                                deleteDirectory(filename);\n\
+                                                var fileName = $(this).closest('tr').find('td.fileName a').text();\n\
+                                                deleteDirectory(fileName);\n\
                                         });");
                                 }
 			}
@@ -868,7 +904,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						if(info.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".filename");
+						page.open("td",".fileName");
 						if(info.get("type") != "directory" && name.contains('.'))
 							page.span(name.afterLast('.').toUpper(), ".type");
 						page.link(link,name);
@@ -923,8 +959,8 @@ void Store::http(const String &prefix, Http::Request &request)
 
 						page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
-							var filename = $(this).closest('tr').find('td.filename a').text();\n\
-							deleteFile(filename);\n\
+							var fileName = $(this).closest('tr').find('td.fileName a').text();\n\
+							deleteFile(fileName);\n\
 						});");
 					}
 				}
@@ -940,7 +976,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					host = String("localhost:") + Config::Get("interface_port");
 					
 					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
+					response.headers["Content-Disposition"] = "attachment; fileName=\"stream.m3u\"";
 					response.headers["Content-Type"] = "audio/x-mpegurl";
 					response.send();
 					
@@ -985,10 +1021,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	{
 		url.resize(url.size()-1);
 		
-		// Do not allow listing cache or upload directory
-		// TODO: access rights
-		if(url == "/" + CacheDirectoryName 
-			/*|| url == "/" + UploadDirectoryName*/) return false;
+		// Do not allow listing hidden directories for others
+		if(!query.mFromSelf && isHiddenUrl(url)) return false;
 		
 		if(url.empty()) parentId = 0;
 		else {
@@ -1017,6 +1051,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(parentId >= 0)		sql<<"AND parent_id = ? ";
 	else if(!url.empty())		sql<<"AND url = ? ";
 	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
+	else				sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
 	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
 	
 	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
@@ -1048,13 +1083,14 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	return true;
 }
 
-void Store::update(const String &url, const String &path, int64_t parentId, bool computeDigests)
+void Store::update(const String &url, String path, int64_t parentId, bool computeDigests)
 {
 	Synchronize(this);
 
 	try {
 		Unprioritize(this);
 	  
+		if(path.empty()) path = urlToPath(url);
 		String absPath = absolutePath(path);
 		
 		int64_t time = File::Time(absPath);
@@ -1065,7 +1101,16 @@ void Store::update(const String &url, const String &path, int64_t parentId, bool
 			type = 1;
 			size = File::Size(absPath);
 		}
-		
+	
+		if(parentId < 0)
+		{
+			Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE url = ?1");
+                	statement.bind(1, url.beforeLast('/'));
+
+			if(statement.step()) statement.value(0, parentId);
+			statement.finalize();
+		}
+	
 		Database::Statement statement = mDatabase->prepare("SELECT id, digest, size, time, type FROM files WHERE url = ?1");
 		statement.bind(1, url);
 		
@@ -1224,6 +1269,14 @@ String Store::absolutePath(const String &path) const
 
 	if(absolute) return path;
 	else return mBasePath + path;
+}
+
+bool Store::isHiddenUrl(const String &url) const
+{
+	if(url.empty()) return false;
+	if(url[0] == '_') return true;
+	if(url.size() >= 2 && url[0] == '/' && url[1] == '_') return true;
+	return false;
 }
 
 void Store::run(void)

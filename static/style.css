@@ -176,7 +176,6 @@ input
 	padding: 0.4em;
 	line-height: 1.4em;
 	color: #000000;
-	background-color: #FFFFFF;
 	border: 1px solid #606060;
 	border-radius: 0.5em;
 	vertical-align: middle;
@@ -204,16 +203,19 @@ input[type="submit"]:hover
 
 input[type="text"]
 {
-
+	color: #000000;
+        background-color: #FFFFFF;
 }
 
 textarea
 {
 	display: block;
 	resize: none;
-	border: 1px solid #000000;
-	border-radius: 0.5em;
 	padding: 0.5em;
+	border: 1px solid #000000;
+        border-radius: 0.5em;
+	color: #000000;
+	background-color: #FFFFFF;
 	font-family: inherit;
 	font-size: inherit;
 	box-sizing: border-box;
@@ -1133,8 +1135,10 @@ div.files
 {
 	float: right;
 	border: 2px solid black;
-	width: 20%;
-	height: 150px;
+	min-width: 128px;
+	min-height: 128px;
+	max-width: 20%;
+	max-height: 256px;
 	margin-right: 20px;
 }
 

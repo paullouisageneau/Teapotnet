@@ -1545,13 +1545,24 @@ void AddressBook::Contact::notification(Notification *notification)
 	else if(type == "profile" || type == "profilediff")
 	{
 		String data = notification->content();
-		YamlSerializer serializer(&data);
-		
+		YamlSerializer serializer(&data);		
 		Profile *p = profile();
-		Synchronize(p);
-		if(type != "profilediff") p->clear();
-		p->deserialize(serializer);
-		p->save();
+
+		Time time;
+		if(parameters.contains("time")) parameters["time"] >> time;
+		else if(type != "profilediff") 
+		{
+			LogWarn("AddressBook::Contact::notification", "Received profile update without time, dropping");
+			return;
+		}
+
+		if(time > p->time())
+		{
+			Synchronize(p);
+			if(type != "profilediff") p->clear();
+			p->deserialize(serializer);
+			p->save();
+		}
 	}
 	else if(type == "contacts")
 	{
@@ -1637,7 +1648,7 @@ void AddressBook::Contact::sendUnread(void) const
 void AddressBook::Contact::request(Request *request)
 {
 	Assert(request);
-	if(!mDeleted) request->execute(mAddressBook->user());
+	if(!mDeleted) request->execute(mAddressBook->user(), isSelf());
 	else request->executeDummy();
 }
 
@@ -1839,7 +1850,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				{
 					// Query resources
 					Resource::Query query(mAddressBook->user()->store(), target);
-
+					query.setFromSelf(isSelf());
+					
 					SerializableSet<Resource> resources;
 					bool success = query.submitRemote(resources, peering());
 					if(isSelf()) success|= query.submitLocal(resources);
@@ -1984,15 +1996,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					
 					int minAge = 0;
 					int maxAge = 0;
+					int count = 0;
 					if(request.get.get("minage", tmp)) tmp >> minAge;
 					if(request.get.get("maxage", tmp)) tmp >> maxAge;
-					
-					int count = 0;
 					if(request.get.get("count", tmp)) tmp >> count;
 					
 					if(match.empty() && maxAge <= 0) throw 400;
 					
 					Resource::Query query(mAddressBook->user()->store());
+					if(isSelf()) query.setFromSelf(isSelf());
 					if(!match.empty()) query.setMatch(match);
 					if(minAge > 0) query.setMinAge(minAge);
 					if(maxAge > 0) query.setMaxAge(maxAge);
