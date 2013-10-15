@@ -110,8 +110,8 @@ public:
 
 		void connected(const Identifier &peering, bool incoming);
 		void disconnected(const Identifier &peering);
-		void notification(Notification *notification);
-		void request(Request *request);
+		bool notification(const Identifier &peering, Notification *notification);
+		bool request(const Identifier &peering, Request *request);
 		bool send(const Notification &notification);
 		bool send(const Message &message);
 		
@@ -144,6 +144,7 @@ public:
 		bool mOnline;
 		AddressMap mAddrs;
 		Time mFirstUpdateTime;
+		Set<String> mExcludedInstances;
 		
 		Profile *mProfile;
 	};

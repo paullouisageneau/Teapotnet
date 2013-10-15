@@ -867,6 +867,9 @@ void Core::Handler::process(void)
 		return;
 	}
 	
+	Identifier peering;
+	SynchronizeStatement(this, peering = mPeering);
+	
 	try {
 		// Register the handler
 		if(!mCore->addHandler(mPeering,this))
@@ -882,9 +885,6 @@ void Core::Handler::process(void)
 		mSender = new Sender;
 		mSender->mStream = mStream;
 		mSender->start();
-	  
-		Identifier peering;
-		SynchronizeStatement(this, peering = mPeering);
 		
 		// TODO
 		//const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
@@ -1048,14 +1048,14 @@ void Core::Handler::process(void)
 				request->mRemoteAddr = mRemoteAddr;
 				
 				Listener *listener = NULL;
-				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+				if(!SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 				{
 					LogDebug("Core::Handler", "No listener for request " + String::number(id));
 				}
 				else {
 					try {
 						Desynchronize(this);
-						listener->request(request);
+						if(!listener->request(peering, request)) break;
 					}
 					catch(const Exception &e)
 					{
@@ -1090,14 +1090,14 @@ void Core::Handler::process(void)
 				mStream->read(notification.mContent, length);
 				
 				Listener *listener = NULL;
-				if(!SynchronizeTest(mCore, mCore->mListeners.get(mPeering, listener)))
+				if(!SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 				{
 					LogDebug("Core::Handler", "No listener, dropping notification");
 				}
 				else {
 					try {
 						Desynchronize(this);
-						listener->notification(&notification);
+						if(!listener->notification(peering, &notification)) break;
 					}
 					catch(const Exception &e)
 					{
@@ -1154,9 +1154,6 @@ void Core::Handler::process(void)
 				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
 		}
 	}
-	
-	Identifier peering;
-	SynchronizeStatement(this, peering = mPeering);
 	
 	Listener *listener = NULL;
 	if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))

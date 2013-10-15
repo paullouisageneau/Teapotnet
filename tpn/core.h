@@ -56,8 +56,8 @@ public:
 	public:
 		virtual void connected(const Identifier &peering, bool incoming) = 0;
 		virtual void disconnected(const Identifier &peering) = 0;
-		virtual void notification(Notification *notification) = 0;
-		virtual void request(Request *request) = 0;
+		virtual bool notification(const Identifier &peering, Notification *notification) = 0;
+		virtual bool request(const Identifier &peering, Request *request) = 0;
 	};
 	
 	Core(int port);

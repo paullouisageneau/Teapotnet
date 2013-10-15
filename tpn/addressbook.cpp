@@ -1251,7 +1251,8 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
 	  
-		if(instance == Core::Instance->getName()) continue;
+		if(instance == Core::Instance->getName() 
+			|| mExcludedInstances.contains(instance)) continue;
 		
 	  	// TODO: look for a better address than the already connected one
 		if(isConnected(instance)) 
@@ -1384,6 +1385,20 @@ void AddressBook::Contact::run(void)
 
 void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 {
+	// Handle the special case of symmetric peerings
+	if(!isSelf() && mPeering == mRemotePeering)
+	{
+		Contact *self = mAddressBook->getSelf();
+		
+		// If there is no self contact, the remote instance *should* not be one of ours anyway.
+		if(self)
+		{
+			Notification notification(self->peering().toString());
+			notification.setParameter("type", "checkself");
+			notification.send(peering);
+		}
+	}
+	
 	// Send status and profile
 	mAddressBook->user()->sendStatus(peering);
 	mAddressBook->user()->profile()->send(peering);
@@ -1419,11 +1434,11 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 	SynchronizeStatement(mAddressBook, mOnline = false);
 }
 
-void AddressBook::Contact::notification(Notification *notification)
+bool AddressBook::Contact::notification(const Identifier &peering, Notification *notification)
 {
-	Assert(notification);
-	if(isDeleted()) return;
+	if(isDeleted()) return false;
 
+	Assert(notification);
 	StringMap parameters = notification->parameters();
 	
 	String type;
@@ -1438,7 +1453,7 @@ void AddressBook::Contact::notification(Notification *notification)
 		if(!isSelf())
 		{
 			message.toggleIncoming();
-			message.setPeering(peering());
+			message.setPeering(this->peering());
 			message.setDefaultHeader("from", name());
 		}
 		
@@ -1487,7 +1502,7 @@ void AddressBook::Contact::notification(Notification *notification)
 
 			Notification notification(tmp);
 			notification.setParameter("type", "read");
-			notification.send(peering());
+			notification.send(peering);
 		}
 	}
 	else if(type == "checksum")
@@ -1585,6 +1600,26 @@ void AddressBook::Contact::notification(Notification *notification)
 			sendUnread();
 		}
 	}
+	else if(type == "checkself")
+	{
+		Identifier checkself;
+		
+		try {
+			notification->content().extract(checkself);
+		}
+		catch(...)
+		{
+			throw InvalidData("checkself notification content: " + notification->content());
+		}
+		
+		Contact *self = mAddressBook->getSelf();
+		if(self && (isSelf() != (checkself == self->peering())))
+		{
+			LogDebug("AddressBook::Contact::notification", "Remote instance belongs to us on a symmetric peering, disconnecting");
+			mExcludedInstances.insert(peering.getName());
+			return false; // disconnect
+		}
+	}
 	else if(type == "status")
 	{
 		String status = notification->content().toLower().trimmed();
@@ -1601,7 +1636,7 @@ void AddressBook::Contact::notification(Notification *notification)
 		else if(type != "profilediff") 
 		{
 			LogWarn("AddressBook::Contact::notification", "Received profile update without time, dropping");
-			return;
+			return true;
 		}
 
 		if(time > p->time())
@@ -1617,7 +1652,7 @@ void AddressBook::Contact::notification(Notification *notification)
 		if(!isSelf())
 		{
 			LogWarn("AddressBook::Contact::notification", "Received contacts update from other than self, dropping");
-			return;
+			return true;
 		}
 		
 		// DO NOT synchronize here, as the contact could disappear during load
@@ -1629,6 +1664,8 @@ void AddressBook::Contact::notification(Notification *notification)
 		LogDebug("AddressBook::Contact", "Got deprecated notification with type 'text'");
 	}
 	else LogDebug("AddressBook::Contact", "Unknown notification type '" + type + "'");
+	
+	return true;
 }
 
 MessageQueue::Selection AddressBook::Contact::selectMessages(void) const
@@ -1693,11 +1730,12 @@ void AddressBook::Contact::sendUnread(void) const
 	notification.send(peering());
 }
 
-void AddressBook::Contact::request(Request *request)
+bool AddressBook::Contact::request(const Identifier &peering, Request *request)
 {
 	Assert(request);
 	if(!mDeleted) request->execute(mAddressBook->user(), isSelf());
 	else request->executeDummy();
+	return true;
 }
 
 bool AddressBook::Contact::send(const Notification &notification)
