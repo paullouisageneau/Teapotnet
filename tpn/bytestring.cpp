@@ -145,5 +145,30 @@ void ByteString::writeData(const char *data, size_t size)
 	insert(end(), data, data+size);
 }
 
+#ifdef __GNUC__
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+#endif
+
+bool ByteString::constantTimeEquals(const ByteString &bs) const
+{
+	const_iterator it = begin();
+	const_iterator jt = bs.begin();
+
+	bool match = (size() == bs.size());
+	while(it != end() && jt != bs.end())
+	{
+		match&= (*it == *jt);
+		++it;
+		++jt;
+	}
+
+	return match;
+}
+
+#ifdef __GNUC__
+#pragma GCC pop_options
+#endif
+
 }
 

@@ -746,11 +746,6 @@ td.delete
 	padding: 0.25em;
 }
 
-div.files
-{
-	margin: 0.5em;
-}
-
 .filestr
 {
 	min-height: 16px;

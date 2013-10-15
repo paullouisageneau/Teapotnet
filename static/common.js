@@ -37,20 +37,17 @@ String.prototype.smileys = function() {
 		':@'  : 'angry.png\" height=20 width=30'
 	}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
 
-	for (var i in smileys) 
-	{
-		if (smileys.hasOwnProperty(i))
-		{
+	for (var i in smileys) {
+		if (smileys.hasOwnProperty(i)) {
 			patterns.push('('+i.replace(metachars, "\\$&")+')');
 		}
 	}
 
-  	return this.replace(new RegExp(patterns.join('|'),'g'), function (match) 
-		{
-	   		 return typeof smileys[match] != 'undefined' ?
-		   	'<img src='+url+smileys[match]+'/>' :
-		   	match;
- 		 });
+  	return this.replace(new RegExp(patterns.join('|'),'g'), function (match) {
+		return (typeof smileys[match] != 'undefined' ?
+			'<img src='+url+smileys[match]+'/>' :
+			match);
+ 	});
 
 }
 
@@ -144,7 +141,7 @@ function displayLoading()
 
 if (document.documentElement) {
 	$(document.documentElement).addClass('loading');
-	setTimeout(displayLoading, 300);
+	setTimeout(displayLoading, 250);
 }
 
 $(document).ready( function() {
@@ -254,7 +251,7 @@ var toShow = true;
 function displayContacts(url, period, object) {
 
 	setCallback(url, period, function(data) {
-		if(data!=null) {
+		if(data != null) {
 			saveData = data;
 			var totalmessages = 0;
 			var play = false;
@@ -315,13 +312,9 @@ function displayContacts(url, period, object) {
 			else document.title = title;
 			if(play) playMessageSound();
 		}
-		else {
-			// TODO
-		}
 	});
 
 }
-
 
 function setMessagesReceiverRec(url, object, last) {
 

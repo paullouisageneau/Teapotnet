@@ -580,10 +580,12 @@ void Core::Handler::process(void)
 		
 		cipher->dumpStream(&mObfuscatedHello);
 		
-		ByteString nonce_a, salt_a;
-		nonce_a.writeRandom(32);	// 256 bits
-		salt_a.writeRandom(32);		// 256 bits
-		
+		ByteString nonce_a, salt_a, iv_a;
+		nonce_a.writeBinary(uint32_t(Time::Now()));	// 32 bits
+		nonce_a.writeRandom(28);			// total 256 bits
+		salt_a.writeRandom(32);				// 256 bits
+		iv_a.writeRandom(16);				// 128 bits		
+
 		if(!mIsIncoming)	
 		{
 			LogDebug("Handler", "Initiating handshake...");
@@ -784,16 +786,17 @@ void Core::Handler::process(void)
 
 		// Get authentication key
 		ByteString authkey_a;
-		key_a.readBinary(authkey_a, 16);	// 128 bits
+		key_a.readBinary(authkey_a, 32);	// 256 bits
 
 		// Generate HMAC
 		ByteString hmac_a;
 		Sha512::AuthenticationCode(authkey_a, nonce_b, hmac_a);
-		
+	
 		parameters.clear();
 		parameters["method"] << "DIGEST";
 		parameters["cipher"] << "AES256";
 		parameters["salt"] << salt_a;
+		parameters["init"] << iv_a;
 		sendCommand(mStream, "A", hmac_a.toString(), parameters);
 		
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
@@ -809,36 +812,30 @@ void Core::Handler::process(void)
 		if(strMethod != "DIGEST") throw Exception("Unknown authentication method: " + strMethod);
 		if(strCipher != "AES256") throw Exception("Unknown authentication cipher: " + strCipher);
 		
-		ByteString salt_b, test_b;
+		ByteString test_b, salt_b, iv_b;
 		args >> test_b;
 		parameters["salt"] >> salt_b;
-		
-		// Derivate session remote key
+		parameters["init"] >> iv_b;		
+
+		// Derivate remote session key
 		ByteString key_b;
                 Sha512::DerivateKey(secret, salt_b, key_b, Sha512::CryptRounds);
 	
 		// Get remote authentication key
 		ByteString authkey_b;
-                key_b.readBinary(authkey_b, 16);	// 128 bits
+                key_b.readBinary(authkey_b, 32);	// 256 bits
+		Assert(key_a.size() == 32);    	 	// 256 bits
 
-		// Generate HMAC
+		// Generate remote HMAC
 		ByteString hmac_b;
 		Sha512::AuthenticationCode(authkey_b, nonce_a, hmac_b);
 		
-		if(test_b != hmac_b) throw Exception("Authentication failed");
+		if(mIsIncoming) Thread::Sleep(uniform(0.1, 0.5));
+
+		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed");
 		LogInfo("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
 		mIsAuthenticated = true;		
 
-		// Set encryption key and IV
-		ByteString iv_a;
-		key_a.readBinary(iv_a, 16);	// 128 bits
-		Assert(key_a.size() == 32);	// 256 bits
-		
-		// Set decryption key and IV
-		ByteString iv_b;
-                key_b.readBinary(iv_b, 16);     // 128 bits
-                Assert(key_b.size() == 32);     // 256 bits	
-	
 		// Set up new cipher for the connection
 		delete cipher;
 		cipher = new AesCipher(mRawStream);
@@ -848,7 +845,7 @@ void Core::Handler::process(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
-		if(!mRemoteAddr.isPrivate() && !mRemoteAddr.isLocal())
+		if(!mRemoteAddr.isPublic())
 		{
 			Synchronize(mCore);
 			if(!mIsIncoming && relayEnabled)

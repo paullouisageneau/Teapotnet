@@ -100,7 +100,7 @@ String::String(void)
 }
 
 String::String(const char chr) :
-		std::string(&chr,&chr+1)
+		std::string(1, chr)
 {
 
 }

@@ -1387,7 +1387,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	// Send status and profile
 	mAddressBook->user()->sendStatus(peering);
 	mAddressBook->user()->profile()->send(peering);
-
+	
 	// Send contacts if self
         if(isSelf())
         {

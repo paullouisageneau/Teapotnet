@@ -391,14 +391,14 @@ void Store::http(const String &prefix, Http::Request &request)
 					{
 						char letter = 0x41+i;
 						String name = String(letter) + ":\\";
-						String hrName = String("Drive ") + letter;
+						String hrName = String(letter) + String(" drive");
 						String link = prefix + "/?path=" + name.urlEncode();
 						
 						page.open("tr");
 						page.open("td",".icon");
 						page.image("/dir.png");
 						page.close("td");
-						page.open("td",".fileName");
+						page.open("td",".filename");
 						page.link(link, hrName);
 						page.close("td");
 						page.open("td",".add");
@@ -521,7 +521,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					
 					if(existingPathsSet.find(childPath) == existingPathsSet.end())
 					{
-						page.open("td",".fileName");
+						page.open("td",".filename");
 						page.link(link, name);
 						page.close("td");
 						page.open("td",".add");
@@ -529,7 +529,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						page.close("td");
 					}
 					else {
-						page.open("td",".fileName");
+						page.open("td",".filename");
 						page.text(name);
 						page.close("td");
 						page.open("td",".add");
@@ -564,7 +564,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			}
 			else {
 				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; fileName=\"playlist.m3u\"";
+				response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
@@ -684,7 +684,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.open("td",".icon");
 					page.image("/dir.png");
 					page.close("td");
-					page.open("td",".fileName");
+					page.open("td",".filename");
 					page.link(directories[i], directories[i]);
 					page.close("td");
 					
@@ -719,7 +719,7 @@ void Store::http(const String &prefix, Http::Request &request)
 
                                         page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
                                                 event.stopPropagation();\n\
-                                                var fileName = $(this).closest('tr').find('td.fileName a').text();\n\
+                                                var fileName = $(this).closest('tr').find('td.filename a').text();\n\
                                                 deleteDirectory(fileName);\n\
                                         });");
                                 }
@@ -904,7 +904,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						if(info.get("type") == "directory") page.image("/dir.png");
 						else page.image("/file.png");
 						page.close("td");
-						page.open("td",".fileName");
+						page.open("td",".filename");
 						if(info.get("type") != "directory" && name.contains('.'))
 							page.span(name.afterLast('.').toUpper(), ".type");
 						page.link(link,name);
@@ -959,7 +959,7 @@ void Store::http(const String &prefix, Http::Request &request)
 
 						page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
-							var fileName = $(this).closest('tr').find('td.fileName a').text();\n\
+							var fileName = $(this).closest('tr').find('td.filename a').text();\n\
 							deleteFile(fileName);\n\
 						});");
 					}
@@ -976,7 +976,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					host = String("localhost:") + Config::Get("interface_port");
 					
 					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; fileName=\"stream.m3u\"";
+					response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
 					response.headers["Content-Type"] = "audio/x-mpegurl";
 					response.send();
 					

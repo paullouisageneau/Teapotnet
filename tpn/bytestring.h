@@ -50,6 +50,8 @@ public:
 	uint16_t checksum16(void) const { uint16_t i = 0; return checksum(i); }
 	uint32_t checksum32(void) const { uint32_t i = 0; return checksum(i); }
 	uint64_t checksum64(void) const { uint64_t i = 0; return checksum(i); }
+
+	bool constantTimeEquals(const ByteString &bs) const;
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
