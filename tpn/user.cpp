@@ -27,6 +27,7 @@
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
+#include "tpn/byteserializer.h"
 #include "tpn/mime.h"
 
 namespace tpn
@@ -278,10 +279,11 @@ String User::generateToken(const String &action)
 	salt.writeRandom(8);
 
 	ByteString plain;
-	plain.writeBinary(name());
-	plain.writeBinary(action);
-	plain.writeBinary(salt);
-	SynchronizeStatement(this, plain.writeBinary(mTokenSecret));
+	ByteSerializer splain(&plain);
+	splain.output(name());
+	splain.output(action);
+	splain.output(salt);
+	SynchronizeStatement(this, splain.output(mTokenSecret));
 
 	ByteString digest;
 	Sha512::Hash(plain, digest);
@@ -318,10 +320,11 @@ bool User::checkToken(const String &token, const String &action)
 			AssertIO(bs.readBinary(remoteKey, 8));
 			
 			ByteString plain;
-			plain.writeBinary(name());
-			plain.writeBinary(action);
-			plain.writeBinary(salt);
-			SynchronizeStatement(this, plain.writeBinary(mTokenSecret));
+			ByteSerializer splain(&plain);
+			splain.output(name());
+			splain.output(action);
+			splain.output(salt);
+			SynchronizeStatement(this, splain.output(mTokenSecret));
 			
 			ByteString digest;
 			Sha512::Hash(plain, digest);

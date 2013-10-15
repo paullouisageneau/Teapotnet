@@ -74,7 +74,7 @@ public:
 				const String &uname,
 				const String &name,
 	     			const String &tracker,
-	     			const ByteString &secret);
+	     			const String &secret);
 		Contact(AddressBook *addressBook);
 		~Contact(void);
 
@@ -149,7 +149,7 @@ public:
 		Profile *mProfile;
 	};
 	
-	Identifier addContact(String name, const ByteString &secret);
+	Identifier addContact(String name, const String &secret);
 	void removeContact(const Identifier &peering);
 	Contact *getContact(const Identifier &peering);
 	const Contact *getContact(const Identifier &peering) const;
@@ -157,7 +157,7 @@ public:
 	const Contact *getContactByUniqueName(const String &uname) const;
 	void getContacts(Array<Contact *> &array);
 	
-	Identifier setSelf(const ByteString &secret);
+	Identifier setSelf(const String &secret);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
 	

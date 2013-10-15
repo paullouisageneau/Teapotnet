@@ -29,6 +29,7 @@
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
+#include "tpn/byteserializer.h"
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"
 #include "tpn/mime.h"
@@ -83,7 +84,7 @@ String AddressBook::userName(void) const
  	return mUserName; 
 }
 
-Identifier AddressBook::addContact(String name, const ByteString &secret)
+Identifier AddressBook::addContact(String name, const String &secret)
 {
 	Synchronize(this);
 
@@ -188,7 +189,7 @@ void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
 	}
 }
 
-Identifier AddressBook::setSelf(const ByteString &secret)
+Identifier AddressBook::setSelf(const String &secret)
 {
 	Synchronize(this);
   
@@ -399,14 +400,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						removeContact(mContactsByUniqueName.get(uname)->peering());
 					}
 					else {
-						String name, csecret;
-						name = request.post["name"];
-						csecret = request.post["secret"];
+						String name = request.post["name"];
+						String secret = request.post["secret"];
 					  
-						if(name.empty() || csecret.empty()) throw 400;
-						
-						ByteString secret;
-						Sha512::RecursiveHash(csecret, String("TeapotNet"), secret, Sha512::CryptRounds);
+						// TODO: check size
+						if(name.empty() || secret.empty()) throw 400;
 						
 						if(request.post.contains("self")) setSelf(secret);
 						else addContact(name, secret);
@@ -949,12 +947,11 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
 			        const String &tracker,
-			        const ByteString &secret) :
+			        const String &secret) :
 	mAddressBook(addressBook),
 	mUniqueName(uname),
 	mName(name),
 	mTracker(tracker),
-	mSecret(secret),
 	mDeleted(false),
 	mFound(false),
 	mOnline(false),
@@ -967,17 +964,31 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!tracker.empty());
 	Assert(!secret.empty());
 	
-	// Compute peering
 	ByteString salt;
-	salt.writeBinary(mAddressBook->userName());
-	salt.writeBinary(mName);
-	Sha512::DerivateKey(mSecret, salt, mPeering, Sha512::CryptRounds);
+	ByteSerializer ssalt(&salt);
+	
+	// Compute secret
+	salt.clear();
+	ssalt.output("TeapotNet");
+	ssalt.output(std::min(mName, mAddressBook->userName()));
+	ssalt.output(std::max(mName, mAddressBook->userName()));
+	Sha512::DerivateKey(secret, salt, mSecret, Sha512::CryptRounds);
+	
+	// Only half the secret (256 bits) is used to compute peerings
+	ByteString halfSecret;
+	mSecret.readBinary(halfSecret, mSecret.size()/2);
+	
+	// Compute peering
+	salt.clear();
+	ssalt.output(mAddressBook->userName());
+	ssalt.output(mName);
+	Sha512::DerivateKey(halfSecret, salt, mPeering, Sha512::CryptRounds);
 	
 	// Compute Remote peering
 	salt.clear();
-	salt.writeBinary(mName);
-	salt.writeBinary(mAddressBook->userName());
-	Sha512::DerivateKey(mSecret, salt, mRemotePeering, Sha512::CryptRounds);
+	ssalt.output(mName);
+	ssalt.output(mAddressBook->userName());
+	Sha512::DerivateKey(halfSecret, salt, mRemotePeering, Sha512::CryptRounds);
 	
 	createProfile();
 }
