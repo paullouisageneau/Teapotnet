@@ -414,7 +414,8 @@ Splicer::CacheEntry::CacheEntry(const ByteString &target) :
 
 Splicer::CacheEntry::~CacheEntry(void)
 {
-	if(!mFileName.empty())
+	// If finished the file is in the cache
+	if(!finished() && !mFileName.empty())
 		File::Remove(mFileName);
 }
 
