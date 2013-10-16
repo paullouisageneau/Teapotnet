@@ -381,30 +381,34 @@ function setMessagesReceiverRec(url, object, last) {
 					$('#'+id).append('<span class="attachment">Loading attachment...</span>');
 					
 					var url = '/'+message.headers.attachment;
-					var request = $.ajax({
-						type: "HEAD",
-						url: url,
-						timeout: 60000
-					})
-					.done(function(data) {
-						var name = request.getResponseHeader('Content-Name');
-						var type = request.getResponseHeader('Content-Type');
-						var media = type.substr(0, type.indexOf('/'));
-						
-						if(media == 'image') {
-							$('#'+id+' .attachment').html('<a href="'+url+'"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
-						}
-						else {
-							$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name.escape()+'</a></span>');
-						}
-						
-						$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
-							window.location.href = $(this).find('a').attr('href');
+					
+					(function(id, url) {
+						var request = $.ajax({
+							type: "HEAD",
+							url: url,
+							timeout: 60000
+						})
+						.done(function(data) {
+							var name = request.getResponseHeader('Content-Name');
+							var type = request.getResponseHeader('Content-Type');
+							var media = type.substr(0, type.indexOf('/'));
+							
+							if(media == 'image') {
+								$('#'+id+' .attachment').html('<a href="'+url+'"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+							}
+							else {
+								$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name.escape()+'</a></span>');
+							}
+							
+							$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
+								window.location.href = $(this).find('a').attr('href');
+							});
+						})
+						.fail(function(jqXHR, textStatus) {
+							$('#'+id+' .attachment').html('Attachment not available');
 						});
-					})
-					.fail(function(jqXHR, textStatus) {
-						$('#'+id+' .attachment').html('Attachment not available');
-					});
+					
+					})(id, url);
 				}
 			}
 			
