@@ -41,23 +41,28 @@ ByteSerializer::~ByteSerializer(void)
 
 bool ByteSerializer::input(String &str)
 {
+	uint32_t size;
+	if(!input(size)) return false;	
+
 	str.clear();
-	uint8_t c;
-	while(input(c))
+	str.reserve(size);
+	
+	while(size--)
 	{
-		if(!c) return true;
+		uint8_t c;
+		AssertIO(input(c));
 		str+= char(c);
 	}
-	
-	return (!str.empty());
+
+	return true;
 }
 
 void ByteSerializer::output(const String &str)
 {
+	output(uint32_t(str.size()));
+	
 	for(int i=0; i<str.size(); ++i)
 		output(uint8_t(str[i]));
-	
-	output(uint8_t(0));
 }
 
 bool ByteSerializer::input(bool &b)

@@ -30,6 +30,24 @@ ByteString::ByteString(void)
 
 }
 
+ByteString::ByteString(const ByteString &bs) :
+	std::deque<char>(bs)
+{
+
+}
+
+ByteString::ByteString(const ByteString &bs, size_t begin) :
+	std::deque<char>(bs.begin()+std::min(begin, bs.size()), bs.end())
+{
+
+}
+
+ByteString::ByteString(const ByteString &bs, size_t begin, size_t end) :
+	std::deque<char>(bs.begin()+std::min(begin, bs.size()), bs.begin()+std::min(end, bs.size()))
+{
+
+}
+
 ByteString::ByteString(const char *data, size_t size) :
 	std::deque<char>(data,data+size)
 {

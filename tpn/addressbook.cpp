@@ -975,8 +975,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Sha512::DerivateKey(secret, salt, mSecret, Sha512::CryptRounds);
 	
 	// Only half the secret (256 bits) is used to compute peerings
-	ByteString halfSecret;
-	mSecret.readBinary(halfSecret, mSecret.size()/2);
+	ByteString halfSecret(mSecret, 0, mSecret.size()/2);
 	
 	// Compute peering
 	salt.clear();

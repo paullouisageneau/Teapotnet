@@ -24,6 +24,7 @@
 #include "tpn/serializable.h"
 #include "tpn/byteserializer.h"
 #include "tpn/bytestring.h"
+#include "tpn/string.h"
 #include "tpn/thread.h"
 
 namespace tpn
@@ -135,6 +136,20 @@ int64_t ByteStream::readBinary(ByteString &s)
 	return readBinary(stream);
 }
 
+bool ByteStream::readBinary(String &str)
+{
+	str.clear();
+
+	char chr;
+	while(readData(&chr, 0))
+	{
+		if(!chr) return true;
+		str+= chr;
+	}
+
+	return (!str.empty());
+}
+
 bool ByteStream::readBinary(Serializable &s)
 {
 	ByteSerializer serializer(this);
@@ -222,6 +237,11 @@ void ByteStream::writeBinary(const ByteString &s)
 	ByteString tmp(s);
 	ByteStream &stream = tmp;
 	writeBinary(stream);
+}
+
+void ByteStream::writeBinary(const String &str)
+{
+	writeData(str.c_str(), str.size() + 1);
 }
 
 void ByteStream::writeBinary(const Serializable &s)

@@ -37,6 +37,9 @@ class ByteString : public std::deque<char>, public ByteStream, public Serializab
 {
 public:	
 	ByteString(void);
+	ByteString(const ByteString &bs);
+	ByteString(const ByteString &bs, size_t begin);
+	ByteString(const ByteString &bs, size_t begin, size_t end);
 	ByteString(const char *data, size_t size);
 	ByteString(const String &str);
 	virtual ~ByteString(void);
