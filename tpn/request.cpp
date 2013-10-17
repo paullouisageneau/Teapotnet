@@ -274,91 +274,94 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 	StringMap rparameters;
 	resource.serialize(rparameters);
 	
-	if(resource.isDirectory())
-	{
-		rparameters["processing"] = "none";
-		rparameters["formatting"] = "YAML";
-		
-		Response *response = new Response(Response::Success, rparameters, new ByteString);
-		
-		Assert(store);
-		Assert(response->content());
-		
-		// The trailing '/' means it's a directory listing
-		String url = resource.url();
-		if(url.empty() || url[url.size()-1] != '/') url+= '/';
-	
-		Resource::Query query(store, url);	
-		SerializableSet<Resource> resources;
-		if(query.submitLocal(resources))
-		{
-			YamlSerializer serializer(response->content());
-			serializer.output(resources);
-		}
-				
-		response->content()->close();	// no more content
-		return response;
-	}
-	
 	ByteStream *content = NULL;
-	if(!parameters.contains("stripe")) 
+	if(mIsData)
 	{
-		content = resource.accessor();
-		resource.dissociateAccessor();
-		
-		if(parameters.contains("position"))
+		if(resource.isDirectory())
 		{
-			int64_t position = 0;
-			parameters.get("position").extract(position);
-			content->seekRead(position);
-			rparameters["position"] << position;
-		}
+			rparameters["processing"] = "none";
+			rparameters["formatting"] = "YAML";
+			
+			Response *response = new Response(Response::Success, rparameters, new ByteString);
+			
+			Assert(store);
+			Assert(response->content());
+			
+			// The trailing '/' means it's a directory listing
+			String url = resource.url();
+			if(url.empty() || url[url.size()-1] != '/') url+= '/';
 		
-		rparameters["processing"] = "none";
-	}
-	else {
-		size_t blockSize;
-		int stripesCount, stripe;
-		parameters.get("block-size").extract(blockSize);
-		parameters.get("stripes-count").extract(stripesCount);
-		parameters.get("stripe").extract(stripe);
-			
-		Assert(blockSize > 0);
-		Assert(stripesCount > 0);
-		Assert(stripe >= 0);
-			
-		File *file = NULL;
-		StripedFile *stripedFile = NULL;
+			Resource::Query query(store, url);	
+			SerializableSet<Resource> resources;
+			if(query.submitLocal(resources))
+			{
+				YamlSerializer serializer(response->content());
+				serializer.output(resources);
+			}
 					
-		try {
-			// TODO: Request should not be Resource's friend
-			file = new File(resource.mPath, File::Read);
-			stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
-			
-			size_t block = 0;
-			size_t offset = 0;
-			if(parameters.contains("block")) parameters.get("block").extract(block);
-			if(parameters.contains("offset")) parameters.get("offset").extract(offset);
-			stripedFile->seekRead(block, offset);
-			
-			content = stripedFile;
-			
-			rparameters["processing"] = "striped";
-			//rparameters["size"].clear();
-			//rparameters["size"] << TODO;
-			rparameters.erase("size");
+			response->content()->close();	// no more content
+			return response;
 		}
-		catch(...)
+		
+		if(!parameters.contains("stripe")) 
 		{
-			delete stripedFile;
-			throw;
+			content = resource.accessor();
+			resource.dissociateAccessor();
+			
+			if(parameters.contains("position"))
+			{
+				int64_t position = 0;
+				parameters.get("position").extract(position);
+				content->seekRead(position);
+				rparameters["position"] << position;
+			}
+			
+			rparameters["processing"] = "none";
 		}
+		else {
+			size_t blockSize;
+			int stripesCount, stripe;
+			parameters.get("block-size").extract(blockSize);
+			parameters.get("stripes-count").extract(stripesCount);
+			parameters.get("stripe").extract(stripe);
+				
+			Assert(blockSize > 0);
+			Assert(stripesCount > 0);
+			Assert(stripe >= 0);
+				
+			File *file = NULL;
+			StripedFile *stripedFile = NULL;
+						
+			try {
+				// TODO: Request should not be Resource's friend
+				file = new File(resource.mPath, File::Read);
+				stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
+				
+				size_t block = 0;
+				size_t offset = 0;
+				if(parameters.contains("block")) parameters.get("block").extract(block);
+				if(parameters.contains("offset")) parameters.get("offset").extract(offset);
+				stripedFile->seekRead(block, offset);
+				
+				content = stripedFile;
+				
+				rparameters["processing"] = "striped";
+				//rparameters["size"].clear();
+				//rparameters["size"] << TODO;
+				rparameters.erase("size");
+			}
+			catch(...)
+			{
+				delete stripedFile;
+				throw;
+			}
+		}
+		
+		Assert(content);
 	}
 	
-	Assert(content);
 	Response *response = new Response(Response::Success, rparameters, content, true);	// content is read only
 	return response;	
-	
 }
 
 Identifier Request::receiver(void) const

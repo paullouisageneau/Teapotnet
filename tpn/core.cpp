@@ -1041,8 +1041,7 @@ void Core::Handler::process(void)
 				String &target = args;
 			  	LogDebug("Core::Handler", "Received request "+String::number(id));
 
-				Request *request = new Request;
-				request->setTarget(target, (command == "G"));
+				Request *request = new Request(target, (command == "G"));
 				request->setParameters(parameters);
 				request->mId = id;
 				request->mRemoteAddr = mRemoteAddr;
