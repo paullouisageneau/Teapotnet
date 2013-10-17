@@ -86,6 +86,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\">\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.form.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/directory.js\"></script>\n";
 	
