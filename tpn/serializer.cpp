@@ -175,7 +175,7 @@ bool Serializer::ObjectMapping::deserializeValue(Serializer &s)
 		return s.input(dummy);
 	}
 	else {
-		LogDebug("Serializer::ObjectMapping", String("Warning: Ignoring unknown entry: ") + *mLastKey);
+		//LogDebug("Serializer::ObjectMapping", String("Warning: Ignoring unknown entry: ") + *mLastKey);
 		String dummy;
 		return s.input(dummy);
 	}
