@@ -275,7 +275,7 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.open("div","topmenu");	
 	if(isPopup) page.span(title, ".button");
 	page.span(status.capitalized(), "status.button");
-	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'textarea.chatinput','"+mUser->generateToken("directory")+"');\">Send file</a>");
+	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"');\">Send file</a>");
 // TODO: should be hidden in CSS
 #ifndef ANDROID
 	String popupUrl = prefix + url + "?popup=1";
@@ -296,13 +296,13 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.openForm("#", "post", "chatform");
 	page.textarea("chatinput");
 	page.input("hidden", "attachment");
+	page.input("hidden", "attachmentname");
 	page.closeForm();
 	page.close("div");
 
 	page.close("div");
  
-	page.javascript("function post()\n\
-		{\n\
+	page.javascript("function post() {\n\
 			var message = $(document.chatform.chatinput).val();\n\
 			var attachment = $(document.chatform.attachment).val();\n\
 			if(!message) return false;\n\
@@ -314,60 +314,35 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			.fail(function(jqXHR, textStatus) {\n\
 				alert('The message could not be sent.');\n\
 			});\n\
-			$(document.chatform.chatinput).val("").change();\n\
-			$(document.chatform.attachment).val("").change();\n\
+			$(document.chatform.chatinput).val('');\n\
+			$(document.chatform.attachment).val('');\n\
+			$(document.chatform.attachmentname).val('');\n\
 			$('#attachedfile').hide();\n\
 		}\n\
-		var status = \""+status+"\";\n\
-		var statusBackup;\n\
-		function checkStatus() \n\
-		{\n\
-			status = $('#status').text()\n\
-			if(statusBackup != status) updateStatus();\n\
-			statusBackup = status;\n\
-			setTimeout(function() {\n\
-				checkStatus();\n\
-			}, 1000);\n\
-		}\n\
-		function updateStatus()\n\
-		{\n\
-			//if(status != \"Online\")\n\
-			//{\n\
-			//	document.chatform.chatinput.blur();\n\
-			//	document.chatform.chatinput.style.color = 'grey';\n\
-			//	document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
-			//}\n\
-			//else\n\
-			//{\n\
-			//	document.chatform.chatinput.focus();\n\
-			//}\n\
-		}\n\
-		document.chatform.onsubmit = function()\n\
-		{\n\
+		$(document.chatform).submit(function() {\n\
 			post();\n\
 			return false;\n\
-		}\n\
-		document.chatform.attachment.onchange = function()\n\
-		{\n\
+		});\n\
+		$(document.chatform.attachment).change(function() {\n\
 			$('#attachedfile').html('');\n\
 			$('#attachedfile').hide();\n\
-			var filename = $(document.chatform.chatinput).val();\n\
+			var filename = $(document.chatform.attachmentname).val();\n\
 			if(filename != '') {\n\
 				$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
 				$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
 				$('#attachedfile').show();\n\
 			}\n\
-			document.chatform.chatinput.focus();\n\
-			document.chatform.chatinput.select();\n\
-		}\n\
-		$('textarea.chatinput').keypress(function(e) {\n\
+			$(document.chatform.chatinput).val(filename);\n\
+			$(document.chatform.chatinput).focus();\n\
+			$(document.chatform.chatinput).select();\n\
+		});\n\
+		$(document.chatform.chatinput).keypress(function(e) {\n\
 			if (e.keyCode == 13 && !e.shiftKey) {\n\
 				e.preventDefault();\n\
 				post();\n\
 			}\n\
 		});\n\
 		$('#attachedfile').hide();\n\
-		$(document).ready(function() { checkStatus(); });\n\
 		setMessagesReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmessages');");
 
 	unsigned refreshPeriod = 5000;
