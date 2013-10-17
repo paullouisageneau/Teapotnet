@@ -110,9 +110,9 @@ Identifier AddressBook::addContact(String name, const String &secret)
 	Contact *contact = new Contact(this, uname, name, tracker, secret);
 	if(mContacts.get(contact->peering(), oldContact))
 	{
-		oldContact->copy(contact);
+		LogWarn("AddressBook::addContact", "The contact already exists with this secret: " + name);
 		delete contact;
-		contact = oldContact;
+		return oldContact->peering();
 	}
 
 	registerContact(contact);

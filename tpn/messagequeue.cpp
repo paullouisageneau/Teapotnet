@@ -303,19 +303,20 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
  
 	page.javascript("function post()\n\
 		{\n\
-			var message = document.chatform.chatinput.value;\n\
-			var attachment = document.chatform.attachment.value;\n\
+			var message = $(document.chatform.chatinput).val();\n\
+			var attachment = $(document.chatform.attachment).val();\n\
 			if(!message) return false;\n\
 			var fields = {};\n\
 			fields['message'] = message;\n\
 			fields['token'] = '"+user()->generateToken("message")+"';\n\
 			if(attachment) fields['attachment'] = attachment;\n\
-			var request = $.post('"+prefix+url+"', fields);\n\
-			request.fail(function(jqXHR, textStatus) {\n\
+			$.post('"+prefix+url+"', fields)\n\
+			.fail(function(jqXHR, textStatus) {\n\
 				alert('The message could not be sent.');\n\
 			});\n\
-			document.chatform.chatinput.value = '';\n\
+			$(document.chatform.chatinput).val("").change();\n\
 			$(document.chatform.attachment).val("").change();\n\
+			$('#attachedfile').hide();\n\
 		}\n\
 		var status = \""+status+"\";\n\
 		var statusBackup;\n\
@@ -324,8 +325,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			status = $('#status').text()\n\
 			if(statusBackup != status) updateStatus();\n\
 			statusBackup = status;\n\
-			timeout = setTimeout(function() {\n\
-			checkStatus();\n\
+			setTimeout(function() {\n\
+				checkStatus();\n\
 			}, 1000);\n\
 		}\n\
 		function updateStatus()\n\
@@ -346,24 +347,11 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			post();\n\
 			return false;\n\
 		}\n\
-		document.chatform.chatinput.onfocus = function()\n\
-		{\n\
-			//document.chatform.chatinput.value = '';\n\
-			//document.chatform.chatinput.style.color = 'black';\n\
-		}\n\
-		document.chatform.chatinput.onblur = function()\n\
-		{\n\
-			//if(status != \"Online\")\n\
-			//{\n\
-			//	document.chatform.chatinput.style.color = 'grey';\n\
-			//	document.chatform.chatinput.value = '"+name.capitalized()+" is not online for now, and will receive your message on his/her next connection.';\n\
-			//}\n\
-		}\n\
 		document.chatform.attachment.onchange = function()\n\
 		{\n\
 			$('#attachedfile').html('');\n\
 			$('#attachedfile').hide();\n\
-			var filename = document.chatform.chatinput.value;\n\
+			var filename = $(document.chatform.chatinput).val();\n\
 			if(filename != '') {\n\
 				$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
 				$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
