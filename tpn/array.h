@@ -41,6 +41,7 @@ public:
 	void append(const T &value, int n = 1);
 	void append(const Array<T> array);
 	void append(const T *array, size_t size);
+	void prepend(const T &value, int n = 1);
 	void fill(const T &value, int n);
 	void erase(int i, int n = 1);
 	bool remove(const T &value);
@@ -103,6 +104,12 @@ template<typename T>
 void Array<T>::append(const T *array, size_t size)
 {
 	this->insert(this->end(),array,array+size);
+}
+
+template<typename T>
+void Array<T>::prepend(const T &value, int n)
+{
+	this->insert(this->begin(), n, value);
 }
 
 template<typename T>

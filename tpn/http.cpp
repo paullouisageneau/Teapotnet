@@ -265,7 +265,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 				
 				String line;
 				while(line.empty()) AssertIO(sock.readLine(line));
-				AssertIO(line == boundary);
+				Assert(line == boundary);
 				
 				bool finished = false;
 				while(!finished)
@@ -319,7 +319,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 						stream = tempFile;
 						LogDebug("Http::Request", String("File upload: ") + fileName);
 					}
-					
+	
 					String contentLength;
 					if(mimeHeaders.get("Content-Length", contentLength))
 					{
@@ -341,13 +341,14 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 							if(stream) stream->write(line);
 							line.clear();
 						}*/
+						
 						String bound = String("\r\n") + boundary;
 						char *buffer = new char[bound.size()];
 						try {
 							size_t size = 0;
 							size_t c = 0;
 							size_t i = 0;
-							while(!finished)
+							while(true)
 							{
 								if(c == size)
 								{
@@ -365,7 +366,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 										String line;
 										AssertIO(sock.readLine(line));
 										if(line == "--") finished = true;
-										else AssertIO(line.empty());
+										break;
 									}
 								}
 								else {

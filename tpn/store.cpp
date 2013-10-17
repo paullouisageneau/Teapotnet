@@ -546,7 +546,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			
 		} // prefix == "explore"
 
-		if(request.get.contains("json")  || request.get.contains("playlist"))
+		if(request.method != "POST" && (request.get.contains("json")  || request.get.contains("playlist")))
 		{
 			// Query resources
 			Resource::Query query(this, url);
@@ -672,6 +672,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			
 			Array<String> directories;
 			getDirectories(directories);
+			directories.prepend(UploadDirectoryName);
 			
 			if(!directories.empty())
 			{
@@ -680,12 +681,16 @@ void Store::http(const String &prefix, Http::Request &request)
 				
 				for(int i=0; i<directories.size(); ++i)
 				{
+					String name;
+					if(directories[i] == UploadDirectoryName) name = "Sent files";
+					else name = directories[i];
+					
 					page.open("tr");
 					page.open("td",".icon");
 					page.image("/dir.png");
 					page.close("td");
 					page.open("td",".filename");
-					page.link(directories[i], directories[i]);
+					page.link(directories[i], name);
 					page.close("td");
 					
 					if(this != GlobalInstance)
@@ -761,7 +766,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					response.send();
 					return;
 				}
-			  
+				
 				if(this != GlobalInstance && request.method == "POST")
 				{
 					if(!user()->checkToken(request.post["token"], "directory")) 
@@ -796,25 +801,59 @@ void Store::http(const String &prefix, Http::Request &request)
 							}
 						}
 					}
-					else for(Map<String,TempFile*>::iterator it = request.files.begin();
+					else {
+						SerializableSet<Resource> resources;
+						
+						for(Map<String,TempFile*>::iterator it = request.files.begin();
 						it != request.files.end();
 						++it)
-					{
-						String fileName;
-						if(!request.post.get(it->first, fileName)) continue;
-						Assert(!fileName.empty());
-						
-						if(fileName.contains('/') || fileName.contains('\\') 
-								|| fileName.find("..") != String::NotFound)
-									throw Exception("Invalid file name");
+						{
+							String fileName;
+							if(!request.post.get(it->first, fileName)) continue;
+							Assert(!fileName.empty());
 							
-						TempFile *tempFile = it->second;
-						tempFile->close();
+							VAR(fileName);
+							
+							if(fileName.contains('/') || fileName.contains('\\') 
+									|| fileName.find("..") != String::NotFound)
+										throw Exception("Invalid file name");
+								
+							TempFile *tempFile = it->second;
+							tempFile->close();
+							
+							String filePath = path + Directory::Separator + fileName;
+							File::Rename(tempFile->name(), filePath);
+							
+							LogInfo("Store::Http", String("Uploaded: ") + fileName);
+							
+							try {
+								String fileUrl = url + fileName;
+								update(fileUrl);
+								
+								Resource res; 
+								Resource::Query qry;
+								qry.setLocation(fileUrl);
+								qry.setFromSelf(true);
+								if(!query(qry, res)) throw Exception("Query failed for " + fileUrl);
+									
+								resources.insert(res);
+							}
+							catch(const Exception &e)
+							{
+								LogWarn("Store::Http", String("Unable to get resource after upload: ") + e.what());
+							}
+						}
+					
+						if(request.get.contains("json"))
+						{
+							Http::Response response(request, 200);
+							response.headers["Content-Type"] = "application/json";
+							response.send();
+							JsonSerializer json(response.sock);
+							json.output(resources);
+							return;
+						}
 						
-						String filePath = path + Directory::Separator + fileName;
-						File::Rename(tempFile->name(), filePath);
-						
-						LogDebug("Store::Http", String("Uploaded: ") + fileName);
 						start();
 					}
 					
@@ -834,7 +873,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				
 				String title;
 				if(directory == CacheDirectoryName) title = "Cached files";
-				else if(directory == UploadDirectoryName) title = "Recently sent files";
+				else if(directory == UploadDirectoryName) title = "Sent files";
 				else title = "Shared folder: " + request.url.substr(1,request.url.size()-2);
 					
 				page.header(title);
@@ -1013,7 +1052,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(oneRowOnly) count = 1;
 	
 	// Limit for security purposes
-	if(!query.mMatch.empty() && (count <= 0 || count > 1000)) count = 1000;	// TODO: variable
+	if(!query.mMatch.empty() && (count <= 0 || count > 200)) count = 200;	// TODO: variable
 	
 	// If multiple rows are expected and url finishes with '/', this is a directory listing
 	int64_t parentId = -1;
@@ -1048,11 +1087,11 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	sql<<"SELECT "<<fields<<" FROM files ";
 	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
 	sql<<"WHERE url NOT NULL ";
-	if(parentId >= 0)		sql<<"AND parent_id = ? ";
-	else if(!url.empty())		sql<<"AND url = ? ";
-	if(!query.mDigest.empty())	sql<<"AND digest = ? ";
-	else				sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
-	if(!query.mMatch.empty())	sql<<"AND names.name MATCH ? ";
+	if(parentId >= 0)				sql<<"AND parent_id = ? ";
+	else if(!url.empty())				sql<<"AND url = ? ";
+	if(!query.mDigest.empty())			sql<<"AND digest = ? ";
+	else if(url.empty() || !query.mFromSelf)	sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
+	if(!query.mMatch.empty())			sql<<"AND names.name MATCH ? ";
 	
 	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
 	if(query.mMaxAge > 0) sql<<"AND time >= ? ";
@@ -1090,7 +1129,15 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 	try {
 		Unprioritize(this);
 	  
-		if(path.empty()) path = urlToPath(url);
+		if(url.empty()) return;
+		
+		if(path.empty())
+		{
+			path = url;
+			path.replace('/', Directory::Separator);
+			if(path[0] == Directory::Separator) path.ignore();
+		}
+		
 		String absPath = absolutePath(path);
 		
 		int64_t time = File::Time(absPath);
@@ -1249,9 +1296,9 @@ String Store::urlToPath(const String &url) const
 		throw Exception("Invalid URL");
 
 	String dirPath;
-	if(!mDirectories.get(dir,dirPath)) return "";
+	if(!mDirectories.get(dir, dirPath)) return "";
 
-	path.replace('/',Directory::Separator);
+	path.replace('/', Directory::Separator);
 
 	return absolutePath(dirPath + Directory::Separator + path);
 }

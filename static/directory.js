@@ -100,7 +100,7 @@ function listDirectory(url, object, showButtons) {
 	});
 }
 
-function listFileSelector(url, object, input, inputName, parents) {
+function listFileSelector(url, object, input, inputName, directoryToken, parents) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
@@ -112,26 +112,55 @@ function listFileSelector(url, object, input, inputName, parents) {
 	.done(function(data) {
 		$(object).html('<h2>Select a file</h2>');
 		
-		var uploadUrl = getBasePath(1) + "files/_upload";
-		
-		/*$(object).append('<form name="uploadform" action="#" method="post" enctype="mutipart/form-data"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
-		$('#selector_file').css('visibility', 'hidden').css('display', 'inline').css('width', '0px');
-		$('#selector_file').after('<a class="button" href="javascript:void(0)" onclick="$(\'#selector_file\').click()">Send a new file</a>');*/
-		
 		$(object).append('<a class="button quitbutton" href="#">Cancel</a>');
-		$(object).append('<a class="button" href="'+uploadUrl+'">Send a new file</a>');
 		$(object).find('a.quitbutton').click(function() {
 			$(inputName).val("").change();
 			$(input).val("").change();
 			$(object).remove();
 		});
 		
+		//$(object).append('<a class="button" href="'+uploadUrl+'">Send another file</a>');
+		
+		if(directoryToken)
+		{
+			var uploadUrl = getBasePath(1) + 'files/_upload/?json';
+			
+			$(object).append('<form id="uploadform" action="'+uploadUrl+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+directoryToken+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
+			$('#selector_file')
+				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
+				.after('<a class="button" href="javascript:void(0)" onclick="$(\'#selector_file\').click()">Send another file</a>')
+				.change(function() {
+					$(object).children().hide();
+					$(object).append('<span>Please wait...</span>');
+					
+					$('#uploadform').ajaxSubmit({
+						timeout: 600000,
+						dataType: 'json',
+						error: function() { 
+							alert('Unable to send the file.'); 
+							$(inputName).val("").change();
+							$(input).val("").change();
+							$(object).remove();
+						},
+						success: function(resources) {
+							if(resources != null && resources.length > 0)
+							{
+								var resource = resources[0];
+								$(inputName).val(resource.name).change();
+								$(input).val(resource.digest).change();
+								$(object).remove();
+							}
+						}
+					});
+				});
+		}	
+			
 		if(parents.length > 0) {
 			$(object).append('<span class="button"> '+data.length+' files</span>');
 			$(object).append('<a href="#" class="button"><img src="/arrow_up.png" alt="Parent"></a>');
 			$(object).find('a:last').click(function() {
 				var parentUrl = parents.pop();
-				listFileSelector(parentUrl, object, input, inputName, parents);
+				listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
 			});
 		}
 
@@ -164,7 +193,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 						func = function() {
 							var link = getResourceLink(resource) + "?json";
 							parents.push(url);
-							listFileSelector(link, object, input, inputName, parents);
+							listFileSelector(link, object, input, inputName, directoryToken, parents);
 						};
 					}
 					else {
@@ -193,7 +222,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 	});
 }
 
-function createFileSelector(url, object, input, inputName) 
+function createFileSelector(url, object, input, inputName, directoryToken) 
 {
 	if($(object).html()) {
 		$(object).html("");
@@ -205,7 +234,7 @@ function createFileSelector(url, object, input, inputName)
 	$(object).show();
 	$(object).html('<div class="box"></div>');
 	var div = $(object).find('div');
-	listFileSelector(url, div, input, inputName, []);	
+	listFileSelector(url, div, input, inputName, directoryToken, []);	
 }
 
 function isPlayableResource(fileName)

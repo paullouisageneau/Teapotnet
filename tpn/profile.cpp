@@ -303,7 +303,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 				{
 					page.input("hidden", "avatarDigest");
 					page.input("hidden", "avatarName");
-					page.javascript("$('#profilephoto').css('cursor', 'pointer').click(function() { createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.avatarDigest', 'input.avatarName'); $('#profile').hide(); });\n\
+					page.javascript("$('#profilephoto').css('cursor', 'pointer').click(function() { createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.avatarDigest', 'input.avatarName','"+mUser->generateToken("directory")+"'); $('#profile').hide(); });\n\
 				$('input.avatarDigest').change(function() { if($(this).val() != '') postField('avatar', $(this).val()); else $('#profile').show(); });");
 				}
 
