@@ -81,10 +81,9 @@ header("Access-Control-Allow-Origin: *");
 				if(!$already_accepted)
 				{
 					// Generate secret :
-					$secret = md5(rand());
-					// Generate another id_request (necessity is questionable)
-
-					$id_request_2 = md5(rand());
+					$secret = openssl_random_pseudo_bytes(64,true); // Uses strong option
+					// Generate another id_request
+					$id_request_2 = openssl_random_pseudo_bytes(32);
 			
 				// Record tpn_id of receiver in db and send mail to sender (with id_request)
 				$req = $bdd->prepare("UPDATE `teapot`.`tpn_requests` SET secret = ?, date_accepted_1 = ?, id_request_2 = ?, tpn_id_receiver = ? WHERE (id_request = ?);");
