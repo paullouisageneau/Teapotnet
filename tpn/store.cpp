@@ -691,6 +691,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					page.open("td",".filename");
 					page.link(directories[i], name);
+					if(isHiddenUrl(directories[i])) page.text(" (not visible)");
 					page.close("td");
 					
 					if(this != GlobalInstance)
