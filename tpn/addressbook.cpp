@@ -742,6 +742,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							$.post( postUrl, { tpn_id: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
 								// TODO : if not JSON output because of errors, do not trigger addContact \n\
+							setTimeout(function() { }, 1000); // Let time to generate secret -> TODO : why does javascript not wait for proper answer ? \n\
 								if(data == EMPTY_REQUEST) \n\
 									alert('error, request not found'); \n\
 								else if(isJsonString(data))\n\
