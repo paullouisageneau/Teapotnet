@@ -50,12 +50,12 @@ function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $i
 
 	}
 
-	sendMail($subject, $name_sender, $mail_sender, $mail_destination, $message_txt, $message_html);
+	sendMail($subject, $name_sender, $mail_sender, $mail_destination, $message_txt, $message_html, $mode);
 }
 
 
 
-function sendMail($subject, $name_sender, $mail_sender, $mail_destination, $message_txt, $message_html)
+function sendMail($subject, $name_sender, $mail_sender, $mail_destination, $message_txt, $message_html, $mode)
 {
 
 	$mail = $mail_destination;
@@ -111,7 +111,8 @@ function sendMail($subject, $name_sender, $mail_sender, $mail_destination, $mess
 	if($result)
 	{
 		//echo 'Mail was successfully sent to : '.$mail_destination;
-		echo SUCCESS;
+		if($mode == MODE_FIRST_REQUEST) // else silent echo
+			echo SUCCESS;
 	}
 	else
 	{

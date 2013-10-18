@@ -649,6 +649,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 									alert('A request from '+mailSender+' to : '+mailReceiver+' already exists.'); \n\
 								else if(data==INVALID_ADDRESS) \n\
 									alert('Invalid address'); \n\
+								else if(data != '') // Silent case (mode REQUEST_ACCEPTED) \n\
+									alert('Invitation was successfully sent to : '+mailReceiver); \n\
 								else \n\
 									alert('Unknown error'); \n\
 							}) \n\
@@ -741,8 +743,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							postUrl += idrequest; \n\
 							$.post( postUrl, { tpn_id: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
-								// TODO : if not JSON output because of errors, do not trigger addContact \n\
-							setTimeout(function() { }, 1000); // Let time to generate secret -> TODO : why does javascript not wait for proper answer ? \n\
 								if(data == EMPTY_REQUEST) \n\
 									alert('error, request not found'); \n\
 								else if(isJsonString(data))\n\
@@ -770,14 +770,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							location.reload(); \n\
 						}) \n\
 						.fail(function() { alert('error, contact could not be added'); });\n\
-					} \n\
-					function isJsonString(str) { \n\
-					    try { \n\
-						JSON.parse(str); \n\
-					    } catch (e) { \n\
-						return false; \n\
-					    } \n\
-					    return true; \n\
 					} \n\
 					");
 			
