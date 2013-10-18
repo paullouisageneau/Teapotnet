@@ -63,7 +63,7 @@ header("Access-Control-Allow-Origin: *");
 		
 
 			// Generate id_request :
-			$id_request = openssl_random_pseudo_bytes(32);
+			$id_request = hash('md5',openssl_random_pseudo_bytes(32));
 
 			// Current time:
 			$date_proposed = date('Y-m-d H:i:s');

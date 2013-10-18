@@ -15,8 +15,6 @@ header("Access-Control-Allow-Origin: *");
 	// tpn_id of receiver is sent by POST on an url with id_request as GET parameter
 	// (not designed for security, but more for avoiding basic users mistakes)
 
-	//$tpn_id_receiver = "groboloss@teapotnet.org"; // Just for tests
-
 	if(isset($_GET['id_request']) && isset($_POST['tpn_id']))
 	{
 		$id_request = $_GET['id_request'];
@@ -75,15 +73,15 @@ header("Access-Control-Allow-Origin: *");
 			$d2 = new DateTime($date_accepted_1);
 			$time_between = $d2->diff($d1);
 
-			if($time_between->d < 1) // Less than 24 hours
+			if($time_between->d < 7) // Less than 1 week
 			{
 
 				if(!$already_accepted)
 				{
 					// Generate secret :
-					$secret = openssl_random_pseudo_bytes(64,true); // Uses strong option
+					$secret = hash('sha256',openssl_random_pseudo_bytes(64));
 					// Generate another id_request
-					$id_request_2 = openssl_random_pseudo_bytes(32);
+					$id_request_2 = hash('md5',openssl_random_pseudo_bytes(32));
 			
 				// Record tpn_id of receiver in db and send mail to sender (with id_request)
 				$req = $bdd->prepare("UPDATE `teapot`.`tpn_requests` SET secret = ?, date_accepted_1 = ?, id_request_2 = ?, tpn_id_receiver = ? WHERE (id_request = ?);");

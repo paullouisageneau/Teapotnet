@@ -52,7 +52,7 @@ header("Access-Control-Allow-Origin: *");
 		$time_between = $d2->diff($d1);
 
 		// Get secret and tpn_id_receiver if request has not been accepted too long ago
-		if($time_between->d < 1) // 24 hours
+		if($time_between->d < 7) // One week
 		{
 
 			$req = $bdd->prepare("SELECT secret, tpn_id_receiver FROM teapot.tpn_requests WHERE (id_request_2 = ? AND tpn_id_sender = ?);");

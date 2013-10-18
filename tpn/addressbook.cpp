@@ -545,14 +545,15 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			String laststep = "laststep.php";
 			String finalize = "finalize.php";
 			String tpn_id = user()->name()+"@"+user()->tracker();
+			String nameProfile = user()->profile()->realName();
+			String mailProfile = user()->profile()->eMail();
 
+			//page.raw("<form novalidate='novalidate'>"); // Is not supported in Safari
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");
 			page.close("h2");
-			page.label("name_sender","Your Name"); page.input("text","name_sender"); page.br();
 			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
-			page.label("name_receiver","Your friend's Name"); page.input("text","name_receiver"); page.br();
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("add"); page.button("add","Send invitation");
 			page.close("div");
@@ -569,20 +570,18 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					SUCCESS = 16; \n\
 					FAILURE = 17; \n\
 					/**************** END OF CONSTANTS *************/ \n\
+					var nameProfile = \""+nameProfile+"\";\n\
+					var mailProfile = \""+mailProfile+"\";\n\
 					var mailCookie = 'mailCookie'; \n\
-					var nameCookie = 'nameCookie'; \n\
 					var checkMailSender = false; \n\
 					var checkMailReceiver = false; \n\
-					var nameSenderObject = $('#sendrequest .name_sender'); \n\
-					var nameReceiverObject = $('#sendrequest .name_recevier'); \n\
 					var mailSenderObject = $('#sendrequest .mail_sender'); \n\
 					var mailReceiverObject = $('#sendrequest .mail_receiver'); \n\
-					// Pre-fill name and mail by cookie : \n\
+					// Pre-fill mail by cookie and use profile-defined mail if not set by cookie : \n\
 					if(checkCookie(mailCookie)) \n\
 						mailSenderObject.val(getCookie(mailCookie));\n\
-					if(checkCookie(nameCookie)) \n\
-						nameSenderObject.val(getCookie(nameCookie));\n\
-					// TODO : Check if name and mail are set in profile, and rather pre-fill with these\n\
+					else \n\
+						mailSenderObject.val(mailProfile);\n\
 					if(checkMailSender)  \n\
 						checkForm(mailSenderObject, isValidMail);  \n\
 					if(checkMailReceiver)  \n\
@@ -635,15 +634,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							var postUrl = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\"; \n\
 							var mailReceiver = getInputText(mailReceiverObject);\n\
 							var mailSender = getInputText(mailSenderObject); \n\
-							var nameReceiver = getInputText($('#sendrequest .name_receiver'));\n\
-							var nameSender = getInputText($('#sendrequest .name_sender')); \n\
+							var nameSender = nameProfile; \n\
 							// Add mail to cookie if not already set or updated \n\
 							if(!checkCookie(mailCookie) || getCookie(mailCookie) != mailSender) \n\
 								setCookie(mailCookie,mailSender,365); \n\
-							// Add name cookie \n\
-							if(!checkCookie(nameCookie) || getCookie(nameCookie) != nameSender) \n\
-								setCookie(nameCookie,nameSender,365); \n\
-							$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_receiver : nameReceiver, name_sender : nameSender, tpn_id_sender: \""+tpn_id+"\"}) \n\
+							$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
 								// expects echo from php \n\
 								if(data == SUCCESS) \n\
@@ -667,7 +662,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					)");
 
 
-			// TODO : javascript for friend system : explain briefly why field is needed. Toggle up and down box.
 			page.open("div","acceptrequest.box");
 			page.open("h2");
 			page.text("Accept request");
@@ -675,6 +669,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("text","posturl");
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
+			//page.closeForm();
 
 			page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
 					var lengthUrl = centralizedFriendSystemUrl.length; \n\
@@ -720,7 +715,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					} \n\
 					$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkForm($('#acceptrequest .posturl'), isValidUrl); }); \n\
 					$('#acceptrequest .posturl').blur(function() { setTimeout(function() {}, 1000); checkUrl = false; }); \n\
-					$('#acceptrequest .postfriendrequest').click(function() { \n\
+					$('#acceptrequest .posturl').keypress(function(e) {\n\
+						if (e.keyCode == 13 && !e.shiftKey) {\n\
+							e.preventDefault();\n\
+							postAcceptRequest();\n\
+						}\n\
+					});\n\
+					$('#acceptrequest .postfriendrequest').click(postAcceptRequest); \n\
+					function postAcceptRequest() { \n\
 						var postUrl = centralizedFriendSystemUrl; \n\
 						var urlObject = $('#acceptrequest .posturl'); \n\
 						if(isValidUrl(urlObject))\n\
@@ -739,21 +741,42 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							postUrl += idrequest; \n\
 							$.post( postUrl, { tpn_id: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
-								// TODO : if not JSON output because of errors \n\
-								var arr = $.parseJSON(data); \n\
-								var secret = arr['secret'];\n\
-								var tpnid = arr['tpn_id']; \n\
-								addContact(tpnid, secret); \n\
+								// TODO : if not JSON output because of errors, do not trigger addContact \n\
+								if(data == EMPTY_REQUEST) \n\
+									alert('error, request not found'); \n\
+								else if(isJsonString(data))\n\
+								{ \n\
+									var arr = $.parseJSON(data); \n\
+									var secret = arr['secret'];\n\
+									var tpnid = arr['tpn_id']; \n\
+									addContact(tpnid, secret); \n\
+								} \n\
+								else \n\
+									alert('error, request not found'); \n\
 							}) \n\
-							.fail(function() { alert('error'); });\n\
+							.fail(function() { alert('error, entered code does not seem to be valid'); });\n\
 						} \n\
 						else \n\
 						{ \n\
 							alert('Invalid address'); \n\
 						}\n\
-					}); \n\
+					} \n\
 					function addContact(tpnid, secret) { \n\
-						$.post(\""+prefix+"/"+"\", { name: tpnid, secret: secret, token: \""+token+"\"}); \n\
+						$.post(\""+prefix+"/"+"\", { name: tpnid, secret: secret, token: \""+token+"\"}) \n\
+						.done(function(data) {\n\
+							alert('Contact added to list'); \n\
+							// Refresh because contacts list is not in javascript \n\
+							location.reload(); \n\
+						}) \n\
+						.fail(function() { alert('error, contact could not be added'); });\n\
+					} \n\
+					function isJsonString(str) { \n\
+					    try { \n\
+						JSON.parse(str); \n\
+					    } catch (e) { \n\
+						return false; \n\
+					    } \n\
+					    return true; \n\
 					} \n\
 					");
 			

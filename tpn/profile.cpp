@@ -92,6 +92,18 @@ String Profile::name(void) const
 	return mName;
 }
 
+String Profile::realName(void) const
+{
+	Synchronize(this);
+	return mRealName;
+}
+
+String Profile::eMail(void) const
+{
+	Synchronize(this);
+	return mEmail;
+}
+
 String Profile::tracker(void) const
 {
 	Synchronize(this);

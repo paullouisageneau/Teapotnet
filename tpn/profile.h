@@ -43,6 +43,8 @@ public:
 	~Profile(void);
 	
 	String name(void) const;
+	String realName(void) const;
+	String eMail(void) const;
 	String tracker(void) const;
 	String urlPrefix(void) const;
 	String avatarUrl(void) const;	
