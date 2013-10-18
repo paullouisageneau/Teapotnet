@@ -588,7 +588,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			  	if(command == "delete")
 				{
 					String name = request.post["argument"];
-					if(!name.empty()) 
+					if(!name.empty() && name != UploadDirectoryName) 
 					{
 						removeDirectory(name);
 						// TODO: delete files recursively
@@ -696,7 +696,7 @@ void Store::http(const String &prefix, Http::Request &request)
 					if(this != GlobalInstance)
 					{
 						page.open("td",".delete");
-						page.image("/delete.png", "Delete");
+						if(directories[i] != UploadDirectoryName) page.image("/delete.png", "Delete");
 						page.close("td");
 					}
 					

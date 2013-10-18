@@ -1,3 +1,8 @@
+* {
+	margin:0;
+	padding:0;
+}
+
 html
 {
 	width: 100%;
@@ -491,7 +496,7 @@ a.button:hover
 #chatmessages
 {
 	height: 80%;
-	overflow-y: auto;
+	overflow-y: scroll;
 }
 
 #chatpanel
@@ -1187,8 +1192,6 @@ td.delete
 		width: 100%;
 		margin: 0;
 		padding: 0;
-		overflow-x: hidden;
-		
 	}
 
 	#wrapper 

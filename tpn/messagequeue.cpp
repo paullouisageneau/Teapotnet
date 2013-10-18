@@ -278,8 +278,11 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"');\">Send file</a>");
 // TODO: should be hidden in CSS
 #ifndef ANDROID
-	String popupUrl = prefix + url + "?popup=1";
-	page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+	if(!isPopup)
+	{
+		String popupUrl = prefix + url + "?popup=1";
+		page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+	}
 #endif
 	page.close("div");
 

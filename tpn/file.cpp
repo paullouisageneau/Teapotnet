@@ -51,6 +51,8 @@ bool File::Remove(const String &filename)
 void File::Rename(const String &source, const String &destination)
 {
 	if(!Exist(source)) throw IOException(String("Rename: source file does not exist: ") + source);
+	if(Exist(destination)) Remove(destination);
+	
 	if(std::rename(source.pathEncode().c_str(), destination.pathEncode().c_str()) == 0) return;
 	
 	// std::rename will fail to copy between filesystems, so we need to try manually

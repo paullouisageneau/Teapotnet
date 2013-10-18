@@ -370,7 +370,7 @@ function setMessagesReceiverRec(url, object, last) {
 					if(!isLocalRead) NbNewMessages++;
 					setTimeout(function() { 
 						$(object).scrollTop($(object)[0].scrollHeight);
-					}, 100);
+					}, 10);
 				}
 				
 				if(!message.incoming) $('#'+id).addClass('me');
@@ -403,6 +403,10 @@ function setMessagesReceiverRec(url, object, last) {
 							$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
 								window.location.href = $(this).find('a').attr('href');
 							});
+							
+							setTimeout(function() { 
+								$(object).scrollTop($(object)[0].scrollHeight);
+							}, 10);
 						})
 						.fail(function(jqXHR, textStatus) {
 							$('#'+id+' .attachment').html('Attachment not available');
