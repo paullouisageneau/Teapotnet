@@ -678,6 +678,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var prefixLength = FIRST_REQUEST_PREFIX.length; \n\
 					var idLength = 32; \n\
 					var checkUrl = false; \n\
+					var currentIdRequest = ''; \n\
 					if(checkUrl)  \n\
 						checkForm($('#acceptrequest .posturl'), isValidUrl);  \n\
 					function isValidUrl(object)\n\
@@ -741,6 +742,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							} \n\
 							var idrequest = getIdRequest(str); \n\
 							postUrl += idrequest; \n\
+							currentIdRequest = idrequest; \n\
 							$.post( postUrl, { tpn_id: \""+tpn_id+"\"}) \n\
 							.done(function(data) {\n\
 								if(data == EMPTY_REQUEST) \n\
@@ -765,6 +767,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					function addContact(tpnid, secret) { \n\
 						$.post(\""+prefix+"/"+"\", { name: tpnid, secret: secret, token: \""+token+"\"}) \n\
 						.done(function(data) {\n\
+							// Drop the line in db \n\
+							$.post(\""+centralizedFriendSystemUrl+"finalize.php\", { tpn_id: \""+tpn_id+"\", id_request: currentIdRequest}); \n\
 							alert('Contact added to list'); \n\
 							// Refresh because contacts list is not in javascript \n\
 							location.reload(); \n\
