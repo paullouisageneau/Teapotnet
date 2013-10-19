@@ -288,7 +288,7 @@ inline int cryptrand(void)
 
 template<typename T> T uniform(T min, T max)
 {
-	double r = double(pseudorand())/double(RAND_MAX);
+	double r = double(pseudorand())/(double(RAND_MAX)+1);
 	return min + T((max-min)*r);
 }
 

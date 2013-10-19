@@ -80,6 +80,7 @@ private:
 	String urlToPath(const String &url) const;
 	String absolutePath(const String &path) const;
 	bool isHiddenUrl(const String &url) const;
+	int64_t freeSpace(String path, int64_t maxSize, int64_t space);
 	void run(void);
 	
 	User *mUser;

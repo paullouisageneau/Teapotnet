@@ -276,10 +276,14 @@ int main(int argc, char** argv)
 
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "true");
+		Config::Default("cache_max_size", "200");	// MB
+		Config::Default("cache_max_file_size", "10");	// MB
 #else
 		Config::Default("force_http_tunnel", "false");
+		Config::Default("cache_max_size", "20000");	// MB
+		Config::Default("cache_max_file_size", "2000");	// MB
 #endif
-	
+
 #ifdef ANDROID
 		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
 		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);

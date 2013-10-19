@@ -92,7 +92,7 @@ void SerializableList<T>::serialize(Serializer &s) const
 {
 	s.outputArrayBegin(this->size());
 
-	for(typename List<T>::iterator it = this->begin(); it != this->end(); ++it)
+	for(typename List<T>::const_iterator it = this->begin(); it != this->end(); ++it)
 	{
 		SerializableElement element(*it);
 		s.output(element);
@@ -111,7 +111,7 @@ bool SerializableList<T>::deserialize(Serializer &s)
 	{
 		SerializableElement element;
 		if(!s.input(element)) break;
-		this->insert(element.value);
+		this->push_back(element.value);
 	}
 	
 	return true;

@@ -241,6 +241,10 @@ String Store::moveFileToCache(const String &fileName, String name)
 	}
 
 	if(name.empty()) name = fileName.afterLast(Directory::Separator);
+
+	int64_t maxCacheSize = 0;
+	Config::Get("cache_max_size").extract(maxCacheSize);
+	freeSpace(CacheDirectoryName, maxCacheSize*1024*1024, File::Size(fileName));
 	
 	LogInfo("Store", "Moving to cache: " + name);
 	
@@ -1327,6 +1331,51 @@ bool Store::isHiddenUrl(const String &url) const
 	return false;
 }
 
+int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
+{
+	int64_t totalSize = 0;
+
+	try {
+		Assert(!path.empty());
+		if(path[path.size()-1] == Directory::Separator)
+			path.resize(path.size()-1);
+
+		StringList list;
+		Directory dir(absolutePath(path));
+		while(dir.nextFile())
+			if(!dir.fileIsDir())
+			{
+				list.push_back(dir.fileName());
+				totalSize+= dir.fileSize();
+			}
+
+		space = std::min(space, maxSize);
+		while(!list.empty() && totalSize > maxSize - space)
+		{
+			int r = uniform(0, int(list.size()));
+			StringList::iterator it = list.begin();
+			while(r--) ++it;
+			
+			String filePath = path + Directory::Separator + *it;
+			
+			Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE path = ?1");
+                	statement.bind(1, filePath);
+			statement.execute();
+			
+			String absFilePath = absolutePath(filePath);
+			totalSize-= File::Size(absFilePath);
+			File::Remove(absFilePath);
+			list.erase(it);
+		}
+	}
+	catch(const Exception &e)
+	{
+		throw Exception(String("Unable to free space: ") + e.what());
+	}
+
+	return std::max(maxSize - totalSize, int64_t(0));
+}
+
 void Store::run(void)
 {
 	Synchronize(this);
@@ -1384,6 +1433,7 @@ void Store::run(void)
 	
 	mRunning = false;
 }
+
 /*
 void Store::keywords(String name, Set<String> &result)
 {
