@@ -33,5 +33,9 @@ include_once("dbfunctions.php");
 			);
 
 	}
+	else
+	{
+		echo FAILURE;
+	}
 
 ?>
