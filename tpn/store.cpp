@@ -1367,7 +1367,16 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
 				totalSize+= dir.fileSize();
 			}
 
+		if(maxSize > totalSize)
+		{
+			int64_t freeSpace = Directory::GetFreeSpace(path);
+			int64_t margin = 1024*1024;	// 1 MiB
+			freeSpace = std::max(freeSpace - margin, int64_t(0));
+			maxSize = totalSize + std::min(maxSize-totalSize, freeSpace);
+		}
+		
 		space = std::min(space, maxSize);
+
 		while(!list.empty() && totalSize > maxSize - space)
 		{
 			int r = uniform(0, int(list.size()));
