@@ -13,15 +13,6 @@ include_once("mailer.php");
 // Allow cross-origin dialog
 header("Access-Control-Allow-Origin: *");
 
-	// TODO : TeapotNet sends this info via POST
-	/*
-	$name_sender = 'Jotun';
-	$tpn_id_sender = 'jotun@teapotnet.org';
-	$mail_sender = 'antoine.rebecq@polytechnique.org';
-	$mail_receiver = 'antoine@rebecq.fr';
-	$name_receiver = 'Antoine Rebecq';
-	*/
-
 	if(isset($_POST['name_sender']) && isset($_POST['tpn_id_sender']) && isset($_POST['mail_sender']) && isset($_POST['mail_receiver']))
 	{
 
@@ -45,7 +36,7 @@ header("Access-Control-Allow-Origin: *");
 		}
 
 		// before processing, we check that there is not an awaiting request from same sender to same receiver
-		$req = $bdd->prepare("SELECT name_sender FROM tpn_requests WHERE (tpn_id_sender = ? AND mail_receiver = ? AND mail_sender = ?);");
+		$req = $bdd->prepare("SELECT id FROM tpn_requests WHERE (tpn_id_sender = ? AND mail_receiver = ? AND mail_sender = ?);");
 		$req->execute(array($tpn_id_sender, $mail_receiver, $mail_sender)) 
 				or die(print_r($req->errorInfo())
 				);
@@ -54,7 +45,7 @@ header("Access-Control-Allow-Origin: *");
 
 		while ($data = $req->fetch())
 		{
-			$return_check_query = $data['name_sender'];
+			$return_check_query = $data['id'];
 		}
 
 
