@@ -226,12 +226,23 @@ void Store::getDirectories(Array<String> &array) const
 	array.remove(UploadDirectoryName);
 }
 
-String Store::moveFileToCache(const String &fileName, String name)
+bool Store::moveFileToCache(String &fileName, String name)
 {
 	Synchronize(this);
 	
+	// Check file size
+	int64_t fileSize = File::Size(fileName);
+	int64_t maxCacheFileSize = 0;
+	Config::Get("cache_max_file_size").extract(maxCacheFileSize);	// MiB
+	if(fileSize > maxCacheFileSize*1024*1024)
+	{
+		LogDebug("Store", "File is too large for cache: " + name);
+		return false;
+	}
+	
 	if(!mDirectories.contains(CacheDirectoryName))
 	{
+		// Create cache directory
         	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
         	else {
 			String cacheDir = Config::Get("cache_dir");
@@ -240,12 +251,17 @@ String Store::moveFileToCache(const String &fileName, String name)
 		}
 	}
 
-	if(name.empty()) name = fileName.afterLast(Directory::Separator);
-
+	// Free some space
 	int64_t maxCacheSize = 0;
-	Config::Get("cache_max_size").extract(maxCacheSize);
-	freeSpace(CacheDirectoryName, maxCacheSize*1024*1024, File::Size(fileName));
+	Config::Get("cache_max_size").extract(maxCacheSize);	// MiB
+	if(freeSpace(CacheDirectoryName, maxCacheSize*1024*1024, fileSize) < fileSize)
+	{
+		// This is not normal
+		LogWarn("Store", "Not enough free space in cache for " + name);
+		return false;
+	}
 	
+	if(name.empty()) name = fileName.afterLast(Directory::Separator);
 	LogInfo("Store", "Moving to cache: " + name);
 	
 	// Find a unique name
@@ -259,6 +275,7 @@ String Store::moveFileToCache(const String &fileName, String name)
 	} 
 	while(File::Exist(path));
 
+	// Copy the file
 	File placeholder(path, File::Write);
 	placeholder.close();
 
@@ -273,7 +290,8 @@ String Store::moveFileToCache(const String &fileName, String name)
 	}
 
 	update(url, path);
-	return path;
+	fileName = path;
+	return true;
 }
 
 void Store::save(void) const

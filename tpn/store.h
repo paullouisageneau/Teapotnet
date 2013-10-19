@@ -58,7 +58,7 @@ public:
 	void addDirectory(const String &name, String path);
 	void removeDirectory(const String &name);
 	void getDirectories(Array<String> &array) const;
-	String moveFileToCache(const String &fileName, String name = "");
+	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
 	
 	void save(void) const;
 	void start(void);
@@ -80,7 +80,7 @@ private:
 	String urlToPath(const String &url) const;
 	String absolutePath(const String &path) const;
 	bool isHiddenUrl(const String &url) const;
-	int64_t freeSpace(String path, int64_t maxSize, int64_t space);
+	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
 	void run(void);
 	
 	User *mUser;

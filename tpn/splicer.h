@@ -91,6 +91,7 @@ private:
 	private:
 		ByteString mTarget;
 		String mFileName;
+		bool mIsFileInCache;
 		String mName;
 		int64_t mSize;
 		unsigned mBlockSize;

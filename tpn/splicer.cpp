@@ -405,6 +405,7 @@ bool Splicer::query(int i, const Identifier &source)
 
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :
 	mTarget(target),
+	mIsFileInCache(false),
 	mSize(-1),
 	mBlockSize(128*1024),	// TODO
 	mTime(Time::Now())
@@ -576,10 +577,11 @@ bool Splicer::CacheEntry::markBlockFinished(unsigned block)
 	
 	mFinishedBlocks[block] = true;
 	
-	if(finished())
+	if(!mIsFileInCache && finished())
 	{
 		try {
-			mFileName = Store::GlobalInstance->moveFileToCache(mFileName, mName);
+			// Note: modify mFileName
+			mIsFileInCache = Store::GlobalInstance->moveFileToCache(mFileName, mName);
 		}
 		catch(const Exception &e)
 		{
