@@ -33,6 +33,7 @@
 #define stat _stat
 #define PATH_SEPARATOR '\\'
 #else
+#include <sys/statvfs.h> // for GetFreeSace
 #define PATH_SEPARATOR '/'
 #endif
 
@@ -62,6 +63,20 @@ void Directory::Create(const String &path)
 {
 	if(mkdir(fixPath(path).pathEncode().c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
+}
+
+uint64_t Directory::GetFreeSpace(const String &path)
+{
+#ifdef WINDOWS
+	ULARGE_INTEGER freeBytesAvailable = 0;
+	if(!GetDiskFreeSpaceEx(path.c_str(), &freeBytesAvailable, NULL, NULL)
+		throw IOException("Unable to get free space for " + path);
+	return uint64_t(freeBytesAvailable);
+#else
+	struct statvfs f; 
+	if(statvfs(path, &f)) throw IOException("Unable to get free space for " + path);
+	return uint64_t(f.f_bavail) * uint64_t(f.f_bsize);
+#endif
 }
 
 void Directory::ChangeCurrent(const String &path)
