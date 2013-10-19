@@ -728,13 +728,20 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					function postAcceptRequest() { \n\
 						var postUrl = centralizedFriendSystemUrl; \n\
 						var urlObject = $('#acceptrequest .posturl'); \n\
+						var nStep = 0; \n\
 						if(isValidUrl(urlObject))\n\
 						{ \n\
 							var str = getInputText(urlObject);\n\
 							if(getMethod(str) == FIRST_REQUEST_PREFIX) \n\
+							{ \n\
+								nStep = 2; \n\
 								postUrl += 'secretgen.php?id_request='; \n\
+							} \n\
 							else if (getMethod(str) == REQUEST_ACCEPTED_PREFIX) \n\
+							{ \n\
+								nStep = 3; \n\
 								postUrl += 'laststep.php?id_request='; \n\
+							} \n\
 							else \n\
 							{ \n\
 								alert('Impossible to proceed'); \n\
@@ -752,7 +759,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 									var arr = $.parseJSON(data); \n\
 									var secret = arr['secret'];\n\
 									var tpnid = arr['tpn_id']; \n\
-									addContact(tpnid, secret); \n\
+									addContact(tpnid, secret, nStep); \n\
 								} \n\
 								else \n\
 									alert('error, request not found'); \n\
@@ -764,11 +771,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							alert('Invalid address'); \n\
 						}\n\
 					} \n\
-					function addContact(tpnid, secret) { \n\
+					function addContact(tpnid, secret, nStep) { \n\
 						$.post(\""+prefix+"/"+"\", { name: tpnid, secret: secret, token: \""+token+"\"}) \n\
 						.done(function(data) {\n\
 							// Drop the line in db \n\
-							$.post(\""+centralizedFriendSystemUrl+"finalize.php\", { tpn_id: \""+tpn_id+"\", id_request: currentIdRequest}); \n\
+							if(nStep == 3) \n\
+								$.post(\""+centralizedFriendSystemUrl+"finalize.php\", { tpn_id: \""+tpn_id+"\", id_request: currentIdRequest}); \n\
 							alert('Contact added to list'); \n\
 							// Refresh because contacts list is not in javascript \n\
 							location.reload(); \n\
