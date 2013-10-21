@@ -1,21 +1,14 @@
 <!DOCTYPE html>
 <head>
-
+<meta charset="utf-8">
+<meta name="author" content="Antoine Roussel">
+<link rel="stylesheet" href="style.css">
+<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 </head>
 
 <body>
 
 <content>
-
-<div class="gtopbanner">
-
-<input class="sendfriendemails" type="submit">
-
-<input class="selectallemails" type="submit">
-
-</div>
-
-<div class="listcontacts">
 
 <?php
 
@@ -52,18 +45,6 @@ if (isset($_REQUEST['logout']))
 	$client->revokeToken();
 }
 
-// Authentication
-if (isset($auth)) 
-{
-	print "<div class='connectme'> <a class=login href='$auth'>Connect Me!</a> </div>"; // TODO : nice layout
-	return;
-} 
-else 
-{
-	// TODO : display personal information so that user knows he is correctly logged in.
-	print "<a class=logout href='?logout'>Logout</a>"; // Append to 
-}
-
 if ($client->getAccessToken()) 
 {
 
@@ -81,9 +62,60 @@ if ($client->getAccessToken())
 	$response = json_encode(simplexml_load_string($response_replaced));
 	$array = json_decode($response, true);
 
-	print "<pre>" . print_r($array, true) . "</pre>";
-
 	$arrayContacts = $array['entry'];
+
+	//print "<pre>" . print_r($array, true) . "</pre>";
+
+	// The access token may have been updated lazily (was in google API example --> useful or not ?) 
+	$_SESSION['token'] = $client->getAccessToken();
+
+}
+else 
+{
+	$auth = $client->createAuthUrl();
+}
+?>
+
+<div class="gtopbanner">
+
+<?php
+// Authentication
+if (isset($auth))
+{
+	print "</div> <div class='connectme'> <a class=login href='$auth'>Connect to Gmail</a> </div>";
+	return;
+} 
+else 
+{
+	// TODO : display personal information so that user knows he is correctly logged in.
+	$me = $array['author']['name'];
+	$myEmail = $array['author']['email'];
+	$title = $array['title'];
+	?>
+	<div class='logoutbox'>
+		<div class = 'myinfo'>
+			<!-- <h2> <?php print $me ?> </h2> -->
+			<span class="myemail"> <?php print $myEmail ?> </span>
+		</div>
+		<div class='logout'>
+			<a class=logout href='?logout'>Logout</a>
+		</div>
+	</div>
+	<?php
+}
+
+?>
+
+<h1> <?php print $title ?> </h1>
+
+<input id="selectallemails" class="button" type="button" value="Select all">
+<input id="sendfriendemails" class="button" type="button" value="Send invitations">
+
+</div>
+
+<div class="listcontacts">
+
+<?php
 
 	foreach($arrayContacts as $contact)
 	{
@@ -116,21 +148,13 @@ if ($client->getAccessToken())
 	
 	}
 
-	// The access token may have been updated lazily (was in google API example --> useful or not ?) 
-	$_SESSION['token'] = $client->getAccessToken();
-
-}
-else 
-{
-	$auth = $client->createAuthUrl();
-}
 
 ?>
 
 <script>
 	var emailsToSend = [];
 	$('.gmailcontact').click(function() {
-		if() // TODO : email of contact is in emailsToSend
+		if(1) // TODO : email of contact is in emailsToSend
 		{
 			$(this).addClass('selectedcontact');
 			var emailContact = $(this .email).val();
@@ -173,7 +197,7 @@ function isGenuinePhoto($photoUrlPrefix)
 	return isGenuinePhoto;
 }
 
-// TODO : CSS classes gmailcontact, selectedcontact, gtopbanner, sendfriendemails, selectallemails, listcontacts, email, connectme
+// TODO : CSS classes gmailcontact, selectedcontact, gtopbanner, sendfriendemails, selectallemails, listcontacts, email, myinfo
 
 ?>
 
