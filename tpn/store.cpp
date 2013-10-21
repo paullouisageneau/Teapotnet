@@ -158,6 +158,8 @@ Store::Store(User *user) :
 
 Store::~Store(void)
 {
+	Scheduler::Global->remove(this);
+	
 	if(mUser)
 	{
 		Interface::Instance->remove("/"+mUser->name()+"/files");
