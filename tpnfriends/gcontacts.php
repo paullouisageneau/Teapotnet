@@ -1,6 +1,23 @@
+<!DOCTYPE html>
+<head>
+
+</head>
+
+<body>
+
+<content>
+
+<div class="gtopbanner">
+
+<input class="sendfriendemails" type="submit">
+
+<input class="selectallemails" type="submit">
+
+</div>
+
+<div class="listcontacts">
+
 <?php
-
-
 
 require_once("googleAPI/src/Google_Client.php");
 
@@ -35,6 +52,18 @@ if (isset($_REQUEST['logout']))
 	$client->revokeToken();
 }
 
+// Authentication
+if (isset($auth)) 
+{
+	print "<div class='connectme'> <a class=login href='$auth'>Connect Me!</a> </div>"; // TODO : nice layout
+	return;
+} 
+else 
+{
+	// TODO : display personal information so that user knows he is correctly logged in.
+	print "<a class=logout href='?logout'>Logout</a>"; // Append to 
+}
+
 if ($client->getAccessToken()) 
 {
 
@@ -58,40 +87,31 @@ if ($client->getAccessToken())
 
 	foreach($arrayContacts as $contact)
 	{
-		print '<div class="gmailcontact">';
-		print $contact['title'];
-		print '<br>';
-		print $contact['gdemail']['@attributes']['address'];
-		print '<br>';
-
-		// Check if image exists (f**k this API which gives images URLs when they don't exist)
-		// TODO : is incorrect for now
-		// TODO : write function
-		$img_exists = false;
-		$urlPrefix = $contact['id'];
+		$nameContact = $contact['title'];
+		$emailContact = $contact['gdemail']['@attributes']['address'];
 		$photoUrlPrefix = $contact['link'][1]['@attributes']['href'];
 
-		print $photoUrlPrefix;
-		print '<br>';
-print $urlPrefix;
-		print '<br>';
-		print substr($photoUrlPrefix,strlen($urlPrefix),1);
+		?>
 
-		if(substr($photoUrlPrefix,strlen($urlPrefix)+1,1) == '/')
+		<div id="contact_<?php $nameContact ?>" class="gmailcontact">
+
+			<h2> <?php $nameContact ?> </h2>
+			<span class="email"> <?php $emailContact ?> </span>
+
+		</div>
+
+
+		<?php
+
+		// Check if image exists (f**k this API which gives images URLs when they don't exist)
+		if(isGenuinePhoto($photoUrlPrefix))
 		{
-			$img_exists = true;
+			$accessToken = substr($_SESSION['token'],17,51);
+			$photoUrl = $photoUrlPrefix.'?access_token='.$accessToken;
+			$divObject = '#contact_'+$nameContact;
+			print '<script> $("#'.$divObject.'").append("<img src=\"'.$photoUrl.'\" />") </script>';
 		}
-		
-		if($img_exists)
-			print 'TRUE';
 
-		// Retreive and display photo passing access_token in GET TODO : in javascript so that if it is a bit long, it doesn't lag
-/*
-		$accessToken = substr($_SESSION['token'],17,51);
-		$photoUrl = $contact['link'][1]['@attributes']['href'].'?access_token='.$accessToken;
-
-		print '<img src="'.$photoUrl.'" />';
-*/
 		print '</div>';
 	
 	}
@@ -105,13 +125,55 @@ else
 	$auth = $client->createAuthUrl();
 }
 
+?>
 
-// Authentication
-if (isset($auth)) 
+<script>
+	var emailsToSend = [];
+	$('.gmailcontact').click(function() {
+		if() // TODO : email of contact is in emailsToSend
+		{
+			$(this).addClass('selectedcontact');
+			var emailContact = $(this .email).val();
+			emailsToSend.push(emailContact);
+		}
+		else
+		{
+			// Remove from class selectedcontact
+			// Get email of contact out of emailsToSend
+		}
+	});
+
+</script>
+
+</div>
+
+</content>
+</body>
+
+
+<?php
+
+function isGenuinePhoto($photoUrlPrefix)
 {
-    print "<a class=login href='$auth'>Connect Me!</a>";
-} 
-else 
-{
-    print "<a class=logout href='?logout'>Logout</a>";
+	$isGenuinePhoto = false;
+
+		$urlPrefix = $contact['id']; // TODO : is wrong
+
+		print $photoUrlPrefix;
+		print '<br>';
+		print $urlPrefix;
+		print '<br>';
+		print substr($photoUrlPrefix,strlen($urlPrefix),1);
+
+		if(substr($photoUrlPrefix,strlen($urlPrefix)+1,1) == '/')
+		{
+			$img_exists = true;
+		}
+
+	return isGenuinePhoto;
 }
+
+// TODO : CSS classes gmailcontact, selectedcontact, gtopbanner, sendfriendemails, selectallemails, listcontacts, email, connectme
+
+?>
+
