@@ -70,7 +70,7 @@ void Scheduler::repeat(Task *task, double period)
 {
 	Synchronize(this);
 	
-	if(period <= 0.)
+	if(period < 0.)
 	{
 		remove(task);
 		return;
