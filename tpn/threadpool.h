@@ -44,6 +44,9 @@ public:
 	void join(void);
 	void clear(void);
 	
+protected:
+	virtual void onTaskFinished(Task *task);
+	
 private:
 	class Worker : public Thread
 	{

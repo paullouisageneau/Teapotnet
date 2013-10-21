@@ -70,7 +70,7 @@ void Scheduler::repeat(Task *task, double period)
 {
 	Synchronize(this);
 	
-	if(!period)
+	if(period <= 0.)
 	{
 		remove(task);
 		return;
@@ -107,11 +107,21 @@ void Scheduler::clear(void)
 	ThreadPool::clear();	// wait for threads to finish
 }
 
+void Scheduler::onTaskFinished(Task *task)
+{
+	Synchronize(this);
+	Assert(task);
+	
+	double period = 0.;
+	if(mPeriods.get(task, period))
+		schedule(task, period);
+}
+
 void Scheduler::run(void)
 {
 	while(true)
 	{
-		try {		
+		try {
 			Synchronize(this);
 			if(mSchedule.empty()) break;
 
@@ -128,14 +138,10 @@ void Scheduler::run(void)
 			for(Set<Task*>::iterator jt = set.begin(); jt != set.end(); ++jt)
 			{
 				Task *task = *jt;
+				mNextTimes.erase(task);
 				
 				//LogDebug("Scheduler::run", "Launching task...");
 				launch(task);
-				mNextTimes.erase(task);
-				
-				double period = 0.;
-				if(mPeriods.get(task, period))
-					schedule(task, Time::Now() + period);
 			}
 			
 			mSchedule.erase(it);

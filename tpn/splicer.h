@@ -23,6 +23,7 @@
 #define TPN_SPLICER_H
 
 #include "tpn/include.h"
+#include "tpn/synchronizable.h"
 #include "tpn/stripedfile.h"
 #include "tpn/identifier.h"
 #include "tpn/request.h"
@@ -35,9 +36,10 @@ namespace tpn
 
 // "I'll wrap you in a sheet !"
 
-class Splicer
+class Splicer : protected Synchronizable, public Task, public ByteStream
 {
 public:
+	static void Prefetch(const ByteString &target);
 	static void Hint(const ByteString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
 	
 	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
@@ -50,30 +52,36 @@ public:
 	int64_t end(void) const;
 	bool finished(void) const;	// true if the whole file is downloaded
 	
-	void start(void);
+	void start(bool autoDelete = false);
 	void stop(void);
-	bool process(void);
-	size_t read(char *buffer, size_t size);
+	bool isStarted(void) const;
+	
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
 	
 private:
 	bool query(int i, const Identifier &source);
-  
+	void run(void);
+	
 	Array<Request*> mRequests;
 	Array<StripedFile*> mStripes;
 	unsigned mFirstBlock, mCurrentBlock;
 	int64_t mBegin, mEnd, mPosition;
+	bool mAutoDelete;
 	
-	class CacheEntry : protected Synchronizable
+	class CacheEntry : public Synchronizable
 	{
 	public:
 		CacheEntry(const ByteString &target);
 		~CacheEntry(void);
 		
 		String fileName(void);
+		String name(void) const;
 		ByteString target(void) const;
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
+		
 		Time lastAccessTime(void) const;
 		void setAccessTime(void);
 		
@@ -86,7 +94,11 @@ private:
 		void refreshSources(void);
 		
 		bool isBlockFinished(unsigned block) const;
-		bool markBlockFinished(unsigned block);
+		bool markBlockFinished(unsigned block);	// true if block was finished
+		
+		bool isBlockDownloading(unsigned block) const;
+		bool markBlockDownloading(unsigned block, bool state = true); // true if block was finished
+		bool isDownloading(void) const;
 		
 	private:
 		ByteString mTarget;
@@ -99,6 +111,7 @@ private:
 	  
 		Set<Identifier> mSources;
 		Array<bool> mFinishedBlocks;
+		Set<unsigned> mDownloading;
 	};
 	
 	CacheEntry *mCacheEntry;

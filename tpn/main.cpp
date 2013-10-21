@@ -273,15 +273,18 @@ int main(int argc, char** argv)
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("http_proxy", "");
 		Config::Default("http_proxy_connect", "false");
-
+		Config::Default("prefetch_delay", "300000");
+		
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "true");
-		Config::Default("cache_max_size", "200");	// MiB
-		Config::Default("cache_max_file_size", "10");	// MiB
+		Config::Default("cache_max_size", "200");		// MiB
+		Config::Default("cache_max_file_size", "10");		// MiB
+		Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
 #else
 		Config::Default("force_http_tunnel", "false");
-		Config::Default("cache_max_size", "20000");	// MiB
-		Config::Default("cache_max_file_size", "2000");	// MiB
+		Config::Default("cache_max_size", "20000");		// MiB
+		Config::Default("cache_max_file_size", "2000");		// MiB
+		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
 #ifdef ANDROID

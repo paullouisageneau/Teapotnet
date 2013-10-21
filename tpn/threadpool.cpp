@@ -116,6 +116,11 @@ void ThreadPool::clear(void)
 	mAvailableWorkers.clear();
 }
 
+void ThreadPool::onTaskFinished(Task *task)
+{
+	// Dummy
+}
+
 ThreadPool::Worker::Worker(ThreadPool *pool) :
 	mThreadPool(pool),
 	mShouldStop(false)
@@ -194,6 +199,15 @@ void ThreadPool::Worker::run(void)
 		catch(...)
 		{	
 			LogWarn("ThreadPool::Worker", String("Unknown handled exception in task"));
+		}
+		
+		try {
+			Synchronize(mThreadPool);
+			mThreadPool->onTaskFinished(task);
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("ThreadPool::Worker", String("Error in finished callback: ") + e.what());
 		}
 	}
 }

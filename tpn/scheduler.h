@@ -47,6 +47,7 @@ public:
 	void clear(void);
 	
 private:
+	void onTaskFinished(Task *task);
 	void run(void);
 	
 	Map<Time, Set<Task*> > mSchedule;

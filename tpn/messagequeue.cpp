@@ -26,6 +26,7 @@
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/notification.h"
+#include "tpn/splicer.h"
 
 namespace tpn
 {
@@ -102,6 +103,18 @@ bool MessageQueue::add(const Message &message)
 		if(message.isIncoming()) mHasNew = true;
 		notifyAll();
 		SyncYield(this);
+		
+		String attachment = message.header("attachment");
+		if(!attachment.empty())
+		try {
+			ByteString target;
+			target.fromString(attachment);
+			Splicer::Prefetch(target);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("MessageQueue::add", String("Attachment prefetching failed: ") + e.what());
+		}
 	}
 	
 	return true;

@@ -93,7 +93,7 @@ String Message::header(const String &name) const
 {
 	String value;
 	if(mHeaders.get(name, value)) return value;
-	else return String();
+	else return "";
 }
 
 void Message::setPublic(bool ispublic)

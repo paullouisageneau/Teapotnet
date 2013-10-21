@@ -780,24 +780,14 @@ size_t Resource::SplicerAccessor::readData(char *buffer, size_t size)
 	{
 		mSplicer = new Splicer(mDigest, mPosition);
 		mSplicer->addSources(mSources);
-		mSplicer->start();
+		//mSplicer->start();	// Do not start if it's not necessary
 	}
 
-	while(mSplicer->process())
-	{
-		if(!size) break;
-		
-		size_t s;
-		if(s = mSplicer->read(buffer, size))
-		{
-			mPosition+= s;
-			return s;
-		}
-		
-		Thread::Sleep(milliseconds(10));
-	}
+	if(!size) return 0;
 	
-	return 0;
+	size = mSplicer->readData(buffer, size);
+	mPosition+= size;
+	return size;
 }
 
 void Resource::SplicerAccessor::writeData(const char *data, size_t size)

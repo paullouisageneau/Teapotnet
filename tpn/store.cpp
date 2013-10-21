@@ -1366,7 +1366,7 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
 				list.push_back(dir.fileName());
 				totalSize+= dir.fileSize();
 			}
-
+		
 		if(maxSize > totalSize)
 		{
 			int64_t freeSpace = Directory::GetFreeSpace(path);
@@ -1376,7 +1376,7 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
 		}
 		
 		space = std::min(space, maxSize);
-
+		
 		while(!list.empty() && totalSize > maxSize - space)
 		{
 			int r = uniform(0, int(list.size()));
@@ -1389,6 +1389,8 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
                 	statement.bind(1, filePath);
 			statement.execute();
 			
+			// TODO: delete in Resources
+
 			String absFilePath = absolutePath(filePath);
 			totalSize-= File::Size(absFilePath);
 			File::Remove(absFilePath);
