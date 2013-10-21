@@ -111,7 +111,7 @@ header("Access-Control-Allow-Origin: *");
 	}
 	else
 	{
-		echo SPECIFY_MAIL;
+		include("index.php");
 	}
 
 ?>
