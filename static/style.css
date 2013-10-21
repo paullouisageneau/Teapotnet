@@ -1168,6 +1168,13 @@ td.delete
 	margin: 0 auto;
 }
 
+form #trackerlink
+{
+	display: inline-block;
+	margin-left: 1em;
+
+}
+
 /* Mobile version */  
 
 @media screen and (max-width: 790px)

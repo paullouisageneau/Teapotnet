@@ -105,11 +105,14 @@ void User::UpdateAll(void)
 	}
 }
 
-User::User(const String &name, const String &password) :
+User::User(const String &name, const String &password, const String &tracker) :
 	mName(name),
 	mOnline(false),
 	mSetOfflineTask(this)
 {
+	if(mName.empty()) 
+		throw Exception("Empty user name");
+	
 	if(!mName.isAlphanumeric()) 
 		throw Exception("User name must be alphanumeric");
 	
@@ -143,7 +146,7 @@ User::User(const String &name, const String &password) :
 		mStore = new Store(this); // must be created first
         	mAddressBook = new AddressBook(this);
        	 	mMessageQueue = new MessageQueue(this);
-        	mProfile = new Profile(this);
+        	mProfile = new Profile(this, mName, tracker);
 	}
 	catch(...)
 	{

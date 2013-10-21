@@ -131,6 +131,8 @@ void Interface::process(Http::Request &request)
 					if(request.post.contains("name"))
 					{
 						String name = request.post["name"].trimmed();
+						String tracker = request.post["tracker"].trimmed();
+						if(tracker == Config::Get("tracker")) tracker.clear();
 #ifdef ANDROID
 						String password = String::random(32);
 #else
@@ -139,7 +141,7 @@ void Interface::process(Http::Request &request)
 						try {
 							if(!name.empty() && !password.empty())
 							{
-								User *user = new User(name, password);
+								User *user = new User(name, password, tracker);
 								// nothing to do
 							}
 						}
@@ -191,17 +193,24 @@ void Interface::process(Http::Request &request)
 #endif
 				page.close("p");
 				
-				page.openForm("/","post");
+				page.openForm("/", "post");
 				page.openFieldset("User");
-#ifdef ANDROID
-				page.label("name",""); page.input("text","name"); page.br();
-#else
-				page.label("name","Name"); page.input("text","name",name); page.br();
-				page.label("password","Password"); page.input("password","password"); page.br();
+				page.label("name", "Name"); page.input("text", "name"); page.link("#", "Change tracker", "trackerlink"); page.br();
+				page.open("div", "trackerselection");
+				page.label("tracker", "Tracker"); page.input("tracker", "tracker", Config::Get("tracker")); page.br();
+				page.close("div");
+#ifndef ANDROID
+				page.label("password", "Password"); page.input("password", "password"); page.br();
 #endif
-				page.label("add"); page.button("add","OK");
+				page.label("add"); page.button("add", "OK");
 				page.closeFieldset();
 				page.closeForm();
+				
+				page.javascript("$('#trackerselection').hide();\n\
+					$('#trackerlink').click(function() {\n\
+						$(this).hide();\n\
+						$('#trackerselection').show();\n\
+					});");
 				
 				page.footer();
 				return;

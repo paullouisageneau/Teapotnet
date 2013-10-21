@@ -48,7 +48,7 @@ public:
 	static User *Authenticate(const String &name, const String &password);
 	static void UpdateAll(void);
 	
-	User(const String &name, const String &password = "");
+	User(const String &name, const String &password = "", const String &tracker = "");
 	~User(void);
 	
 	String name(void) const;
