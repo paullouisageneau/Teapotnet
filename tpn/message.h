@@ -56,6 +56,7 @@ public:
 	void setHeaders(const StringMap &headers);
 	void setHeader(const String &name, const String &value);
 	void setDefaultHeader(const String &name, const String &value);
+	void removeHeader(const String &name);
 	
 	bool toggleIncoming(void);
 	bool isIncoming(void) const;

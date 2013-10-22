@@ -86,6 +86,8 @@ public:
 		int checksum(int offset, int count, ByteStream &result) const;
 	
 	private:
+		String target(const String &columns) const;
+		String table(void) const;
 		String filter(void) const;
 		void filterBind(Database::Statement &statement) const;
 		

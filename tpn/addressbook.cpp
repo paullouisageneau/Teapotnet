@@ -1490,9 +1490,19 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		
 		if(!isSelf())
 		{
-			message.toggleIncoming();
+			if(message.peering() == Identifier::Null 
+				|| message.peering() == this->peering()
+				|| message.peering() == this->remotePeering())
+			{
+				message.setDefaultHeader("from", uniqueName());
+				message.removeHeader("via");
+				message.toggleIncoming();
+			}
+			else {
+				message.setHeader("via", uniqueName());
+			}
+			
 			message.setPeering(this->peering());
-			message.setDefaultHeader("from", name());
 		}
 		
 		mAddressBook->user()->messageQueue()->add(message);
@@ -1505,7 +1515,9 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		serializer.input(stamps);
 
 		// Mark messages as read
-		MessageQueue::Selection selection = selectMessages();
+		bool privateOnly = !isSelf();	// others may not mark public messages as read
+		MessageQueue::Selection selection = selectMessages(privateOnly);
+		
 		for(int i=0; i<stamps.size(); ++i)
 			selection.markRead(stamps[i]);
 	}
@@ -1516,7 +1528,10 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		StringSet recvStamps;
 		serializer.input(recvStamps);
 
-		MessageQueue::Selection selection = selectMessages();
+		// Mark messages as read
+                bool privateOnly = !isSelf();   // others may not mark public messages as read
+                MessageQueue::Selection selection = selectMessages(privateOnly);
+
 		Array<Message> unread;
 		selection.getUnread(unread);
 		
@@ -1706,11 +1721,14 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	return true;
 }
 
-MessageQueue::Selection AddressBook::Contact::selectMessages(void) const
+MessageQueue::Selection AddressBook::Contact::selectMessages(bool privateOnly) const
 {
 	MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-	if(isSelf()) return messageQueue->select();
-	else return messageQueue->select(peering());
+	Identifier peering;
+	if(!isSelf()) peering = this->peering();
+
+	if(!privateOnly) return messageQueue->select(peering);
+	else return messageQueue->selectPrivate(peering);
 }
 
 void AddressBook::Contact::sendMessages(const MessageQueue::Selection &selection, int offset, int count) const
@@ -1754,7 +1772,8 @@ void AddressBook::Contact::sendMessagesChecksum(const MessageQueue::Selection &s
 
 void AddressBook::Contact::sendUnread(void) const
 {
-	MessageQueue::Selection selection = selectMessages();
+	bool privateOnly = !isSelf();
+	MessageQueue::Selection selection = selectMessages(privateOnly);
 	
 	StringArray unreadStamps;
 	selection.getUnreadStamps(unreadStamps);

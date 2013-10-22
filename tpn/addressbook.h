@@ -128,7 +128,7 @@ public:
 		void createProfile(void);
 		void run(void);
 		
-		MessageQueue::Selection selectMessages(void) const;
+		MessageQueue::Selection selectMessages(bool privateOnly = false) const;
 		void sendMessages(const MessageQueue::Selection &selection, int offset, int count) const;
 		void sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
 		void sendUnread(void) const;

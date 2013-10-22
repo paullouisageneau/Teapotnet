@@ -132,6 +132,11 @@ void Message::setDefaultHeader(const String &name, const String &value)
 		mHeaders[name] = value;
 }
 
+void Message::removeHeader(const String &name)
+{
+	mHeaders.erase(name);
+}
+
 bool Message::toggleIncoming(void)
 {
 	mIsIncoming = !mIsIncoming;

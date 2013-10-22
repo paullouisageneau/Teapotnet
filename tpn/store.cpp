@@ -141,7 +141,8 @@ Store::Store(User *user) :
 	}
 	
 	// Special upload directory
-	if(mUser) addDirectory(UploadDirectoryName, UploadDirectoryName);
+	if(mUser && !mDirectories.contains(UploadDirectoryName)) 
+		addDirectory(UploadDirectoryName, UploadDirectoryName);
 	
 	save();
 	

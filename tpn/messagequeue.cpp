@@ -163,6 +163,8 @@ void MessageQueue::ack(const Array<Message> &messages)
 		it != stamps.end();
 		++it)
 	{
+		// TODO: ACKs are sent but ignored at reception for public messages
+
 		String tmp;
 		YamlSerializer serializer(&tmp);
 		serializer.output(it->second);
@@ -478,7 +480,7 @@ int MessageQueue::Selection::count(void) const
 	Synchronize(mMessageQueue);
 	
 	int count = 0;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter());
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter());
 	filterBind(statement);
 	if(!statement.step()) return 0;
 	statement.input(count);
@@ -492,7 +494,7 @@ int MessageQueue::Selection::unreadCount(void) const
 	Synchronize(mMessageQueue);
 	
 	int count = 0;
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT COUNT(*) AS count FROM messages WHERE "+filter()+" AND isread=0 AND incoming=1");
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND message.isread=0 AND message.incoming=1");
 	filterBind(statement);
 	if(!statement.step()) return 0;
         statement.input(count);
@@ -505,7 +507,7 @@ bool MessageQueue::Selection::getOffset(int offset, Message &result) const
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time,stamp LIMIT @offset,1");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.time,message.stamp LIMIT @offset,1");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("offset"), offset);
 	if(!statement.step())
@@ -525,7 +527,7 @@ bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &re
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY time,stamp LIMIT @offset,@count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.time,message.stamp LIMIT @offset,@count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("offset"), offset);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -541,7 +543,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" ORDER BY id DESC LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
@@ -562,7 +564,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND time>=@time ORDER BY id DESC LIMIT @max");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.id DESC LIMIT @max");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
@@ -588,7 +590,7 @@ bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Me
 		return getLast(count, result);
 	
 	int64_t oldLastId = -1;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE message.stamp=?1");
 	statement.bind(1, oldLast);
         if(statement.step())
 	{
@@ -596,7 +598,7 @@ bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Me
 		statement.finalize();
 	}
 	
-	statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND id>@id LIMIT @count");
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.id>@id LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("id"), oldLastId);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -617,7 +619,7 @@ bool MessageQueue::Selection::getUnread(Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT * FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.isread=0 ORDER BY message.time");
         filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
@@ -630,7 +632,7 @@ bool MessageQueue::Selection::getUnreadStamps(StringArray &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp FROM messages WHERE "+filter()+" AND isread=0 ORDER BY time");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND message.isread=0 ORDER BY message.time");
         filterBind(statement);
 	statement.fetchColumn(0, result);
 	statement.finalize();
@@ -642,10 +644,19 @@ void MessageQueue::Selection::markRead(const String &stamp)
         Assert(mMessageQueue);
         Synchronize(mMessageQueue);
 
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("UPDATE messages SET isread=1 WHERE "+filter()+" AND stamp=@stamp");
+	// Check the message is in selection
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE "+filter()+" AND message.stamp=@stamp");
         filterBind(statement);
 	statement.bind(statement.parameterIndex("stamp"), stamp);
-        statement.execute();
+	bool found = statement.step();
+	statement.finalize();
+	
+	if(found)
+	{
+		statement = mMessageQueue->mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=@stamp");
+		statement.bind(statement.parameterIndex("stamp"), stamp);
+		statement.execute();
+	}
 }
 
 int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result) const
@@ -654,7 +665,7 @@ int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result)
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT stamp AS sum FROM messages WHERE "+filter()+"  ORDER BY time,stamp LIMIT @offset,@count");
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+"  ORDER BY message.time,message.stamp LIMIT @offset,@count");
         filterBind(statement);
         statement.bind(statement.parameterIndex("offset"), offset);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -675,21 +686,42 @@ int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result)
 	return count;
 }
 
+String MessageQueue::Selection::target(const String &columns) const
+{
+	StringList columnsList;
+	columns.trimmed().explode(columnsList, ',');
+	for(StringList::iterator it = columnsList.begin(); it != columnsList.end(); ++it)
+		if(!it->contains('.') && !it->contains(' ') && !it->contains('(') && !it->contains(')')) 
+			*it = "message." + *it;
+
+	String target;
+	target.implode(columnsList, ',');	
+
+	target+= " FROM " + table();
+
+        return target;
+}
+
+String MessageQueue::Selection::table(void) const
+{
+	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=message.parent";
+}
+
 String MessageQueue::Selection::filter(void) const
 {
-	String condition;
-	if(mPeering != Identifier::Null) condition = "(peering=@peering OR peering='' OR peering IS NULL)";
-	else condition = "1=1"; // TODO
-	
-	if(!mBaseStamp.empty()) condition+= " AND (time>@basetime OR (time=@basetime AND stamp>=@basestamp))";
-	
-	if(!mParentStamp.empty()) condition+= " AND parent=@parentstamp";
-	
-	if( mIncludePrivate && !mIncludePublic) condition+= " AND public=0";
-	if(!mIncludePrivate &&  mIncludePublic) condition+= " AND public=1";
-	if(!mIncludeOutgoing) condition+= " AND incoming=1";
-	
-	return condition;
+        String condition;
+        if(mPeering != Identifier::Null) condition = "(message.peering=@peering OR message.peering='' OR message.peering IS NULL OR parent.peering=@peering OR parent.peering='' OR parent.peering IS NULL)";
+        else condition = "1=1"; // TODO
+
+        if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
+
+        if(!mParentStamp.empty()) condition+= " AND message.parent=@parentstamp";
+
+        if( mIncludePrivate && !mIncludePublic) condition+= " AND message.public=0";
+        if(!mIncludePrivate &&  mIncludePublic) condition+= " AND message.public=1";
+        if(!mIncludeOutgoing) condition+= " AND message.incoming=1";
+
+        return condition;
 }
 
 void MessageQueue::Selection::filterBind(Database::Statement &statement) const

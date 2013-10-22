@@ -362,6 +362,7 @@ bool Database::Statement::input(Pair &pair)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	String key = name(mInputColumn);
+	key = key.afterLast('.');
 	LineSerializer keySerializer(&key);
 	pair.deserializeKey(keySerializer);
 	
