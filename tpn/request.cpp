@@ -238,10 +238,10 @@ bool Request::execute(User *user, bool isFromSelf)
 	{
 		Resource::Query query(store);
 		query.setFromSelf(isFromSelf);
-		
+
 		StringMap tmp(parameters);
 		query.deserialize(tmp);
-		if(!argument.empty() || argument != "*") query.setMatch(argument);
+		if(!argument.empty() && argument != "*") query.setMatch(argument);
 		
 		Set<Resource> resources;
 		if(query.submitLocal(resources) && !resources.empty())
