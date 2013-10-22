@@ -4,11 +4,11 @@
 <meta name="author" content="Antoine Roussel">
 <link rel="stylesheet" href="style.css">
 <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+<script type="text/javascript" src="jquery.min.js"></script>
 </head>
 
 <body>
 
-<content>
 
 <?php
 
@@ -45,10 +45,21 @@ if (isset($_REQUEST['logout']))
 	$client->revokeToken();
 }
 
-if ($client->getAccessToken()) 
+
+if (isset($POST['tpn_id']))
+{
+	$tpn_id = $POST['tpn_id'];
+}
+else
+{
+	echo 401;
+	return;
+}
+
+if ($client->getAccessToken())
 {
 
-	$req = new Google_HttpRequest("https://www.google.com/m8/feeds/contacts/default/full");
+	$req = new Google_HttpRequest("https://www.google.com/m8/feeds/contacts/default/full?max-results=9999&sortorder=descending");
 	$val = $client->getIo()->authenticatedRequest($req);
 
 	$google_contacts = $val->getResponseBody();
@@ -109,79 +120,187 @@ else
 <h1> <?php print $title ?> </h1>
 
 <input id="selectallemails" class="button" type="button" value="Select all">
-<input id="sendfriendemails" class="button" type="button" value="Send invitations">
+<input id="sendinvitations" class="button" type="button" value="Send invitations">
 
 </div>
 
-<div class="listcontacts">
+<div id="content">
+
+<div id="listcontacts" class="box">
 
 <?php
 
 	foreach($arrayContacts as $contact)
 	{
+
+		if(array_key_exists('gdemail',$contact))
+		{
+			$arrayEmails = $contact['gdemail'];
+
+			if(sizeOf($arrayEmails) == 1)
+				$emailContact = $contact['gdemail']['@attributes']['address'];
+			else
+			{
+				// TODO : more than the first one
+				$emailContact = $contact['gdemail'][0]['@attributes']['address'];
+			}
+		}
+		else
+		{
+			$emailContact = '';
+		}
+
 		$nameContact = $contact['title'];
-		$emailContact = $contact['gdemail']['@attributes']['address'];
-		$photoUrlPrefix = $contact['link'][1]['@attributes']['href'];
+
+		if(is_array($nameContact))
+			$nameContact = $emailContact; // TODO : what if no name and no contact ?
+
+		$urlPrefix = $contact['link'][1]['@attributes']['href'];
+		$photoUrlPrefix = $contact['link'][0]['@attributes']['href'];
+
+		$nameIdContact = trimName($nameContact);
 
 		?>
 
-		<div id="contact_<?php $nameContact ?>" class="gmailcontact">
-
-			<h2> <?php $nameContact ?> </h2>
-			<span class="email"> <?php $emailContact ?> </span>
-
-		</div>
-
-
+		<div id="contact_<?php print $nameIdContact ?>" class="gmailcontact">
+			<div class="infogmailcontact">
+				<h2> <?php print $nameContact ?> </h2>
+				<span class="email"> <?php print $emailContact ?> </span>
+			</div>
+			<div class="contactphoto">
 		<?php
 
 		// Check if image exists (f**k this API which gives images URLs when they don't exist)
-		if(isGenuinePhoto($photoUrlPrefix))
+		if(isGenuinePhoto($urlPrefix, $photoUrlPrefix))
 		{
 			$accessToken = substr($_SESSION['token'],17,51);
 			$photoUrl = $photoUrlPrefix.'?access_token='.$accessToken;
-			$divObject = '#contact_'+$nameContact;
-			print '<script> $("#'.$divObject.'").append("<img src=\"'.$photoUrl.'\" />") </script>';
+			$divObject = '#contact_'.$nameIdContact;
+			print '<script type="text/javascript"> $("'.$divObject.'").append("<img src=\"'.$photoUrl.'\"/>") </script>';
 		}
-
-		print '</div>';
+		?>
+			</div>
+		</div>
+		<?php
 	
 	}
 
 
 ?>
 
-<script>
+<script type="text/javascript">
 	var emailsToSend = [];
-	$('.gmailcontact').click(function() {
-		if(1) // TODO : email of contact is in emailsToSend
+	var allSelected = false;
+
+	function contactClick() {
+
+		var emailContact = $('.email',this).html();
+
+		if(emailContact.length == 2) // Why ? I don't know, but it should work
 		{
-			$(this).addClass('selectedcontact');
-			var emailContact = $(this .email).val();
-			emailsToSend.push(emailContact);
+			alert('This contact has no email');
 		}
 		else
 		{
-			// Remove from class selectedcontact
-			// Get email of contact out of emailsToSend
+			if($.inArray(emailContact, emailsToSend) == -1) // Equals false condition. TODO : nicer function doing this check
+			{
+				$(this).addClass('selectedcontact');
+				emailsToSend.push(emailContact);
+			}
+			else
+			{
+				$(this).removeClass('selectedcontact');
+				// Get email of contact out of emailsToSend
+				emailsToSend.splice(emailsToSend.indexOf(emailContact),1);
+			}
 		}
+
+	}
+	$('.gmailcontact').click(contactClick);
+
+	$('#selectallemails').click(function() {
+		if(!allSelected)
+		{
+			$('#listcontacts').find('.gmailcontact').each(function() {
+				var emailContact = $('.email',this).html();
+				if(emailContact.length > 2 && $.inArray(emailContact, emailsToSend) == -1)
+				{
+					emailsToSend.push(emailContact);
+					$(this).addClass('selectedcontact');
+				}
+			});
+			$('#selectallemails').val('Remove all');
+			allSelected = true;
+		}
+		else
+		{
+			$('#listcontacts').find('.gmailcontact').each(function() {
+				emailsToSend = [];
+				$(this).removeClass('selectedcontact');
+			});
+			$('#selectallemails').val('Select all');
+			allSelected = false;
+		}
+
+	});
+
+	$('#sendinvitations').click(function() {
+
+		if(emailsToSend.length > 0)
+		{
+			alert(emailsToSend);
+
+			// TODO : Get infos of sender
+			//var tpn_id = '<?php print $tpn_id ?>';
+			var tpn_id = 'test@test.test';
+			var nameSender = '<?php print $me ?>';
+			var mailSender = '<?php print $myEmail ?>';
+
+			var postUrl = "http://rebecq.fr/tpnfriends/postrequest.php";
+
+			// TODO : for result output
+			var success = 0;
+			var failedEmails = [];
+
+			// For each email in array, post to postrequest
+			emailsToSend.forEach(function(mailReceiver)
+			{
+				$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id })
+				.done(function(data) {
+					// TODO : increment counters on requests, and remove alerts
+					if(data == SUCCESS)
+						success++;
+					else
+						failedEmails.push(mailReceiver);
+				})
+				.fail(function() {
+							failedEmails.push(mailReceiver);	
+						 });
+			});
+
+			alert('Invitations could not be sent to : '+failedEmails);
+		}
+		else
+		{
+			alert('No contact selected');
+		}
+
 	});
 
 </script>
 
 </div>
 
-</content>
+</div>
 </body>
 
 
 <?php
 
-function isGenuinePhoto($photoUrlPrefix)
+function isGenuinePhoto($urlPrefix, $photoUrlPrefix) // TODO
 {
+/*
 	$isGenuinePhoto = false;
-
-		$urlPrefix = $contact['id']; // TODO : is wrong
 
 		print $photoUrlPrefix;
 		print '<br>';
@@ -189,15 +308,24 @@ function isGenuinePhoto($photoUrlPrefix)
 		print '<br>';
 		print substr($photoUrlPrefix,strlen($urlPrefix),1);
 
-		if(substr($photoUrlPrefix,strlen($urlPrefix)+1,1) == '/')
+		if(substr($photoUrlPrefix,strlen($urlPrefix),1) == '/')
 		{
-			$img_exists = true;
+			$isGenuinePhoto = true;
 		}
 
-	return isGenuinePhoto;
+	return $isGenuinePhoto;
+*/
+	return false;
 }
 
-// TODO : CSS classes gmailcontact, selectedcontact, gtopbanner, sendfriendemails, selectallemails, listcontacts, email, myinfo
+function trimName($name)
+{
+	$oldChars = array(" ", "-", ".", "@", "(", ")", "'", "_");
+	$newChars = array("", "", "", "", "", "", "", "");
+	$returnstr = str_replace($oldChars, $newChars, $name);
+
+	return strtolower($returnstr);
+}
 
 ?>
 

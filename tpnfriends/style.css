@@ -616,6 +616,33 @@ a.logout
 	width: 97%;
 	min-height: 5em;
 	padding-left: 2%;
+	margin-bottom: 2em;
+}
+
+.gmailcontact
+{
+	border: 2px solid black;
+	border-radius: 0.5em;
+	margin: 1em;
+	padding: 1em;
+	min-height: 4em;
+}
+
+.infogmailcontact
+{
+	width: 80%;
+	float: left;
+}
+
+.contactphoto
+{
+	width: 15%;
+	float: left;
+}
+
+.selectedcontact
+{
+	background-color: green;
 }
 
 @media screen and (max-width: 800px)
