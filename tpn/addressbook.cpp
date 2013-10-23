@@ -1494,11 +1494,13 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				|| message.peering() == this->peering()
 				|| message.peering() == this->remotePeering())
 			{
-				message.setDefaultHeader("from", uniqueName());
-				message.removeHeader("via");
 				message.toggleIncoming();
+				message.setDefaultHeader("from", name());
+				message.setHeader("contact", message.isIncoming() ? uniqueName() : mAddressBook->userName());
+				message.removeHeader("via");
 			}
 			else {
+				message.setHeader("contact", uniqueName());
 				message.setHeader("via", uniqueName());
 			}
 			

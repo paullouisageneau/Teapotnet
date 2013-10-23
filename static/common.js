@@ -348,7 +348,7 @@ function setMessagesReceiverRec(url, object, last) {
 				var isRemoteRead = (message.incoming || message.isread);
 				
 				var from = ('from' in message.headers ? message.headers.from : '');
-				var contact = ('via' in message.headers ? message.headers.via : from);
+				var contact = ('contact' in message.headers ? message.headers.contact : ('via' in message.headers ? message.headers.via : ''));
 				
 				var contactLink;
 				if(contact) {
@@ -357,8 +357,8 @@ function setMessagesReceiverRec(url, object, last) {
 				}
 				
 				var author;
-				if(contactLink) author = ('via' in message.headers ? from.escape()+' (via <a href="'+contactLink+'">'+contact.escape()+'</a>)' : '<a href="'+contactLink+'">'+from.escape()+'</a>');
-				else author = from.escape() + ('via' in message.headers ? ' (via '+contact.escape()+' )' : '');
+				if(contactLink) author = ('via' in message.headers ? from.escape()+' (via <a href="'+contactLink+'">'+message.headers.via.escape()+'</a>)' : '<a href="'+contactLink+'">'+from.escape()+'</a>');
+				else author = from.escape() + ('via' in message.headers ? ' (via '+message.headers.via.escape()+' )' : '');
 	      
 				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="date">'+formatTime(message.time).escape()+'</span><span class="author">'+author+'</span></span><span class="content">'+message.content.escape().smileys().linkify()+'</span></div></div>';
 				
