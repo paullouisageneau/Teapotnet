@@ -527,7 +527,28 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				});");
 			}
 			
-			page.openForm(prefix+"/","post");
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Add Contacts / Send invitations");
+			page.close("h2");
+
+			page.open("div", ".howtorequests");
+			page.text("In this section, you can either add your friends or send invitations to them. These invitations contain a code that enable them to reach you and ensure your communications are encrypted");
+			page.close("div");
+
+			page.open("div","invitationmethods");
+			// TODO : CSS images
+			// TODO : hover images, explain specificity of method
+			page.image("/spy.png","Classic way","spyimg.imgnetwork");
+			page.image("/mail.png","Mail","mailimg.imgnetwork");
+			page.image("/gmail.png","GMail","gmailimg.imgnetwork");
+			page.image("/facebook_by_benstein.png","Facebook","fbimg.imgnetwork");
+			page.close("div");
+
+			page.close("div");
+
+
+			page.openForm(prefix+"/","post","newcontact");
 			page.openFieldset("New contact");
 			page.input("hidden", "token", token);
 			page.label("name","Name"); page.input("text","name"); page.br();
@@ -557,6 +578,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("add"); page.button("add","Send invitation");
 			page.close("div");
+
+			// toggle form on img click
+			// TODO : on gmail and facebook buttons click, post ad hoc parameters
+			page.javascript("$('#sendrequest').hide(); \n\
+					$('form[name=newcontact]').hide(); \n\
+					$('#spyimg').click(function() { $('form[name=newcontact]').toggle(); }); \n\
+					$('#mailimg').click(function() { $('#sendrequest').toggle(); }); \n\
+					");
 
 			page.javascript("// Define php prefixes (TODO: automatic updates from php to tpn javascript ?) \n\
 					FIRST_REQUEST_PREFIX = '1005';\n\
@@ -668,6 +697,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Accept request");
 			page.close("h2");
+			page.open("div", ".howtorequests");
+			page.text("If you've received from a friend a TeapotNet code, paste it here. Your friend will automatically be added to your contacts list");
+			page.close("div");
 			page.input("text","posturl");
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
