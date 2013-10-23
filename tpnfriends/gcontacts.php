@@ -46,15 +46,23 @@ if (isset($_REQUEST['logout']))
 }
 
 
-if (isset($POST['tpn_id']))
+if (isset($_POST['tpn_id']))
 {
-	$tpn_id = $POST['tpn_id'];
+	$tpn_id = $_POST['tpn_id'];
+	// Keep it in a cookie because page will reload if not logged in
+	setCookie('tpnIdCookie', $tpn_id);
+}
+else if(isset($_COOKIE['tpnIdCookie']))
+{
+	$tpn_id = $_COOKIE['tpnIdCookie'];
 }
 else
 {
 	echo 401;
 	return;
 }
+
+
 
 if ($client->getAccessToken())
 {
@@ -75,6 +83,7 @@ if ($client->getAccessToken())
 
 	$arrayContacts = $array['entry'];
 
+	// For tests
 	//print "<pre>" . print_r($array, true) . "</pre>";
 
 	// The access token may have been updated lazily (was in google API example --> useful or not ?) 
@@ -170,13 +179,20 @@ else
 			<div class="contactphoto">
 		<?php
 
+
 		// Check if image exists (f**k this API which gives images URLs when they don't exist)
 		if(isGenuinePhoto($urlPrefix, $photoUrlPrefix))
 		{
-			$accessToken = substr($_SESSION['token'],17,51);
-			$photoUrl = $photoUrlPrefix.'?access_token='.$accessToken;
+			// Session token is a string -> we do it with a substring
+			$params = explode('"',$_SESSION['token']);
+			//print_r($params);
+			$accessToken = $params[3];
+			$token_type = $params[7];
+
+			$photoUrl = $photoUrlPrefix.'?auth=true&access_token='.$accessToken.'&token_type='.$token_type;
 			$divObject = '#contact_'.$nameIdContact;
-			print '<script type="text/javascript"> $("'.$divObject.'").append("<img src=\"'.$photoUrl.'\"/>") </script>';
+			print '<script type="text/javascript"> $("'.$divObject.'").append("<img src=\''.$photoUrl.'\'/>") </script>';
+
 		}
 		?>
 			</div>
@@ -248,37 +264,40 @@ else
 
 		if(emailsToSend.length > 0)
 		{
-			alert(emailsToSend);
-
-			// TODO : Get infos of sender
-			//var tpn_id = '<?php print $tpn_id ?>';
-			var tpn_id = 'test@test.test';
-			var nameSender = '<?php print $me ?>';
-			var mailSender = '<?php print $myEmail ?>';
-
-			var postUrl = "http://rebecq.fr/tpnfriends/postrequest.php";
-
-			// TODO : for result output
-			var success = 0;
-			var failedEmails = [];
-
-			// For each email in array, post to postrequest
-			emailsToSend.forEach(function(mailReceiver)
+			if (confirm('Send invitations to '+emailsToSend.length+' '+( (emailsToSend.length == 1) ? 'friend' : 'friends')+' ?'))
 			{
-				$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id })
-				.done(function(data) {
-					// TODO : increment counters on requests, and remove alerts
-					if(data == SUCCESS)
-						success++;
-					else
-						failedEmails.push(mailReceiver);
-				})
-				.fail(function() {
-							failedEmails.push(mailReceiver);	
-						 });
-			});
+				var tpn_id = '<?php print $tpn_id ?>';
+				var nameSender = '<?php print $me ?>';
+				var mailSender = '<?php print $myEmail ?>';
 
-			alert('Invitations could not be sent to : '+failedEmails);
+				var postUrl = "http://rebecq.fr/tpnfriends/postrequest.php";
+
+				// TODO : for result output
+				var success = 0;
+				var failedEmails = [];
+
+				// For each email in array, post to postrequest
+				emailsToSend.forEach(function(mailReceiver)
+				{
+					$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id })
+					.done(function(data) {
+						// TODO : increment counters on requests, and remove alerts
+						if(data == SUCCESS)
+							success++;
+						else
+							failedEmails.push(mailReceiver);
+					})
+					.fail(function() {
+								failedEmails.push(mailReceiver);	
+							 });
+				});
+
+				if(failedEmails.length>0)
+					alert('Invitations could not be sent to : '+failedEmails);
+
+				// TODO : empty page
+
+			}
 		}
 		else
 		{
@@ -297,8 +316,10 @@ else
 
 <?php
 
-function isGenuinePhoto($urlPrefix, $photoUrlPrefix) // TODO
+function isGenuinePhoto($urlPrefix, $photoUrlPrefix)
 {
+// TODO : 	not functional despite following Google API Contacts doc -->
+//		always return true and probably counts more requests than it should
 /*
 	$isGenuinePhoto = false;
 
@@ -306,7 +327,9 @@ function isGenuinePhoto($urlPrefix, $photoUrlPrefix) // TODO
 		print '<br>';
 		print $urlPrefix;
 		print '<br>';
-		print substr($photoUrlPrefix,strlen($urlPrefix),1);
+
+		$exploded = explode("/", $photoUrlPrefix); 
+		// Should be used to fetch a "gdetag" beacon, but is nowhere to be found ???
 
 		if(substr($photoUrlPrefix,strlen($urlPrefix),1) == '/')
 		{
@@ -314,14 +337,15 @@ function isGenuinePhoto($urlPrefix, $photoUrlPrefix) // TODO
 		}
 
 	return $isGenuinePhoto;
+
 */
-	return false;
+	return true;
 }
 
 function trimName($name)
 {
-	$oldChars = array(" ", "-", ".", "@", "(", ")", "'", "_");
-	$newChars = array("", "", "", "", "", "", "", "");
+	$oldChars = array(" ", "-", ".", "@", "(", ")", "'", "_",",",";");
+	$newChars = array("", "", "", "", "", "", "", "", "", "");
 	$returnstr = str_replace($oldChars, $newChars, $name);
 
 	return strtolower($returnstr);

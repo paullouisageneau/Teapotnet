@@ -526,6 +526,19 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					deleteContact(uname);\n\
 				});");
 			}
+
+
+			// Parameters that are to be sent in friend request
+			const String centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends/"; // TODO : change
+			int lengthUrl = centralizedFriendSystemUrl.length();
+			String postrequest = "postrequest.php";
+			String secretgen = "secretgen.php";
+			String laststep = "laststep.php";
+			String finalize = "finalize.php";
+			String gcontacts = "gcontacts.php";
+			String tpn_id = user()->name()+"@"+user()->tracker();
+			String nameProfile = user()->profile()->realName();
+			String mailProfile = user()->profile()->eMail();
 			
 			page.open("div",".box");
 			page.open("h2");
@@ -533,16 +546,20 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 
 			page.open("div", ".howtorequests");
-			page.text("In this section, you can either add your friends or send invitations to them. These invitations contain a code that enable them to reach you and ensure your communications are encrypted");
+			page.text("In this section, you can either add your friends or send invitations to them. These invitations contain a personalized code that enable them to reach you and ensure your communications are encrypted. You will have to confirm request by pasting a code in the 'Accept Request' section.");
 			page.close("div");
 
 			page.open("div","invitationmethods");
-			// TODO : CSS images
 			// TODO : hover images, explain specificity of method
-			page.image("/spy.png","Classic way","spyimg.imgnetwork");
-			page.image("/mail.png","Mail","mailimg.imgnetwork");
-			page.image("/gmail.png","GMail","gmailimg.imgnetwork");
-			page.image("/facebook_by_benstein.png","Facebook","fbimg.imgnetwork");
+			page.image("/spy.png","Classic way","spyimg");
+			page.image("/mail.png","Mail","mailimg");
+
+			page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
+			page.input("hidden", "tpn_id", tpn_id);
+			page.image("/gmail.png","GMail","gmailimg");
+			page.closeForm();
+
+			page.image("/facebook_by_benstein.png","Facebook","fbimg");
 			page.close("div");
 
 			page.close("div");
@@ -557,18 +574,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 
-
-			// Parameters that are to be sent in friend request
-			const String centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends/"; // TODO : change
-			int lengthUrl = centralizedFriendSystemUrl.length();
-			String postrequest = "postrequest.php";
-			String secretgen = "secretgen.php";
-			String laststep = "laststep.php";
-			String finalize = "finalize.php";
-			String tpn_id = user()->name()+"@"+user()->tracker();
-			String nameProfile = user()->profile()->realName();
-			String mailProfile = user()->profile()->eMail();
-
 			//page.raw("<form novalidate='novalidate'>"); // Is not supported in Safari
 			page.open("div","sendrequest.box");
 			page.open("h2");
@@ -581,10 +586,16 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			// toggle form on img click
 			// TODO : on gmail and facebook buttons click, post ad hoc parameters
-			page.javascript("$('#sendrequest').hide(); \n\
+			page.javascript("// Forms are hidden at page load \n\
+					var tpnIdCookie = 'tpnIdCookie'; \n\
+					setCookie(tpnIdCookie,'"+tpn_id+"',365); // Keep tpn_id in a cookie \n\
+					$('#sendrequest').hide(); \n\
 					$('form[name=newcontact]').hide(); \n\
 					$('#spyimg').click(function() { $('form[name=newcontact]').toggle(); }); \n\
 					$('#mailimg').click(function() { $('#sendrequest').toggle(); }); \n\
+					$('#gmailimg').click(function() { \n\
+						$('form[name=gmailform]').submit(); \n\
+					}); \n\
 					");
 
 			page.javascript("// Define php prefixes (TODO: automatic updates from php to tpn javascript ?) \n\

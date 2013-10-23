@@ -1175,6 +1175,23 @@ form #trackerlink
 
 }
 
+#invitationmethods
+{
+	text-align: center;
+	width: auto;
+	margin-top: 1em;
+}
+
+#invitationmethods img
+{
+	margin-right: 4em;
+}
+
+.howtorequests
+{
+	margin: 1em;
+}
+
 /* Mobile version */  
 
 @media screen and (max-width: 790px)
