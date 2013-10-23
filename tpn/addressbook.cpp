@@ -1494,17 +1494,16 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				|| message.peering() == this->peering()
 				|| message.peering() == this->remotePeering())
 			{
+				message.setPeering(this->peering());
 				message.toggleIncoming();
 				message.setDefaultHeader("from", name());
 				message.setHeader("contact", message.isIncoming() ? uniqueName() : mAddressBook->userName());
 				message.removeHeader("via");
 			}
 			else {
-				message.setHeader("contact", uniqueName());
+				message.setHeader("contact", uniqueName());	// TODO: useless
 				message.setHeader("via", uniqueName());
 			}
-			
-			message.setPeering(this->peering());
 		}
 		
 		mAddressBook->user()->messageQueue()->add(message);
