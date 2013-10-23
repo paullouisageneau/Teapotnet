@@ -1501,8 +1501,8 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				message.removeHeader("via");
 			}
 			else {
-				message.setHeader("contact", uniqueName());	// TODO: useless
-				message.setHeader("via", uniqueName());
+				message.setHeader("contact", uniqueName());
+				message.setHeader("via", name());
 			}
 		}
 		

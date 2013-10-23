@@ -348,7 +348,7 @@ function setMessagesReceiverRec(url, object, last) {
 				var isRemoteRead = (message.incoming || message.isread);
 				
 				var from = ('from' in message.headers ? message.headers.from : '');
-				var contact = ('contact' in message.headers ? message.headers.contact : ('via' in message.headers ? message.headers.via : ''));
+				var contact = ('contact' in message.headers ? message.headers.contact : '');
 				
 				var contactLink;
 				if(contact) {

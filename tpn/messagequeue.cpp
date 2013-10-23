@@ -543,7 +543,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.id DESC LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.time DESC, message.stamp DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
@@ -564,7 +564,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.id DESC LIMIT @max");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.time DESC, message.stamp DESC DESC LIMIT @max");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
@@ -589,24 +589,27 @@ bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Me
 	if(oldLast.empty()) 
 		return getLast(count, result);
 	
-	int64_t oldLastId = -1;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE message.stamp=?1");
+	Time oldLastTime(0);
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("time")+" WHERE message.stamp=?1");
 	statement.bind(1, oldLast);
         if(statement.step())
 	{
-		statement.input(oldLastId);
+		statement.input(oldLastTime);
 		statement.finalize();
 	}
 	
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.id>@id LIMIT @count");
+	// Note the message with the oldLast stamp is NOT included here (>), which is a behaviour different from the base stamp system (>=)	
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND (message.time>@time OR (message.time=@time AND message.stamp>@stamp)) ORDER BY message.time,message.stamp LIMIT @count");
 	filterBind(statement);
-	statement.bind(statement.parameterIndex("id"), oldLastId);
+	statement.bind(statement.parameterIndex("stamp"), oldLast);
+	statement.bind(statement.parameterIndex("time"), oldLastTime);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
 	statement.finalize();
 	
 	if(!result.empty())
 	{
+		// No reverse here
 		mMessageQueue->mHasNew = false;
 		return true;
 	}
@@ -619,7 +622,7 @@ bool MessageQueue::Selection::getUnread(Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.isread=0 ORDER BY message.time");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.isread=0");
         filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
@@ -632,7 +635,7 @@ bool MessageQueue::Selection::getUnreadStamps(StringArray &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND message.isread=0 ORDER BY message.time");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND message.isread=0");
         filterBind(statement);
 	statement.fetchColumn(0, result);
 	statement.finalize();
@@ -713,7 +716,7 @@ String MessageQueue::Selection::filter(void) const
         if(mPeering != Identifier::Null) condition = "(message.peering=@peering OR parent.peering=@peering)";
         else condition = "1=1"; // TODO
 
-        if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
+        if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";	// base stamp is included
 
         if(!mParentStamp.empty()) condition+= " AND message.parent=@parentstamp";
 
