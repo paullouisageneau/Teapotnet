@@ -710,7 +710,7 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(mPeering != Identifier::Null) condition = "(message.peering=@peering OR message.peering='' OR message.peering IS NULL OR parent.peering=@peering OR parent.peering='' OR parent.peering IS NULL)";
+        if(mPeering != Identifier::Null) condition = "(message.peering=@peering OR parent.peering=@peering)";
         else condition = "1=1"; // TODO
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
