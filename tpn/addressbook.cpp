@@ -527,7 +527,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				});");
 			}
 			
-			page.openForm(prefix+"/","post");
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Add Contacts / Send invitations");
+			page.close("h2");
+			page.open("div","invitationmethods");
+			// TODO : CSS
+			page.image("/spy.png","Classic way","spyimg.imgnetwork");
+			page.image("/mail.png","Mail","mailimg.imgnetwork");
+			// TODO : these 2 shoud be links
+			page.image("/gmail.png","GMail","gmailimg.imgnetwork");
+			page.image("/facebook_by_benstein.png","Facebook","fbimg.imgnetwork");
+			page.close("div");
+			page.close("div");
+
+
+			page.openForm(prefix+"/","post","newcontact");
 			page.openFieldset("New contact");
 			page.input("hidden", "token", token);
 			page.label("name","Name"); page.input("text","name"); page.br();
@@ -557,6 +572,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("add"); page.button("add","Send invitation");
 			page.close("div");
+
+			// toggle form on img click
+			page.javascript("$('#sendrequest').hide(); \n\
+					$('form[name=newcontact]').hide(); \n\
+					$('#spyimg').click(function() { $('form[name=newcontact]').toggle(); }); \n\
+					$('#mailimg').click(function() { $('#sendrequest').toggle(); }); \n\
+					");
 
 			page.javascript("// Define php prefixes (TODO: automatic updates from php to tpn javascript ?) \n\
 					FIRST_REQUEST_PREFIX = '1005';\n\
