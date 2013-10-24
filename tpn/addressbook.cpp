@@ -551,39 +551,71 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			page.open("div","invitationmethods");
 
-			// TODO : span with title in html.cpp ?
-			page.raw("<span title=\"Classic and most discreet way. Exchange a plain text secret with your friend by email, phone, IRL... and input it here with his TeapotNet id.\">");
+			page.open("span",".invitationimg");
 			page.image("/spy.png","Classic way","spyimg");
-			page.raw("</span>");
+			page.close("span");
 
-			page.raw("<span title=\"Input your and your friend's email address. An invitation containing a code will be sent to your friend, and then back to you.\">");
+			page.open("span",".invitationimg");
 			page.image("/mail.png","Mail","mailimg");
-			page.raw("</span>");
+			page.close("span");
 
+			page.open("span",".invitationimg");
 			page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
 			page.input("hidden", "tpn_id", tpn_id);
-			page.raw("<span title=\"Select from your GMail contacts the people you want to send an invitation containg a code to reach you to.\">");
 			page.image("/gmail.png","GMail","gmailimg");
-			page.raw("</span>");
 			page.closeForm();
+			page.close("span");
 
-			page.raw("<span title=\"Coming soon.\">");
+			page.open("span",".invitationimg");
 			page.image("/facebook_by_benstein.png","Facebook","fbimg");
-			page.raw("</span>");
+			page.close("span");
 
 			page.close("div");
 
+			page.open("div","howtotext");
 			page.close("div");
+
+			page.close("div");
+
+			page.javascript("var currentObject; \n\
+					$('#howtotext').hide(); \n\
+					// Load question mark images \n\
+					$('.invitationimg').append('<img src=\"/questionmark.png\" alt=\"?\" class=\"questionmark\">'); \n\
+					$('.questionmark').click(function() { \n\
+						// Click on same question mark will toggle, else will not change visibility of howtotext \n\
+						if($(this).is(currentObject) || !$('#howtotext').is(':visible')) \n\
+							$('#howtotext').slideToggle('fast'); \n\
+						currentObject = $(this); \n\
+						var text = howtoText($(this).prev()); \n\
+						$('#howtotext').html(text); \n\
+					}); \n\
+					function howtoText(object) { \n\
+						if(object.is($('#spyimg'))) \n\
+							return \"Classic and most discreet way. Exchange a plain text secret with your friend by email, phone, IRL... and input it here with his TeapotNet id.\"; \n\
+						if(object.is($('#mailimg'))) \n\
+							return \"Input your and your friend's email address. An invitation containing a code will be sent to your friend, and then back to you.\"; \n\
+						if(object.is($('form[name=gmailform]'))) \n\
+							return \"Select from your GMail contacts the people you want to send an invitation containg a code to reach you to.\"; \n\
+						if(object.is($('#fbimg'))) \n\
+							return \"Coming soon.\"; \n\
+						return \"default\"; \n\
+					} \n\
+					");
 
 
 			page.openForm(prefix+"/","post","newcontact");
-			page.openFieldset("New contact");
+			page.open("div","newcontactdiv.box");
+			page.open("h2");
+			page.text("Add contact");
+			page.close("h2");
+			//page.openFieldset("New contact");
 			page.input("hidden", "token", token);
 			page.label("name","TeapotNet Id"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); //page.button("add","Add contact");
 			page.raw("<input type=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
-			page.closeFieldset();
+			//page.closeFieldset();
+			page.close("div");
 			page.closeForm();
 
 			// TODO : add dummy form ? (check on stackoverflow says it should work fine with input outside forms
@@ -601,9 +633,18 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var tpnIdCookie = 'tpnIdCookie'; \n\
 					setCookie(tpnIdCookie,'"+tpn_id+"',365); // Keep tpn_id in a cookie \n\
 					$('#sendrequest').hide(); \n\
-					$('form[name=newcontact]').hide(); \n\
-					$('#spyimg').click(function() { $('form[name=newcontact]').toggle(); }); \n\
-					$('#mailimg').click(function() { $('#sendrequest').toggle(); }); \n\
+					$('#newcontactdiv').hide(); \n\
+					var showOneForm = false; \n\
+					$('#spyimg').click(function() { if(showOneForm) \n\
+										$('#sendrequest').hide(); \n\
+									$('#newcontactdiv').toggle(); \n\
+									showOneForm = true; \n\
+									}); \n\
+					$('#mailimg').click(function() { if(showOneForm) \n\
+										$('#newcontactdiv').hide(); \n\
+									$('#sendrequest').toggle(); \n\
+									showOneForm = true; \n\
+									}); \n\
 					$('#gmailimg').click(function() { \n\
 						$('form[name=gmailform]').submit(); \n\
 					}); \n\
