@@ -551,7 +551,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			page.open("div","invitationmethods");
 
-			// TODO : span with title in html.cpp
+			// TODO : span with title in html.cpp ?
 			page.raw("<span title=\"Classic and most discreet way. Exchange a plain text secret with your friend by email, phone, IRL... and input it here with his TeapotNet id.\">");
 			page.image("/spy.png","Classic way","spyimg");
 			page.raw("</span>");
@@ -579,13 +579,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.openForm(prefix+"/","post","newcontact");
 			page.openFieldset("New contact");
 			page.input("hidden", "token", token);
-			page.label("name","Name"); page.input("text","name"); page.br();
+			page.label("name","TeapotNet Id"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); //page.button("add","Add contact");
-			page.raw("<input type=\"button\" class=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
+			page.raw("<input type=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
 			page.closeFieldset();
 			page.closeForm();
 
+			// TODO : add dummy form ? (check on stackoverflow says it should work fine with input outside forms
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");
@@ -596,7 +597,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			// toggle form on img click
-			// TODO : on gmail and facebook buttons click, post ad hoc parameters
 			page.javascript("// Forms are hidden at page load \n\
 					var tpnIdCookie = 'tpnIdCookie'; \n\
 					setCookie(tpnIdCookie,'"+tpn_id+"',365); // Keep tpn_id in a cookie \n\
@@ -688,16 +688,25 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					function checkForm(object, isValid) \n\
 					{ \n\
 						if(isValid(object)) \n\
-							object.css('background-color', 'green'); \n\
+						{ \n\
+							object.removeClass('isinvalid'); \n\
+							object.addClass('isvalid'); \n\
+						} \n\
 						else \n\
-							object.css('background-color', 'red') \n\
+						{ \n\
+							object.removeClass('isvalid'); \n\
+							object.addClass('isinvalid'); \n\
+						} \n\
 						setTimeout(function() { \n\
 							if(contCheck(object)) { \n\
 								checkForm(object, isValid); }\n\
 							else {\n\
 								//object.val(''); \n\
 								if(object.val()=='') \n\
-									object.css('background', 'none'); \n\
+								{ \n\
+									object.removeClass('isvalid'); \n\
+									object.removeClass('isinvalid'); \n\
+								} \n\
 								return; }\n\
 						}, 200); \n\
 					} \n\

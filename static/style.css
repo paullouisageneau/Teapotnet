@@ -206,6 +206,24 @@ input[type="submit"]:hover
 	background-color: #FFF040;
 }
 
+input[type="button"]
+{
+	min-width: 6em;
+	padding: 0.4em;
+	border-radius: 0.5em;
+	cursor: pointer;
+	color: #000000;
+	background-color: #FFDC0A;
+	border: 1px solid #E0BC00;
+	text-align: center;
+        vertical-align: middle;
+}
+
+input[type="button"]:hover
+{
+	background-color: #FFF040;
+}
+
 input[type="text"]
 {
 	color: #000000;
@@ -1190,6 +1208,16 @@ form #trackerlink
 .howtorequests
 {
 	margin: 1em;
+}
+
+.isvalid
+{
+	background-color: green !important;
+}
+
+.isinvalid
+{
+	background-color: red !important;
 }
 
 /* Mobile version */  
