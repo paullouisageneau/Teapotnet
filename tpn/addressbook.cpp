@@ -550,16 +550,27 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.open("div","invitationmethods");
-			// TODO : hover images, explain specificity of method
+
+			// TODO : span with title in html.cpp
+			page.raw("<span title=\"Classic and most discreet way. Exchange a plain text secret with your friend by email, phone, IRL... and input it here with his TeapotNet id.\">");
 			page.image("/spy.png","Classic way","spyimg");
+			page.raw("</span>");
+
+			page.raw("<span title=\"Input your and your friend's email address. An invitation containing a code will be sent to your friend, and then back to you.\">");
 			page.image("/mail.png","Mail","mailimg");
+			page.raw("</span>");
 
 			page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
 			page.input("hidden", "tpn_id", tpn_id);
+			page.raw("<span title=\"Select from your GMail contacts the people you want to send an invitation containg a code to reach you to.\">");
 			page.image("/gmail.png","GMail","gmailimg");
+			page.raw("</span>");
 			page.closeForm();
 
+			page.raw("<span title=\"Coming soon.\">");
 			page.image("/facebook_by_benstein.png","Facebook","fbimg");
+			page.raw("</span>");
+
 			page.close("div");
 
 			page.close("div");
@@ -570,11 +581,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", token);
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
-			page.label("add"); page.button("add","Add contact");
+			page.label("add"); //page.button("add","Add contact");
+			page.raw("<input type=\"button\" class=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
 			page.closeFieldset();
 			page.closeForm();
 
-			//page.raw("<form novalidate='novalidate'>"); // Is not supported in Safari
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");
@@ -613,6 +624,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var nameProfile = \""+nameProfile+"\";\n\
 					var mailProfile = \""+mailProfile+"\";\n\
 					var mailCookie = 'mailCookie'; \n\
+					// Globals for classic form \n\
+					var minLengthSecret = 10; \n\
+					var checkTpnID = false; \n\
+					var checkSecret = false; \n\
+					var tpnIDInput = $('input[name=\"name\"]');\n\
+					var secretInput = $('input[name=\"secret\"]');\n\
+					// Globals for mail form \n\
 					var checkMailSender = false; \n\
 					var checkMailReceiver = false; \n\
 					var mailSenderObject = $('#sendrequest .mail_sender'); \n\
@@ -631,11 +649,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					mailSenderObject.blur(function() { checkMailSender = false; }); \n\
 					mailReceiverObject.focus(function() { checkMailReceiver = true; checkForm(mailReceiverObject, isValidMail); }); \n\
 					mailReceiverObject.blur(function() { checkMailReceiver = false; }); \n\
+					tpnIDInput.focus(function() { checkTpnID = true; checkForm(tpnIDInput, isValidMail); }); \n\
+					tpnIDInput.blur(function() { checkTpnID = false; }); \n\
+					secretInput.focus(function() { checkSecret = true; checkForm(secretInput, isValidSecret); }); \n\
+					secretInput.blur(function() { checkSecret = false; }); \n\
 					function isValidMail(object) \n\
 					{ \n\
 						var str = getInputText(object); \n\
 						var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); \n\
 						return mailRegex.test(str); \n\
+					} \n\
+					function isValidSecret(object) \n\
+					{ \n\
+						var str = getInputText(object); \n\
+						if(str.length >= minLengthSecret) \n\
+							return true; \n\
+						return false; \n\
 					} \n\
 					function getInputText(object) \n\
 					{ \n\
@@ -650,6 +679,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							return checkMailSender; \n\
 						if(object.is($('#sendrequest .mail_receiver'))) \n\
 							return checkMailReceiver; \n\
+						if(object.is($('input[name=\"name\"]'))) \n\
+							return checkTpnID; \n\
+						if(object.is($('input[name=\"secret\"]'))) \n\
+							return checkSecret; \n\
 						return false; \n\
 					} \n\
 					function checkForm(object, isValid) \n\
@@ -701,7 +734,32 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							alert('Wrong mail addresses'); \n\
 						} \n\
 					} \n\
-					)");
+					);");
+
+			// AJAX for send contacts form
+			page.javascript("$('input[name=\"add\"]').click(function() { \n\
+						if( isValidMail(tpnIDInput) &&  isValidSecret(secretInput)) // We check validity of tpn name with isValidName because structure of regex is exactly the same \n\
+						{ \n\
+							// Submit form \n\
+							$('form[name=\"newcontact\"]').submit(); \n\
+						} \n\
+						else \n\
+						{ \n\
+							if(!isValidMail(tpnIDInput)) \n\
+							{ \n\
+								if(!isValidSecret(secretInput)) \n\
+								{ \n\
+									alert('TeapotNet address should look like this : myname@tracker.tld, and secret should be at least '+minLengthSecret+' characters long.'); \n\
+									return; \n\
+								} \n\
+								else \n\
+									alert('TeapotNet address should look like this : myname@tracker.tld.'); \n\
+							} \n\
+							if(!isValidSecret(secretInput)) \n\
+								alert('Secret should be at least '+minLengthSecret+' characters long.'); \n\
+						} \n\
+					} \n\
+					);");
 
 
 			page.open("div","acceptrequest.box");
