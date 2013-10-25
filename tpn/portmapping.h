@@ -24,15 +24,16 @@
 
 #include "tpn/include.h"
 #include "tpn/map.h"
-#include "tpn/thread.h"
+#include "tpn/task.h"
 #include "tpn/synchronizable.h"
+#include "tpn/address.h"
 #include "tpn/datagramsocket.h"
 #include "tpn/bytestring.h"
 
 namespace tpn
 {
 
-class PortMapping : public Thread, protected Synchronizable
+class PortMapping : public Task, protected Synchronizable
 {
 public:
 	static PortMapping *Instance;
@@ -40,35 +41,102 @@ public:
 	PortMapping(void);
 	~PortMapping(void);
 	
-	bool init(void);
-	bool refresh(void);
-	
 	bool isEnabled(void) const;
 	
 	String  getExternalHost(void) const;
 	Address getExternalAddress(uint16_t port) const;
+
+	enum Protocol
+	{
+		UDP,
+		TCP
+	};
 	
-	void addUdp(uint16_t internal, uint16_t suggested);
-	void removeUdp(uint16_t internal);
-	bool getUdp(uint16_t internal, uint16_t &external) const;
-	
-	void addTcp(uint16_t internal, uint16_t suggested);
-	void removeTcp(uint16_t internal);
-	bool getTcp(uint16_t internal, uint16_t &external) const;
+	void add(Protocol protocol, uint16_t internal, uint16_t suggested);
+	void remove(Protocol protocol, uint16_t internal);
+	bool get(Protocol protocol, uint16_t internal, uint16_t &external) const;
 	
 private:
 	void run(void);
-	bool request(uint8_t op, uint16_t internal, uint16_t suggested);
-	bool parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal = 0);
-	
-	Map<uint16_t, uint16_t> mUdpMap;
-	Map<uint16_t, uint16_t> mTcpMap;
-	
-	bool mEnabled;
-	DatagramSocket mSock;
-	DatagramSocket mAnnounceSock;
-	Address mGatewayAddr;
+
+	struct Descriptor
+	{
+		protocol_t protocol;
+                uint16_t port;
+
+		Descriptor(protocol_t protocol, uint16_t port)	{ this->protocol = protocol; this->port = port; }
+		bool operator < (const Descriptor &d)		{ return protocol < d.protocol || (protocol == d.protocol && port < d.port); }
+                bool operator == (const Descriptor &d)		{ return protocol == d.protocol && port == d.port; }
+	};
+
+	struct Entry
+	{
+		uint16_t suggested;
+                uint16_t external;
+
+		Entry(uint16_t suggested = 0, uint16_t external = 0)	{ this->suggested = suggested; this->external = external; }
+	};	
+
+	class Protocol
+	{
+	public:
+		virtual bool check(String &host) = 0;	// true if protocol is available
+		virtual bool add(Protocol protocol, uint16_t internal, uint16_t &external) = 0;
+		virtual bool remove(Protocol protocol, uint16_t internal) = 0;
+	};
+
+	class NatPMP : public Protocol
+	{
+	public:
+		NatPMP(void);
+		~NatPMP(void);
+
+		bool check(String &host);
+        	bool add(Protocol protocol, uint16_t internal, uint16_t &external);
+        	bool remove(Protocol protocol, uint16_t internal);
+
+	private:
+        	bool request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external = NULL);
+        	bool parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
+
+		DatagramSocket mSock;
+        	DatagramSocket mAnnounceSock;
+        	Address mGatewayAddr;
+		String mExternalHost;
+	};
+
+	class UPnP : public Protocol
+	{
+	public:
+                UPnP(void);
+                ~UPnP(void);
+
+                bool check(String &host);
+                bool add(Protocol protocol, uint16_t internal, uint16_t &external);
+                bool remove(Protocol protocol, uint16_t internal);
+
+	private:
+		Address mGatewayAddr;
+	};
+
+	class FreeboxAPI : public Protocol
+	{
+	public:
+        	FreeboxAPI(void);
+                ~FreeboxAPI(void);
+
+                bool check(String &host);
+                bool add(Protocol protocol, uint16_t internal, uint16_t suggested, uint16_t &external);
+                bool remove(Protocol protocol, uint16_t internal);
+        
+        private:
+                String mFreeboxUrl;
+	};
+
+	Map<Descriptor, Entry> mMap;	// Ports mapping
+	Protocol *mProtocol;		// Current protocol
 	String mExternalHost;
+	bool mEnabled;
 };
 
 }

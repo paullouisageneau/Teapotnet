@@ -39,7 +39,6 @@ public:
 	DatagramSocket(const Address &local, bool broadcast = false);
 	~DatagramSocket(void);
 
-	void setTimeout(double timeout);
 	Address getBindAddress(void) const;
 	void getLocalAddresses(List<Address> &list) const;
 	
@@ -47,16 +46,17 @@ public:
 	void bind(const Address &local, bool broadcast = false);
 	void close(void);
 	
-	int read(char *buffer, size_t size, Address &sender);
+	int read(char *buffer, size_t size, Address &sender, double &timeout);
+	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
 	void write(const char *buffer, size_t size, const Address &receiver);
 
-	bool read(ByteStream &stream, Address &sender);
+	bool read(ByteStream &stream, Address &sender double &timeout);
+	bool read(ByteStream &stream, Address &sender const double &timeout = -1.);
 	void write(ByteStream &stream, const Address &receiver);
 	
 private:
 	socket_t mSock;
 	int mPort;
-	double mTimeout;
 };
 
 }

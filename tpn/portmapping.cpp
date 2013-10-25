@@ -20,96 +20,24 @@
  *************************************************************************/
 
 #include "tpn/portmapping.h"
-#include "tpn/datagramsocket.h"
+#include "tpn/scheduler.h"
 
 namespace tpn
 {
 
 PortMapping *PortMapping::Instance = NULL;
-  
+
 PortMapping::PortMapping(void) :
+	mProtocol(NULL),
 	mEnabled(false)
 {
-	mSock.bind(0, true);
-	
-	try {
-		mAnnounceSock.bind(Address("224.0.0.1", 5350), true);
-	}
-	catch(const Exception &e)
-	{
-		try {
-			mAnnounceSock.bind(5350, true);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("PortMapping", e.what());
-		}
-	}
-  
-	mSock.setTimeout(0.250);
-	mAnnounceSock.setTimeout(300.);			// TODO
-	mGatewayAddr.set("255.255.255.255", 5351);	// TODO
+	Scheduler::Global->repeat(this, 600.);
+	Scheduler::Global->schedule(this);
 }
 
 PortMapping::~PortMapping(void)
 {
-  
-}
-
-bool PortMapping::init(void)
-{
-	Synchronize(this);
-	if(mEnabled) return true;
-	
-	ByteString query;
-	query.writeBinary(uint8_t(0));	// version
-	query.writeBinary(uint8_t(0));	// op
-	
-	ByteString dgram;
-	Address sender;
-	
-	const int attempts = 4;
-	for(int i=0; i<attempts; ++i)
-	{
-		dgram = query;
-		mSock.write(dgram, mGatewayAddr);
-		if(mSock.read(dgram, sender))
-		{
-			LogDebug("PortMapping", String("Got response from ") + sender.toString());
-			if(parse(dgram, 0, 0))
-			{
-				mEnabled = true;
-				LogInfo("PortMapping", "NAT-PMP is available");
-				return true;
-			}
-		}
-	}
-	
-	LogDebug("PortMapping", "NAT-PMP is not available");
-	return false;
-}
-
-bool PortMapping::refresh(void)
-{
-	if(!init()) return false;
-	
-	for(Map<uint16_t,uint16_t>::iterator it = mUdpMap.begin();
-		it != mUdpMap.end();
-		++it)
-	{
-		if(!request(1, it->first, it->second))
-			it->second = it->first;
-	}
-	
-	for(Map<uint16_t,uint16_t>::iterator it = mTcpMap.begin();
-		it != mTcpMap.end();
-		++it)
-	{
-		if(!request(2, it->first, it->second))
-			it->second = it->first;
-	}
-	
-	return true;
+	Scheduler::Global->remove(this);
 }
 
 bool PortMapping::isEnabled(void) const
@@ -129,96 +57,188 @@ Address PortMapping::getExternalAddress(uint16_t port) const
 	return Address(mExternalHost, port);  
 }
 
-void PortMapping::addUdp(uint16_t internal, uint16_t suggested)
+void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 {
 	Synchronize(this);
-	mUdpMap.insert(internal, internal);
-	if(mEnabled) request(1, internal, suggested);
+	
+	remove(protocol, internal);
+	
+	Entry &entry = mMap[Descriptor(protocol, internal)];
+	entry.suggested = suggested;
+	entry.external = suggested;
+	
+	if(mProtocol) mProtocol->add(protocol, internal, entry.external);
 }
 
-void PortMapping::removeUdp(uint16_t internal)
+void PortMapping::remove(Protocol protocol, uint16_t internal)
 {
 	Synchronize(this);
-	mUdpMap.erase(internal);
+	mMap.erase(Descriptor(protocol, internal));
+	
+	if(mProtocol) mProtocol->remove(protocol, internal);
 }
 
-bool PortMapping::getUdp(uint16_t internal, uint16_t &external) const
+bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) const
 {
 	Synchronize(this);
+	
 	external = internal;
-	return mUdpMap.get(internal, external);
-}
-
-void PortMapping::addTcp(uint16_t internal, uint16_t suggested)
-{
-	Synchronize(this);
-	mTcpMap.insert(internal, internal);
-	if(mEnabled) request(2, internal, suggested);  
-}
-
-void PortMapping::removeTcp(uint16_t internal)
-{
-	Synchronize(this);
-	mTcpMap.erase(internal);
-}
-
-bool PortMapping::getTcp(uint16_t internal, uint16_t &external) const
-{
-	external = internal;
-	return mUdpMap.get(internal, external);  
+	
+	if(!mProtocol) return false;
+	
+	Entry entry;
+	if(mMap.get(Descriptor(protocol, internal), entry)) return false;
+	if(!entry.external) return false;
+	
+	external = entry.external;
+	return true;
 }
 
 void PortMapping::run(void)
 {
-	while(true)
+	if(mProtocol)
 	{
-		ByteString dgram;
-		Address sender;
-		if(mAnnounceSock.read(dgram, sender)) 
+		if(!mProtocol->check(mExternalHost))
 		{
-			Synchronize(this);
-			if(parse(dgram, 0, 0) && (sender.port() == mGatewayAddr.port()))
-			{
-				// TODO
-				mGatewayAddr = sender;	
-				LogDebug("PortMapping", String("Gateway internal address updated to ") + mGatewayAddr.toString());
-			}
+			delete mProtocol;
+			mProtocol = NULL;
 		}
-		else refresh();
+	}
+	
+	if(!mProtocol)
+	{
+		mExternalHost.clear();
+		
+		for(int i=0; i<3; ++i)
+		{
+			try {
+				switch(i)
+				{
+				case 0: mProtocol = new NatPMP;		break;
+				case 1: mProtocol = new UPnP;		break;
+				case 2: mProtocol = new FreeboxAPI;	break;
+				}
+				
+				if(mProtocol->check(mExternalHost)) break;
+			}
+			catch(const Exception &e)
+			{
+				
+			}
+			
+			delete mProtocol;
+			mProtocol = NULL;
+		}
+		
+		if(mProtocol) LogInfo("PortMapping", "Port mapping is available !");
+	}
+	
+	if(mProtocol)
+	{
+		for(Map<Descriptor, Entry>::iterator it = mMap.begin();
+			it != mMap.end();
+			++it)
+		{
+			if(!mProtocol->add(it->first.protocol, it->first.internal, it->second.suggested, it->second.external))
+				LogWarn("PortMapping", "Mapping failed");
+		}
 	}
 }
 
-bool PortMapping::request(uint8_t op, uint16_t internal, uint16_t suggested)
+
+PortMapping::NatPMP::NatPMP(void)
 {
-	Synchronize(this);
-	if(!op || !mEnabled) return false;
+	mSock.bind(5350, true);
+	mGatewayAddr.set("255.255.255.255", 5351);	// TODO
+}
+
+PortMapping::NatPMP::~NatPMP(void)
+{
+	
+}
+
+bool PortMapping::NatPMP::check(String &host)
+{
+	LogInfo("PortMapping", "Looking for NAT-PMP...");
+	
+	ByteString query;
+	query.writeBinary(uint8_t(0));	// version
+	query.writeBinary(uint8_t(0));	// op
+	
+	ByteString dgram;
+	Address sender;
+	
+	int attempts = 3;
+	double timeout = 0.250;
+	for(int i=0; i<attempts; ++i)
+	{
+		dgram = query;
+		mSock.write(dgram, mGatewayAddr);
 		
-	const time_t lifetime = 7200;	// 2h, recommended
-  
+		double time = timeout;
+		while(mSock.read(dgram, sender, time))
+		{
+			LogDebug("PortMapping", String("Got response from ") + sender.toString());
+			if(parse(dgram, 0))
+			{
+				LogInfo("PortMapping", "NAT-PMP is available");
+				mGatewayAddr = sender;
+				host = mExternalHost;
+				return true;
+			}
+		}
+		
+		timeout*= 2;
+	}
+	
+	LogDebug("PortMapping", "NAT-PMP is not available");
+	return false;
+}
+
+bool PortMapping::NatPMP::add(Protocol protocol, uint16_t internal, uint16_t &external)
+{
+	return request((protocol == TCP ? 2 : 1), internal, external, 7200, &external);	// 2h, recommended
+}
+
+bool PortMapping::NatPMP::remove(Protocol protocol, uint16_t internal)
+{
+	return request((protocol == TCP ? 2 : 1), internal, 0, 0, NULL);
+}
+
+bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external)
+{
+	if(!op) return false;
+	
 	ByteString query;
 	query.writeBinary(uint8_t(0));	// version
 	query.writeBinary(op);		// op
 	query.writeBinary(uint16_t(0));	// reserved
 	query.writeBinary(internal);
 	query.writeBinary(suggested);
-	query.writeBinary(uint32_t(lifetime));
+	query.writeBinary(lifetime);
 	
 	ByteString dgram;
 	Address sender;
 	
-	const int attempts = 4;
+	const int attempts = 3;
+	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
 		dgram = query;
 		mSock.write(dgram, mGatewayAddr);
-		if(mSock.read(dgram, sender))
+		
+		double timeout = time;
+		while(mSock.read(dgram, sender, time))
 			if(parse(dgram, op, internal))
 				return true;
+			
+		timeout*= 2;
 	}
+	
 	return false;
 }
 
-bool PortMapping::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal)
+bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal, uint16_t *retExternal)
 {
 	Synchronize(this);
 	
@@ -248,7 +268,6 @@ bool PortMapping::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal)
 			
 			mExternalHost.clear();
 			mExternalHost<<a<<'.'<<b<<'.'<<c<<'.'<<d;
-			LogDebug("PortMapping", "External address is " + mExternalHost);
 			return true;	
 		}
 	
@@ -262,26 +281,67 @@ bool PortMapping::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal)
 		  	if(!dgram.readBinary(external)) return false;
 			if(!dgram.readBinary(lifetime)) return false;
 			
-			if(!internal || !external || !lifetime) return false;
+			if(!internal) return false;
 			if(reqInternal && (reqInternal != internal)) return false;
 			  
-			if(op == 129)
-			{
-				mUdpMap.insert(internal, external);
-				LogDebug("PortMapping", String("Mapped UDP external port ") + String::number(external) 
-						+ " to internal port " + String::number(internal));
-			}
-			else {
-				mTcpMap.insert(internal, external);
-				LogDebug("PortMapping", String("Mapped TCP external port ") + String::number(external) 
-						+ " to internal port " + String::number(internal));
-			}
-			
+			if(retExternal) *retExternal = external;
 			return true;
 		}
 	}
 	
 	return false;
+}
+
+
+PortMapping::UPnP::UPnP(void)
+{
+	// TODO
+}
+
+PortMapping::UPnP::~UPnP(void)
+{
+	
+}
+
+bool PortMapping::UPnP::check(String &host)
+{
+	
+}
+
+bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
+{
+	
+}
+
+bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal)
+{
+	
+}
+
+
+PortMapping::FreeboxAPI::FreeboxAPI(void)
+{
+	
+}
+
+PortMapping::FreeboxAPI::~FreeboxAPI(void)
+{
+	
+}
+
+bool PortMapping::FreeboxAPI::check(String &host)
+{
+	
+}
+
+bool PortMapping::FreeboxAPI::add(Protocol protocol, uint16_t internal, uint16_t &external)
+{
+	
+}
+
+bool PortMapping::FreeboxAPI::remove(Protocol protocol, uint16_t internal)
+{
+	
 }
 
 }

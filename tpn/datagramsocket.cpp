@@ -30,15 +30,13 @@ namespace tpn
 const int DatagramSocket::MaxDatagramSize = 1500;
 
 DatagramSocket::DatagramSocket(int port, bool broadcast) :
-		mSock(INVALID_SOCKET),
-		mTimeout(-1.)
+		mSock(INVALID_SOCKET)
 {
 	bind(port, broadcast);
 }
 
 DatagramSocket::DatagramSocket(const Address &local, bool broadcast) :
-		mSock(INVALID_SOCKET),
-		mTimeout(-1.)
+		mSock(INVALID_SOCKET)
 {
  	bind(local, broadcast);  
 }
@@ -150,11 +148,6 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 
 	freeifaddrs(ifas);
 #endif
-}
-
-void DatagramSocket::setTimeout(double timeout)
-{
-	mTimeout = timeout; 
 }
 
 void DatagramSocket::bind(int port, bool broadcast)
@@ -271,44 +264,62 @@ void DatagramSocket::close(void)
 	}
 }
 
-int DatagramSocket::read(char *buffer, size_t size, Address &sender)
+int DatagramSocket::read(char *buffer, size_t size, Address &sender, double &timeout)
 {
-	if(mTimeout > 0.)
+	if(timeout > 0.)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(mSock, &readfds);
 
 		struct timeval tv;
-		Time::SecondsToStruct(mTimeout, tv);
+		Time::SecondsToStruct(timeout, tv);
 		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 		if (ret == -1) throw Exception("Unable to wait on socket");
-		if (ret ==  0) return -1;
+		if (ret ==  0)
+		{
+			timeout = 0.;
+			return -1;
+		}
+		
+		timeout = Time::StructToSeconds(tv);
 	}
   
 	sockaddr_storage sa;
 	socklen_t sl = sizeof(sa);
 	size = ::recvfrom(mSock, buffer, size, 0, reinterpret_cast<sockaddr*>(&sa), &sl);
 	sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-	if(size < 0) throw NetException("Unable to read");
+	if(size < 0) throw NetException("Unable to read from socket");
 	return size;
+}
+
+int DatagramSocket::read(char *buffer, size_t size, Address &sender, const double &timeout)
+{
+	double dummy = timeout;
+	return  read(buffer, size, sender, dummy);
 }
 
 void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
 {
 	size = ::sendto(mSock, buffer, size, 0, receiver.addr(), receiver.addrLen());
-	if(size < 0) throw NetException("Unable to write");
+	if(size < 0) throw NetException("Unable to write to socket");
 }
 
-bool DatagramSocket::read(ByteStream &stream, Address &sender)
+bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
 {
 	stream.clear();
 	char buffer[MaxDatagramSize];
 	int size = MaxDatagramSize;
-	size = read(buffer, size, sender);
+	size = read(buffer, size, sender, timeout);
 	if(size < 0) return false;
 	stream.writeData(buffer,size);
 	return true;
+}
+
+bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
+{
+	double dummy = timeout;
+	return  read(stream, sender, dummy);
 }
 
 void DatagramSocket::write(ByteStream &stream, const Address &receiver)
