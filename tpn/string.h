@@ -54,6 +54,7 @@ public:
 	String(size_t n, char chr);
 	String(const String &str, int begin = 0);
 	String(const String &str, int begin, int end);
+	template <class InputIterator> String(InputIterator first, InputIterator last) : std::string(first, last) {}
 	virtual ~String(void);
 	
 	void explode(std::list<String> &strings, char separator) const;

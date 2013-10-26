@@ -443,13 +443,13 @@ int main(int argc, char** argv)
 		
 		// Starting port mapping
 		PortMapping::Instance = new PortMapping;
+		PortMapping::Instance->add(PortMapping::TCP, port, port);
+		
 		if(Config::Get("external_address").empty()
 			|| Config::Get("external_address") == "auto")
 		{
 			LogInfo("main", "NAT port mapping is enabled");
-			PortMapping::Instance->init();
-			PortMapping::Instance->addTcp(port, port);
-			PortMapping::Instance->start();
+			PortMapping::Instance->enable();
 		}
 		else LogInfo("main", "NAT port mapping is disabled");
 		

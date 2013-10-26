@@ -41,6 +41,8 @@ public:
 	PortMapping(void);
 	~PortMapping(void);
 	
+	void enable(void);
+	void disable(void);
 	bool isEnabled(void) const;
 	
 	String  getExternalHost(void) const;
@@ -61,12 +63,12 @@ private:
 
 	struct Descriptor
 	{
-		protocol_t protocol;
+		Protocol protocol;
                 uint16_t port;
 
-		Descriptor(protocol_t protocol, uint16_t port)	{ this->protocol = protocol; this->port = port; }
-		bool operator < (const Descriptor &d)		{ return protocol < d.protocol || (protocol == d.protocol && port < d.port); }
-                bool operator == (const Descriptor &d)		{ return protocol == d.protocol && port == d.port; }
+		Descriptor(Protocol protocol, uint16_t port)	{ this->protocol = protocol; this->port = port; }
+		bool operator < (const Descriptor &d) const	{ return protocol < d.protocol || (protocol == d.protocol && port < d.port); }
+                bool operator == (const Descriptor &d) const	{ return protocol == d.protocol && port == d.port; }
 	};
 
 	struct Entry
@@ -77,7 +79,7 @@ private:
 		Entry(uint16_t suggested = 0, uint16_t external = 0)	{ this->suggested = suggested; this->external = external; }
 	};	
 
-	class Protocol
+	class MappingProtocol
 	{
 	public:
 		virtual bool check(String &host) = 0;	// true if protocol is available
@@ -85,7 +87,7 @@ private:
 		virtual bool remove(Protocol protocol, uint16_t internal) = 0;
 	};
 
-	class NatPMP : public Protocol
+	class NatPMP : public MappingProtocol
 	{
 	public:
 		NatPMP(void);
@@ -100,12 +102,11 @@ private:
         	bool parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
 
 		DatagramSocket mSock;
-        	DatagramSocket mAnnounceSock;
         	Address mGatewayAddr;
 		String mExternalHost;
 	};
 
-	class UPnP : public Protocol
+	class UPnP : public MappingProtocol
 	{
 	public:
                 UPnP(void);
@@ -116,17 +117,21 @@ private:
                 bool remove(Protocol protocol, uint16_t internal);
 
 	private:
-		Address mGatewayAddr;
+		bool parse(ByteString &dgram);
+		
+		DatagramSocket mSock;
+        	Address mGatewayAddr;
+		String mExternalHost;
 	};
 
-	class FreeboxAPI : public Protocol
+	class FreeboxAPI : public MappingProtocol
 	{
 	public:
         	FreeboxAPI(void);
                 ~FreeboxAPI(void);
 
                 bool check(String &host);
-                bool add(Protocol protocol, uint16_t internal, uint16_t suggested, uint16_t &external);
+                bool add(Protocol protocol, uint16_t internal, uint16_t &external);
                 bool remove(Protocol protocol, uint16_t internal);
         
         private:
@@ -134,7 +139,7 @@ private:
 	};
 
 	Map<Descriptor, Entry> mMap;	// Ports mapping
-	Protocol *mProtocol;		// Current protocol
+	MappingProtocol *mProtocol;	// Current mapping protocol
 	String mExternalHost;
 	bool mEnabled;
 };

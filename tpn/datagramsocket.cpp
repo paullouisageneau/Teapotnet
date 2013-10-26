@@ -316,7 +316,7 @@ bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
 	return true;
 }
 
-bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
+bool DatagramSocket::read(ByteStream &stream, Address &sender, const double &timeout)
 {
 	double dummy = timeout;
 	return  read(stream, sender, dummy);

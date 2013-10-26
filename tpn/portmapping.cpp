@@ -31,17 +31,34 @@ PortMapping::PortMapping(void) :
 	mProtocol(NULL),
 	mEnabled(false)
 {
-	Scheduler::Global->repeat(this, 600.);
-	Scheduler::Global->schedule(this);
+	
 }
 
 PortMapping::~PortMapping(void)
 {
+
+}
+
+void PortMapping::enable(void)
+{
+	Synchronize(this);
+	mEnabled = true;
+	
+	Scheduler::Global->repeat(this, 600.);
+	Scheduler::Global->schedule(this);
+}
+
+void PortMapping::disable(void)
+{
+	Synchronize(this);
+	mEnabled = false;
+	
 	Scheduler::Global->remove(this);
 }
 
 bool PortMapping::isEnabled(void) const
 {
+	Synchronize(this);
 	return mEnabled; 
 }
 
@@ -123,7 +140,7 @@ void PortMapping::run(void)
 			}
 			catch(const Exception &e)
 			{
-				
+				LogWarn("PortMapping", e.what());
 			}
 			
 			delete mProtocol;
@@ -139,7 +156,8 @@ void PortMapping::run(void)
 			it != mMap.end();
 			++it)
 		{
-			if(!mProtocol->add(it->first.protocol, it->first.internal, it->second.suggested, it->second.external))
+			it->second.external = it->second.suggested;
+			if(!mProtocol->add(it->first.protocol, it->first.port, it->second.external))
 				LogWarn("PortMapping", "Mapping failed");
 		}
 	}
@@ -165,16 +183,14 @@ bool PortMapping::NatPMP::check(String &host)
 	query.writeBinary(uint8_t(0));	// version
 	query.writeBinary(uint8_t(0));	// op
 	
-	ByteString dgram;
-	Address sender;
-	
 	int attempts = 3;
 	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
-		dgram = query;
+		ByteString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
+		Address sender;
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
@@ -217,17 +233,15 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 	query.writeBinary(suggested);
 	query.writeBinary(lifetime);
 	
-	ByteString dgram;
-	Address sender;
-	
 	const int attempts = 3;
 	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
-		dgram = query;
+		ByteString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
-		double timeout = time;
+		Address sender;
+		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 			if(parse(dgram, op, internal))
 				return true;
@@ -240,8 +254,6 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 
 bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal, uint16_t *retExternal)
 {
-	Synchronize(this);
-	
 	uint8_t version;
 	uint8_t op;
 	uint16_t result;
@@ -295,7 +307,7 @@ bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqIn
 
 PortMapping::UPnP::UPnP(void)
 {
-	// TODO
+	mSock.bind(1900, true);
 }
 
 PortMapping::UPnP::~UPnP(void)
@@ -305,7 +317,40 @@ PortMapping::UPnP::~UPnP(void)
 
 bool PortMapping::UPnP::check(String &host)
 {
+	Address addr("239.255.255.250", 1900);
 	
+	String message;
+	message << "M-SEARCH * HTTP/1.1\r\n";
+	message << "HOST: "<<addr<<"\r\n";
+	message << "MAN: ssdp:discover\r\n";
+	message << "MX: 10\r\n";
+	message << "ST: ssdp:all\r\n";
+	
+	int attempts = 3;
+	double timeout = 0.250;
+	for(int i=0; i<attempts; ++i)
+	{
+		ByteString dgram(message);
+		mSock.write(dgram, addr);
+		
+		Address sender;
+		double time = timeout;
+		while(mSock.read(dgram, sender, time))
+		{
+			LogDebug("PortMapping", String("Got response from ") + sender.toString());
+			if(parse(dgram))
+			{
+				LogInfo("PortMapping", "UPnP is available");
+				mGatewayAddr = sender;
+				host = mExternalHost;
+				return true;
+			}
+		}
+		
+		timeout*= 2;
+	}
+	
+	LogDebug("PortMapping", "UPnP is not available");
 }
 
 bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
@@ -318,6 +363,14 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal)
 	
 }
 
+bool PortMapping::UPnP::parse(ByteString &dgram)
+{
+	String message(dgram.begin(), dgram.end());
+	
+	// TODO
+	VAR(message);
+	return false;
+}
 
 PortMapping::FreeboxAPI::FreeboxAPI(void)
 {

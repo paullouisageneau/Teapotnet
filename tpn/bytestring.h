@@ -42,6 +42,7 @@ public:
 	ByteString(const ByteString &bs, size_t begin, size_t end);
 	ByteString(const char *data, size_t size);
 	ByteString(const String &str);
+	template <class InputIterator> ByteString(InputIterator first, InputIterator last) : std::deque<char>(first, last) {}
 	virtual ~ByteString(void);
 
 	void clear(void);

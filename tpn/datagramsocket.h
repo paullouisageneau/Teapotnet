@@ -50,8 +50,8 @@ public:
 	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
 	void write(const char *buffer, size_t size, const Address &receiver);
 
-	bool read(ByteStream &stream, Address &sender double &timeout);
-	bool read(ByteStream &stream, Address &sender const double &timeout = -1.);
+	bool read(ByteStream &stream, Address &sender, double &timeout);
+	bool read(ByteStream &stream, Address &sender, const double &timeout = -1.);
 	void write(ByteStream &stream, const Address &receiver);
 	
 private:

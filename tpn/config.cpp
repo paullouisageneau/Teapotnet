@@ -122,7 +122,7 @@ void Config::GetExternalAddresses(List<Address> &list)
 			if(!host.empty()) 
 			{
 				uint16_t port;
-				PortMapping::Instance->getTcp(addr.port(), port);
+				PortMapping::Instance->get(PortMapping::TCP, addr.port(), port);
 				list.push_back(Address(host, port));
 			}
 		}
