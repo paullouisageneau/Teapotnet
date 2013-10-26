@@ -20,7 +20,11 @@
  *************************************************************************/
 
 #include "tpn/portmapping.h"
+#include "tpn/config.h"
 #include "tpn/scheduler.h"
+#include "tpn/http.h"
+#include "tpn/html.h"
+#include "tpn/jsonserializer.h"
 
 namespace tpn
 {
@@ -90,9 +94,14 @@ void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 void PortMapping::remove(Protocol protocol, uint16_t internal)
 {
 	Synchronize(this);
-	mMap.erase(Descriptor(protocol, internal));
 	
-	if(mProtocol) mProtocol->remove(protocol, internal);
+	Descriptor descriptor(protocol, internal);
+	Entry entry;
+	if(mMap.get(descriptor, entry))
+	{
+		mMap.erase(descriptor);
+		if(mProtocol) mProtocol->remove(protocol, internal, entry.external);
+	}
 }
 
 bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) const
@@ -113,6 +122,24 @@ bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) 
 
 void PortMapping::run(void)
 {
+	Synchronize(this);
+	if(!mEnabled) return;
+	
+	List<Address> externalAddresses;
+	Config::GetExternalAddresses(externalAddresses);
+
+	bool hasIpv4 = false;
+	List<Address>::iterator it = externalAddresses.begin();
+	while(it != externalAddresses.end())
+	{
+		if(it->isIpv4() && it->isPublic()) return;
+		hasIpv4|= it->isIpv4();
+		++it;
+	}
+	if(!hasIpv4) return;
+	
+	LogInfo("PortMapping", "Potential NAT detected");
+	
 	if(mProtocol)
 	{
 		if(!mProtocol->check(mExternalHost))
@@ -124,9 +151,10 @@ void PortMapping::run(void)
 	
 	if(!mProtocol)
 	{
-		mExternalHost.clear();
+		LogDebug("PortMapping", "Probing protocols...");
 		
-		for(int i=0; i<3; ++i)
+		mExternalHost.clear();
+		for(int i=0; i<2; ++i)	// TODO: FreeboxAPI is disabled for now
 		{
 			try {
 				switch(i)
@@ -136,7 +164,8 @@ void PortMapping::run(void)
 				case 2: mProtocol = new FreeboxAPI;	break;
 				}
 				
-				if(mProtocol->check(mExternalHost)) break;
+				if(mProtocol->check(mExternalHost) && !mExternalHost.empty()) 
+					break;
 			}
 			catch(const Exception &e)
 			{
@@ -147,7 +176,8 @@ void PortMapping::run(void)
 			mProtocol = NULL;
 		}
 		
-		if(mProtocol) LogInfo("PortMapping", "Port mapping is available !");
+		if(mProtocol) LogInfo("PortMapping", "Port mapping is available, external address is " + mExternalHost);
+		else LogInfo("PortMapping", "Port mapping is not available");
 	}
 	
 	if(mProtocol)
@@ -158,7 +188,7 @@ void PortMapping::run(void)
 		{
 			it->second.external = it->second.suggested;
 			if(!mProtocol->add(it->first.protocol, it->first.port, it->second.external))
-				LogWarn("PortMapping", "Mapping failed");
+				LogWarn("PortMapping", String("Mapping failed for ") + (it->first.protocol == TCP ? "TCP" : "UDP") + " port " + String::number(it->second.suggested));
 		}
 	}
 }
@@ -177,7 +207,7 @@ PortMapping::NatPMP::~NatPMP(void)
 
 bool PortMapping::NatPMP::check(String &host)
 {
-	LogInfo("PortMapping", "Looking for NAT-PMP...");
+	LogDebug("PortMapping::NatPMP", "Trying NAT-PMP...");
 	
 	ByteString query;
 	query.writeBinary(uint8_t(0));	// version
@@ -194,10 +224,10 @@ bool PortMapping::NatPMP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
-			LogDebug("PortMapping", String("Got response from ") + sender.toString());
+			LogDebug("PortMapping::NatPMP", String("Got response from ") + sender.toString());
 			if(parse(dgram, 0))
 			{
-				LogInfo("PortMapping", "NAT-PMP is available");
+				LogDebug("PortMapping", "NAT-PMP is available");
 				mGatewayAddr = sender;
 				host = mExternalHost;
 				return true;
@@ -207,7 +237,7 @@ bool PortMapping::NatPMP::check(String &host)
 		timeout*= 2;
 	}
 	
-	LogDebug("PortMapping", "NAT-PMP is not available");
+	//LogDebug("PortMapping::NatPMP", "NAT-PMP is not available");
 	return false;
 }
 
@@ -216,9 +246,9 @@ bool PortMapping::NatPMP::add(Protocol protocol, uint16_t internal, uint16_t &ex
 	return request((protocol == TCP ? 2 : 1), internal, external, 7200, &external);	// 2h, recommended
 }
 
-bool PortMapping::NatPMP::remove(Protocol protocol, uint16_t internal)
+bool PortMapping::NatPMP::remove(Protocol protocol, uint16_t internal, uint16_t external)
 {
-	return request((protocol == TCP ? 2 : 1), internal, 0, 0, NULL);
+	return request((protocol == TCP ? 2 : 1), internal, external, 0, NULL);
 }
 
 bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external)
@@ -276,7 +306,7 @@ bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqIn
 			if(!dgram.readBinary(c)) return false;
 			if(!dgram.readBinary(d)) return false;
 		
-			if(mExternalHost.empty()) LogDebug("PortMapping", "NAT-PMP compliant gateway found");
+			if(mExternalHost.empty()) LogDebug("PortMapping::NatPMP", "NAT-PMP compliant gateway found");
 			
 			mExternalHost.clear();
 			mExternalHost<<a<<'.'<<b<<'.'<<c<<'.'<<d;
@@ -317,6 +347,8 @@ PortMapping::UPnP::~UPnP(void)
 
 bool PortMapping::UPnP::check(String &host)
 {
+	LogDebug("PortMapping::UPnP", "Trying UPnP...");
+	
 	Address addr("239.255.255.250", 1900);
 	
 	String message;
@@ -337,10 +369,10 @@ bool PortMapping::UPnP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
-			LogDebug("PortMapping", String("Got response from ") + sender.toString());
+			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
 			if(parse(dgram))
 			{
-				LogInfo("PortMapping", "UPnP is available");
+				LogDebug("PortMapping::UPnP", "UPnP is available");
 				mGatewayAddr = sender;
 				host = mExternalHost;
 				return true;
@@ -350,26 +382,207 @@ bool PortMapping::UPnP::check(String &host)
 		timeout*= 2;
 	}
 	
-	LogDebug("PortMapping", "UPnP is not available");
+	//LogDebug("PortMapping::UPnP", "UPnP is not available");
+	return false;
 }
 
 bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
+	if(mControlUrl.empty()) return false;
 	
+	unsigned duration = 7200;
+	
+	while(true)
+	{
+		Http::Request request(mControlUrl, "POST");
+		
+		String host;
+		request.headers.get("Host", host);
+		Socket sock(host);
+		
+		String content = "<?xml version=\"1.0\"?>\r\n\
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
+<s:Body>\r\n\
+<m:AddPortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\r\n\
+<NewPortMappingDescription>"+Html::escape(String(APPNAME))+"</NewPortMappingDescription>\r\n\
+<NewInternalClient>"+Html::escape(sock.getLocalAddress().host())+"</NewInternalClient>\r\n\
+<NewLeaseDuration>"+String::number(duration)+"</NewLeaseDuration>\r\n\
+<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
+<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
+<NewInternalPort>" + String::number(internal) + "</NewInternalPort>\r\n\
+<NewRemoteHost></NewRemoteHost>\r\n\
+<NewEnabled>True</NewEnabled>\r\n\
+</m:AddPortMapping>\r\n\
+</s:Body>\r\n\
+</s:Envelope>\r\n";
+
+		request.headers["Content-Length"] << content.size();
+		request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
+		request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#AddPortMapping";
+
+		request.send(sock);
+		sock.write(content);
+		
+		Http::Response response;
+		response.recv(sock);
+		sock.clear();
+		sock.close();
+	
+		if(external == 0 && response.code == 716)
+		{
+			// The external port cannot be wild-carded
+			external = internal;
+			continue;
+		}
+		
+		if(response.code == 718)
+		{
+			// The port mapping entry specified conflicts with a mapping assigned previously to another client
+			if(external < 1024) external = 1024 + pseudorand() % (49151 - 1024);
+			else ++external;
+			continue;
+		}
+		
+		if(internal != external && response.code == 724)
+		{
+			// Internal and External port values must be the same
+			external = internal;
+			continue;
+		}
+		
+		if(duration && response.code == 725)
+		{
+			// The NAT implementation only supports permanent lease times on port mappings
+			duration = 0;
+			continue;
+		}
+		
+		return (response.code == 200);
+	}
 }
 
-bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal)
+bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t external)
 {
+	if(mControlUrl.empty()) return false;
 	
+	Http::Request request(mControlUrl, "POST");
+	
+	String host;
+	request.headers.get("Host", host);
+	Socket sock(host);
+	
+	String content = "<?xml version=\"1.0\"?>\r\n\
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
+<s:Body>\r\n\
+<m:DeletePortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\r\n\
+<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
+<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
+<NewRemoteHost></NewRemoteHost>\r\n\
+</m:DeletePortMapping>\r\n\
+</s:Body>\r\n\
+</s:Envelope>\r\n";
+
+	request.headers["Content-Length"] << content.size();
+	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
+	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#DeletePortMapping";
+
+	request.send(sock);
+	sock.write(content);
+	
+	Http::Response response;
+	response.recv(sock);
+	sock.clear();
+	sock.close();
+	
+	return (response.code == 200);
 }
 
 bool PortMapping::UPnP::parse(ByteString &dgram)
 {
 	String message(dgram.begin(), dgram.end());
 	
-	// TODO
-	VAR(message);
-	return false;
+	StringMap headers;
+	String line;
+	while(message.readLine(line))
+	{
+		String content = line.cut(':');
+		headers[line.toUpper()] = content.trimmed();
+		line.clear();
+	}
+	
+	String st;
+	headers.get("ST", st);
+	headers.get("NT", st);
+	if(st.find("device:InternetGatewayDevice") == String::NotFound) return false;
+	
+	String server;
+	if(headers.get("SERVER", server))
+		LogDebug("PortMapping::UPnP", "Found device: " + server);
+	
+	String location;
+	if(!headers.get("LOCATION", location)) return false;
+	
+	String protocol = location;
+	String host = protocol.cut(':');
+	while(!host.empty() && host[0] == '/') host.ignore();
+	host.cut('/');
+	String baseUrl = protocol + "://" + host;
+	
+	String result;
+	if(Http::Get(location, &result) != 200) return false;
+	
+	size_t pos = result.find("service:WANIPConnection");
+	if(pos == String::NotFound) return false;
+	
+	mControlUrl = extract(result, "controlURL", pos);
+	if(mControlUrl.empty()) return false;
+	if(mControlUrl[0] == '/') mControlUrl = baseUrl + mControlUrl;
+	
+	String content = "<?xml version=\"1.0\"?>\r\n\
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
+<s:Body><m:GetExternalIPAddress xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\"></m:GetExternalIPAddress></s:Body>\r\n\
+</s:Envelope>\r\n";
+
+	Http::Request request(mControlUrl, "POST");
+	request.headers["Content-Length"] << content.size();
+	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
+	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#GetExternalIPAddress";
+
+	request.headers.get("Host", host);
+	
+	Socket sock(host);
+	request.send(sock);
+	sock.write(content);
+	
+	result.clear();
+	Stream &stream = result;
+	
+	Http::Response response;
+	response.recv(sock);
+	sock.read(stream);
+	sock.close();
+	
+	if(response.code != 200) return false;
+	
+	mExternalHost = extract(result, "NewExternalIPAddress");
+	return !mExternalHost.empty();
+}
+
+String PortMapping::UPnP::extract(String &xml, const String &field, size_t pos)
+{
+	String beginTag = "<" + field + ">";
+	String endTag = "</" + field + ">";
+	
+	size_t begin = xml.find(beginTag, pos);
+	if(begin == String::NotFound) return "";
+	begin+= beginTag.size();
+	
+	size_t end = xml.find(endTag, begin);
+	if(end == String::NotFound) end = xml.size();
+	
+	String result = xml.substr(begin, end - begin);
+	result.trim();
+	return result;
 }
 
 PortMapping::FreeboxAPI::FreeboxAPI(void)
@@ -384,17 +597,158 @@ PortMapping::FreeboxAPI::~FreeboxAPI(void)
 
 bool PortMapping::FreeboxAPI::check(String &host)
 {
+	LogDebug("PortMapping::FreeboxAPI", "Trying Freebox API...");
 	
+	// TODO: this is not the right method
+	
+	const String baseUrl = "http://mafreebox.freebox.fr";
+	Http::Request request(baseUrl + "/api_version", "GET");
+
+	String hhost;
+	request.headers.get("Host", hhost);
+	
+	Socket sock;
+	sock.setTimeout(2.);
+	sock.connect(hhost);
+	request.send(sock);
+	mLocalAddr = sock.getLocalAddress();
+	
+	Http::Response response;
+	response.recv(sock);
+	if(response.code != 200) return false;
+	
+	StringMap map;
+	JsonSerializer serializer(&sock);
+	serializer.input(map);
+	
+	String apiBaseUrl, apiVersion;
+	if(!map.get("api_base_url", apiBaseUrl)) return false;
+	if(!map.get("api_version", apiVersion)) return false;
+	
+	LogDebug("PortMapping::FreeboxAPI", "Found Freebox Server");
+	mFreeboxUrl = baseUrl + apiBaseUrl + "v" + apiVersion.before('.');
+	
+	FreeboxResponse fbr;
+	if(!get("/connection/", fbr)) return false;
+	if(!fbr.success) return false;
+	
+	return fbr.result.get("ipv4", host);
 }
 
 bool PortMapping::FreeboxAPI::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
+	StringMap map;
+	map["enabled"] << "true";
+	map["comment"] << APPNAME;
+	map["lan_port"] << internal;
+	map["wan_port_end"] << external;
+	map["wan_port_start"] << external;
+	map["lan_ip"] = mLocalAddr.host();
+	map["ip_proto"] = (protocol == TCP ? "tcp" : "udp");
+	map["src_ip"] = "0.0.0.0";
 	
+	FreeboxResponse fbr;
+	if(!put("/api/v1/fw/redir/", map, fbr)) return false;
+	return fbr.success;
 }
 
-bool PortMapping::FreeboxAPI::remove(Protocol protocol, uint16_t internal)
+bool PortMapping::FreeboxAPI::remove(Protocol protocol, uint16_t internal, uint16_t external)
 {
+	// TODO
+	return false;
+}
+
+bool PortMapping::FreeboxAPI::get(const String &url, FreeboxResponse &response)
+{
+	if(mFreeboxUrl.empty()) return false;
 	
+	Http::Request request(mFreeboxUrl + url, "GET");
+	
+	String host;
+	request.headers.get("Host", host);
+	
+	Socket sock;
+	sock.connect(host);
+	request.send(sock);
+	
+	Http::Response hresponse;
+	hresponse.recv(sock);
+	if(hresponse.code != 200) return false;
+	
+	JsonSerializer serializer(&sock);
+	serializer.input(response);
+	return true;
+}
+
+bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, FreeboxResponse &response)
+{
+	if(mFreeboxUrl.empty()) return false;
+	
+	Http::Request request(mFreeboxUrl + url, "PUT");
+	
+	String post;
+	JsonSerializer postSerializer(&post);
+	postSerializer.output(data);
+	
+	String host;
+	request.headers.get("Host", host);
+	request.headers["Content-Length"] << post.size();
+	request.headers["Content-Type"] = "application/json; charset=\"utf-8\"";
+	
+	Socket sock;
+	sock.connect(host);
+	request.send(sock);
+	sock.write(post);
+	
+	Http::Response hresponse;
+	hresponse.recv(sock);
+	if(hresponse.code != 200) return false;
+	
+	JsonSerializer serializer(&sock);
+	serializer.input(response);
+	return true;
+}
+
+PortMapping::FreeboxAPI::FreeboxResponse::FreeboxResponse(void) :
+	success(false)
+{
+
+}
+
+void PortMapping::FreeboxAPI::FreeboxResponse::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<bool> successWrapper(success);
+
+	Serializer::ConstObjectMapping mapping;
+	mapping["success"] = &successWrapper;
+        mapping["error_code"] = &errorCode;
+        mapping["message"] = &message;
+        mapping["result"] = &result;
+	
+	s.outputObject(mapping);
+}
+
+bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
+{
+	success = false;
+	errorCode.clear();
+	message.clear();
+	result.clear();
+	
+	SerializableWrapper<bool> successWrapper(&success);
+
+	Serializer::ObjectMapping mapping;
+	mapping["success"] = &successWrapper;
+        mapping["error_code"] = &errorCode;
+        mapping["message"] = &message;
+        mapping["result"] = &result;
+	
+	return s.inputObject(mapping);
+}
+
+bool PortMapping::FreeboxAPI::FreeboxResponse::isInlineSerializable(void) const
+{
+	return false;
 }
 
 }

@@ -84,7 +84,7 @@ private:
 	public:
 		virtual bool check(String &host) = 0;	// true if protocol is available
 		virtual bool add(Protocol protocol, uint16_t internal, uint16_t &external) = 0;
-		virtual bool remove(Protocol protocol, uint16_t internal) = 0;
+		virtual bool remove(Protocol protocol, uint16_t internal, uint16_t external) = 0;
 	};
 
 	class NatPMP : public MappingProtocol
@@ -95,7 +95,7 @@ private:
 
 		bool check(String &host);
         	bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-        	bool remove(Protocol protocol, uint16_t internal);
+        	bool remove(Protocol protocol, uint16_t internal, uint16_t external);
 
 	private:
         	bool request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external = NULL);
@@ -114,13 +114,15 @@ private:
 
                 bool check(String &host);
                 bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-                bool remove(Protocol protocol, uint16_t internal);
+                bool remove(Protocol protocol, uint16_t internal, uint16_t external);
 
 	private:
 		bool parse(ByteString &dgram);
+		String extract(String &xml, const String &field, size_t pos = 0);
 		
 		DatagramSocket mSock;
         	Address mGatewayAddr;
+		String mControlUrl;
 		String mExternalHost;
 	};
 
@@ -132,10 +134,29 @@ private:
 
                 bool check(String &host);
                 bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-                bool remove(Protocol protocol, uint16_t internal);
+                bool remove(Protocol protocol, uint16_t internal, uint16_t external);
         
         private:
-                String mFreeboxUrl;
+		struct FreeboxResponse : public Serializable
+		{
+		public:
+			FreeboxResponse(void);
+			
+			bool success;
+			String errorCode;
+			String message;
+			StringMap result;
+			
+			void serialize(Serializer &s) const;
+			bool deserialize(Serializer &s);
+			bool isInlineSerializable(void) const;
+		};
+		
+		bool get(const String &url, FreeboxResponse &response);
+		bool put(const String &url, Serializable &data, FreeboxResponse &response);
+		
+		String mFreeboxUrl;
+		Address mLocalAddr;
 	};
 
 	Map<Descriptor, Entry> mMap;	// Ports mapping

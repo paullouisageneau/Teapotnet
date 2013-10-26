@@ -133,6 +133,16 @@ bool Socket::isWriteable(void) const
 	return FD_ISSET(mSock, &writefds);
 }
 
+Address Socket::getLocalAddress(void) const
+{
+	sockaddr_storage addr;
+	socklen_t len = sizeof(addr);
+	if(getsockname(mSock, reinterpret_cast<sockaddr*>(&addr), &len))
+		throw NetException("Unable to retrieve local address");
+
+	return Address(reinterpret_cast<sockaddr*>(&addr), len);
+}
+
 Address Socket::getRemoteAddress(void) const
 {
 	if(!mProxifiedAddr.isNull()) return mProxifiedAddr;

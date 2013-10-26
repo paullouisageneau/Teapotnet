@@ -140,6 +140,8 @@ bool Config::GetProxyForUrl(const String &url, Address &addr)
 {
 	// TODO; get proxy from OS
 
+	if(!addr.isPublic()) return false;
+	
 	String proxy = Get("http_proxy").trimmed();
         if(!proxy.empty())
         {
