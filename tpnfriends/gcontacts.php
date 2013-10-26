@@ -43,6 +43,8 @@ if (isset($_REQUEST['logout']))
 {
 	unset($_SESSION['token']);
 	$client->revokeToken();
+	// Remove cookie
+	setcookie('tpnIdCookie', '', time()-3600);
 }
 
 
@@ -50,7 +52,7 @@ if (isset($_POST['tpn_id']))
 {
 	$tpn_id = $_POST['tpn_id'];
 	// Keep it in a cookie because page will reload if not logged in
-	setCookie('tpnIdCookie', $tpn_id);
+	setCookie('tpnIdCookie', $tpn_id, time()+3600);
 }
 else if(isset($_COOKIE['tpnIdCookie']))
 {
@@ -58,7 +60,7 @@ else if(isset($_COOKIE['tpnIdCookie']))
 }
 else
 {
-	echo 401;
+	print 'You have been logged out, please try to reconnect from your teapotnet instance';
 	return;
 }
 
@@ -82,6 +84,7 @@ if ($client->getAccessToken())
 	$array = json_decode($response, true);
 
 	$arrayContacts = $array['entry'];
+	uasort($arrayContacts, 'compareContacts');
 
 	// For tests
 	//print "<pre>" . print_r($array, true) . "</pre>";
@@ -103,11 +106,12 @@ else
 if (isset($auth))
 {
 	print "</div> <div class='connectme'> <a class=login href='$auth'>Connect to Gmail</a> </div>";
+	print '<script type="text/javascript"> $(".gtopbanner").hide(); </script>';
 	return;
 } 
 else 
 {
-	// TODO : display personal information so that user knows he is correctly logged in.
+	// Display personal information so that user knows he is correctly logged in.
 	$me = $array['author']['name'];
 	$myEmail = $array['author']['email'];
 	$title = $array['title'];
@@ -135,10 +139,22 @@ else
 
 <div id="content">
 
+<div id="searchbargmailid">
+	<input type="text" name="searchgmailcontact" class="searchbargmail">
+</div>
+
 <div id="listcontacts" class="box">
 
 <?php
-
+	$toLoadPhotos = array();
+?>
+	<script type="text/javascript">
+		var toLoadPhotos = [];
+		var index = 0;
+		var separator = '10051921';
+		
+	</script>
+<?php
 	foreach($arrayContacts as $contact)
 	{
 
@@ -177,36 +193,71 @@ else
 				<span class="email"> <?php print $emailContact ?> </span>
 			</div>
 			<div class="contactphoto">
-		<?php
 
+		<?php
 
 		// Check if image exists (f**k this API which gives images URLs when they don't exist)
 		if(isGenuinePhoto($urlPrefix, $photoUrlPrefix))
 		{
-			// Session token is a string -> we do it with a substring
+			// Session token is a string
 			$params = explode('"',$_SESSION['token']);
-			//print_r($params);
 			$accessToken = $params[3];
 			$token_type = $params[7];
 
 			$photoUrl = $photoUrlPrefix.'?auth=true&access_token='.$accessToken.'&token_type='.$token_type;
+
+			// TODO : careful, could create double ids with contacts having the same name 
 			$divObject = '#contact_'.$nameIdContact;
-			print '<script type="text/javascript"> $("'.$divObject.'").append("<img src=\''.$photoUrl.'\'/>") </script>';
+
+			// Add to array of to to be loaded photos
+			$toLoadPhotos["'".$divObject."'"] = "'".$photoUrlPrefix."'";
+			print '<script type="text/javascript"> toLoadPhotos[index] = "'.$divObject.'"+separator+"'.$photoUrl.'"; index++; </script>';
 
 		}
 		?>
 			</div>
 		</div>
+
 		<?php
-	
 	}
-
-
 ?>
 
 <script type="text/javascript">
+
+	var loadPhotosInterval = 100;
+	var countIndex = -1;
+	var currentSearchContact = '';
+
+	loadPhotos();
+	displayMatchingContacts();
+
+	function loadPhotos()
+	{
+		countIndex++;
+		//console.log(countIndex);
+		if(countIndex >= index)
+			return;
+		var str = toLoadPhotos[countIndex];
+		var splitted = str.split(separator);
+		var divObject = splitted[0];
+		var photoUrl = splitted[1];
+		$(divObject).append('<img src=\"'+photoUrl+'\">');
+		setTimeout(function() { 
+				loadPhotos();
+		},loadPhotosInterval); // should technically be a setInterval ?
+	}
+
+
 	var emailsToSend = [];
 	var allSelected = false;
+
+	function emptySelected()
+	{
+			$('#listcontacts').find('.gmailcontact').each(function() {
+				emailsToSend = [];
+				$(this).removeClass('selectedcontact');
+			});
+	}
 
 	function contactClick() {
 
@@ -250,10 +301,7 @@ else
 		}
 		else
 		{
-			$('#listcontacts').find('.gmailcontact').each(function() {
-				emailsToSend = [];
-				$(this).removeClass('selectedcontact');
-			});
+			emptySelected();
 			$('#selectallemails').val('Select all');
 			allSelected = false;
 		}
@@ -272,30 +320,37 @@ else
 
 				var postUrl = "http://rebecq.fr/tpnfriends/postrequest.php";
 
-				// TODO : for result output
 				var success = 0;
 				var failedEmails = [];
+				var doneRequests = 0;
+				var nEmailsToSend = emailsToSend.length;
 
-				// For each email in array, post to postrequest
 				emailsToSend.forEach(function(mailReceiver)
 				{
 					$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id })
 					.done(function(data) {
-						// TODO : increment counters on requests, and remove alerts
-						if(data == SUCCESS)
+						if(data == 16) // Equals to global "SUCCESS"
+						{
 							success++;
+						}
 						else
+						{
 							failedEmails.push(mailReceiver);
+							//console.log(mailReceiver);
+							//console.log(failedEmails);
+						}
+						doneRequests++;
+						if(doneRequests == nEmailsToSend)
+							statsRequests(success, failedEmails);
 					})
 					.fail(function() {
-								failedEmails.push(mailReceiver);	
-							 });
+							failedEmails.push(mailReceiver);
+							doneRequests++;
+						if(doneRequests == nEmailsToSend)
+							statsRequests(success, failedEmails);
+					});
+
 				});
-
-				if(failedEmails.length>0)
-					alert('Invitations could not be sent to : '+failedEmails);
-
-				// TODO : empty page
 
 			}
 		}
@@ -305,6 +360,65 @@ else
 		}
 
 	});
+
+	// Done by external function because we have to wait for posts responses
+	function statsRequests(success, failedEmails)
+	{
+		//console.log(failedEmails.length);
+		//console.log(failedEmails);
+
+		if(failedEmails.length>0)
+			alert('Invitations could not be sent to : '+failedEmails);
+		else
+			alert('Invitation successfully sent to '+success+' friends.');
+
+		emptySelected();
+	}
+
+	function displayMatchingContacts()
+	{
+		var searchContact = $('input[name="searchgmailcontact"]').val();
+		//console.log(searchContact);
+		//console.log(currentSearchContact);
+
+		if(searchContact != currentSearchContact) // Don't bother to search contacts if search text hasn't changed
+		{
+			currentSearchContact = searchContact;
+
+			// Hide not matching contacts
+			$('#listcontacts').find('.gmailcontact').each(function() {		
+				var nameContact = $(this).find('.infogmailcontact h2').html();
+				//console.log(nameContact);
+
+				if(!matchSearch(nameContact, searchContact))
+				{
+					$(this).hide();
+				}
+				else
+				{
+					$(this).show();
+				}
+			});
+		}
+
+		setTimeout(function() {
+			displayMatchingContacts();
+		}, 1000);
+
+	}
+
+	function matchSearch(nameContact, searchContact)
+	{
+		if(searchContact == '')
+			return true;
+
+		var regExp = new RegExp(searchContact, 'i');
+		if(regExp.test(nameContact))
+			return true;
+
+		return false;
+	}
+
 
 </script>
 
@@ -344,11 +458,29 @@ function isGenuinePhoto($urlPrefix, $photoUrlPrefix)
 
 function trimName($name)
 {
-	$oldChars = array(" ", "-", ".", "@", "(", ")", "'", "_",",",";");
-	$newChars = array("", "", "", "", "", "", "", "", "", "");
+	$oldChars = array(" ", "-", ".", "@", "(", ")", "'", "_",",",";","é","è","à","ù","ç","î","ë","ô");
+	$newChars = array("", "", "", "", "", "", "", "", "", "","e","e","a","u","c","i","e","o");
 	$returnstr = str_replace($oldChars, $newChars, $name);
 
 	return strtolower($returnstr);
+}
+
+function compareContacts($a, $b)
+{
+	// We compare using $contact['title'] although some contacts have an array (and not a string) as title
+	// (those are contacts with no names registered). They will be displayed at the end
+	if($a['title'] > $b['title'])
+	{
+		return 1;
+	}
+	else if($a['title'] == $b['title'])
+	{
+		return 0;
+	}
+	else
+		return -1;
+
+	return -1;
 }
 
 ?>
