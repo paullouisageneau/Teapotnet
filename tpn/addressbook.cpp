@@ -625,7 +625,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
-			page.label("add"); page.button("add","Send invitation");
+			page.label("sendinvitation"); page.button("sendinvitation","Send invitation");
 			page.close("div");
 
 			// toggle form on img click
@@ -751,7 +751,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								return; }\n\
 						}, 200); \n\
 					} \n\
-					$('#sendrequest .add').click(function() { \n\
+					$('#sendrequest .sendinvitation').click(function() { \n\
 						if( isValidMail(mailSenderObject) && isValidMail(mailReceiverObject)) \n\
 						{ \n\
 							var postUrl = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\"; \n\
