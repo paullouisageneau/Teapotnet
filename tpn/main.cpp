@@ -456,12 +456,6 @@ int main(int argc, char** argv)
 		if(!Directory::Exist(Config::Get("profiles_dir")))
 			Directory::Create(Config::Get("profiles_dir"));
 		
-		// DEBUG
-		std::cout<<"DEBUG, NOT LOADING USERS"<<std::endl;
-		Core::Instance->join();
-		exit(0);
-		//
-		
 		Directory profilesDir(Config::Get("profiles_dir"));
 		while(profilesDir.nextFile())
 		{
