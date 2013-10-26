@@ -560,10 +560,11 @@ a.connectme
 
 .logoutbox
 {
+	margin-top: 2px;
 	border: 2px solid #1E7FCB;
 	float: right;
 	width: 20em;
-	min-height: 5em;
+	min-height: 2em;
 }
 
 .logout
@@ -613,6 +614,7 @@ a.logout
 
 .gtopbanner
 {
+	float: left;
 	width: 97%;
 	min-height: 5em;
 	padding-left: 2%;
@@ -642,7 +644,17 @@ a.logout
 
 .selectedcontact
 {
-	background-color: green;
+	background-color: #E9383F;
+}
+
+#searchbargmailid
+{
+	text-align: center;
+}
+
+.searchbargmail
+{
+	width: 80%;
 }
 
 @media screen and (max-width: 800px)

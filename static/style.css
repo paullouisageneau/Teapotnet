@@ -980,7 +980,8 @@ td.delete
 .myself
 {
 	margin: 0;
-	background-color: #00E000;
+	/*background-color: #00E000;*/
+	background-color: #318CE7;
 	border: 1px solid black;
 }
 
@@ -1195,14 +1196,19 @@ form #trackerlink
 
 #invitationmethods
 {
+	display: inline-block;
+	margin-left: auto;
+	margin-right: auto;
 	text-align: center;
-	width: auto;
 	margin-top: 1em;
+	width: 100%;
 }
 
-#invitationmethods img
+.invitationimg
 {
-	margin-right: 4em;
+	display: inline-block;
+	margin-right: 3em;
+	width: 110px;
 }
 
 .howtorequests
@@ -1218,6 +1224,17 @@ form #trackerlink
 .isinvalid
 {
 	background-color: red !important;
+}
+
+#howtotext
+{
+	margin-top: 2px;
+	margin-left: auto;
+	margin-right: auto;
+	width: 85%;
+	background-color: #FFF48D;
+	padding: 2px;
+	text-align: center;
 }
 
 /* Mobile version */  
