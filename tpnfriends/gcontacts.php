@@ -187,12 +187,9 @@ else
 
 		?>
 
-		<div id="contact_<?php print $nameIdContact ?>" class="gmailcontact">
-			<div class="infogmailcontact">
-				<h2> <?php print $nameContact ?> </h2>
-				<span class="email"> <?php print $emailContact ?> </span>
-			</div>
-			<div class="contactphoto">
+		<script type="text/javascript">
+		$('#listcontacts').append('<div id="contact_<?php print $nameIdContact ?>" class="gmailcontact"><div class="infogmailcontact"><h2> <?php print escape($nameContact) ?> </h2><span class="email"> <?php print $emailContact ?> </span></div><div class="contactphoto">');
+		</script>
 
 		<?php
 
@@ -463,6 +460,15 @@ function trimName($name)
 	$returnstr = str_replace($oldChars, $newChars, $name);
 
 	return strtolower($returnstr);
+}
+
+function escape($str)
+{
+	$oldChars = array("'");
+	$newChars = array("\'");
+	$returnstr = str_replace($oldChars, $newChars, $str);
+
+	return $returnstr;
 }
 
 function compareContacts($a, $b)
