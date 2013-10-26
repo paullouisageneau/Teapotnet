@@ -980,7 +980,8 @@ td.delete
 .myself
 {
 	margin: 0;
-	background-color: #00E000;
+	/*background-color: #00E000;*/
+	background-color: #318CE7;
 	border: 1px solid black;
 }
 
