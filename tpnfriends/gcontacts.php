@@ -285,7 +285,7 @@ else
 	$('#selectallemails').click(function() {
 		if(!allSelected)
 		{
-			$('#listcontacts').find('.gmailcontact').each(function() {
+			$('#listcontacts').find('.gmailcontact:visible').each(function() {
 				var emailContact = $('.email',this).html();
 				if(emailContact.length > 2 && $.inArray(emailContact, emailsToSend) == -1)
 				{
