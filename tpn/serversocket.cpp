@@ -117,7 +117,7 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 	
 	freeaddrinfo(aiList);
 #else
-	ifaddrs *ifas;
+	ifaddrs *ifas = NULL;
 	if(getifaddrs(&ifas) < 0)
 		throw NetException("Unable to list network interfaces");
 
@@ -125,27 +125,30 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 	while(ifa)
 	{
 		sockaddr *sa = ifa->ifa_addr;
-		socklen_t len = 0;
-		switch(sa->sa_family) 
+		if(sa)
 		{
-			case AF_INET:  len = sizeof(sockaddr_in);  break;
-			case AF_INET6: len = sizeof(sockaddr_in6); break;
-		}
-		
-		if(len)
-		{
-			Address addr(sa, len);
-			String host = addr.host();
-			if(host.substr(0,4) != "fe80")
+			socklen_t len = 0;
+			switch(sa->sa_family) 
 			{
-				addr.set(host, mPort);
-				if(addr == bindAddr)
+				case AF_INET:  len = sizeof(sockaddr_in);  break;
+				case AF_INET6: len = sizeof(sockaddr_in6); break;
+			}
+			
+			if(len)
+			{
+				Address addr(sa, len);
+				String host = addr.host();
+				if(host.substr(0,4) != "fe80")
 				{
-					list.clear();
+					addr.set(host, mPort);
+					if(addr == bindAddr)
+					{
+						list.clear();
+						list.push_back(addr);
+						break;
+					}
 					list.push_back(addr);
-					break;
 				}
-				list.push_back(addr);
 			}
 		}
 		
