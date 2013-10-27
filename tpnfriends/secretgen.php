@@ -91,7 +91,7 @@ header("Access-Control-Allow-Origin: *");
 
 				// Send mail back to sender for him to get infos from receiver's tpn
 				if($name_receiver == '')
-					$name_receiver = 'TeapotNet';
+					$name_receiver = $mail_receiver;
 
 				sendFriendRequestMail($name_receiver, $mail_receiver, $mail_sender, $id_request_2, MODE_REQUEST_ACCEPTED);
 				}
