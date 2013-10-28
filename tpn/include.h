@@ -26,10 +26,10 @@
 #define APPNAME		"TeapotNet"
 #define APPVERSION	"0.5.1"
 #define APPAUTHOR	"Paul-Louis Ageneau"
-#define APPLINK		"http://www.teapotnet.org/"
-#define SOURCELINK	"http://www.teapotnet.org/source/"
-#define HELPLINK	"http://www.teapotnet.org/wiki/"
-#define DOWNLOADURL	"http://www.teapotnet.org/download/"
+#define APPLINK		"http://teapotnet.org/"
+#define SOURCELINK	"http://teapotnet.org/source/"
+#define HELPLINK	"http://teapotnet.org/faq.html"
+#define DOWNLOADURL	"http://teapotnet.org/download/"
 
 
 #if defined(_WIN32) || defined(_WIN64)
