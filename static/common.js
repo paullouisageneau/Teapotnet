@@ -266,23 +266,12 @@ function displayContacts(url, period, object) {
 				
 				$('#contactinfo_'+uname).html('<span class=\"tracker\">'+info.name+'@'+info.tracker+'</span><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
 				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
-				$('#contactinfo_'+uname).hide();
+				//$('#contactinfo_'+uname).hide(); // TODO : what is this for ?
 				
 				function displayContactInfo(uname) {
-					
-					if(visible) {
-						if($(window).width() < 1024) $('#contactinfo_'+uname).hide();
-						else $('#contactinfo_'+uname).slideUp();
-						timeout = setTimeout(function() { visible = false; }, 200);
-					}
-					else
-					{
-						if(toShow) {
-							if ($(window).width() < 1024) $('#contactinfo_'+uname).show();
-							else $('#contactinfo_'+uname).slideDown();
-						}
-						timeout = setTimeout(function() { visible = true; }, 200);
-					}
+					if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
+					else $('#contactinfo_'+uname).slideToggle();
+					timeout = setTimeout(function() { }, 200);
 				}
 				/*document.getElementById('contact_'+uname).onmouseover = function()
 				{
