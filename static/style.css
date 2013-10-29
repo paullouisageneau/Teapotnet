@@ -1227,7 +1227,6 @@ td.delete
 
 form #trackerlink
 {
-	display: inline-block;
 	margin-left: 1em;
 
 }
@@ -1249,6 +1248,11 @@ form #trackerlink
 	width: 110px;
 }
 
+.invitationimg img
+{
+	cursor: pointer;
+}
+
 .howtorequests
 {
 	margin: 1em;
@@ -1266,13 +1270,15 @@ form #trackerlink
 
 #howtotext
 {
-	margin-top: 2px;
+	margin-top: 1em;
+	margin-bottom: 1em;
 	margin-left: auto;
 	margin-right: auto;
 	width: 85%;
 	background-color: #FFF48D;
-	padding: 2px;
+	padding: 0.5em;
 	text-align: center;
+	border-radius: 0.5em;
 }
 
 /* Mobile version */  
