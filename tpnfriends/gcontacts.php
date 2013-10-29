@@ -155,6 +155,9 @@ else
 		
 	</script>
 <?php
+	$previousName = '';
+	$previousEmail = '';
+	$countPreviousName = 0;
 	foreach($arrayContacts as $contact)
 	{
 
@@ -178,38 +181,54 @@ else
 		$nameContact = $contact['title'];
 
 		if(is_array($nameContact))
-			$nameContact = $emailContact; // TODO : what if no name and no contact ?
+			$nameContact = $emailContact; // Contacts with no name and no email won't be displayed anyway
 
 		$urlPrefix = $contact['link'][1]['@attributes']['href'];
 		$photoUrlPrefix = $contact['link'][0]['@attributes']['href'];
 
 		$nameIdContact = trimName($nameContact);
 
-		?>
 
-		<script type="text/javascript">
-		$('#listcontacts').append('<div id="contact_<?php print $nameIdContact ?>" class="gmailcontact"><div class="infogmailcontact"><h2> <?php print escape($nameContact) ?> </h2><span class="email"> <?php print $emailContact ?> </span></div><div class="contactphoto">');
-		</script>
-
-		<?php
-
-		// Check if image exists (f**k this API which gives images URLs when they don't exist)
-		if(isGenuinePhoto($urlPrefix, $photoUrlPrefix))
+		if($emailContact != $previousEmail && strlen($emailContact) > 2) // Just display one unique email per contact (and don't display contacts with no email)
 		{
-			// Session token is a string
-			$params = explode('"',$_SESSION['token']);
-			$accessToken = $params[3];
-			$token_type = $params[7];
+			$previousEmail = $emailContact;
 
-			$photoUrl = $photoUrlPrefix.'?auth=true&access_token='.$accessToken.'&token_type='.$token_type;
+			if($nameIdContact == $previousName)
+			{
+				$countPreviousName++;
+				$nameIdContact = $nameIdContact.$countPreviousName;
+			}
+			else
+			{
+				$countPreviousName = 0;
+				$previousName = $nameIdContact;
+			}
 
-			// TODO : careful, could create double ids with contacts having the same name 
-			$divObject = '#contact_'.$nameIdContact;
+			?>
 
-			// Add to array of to to be loaded photos
-			$toLoadPhotos["'".$divObject."'"] = "'".$photoUrlPrefix."'";
-			print '<script type="text/javascript"> toLoadPhotos[index] = "'.$divObject.'"+separator+"'.$photoUrl.'"; index++; </script>';
+			<script type="text/javascript">
+			$('#listcontacts').append('<div id="contact_<?php print $nameIdContact ?>" class="gmailcontact"><div class="infogmailcontact"><h2> <?php print escape($nameContact) ?> </h2><span class="email"> <?php print $emailContact ?> </span></div><div class="contactphoto">');
+			</script>
 
+			<?php
+
+			// Check if image exists (f**k this API which gives images URLs when they don't exist)
+			if(isGenuinePhoto($urlPrefix, $photoUrlPrefix))
+			{
+				// Session token is a string
+				$params = explode('"',$_SESSION['token']);
+				$accessToken = $params[3];
+				$token_type = $params[7];
+
+				$photoUrl = $photoUrlPrefix.'?auth=true&access_token='.$accessToken.'&token_type='.$token_type;
+
+				$divObject = '#contact_'.$nameIdContact;
+
+				// Add to array of to to be loaded photos
+				$toLoadPhotos["'".$divObject."'"] = "'".$photoUrlPrefix."'";
+				print '<script type="text/javascript"> toLoadPhotos[index] = "'.$divObject.'"+separator+"'.$photoUrl.'"; index++; </script>';
+
+			}
 		}
 		?>
 			</div>
@@ -260,13 +279,13 @@ else
 
 		var emailContact = $('.email',this).html();
 
-		if(emailContact.length == 2) // Why ? I don't know, but it should work
+		if(emailContact.length == 2) // Why ? I don't know, but it should work (shouldn't be true as long as we ne longer display contacts with no email) 
 		{
 			alert('This contact has no email');
 		}
 		else
 		{
-			if($.inArray(emailContact, emailsToSend) == -1) // Equals false condition. TODO : nicer function doing this check
+			if($.inArray(emailContact, emailsToSend) == -1) // Equals false condition
 			{
 				$(this).addClass('selectedcontact');
 				emailsToSend.push(emailContact);

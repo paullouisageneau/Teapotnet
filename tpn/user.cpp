@@ -595,7 +595,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.open("h2");
-			page.text("News Feed");
+			page.text("Public news feed");
 			page.close("h2");
 			
 			page.open("div", "statusmessages");
@@ -658,7 +658,7 @@ void User::http(const String &prefix, Http::Request &request)
 				}\n\
 				function formTextBlur() {\n\
 					document.statusform.statusinput.style.color = 'grey';\n\
-					document.statusform.statusinput.value = 'What do you have in mind ?';\n\
+					document.statusform.statusinput.value = 'Click here to post a public message for all your contacts';\n\
 				}\n\
 				document.statusform.statusinput.onblur = function() {\n\
 					formTextBlur();\n\
