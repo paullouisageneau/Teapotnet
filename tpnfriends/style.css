@@ -561,10 +561,9 @@ a.connectme
 .logoutbox
 {
 	margin-top: 2px;
-	border: 2px solid #1E7FCB;
 	float: right;
 	width: 20em;
-	min-height: 2em;
+	min-height: 0;
 }
 
 .logout
@@ -581,8 +580,8 @@ a.logout
 .myinfo
 {
 	float: left;
-	padding: 5px 5px;
-	min-height: 5em;
+	padding-left: 0.2em;
+	min-height: 0;
 }
 
 .myemail
@@ -623,11 +622,28 @@ a.logout
 
 .gmailcontact
 {
-	border: 2px solid black;
+	border: 1px solid black;
 	border-radius: 0.5em;
-	margin: 1em;
-	padding: 1em;
+	margin-top: 1em;
+	margin-bottom: 1em;
+	padding: 0.4em;
 	min-height: 4em;
+}
+
+.gmailcontact h2
+{
+	font-size: 1.1em;
+	text-shadow: none;
+}
+
+#selectallemails
+{
+	cursor: pointer;
+}
+
+#sendinvitations
+{
+	cursor: pointer;
 }
 
 .infogmailcontact
@@ -644,7 +660,7 @@ a.logout
 
 .selectedcontact
 {
-	background-color: #E9383F;
+	background-color: #FFF48D;
 }
 
 #searchbargmailid
@@ -655,6 +671,10 @@ a.logout
 .searchbargmail
 {
 	width: 80%;
+	height: 1.5em;
+	border: 1px solid black;
+	border-radius: 0.5em;
+	margin-bottom: 0.5em;
 }
 
 @media screen and (max-width: 800px)
