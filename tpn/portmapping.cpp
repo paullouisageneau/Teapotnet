@@ -427,7 +427,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 <NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
 <NewInternalPort>" + String::number(internal) + "</NewInternalPort>\r\n\
 <NewRemoteHost></NewRemoteHost>\r\n\
-<NewEnabled>True</NewEnabled>\r\n\
+<NewEnabled>1</NewEnabled>\r\n\
 </m:AddPortMapping>\r\n\
 </s:Body>\r\n\
 </s:Envelope>\r\n";

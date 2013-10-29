@@ -529,7 +529,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 
 			// Parameters that are to be sent in friend request
-			const String centralizedFriendSystemUrl = "http://rebecq.fr/tpnfriends/"; // TODO : change
+			const String centralizedFriendSystemUrl = RAPTUREURL;
 			int lengthUrl = centralizedFriendSystemUrl.length();
 			String postrequest = "postrequest.php";
 			String secretgen = "secretgen.php";

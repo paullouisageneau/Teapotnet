@@ -27,9 +27,10 @@
 #define APPVERSION	"0.5.1"
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://teapotnet.org/"
-#define SOURCELINK	"http://teapotnet.org/source/"
+#define SOURCELINK	"http://teapotnet.org/source"
 #define HELPLINK	"http://teapotnet.org/faq"
-#define DOWNLOADURL	"http://teapotnet.org/download/"
+#define DOWNLOADURL	"http://teapotnet.org/download"
+#define RAPTUREURL	"http://teapotnet.org/rapture/"
 
 
 #if defined(_WIN32) || defined(_WIN64)

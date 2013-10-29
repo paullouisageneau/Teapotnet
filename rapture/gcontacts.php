@@ -23,7 +23,7 @@ $client->setScopes("http://www.google.com/m8/feeds/");
 // Set API TeapotNet information
 $client->setClientId('1004486490546.apps.googleusercontent.com');
 $client->setClientSecret('qrzDwPvgb72D914ijnGAILtw');
-$client->setRedirectUri('http://rebecq.fr/tpnfriends/gcontacts.php');
+$client->setRedirectUri('http://teapotnet.org/rapture/gcontacts.php');
 $client->setDeveloperKey('AIzaSyArpqJdKKQ4PF9bj2FrImOTn_wplvRXz2w');
 
 if (isset($_GET['code'])) 
@@ -334,7 +334,7 @@ else
 				var nameSender = '<?php print $me ?>';
 				var mailSender = '<?php print $myEmail ?>';
 
-				var postUrl = "http://rebecq.fr/tpnfriends/postrequest.php";
+				var postUrl = "http://teapotnet.org/rapture/postrequest.php";
 
 				var success = 0;
 				var failedEmails = [];
