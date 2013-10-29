@@ -65,13 +65,14 @@ void Directory::Create(const String &path)
 		throw IOException("Cannot create directory \""+path+"\"");
 }
 
-uint64_t Directory::GetFreeSpace(const String &path)
+uint64_t Directory::GetAvailableSpace(const String &path)
 {
 #ifdef WINDOWS
-	ULARGE_INTEGER freeBytesAvailable = 0;
-	if(!GetDiskFreeSpaceEx(path.c_str(), &freeBytesAvailable, NULL, NULL)
+	ULARGE_INTEGER freeBytesAvailable;
+	std::memset(&freeBytesAvailable, 0, sizeof(freeBytesAvailable));
+	if(!GetDiskFreeSpaceEx(path.c_str(), &freeBytesAvailable, NULL, NULL))
 		throw IOException("Unable to get free space for " + path);
-	return uint64_t(freeBytesAvailable);
+	return uint64_t(freeBytesAvailable.QuadPart);
 #else
 	struct statvfs f; 
 	if(statvfs(path, &f)) throw IOException("Unable to get free space for " + path);

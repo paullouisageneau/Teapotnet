@@ -1371,7 +1371,7 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
 		
 		if(maxSize > totalSize)
 		{
-			int64_t freeSpace = Directory::GetFreeSpace(path);
+			int64_t freeSpace = Directory::GetAvailableSpace(path);
 			int64_t margin = 1024*1024;	// 1 MiB
 			freeSpace = std::max(freeSpace - margin, int64_t(0));
 			maxSize = totalSize + std::min(maxSize-totalSize, freeSpace);

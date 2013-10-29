@@ -38,7 +38,7 @@ public:
 	static bool Exist(const String &path);
 	static bool Remove(const String &path);
 	static void Create(const String &path);
-	static uint64_t GetFreeSpace(const String &path);
+	static uint64_t GetAvailableSpace(const String &path);
 	static void ChangeCurrent(const String &path);
 
 	Directory(void);
