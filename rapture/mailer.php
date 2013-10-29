@@ -44,7 +44,7 @@ function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $i
 	{
 		case MODE_REQUEST_ACCEPTED:
 			$message_txt = "Hi ! Your friend request has been accepted. To finalize connection with your friend, just paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) : ".REQUEST_ACCEPTED_PREFIX.$id_request.". Sincerely,<br>The TeapotNet Team";
-			$message_html = "<html><head> <style> .code { text-align: center; font-weight: bold; color: #1560BD; }</style></head><body>Hi !<p>".$mail_sender." has accepted your friend request. To finalize connection with your friend, just paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) :<br><span class='code'>".REQUEST_ACCEPTED_PREFIX.$id_request."</span></p><p>You can also copy and paste this link :<br><a href=\"".$linkRequest."\">Connect me to my friend !</a></p><p>Sincerely,<br>The TeapotNet Team</p></body></html>";
+			$message_html = "<html><head> <style> .code { text-align: center; font-weight: bold; color: #1560BD; }</style></head><body>Hi !<p>".$mail_sender." has accepted your friend request. To finalize connection with your friend, just paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) :<br><span class='code'>".REQUEST_ACCEPTED_PREFIX.$id_request."</span></p><p>Sincerely,<br>The TeapotNet Team</p></body></html>";
 			break;
 
 		default: // Equivalent to MODE_FIRST_REQUEST
@@ -52,7 +52,7 @@ function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $i
 		if($name_sender != '')
 			$name_friend = $name_sender;
 			$message_txt = $name_friend." sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) : ".FIRST_REQUEST_PREFIX.$id_request."If you want more information on TeapotNet, you can visit http://teapotnet.org. Sincerely, The TeapotNet Team";
-			$message_html = "<html><head> <style> .code { text-align: center; font-weight: bold; color: #1560BD; }</style></head><body>Hi !<p>".$name_friend." sent you a TeapotNet friend request. To accept his invitation, just paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) :<br><span class='code'>".FIRST_REQUEST_PREFIX.$id_request."</span></p><p>You can also copy and paste this link :<br><a href=\"".$linkRequest."\">Connect me to my friend !</a></p><p>If you want more information on TeapotNet, you can visit <a href='http://teapotnet.org'>TeapotNet</a>, or <a href='http://teapotnet.org/download'>download it</a>.</p><p>Sincerely,<br>The TeapotNet Team</p></body></html>";
+			$message_html = "<html><head> <style> .code { text-align: center; font-weight: bold; color: #1560BD; }</style></head><body>Hi !<p>".$name_friend." sent you a TeapotNet friend request.</p><p>If you don't have TeapotNet yet, you can visit <a href='http://teapotnet.org'>TeapotNet</a>, or <a href='http://teapotnet.org/download'>download it</a>.</p><p> To accept his invitation and be connected to your friend, paste the following code in the 'Accept Request' section of your TeapotNet (in Contacts/Edit) :<br><span class='code'>".FIRST_REQUEST_PREFIX.$id_request."</span></p><p>Sincerely,<br>The TeapotNet Team</p></body></html>";
 			break;
 
 	}

@@ -60,11 +60,11 @@ header("Access-Control-Allow-Origin: *");
 			
 			if($date_accepted_1 > 0)
 			{
-				//echo REQUEST_ALREADY_ACCEPTED;
-				//return;
+				echo REQUEST_ALREADY_ACCEPTED;
+				return;
 
 				// We just dont regenerate id_request_2 and send mail if it has already been accepted
-				$already_accepted = true;
+				//$already_accepted = true;
 			}
 
 			// Check if first friend request is not too old

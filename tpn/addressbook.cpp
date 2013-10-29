@@ -905,6 +905,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							.done(function(data) {\n\
 								if(data == EMPTY_REQUEST) \n\
 									alert('error, request not found'); \n\
+								else if(data == REQUEST_ALREADY_ACCEPTED) \n\
+									alert('This request has already been accepted.'); \n\
 								else if(isJsonString(data))\n\
 								{ \n\
 									var arr = $.parseJSON(data); \n\
