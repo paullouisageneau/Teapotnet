@@ -38,20 +38,33 @@ MessageQueue::MessageQueue(User *user) :
 	if(mUser) mDatabase = new Database(mUser->profilePath() + "messages.db");
 	else mDatabase = new Database("messages.db");
 	
+	// TODO: backward compatibility, sould be removed (27/10/2013)
+	try {
+		mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
+	}
+	catch(...)
+	{
+		mDatabase->execute("DROP TABLE IF EXISTS messages");
+	}
+	//
+	
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 	stamp TEXT UNIQUE,\
 	parent TEXT,\
 	headers TEXT,\
 	content TEXT,\
-	peering BLOB,\
+	author TEXT,\
+	signature TEXT,\
+	contact TEXT,\
 	time INTEGER(8),\
-	incoming INTEGER(1),\
 	public INTEGER(1),\
+	incoming INTEGER(1),\
+	relayed INTEGER(1),\
 	isread INTEGER(1))");
 
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS peering ON messages (peering)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
 	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
@@ -78,7 +91,7 @@ bool MessageQueue::hasNew(void) const
 	return old;
 }
 
-bool MessageQueue::add(const Message &message)
+bool MessageQueue::add(Message &message)
 {
 	Synchronize(this);
 	
@@ -88,17 +101,26 @@ bool MessageQueue::add(const Message &message)
 		return false;
 	}
 	
-	Database::Statement statement = mDatabase->prepare("SELECT id FROM messages WHERE stamp=?1");
+	if(!message.isIncoming()) message.writeSignature(user());
+	
+	bool exist = false;
+	Message oldMessage;
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE stamp=?1");
 	statement.bind(1, message.stamp());
-	bool exists = statement.step();
+	if(statement.step())
+	{
+		exist = true;
+		statement.input(oldMessage);
+	}
 	statement.finalize();
 	
-	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exists ? " (already in queue)" : ""));
-	if(exists && !message.isIncoming()) return false;
+	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exist ? " (already in queue)" : ""));
+
+	if(exist && (!message.isIncoming() || (message.isRelayed() && !oldMessage.isRelayed()))) return false;
 	
 	mDatabase->insert("messages", message);
 	
-	if(!exists)
+	if(!exist)
 	{
 		if(message.isIncoming()) mHasNew = true;
 		notifyAll();
@@ -148,18 +170,18 @@ void MessageQueue::markRead(const String &stamp)
 
 void MessageQueue::ack(const Array<Message> &messages)
 {
-	Map<Identifier, StringArray> stamps;
+	Map<String, StringArray> stamps;
 	for(int i=0; i<messages.size(); ++i)
 		if(!messages[i].isRead() && messages[i].isIncoming())
 		{
-			stamps[messages[i].peering()].append(messages[i].stamp());
+			stamps[messages[i].contact()].append(messages[i].stamp());
 
 			Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=?1");
         		statement.bind(1, messages[i].stamp());
         		statement.execute();
 		}
 
-	for(Map<Identifier, StringArray>::iterator it = stamps.begin();
+	for(Map<String, StringArray>::iterator it = stamps.begin();
 		it != stamps.end();
 		++it)
 	{
@@ -171,11 +193,14 @@ void MessageQueue::ack(const Array<Message> &messages)
 
 		Notification notification(tmp);
 		notification.setParameter("type", "ack");
-		notification.send(it->first);
 		
-		const AddressBook::Contact *self = mUser->addressBook()->getSelf();
-		if(self && self->peering() != it->first) 
-			notification.send(self->peering());
+		AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(it->first);
+		if(contact)
+			contact->send(notification);
+		
+		AddressBook::Contact *self = mUser->addressBook()->getSelf();
+		if(self && self != contact) 
+			self->send(notification);
 	}
 }
 
@@ -189,13 +214,11 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	url = "/";
 	if(!uname.empty()) url+= uname + "/";
 	
-	Identifier peering;
 	AddressBook::Contact *contact = NULL;
 	if(!uname.empty()) 
 	{
 		contact = mUser->addressBook()->getContactByUniqueName(uname);
 		if(!contact) throw 404;
-		peering = contact->peering();
 	}
 	
 	AddressBook::Contact *self = mUser->addressBook()->getSelf();
@@ -207,31 +230,32 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		
                 if(!request.post.contains("message") || request.post["message"].empty())
 			throw 400;
-		
+
 		bool isPublic = request.post["public"].toBool();
 		
 		try {
 			Message message(request.post["message"]);
-			message.setPeering(peering);
+			message.setIncoming(false);
 			message.setPublic(isPublic);
-			message.setHeader("from", mUser->name());
+			if(!isPublic) message.setContact(uname);
+			
 			if(request.post.contains("parent"))
 				message.setParent(request.post["parent"]);
 		
 			if(request.post.contains("attachment"))
 				message.setHeader("attachment", request.post.get("attachment"));
 	
+			add(message);	// signs the message
+			
 			if(contact)
 			{
 				contact->send(message);
-				if(self && self->peering() != peering)
+				if(self && self != contact)
 					self->send(message);
 			}
 			else {
 				user()->addressBook()->send(message);
 			}
-			
-			add(message);
 		}
 		catch(const Exception &e)
 		{
@@ -254,8 +278,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		response.send();
 
 		Selection selection;
-		if(request.get["public"].toBool()) selection = selectPublic(peering);
-		else  selection = selectPrivate(peering);
+		if(request.get["public"].toBool()) selection = selectPublic(uname);
+		else  selection = selectPrivate(uname);
 		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
 		if(request.get.contains("parent")) selection.setParentStamp(request.get["parent"]);
 		
@@ -350,8 +374,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
 				$('#attachedfile').show();\n\
 			}\n\
-			$(document.chatform.chatinput).val(filename);\n\
 			$(document.chatform.chatinput).focus();\n\
+			$(document.chatform.chatinput).val(filename);\n\
 			$(document.chatform.chatinput).select();\n\
 		});\n\
 		$(document.chatform.chatinput).keypress(function(e) {\n\
@@ -374,19 +398,19 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	return;
 }
 
-MessageQueue::Selection MessageQueue::select(const Identifier &peering) const
+MessageQueue::Selection MessageQueue::select(const String &uname) const
 {
-	return Selection(this, peering, true, true, true);
+	return Selection(this, uname, true, true, true);
 }
 
-MessageQueue::Selection MessageQueue::selectPrivate(const Identifier &peering) const
+MessageQueue::Selection MessageQueue::selectPrivate(const String &uname) const
 {
-	return Selection(this, peering, true, false, true);
+	return Selection(this, uname, true, false, true);
 }
 
-MessageQueue::Selection MessageQueue::selectPublic(const Identifier &peering, bool includeOutgoing) const
+MessageQueue::Selection MessageQueue::selectPublic(const String &uname, bool includeOutgoing) const
 {
-	return Selection(this, peering, false, true, includeOutgoing);
+	return Selection(this, uname, false, true, includeOutgoing);
 }
 
 MessageQueue::Selection MessageQueue::selectChilds(const String &parentStamp) const
@@ -404,10 +428,10 @@ MessageQueue::Selection::Selection(void) :
 	
 }
 
-MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const Identifier &peering, 
+MessageQueue::Selection::Selection(const MessageQueue *messageQueue, const String &uname, 
 				   bool includePrivate, bool includePublic, bool includeOutgoing) :
 	mMessageQueue(messageQueue),
-	mPeering(peering),
+	mContact(uname),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(includePrivate),
 	mIncludePublic(includePublic),
@@ -711,7 +735,7 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(mPeering != Identifier::Null) condition = "(message.peering=@peering OR parent.peering=@peering)";
+        if(!mContact.empty()) condition = "(message.contact IS NULL OR message.contact='' OR message.contact=@contact OR parent.contact=@contact)";
         else condition = "1=1"; // TODO
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
@@ -727,7 +751,7 @@ String MessageQueue::Selection::filter(void) const
 
 void MessageQueue::Selection::filterBind(Database::Statement &statement) const
 {
-	statement.bind(statement.parameterIndex("peering"), mPeering.getDigest());
+	statement.bind(statement.parameterIndex("contact"), mContact);
 	statement.bind(statement.parameterIndex("parentstamp"), mParentStamp);
 	statement.bind(statement.parameterIndex("basestamp"), mBaseStamp);
 	statement.bind(statement.parameterIndex("basetime"), mBaseTime);

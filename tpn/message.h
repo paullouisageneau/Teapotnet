@@ -33,6 +33,8 @@
 namespace tpn
 {
 
+class User;
+	
 class Message : public Serializable
 {
 public:
@@ -40,16 +42,21 @@ public:
 	virtual ~Message(void);
 
 	Time time(void) const;
-	Identifier peering(void) const;
 	String stamp(void) const;
 	String parent(void) const;
+	String author(void) const;
+	String contact(void) const;
 	bool isPublic(void) const;
+	bool isIncoming(void) const;
+	bool isRelayed(void) const;
+	bool isRead(void) const;
+
 	const String &content(void) const;
 	const StringMap &headers(void) const;
 	bool header(const String &name, String &value) const;
 	String header(const String &name) const;
-	
-	void setPeering(const Identifier &peering);
+
+	// Covered by signature	
 	void setParent(const String &stamp);
 	void setPublic(bool ispublic);
 	void setContent(const String &content);
@@ -58,10 +65,14 @@ public:
 	void setDefaultHeader(const String &name, const String &value);
 	void removeHeader(const String &name);
 	
-	bool toggleIncoming(void);
-	bool isIncoming(void) const;
+	// Signature
+	void writeSignature(const User *user);
+	bool checkSignature(const User *user) const;
 
-	bool isRead(void) const;
+	// NOT covered by signature
+	void setContact(const String &uname);	
+	void setIncoming(bool incoming);
+	void setRelayed(bool relayed);
 	void markRead(bool read = true) const;
 
 	bool send(const Identifier &peering = Identifier::Null) const;
@@ -74,17 +85,23 @@ public:
 	
 private:
 	static String GenerateStamp(void);
+	String computeSignature(const User *user) const;
 	
+	// Signed
 	StringMap mHeaders;
         String mContent;
-
-	Time mTime;
-	ByteString mPeering;	// no instance information
+	String mAuthor;
+	String mSignature;
 	String mStamp;
-	String mParent;
-	bool mIsIncoming;
+        String mParent;
+	Time mTime;
 	bool mIsPublic;
-	
+
+	// Not signed
+	String mContact;
+	bool mIsIncoming;
+	bool mIsRelayed;
+
 	mutable bool mIsRead;
 	
 	friend class Core;

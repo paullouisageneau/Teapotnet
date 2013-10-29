@@ -96,7 +96,7 @@ function listDirectory(url, object, showButtons) {
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Failed');
+		$(object).html('Unable to access files');
 	});
 }
 
@@ -218,7 +218,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Failed');
+		$(object).html('Unable to access files');
 	});
 }
 

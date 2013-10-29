@@ -446,7 +446,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					String strPrefix = contact->urlPrefix();
 					
 					MessageQueue *messageQueue = user()->messageQueue();
-					ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(contact->peering()).unreadCount());
+					ConstSerializableWrapper<int> messagesWrapper(messageQueue->selectPrivate(contact->uniqueName()).unreadCount());
 					ConstSerializableWrapper<bool> newMessagesWrapper(messageQueue->hasNew());
 					
 					SerializableMap<String, Serializable*> map;
@@ -1133,7 +1133,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mTracker(tracker),
 	mDeleted(false),
 	mFound(false),
-	mOnline(false),
 	mFirstUpdateTime(0),
 	mProfile(NULL)
 {	
@@ -1142,15 +1141,25 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!name.empty());
 	Assert(!tracker.empty());
 	Assert(!secret.empty());
-	
+
+	// The secret will be salted with a XOR of the two names, as this is symmetrical
+	ByteString xored;
+	const String &a = mName;
+        const String &b = mAddressBook->userName();
+        for(size_t i=0; i<std::max(a.size(), b.size()); ++i)
+        {       
+                char c = 0;
+                if(i < a.size()) c^= a[i];
+                if(i < b.size()) c^= b[i];
+                xored.push_back(c);
+        }
+
 	ByteString salt;
 	ByteSerializer ssalt(&salt);
 	
 	// Compute secret
 	salt.clear();
-	ssalt.output("TeapotNet");
-	ssalt.output(std::min(mName, mAddressBook->userName()));
-	ssalt.output(std::max(mName, mAddressBook->userName()));
+	ssalt.output(xored);
 	Sha512::DerivateKey(secret, salt, mSecret, Sha512::CryptRounds);
 	
 	// Only half the secret (256 bits) is used to compute peerings
@@ -1158,12 +1167,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	
 	// Compute peering
 	salt.clear();
+	ssalt.output("TeapotNet");
 	ssalt.output(mAddressBook->userName());
 	ssalt.output(mName);
 	Sha512::DerivateKey(halfSecret, salt, mPeering, Sha512::CryptRounds);
 	
-	// Compute Remote peering
+	// Compute remote peering
 	salt.clear();
+	ssalt.output("TeapotNet");
 	ssalt.output(mName);
 	ssalt.output(mAddressBook->userName());
 	Sha512::DerivateKey(halfSecret, salt, mRemotePeering, Sha512::CryptRounds);
@@ -1175,7 +1186,6 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 	mAddressBook(addressBook),
 	mDeleted(false),
 	mFound(false),
-	mOnline(false),
 	mFirstUpdateTime(0),
 	mProfile(NULL)
 {
@@ -1284,7 +1294,7 @@ bool AddressBook::Contact::isOnline(void) const
 	Synchronize(mAddressBook);
 	if(isSelf() && mAddressBook->user()->isOnline()) return true;
 	if(!isConnected()) return false;
-	return mOnline;
+	return !mOnlineInstances.empty();
 }
 
 String AddressBook::Contact::status(void) const
@@ -1589,12 +1599,14 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	}
 	
 	// Send status and profile
-	mAddressBook->user()->sendStatus(peering);
+	if(mAddressBook->user()->isOnline()) mAddressBook->user()->sendStatus(peering);
 	mAddressBook->user()->profile()->send(peering);
 	
-	// Send contacts if self
+	// Send secret and contacts if self
         if(isSelf())
         {
+		mAddressBook->user()->sendSecret(peering);
+		
                 String data;
         	mAddressBook->save(data);
                 Notification notification(data);
@@ -1620,7 +1632,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
 	mAddressBook->mScheduler.schedule(this, 10.);
-	SynchronizeStatement(mAddressBook, mOnline = false);
+	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peering.getName()));
 }
 
 bool AddressBook::Contact::notification(const Identifier &peering, Notification *notification)
@@ -1641,19 +1653,12 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		
 		if(!isSelf())
 		{
-			if(message.peering() == Identifier::Null 
-				|| message.peering() == this->peering()
-				|| message.peering() == this->remotePeering())
-			{
-				message.setPeering(this->peering());
-				message.toggleIncoming();
-				message.setDefaultHeader("from", name());
-				message.setHeader("contact", message.isIncoming() ? uniqueName() : mAddressBook->userName());
-				message.removeHeader("via");
-			}
+			message.setIncoming(!message.checkSignature(mAddressBook->user()));
+			
+			if(message.isPublic() && !message.isIncoming()) message.setContact("");
 			else {
-				message.setHeader("contact", uniqueName());
-				message.setHeader("via", name());
+				if(message.isPublic() && !message.contact().empty()) message.setRelayed(true);
+				message.setContact(uniqueName());
 			}
 		}
 		
@@ -1827,8 +1832,39 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	}
 	else if(type == "status")
 	{
+		Synchronize(mAddressBook);
 		String status = notification->content().toLower().trimmed();
-		SynchronizeStatement(mAddressBook, mOnline = (status == "online"));
+		if(status == "online") mOnlineInstances.insert(peering.getName());
+		else mOnlineInstances.erase(peering.getName());
+	}
+	else if(type == "secret")
+	{
+		if(!isSelf())
+		{
+			LogWarn("AddressBook::Contact::notification", "Received secret update from other than self, dropping");
+			return true;
+		}
+		
+		ByteString secret;
+		
+		try {
+			notification->content().extract(secret);
+		}
+		catch(...)
+		{
+			throw InvalidData("secret notification content: " + notification->content());
+		}
+
+		
+		if(!parameters.contains("time")) 
+		{
+			LogWarn("AddressBook::Contact::notification", "Received secret update without time, dropping");
+			return true;
+		}
+		
+		Time time;	
+		parameters["time"] >> time;
+		mAddressBook->user()->setSecret(secret, time);
 	}
 	else if(type == "profile" || type == "profilediff")
 	{
@@ -1876,11 +1912,11 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 MessageQueue::Selection AddressBook::Contact::selectMessages(bool privateOnly) const
 {
 	MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-	Identifier peering;
-	if(!isSelf()) peering = this->peering();
+	String uname;
+	if(!isSelf()) uname = uniqueName();
 
-	if(!privateOnly) return messageQueue->select(peering);
-	else return messageQueue->selectPrivate(peering);
+	if(!privateOnly) return messageQueue->select(uname);
+	else return messageQueue->selectPrivate(uname);
 }
 
 void AddressBook::Contact::sendMessages(const MessageQueue::Selection &selection, int offset, int count) const
@@ -1977,7 +2013,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				String strStatus = status();
 				
 				MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
-				ConstSerializableWrapper<int> messagesWrapper(messageQueue->select(peering()).unreadCount());
+				ConstSerializableWrapper<int> messagesWrapper(messageQueue->selectPrivate(uniqueName()).unreadCount());
 				ConstSerializableWrapper<bool> newMessagesWrapper(messageQueue->hasNew());
 				
 				Array<String> instances;
@@ -2266,7 +2302,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 						transition($('#status'), info.status.capitalize());\n\
 						$('#status').removeClass().addClass('button').addClass(info.status);\n\
-						if(info.newnotifications) playNotificationSound();\n\
+						if(info.newmessages) playMessageSound();\n\
 					});");
 				
 					page.div("","list.box");
@@ -2353,7 +2389,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 					transition($('#status'), info.status.capitalize());\n\
 					$('#status').removeClass().addClass('button').addClass(info.status);\n\
-					if(info.newnotifications) playNotificationSound();\n\
+					if(info.newmessages) playMessageSound();\n\
 				});");
 				
 				if(!match.empty())

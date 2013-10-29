@@ -47,7 +47,7 @@ public:
 	User *user(void) const;
 	
 	bool hasNew(void) const;
-	bool add(const Message &message);
+	bool add(Message &message);
 	bool get(const String &stamp, Message &result) const;
 	void markRead(const String &stamp);
 	void ack(const Array<Message> &messages);
@@ -58,7 +58,7 @@ public:
 	{
 	public:
 		Selection(void);
-		Selection(const MessageQueue *messageQueue, const Identifier &peering, bool includePrivate, bool includePublic, bool includeOutgoing);
+		Selection(const MessageQueue *messageQueue, const String &uname, bool includePrivate, bool includePublic, bool includeOutgoing);
 		Selection(const MessageQueue *messageQueue, const String &parent);
 		~Selection(void);
 		
@@ -92,7 +92,7 @@ public:
 		void filterBind(Database::Statement &statement) const;
 		
 		const MessageQueue *mMessageQueue;
-		Identifier mPeering;
+		String mContact;
 		
 		String mParentStamp;
 		String mBaseStamp;
@@ -103,9 +103,9 @@ public:
 		bool mIncludeOutgoing;
 	};
 	
-	Selection select(const Identifier &peering = Identifier::Null) const;
-	Selection selectPrivate(const Identifier &peering = Identifier::Null) const;
-	Selection selectPublic(const Identifier &peering = Identifier::Null, bool includeOutgoing = true) const;
+	Selection select(const String &uname = "") const;
+	Selection selectPrivate(const String &uname = "") const;
+	Selection selectPublic(const String &uname = "", bool includeOutgoing = true) const;
 	Selection selectChilds(const String &parentStamp) const;
 	
 private:

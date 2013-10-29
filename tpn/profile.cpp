@@ -334,10 +334,10 @@ void Profile::http(const String &prefix, Http::Request &request)
 				disp|= displayField(page, "email");
 				disp|= displayField(page, "phone");
 
-				page.close("div");
-				
 				if(isSelf())
 				{
+					page.close("div");
+					
 					page.open("div","parameters.box");
 					
 					page.open("h2");
@@ -393,6 +393,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 				}
 				else {
 					if(!disp) page.text("The profile has not been filled yet.");
+					page.close("div");
 				}
 			}
 			catch(const IOException &e)

@@ -142,10 +142,20 @@ void PortMapping::run(void)
 	
 	if(mProtocol)
 	{
-		if(!mProtocol->check(mExternalHost))
+		bool success = false;
+		try {
+			if(mProtocol->check(mExternalHost) && !mExternalHost.empty())
+				success = true;
+		}
+		catch(const Exception &e)
+                {
+                	LogWarn("PortMapping", e.what());
+                }
+
+		if(!success)
 		{
 			delete mProtocol;
-			mProtocol = NULL;
+                	mProtocol = NULL;
 		}
 	}
 	
@@ -370,12 +380,18 @@ bool PortMapping::UPnP::check(String &host)
 		while(mSock.read(dgram, sender, time))
 		{
 			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
-			if(parse(dgram))
+			try {
+				if(parse(dgram))
+				{
+					LogDebug("PortMapping::UPnP", "UPnP is available");
+					mGatewayAddr = sender;
+					host = mExternalHost;
+					return true;
+				}
+			}
+			catch(const Exception &e)
 			{
-				LogDebug("PortMapping::UPnP", "UPnP is available");
-				mGatewayAddr = sender;
-				host = mExternalHost;
-				return true;
+				// Nothing to do
 			}
 		}
 		
@@ -530,7 +546,7 @@ bool PortMapping::UPnP::parse(ByteString &dgram)
 	
 	String result;
 	if(Http::Get(location, &result) != 200) return false;
-	
+
 	size_t pos = result.find("service:WANIPConnection");
 	if(pos == String::NotFound) return false;
 	
@@ -553,14 +569,13 @@ bool PortMapping::UPnP::parse(ByteString &dgram)
 	Socket sock(host);
 	request.send(sock);
 	sock.write(content);
-	
+
 	result.clear();
 	Stream &stream = result;
-	
+
 	Http::Response response;
 	response.recv(sock);
 	sock.read(stream);
-	sock.close();
 	
 	if(response.code != 200) return false;
 	

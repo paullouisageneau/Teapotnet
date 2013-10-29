@@ -575,6 +575,7 @@ void Store::http(const String &prefix, Http::Request &request)
 		{
 			// Query resources
 			Resource::Query query(this, url);
+			query.setFromSelf(true);
 
 			SerializableSet<Resource> resources;
 			if(!query.submitLocal(resources)) throw 404;
@@ -837,8 +838,6 @@ void Store::http(const String &prefix, Http::Request &request)
 							String fileName;
 							if(!request.post.get(it->first, fileName)) continue;
 							Assert(!fileName.empty());
-							
-							VAR(fileName);
 							
 							if(fileName.contains('/') || fileName.contains('\\') 
 									|| fileName.find("..") != String::NotFound)

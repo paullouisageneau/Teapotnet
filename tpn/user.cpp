@@ -121,22 +121,37 @@ User::User(const String &name, const String &password, const String &tracker) :
 		File::Remove(profilePath()+"password");
 	//
 
+	// Auth digest
 	if(password.empty())
 	{
 		File file(profilePath()+"auth", File::Read);
-		file.read(mHash);
+		file.read(mAuth);
 		file.close();
 	}
 	else {
-		Sha512::RecursiveHash(password, mName, mHash, Sha512::CryptRounds);
+		Sha512::RecursiveHash(password, mName, mAuth, Sha512::CryptRounds);
 		
-		File file(profilePath()+"auth", File::Write);
-		file.write(mHash);
+		File file(profilePath()+"auth", File::Truncate);
+		file.write(mAuth);
 		file.close();
 	}
 	
+	// Secret
+	if(File::Exist(profilePath()+"secret"))
+	{
+		File file(profilePath()+"secret", File::Read);
+		file.read(mSecret);
+		file.close();
+	}
+	else {
+		ByteString secret;
+		secret.writeRandom(64);
+		setSecret(secret, Time::Now());
+	}
+	
+	// Token secret
 	mTokenSecret.writeRandom(16);
-
+	
 	mStore = NULL;
 	mAddressBook = NULL;
 	mMessageQueue = NULL;
@@ -159,7 +174,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
-	UsersByAuth.insert(mHash, this);
+	UsersByAuth.insert(mAuth, this);
 	UsersMutex.unlock();
 
 	Interface::Instance->add(urlPrefix(), this);
@@ -169,7 +184,7 @@ User::~User(void)
 {
   	UsersMutex.lock();
 	UsersByName.erase(mName);
-  	UsersByAuth.erase(mHash);
+  	UsersByAuth.erase(mAuth);
 	UsersMutex.unlock();
 	
 	Interface::Instance->remove(urlPrefix());
@@ -276,7 +291,53 @@ void User::sendStatus(const Identifier &identifier)
 	}
 }
 
-String User::generateToken(const String &action)
+void User::sendSecret(const Identifier &identifier)
+{
+	Synchronize(this);
+	
+	if(identifier == Identifier::Null)
+		throw Exception("Prevented sendSecret() to broadcast");
+	
+	Notification notification(mSecret.toString());
+	notification.setParameter("type", "secret");
+	notification.setParameter("time", File::Time(profilePath()+"secret").toString());
+	
+	DesynchronizeStatement(this, notification.send(identifier));
+}
+
+void User::setSecret(const ByteString &secret, const Time &time)
+{
+	Synchronize(this);
+	
+	if(!File::Exist(profilePath()+"secret") || time >  File::Time(profilePath()+"secret"))
+	{
+		mSecret = secret;
+		
+		File file(profilePath()+"secret", File::Truncate);
+		file.write(mSecret);
+		file.close();
+		
+		if(mSecret != secret)
+		{
+			AddressBook::Contact *self = addressBook()->getSelf();
+			if(self) sendSecret(self->peering());
+		}
+	}
+}
+
+ByteString User::getSecretKey(const String &action) const
+{
+	ByteString key;
+	if(!mSecretKeysCache.get(action, key))
+	{
+		Sha512::DerivateKey(mSecret, action, key, Sha512::CryptRounds);
+		mSecretKeysCache.insert(action, key);
+	}
+
+	return key;
+}
+
+String User::generateToken(const String &action) const
 {
 	ByteString salt;
 	salt.writeRandom(8);
@@ -302,7 +363,7 @@ String User::generateToken(const String &action)
 	return token;
 }
 
-bool User::checkToken(const String &token, const String &action)
+bool User::checkToken(const String &token, const String &action) const
 {
 	if(!token.empty())
 	{
@@ -498,14 +559,19 @@ void User::http(const String &prefix, Http::Request &request)
 			String setDisplayUrl = displaySelfUrl;		
 
 			page.open("div", "statuspanel");
+			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"');\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
 			page.openForm("#", "post", "statusform");
+			page.input("hidden", "attachment");
+			page.input("hidden", "attachmentname");
 			page.textarea("statusinput");
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
+			page.div("","attachedfile");
 			page.javascript("$(document).ready(function() { formTextBlur();});");
 			page.close("div");
 
+			page.div("", "fileSelector");
 
 			page.open("div", "newsfeed.box");
 
@@ -539,62 +605,73 @@ void User::http(const String &prefix, Http::Request &request)
 		 
 			String token = generateToken("message");
 			
-			page.javascript("function postStatus()\n\
-				{\n\
-					var message = document.statusform.statusinput.value;\n\
+			page.javascript("function postStatus() {\n\
+					var message = $(document.statusform.statusinput).val();\n\
+					var attachment = $(document.statusform.attachment).val();\n\
 					if(!message) return false;\n\
-					document.statusform.statusinput.value = '';\n\
-					var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-						{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
+					var fields = {};\n\
+					fields['message'] = message;\n\
+					fields['public'] = 1;\n\
+					fields['token'] = '"+token+"';\n\
+					if(attachment) fields['attachment'] = attachment;\n\
+					var request = $.post('"+prefix+broadcastUrl+"/"+"', fields);\n\
 					request.fail(function(jqXHR, textStatus) {\n\
 						alert('The message could not be sent.');\n\
 					});\n\
+					$(document.statusform.statusinput).val('');\n\
+					$(document.statusform.attachment).val('');\n\
+					$(document.statusform.attachmentname).val('');\n\
+					$('#attachedfile').hide();\n\
 				}\n\
-				function post(object, idParent)\n\
-				{\n\
+				$(document.statusform.attachment).change(function() {\n\
+					$('#attachedfile').html('');\n\
+					$('#attachedfile').hide();\n\
+					var filename = $(document.statusform.attachmentname).val();\n\
+					if(filename != '') {\n\
+						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
+						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
+						$('#attachedfile').show();\n\
+					}\n\
+					$(document.statusform.statusinput).focus();\n\
+					$(document.statusform.statusinput).val(filename);\n\
+					$(document.statusform.statusinput).select();\n\
+				});\n\
+				function post(object, parentStamp) {\n\
 					var message = $(object).val();\n\
 					if(!message) return false;\n\
 					$(object).val('');\n\
-					if(!idParent)\n\
-					{\n\
+					if(!parentStamp) {\n\
 						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
 							{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
 					}\n\
-					else\n\
-					{\n\
+					else {\n\
 						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'parent': idParent, 'token': '"+token+"'});\n\
+							{ 'message': message , 'public': 1, 'parent': parentStamp, 'token': '"+token+"'});\n\
 					}\n\
 					request.fail(function(jqXHR, textStatus) {\n\
 						alert('The message could not be sent.');\n\
 					});\n\
 				}\n\
-				document.statusform.onsubmit = function()\n\
-				{\n\
+				document.statusform.onsubmit = function() {\n\
 					postStatus();\n\
 					return false;\n\
 				}\n\
-				function formTextBlur()\n\
-				{\n\
+				function formTextBlur() {\n\
 					document.statusform.statusinput.style.color = 'grey';\n\
 					document.statusform.statusinput.value = 'What do you have in mind ?';\n\
 				}\n\
-				document.statusform.statusinput.onblur = function()\n\
-				{\n\
+				document.statusform.statusinput.onblur = function() {\n\
 					formTextBlur();\n\
 				}\n\
-				document.statusform.statusinput.onfocus = function()\n\
-				{\n\
+				document.statusform.statusinput.onfocus = function() {\n\
 					document.statusform.statusinput.value = '';\n\
 					document.statusform.statusinput.style.color = 'black';\n\
 				}\n\
-				document.searchForm.query.onfocus = function()\n\
-				{\n\
+				document.searchForm.query.onfocus = function() {\n\
 					document.searchForm.query.value = '';\n\
 					document.searchForm.query.style.color = 'black';\n\
 				}\n\
-				document.searchForm.query.onblur = function()\n\
-				{\n\
+				document.searchForm.query.onblur = function() {\n\
 					document.searchForm.query.style.color = 'grey';\n\
 					document.searchForm.query.value = 'Search for files...';\n\
 				}\n\
@@ -618,14 +695,15 @@ void User::http(const String &prefix, Http::Request &request)
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						var name = $(this).attr('name');\n\
-						var id = name.split(\"replyTo\").pop();\n\
-						post(this, id);\n\
+						var parentStamp = name.substr(name.lastIndexOf('_')+1);\n\
+						post(this, parentStamp);\n\
 						return false; \n\
 					}\n\
 				});\n\
 				$('#newsfeed').on('blur','.reply', function (e) {\n\
 					$(this).hide();\n\
 				});\n\
+				$('#attachedfile').hide();\n\
 			");
 			
 			page.open("div", "footer");
@@ -702,7 +780,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
-				if(info.newnotifications) playNotificationSound();\n\
+				if(info.newmessages) playMessageSound();\n\
 			});");
 			
 			if(!match.empty())

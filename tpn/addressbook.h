@@ -141,10 +141,10 @@ public:
 		bool mDeleted;
 		
 		bool mFound;
-		bool mOnline;
 		AddressMap mAddrs;
 		Time mFirstUpdateTime;
 		Set<String> mExcludedInstances;
+		Set<String> mOnlineInstances;
 		
 		Profile *mProfile;
 	};

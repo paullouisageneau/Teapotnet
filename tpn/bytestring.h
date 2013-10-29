@@ -80,7 +80,7 @@ T ByteString::checksum(T &result) const
 	  copy.writeBinary(uint8_t(0));
 
 	result = 0;
-	for(int i=0; i<size(); ++i)
+	for(size_t i=0; i<size(); ++i)
 	{
 	  	T value;
 		copy.readBinary(value);

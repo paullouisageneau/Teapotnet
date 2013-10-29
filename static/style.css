@@ -605,19 +605,52 @@ a.button:hover
 
 #statuspanel
 {
-
+	display: block;
+	width: 100%;
+	overflow: hidden;
 }
 
 #statuspanel form
 {
 	display: block;
-	width: 100%;
+	overflow: hidden;
+}
+
+#statuspanel .button
+{
+	float: left;
+	width: 4em;
+	height: 5em;
+	margin: 0;
+	margin-right: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	vertical-align: middle;
+}
+
+#statuspanel .button img
+{
+	max-width: 4em;
+	max-height: 3.6em;
 }
 
 #statuspanel textarea
 {
-	box-sizing: border-box;
 	width: 100%;
+	height: 5em;
+	margin: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
+#statuspanel #attachedfile
+{
+	display: inline-block;
+	margin: 0.2em;
+	padding: 0.2em 0.5em;
+	background-color: #FFFFFF;
+	border: 1px solid black;
+	border-radius: 0.5em;
 }
 
 #info
@@ -689,6 +722,8 @@ a.button:hover
 .message .attachment
 {
 	float: right;
+	margin-left: 0.5em;
+	margin-right: 0.5em;
 	padding: 0.25em;
 	vertical-align: middle;
 }
@@ -701,6 +736,8 @@ a.button:hover
 .message .button
 {
 	float: right;
+	margin-left: 0.5em;
+	margin-right: 0.5em;
 }
 
 .oldmessage

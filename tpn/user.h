@@ -64,22 +64,28 @@ public:
 	void setOnline(void);
 	void setOffline(void);
 	void sendStatus(const Identifier &identifier = Identifier::Null);
+	void sendSecret(const Identifier &identifier);
 	
-	String generateToken(const String &action = "");
-	bool checkToken(const String &token, const String &action = "");
+	void setSecret(const ByteString &secret, const Time &time);
+	ByteString getSecretKey(const String &action) const;
+	
+	String generateToken(const String &action = "") const;
+	bool checkToken(const String &token, const String &action = "") const;
 
 	void http(const String &prefix, Http::Request &request);
 	
 private:
 	String mName;
-	ByteString mHash;
+	ByteString mAuth;
+	ByteString mSecret;
 	AddressBook *mAddressBook;
 	MessageQueue *mMessageQueue;
 	Store *mStore;
 	Profile *mProfile;
 	
-	ByteString mTokenSecret;
 	bool mOnline;
+	ByteString mTokenSecret;
+	mutable Map<String, ByteString> mSecretKeysCache;
 	
 	class SetOfflineTask : public Task
 	{

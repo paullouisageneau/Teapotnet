@@ -347,18 +347,18 @@ function setMessagesReceiverRec(url, object, last) {
 				var isLocalRead = (!message.incoming || message.isread);
 				var isRemoteRead = (message.incoming || message.isread);
 				
-				var from = ('from' in message.headers ? message.headers.from : '');
-				var contact = ('contact' in message.headers ? message.headers.contact : '');
-				
-				var contactLink;
-				if(contact) {
-					var basePath = getBasePath(1);
-					contactLink = basePath + (contact && basePath != '/'+contact+'/' ? 'contacts/' + contact.escape() : 'myself') + '/';
-				}
-				
 				var author;
-				if(contactLink) author = ('via' in message.headers ? from.escape()+' (via <a href="'+contactLink+'">'+message.headers.via.escape()+'</a>)' : '<a href="'+contactLink+'">'+from.escape()+'</a>');
-				else author = from.escape() + ('via' in message.headers ? ' (via '+message.headers.via.escape()+' )' : '');
+				if(!message.incoming) {
+					var link = getBasePath(1) + 'myself/';
+					author = '<a href="'+link+'">'+message.author.escape()+'</a>';
+				}
+				else if(message.contact) {
+					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
+					author = (message.relayed ? message.author.escape()+' (via  <a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'">'+message.author.escape()+'</a>');
+				}
+				else {
+					author = message.author.escape();
+				}
 	      
 				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="date">'+formatTime(message.time).escape()+'</span><span class="author">'+author+'</span></span><span class="content">'+message.content.escape().smileys().linkify()+'</span></div></div>';
 				
@@ -370,7 +370,7 @@ function setMessagesReceiverRec(url, object, last) {
 						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+');">Reply</a>');
 					}
 					else {			
-						$('#'+message.parent).parent().append(div);
+						$('#message_'+message.parent).parent().append(div);
 						$('#'+id).addClass('childmessage');
 					}
 					

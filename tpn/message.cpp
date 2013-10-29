@@ -21,9 +21,11 @@
 
 #include "tpn/message.h"
 #include "tpn/core.h"
+#include "tpn/user.h"
 #include "tpn/bytestring.h"
 #include "tpn/sha512.h"
 #include "tpn/yamlserializer.h"
+#include "tpn/byteserializer.h"
 
 namespace tpn
 {
@@ -39,6 +41,7 @@ Message::Message(const String &content) :
 	mStamp(GenerateStamp()),
 	mIsPublic(false),
 	mIsIncoming(false),
+	mIsRelayed(false),
 	mIsRead(false)
 {
 
@@ -54,11 +57,6 @@ Time Message::time(void) const
 	return mTime; 
 }
 
-Identifier Message::peering(void) const
-{
-	return mPeering;
-}
-
 String Message::stamp(void) const
 {
 	return mStamp;
@@ -69,9 +67,34 @@ String Message::parent(void) const
 	return mParent;
 }
 
+String Message::author(void) const
+{
+        return mAuthor;
+}
+
+String Message::contact(void) const
+{
+        return mContact;
+}
+
 bool Message::isPublic(void) const
 {
 	return mIsPublic;
+}
+
+bool Message::isIncoming(void) const
+{
+        return mIsIncoming;
+}
+
+bool Message::isRelayed(void) const
+{
+        return mIsRelayed;
+}
+
+bool Message::isRead(void) const
+{
+        return mIsRead;
 }
 
 const String &Message::content(void) const
@@ -101,9 +124,9 @@ void Message::setPublic(bool ispublic)
 	mIsPublic = ispublic;
 }
 
-void Message::setPeering(const Identifier &peering)
+void Message::setContact(const String &uname)
 {
-	mPeering = peering.getDigest();
+	mContact = uname;
 }
 
 void Message::setParent(const String &stamp)
@@ -137,20 +160,25 @@ void Message::removeHeader(const String &name)
 	mHeaders.erase(name);
 }
 
-bool Message::toggleIncoming(void)
+void Message::writeSignature(const User *user)
 {
-	mIsIncoming = !mIsIncoming;
-	return mIsIncoming;
+	mAuthor = user->name();
+	mSignature = computeSignature(user);
 }
 
-bool Message::isIncoming(void) const
+bool Message::checkSignature(const User *user) const
 {
-	return mIsIncoming;
+	return (mAuthor == user->name() && mSignature == computeSignature(user));
 }
 
-bool Message::isRead(void) const
+void Message::setIncoming(bool incoming)
 {
-	return mIsRead;  
+	mIsIncoming = incoming;
+}
+
+void Message::setRelayed(bool relayed)
+{
+        mIsRelayed = relayed;
 }
 
 void Message::markRead(bool read) const
@@ -185,17 +213,22 @@ void Message::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<bool> isPublicWrapper(mIsPublic);
 	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
+	ConstSerializableWrapper<bool> isRelayedWrapper(mIsRelayed);
 	ConstSerializableWrapper<bool> isReadWrapper(mIsRead);
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
         mapping["content"] = &mContent;
-        mapping["peering"] = &mPeering;
+	mapping["author"] = &mAuthor;
+	mapping["signature"] = &mSignature;
         mapping["stamp"] = &mStamp;
 	mapping["parent"] = &mParent;
         mapping["time"] = &mTime;
 	mapping["public"] = &isPublicWrapper;
+
+	mapping["contact"] = &mContact;
         mapping["incoming"] = &isIncomingWrapper;
+	mapping["relayed"] = &isRelayedWrapper;
 	mapping["isread"] = &isReadWrapper;
 	
 	s.outputObject(mapping);
@@ -205,20 +238,47 @@ bool Message::deserialize(Serializer &s)
 {
 	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
+	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
 	SerializableWrapper<bool> isReadWrapper(&mIsRead);
 	
 	Serializer::ObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
         mapping["content"] = &mContent;
-	mapping["peering"] = &mPeering;
+	mapping["author"] = &mAuthor;
+	mapping["signature"] = &mSignature;
 	mapping["stamp"] = &mStamp;
 	mapping["parent"] = &mParent;
 	mapping["time"] = &mTime;
 	mapping["public"] = &isPublicWrapper;
+	
+	mapping["contact"] = &mContact;
 	mapping["incoming"] = &isIncomingWrapper;
+	mapping["relayed"] = &isRelayedWrapper;
 	mapping["isread"] = &isReadWrapper;
 	
 	return s.inputObject(mapping);
+}
+
+String Message::computeSignature(const User *user) const
+{
+	Assert(user);
+	
+	// Note: contact, incoming, relayed and isread are NOT signed
+	ByteString agregate;
+	ByteSerializer serializer(&agregate);
+	serializer.output(mHeaders);
+        serializer.output(mContent);
+        serializer.output(mAuthor);
+	serializer.output(mStamp);
+	serializer.output(mParent);
+	serializer.output(int64_t(mTime.toUnixTime()));
+	serializer.output(mIsPublic);
+
+	ByteString signature;
+	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
+	signature.resize(16);
+	
+	return signature.toString();
 }
 
 bool Message::isInlineSerializable(void) const
