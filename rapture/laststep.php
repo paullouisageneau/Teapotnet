@@ -75,7 +75,7 @@ header("Access-Control-Allow-Origin: *");
 
 			// Output in json :
 			$output = array("secret" => $secret, "tpn_id" => $tpn_id_receiver);
-			echo json_encode($output, JSON_PRETTY_PRINT);
+			echo json_encode($output);
 			//echo SUCCESS;
 		}
 		else

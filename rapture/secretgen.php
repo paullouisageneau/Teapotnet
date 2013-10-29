@@ -98,7 +98,7 @@ header("Access-Control-Allow-Origin: *");
 
 				// Echoes secret and tpn_id of sender to receiver
 				$output = array("secret" => $secret, "tpn_id" => $tpn_id_sender);
-				echo json_encode($output, JSON_PRETTY_PRINT);
+				echo json_encode($output);
 				//echo SUCCESS;
 				
 			}

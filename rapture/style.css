@@ -2,7 +2,7 @@ body
 {
 	font-family: Sans-Serif;
 	font-size: 80%;
-	background: #F0F0F0 url(background.png) repeat-x;
+	/*background: #F0F0F0 url(background.png) repeat-x;*/ /* TODO : change or decide it's not needed */
 	padding: 0;
 	margin: 0;
 }

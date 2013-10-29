@@ -15,7 +15,7 @@ include_once("echoes.php");
 function sendFriendRequestMail($name_sender, $mail_sender, $mail_destination, $id_request, $mode)
 {
 
-	$prefixFriendSystem = "http://teapotnet.org/rapture/; // TODO : change
+	$prefixFriendSystem = "http://teapotnet.org/rapture/";
 
 	switch($mode)
 	{
