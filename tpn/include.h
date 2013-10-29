@@ -24,7 +24,7 @@
 
 #define DEBUG
 #define APPNAME		"TeapotNet"
-#define APPVERSION	"0.5.1"
+#define APPVERSION	"0.6.0"
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://teapotnet.org/"
 #define SOURCELINK	"http://teapotnet.org/source"
