@@ -252,9 +252,9 @@ int main(int argc, char** argv)
 		if(File::Exist(configFileName)) Config::Load(configFileName);
 
 		Config::Default("tracker", "teapotnet.org");
-		Config::Default("port", "8480");
-		Config::Default("tracker_port", "8488");
-		Config::Default("interface_port", "8080");
+		Config::Default("port", "8080");
+		Config::Default("tracker_port", "80");
+		Config::Default("interface_port", "8480");
 		Config::Default("profiles_dir", "profiles");
 		Config::Default("static_dir", "static");
 		Config::Default("shared_dir", "shared");
@@ -271,7 +271,7 @@ int main(int argc, char** argv)
 		Config::Default("relay_enabled", "true");
 		Config::Default("request_timeout", "10000");	
 		Config::Default("tpot_timeout", "15000");
-		Config::Default("http_proxy", "");
+		Config::Default("http_proxy", "auto");
 		Config::Default("http_proxy_connect", "false");
 		Config::Default("prefetch_delay", "300000");
 		

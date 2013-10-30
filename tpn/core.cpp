@@ -411,7 +411,7 @@ void Core::Handler::sendCommand(Stream *stream, const String &command, const Str
 		++it)
 	{
 	  	line.clear();
-		line << it->first.capitalized() << ": " << it->second.lineEncode();
+		line << it->first << ": " << it->second.lineEncode();
 		LogTrace("Core::Handler", "<< " + line);
 		line << Stream::NewLine;
 		*stream << line;
@@ -439,7 +439,8 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 		String value = name.cut(':');
 		name.trim();
 		value.trim();
-		parameters.insert(name.toLower(),value.lineDecode());
+		name = name.toLower();	// TODO: backward compatibility, should be removed
+		parameters.insert(name,value.lineDecode());
 	}
 	
 	return true;

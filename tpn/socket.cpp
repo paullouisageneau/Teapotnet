@@ -179,7 +179,7 @@ void Socket::setTimeout(double timeout)
 void Socket::connect(const Address &addr, bool noproxy)
 {
 	String proxy = Config::Get("http_proxy").trimmed();
-	if(!noproxy && !proxy.empty() && Config::Get("http_proxy_connect").toBool())
+	if(!noproxy && !proxy.empty() && proxy != "auto" && Config::Get("http_proxy_connect").toBool())
 	{
 		connect(Address(proxy), true);
 		
