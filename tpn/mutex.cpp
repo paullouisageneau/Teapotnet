@@ -76,8 +76,8 @@ void Mutex::unlock(void)
 	if(!mLockCount)
 		throw Exception("Mutex is not locked");
 	
-	if(!pthread_equal(mLockedBy, pthread_self()))
-		throw Exception("Mutex is locked by another thread");
+	//if(!pthread_equal(mLockedBy, pthread_self()))
+	//	throw Exception("Mutex is locked by another thread");
 	
 	mLockCount--;
 	if(mLockCount == 0)
@@ -92,8 +92,8 @@ int Mutex::unlockAll(void)
 	if(!mLockCount)
 		throw Exception("Mutex is not locked");
 		
-	if(!pthread_equal(mLockedBy, pthread_self()))
-		throw Exception("Mutex is locked by another thread");
+	//if(!pthread_equal(mLockedBy, pthread_self()))
+	//	throw Exception("Mutex is locked by another thread");
 	
  	mRelockCount = mLockCount;
 	mLockCount = 0;
