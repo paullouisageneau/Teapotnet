@@ -406,16 +406,17 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 {
 	if(mControlUrl.empty()) return false;
 	if(!internal) return false;
-	
+	if(!external) external = 1024 + pseudorand() % (49151 - 1024);	
+
 	unsigned duration = 3600;	// 1h
 	
-	while(true)
+	for(int attempts=0; attempts<10; ++attempts)
 	{
 		Http::Request request(mControlUrl, "POST");
 		
 		String host;
 		request.headers.get("Host", host);
-		Socket sock(host);
+		Socket sock(host, 10.);
 		
 		String content = "<?xml version=\"1.0\"?>\r\n\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
@@ -460,27 +461,13 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 			return false;
 		}
 		
-		int errorCode;
+		int errorCode = 0;
 		strErrorCode.extract(errorCode);
 	
-		if(external == 0 && errorCode == 716)
-		{
-			// The external port cannot be wildcarded
-			external = 1024 + pseudorand() % (49151 - 1024);
-			continue;
-		}
-		
 		if(errorCode == 718)
 		{
 			// The port mapping entry specified conflicts with a mapping assigned previously to another client
-			external = 0;	// wildcard
-			continue;
-		}
-		
-		if(internal != external && errorCode == 724)
-		{
-			// Internal and External port values must be the same
-			external = internal;
+			external = 1024 + pseudorand() % (49151 - 1024);
 			continue;
 		}
 		
@@ -495,6 +482,8 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		LogWarn("PortMapping::UPnP", String("AddPortMapping: Error code " + String::number(errorCode)));
 		return false;
 	}
+
+	return false;
 }
 
 bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t external)
@@ -505,7 +494,7 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 	
 	String host;
 	request.headers.get("Host", host);
-	Socket sock(host);
+	Socket sock(host, 10.);
 	
 	String content = "<?xml version=\"1.0\"?>\r\n\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
@@ -585,7 +574,7 @@ bool PortMapping::UPnP::parse(ByteString &dgram)
 
 	request.headers.get("Host", host);
 	
-	Socket sock(host);
+	Socket sock(host, 10.);
 	request.send(sock);
 	sock.write(content);
 
@@ -641,8 +630,7 @@ bool PortMapping::FreeboxAPI::check(String &host)
 	String hhost;
 	request.headers.get("Host", hhost);
 	
-	Socket sock;
-	sock.setTimeout(2.);
+	Socket sock(hhost, 2.);
 	sock.connect(hhost);
 	request.send(sock);
 	mLocalAddr = sock.getLocalAddress();
@@ -701,8 +689,7 @@ bool PortMapping::FreeboxAPI::get(const String &url, FreeboxResponse &response)
 	String host;
 	request.headers.get("Host", host);
 	
-	Socket sock;
-	sock.connect(host);
+	Socket sock(host, 10.);
 	request.send(sock);
 	
 	Http::Response hresponse;
