@@ -253,7 +253,7 @@ bool PortMapping::NatPMP::check(String &host)
 
 bool PortMapping::NatPMP::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
-	return request((protocol == TCP ? 2 : 1), internal, external, 7200, &external);	// 2h, recommended
+	return request((protocol == TCP ? 2 : 1), internal, external, 3600, &external);
 }
 
 bool PortMapping::NatPMP::remove(Protocol protocol, uint16_t internal, uint16_t external)
@@ -405,8 +405,9 @@ bool PortMapping::UPnP::check(String &host)
 bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
 	if(mControlUrl.empty()) return false;
+	if(!internal) return false;
 	
-	unsigned duration = 7200;
+	unsigned duration = 3600;	// 1h
 	
 	while(true)
 	{
@@ -441,39 +442,58 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		
 		Http::Response response;
 		response.recv(sock);
-		sock.clear();
-		sock.close();
-	
-		if(external == 0 && response.code == 716)
+		
+		if(response.code == 200)
 		{
-			// The external port cannot be wild-carded
-			external = internal;
+			sock.clear();
+			return true;
+		}
+		
+		String result;
+		Stream &stream = result;
+		sock.read(stream);
+
+		String strErrorCode = extract(result, "errorCode");
+		if(strErrorCode.empty())
+		{
+			LogWarn("PortMapping::UPnP", String("AddPortMapping: Unknown error"));
+			return false;
+		}
+		
+		int errorCode;
+		strErrorCode.extract(errorCode);
+	
+		if(external == 0 && errorCode == 716)
+		{
+			// The external port cannot be wildcarded
+			external = 1024 + pseudorand() % (49151 - 1024);
 			continue;
 		}
 		
-		if(response.code == 718)
+		if(errorCode == 718)
 		{
 			// The port mapping entry specified conflicts with a mapping assigned previously to another client
-			if(external < 1024) external = 1024 + pseudorand() % (49151 - 1024);
-			else ++external;
+			external = 0;	// wildcard
 			continue;
 		}
 		
-		if(internal != external && response.code == 724)
+		if(internal != external && errorCode == 724)
 		{
 			// Internal and External port values must be the same
 			external = internal;
 			continue;
 		}
 		
-		if(duration && response.code == 725)
+		if(duration && errorCode == 725)
 		{
 			// The NAT implementation only supports permanent lease times on port mappings
 			duration = 0;
 			continue;
 		}
 		
-		return (response.code == 200);
+		
+		LogWarn("PortMapping::UPnP", String("AddPortMapping: Error code " + String::number(errorCode)));
+		return false;
 	}
 }
 
@@ -508,7 +528,6 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 	Http::Response response;
 	response.recv(sock);
 	sock.clear();
-	sock.close();
 	
 	return (response.code == 200);
 }
