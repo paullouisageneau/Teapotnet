@@ -254,10 +254,13 @@ bool Store::moveFileToCache(String &fileName, String name)
 		}
 	}
 
+	String cachePath;
+	Assert(mDirectories.get(CacheDirectoryName, cachePath));
+	
 	// Free some space
 	int64_t maxCacheSize = 0;
 	Config::Get("cache_max_size").extract(maxCacheSize);	// MiB
-	if(freeSpace(CacheDirectoryName, maxCacheSize*1024*1024, fileSize) < fileSize)
+	if(freeSpace(cachePath, maxCacheSize*1024*1024, fileSize) < fileSize)
 	{
 		// This is not normal
 		LogWarn("Store", "Not enough free space in cache for " + name);
