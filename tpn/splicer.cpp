@@ -301,6 +301,7 @@ size_t Splicer::readData(char *buffer, size_t size)
 	
 	if(!mCacheEntry->finished())
 	{
+		Desynchronize(this);
 		Synchronize(mCacheEntry);
 		
 		if(!mCacheEntry->isDownloading())
@@ -313,7 +314,6 @@ size_t Splicer::readData(char *buffer, size_t size)
 		{
 			if(isStarted() || mCacheEntry->isBlockDownloading(block)) 
 			{
-				Desynchronize(this);
 				mCacheEntry->wait(milliseconds(100));
 			}
 			else {
