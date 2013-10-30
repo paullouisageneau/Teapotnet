@@ -33,7 +33,13 @@
 #define stat _stat
 #define PATH_SEPARATOR '\\'
 #else
-#include <sys/statvfs.h> // for GetFreeSace
+#ifndef __ANDROID__ 
+#include <sys/statvfs.h> 
+#else 
+#include <sys/vfs.h> 
+#define statvfs statfs 
+#define fstatvfs fstatfs 
+#endif
 #define PATH_SEPARATOR '/'
 #endif
 

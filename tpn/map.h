@@ -77,17 +77,17 @@ class StringMap : public SerializableMap<String,String>, public Serializer
 public:
 	bool input(Pair &pair);
 	bool input(String &str);
-	bool input(int8_t &i)		{ inputAsString(i); }
-	bool input(int16_t &i)		{ inputAsString(i); }
-	bool input(int32_t &i)		{ inputAsString(i); }
-	bool input(int64_t &i)		{ inputAsString(i); }
-	bool input(uint8_t &i)		{ inputAsString(i); }
-	bool input(uint16_t &i)		{ inputAsString(i); }
-	bool input(uint32_t &i)		{ inputAsString(i); }
-	bool input(uint64_t &i)		{ inputAsString(i); }
-	bool input(bool &b)		{ inputAsString(b); }
-	bool input(float &f)		{ inputAsString(f); }
-	bool input(double &f)		{ inputAsString(f); }
+	bool input(int8_t &i)		{ return inputAsString(i); }
+	bool input(int16_t &i)		{ return inputAsString(i); }
+	bool input(int32_t &i)		{ return inputAsString(i); }
+	bool input(int64_t &i)		{ return inputAsString(i); }
+	bool input(uint8_t &i)		{ return inputAsString(i); }
+	bool input(uint16_t &i)		{ return inputAsString(i); }
+	bool input(uint32_t &i)		{ return inputAsString(i); }
+	bool input(uint64_t &i)		{ return inputAsString(i); }
+	bool input(bool &b)		{ return inputAsString(b); }
+	bool input(float &f)		{ return inputAsString(f); }
+	bool input(double &f)		{ return inputAsString(f); }
 	
 	void output(const Pair &pair);
 	void output(const String &str);

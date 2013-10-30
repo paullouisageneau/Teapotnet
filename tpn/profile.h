@@ -99,9 +99,9 @@ private:
 		
 		// Serializable
 		void serialize(Serializer &s) const	{ static_cast<const Serializable*>(mPtr)->serialize(s); }
-		bool deserialize(Serializer &s)		{ static_cast<Serializable*>(mPtr)->deserialize(s);  }
+		bool deserialize(Serializer &s)		{ return static_cast<Serializable*>(mPtr)->deserialize(s);  }
 		void serialize(Stream &s) const     	{ static_cast<const Serializable*>(mPtr)->serialize(s); }
-                bool deserialize(Stream &s)         	{ static_cast<Serializable*>(mPtr)->deserialize(s);  }
+                bool deserialize(Stream &s)         	{ return static_cast<Serializable*>(mPtr)->deserialize(s);  }
 		String toString(void) const		{ return mPtr->toString(); }	
 		void fromString(String str)		{ mPtr->fromString(str); }
 		bool isInlineSerializable(void) const	{ return mPtr->isInlineSerializable(); }
