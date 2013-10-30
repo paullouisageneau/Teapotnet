@@ -231,6 +231,12 @@ input[type="text"]
         background-color: #FFFFFF;
 }
 
+input[type="password"]
+{
+	color: #000000;
+        background-color: #FFFFFF;
+}
+
 textarea
 {
 	display: block;
