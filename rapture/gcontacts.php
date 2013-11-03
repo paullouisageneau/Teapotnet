@@ -23,7 +23,7 @@ $client->setScopes("http://www.google.com/m8/feeds/");
 // Set API TeapotNet information
 include("gcredentials.php");
 
-if (isset($_GET['code'])) 
+if (isset($_GET['code']))
 {
 	$client->authenticate();
 	$_SESSION['token'] = $client->getAccessToken();
