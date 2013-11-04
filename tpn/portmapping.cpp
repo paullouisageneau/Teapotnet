@@ -40,7 +40,7 @@ PortMapping::PortMapping(void) :
 
 PortMapping::~PortMapping(void)
 {
-
+	disable();
 }
 
 void PortMapping::enable(void)
@@ -58,6 +58,19 @@ void PortMapping::disable(void)
 	mEnabled = false;
 	
 	Scheduler::Global->remove(this);
+
+	if(mProtocol)
+	{
+        	for(Map<Descriptor, Entry>::iterator it = mMap.begin();
+			it != mMap.end();
+			++it)
+		{
+			mProtocol->remove(it->first.protocol, it->first.port, it->second.external);
+		}
+
+		delete mProtocol;
+		mProtocol = NULL;
+	}
 }
 
 bool PortMapping::isEnabled(void) const
@@ -405,25 +418,27 @@ bool PortMapping::UPnP::check(String &host)
 bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
 	if(mControlUrl.empty()) return false;
-	if(!internal) return false;
-	if(!external) external = 1024 + pseudorand() % (49151 - 1024);	
+	if(!external) external = 1024 + pseudorand() % (49151 - 1024);
 
 	unsigned duration = 3600;	// 1h
+	unsigned attempts = 20;
 	
-	for(int attempts=0; attempts<10; ++attempts)
+	uint32_t gen = 0;
+	for(int i=0; i<attempts; ++i)
 	{
 		Http::Request request(mControlUrl, "POST");
 		
 		String host;
 		request.headers.get("Host", host);
 		Socket sock(host, 10.);
+		Address localAddr = sock.getLocalAddress();
 		
 		String content = "<?xml version=\"1.0\"?>\r\n\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
 <s:Body>\r\n\
 <m:AddPortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\r\n\
 <NewPortMappingDescription>"+Html::escape(String(APPNAME))+"</NewPortMappingDescription>\r\n\
-<NewInternalClient>"+Html::escape(sock.getLocalAddress().host())+"</NewInternalClient>\r\n\
+<NewInternalClient>"+Html::escape(localAddr.host())+"</NewInternalClient>\r\n\
 <NewLeaseDuration>"+String::number(duration)+"</NewLeaseDuration>\r\n\
 <NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
 <NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
@@ -467,7 +482,15 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		if(errorCode == 718)
 		{
 			// The port mapping entry specified conflicts with a mapping assigned previously to another client
-			external = 1024 + pseudorand() % (49151 - 1024);
+			if(localAddr.isIpv4())
+			{
+				if(i == 0) gen = localAddr.host().dottedToInt(256) + external;	
+				uint32_t rnd = gen = uint32_t(22695477*gen + 1); rnd >> 17;
+				external = 1024 + rnd;
+			}
+			else {
+				external = 1024 + pseudorand() % (49151 - 1024);
+			}
 			continue;
 		}
 		
