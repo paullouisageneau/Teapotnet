@@ -548,6 +548,9 @@ int main(int argc, char** argv)
 #endif
 		return 1;	  
 	}
+
+	if(PortMapping::Instance && PortMapping::Instance->isEnabled())
+		PortMapping::Instance->disable();
 	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_detach_np();
