@@ -212,21 +212,17 @@ void Splicer::start(bool autoDelete)
 	LogDebug("Splicer", "Starting splicer (begin=" + String::number(mBegin) + ")");
 
 	// Find first block
+	while(mCacheEntry->isBlockFinished(mCurrentBlock)) ++mCurrentBlock;
+	mFirstBlock = mCurrentBlock;
+
+	if(mCacheEntry->isBlockDownloading(mCurrentBlock))
 	{
-		Synchronize(mCacheEntry);
-
-		while(mCacheEntry->isBlockFinished(mCurrentBlock)) ++mCurrentBlock;
-		mFirstBlock = mCurrentBlock;
-
-		if(mCacheEntry->isBlockDownloading(mCurrentBlock))
-		{
-			// Already dowloading
-			if(autoDelete) delete this;
-                	return;
-		}
-
-		mCacheEntry->markBlockDownloading(mCurrentBlock, true);
+		// Already dowloading
+		if(autoDelete) delete this;
+		return;
 	}
+
+	mCacheEntry->markBlockDownloading(mCurrentBlock, true);
 
 	// Initialize variables
         int nbStripes = std::max(1, int(mSources.size()));      // TODO
@@ -456,7 +452,7 @@ void Splicer::run(void)
 	
 	if(mCurrentBlock < currentBlock)
 	{
-		Synchronize(mCacheEntry);
+		bool blockFinished = mCacheEntry->markBlockDownloading(currentBlock, true);
 		
 		while(mCurrentBlock < currentBlock)
 		{
@@ -465,7 +461,7 @@ void Splicer::run(void)
 			++mCurrentBlock;
 		}
 		
-		if(mCacheEntry->markBlockDownloading(mCurrentBlock, true))
+		if(blockFinished)
 		{
 			// Block is finished
 			stop();
