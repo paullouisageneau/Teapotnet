@@ -266,20 +266,19 @@ function displayContacts(url, period, object) {
 				
 				$('#contactinfo_'+uname).html('<span class=\"tracker\">'+info.name+'@'+info.tracker+'</span><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
 				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
-				//$('#contactinfo_'+uname).hide(); // TODO : what is this for ?
+				//$('#contactinfo_'+uname).hide(); // TODO : what was this for ?
 				
 				function displayContactInfo(uname) {
-					if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
-					else $('#contactinfo_'+uname).slideToggle();
-					timeout = setTimeout(function() { }, 200);
+					if(toShow)
+					{
+						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
+						else $('#contactinfo_'+uname).slideToggle();
+						timeout = setTimeout(function() { }, 200);
+					}
 				}
-				/*document.getElementById('contact_'+uname).onmouseover = function()
-				{
+				$('#contact_'+uname).click(function() {
 					displayContactInfo(uname);
-				}*/
-				document.getElementById('contact_'+uname).onclick = function() {
-					displayContactInfo(uname);
-				}
+				});
 				$('#contact_'+uname+' a').click(function()
 				{
 					toShow = false; // So the div infosContact is not displayed when clicked on contact link

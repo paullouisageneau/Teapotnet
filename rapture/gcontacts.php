@@ -21,12 +21,9 @@ $client->setApplicationName("TeapotNet Gmail friend requests");
 $client->setScopes("http://www.google.com/m8/feeds/");
 
 // Set API TeapotNet information
-$client->setClientId('1004486490546.apps.googleusercontent.com');
-$client->setClientSecret('qrzDwPvgb72D914ijnGAILtw');
-$client->setRedirectUri('http://teapotnet.org/rapture/gcontacts.php');
-$client->setDeveloperKey('AIzaSyArpqJdKKQ4PF9bj2FrImOTn_wplvRXz2w');
+include("gcredentials.php");
 
-if (isset($_GET['code'])) 
+if (isset($_GET['code']))
 {
 	$client->authenticate();
 	$_SESSION['token'] = $client->getAccessToken();
