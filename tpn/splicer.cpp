@@ -305,14 +305,21 @@ size_t Splicer::readData(char *buffer, size_t size)
 
 		while(!mCacheEntry->isBlockFinished(block))
 		{
+			//LogDebug("Splicer::readData", "Waiting for block " + String::number(block) + "...");
+			
 			if(isStarted() || mCacheEntry->isBlockDownloading(block)) 
 			{
 				Desynchronize(this);
 				mCacheEntry->wait(milliseconds(100));
 			}
-			else start();
+			else {
+				mCurrentBlock = block;
+				start();
+			}
 		}
 	}
+	
+	//LogDebug("Splicer::readData", "Reading block " + String::number(block));
 	
 	size = std::min(size, size_t(std::min(int64_t((block+1)*mCacheEntry->blockSize())-mPosition, mEnd-mPosition)));
 	Assert(size <= mCacheEntry->blockSize());
@@ -326,11 +333,8 @@ size_t Splicer::readData(char *buffer, size_t size)
 	if(!size) throw Exception("Internal synchronization fault in splicer");
 	mPosition+= size;
 	
-	//if(output)
-	//{
-	//	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
-	//	LogDebug("Splicer", "Reading progress: " + String::number(progress*100,2) + "%");
-	//}
+	//double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
+	//LogDebug("Splicer::readData", "Reading progress: " + String::number(progress*100,2) + "%");
 	
 	return size;
 }
@@ -403,16 +407,18 @@ void Splicer::run(void)
                 return;	// Warning: the splicer can be autodeleted
         }
 	
+	//LogDebug("Splicer::run", "Processing splicer...");
+	
 	std::vector<int>		onError;
 	std::multimap<unsigned, int> 	byBlocks;
 	
 	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
 	unsigned currentBlock = lastBlock;
-	int nbPending = 0;
 	
 	Assert(!mRequests.empty());
 	Assert(mStripes.size() == mRequests.size());
 	
+	int nbPending = mRequests.size();
 	for(int i=0; i<mRequests.size(); ++i)
 	{
 		Assert(mRequests[i]);
@@ -425,27 +431,27 @@ void Splicer::run(void)
 		{
 			const Request::Response *response = mRequests[i]->response(0);
 			Assert(response != NULL);
-			if(!response->finished())
-				++nbPending;
 			
-			if(response->error())
-				onError.push_back(i);
+			if(response->finished())
+			{
+				--nbPending;
+			}
+			else {
+				if(response->error())
+					onError.push_back(i);
+			}
 		}
 
 		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
-		
 		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
-		mStripes[i]->flush();
 	}
 
 	if(!nbPending) ++currentBlock;
-
-	if(currentBlock > 0) --currentBlock;
 	
 	//if(mCurrentBlock < currentBlock)
 	//{
 	//	double progress = double(currentBlock) / double(lastBlock+1);
-	//	LogDebug("Splicer", "Download position: " + String::number(progress*100,2) + "%");
+	//	LogDebug("Splicer::run", "Download position: " + String::number(progress*100,2) + "%");
 	//}
 	
 	if(mCurrentBlock < currentBlock)
@@ -454,7 +460,7 @@ void Splicer::run(void)
 		
 		while(mCurrentBlock < currentBlock)
 		{
-			//LogDebug("Splicer", "Block finished: " + String::number(mCurrentBlock));
+			//LogDebug("Splicer::run", "Block finished: " + String::number(mCurrentBlock));
 			mCacheEntry->markBlockFinished(mCurrentBlock);
 			++mCurrentBlock;
 		}
@@ -484,7 +490,7 @@ void Splicer::run(void)
 	else for(int k=0; k<onError.size(); ++k)
 	{
 		int i = onError[k];
-		LogDebug("Splicer::process", "Stripe " + String::number(i) + ": Request is in error state");
+		LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Request is in error state");
 		
 		Identifier formerSource = mRequests[i]->receiver();
 		Identifier source;
@@ -503,7 +509,7 @@ void Splicer::run(void)
 	
 				if(sources.empty())
 				{
-					LogDebug("Splicer::process", "No sources found");
+					LogDebug("Splicer::run", "No sources found");
 					Scheduler::Global->schedule(this, 30.);
 					return;
 				}
@@ -523,7 +529,7 @@ void Splicer::run(void)
 			}
 		}
 		
-		LogDebug("Splicer::process", "Stripe " + String::number(i) + ": Sending new request");
+		LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Sending new request");
 		query(i, source);
 	}
 }
@@ -638,7 +644,7 @@ void Splicer::CacheEntry::refreshSources(void)
 {
 	Synchronize(this);  
 
-	LogDebug("Splicer", "Requesting available sources...");
+	LogDebug("Splicer::CacheEntry", "Requesting available sources...");
 	
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
@@ -676,7 +682,7 @@ void Splicer::CacheEntry::refreshSources(void)
 		}
 	}
 	
-	LogDebug("Splicer", "Found " + String::number(int(mSources.size())) + " sources");
+	LogDebug("Splicer::CacheEntry", "Found " + String::number(int(mSources.size())) + " sources");
 }
 
 bool Splicer::CacheEntry::isBlockFinished(unsigned block) const

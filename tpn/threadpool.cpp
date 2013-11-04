@@ -55,9 +55,9 @@ void ThreadPool::launch(Task *task)
 		Synchronize(this);
 		Assert(!mTask);
 		
-		String status;
-		status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
-		LogDebug("ThreadPool::launch", status);
+		//String status;
+		//status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
+		//LogDebug("ThreadPool::launch", status);
 		
 		while(mAvailableWorkers.empty())
 		{

@@ -120,6 +120,9 @@ void StripedFile::seekWrite(unsigned block, size_t offset)
 {
 	Synchronize(this);
   
+	// Flush buffers first
+	flush();
+	
 	// WARNING: seekp() MUST allow seeking past the end of the file.
 	// If it is not the case, this WILL NOT work correctly.
 
