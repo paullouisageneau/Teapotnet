@@ -1583,7 +1583,14 @@ void AddressBook::Contact::createProfile(void)
 	if(!mProfile)
 	{
 		mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
-		mProfile->load();
+		
+		try {
+			mProfile->load();
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("AddressBook::Contact::createProfile", String("Unable to load profile: ") + e.what());
+		}
 	}
 }
 
