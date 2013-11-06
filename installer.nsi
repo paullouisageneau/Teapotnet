@@ -114,21 +114,17 @@ section "uninstall"
 	RmDir "$SMPROGRAMS\${APPNAME}"
  
 	# Remove files
-	RmDir /R $INSTDIR\static
 	Delete $INSTDIR\teapotnet.exe
 	Delete $INSTDIR\teapotnet.ico
 	Delete $INSTDIR\winservice.exe
 	Delete $INSTDIR\winupdater.exe 
-
-	# Others
-	RmDir /R $INSTDIR\temp
-	RmDir /R $INSTDIR\shared
+	RmDir /R $INSTDIR\static
 
 	# Always delete uninstaller as the last action
 	Delete $INSTDIR\uninstall.exe
  
-	# Try to remove the install directory
-	RmDir $INSTDIR
+	# Remove the install directory
+	RmDir /R $INSTDIR
  
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
