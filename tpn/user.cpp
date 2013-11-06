@@ -172,6 +172,14 @@ User::User(const String &name, const String &password, const String &tracker) :
 		throw;
 	}
 
+	try {
+		mProfile->load();
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("User", String("Unable to load profile: ") + e.what());
+	}
+	
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mAuth, this);

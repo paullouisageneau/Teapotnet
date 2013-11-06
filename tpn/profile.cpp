@@ -67,7 +67,6 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use", mTracker);
 
 	mFileName = infoPath() + mName;
-	load();
 
 	Interface::Instance->add(urlPrefix(), this);
 }
