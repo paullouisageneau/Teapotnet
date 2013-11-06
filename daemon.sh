@@ -30,7 +30,7 @@ if which systemctl &> /dev/null; then
 	"install")
 		install_all
 		sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.service | sed "s/\/var\/lib\/teapotnet/$(echo $TPROOT | sed -e 's/\//\\\//g')/g" - > /etc/systemd/system/teapotnet.service
-		echo "Run \"systemctl start teapotnet.service\" to start the daemon and go to http://localhost:8080/"
+		echo "Run \"systemctl start teapotnet.service\" to start the daemon and go to http://localhost:8480/"
 		echo "Run \"systemctl enable teapotnet.service\" to start it at each boot"
 	;;
 	"uninstall")
@@ -47,7 +47,7 @@ elif [ -d /etc/init.d ]; then
                 sed "s/\/usr\/bin\/teapotnet/$(echo $PREFIX | sed -e 's/\//\\\//g')\/bin\/teapotnet/g" teapotnet.init | sed "s/\/var\/lib\/teapotnet/$(echo $TPROOT | sed -e 's/\//\\\//g')/g" - > /etc/init.d/teapotnet
                 chmod +x /etc/init.d/teapotnet
 		update-rc.d teapotnet defaults
-		echo "Run \"/etc/init.d/teapotnet start\" to start the daemon and go to http://localhost:8080/"
+		echo "Run \"/etc/init.d/teapotnet start\" to start the daemon and go to http://localhost:8480/"
         ;;
         "uninstall")
 		update-rc.d -f teapotnet remove
@@ -60,7 +60,7 @@ elif [ -d /etc/init.d ]; then
 else
 	if [ "$1" == "install" ]; then
 		echo "This system does not use systemd or init.d, you should set up teapotnet to start at boot time by yourself."
-		echo "Launch teapotnet in the appropriate directory then go to http://localhost:8080/"
+		echo "Launch teapotnet in the appropriate directory then go to http://localhost:8480/"
 	fi
 fi
 

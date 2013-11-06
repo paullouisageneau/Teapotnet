@@ -44,7 +44,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	Assert(!mTracker.empty());
 
 	// Time
-	mFields["time"]		= new TypedField<String>("time", &mStatus, "Modification time", "", Time(0));	// internal
+	mFields["time"]		= new TypedField<Time>("time", &mTime, "Modification time", "", Time(0));	// internal
 
 	// Status
 	mFields["status"]      	= new TypedField<String>("status", &mStatus, "Status");

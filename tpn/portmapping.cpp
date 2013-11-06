@@ -151,7 +151,7 @@ void PortMapping::run(void)
 	}
 	if(!hasIpv4) return;
 	
-	LogInfo("PortMapping", "Potential NAT detected");
+	LogDebug("PortMapping", "Potential NAT detected");
 	
 	if(mProtocol)
 	{
@@ -209,7 +209,7 @@ void PortMapping::run(void)
 			it != mMap.end();
 			++it)
 		{
-			it->second.external = it->second.suggested;
+			if(!it->second.external) it->second.external = it->second.suggested;
 			if(!mProtocol->add(it->first.protocol, it->first.port, it->second.external))
 				LogWarn("PortMapping", String("Mapping failed for ") + (it->first.protocol == TCP ? "TCP" : "UDP") + " port " + String::number(it->second.suggested));
 		}

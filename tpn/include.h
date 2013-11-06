@@ -30,7 +30,7 @@
 #define SOURCELINK	"http://teapotnet.org/source"
 #define HELPLINK	"http://teapotnet.org/faq"
 #define DOWNLOADURL	"http://teapotnet.org/download"
-#define RAPTUREURL	"http://teapotnet.org/rapture/"
+#define RAPTUREURL	"https://teapotnet.org/rapture/"	// Rapture must use HTTPS
 
 
 #if defined(_WIN32) || defined(_WIN64)

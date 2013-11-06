@@ -178,16 +178,17 @@ void Socket::setTimeout(double timeout)
 
 void Socket::connect(const Address &addr, bool noproxy)
 {
+	String target = addr.toString();
 	uint16_t port = addr.port();
-	String proxy = Config::Get("http_proxy").trimmed();
+	Address proxyAddr;
 	
-	if(!noproxy && !proxy.empty() && proxy != "auto" 
-		&& (Config::Get("http_proxy_connect").toBool() || port == 443))
+	if(!noproxy && addr.isPublic()
+		&& (Config::Get("http_proxy_connect").toBool() || port == 443)
+		&& Config::GetProxyForUrl("https://"+target+"/", proxyAddr))
 	{
-		connect(Address(proxy), true);
+		connect(proxyAddr, true);
 		
 		try {
-			String target = addr.toString();
 			Http::Request request(target, "CONNECT");
 			request.version = "1.1";
 			request.headers["Host"] = target;

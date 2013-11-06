@@ -51,6 +51,7 @@ public:
 	bool get(const String &stamp, Message &result) const;
 	void markRead(const String &stamp);
 	void ack(const Array<Message> &messages);
+	void erase(const String &uname);
 
 	void http(const String &prefix, Http::Request &request);
 	

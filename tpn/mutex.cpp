@@ -83,7 +83,8 @@ void Mutex::unlock(void)
 	if(mLockCount == 0)
 	{
 		int ret = pthread_mutex_unlock(&mMutex);
-		if(ret != 0) throw Exception("Unable to unlock mutex");
+		if(ret != 0) 
+			throw Exception("Unable to unlock mutex");
 	}
 }
 
@@ -99,7 +100,8 @@ int Mutex::unlockAll(void)
 	mLockCount = 0;
 
 	int ret = pthread_mutex_unlock(&mMutex);
-	if(ret != 0) throw Exception("Unable to unlock mutex");
+	if(ret != 0) 
+		throw Exception("Unable to unlock mutex");
 	
 	return mRelockCount;
 }

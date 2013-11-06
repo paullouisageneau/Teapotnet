@@ -242,53 +242,43 @@ function submitReply(object, idParent)
 	return false;
 }
 
-
 var title = document.title;
-
-var saveData;
-var toShow = true;
 
 function displayContacts(url, period, object) {
 
 	setCallback(url, period, function(data) {
 		if(data != null) {
-			saveData = data;
 			var totalmessages = 0;
 			var play = false;
-			var visible = false;
 			$.each(data, function(uname, info) {
+				
+				var isSelf = (info.prefix.substr(info.prefix.length-6) == 'myself');
 				
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
 					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+info.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>');
 				}
 
-				var isSelf = (info.prefix.substr(info.prefix.length-6) == 'myself');
-				
-				$('#contactinfo_'+uname).html('<span class=\"tracker\">'+info.name+'@'+info.tracker+'</span><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
-				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
-				//$('#contactinfo_'+uname).hide(); // TODO : what was this for ?
-				
-				function displayContactInfo(uname) {
-					if(toShow)
-					{
-						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
-						else $('#contactinfo_'+uname).slideToggle();
-						timeout = setTimeout(function() { }, 200);
-					}
-				}
-				$('#contact_'+uname).click(function() {
-					displayContactInfo(uname);
-				});
-				$('#contact_'+uname+' a').click(function()
-				{
-					toShow = false; // So the div infosContact is not displayed when clicked on contact link
-				});
-				$('#contact_'+uname).hover(function () {
-					$(this).css('cursor','pointer');
-				});
 				$('#contact_'+uname).attr('class', info.status);
-				//document.getElementById('contact_'+uname).classList.add(info.status);
 				transition($('#contact_'+uname+' .status'), info.status.capitalize());
+				
+				if($('#contactinfo_'+uname).html() == '') {
+					$('#contact_'+uname).click(function(event) {
+						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
+						else $('#contactinfo_'+uname).slideToggle('fast');
+					});
+					$('#contact_'+uname+' a').click(function(event)
+					{
+						event.stopPropagation(); // So the div infosContact is not displayed when clicked on contact link
+					});
+					$('#contact_'+uname).hover(function () {
+						$(this).css('cursor','pointer');
+					});
+				}
+				
+				$('#contactinfo_'+uname).html('<span class=\"name\">'+info.name+'@'+info.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
+				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
+				//$('#contactinfo_'+uname).hide();
+				
 				var count = parseInt(info.messages);
 				var tmp = '';
 				if(count != 0) tmp = ' ('+count+')';

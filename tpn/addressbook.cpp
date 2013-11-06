@@ -139,6 +139,9 @@ void AddressBook::removeContact(const Identifier &peering)
 		Interface::Instance->remove(contact->urlPrefix(), contact);
 		mScheduler.remove(contact);
 		save();
+
+		// Erase messages
+		mUser->messageQueue()->erase(contact->uniqueName());
 	}
 }
 
@@ -280,8 +283,15 @@ void AddressBook::load(Stream &stream)
 				oldContact->addAddresses(contact->addresses());
 				continue;
 			}
-		
+	
 			unregisterContact(oldContact);
+			
+			if(!oldContact->isDeleted() && contact->isDeleted())
+			{
+				// Erase messages
+				mUser->messageQueue()->erase(contact->uniqueName());
+			}
+
 			oldContact->copy(contact);
 			std::swap(oldContact, contact);
 			delete oldContact;
@@ -519,7 +529,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.closeForm();
 				
 				page.javascript("function deleteContact(uname) {\n\
-					if(confirm('Do you really want to delete '+uname+' ?')) {\n\
+					if(confirm('Do you really want to delete '+uname+' ? The corresponding messages will be deleted too.')) {\n\
 						document.executeForm.command.value = 'delete';\n\
 						document.executeForm.argument.value = uname;\n\
 						document.executeForm.submit();\n\
@@ -624,7 +634,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			page.closeForm();
 
-			// TODO : add dummy form ? (check on stackoverflow says it should work fine with input outside forms
+			// TODO : add dummy form ? (check on stackoverflow says it should work fine with input outside forms)
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");

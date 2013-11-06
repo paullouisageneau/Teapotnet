@@ -476,9 +476,9 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("span", ".status");
 					page.close("span");
 					
-					page.open("span", ".files");
+					/*page.open("span", ".files");
 					page.link(self->urlPrefix()+"/files/", "Files");
-					page.close("span");
+					page.close("span");*/
 					
 					page.close("div");
 					

@@ -50,18 +50,18 @@ MessageQueue::MessageQueue(User *user) :
 	
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
-	stamp TEXT UNIQUE,\
+	stamp TEXT UNIQUE NOT NULL,\
 	parent TEXT,\
 	headers TEXT,\
 	content TEXT,\
 	author TEXT,\
 	signature TEXT,\
 	contact TEXT,\
-	time INTEGER(8),\
-	public INTEGER(1),\
-	incoming INTEGER(1),\
-	relayed INTEGER(1),\
-	isread INTEGER(1))");
+	time INTEGER(8) NOT NULL,\
+	public INTEGER(1) NOT NULL,\
+	incoming INTEGER(1) NOT NULL,\
+	relayed INTEGER(1) NOT NULL,\
+	isread INTEGER(1) NOT NULL)");
 
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
@@ -202,6 +202,15 @@ void MessageQueue::ack(const Array<Message> &messages)
 		if(self && self != contact) 
 			self->send(notification);
 	}
+}
+
+void MessageQueue::erase(const String &uname)
+{
+	Synchronize(this);
+
+        Database::Statement statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
+        statement.bind(1, uname);
+        statement.execute();
 }
 
 void MessageQueue::http(const String &prefix, Http::Request &request)
@@ -729,13 +738,13 @@ String MessageQueue::Selection::target(const String &columns) const
 
 String MessageQueue::Selection::table(void) const
 {
-	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=message.parent";
+	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'')";
 }
 
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(!mContact.empty()) condition = "(message.contact IS NULL OR message.contact='' OR message.contact=@contact OR parent.contact=@contact)";
+        if(!mContact.empty()) condition = "((NULLIF(message.contact,'') IS NULL OR message.contact=@contact) OR (NULLIF(message.parent,'') IS NOT NULL AND (NULLIF(parent.contact,'') IS NULL OR parent.contact=@contact)))";
         else condition = "1=1"; // TODO
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";

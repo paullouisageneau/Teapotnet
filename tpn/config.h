@@ -43,7 +43,7 @@ public:
 	static void Save(const String &filename);
 	
 	static void GetExternalAddresses(List<Address> &list);
-	static bool GetProxyForUrl(const String &url, Address &proxy);
+	static bool GetProxyForUrl(const String &url, Address &addr);
 	
 private:
 	static StringMap Params;
@@ -51,6 +51,10 @@ private:
 	
 	Config(void);
 	~Config(void);
+
+#ifdef WINDOWS
+	static bool parseWinHttpProxy(LPWSTR lpszProxy, Address &addr);
+#endif
 };
 
 }
