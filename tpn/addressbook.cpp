@@ -1589,7 +1589,7 @@ void AddressBook::Contact::createProfile(void)
 		}
 		catch(const Exception &e)
 		{
-			LogWarn("AddressBook::Contact::createProfile", String("Unable to load profile: ") + e.what());
+			LogWarn("AddressBook::Contact", String("Unable to load profile for ") + uniqueName() + ": " + e.what());
 		}
 	}
 }

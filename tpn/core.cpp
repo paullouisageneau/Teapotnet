@@ -520,25 +520,45 @@ void Core::Handler::addRequest(Request *request)
 
 void Core::Handler::removeRequest(unsigned id)
 {
-	Synchronize(this);
-	if(mStopping) return;
-	
-	Map<unsigned, Request*>::iterator it = mRequests.find(id);
-	if(it != mRequests.end())
 	{
-		LogDebug("Core::Handler", "Removing request " + String::number(id));
-	  
-		Request *request = it->second;
-		Synchronize(request);
+		Synchronize(this);
+		if(mStopping) return;
+	}
+	
+	if(mSender)
+	{
+		Synchronize(mSender);
 		
-		for(int i=0; i<request->responsesCount(); ++i)
+		size_t size = mSender->mRequestsQueue.size();
+		for(int i=0; i<size; ++i)
 		{
-			Request::Response *response = request->response(i);
-			if(response->mChannel) mResponses.erase(response->mChannel);
+			Request *r = mSender->mRequestsQueue.front();
+			mSender->mRequestsQueue.pop();
+			if(r->id() != id)
+				mSender->mRequestsQueue.push(r);
 		}
+	}
+	
+	{
+		Synchronize(this);
 		
-		request->removePending(mPeering);
-		mRequests.erase(it);
+		Map<unsigned, Request*>::iterator it = mRequests.find(id);
+		if(it != mRequests.end())
+		{
+			LogDebug("Core::Handler", "Removing request " + String::number(id));
+		
+			Request *request = it->second;
+			Synchronize(request);
+			
+			for(int i=0; i<request->responsesCount(); ++i)
+			{
+				Request::Response *response = request->response(i);
+				if(response->mChannel) mResponses.erase(response->mChannel);
+			}
+			
+			request->removePending(mPeering);
+			mRequests.erase(it);
+		}
 	}
 }
 

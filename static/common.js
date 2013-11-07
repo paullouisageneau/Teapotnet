@@ -203,7 +203,7 @@ function setMessagesReceiver(url, object) {
 		$(object).find('.message').addClass('oldmessage');
 	});
 	
-	setMessagesReceiverRec(url, object, '');
+	setMessagesReceiverRec(url, object, 0);
 }
 
 var BaseDocumentTitle = document.title;
@@ -294,7 +294,7 @@ function displayContacts(url, period, object) {
 
 }
 
-function setMessagesReceiverRec(url, object, last) {
+function setMessagesReceiverRec(url, object, next) {
 
 	var timeout;
 
@@ -305,9 +305,8 @@ function setMessagesReceiverRec(url, object, last) {
 
 	var baseUrl = url;
 	
-	if(last != '') {
-		if(url.contains('?')) url+= '&last=' + last;
-		else url+= '?last=' + last;
+	if(next > 0) {
+		url+= (url.contains('?') ? '&' : '?') + 'next=' + next;
 	}
 	
 	$.ajax({
@@ -320,7 +319,7 @@ function setMessagesReceiverRec(url, object, last) {
 			for(var i=0; i<data.length; i++) {
 				var message = data[i];
 				var id = "message_" + message.stamp;
-				last = message.stamp;
+				if(message.number >= next) next = message.number + 1;
 
 				var isLocalRead = (!message.incoming || message.isread);
 				var isRemoteRead = (message.incoming || message.isread);
@@ -415,13 +414,13 @@ function setMessagesReceiverRec(url, object, last) {
 		}
 
 		timeout = setTimeout(function() {
-			setMessagesReceiverRec(baseUrl, object, last);
+			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
 		timeout = setTimeout(function() {
-			setMessagesReceiverRec(baseUrl, object, last);
+			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
 
 	});

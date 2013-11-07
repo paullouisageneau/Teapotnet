@@ -281,7 +281,7 @@ int main(int argc, char** argv)
 		Config::Default("external_address", "auto");
 		Config::Default("external_port", "auto");
 		Config::Default("http_timeout", "5000");
-		Config::Default("request_timeout", "10000");
+		Config::Default("request_timeout", "6000");
 		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "15000");
 		Config::Default("tpot_read_timeout", "60000");
@@ -305,6 +305,11 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
+		// TODO
+		if(Config::Get("request_timeout").toInt() >= 10000);
+			Config::Put("request_timeout", "6000");
+		//
+		
 #ifdef ANDROID
 		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
 		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);

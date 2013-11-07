@@ -78,7 +78,7 @@ public:
 		
 		bool getLast(int count, Array<Message> &result) const;
 		bool getLast(const Time &time, int max, Array<Message> &result) const;
-		bool getLast(const String &oldLast, int count, Array<Message> &result) const;
+		bool getLast(int64_t nextNumber, int count, Array<Message> &result) const;
 	
 		bool getUnread(Array<Message> &result) const;
 		bool getUnreadStamps(StringArray &result) const;

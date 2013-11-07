@@ -102,6 +102,9 @@ private:
 	bool mIsIncoming;
 	bool mIsRelayed;
 
+	// Only used when MessageQueue outputs to interface
+	int64_t mNumber;
+	
 	mutable bool mIsRead;
 	
 	friend class Core;

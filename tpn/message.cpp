@@ -42,7 +42,8 @@ Message::Message(const String &content) :
 	mIsPublic(false),
 	mIsIncoming(false),
 	mIsRelayed(false),
-	mIsRead(false)
+	mIsRead(false),
+	mNumber(0)
 {
 
 }
@@ -215,6 +216,7 @@ void Message::serialize(Serializer &s) const
 	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
 	ConstSerializableWrapper<bool> isRelayedWrapper(mIsRelayed);
 	ConstSerializableWrapper<bool> isReadWrapper(mIsRead);
+	ConstSerializableWrapper<int64_t> numberWrapper(&mNumber);
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
@@ -231,6 +233,8 @@ void Message::serialize(Serializer &s) const
 	mapping["relayed"] = &isRelayedWrapper;
 	mapping["isread"] = &isReadWrapper;
 	
+	if(mNumber) mapping["number"] = &numberWrapper;
+	
 	s.outputObject(mapping);
 }
 
@@ -240,6 +244,7 @@ bool Message::deserialize(Serializer &s)
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
 	SerializableWrapper<bool> isReadWrapper(&mIsRead);
+	SerializableWrapper<int64_t> numberWrapper(&mNumber);
 	
 	Serializer::ObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
@@ -255,6 +260,8 @@ bool Message::deserialize(Serializer &s)
 	mapping["incoming"] = &isIncomingWrapper;
 	mapping["relayed"] = &isRelayedWrapper;
 	mapping["isread"] = &isReadWrapper;
+	
+	mapping["number"] = &numberWrapper;
 	
 	return s.inputObject(mapping);
 }

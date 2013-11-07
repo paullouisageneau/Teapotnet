@@ -279,8 +279,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
         
 	if(request.get.contains("json"))
 	{
-		String last;
-		request.get.get("last", last);
+		int64_t next = 0;
+		if(request.get.contains("next")) request.get.get("next").extract(next);
 
 		Http::Response response(request, 200);
 		response.headers["Content-Type"] = "application/json";
@@ -293,10 +293,10 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		if(request.get.contains("parent")) selection.setParentStamp(request.get["parent"]);
 		
 		int count = 100; // TODO: 100 messages selected is max
-		if(request.get.contains("count")) count = request.get["count"].toInt();
+		if(request.get.contains("count")) request.get.get("count").extract(count);
 		
 		SerializableArray<Message> array;
-		while(!selection.getLast(last, count, array))
+		while(!selection.getLast(next, count, array))
 			if(!wait(60.)) return;
 
 		ack(array);
@@ -576,15 +576,23 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY message.id DESC LIMIT @count");
+	// Find the id of the last message without counting only messages without a parent
+	int64_t lastId = 0;
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE "+filter()+" AND NULLIF(message.parent,'') IS NULL ORDER BY message.id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
+	while(statement.step())
+		statement.input(lastId);
+	statement.finalize();
+	
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@lastid ORDER BY message.time,message.id");
+	filterBind(statement);
+	statement.bind(statement.parameterIndex("lastid"), lastId);
         statement.fetch(result);
 	statement.finalize();
 	
 	if(!result.empty())
 	{
-		result.reverse();
 		mMessageQueue->mHasNew = false;
 		return true;
 	}
@@ -597,7 +605,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.id DESC LIMIT @max");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.id DESC LIMIT @max");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("time"), time);
 	statement.bind(statement.parameterIndex("max"), max);
@@ -613,27 +621,18 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
         return false;
 }
 
-bool MessageQueue::Selection::getLast(const String &oldLast, int count, Array<Message> &result) const
+bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, Array<Message> &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	if(oldLast.empty()) 
+	if(nextNumber <= 0) 
 		return getLast(count, result);
 	
-	int64_t oldLastId = -1;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE message.stamp=?1");
-	statement.bind(1, oldLast);
-        if(statement.step())
-	{
-		statement.input(oldLastId);
-		statement.finalize();
-	}
-	
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.id>@id ORDER BY message.id LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@id ORDER BY message.id ASC LIMIT @count");
 	filterBind(statement);
-	statement.bind(statement.parameterIndex("id"), oldLastId);
+	statement.bind(statement.parameterIndex("id"), nextNumber);
 	statement.bind(statement.parameterIndex("count"), count);
         statement.fetch(result);
 	statement.finalize();
