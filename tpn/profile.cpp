@@ -228,7 +228,9 @@ bool Profile::deserialize(Serializer &s)
 		fields[it->first] = it->second;
 	}
 
-	return s.inputObject(fields);
+	bool success = s.inputObject(fields);
+	mTime = std::min(mTime, Time::Now());
+	return success;
 }
 
 void Profile::http(const String &prefix, Http::Request &request)

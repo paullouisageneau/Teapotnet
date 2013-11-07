@@ -2512,7 +2512,10 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
 
-	if(map.contains("time")) map["time"] >> mTime;
+	if(map.contains("time")) {
+		map["time"] >> mTime;
+		mTime = std::min(mTime, Time::Now());
+	}
 	else mTime = Time::Now();
 	
 	if(map.contains("deleted")) map["deleted"] >> mDeleted;
