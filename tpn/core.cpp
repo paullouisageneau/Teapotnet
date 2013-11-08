@@ -866,15 +866,12 @@ void Core::Handler::process(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
-		if(mRemoteAddr.isPublic())
+		if(!mIsIncoming && relayEnabled && mRemoteAddr.isPublic())
 		{
 			Synchronize(mCore);
-			if(!mIsIncoming && relayEnabled)
-			{
-				LogDebug("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
-				if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
-				else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
-			}
+			LogDebug("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
+			if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
+			else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
 		}
 	}
 	catch(const IOException &e)
