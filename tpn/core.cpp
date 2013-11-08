@@ -866,7 +866,7 @@ void Core::Handler::process(void)
 		cipher->setDecryptionInit(iv_b);
 		mStream = cipher;
 		
-		if(!mRemoteAddr.isPublic())
+		if(mRemoteAddr.isPublic())
 		{
 			Synchronize(mCore);
 			if(!mIsIncoming && relayEnabled)
