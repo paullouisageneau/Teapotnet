@@ -284,7 +284,7 @@ function displayContacts(url, period, object) {
 				if(count != 0) tmp = ' ('+count+')';
 				transition($('#contact_'+uname+' .messagescount'), tmp);
 				totalmessages+= count;
-				if(info.newmessages == 'true') play = true;
+				if(info.newmessages) play = true;
 			});
 			if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
 			else document.title = title;
