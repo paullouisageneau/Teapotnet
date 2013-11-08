@@ -122,7 +122,7 @@ bool MessageQueue::add(Message &message)
 	
 	if(!exist)
 	{
-		if(message.isIncoming()) mHasNew = true;
+		if(message.isIncoming() && !message.isPublic()) mHasNew = true;
 		notifyAll();
 		SyncYield(this);
 		
@@ -593,7 +593,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	
 	if(!result.empty())
 	{
-		mMessageQueue->mHasNew = false;
+		if(mIncludePrivate) mMessageQueue->mHasNew = false;
 		return true;
 	}
         return false;
@@ -615,7 +615,7 @@ bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> 
 	if(!result.empty())
 	{
 		result.reverse();
-		mMessageQueue->mHasNew = false;
+		if(mIncludePrivate) mMessageQueue->mHasNew = false;
 		return true;
 	}
         return false;
@@ -640,7 +640,7 @@ bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, Array<Messa
 	if(!result.empty())
 	{
 		// No reverse here
-		mMessageQueue->mHasNew = false;
+		if(mIncludePrivate) mMessageQueue->mHasNew = false;
 		return true;
 	}
         return false;
