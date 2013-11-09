@@ -2472,10 +2472,10 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["time"] << mTime;
 	map["deleted"] << mDeleted;
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["info"] = &map;
-        mapping["addrs"] = &mAddrs;
-	s.outputObject(mapping);
+	s.outputMapBegin(2);
+        s.outputMapElement(String("info"),map);
+        s.outputMapElement(String("addrs"),mAddrs);
+        s.outputMapEnd();
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
@@ -2493,10 +2493,10 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	
 	StringMap map;
 	
-	Serializer::ObjectMapping mapping;
-	mapping["info"] = &map;
-        mapping["addrs"] = &mAddrs;
-	s.inputObject(mapping);
+	String key;
+        AssertIO(s.inputMapBegin());
+        AssertIO(s.inputMapElement(key, map) && key == "info");
+        AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
 	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
