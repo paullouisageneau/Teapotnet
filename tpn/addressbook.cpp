@@ -1099,16 +1099,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 			YamlSerializer serializer(&tmp);
 			typedef SerializableMap<String, SerializableArray<Address> > content_t;
 			content_t content;
-			
-			while(true)
-			try {
-				serializer.input(content);
-				break;
-			}
-			catch(const InvalidData &e)
-			{
-				
-			}
+			serializer.input(content);
 			
 			for(content_t::const_iterator it = content.begin();
 				it != content.end();
@@ -2481,10 +2472,10 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["time"] << mTime;
 	map["deleted"] << mDeleted;
 	
-	s.outputMapBegin(2);
-	s.outputMapElement(String("info"),map);
-	s.outputMapElement(String("addrs"),mAddrs);
-	s.outputMapEnd();
+	Serializer::ConstObjectMapping mapping;
+	mapping["info"] = &map;
+        mapping["addrs"] = &mAddrs;
+	s.outputObject(mapping);
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
@@ -2497,14 +2488,16 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mSecret.clear();
 	mPeering.clear();
 	mRemotePeering.clear();
+	mDeleted = false;
+	mTime = Time::Now();
 	
 	StringMap map;
 	
-	String key;
-	AssertIO(s.inputMapBegin());
-	AssertIO(s.inputMapElement(key, map) && key == "info");
-	AssertIO(s.inputMapElement(key, mAddrs) && key == "addrs");
-
+	Serializer::ObjectMapping mapping;
+	mapping["info"] = &map;
+        mapping["addrs"] = &mAddrs;
+	s.inputObject(mapping);
+	
 	map["uname"] >> mUniqueName;
 	map["name"] >> mName;
 	map["tracker"] >> mTracker;
@@ -2512,14 +2505,16 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["peering"] >> mPeering;
 	map["remote"] >> mRemotePeering;
 
-	if(map.contains("time")) {
+	if(map.contains("time"))
+	{
 		map["time"] >> mTime;
 		mTime = std::min(mTime, Time::Now());
 	}
-	else mTime = Time::Now();
 	
-	if(map.contains("deleted")) map["deleted"] >> mDeleted;
-	else mDeleted = false;
+	if(map.contains("deleted"))
+	{
+		map["deleted"] >> mDeleted;
+	}
 	
 	// TODO: checks
 	

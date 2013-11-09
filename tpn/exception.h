@@ -73,7 +73,7 @@ public:
     Unsupported(const String &feature);
 };
 
-// If a paramter or a piece of data is invalid
+// If a parameter or a field is invalid
 class InvalidData : public Exception
 {
 public:
@@ -81,6 +81,7 @@ public:
 };
 
 // If an IO exception occured
+// TODO: this is often used in place of a InvalidFormat/ParseError
 class IOException: public Exception
 {
 public:

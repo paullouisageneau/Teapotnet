@@ -98,7 +98,13 @@ bool SerializableSet<T>::deserialize(Serializer &s)
 	while(s.inputArrayCheck())
 	{
 		SerializableElement element;
-		if(!s.input(element)) break;
+		try {
+			if(!s.input(element)) break;
+		}
+		catch(const InvalidData &e)
+		{
+			continue;
+		}
 		this->insert(element.value);
 	}
 	

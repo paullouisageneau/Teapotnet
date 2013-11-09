@@ -331,7 +331,7 @@ function setMessagesReceiverRec(url, object, next) {
 				}
 				else if(message.contact) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
-					author = (message.relayed ? message.author.escape()+' (via  <a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'">'+message.author.escape()+'</a>');
+					author = (message.relayed ? message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'">'+message.author.escape()+'</a>');
 				}
 				else {
 					author = message.author.escape();

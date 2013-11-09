@@ -57,6 +57,7 @@ public:
 	public:
 		K key;
 		V value;
+		bool isValid;
 	  
 		SerializablePair(void);
 		SerializablePair(const K &key, const V &value);
@@ -218,6 +219,8 @@ bool SerializableMap<K,V>::deserialize(Serializer &s)
 	{
 		SerializablePair pair;
 		if(!s.input(pair)) break;
+		if(!pair.isValid) continue;
+		
 		this->insert(pair.key, pair.value);
 	}
 	
@@ -231,7 +234,8 @@ bool SerializableMap<K,V>::isInlineSerializable(void) const
 }
 
 template<typename K, typename V>
-SerializableMap<K,V>::SerializablePair::SerializablePair(void)
+SerializableMap<K,V>::SerializablePair::SerializablePair(void) :
+	isValid(false)
 {
   
 }
@@ -239,7 +243,8 @@ SerializableMap<K,V>::SerializablePair::SerializablePair(void)
 template<typename K, typename V>
 SerializableMap<K,V>::SerializablePair::SerializablePair(const K &key, const V &value) :
 	key(key),
-	value(value)
+	value(value),
+	isValid(true)
 {
 	  
 }
@@ -259,13 +264,29 @@ void SerializableMap<K,V>::SerializablePair::serializeValue(Serializer &s) const
 template<typename K, typename V>
 bool SerializableMap<K,V>::SerializablePair::deserializeKey(Serializer &s)
 {
-	return s.input(key);
+	isValid = true;
+	
+	try {
+		return s.input(key);
+	}
+	catch(const InvalidData &e)
+	{
+		isValid = false;
+		return true;
+	}
 }
 
 template<typename K, typename V>
 bool SerializableMap<K,V>::SerializablePair::deserializeValue(Serializer &s)
 {
-	return s.input(value);
+	try {
+		return s.input(value);
+	}
+	catch(const InvalidData &e)
+	{
+		isValid = false;
+		return true;
+	}
 }
 
 template<typename T> bool StringMap::inputAsString(T &v)
