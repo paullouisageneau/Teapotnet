@@ -64,8 +64,8 @@ if(!String.linkify) {
 		var emailAddressPattern = /[a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+/gim;
 
 		return this
-		    .replace(urlPattern, '<a href="$&">$&</a>')
-		    .replace(pseudoUrlPattern, '$1<a href="http://$2">$2</a>')
+		    .replace(urlPattern, '<a target="_blank" href="$&">$&</a>')
+		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>')
 		    .replace(emailAddressPattern, '<a href="mailto:$&">$&</a>');
       };
 }
