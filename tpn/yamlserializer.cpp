@@ -307,7 +307,7 @@ void YamlSerializer::output(const String &str)
 		String line;
 		while(copy.readLine(line))
 		{
-			*mStream<<String(std::max(mLevel-1,0)*2, ' ');
+			*mStream<<String(mLevel*2, ' ');
 			*mStream<<line;
 			if(copy.last() == '\n') *mStream<<Stream::NewLine;
 		}
