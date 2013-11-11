@@ -19,7 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-var currentObject; 
+var currentObject;
 $('#howtotext').hide();
 
 // Load question mark images 
