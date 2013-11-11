@@ -327,17 +327,17 @@ function setMessagesReceiverRec(url, object, next) {
 				var author;
 				if(!message.incoming) {
 					var link = getBasePath(1) + 'myself/';
-					author = '<a href="'+link+'">'+message.author.escape()+'</a>';
+					author = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
 				}
 				else if(message.contact) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
-					author = (message.relayed ? message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'">'+message.author.escape()+'</a>');
+					author = (message.relayed ? '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>');
 				}
 				else {
 					author = message.author.escape();
 				}
 	      
-				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="date">'+formatTime(message.time).escape()+'</span><span class="author">'+author+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div></div>';
+				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -368,7 +368,7 @@ function setMessagesReceiverRec(url, object, next) {
 	      
 				if('attachment' in message.headers) {
 					
-					$('#'+id).append('<span class="attachment">Loading attachment...</span>');
+					$('#'+id).prepend('<span class="attachment">Loading attachment...</span>');
 					
 					var url = '/'+message.headers.attachment;
 					
@@ -384,15 +384,11 @@ function setMessagesReceiverRec(url, object, next) {
 							var media = type.substr(0, type.indexOf('/'));
 							
 							if(media == 'image') {
-								$('#'+id+' .attachment').html('<a href="'+url+'"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
 							}
 							else {
-								$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'">'+name.escape()+'</a></span>');
+								$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'" target="_blank">'+name.escape()+'</a></span>');
 							}
-							
-							$('#'+id+' .attachment').css('cursor', 'pointer').click(function() {
-								window.location.href = $(this).find('a').attr('href');
-							});
 							
 							setTimeout(function() { 
 								$(object).scrollTop($(object)[0].scrollHeight);

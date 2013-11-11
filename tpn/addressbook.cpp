@@ -2108,11 +2108,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.footer();
 				return;
 			}
+			else if(directory == "avatar")
+			{
+				Http::Response response(request, 303);	// See other
+                                response.headers["Location"] = profile()->avatarUrl(); 
+                                response.send();
+				return;
+			}
 			else if(directory == "chat")
 			{
 				if(isSelf()) throw 404;
 			  
-				Http::Response response(request, 303);
+				Http::Response response(request, 301);	// Moved permanently
                                 response.headers["Location"] = mAddressBook->user()->urlPrefix() + "/messages/" + uniqueName().urlEncode() + "/";
                                 response.send();
 				return;

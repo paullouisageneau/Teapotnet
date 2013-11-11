@@ -279,7 +279,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 				page.open("div","profile.box");
 
 				page.open("h2");
-				page.text("My personal information");
+				page.text("Personal information");
 				page.close("h2");
 
 				// button() should not be used outside of a form
@@ -310,7 +310,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 				}
 				page.close("div");
 
-				page.image(avatarUrl(), "", "profilephoto");
+				page.image(avatarUrl(), "Avatar de "+name(), "profileavatar.avatar");	// NO alt text for avatars
 
 				if(isSelf())
 				{
@@ -321,10 +321,6 @@ void Profile::http(const String &prefix, Http::Request &request)
 				}
 
 				page.close("div");
-
-				page.open("h2");
-				page.text("Personal Information");
-				page.close("h2");
 
 				bool disp = false;
 				disp|= displayField(page, "realname");

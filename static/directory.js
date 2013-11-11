@@ -52,7 +52,6 @@ function listDirectory(url, object, showButtons) {
 			$(object).append('<table class="files"></table>');
                 	var table = $(object).find('table');
 
-			var isPlayableDirectory = false;
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				if(!resource.url) continue;
@@ -62,20 +61,17 @@ function listDirectory(url, object, showButtons) {
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
+					line+= '<td class="actions"></td>';
 				}
 				else {
-					var isPlayable;
 					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
-					isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
-					//isPlayableDirectory |= isPlayable;
-
+					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
+					
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
-					//line+= ''
-					isPlayable ? line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>' : line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>' ;
-					line+= '<td class="actions"><a href="'+link.escape()+"?download=1"+'"><img src="/down.png" alt="(download)"></a></td>';
-					if(isPlayable) {
-						line+= '<td class="actions"><a href="'+link.escape()+"?play=1"+'"><img src="/play.png" alt="(play)"></a></td>';
-					}
+					line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>'; 
+					line+= '<td class="actions"><a href="'+link.escape()+"?download=1"+'"><img src="/down.png" alt="(download)"></a>';
+					if(isPlayable) line+= '<a href="'+link.escape()+"?play=1"+'"><img src="/play.png" alt="(play)"></a>';
+					line+= '</td>';
 				}
 				line+= '</tr>';
 				table.append(line);

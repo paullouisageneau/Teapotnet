@@ -551,6 +551,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h1");
 			const String instance = Core::Instance->getName().before('.');
 			page.openLink(profile()->urlPrefix());			
+			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name() + "@" + tracker());
 			if(!instance.empty()) page.text(" (" + instance + ")");
 			page.closeLink();

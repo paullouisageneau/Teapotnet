@@ -1,6 +1,8 @@
 * {
 	margin:0;
 	padding:0;
+	image-rendering: auto;
+	-ms-interpolation-mode: bicubic;
 }
 
 html
@@ -62,6 +64,7 @@ img
 	margin: 0;
 	padding: 0;
 	border: 0;
+	vertical-align: middle;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
 }
@@ -133,7 +136,6 @@ td
 	padding-left: 0.2em;
 	padding-right: 0.2em;
 	border-width:0;
-	vertical-align: middle;
 	text-align: left;
 }
 
@@ -184,7 +186,6 @@ input
 	color: #000000;
 	border: 1px solid #606060;
 	border-radius: 0.5em;
-	vertical-align: middle;
 	font-family: inherit;
 	font-size: inherit;
 }
@@ -199,7 +200,6 @@ input[type="submit"]
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
 	text-align: center;
-        vertical-align: middle;
 }
 
 input[type="submit"]:hover
@@ -217,7 +217,6 @@ input[type="button"]
 	background-color: #FFDC0A;
 	border: 1px solid #E0BC00;
 	text-align: center;
-        vertical-align: middle;
 }
 
 input[type="button"]:hover
@@ -266,7 +265,6 @@ textarea
 	border: 1px solid #A0A0A0;
 	border-radius: 0.5em;
 	text-align: center;
-        vertical-align: middle;
 }
 
 a.button
@@ -294,7 +292,6 @@ a.button:hover
 	background: url(/select_arrow.png) no-repeat right #BBD2E1;
 	border: 1px solid #A0A0A0;
 	border-radius: 0.5em;
-	vertical-align: middle;
 }
 
 .customselect select
@@ -394,7 +391,6 @@ a.button:hover
 {
 	width: 100%;
 	text-align: left;
-	vertical-align: middle;
 	margin-bottom: 1em;
 }
 
@@ -402,7 +398,6 @@ a.button:hover
 {
 	width: 100%;
 	text-align: center;
-	vertical-align: middle;
 	margin-top: 1em;
 	margin-bottom: 2em;
 }
@@ -459,7 +454,6 @@ a.button:hover
 	clear: both;
 	width: 100%;
 	height: 20em;
-	text-align: justify;
 }
 
 #topmenu
@@ -556,7 +550,7 @@ a.button:hover
 
 #attachedfile
 {
-	vertical-align: middle;
+
 }
 
 #attachedfile .filename
@@ -577,7 +571,7 @@ a.button:hover
 
 #newsfeed .message
 {
-	max-width: 95%;
+	max-width: 90%;
 	margin: 0;
 	margin-bottom: 0.5em;
 }
@@ -585,6 +579,12 @@ a.button:hover
 #newsfeed .message .header
 {
 	display: block;
+}
+
+#newsfeed .message .header img.avatar
+{
+	width: 48px;
+	height: auto;
 }
 
 #newsfeed .message .content
@@ -597,6 +597,7 @@ a.button:hover
 {
 	display: block;
 	float: right;
+	margin-right: 6em;
 }
 
 #newsfeed .oldmessage
@@ -633,7 +634,6 @@ a.button:hover
 	margin-right: 0.5em;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
-	vertical-align: middle;
 }
 
 #statuspanel .button img
@@ -694,15 +694,24 @@ a.button:hover
   
 }
 
-.user
+img.avatar
 {
-	font-weight: bold;
+	display: inline-block;
+	width: 32px;
+	height: 32px;
+	margin: 0;
+	padding: 0;
+	margin-right: 0.5em;
+	background-color: #FFFFFF;
+	border: 1px solid #A0A0A0;
+	border-radius: 4px;
 }
 
 .message
 {
 	display: block;
 	clear: both;
+	position: relative;
 	overflow: auto;
 	margin: 0.25em;
 	margin-left: 0.5em;
@@ -714,17 +723,26 @@ a.button:hover
 	word-wrap: break-word;
 }
 
-.message .date
+.message .header
+{
+	margin-right: 0.75em;
+}
+
+.message .header .date
 {
 	font-size: 0.8em;
 	color: grey;
 }
 
-.message .author
+.message .header .author
 {
 	font-weight: bold;
-	padding-left: 0.5em;
 	padding-right: 0.5em;
+}
+
+.message .header img.avatar
+{
+	float: left;
 }
 
 .message .attachment
@@ -732,8 +750,6 @@ a.button:hover
 	float: right;
 	margin-left: 0.5em;
 	margin-right: 0.5em;
-	padding: 0.25em;
-	vertical-align: middle;
 }
 
 .message .attachment .filename
@@ -743,9 +759,10 @@ a.button:hover
 
 .message .button
 {
-	float: right;
-	margin-left: 0.5em;
-	margin-right: 0.5em;
+	position: absolute; 
+	bottom: 0;
+	right: 0;
+	margin: 0.5em;
 }
 
 .oldmessage
@@ -824,7 +841,6 @@ td.delete
 .filestr
 {
 	min-height: 16px;
-	vertical-align: middle;
 	margin-top: 2px;
 	/*border-bottom: 1px solid grey;*/
 }
@@ -855,7 +871,7 @@ td.delete
 
 .files tr td
 {
-	vertical-align: middle;
+
 }
 
 .files td.icon
@@ -879,7 +895,6 @@ td.delete
 	padding-right: 0.25em;
 	font-family: monospace;
 	font-weight: bold;
-	vertical-align: middle;
 	font-variant: small-caps;
 	font-size: 1.3em;
 }
@@ -891,10 +906,16 @@ td.delete
 
 .files td.actions
 {
-	width: 32px;
+	width: 16px;
 	min-height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
+	white-space:nowrap
+}
+
+.files td.actions a
+{
+	margin-right: 16px;
 }
 
 #contacts
@@ -913,7 +934,6 @@ td.delete
 	clear: both;
 	margin: 0;
 	min-height: 16px;
-	vertical-align: middle;
 	width: 100%;
 }
 
@@ -945,7 +965,7 @@ td.delete
 
 .contacts tr td
 {
-	vertical-align: middle;
+
 }
 
 .contacts td.name
@@ -973,7 +993,6 @@ td.delete
 #instances tr
 {
 	min-height: 16px;
-	vertical-align: middle;
 }
 
 #instances tr:hover
@@ -983,7 +1002,7 @@ td.delete
 
 #instances tr td
 {
-	vertical-align: middle;
+
 }
 
 .menu tr
@@ -993,7 +1012,7 @@ td.delete
 
 .menu tr td
 {
-	vertical-align: middle;
+
 }
 
 .menu tr:hover
@@ -1051,14 +1070,12 @@ td.delete
 	font-weight: bold;
 	width: auto;
 	display: inline-block;
-	
         margin: 0.2em;
         margin-bottom: 0.5em;
         padding: 0.4em;
 	border: 1px solid #A0A0A0;
 	border-radius: 0.5em;
 	text-align: center;
-        vertical-align: middle;
 }
 
 #status.button.online
@@ -1182,7 +1199,6 @@ td.delete
 	margin-top: 40px;
 	line-height: 40px;
 	text-align: center;
-	vertical-align: middle;
 }
 
 #personalstatus input
@@ -1193,10 +1209,12 @@ td.delete
 	text-align: center;
 }
 
-#profilephoto
+#profileavatar
 {
 	float: right;
 	border: 2px solid black;
+	width: auto;
+	height: auto;
 	min-width: 128px;
 	min-height: 128px;
 	max-width: 20%;
