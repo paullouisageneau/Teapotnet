@@ -578,7 +578,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("span",".invitationimg");
 			//page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
 			// TODO : add parmeter target in class html ?
-			page.raw("<form name=\"gmailform\" action=\"https://teapotnet.org/rapture/gcontacts.php\" method=\"post\" enctype=\"application/x-www-form-urlencoded\" target=\"_newtab\">");
+			page.raw("<form name=\"gmailform\" action=\""+RAPTUREURL+"gcontacts.php\" method=\"post\" enctype=\"application/x-www-form-urlencoded\" target=\"_newtab\">");
 			page.input("hidden", "tpn_id", tpn_id);
 			page.image("/gmail.png","GMail","gmailimg");
 			page.closeForm();
@@ -633,9 +633,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("sendinvitation"); page.button("sendinvitation","Send invitation");
 			page.close("div");
 
-			// load rapture.js
-			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
-
 			page.open("div","acceptrequest.box");
 			page.open("h2");
 			page.text("Accept request");
@@ -647,6 +644,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
 			//page.closeForm();
+
+			// load rapture.js
+			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
 
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");
