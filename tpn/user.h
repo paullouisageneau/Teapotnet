@@ -67,7 +67,7 @@ public:
 	void sendSecret(const Identifier &identifier);
 	
 	void setSecret(const ByteString &secret, const Time &time);
-	ByteString getSecretKey(const String &action) const;
+	ByteString getSecretKey(const String &action);
 	
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
@@ -77,7 +77,6 @@ public:
 private:
 	String mName;
 	ByteString mAuth;
-	ByteString mSecret;
 	AddressBook *mAddressBook;
 	MessageQueue *mMessageQueue;
 	Store *mStore;
@@ -85,7 +84,8 @@ private:
 	
 	bool mOnline;
 	ByteString mTokenSecret;
-	mutable Map<String, ByteString> mSecretKeysCache;
+	ByteString mSecret;
+	Map<String, ByteString> mSecretKeysCache;
 	
 	class SetOfflineTask : public Task
 	{

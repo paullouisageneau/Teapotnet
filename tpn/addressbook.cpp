@@ -1312,15 +1312,15 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	mAddressBook->user()->profile()->send(peering);
 	
 	// Send secret and contacts if self
-        if(isSelf())
-        {
+	if(isSelf())
+	{
 		mAddressBook->user()->sendSecret(peering);
 		
-                String data;
-        	mAddressBook->save(data);
-                Notification notification(data);
-                notification.setParameter("type", "contacts");
-                notification.send(peering);
+		String data;
+		mAddressBook->save(data);
+		Notification notification(data);
+		notification.setParameter("type", "contacts");
+		notification.send(peering);
 	}
 	
 	if(incoming) 

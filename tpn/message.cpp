@@ -161,13 +161,13 @@ void Message::removeHeader(const String &name)
 	mHeaders.erase(name);
 }
 
-void Message::writeSignature(const User *user)
+void Message::writeSignature(User *user)
 {
 	mAuthor = user->name();
 	mSignature = computeSignature(user);
 }
 
-bool Message::checkSignature(const User *user) const
+bool Message::checkSignature(User *user) const
 {
 	return (mAuthor == user->name() && mSignature == computeSignature(user));
 }
@@ -266,7 +266,7 @@ bool Message::deserialize(Serializer &s)
 	return s.inputObject(mapping);
 }
 
-String Message::computeSignature(const User *user) const
+String Message::computeSignature(User *user) const
 {
 	Assert(user);
 	

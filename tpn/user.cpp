@@ -135,6 +135,9 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.write(mAuth);
 		file.close();
 	}
+		
+	// Token secret
+	mTokenSecret.writeRandom(16);
 	
 	// Secret
 	if(File::Exist(profilePath()+"secret"))
@@ -143,14 +146,6 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.read(mSecret);
 		file.close();
 	}
-	else {
-		ByteString secret;
-		secret.writeRandom(64);
-		setSecret(secret, Time::Now());
-	}
-	
-	// Token secret
-	mTokenSecret.writeRandom(16);
 	
 	mStore = NULL;
 	mAddressBook = NULL;
@@ -303,6 +298,8 @@ void User::sendSecret(const Identifier &identifier)
 {
 	Synchronize(this);
 	
+	if(mSecret.empty()) return;
+	
 	if(identifier == Identifier::Null)
 		throw Exception("Prevented sendSecret() to broadcast");
 	
@@ -317,7 +314,9 @@ void User::setSecret(const ByteString &secret, const Time &time)
 {
 	Synchronize(this);
 	
-	if(!File::Exist(profilePath()+"secret") || time >  File::Time(profilePath()+"secret"))
+	if(secret.empty()) return;
+	
+	if(mSecret.empty() || !File::Exist(profilePath()+"secret") || time >  File::Time(profilePath()+"secret"))
 	{
 		mSecret = secret;
 		
@@ -333,8 +332,17 @@ void User::setSecret(const ByteString &secret, const Time &time)
 	}
 }
 
-ByteString User::getSecretKey(const String &action) const
+ByteString User::getSecretKey(const String &action)
 {
+	// Create secret if it does not exist
+	if(mSecret.empty())
+	{
+		ByteString secret;
+		secret.writeRandom(64);
+		setSecret(secret, Time::Now());
+	}
+	
+	// Cache for subkeys
 	ByteString key;
 	if(!mSecretKeysCache.get(action, key))
 	{

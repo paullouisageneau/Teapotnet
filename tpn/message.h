@@ -66,8 +66,8 @@ public:
 	void removeHeader(const String &name);
 	
 	// Signature
-	void writeSignature(const User *user);
-	bool checkSignature(const User *user) const;
+	void writeSignature(User *user);
+	bool checkSignature(User *user) const;
 
 	// NOT covered by signature
 	void setContact(const String &uname);	
@@ -85,7 +85,7 @@ public:
 	
 private:
 	static String GenerateStamp(void);
-	String computeSignature(const User *user) const;
+	String computeSignature(User *user) const;
 	
 	// Signed
 	StringMap mHeaders;
