@@ -589,8 +589,7 @@ a.button:hover
 
 #newsfeed .message .content
 {
-	display: block;
-	float: left;
+	
 }
 
 #newsfeed .message .attachment
