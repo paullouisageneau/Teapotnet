@@ -66,7 +66,11 @@ if(!String.linkify) {
 		return this
 		    .replace(urlPattern, '<a target="_blank" href="$&">$&</a>')
 		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>')
-		    .replace(emailAddressPattern, '<a href="mailto:$&">$&</a>');
+		    .replace(emailAddressPattern, '<a href="mailto:$&">$&</a>')
+		    
+		    // Support for bold and italic
+		    .replace(/\*([a-zA-Z0-9 \-]*)\*/g,'<b>$1</b>')
+		    .replace(/_([a-zA-Z0-9 \-]*)_/g,'<i>$1</i>');
       };
 }
 
