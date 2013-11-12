@@ -348,7 +348,7 @@ function setMessagesReceiverRec(url, object, next) {
 					
 					if(!message.parent) {
 						$(object).prepend(div);
-						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+');">Reply</a>');
+						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+'); return false;">Reply</a>');
 					}
 					else {			
 						$('#message_'+message.parent).parent().append(div);
