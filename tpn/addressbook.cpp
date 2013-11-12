@@ -1468,6 +1468,8 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				LogDebug("AddressBook::Contact", "Synchronization: Base message '"+base+"' does not exist");
 		}
 		
+		VAR(base);
+		
 		int localTotal = selection.count();
 		bool isLastIteration = false;
 		if(offset + count <= localTotal)

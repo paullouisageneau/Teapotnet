@@ -116,7 +116,20 @@ bool MessageQueue::add(Message &message)
 	
 	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exist ? " (already in queue)" : ""));
 
-	if(exist && (!message.isIncoming() || (message.isRelayed() && !oldMessage.isRelayed()))) return false;
+	if(exist && (message.isRelayed() || !oldMessage.isRelayed())) 
+	{
+		if(message.isIncoming())
+		{
+			// Allow resetting time to prevent synchronization problems
+			Database::Statement statement = mDatabase->prepare("UPDATE messages SET time=?1 WHERE stamp=?2 and contact=?3");
+			statement.bind(1, message.time());
+			statement.bind(2, message.stamp());
+			statement.bind(3, message.contact());
+			statement.execute();
+		}
+		
+		return false;
+	}
 	
 	mDatabase->insert("messages", message);
 	
