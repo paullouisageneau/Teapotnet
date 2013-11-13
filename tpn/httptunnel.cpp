@@ -520,7 +520,14 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		{
 			Desynchronize(this);
 
-			if(!mUpSock->readBinary(command))
+			try {
+				if(!mUpSock->readBinary(command))
+				{
+					if(mClosed) return 0;
+					continue;
+				}
+			}
+			catch(const Timeout &e)
 			{
 				if(mClosed) return 0;
 				continue;
