@@ -34,9 +34,9 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6
 #endif
 
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
-size_t HttpTunnel::MaxPostSize = 10*1024*1024;	// 10 MB
-double HttpTunnel::ConnTimeout = 20.;
-double HttpTunnel::SockTimeout = 10.;
+size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
+double HttpTunnel::ConnTimeout = 30.;
+double HttpTunnel::SockTimeout = 15.;
 double HttpTunnel::FlushTimeout = 0.5;
 double HttpTunnel::ReadTimeout = 300.;
 
@@ -520,14 +520,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		{
 			Desynchronize(this);
 
-			try {
-				if(!mUpSock->readBinary(command))
-				{
-					if(mClosed) return 0;
-					continue;
-				}
-			}
-			catch(const Timeout &e)
+			if(!mUpSock->readBinary(command))
 			{
 				if(mClosed) return 0;
 				continue;
