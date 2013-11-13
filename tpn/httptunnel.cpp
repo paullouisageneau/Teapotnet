@@ -34,9 +34,9 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6
 #endif
 
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
-size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
-double HttpTunnel::ConnTimeout = 30.;
-double HttpTunnel::SockTimeout = 15.;
+size_t HttpTunnel::MaxPostSize = 4*1024*1024;	// 4 MB
+double HttpTunnel::ConnTimeout = 20.;
+double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.5;
 double HttpTunnel::ReadTimeout = 300.;
 
@@ -202,11 +202,11 @@ void HttpTunnel::Client::close(void)
 	Scheduler::Global->remove(&mFlushTask);
 	
 	try {
-		if(mUpSock && mUpSock->isConnected())
+		if(mUpSock && mUpSock->isConnected() && mPostLeft)
 		{	
 			writePaddingUntil(2);
-			mUpSock->writeBinary(TunnelClose);
-			mUpSock->writeBinary(TunnelDisconnect);
+			if(mPostLeft >= 1) mUpSock->writeBinary(TunnelClose);
+			if(mPostLeft >= 2) mUpSock->writeBinary(TunnelDisconnect);
 			mPostLeft = 0;
 		}
 	}
@@ -330,7 +330,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
 	while(size)
 	{
-		if(!mUpSock->isConnected())
+		if(!mUpSock->isConnected() || !mPostLeft)
 		{
 			String url;
 			Assert(!mReverse.empty());
@@ -360,14 +360,14 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
 			mPostLeft = mPostSize;
 			
-			mUpSock->writeBinary(TunnelOpen);
-			mUpSock->writeBinary(uint16_t(0));	// no auth data
+			mUpSock->writeBinary(TunnelOpen);	// 1 byte
+			mUpSock->writeBinary(uint16_t(0));	// 2 bytes, no auth data
 			mPostLeft-= 3;
 		}
 	
-		if(mPostLeft >= 4)
+		if(mPostLeft > 4)
 		{
-			size_t len = std::min(size, mPostLeft-3);
+			size_t len = std::min(size, mPostLeft-4);
 			len = std::min(len, size_t(0xFFFF));
 			mUpSock->writeBinary(TunnelData);	// 1 byte
 			mUpSock->writeBinary(uint16_t(len));	// 2 bytes
@@ -384,7 +384,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			}
 		}
 		
-		if(mPostLeft <= 1)
+		Assert(mPostLeft >= 1);
+		if(mPostLeft == 1)
 		{
 			mUpSock->writeBinary(TunnelDisconnect);
 			mPostLeft = 0;
@@ -404,10 +405,10 @@ void HttpTunnel::Client::flush(void)
 	Synchronize(this);
 
 	try {
-		if(mUpSock && mUpSock->isConnected())
+		if(mUpSock && mUpSock->isConnected() && mPostLeft)
 		{
 			LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
-			
+		
 			updatePostSize(mPostLeft);
 			writePaddingUntil(1);
 			mUpSock->writeBinary(TunnelDisconnect);
@@ -428,8 +429,10 @@ void HttpTunnel::Client::writePaddingUntil(size_t left)
 {
 	Synchronize(this);
 	Assert(mUpSock);
+
+	if(mPostLeft <= left) return;
 	
-	while(mPostLeft >= left + 4)
+	while(mPostLeft > left + 3)
 	{
 		size_t len = std::min(mPostLeft-left-3, size_t(0xFFFF));
 		mUpSock->writeBinary(TunnelPadding);    // 1 byte
@@ -443,6 +446,8 @@ void HttpTunnel::Client::writePaddingUntil(size_t left)
 		mUpSock->writeBinary(TunnelPad);
 		mPostLeft-= 1;
 	}
+
+	Assert(mPostLeft == left);
 }
 
 void HttpTunnel::Client::updatePostSize(size_t left)

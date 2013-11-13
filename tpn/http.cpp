@@ -723,7 +723,7 @@ void Http::Server::Handler::run(void)
 	delete this;	// autodelete
 }
 
-int Http::Get(const String &url, Stream *output, int maxRedirections)
+int Http::Get(const String &url, Stream *output, int maxRedirections, bool noproxy)
 {
 	Request request(url,"GET");
 
@@ -732,7 +732,7 @@ int Http::Get(const String &url, Stream *output, int maxRedirections)
 		throw Exception("Invalid URL");
 
 	Address addr;
-	bool hasProxy = Config::GetProxyForUrl(url, addr);
+	bool hasProxy = !noproxy && Config::GetProxyForUrl(url, addr);
 	if(hasProxy) request.url = url;		// Full URL for proxy
 	else addr.fromString(host);
 	
@@ -766,7 +766,7 @@ int Http::Get(const String &url, Stream *output, int maxRedirections)
 	return response.code;
 }
 
-int Http::Post(const String &url, const StringMap &post, Stream *output, int maxRedirections)
+int Http::Post(const String &url, const StringMap &post, Stream *output, int maxRedirections, bool noproxy)
 {
 	Request request(url,"POST");
 	request.post = post;
@@ -776,7 +776,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, int max
 		throw Exception("Invalid URL");
 	
 	Address addr;
-        bool hasProxy = Config::GetProxyForUrl(url, addr);
+        bool hasProxy = !noproxy && Config::GetProxyForUrl(url, addr);
         if(hasProxy) request.url = url;		// Full URL for proxy
         else addr.fromString(host);
 

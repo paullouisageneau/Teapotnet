@@ -1366,7 +1366,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			
 			if(message.isPublic() && !message.isIncoming()) message.setContact("");
 			else {
-				if(message.isPublic() && !message.contact().empty()) message.setRelayed(true);
+				if(!message.contact().empty()) message.setRelayed(true);
 				message.setContact(uniqueName());
 			}
 		}

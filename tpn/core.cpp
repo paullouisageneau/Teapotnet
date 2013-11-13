@@ -851,7 +851,7 @@ void Core::Handler::process(void)
 		ByteString hmac_b;
 		Sha512::AuthenticationCode(authkey_b, nonce_a, hmac_b);
 		
-		if(mIsIncoming) Thread::Sleep(uniform(0.1, 0.5));
+		if(mIsIncoming) Thread::Sleep(uniform(0.0, 0.5));
 
 		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed");
 		LogInfo("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
@@ -903,7 +903,8 @@ void Core::Handler::process(void)
 		mSender = new Sender;
 		mSender->mStream = mStream;
 		mSender->start();
-		
+		Thread::Sleep(0.1);	
+	
 		// TODO
 		//const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 		//SynchronizeStatement(this, mRawStream->setTimeout(readTimeout));
@@ -928,7 +929,7 @@ void Core::Handler::process(void)
 
 			if(command == "K")	// Keep Alive
 			{
-				unsigned dummy;
+				String dummy;
 				args.read(dummy);
 			}
 			else if(command == "R")	// Response
@@ -1248,15 +1249,15 @@ void Core::Handler::Sender::run(void)
 				&& mRequestsQueue.empty()
 			  	&& mTransferts.empty())
 			{
+				// Keep Alive
+				String args;
+				args << unsigned(cryptrand());
+				StringMap parameters;
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, "K", args, parameters));
+
 				//LogDebug("Core::Handler::Sender", "No pending tasks, waiting");
 				wait(readTimeout/2);
 				if(mShouldStop) break;
-				
-				// Keep Alive
-				String args;
-				args << unsigned(pseudorand());
-				StringMap parameters;
-				DesynchronizeStatement(this, Handler::sendCommand(mStream, "K", args, parameters));
 			}
 			
 			for(int i=0; i<mRequestsToRespond.size(); ++i)
