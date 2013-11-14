@@ -471,6 +471,7 @@ bool Profile::updateField(const String &name, const String &value)
 	if(!mFields.get(name, field)) return false;
 	
 	field->fromString(value);
+	mTime = Time::Now();
 	save();
 		
 	SerializableMap<String, Field*> map;

@@ -746,7 +746,7 @@ img.avatar
 .message .attachment
 {
 	display: block;
-	max-width: 40%;
+	max-width: 66%;
 	float: right;
 	margin: 0.5em;
 }
