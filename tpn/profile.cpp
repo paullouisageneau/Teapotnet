@@ -473,9 +473,10 @@ bool Profile::updateField(const String &name, const String &value)
 	field->fromString(value);
 	mTime = Time::Now();
 	save();
-		
+	
 	SerializableMap<String, Field*> map;
 	map[name] = field;
+	map["time"] = mFields.get("time");
 	
 	String tmp;
 	YamlSerializer serializer(&tmp);
