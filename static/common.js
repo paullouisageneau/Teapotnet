@@ -372,7 +372,7 @@ function setMessagesReceiverRec(url, object, next) {
 	      
 				if('attachment' in message.headers) {
 					
-					$('#'+id).prepend('<span class="attachment">Loading attachment...</span>');
+					$('#'+id+' .header').after('<span class="attachment">Loading attachment...</span>');
 					
 					var url = '/'+message.headers.attachment;
 					
@@ -388,7 +388,7 @@ function setMessagesReceiverRec(url, object, next) {
 							var media = type.substr(0, type.indexOf('/'));
 							
 							if(media == 'image') {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
 							}
 							else {
 								$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'" target="_blank">'+name.escape()+'</a></span>');

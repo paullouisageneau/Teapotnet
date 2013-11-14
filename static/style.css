@@ -596,7 +596,6 @@ a.button:hover
 {
 	display: block;
 	float: right;
-	margin-right: 6em;
 }
 
 #newsfeed .oldmessage
@@ -746,9 +745,10 @@ img.avatar
 
 .message .attachment
 {
+	display: block;
+	max-width: 40%;
 	float: right;
-	margin-left: 0.5em;
-	margin-right: 0.5em;
+	margin: 0.5em;
 }
 
 .message .attachment .filename
@@ -758,10 +758,8 @@ img.avatar
 
 .message .button
 {
-	position: absolute; 
-	bottom: 0;
-	right: 0;
-	margin: 0.5em;
+	float: right;
+	clear: right;
 }
 
 .oldmessage
@@ -799,11 +797,16 @@ td.delete
 	width: 16px; 
 }
 
-.preview
+img.preview
 {
-	max-height: 200px;
 	max-width: 400px;
+	max-height: 200px;
 	border: 1px solid black;
+}
+
+a.preview
+{
+	display: block;
 }
 
 .box

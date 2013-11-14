@@ -28,7 +28,7 @@ namespace tpn
 {
 
 #ifdef ANDROID
-String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:23.0) Gecko/23.0 Firefox/23.0";	// mobile is important
+String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:24.0) Gecko/24.0 Firefox/24.0";	// mobile is important
 #else
 String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
 #endif
