@@ -129,9 +129,9 @@ public:
 		void run(void);
 		
 		MessageQueue::Selection selectMessages(bool privateOnly = false) const;
-		void sendMessages(const MessageQueue::Selection &selection, int offset, int count) const;
-		void sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
-		void sendUnread(void) const;
+		void sendMessages(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count) const;
+		void sendMessagesChecksum(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
+		void sendUnread(const Identifier &peering) const;
 		
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;

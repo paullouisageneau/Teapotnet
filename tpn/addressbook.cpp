@@ -1334,7 +1334,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 				Assert(selection.setBaseStamp(base.stamp()));
 		}
 		
-		sendMessagesChecksum(selection, 0, selection.count(), true);
+		sendMessagesChecksum(peering, selection, 0, selection.count(), true);
 	}
 }
 
@@ -1481,17 +1481,17 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			
 				if(count == 1)	// TODO
 				{
-					sendMessages(selection, offset, count);
+					sendMessages(peering, selection, offset, count);
 					if(recursion)
 					{
-						sendMessagesChecksum(selection, offset, count, false);
+						sendMessagesChecksum(peering, selection, offset, count, false);
 						isLastIteration = true;
 					}
 				}
 				else if(recursion)
 				{
-					sendMessagesChecksum(selection, offset, count/2, true);
-					sendMessagesChecksum(selection, offset + count/2, count - count/2, true);
+					sendMessagesChecksum(peering, selection, offset, count/2, true);
+					sendMessagesChecksum(peering, selection, offset + count/2, count - count/2, true);
 				}
 			
 				if(!recursion) 
@@ -1506,7 +1506,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			if(offset == 0)
 			{
 				LogDebug("AddressBook::Contact", "Synchronization: Remote has more messages");
-				sendMessagesChecksum(selection, 0, localTotal, true);
+				sendMessagesChecksum(peering, selection, 0, localTotal, true);
 			}
 		}
 
@@ -1514,9 +1514,9 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		{
 			// If messages are missing remotely
 			if(total < localTotal)
-				sendMessages(selection, total, localTotal - total);
+				sendMessages(peering, selection, total, localTotal - total);
 			
-			sendUnread();
+			sendUnread(peering);
 		}
 	}
 	else if(type == "checkself")
@@ -1628,7 +1628,7 @@ MessageQueue::Selection AddressBook::Contact::selectMessages(bool privateOnly) c
 	else return messageQueue->selectPrivate(uname);
 }
 
-void AddressBook::Contact::sendMessages(const MessageQueue::Selection &selection, int offset, int count) const
+void AddressBook::Contact::sendMessages(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count) const
 {
 	if(!count) return;
 
@@ -1638,10 +1638,10 @@ void AddressBook::Contact::sendMessages(const MessageQueue::Selection &selection
 	selection.getRange(offset, count, messages);
 	
 	for(int i=0; i<messages.size(); ++i)
-		messages[i].send(peering());
+		messages[i].send(peering);
 }
 
-void AddressBook::Contact::sendMessagesChecksum(const MessageQueue::Selection &selection, int offset, int count, bool recursion) const
+void AddressBook::Contact::sendMessagesChecksum(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count, bool recursion) const
 {
 	int total = selection.count();
 	offset = bounds(offset, 0, total);
@@ -1664,10 +1664,10 @@ void AddressBook::Contact::sendMessagesChecksum(const MessageQueue::Selection &s
 		
 	Notification notification(result.toString());
 	notification.setParameters(parameters);
-	notification.send(peering());
+	notification.send(peering);
 }
 
-void AddressBook::Contact::sendUnread(void) const
+void AddressBook::Contact::sendUnread(const Identifier &peering) const
 {
 	bool privateOnly = !isSelf();
 	MessageQueue::Selection selection = selectMessages(privateOnly);
@@ -1681,7 +1681,7 @@ void AddressBook::Contact::sendUnread(void) const
 
 	Notification notification(tmp);
 	notification.setParameter("type", "unread");
-	notification.send(peering());
+	notification.send(peering);
 }
 
 bool AddressBook::Contact::request(const Identifier &peering, Request *request)
