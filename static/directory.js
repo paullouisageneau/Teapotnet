@@ -68,24 +68,19 @@ function listDirectory(url, object, showButtons) {
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
-					line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>'; 
-					line+= '<td class="actions"><a href="'+link.escape()+"?download=1"+'"><img src="/down.png" alt="(download)"></a>';
-					if(isPlayable) line+= '<a href="'+link.escape()+"?play=1"+'"><img src="/play.png" alt="(play)"></a>';
+					line+= '<td class="filename"><span class="type">'+extension+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>'; 
+					line+= '<td class="actions"><a href="'+link.escape()+'?download=1"><img src="/down.png" alt="(download)"></a>';
+					if(isPlayable) line+= '<a href="'+link.escape()+'?play=1"><img src="/play.png" alt="(play)"></a>';
 					line+= '</td>';
 				}
 				line+= '</tr>';
 				table.append(line);
-
 			}
 	
 			table.find('tr').css('cursor', 'pointer').click(function() {
 				window.location.href = $(this).find('a').attr('href');
 			});
-
-			/*if(isPlayableDirectory == 1) 
-			{
-				$(object).prepend('<a href="'+location+'?playlist" class="button"> Play this directory </a>');
-			}*/
+			
 		}
 		else {
 			$(object).html('<div class="files">No files</div>');
