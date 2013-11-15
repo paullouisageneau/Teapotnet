@@ -584,6 +584,7 @@ a.button:hover
 {
 	width: 48px;
 	height: auto;
+	min-height: 48px;
 }
 
 #newsfeed .message .content
