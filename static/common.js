@@ -347,13 +347,13 @@ function setMessagesReceiverRec(url, object, next) {
 					author = message.author.escape();
 				}
 	      
-				var div = '<div class="messagewrapper"><div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
 					
 					if(!message.parent) {
-						$(object).prepend(div);
+						$(object).prepend('<div class="conversation">'+div+'</div>');
 						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+'); return false;">Reply</a>');
 					}
 					else {
