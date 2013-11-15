@@ -568,6 +568,11 @@ a.button:hover
 	margin-top: 1em;
 }
 
+#newsfeed .conversation
+{
+	clear: both;
+}
+
 #newsfeed .message
 {
 	max-width: 90%;
