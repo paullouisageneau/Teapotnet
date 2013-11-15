@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -24,7 +24,7 @@
 
 #define DEBUG
 #define APPNAME		"TeapotNet"
-#define APPVERSION	"0.6.6"
+#define APPVERSION	"0.6.7"
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://teapotnet.org/"
 #define SOURCELINK	"http://teapotnet.org/source"
