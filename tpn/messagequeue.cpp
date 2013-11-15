@@ -756,7 +756,7 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(!mContact.empty()) condition = "((NULLIF(message.contact,'') IS NULL OR message.contact=@contact) OR (NULLIF(message.parent,'') IS NOT NULL AND (NULLIF(parent.contact,'') IS NULL OR parent.contact=@contact)))";
+        if(!mContact.empty()) condition = "((NULLIF(message.contact,'') IS NULL OR message.contact=@contact) OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (NULLIF(parent.contact,'') IS NULL OR parent.contact=@contact)))";
         else condition = "1=1"; // TODO
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";

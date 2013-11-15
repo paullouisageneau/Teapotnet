@@ -240,6 +240,8 @@ void Message::serialize(Serializer &s) const
 
 bool Message::deserialize(Serializer &s)
 {
+	mStamp.clear();
+	
 	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
@@ -263,7 +265,9 @@ bool Message::deserialize(Serializer &s)
 	
 	mapping["number"] = &numberWrapper;
 	
-	return s.inputObject(mapping);
+	bool success = s.inputObject(mapping);
+	if(mStamp.empty()) throw InvalidData("Message without stamp");
+	return success;
 }
 
 String Message::computeSignature(User *user) const
