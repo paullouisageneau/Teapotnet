@@ -325,9 +325,12 @@ function setMessagesReceiverRec(url, object, next) {
 		if(data != null) {
 			for(var i=0; i<data.length; i++) {
 				var message = data[i];
-				var id = "message_" + message.stamp;
 				if(message.number >= next) next = message.number + 1;
-
+				if(message.parent && $('#message_'+message.parent).length == 0) continue;
+				
+				var id = "message_" + message.stamp;
+				$('#'+id).remove();
+				
 				var isLocalRead = (!message.incoming || message.isread);
 				var isRemoteRead = (message.incoming || message.isread);
 				
@@ -353,7 +356,7 @@ function setMessagesReceiverRec(url, object, next) {
 						$(object).prepend(div);
 						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+'); return false;">Reply</a>');
 					}
-					else {			
+					else {
 						$('#message_'+message.parent).parent().append(div);
 						$('#'+id).addClass('childmessage');
 					}
