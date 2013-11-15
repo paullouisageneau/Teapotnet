@@ -37,7 +37,7 @@ size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
 size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
 double HttpTunnel::ConnTimeout = 20.;
 double HttpTunnel::SockTimeout = 10.;
-double HttpTunnel::FlushTimeout = 0.2;
+double HttpTunnel::FlushTimeout = 0.5;
 double HttpTunnel::ReadTimeout = 300.;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;

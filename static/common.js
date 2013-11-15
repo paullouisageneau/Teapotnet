@@ -69,8 +69,8 @@ if(!String.linkify) {
 		    .replace(emailAddressPattern, '<a href="mailto:$&">$&</a>')
 		    
 		    // Support for bold and italic
-		    .replace(/\*([a-zA-Z0-9 \-]*)\*/g,'<b>$1</b>')
-		    .replace(/_([a-zA-Z0-9 \-]*)_/g,'<i>$1</i>');
+		    .replace(/(?:^| )\*([a-zA-Z0-9 \-]*)\*(?: |$)/g,' <b>$1</b> ')
+		    .replace(/(?:^| )_([a-zA-Z0-9 \-]*)_(?: |$)/g,' <i>$1</i> ');
       };
 }
 
