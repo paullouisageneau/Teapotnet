@@ -290,9 +290,12 @@ function displayContacts(url, period, object) {
 				totalmessages+= count;
 				if(info.newmessages) play = true;
 			});
-			if(totalmessages != 0) document.title = title+' ('+totalmessages+')';
+			
+			if(totalmessages != 0) {
+				document.title = title+' ('+totalmessages+')';
+				if(play) playMessageSound();
+			}
 			else document.title = title;
-			if(play) playMessageSound();
 		}
 	});
 
