@@ -336,7 +336,8 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 	page.open("div","topmenu");	
 	if(isPopup) page.span(title, ".button");
 	page.span(status.capitalized(), "status.button");
-	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"');\">Send file</a>");
+	page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"'); return false;\">Send file</a>");
+
 // TODO: should be hidden in CSS
 #ifndef ANDROID
 	if(!isPopup)

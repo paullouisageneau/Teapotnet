@@ -327,7 +327,7 @@ void Html::file(const String &name, String text)
 	String id = String("input_file_") + name;
 	*mStream<<"<input type=\"file\" id=\""<<id<<"\" class=\""<<name<<"\" name=\""<<name<<"\" size=\"30\">\n";
 	javascript("$('#"+id+"').css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px');\n\
-		$('#"+id+"').after('<a class=\"button\" href=\"javascript:void(0)\" onclick=\"$(\\'#"+id+"\\').click()\">"+escape(text)+"</a>');");
+		$('#"+id+"').after('<a class=\"button\" href=\"javascript:void(0)\" onclick=\"$(\\'#"+id+"\\').click(); return false;\">"+escape(text)+"</a>');");
 }
 
 void Html::listFilesFromRequest(Request &trequest, const String &prefix, Http::Request &request, const User *user, bool playlistMode)
