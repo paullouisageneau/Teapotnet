@@ -56,7 +56,7 @@ MessageQueue::MessageQueue(User *user) :
 	content TEXT,\
 	author TEXT,\
 	signature TEXT,\
-	contact TEXT,\
+	contact TEXT NOT NULL,\
 	time INTEGER(8) NOT NULL,\
 	public INTEGER(1) NOT NULL,\
 	incoming INTEGER(1) NOT NULL,\
@@ -221,7 +221,11 @@ void MessageQueue::erase(const String &uname)
 {
 	Synchronize(this);
 
-        Database::Statement statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
+	Database::Statement statement = mDatabase->prepare("UPDATE messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') SET message.contact=parent.contact, message.relayed=1 WHERE message.contact=?1 AND parent.contact IS NOT NULL");
+	statement.bind(1, uname);
+	statement.execute();
+
+        statement = mDatabase->prepare("DELETE FROM messages AS message WHERE message.contact=?1");
         statement.bind(1, uname);
         statement.execute();
 }
@@ -757,7 +761,7 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(!mContact.empty()) condition = "((NULLIF(message.contact,'') IS NULL OR message.contact=@contact) OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (NULLIF(parent.contact,'') IS NULL OR parent.contact=@contact)))";
+        if(!mContact.empty()) condition = "((message.contact='' OR message.contact=@contact) OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
         else condition = "1=1"; // TODO
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
