@@ -378,7 +378,8 @@ function setMessagesReceiverRec(url, object, next) {
 	      
 				if('attachment' in message.headers) {
 					
-					$('#'+id+' .header').after('<span class="attachment">Loading attachment...</span>');
+					$('#'+id+' .header').after('<span class="attachment"></span>');
+					$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Loading attachment...');
 					
 					var url = '/'+message.headers.attachment;
 					
@@ -397,7 +398,7 @@ function setMessagesReceiverRec(url, object, next) {
 								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
 							}
 							else {
-								$('#'+id+' .attachment').html('<img class="icon" src="/file.png"><span class="filename"><a href="'+url+'" target="_blank">'+name.escape()+'</a></span>');
+								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
 							}
 							
 							setTimeout(function() { 
@@ -405,7 +406,7 @@ function setMessagesReceiverRec(url, object, next) {
 							}, 10);
 						})
 						.fail(function(jqXHR, textStatus) {
-							$('#'+id+' .attachment').html('Attachment not available');
+							$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Attachment not available');
 						});
 					
 					})(id, url);
