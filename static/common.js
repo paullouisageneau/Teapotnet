@@ -88,7 +88,8 @@ if(!String.contains) {
 
 function formatTime(timestamp) {
 	var date = new Date(timestamp*1000);
-	return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+	//return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+	return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
 }
 
 function getBasePath(nbFolders) {

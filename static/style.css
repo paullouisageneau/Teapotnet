@@ -470,7 +470,7 @@ a.button:hover
 	margin-bottom: 1em;
 	font-size: 0.8em;
 	text-align: center;
-	padding-top: 2em;
+	padding-top: 1em;
 	background-color: rgba(24,24,24,0);
 }
 
@@ -610,16 +610,16 @@ a.button:hover
 
 #newsfeed .childmessage
 {
-	width: 66%;
-	margin-left: 34%;
+	width: 70%;
+	margin-left: 30%;
 	margin-bottom: 0.5em;
 }
 
 #newsfeed .reply
 {
 	display: none;
-	width: 66%;
-	margin-left: 34%;
+	width: 70%;
+	margin-left: 30%;
 	margin-bottom: 0.5em;
 	padding: 0;
 }
@@ -773,9 +773,10 @@ img.avatar
 .message .attachment
 {
 	display: block;
-	max-width: 50%;
 	float: right;
+	max-width: 50%;
 	margin: 0.5em;
+	white-space: nowrap;
 }
 
 .message .attachment .icon
@@ -787,7 +788,7 @@ img.avatar
 {
 	float: right;
 	clear: right;
-	margin: 0;
+	margin: 0.5em 0em 0em 0.5em;
 }
 
 .oldmessage
@@ -1330,6 +1331,7 @@ form #trackerlink
 	{
 		margin-left: 0.5em;
 		margin-right: 0.5em;
+		text-align: center;
 	}
 
 	#wrapper 
@@ -1411,6 +1413,12 @@ form #trackerlink
 	#statuspanel .button
 	{
 		margin-left: 0.5em;
+	}
+	
+	#newsfeed .message .attachment
+	{
+		display: block;
+		float: none;
 	}
 }
 
