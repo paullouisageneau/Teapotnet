@@ -225,12 +225,20 @@ void Splicer::start(bool autoDelete)
 	mCacheEntry->markBlockDownloading(mCurrentBlock, true);
 
 	// Initialize variables
-        int nbStripes = std::max(1, int(mSources.size()));      // TODO
+	int nbSources = std::max(int(mSources.size()), 1);
+        int nbStripes = bounds(nbSources, 1, 8);
+	nbStripes = std::min(nbStripes, int(mCacheEntry->size()/(mCacheEntry->blockSize()*8)));
         mRequests.fill(NULL, nbStripes);
         mStripes.fill(NULL, nbStripes);
 
+	VAR(nbSources);
+	VAR(nbStripes);
+	
 	// Query sources
 	Set<Identifier>::iterator it = mSources.begin();
+	int r = pseudorand()%nbSources;
+	while(r--) ++it;
+	
 	int i = 0;
 	while(i<nbStripes)
 	{
