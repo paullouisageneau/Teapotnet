@@ -455,6 +455,7 @@ int main(int argc, char** argv)
 		Interface::Instance->start();
 		
 		// Starting core
+		bool portChanged = false;
 		int attempts = 20;
 		while(true)
 		{
@@ -468,6 +469,7 @@ int main(int argc, char** argv)
 				int newPort = 1024 + pseudorand() % (49151 - 1024);
 				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
 				port = newPort;
+				portChanged = true;
 				continue;
 			}
 			
@@ -476,7 +478,7 @@ int main(int argc, char** argv)
 		
 		Core::Instance->start();
 		
-		if(args.contains("port") || args.contains("ifport"))
+		if(portChanged || args.contains("port") || args.contains("ifport"))
 		{
 			Config::Put("port", String::number(port));
 			Config::Put("interface_port", String::number(ifport));
