@@ -603,7 +603,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 		statement.input(lastId);
 	statement.finalize();
 	
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@lastid ORDER BY message.time,message.id");
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@lastid OR parent.id>=@lastid ORDER BY message.time,message.id");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("lastid"), lastId);
         statement.fetch(result);
