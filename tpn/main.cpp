@@ -319,7 +319,7 @@ int main(int argc, char** argv)
 #ifdef WINDOWS
 		if(!InterfacePort) try {
 			int port = Config::Get("interface_port").toInt();
-			Socket sock(Address("127.0.0.1", port), 1.);
+			Socket sock(Address("127.0.0.1", port), 0.1);
 			InterfacePort = port;
 		}
 		catch(...) {}
