@@ -778,9 +778,9 @@ img.avatar
 	margin: 0.5em;
 }
 
-.message .attachment .filename
+.message .attachment .icon
 {
-	margin-left: 0.5em;
+	margin-right: 0.5em;
 }
 
 .message .button
