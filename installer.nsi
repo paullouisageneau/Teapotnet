@@ -120,6 +120,12 @@ section "uninstall"
 	Delete $INSTDIR\winupdater.exe 
 	RmDir /R $INSTDIR\static
 
+	# Remove dynamic files
+	RmDir /R $INSTDIR\temp
+	RmDir /R $INSTDIR\cache
+	RmDir /R $INSTDIR\shared
+	RmDir /R $INSTDIR\profiles
+	
 	# Always delete uninstaller as the last action
 	Delete $INSTDIR\uninstall.exe
  
