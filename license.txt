@@ -1,5 +1,5 @@
-Copyright (C) 2011-2013 by Paul-Louis Ageneau
-paul-louis (at) ageneau (dot) org
+Copyright (C) 2011-2013 by Paul-Louis Ageneau and Antoine Roussel
+contact (at) teapotnet (dot) org
 
 TeapotNet is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
