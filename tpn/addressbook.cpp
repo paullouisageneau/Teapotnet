@@ -610,6 +610,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(!contacts.empty())
 			{
 				page.open("div",".box");
+				page.open("h2");
+				page.text("Contacts");
+				page.close("h2");
+				
 				page.open("table",".contacts");
 				
 				for(int i=0; i<contacts.size(); ++i)
