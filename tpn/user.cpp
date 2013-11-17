@@ -585,7 +585,6 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.br();
 			page.closeForm();
 			page.div("","attachedfile");
-			page.javascript("$(document).ready(function() { formTextBlur();});");
 			page.close("div");
 
 			page.div("", "fileSelector");
@@ -673,16 +672,21 @@ void User::http(const String &prefix, Http::Request &request)
 					postStatus();\n\
 					return false;\n\
 				}\n\
-				function formTextBlur() {\n\
-					document.statusform.statusinput.style.color = 'grey';\n\
+				$(document).ready(function() {\n\
 					document.statusform.statusinput.value = 'Click here to post a public message for all your contacts';\n\
-				}\n\
+					document.statusform.statusinput.style.color = 'grey';\n\
+				});\n\
 				document.statusform.statusinput.onblur = function() {\n\
-					formTextBlur();\n\
+					if(document.statusform.statusinput.value == '') {\n\
+						document.statusform.statusinput.value = 'Click here to post a public message for all your contacts';\n\
+						document.statusform.statusinput.style.color = 'grey';\n\
+					}\n\
 				}\n\
 				document.statusform.statusinput.onfocus = function() {\n\
-					document.statusform.statusinput.value = '';\n\
-					document.statusform.statusinput.style.color = 'black';\n\
+					if(document.statusform.statusinput.style.color == 'grey') {\n\
+						document.statusform.statusinput.value = '';\n\
+						document.statusform.statusinput.style.color = 'black';\n\
+					}\n\
 				}\n\
 				document.searchForm.query.onfocus = function() {\n\
 					document.searchForm.query.value = '';\n\
