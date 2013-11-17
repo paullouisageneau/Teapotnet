@@ -54,7 +54,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	
 	// Basic Info
 	mFields["realname"]	= new TypedField<String>("realname", &mRealName, "Name", "What's your name ?");
-	mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
+	//mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
 	mFields["gender"]    	= new TypedField<String>("gender", &mGender, "Gender", "What's your gender ?");	
 	mFields["relationship"]	= new TypedField<String>("relationship", &mRelationship, "Relationship", "What's your relationship status ?");
 
