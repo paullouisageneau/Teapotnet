@@ -463,7 +463,7 @@ int main(int argc, char** argv)
 			}
 			catch(const NetException &e)
 			{
-				if(--attempts == 0) throw NetException("Unable to start the core");
+				if(--attempts == 0) throw NetException("Unable to start the networking core");
 				
 				int newPort = 1024 + pseudorand() % (49151 - 1024);
 				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
