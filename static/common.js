@@ -213,15 +213,15 @@ function setMessagesReceiver(url, object) {
 var BaseDocumentTitle = document.title;
 var NbNewMessages = 0;
 
-$(window).focus(function() {
+function clearNewMessages() {
 	document.title = BaseDocumentTitle;
 	NbNewMessages = 0;
-});
+}
 
-$(window).blur(function() {
-	document.title = BaseDocumentTitle;
-	NbNewMessages = 0;
-});
+$(window).focus(clearNewMessages);
+$(window).blur(clearNewMessages);
+$(window).keydown(clearNewMessages);
+$(window).mousedown(clearNewMessages);
 
 var stopBool = false;
 
