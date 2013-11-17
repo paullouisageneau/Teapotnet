@@ -493,7 +493,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden","name",userName());
 			page.input("hidden","self","true");
 			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
-			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization.");
+			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization. The longer the secret, the more secure it is.");
 			page.br();
 			page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
@@ -624,13 +624,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					page.open("tr");
 					page.open("td",".name");
-					page.link(contact->urlPrefix(), contact->name());
+					page.text(contact->name());
 					page.close("td");
 					page.open("td",".tracker");
 					page.text(String("@") + contact->tracker());
 					page.close("td");
 					page.open("td",".uname");
-					page.text(contact->uniqueName());
+					page.link(contact->urlPrefix(), contact->uniqueName());
 					page.close("td");
 					page.open("td",".checksum");
 					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
