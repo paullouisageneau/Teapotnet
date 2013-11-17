@@ -455,7 +455,25 @@ int main(int argc, char** argv)
 		Interface::Instance->start();
 		
 		// Starting core
-		Core::Instance = new Core(port);
+		int attempts = 20;
+		while(true)
+		{
+			try {
+				Core::Instance = new Core(port);
+			}
+			catch(const NetException &e)
+			{
+				if(--attempts == 0) throw NetException("Unable to start the core");
+				
+				int newPort = 1024 + pseudorand() % (49151 - 1024);
+				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
+				port = newPort;
+				continue;
+			}
+			
+			break;
+		}
+		
 		Core::Instance->start();
 		
 		if(args.contains("port") || args.contains("ifport"))
@@ -477,70 +495,79 @@ int main(int argc, char** argv)
 		}
 		else LogInfo("main", "NAT port mapping is disabled");
 		
-		if(!Directory::Exist(Config::Get("profiles_dir")))
-			Directory::Create(Config::Get("profiles_dir"));
-		
-		Directory profilesDir(Config::Get("profiles_dir"));
-		while(profilesDir.nextFile())
-		{
-			if(profilesDir.fileIsDir())
+		try {
+			if(!Directory::Exist(Config::Get("profiles_dir")))
+				Directory::Create(Config::Get("profiles_dir"));
+			
+			Directory profilesDir(Config::Get("profiles_dir"));
+			while(profilesDir.nextFile())
 			{
-				String name = profilesDir.fileName();
-				User *user;
-				
-				LogInfo("main", String("Loading user ") + name + "...");
-				
-				try {
-					user = new User(name);	
-				}
-				catch(const std::exception &e)
+				if(profilesDir.fileIsDir())
 				{
-					LogError("main", "Unable to load user \"" + name + "\": " + e.what());
-					continue;
+					String name = profilesDir.fileName();
+					User *user;
+					
+					LogInfo("main", String("Loading user ") + name + "...");
+					
+					try {
+						user = new User(name);	
+					}
+					catch(const std::exception &e)
+					{
+						LogError("main", "Unable to load user \"" + name + "\": " + e.what());
+						continue;
+					}
+					
+					Thread::Sleep(0.1);
 				}
-				
-				Thread::Sleep(0.1);
 			}
-		}
-		
-		String usersFileName = "users.txt";
-		File usersFile;
-		
-		if(File::Exist(usersFileName))
-		{
-			usersFile.open(usersFileName, File::Read);
-			String line;
-			while(usersFile.readLine(line))
+			
+			String usersFileName = "users.txt";
+			File usersFile;
+			
+			if(File::Exist(usersFileName))
 			{
-				String &name = line;
-				name.trim();
-				String password = name.cut(' ');
-				password.trim();
-				if(name.empty()) continue;
-				LogInfo("main", String("Creating user ") + name + "...");
-				User *user = new User(name, password);
-				Thread::Sleep(0.1);
-				line.clear();
+				usersFile.open(usersFileName, File::Read);
+				String line;
+				while(usersFile.readLine(line))
+				{
+					String &name = line;
+					name.trim();
+					String password = name.cut(' ');
+					password.trim();
+					if(name.empty()) continue;
+					LogInfo("main", String("Creating user ") + name + "...");
+					User *user = new User(name, password);
+					Thread::Sleep(0.1);
+					line.clear();
+				}
+				usersFile.close();
 			}
+			usersFile.open(usersFileName, File::Truncate);
 			usersFile.close();
-		}
-		usersFile.open(usersFileName, File::Truncate);
-		usersFile.close();
 
 #ifdef WINDOWS
-		InterfacePort = ifport;
-		if(!args.contains("boot") && !args.contains("nointerface"))
-			openUserInterface();
-		
-		if(!args.contains("verbose") && !args.contains("trace") && !args.contains("nohide"))
-		{
-			HWND hWnd = GetConsoleWindow();
-			ShowWindow(hWnd, SW_HIDE);
-		}
+			InterfacePort = ifport;
+			if(!args.contains("boot") && !args.contains("nointerface"))
+				openUserInterface();
+			
+			if(!args.contains("verbose") && !args.contains("trace") && !args.contains("nohide"))
+			{
+				HWND hWnd = GetConsoleWindow();
+				ShowWindow(hWnd, SW_HIDE);
+			}
 #endif
+			
+			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
+			Core::Instance->join();
+		}
+		catch(...)
+		{
+			PortMapping::Instance->disable();
+			throw;
+		}
 		
-		LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
-		Core::Instance->join();
+		PortMapping::Instance->disable();
 		LogInfo("main", "Finished");
 	}
 	catch(const std::exception &e)
@@ -553,9 +580,6 @@ int main(int argc, char** argv)
 #endif
 		return 1;	  
 	}
-
-	if(PortMapping::Instance && PortMapping::Instance->isEnabled())
-		PortMapping::Instance->disable();
 	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_detach_np();
