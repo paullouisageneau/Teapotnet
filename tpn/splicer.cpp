@@ -227,12 +227,8 @@ void Splicer::start(bool autoDelete)
 	// Initialize variables
 	int nbSources = std::max(int(mSources.size()), 1);
         int nbStripes = bounds(nbSources, 1, 8);
-	nbStripes = std::min(nbStripes, int(mCacheEntry->size()/(mCacheEntry->blockSize()*8)));
         mRequests.fill(NULL, nbStripes);
         mStripes.fill(NULL, nbStripes);
-
-	VAR(nbSources);
-	VAR(nbStripes);
 	
 	// Query sources
 	Set<Identifier>::iterator it = mSources.begin();
