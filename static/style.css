@@ -1269,6 +1269,7 @@ form #trackerlink
 .invitationimg img
 {
 	cursor: pointer;
+	margin: 2px;
 }
 
 .howtorequests
@@ -1278,12 +1279,12 @@ form #trackerlink
 
 .isvalid
 {
-	background-color: green !important;
+	background-color: #80FF80 !important;
 }
 
 .isinvalid
 {
-	background-color: red !important;
+	background-color: #FF8080 !important;
 }
 
 #howtotext

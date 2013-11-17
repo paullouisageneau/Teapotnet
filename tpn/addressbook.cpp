@@ -485,65 +485,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.header("Contacts");
 			
 			String token = user()->generateToken("contact");
+
+			// Personnal secret
+			page.openForm(prefix+"/","post");
+			page.openFieldset("Personal secret");
+			page.input("hidden", "token", token);
+			page.input("hidden","name",userName());
+			page.input("hidden","self","true");
+			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
+			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization.");
+			page.br();
+			page.br();
+			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
+			page.label("add"); page.button("add","Set secret");
+			page.closeFieldset();
+			page.closeForm();
 			
-			Array<Contact*> contacts;
-			getContacts(contacts);
-			if(!contacts.empty())
-			{
-				page.open("div",".box");
-				page.open("table",".contacts");
-				
-				for(int i=0; i<contacts.size(); ++i)
-				{
-					Contact *contact = contacts[i];
-					if(contact->isDeleted()) continue;
-					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
-					
-					page.open("tr");
-					page.open("td",".name");
-					page.link(contact->urlPrefix(), contact->name());
-					page.close("td");
-					page.open("td",".tracker");
-					page.text(String("@") + contact->tracker());
-					page.close("td");
-					page.open("td",".uname");
-					page.text(contact->uniqueName());
-					page.close("td");
-					page.open("td",".checksum");
-					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
-					page.close("td");
-					page.open("td",".delete");
-					page.image("/delete.png", "Delete");
-					page.closeLink();
-					page.close("td");
-					page.close("tr");
-				}
-				
-				page.close("table");
-				page.close("div");
-				
-				page.openForm(prefix+"/", "post", "executeForm");
-				page.input("hidden", "command");
-				page.input("hidden", "argument");
-				page.input("hidden", "token", token);
-				page.closeForm();
-				
-				page.javascript("function deleteContact(uname) {\n\
-					if(confirm('Do you really want to delete '+uname+' ? The corresponding messages will be deleted too.')) {\n\
-						document.executeForm.command.value = 'delete';\n\
-						document.executeForm.argument.value = uname;\n\
-						document.executeForm.submit();\n\
-					}\n\
-				}");
-				
-				page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
-					event.stopPropagation();\n\
-					var uname = $(this).closest('tr').find('td.uname').text();\n\
-					deleteContact(uname);\n\
-				});");
-			}
-
-
 			// Parameters that are to be sent in friend request
 			const String centralizedFriendSystemUrl = RAPTUREURL;
 			int lengthUrl = centralizedFriendSystemUrl.length();
@@ -615,7 +572,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 			//page.openFieldset("New contact");
 			page.input("hidden", "token", token);
-			page.label("name","TeapotNet Id"); page.input("text","name"); page.br();
+			page.label("name","TeapotNet ID"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); //page.button("add","Add contact");
 			page.raw("<input type=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
@@ -648,19 +605,62 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			// load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
 
-			page.openForm(prefix+"/","post");
-			page.openFieldset("Personal secret");
-			page.input("hidden", "token", token);
-			page.input("hidden","name",userName());
-			page.input("hidden","self","true");
-			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
-			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization.");
-			page.br();
-			page.br();
-			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
-			page.label("add"); page.button("add","Set secret");
-			page.closeFieldset();
-			page.closeForm();
+			Array<Contact*> contacts;
+			getContacts(contacts);
+			if(!contacts.empty())
+			{
+				page.open("div",".box");
+				page.open("table",".contacts");
+				
+				for(int i=0; i<contacts.size(); ++i)
+				{
+					Contact *contact = contacts[i];
+					if(contact->isDeleted()) continue;
+					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
+					
+					page.open("tr");
+					page.open("td",".name");
+					page.link(contact->urlPrefix(), contact->name());
+					page.close("td");
+					page.open("td",".tracker");
+					page.text(String("@") + contact->tracker());
+					page.close("td");
+					page.open("td",".uname");
+					page.text(contact->uniqueName());
+					page.close("td");
+					page.open("td",".checksum");
+					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
+					page.close("td");
+					page.open("td",".delete");
+					page.image("/delete.png", "Delete");
+					page.closeLink();
+					page.close("td");
+					page.close("tr");
+				}
+				
+				page.close("table");
+				page.close("div");
+				
+				page.openForm(prefix+"/", "post", "executeForm");
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.input("hidden", "token", token);
+				page.closeForm();
+				
+				page.javascript("function deleteContact(uname) {\n\
+					if(confirm('Do you really want to delete '+uname+' ? The corresponding messages will be deleted too.')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = uname;\n\
+						document.executeForm.submit();\n\
+					}\n\
+				}");
+				
+				page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var uname = $(this).closest('tr').find('td.uname').text();\n\
+					deleteContact(uname);\n\
+				});");
+			}
 			
 			page.footer();
 			return;
