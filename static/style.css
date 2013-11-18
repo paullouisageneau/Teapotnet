@@ -1438,6 +1438,12 @@ form #trackerlink
 		display: block;
 		float: none;
 	}
+	
+	#newsfeed .message .attachment
+	{
+		display: block;
+		float: none;
+	}
 }
 
 /* End of mobile version */
