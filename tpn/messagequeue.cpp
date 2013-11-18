@@ -221,11 +221,11 @@ void MessageQueue::erase(const String &uname)
 {
 	Synchronize(this);
 
-	Database::Statement statement = mDatabase->prepare("UPDATE messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') SET message.contact=parent.contact, message.relayed=1 WHERE message.contact=?1 AND parent.contact IS NOT NULL");
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO messages (id, stamp, contact, relayed) SELECT message.id, message.stamp, parent.contact, 1 FROM messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') WHERE message.contact=?1 AND parent.contact IS NOT NULL");
 	statement.bind(1, uname);
 	statement.execute();
 
-        statement = mDatabase->prepare("DELETE FROM messages AS message WHERE message.contact=?1");
+        statement = mDatabase->prepare("DELETE FROM messages WHERE messages.contact=?1");
         statement.bind(1, uname);
         statement.execute();
 }
