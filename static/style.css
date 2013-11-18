@@ -1226,6 +1226,7 @@ td.add
 	float: none;
 	display: inline;
 	width: 25em;
+	max-width: 50%;
 	text-align: center;
 }
 
@@ -1432,7 +1433,7 @@ form #trackerlink
 		margin-left: 0.5em;
 	}
 	
-	#newsfeed .message .attachment
+	.message .attachment
 	{
 		display: block;
 		float: none;
