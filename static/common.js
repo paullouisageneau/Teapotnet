@@ -398,6 +398,9 @@ function setMessagesReceiverRec(url, object, next) {
 							if(media == 'image') {
 								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
 							}
+							if(media == 'audio' || media == 'video') {
+								$('#'+id+' .attachment').html('<a href="'+url+'?play=1" target="_blank"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
+							}
 							else {
 								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
 							}
