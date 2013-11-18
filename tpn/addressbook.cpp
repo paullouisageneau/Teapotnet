@@ -490,7 +490,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.openForm(prefix+"/","post");
 			page.openFieldset("Personal secret");
 			page.input("hidden", "token", token);
-			page.input("hidden","name",userName());
+			page.input("hidden","name",user()->name()+"@"+user()->tracker());
 			page.input("hidden","self","true");
 			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
 			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization. The longer the secret, the more secure it is.");

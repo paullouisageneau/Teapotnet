@@ -816,9 +816,7 @@ img.avatar
 
 .status
 {
-	float: right;
 	font-weight: bold;
-	margin-right: 1px;
 }
 
 td.delete
@@ -984,6 +982,13 @@ a.preview
 	background-color: #C0C0C0;
 }
 
+.contactstr .status
+{
+	float: right;
+	font-weight: bold;
+	margin-right: 1px;
+}
+
 .contacts tr
 {
 	min-height: 16px;
@@ -1034,6 +1039,12 @@ a.preview
 #instances tr td
 {
 
+}
+
+#instances td.status
+{
+	width: 10em;
+	text-align: right;
 }
 
 .menu tr
@@ -1169,6 +1180,12 @@ a.preview
 {
 	float: left;
 	width: auto;
+}
+
+td.add
+{
+	float: none;
+	width: 5em;
 }
 
 .profileinfo
