@@ -416,14 +416,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						removeContact(mContactsByUniqueName.get(uname)->peering());
 					}
 					else {
+						Synchronize(this);
+						
 						String name = request.post["name"];
 						String secret = request.post["secret"];
-					  
-						// TODO: check size
 						if(name.empty() || secret.empty()) throw 400;
+						
+						// Answer now as adding a contact can be a long operation on slow devices
+						Http::Response response(request, 303);
+						response.headers["Location"] = prefix + "/";
+						response.send();
+						response.sock->close();
 						
 						if(request.post.contains("self")) setSelf(secret);
 						else addContact(name, secret);
+						
+						return;
 					}
 				}
 				catch(const Exception &e)
@@ -478,11 +486,15 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
 			response.send();
 			
 			Html page(response.sock);
 			page.header("Contacts");
+			
+			// Loading will block here if a contact is added at the same time
+			Array<Contact*> contacts;
+			getContacts(contacts);
 			
 			String token = user()->generateToken("contact");
 
@@ -556,8 +568,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
 					var nameProfile = \""+nameProfile+"\";\n\
 					var mailProfile = \""+mailProfile+"\";\n\
-					var tpnIdCookie = 'tpnIdCookie'; \n\
-					setCookie(tpnIdCookie,'"+tpn_id+"',365); // Keep tpn_id in a cookie\n\
 					var postUrl1 = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\";\n\
 					var tpn_id = \""+tpn_id+"\" \n\
 					var prefix = \""+prefix+"\" \n\
@@ -570,17 +580,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Add contact");
 			page.close("h2");
-			//page.openFieldset("New contact");
 			page.input("hidden", "token", token);
 			page.label("name","TeapotNet ID"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
-			page.label("add"); //page.button("add","Add contact");
-			page.raw("<input type=\"button\" name=\"add\" value=\"Add contact\">"); // No way not to submit form with input --> TODO : change in html.cpp ?
-			//page.closeFieldset();
+			page.label("add"); page.button("add","Add contact");
 			page.close("div");
 			page.closeForm();
 
-			// TODO : add dummy form ? (check on stackoverflow says it should work fine with input outside forms)
+			//page.openForm(prefix+"/","post","sendrequestform");
 			page.open("div","sendrequest.box");
 			page.open("h2");
 			page.text("Send friend request");
@@ -589,7 +596,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
 			page.label("sendinvitation"); page.button("sendinvitation","Send invitation");
 			page.close("div");
-
+			//page.closeForm();
+			
+			//page.openForm(prefix+"/","post","acceptrequestform");
 			page.open("div","acceptrequest.box");
 			page.open("h2");
 			page.text("Accept request");
@@ -601,12 +610,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
 			//page.closeForm();
-
-			// load rapture.js
+			
+			// Load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
 
-			Array<Contact*> contacts;
-			getContacts(contacts);
 			if(!contacts.empty())
 			{
 				page.open("div",".box");

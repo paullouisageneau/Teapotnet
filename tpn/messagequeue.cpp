@@ -48,6 +48,7 @@ MessageQueue::MessageQueue(User *user) :
 	}
 	//
 	
+	// WARNING: Additionnal fields in messages should be declared in erase()
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 	stamp TEXT UNIQUE NOT NULL,\
@@ -221,7 +222,11 @@ void MessageQueue::erase(const String &uname)
 {
 	Synchronize(this);
 
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO messages (id, contact, relayed) SELECT message.id, parent.contact, 1 FROM messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') WHERE message.contact=?1 AND parent.contact IS NOT NULL");
+	// Additionnal fields in messages should be added here
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO messages \
+(id, stamp, parent, headers, content, author, signature, contact, time, public, incoming, relayed, isread) \
+SELECT m.id, m.stamp, m.parent, m.headers, m.content, m.author, '', p.contact, m.time, m.public, m.incoming, 1, m.isread \
+FROM messages AS m LEFT JOIN messages AS p ON p.stamp=NULLIF(m.parent,'') WHERE m.contact=?1 AND p.contact IS NOT NULL");
 	statement.bind(1, uname);
 	statement.execute();
 

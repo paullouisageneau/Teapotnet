@@ -45,28 +45,106 @@ function howtoText(object) {
 	return "default"; 
 }
 
+var minLengthSecret = 10;
+
 // Forms are hidden at page load 
-var tpnIdCookie = 'tpnIdCookie'; 
-setCookie(tpnIdCookie, tpn_id, 365); // Keep tpn_id in a cookie 
 $('#sendrequest').hide(); 
-$('#newcontactdiv').hide(); 
+$('#newcontactdiv').hide();
 var showOneForm = false;
 
 $('#spyimg').click(function() { 
-	if(showOneForm) 
-	$('#sendrequest').hide(); 
+	if(showOneForm) $('#sendrequest').hide(); 
 	$('#newcontactdiv').toggle(); 
 	showOneForm = true; 
 }); 
 $('#mailimg').click(function() { 
-	if(showOneForm) 
-	$('#newcontactdiv').hide(); 
+	if(showOneForm) $('#newcontactdiv').hide(); 
 	$('#sendrequest').toggle(); 
 	showOneForm = true; 
 }); 
 $('#gmailimg').click(function() { 
 	$('form[name=gmailform]').submit(); 
 }); 
+
+$('#fbimg').click(function() { 
+	alert('Coming soon !');
+}); 
+
+function isValidMail(object) { 
+	var str = getInputText(object); 
+	var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); 
+	return mailRegex.test(str); 
+}
+
+function isValidSecret(object) { 
+	var str = getInputText(object); 
+	if(str.length >= minLengthSecret) 
+		return true; 
+	return false; 
+}
+
+function isValidUrl(object) {
+	var returnBool = false; 
+	var str = getInputText(object); 
+	var strlen = str.length;
+	returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) ? true : false); 
+	returnBool |= ( ((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) ? true : false ); 
+	//$('#acceptrequest h2').html((str.substring(strlen-idLength-16,strlen-idLength))); // Just for debug 
+	return returnBool; 
+}
+
+function getInputText(object) { 
+	return object.val(); 
+}
+
+function checkInput(object, isValid) {
+	object.each(function() {
+		if(!$(this).val()) {
+			$(this).removeClass('isvalid'); 
+			$(this).removeClass('isinvalid'); 
+		} 
+		else if(isValid($(this))) {
+			$(this).removeClass('isinvalid');
+			$(this).addClass('isvalid');
+		}
+		else {
+			$(this).removeClass('isvalid');
+			$(this).addClass('isinvalid');
+		}
+	});
+}
+
+function setInputChecks(object, isValid) {
+	object.each(function()   { checkInput($(this), isValid); });
+	object.change(function() { checkInput($(this), isValid); });
+	object.keyup(function()  { checkInput($(this), isValid); });
+	object.on('paste', function () {
+		var element = this;
+		setTimeout(function () {
+			checkInput($(element), isValid);
+		}, 100);
+	});
+}
+
+$(document).ready(function() {
+	setInputChecks($('input.name'), isValidMail);
+	setInputChecks($('input.secret'), isValidSecret);
+});
+
+// Form checking
+$('input.add').click(function(e) {
+	var nameInput = $(this).parents('form').find('input.name');
+	var secretInput = $(this).parents('form').find('input.secret');
+	var validName = isValidMail(nameInput);	// We check validity of tpn name with isValidName because structure of regex is exactly the same
+	var validSecret = isValidSecret(secretInput);
+	
+	if(!validName || !validSecret)
+	{
+		e.preventDefault();
+		if(!validName)	alert('The TeapotNet ID should look like this : name@tracker.tld'); 
+		else alert('The secret should be at least '+minLengthSecret+' characters long.'); 
+	} 
+});
 
 /**** CONSTANTS FOR PHP ECHOES ****/
 FIRST_REQUEST_PREFIX = '1005';
@@ -81,182 +159,63 @@ SUCCESS = 16;
 FAILURE = 17;
 /*********************************/
 
-var mailCookie = 'mailCookie'; 
-// Globals for classic form 
-var minLengthSecret = 10; 
-var checkTpnID = false; 
-var checkSecret = false; 
-var tpnIDInput = $('input[name="name"]');
-var secretInput = $('input[name="secret"]');
 // Globals for mail form 
-var checkMailSender = false; 
-var checkMailReceiver = false; 
-var mailSenderObject = $('#sendrequest .mail_sender'); 
-var mailReceiverObject = $('#sendrequest .mail_receiver'); 
-// Pre-fill mail by cookie and use profile-defined mail if not set by cookie : 
-if(checkCookie(mailCookie)) 
-	mailSenderObject.val(getCookie(mailCookie));
-else 
-	mailSenderObject.val(mailProfile);
-if(checkMailSender)  
-	checkForm(mailSenderObject, isValidMail);  
-if(checkMailReceiver)  
-	checkForm(mailReceiverObject, isValidMail); 
+var mailCookie = 'mailCookie';
+var mailSenderObject; 
+var mailReceiverObject;
 
-// TODO : could be less ugly with dedicated class (see further)
-mailSenderObject.focus(function() { checkMailSender = true; checkForm(mailSenderObject, isValidMail); }); 
-mailSenderObject.blur(function() { checkMailSender = false; }); 
-mailReceiverObject.focus(function() { checkMailReceiver = true; checkForm(mailReceiverObject, isValidMail); }); 
-mailReceiverObject.blur(function() { checkMailReceiver = false; }); 
-tpnIDInput.focus(function() { checkTpnID = true; checkForm(tpnIDInput, isValidMail); }); 
-tpnIDInput.blur(function() { checkTpnID = false; }); 
-secretInput.focus(function() { checkSecret = true; checkForm(secretInput, isValidSecret); }); 
-secretInput.blur(function() { checkSecret = false; });
+$(document).ready(function() {
+	mailSenderObject = $('#sendrequest .mail_sender'); 
+	mailReceiverObject = $('#sendrequest .mail_receiver');
+	
+	// Pre-fill mail by cookie and use profile-defined mail if not set by cookie : 
+	if(checkCookie(mailCookie)) mailSenderObject.val(getCookie(mailCookie));
+	else mailSenderObject.val(mailProfile);
+	
+	setInputChecks(mailSenderObject, isValidMail);
+	setInputChecks(mailReceiverObject, isValidMail);
+});
 
-function isValidMail(object) 
-{ 
-	var str = getInputText(object); 
-	var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); 
-	return mailRegex.test(str); 
-}
-
-function isValidSecret(object) 
-{ 
-	var str = getInputText(object); 
-	if(str.length >= minLengthSecret) 
-		return true; 
-	return false; 
-}
-
-function getInputText(object) 
-{ 
-	return object.val(); 
-} 
-
-// TODO : would be better off with Object 'checkForm' and check on global variable check belonging to this Object 
-function contCheck(object) 
-{ 
-	if(object.is($('#acceptrequest .posturl'))) 
-		return checkUrl; 
-	if(object.is($('#sendrequest .mail_sender'))) 
-		return checkMailSender; 
-	if(object.is($('#sendrequest .mail_receiver'))) 
-		return checkMailReceiver; 
-	if(object.is($('input[name="name"]'))) 
-		return checkTpnID; 
-	if(object.is($('input[name="secret"]'))) 
-		return checkSecret; 
-	return false; 
-}
-
-function checkForm(object, isValid) 
-{ 
-	if(isValid(object)) 
-	{ 
-		object.removeClass('isinvalid'); 
-		object.addClass('isvalid'); 
-	} 
-	else 
-	{ 
-		object.removeClass('isvalid'); 
-		object.addClass('isinvalid'); 
-	} 
-	setTimeout(function() { 
-		if(contCheck(object)) { 
-			checkForm(object, isValid); }
-		else {
-			//object.val(''); 
-			if(object.val()=='') 
-			{ 
-				object.removeClass('isvalid'); 
-				object.removeClass('isinvalid'); 
-			} 
-			return; }
-	}, 200); 
-}
-
-$('#sendrequest .sendinvitation').click(function() { 
-	if( isValidMail(mailSenderObject) && isValidMail(mailReceiverObject)) 
-	{
+$('#sendrequest .sendinvitation').click(function(e) { 
+	e.preventDefault();
+	if(isValidMail(mailSenderObject) && isValidMail(mailReceiverObject)) {
 		var postUrl = postUrl1;
 		var mailReceiver = getInputText(mailReceiverObject);
 		var mailSender = getInputText(mailSenderObject); 
 		var nameSender = nameProfile; 
-		// Add mail to cookie if not already set or updated 
-		if(!checkCookie(mailCookie) || getCookie(mailCookie) != mailSender) 
-			setCookie(mailCookie,mailSender,365); 
-		$.post( postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id }) 
+		setCookie(mailCookie, mailSender, 365);
+		$.post(postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id }) 
 		.done(function(data) {
-			// expects echo from php 
-			if(data == SUCCESS) 
-				alert('Invitation was successfully sent to : '+mailReceiver); 
+			$(mailReceiverObject).val('');
+			$(mailReceiverObject).change();
+			
+			// expects echo from php
+			if(data == SUCCESS)
+				alert('An invitation was successfully sent to '+mailReceiver); 
 			else if(data==FAILURE) 
-				alert('Failure in sending mail'); 
+				alert('Failure when sending email'); 
 			else if(data==REQUEST_ALREADY_EXISTS) 
-				alert('A request from '+mailSender+' to : '+mailReceiver+' already exists.'); 
+				alert('A request from '+mailSender+' to '+mailReceiver+' already exists.'); 
 			else if(data==INVALID_ADDRESS) 
-				alert('Invalid address'); 
+				alert('Invalid address');
 			else if(data != '') // Silent case (mode REQUEST_ACCEPTED) 
-				alert('Invitation was successfully sent to : '+mailReceiver); 
+				alert('An invitation was successfully sent to '+mailReceiver); 
 			else 
 				alert('Unknown error'); 
-		}) 
-		.fail(function() { alert('error in send function'); });
+		})
+		.fail(function() { alert('Error in send function'); });
 	} 
-	else 
-	{ 
-		alert('Wrong mail addresses'); 
+	else { 
+		alert('Incorrect email address'); 
 	} 
-} 
-);
-
-// AJAX for send contacts form
-$('input[name="add"]').click(function() { 
-	if( isValidMail(tpnIDInput) &&  isValidSecret(secretInput)) // We check validity of tpn name with isValidName because structure of regex is exactly the same 
-	{ 
-		// Submit form 
-		$('form[name="newcontact"]').submit(); 
-	} 
-	else 
-	{ 
-		if(!isValidMail(tpnIDInput)) 
-		{ 
-			if(!isValidSecret(secretInput)) 
-			{ 
-				alert('TeapotNet address should look like this : myname@tracker.tld, and secret should be at least '+minLengthSecret+' characters long.'); 
-				return; 
-			} 
-			else 
-				alert('TeapotNet address should look like this : myname@tracker.tld.'); 
-		} 
-		if(!isValidSecret(secretInput)) 
-			alert('Secret should be at least '+minLengthSecret+' characters long.'); 
-	} 
-} 
-);
+});
 
 var lengthUrl = centralizedFriendSystemUrl.length; 
 var prefixLength = FIRST_REQUEST_PREFIX.length; 
 var idLength = 32; 
-var checkUrl = false; 
 var currentIdRequest = ''; 
 
-if(checkUrl)  
-	checkForm($('#acceptrequest .posturl'), isValidUrl); 
-
-function isValidUrl(object)
-{
-	var returnBool = false; 
-	var str = getInputText(object); 
-	var strlen = str.length;
-	returnBool |= ( (str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) ? true : false); 
-	returnBool |= ( ((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) ? true : false ); 
-	//$('#acceptrequest h2').html((str.substring(strlen-idLength-16,strlen-idLength))); // Just for debug 
-	return returnBool; 
-}
-
-function getIdRequest(str) 
-{ 
+function getIdRequest(str) { 
 	var idrequest = ''; 
 	var strlen = str.length; 
 	// Assumes str is valid text input 
@@ -264,14 +223,12 @@ function getIdRequest(str)
 	return idrequest; 
 }
 
-function getMethod(str) 
-{ 
+function getMethod(str) { 
 	var method = '0'; 
 	var strlen = str.length; 
 	if((str.substring(0,prefixLength) == FIRST_REQUEST_PREFIX || str.substring(0,prefixLength) == REQUEST_ACCEPTED_PREFIX) && (strlen == idLength+prefixLength)) 
 		return str.substring(0,prefixLength); 
-	if(str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) 
-	{ 
+	if(str.substring(0,lengthUrl) == centralizedFriendSystemUrl && (str.substring(strlen-16-idLength,strlen-idLength) == '.php?id_request=')) { 
 		if(str.substring(lengthUrl, strlen-16-idLength)=='secretgen') 
 			method = FIRST_REQUEST_PREFIX; 
 		else if(str.substring(lengthUrl, strlen-16-idLength)=='laststep') 
@@ -282,15 +239,17 @@ function getMethod(str)
 	return method; 
 }
 
-$('#acceptrequest .posturl').focus(function() { checkUrl = true; checkForm($('#acceptrequest .posturl'), isValidUrl); }); 
-$('#acceptrequest .posturl').blur(function() { setTimeout(function() {}, 1000); checkUrl = false; }); 
-$('#acceptrequest .posturl').keypress(function(e) {
-	if (e.keyCode == 13 && !e.shiftKey) {
-		e.preventDefault();
-		postAcceptRequest();
-	}
+$(document).ready(function() {
+	setInputChecks($('#acceptrequest .posturl'), isValidUrl);
+	$('#acceptrequest .postfriendrequest').click(postAcceptRequest);
+	$('#acceptrequest .posturl').keypress(function(e) {
+		if (e.keyCode == 13 && !e.shiftKey) {
+			e.preventDefault();
+			postAcceptRequest();
+			return;
+		}
+	});
 });
-$('#acceptrequest .postfriendrequest').click(postAcceptRequest);
 
 function postAcceptRequest() { 
 	var postUrl = centralizedFriendSystemUrl; 
@@ -299,56 +258,51 @@ function postAcceptRequest() {
 	if(isValidUrl(urlObject))
 	{ 
 		var str = getInputText(urlObject);
-		if(getMethod(str) == FIRST_REQUEST_PREFIX) 
-		{ 
+		if(getMethod(str) == FIRST_REQUEST_PREFIX) { 
 			nStep = 2; 
 			postUrl += 'secretgen.php?id_request='; 
 		} 
-		else if (getMethod(str) == REQUEST_ACCEPTED_PREFIX) 
-		{ 
+		else if (getMethod(str) == REQUEST_ACCEPTED_PREFIX) { 
 			nStep = 3; 
 			postUrl += 'laststep.php?id_request='; 
 		} 
-		else 
-		{ 
+		else { 
 			alert('Impossible to proceed'); 
 			return; 
 		} 
 		var idrequest = getIdRequest(str); 
 		postUrl += idrequest; 
 		currentIdRequest = idrequest; 
-		$.post( postUrl, { tpn_id: tpn_id}) 
+		$.post(postUrl, {tpn_id: tpn_id}) 
 		.done(function(data) {
 			if(data == EMPTY_REQUEST) 
-				alert('error, request not found'); 
+				alert('Error, request not found'); 
 			else if(data == REQUEST_ALREADY_ACCEPTED) 
 				alert('This request has already been accepted.'); 
-			else if(isJsonString(data))
-			{ 
+			else if(isJsonString(data)) { 
 				var arr = $.parseJSON(data); 
 				var secret = arr['secret'];
 				var tpnid = arr['tpn_id']; 
 				addContact(tpnid, secret, nStep); 
 			} 
-			else 
-				alert('error, request not found'); 
+			else	alert('Error, request not found'); 
 		}) 
-		.fail(function() { alert('error, entered code does not seem to be valid'); });
+		.fail(function() { 
+			alert('Error, the entered code does not seem to be valid.');
+		});
 	} 
-	else 
-	{ 
-		alert('Invalid address'); 
+	else { 
+		alert('Invalid request'); 
 	}
 }
 
 function addContact(tpnid, secret, nStep) { 
-	$.post(prefix+"/", { name: tpnid, secret: secret, token: token}) 
+	$.post(prefix+"/", {name: tpnid, secret: secret, token: token})
 	.done(function(data) {
-		// Drop the line in db 
-		if(nStep == 3) 
-			$.post(centralizedFriendSystemUrl+"finalize.php", { tpn_id: tpn_id, id_request: currentIdRequest}); 
+		// Drop the line in db
+		if(nStep == 3) $.post(centralizedFriendSystemUrl+"finalize.php", { tpn_id: tpn_id, id_request: currentIdRequest}); 
 		alert('Contact added to list'); 
-		// Refresh because contacts list is not in javascript 
+		// Refresh contacts list
 		location.reload(); 
 	}) 
 	.fail(function() { alert('error, contact could not be added'); });
