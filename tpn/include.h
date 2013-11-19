@@ -293,8 +293,6 @@ template<typename T> T uniform(T min, T max)
 	return min + T((max-min)*r);
 }
 
-#define VAR(x) std::cout<<""#x"="<<x<<std::endl;
-
 #define Queue std::queue
 #define Stack std::stack
 #define Deque std::deque
@@ -335,6 +333,7 @@ inline unsigned threadId(pthread_t thread)
 #define LogError(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_ERROR, prefix, value)
 
 #define Log(prefix, value)		LogInfo(prefix, value)
+#define VAR(x) 				{ std::ostringstream s; s<<""#x"="<<x; Log("VAR", s.str()); }
 
 template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)
 {

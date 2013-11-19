@@ -124,7 +124,7 @@ Time::Time(const String &str)
                         int m = 0; while(m < 12 && months[m] != tmp) ++m;
                         Assert(m < 12);
                         tms.tm_mon = m;
-			tms.tm_year = 1900 + dateParts.front().toInt(); dateParts.pop_front();
+			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
 
 			tmp = list.front(); list.pop_front();
                         List<String> hourParts;
@@ -161,7 +161,7 @@ Time::Time(const String &str)
 			tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
 			tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
 
-			tms.tm_year = list.front().toInt(); list.pop_front();
+			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
 			break;
 		}
 
@@ -177,7 +177,7 @@ Time::Time(const String &str)
                         Assert(m < 12);
                         tms.tm_mon = m;
 
-			tms.tm_year = list.front().toInt(); list.pop_front();
+			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
 
                         tmp = list.front(); list.pop_front();
                         List<String> hourParts;
@@ -276,7 +276,7 @@ int Time::month(void) const
 int Time::year(void) const
 {
 	TimeMutex.lock();
-	int result = localtime(&mTime)->tm_year;	// not thread safe
+	int result = 1900 + localtime(&mTime)->tm_year;	// not thread safe
 	TimeMutex.unlock();
 	return result;
 }
