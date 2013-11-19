@@ -190,12 +190,16 @@ int main(int argc, char** argv)
 	pthread_win32_process_attach_np();
 #endif
 
+#ifdef WINDOWS
+	std::remove("log.txt");
+#endif
+	
+	StringMap args;
 	try {
 		unsigned appVersion = String(APPVERSION).dottedToInt();
 		Assert(appVersion != 0);
 		Assert(argc >= 1);
 
-		StringMap args;
 		String last;
 		String commandLine;
 		for(int i=1; i<argc; ++i)
@@ -249,7 +253,7 @@ int main(int argc, char** argv)
 #ifdef WINDOWS
 			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
 			std::cout<<" --noupdate\t\tPrevent trying to update the program"<<std::endl;
-			std::cout<<" --nohide\t\tKeep the console window on screen"<<std::endl;
+			//std::cout<<" --console\t\tKeep the console window on screen"<<std::endl;
 #endif
 			return 0;
 		}
@@ -464,7 +468,7 @@ int main(int argc, char** argv)
 			}
 			catch(const NetException &e)
 			{
-				if(--attempts == 0) throw NetException("Unable to start the networking core");
+				if(--attempts == 0) throw NetException("Unable to listen for incoming network connections");
 				
 				int newPort = 1024 + pseudorand() % (49151 - 1024);
 				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
@@ -553,11 +557,13 @@ int main(int argc, char** argv)
 			if(!args.contains("boot") && !args.contains("nointerface"))
 				openUserInterface();
 			
-			if(!args.contains("verbose") && !args.contains("trace") && !args.contains("nohide"))
+			/*
+			if(!args.contains("verbose") && !args.contains("trace") && !args.contains("console"))
 			{
 				HWND hWnd = GetConsoleWindow();
 				ShowWindow(hWnd, SW_HIDE);
 			}
+			*/
 #endif
 			
 			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
@@ -576,9 +582,15 @@ int main(int argc, char** argv)
 	{
 		LogError("main", e.what());
 #ifdef WINDOWS
+		/*
 		HWND hWnd = GetConsoleWindow();
                 ShowWindow(hWnd, SW_SHOW);
-		std::cin.get();
+                std::cin.get();
+                */
+		
+		UINT uType = MB_OK|MB_ICONERROR|MB_SETFOREGROUND|MB_SYSTEMMODAL;
+		if(args.contains("boot")) uType|= MB_SERVICE_NOTIFICATION;
+		MessageBox(NULL, e.what(), "TeapotNet - Error", uType);
 #endif
 		return 1;	  
 	}

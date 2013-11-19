@@ -368,7 +368,13 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 #ifdef ANDROID
 	__android_log_print(ANDROID_LOG_VERBOSE, "teapotnet", oss.str().c_str());
 #else
+#ifdef WINDOWS
+	std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
+	log<<oss.str()<<std::endl;
+	log.close();
+#else
 	std::cout<<oss.str()<<std::endl;
+#endif
 #endif
 	}
 	catch(...)

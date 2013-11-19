@@ -7,7 +7,7 @@ RM=rm -f
 #LDFLAGS=-O -static-libgcc
 #LDLIBS=-lws2_32 -lpthread
 CPPFLAGS=-O2 -I. -DPTW32_STATIC_LIB -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
-LDFLAGS=-O2 -static -static-libgcc
+LDFLAGS=-O2 -static -static-libgcc -mwindows
 LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2
 
 SRCS=$(shell printf "%s " tpn/*.cpp)
