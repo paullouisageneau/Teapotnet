@@ -33,6 +33,7 @@
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"
 #include "tpn/mime.h"
+#include "tpn/splicer.h"
 
 namespace tpn
 {
@@ -1606,6 +1607,17 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			if(type != "profilediff") p->clear();
 			p->deserialize(serializer);
 			p->save();
+			
+			if(!p->avatar().empty())
+			{
+				try {
+					Splicer::Prefetch(p->avatar());
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("AddressBook::Contact", String("Avatar prefetching failed: ") + e.what());
+				}
+			}
 		}
 	}
 	else if(type == "contacts")
