@@ -47,7 +47,8 @@ public:
 	String eMail(void) const;
 	String tracker(void) const;
 	String urlPrefix(void) const;
-	String avatarUrl(void) const;	
+	String avatarUrl(void) const;
+	ByteString avatar(void) const;	
 	Time time(void) const;
 	bool isSelf(void) const;
 	

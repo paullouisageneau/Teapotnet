@@ -126,6 +126,12 @@ String Profile::avatarUrl(void) const
 	else return "/default_avatar.png"; 
 }
 
+ByteString Profile::avatar(void) const
+{
+	Synchronize(this);
+	return mAvatar;
+}
+
 Time Profile::time(void) const
 {
 	Synchronize(this);
