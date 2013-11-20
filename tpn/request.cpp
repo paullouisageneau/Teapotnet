@@ -329,12 +329,11 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 			Assert(stripesCount > 0);
 			Assert(stripe >= 0);
 				
-			File *file = NULL;
 			StripedFile *stripedFile = NULL;
 						
 			try {
 				// TODO: Request should not be Resource's friend
-				file = new File(resource.mPath, File::Read);
+				File *file = new File(resource.mPath, File::Read);
 				stripedFile = new StripedFile(file, blockSize, stripesCount, stripe);
 				
 				size_t block = 0;

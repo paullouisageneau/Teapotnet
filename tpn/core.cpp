@@ -1046,9 +1046,11 @@ void Core::Handler::process(void)
 				args.read(channel);
 				
 				Synchronize(mSender);
-				if(mSender->mTransferts.contains(channel))
+				Request::Response *response;
+				if(mSender->mTransferts.get(channel, response))
 				{
 					LogDebug("Core::Handler", "Received cancel for channel "+String::number(channel));
+					response->mTransfertFinished = true;
 					mSender->mTransferts.erase(channel);
 				}
 				//else LogDebug("Core::Handler", "Received cancel for unknown channel "+String::number(channel));
@@ -1396,13 +1398,16 @@ void Core::Handler::Sender::run(void)
 				{
 					Synchronize(request);
 					
-					if(!request->isPending()) continue;
+					if(request->isPending()) continue;
 
+					bool finished = true;
 					for(int j=0; j<request->responsesCount(); ++j)
 					{
 						Request::Response *response = request->response(j);
-						if(!response->mTransfertFinished) continue;
+						finished&= response->mTransfertFinished;
 					}
+
+					if(!finished) continue;
 				}
 				
 				mRequestsToRespond.erase(i);
