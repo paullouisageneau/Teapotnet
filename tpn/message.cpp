@@ -36,16 +36,14 @@ String Message::GenerateStamp(void)
 }
 
 Message::Message(const String &content) :
-	mContent(content),
 	mTime(Time::Now()),
-	mStamp(GenerateStamp()),
 	mIsPublic(false),
 	mIsIncoming(false),
 	mIsRelayed(false),
 	mIsRead(false),
 	mNumber(0)
 {
-
+	if(!content.empty()) setContent(content);
 }
 
 Message::~Message(void)
@@ -120,6 +118,12 @@ String Message::header(const String &name) const
 	else return "";
 }
 
+void Message::setContent(const String &content)
+{
+	if(mStamp.empty()) mStamp = GenerateStamp();
+	mContent = content;
+}
+
 void Message::setPublic(bool ispublic)
 {
 	mIsPublic = ispublic;
@@ -133,11 +137,6 @@ void Message::setContact(const String &uname)
 void Message::setParent(const String &stamp)
 {
 	mParent = stamp;
-}
-
-void Message::setContent(const String &content)
-{
-	mContent = content;
 }
 
 void Message::setHeaders(const StringMap &headers)
@@ -163,6 +162,7 @@ void Message::removeHeader(const String &name)
 
 void Message::writeSignature(User *user)
 {
+	if(mStamp.empty()) mStamp = GenerateStamp();
 	mAuthor = user->name();
 	mSignature = computeSignature(user);
 }
@@ -189,6 +189,8 @@ void Message::markRead(bool read) const
 
 bool Message::send(const Identifier &peering) const
 {
+	Assert(!mStamp.empty());
+	
 	String tmp;
 	YamlSerializer serializer(&tmp);
 	serializer.output(*this);
