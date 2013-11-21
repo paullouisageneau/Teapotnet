@@ -813,14 +813,18 @@ void User::http(const String &prefix, Http::Request &request)
 			return;
 		}
 		
-		url.ignore();
-		String urlLeft = String("/") + url.cut('/');
-		url = String("/") + url;
-		
-		if(url == "/myself")
+		if(url == "/myself" || url == "/myself/")
 		{
-			Http::Response response(request, 303);
+			Http::Response response(request, 303);	// See other
 			response.headers["Location"] = prefix + "/files/";
+			response.send();
+			return;
+		}
+		
+		if(url == "/avatar" || url == "/myself/avatar")
+		{
+			Http::Response response(request, 303);	// See other
+			response.headers["Location"] = profile()->avatarUrl(); 
 			response.send();
 			return;
 		}
