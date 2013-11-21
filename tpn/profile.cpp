@@ -54,7 +54,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	
 	// Basic Info
 	mFields["realname"]	= new TypedField<String>("realname", &mRealName, "Name", "What's your name ?");
-	//mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
+	mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
 	mFields["gender"]    	= new TypedField<String>("gender", &mGender, "Gender", "What's your gender ?");	
 	mFields["relationship"]	= new TypedField<String>("relationship", &mRelationship, "Relationship", "What's your relationship status ?");
 
@@ -351,6 +351,10 @@ void Profile::http(const String &prefix, Http::Request &request)
 					
 					page.close("div");
 
+					// Load plugin for date picker
+					page.raw("<link rel=\"stylesheet\" href=\"http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css\" />");
+					page.raw("<script src=\"http://code.jquery.com/ui/1.10.3/jquery-ui.js\"></script>");
+
 					page.javascript("function postField(field, value)\n\
 						{\n\
 							$.post('"+prefix+"/profile"+"',{\n\
@@ -371,19 +375,34 @@ void Profile::http(const String &prefix, Http::Request &request)
 							var currentId = $(this).attr('id');\n\
 							var currentText = $(this).html();\n\
 							var value = (!$(this).hasClass('empty') ? currentText : '');\n\
-							$(this).html('<input type=\"text\" value=\"'+value+'\" class=\"inputprofile\">');\n\
-							$('input').focus();\n\
-							$('input').keypress(function(e) {\n\
-								if (e.keyCode == 13 && !e.shiftKey) {\n\
-									e.preventDefault();\n\
-									var field = currentId;\n\
-									value = $('input[type=text]').attr('value');\n\
-									postField(field, value);\n\
-								}\n\
-							});\n\
-							$('input').blur(function() {\n\
-								setTimeout(function(){location.reload();},100);\n\
-							});\n\
+							if(currentId != 'birthday') \n\
+							{ \n\
+								$(this).html('<input type=\"text\" value=\"'+value+'\" class=\"inputprofile\">');\n\
+								$('input').blur(function() {\n\
+									setTimeout(function(){location.reload();},100);\n\
+								});\n\
+							} \n\
+							else \n\
+							{ \n\
+								$(this).html('<input type=\"text\" id=\"datepicker\" />');\n\
+								$(function() { \n\
+									$(\"#datepicker\").datepicker({ \n\
+										dateFormat: \"yy-mm-dd\", // TODO : change to correct date format \n\
+										changeMonth: true, \n\
+										changeYear: true, \n\
+										yearRange: \"1900:2013\" \n\
+									}); \n\
+								}); \n\
+							} \n\
+								$('input').focus();\n\
+								$('input').keypress(function(e) {\n\
+									if (e.keyCode == 13 && !e.shiftKey) {\n\
+										e.preventDefault();\n\
+										var field = currentId;\n\
+										value = $('input[type=text]').attr('value');\n\
+										postField(field, value);\n\
+									}\n\
+								});\n\
 						});\n\
 						$('.clearprofilebutton').click(function() {\n\
 							var request = $.post('"+prefix+"/profile"+"',\n\
