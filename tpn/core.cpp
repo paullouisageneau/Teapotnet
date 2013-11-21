@@ -65,7 +65,6 @@ Core::Core(int port) :
 Core::~Core(void)
 {
 	Interface::Instance->remove("/peers");
-	mSock.close();	// useless
 }
 
 String Core::getName(void) const
@@ -853,8 +852,8 @@ void Core::Handler::process(void)
 		
 		if(mIsIncoming) Thread::Sleep(uniform(0.0, 0.5));
 
-		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed");
-		LogInfo("Core::Handler", "Authentication successful (" + mPeering.getName() + ")");
+		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed (remote="+appversion+")");
+		LogInfo("Core::Handler", "Authentication successful: " + mPeering.getName() + " (remote="+appversion+")");
 		mIsAuthenticated = true;		
 
 		// Set up new cipher for the connection

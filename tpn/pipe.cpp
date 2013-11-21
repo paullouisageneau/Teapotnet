@@ -38,7 +38,7 @@ Pipe::Pipe(ByteStream *buffer, bool readOnly)
 
 Pipe::~Pipe(void)
 {
-	close();
+	NOEXCEPTION(close());
 	delete mReadBuffer;
 }
 

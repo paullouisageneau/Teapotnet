@@ -95,7 +95,7 @@ Socket::Socket(socket_t sock) :
 
 Socket::~Socket(void)
 {
-	close();
+	NOEXCEPTION(close());
 }
 
 bool Socket::isConnected(void) const

@@ -53,6 +53,7 @@ public:
 	int64_t	readBinary(ByteStream &s);
 	int64_t	readBinary(ByteStream &s, int64_t max);
 	int64_t	readBinary(ByteString &s);
+	bool	readBinary(char *data, size_t size);	// blocks until size bytes are read
 	bool    readBinary(String &str);
 	bool	readBinary(Serializable &s);
 	bool	readBinary(int8_t &i);
@@ -70,6 +71,7 @@ public:
 
 	void	writeBinary(ByteStream &s);
 	void	writeBinary(const ByteString &s);
+	void    writeBinary(char *data, size_t size);	// alias for writeData
 	void    writeBinary(const String &str);
 	void	writeBinary(const Serializable &s);
 	void	writeBinary(int8_t i);

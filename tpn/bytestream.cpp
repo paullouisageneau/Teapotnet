@@ -136,6 +136,23 @@ int64_t ByteStream::readBinary(ByteString &s)
 	return readBinary(stream);
 }
 
+bool ByteStream::readBinary(char *data, size_t size)
+{
+	if(!size) return true;
+	
+	size_t r;
+	if(!(r = readData(data, size))) return false;
+	
+	do {
+		data+= r;
+		size-= r;
+		if(!size) return true;
+	}
+	while(r = readData(data, size));
+	
+	throw IOException();
+}
+
 bool ByteStream::readBinary(String &str)
 {
 	str.clear();
@@ -190,41 +207,39 @@ bool ByteStream::readBinary(int64_t &i)
 
 bool ByteStream::readBinary(uint8_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),1) != 1) return false;
+	if(!readBinary(reinterpret_cast<char*>(&i),1)) return false;
 	return true;
 }
 
 bool ByteStream::readBinary(uint16_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),2) != 2) return false;
+	if(!readBinary(reinterpret_cast<char*>(&i),2)) return false;
 	i = fixEndianess(i);
 	return true;
 }
 
 bool ByteStream::readBinary(uint32_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),4) != 4) return false;
+	if(!readBinary(reinterpret_cast<char*>(&i),4)) return false;
 	i = fixEndianess(i);
 	return true;
 }
 
 bool ByteStream::readBinary(uint64_t &i)
 {
-	if(readData(reinterpret_cast<char*>(&i),8) != 8) return false;
+	if(!readBinary(reinterpret_cast<char*>(&i),8)) return false;
 	i = fixEndianess(i);
 	return true;
 }
 
 bool ByteStream::readBinary(float32_t &f)
 {
-	if(readData(reinterpret_cast<char*>(&f),4) != 4) return false;
-	return true;
+	return readBinary(reinterpret_cast<char*>(&f),4);
 }
 
 bool ByteStream::readBinary(float64_t &f)
 {
-	if(readData(reinterpret_cast<char*>(&f),8) != 8) return false;
-	return true;
+	return readBinary(reinterpret_cast<char*>(&f),8);
 }
 
 void ByteStream::writeBinary(ByteStream &s)
@@ -237,6 +252,11 @@ void ByteStream::writeBinary(const ByteString &s)
 	ByteString tmp(s);
 	ByteStream &stream = tmp;
 	writeBinary(stream);
+}
+
+void ByteStream::writeBinary(char *data, size_t size)
+{
+	writeData(data, size);
 }
 
 void ByteStream::writeBinary(const String &str)

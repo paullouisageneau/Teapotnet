@@ -34,7 +34,7 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6
 #endif
 
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
-size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
+size_t HttpTunnel::MaxPostSize = 1*1024*1024;	// 1 MB
 double HttpTunnel::ConnTimeout = 20.;
 double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.2;
@@ -57,7 +57,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 			if(request.cookies.get("session", cookie))
 				cookie.extract(session);	
 
-			//LogDebug("HttpTunnel::Incoming", "Incoming connection (session="+String::number(session)+")");
+			LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::number(session)+")");
 
 			Server *server = NULL;
 			bool isNew = false;
@@ -93,7 +93,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					if(!server->mDownSock && !server->mClosed)
 					{
 						Http::Response response(request, 200);
-						response.headers["Content-Type"] = "application/octet-stream";
+						response.headers["Content-Type"] = "text/html";
 						response.headers["Cache-Control"] = "no-cache";
 						response.cookies["session"] << session;
 						response.send(*sock);
@@ -114,7 +114,9 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					Assert(!isNew);
 					
 					uint8_t command;
-					AssertIO(sock->readBinary(command));
+					if(!sock->readBinary(command))
+						throw NetException("Connection unexpectedly closed");
+					
 					if(command != TunnelOpen)
 					{
 						// Remote implementation is probably bogus
@@ -123,22 +125,22 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					}
 
 					uint16_t len;
-					AssertIO(sock->readBinary(len));
-					AssertIO(sock->ignore(len));    // auth data ignored
+					if(!sock->readBinary(len) || !sock->ignore(len))	// auth data ignored
+						throw NetException("Connection unexpectedly closed");
 					
 					Synchronize(server);
-					if(!server->mUpSock && !server->mClosed)
-					{
-						Assert(server->mPostBlockLeft == 0);	
-						server->mUpSock = sock;
-						server->mUpRequest = request;
-						server->notifyAll();
-						return NULL;
-					}
+					if(server->mUpSock) throw 409;	// Conflict
+					if(server->mClosed) throw 400;	// Closed session
+					Assert(server->mPostBlockLeft == 0);
+					server->mUpSock = sock;
+					server->mUpRequest = request;
+					server->notifyAll();
+					return NULL;
 				}
 			}
 			else {
-				LogDebug("HttpTunnel::Incoming", "Unknown session number: " + String::number(session));
+				// Unknown or closed session
+				LogDebug("HttpTunnel::Incoming", "Unknown or closed session: " + String::number(session));
 				throw 400;
 			}
 		}
@@ -192,7 +194,7 @@ HttpTunnel::Client::Client(const Address &addr, double timeout) :
 	
 HttpTunnel::Client::~Client(void)
 {
-	close();
+	NOEXCEPTION(close());
 }
 
 void HttpTunnel::Client::close(void)
@@ -255,7 +257,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			try {
 				double timeout = std::max(endTime - Time::Now(), milliseconds(100));
 				mDownSock->setConnectTimeout(std::min(mConnTimeout, timeout));
-                		mDownSock->connect(addr, true);		// Connect without proxy
+                		
+				DesynchronizeStatement(this, mDownSock->connect(addr, true));		// Connect without proxy
                 		request.send(*mDownSock);
         		}
 			catch(const NetException &e)
@@ -274,8 +277,21 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			{
 				if(mSession)
 				{
-					if(response.code == 504) continue;	// Proxy timeout
-					else break;				// Connection closed
+					if(response.code == 400)	// Closed session
+					{
+						LogDebug("HttpTunnel::Client", "Session closed");
+                                                break;
+					}
+					else if(response.code == 504)	// Proxy timeout
+					{
+						LogDebug("HttpTunnel::Client", "HTTP proxy timeout, retrying...");
+						continue;
+					}
+					else if(response.code == 409)	// Conflict
+					{
+						wait(1.);
+						continue;
+					}
 				}
 
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
@@ -301,10 +317,6 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			if(ret) return ret;
 		}
 		catch(const Timeout &e)
-		{
-			// Nothing to do
-		}
-		catch(const NetException &e)
 		{
 			// Nothing to do
 		}
@@ -349,8 +361,12 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
                         try {
 				mUpSock->setConnectTimeout(mConnTimeout);
-                                mUpSock->connect(addr, true);		// Connect without proxy
-                        	request.send(*mUpSock);
+
+                        	Socket *sock = mUpSock;	mUpSock = NULL; // Necessary because of the flush task
+				DesynchronizeStatement(this, sock->connect(addr, true));	// Connect without proxy
+				mUpSock = sock;
+
+				request.send(*mUpSock);
 			}
                         catch(const NetException &e)
                         {
@@ -393,7 +409,11 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			
 			Http::Response response;
 			response.recv(*mUpSock);
+			mUpSock->clear();
 			mUpSock->close();
+
+			if(response.code != 200 && response.code != 204)
+                                throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
 		}
 	}
 
@@ -409,14 +429,25 @@ void HttpTunnel::Client::flush(void)
 		{
 			LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
 		
-			updatePostSize(mPostLeft);
-			writePaddingUntil(1);
-			mUpSock->writeBinary(TunnelDisconnect);
-			mPostLeft = 0;
-			
+			try {
+				updatePostSize(mPostLeft);
+				writePaddingUntil(1);
+				mUpSock->writeBinary(TunnelDisconnect);
+			}
+			catch(const NetException &e)
+			{
+				// Nothing to do
+			}
+
+			mPostLeft = 0;  // Reset mPostLeft
+
 			Http::Response response;
 			response.recv(*mUpSock);
+			mUpSock->clear();
 			mUpSock->close();
+
+			if(response.code != 200 && response.code != 204)
+				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
 		}
 	}
 	catch(const Exception &e)
@@ -512,8 +543,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		double timeleft = ReadTimeout;
 		while(!mUpSock)
 		{
-			LogDebug("HttpTunnel::Server::readData", "Waiting for connection...");
 			if(mClosed) return 0;
+			//LogDebug("HttpTunnel::Server::readData", "Waiting for connection...");
 			if(!wait(timeleft)) throw Timeout();
 		}
 
@@ -522,21 +553,22 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		uint8_t command;
 		uint16_t len = 0;
 		
-		{
+		try {
 			Desynchronize(this);
 
 			if(!mUpSock->readBinary(command))
-			{
-				if(mClosed) return 0;
-				continue;
-			}
+				throw NetException("Connection unexpectedly closed");
 			
 			if(!(command & 0x40))
 				if(!mUpSock->readBinary(len))
-					continue;
-
-			//LogDebug("HttpTunnel::Server::readData", "Incoming command: " + String::hexa(command, 2) + " (length " + String::number(len) + ")");
+					throw NetException("Connection unexpectedly closed");
 		}
+		catch(const Exception &e)
+		{
+			throw NetException(String("Unable to read HTTP tunnel command: ") + e.what());
+		}
+
+		//LogDebug("HttpTunnel::Server::readData", "Incoming command: " + String::hexa(command, 2) + " (length " + String::number(len) + ")");
 
 		switch(command)
 		{
@@ -547,7 +579,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		case TunnelPadding:
 		{
 			Desynchronize(this);
-			mUpSock->ignore(len);
+			if(!mUpSock->ignore(len))
+				throw NetException("Connection unexpectedly closed");
 			break;
 		}
 
@@ -564,60 +597,51 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			Http::Response response(mUpRequest, 204);	// no content
 			response.send(*mUpSock);
 			mUpRequest.clear();
-			delete mUpSock;
-			mUpSock = NULL;
+			mUpSock->close();
 			break;
 		}
 
 		default:
 			LogWarn("HttpTunnel::Server", "Unknown command: " + String::hexa(command));	
-			mUpSock->ignore(len);
+			if(!mUpSock->ignore(len))
+				throw NetException("Connection unexpectedly closed");
                         break;
 		}
 	}
 
 	Assert(mUpSock);
-	
-	size = std::min(size, mPostBlockLeft);
-	DesynchronizeStatement(this, size = mUpSock->readData(buffer, size));
-	mPostBlockLeft-= size;
-	return size;
+	Assert(mPostBlockLeft > 0);
+
+	size_t r;
+	DesynchronizeStatement(this, r = mUpSock->readData(buffer, std::min(size, mPostBlockLeft)));
+	if(size && !r) throw NetException("Connection unexpectedly closed");
+	mPostBlockLeft-= r;
+	return r;
 }
 
 void HttpTunnel::Server::writeData(const char *data, size_t size)
 {
 	Synchronize(this);
 
-	while(true)
+	if(mDownSock && !mDownSock->isConnected())
 	{
-		if(mDownSock && !mDownSock->isConnected())
-		{
-			delete mDownSock;
-			mDownSock = NULL;
-		}
-
-		Scheduler::Global->remove(&mFlushTask);
-
-		double timeleft = ConnTimeout;
-		while(!mDownSock)
-		{
-			LogDebug("HttpTunnel::Server::writeData", "Waiting for connection...");
-			if(mClosed) throw NetException("Connection closed");
-			if(!wait(timeleft)) throw Timeout();
-		}
-
-		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
-		
-		try {
-			mDownSock->writeData(data, size);
-			break;
-		}
-		catch(const NetException &e)
-		{
-			delete mDownSock;
-			mDownSock = NULL;
-		}
+		delete mDownSock;
+		mDownSock = NULL;
 	}
+
+	Scheduler::Global->remove(&mFlushTask);
+
+	double timeleft = ConnTimeout;
+	while(!mDownSock)
+	{
+		if(mClosed) throw NetException("Connection closed");
+		//LogDebug("HttpTunnel::Server::writeData", "Waiting for connection...");
+		if(!wait(timeleft)) throw Timeout();
+	}
+
+	//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
+	
+	mDownSock->writeData(data, size);
 	
 	Scheduler::Global->schedule(&mFlushTask, FlushTimeout);
 }
@@ -626,19 +650,15 @@ void HttpTunnel::Server::flush(void)
 {
 	Synchronize(this);
 
-	try {
-		if(mDownSock && mDownSock->isConnected())
-		{
-			LogDebug("HttpTunnel::Server::flush", "Flushing...");
-			
-			delete mDownSock;
-			mDownSock = NULL;
-		}
-        }
-	catch(const Exception &e)
+	if(mDownSock && mDownSock->isConnected())
 	{
-		LogWarn("HttpTunnel::Server::flush", e.what());
+		LogDebug("HttpTunnel::Server::flush", "Flushing...");
+		mDownSock->close();
 	}
+
+	delete mDownSock;
+        mDownSock = NULL;
 }
 
 }
+

@@ -54,7 +54,7 @@ Thread::Thread(void (*func)(void)) :
 
 Thread::~Thread(void)
 {
-	if(!mJoined) join();
+	if(!mJoined) NOEXCEPTION(join());
 }
 
 void Thread::start(bool autoDelete)

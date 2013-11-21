@@ -44,7 +44,7 @@ ThreadPool::ThreadPool(unsigned min, unsigned max, unsigned limit) :
 
 ThreadPool::~ThreadPool(void)
 {
-	clear();
+	NOEXCEPTION(clear());
 }
 
 void ThreadPool::launch(Task *task)

@@ -158,7 +158,7 @@ Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
 Splicer::~Splicer(void)
 {
 	mAutoDelete = false;
-	stop();
+	NOEXCEPTION(stop());
 }
 
 void Splicer::addSources(const Set<Identifier> &sources)

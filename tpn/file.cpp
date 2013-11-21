@@ -141,7 +141,7 @@ File::File(const String &filename, File::OpenMode mode)
 
 File::~File(void)
 {
-	close();
+	NOEXCEPTION(close());
 }
 
 void File::open(const String &filename, OpenMode mode)

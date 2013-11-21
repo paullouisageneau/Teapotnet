@@ -36,7 +36,7 @@ Scheduler::Scheduler(unsigned maxWaitingThreads) :
 
 Scheduler::~Scheduler(void)
 {
-	clear();	// wait for threads to finish
+	NOEXCEPTION(clear());	// wait for threads to finish
 }
 
 void Scheduler::schedule(Task *task, double timeout)

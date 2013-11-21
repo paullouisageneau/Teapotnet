@@ -42,7 +42,7 @@ ServerSocket::ServerSocket(int port) :
 
 ServerSocket::~ServerSocket(void)
 {
-	if(mSock != INVALID_SOCKET) ::closesocket(mSock);
+	NOEXCEPTION(close());
 }
 
 bool ServerSocket::isListening(void) const
@@ -236,7 +236,7 @@ void ServerSocket::close(void)
 {
 	if(mSock != INVALID_SOCKET)
 	{
-		::close(mSock);
+		::closesocket(mSock);
 		mSock = INVALID_SOCKET;
 		mPort = 0;
 	}

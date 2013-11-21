@@ -333,6 +333,9 @@ inline unsigned threadId(pthread_t thread)
 #define LogError(prefix, value)		LogImpl(__FILE__, __LINE__, LEVEL_ERROR, prefix, value)
 
 #define Log(prefix, value)		LogInfo(prefix, value)
+#define NOEXCEPTION(stmt)		try { stmt; } catch(const std::exception &e) { LogWarn("Exception", e.what()); } catch(...) {}
+
+// Debug tools
 #define VAR(x) 				{ std::ostringstream s; s<<""#x"="<<x; Log("VAR", s.str()); }
 
 template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)

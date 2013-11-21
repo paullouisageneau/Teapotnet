@@ -70,8 +70,7 @@ AddressBook::AddressBook(User *user) :
 AddressBook::~AddressBook(void)
 {
   	Interface::Instance->remove("/"+mUser->name()+"/contacts");
-	
-	clear();
+	NOEXCEPTION(clear());
 }
 
 User *AddressBook::user(void) const
@@ -1096,7 +1095,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	Identifier peering(this->peering(), instance);
 	ByteStream *bs = NULL;
 
-	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic() || addr.port() == 443)
+	if(!Config::Get("force_http_tunnel").toBool() /*|| !addr.isPublic()*/ || addr.port() == 443)
 	{
 		Socket *sock = NULL;
 		try {
@@ -1115,7 +1114,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 	}
 
-	if(!bs && addr.isPublic() && addr.port() != 443)
+	if(!bs /*&& addr.isPublic()*/ && addr.port() != 443)
 	{
 		try {
 			bs = new HttpTunnel::Client(addr, 4.);

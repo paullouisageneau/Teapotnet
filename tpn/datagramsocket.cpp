@@ -43,7 +43,7 @@ DatagramSocket::DatagramSocket(const Address &local, bool broadcast) :
 
 DatagramSocket::~DatagramSocket(void)
 {
-	close();
+	NOEXCEPTION(close());
 }
 
 Address DatagramSocket::getBindAddress(void) const
