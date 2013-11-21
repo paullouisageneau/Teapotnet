@@ -384,12 +384,18 @@ void Profile::http(const String &prefix, Http::Request &request)
 							} \n\
 							else \n\
 							{ \n\
-								$(this).html('<input type=\"text\" id=\"datepicker\" />');\n\
+								$(this).html('<input type=\"text\" id=\"datepicker\" class=\"datepicker\" />');\n\
+								function closeDateSelector() { \n\
+										var field = currentId;\n\
+										value = $('input[type=text]').attr('value');\n\
+										postField(field, value);\n\
+								} \n\
 								$(function() { \n\
 									$(\"#datepicker\").datepicker({ \n\
 										dateFormat: \"yy-mm-dd\", // TODO : change to correct date format \n\
 										changeMonth: true, \n\
 										changeYear: true, \n\
+										onClose: closeDateSelector, \n\
 										yearRange: \"1900:2013\" \n\
 									}); \n\
 								}); \n\
