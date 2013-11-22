@@ -352,8 +352,12 @@ void Profile::http(const String &prefix, Http::Request &request)
 					page.close("div");
 
 					// Load plugin for date picker
-					page.raw("<link rel=\"stylesheet\" href=\"http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css\" />");
-					page.raw("<script src=\"http://code.jquery.com/ui/1.10.3/jquery-ui.js\"></script>");
+					// TODO : incorrect position
+					page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/default.css\" />");
+page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/default.date.css\" />");
+					page.raw("<script type=\"text/javascript\" src=\"/picker.js\"></script>");
+page.raw("<script type=\"text/javascript\" src=\"/picker.date.js\"></script>");
+page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 
 					page.javascript("function postField(field, value)\n\
 						{\n\
@@ -378,29 +382,25 @@ void Profile::http(const String &prefix, Http::Request &request)
 							if(currentId != 'birthday') \n\
 							{ \n\
 								$(this).html('<input type=\"text\" value=\"'+value+'\" class=\"inputprofile\">');\n\
+								$('input').focus();\n\
 								$('input').blur(function() {\n\
 									setTimeout(function(){location.reload();},100);\n\
 								});\n\
 							} \n\
 							else \n\
 							{ \n\
-								$(this).html('<input type=\"text\" id=\"datepicker\" class=\"datepicker\" />');\n\
-								function closeDateSelector() { \n\
-										var field = currentId;\n\
-										value = $('input[type=text]').attr('value');\n\
-										postField(field, value);\n\
-								} \n\
-								$(function() { \n\
-									$(\"#datepicker\").datepicker({ \n\
-										dateFormat: \"yy-mm-dd\", // TODO : change to correct date format \n\
-										changeMonth: true, \n\
-										changeYear: true, \n\
-										onClose: closeDateSelector, \n\
-										yearRange: \"1900:2013\" \n\
-									}); \n\
+								$(this).html('<input type=\"text\" id=\"datepicker\" class=\"datepicker\" />'); \n\
+								$('input').focus();\n\
+								var picker = $('.datepicker').pickadate({ \n\
+									selectYears: true, \n\
+									selectMonths: true, \n\
+									today: '', \n\
+									format: 'dd mmmm yyyy', // TODO \n\
+									selectYears: 115, \n\
+									min: new Date(1900,1,1), \n\
+									max: true, \n\
 								}); \n\
 							} \n\
-								$('input').focus();\n\
 								$('input').keypress(function(e) {\n\
 									if (e.keyCode == 13 && !e.shiftKey) {\n\
 										e.preventDefault();\n\
