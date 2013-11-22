@@ -316,9 +316,9 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			size_t ret = mDownSock->readData(buffer, size);
 			if(ret) return ret;
 		}
-		catch(const Timeout &e)
+		catch(const Exception &e)
 		{
-			// Nothing to do
+			// Let's suppose nothing has been actually transmitted
 		}
 		
 		mDownSock->close();
@@ -623,25 +623,37 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 {
 	Synchronize(this);
 
-	if(mDownSock && !mDownSock->isConnected())
+	while(true)
 	{
-		delete mDownSock;
-		mDownSock = NULL;
-	}
+		if(mDownSock && !mDownSock->isConnected())
+		{
+			delete mDownSock;
+			mDownSock = NULL;
+		}
 
-	Scheduler::Global->remove(&mFlushTask);
+		Scheduler::Global->remove(&mFlushTask);
 
-	double timeleft = ConnTimeout;
-	while(!mDownSock)
-	{
-		if(mClosed) throw NetException("Connection closed");
-		//LogDebug("HttpTunnel::Server::writeData", "Waiting for connection...");
-		if(!wait(timeleft)) throw Timeout();
-	}
+		double timeleft = ConnTimeout;
+		while(!mDownSock)
+		{
+			if(mClosed) throw NetException("Connection closed");
+			//LogDebug("HttpTunnel::Server::writeData", "Waiting for connection...");
+			if(!wait(timeleft)) throw Timeout();
+		}
 
-	//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
+		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
 	
-	mDownSock->writeData(data, size);
+		try {
+                        mDownSock->writeData(data, size);
+                        break;
+                }
+                catch(const Exception &e)
+                {
+			// Let's suppose nothing has been actually transmitted
+                }
+                
+		mDownSock->close();
+	}
 	
 	Scheduler::Global->schedule(&mFlushTask, FlushTimeout);
 }
