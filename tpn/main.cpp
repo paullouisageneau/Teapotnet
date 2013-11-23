@@ -284,6 +284,7 @@ int main(int argc, char** argv)
 		Config::Default("cache_dir", "cache");
 		Config::Default("external_address", "auto");
 		Config::Default("external_port", "auto");
+		Config::Default("port_mapping_enabled", "true");
 		Config::Default("http_timeout", "5000");
 		Config::Default("request_timeout", "6000");
 		Config::Default("meeting_timeout", "15000");
@@ -493,13 +494,14 @@ int main(int argc, char** argv)
 		PortMapping::Instance = new PortMapping;
 		PortMapping::Instance->add(PortMapping::TCP, port, port);
 		
-		if(Config::Get("external_address").empty()
-			|| Config::Get("external_address") == "auto")
+		if(Config::Get("port_mapping_enabled").toBool())
 		{
 			LogInfo("main", "NAT port mapping is enabled");
 			PortMapping::Instance->enable();
 		}
-		else LogInfo("main", "NAT port mapping is disabled");
+		else {
+			LogInfo("main", "NAT port mapping is disabled");
+		}
 		
 		try {
 			if(!Directory::Exist(Config::Get("profiles_dir")))
