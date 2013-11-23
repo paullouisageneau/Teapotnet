@@ -396,9 +396,7 @@ void Time::parse(const String &str)
 		mUsec = 0;
 		return;
 	}
-	
-	VAR(str);
-	
+
 	List<String> list;
 	str.trimmed().explode(list, ' ');
 
