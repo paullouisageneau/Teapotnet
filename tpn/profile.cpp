@@ -353,8 +353,8 @@ void Profile::http(const String &prefix, Http::Request &request)
 
 					// Load plugin for date picker
 					// TODO : incorrect position
-					page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/default.css\" />");
-page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/default.date.css\" />");
+					page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/classic_datepicker.css\" />");
+page.raw("<link rel=\"stylesheet\" type=\"text/css\" href=\"/classic.date.css\" />");
 					page.raw("<script type=\"text/javascript\" src=\"/picker.js\"></script>");
 page.raw("<script type=\"text/javascript\" src=\"/picker.date.js\"></script>");
 page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
