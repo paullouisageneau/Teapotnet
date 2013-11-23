@@ -83,189 +83,14 @@ Time::Time(time_t time, int usec) :
 	addMicroseconds(usec);
 }
 
+// 1994-11-06 08:49:37            ; ISO date and time
 // Sun, 06 Nov 1994 08:49:37 GMT  ; RFC 822, updated by RFC 1123
 // Sunday, 06-Nov-94 08:49:37 GMT ; RFC 850, obsoleted by RFC 1036
 // Sun Nov  6 08:49:37 1994       ; ANSI C's asctime() format
 // 
 Time::Time(const String &str)
 {
-	const String months[] = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"};
-
-	if(str.trimmed().empty())
-	{
-		mTime = time_t(0);
-		mUsec = 0;
-		return;
-	}
-	
-	List<String> list;
-	str.trimmed().explode(list, ' ');
-
-	struct tm tms;
-	std::memset(&tms, 0, sizeof(tms));
-	tms.tm_isdst = -1;
-
-	switch(list.size()) 
-	{
-		case 1:
-		{
-			if(!str.contains('-'))
-			{
-				// Unix timestamp as integer
-				str.extract(mTime);
-				return;
-			}
-			
-			// ISO YYYY-MM-DD
-			List<String> dateParts;
-			str.explode(dateParts, '-');
-			Assert(dateParts.size() == 3);
-			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
-			tms.tm_mon  = dateParts.front().toInt(); dateParts.pop_front();
-			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
-			break;
-		}
-			
-		case 2: // ISO YYYY-MM-DD HH:MM:SS[.X]
-		{
-			String tmp;
-			tmp = list.front(); list.pop_front();
-			List<String> dateParts;
-			tmp.explode(dateParts, '-');
-			Assert(dateParts.size() == 3);
-			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
-			tms.tm_mon  = dateParts.front().toInt(); dateParts.pop_front();
-			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
-			
-			tmp = list.front(); list.pop_front();
-                        List<String> hourParts;
-                        tmp.explode(hourParts, ':');
-                        Assert(hourParts.size() == 3);
-			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
-                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
-                        double secs = 0.;
-			double usecs = std::modf(hourParts.front().toDouble(), &secs);
-			tms.tm_sec = int(secs);
-			mUsec = int(usecs * 1000000);
-			break;
-		}
-			
-		case 4:	// RFC 850
-		{		
-			list.pop_front();       // we don't care about day of week
-
-			String tmp;
-			tmp = list.front(); list.pop_front();
-                        List<String> dateParts;
-                        tmp.explode(dateParts, '-');
-                        Assert(dateParts.size() == 3);
-			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
-                        tmp  = dateParts.front().toLower(); dateParts.pop_front();
-                        int m = 0; while(m < 12 && months[m] != tmp) ++m;
-                        Assert(m < 12);
-                        tms.tm_mon = m;
-			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
-
-			tmp = list.front(); list.pop_front();
-                        List<String> hourParts;
-                        tmp.explode(hourParts, ':');
-                        Assert(hourParts.size() == 3);
-			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
-                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
-                        tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
-
-			String utc = list.front().toLower(); list.pop_front();
-			tmp = utc.cut('+');
-			Assert(utc == "UTC" || utc == "GMT");
-			if(!tmp.empty()) tms.tm_hour = tms.tm_hour - tmp.toInt();		
-			break;
-		}
-
-		case 5:	// asctime() format
-		{
-			list.pop_front();	// we don't care about day of week
-
-			String tmp;
-			tmp = list.front().toLower(); list.pop_front();
-			int m = 0; while(m < 12 && months[m] != tmp) ++m;
-			Assert(m < 12);
-			tms.tm_mon = m;
-
-			tms.tm_mday = list.front().toInt(); list.pop_front();
-
-			tmp = list.front(); list.pop_front();
-			List<String> hourParts;
-			tmp.explode(hourParts, ':');
-			Assert(hourParts.size() == 3);
-			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
-			tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
-			tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
-
-			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
-			break;
-		}
-
-		case 6: // RFC 1123
-                {
-                        list.pop_front();       // we don't care about day of week
-
-			tms.tm_mday = list.front().toInt(); list.pop_front();
-
-                        String tmp;
-                        tmp = list.front().toLower(); list.pop_front();
-                        int m = 0; while(m < 12 && months[m] != tmp) ++m;
-                        Assert(m < 12);
-                        tms.tm_mon = m;
-
-			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
-
-                        tmp = list.front(); list.pop_front();
-                        List<String> hourParts;
-                        tmp.explode(hourParts, ':');
-                        Assert(hourParts.size() == 3);
-                        tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
-                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
-                        tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
-
-                        String utc = list.front().toUpper(); list.pop_front();
-                        tmp = utc.cut('+');
-                        Assert(utc == "UTC" || utc == "GMT");
-                        if(!tmp.empty()) tms.tm_hour = tms.tm_hour - tmp.toInt();	
-                        break;
-                }
-
-		default:
-			throw Exception(String("Unknown date format: ") + str);
-	}
-	
-	TimeMutex.lock();
-	
-	char *tz = getenv("TZ");
-	putenv(const_cast<char*>("TZ=UTC"));
-	tzset();
-	
-	mTime = std::mktime(&tms);
-	mUsec = 0;	
-
-	if(tz)
-	{
-		char *buf = reinterpret_cast<char*>(std::malloc(3 + strlen(tz) + 1));
-		if(buf)
-		{
-			std::strcpy(buf,"TZ=");
-			std::strcat(buf, tz);
-			putenv(buf);	
-		}
-	} 
-	else {
-		putenv(const_cast<char*>("TZ="));
-	}
-	tzset();
-	
-	TimeMutex.unlock();
-	
-	if(mTime == time_t(-1)) 
-		throw Exception(String("Invalid date: ") + str);
+	parse(str);
 }
 
 Time::~Time(void)
@@ -505,26 +330,43 @@ void Time::serialize(Serializer &s) const
 {
 	switch(mFormat)
 	{
-	case IsoDate:
-		s.output(toIsoDate());
-		break;
+		case IsoDate:
+			s.output(toIsoDate());
+			break;
 		
-	case IsoDateTime:
-		s.output(toIsoDate() + ' ' + toIsoTime());
-		break;
+		case IsoDateTime:
+			s.output(toIsoDate() + ' ' + toIsoTime());
+			break;
 		
-	default:
-		s.output(int64_t(mTime));
-		break;
+		default:
+			s.output(int64_t(mTime));
+			break;
 	}
 }
 
 bool Time::deserialize(Serializer &s)
 {
-	int64_t tmp = 0;
-	s.input(tmp);
-	mTime = time_t(tmp);
-	mUsec = 0;
+	switch(mFormat)
+	{
+		case IsoDate:
+		case IsoDateTime:
+		{
+			String str;
+			s.input(str);
+			parse(str);
+			break;
+		}
+		
+		default:
+		{
+			int64_t tmp = 0;
+			s.input(tmp);
+			mTime = time_t(tmp);
+			mUsec = 0;
+			break;
+		}
+	}
+	
 	return true;
 }
 
@@ -536,6 +378,195 @@ bool Time::isNativeSerializable(void) const
 void Time::setSerializationFormat(SerializationFormat format)
 {
 	mFormat = format;
+}
+
+void Time::parse(const String &str)
+{
+	// Supported formats :
+	// 1994-11-06 08:49:37            ; ISO date and time
+	// Sun, 06 Nov 1994 08:49:37 GMT  ; RFC 822, updated by RFC 1123
+	// Sunday, 06-Nov-94 08:49:37 GMT ; RFC 850, obsoleted by RFC 1036
+	// Sun Nov  6 08:49:37 1994       ; ANSI C's asctime() format
+
+	const String months[] = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"};
+
+	if(str.trimmed().empty())
+	{
+		mTime = time_t(0);
+		mUsec = 0;
+		return;
+	}
+	
+	VAR(str);
+	
+	List<String> list;
+	str.trimmed().explode(list, ' ');
+
+	struct tm tms;
+	std::memset(&tms, 0, sizeof(tms));
+	tms.tm_isdst = -1;
+
+	switch(list.size()) 
+	{
+		case 1:
+		{
+			if(!str.contains('-'))
+			{
+				// Unix timestamp as integer
+				str.extract(mTime);
+				return;
+			}
+			
+			// ISO YYYY-MM-DD
+			List<String> dateParts;
+			str.explode(dateParts, '-');
+			Assert(dateParts.size() == 3);
+			tms.tm_year = dateParts.front().toInt()-1900;	dateParts.pop_front();
+			tms.tm_mon  = dateParts.front().toInt()-1;	dateParts.pop_front();
+			tms.tm_mday = dateParts.front().toInt();	dateParts.pop_front();
+			break;
+		}
+			
+		case 2: // ISO YYYY-MM-DD HH:MM:SS[.X]
+		{
+			String tmp;
+			tmp = list.front(); list.pop_front();
+			List<String> dateParts;
+			tmp.explode(dateParts, '-');
+			Assert(dateParts.size() == 3);
+			tms.tm_year = dateParts.front().toInt()-1900;	dateParts.pop_front();
+			tms.tm_mon  = dateParts.front().toInt()-1;	dateParts.pop_front();
+			tms.tm_mday = dateParts.front().toInt();	dateParts.pop_front();
+			
+			tmp = list.front(); list.pop_front();
+                        List<String> hourParts;
+                        tmp.explode(hourParts, ':');
+                        Assert(hourParts.size() == 3);
+			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
+                        double secs = 0.;
+			double usecs = std::modf(hourParts.front().toDouble(), &secs);
+			tms.tm_sec = int(secs);
+			mUsec = int(usecs * 1000000);
+			break;
+		}
+			
+		case 4:	// RFC 850
+		{		
+			list.pop_front();       // we don't care about day of week
+
+			String tmp;
+			tmp = list.front(); list.pop_front();
+                        List<String> dateParts;
+                        tmp.explode(dateParts, '-');
+                        Assert(dateParts.size() == 3);
+			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
+                        tmp  = dateParts.front().toLower(); dateParts.pop_front();
+                        int m = 0; while(m < 12 && months[m] != tmp) ++m;
+                        Assert(m < 12);
+                        tms.tm_mon = m;
+			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
+
+			tmp = list.front(); list.pop_front();
+                        List<String> hourParts;
+                        tmp.explode(hourParts, ':');
+                        Assert(hourParts.size() == 3);
+			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
+
+			String utc = list.front().toLower(); list.pop_front();
+			tmp = utc.cut('+');
+			Assert(utc == "UTC" || utc == "GMT");
+			if(!tmp.empty()) tms.tm_hour = tms.tm_hour - tmp.toInt();		
+			break;
+		}
+
+		case 5:	// asctime() format
+		{
+			list.pop_front();	// we don't care about day of week
+
+			String tmp;
+			tmp = list.front().toLower(); list.pop_front();
+			int m = 0; while(m < 12 && months[m] != tmp) ++m;
+			Assert(m < 12);
+			tms.tm_mon = m;
+
+			tms.tm_mday = list.front().toInt(); list.pop_front();
+
+			tmp = list.front(); list.pop_front();
+			List<String> hourParts;
+			tmp.explode(hourParts, ':');
+			Assert(hourParts.size() == 3);
+			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
+			tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
+			tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
+
+			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
+			break;
+		}
+
+		case 6: // RFC 1123
+                {
+                        list.pop_front();       // we don't care about day of week
+
+			tms.tm_mday = list.front().toInt(); list.pop_front();
+
+                        String tmp;
+                        tmp = list.front().toLower(); list.pop_front();
+                        int m = 0; while(m < 12 && months[m] != tmp) ++m;
+                        Assert(m < 12);
+                        tms.tm_mon = m;
+
+			tms.tm_year = list.front().toInt() - 1900; list.pop_front();
+
+                        tmp = list.front(); list.pop_front();
+                        List<String> hourParts;
+                        tmp.explode(hourParts, ':');
+                        Assert(hourParts.size() == 3);
+                        tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
+
+                        String utc = list.front().toUpper(); list.pop_front();
+                        tmp = utc.cut('+');
+                        Assert(utc == "UTC" || utc == "GMT");
+                        if(!tmp.empty()) tms.tm_hour = tms.tm_hour - tmp.toInt();	
+                        break;
+                }
+
+		default:
+			throw Exception(String("Unknown date format: ") + str);
+	}
+	
+	TimeMutex.lock();
+	
+	char *tz = getenv("TZ");
+	putenv(const_cast<char*>("TZ=UTC"));
+	tzset();
+	
+	mTime = std::mktime(&tms);
+	mUsec = 0;	
+
+	if(tz)
+	{
+		char *buf = reinterpret_cast<char*>(std::malloc(3 + strlen(tz) + 1));
+		if(buf)
+		{
+			std::strcpy(buf,"TZ=");
+			std::strcat(buf, tz);
+			putenv(buf);	
+		}
+	} 
+	else {
+		putenv(const_cast<char*>("TZ="));
+	}
+	tzset();
+	
+	TimeMutex.unlock();
+	
+	if(mTime == time_t(-1)) 
+		throw Exception(String("Invalid date: ") + str);
 }
 
 bool operator < (const Time &t1, const Time &t2)

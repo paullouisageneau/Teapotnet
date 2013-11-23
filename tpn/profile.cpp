@@ -57,7 +57,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["birthday"]     = new TypedField<Time>("birthday", &mBirthday, "Birthday", "What's your birthday ?", Time(0));
 	mFields["gender"]    	= new TypedField<String>("gender", &mGender, "Gender", "What's your gender ?");	
 	mFields["relationship"]	= new TypedField<String>("relationship", &mRelationship, "Relationship", "What's your relationship status ?");
-
+	
 	// Contact
 	mFields["location"]    	= new TypedField<String>("location", &mLocation, "Address", "What's your address ?");
 	mFields["email"]	= new TypedField<String>("email", &mEmail, "E-mail", "What's your email address ?");
@@ -66,8 +66,10 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	// Settings
 	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use", mTracker);
 
+	// Date format
+	mBirthday.setSerializationFormat(Time::IsoDate);
+	
 	mFileName = infoPath() + mName;
-
 	Interface::Instance->add(urlPrefix(), this);
 }
 
@@ -395,7 +397,7 @@ page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 									selectYears: true, \n\
 									selectMonths: true, \n\
 									today: '', \n\
-									format: 'dd mmmm yyyy', // TODO \n\
+									format: 'yyyy-mm-dd',\n\
 									selectYears: 115, \n\
 									min: new Date(1900,1,1), \n\
 									max: true, \n\

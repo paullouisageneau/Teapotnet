@@ -92,6 +92,8 @@ public:
 private:
   	static Mutex TimeMutex;
 	
+	void parse(const String &str);
+	
 	time_t mTime;
 	int mUsec;
 	
