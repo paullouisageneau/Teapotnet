@@ -85,12 +85,17 @@ public:
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
 	bool isNativeSerializable(void) const;
+	
+	enum SerializationFormat { Timestamp, IsoDate, IsoDateTime };
+	void setSerializationFormat(SerializationFormat format);
 
 private:
   	static Mutex TimeMutex;
 	
 	time_t mTime;
 	int mUsec;
+	
+	SerializationFormat mFormat;
 };
 
 bool operator < (const Time &t1, const Time &t2);

@@ -67,7 +67,8 @@ void Time::SecondsToStruct(double secs, struct timespec &ts)
 	ts.tv_nsec = long(fsecs*100000000.);
 }
 
-Time::Time(void)
+Time::Time(void) :
+	mFormat(Timestamp)
 {
 	timeval tv;
 	Assert(gettimeofday(&tv, NULL) == 0);
@@ -115,7 +116,7 @@ Time::Time(const String &str)
 				return;
 			}
 			
-			// YYYY-MM-DD
+			// ISO YYYY-MM-DD
 			List<String> dateParts;
 			str.explode(dateParts, '-');
 			Assert(dateParts.size() == 3);
@@ -125,7 +126,7 @@ Time::Time(const String &str)
 			break;
 		}
 			
-		case 2: // MySQL YYYY-MM-DD HH:MM:SS[.X]
+		case 2: // ISO YYYY-MM-DD HH:MM:SS[.X]
 		{
 			String tmp;
 			tmp = list.front(); list.pop_front();
@@ -502,7 +503,20 @@ Time::operator time_t(void) const
 
 void Time::serialize(Serializer &s) const
 {
-	s.output(int64_t(mTime));
+	switch(mFormat)
+	{
+	case IsoDate:
+		s.output(toIsoDate());
+		break;
+		
+	case IsoDateTime:
+		s.output(toIsoDate() + ' ' + toIsoTime());
+		break;
+		
+	default:
+		s.output(int64_t(mTime));
+		break;
+	}
 }
 
 bool Time::deserialize(Serializer &s)
@@ -517,6 +531,11 @@ bool Time::deserialize(Serializer &s)
 bool Time::isNativeSerializable(void) const
 {
 	return true;
+}
+
+void Time::setSerializationFormat(SerializationFormat format)
+{
+	mFormat = format;
 }
 
 bool operator < (const Time &t1, const Time &t2)
