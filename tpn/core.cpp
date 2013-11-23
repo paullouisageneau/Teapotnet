@@ -379,8 +379,9 @@ bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 	Handler *h = NULL;
 	if(mHandlers.get(peer, h) && h != handler)
 	{
+		Desynchronize(this);
+		h->setStopping();
 		LogDebug("Core::Handler", "Replacing already existing handler");
-		// TODO: stop handler ?
 	}
 
 	mHandlers.insert(peer, handler);
@@ -482,6 +483,12 @@ void Core::Handler::setPeering(const Identifier &peering)
 			mPeering.setName("default");
 		}
 	}
+}
+
+void Core::Handler::setStopping(void)
+{
+	Synchronize(this);
+	mStopping = true;
 }
 
 void Core::Handler::sendNotification(const Notification &notification)
@@ -1078,7 +1085,7 @@ void Core::Handler::process(void)
 					}
 					catch(const Exception &e)
 					{
-						LogWarn("Core::Handler", String("Listener failed to process request: ")+e.what()); 
+						LogWarn("Core::Handler", String("Listener failed to process request "+String::number(id)+": ") + e.what()); 
 					}
 				}
 					
@@ -1120,7 +1127,7 @@ void Core::Handler::process(void)
 					}
 					catch(const Exception &e)
 					{
-						LogWarn("Core::Handler", String("Listener failed to process the notification: ") + e.what()); 
+						LogWarn("Core::Handler", String("Listener failed to process the notification: ") + e.what());
 					}
 				}
 			}

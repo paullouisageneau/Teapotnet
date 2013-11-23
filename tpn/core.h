@@ -96,6 +96,7 @@ private:
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
+		void setStopping(void);
 		
 		void sendNotification(const Notification &notification);
 		void addRequest(Request *request);
