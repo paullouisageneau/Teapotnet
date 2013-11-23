@@ -407,8 +407,10 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 				$('#attachedfile').show();\n\
 			}\n\
 			$(document.chatform.chatinput).focus();\n\
-			$(document.chatform.chatinput).val(filename);\n\
-			$(document.chatform.chatinput).select();\n\
+			if($(document.chatform.chatinput).val() == '') {\n\
+				$(document.chatform.chatinput).val(filename);\n\
+				$(document.chatform.chatinput).select();\n\
+			}\n\
 		});\n\
 		$(document.chatform.chatinput).keypress(function(e) {\n\
 			if (e.keyCode == 13 && !e.shiftKey) {\n\

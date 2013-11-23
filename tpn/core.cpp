@@ -201,7 +201,7 @@ void Core::run(void)
 			
 			try {
 				Address addr = sock->getRemoteAddress();
-                        	LogInfo("Core", "Incoming connection from " + addr.toString());
+                        	LogDebug("Core", "Incoming connection from " + addr.toString());
                         	if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 
 				// TODO: this is not a clean way to proceed
@@ -376,22 +376,26 @@ bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 	Assert(handler != NULL);
 	Synchronize(this);
 	
-	if(mHandlers.contains(peer))
+	Handler *h = NULL;
+	if(mHandlers.get(peer, h) && h != handler)
 	{
-		if(mHandlers[peer] != handler) return false;
+		LogDebug("Core::Handler", "Replacing already existing handler");
+		// TODO: stop handler ?
 	}
-	
+
 	mHandlers.insert(peer, handler);
 	return true;
 }
 
 bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
+	Assert(handler != NULL);
 	Synchronize(this);
   
-	if(!mHandlers.contains(peer)) return false;
-	Handler *h = mHandlers.get(peer);
-	if(h != handler) return false;
+	Handler *h = NULL;
+	if(!mHandlers.get(peer, h) || h != handler)
+		return false;
+	
 	mHandlers.erase(peer);
 	return true;
 }
@@ -889,11 +893,7 @@ void Core::Handler::process(void)
 	
 	try {
 		// Register the handler
-		if(!mCore->addHandler(mPeering,this))
-		{
-			LogDebug("Core::Handler", "Duplicate handler for the peering, exiting."); 
-			return;
-		}
+		mCore->addHandler(mPeering,this);
 		
 		// WARNING: Do not simply return after this point, sender is starting
 		notifyAll();
@@ -1131,6 +1131,8 @@ void Core::Handler::process(void)
 				if(parameters.contains("length")) parameters["length"].extract(length);
 				if(length) AssertIO(mStream->ignore(length));
 			}
+			
+			if(mStopping) break;
 		}
 
 		LogDebug("Core::Handler", "Finished");
@@ -1140,7 +1142,24 @@ void Core::Handler::process(void)
 		LogError("Core::Handler", e.what()); 
 	}
 	
+	try {
+		Synchronize(mCore);
+		
+		mCore->removeHandler(mPeering, this);
+		 
+		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
+		{
+			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
+			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
+				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
+		}
+	}
+	catch(const std::exception &e)
 	{
+		LogError("Core::Handler", e.what()); 
+	}
+	
+	try {
 		Synchronize(this);
 		
 		mStopping = true;
@@ -1160,18 +1179,9 @@ void Core::Handler::process(void)
 			it->second->removePending(mPeering);
 		}
 	}
-	
+	catch(const std::exception &e)
 	{
-		Synchronize(mCore);
-		
-		mCore->removeHandler(mPeering, this);
-		 
-		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
-		{
-			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
-			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
-				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
+		LogError("Core::Handler", e.what()); 
 	}
 	
 	Listener *listener = NULL;
@@ -1186,6 +1196,7 @@ void Core::Handler::process(void)
 		}
 	}
 	
+	// Stop the sender
 	if(mSender && mSender->isRunning())
 	{
 		SynchronizeStatement(mSender, mSender->mShouldStop = true);

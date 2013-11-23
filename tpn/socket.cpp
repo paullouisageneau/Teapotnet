@@ -305,8 +305,7 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 	if(count < 0)
 	{
 		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-		else throw NetException("Connection lost");
-		
+		else throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 	}
 
 	return count;
@@ -333,7 +332,7 @@ void Socket::sendData(const char *data, size_t size, int flags)
 		if(count < 0)  
 		{
 			if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-			else throw NetException("Connection lost");
+			else throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 		}
 		
 		data+= count;

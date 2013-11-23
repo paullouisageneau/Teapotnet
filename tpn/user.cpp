@@ -649,8 +649,10 @@ void User::http(const String &prefix, Http::Request &request)
 						$('#attachedfile').show();\n\
 					}\n\
 					$(document.statusform.statusinput).focus();\n\
-					$(document.statusform.statusinput).val(filename);\n\
-					$(document.statusform.statusinput).select();\n\
+					if($(document.statusform.statusinput).val() == '') {\n\
+						$(document.statusform.statusinput).val(filename);\n\
+						$(document.statusform.statusinput).select();\n\
+					}\n\
 				});\n\
 				function post(object, parentStamp) {\n\
 					var message = $(object).val();\n\

@@ -34,7 +34,7 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6
 #endif
 
 size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
-size_t HttpTunnel::MaxPostSize = 1*1024*1024;	// 1 MB
+size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
 double HttpTunnel::ConnTimeout = 20.;
 double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.2;
@@ -316,9 +316,13 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			size_t ret = mDownSock->readData(buffer, size);
 			if(ret) return ret;
 		}
-		catch(const Exception &e)
+		catch(const NetException &e)
 		{
 			// Let's suppose nothing has been actually transmitted
+		}
+		catch(const Timeout &e)
+		{
+			// Nothing to do
 		}
 		
 		mDownSock->close();
@@ -647,9 +651,9 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
                         mDownSock->writeData(data, size);
                         break;
                 }
-                catch(const Exception &e)
+                catch(const NetException &e)
                 {
-			// Let's suppose nothing has been actually transmitted
+			// Let's suppose nothing has been transmitted
                 }
                 
 		mDownSock->close();
