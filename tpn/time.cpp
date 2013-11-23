@@ -106,10 +106,49 @@ Time::Time(const String &str)
 
 	switch(list.size()) 
 	{
-		case 1:	// Unix timestamp as integer
-			str.extract(mTime);
-			return;
-
+		case 1:
+		{
+			if(!str.contains('-'))
+			{
+				// Unix timestamp as integer
+				str.extract(mTime);
+				return;
+			}
+			
+			// YYYY-MM-DD
+			List<String> dateParts;
+			str.explode(dateParts, '-');
+			Assert(dateParts.size() == 3);
+			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
+			tms.tm_mon  = dateParts.front().toInt(); dateParts.pop_front();
+			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
+			break;
+		}
+			
+		case 2: // MySQL YYYY-MM-DD HH:MM:SS[.X]
+		{
+			String tmp;
+			tmp = list.front(); list.pop_front();
+			List<String> dateParts;
+			tmp.explode(dateParts, '-');
+			Assert(dateParts.size() == 3);
+			tms.tm_year = dateParts.front().toInt(); dateParts.pop_front();
+			tms.tm_mon  = dateParts.front().toInt(); dateParts.pop_front();
+			tms.tm_mday = dateParts.front().toInt(); dateParts.pop_front();
+			
+			tmp = list.front(); list.pop_front();
+                        List<String> hourParts;
+                        tmp.explode(hourParts, ':');
+                        Assert(hourParts.size() == 3);
+			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
+                        tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
+                        double secs = 0.;
+			double usecs = std::modf(hourParts.front().toDouble(), &secs);
+			tms.tm_sec = int(secs);
+			mUsec = int(usecs * 1000000);
+			break;
+		}
+			
 		case 4:	// RFC 850
 		{		
 			list.pop_front();       // we don't care about day of week
@@ -128,7 +167,7 @@ Time::Time(const String &str)
 
 			tmp = list.front(); list.pop_front();
                         List<String> hourParts;
-                        tmp.explode(hourParts, '-');
+                        tmp.explode(hourParts, ':');
                         Assert(hourParts.size() == 3);
 			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
                         tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
