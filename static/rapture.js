@@ -305,5 +305,7 @@ function addContact(tpnid, secret, nStep) {
 		// Refresh contacts list
 		location.reload(); 
 	}) 
-	.fail(function() { alert('error, contact could not be added'); });
+	.fail(function() { 
+		alert('Error, the contact could not be added');
+	});
 }
