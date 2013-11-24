@@ -122,6 +122,7 @@ void Message::setContent(const String &content)
 {
 	if(mStamp.empty()) mStamp = GenerateStamp();
 	mContent = content;
+	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
 }
 
 void Message::setPublic(bool ispublic)
