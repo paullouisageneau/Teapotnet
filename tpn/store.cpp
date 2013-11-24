@@ -249,7 +249,8 @@ bool Store::moveFileToCache(String &fileName, String name)
         	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
         	else {
 			String cacheDir = Config::Get("cache_dir");
-			Directory::Create(cacheDir);
+			if(!Directory::Exist(cacheDir))
+				Directory::Create(cacheDir);
 			addDirectory(CacheDirectoryName, cacheDir);
 		}
 	}
