@@ -37,33 +37,32 @@ Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
 	CacheEntry *entry = NULL;
 	
 	CacheMutex.lock();
-	if(!Cache.get(target, entry))
-	{
-		LogDebug("Splicer", "No cached file, creating a new one");
-		
-		try {
-			entry = new CacheEntry(target);
-		}
-		catch(...)
+	
+	try {
+		if(!Cache.get(target, entry))
 		{
-			CacheMutex.unlock();
-			throw;
+			LogDebug("Splicer", "No cached file, creating a new one");
+			entry = new CacheEntry(target);
+			Cache.insert(target, entry);
 		}
 		
-		Cache.insert(target, entry);
+		entry->setAccessTime();
+		
+		Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
+		while(it != Cache.end())
+		{
+			if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
+				Cache.erase(it++);
+			else it++;
+		}
 	}
-	
-	entry->setAccessTime();
-	
-	Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
-	while(it != Cache.end())
+	catch(...)
 	{
-		if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
-			Cache.erase(it++);
-		else it++;
+		CacheMutex.unlock();
+		throw;
 	}
-	CacheMutex.unlock();
 	
+	CacheMutex.unlock();
 	return entry;
 }
 
