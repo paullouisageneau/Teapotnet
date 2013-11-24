@@ -238,9 +238,11 @@ bool YamlSerializer::input(String &str)
 						return true;
                         		}
 
-                        		if(indent > mIndent.top())
-                                		mIndent.top() = indent;
+                        		//if(indent > mIndent.top())
+                                	//	mIndent.top() = indent;
                 		}
+
+				mLine.ignore(indent);
 			}
 
 			if(!str.empty())
@@ -249,7 +251,6 @@ bool YamlSerializer::input(String &str)
                         	else str+= ' ';
                 	}
 
-                	mLine.trim();
                 	str+= mLine;
 		}
 
@@ -304,6 +305,8 @@ void YamlSerializer::output(const String &str)
 		*mStream<<" |"<<Stream::NewLine;
 	  
 		String copy(str);
+		copy.trim();
+
 		String line;
 		while(copy.readLine(line))
 		{
