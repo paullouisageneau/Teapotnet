@@ -1216,7 +1216,9 @@ void Core::Handler::run(void)
 {
 	process();
 	notifyAll();
-	Thread::Sleep(1.);	// TODO
+	
+	// TODO
+	Thread::Sleep(5.);	
 	Synchronize(this);
 }
 

@@ -34,37 +34,15 @@ namespace tpn
 {
 
 Store *Store::GlobalInstance = NULL;
-Map<ByteString,String> Store::Resources;
-Mutex Store::ResourcesMutex;
 const String Store::CacheDirectoryName = "_cache";
 const String Store::UploadDirectoryName = "_upload";  
 
 bool Store::Get(const ByteString &digest, Resource &resource)
 {
-	String path;
-	ResourcesMutex.lock();
-	bool found = Resources.get(digest, path);
-	ResourcesMutex.unlock();
-	if(!found) return false;
+	if(!GlobalInstance) return false;
 	
-	LogDebug("Store::Get", "Requested " + digest.toString());  
-	
-	if(!File::Exist(path))
-	{
-		ResourcesMutex.lock();
-		Resources.erase(digest);
-		ResourcesMutex.unlock();
-		return false;
-	}
-	
-	resource.clear();
-	resource.mDigest = digest;
-	resource.mPath = path;
-	resource.mUrl = path.afterLast(Directory::Separator);	// this way the name is available
-	resource.mSize = File::Size(path);
-	resource.mTime = File::Time(path);
-	resource.mStore = Store::GlobalInstance;
-	return true;
+	LogDebug("Store::Get", "Requested " + digest.toString());
+	GlobalInstance->getResource(digest, resource);
 }
 
 Store::Store(User *user) :
@@ -74,6 +52,7 @@ Store::Store(User *user) :
 	if(mUser) mDatabase = new Database(mUser->profilePath() + "files.db");
 	else mDatabase = new Database("files.db");
 	
+	// Files database
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 	parent_id INTEGER,\
@@ -111,6 +90,14 @@ Store::Store(User *user) :
 	else {
 		mFileName = "directories.txt";
 		mBasePath = "";
+		
+		// Global database to find path from digest
+		mDatabase->execute("CREATE TABLE IF NOT EXISTS resources\
+			(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+			digest BLOB,\
+			path TEXT UNIQUE)");
+		mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON resources (digest)");
+		mDatabase->execute("CREATE INDEX IF NOT EXISTS path ON resources (path)");
 	}
 	
 	if(File::Exist(mFileName))
@@ -1074,6 +1061,81 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 }
 
+bool Store::getResource(const ByteString &digest, Resource &resource)
+{
+	Synchronize(this);
+	
+	if(this != GlobalInstance) 
+	{
+		return GlobalInstance->getResource(digest, resource);
+	}
+	
+	Database::Statement statement = mDatabase->prepare("SELECT path FROM resources WHERE digest = ?1 LIMIT 1");
+	statement.bind(1, digest);
+	if(!statement.step())
+	{
+		statement.finalize();
+		return false;
+	}
+	
+	String path;
+	statement.input(path);
+	statement.finalize();
+	
+	if(!File::Exist(path))
+	{
+		Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE digest = ?1");
+		statement.bind(1, digest);
+		statement.execute();
+		return false;
+	}
+	
+	resource.clear();
+	resource.mDigest = digest;
+	resource.mPath = path;
+	resource.mUrl = path.afterLast(Directory::Separator);	// this way the name is available
+	resource.mSize = File::Size(path);
+	resource.mTime = File::Time(path);
+	resource.mStore = this;
+	return true;
+}
+
+void Store::insertResource(const ByteString &digest, const String &path)
+{
+	Synchronize(this);
+	
+	if(this != GlobalInstance) 
+	{
+		GlobalInstance->insertResource(digest, path);
+		return;
+	}
+	
+	Database::Statement selectStatement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
+	selectStatement.bind(1, path);
+	
+	if(selectStatement.step())
+	{
+		ByteString oldDigest;
+		selectStatement.input(oldDigest);
+		
+		if(digest != oldDigest)
+		{
+			Database::Statement statement = mDatabase->prepare("UPDATE resources SET digest = ?1 WHERE path = ?2");
+			statement.bind(1, digest);
+			statement.bind(2, path);
+			statement.execute();
+		}
+	}
+	else {
+		Database::Statement statement = mDatabase->prepare("INSERT INTO resources (digest, path) VALUES (?1, ?2)");
+		statement.bind(1, digest);
+		statement.bind(2, path);
+		statement.execute();
+	}
+	
+	selectStatement.finalize();
+}
+
 bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly)
 {
 	String url = query.mUrl;
@@ -1300,9 +1362,7 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 		else {		// file
 		  
 			Desynchronize(this);
-			ResourcesMutex.lock();
-			Resources.insert(digest, absPath);
-			ResourcesMutex.unlock();
+			insertResource(digest, absPath);
 		}
 	}
 	catch(const Exception &e)
