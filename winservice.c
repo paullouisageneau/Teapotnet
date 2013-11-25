@@ -157,7 +157,7 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
         bServiceStarted = TRUE;
 	
 	CloseHandle(processInfo.hThread);
-        while(WaitForSingleObject(processInfo.hProcess, 1000) == WAIT_TIMEOUT)
+        while(WaitForSingleObject(processInfo.hProcess, 500) == WAIT_TIMEOUT)
 	{	
 		if(!bServiceStarted)
 		{

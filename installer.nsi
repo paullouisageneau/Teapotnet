@@ -42,6 +42,7 @@ functionEnd
 section "install"
 	# Stop the process
 	ExecWait 'taskkill /F /IM teapotnet.exe'
+	Sleep 1000
 	
 	# Files for the install directory - to build the installer, these should be in the same directory as the install script (this file)
 	setOutPath $INSTDIR
