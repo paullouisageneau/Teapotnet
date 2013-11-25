@@ -69,11 +69,11 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	static Map<ByteString,String> Resources;	// absolute path by data hash
-	static Mutex ResourcesMutex;
-	
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
+	
+	bool getResource(const ByteString &digest, Resource &resource);
+	void insertResource(const ByteString &digest, const String &path);
 	
 	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);

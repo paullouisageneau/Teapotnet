@@ -446,9 +446,7 @@ bool Resource::Query::submitLocal(Resource &result)
 {
 	if(!mDigest.empty())
 	{
-		if(Store::Get(mDigest, result))
-			return true;
-		// TODO: if Get was reliable at startup calling query would not be necessary here
+		return Store::Get(mDigest, result);
 	}
 	
 	return mStore->query(*this, result);
@@ -459,12 +457,9 @@ bool Resource::Query::submitLocal(Set<Resource> &result)
 	if(!mDigest.empty())
 	{
 		Resource resource;
-		if(Store::Get(mDigest, resource))
-		{
-			result.insert(resource);
-			return true;
-		}
-		// TODO: if Get was reliable at startup calling query would not be necessary here
+		if(!Store::Get(mDigest, resource)) return false;
+		result.insert(resource);
+		return true;
 	}
 	
 	return mStore->query(*this, result);

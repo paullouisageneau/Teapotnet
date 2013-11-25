@@ -1357,6 +1357,8 @@ void AddressBook::Contact::disconnected(const Identifier &peering)
 
 bool AddressBook::Contact::notification(const Identifier &peering, Notification *notification)
 {
+	// Important: Not synchronized
+	
 	if(isDeleted()) return false;
 
 	Assert(notification);
@@ -1629,7 +1631,8 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		
 		// DO NOT synchronize here, as the contact could disappear during load
 		String data = notification->content();
-		mAddressBook->load(data);
+		AddressBook *addressBook = mAddressBook;
+		mAddressBook->load(data); // may destroy the contact
 	}
 	else if(type == "text")
 	{
