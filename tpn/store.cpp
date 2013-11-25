@@ -1127,6 +1127,8 @@ void Store::insertResource(const ByteString &digest, const String &path)
 		}
 	}
 	else {
+		LogInfo("Store", String("Registering: ") + path);
+		
 		Database::Statement statement = mDatabase->prepare("INSERT INTO resources (digest, path) VALUES (?1, ?2)");
 		statement.bind(1, digest);
 		statement.bind(2, path);
