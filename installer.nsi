@@ -40,6 +40,9 @@ function .onInit
 functionEnd
  
 section "install"
+	# Stop the process
+	ExecWait 'taskkill /F /IM teapotnet.exe'
+	
 	# Files for the install directory - to build the installer, these should be in the same directory as the install script (this file)
 	setOutPath $INSTDIR
 	# Files added here should be removed by the uninstaller (see section "uninstall")
@@ -103,7 +106,7 @@ section "uninstall"
 	# Stop and uninstall the service
 	ExecWait '"$INSTDIR\winservice.exe" stop'
 	ExecWait '"$INSTDIR\winservice.exe" uninstall'
-	ExecWait 'taskkill /FIM teapotnet.exe'
+	ExecWait 'taskkill /F /IM teapotnet.exe'
 
 	# Remove desktop shortcut
 	Delete "$DESKTOP\${APPNAME}.lnk"
