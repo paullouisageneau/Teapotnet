@@ -1632,7 +1632,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		// DO NOT synchronize here, as the contact could disappear during load
 		String data = notification->content();
 		AddressBook *addressBook = mAddressBook;
-		mAddressBook->load(data); // may destroy the contact
+		addressBook->load(data); // may destroy the contact
 	}
 	else if(type == "text")
 	{
