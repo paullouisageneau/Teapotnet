@@ -535,8 +535,14 @@ size_t AesCipher::readBlock(char *out)
 		
 		// Remove PKCS7 padding
 		size_t padding = uint8_t(out[AES_BLOCK_SIZE - 1]);
-		if(padding > AES_BLOCK_SIZE) throw IOException("AES: Invalid padding in deciphered block");
+		if(padding > AES_BLOCK_SIZE) 
+			throw IOException("AES: Corrupted data");
+		
 		size_t size = AES_BLOCK_SIZE - padding;
+		for(int i=1; i<padding; ++i)
+			if(uint8_t(out[size + i - 1]) != padding)
+				throw IOException("AES: Corrupted data");
+		
 		if(size) return size;
 	}
 }
