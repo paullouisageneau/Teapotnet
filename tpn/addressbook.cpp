@@ -1273,6 +1273,8 @@ void AddressBook::Contact::update(bool alternate)
 
 void AddressBook::Contact::createProfile(void)
 {
+	Synchronize(mAddressBook);
+	
 	if(isSelf()) return;
 	
 	if(!mProfile)
