@@ -33,8 +33,9 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:24.0) Gecko/24.
 String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
 #endif
 
-size_t HttpTunnel::DefaultPostSize = 1*1024;	// 1 KB
-size_t HttpTunnel::MaxPostSize = 2*1024*1024;	// 2 MB
+size_t HttpTunnel::DefaultPostSize = 1*1024;		// 1 KB
+size_t HttpTunnel::MaxPostSize = 2*1024*1024;		// 2 MB
+size_t HttpTunnel::MaxDownloadSize = 20*1024*1024;	// 20 MB
 double HttpTunnel::ConnTimeout = 20.;
 double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.2;
@@ -93,20 +94,24 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					if(!server->mDownSock && !server->mClosed)
 					{
 						Http::Response response(request, 200);
-						response.headers["Content-Type"] = "text/html";
 						response.headers["Cache-Control"] = "no-cache";
 						response.cookies["session"] << session;
-						response.send(*sock);
-				
+
 						// First response should be forced down the potential proxy as soon as possible	
 						if(isNew)
 						{
+							response.headers["Content-Type"] = "text/html";
+							response.send(*sock);
 							delete sock;
 							return server;
 						}
-
+	
+						response.headers["Content-Type"] = "application/octet-stream";
+						response.send(*sock);
 						server->mDownSock = sock;
+						server->mDownloadLeft = MaxDownloadSize;
 						server->notifyAll();
+						Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.8);
 						return NULL;
 					}
 				}
@@ -233,13 +238,16 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		mDownSock->setTimeout(SockTimeout);
 	}
 
-	Time endTime = Time::Now() + (mSession ? ReadTimeout : mConnTimeout);
+	Time endTime = Time::Now() + mConnTimeout;
 	while(true)
 	{
 		if(Time::Now() >= endTime) throw Timeout();
 
+		bool freshConnection = false;
 		if(!mDownSock->isConnected())
 		{
+			freshConnection = true;
+
 			String url;
 			Assert(!mReverse.empty());
                         url<<"http://"<<mReverse<<"/"<<String::random(10);
@@ -255,8 +263,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
         		if(hasProxy) request.url = url;			// Full URL for proxy
 
 			try {
-				double timeout = std::max(endTime - Time::Now(), milliseconds(100));
-				mDownSock->setConnectTimeout(std::min(mConnTimeout, timeout));
+				double timeout = std::max(endTime - Time::Now(), 0.);
+				mDownSock->setConnectTimeout(timeout);
                 		
 				DesynchronizeStatement(this, mDownSock->connect(addr, true));		// Connect without proxy
                 		request.send(*mDownSock);
@@ -267,7 +275,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
                 		throw;
         		}
 
-			double timeout = std::max(endTime - Time::Now(), milliseconds(100));
+			double timeout = std::max(endTime - Time::Now(), 0.);
 			mDownSock->setReadTimeout(timeout);
 
 			Http::Response response;
@@ -318,11 +326,11 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		}
 		catch(const NetException &e)
 		{
-			// Let's suppose nothing has been actually transmitted
-		}
-		catch(const Timeout &e)
-		{
-			// Nothing to do
+			if(!freshConnection)
+			{
+				mDownSock->close();
+				throw;
+			}
 		}
 		
 		mDownSock->close();
@@ -502,6 +510,7 @@ HttpTunnel::Server::Server(uint32_t session) :
 	mFlushTask(this),
 	mSession(session),
 	mPostBlockLeft(0),
+	mDownloadLeft(0),
 	mClosed(false)	
 {
 	Assert(mSession);
@@ -629,7 +638,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 
 	while(true)
 	{
-		if(mDownSock && !mDownSock->isConnected())
+		if(mDownSock && (!mDownSock->isConnected() || !mDownloadLeft))
 		{
 			delete mDownSock;
 			mDownSock = NULL;
@@ -646,16 +655,32 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		}
 
 		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
+		Assert(mDownloadLeft >= 1);
+		if(!size) break;
+
+		if(mDownloadLeft == MaxDownloadSize)    // if no data has already been sent
+		{
+			try {
+				// Try only 
+				mDownSock->writeData(data, 1);
+                		data++;
+                        	size--;
+                        	mDownloadLeft--;
+			}
+			catch(const NetException &e)
+			{
+				mDownSock->close();
+				continue;
+			}
+		}
 	
-		try {
-                        mDownSock->writeData(data, size);
-                        break;
-                }
-                catch(const NetException &e)
-                {
-			// Let's suppose nothing has been transmitted
-                }
-                
+		size_t s = std::min(size, mDownloadLeft);
+		mDownSock->writeData(data, s);
+		data+= s;
+		size-= s;
+		mDownloadLeft-= s;
+		if(!size) break;
+	
 		mDownSock->close();
 	}
 	
