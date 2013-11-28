@@ -588,9 +588,6 @@ void Core::Handler::process(void)
 		Synchronize(this);
 		LogDebug("Core::Handler", "Starting...");
 	  
-		// TODO
-		//mRawStream->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
-		
 		// Set up obfuscation cipher
 		ByteString tmp;
 		Sha512::Hash(String("TeapotNet"), tmp);
@@ -910,11 +907,7 @@ void Core::Handler::process(void)
 		mSender = new Sender;
 		mSender->mStream = mStream;
 		mSender->start();
-		Thread::Sleep(0.1);	
-	
-		// TODO
-		//const double readTimeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
-		//SynchronizeStatement(this, mRawStream->setTimeout(readTimeout));
+		Thread::Sleep(0.1);
 		
 		Listener *listener = NULL;
 		if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
