@@ -1128,7 +1128,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	if(!bs) return false;
 
-	LogInfo("Core", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
+	LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
 	if(Core::Instance->addPeer(bs, addr, peering))
 	{
 		if(save)
