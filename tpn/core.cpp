@@ -377,12 +377,8 @@ bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 	Synchronize(this);
 	
 	Handler *h = NULL;
-	if(mHandlers.get(peer, h) && h != handler)
-	{
-		Desynchronize(this);
-		h->setStopping();
-		LogDebug("Core::Handler", "Replacing already existing handler");
-	}
+	if(mHandlers.get(peer, h))
+		return (h == handler);
 
 	mHandlers.insert(peer, handler);
 	return true;
@@ -900,7 +896,11 @@ void Core::Handler::process(void)
 	
 	try {
 		// Register the handler
-		mCore->addHandler(mPeering,this);
+                if(!mCore->addHandler(mPeering, this))
+                {
+                        LogDebug("Core::Handler", "Duplicate handler for the peering, exiting.");
+                        return;
+                }
 		
 		// WARNING: Do not simply return after this point, sender is starting
 		notifyAll();
