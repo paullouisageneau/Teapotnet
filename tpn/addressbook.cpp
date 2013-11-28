@@ -1094,17 +1094,17 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	Identifier peering(this->peering(), instance);
 	ByteStream *bs = NULL;
-
+	Socket *sock = NULL;
+	
 	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic() || addr.port() == 443)
 	{
-		Socket *sock = NULL;
 		try {
 			sock = new Socket(addr, 4.);
 		}
 		catch(const Exception &e)
 		{
-			sock = NULL;
 			LogDebug("AddressBook::Contact::connectAddress", String("Direct connection failed: ") + e.what());
+			sock = NULL;
 		}
 		
 		if(sock)
@@ -1128,6 +1128,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	if(!bs) return false;
 
+	LogInfo("Core", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
 	if(Core::Instance->addPeer(bs, addr, peering))
 	{
 		if(save)

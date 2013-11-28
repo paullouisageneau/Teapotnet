@@ -201,7 +201,7 @@ void Core::run(void)
 			
 			try {
 				Address addr = sock->getRemoteAddress();
-                        	LogDebug("Core", "Incoming connection from " + addr.toString());
+                        	LogDebug("Core::run", "Incoming connection from " + addr.toString());
                         	if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
 
 				// TODO: this is not a clean way to proceed
@@ -221,7 +221,8 @@ void Core::run(void)
 					bs = HttpTunnel::Incoming(sock);
 					if(!bs) continue;
 				}
-
+				
+				LogInfo("Core", "Incoming peer from " + addr.toString() + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
 				addPeer(bs, addr, Identifier::Null, true);	// async
 			}
 			catch(const Exception &e)
@@ -615,7 +616,7 @@ void Core::Handler::process(void)
 
 		if(!mIsIncoming)	
 		{
-			LogDebug("Handler", "Initiating handshake...");
+			LogInfo("Handler", "Initiating handshake...");
 
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Peering is not registered: " + mPeering.toString());
@@ -1146,7 +1147,7 @@ void Core::Handler::process(void)
 	}
 	catch(const std::exception &e)
 	{
-		LogError("Core::Handler", e.what()); 
+		LogWarn("Core::Handler", e.what()); 
 	}
 	
 	try {

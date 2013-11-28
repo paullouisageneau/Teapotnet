@@ -342,6 +342,7 @@ void Http::Request::recv(Socket &sock, bool parsePost)
 							line.clear();
 						}*/
 						
+						// TODO: This should be replaced with Boyer-Moore algorithm for performance
 						String bound = String("\r\n") + boundary;
 						char *buffer = new char[bound.size()];
 						try {
