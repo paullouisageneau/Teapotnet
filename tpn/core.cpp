@@ -899,7 +899,7 @@ void Core::Handler::process(void)
 		// Register the handler
                 if(!mCore->addHandler(mPeering, this))
                 {
-                        LogDebug("Core::Handler", "Duplicate handler for the peering, exiting.");
+                        LogInfo("Core::Handler", "Duplicate handler for the peering, exiting.");
                         return;
                 }
 		
