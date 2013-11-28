@@ -616,7 +616,7 @@ void Core::Handler::process(void)
 
 		if(!mIsIncoming)	
 		{
-			LogInfo("Handler", "Initiating handshake...");
+			LogDebug("Handler", "Initiating handshake...");
 
 			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 				throw Exception("Peering is not registered: " + mPeering.toString());
