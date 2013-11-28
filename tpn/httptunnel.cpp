@@ -39,7 +39,7 @@ size_t HttpTunnel::MaxDownloadSize = 20*1024*1024;	// 20 MB
 double HttpTunnel::ConnTimeout = 30.;
 double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.2;
-double HttpTunnel::ReadTimeout = 300.;
+double HttpTunnel::ReadTimeout = 60.;
 
 Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
 Mutex					HttpTunnel::SessionsMutex;
@@ -111,7 +111,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 						server->mDownSock = sock;
 						server->mDownloadLeft = MaxDownloadSize;
 						server->notifyAll();
-						Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.8);
+						Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.75);
 						return NULL;
 					}
 				}
@@ -238,7 +238,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		mDownSock->setTimeout(SockTimeout);
 	}
 
-	Time endTime = Time::Now() + mConnTimeout;
+	Time endTime = Time::Now() + ReadTimeout;
 	while(true)
 	{
 		if(Time::Now() >= endTime) throw Timeout();
@@ -263,8 +263,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
         		if(hasProxy) request.url = url;			// Full URL for proxy
 
 			try {
-				double timeout = std::max(endTime - Time::Now(), 0.);
-				mDownSock->setConnectTimeout(timeout);
+				mDownSock->setConnectTimeout(mConnTimeout);
                 		
 				DesynchronizeStatement(this, mDownSock->connect(addr, true));		// Connect without proxy
                 		request.send(*mDownSock);
@@ -275,9 +274,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
                 		throw;
         		}
 
-			double timeout = std::max(endTime - Time::Now(), 0.);
-			mDownSock->setReadTimeout(timeout);
-
+			mDownSock->setReadTimeout(SockTimeout);
+			
 			Http::Response response;
 			response.recv(*mDownSock);
 
@@ -313,11 +311,10 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			{
 				throw NetException("HTTP transaction failed: Invalid cookie");
 			}
-
-			mDownSock->setReadTimeout(ReadTimeout);
 		}
 	
 		if(!size) return 0;
+		mDownSock->setReadTimeout(ReadTimeout);
 		
 		try {
 			Desynchronize(this);
@@ -562,7 +559,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		}
 
 		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
-
+		mUpSock->setTimeout(SockTimeout);
+		
 		uint8_t command;
 		uint16_t len = 0;
 		
@@ -624,7 +622,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 
 	Assert(mUpSock);
 	Assert(mPostBlockLeft > 0);
-
+	mUpSock->setTimeout(SockTimeout);
+	
 	size_t r;
 	DesynchronizeStatement(this, r = mUpSock->readData(buffer, std::min(size, mPostBlockLeft)));
 	if(size && !r) throw NetException("Connection unexpectedly closed");
