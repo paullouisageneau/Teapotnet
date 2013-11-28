@@ -610,16 +610,16 @@ a.button:hover
 
 #newsfeed .childmessage
 {
-	width: 70%;
-	margin-left: 30%;
+	width: 75%;
+	margin-left: 25%;
 	margin-bottom: 0.5em;
 }
 
 #newsfeed .reply
 {
 	display: none;
-	width: 70%;
-	margin-left: 30%;
+	width: 75%;
+	margin-left: 25%;
 	margin-bottom: 0.5em;
 	padding: 0;
 }
