@@ -216,11 +216,9 @@ void ServerSocket::listen(int port)
 		if(::listen(mSock, 16) != 0)
 			throw NetException(String("Listening failed on port ")+String::number(port));
 
-		/*
-		ctl_t b = 1;
+		ctl_t b = 0;
 		if(ioctl(mSock,FIONBIO,&b) < 0)
-			throw Exception("Cannot use non-blocking mode");
-		 */
+			throw Exception("Cannot use blocking mode");
 	}
 	catch(...)
 	{

@@ -88,6 +88,7 @@ public:
 		Http::Request mUpRequest;
 		uint32_t mSession;
 		size_t mPostBlockLeft;
+		size_t mDownloadLeft;
 		bool mClosed;
 		
 		friend Server *HttpTunnel::Incoming(Socket *sock);;
@@ -96,6 +97,7 @@ public:
 	static String UserAgent;
         static size_t DefaultPostSize;
 	static size_t MaxPostSize;
+	static size_t MaxDownloadSize;
 	static double ConnTimeout;
 	static double SockTimeout;
 	static double FlushTimeout;

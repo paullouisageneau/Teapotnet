@@ -297,16 +297,15 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 		struct timeval tv;
 		Time::SecondsToStruct(mReadTimeout, tv);
 		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
-		if (ret == -1) throw Exception("Unable to wait on socket");
-		if (ret == 0) throw Timeout();
+		if (ret == -1)
+			throw Exception("Unable to wait on socket");
+		if (ret == 0)
+			throw Timeout();
 	}
 
 	int count = ::recv(mSock, buffer, size, flags);	
 	if(count < 0)
-	{
-		if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-		else throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
-	}
+		throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 
 	return count;
 }
@@ -324,16 +323,15 @@ void Socket::sendData(const char *data, size_t size, int flags)
 			FD_SET(mSock, &writefds);
 
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
-			if (ret == -1) throw Exception("Unable to wait on socket");
-			if (ret == 0) throw Timeout();
+			if (ret == -1) 
+				throw Exception("Unable to wait on socket");
+			if (ret == 0) 
+				throw Timeout();
 		}
 		
 		int count = ::send(mSock, data, size, flags);
-		if(count < 0)  
-		{
-			if(sockerrno == SEAGAIN || sockerrno == SEWOULDBLOCK) throw Timeout();
-			else throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
-		}
+		if(count < 0) 
+			throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 		
 		data+= count;
 		size-= count;
