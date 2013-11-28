@@ -264,16 +264,18 @@ void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
-	Contact *contact = new Contact(this);
-	
 	int i = 0;
-	//YamlSerializer serializer(&stream);
-	//while(serializer.input(*contact))
 	while(true)
 	{
+		Contact *contact = new Contact(this);
+
 		// Not really clean but it protects from parse errors propagation
 		YamlSerializer serializer(&stream);
-		if(!serializer.input(*contact)) break;
+		if(!serializer.input(*contact)) 
+		{
+			delete contact;
+			break;
+		}
 
 		Contact *oldContact = NULL;
 		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
@@ -281,6 +283,7 @@ void AddressBook::load(Stream &stream)
 			if(oldContact->time() >= contact->time())
 			{
 				oldContact->addAddresses(contact->addresses());
+				delete contact;
 				continue;
 			}
 	
@@ -298,11 +301,8 @@ void AddressBook::load(Stream &stream)
 		}
 		
 		registerContact(contact, i);
-		contact = new Contact(this);
 		++i;
 	}
-	
-	delete contact;
 }
 
 void AddressBook::save(Stream &stream) const
