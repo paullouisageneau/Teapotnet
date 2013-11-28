@@ -79,6 +79,10 @@ public:
 	Time &operator -= (double seconds);
 	Time operator - (double seconds) const;
 	double operator - (const Time &t) const;
+	bool operator < (const Time &t);
+	bool operator > (const Time &t);
+	bool operator == (const Time &t);
+	bool operator != (const Time &t);
 	operator time_t(void) const;
 	
 	// Serializable
@@ -99,11 +103,6 @@ private:
 	
 	SerializationFormat mFormat;
 };
-
-bool operator < (const Time &t1, const Time &t2);
-bool operator > (const Time &t1, const Time &t2);
-bool operator == (const Time &a1, const Time &t2);
-bool operator != (const Time &a1, const Time &t2);
 
 }
 

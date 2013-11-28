@@ -176,7 +176,6 @@ private:
 	Map<Identifier, Handler*>  mRedirections;
 	Map<Identifier, Handler*> mHandlers;
 	
-	Map<unsigned, Request*> mRequests;
 	unsigned mLastRequest;
 
 	Time mLastPublicIncomingTime;

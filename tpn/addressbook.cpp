@@ -697,6 +697,8 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 	{
 		if(contact->isSelf()) Interface::Instance->remove("/"+userName()+"/myself/files");	// overriding Store
 		Interface::Instance->add(contact->urlPrefix(), contact);
+		contact->createProfile();
+		
 		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
 		mScheduler.repeat(contact, UpdateInterval);
 	}
@@ -1281,7 +1283,7 @@ void AddressBook::Contact::createProfile(void)
 	if(!mProfile)
 	{
 		mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
-		
+
 		try {
 			mProfile->load();
 		}
@@ -2247,7 +2249,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	// TODO: checks
 	
 	mFound = false;
-	createProfile();
 	return true;
 }
 

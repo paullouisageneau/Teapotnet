@@ -95,18 +95,18 @@ void Request::setParameter(const String &name, const String &value)
 
 void Request::submit(void)
 {
+	Synchronize(this);
 	if(!mId)
 	{
-		Synchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
 
 void Request::submit(const Identifier &receiver)
 {
+	Synchronize(this);
 	if(!mId)
 	{
-		Synchronize(this);
 		mReceiver = receiver;
 		mId = Core::Instance->addRequest(this);
 	}
@@ -114,9 +114,9 @@ void Request::submit(const Identifier &receiver)
 
 void Request::cancel(void)
 {
+	Synchronize(this);
 	if(mId)
 	{
-		Synchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
 }

@@ -321,6 +321,26 @@ double Time::operator - (const Time &t) const
 	return d + double(u)/1000000;
 }
 
+bool Time::operator < (const Time &t)
+{
+	return (mTime < t.mTime || (mTime == t.mTime && mUsec < t.mUsec));
+}
+
+bool Time::operator > (const Time &t)
+{
+	return (mTime > t.mTime || (mTime == t.mTime && mUsec > t.mUsec));
+}
+
+bool Time::operator == (const Time &t)
+{
+	return (mTime == t.mTime && mUsec == t.mUsec);
+}
+
+bool Time::operator != (const Time &t)
+{
+	return !(*this == t);
+}
+
 Time::operator time_t(void) const
 {
 	return toUnixTime();  
@@ -390,12 +410,11 @@ void Time::parse(const String &str)
 
 	const String months[] = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"};
 
+	mTime = time_t(0);
+	mUsec = 0;
+	
 	if(str.trimmed().empty())
-	{
-		mTime = time_t(0);
-		mUsec = 0;
 		return;
-	}
 
 	List<String> list;
 	str.trimmed().explode(list, ' ');
@@ -543,8 +562,7 @@ void Time::parse(const String &str)
 	putenv(const_cast<char*>("TZ=UTC"));
 	tzset();
 	
-	mTime = std::mktime(&tms);
-	mUsec = 0;	
+	mTime = std::mktime(&tms);	
 
 	if(tz)
 	{
@@ -565,26 +583,6 @@ void Time::parse(const String &str)
 	
 	if(mTime == time_t(-1)) 
 		throw Exception(String("Invalid date: ") + str);
-}
-
-bool operator < (const Time &t1, const Time &t2)
-{
-	return t1.toMicroseconds() < t2.toMicroseconds();
-}
-
-bool operator > (const Time &t1, const Time &t2)
-{
-	return t1.toMicroseconds() > t2.toMicroseconds();
-}
-
-bool operator == (const Time &t1, const Time &t2)
-{
-	return t1.toMicroseconds() == t2.toMicroseconds();	
-}
-
-bool operator != (const Time &t1, const Time &t2)
-{
-	return !(t1 == t2);
 }
 
 }

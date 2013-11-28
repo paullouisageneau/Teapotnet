@@ -279,12 +279,9 @@ unsigned Core::addRequest(Request *request)
 {
 	Synchronize(this);
   
-	++mLastRequest;
-	request->mId = mLastRequest;
-	mRequests.insert(mLastRequest, request);
+	request->mId = ++mLastRequest;
 
 	Array<Identifier> identifiers;
-	
 	if(request->mReceiver == Identifier::Null)
 	{
 		mHandlers.getKeys(identifiers);
@@ -543,8 +540,6 @@ void Core::Handler::removeRequest(unsigned id)
 		LogDebug("Core::Handler", "Removing request " + String::number(id));
 	
 		Request *request = it->second;
-		Synchronize(request);
-		
 		for(int i=0; i<request->responsesCount(); ++i)
 		{
 			Request::Response *response = request->response(i);

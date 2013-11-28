@@ -65,7 +65,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 
 	// Settings
 	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The TeapotNet tracker you use", mTracker);
-
+	
 	// Date format
 	mBirthday.setSerializationFormat(Time::IsoDate);
 	

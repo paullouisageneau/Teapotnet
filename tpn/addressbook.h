@@ -107,7 +107,8 @@ public:
 		bool connectAddresses(const AddressMap &map, bool save = true, bool shuffle = false);
 		
 		void update(bool alternate = false);
-
+		void createProfile(void);
+		
 		void connected(const Identifier &peering, bool incoming);
 		void disconnected(const Identifier &peering);
 		bool notification(const Identifier &peering, Notification *notification);
@@ -125,7 +126,6 @@ public:
 		
 	private:
 		ByteString secret(void) const;
-		void createProfile(void);
 		void run(void);
 		
 		MessageQueue::Selection selectMessages(bool privateOnly = false) const;
