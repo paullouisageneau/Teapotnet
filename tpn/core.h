@@ -142,14 +142,21 @@ private:
 
 		private:
 			static const size_t ChunkSize;
-
 			void run(void);
 
+			struct RequestInfo
+			{
+				unsigned id;
+				String target;
+				StringMap parameters;
+				bool isData;
+			};
+			
 			Stream *mStream;
 			unsigned mLastChannel;
 			Map<unsigned, Request::Response*> mTransferts;
 			Queue<Notification>	mNotificationsQueue;
-			Queue<Request*> mRequestsQueue;
+			Queue<RequestInfo> 	mRequestsQueue;
 			Array<Request*> mRequestsToRespond;
 			bool mShouldStop;
 			friend class Handler;

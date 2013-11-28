@@ -520,52 +520,39 @@ void Core::Handler::addRequest(Request *request)
 	if(mSender)
 	{
 		Synchronize(mSender);
-		mSender->mRequestsQueue.push(request);
+		
+		Sender::RequestInfo requestInfo;
+		requestInfo.id = request->id();
+		requestInfo.target = request->target();
+		requestInfo.parameters = request->mParameters;
+		requestInfo.isData = request->mIsData;
+		mSender->mRequestsQueue.push(requestInfo);
+		
 		mSender->notify();
 	}
 }
 
 void Core::Handler::removeRequest(unsigned id)
 {
-	{
-		Synchronize(this);
-		if(mStopping) return;
-	}
+	Synchronize(this);
+	if(mStopping) return;
 	
-	if(mSender)
+	Map<unsigned, Request*>::iterator it = mRequests.find(id);
+	if(it != mRequests.end())
 	{
-		Synchronize(mSender);
-		
-		size_t size = mSender->mRequestsQueue.size();
-		for(int i=0; i<size; ++i)
-		{
-			Request *r = mSender->mRequestsQueue.front();
-			mSender->mRequestsQueue.pop();
-			if(r->id() != id)
-				mSender->mRequestsQueue.push(r);
-		}
-	}
+		LogDebug("Core::Handler", "Removing request " + String::number(id));
 	
-	{
-		Synchronize(this);
+		Request *request = it->second;
+		Synchronize(request);
 		
-		Map<unsigned, Request*>::iterator it = mRequests.find(id);
-		if(it != mRequests.end())
+		for(int i=0; i<request->responsesCount(); ++i)
 		{
-			LogDebug("Core::Handler", "Removing request " + String::number(id));
-		
-			Request *request = it->second;
-			Synchronize(request);
-			
-			for(int i=0; i<request->responsesCount(); ++i)
-			{
-				Request::Response *response = request->response(i);
-				if(response->mChannel) mResponses.erase(response->mChannel);
-			}
-			
-			request->removePending(mPeering);
-			mRequests.erase(it);
+			Request::Response *response = request->response(i);
+			if(response->mChannel) mResponses.erase(response->mChannel);
 		}
+		
+		request->removePending(mPeering);
+		mRequests.erase(it);
 	}
 }
 
@@ -1328,16 +1315,17 @@ void Core::Handler::Sender::run(void)
 			  
 			if(!mRequestsQueue.empty())
 			{
-				Request *request = mRequestsQueue.front();
-				LogDebug("Core::Handler::Sender", "Sending request "+String::number(request->id()));
+				const RequestInfo &request = mRequestsQueue.front();
+				LogDebug("Core::Handler::Sender", "Sending request "+String::number(request.id));
 				
 				String command;
-				if(request->mIsData) command = "G";
+				if(request.isData) command = "G";
 				else command = "I";
 				
 				String args;
-				args << request->id() << " " << request->target();
-				DesynchronizeStatement(this, Handler::sendCommand(mStream, command, args, request->mParameters));
+				args << request.id << " " << request.target;
+				DesynchronizeStatement(this, Handler::sendCommand(mStream, command, args, request.parameters));
+				
 				mRequestsQueue.pop();
 			}
 
