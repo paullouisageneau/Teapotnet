@@ -261,9 +261,6 @@ void Splicer::start(bool autoDelete)
 void Splicer::stop(void)
 {
 	Synchronize(this);
-
-	char *p = NULL;
-	*p = 0;
 	
 	if(!isStarted()) return;
 	
