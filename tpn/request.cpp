@@ -95,28 +95,31 @@ void Request::setParameter(const String &name, const String &value)
 
 void Request::submit(void)
 {
-	// Not synchronized
+	Synchronize(this);
 	if(!mId) 
 	{
+		Desynchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
 
 void Request::submit(const Identifier &receiver)
 {
-	// Not synchronized
+	Synchronize(this);
 	if(!mId)
 	{
 		mReceiver = receiver;
+		Desynchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
 
 void Request::cancel(void)
 {
-	// Not synchronized
+	Synchronize(this);
 	if(mId)
 	{
+		Desynchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
 }
