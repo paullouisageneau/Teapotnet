@@ -332,8 +332,8 @@ size_t Splicer::readData(char *buffer, size_t size)
 	if(!size) throw Exception("Internal synchronization fault in splicer");
 	mPosition+= size;
 	
-	//double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
-	//LogDebug("Splicer::readData", "Reading progress: " + String::number(progress*100,2) + "%");
+	double progress = double(mPosition-mBegin) / double(mEnd-mBegin);
+	LogDebug("Splicer::readData", "Reading progress: " + String::number(progress*100,2) + "%");
 	
 	return size;
 }
@@ -435,17 +435,16 @@ void Splicer::run(void)
 			}
 		}
 
-		//std::cout<<i<<" -> "<<mStripes[i]->tellWriteBlock()<<std::endl;
 		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
 	}
 
 	if(!nbPending) ++currentBlock;
 	
-	//if(mCurrentBlock < currentBlock)
-	//{
-	//	double progress = double(currentBlock) / double(lastBlock+1);
-	//	LogDebug("Splicer::run", "Download position: " + String::number(progress*100,2) + "%");
-	//}
+	if(mCurrentBlock < currentBlock)
+	{
+		double progress = double(currentBlock) / double(lastBlock+1);
+		LogDebug("Splicer::run", "Download position: " + String::number(progress*100,2) + "%");
+	}
 	
 	if(mCurrentBlock < currentBlock)
 	{
