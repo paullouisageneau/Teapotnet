@@ -650,10 +650,10 @@ void Core::Handler::process(void)
 			  
 				double timeout = meetingStepTimeout;
 				mCore->mMeetingPoint.lock();
-				while(timeout)
+				while(timeout > 0.)
 				{
 					if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
-					mCore->mMeetingPoint.wait(timeout);
+					if(!mCore->mMeetingPoint.wait(timeout)) break;
 				}
 				mCore->mMeetingPoint.unlock();
 				
@@ -719,11 +719,11 @@ void Core::Handler::process(void)
 					double timeout = meetingStepTimeout;
 					mCore->mMeetingPoint.lock();
 					mCore->mMeetingPoint.notifyAll();
-					while(timeout)
+					while(timeout > 0.)
 					{
 						SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
 						if(otherHandler) break;
-						mCore->mMeetingPoint.wait(timeout);
+						if(!mCore->mMeetingPoint.wait(timeout)) break;
 					}
 					mCore->mMeetingPoint.unlock();
 						
