@@ -98,7 +98,6 @@ void Request::submit(void)
 	Synchronize(this);
 	if(!mId) 
 	{
-		Desynchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
@@ -109,7 +108,6 @@ void Request::submit(const Identifier &receiver)
 	if(!mId)
 	{
 		mReceiver = receiver;
-		Desynchronize(this);
 		mId = Core::Instance->addRequest(this);
 	}
 }
@@ -119,7 +117,6 @@ void Request::cancel(void)
 	Synchronize(this);
 	if(mId)
 	{
-		Desynchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
 }

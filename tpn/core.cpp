@@ -926,6 +926,7 @@ void Core::Handler::process(void)
 				Request *request;
 				if(mRequests.get(id,request))
 				{
+					Desynchronize(this);
 					Synchronize(request);
 				  
 				  	Request::Response *response;
@@ -943,19 +944,24 @@ void Core::Handler::process(void)
 						
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
-						if(sink) mResponses.insert(channel, response);
-						mCancelled.clear();
+						if(sink) 
+						{
+							Desynchronize(request);
+							Synchronize(this);
+							mResponses.insert(channel, response);
+							mCancelled.clear();
+						}
 					}
 					else {
 						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
 						response = new Request::Response(status, parameters);
 					}
 
-					response->mPeering = mPeering;
+					response->mPeering = peering;
 					response->mTransfertStarted = true;
 					request->addResponse(response);
 					if(response->status() != Request::Response::Pending) 
-						request->removePending(mPeering);	// this triggers the notification
+						request->removePending(peering);	// this triggers the notification
 				}
 				else LogDebug("Core::Handler", "Received response for unknown request "+String::number(id));
 			}
