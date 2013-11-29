@@ -60,8 +60,10 @@ void Scheduler::schedule(Task *task, const Time &when)
 	mSchedule[when].insert(task);
 	mNextTimes[task] = when;
 	
-	//LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
+	Map<Time, Set<Task*> >::iterator it = mSchedule.begin();
+	double d =  it->first - Time::Now();
 	
+	//LogDebug("Scheduler::schedule", "Scheduled task (total " + String::number(mNextTimes.size()) + ")");
 	if(!isRunning()) start();
 	notifyAll();
 }
@@ -85,7 +87,7 @@ void Scheduler::repeat(Task *task, double period)
 void Scheduler::remove(Task *task)
 {
 	Synchronize(this);
-	
+
 	Time nextTime;
 	if(mNextTimes.get(task, nextTime))
 	{
@@ -114,7 +116,10 @@ void Scheduler::onTaskFinished(Task *task)
 	
 	double period = 0.;
 	if(mPeriods.get(task, period))
+	{
+		//LogDebug("Scheduler::run", "Re-scheduled task (period=" + String::number(period) + ")");
 		schedule(task, period);
+	}
 }
 
 void Scheduler::run(void)
@@ -134,7 +139,9 @@ void Scheduler::run(void)
 				continue;
 			}
 	
-			const Set<Task*> &set = it->second;
+			Set<Task*> set = it->second;
+			mSchedule.erase(it);
+			
 			for(Set<Task*>::iterator jt = set.begin(); jt != set.end(); ++jt)
 			{
 				Task *task = *jt;
@@ -143,8 +150,6 @@ void Scheduler::run(void)
 				//LogDebug("Scheduler::run", "Launching task...");
 				launch(task);
 			}
-			
-			mSchedule.erase(it);
 		}
 		catch(const std::exception &e)
 		{

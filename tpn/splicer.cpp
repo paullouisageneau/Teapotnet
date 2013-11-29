@@ -262,6 +262,9 @@ void Splicer::stop(void)
 {
 	Synchronize(this);
 
+	char *p = NULL;
+	*p = 0;
+	
 	if(!isStarted()) return;
 	
 	LogDebug("Splicer", "Stopping splicer");
@@ -400,12 +403,6 @@ void Splicer::run(void)
 
 	if(!isStarted()) return;
 	
-	if(finished())
-        {
-                stop();
-                return;	// Warning: the splicer can be autodeleted
-        }
-	
 	//LogDebug("Splicer::run", "Processing splicer...");
 	
 	std::vector<int>		onError;
@@ -531,6 +528,14 @@ void Splicer::run(void)
 		LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Sending new request");
 		query(i, source);
 	}
+	
+	if(finished())
+        {
+                stop();
+                return;	// Warning: the splicer can be autodeleted
+        }
+        
+        //LogDebug("Splicer::run", "Processing finished");
 }
 
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :

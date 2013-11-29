@@ -95,8 +95,8 @@ void Request::setParameter(const String &name, const String &value)
 
 void Request::submit(void)
 {
-	Synchronize(this);
-	if(!mId)
+	// Not synchronized
+	if(!mId) 
 	{
 		mId = Core::Instance->addRequest(this);
 	}
@@ -104,7 +104,7 @@ void Request::submit(void)
 
 void Request::submit(const Identifier &receiver)
 {
-	Synchronize(this);
+	// Not synchronized
 	if(!mId)
 	{
 		mReceiver = receiver;
@@ -114,7 +114,7 @@ void Request::submit(const Identifier &receiver)
 
 void Request::cancel(void)
 {
-	Synchronize(this);
+	// Not synchronized
 	if(mId)
 	{
 		Core::Instance->removeRequest(mId);
@@ -123,6 +123,8 @@ void Request::cancel(void)
 
 bool Request::execute(User *user, bool isFromSelf)
 {
+	const String instanceName = Core::Instance->getName();
+	
 	Assert(user);
 	Synchronize(this);
 
@@ -144,7 +146,7 @@ bool Request::execute(User *user, bool isFromSelf)
 		argument = mTarget;
 	}
 
-	if(mParameters.contains("instance") && mParameters["instance"] != Core::Instance->getName())
+	if(mParameters.contains("instance") && mParameters["instance"] != instanceName)
 	{
 		addResponse(new Response(Response::NotFound));
 		return false;
@@ -179,6 +181,7 @@ bool Request::execute(User *user, bool isFromSelf)
 						it != list.end();
 						++it)
 					try {
+						Desynchronize(this);
 						Address addr(*it);
 						Socket *sock = new Socket(addr, 1000);	// TODO: timeout
 						Core::Instance->addPeer(sock, identifier, true);	// async					

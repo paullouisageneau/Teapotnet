@@ -91,29 +91,29 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				if(request.method == "GET") 
 				{
 					Synchronize(server);
-					if(!server->mDownSock && !server->mClosed)
-					{
-						Http::Response response(request, 200);
-						response.headers["Cache-Control"] = "no-cache";
-						response.cookies["session"] << session;
+					if(server->mDownSock) throw 409;	// Conflict
+					if(server->mClosed) throw 400;	// Closed session
+					
+					Http::Response response(request, 200);
+					response.headers["Cache-Control"] = "no-cache";
+					response.cookies["session"] << session;
 
-						// First response should be forced down the potential proxy as soon as possible	
-						if(isNew)
-						{
-							response.headers["Content-Type"] = "text/html";
-							response.send(*sock);
-							delete sock;
-							return server;
-						}
-	
-						response.headers["Content-Type"] = "application/octet-stream";
+					// First response should be forced down the potential proxy as soon as possible	
+					if(isNew)
+					{
+						response.headers["Content-Type"] = "text/html";
 						response.send(*sock);
-						server->mDownSock = sock;
-						server->mDownloadLeft = MaxDownloadSize;
-						server->notifyAll();
-						Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.75);
-						return NULL;
+						delete sock;
+						return server;
 					}
+	
+					response.headers["Content-Type"] = "application/octet-stream";
+					response.send(*sock);
+					server->mDownSock = sock;
+					server->mDownloadLeft = MaxDownloadSize;
+					server->notifyAll();
+					Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.75);
+					return NULL;
 				}
 				else {
 					Assert(!isNew);
@@ -136,7 +136,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					Synchronize(server);
 					if(server->mUpSock) throw 409;	// Conflict
 					if(server->mClosed) throw 400;	// Closed session
-					Assert(server->mPostBlockLeft == 0);
+					Assert(!server->mPostBlockLeft);
 					server->mUpSock = sock;
 					server->mUpRequest = request;
 					server->notifyAll();
@@ -447,6 +447,10 @@ void HttpTunnel::Client::flush(void)
 			{
 				// Nothing to do
 			}
+			catch(const Timeout &e)
+			{
+				// Nothing to do
+			}
 
 			mPostLeft = 0;  // Reset mPostLeft
 
@@ -698,6 +702,7 @@ void HttpTunnel::Server::flush(void)
 
 	delete mDownSock;
         mDownSock = NULL;
+	mDownloadLeft = 0;
 }
 
 }
