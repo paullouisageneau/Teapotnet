@@ -453,7 +453,8 @@ void HttpTunnel::Client::flush(void)
 			}
 
 			mPostLeft = 0;  // Reset mPostLeft
-
+			
+			mUpSock->setTimeout(ReadTimeout);
 			Http::Response response;
 			response.recv(*mUpSock);
 			mUpSock->clear();
