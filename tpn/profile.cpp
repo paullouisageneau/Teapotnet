@@ -378,6 +378,7 @@ page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 						$('.editable,.empty').click(function() {\n\
 							if(blocked) return;\n\
 							blocked = true;\n\
+							var closeDatePicker = false; \n\
 							var currentId = $(this).attr('id');\n\
 							var currentText = $(this).html();\n\
 							var value = (!$(this).hasClass('empty') ? currentText : '');\n\
@@ -392,7 +393,6 @@ page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 							else \n\
 							{ \n\
 								$(this).html('<input type=\"text\" id=\"datepicker\" class=\"datepicker\" />'); \n\
-								$('input').focus();\n\
 								var picker = $('.datepicker').pickadate({ \n\
 									selectYears: true, \n\
 									selectMonths: true, \n\
@@ -401,6 +401,23 @@ page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 									selectYears: 115, \n\
 									min: new Date(1900,1,1), \n\
 									max: true, \n\
+									onOpen: function() { \n\
+										setTimeout(function(){closeDatePicker = true;},100); \n\
+									}, \n\
+									onSet: function() { \n\
+										var field = currentId; \n\
+										value = $('input[type=text]').attr('value');  \n\
+										if(value!='') // Necessary because onSet function of plugin is dope \n\
+											postField(field, value); \n\
+									}, \n\
+									onClose: function() { \n\
+										if(closeDatePicker) { \n\
+											if(value=='') { var confirmEraseDate = confirm('Erase birthday field ?'); \n\
+												if(confirmEraseDate) postField(currentId, ''); \n\
+											} \n\
+											closeDatePicker=false; setTimeout(function(){location.reload();},100); \n\
+										} \n\
+									} \n\
 								}); \n\
 							} \n\
 								$('input').keypress(function(e) {\n\
@@ -419,7 +436,8 @@ page.raw("<script type=\"text/javascript\" src=\"/legacy.js\"></script>");
 								alert('Profile clear could not be made.');\n\
 							});\n\
 							setTimeout(function(){location.reload();},100);\n\
-						});");
+						}); \n\
+						");
 				}
 				else {
 					if(!disp) page.text("The profile has not been filled yet.");
