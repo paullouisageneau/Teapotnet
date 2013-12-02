@@ -123,7 +123,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
+Core::LinkStatus Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
 {
 	Assert(bs);
 	Synchronize(this);
@@ -142,7 +142,7 @@ bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &
 		if(async)
 		{
 			handler->start(true);
-			return true;
+			return Core::Disconnected;
 		}
 		else {
 			Synchronize(handler);
@@ -150,13 +150,13 @@ bool Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &
 			
 			// Timeout is just a security here
 			const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
-			if(!handler->wait(timeout*4)) return false;
-			return handler->isAuthenticated();
+			if(!handler->wait(timeout*4)) return Core::Disconnected;
+			return handler->linkStatus();
 		}
 	}
 }
 
-bool Core::addPeer(Socket *sock, const Identifier &peering, bool async)
+Core::LinkStatus Core::addPeer(Socket *sock, const Identifier &peering, bool async)
 {
 	const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 	sock->setTimeout(timeout);
@@ -451,7 +451,7 @@ Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
 	mRemoteAddr(remoteAddr),
 	mSender(NULL),
 	mIsIncoming(true),
-	mIsAuthenticated(false),
+	mLinkStatus(Disconnected),
 	mStopping(false)
 {
 
@@ -556,9 +556,19 @@ bool Core::Handler::isIncoming(void) const
 	return mIsIncoming;
 }
 
+bool Core::Handler::isEstablished(void) const
+{
+	return (mLinkStatus == Established || mLinkStatus == Authenticated);
+}
+
 bool Core::Handler::isAuthenticated(void) const
 {
-	return mIsAuthenticated;
+	return (mLinkStatus == Authenticated);
+}
+
+Core::LinkStatus Core::Handler::linkStatus(void) const
+{
+	return mLinkStatus;
 }
 
 void Core::Handler::process(void)
@@ -616,6 +626,8 @@ void Core::Handler::process(void)
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command != "H") throw Exception("Unexpected command: " + command);
 		
+		mLinkStatus = Established;	// Established means we got a response
+
 		String appname, appversion, instance;
 		Identifier peering, nonce_b;
 		args >> peering;
@@ -841,7 +853,7 @@ void Core::Handler::process(void)
 
 		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed (remote="+appversion+")");
 		LogInfo("Core::Handler", "Authentication successful: " + mPeering.getName() + " (remote="+appversion+")");
-		mIsAuthenticated = true;		
+		mLinkStatus = Authenticated;		
 
 		// Set up new cipher for the connection
 		delete cipher;

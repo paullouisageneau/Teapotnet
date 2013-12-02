@@ -1093,65 +1093,74 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	if(instance == Core::Instance->getName()) return false;
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
-	
-	Identifier peering(this->peering(), instance);
-	ByteStream *bs = NULL;
+
+	const double timeout = 4.;      // TODO
+        const bool forceNoTunnel = (!addr.isPublic() || addr.port() == 443);	
+	const Identifier peering(this->peering(), instance);
+	Core::LinkStatus status = Core::Disconnected;
+
 	Socket *sock = NULL;
-	
-	if(!Config::Get("force_http_tunnel").toBool() || !addr.isPublic() || addr.port() == 443)
+	if(!Config::Get("force_http_tunnel").toBool() || forceNoTunnel)
 	{
 		try {
-			sock = new Socket(addr, 4.);
+			sock = new Socket(addr, timeout);
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("AddressBook::Contact::connectAddress", String("Direct connection failed: ") + e.what());
-			sock = NULL;
+			LogDebug("AddressBook::Contact::connectAddress", String("Connection failed: ") + e.what());
+			return false;
 		}
+
+		LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=false)");
+	}
+
+	if(!sock || (status = Core::Instance->addPeer(sock, peering)) == Core::Disconnected)
+	{
+		// Direct connection failure or no direct connection
+		ByteStream *bs = NULL;
+		if(!forceNoTunnel)
+		{
+			try {
+				bs = new HttpTunnel::Client(addr, timeout);
+			}
+			catch(const Exception &e)
+			{
+				LogDebug("AddressBook::Contact::connectAddress", String("HTTP tunnel failed: ") + e.what());
+				return false;
+			}
 		
-		if(sock)
+			LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
+		}
+
+		if(!bs || (status = Core::Instance->addPeer(bs, addr, peering)) == Core::Disconnected)
 		{
-			sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
-			bs = sock;
+			// HTTP tunnel failure or no HTTP tunnel
+			Synchronize(mAddressBook);
+			if(save && mAddrs.contains(instance)) 
+			{
+				mAddrs[instance].erase(addr);
+				if(mAddrs[instance].empty())
+					mAddrs.erase(instance);
+				mAddressBook->save();
+			}
+	
+			return false;
 		}
 	}
 
-	if(!bs && addr.isPublic() && addr.port() != 443)
-	{
-		try {
-			bs = new HttpTunnel::Client(addr, 4.);
-		}
-		catch(const Exception &e)
-		{
-			bs = NULL;
-			LogDebug("AddressBook::Contact::connectAddress", String("HTTP tunnel failed: ") + e.what());
-		}
-	}
-
-	if(!bs) return false;
-
-	LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
-	if(Core::Instance->addPeer(bs, addr, peering))
+	// Success
+	if(status == Core::Authenticated)
 	{
 		if(save)
 		{
 			SynchronizeStatement(mAddressBook, mAddrs[instance][addr] = Time::Now());
 			mAddressBook->save();
 		}
+	
 		return true;
 	}
-	else {
-		// A node is running at this address but the user does not exist
-		if(save && mAddrs.contains(instance)) 
-		{
-			Synchronize(mAddressBook);
-			mAddrs[instance].erase(addr);
-			if(mAddrs[instance].empty())
-				mAddrs.erase(instance);
-			mAddressBook->save();
-		}
-		return false;
-	}
+
+	return false;
 }
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
@@ -1303,7 +1312,7 @@ void AddressBook::Contact::run(void)
 	
 	DesynchronizeStatement(mAddressBook, update(false));
 	
-	if((Time::Now() - mFirstUpdateTime)*1000 >= UpdateInterval)
+	if(Time::Now() - mFirstUpdateTime >= UpdateInterval)
 		DesynchronizeStatement(mAddressBook, update(true));
 }
 

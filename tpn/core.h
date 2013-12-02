@@ -75,8 +75,9 @@ public:
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
-	bool addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
-	bool addPeer(Socket *sock, const Identifier &peering, bool async = false);
+	enum LinkStatus {Disconnected, Established, Authenticated};
+	LinkStatus addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
+	LinkStatus addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
@@ -104,6 +105,8 @@ private:
 		
 		bool isIncoming(void) const;
 		bool isAuthenticated(void) const;
+		bool isEstablished(void) const;
+		LinkStatus linkStatus(void) const;
 
 	protected:
 	  	static void sendCommand(Stream *stream,
@@ -126,7 +129,7 @@ private:
 		Stream  *mStream;
 		Address mRemoteAddr;
 		bool mIsIncoming;
-		bool mIsAuthenticated;
+		LinkStatus mLinkStatus;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
