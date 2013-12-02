@@ -108,7 +108,8 @@ section "uninstall"
 	ExecWait '"$INSTDIR\winservice.exe" stop'
 	ExecWait '"$INSTDIR\winservice.exe" uninstall'
 	ExecWait 'taskkill /F /IM teapotnet.exe'
-
+	Sleep 1000
+	
 	# Remove desktop shortcut
 	Delete "$DESKTOP\${APPNAME}.lnk"
 
