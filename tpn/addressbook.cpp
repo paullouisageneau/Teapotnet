@@ -1107,7 +1107,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("AddressBook::Contact::cble to connect or no HTTP tunnelonnectAddress", String("Connection failed: ") + e.what());
+			LogDebug("AddressBook::Contact::connectAddress", String("Connection failed: ") + e.what());
 			sock = NULL;
 		}
 
