@@ -42,7 +42,7 @@ bool Store::Get(const ByteString &digest, Resource &resource)
 	if(!GlobalInstance) return false;
 	
 	LogDebug("Store::Get", "Requested " + digest.toString());
-	GlobalInstance->getResource(digest, resource);
+	return GlobalInstance->getResource(digest, resource);
 }
 
 Store::Store(User *user) :
