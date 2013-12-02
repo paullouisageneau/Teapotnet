@@ -1107,16 +1107,16 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		}
 		catch(const Exception &e)
 		{
-			LogDebug("AddressBook::Contact::connectAddress", String("Connection failed: ") + e.what());
-			return false;
+			LogDebug("AddressBook::Contact::cble to connect or no HTTP tunnelonnectAddress", String("Connection failed: ") + e.what());
+			sock = NULL;
 		}
 
-		LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=false)");
+		if(sock) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=false)");
 	}
 
 	if(!sock || (status = Core::Instance->addPeer(sock, peering)) == Core::Disconnected)
 	{
-		// Direct connection failure or no direct connection
+		// Unable to connect, no direct connection or failure using direct connection
 		ByteStream *bs = NULL;
 		if(!forceNoTunnel)
 		{
@@ -1126,41 +1126,44 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 			catch(const Exception &e)
 			{
 				LogDebug("AddressBook::Contact::connectAddress", String("HTTP tunnel failed: ") + e.what());
-				return false;
+				bs = NULL;
 			}
 		
-			LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
+			if(bs) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
 		}
 
 		if(!bs || (status = Core::Instance->addPeer(bs, addr, peering)) == Core::Disconnected)
 		{
-			// HTTP tunnel failure or no HTTP tunnel
-			Synchronize(mAddressBook);
-			if(save && mAddrs.contains(instance)) 
-			{
-				mAddrs[instance].erase(addr);
-				if(mAddrs[instance].empty())
-					mAddrs.erase(instance);
-				mAddressBook->save();
-			}
-	
+			// HTTP tunnel unable to connect, no HTTP tunnel or failure using HTTP tunnel
 			return false;
 		}
 	}
 
-	// Success
 	if(status == Core::Authenticated)
 	{
+		// Success
 		if(save)
 		{
-			SynchronizeStatement(mAddressBook, mAddrs[instance][addr] = Time::Now());
+			Synchronize(mAddressBook);
+			mAddrs[instance][addr] = Time::Now();
 			mAddressBook->save();
 		}
 	
 		return true;
 	}
+	else {
+		// Established but contact not found
+		Synchronize(mAddressBook);
+		if(save && mAddrs.contains(instance))
+                {
+			mAddrs[instance].erase(addr);
+			if(mAddrs[instance].empty())
+				mAddrs.erase(instance);
+			mAddressBook->save();
+		}
 
-	return false;
+		return false;
+	}
 }
 
 bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
