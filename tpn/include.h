@@ -29,6 +29,7 @@
 #define APPLINK		"http://teapotnet.org/"
 #define SOURCELINK	"http://teapotnet.org/source"
 #define HELPLINK	"http://teapotnet.org/faq"
+#define BUGSLINK	"mailto:bugs@teapotnet.org"
 #define DOWNLOADURL	"http://teapotnet.org/download"
 #define RAPTUREURL	"https://teapotnet.org/rapture/"	// Rapture must use HTTPS
 

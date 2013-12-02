@@ -734,6 +734,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.link(HELPLINK, "Help", "", true);
 			page.text(" - ");
 			page.link(SOURCELINK, "Source code", "", true);
+			page.text(" - ");
+			page.link(BUGSLINK, "Report a bug", "", true);
 			page.close("div");
 
 			page.close("div");
