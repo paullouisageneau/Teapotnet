@@ -234,7 +234,7 @@ void Core::run(void)
 	}
 	catch(const NetException &e)
 	{
-
+		LogDebug("Core::run", e.what());
 	}
 	
 	LogDebug("Core", "Finished");
