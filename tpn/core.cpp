@@ -540,6 +540,8 @@ void Core::Handler::removeRequest(unsigned id)
 		LogDebug("Core::Handler", "Removing request " + String::number(id));
 	
 		Request *request = it->second;
+		Synchronize(request);
+	
 		for(int i=0; i<request->responsesCount(); ++i)
 		{
 			Request::Response *response = request->response(i);
@@ -938,7 +940,6 @@ void Core::Handler::process(void)
 				Request *request;
 				if(mRequests.get(id,request))
 				{
-					Desynchronize(this);
 					Synchronize(request);
 				  
 				  	Request::Response *response;
@@ -958,8 +959,6 @@ void Core::Handler::process(void)
 						response->mChannel = channel;
 						if(sink) 
 						{
-							Desynchronize(request);
-							Synchronize(this);
 							mResponses.insert(channel, response);
 							mCancelled.clear();
 						}
