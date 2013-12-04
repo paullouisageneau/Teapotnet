@@ -278,8 +278,12 @@ bool Core::sendNotification(const Notification &notification)
 unsigned Core::addRequest(Request *request)
 {
 	Synchronize(this);
-  
-	request->mId = ++mLastRequest;
+	
+	{
+		Synchronize(request);
+		if(!request->mId);
+			request->mId = ++mLastRequest;
+	}
 
 	Array<Identifier> identifiers;
 	if(request->mReceiver == Identifier::Null)
