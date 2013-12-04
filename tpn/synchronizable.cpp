@@ -49,11 +49,6 @@ int Synchronizable::unlockAll(void) const
 	return mMutex.unlockAll();
 }
 
-void Synchronizable::relockAll(void) const
-{
-	mMutex.relockAll();
-}
-
 void Synchronizable::notify(void) const
 {
 	mSignal.launch();

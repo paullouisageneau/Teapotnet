@@ -930,16 +930,16 @@ void Core::Handler::process(void)
 			if(command == "K")	// Keep Alive
 			{
 				String dummy;
-				args.read(dummy);
+				Assert(args.read(dummy));
 			}
 			else if(command == "R")	// Response
 			{
 				unsigned id;
 				int status;
 				unsigned channel;
-				args.read(id);
-				args.read(status);
-				args.read(channel);
+				Assert(args.read(id));
+				Assert(args.read(status));
+				Assert(args.read(channel));
 				
 				Request *request;
 				if(mRequests.get(id,request))
@@ -983,7 +983,7 @@ void Core::Handler::process(void)
 			else if(command == "D")	// Data block
 			{
 				unsigned channel;
-				args.read(channel);
+				Assert(args.read(channel));
 				
 				unsigned size = 0;
 				if(parameters.contains("length")) parameters["length"].extract(size);
@@ -1025,8 +1025,8 @@ void Core::Handler::process(void)
 			{
 				unsigned channel;
 				int status;
-				args.read(channel);
-				args.read(status);
+				Assert(args.read(channel));
+				Assert(args.read(status));
 				
 				Request::Response *response;
 				if(mResponses.get(channel,response))
@@ -1046,7 +1046,7 @@ void Core::Handler::process(void)
 			else if(command == "C")	// Cancel
 			{
 				unsigned channel;
-				args.read(channel);
+				Assert(args.read(channel));
 				
 				Synchronize(mSender);
 				Request::Response *response;
@@ -1061,7 +1061,7 @@ void Core::Handler::process(void)
 			else if(command == "I" || command == "G") // Request
 			{
 			  	unsigned id;
-				args.read(id);
+				Assert(args.read(id));
 				String &target = args;
 			  	LogDebug("Core::Handler", "Received request "+String::number(id));
 

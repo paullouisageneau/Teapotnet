@@ -38,20 +38,32 @@ public:
 	// They can be called multiple times
 	void lock(int count = 1);
 	bool tryLock(void);
-	void unlock(void);
-	
+	void unlock(void);	
 	int  unlockAll(void);
-	void relockAll(void);
 	
 	int lockCount(void) const;
 	
 private:
+	static void GlobalLock(void);
+	static void GlobalUnlock(void);
+	static pthread_mutex_t GlobalMutex;
+
 	pthread_mutex_t mMutex;
 	pthread_t mLockedBy;
 	int mLockCount;
 	int mRelockCount;
 
 	friend class Signal;
+};
+
+class MutexLocker
+{
+public:
+        inline MutexLocker(Mutex *_m) : m(_m) { m->lock(); }
+        inline ~MutexLocker(void) { m->unlock(); }
+
+private:
+        Mutex *m;
 };
 
 }

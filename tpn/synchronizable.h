@@ -37,7 +37,6 @@ public:
 	void lock(int count = 1) const;
 	void unlock(void) const;
 	int  unlockAll(void) const;
-	void relockAll(void) const;	
 
 	void notify(void) const;
 	void notifyAll(void) const;
@@ -85,25 +84,12 @@ inline bool boolUnlock(Synchronizable *s, bool b)
 	return b;
 }
 
-inline bool boolRelockAll(Synchronizable *s, bool b)
-{
-	s->relockAll();
-	return b;
-}
-
-inline bool boolUnlockAll(Synchronizable *s, bool b)
-{
-	s->unlockAll();
-	return b;
-}
-
 #define Synchronize(x)   Synchronizer	__sync(x); 
 #define Desynchronize(x) Desynchronizer	__desync(x)
 #define Unprioritize(x)  {int __c = (x)->unlockAll(); tpn::sleep(0.01); (x)->lock(__c);}
 #define SyncYield(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 #define SynchronizeTest(x,test) (boolLock(x,true) && boolUnlock(x,(test)))
 #define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }
-#define DesynchronizeTest(x, test) (boolUnlockAll(x,true) && boolRelockAll(x,(test)))
 #define DesynchronizeStatement(x,stmt) { Desynchronizer __desync(x); stmt; } 
 
 }

@@ -24,12 +24,12 @@
 
 namespace tpn
 {
+
+pthread_mutex_t Mutex::GlobalMutex = PTHREAD_MUTEX_INITIALIZER;
 	
 Mutex::Mutex(void) :
-	mLockCount(0),
-	mRelockCount(0)
+	mLockCount(0)
 {
-
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
@@ -41,80 +41,142 @@ Mutex::Mutex(void) :
 
 Mutex::~Mutex(void)
 {
+	GlobalLock();
 	pthread_mutex_destroy(&mMutex);
+	GlobalUnlock();
 }
 
 void Mutex::lock(int count)
 {
 	if(count <= 0) return;
-	
+
 	int ret = pthread_mutex_lock(&mMutex);
 	if(ret != 0 && ret != EDEADLK)
-		throw Exception("Unable to lock mutex");
+                        throw Exception("Unable to lock mutex");
 
-	if(ret == 0) Assert(mLockCount == 0);
-	mLockedBy = pthread_self();
-	mLockCount+= count;
+	GlobalLock();
+
+	try {			
+		if(ret == 0) Assert(mLockCount == 0);
+		mLockedBy = pthread_self();
+		mLockCount+= count;
+	}
+	catch(...)
+	{
+		GlobalUnlock();
+		throw;
+	}
+
+	GlobalUnlock();
 }
 
 bool Mutex::tryLock(void)
 {
-	int ret = pthread_mutex_trylock(&mMutex);
-        if(ret == EBUSY) return false;
-       
-        if(ret != 0 && ret != EDEADLK)
-                throw Exception("Unable to lock mutex");
+	GlobalLock();
 
-	if(ret == 0) Assert(mLockCount == 0);
-	mLockedBy = pthread_self();
-        mLockCount++;
+	try {
+		int ret = pthread_mutex_trylock(&mMutex);
+        	if(ret == EBUSY) 
+		{
+			GlobalUnlock();
+			return false;
+      		}
+ 
+        	if(ret != 0 && ret != EDEADLK)
+                	throw Exception("Unable to lock mutex");
+
+		if(ret == 0) Assert(mLockCount == 0);
+		mLockedBy = pthread_self();
+        	mLockCount++;
+	}
+	catch(...)
+        {
+                GlobalUnlock();
+                throw;
+        }
+
+        GlobalUnlock();
 	return true;
 }
 
 void Mutex::unlock(void)
 {
-	if(!mLockCount)
-		throw Exception("Mutex is not locked");
+	GlobalLock();
+
+	try {
+		if(!mLockCount)
+			throw Exception("Mutex is not locked");
 	
-	//if(!pthread_equal(mLockedBy, pthread_self()))
-	//	throw Exception("Mutex is locked by another thread");
+		if(!pthread_equal(mLockedBy, pthread_self()))
+			throw Exception("Mutex is locked by another thread");
 	
-	mLockCount--;
-	if(mLockCount == 0)
-	{
-		int ret = pthread_mutex_unlock(&mMutex);
-		if(ret != 0) 
-			throw Exception("Unable to unlock mutex");
+		mLockCount--;
+		if(mLockCount == 0)
+		{
+			int ret = pthread_mutex_unlock(&mMutex);
+			if(ret != 0) 
+				throw Exception("Unable to unlock mutex");
+		}
 	}
+	catch(...)
+        {
+                GlobalUnlock();
+                throw;
+        }
+
+        GlobalUnlock();
 }
 
 int Mutex::unlockAll(void)
 {
-	if(!mLockCount)
-		throw Exception("Mutex is not locked");
+	GlobalLock();
+
+	int count;
+	try {
+		if(!mLockCount)
+			throw Exception("Mutex is not locked");
 		
-	//if(!pthread_equal(mLockedBy, pthread_self()))
-	//	throw Exception("Mutex is locked by another thread");
+		if(!pthread_equal(mLockedBy, pthread_self()))
+			throw Exception("Mutex is locked by another thread");
 	
- 	mRelockCount = mLockCount;
-	mLockCount = 0;
+ 		count = mLockCount;
+		mLockCount = 0;
 
-	int ret = pthread_mutex_unlock(&mMutex);
-	if(ret != 0) 
-		throw Exception("Unable to unlock mutex");
-	
-	return mRelockCount;
-}
+		int ret = pthread_mutex_unlock(&mMutex);
+		if(ret != 0) 
+			throw Exception("Unable to unlock mutex");
+	}
+	catch(...)
+        {
+                GlobalUnlock();
+                throw;
+        }
 
-void Mutex::relockAll(void)
-{
-	lock(mRelockCount);
-	mRelockCount = 0;
+        GlobalUnlock();
+	return count;
 }
 
 int Mutex::lockCount(void) const
 {
-	return mLockCount; 
+	GlobalLock();
+	int count = mLockCount; 
+	GlobalUnlock();
+        return count;
+}
+
+void Mutex::GlobalLock(void)
+{
+	int ret = pthread_mutex_lock(&GlobalMutex);
+        if(ret != 0)
+        	throw Exception("Unable to lock global mutex");
+}
+
+void Mutex::GlobalUnlock(void)
+{
+	int ret = pthread_mutex_unlock(&GlobalMutex);
+	if(ret != 0)
+		throw Exception("Unable to unlock global mutex");
 }
 
 }
+
