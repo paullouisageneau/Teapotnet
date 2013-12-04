@@ -718,7 +718,7 @@ void AddressBook::unregisterContact(Contact *contact)
 
 bool AddressBook::publish(const Identifier &remotePeering)
 {
-	String tracker = Config::Get("tracker");
+	String tracker = user()->tracker();
 	
 	try {
 		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
@@ -1242,7 +1242,7 @@ void AddressBook::Contact::update(bool alternate)
 	if(!alternate) 
 	{
 		if(mAddressBook->publish(remotePeering()))
-			LogDebug("AddressBook::Contact", "Published to tracker " + tracker() + " for " + uniqueName());
+			LogDebug("AddressBook::Contact", "Published to tracker " + mAddressBook->user()->tracker() + " for " + uniqueName());
 	}
 		  
 	AddressMap newAddrs;
