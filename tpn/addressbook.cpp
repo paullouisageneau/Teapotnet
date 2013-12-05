@@ -124,6 +124,7 @@ Identifier AddressBook::addContact(String name, const String &secret)
 
 	registerContact(contact);	
 	save();
+	sendContacts();
 	return contact->peering();
 }
 
@@ -139,6 +140,7 @@ void AddressBook::removeContact(const Identifier &peering)
 		Interface::Instance->remove(contact->urlPrefix(), contact);
 		mScheduler.remove(contact);
 		save();
+		sendContacts();
 
 		// Erase messages
 		mUser->messageQueue()->erase(contact->uniqueName());
@@ -221,6 +223,7 @@ Identifier AddressBook::setSelf(const String &secret)
 
 	registerContact(self);
 	save();
+	sendContacts();
 	return self->peering();
 }
 
@@ -324,27 +327,39 @@ void AddressBook::save(void) const
 {
 	Synchronize(this);
 
+	SafeWriteFile file(mFileName);
+	save(file);
+}
+
+void AddressBook::sendContacts(const Identifier &peering) const
+{
+	Synchronize(this);
+	
+	if(peering == Identifier::Null)
+		throw Exception("Prevented AddressBook::send() to broadcast");
+	
 	String data;
 	save(data);
-		
-	SafeWriteFile file(mFileName);
-	file.write(data);
-	file.close();
+	
+	try {
+		Desynchronize(this);
+		Notification notification(data);
+		notification.setParameter("type", "contacts");
+		notification.send(peering);
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("AddressBook::send", String("Contacts synchronization failed: ") + e.what()); 
+	}
+}
+
+void AddressBook::sendContacts(void) const
+{
+	Synchronize(this);
 	
 	const Contact *self = getSelf();
 	if(self && self->isConnected())
-	{
-		try {
-			Desynchronize(this);
-			Notification notification(data);
-			notification.setParameter("type", "contacts");
-			notification.send(self->peering());
-		}
-		catch(Exception &e)
-		{
-			LogWarn("AddressBook::Save", String("Contacts synchronization failed: ") + e.what()); 
-		}
-	}
+		sendContacts(self->peering());
 }
 
 void AddressBook::update(void)
@@ -1146,7 +1161,6 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		{
 			Synchronize(mAddressBook);
 			mAddrs[instance][addr] = Time::Now();
-			mAddressBook->save();
 		}
 	
 		return true;
@@ -1159,7 +1173,6 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 			mAddrs[instance].erase(addr);
 			if(mAddrs[instance].empty())
 				mAddrs.erase(instance);
-			mAddressBook->save();
 		}
 
 		return false;
@@ -1185,7 +1198,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 		if(isConnected(instance)) 
 		{
 			// TODO: update time for currenly connected address
-			success = true;
 			continue;
 		}
 
@@ -1205,7 +1217,6 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 				break;
 			}
 		}
-			
 	}
 	
 	return success;
@@ -1249,19 +1260,22 @@ void AddressBook::Contact::update(bool alternate)
 	if(mAddressBook->query(peering(), tracker(), newAddrs, alternate))
 		LogDebug("AddressBook::Contact", "Queried tracker " + tracker() + " for " + uniqueName());	
 	
-	if(!newAddrs.empty())
+	bool save = !alternate;
+	bool shuffle = alternate;
+	bool success = false;
+	
+	if(mFound = !newAddrs.empty())
 	{
 		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		else LogDebug("AddressBook::Contact", "Alternative addresses for " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		
-		mFound = true;
-		connectAddresses(newAddrs, !alternate, alternate);
 	}
-	else if(!alternate) 
-	{
-		mFound = false;
-		connectAddresses(addresses(), true, false);
+	else {
+		if(!alternate)
+			newAddrs = addresses();
 	}
+	
+	if(!newAddrs.empty())
+		success = connectAddresses(addresses(), save, shuffle);
 	
 	{
 		Synchronize(mAddressBook);
@@ -1284,6 +1298,8 @@ void AddressBook::Contact::update(bool alternate)
 			else it++;
 		}
 	}
+	
+	if(success && save) mAddressBook->save();
 }
 
 void AddressBook::Contact::createProfile(void)
@@ -1343,12 +1359,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 	if(isSelf())
 	{
 		mAddressBook->user()->sendSecret(peering);
-		
-		String data;
-		mAddressBook->save(data);
-		Notification notification(data);
-		notification.setParameter("type", "contacts");
-		notification.send(peering);
+		mAddressBook->sendContacts(peering);
 	}
 	
 	if(incoming) 

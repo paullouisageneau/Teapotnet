@@ -57,8 +57,11 @@ public:
 	void load(Stream &stream);
 	void save(Stream &stream) const;
 	void save(void) const;
-	void update(void);
 	
+	void sendContacts(const Identifier &peering) const;
+	void sendContacts(void) const;
+	
+	void update(void);
 	bool send(const Notification &notification);
 	bool send(const Message &message);
 	
