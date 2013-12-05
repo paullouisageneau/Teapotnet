@@ -55,22 +55,22 @@ if(!String.linkify) {
 	String.prototype.linkify = function() {
 
 		// http://, https://, ftp://
-		var urlPattern = /\b(?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|]/gim;
+		var urlPattern = /(^|\s)((?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|])($|\s)/gim;
 
 		// www. without http:// or https://
-		var pseudoUrlPattern = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+		var pseudoUrlPattern = /(^|\s)(www\.[\S]+)($|\s)/gim;
 
 		// Email addresses
-		var emailAddressPattern = /[a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+/gim;
+		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)($|\s)/gim;
 
 		return this
-		    .replace(urlPattern, '<a target="_blank" href="$&">$&</a>')
-		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>')
-		    .replace(emailAddressPattern, '<a href="mailto:$&">$&</a>')
+		    .replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
+		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
+		    .replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
 		    
 		    // Support for bold and italic
-		    .replace(/(?:^| )\*([^\/\*_<>]*)\*(?: |$)/g,' <b>$1</b> ')
-		    .replace(/(?:^| )_([^\/\*_<>]*)_(?: |$)/g,' <i>$1</i> ');
+		    .replace(/(^|\s)\*([^\/\*_<>]*)\*($|\s)/g,'$1<b>$2</b>$3')
+		    .replace(/(^|\s)_([^\/\*_<>]*)_($|\s)/g,'$1<i>$2</i>$3');
       };
 }
 
