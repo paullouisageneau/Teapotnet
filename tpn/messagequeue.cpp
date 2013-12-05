@@ -68,6 +68,13 @@ MessageQueue::MessageQueue(User *user) :
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
 	
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS received\
+	(stamp TEXT NOT NULL,\
+	contact TEXT NOT NULL)");
+	
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON received (stamp)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON received (contact)");
+	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
 
@@ -117,7 +124,7 @@ bool MessageQueue::add(Message &message)
 	
 	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exist ? " (already in queue)" : ""));
 
-	if(exist && (message.isRelayed() || !oldMessage.isRelayed())) 
+	if(exist && (message.isRelayed() || !oldMessage.isRelayed()))
 	{
 		if(message.isIncoming())
 		{
@@ -171,6 +178,16 @@ bool MessageQueue::get(const String &stamp, Message &result) const
 
 	statement.finalize();
         return false;
+}
+
+void MessageQueue::markReceived(const String &stamp, const String &uname)
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO received (stamp, contact) VALUES (?1,?2)");
+	statement.bind(1, stamp);
+	statement.bind(2, uname);
+	statement.execute();
 }
 
 void MessageQueue::markRead(const String &stamp)
@@ -230,7 +247,11 @@ FROM messages AS m LEFT JOIN messages AS p ON p.stamp=NULLIF(m.parent,'') WHERE 
 	statement.bind(1, uname);
 	statement.execute();
 
-        statement = mDatabase->prepare("DELETE FROM messages WHERE messages.contact=?1");
+        statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
+        statement.bind(1, uname);
+        statement.execute();
+	
+	statement = mDatabase->prepare("DELETE FROM received WHERE contact=?1");
         statement.bind(1, uname);
         statement.execute();
 }
@@ -768,8 +789,12 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(!mContact.empty()) condition = "((message.contact='' OR message.contact=@contact) OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
-        else condition = "1=1"; // TODO
+        if(mContact.empty()) condition = "1=1";
+	else {
+		condition = "(EXISTS(SELECT 1 FROM received WHERE received.stamp=message.stamp AND received.contact=@contact)\
+			OR (message.contact='' OR message.contact=@contact)\
+			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
+	}
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
 

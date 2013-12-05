@@ -1401,7 +1401,9 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			}
 		}
 		
-		mAddressBook->user()->messageQueue()->add(message);
+		MessageQueue *messages = mAddressBook->user()->messageQueue();
+		messages->add(message);
+		if(!isSelf()) messages->markReceived(message.stamp(), uniqueName());
 	}
 	else if(type == "read" || type == "ack")
 	{

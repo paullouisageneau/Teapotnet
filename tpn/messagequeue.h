@@ -49,6 +49,7 @@ public:
 	bool hasNew(void) const;
 	bool add(Message &message);
 	bool get(const String &stamp, Message &result) const;
+	void markReceived(const String &stamp, const String &uname);
 	void markRead(const String &stamp);
 	void ack(const Array<Message> &messages);
 	void erase(const String &uname);
