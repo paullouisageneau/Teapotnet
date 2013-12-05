@@ -154,9 +154,9 @@ User::User(const String &name, const String &password, const String &tracker) :
 
 	try {
 		mStore = new Store(this); // must be created first
+		mProfile = new Profile(this, mName, tracker); // must be created before AddressBook
         	mAddressBook = new AddressBook(this);
        	 	mMessageQueue = new MessageQueue(this);
-        	mProfile = new Profile(this, mName, tracker);
 	}
 	catch(...)
 	{
