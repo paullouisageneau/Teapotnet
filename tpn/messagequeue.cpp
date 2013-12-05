@@ -740,29 +740,38 @@ void MessageQueue::Selection::markRead(const String &stamp)
 
 int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result) const
 {
-	Assert(mMessageQueue);
-	Synchronize(mMessageQueue);
-	result.clear();
+	StringList stamps;
+
+	{
+		Assert(mMessageQueue);
+		Synchronize(mMessageQueue);
+		result.clear();
 	
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+"  ORDER BY message.time,message.stamp LIMIT @offset,@count");
-        filterBind(statement);
-        statement.bind(statement.parameterIndex("offset"), offset);
-	statement.bind(statement.parameterIndex("count"), count);
-       
+		Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" ORDER BY message.time,message.stamp LIMIT @offset,@count");
+        	filterBind(statement);
+        	statement.bind(statement.parameterIndex("offset"), offset);
+		statement.bind(statement.parameterIndex("count"), count);
+
+		while(statement.step())
+        	{
+			 String stamp;
+                	 statement.value(0, stamp);
+                	 stamps.push_back(stamp);
+		}
+
+		statement.finalize();
+	}
+
 	Sha512 sha512;
 	sha512.init();
-	count = 0;
-	while(statement.step())
+	for(StringList::iterator it = stamps.begin(); it != stamps.end(); ++it)
 	{
-		String stamp;
-		statement.value(0, stamp);
-		if(count) sha512.process(",", 1);
-		sha512.process(stamp.data(), stamp.size());
-		++count;
+		if(it != stamps.begin()) sha512.process(",", 1);
+		sha512.process(it->data(), it->size());
 	}
+
 	sha512.finalize(result);
-	statement.finalize();
-	return count;
+	return stamps.size();
 }
 
 String MessageQueue::Selection::target(const String &columns) const
