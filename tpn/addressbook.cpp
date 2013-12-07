@@ -470,7 +470,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				Array<Contact*> contacts;
 				getContacts(contacts);
 				Contact *self = getSelf();
-				if(self) contacts.append(self);
+				if(self) contacts.prepend(self);
 
 				JsonSerializer json(response.sock);
 				json.outputMapBegin();

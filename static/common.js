@@ -169,16 +169,45 @@ $(window).resize( function() {
 	resizeContent();
 });
 
-var MessageSound;
-if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
-else MessageSound = new Audio('/message.m4a');
-if(MessageSound != null) MessageSound.load();
+function isPageHidden() {
+	return document.hidden || document.msHidden || document.webkitHidden;
+}
+
+var MessageSound = null;
+
+if(window.Audio)
+{
+	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
+	else MessageSound = new Audio('/message.m4a');
+	if(MessageSound != null) MessageSound.load();
+}
 
 function playMessageSound() {
 	if(MessageSound != null) MessageSound.play();
 }
 
+var Notification = window.Notification || window.mozNotification || window.webkitNotification;
 
+Notification.requestPermission(function (permission) {
+	// console.log(permission);
+});
+
+function notify(title, message, tag) {
+	if(Notification) {
+		var instance = new Notification(
+			title, {
+				body: message,
+				icon: "/icon.png",
+				tag: tag
+			}
+		);
+
+		instance.onclick = function () {
+			// TODO
+		};
+	}
+	return false;
+}
 
 function setCallback(url, period, callback) {
 	
@@ -252,6 +281,7 @@ var title = document.title;
 function displayContacts(url, period, object) {
 
 	setCallback(url, period, function(data) {
+		$(object).find('p').remove();
 		if(data != null) {
 			var totalmessages = 0;
 			var play = false;
@@ -289,7 +319,11 @@ function displayContacts(url, period, object) {
 				if(count != 0) tmp = ' ('+count+')';
 				transition($('#contact_'+uname+' .messagescount'), tmp);
 				totalmessages+= count;
-				if(info.newmessages) play = true;
+				if(info.newmessages) 
+				{
+					play = true;
+					notify("Message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
+				}
 			});
 			
 			if(totalmessages != 0) {
@@ -335,20 +369,30 @@ function setMessagesReceiverRec(url, object, next) {
 				var isLocalRead = (!message.incoming || message.isread);
 				var isRemoteRead = (message.incoming || message.isread);
 				
-				var author;
+				var author;	// equals uname when non-relayed
+				var authorHtml;
 				if(!message.incoming) {
 					var link = getBasePath(1) + 'myself/';
-					author = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
+					author = message.author
+					authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
 				}
 				else if(message.contact) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
-					author = (message.relayed ? '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>');
+					if(message.relayed) {
+						author = message.author;
+						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
+					}
+					else {
+						author = message.contact;
+						authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.contact.escape()+'</a>';
+					}
 				}
 				else {
-					author = message.author.escape();
+					author = message.author;
+					authorHtml = message.author.escape();
 				}
 	      
-				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -368,7 +412,12 @@ function setMessagesReceiverRec(url, object, next) {
 				}
 				else {
 					$(object).append(div);
-					if(!isLocalRead) NbNewMessages++;
+					if(!isLocalRead) 
+					{
+						NbNewMessages++;
+						if(isPageHidden()) notify("Message from " + author, message.content, "message_"+author);
+					}
+					
 					setTimeout(function() { 
 						$(object).scrollTop($(object)[0].scrollHeight);
 					}, 10);
@@ -420,7 +469,7 @@ function setMessagesReceiverRec(url, object, next) {
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-				playMessageSound();
+				if(!document.hasFocus()) playMessageSound();
 			}
 		}
 
