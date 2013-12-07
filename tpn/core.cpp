@@ -1145,6 +1145,31 @@ void Core::Handler::process(void)
 	{
 		LogWarn("Core::Handler", e.what()); 
 	}
+
+	try {
+		Synchronize(this);
+
+		mStopping = true;
+
+		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
+			it != mResponses.end();
+			++it)
+		{
+			it->second->mStatus = Request::Response::Interrupted;
+			it->second->content()->close();
+		}
+
+		for(Map<unsigned, Request*>::iterator it = mRequests.begin();
+			it != mRequests.end();
+			++it)
+		{
+			it->second->removePending(mPeering);
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Handler", e.what());
+	}
 	
 	try {
 		Synchronize(mCore);
@@ -1156,31 +1181,6 @@ void Core::Handler::process(void)
 			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
 			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
 				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Core::Handler", e.what()); 
-	}
-	
-	try {
-		Synchronize(this);
-		
-		mStopping = true;
-		
-		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
-			it != mResponses.end();
-			++it)
-		{	
-			it->second->mStatus = Request::Response::Interrupted;
-			it->second->content()->close();
-		}
-	  
-		for(Map<unsigned, Request*>::iterator it = mRequests.begin();
-			it != mRequests.end();
-			++it)
-		{
-			it->second->removePending(mPeering);
 		}
 	}
 	catch(const std::exception &e)
