@@ -187,10 +187,12 @@ function playMessageSound() {
 }
 
 var Notification = window.Notification || window.mozNotification || window.webkitNotification;
-
-Notification.requestPermission(function (permission) {
-	// console.log(permission);
-});
+if(Notification)
+{
+	Notification.requestPermission(function (permission) {
+		// console.log(permission);
+	});
+}
 
 function notify(title, message, tag) {
 	if(Notification) {
@@ -206,7 +208,6 @@ function notify(title, message, tag) {
 			// TODO
 		};
 	}
-	return false;
 }
 
 function setCallback(url, period, callback) {
