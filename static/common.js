@@ -196,18 +196,16 @@ if(Notification)
 
 function notify(title, message, tag) {
 	if(Notification) {
-		var instance = new Notification(
+		return new Notification(
 			title, {
 				body: message,
 				icon: "/icon.png",
 				tag: tag
 			}
 		);
-
-		instance.onclick = function () {
-			// TODO
-		};
 	}
+	
+	return null;
 }
 
 function setCallback(url, period, callback) {
@@ -312,18 +310,23 @@ function displayContacts(url, period, object) {
 				}
 				
 				$('#contactinfo_'+uname).html('<span class=\"name\">'+info.name+'@'+info.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
-				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
-				//$('#contactinfo_'+uname).hide();
+				if(!isSelf) {
+					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
 				
-				var count = parseInt(info.messages);
-				var tmp = '';
-				if(count != 0) tmp = ' ('+count+')';
-				transition($('#contact_'+uname+' .messagescount'), tmp);
-				totalmessages+= count;
-				if(info.newmessages) 
-				{
-					play = true;
-					notify("Message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
+					var count = parseInt(info.messages);
+					var str = '';
+					if(count != 0) str = ' ('+count+')';
+					transition($('#contact_'+uname+' .messagescount'), str);
+					totalmessages+= count;
+					if(count > 0 && info.newmessages)
+					{
+						play = true;
+						
+						var notif = notify("New private message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
+						notif.onclick = function() {
+							window.location.href = info.prefix+'/chat/';
+						};
+					}
 				}
 			});
 			
@@ -416,7 +419,7 @@ function setMessagesReceiverRec(url, object, next) {
 					if(!isLocalRead) 
 					{
 						NbNewMessages++;
-						if(isPageHidden()) notify("Message from " + author, message.content, "message_"+author);
+						if(isPageHidden()) notify("New message from " + author, message.content, "message_"+author);
 					}
 					
 					setTimeout(function() { 
