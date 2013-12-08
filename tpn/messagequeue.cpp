@@ -72,8 +72,16 @@ MessageQueue::MessageQueue(User *user) :
 	(stamp TEXT NOT NULL,\
 	contact TEXT NOT NULL)");
 	
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON received (stamp)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON received (contact)");
+	try {
+		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
+	}
+	catch(...)
+	{
+		// TODO: backward compatibility, should be removed (08/12/2013)
+		// Delete duplicates from table and recreate unique index
+		mDatabase->execute("DELETE FROM received WHERE rowid NOT IN (SELECT MIN(rowid) FROM received GROUP BY contact, stamp)");
+		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
+	}
 	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
@@ -184,7 +192,7 @@ void MessageQueue::markReceived(const String &stamp, const String &uname)
 {
 	Synchronize(this);
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO received (stamp, contact) VALUES (?1,?2)");
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO received (stamp, contact) VALUES (?1,?2)");
 	statement.bind(1, stamp);
 	statement.bind(2, uname);
 	statement.execute();
@@ -800,7 +808,7 @@ String MessageQueue::Selection::filter(void) const
         String condition;
         if(mContact.empty()) condition = "1=1";
 	else {
-		condition = "(EXISTS(SELECT 1 FROM received WHERE received.stamp=message.stamp AND received.contact=@contact)\
+		condition = "(EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
 			OR (message.contact='' OR message.contact=@contact)\
 			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
 	}

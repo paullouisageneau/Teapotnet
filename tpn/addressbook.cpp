@@ -1501,9 +1501,9 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		{
 			throw InvalidData("checksum notification content: " + notification->content());
 		}
-	
+		
 		LogDebug("AddressBook::Contact", "Synchronization: Received checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
-	
+		
 		MessageQueue::Selection selection = selectMessages();
 		if(!base.empty())
 		{
