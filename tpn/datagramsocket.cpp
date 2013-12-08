@@ -287,10 +287,10 @@ int DatagramSocket::read(char *buffer, size_t size, Address &sender, double &tim
   
 	sockaddr_storage sa;
 	socklen_t sl = sizeof(sa);
-	size = ::recvfrom(mSock, buffer, size, 0, reinterpret_cast<sockaddr*>(&sa), &sl);
+	int result = ::recvfrom(mSock, buffer, size, 0, reinterpret_cast<sockaddr*>(&sa), &sl);
 	sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-	if(size < 0) throw NetException("Unable to read from socket");
-	return size;
+	if(result < 0) throw NetException("Unable to read from socket");
+	return result;
 }
 
 int DatagramSocket::read(char *buffer, size_t size, Address &sender, const double &timeout)
@@ -301,8 +301,8 @@ int DatagramSocket::read(char *buffer, size_t size, Address &sender, const doubl
 
 void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
 {
-	size = ::sendto(mSock, buffer, size, 0, receiver.addr(), receiver.addrLen());
-	if(size < 0) throw NetException("Unable to write to socket");
+	int result = ::sendto(mSock, buffer, size, 0, receiver.addr(), receiver.addrLen());
+	if(result < 0) throw NetException("Unable to write to socket");
 }
 
 bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)

@@ -160,7 +160,7 @@ void Serializer::ObjectMapping::serializeValue(Serializer &s) const
 
 bool Serializer::ObjectMapping::deserializeKey(Serializer &s)
 {
-	s.input(*mLastKey);
+	return s.input(*mLastKey);
 }
 
 bool Serializer::ObjectMapping::deserializeValue(Serializer &s)
