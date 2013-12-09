@@ -60,6 +60,7 @@ void openUserInterface(void)
 #include <CoreFoundation/CFBase.h>
 #include <CoreFoundation/CFString.h>
 #include <CoreFoundation/CFUserNotification.h>
+#include <mach-o/dyld.h>	// for _NSGetExecutablePath
 
 int InterfacePort = 0;	// TODO: should be in some kind of shared section
 
@@ -339,7 +340,7 @@ int main(int argc, char** argv)
 #ifdef MACOSX
 			char buffer[1024];
 			int size = 1024;
-			if(NSGetExecutablePath(buffer, &size) == 0)
+			if(_NSGetExecutablePath(buffer, &size) == 0)
 			workingDirectory = String(buffer).beforeLast('/');
 #else
 			// TODO
