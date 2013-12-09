@@ -87,7 +87,7 @@ void Address::set(const String &host, uint16_t port, int family)
 	set(host, service, family);
 }
 
-void Address::set(const String &str, int family)
+void Address::set(const String &str)
 {
 	fromString(str);
 }

@@ -40,7 +40,7 @@ public:
 
 	void set(const String &host, const String &service, int family = AF_UNSPEC);
 	void set(const String &host, uint16_t port, int family = AF_UNSPEC);
-	void set(const String &str, int family = AF_UNSPEC);
+	void set(const String &str);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
 	bool isNull(void) const;
