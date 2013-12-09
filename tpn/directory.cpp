@@ -91,7 +91,9 @@ String Directory::GetHomeDirectory(void)
 {
 #ifdef WINDOWS
 	char szPath[MAX_PATH];
-	if(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, szPath) == S_OK) 
+	/*if(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, szPath) == S_OK) 
+		return String(szPath);*/
+	if(ExpandEnvironmentStrings("%USERPROFILE%", szPath, MAX_PATH))
 		return String(szPath);
 #else
 	const char *home = getenv("HOME");
