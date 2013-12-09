@@ -339,7 +339,7 @@ int main(int argc, char** argv)
 		{
 #ifdef MACOSX
 			char buffer[1024];
-			int size = 1024;
+			uint32_t size = 1024;
 			if(_NSGetExecutablePath(buffer, &size) == 0)
 			workingDirectory = String(buffer).beforeLast('/');
 #else
