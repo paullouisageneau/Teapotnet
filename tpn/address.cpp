@@ -57,11 +57,11 @@ Address::~Address(void)
 
 }
 
-void Address::set(const String &host, const String &service)
+void Address::set(const String &host, const String &service, int family)
 {
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
-	aiHints.ai_family = AF_UNSPEC;
+	aiHints.ai_family = family;
 	aiHints.ai_socktype = SOCK_STREAM;
 	aiHints.ai_protocol = 0;
 	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
@@ -80,14 +80,14 @@ void Address::set(const String &host, const String &service)
 	freeaddrinfo(aiList);
 }
 
-void Address::set(const String &host, uint16_t port)
+void Address::set(const String &host, uint16_t port, int family)
 {
 	String service;
 	service << port;
-	set(host, service);
+	set(host, service, family);
 }
 
-void Address::set(const String &str)
+void Address::set(const String &str, int family)
 {
 	fromString(str);
 }
@@ -108,7 +108,8 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 
 void Address::setNull(void)
 {
-	set(NULL, 0);
+	const sockaddr *null = NULL;
+	set(null, 0);
 }
 
 bool Address::isNull(void) const
