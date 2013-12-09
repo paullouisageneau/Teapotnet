@@ -1264,7 +1264,7 @@ void AddressBook::Contact::update(bool alternate)
 	bool shuffle = alternate;
 	bool success = false;
 	
-	if(mFound = !newAddrs.empty())
+	if((mFound = !newAddrs.empty()))
 	{
 		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		else LogDebug("AddressBook::Contact", "Alternative addresses for " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");

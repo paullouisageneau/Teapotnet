@@ -202,11 +202,11 @@ typedef ::uint64_t		uint64_t;	// 64 bits
 
 #ifdef MACOSX
 typedef struct stat stat_t;
+inline int stat(const char *path, stat_t *buf) { return ::stat(path,buf); }
 #else
 typedef struct stat64 stat_t;
-#endif
-
 inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
+#endif
 
 #endif
 
