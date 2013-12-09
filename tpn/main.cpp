@@ -44,7 +44,9 @@ int	tpn::LogLevel = LEVEL_INFO;
 #include <shellapi.h>
 #include <wininet.h>
 #define SHARED __attribute__((section(".shared"), shared))
+
 int InterfacePort SHARED = 0;
+
 void openUserInterface(void)
 {
 	if(!InterfacePort) return;
@@ -55,7 +57,11 @@ void openUserInterface(void)
 #endif
 
 #ifdef MACOSX
-int InterfacePort SHARED = 0;
+#include <CFString.h>
+#include <CFUserNotification.h>
+
+int InterfacePort = 0;	// TODO: should be in some kind of shared section
+
 void openUserInterface(void)
 {
 	if(!InterfacePort) return;
@@ -332,7 +338,7 @@ int main(int argc, char** argv)
 #ifdef MACOSX
 			char buffer[1024];
 			int size = 1024;
-			if(NSGetExecutablePath(path, &size) == 0)
+			if(NSGetExecutablePath(buffer, &size) == 0)
 			workingDirectory = String(buffer).beforeLast('/');
 #else
 			// TODO
