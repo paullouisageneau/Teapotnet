@@ -82,6 +82,9 @@ private:
 	class MappingProtocol
 	{
 	public:
+		MappingProtocol(void)	{}
+		virtual ~MappingProtocol(void)	{}
+		
 		virtual bool check(String &host) = 0;	// true if protocol is available
 		virtual bool add(Protocol protocol, uint16_t internal, uint16_t &external) = 0;
 		virtual bool remove(Protocol protocol, uint16_t internal, uint16_t external) = 0;

@@ -33,13 +33,14 @@
 #define stat _stat
 #define PATH_SEPARATOR '\\'
 #else
-#ifndef __ANDROID__ 
+#ifndef ANDROID 
 #include <sys/statvfs.h> 
-#else 
+#else
 #include <sys/vfs.h> 
 #define statvfs statfs 
-#define fstatvfs fstatfs 
+#define fstatvfs fstatfs
 #endif
+#include <pwd.h>
 #define PATH_SEPARATOR '/'
 #endif
 
@@ -84,6 +85,27 @@ uint64_t Directory::GetAvailableSpace(const String &path)
 	if(statvfs(path, &f)) throw IOException("Unable to get free space for " + path);
 	return uint64_t(f.f_bavail) * uint64_t(f.f_bsize);
 #endif
+}
+
+String Directory::GetHomeDirectory(void)
+{
+#ifdef WINDOWS
+	char szPath[MAX_PATH];
+	if(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, szPath) == S_OK) 
+		return String(szPath);
+#else
+	const char *home = getenv("HOME");
+	if(!home)
+	{
+		struct passwd* pwd = getpwuid(getuid());
+		if(pwd) home = pwd->pw_dir;
+	}
+	
+	if(home) return String(home);
+#endif
+	
+	throw Exception("Unable to get home directory path");
+	return "";
 }
 
 void Directory::ChangeCurrent(const String &path)

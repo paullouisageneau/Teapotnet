@@ -99,7 +99,7 @@ void Request::submit(void)
 	if(!mId) 
 	{
 		Desynchronize(this);
-		mId = Core::Instance->addRequest(this);
+		Core::Instance->addRequest(this);	// mId set by Core
 	}
 }
 
@@ -110,7 +110,7 @@ void Request::submit(const Identifier &receiver)
 	{
 		mReceiver = receiver;
 		Desynchronize(this);
-		mId = Core::Instance->addRequest(this);
+		Core::Instance->addRequest(this);	// mId set by Core
 	}
 }
 
@@ -145,7 +145,7 @@ bool Request::execute(User *user, bool isFromSelf)
 	}
 	else {
 		if(mTarget.contains('/')) command  = "file";
-		else command == "digest";
+		else command = "digest";
 		argument = mTarget;
 	}
 

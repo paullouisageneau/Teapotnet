@@ -169,16 +169,44 @@ $(window).resize( function() {
 	resizeContent();
 });
 
-var MessageSound;
-if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
-else MessageSound = new Audio('/message.m4a');
-if(MessageSound != null) MessageSound.load();
+function isPageHidden() {
+	return document.hidden || document.msHidden || document.webkitHidden;
+}
+
+var MessageSound = null;
+
+if(window.Audio)
+{
+	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
+	else MessageSound = new Audio('/message.m4a');
+	if(MessageSound != null) MessageSound.load();
+}
 
 function playMessageSound() {
 	if(MessageSound != null) MessageSound.play();
 }
 
+var Notification = window.Notification || window.mozNotification || window.webkitNotification;
+if(Notification)
+{
+	Notification.requestPermission(function (permission) {
+		// console.log(permission);
+	});
+}
 
+function notify(title, message, tag) {
+	if(Notification) {
+		return new Notification(
+			title, {
+				body: message,
+				icon: "/icon.png",
+				tag: tag
+			}
+		);
+	}
+	
+	return null;
+}
 
 function setCallback(url, period, callback) {
 	
@@ -252,6 +280,7 @@ var title = document.title;
 function displayContacts(url, period, object) {
 
 	setCallback(url, period, function(data) {
+		$(object).find('p').remove();
 		if(data != null) {
 			var totalmessages = 0;
 			var play = false;
@@ -281,15 +310,24 @@ function displayContacts(url, period, object) {
 				}
 				
 				$('#contactinfo_'+uname).html('<span class=\"name\">'+info.name+'@'+info.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
-				if(!isSelf) $('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
-				//$('#contactinfo_'+uname).hide();
+				if(!isSelf) {
+					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
 				
-				var count = parseInt(info.messages);
-				var tmp = '';
-				if(count != 0) tmp = ' ('+count+')';
-				transition($('#contact_'+uname+' .messagescount'), tmp);
-				totalmessages+= count;
-				if(info.newmessages) play = true;
+					var count = parseInt(info.messages);
+					var str = '';
+					if(count != 0) str = ' ('+count+')';
+					transition($('#contact_'+uname+' .messagescount'), str);
+					totalmessages+= count;
+					if(count > 0 && info.newmessages)
+					{
+						play = true;
+						
+						var notif = notify("New private message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
+						notif.onclick = function() {
+							window.location.href = info.prefix+'/chat/';
+						};
+					}
+				}
 			});
 			
 			if(totalmessages != 0) {
@@ -335,20 +373,30 @@ function setMessagesReceiverRec(url, object, next) {
 				var isLocalRead = (!message.incoming || message.isread);
 				var isRemoteRead = (message.incoming || message.isread);
 				
-				var author;
+				var author;	// equals uname when non-relayed
+				var authorHtml;
 				if(!message.incoming) {
 					var link = getBasePath(1) + 'myself/';
-					author = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
+					author = message.author
+					authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
 				}
 				else if(message.contact) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
-					author = (message.relayed ? '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)' : '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>');
+					if(message.relayed) {
+						author = message.author;
+						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
+					}
+					else {
+						author = message.contact;
+						authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.contact.escape()+'</a>';
+					}
 				}
 				else {
-					author = message.author.escape();
+					author = message.author;
+					authorHtml = message.author.escape();
 				}
 	      
-				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -368,7 +416,12 @@ function setMessagesReceiverRec(url, object, next) {
 				}
 				else {
 					$(object).append(div);
-					if(!isLocalRead) NbNewMessages++;
+					if(!isLocalRead) 
+					{
+						NbNewMessages++;
+						if(isPageHidden()) notify("New message from " + author, message.content, "message_"+author);
+					}
+					
 					setTimeout(function() { 
 						$(object).scrollTop($(object)[0].scrollHeight);
 					}, 10);
@@ -420,7 +473,7 @@ function setMessagesReceiverRec(url, object, next) {
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-				playMessageSound();
+				if(isPageHidden()) playMessageSound();
 			}
 		}
 

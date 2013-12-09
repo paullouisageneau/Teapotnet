@@ -39,8 +39,9 @@ public:
 	static bool Remove(const String &path);
 	static void Create(const String &path);
 	static uint64_t GetAvailableSpace(const String &path);
+	static String GetHomeDirectory(void);
 	static void ChangeCurrent(const String &path);
-
+	
 	Directory(void);
 	Directory(const String &path);
 	~Directory(void);

@@ -278,10 +278,10 @@ bool Core::sendNotification(const Notification &notification)
 unsigned Core::addRequest(Request *request)
 {
 	Synchronize(this);
-	
+
 	{
 		Synchronize(request);
-		if(!request->mId);
+		if(!request->mId)
 			request->mId = ++mLastRequest;
 	}
 
@@ -313,7 +313,7 @@ unsigned Core::addRequest(Request *request)
 		}
 	}
 	
-	return mLastRequest;
+	return request->mId;
 }
 
 void Core::removeRequest(unsigned id)
@@ -463,6 +463,11 @@ Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
 
 Core::Handler::~Handler(void)
 {	
+	if(mStream)
+	{
+		
+	}
+	
 	delete mSender;
 	delete mStream;
 	delete mRawStream;
@@ -528,7 +533,7 @@ void Core::Handler::addRequest(Request *request)
 		requestInfo.parameters = request->mParameters;
 		requestInfo.isData = request->mIsData;
 		mSender->mRequestsQueue.push(requestInfo);
-		
+	
 		mSender->notify();
 	}
 }
@@ -630,6 +635,7 @@ void Core::Handler::process(void)
 		}
 
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
+		if(command == "Q") return;
 		if(command != "H") throw Exception("Unexpected command: " + command);
 		
 		mLinkStatus = Established;	// Established means we got a response
@@ -662,18 +668,23 @@ void Core::Handler::process(void)
 			if((!instance.empty() && instance != mCore->getName())
 				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
-				if(!Config::Get("relay_enabled").toBool()) return;
+				if(!Config::Get("relay_enabled").toBool()) 
+				{
+					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
+					return;
+				}
 			  
 				const double meetingStepTimeout = milliseconds(std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt()));
 			  
 				double timeout = meetingStepTimeout;
-				mCore->mMeetingPoint.lock();
-				while(timeout > 0.)
 				{
-					if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
-					if(!mCore->mMeetingPoint.wait(timeout)) break;
+					Synchronize(&mCore->mMeetingPoint);
+					while(timeout > 0.)
+					{
+						if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
+						if(!mCore->mMeetingPoint.wait(timeout)) break;
+					}
 				}
-				mCore->mMeetingPoint.unlock();
 				
 				Handler *handler = NULL;
 				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
@@ -681,15 +692,16 @@ void Core::Handler::process(void)
 					if(handler)
 					{
 						LogDebug("Core::Handler", "Connection already forwarded");
+						sendCommand(mStream, "Q", String::number(RedirectionExists), StringMap());
+						return;
 					}
-					else {
-					  	//Log("Core::Handler", "Reached forwarding meeting point");
-						SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
-						mCore->mMeetingPoint.notifyAll();
-						wait(meetingStepTimeout);
-						SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
-					}
-		
+					
+					//Log("Core::Handler", "Reached forwarding meeting point");
+					SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
+					mCore->mMeetingPoint.notifyAll();
+					wait(meetingStepTimeout);
+					SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
+					if(mStream) sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
 					return;
 				}
 				
@@ -709,33 +721,32 @@ void Core::Handler::process(void)
 				Request request(String("peer:") + mPeering.toString(), false);
 				request.setParameter("adresses", adresses);
 				if(!instance.empty()) request.setParameter("instance", instance);
-				
-				String remote;
-				
-				{
-					Desynchronize(this);
-
-					request.submit();
-					request.wait(meetingStepTimeout);
+				request.submit();
+				request.wait(meetingStepTimeout);
 						
-					for(int i=0; i<request.responsesCount(); ++i)
-					{
-						if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
-							break;
-					}
+				String remote;
+				for(int i=0; i<request.responsesCount(); ++i)
+				{
+					if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
+						break;
 				}
 				
-				if(!remote.empty())
+				if(remote.empty())
 				{
-					LogDebug("Core::Handler", "Got positive response for peering");
-						
-					remote >> mRemotePeering;
-					SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
-						
-					Handler *otherHandler = NULL;
+					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
+					return;
+				}
+				
+				LogDebug("Core::Handler", "Got positive response for peering");
 					
-					double timeout = meetingStepTimeout;
-					mCore->mMeetingPoint.lock();
+				remote >> mRemotePeering;
+				SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
+					
+				Handler *otherHandler = NULL;
+				
+				timeout = meetingStepTimeout;
+				{
+					Synchronize(&mCore->mMeetingPoint);
 					mCore->mMeetingPoint.notifyAll();
 					while(timeout > 0.)
 					{
@@ -743,41 +754,41 @@ void Core::Handler::process(void)
 						if(otherHandler) break;
 						if(!mCore->mMeetingPoint.wait(timeout)) break;
 					}
-					mCore->mMeetingPoint.unlock();
-						
-					if(otherHandler)
+				}
+				
+				if(otherHandler)
+				{
+					Stream     *otherStream    = NULL;
+					ByteStream *otherRawStream = NULL;
+					
 					{
-						Stream     *otherStream    = NULL;
-						ByteStream *otherRawStream = NULL;
-					  
-						{
-							Synchronize(otherHandler);
-							
-							otherStream    = otherHandler->mStream;
-							otherRawStream = otherHandler->mRawStream;
-							otherHandler->mStream      = NULL;
-							otherHandler->mRawStream   = NULL;
-							
-							mRawStream->writeBinary(otherHandler->mObfuscatedHello);
-							otherRawStream->writeBinary(mObfuscatedHello);
-							mObfuscatedHello.clear();
+						Synchronize(otherHandler);
 						
-							otherHandler->notifyAll();
-						}
+						otherStream    = otherHandler->mStream;
+						otherRawStream = otherHandler->mRawStream;
+						otherHandler->mStream      = NULL;
+						otherHandler->mRawStream   = NULL;
 						
-						otherHandler = NULL;
-						
-						LogInfo("Core::Handler", "Successfully forwarded connection");
-						
-						// Transfer
-						ByteStream::Transfer(mRawStream, otherRawStream);
-						
-						delete otherStream;
-						delete otherRawStream;
+						mRawStream->writeBinary(otherHandler->mObfuscatedHello);
+						otherRawStream->writeBinary(mObfuscatedHello);
+						mObfuscatedHello.clear();
+					
+						otherHandler->notifyAll();
 					}
-					else {
-						LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
-					}
+					
+					otherHandler = NULL;
+					
+					LogInfo("Core::Handler", "Successfully forwarded connection");
+					
+					// Transfer
+					ByteStream::Transfer(mRawStream, otherRawStream);
+					
+					delete otherStream;
+					delete otherRawStream;
+				}
+				else {
+					LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
+					sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
 				}
 					
 				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
@@ -825,7 +836,7 @@ void Core::Handler::process(void)
 		sendCommand(mStream, "A", hmac_a.toString(), parameters);
 		
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
-	
+		if(command == "Q") return;
 		if(command != "A") throw Exception("Unexpected command: " + command);
 		
 		String strMethod = "DIGEST";
@@ -1089,11 +1100,12 @@ void Core::Handler::process(void)
 				if(request->responsesCount() == 0) 
 					request->addResponse(new Request::Response(Request::Response::Failed));
 					
-				mSender->lock();
-				mSender->mRequestsToRespond.push_back(request);
-				request->mResponseSender = mSender;
-				mSender->unlock();
-				mSender->notify();
+				{
+					Synchronize(mSender);	
+					mSender->mRequestsToRespond.push_back(request);
+					request->mResponseSender = mSender;
+					mSender->notify();
+				}
 			}
 			else if(command == "M")
 			{
@@ -1128,6 +1140,10 @@ void Core::Handler::process(void)
 					}
 				}
 			}
+			else if(command == "Q")	// Optionnal, closing the connection is sufficient
+			{
+				break;
+			}
 			else {
 				LogWarn("Core::Handler", "Unknown command: " + command);
 
@@ -1145,6 +1161,31 @@ void Core::Handler::process(void)
 	{
 		LogWarn("Core::Handler", e.what()); 
 	}
+
+	try {
+		Synchronize(this);
+
+		mStopping = true;
+
+		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
+			it != mResponses.end();
+			++it)
+		{
+			it->second->mStatus = Request::Response::Interrupted;
+			it->second->content()->close();
+		}
+
+		for(Map<unsigned, Request*>::iterator it = mRequests.begin();
+			it != mRequests.end();
+			++it)
+		{
+			it->second->removePending(mPeering);
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Handler", e.what());
+	}
 	
 	try {
 		Synchronize(mCore);
@@ -1156,31 +1197,6 @@ void Core::Handler::process(void)
 			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
 			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
 				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Core::Handler", e.what()); 
-	}
-	
-	try {
-		Synchronize(this);
-		
-		mStopping = true;
-		
-		for(Map<unsigned, Request::Response*>::iterator it = mResponses.begin();
-			it != mResponses.end();
-			++it)
-		{	
-			it->second->mStatus = Request::Response::Interrupted;
-			it->second->content()->close();
-		}
-	  
-		for(Map<unsigned, Request*>::iterator it = mRequests.begin();
-			it != mRequests.end();
-			++it)
-		{
-			it->second->removePending(mPeering);
 		}
 	}
 	catch(const std::exception &e)

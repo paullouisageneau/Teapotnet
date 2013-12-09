@@ -154,9 +154,9 @@ User::User(const String &name, const String &password, const String &tracker) :
 
 	try {
 		mStore = new Store(this); // must be created first
+		mProfile = new Profile(this, mName, tracker); // must be created before AddressBook
         	mAddressBook = new AddressBook(this);
        	 	mMessageQueue = new MessageQueue(this);
-        	mProfile = new Profile(this, mName, tracker);
 	}
 	catch(...)
 	{
@@ -473,40 +473,12 @@ void User::http(const String &prefix, Http::Request &request)
 			
 			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add a contact");
 			else {
-				page.open("div","contactsTable");
+				page.open("div", "contactsTable");
+				page.open("p"); page.text("Loading..."); page.close("p");
+				page.close("div");
 				
-				if(self)
-				{
-					page.open("div", ".contactstr");
-					page.open("div", "contact_"+self->uniqueName());
-					
-					page.open("span", ".name");
-					page.link(self->urlPrefix(), self->uniqueName());
-					
-					page.open("span",".tracker");
-					page.text("@" + self->tracker());
-					page.close("span");
-					
-					page.close("span");
-					
-					page.open("span", ".status");
-					page.close("span");
-					
-					/*page.open("span", ".files");
-					page.link(self->urlPrefix()+"/files/", "Files");
-					page.close("span");*/
-					
-					page.close("div");
-					
-					page.open("div", "contactinfo_" + self->uniqueName() + ".contactinfo");
-					page.close("div");
-					page.close("div");
-				}
-
 				unsigned refreshPeriod = 5000;
 				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
-
-				page.close("div");
 			}
 			
 			page.close("div");
@@ -558,7 +530,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div");
 			page.open("h1");
 			const String instance = Core::Instance->getName().before('.');
-			page.openLink(profile()->urlPrefix());			
+			page.openLink(profile()->urlPrefix());
 			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name() + "@" + tracker());
 			if(!instance.empty()) page.text(" (" + instance + ")");

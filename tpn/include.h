@@ -24,7 +24,7 @@
 
 #define DEBUG
 #define APPNAME		"TeapotNet"
-#define APPVERSION	"0.7.5"
+#define APPVERSION	"0.7.6"
 #define APPAUTHOR	"Paul-Louis Ageneau"
 #define APPLINK		"http://teapotnet.org/"
 #define SOURCELINK	"http://teapotnet.org/source"
@@ -52,6 +52,10 @@
 	
 	#include <jni.h>
 	#include <android/log.h>
+#endif
+
+#ifdef __APPLE__
+#define MACOSX
 #endif
 
 #include <cstdio>
@@ -196,8 +200,13 @@ typedef ::uint16_t		uint16_t;	// 16 bits
 typedef ::uint32_t		uint32_t;	// 32 bits
 typedef ::uint64_t		uint64_t;	// 64 bits
 
+#ifdef MACOSX
+typedef struct stat stat_t;
+inline int stat(const char *path, stat_t *buf) { return ::stat(path,buf); }
+#else
 typedef struct stat64 stat_t;
 inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
+#endif
 
 #endif
 

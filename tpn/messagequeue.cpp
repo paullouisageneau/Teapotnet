@@ -68,6 +68,21 @@ MessageQueue::MessageQueue(User *user) :
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
 	
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS received\
+	(stamp TEXT NOT NULL,\
+	contact TEXT NOT NULL)");
+	
+	try {
+		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
+	}
+	catch(...)
+	{
+		// TODO: backward compatibility, should be removed (08/12/2013)
+		// Delete duplicates from table and recreate unique index
+		mDatabase->execute("DELETE FROM received WHERE rowid NOT IN (SELECT MIN(rowid) FROM received GROUP BY contact, stamp)");
+		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
+	}
+	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
 
@@ -117,7 +132,7 @@ bool MessageQueue::add(Message &message)
 	
 	LogDebug("MessageQueue::add", "Adding message '"+message.stamp()+"'"+(exist ? " (already in queue)" : ""));
 
-	if(exist && (message.isRelayed() || !oldMessage.isRelayed())) 
+	if(exist && (message.isRelayed() || !oldMessage.isRelayed()))
 	{
 		if(message.isIncoming())
 		{
@@ -171,6 +186,16 @@ bool MessageQueue::get(const String &stamp, Message &result) const
 
 	statement.finalize();
         return false;
+}
+
+void MessageQueue::markReceived(const String &stamp, const String &uname)
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO received (stamp, contact) VALUES (?1,?2)");
+	statement.bind(1, stamp);
+	statement.bind(2, uname);
+	statement.execute();
 }
 
 void MessageQueue::markRead(const String &stamp)
@@ -230,7 +255,11 @@ FROM messages AS m LEFT JOIN messages AS p ON p.stamp=NULLIF(m.parent,'') WHERE 
 	statement.bind(1, uname);
 	statement.execute();
 
-        statement = mDatabase->prepare("DELETE FROM messages WHERE messages.contact=?1");
+        statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
+        statement.bind(1, uname);
+        statement.execute();
+	
+	statement = mDatabase->prepare("DELETE FROM received WHERE contact=?1");
         statement.bind(1, uname);
         statement.execute();
 }
@@ -719,29 +748,38 @@ void MessageQueue::Selection::markRead(const String &stamp)
 
 int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result) const
 {
-	Assert(mMessageQueue);
-	Synchronize(mMessageQueue);
-	result.clear();
+	StringList stamps;
+
+	{
+		Assert(mMessageQueue);
+		Synchronize(mMessageQueue);
+		result.clear();
 	
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+"  ORDER BY message.time,message.stamp LIMIT @offset,@count");
-        filterBind(statement);
-        statement.bind(statement.parameterIndex("offset"), offset);
-	statement.bind(statement.parameterIndex("count"), count);
-       
+		Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" ORDER BY message.time,message.stamp LIMIT @offset,@count");
+        	filterBind(statement);
+        	statement.bind(statement.parameterIndex("offset"), offset);
+		statement.bind(statement.parameterIndex("count"), count);
+
+		while(statement.step())
+        	{
+			 String stamp;
+                	 statement.value(0, stamp);
+                	 stamps.push_back(stamp);
+		}
+
+		statement.finalize();
+	}
+
 	Sha512 sha512;
 	sha512.init();
-	count = 0;
-	while(statement.step())
+	for(StringList::iterator it = stamps.begin(); it != stamps.end(); ++it)
 	{
-		String stamp;
-		statement.value(0, stamp);
-		if(count) sha512.process(",", 1);
-		sha512.process(stamp.data(), stamp.size());
-		++count;
+		if(it != stamps.begin()) sha512.process(",", 1);
+		sha512.process(it->data(), it->size());
 	}
+
 	sha512.finalize(result);
-	statement.finalize();
-	return count;
+	return stamps.size();
 }
 
 String MessageQueue::Selection::target(const String &columns) const
@@ -768,8 +806,12 @@ String MessageQueue::Selection::table(void) const
 String MessageQueue::Selection::filter(void) const
 {
         String condition;
-        if(!mContact.empty()) condition = "((message.contact='' OR message.contact=@contact) OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
-        else condition = "1=1"; // TODO
+        if(mContact.empty()) condition = "1=1";
+	else {
+		condition = "(EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
+			OR (message.contact='' OR message.contact=@contact)\
+			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
+	}
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
 

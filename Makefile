@@ -10,6 +10,11 @@ CPPFLAGS=-g -O2 -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
 LDFLAGS=-g -O2
 LDLIBS=-lpthread -ldl
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+        LDLIBS += -framework CoreFoundation
+endif
+
 SRCS=$(shell printf "%s " tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 

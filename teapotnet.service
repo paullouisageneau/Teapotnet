@@ -7,7 +7,7 @@ Type=simple
 User=teapotnet
 Group=teapotnet
 WorkingDirectory=/var/lib/teapotnet
-ExecStart=/usr/bin/teapotnet
+ExecStart=/usr/bin/teapotnet --daemon
 
 [Install]
 WantedBy=multi-user.target

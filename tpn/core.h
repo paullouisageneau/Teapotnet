@@ -109,6 +109,10 @@ private:
 		LinkStatus linkStatus(void) const;
 
 	protected:
+		static const int NotFound = 1;
+		static const int RedirectionExists = 2;
+		static const int RedirectionFailed = 3;
+		
 	  	static void sendCommand(Stream *stream,
 				   	const String &command, 
 		       			const String &args,
