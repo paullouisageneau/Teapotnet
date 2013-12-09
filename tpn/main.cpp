@@ -57,8 +57,9 @@ void openUserInterface(void)
 #endif
 
 #ifdef MACOSX
-#include <CFString.h>
-#include <CFUserNotification.h>
+#include <CoreFoundation/CFBase.h>
+#include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFUserNotification.h>
 
 int InterfacePort = 0;	// TODO: should be in some kind of shared section
 
