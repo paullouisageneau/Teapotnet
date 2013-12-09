@@ -278,7 +278,7 @@ bool Core::sendNotification(const Notification &notification)
 unsigned Core::addRequest(Request *request)
 {
 	Synchronize(this);
-	
+
 	{
 		Synchronize(request);
 		if(!request->mId);
@@ -313,7 +313,7 @@ unsigned Core::addRequest(Request *request)
 		}
 	}
 	
-	return mLastRequest;
+	return request->mId;
 }
 
 void Core::removeRequest(unsigned id)
@@ -533,7 +533,7 @@ void Core::Handler::addRequest(Request *request)
 		requestInfo.parameters = request->mParameters;
 		requestInfo.isData = request->mIsData;
 		mSender->mRequestsQueue.push(requestInfo);
-		
+	
 		mSender->notify();
 	}
 }
