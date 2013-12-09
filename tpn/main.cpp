@@ -41,22 +41,29 @@ Mutex	tpn::LogMutex;
 int	tpn::LogLevel = LEVEL_INFO;
 
 #ifdef WINDOWS
-
 #include <shellapi.h>
 #include <wininet.h>
-
 #define SHARED __attribute__((section(".shared"), shared))
 int InterfacePort SHARED = 0;
-
 void openUserInterface(void)
 {
 	if(!InterfacePort) return;
-
 	String url;
 	url << "http://localhost:" << InterfacePort << "/";
 	ShellExecute(NULL, "open", url, NULL, NULL, SW_SHOW);
 }
+#endif
 
+#ifdef MACOSX
+int InterfacePort SHARED = 0;
+void openUserInterface(void)
+{
+	if(!InterfacePort) return;
+	String url;
+	url << "http://localhost:" << InterfacePort << "/";
+	String command = "open " + url;
+	system(command.c_str());
+}
 #endif
 
 #ifdef ANDROID
@@ -166,7 +173,6 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv 
 	Log("main", "Updating all users...");
 	User::UpdateAll();
 }
-
 #endif
 
 int main(int argc, char** argv)
@@ -179,25 +185,29 @@ int main(int argc, char** argv)
 	srand(seed);
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
+	
+	signal(SIGPIPE, SIG_IGN);
+	
+	std::remove("log.txt");
 #else
 	seed^= getpid();
 	srand(seed);
 	srandom(seed);
-	signal(SIGPIPE, SIG_IGN);
-#endif
 	
-#ifdef PTW32_STATIC_LIB
-	pthread_win32_process_attach_np();
+	//signal(SIGPIPE, SIG_IGN);
+	
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL);
 #endif
 
-#ifdef WINDOWS
-	std::remove("log.txt");
+#ifdef PTW32_STATIC_LIB
+	pthread_win32_process_attach_np();
 #endif
 	
 	StringMap args;
 	try {
-		unsigned appVersion = String(APPVERSION).dottedToInt();
-		Assert(appVersion != 0);
 		Assert(argc >= 1);
 
 		String last;
@@ -248,6 +258,7 @@ int main(int argc, char** argv)
 			std::cout<<" --port port\t\tSet the TPN port"<<std::endl;
 			std::cout<<" --ifport port\t\tSet the HTTP interface port"<<std::endl;
 			std::cout<<" --tracker [port]\tEnable the local tracker"<<std::endl;
+			std::cout<<" --directory path\t\tSet the working directory"<<std::endl;
 			std::cout<<" --verbose\tVerbose output"<<std::endl;
 			std::cout<<" --trace\tProtocol tracing output"<<std::endl;
 #ifdef WINDOWS
@@ -308,10 +319,33 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
-		// TODO
-		if(Config::Get("request_timeout").toInt() >= 10000);
-			Config::Put("request_timeout", "6000");
+		// TODO: To be removed
+		if(Config::Get("request_timeout").toInt() >= 10000)
+			Config::Put("request_timeout", "5000");
 		//
+		
+		String workingDirectory;
+		args.get("directory", workingDirectory);
+		
+		if(workingDirectory.empty() && !args.contains("daemon"))
+		{
+#ifdef MACOSX
+			char buffer[1024];
+			int size = 1024;
+			if(NSGetExecutablePath(path, &size) == 0)
+			workingDirectory = String(buffer).beforeLast('/');
+#else
+			// TODO
+#endif
+		}
+		
+		if(!workingDirectory.empty())
+		{
+			if(!Directory::Exist(workingDirectory))
+				Directory::Create(workingDirectory);
+			
+			Directory::ChangeCurrent(workingDirectory);
+		}
 		
 #ifdef ANDROID
 		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
@@ -319,7 +353,10 @@ int main(int argc, char** argv)
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
 		
-#ifdef WINDOWS
+#if defined(WINDOWS) || defined(MACOSX)
+		bool isBoot = args.contains("daemon") || args.contains("boot");
+		bool isSilent = args.contains("nointerface");
+		
 		if(!InterfacePort) try {
 			int port = Config::Get("interface_port").toInt();
 			Socket sock(Address("127.0.0.1", port), 0.1);
@@ -329,12 +366,14 @@ int main(int argc, char** argv)
 
 		if(InterfacePort)
 		{
-			if(!args.contains("nointerface") && !args.contains("boot"))
+			if(!isSilent && !isBoot)
 				openUserInterface();
 			return 0;
 		}
+#endif
 		
-		if(args.contains("boot"))
+#if defined(WINDOWS)
+		if(isBoot)
 		{
 			Config::Save(configFileName);
 			Sleep(1000);
@@ -364,15 +403,16 @@ int main(int argc, char** argv)
 			if(updateDay + 1 < currentDay)
 			{
 				LogInfo("main", "Looking for updates...");
-				String url = String(DOWNLOADURL) + "?version&release=win32" + "&current=" + APPVERSION;
+				String release = "win32";
+				String url = String(DOWNLOADURL) + "?version&release=" + release + "&current=" + APPVERSION;
 				
 				try {
 					String content;
 					int result = 0;
 					
-					if(args.contains("boot"))
+					if(isBoot)
 					{
-						int attempts = 20;
+						int attempts = 6;
 						while(true)
 						{
 							try {
@@ -383,7 +423,7 @@ int main(int argc, char** argv)
 								if(--attempts == 0) break;
 								content.clear();
 								LogInfo("main", "Waiting for network availability...");
-								Sleep(1000);
+								Sleep(5000);
 								continue;
 							}
 							catch(...)
@@ -396,23 +436,23 @@ int main(int argc, char** argv)
 					}
 					else result = Http::Get(url, &content);
 					
-					if(result == 200)
+					if(result != 200) 
+						throw Exception("HTTP error code " + String::number(result));
+					
+					Config::Put("last_update_day", String::number(currentDay));
+					Config::Save(configFileName);
+						
+					unsigned lastVersion = content.trimmed().dottedToInt();
+					unsigned appVersion = String(APPVERSION).dottedToInt();
+					
+					Assert(appVersion != 0);
+					if(lastVersion > appVersion)
 					{
-						content.trim();
-
-						unsigned lastVersion = content.dottedToInt();
-						if(lastVersion && appVersion <= lastVersion)
-						{
-							Config::Put("last_update_day", String::number(currentDay));
-							Config::Save(configFileName);
-							
-							LogInfo("main", "Downloading update...");
-							if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
-								return 0;
-							else LogWarn("main", "Unable to run the updater, skipping program update.");
-						}
+						LogInfo("main", "Downloading update...");
+						if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
+							return 0;
+						else LogWarn("main", "Unable to run the updater, skipping program update.");
 					}
-					else LogWarn("main", "Failed to query the last available version");
 				}
 				catch(const Exception &e)
 				{
@@ -420,13 +460,14 @@ int main(int argc, char** argv)
 				}
 			}
 		}
-#else
+
+#else	// ifdef WINDOWS
 		Config::Save(configFileName);
 #endif
-		
+
 		LogInfo("main", "Starting...");
 		File::CleanTemp();
-		
+
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
 		{
@@ -552,18 +593,10 @@ int main(int argc, char** argv)
 			usersFile.open(usersFileName, File::Truncate);
 			usersFile.close();
 
-#ifdef WINDOWS
+#if defined(WINDOWS) || defined(MACOSX)
 			InterfacePort = ifport;
-			if(!args.contains("boot") && !args.contains("nointerface"))
+			if(!isSilent && !isBoot)
 				openUserInterface();
-			
-			/*
-			if(!args.contains("verbose") && !args.contains("trace") && !args.contains("console"))
-			{
-				HWND hWnd = GetConsoleWindow();
-				ShowWindow(hWnd, SW_HIDE);
-			}
-			*/
 #endif
 			
 			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
@@ -581,16 +614,34 @@ int main(int argc, char** argv)
 	catch(const std::exception &e)
 	{
 		LogError("main", e.what());
-#ifdef WINDOWS
-		/*
-		HWND hWnd = GetConsoleWindow();
-                ShowWindow(hWnd, SW_SHOW);
-                std::cin.get();
-                */
 		
+#ifdef WINDOWS
 		UINT uType = MB_OK|MB_ICONERROR|MB_SETFOREGROUND|MB_SYSTEMMODAL;
-		if(args.contains("boot")) uType|= MB_SERVICE_NOTIFICATION;
+		if(isBoot) uType|= MB_SERVICE_NOTIFICATION;
 		MessageBox(NULL, e.what(), "TeapotNet - Error", uType);
+#endif
+		
+#ifdef MACOSX
+		const char *header = "TeapotNet - Error";
+		const char *message = e.what();
+		CFStringRef headerRef  = CFStringCreateWithCString(NULL, header, strlen(header));
+		CFStringRef messageRef = CFStringCreateWithCString(NULL, message, strlen(message));
+		CFOptionFlags result;
+
+		CFUserNotificationDisplayAlert(0,		// no timeout
+						kCFUserNotificationStopAlertLevel,
+						NULL,		// default icon
+						NULL,		// unused
+						NULL,		// localization of strings
+						headerRef,	// header text 
+						messageRef,	// message text
+						NULL,		// default OK button
+						NULL,		// no alternate button
+						NULL,		// no other button
+						&result);
+		
+		CFRelease(headerRef);
+		CFRelease(messageRef);
 #endif
 		return 1;	  
 	}
@@ -605,4 +656,5 @@ int main(int argc, char** argv)
 	
 	return 0;
 }
+
 

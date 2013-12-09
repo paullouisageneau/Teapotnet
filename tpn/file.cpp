@@ -224,6 +224,11 @@ uint64_t File::size(void) const
 
 size_t File::readData(char *buffer, size_t size)
 {
+#ifdef __clang__
+	// Hack to fix a bug with readsome() not resetting gcount
+	std::fstream::peek();
+#endif
+	
 	std::fstream::clear();	// clear state
 	std::fstream::readsome(buffer, size);
 	if(!std::fstream::gcount() && std::fstream::good())

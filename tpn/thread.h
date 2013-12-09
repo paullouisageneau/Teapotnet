@@ -55,6 +55,9 @@ private:
 
 	struct Wrapper
 	{
+		Wrapper(void)		{}
+		virtual ~Wrapper(void)	{}
+		
 		Thread *thread;
 		virtual void call(void) = 0;
 	};

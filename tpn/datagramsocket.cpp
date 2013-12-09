@@ -167,7 +167,7 @@ void DatagramSocket::bind(int port, bool broadcast)
 	String service;
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException("Local binding address resolution failed for UDP port "+port);
+		throw NetException("Local binding address resolution failed for UDP port "+service);
 	
 	try {
 		// Prefer IPv6
