@@ -473,7 +473,7 @@ function setMessagesReceiverRec(url, object, next) {
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-				if(!document.hasFocus()) playMessageSound();
+				if(isPageHidden()) playMessageSound();
 			}
 		}
 

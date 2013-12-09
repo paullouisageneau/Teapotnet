@@ -148,7 +148,7 @@ bool ByteStream::readBinary(char *data, size_t size)
 		size-= r;
 		if(!size) return true;
 	}
-	while(r = readData(data, size));
+	while((r = readData(data, size)));
 	
 	throw IOException();
 }

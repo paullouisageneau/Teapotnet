@@ -54,6 +54,10 @@
 	#include <android/log.h>
 #endif
 
+#ifdef __APPLE__
+#define MACOSX
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -196,7 +200,12 @@ typedef ::uint16_t		uint16_t;	// 16 bits
 typedef ::uint32_t		uint32_t;	// 32 bits
 typedef ::uint64_t		uint64_t;	// 64 bits
 
+#ifdef MACOSX
+typedef struct stat stat_t;
+#else
 typedef struct stat64 stat_t;
+#endif
+
 inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
 
 #endif

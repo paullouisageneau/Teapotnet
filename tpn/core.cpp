@@ -281,7 +281,7 @@ unsigned Core::addRequest(Request *request)
 
 	{
 		Synchronize(request);
-		if(!request->mId);
+		if(!request->mId)
 			request->mId = ++mLastRequest;
 	}
 

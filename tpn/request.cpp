@@ -145,7 +145,7 @@ bool Request::execute(User *user, bool isFromSelf)
 	}
 	else {
 		if(mTarget.contains('/')) command  = "file";
-		else command == "digest";
+		else command = "digest";
 		argument = mTarget;
 	}
 
