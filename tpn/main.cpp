@@ -194,8 +194,6 @@ int main(int argc, char** argv)
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
 	
-	signal(SIGPIPE, SIG_IGN);
-	
 	std::remove("log.txt");
 #else
 	seed^= getpid();
@@ -625,7 +623,7 @@ int main(int argc, char** argv)
 		
 #ifdef WINDOWS
 		UINT uType = MB_OK|MB_ICONERROR|MB_SETFOREGROUND|MB_SYSTEMMODAL;
-		if(isBoot) uType|= MB_SERVICE_NOTIFICATION;
+		if(args.contains("daemon") || args.contains("boot")) uType|= MB_SERVICE_NOTIFICATION;
 		MessageBox(NULL, e.what(), "TeapotNet - Error", uType);
 #endif
 		
