@@ -1275,7 +1275,7 @@ void AddressBook::Contact::update(bool alternate)
 	}
 	
 	if(!newAddrs.empty())
-		success = connectAddresses(addresses(), save, shuffle);
+		success = connectAddresses(newAddrs, save, shuffle);
 	
 	{
 		Synchronize(mAddressBook);
