@@ -146,7 +146,7 @@ int DoUpdate(void)
 	types[1] = NULL;
 
 	// use flag WINHTTP_FLAG_SECURE to initiate SSL
-	HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/download/?release=win32", NULL, NULL, types, WINHTTP_FLAG_SECURE);
+	HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/download/?release=win32&update=1", NULL, NULL, types, WINHTTP_FLAG_SECURE);
 	if(!hRequest)
 	{
 		Error("WinHttpOpenRequest failed");
