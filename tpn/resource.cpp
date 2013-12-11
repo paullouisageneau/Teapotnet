@@ -151,7 +151,8 @@ void Resource::refresh(bool forceLocal)
 			mSources.insert(peering);
 	}
 	
-	if(!mDigest.empty())
+	// If remote and accessed by digest, cache the resource
+	if(!mSources.empty() && !mDigest.empty())
 	{
 		CacheMutex.lock();
 		while(Cache.size() >= 1000)
