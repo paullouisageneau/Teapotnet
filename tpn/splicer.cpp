@@ -249,6 +249,9 @@ void Splicer::start(bool autoDelete)
 			continue;
 		}
 			
+		Assert(mRequests[i]);
+		Assert(mStripes[i]);
+		
 		++i; ++it;
 		if(it == mSources.end()) it = mSources.begin();
 	}
@@ -346,49 +349,52 @@ void Splicer::writeData(const char *data, size_t size)
 bool Splicer::query(int i, const Identifier &source)
 {
 	Synchronize(this);
-	Assert(i < mRequests.size());
-	Assert(i < mStripes.size());
-
-	int nbStripes = mStripes.size();
-	unsigned block = mFirstBlock;
-	size_t offset = 0;
-
-	if(mStripes[i])
-	{
-		block = std::max(block, mStripes[i]->tellWriteBlock());
-		mStripes[i]->flush();
-	}
-
-	if(mRequests[i]) delete mRequests[i];
-	mStripes[i] = NULL;
-	mRequests[i] = NULL;
 	
-	File *file = new File(mCacheEntry->fileName(), File::ReadWrite);
-	StripedFile *striped = new StripedFile(file, mCacheEntry->blockSize(), nbStripes, i);
-	striped->seekWrite(block, offset);
-	mStripes[i] = striped;
-	
-	StringMap parameters;
-	parameters["block-size"] << mCacheEntry->blockSize();
-	parameters["stripes-count"] << nbStripes;
-	parameters["stripe"] << i;
-	parameters["block"] << block;
-	parameters["offset"] << offset;
-	
-	Request *request = new Request;
-	request->setTarget(mCacheEntry->target().toString(),true);
-	request->setParameters(parameters);
-	request->setContentSink(striped);
+	Request *request = NULL;
+	StripedFile *stripe = NULL;
 	
 	try {
+		Assert(i < mRequests.size());
+		Assert(i < mStripes.size());
+
+		int nbStripes = mStripes.size();
+		unsigned block = mFirstBlock;
+		size_t offset = 0;
+
+		if(mStripes[i])
+		{
+			block = std::max(block, mStripes[i]->tellWriteBlock());
+			mStripes[i]->flush();
+		}
+		
+		StringMap parameters;
+		parameters["block-size"] << mCacheEntry->blockSize();
+		parameters["stripes-count"] << nbStripes;
+		parameters["stripe"] << i;
+		parameters["block"] << block;
+		parameters["offset"] << offset;
+		
+		File *file = new File(mCacheEntry->fileName(), File::ReadWrite);
+		stripe = new StripedFile(file, mCacheEntry->blockSize(), nbStripes, i);
+		stripe->seekWrite(block, offset);
+
+		request = new Request;
+		request->setTarget(mCacheEntry->target().toString(),true);
+		request->setParameters(parameters);
+		request->setContentSink(stripe);
 		request->submit(source);
 	}
-	catch(...)
+	catch(const Exception &e)
 	{
+		delete stripe;
+		delete request;
+		LogDebug("Splicer::query", e.what());
 		return false;
 	}
 	
+	delete mRequests[i];
 	mRequests[i] = request;
+	mStripes[i] = stripe;
 	return true;
 }
 
@@ -397,141 +403,149 @@ void Splicer::run(void)
 	Synchronize(this);
 	
 	mCacheEntry->setAccessTime();
-
 	if(!isStarted()) return;
-	
-	//LogDebug("Splicer::run", "Processing splicer...");
-	
-	std::vector<int>		onError;
-	std::multimap<unsigned, int> 	byBlocks;
-	
-	unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
-	unsigned currentBlock = lastBlock;
-	
-	Assert(!mRequests.empty());
-	Assert(mStripes.size() == mRequests.size());
-	
-	int nbPending = mRequests.size();
-	for(int i=0; i<mRequests.size(); ++i)
-	{
-		Assert(mRequests[i]);
-		Assert(mStripes[i]);
-		Synchronize(mRequests[i]);
+		       
+	try {
+		//LogDebug("Splicer::run", "Processing splicer...");
+
+		std::vector<int>		onError;
+		std::multimap<unsigned, int> 	byBlocks;
 		
-		byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
+		unsigned lastBlock = mCacheEntry->block(mCacheEntry->size());
+		unsigned currentBlock = lastBlock;
 		
-		if(mRequests[i]->responsesCount())
+		Assert(!mRequests.empty());
+		Assert(mStripes.size() == mRequests.size());
+		
+		int nbPending = mRequests.size();
+		for(int i=0; i<mRequests.size(); ++i)
 		{
-			const Request::Response *response = mRequests[i]->response(0);
-			Assert(response != NULL);
+			Assert(mRequests[i]);
+			Assert(mStripes[i]);
+			Synchronize(mRequests[i]);
 			
-			if(response->finished())
+			byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
+			
+			if(mRequests[i]->responsesCount())
 			{
-				--nbPending;
+				const Request::Response *response = mRequests[i]->response(0);
+				Assert(response != NULL);
+				
+				if(response->finished())
+				{
+					--nbPending;
+				}
+				else {
+					if(response->error())
+						onError.push_back(i);
+				}
 			}
-			else {
-				if(response->error())
-					onError.push_back(i);
-			}
+
+			currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
 		}
 
-		currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());
-	}
-
-	if(!nbPending) ++currentBlock;
-	
-	//if(mCurrentBlock < currentBlock)
-	//{
-	//	double progress = double(currentBlock) / double(lastBlock+1);
-	//	LogDebug("Splicer::run", "Download position: " + String::number(progress*100,2) + "%");
-	//}
-	
-	if(mCurrentBlock < currentBlock)
-	{
-		bool blockFinished = mCacheEntry->markBlockDownloading(currentBlock, true);
+		if(!nbPending) ++currentBlock;
 		
-		while(mCurrentBlock < currentBlock)
+		//if(mCurrentBlock < currentBlock)
+		//{
+		//	double progress = double(currentBlock) / double(lastBlock+1);
+		//	LogDebug("Splicer::run", "Download position: " + String::number(progress*100,2) + "%");
+		//}
+		
+		if(mCurrentBlock < currentBlock)
 		{
-			//LogDebug("Splicer::run", "Block finished: " + String::number(mCurrentBlock));
-			mCacheEntry->markBlockFinished(mCurrentBlock);
-			++mCurrentBlock;
+			bool blockFinished = mCacheEntry->markBlockDownloading(currentBlock, true);
+			
+			while(mCurrentBlock < currentBlock)
+			{
+				//LogDebug("Splicer::run", "Block finished: " + String::number(mCurrentBlock));
+				mCacheEntry->markBlockFinished(mCurrentBlock);
+				++mCurrentBlock;
+			}
+			
+			if(blockFinished)
+			{
+				// Block is finished
+				stop();
+				return;	// Warning: the splicer can be autodeleted
+			}
 		}
 		
-		if(blockFinished)
+		if(onError.empty())
 		{
-			// Block is finished
+			if(mRequests.size() >= 2)
+			{
+				int slowest = byBlocks.begin()->second;
+				int fastest = byBlocks.rbegin()->second;
+				if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
+					|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
+				{
+					LogDebug("Splicer::run", "Switching, source "+String::number(slowest)+" is too slow...");
+					if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
+						query(slowest, mRequests[fastest]->receiver());
+				}
+			}
+		}
+		else for(int k=0; k<onError.size(); ++k)
+		{
+			int i = onError[k];
+			LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Request is in error state");
+			
+			Identifier formerSource = mRequests[i]->receiver();
+			Identifier source;
+			Map<unsigned, int>::reverse_iterator it = byBlocks.rbegin();
+			while(true)
+			{
+				Assert(it->second < mRequests.size());
+				source = mRequests[it->second]->receiver();
+				if(source != formerSource) break;
+				++it;
+				if(it == byBlocks.rend())
+				{
+					Set<Identifier> sources;
+					mCacheEntry->refreshSources();
+					mCacheEntry->getSources(sources);
+		
+					if(sources.empty())
+					{
+						LogDebug("Splicer::run", "No sources found");
+						Scheduler::Global->schedule(this, 30.);
+						return;
+					}
+
+					if(sources.size() > 1 && sources.contains(formerSource))
+						sources.erase(formerSource);
+					
+					Assert(!sources.empty());
+					Set<Identifier>::iterator jt = sources.begin();
+					if(sources.size() > 1)
+					{
+						int r = pseudorand() % sources.size();
+						while(r--) ++jt;
+					}
+					source = *jt;
+					break;
+				}
+			}
+			
+			LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Sending new request");
+			query(i, source);
+		}
+		
+		//LogDebug("Splicer::run", "Processing finished");
+		
+		if(finished())
+		{
 			stop();
 			return;	// Warning: the splicer can be autodeleted
 		}
 	}
-	
-	if(onError.empty())
+	catch(const Exception &e)
 	{
-		if(mRequests.size() >= 2)
-		{
-			int slowest = byBlocks.begin()->second;
-			int fastest = byBlocks.rbegin()->second;
-			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
-				|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
-			{
-				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
-					query(slowest, mRequests[fastest]->receiver());
-			}
-		}
+		LogWarn("Splicer::run", e.what());
+		stop();
+		return;	// Warning: the splicer can be autodeleted
 	}
-	else for(int k=0; k<onError.size(); ++k)
-	{
-		int i = onError[k];
-		LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Request is in error state");
-		
-		Identifier formerSource = mRequests[i]->receiver();
-		Identifier source;
-		Map<unsigned, int>::reverse_iterator it = byBlocks.rbegin();
-		while(true)
-		{
-			Assert(it->second < mRequests.size());
-			source = mRequests[it->second]->receiver();
-			if(source != formerSource) break;
-			++it;
-			if(it == byBlocks.rend())
-			{
-				Set<Identifier> sources;
-				mCacheEntry->refreshSources();
-				mCacheEntry->getSources(sources);
-	
-				if(sources.empty())
-				{
-					LogDebug("Splicer::run", "No sources found");
-					Scheduler::Global->schedule(this, 30.);
-					return;
-				}
-
-				if(sources.size() > 1 && sources.contains(formerSource))
-					sources.erase(formerSource);
-				
-				Assert(!sources.empty());
-				Set<Identifier>::iterator jt = sources.begin();
-				if(sources.size() > 1)
-				{
-					int r = pseudorand() % sources.size();
-					while(r--) ++jt;
-				}
-				source = *jt;
-				break;
-			}
-		}
-		
-		LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Sending new request");
-		query(i, source);
-	}
-	
-	if(finished())
-        {
-                stop();
-                return;	// Warning: the splicer can be autodeleted
-        }
-        
-        //LogDebug("Splicer::run", "Processing finished");
 }
 
 Splicer::CacheEntry::CacheEntry(const ByteString &target) :
