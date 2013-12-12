@@ -366,10 +366,9 @@ int main(int argc, char** argv)
 		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
-	
-#ifdef WINDOWS
-		File::Remove("log.txt");
-#endif
+
+	// Remove old log file
+	std::remove("log.txt");
 
 // ----- Log system is ready -----
 
