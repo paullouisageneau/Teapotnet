@@ -26,5 +26,7 @@
 	<string>public.app-category.social-networking</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2011-2013 The TeapotNet Team</string>
+	<key>LSMultipleInstancesProhibited</key>
+	<false/>
 </dict>
 </plist>
