@@ -472,18 +472,7 @@ int main(int argc, char** argv)
 
 #else	// ifdef WINDOWS
 
-#ifdef MACOSX
-		try {
-			Config::Save(configFileName);
-		}
-		catch(...)
-		{
-			throw Exception("Please move TeapotNet to your Applications folder before launching it.");
-		}
-#else
 		Config::Save(configFileName);
-#endif
-
 #endif
 
 		LogInfo("main", "Starting...");
