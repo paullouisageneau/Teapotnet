@@ -486,7 +486,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 			if(localAddr.isIpv4())
 			{
 				if(i == 0) gen = localAddr.host().dottedToInt(256) + external;	
-				uint32_t rnd = gen = uint32_t(22695477*gen + 1); rnd >> 17;
+				uint32_t rnd = gen = uint32_t(22695477*gen + 1); rnd = rnd >> 17;
 				external = 1024 + rnd;
 			}
 			else {
