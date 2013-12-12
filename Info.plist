@@ -20,6 +20,10 @@
 	<string>TeapotNetIcon.icns</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.8</string>
+	<key>LSBackgroundOnly</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2011-2013 The TeapotNet Team</string>
 </dict>
