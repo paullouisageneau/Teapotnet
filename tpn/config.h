@@ -42,13 +42,15 @@ public:
 	static void Load(const String &filename);
 	static void Save(const String &filename);
 
+	static bool IsUpdateAvailable(void);
+	static bool CheckUpdate(void);
+
 	static void GetExternalAddresses(List<Address> &list);
 	static bool GetProxyForUrl(const String &url, Address &addr);
-	
-	static bool CheckUpdate(void);
 private:
 	static StringMap Params;
 	static Mutex ParamsMutex;
+	static bool UpdateAvailableFlag;
 
 	Config(void);
 	~Config(void);

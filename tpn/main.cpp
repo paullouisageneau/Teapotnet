@@ -35,16 +35,25 @@
 
 #include <signal.h>
 
+#ifdef WINDOWS
+#include <shellapi.h>
+#include <wininet.h>
+#define SHARED __attribute__((section(".shared"), shared))
+#endif
+
+#ifdef MACOSX
+#include <CoreFoundation/CFBase.h>
+#include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFUserNotification.h>
+#include <mach-o/dyld.h>	// for _NSGetExecutablePath
+#endif
+
 using namespace tpn;
 
 Mutex	tpn::LogMutex;
 int	tpn::LogLevel = LEVEL_INFO;
 
 #ifdef WINDOWS
-#include <shellapi.h>
-#include <wininet.h>
-#define SHARED __attribute__((section(".shared"), shared))
-
 int InterfacePort SHARED = 0;
 
 void openUserInterface(void)
@@ -57,11 +66,6 @@ void openUserInterface(void)
 #endif
 
 #ifdef MACOSX
-#include <CoreFoundation/CFBase.h>
-#include <CoreFoundation/CFString.h>
-#include <CoreFoundation/CFUserNotification.h>
-#include <mach-o/dyld.h>	// for _NSGetExecutablePath
-
 int InterfacePort = 0;	// TODO: should be in some kind of shared section
 
 void openUserInterface(void)
@@ -193,8 +197,6 @@ int main(int argc, char** argv)
 	srand(seed);
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
-	
-	std::remove("log.txt");
 #else
 	seed^= getpid();
 	srand(seed);
@@ -207,7 +209,7 @@ int main(int argc, char** argv)
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, NULL);
 #endif
-
+	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_attach_np();
 #endif
@@ -315,36 +317,42 @@ int main(int argc, char** argv)
 		
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "true");
-		Config::Default("cache_max_size", "200");		// MiB
+		Config::Default("cache_max_size", "100");		// MiB
 		Config::Default("cache_max_file_size", "10");		// MiB
 		Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
 #else
 		Config::Default("force_http_tunnel", "false");
-		Config::Default("cache_max_size", "20000");		// MiB
+		Config::Default("cache_max_size", "10000");		// MiB
 		Config::Default("cache_max_file_size", "2000");		// MiB
 		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
-		// TODO: To be removed
-		if(Config::Get("request_timeout").toInt() >= 10000)
-			Config::Put("request_timeout", "5000");
-		//
-		
 		String workingDirectory;
-		args.get("directory", workingDirectory);
-		
-		if(workingDirectory.empty() && !args.contains("daemon"))
-		{
+
 #ifdef MACOSX
-			char buffer[1024];
-			uint32_t size = 1024;
-			if(_NSGetExecutablePath(buffer, &size) == 0)
-			workingDirectory = String(buffer).beforeLast('/');
-#else
-			// TODO
-#endif
+		char buffer[1024];
+		uint32_t size = 1024;
+		if(_NSGetExecutablePath(buffer, &size) == 0)
+		{
+			String appPath(buffer);
+			String appDirectory = appPath.beforeLast('/');
+			String resourcesDirectory = appDirectory + "/../Resources";
+
+			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
+			{
+				// Set directories
+				Config::Put("static_dir", resourcesDirectory + "/static");
+				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
+			
+				// Register launch on user login
+				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
+				system(command.c_str());
+			}
 		}
+#endif
 		
+		args.get("directory", workingDirectory);
+
 		if(!workingDirectory.empty())
 		{
 			if(!Directory::Exist(workingDirectory))
@@ -358,7 +366,13 @@ int main(int argc, char** argv)
 		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
-		
+	
+#ifdef WINDOWS
+		File::Remove("log.txt");
+#endif
+
+// ----- Log system is ready -----
+
 #if defined(WINDOWS) || defined(MACOSX)
 		bool isBoot = args.contains("daemon") || args.contains("boot");
 		bool isSilent = args.contains("nointerface");
@@ -468,11 +482,12 @@ int main(int argc, char** argv)
 		}
 
 #else	// ifdef WINDOWS
+
 		Config::Save(configFileName);
 #endif
 
 		LogInfo("main", "Starting...");
-		File::CleanTemp();
+                File::CleanTemp();
 
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
@@ -576,11 +591,9 @@ int main(int argc, char** argv)
 			}
 			
 			String usersFileName = "users.txt";
-			File usersFile;
-			
 			if(File::Exist(usersFileName))
 			{
-				usersFile.open(usersFileName, File::Read);
+				File usersFile(usersFileName, File::Read);
 				String line;
 				while(usersFile.readLine(line))
 				{
@@ -595,17 +608,21 @@ int main(int argc, char** argv)
 					line.clear();
 				}
 				usersFile.close();
+				File::Remove(usersFileName);
 			}
-			usersFile.open(usersFileName, File::Truncate);
-			usersFile.close();
 
 #if defined(WINDOWS) || defined(MACOSX)
 			InterfacePort = ifport;
 			if(!isSilent && !isBoot)
 				openUserInterface();
 #endif
-			
-			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
+
+			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");
+
+#if defined(MACOSX)
+			Config::CheckUpdate();		
+#endif
+
 			Core::Instance->join();
 		}
 		catch(...)

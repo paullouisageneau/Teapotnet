@@ -27,7 +27,7 @@ This can be changed in config.txt (created at first startup)
 
 You can create a new user directly from the interface.
 Alternatively, write the username and password to users.txt
-(emptied during startup) before launching the program, as follow:
+(deleted during startup) before launching the program, as follow:
 $ echo myusername mypassword > users.txt
 $ ./teapotnet
 

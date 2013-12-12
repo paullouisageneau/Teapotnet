@@ -552,7 +552,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("div","invitationmethods");
 
 			page.open("span",".invitationimg");
-			page.image("/spy.png","Classic way","spyimg");
+			//page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
+			// TODO : add parmeter target in class html ?
+			page.raw("<a href=\""+centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id+"\" target=\"_newtab\" class=\"gmailimg\">");
+			page.image("/gmail.png","GMail","gmailimg");
+			page.raw("</a>");
+			page.closeForm();
 			page.close("span");
 
 			page.open("span",".invitationimg");
@@ -560,16 +565,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("span");
 
 			page.open("span",".invitationimg");
-			//page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
-			// TODO : add parmeter target in class html ?
-			page.raw("<a href=\""+centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id+"\" target=\"_newtab\">");
-			page.image("/gmail.png","GMail","gmailimg");
-			page.raw("</a>");
-			page.closeForm();
+			page.image("/facebook_by_benstein.png","Facebook","fbimg");
 			page.close("span");
 
 			page.open("span",".invitationimg");
-			page.image("/facebook_by_benstein.png","Facebook","fbimg");
+			page.image("/spy.png","Classic way","spyimg");
 			page.close("span");
 
 			page.close("div");

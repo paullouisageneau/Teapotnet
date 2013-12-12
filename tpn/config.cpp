@@ -30,7 +30,8 @@ namespace tpn
 
 StringMap Config::Params;
 Mutex Config::ParamsMutex;
-  
+bool Config::UpdateAvailableFlag = false;  
+
 String Config::Get(const String &key)
 {
 	ParamsMutex.lock();
@@ -137,20 +138,64 @@ void Config::GetExternalAddresses(List<Address> &list)
 	}
 }
 
+bool Config::CheckUpdate(void)
+{
+#if   defined(ANDROID)
+	return false;
+#elif defined(WINDOWS)
+        String release = "win32";
+#elif defined(MACOSX)
+        String release = "osx";
+#else
+	String release = "src";
+#endif
+
+        try {
+                LogInfo("Config::CheckUpdate", "Looking for updates...");
+                String url = String(DOWNLOADURL) + "?version&release=" + release + "&current=" + APPVERSION;
+
+                String content;
+                int result = Http::Get(url, &content);
+                if(result != 200)
+                        throw Exception("HTTP error code " + String::number(result));
+
+                unsigned lastVersion = content.trimmed().dottedToInt();
+                unsigned appVersion = String(APPVERSION).dottedToInt();
+
+                Assert(appVersion != 0);
+                if(lastVersion > appVersion)
+		{
+			UpdateAvailableFlag = true;
+			return true;
+		}
+        }
+        catch(const Exception &e)
+        {
+                LogWarn("Config::CheckUpdate", String("Unable to look for updates: ") + e.what());
+        }
+
+        return false;
+}
+
+bool Config::IsUpdateAvailable(void)
+{
+	return UpdateAvailableFlag;
+}
+
 bool Config::GetProxyForUrl(const String &url, Address &addr)
 {
 	String proxy = Get("http_proxy").trimmed();
+	
+	if(proxy == "none")
+	{
+		return false;
+	}
 	
         if(!proxy.empty() && proxy != "auto")
         {
                 addr.fromString(proxy);
                 return true;
         }
-
-	if(proxy == "none")
-	{
-		return false;
-	}
         
 #ifdef WINDOWS
 	typedef LPVOID HINTERNET;
@@ -308,41 +353,6 @@ bool Config::parseWinHttpProxy(LPWSTR lpszProxy, Address &addr)
 		}
 	}
 
-	return false;
-}
-
-bool Config::CheckUpdate(void)
-{
-	String release;
-#if   defined(WINDOWS)
-	release = "win32";
-#elif defined(MACOSX)
-	release = "osx";
-#else
-	return false;
-#endif
-
-	try {
-		LogInfo("Config::CheckUpdate", "Looking for updates...");
-		String url = String(DOWNLOADURL) + "?version&release=" + release + "&current=" + APPVERSION;
-		
-		String content;
-		int result = Http::Get(url, &content);
-		if(result != 200) 
-			throw Exception("HTTP error code " + String::number(result));
-		
-		unsigned lastVersion = content.trimmed().dottedToInt();
-		unsigned appVersion = String(APPVERSION).dottedToInt();
-		
-		Assert(appVersion != 0);
-		if(lastVersion > appVersion)
-			return true;
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("Config::CheckUpdate", String("Unable to look for updates: ") + e.what());
-	}
-	
 	return false;
 }
 

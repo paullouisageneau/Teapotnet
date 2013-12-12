@@ -38,7 +38,7 @@ function howtoText(object) {
 		return "Classic and most discreet way. Exchange a plain text secret with your friend by email, phone, IRL... and input it here with his TeapotNet id."; 
 	if(object.is($('#mailimg'))) 
 		return "Input your and your friend's email address. An invitation containing a code will be sent to your friend, and then back to you."; 
-	if(object.is($('form[name=gmailform]'))) 
+	if(object.is($('.gmailimg'))) 
 		return "Select from your GMail contacts the people you want to send an invitation containg a code to reach you to."; 
 	if(object.is($('#fbimg'))) 
 		return "Coming soon."; 

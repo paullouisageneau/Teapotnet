@@ -332,6 +332,18 @@ a.button:hover
 	text-overflow: '';
 }
 
+.banner
+{
+	display: block;
+	top: 0;
+	width: 100%;
+	margin: 0;
+	padding: 0.5em;
+	background: #FCFCFC;
+	border-bottom: 1px solid #A0A0A0;
+	text-align: center;
+}
+
 #leftcolumn #search
 {
 	width: 100%;
@@ -380,7 +392,7 @@ a.button:hover
 	width: 100%;
 	height: 100%;
 	max-width: 60em;
-	margin-top: 0.5em;
+	margin-top: 0;
 	margin-bottom: 0.5em;
 	margin-left: auto;
 	margin-right: auto;

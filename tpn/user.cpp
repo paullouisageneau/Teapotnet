@@ -440,6 +440,16 @@ void User::http(const String &prefix, Http::Request &request)
 			// TODO: This is awful
 			page.javascript("$('#page').css('max-width','100%');");
 			
+#ifdef MACOSX
+                        if(request.sock->getRemoteAddress().isLocal() && Config::IsUpdateAvailable())
+                        {
+                                page.open("div", "updateavailable.banner");
+                                page.text("New version available - ");
+                                page.link(SECUREDOWNLOADURL, "Download now");
+                                page.close("div");
+                        }
+#endif
+			
 			page.open("div", "wrapper");
 			
 			page.open("div","leftcolumn");
@@ -533,9 +543,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.openLink(profile()->urlPrefix());
 			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name() + "@" + tracker());
-			if(!instance.empty()) page.text(" (" + instance + ")");
+			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
 			page.closeLink();
 			page.close("h1");
+
 			page.close("div");
 			
 			String broadcastUrl = "/messages";
