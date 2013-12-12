@@ -197,8 +197,6 @@ int main(int argc, char** argv)
 	srand(seed);
 	WSADATA WSAData;
 	WSAStartup(MAKEWORD(2,2), &WSAData);
-	
-	std::remove("log.txt");
 #else
 	seed^= getpid();
 	srand(seed);
@@ -330,18 +328,25 @@ int main(int argc, char** argv)
 #endif
 
 		String workingDirectory;
+
 #ifdef MACOSX
 		char buffer[1024];
 		uint32_t size = 1024;
 		if(_NSGetExecutablePath(buffer, &size) == 0)
 		{
-			String appDirectory = String(buffer).beforeLast('/');
+			String appPath(buffer);
+			String appDirectory = appPath.beforeLast('/');
 			String resourcesDirectory = appDirectory + "/../Resources";
 
 			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
 			{
+				// Set directories
 				Config::Put("static_dir", resourcesDirectory + "/static");
 				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
+			
+				// Register launch on user login
+				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
+				system(command.c_str());
 			}
 		}
 #endif
@@ -362,6 +367,12 @@ int main(int argc, char** argv)
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
 	
+#ifdef WINDOWS
+		File::Remove("log.txt");
+#endif
+
+// ----- Log system is ready -----
+
 #if defined(WINDOWS) || defined(MACOSX)
 		bool isBoot = args.contains("daemon") || args.contains("boot");
 		bool isSilent = args.contains("nointerface");
@@ -476,7 +487,7 @@ int main(int argc, char** argv)
 #endif
 
 		LogInfo("main", "Starting...");
-		File::CleanTemp();
+                File::CleanTemp();
 
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
@@ -580,11 +591,9 @@ int main(int argc, char** argv)
 			}
 			
 			String usersFileName = "users.txt";
-			File usersFile;
-			
 			if(File::Exist(usersFileName))
 			{
-				usersFile.open(usersFileName, File::Read);
+				File usersFile(usersFileName, File::Read);
 				String line;
 				while(usersFile.readLine(line))
 				{
@@ -599,17 +608,21 @@ int main(int argc, char** argv)
 					line.clear();
 				}
 				usersFile.close();
+				File::Remove(usersFileName);
 			}
-			usersFile.open(usersFileName, File::Truncate);
-			usersFile.close();
 
 #if defined(WINDOWS) || defined(MACOSX)
 			InterfacePort = ifport;
 			if(!isSilent && !isBoot)
 				openUserInterface();
 #endif
-			
-			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");		
+
+			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");
+
+#if defined(MACOSX)
+			Config::CheckUpdate();		
+#endif
+
 			Core::Instance->join();
 		}
 		catch(...)

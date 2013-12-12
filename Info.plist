@@ -19,7 +19,7 @@
 	<key>CFBundleIconFile</key>
 	<string>TeapotNetIcon.icns</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.8</string>
+	<string>10.6</string>
 	<key>LSBackgroundOnly</key>
 	<string>1</string>
 	<key>LSApplicationCategoryType</key>

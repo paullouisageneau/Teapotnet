@@ -22,16 +22,17 @@
 #ifndef TPN_INCLUDE_H
 #define TPN_INCLUDE_H
 
-#define DEBUG		1
-#define APPNAME		"TeapotNet"
-#define APPVERSION	"0.7.6"
-#define APPAUTHOR	"Paul-Louis Ageneau"
-#define APPLINK		"http://teapotnet.org/"
-#define SOURCELINK	"http://teapotnet.org/source"
-#define HELPLINK	"http://teapotnet.org/faq"
-#define BUGSLINK	"mailto:bugs@teapotnet.org"
-#define DOWNLOADURL	"http://teapotnet.org/download"
-#define RAPTUREURL	"https://teapotnet.org/rapture/"	// Rapture must use HTTPS
+#define DEBUG			1
+#define APPNAME			"TeapotNet"
+#define APPVERSION		"0.7.6"
+#define APPAUTHOR		"Paul-Louis Ageneau"
+#define APPLINK			"http://teapotnet.org/"
+#define SOURCELINK		"http://teapotnet.org/source"
+#define HELPLINK		"http://teapotnet.org/faq"
+#define BUGSLINK		"mailto:bugs@teapotnet.org"
+#define DOWNLOADURL		"http://teapotnet.org/download"
+#define SECUREDOWNLOADURL	"https://teapotnet.org/download"	// HTTPS
+#define RAPTUREURL		"https://teapotnet.org/rapture/"	// Rapture must use HTTPS
 
 
 #if defined(_WIN32) || defined(_WIN64)
