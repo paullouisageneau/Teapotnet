@@ -383,10 +383,21 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 #else
 #ifdef WINDOWS
 	std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
-	log<<oss.str()<<std::endl;
-	log.close();
+	if(log.is_open())
+	{
+		log<<oss.str()<<std::endl;
+		log.close();
+	}
 #else
-	std::cout<<oss.str()<<std::endl;
+	if(isatty(1)) std::cout<<oss.str()<<std::endl;
+	else {
+		std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
+		if(log.is_open())
+		{
+			log<<oss.str()<<std::endl;
+			log.close();
+		}
+	}
 #endif
 #endif
 	}
