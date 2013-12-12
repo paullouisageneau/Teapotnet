@@ -35,16 +35,26 @@
 
 #include <signal.h>
 
+#ifdef WINDOWS
+#include <shellapi.h>
+#include <wininet.h>
+#define SHARED __attribute__((section(".shared"), shared))
+#endif
+
+#ifdef MACOSX
+#include <Foundation/Foundation.h>
+#include <CoreFoundation/CFBase.h>
+#include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFUserNotification.h>
+#include <mach-o/dyld.h>	// for _NSGetExecutablePath
+#endif
+
 using namespace tpn;
 
 Mutex	tpn::LogMutex;
 int	tpn::LogLevel = LEVEL_INFO;
 
 #ifdef WINDOWS
-#include <shellapi.h>
-#include <wininet.h>
-#define SHARED __attribute__((section(".shared"), shared))
-
 int InterfacePort SHARED = 0;
 
 void openUserInterface(void)
@@ -57,11 +67,6 @@ void openUserInterface(void)
 #endif
 
 #ifdef MACOSX
-#include <CoreFoundation/CFBase.h>
-#include <CoreFoundation/CFString.h>
-#include <CoreFoundation/CFUserNotification.h>
-#include <mach-o/dyld.h>	// for _NSGetExecutablePath
-
 int InterfacePort = 0;	// TODO: should be in some kind of shared section
 
 void openUserInterface(void)
@@ -333,7 +338,7 @@ int main(int argc, char** argv)
 		{
 			String appDirectory = String(buffer).beforeLast('/');
 			String resourcesDirectory = appDirectory + "/../Resources";
-			
+
 			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
 			{
 				Config::Default("static_dir", resourcesDirectory + "/static");

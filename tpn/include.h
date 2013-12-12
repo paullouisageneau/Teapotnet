@@ -22,7 +22,7 @@
 #ifndef TPN_INCLUDE_H
 #define TPN_INCLUDE_H
 
-#define DEBUG
+#define DEBUG		1
 #define APPNAME		"TeapotNet"
 #define APPVERSION	"0.7.6"
 #define APPAUTHOR	"Paul-Louis Ageneau"
