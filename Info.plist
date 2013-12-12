@@ -17,7 +17,7 @@
 	<key>CFBundleExecutable</key>
 	<string>TeapotNet</string>
 	<key>CFBundleIconFile</key>
-	<string>TeapotNetIcon.png</string>
+	<string>TeapotNetIcon.icns</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.8</string>
 	<key>NSHumanReadableCopyright</key>

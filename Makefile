@@ -59,7 +59,7 @@ ifeq ($(UNAME_S),Darwin)
 	mkdir -p TeapotNet.app/Contents/MacOS
 	cp teapotnet TeapotNet.app/Contents/MacOS/TeapotNet
 	mkdir -p TeapotNet.app/Contents/Resources
-	cp static/icon.png TeapotNet.app/Contents/Resources/TeapotNetIcon.png
+	cp teapotnet.icns TeapotNet.app/Contents/Resources/TeapotNetIcon.icns
 	cp -r static TeapotNet.app/Contents/Resources/static
 	cd ..
 	zip -r TeapotNet.zip TeapotNet.app
