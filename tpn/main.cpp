@@ -341,7 +341,7 @@ int main(int argc, char** argv)
 			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
 			{
 				Config::Default("static_dir", resourcesDirectory + "/static");
-				workingDirectory = GetHomeDirectory() + "/TeapotNet";
+				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
 			}
 		}
 #endif
