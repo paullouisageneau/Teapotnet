@@ -320,6 +320,7 @@ namespace tpn
 
 extern Mutex LogMutex;
 extern int LogLevel;
+extern bool ForceLogToFile;
 
 inline unsigned threadId(pthread_t thread)
 {
@@ -389,7 +390,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 		log.close();
 	}
 #else
-	if(isatty(1)) std::cout<<oss.str()<<std::endl;
+	if(!ForceLogToFile && isatty(1)) std::cout<<oss.str()<<std::endl;
 	else {
 		std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
 		if(log.is_open())
