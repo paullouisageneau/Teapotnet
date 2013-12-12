@@ -207,7 +207,7 @@ int main(int argc, char** argv)
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, NULL);
 #endif
-
+	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_attach_np();
 #endif
@@ -315,36 +315,37 @@ int main(int argc, char** argv)
 		
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "true");
-		Config::Default("cache_max_size", "200");		// MiB
+		Config::Default("cache_max_size", "100");		// MiB
 		Config::Default("cache_max_file_size", "10");		// MiB
 		Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
 #else
 		Config::Default("force_http_tunnel", "false");
-		Config::Default("cache_max_size", "20000");		// MiB
+		Config::Default("cache_max_size", "10000");		// MiB
 		Config::Default("cache_max_file_size", "2000");		// MiB
 		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
-		// TODO: To be removed
-		if(Config::Get("request_timeout").toInt() >= 10000)
-			Config::Put("request_timeout", "5000");
-		//
-		
 		String workingDirectory;
-		args.get("directory", workingDirectory);
-		
-		if(workingDirectory.empty() && !args.contains("daemon"))
-		{
 #ifdef MACOSX
-			char buffer[1024];
-			uint32_t size = 1024;
-			if(_NSGetExecutablePath(buffer, &size) == 0)
-			workingDirectory = String(buffer).beforeLast('/');
-#else
-			// TODO
-#endif
+		char buffer[1024];
+		uint32_t size = 1024;
+		if(_NSGetExecutablePath(buffer, &size) == 0)
+		{
+			String appDirectory = String(buffer).beforeLast('/');
+			String resourcesDirectory = appDirectory + "/../Resources";
+			
+			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
+			{
+				Config::Default("static_dir", resourcesDirectory + "/static");
+				
+				if(CFStringGetCString((CFStringRef)NSHomeDirectory(), buffer, 1024, kCFStringEncodingUTF8))
+					workingDirectory = String(buffer);
+			}
 		}
+#endif
 		
+		args.get("directory", workingDirectory);
+
 		if(!workingDirectory.empty())
 		{
 			if(!Directory::Exist(workingDirectory))
@@ -358,7 +359,7 @@ int main(int argc, char** argv)
 		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
-		
+	
 #if defined(WINDOWS) || defined(MACOSX)
 		bool isBoot = args.contains("daemon") || args.contains("boot");
 		bool isSilent = args.contains("nointerface");
@@ -468,7 +469,19 @@ int main(int argc, char** argv)
 		}
 
 #else	// ifdef WINDOWS
+
+#ifdef MACOSX
+		try {
+			Config::Save(configFileName);
+		}
+		catch(...)
+		{
+			throw Exception("Please move TeapotNet to your Applications folder before launching it.");
+		}
+#else
 		Config::Save(configFileName);
+#endif
+
 #endif
 
 		LogInfo("main", "Starting...");

@@ -52,3 +52,18 @@ uninstall:
 	rm -f $(DESTDIR)/etc/teapotnet/config.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix) $(TPROOT)"; fi
 
+bundle: teapotnet
+ifeq ($(UNAME_S),Darwin)
+	mkdir -p TeapotNet.app/Contents
+	cp Info.plist TeapotNet.app/Contents/Info.plist
+	mkdir -p TeapotNet.app/Contents/MacOS
+	cp teapotnet TeapotNet.app/Contents/MacOS/TeapotNet
+	mkdir -p TeapotNet.app/Contents/Resources
+	cp static/icon.png TeapotNet.app/Contents/Resources/TeapotNetIcon.png
+	cp -r static TeapotNet.app/Contents/Resources/static
+	cd ..
+	zip -r TeapotNet.zip TeapotNet.app
+	rm -r TeapotNet.app
+else
+	@echo "This target is only available on Mac OS"
+endif
