@@ -595,8 +595,7 @@ bool Resource::Query::isInlineSerializable(void) const
 size_t Resource::Accessor::hashData(ByteString &digest, size_t size)
 {
 	// Default implementation
-	if(size >= 0) return Sha512::Hash(*this, size, digest);
-	else return Sha512::Hash(*this, digest);
+	return Sha512::Hash(*this, size, digest);
 }
 
 Resource::LocalAccessor::LocalAccessor(const String &path)

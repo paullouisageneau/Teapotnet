@@ -93,7 +93,7 @@ public:
 		virtual void seekWrite(int64_t position) = 0;
 		
 		virtual int64_t size(void) = 0;
-		virtual size_t hashData(ByteString &digest, size_t size = -1);
+		virtual size_t hashData(ByteString &digest, size_t size);
 	};
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
@@ -170,7 +170,7 @@ private:
 		RemoteAccessor(const Identifier &peering, const String &url);
 		~RemoteAccessor(void);
 		
-		size_t hashData(ByteString &digest, size_t size = -1);
+		size_t hashData(ByteString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
@@ -196,7 +196,7 @@ private:
 		SplicerAccessor(const ByteString &digest, const Set<Identifier> &sources);
 		~SplicerAccessor(void);
 		
-		size_t hashData(ByteString &digest, size_t size = -1);
+		size_t hashData(ByteString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
