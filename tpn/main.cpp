@@ -42,7 +42,6 @@
 #endif
 
 #ifdef MACOSX
-#include <Foundation/Foundation.h>
 #include <CoreFoundation/CFBase.h>
 #include <CoreFoundation/CFString.h>
 #include <CoreFoundation/CFUserNotification.h>
@@ -342,9 +341,7 @@ int main(int argc, char** argv)
 			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
 			{
 				Config::Default("static_dir", resourcesDirectory + "/static");
-				
-				if(CFStringGetCString((CFStringRef)NSHomeDirectory(), buffer, 1024, kCFStringEncodingUTF8))
-					workingDirectory = String(buffer);
+				workingDirectory = GetHomeDirectory() + "/TeapotNet";
 			}
 		}
 #endif
