@@ -52,6 +52,7 @@ using namespace tpn;
 
 Mutex	tpn::LogMutex;
 int	tpn::LogLevel = LEVEL_INFO;
+bool	tpn::ForceLogToFile = false;
 
 #ifdef WINDOWS
 int InterfacePort SHARED = 0;
@@ -269,10 +270,11 @@ int main(int argc, char** argv)
 			std::cout<<" --directory path\t\tSet the working directory"<<std::endl;
 			std::cout<<" --verbose\tVerbose output"<<std::endl;
 			std::cout<<" --trace\tProtocol tracing output"<<std::endl;
-#ifdef WINDOWS
+#if defined(WINDOWS) || defined(MACOSX)
 			std::cout<<" --nointerface\t\tPrevent lauching the web browser"<<std::endl;
+#endif
+#if defined(WINDOWS)
 			std::cout<<" --noupdate\t\tPrevent trying to update the program"<<std::endl;
-			//std::cout<<" --console\t\tKeep the console window on screen"<<std::endl;
 #endif
 			return 0;
 		}
@@ -370,11 +372,14 @@ int main(int argc, char** argv)
 	// Remove old log file
 	std::remove("log.txt");
 
-// ----- Log system is ready -----
-
+#if defined(WINDOWS)
+	ForceLogToFile = true;
+#endif
+	
 #if defined(WINDOWS) || defined(MACOSX)
 		bool isBoot = args.contains("daemon") || args.contains("boot");
 		bool isSilent = args.contains("nointerface");
+		if(isBoot) ForceLogToFile = true;
 		
 		if(!InterfacePort) try {
 			int port = Config::Get("interface_port").toInt();
@@ -390,7 +395,9 @@ int main(int argc, char** argv)
 			return 0;
 		}
 #endif
-		
+	
+// ----- Log system is usable safely -----
+	
 #if defined(WINDOWS)
 		if(isBoot)
 		{
