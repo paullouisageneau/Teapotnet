@@ -349,6 +349,8 @@ int main(int argc, char** argv)
 				// Register launch on user login
 				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
 				system(command.c_str());
+				
+				ForceLogToFile = true;
 			}
 		}
 #endif
