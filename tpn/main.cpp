@@ -377,7 +377,7 @@ int main(int argc, char** argv)
 #endif
 	
 #if defined(WINDOWS) || defined(MACOSX)
-		bool isBoot = args.contains("daemon") || args.contains("boot");
+		bool isBoot = args.contains("boot");
 		bool isSilent = args.contains("nointerface");
 		if(isBoot) ForceLogToFile = true;
 		
