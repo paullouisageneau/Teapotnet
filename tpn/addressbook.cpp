@@ -2059,7 +2059,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					page.open("div","topmenu");
 					if(!isSelf()) page.span(status().capitalized(), "status.button");
 					page.link(prefix+"/search/","Search files",".button");
-					page.link(prefix+request.url+"?playlist","Play all",".button");
+					page.link(prefix+request.url+"?playlist","Play all","playall.button");
 					page.close("div");
 
 					unsigned refreshPeriod = 5000;
