@@ -349,6 +349,8 @@ int main(int argc, char** argv)
 				// Register launch on user login
 				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
 				system(command.c_str());
+				
+				ForceLogToFile = true;
 			}
 		}
 #endif
@@ -377,7 +379,7 @@ int main(int argc, char** argv)
 #endif
 	
 #if defined(WINDOWS) || defined(MACOSX)
-		bool isBoot = args.contains("daemon") || args.contains("boot");
+		bool isBoot = args.contains("boot");
 		bool isSilent = args.contains("nointerface");
 		if(isBoot) ForceLogToFile = true;
 		
