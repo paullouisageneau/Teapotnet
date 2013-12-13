@@ -350,14 +350,33 @@ int main(int argc, char** argv)
 				if(!args.contains("boot"))	// If it's not the service process
 				{	
 					// Register launch on user login
-					String command;
-					command = "launchctl remove org.teapotnet.TeapotNet";
-					system(command.c_str());
+					String plist = "\
+						<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+						<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+						<plist version=\"1.0\">\n\
+						<dict>\n\
+							<key>Label</key>\n\
+							<string>org.teapotnet.TeapotNet</string>\n\
+							<key>ProgramArguments</key>\n\
+							<array>\n\
+								<string>"+appPath+"</string>\n\
+								<string>--boot</string>\n\
+							</array>\n\
+							<key>KeepAlive</key>\n\
+							<dict>\n\
+								<key>SuccessfulExit</key>\n\
+								<false/>\n\
+							</dict>\n\
+							<key>RunAtLoad</key>\n\
+							<true/>\n\
+						</dict>\n\
+						</plist>\n";
 					
-					command = "launchctl submit -l org.teapotnet.TeapotNet -p \""+appPath+"\" -- TeapotNet --boot";
-					system(command.c_str());
+					File plistFile("/tmp/teapotnet.plist", File::Truncate);
+					plistFile.write(plist);
+					plistFile.close();
 					
-					command = "launchctl start org.teapotnet.TeapotNet";
+					String command = "launchctl load /tmp/teapotnet.plist";
 					system(command.c_str());
 					
 					// Let some time for the service process to launch
@@ -384,7 +403,7 @@ int main(int argc, char** argv)
 #endif
 
 	// Remove old log file
-	std::remove("log.txt");
+	File::Remove("log.txt");
 
 #if defined(WINDOWS)
 	ForceLogToFile = true;
