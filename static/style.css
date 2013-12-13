@@ -948,10 +948,10 @@ a.preview
 .files td.actions
 {
 	width: 16px;
-	min-height: 16px;
+	height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
-	white-space:nowrap
+	white-space: nowrap
 }
 
 .files td.actions a
@@ -1433,11 +1433,6 @@ form #trackerlink
 		white-space: normal;
 		overflow: hidden;
 		text-overflow: ellipsis; 
-	}
-	
-	.files td.actions
-	{
-		display: none;
 	}
 
 	#statuspanel .button
