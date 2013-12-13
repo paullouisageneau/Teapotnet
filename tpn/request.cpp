@@ -250,9 +250,13 @@ bool Request::execute(User *user, bool isFromSelf)
 		if(!argument.empty() && argument != "*") query.setMatch(argument);
 		
 		Set<Resource> resources;
-		if(query.submitLocal(resources) && !resources.empty())
+		if(query.submitLocal(resources))
 		{
-			for(Set<Resource>::iterator it = resources.begin();
+			if(resources.empty())
+			{
+				addResponse(new Response(Response::Empty));
+			}
+			else for(Set<Resource>::iterator it = resources.begin();
 				it != resources.end();
 				++it)
 			{
