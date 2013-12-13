@@ -361,7 +361,7 @@ int main(int argc, char** argv)
 					system(command.c_str());
 					
 					// Let some time for the service process to launch
-					Thread::Sleep(1000);
+					Thread::Sleep(1.);
 				}
 			}
 		}
