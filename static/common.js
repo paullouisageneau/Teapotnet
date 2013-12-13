@@ -163,6 +163,10 @@ $(document).ready( function() {
 	$('table.menu tr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
 	});
+	
+	$('.filestr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
 });
 
 $(window).resize( function() {
