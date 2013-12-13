@@ -340,17 +340,29 @@ int main(int argc, char** argv)
 			String appDirectory = appPath.beforeLast('/');
 			String resourcesDirectory = appDirectory + "/../Resources";
 
-			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
+			if(Directory::Exist(resourcesDirectory))	// If application is bundled
 			{
 				// Set directories
 				Config::Put("static_dir", resourcesDirectory + "/static");
 				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
-			
-				// Register launch on user login
-				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
-				system(command.c_str());
-				
 				ForceLogToFile = true;
+				
+				if(!args.contains("boot"))	// If it's not the service process
+				{	
+					// Register launch on user login
+					String command;
+					command = "launchctl remove org.teapotnet.TeapotNet";
+					system(command.c_str());
+					
+					command = "launchctl submit -l org.teapotnet.TeapotNet -p \""+appPath+"\" -- TeapotNet --boot";
+					system(command.c_str());
+					
+					command = "launchctl start org.teapotnet.TeapotNet";
+					system(command.c_str());
+					
+					// Let some time for the service process to launch
+					Thread::Sleep(1000);
+				}
 			}
 		}
 #endif
