@@ -639,7 +639,8 @@ void Store::http(const String &prefix, Http::Request &request)
 						return;
 					}
 				}
-				
+				else throw 400;			
+	
 				Http::Response response(request,303);
 				response.headers["Location"] = prefix + "/";
 				response.send();
