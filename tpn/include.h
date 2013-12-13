@@ -382,15 +382,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 #ifdef ANDROID
 	__android_log_print(ANDROID_LOG_VERBOSE, "teapotnet", oss.str().c_str());
 #else
-#ifdef WINDOWS
-	std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
-	if(log.is_open())
-	{
-		log<<oss.str()<<std::endl;
-		log.close();
-	}
-#else
-	if(!ForceLogToFile && isatty(1)) std::cout<<oss.str()<<std::endl;
+	if(!ForceLogToFile) std::cout<<oss.str()<<std::endl;
 	else {
 		std::ofstream log("log.txt", std::ios_base::app | std::ios_base::out);
 		if(log.is_open())
@@ -399,7 +391,6 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 			log.close();
 		}
 	}
-#endif
 #endif
 	}
 	catch(...)

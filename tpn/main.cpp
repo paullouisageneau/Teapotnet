@@ -372,12 +372,13 @@ int main(int argc, char** argv)
 	// Remove old log file
 	std::remove("log.txt");
 
-// ----- Log system is ready -----
-
+#if defined(WINDOWS)
+	ForceLogToFile = true;
+#endif
+	
 #if defined(WINDOWS) || defined(MACOSX)
 		bool isBoot = args.contains("daemon") || args.contains("boot");
 		bool isSilent = args.contains("nointerface");
-		
 		if(isBoot) ForceLogToFile = true;
 		
 		if(!InterfacePort) try {
@@ -394,7 +395,9 @@ int main(int argc, char** argv)
 			return 0;
 		}
 #endif
-		
+	
+// ----- Log system is usable safely -----
+	
 #if defined(WINDOWS)
 		if(isBoot)
 		{
