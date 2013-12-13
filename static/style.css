@@ -1473,8 +1473,8 @@ form #trackerlink
 	#leftcolumn
 	{
 		float: none;
-		width: 600px;
-		max-width: 600px;
+		width: 768px;
+		max-width: 768px;
 		margin-left: auto;
 		margin-right: auto;
 		padding: 0;
@@ -1483,8 +1483,8 @@ form #trackerlink
 	#rightcolumn 
 	{
 		float: none;
-		width: 600px;
-		max-width: 600px;
+		width: 768px;
+		max-width: 768px;
 		margin-top: 0.5em;
 		margin-left: auto;
 		margin-right: auto;
