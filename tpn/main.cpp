@@ -44,6 +44,7 @@
 #ifdef MACOSX
 #include <CoreFoundation/CFBase.h>
 #include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFUserNotification.h>
 #endif
 
@@ -332,14 +333,23 @@ int main(int argc, char** argv)
 
 #ifdef MACOSX
 		CFBundleRef mainBundle = CFBundleGetMainBundle();
-		CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
-		char path[PATH_MAX];
-		if(CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX))	// If it's a bundle
-		{
-			String resourcesDirectory(path);
+		if(mainBundle == NULL) throw Exception("Unable to access application bundle");
 		
+		char path[PATH_MAX];
+		CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+		if(resourcesURL != NULL && CFURLGetFileSystemRepresentation(resourcesURL, TRUE, std::reinterpret_cast<UInt8*>(path), PATH_MAX))
+		{
+			// It's a bundle, and we have the resources path
+			String resourcesPath(path);
+			
+			CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
+			if(executablePath == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, std::reinterpret_cast<UInt8*>(path), PATH_MAX))
+				throw Exception("Unable to find application executable path");
+		
+			String executablePath(path);
+			
 			// Set directories
-			Config::Put("static_dir", resourcesDirectory + "/static");
+			Config::Put("static_dir", resourcesPath + "/static");
 			workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
 			ForceLogToFile = true;
 			
@@ -354,7 +364,7 @@ String plist = "\
 	<string>org.teapotnet.TeapotNet</string>\n\
 	<key>ProgramArguments</key>\n\
 	<array>\n\
-		<string>"+appPath+"</string>\n\
+		<string>"+executablePath+"</string>\n\
 		<string>--boot</string>\n\
 	</array>\n\
 	<key>RunAtLoad</key>\n\
@@ -385,9 +395,10 @@ String plist = "\
 				// Let some time for the service process to launch
 				Thread::Sleep(1.);
 			}
+			
+			CFRelease(resourcesURL);
+			CFRelease(executableURL);
 		}
-		
-		CFRelease(resourcesURL);
 #endif
 		
 		args.get("directory", workingDirectory);
