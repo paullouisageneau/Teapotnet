@@ -348,29 +348,28 @@ int main(int argc, char** argv)
 				ForceLogToFile = true;
 				
 				if(!args.contains("boot"))	// If it's not the service process
-				{	
-					// Register launch on user login
-					String plist = "\
-						<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-						<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
-						<plist version=\"1.0\">\n\
-						<dict>\n\
-							<key>Label</key>\n\
-							<string>org.teapotnet.TeapotNet</string>\n\
-							<key>ProgramArguments</key>\n\
-							<array>\n\
-								<string>"+appPath+"</string>\n\
-								<string>--boot</string>\n\
-							</array>\n\
-							<key>KeepAlive</key>\n\
-							<dict>\n\
-								<key>SuccessfulExit</key>\n\
-								<false/>\n\
-							</dict>\n\
-							<key>RunAtLoad</key>\n\
-							<true/>\n\
-						</dict>\n\
-						</plist>\n";
+				{
+String plist = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+<plist version=\"1.0\">\n\
+<dict>\n\
+	<key>Label</key>\n\
+	<string>org.teapotnet.TeapotNet</string>\n\
+	<key>ProgramArguments</key>\n\
+	<array>\n\
+		<string>"+appPath+"</string>\n\
+		<string>--boot</string>\n\
+	</array>\n\
+	<key>KeepAlive</key>\n\
+	<dict>\n\
+		<key>SuccessfulExit</key>\n\
+		<false/>\n\
+	</dict>\n\
+	<key>RunAtLoad</key>\n\
+	<true/>\n\
+</dict>\n\
+</plist>\n";
 					
 					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
 					plistFile.write(plist);
