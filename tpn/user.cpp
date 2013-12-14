@@ -487,7 +487,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\
-					$('document.shutdownAndUpdateForm').submit();\n\
+					document.shutdownAndUpdateForm.submit();\n\
 				});");
                                 page.close("div");
                         }
