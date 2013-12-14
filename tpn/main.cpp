@@ -333,7 +333,7 @@ int main(int argc, char** argv)
 
 #ifdef MACOSX
 		CFBundleRef mainBundle = CFBundleGetMainBundle();
-		if(mainBundle != NULL && !File::Exists("static/common.js"))
+		if(mainBundle != NULL && !File::Exist("static/common.js"))
 		{
 			char path[PATH_MAX];
 			CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
