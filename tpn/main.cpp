@@ -382,6 +382,10 @@ String plist = "\
 				
 				String command;
 				
+				// Clean
+				command = "launchctl remove org.teapotnet.TeapotNet";
+				system(command.c_str());
+				
 				// Launch now
 				command = "launchctl load /tmp/TeapotNet.plist";
 				system(command.c_str());
