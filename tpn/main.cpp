@@ -332,35 +332,29 @@ int main(int argc, char** argv)
 		String workingDirectory;
 
 #ifdef MACOSX
-		if(File::Exists("static/common.js")
+		CFBundleRef mainBundle = CFBundleGetMainBundle();
+		if(mainBundle != NULL && !File::Exists("static/common.js"))
 		{
-			// No bundle
-			Config::Put("static_dir", "static");
-		}
-		else {
-			CFBundleRef mainBundle = CFBundleGetMainBundle();
-			if(mainBundle != NULL)
+			char path[PATH_MAX];
+			CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+			if(resourcesURL != NULL && CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)path, PATH_MAX))
 			{
-				char path[PATH_MAX];
-				CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
-				if(resourcesURL != NULL && CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)path, PATH_MAX))
-				{
-					// It's a bundle, and we have the resources path
-					String resourcesPath(path);
-					
-					CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
-					if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
-						throw Exception("Unable to find application executable path");
+				// It's a bundle, and we have the resources path
+				String resourcesPath(path);
 				
-					String executablePath(path);
-					
-					// Set directories
-					Config::Put("static_dir", resourcesPath + "/static");
-					workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
-					ForceLogToFile = true;
-					
-					if(!args.contains("boot"))	// If it's not the service process
-					{
+				CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
+				if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
+					throw Exception("Unable to find application executable path");
+			
+				String executablePath(path);
+				
+				// Set directories
+				Config::Put("static_dir", resourcesPath + "/static");
+				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
+				ForceLogToFile = true;
+				
+				if(!args.contains("boot"))	// If it's not the service process
+				{
 String plist = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
@@ -381,34 +375,33 @@ String plist = "\
 	<true/>\n\
 </dict>\n\
 </plist>\n";
-							
-						File plistFile("/tmp/TeapotNet.plist", File::Truncate);
-						plistFile.write(plist);
-						plistFile.close();
-						
-						String command;
-						
-						// Clean
-						command = "launchctl remove org.teapotnet.TeapotNet";
-						system(command.c_str());
-						
-						// Launch now
-						command = "launchctl load /tmp/TeapotNet.plist";
-						system(command.c_str());
-						
-						// Launch at startup
-						command = "mkdir -p ~/Library/LaunchAgents";
-						system(command.c_str());
-						command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
-						system(command.c_str());
-						
-						// Let some time for the service process to launch
-						Thread::Sleep(1.);
-					}
 					
-					CFRelease(resourcesURL);
-					CFRelease(executableURL);
+					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
+					plistFile.write(plist);
+					plistFile.close();
+					
+					String command;
+					
+					// Clean
+					command = "launchctl remove org.teapotnet.TeapotNet";
+					system(command.c_str());
+					
+					// Launch now
+					command = "launchctl load /tmp/TeapotNet.plist";
+					system(command.c_str());
+					
+					// Launch at startup
+					command = "mkdir -p ~/Library/LaunchAgents";
+					system(command.c_str());
+					command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
+					system(command.c_str());
+					
+					// Let some time for the service process to launch
+					Thread::Sleep(1.);
 				}
+				
+				CFRelease(resourcesURL);
+				CFRelease(executableURL);
 			}
 		}
 #endif
