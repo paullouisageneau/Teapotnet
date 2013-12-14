@@ -267,7 +267,7 @@ void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
-	int i = 0;
+	int count = 0;
 	while(true)
 	{
 		Contact *contact = new Contact(this);
@@ -303,9 +303,11 @@ void AddressBook::load(Stream &stream)
 			delete oldContact;
 		}
 		
-		registerContact(contact, i);
-		++i;
+		registerContact(contact, count);
+		++count;
 	}
+
+	if(count) save();
 }
 
 void AddressBook::save(Stream &stream) const
@@ -329,6 +331,7 @@ void AddressBook::save(void) const
 
 	SafeWriteFile file(mFileName);
 	save(file);
+	file.close();
 }
 
 void AddressBook::sendContacts(const Identifier &peering) const

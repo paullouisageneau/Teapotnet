@@ -166,9 +166,7 @@ void Interface::process(Http::Request &request)
 					page.text("The user has been set up.");
 					page.close("h1");
 					page.open("p");
-#ifdef ANDROID
-					page.text("Please wait...");
-#else
+#ifndef ANDROID
 					page.text("Please enter your username and password when prompted to log in.");
 #endif
 					page.close("p");
