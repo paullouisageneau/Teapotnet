@@ -410,11 +410,8 @@ String plist = "\
 		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #endif
 
-	// Remove old log file
-	File::Remove("log.txt");
-
 #if defined(WINDOWS)
-	ForceLogToFile = true;
+		ForceLogToFile = true;
 #endif
 	
 #if defined(WINDOWS) || defined(MACOSX)
@@ -437,7 +434,10 @@ String plist = "\
 		}
 #endif
 	
-// ----- Log system is usable safely -----
+		// Remove old log file
+		File::Remove("log.txt");
+	
+//	----- Log system is usable safely -----
 	
 #if defined(WINDOWS)
 		if(isBoot)
