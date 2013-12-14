@@ -337,13 +337,13 @@ int main(int argc, char** argv)
 		
 		char path[PATH_MAX];
 		CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
-		if(resourcesURL != NULL && CFURLGetFileSystemRepresentation(resourcesURL, TRUE, std::reinterpret_cast<UInt8*>(path), PATH_MAX))
+		if(resourcesURL != NULL && CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)path, PATH_MAX))
 		{
 			// It's a bundle, and we have the resources path
 			String resourcesPath(path);
 			
 			CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
-			if(executablePath == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, std::reinterpret_cast<UInt8*>(path), PATH_MAX))
+			if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
 				throw Exception("Unable to find application executable path");
 		
 			String executablePath(path);
