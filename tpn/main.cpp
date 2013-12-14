@@ -376,14 +376,16 @@ int main(int argc, char** argv)
 					plistFile.write(plist);
 					plistFile.close();
 					
+					String command;
+					
 					// Launch now
-					String command = "launchctl load /tmp/TeapotNet.plist";
+					command = "launchctl load /tmp/TeapotNet.plist";
 					system(command.c_str());
 					
 					// Launch at startup
-					String command = "mkdir -p ~/Library/LaunchAgents";
+					command = "mkdir -p ~/Library/LaunchAgents";
 					system(command.c_str());
-					String command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
+					command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
 					system(command.c_str());
 					
 					// Let some time for the service process to launch
