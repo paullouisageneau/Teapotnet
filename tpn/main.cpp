@@ -45,7 +45,6 @@
 #include <CoreFoundation/CFBase.h>
 #include <CoreFoundation/CFString.h>
 #include <CoreFoundation/CFUserNotification.h>
-#include <mach-o/dyld.h>	// for _NSGetExecutablePath
 #endif
 
 using namespace tpn;
@@ -332,23 +331,20 @@ int main(int argc, char** argv)
 		String workingDirectory;
 
 #ifdef MACOSX
-		char buffer[1024];
-		uint32_t size = 1024;
-		if(_NSGetExecutablePath(buffer, &size) == 0)
+		CFBundleRef mainBundle = CFBundleGetMainBundle();
+		CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+		char path[PATH_MAX];
+		if(CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX))	// If it's a bundle
 		{
-			String appPath(buffer);
-			String appDirectory = appPath.beforeLast('/');
-			String resourcesDirectory = appDirectory + "/../Resources";
-
-			if(Directory::Exist(resourcesDirectory))	// If application is bundled
+			String resourcesDirectory(path);
+		
+			// Set directories
+			Config::Put("static_dir", resourcesDirectory + "/static");
+			workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
+			ForceLogToFile = true;
+			
+			if(!args.contains("boot"))	// If it's not the service process
 			{
-				// Set directories
-				Config::Put("static_dir", resourcesDirectory + "/static");
-				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
-				ForceLogToFile = true;
-				
-				if(!args.contains("boot"))	// If it's not the service process
-				{
 String plist = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
@@ -370,27 +366,28 @@ String plist = "\
 </dict>\n\
 </plist>\n";
 					
-					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
-					plistFile.write(plist);
-					plistFile.close();
-					
-					String command;
-					
-					// Launch now
-					command = "launchctl load /tmp/TeapotNet.plist";
-					system(command.c_str());
-					
-					// Launch at startup
-					command = "mkdir -p ~/Library/LaunchAgents";
-					system(command.c_str());
-					command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
-					system(command.c_str());
-					
-					// Let some time for the service process to launch
-					Thread::Sleep(1.);
-				}
+				File plistFile("/tmp/TeapotNet.plist", File::Truncate);
+				plistFile.write(plist);
+				plistFile.close();
+				
+				String command;
+				
+				// Launch now
+				command = "launchctl load /tmp/TeapotNet.plist";
+				system(command.c_str());
+				
+				// Launch at startup
+				command = "mkdir -p ~/Library/LaunchAgents";
+				system(command.c_str());
+				command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
+				system(command.c_str());
+				
+				// Let some time for the service process to launch
+				Thread::Sleep(1.);
 			}
 		}
+		
+		CFRelease(resourcesURL);
 #endif
 		
 		args.get("directory", workingDirectory);
