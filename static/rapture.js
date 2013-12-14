@@ -299,8 +299,6 @@ function postAcceptRequest() {
 function addContact(tpnid, secret, nStep) { 
 	$.post(prefix+"/", {name: tpnid, secret: secret, token: token})
 	.done(function(data) {
-		// Drop the line in db
-		if(nStep == 3) $.post(centralizedFriendSystemUrl+"finalize.php", { tpn_id: tpn_id, id_request: currentIdRequest}); 
 		alert('Contact added to list'); 
 		// Refresh contacts list
 		location.reload(); 
