@@ -79,3 +79,25 @@ h3
 {
 	display: none;
 }
+
+#playall
+{
+	display: none;
+}
+
+.files td.actions a
+{
+	margin: 0;
+	padding: 0;
+}
+
+.files td.actions img
+{
+	margin: 0;
+	padding: 8px;
+}
+
+.files td.actions .streamlink
+{
+	display: none;
+}

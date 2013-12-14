@@ -948,10 +948,10 @@ a.preview
 .files td.actions
 {
 	width: 16px;
-	min-height: 16px;
+	height: 16px;
 	padding-left: 0.5em;
 	text-align: left;
-	white-space:nowrap
+	white-space: nowrap
 }
 
 .files td.actions a
@@ -1434,11 +1434,6 @@ form #trackerlink
 		overflow: hidden;
 		text-overflow: ellipsis; 
 	}
-	
-	.files td.actions
-	{
-		display: none;
-	}
 
 	#statuspanel .button
 	{
@@ -1455,6 +1450,12 @@ form #trackerlink
 	{
 		display: block;
 		float: none;
+	}
+	
+	.files td.actions a
+	{	
+		margin: 0;
+		padding: 0;
 	}
 }
 
@@ -1473,8 +1474,8 @@ form #trackerlink
 	#leftcolumn
 	{
 		float: none;
-		width: 600px;
-		max-width: 600px;
+		width: 768px;
+		max-width: 768px;
 		margin-left: auto;
 		margin-right: auto;
 		padding: 0;
@@ -1483,8 +1484,8 @@ form #trackerlink
 	#rightcolumn 
 	{
 		float: none;
-		width: 600px;
-		max-width: 600px;
+		width: 768px;
+		max-width: 768px;
 		margin-top: 0.5em;
 		margin-left: auto;
 		margin-right: auto;

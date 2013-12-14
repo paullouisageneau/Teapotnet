@@ -340,17 +340,56 @@ int main(int argc, char** argv)
 			String appDirectory = appPath.beforeLast('/');
 			String resourcesDirectory = appDirectory + "/../Resources";
 
-			if(Directory::Exist(resourcesDirectory))	// Test if application is bundled
+			if(Directory::Exist(resourcesDirectory))	// If application is bundled
 			{
 				// Set directories
 				Config::Put("static_dir", resourcesDirectory + "/static");
 				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
-			
-				// Register launch on user login
-				String command = "launchctl submit -l \"TeapotNet\" -p \""+appPath+"\" -- TeapotNet --boot";
-				system(command.c_str());
-				
 				ForceLogToFile = true;
+				
+				if(!args.contains("boot"))	// If it's not the service process
+				{
+String plist = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+<plist version=\"1.0\">\n\
+<dict>\n\
+	<key>Label</key>\n\
+	<string>org.teapotnet.TeapotNet</string>\n\
+	<key>ProgramArguments</key>\n\
+	<array>\n\
+		<string>"+appPath+"</string>\n\
+		<string>--boot</string>\n\
+	</array>\n\
+	<key>KeepAlive</key>\n\
+	<dict>\n\
+		<key>SuccessfulExit</key>\n\
+		<false/>\n\
+	</dict>\n\
+	<key>RunAtLoad</key>\n\
+	<true/>\n\
+</dict>\n\
+</plist>\n";
+					
+					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
+					plistFile.write(plist);
+					plistFile.close();
+					
+					String command;
+					
+					// Launch now
+					command = "launchctl load /tmp/TeapotNet.plist";
+					system(command.c_str());
+					
+					// Launch at startup
+					command = "mkdir -p ~/Library/LaunchAgents";
+					system(command.c_str());
+					command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
+					system(command.c_str());
+					
+					// Let some time for the service process to launch
+					Thread::Sleep(1.);
+				}
 			}
 		}
 #endif
@@ -372,7 +411,7 @@ int main(int argc, char** argv)
 #endif
 
 	// Remove old log file
-	std::remove("log.txt");
+	File::Remove("log.txt");
 
 #if defined(WINDOWS)
 	ForceLogToFile = true;
@@ -385,7 +424,7 @@ int main(int argc, char** argv)
 		
 		if(!InterfacePort) try {
 			int port = Config::Get("interface_port").toInt();
-			Socket sock(Address("127.0.0.1", port), 0.2);
+			Socket sock(Address("127.0.0.1", port), 0.1);
 			InterfacePort = port;
 		}
 		catch(...) {}
