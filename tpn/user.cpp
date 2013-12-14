@@ -428,43 +428,43 @@ void User::http(const String &prefix, Http::Request &request)
 		
 		String url = request.url;
 		if(url.empty() || url[0] != '/') throw 404;
-	
-		if(request.method == "POST")
-		{
-			if(!checkToken(request.post["token"], "shutdown"))
-				throw 403;
-
-			String redirect;
-                        if(!request.post.get("redirect", redirect))
-                       		redirect = prefix + "/";
-
-			bool shutdown = false;
-
-			String command = request.post["command"];
-			if(command == "shutdown")
-                       	{
-				if(!request.sock->getRemoteAddress().isLocal()) throw 403;
-				shutdown = true;
-			}
-			else throw 400;
-
-			Http::Response response(request, 303);
-                        response.headers["Location"] = redirect;
-                        response.send();
-			
-			if(shutdown)
-			{
-				response.sock->close();
-				
-				LogInfo("User::http", "Shutdown");
-				exit(0);
-			}
-
-			return;
-		}
 
 		if(url == "/")
 		{
+			if(request.method == "POST")
+			{
+				if(!checkToken(request.post["token"], "shutdown"))
+					throw 403;
+
+				String redirect;
+				if(!request.post.get("redirect", redirect))
+					redirect = prefix + "/";
+
+				bool shutdown = false;
+
+				String command = request.post["command"];
+				if(command == "shutdown")
+				{
+					if(!request.sock->getRemoteAddress().isLocal()) throw 403;
+					shutdown = true;
+				}
+				else throw 400;
+
+				Http::Response response(request, 303);
+				response.headers["Location"] = redirect;
+				response.send();
+				
+				if(shutdown)
+				{
+					response.sock->close();
+					
+					LogInfo("User::http", "Shutdown");
+					exit(0);
+				}
+
+				return;
+			}
+			
 			Http::Response response(request,200);
 			response.send();
 			
