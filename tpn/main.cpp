@@ -318,7 +318,7 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_delay", "300000");
 		
 #ifdef ANDROID
-		Config::Default("force_http_tunnel", "true");
+		Config::Default("force_http_tunnel", "false");
 		Config::Default("cache_max_size", "100");		// MiB
 		Config::Default("cache_max_file_size", "10");		// MiB
 		Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
