@@ -361,12 +361,11 @@ String plist = "\
 		<string>"+appPath+"</string>\n\
 		<string>--boot</string>\n\
 	</array>\n\
-	<key>KeepAlive</key>\n\
-	<dict>\n\
-		<key>SuccessfulExit</key>\n\
-		<false/>\n\
-	</dict>\n\
 	<key>RunAtLoad</key>\n\
+	<true/>\n\
+	<key>KeepAlive</key>\n\
+	<false/>\n\
+	<key>AbandonProcessGroup</key>\n\
 	<true/>\n\
 </dict>\n\
 </plist>\n";
