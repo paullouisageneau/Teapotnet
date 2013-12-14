@@ -372,11 +372,18 @@ int main(int argc, char** argv)
 						</dict>\n\
 						</plist>\n";
 					
-					File plistFile("/tmp/teapotnet.plist", File::Truncate);
+					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
 					plistFile.write(plist);
 					plistFile.close();
 					
-					String command = "launchctl load /tmp/teapotnet.plist";
+					// Launch now
+					String command = "launchctl load /tmp/TeapotNet.plist";
+					system(command.c_str());
+					
+					// Launch at startup
+					String command = "mkdir -p ~/Library/LaunchAgents";
+					system(command.c_str());
+					String command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
 					system(command.c_str());
 					
 					// Let some time for the service process to launch
