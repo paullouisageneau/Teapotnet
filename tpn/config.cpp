@@ -140,14 +140,14 @@ void Config::GetExternalAddresses(List<Address> &list)
 
 bool Config::CheckUpdate(void)
 {
-#if   defined(ANDROID)
-	return false;
-#elif defined(WINDOWS)
-        String release = "win32";
+	String release;
+
+#if defined(WINDOWS)
+        release = "win32";
 #elif defined(MACOSX)
-        String release = "osx";
+        release = "osx";
 #else
-	String release = "src";
+	release = "src";
 #endif
 
         try {
