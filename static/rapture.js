@@ -184,7 +184,7 @@ $('#sendrequest .sendinvitation').click(function(e) {
 		var mailSender = getInputText(mailSenderObject); 
 		var nameSender = nameProfile; 
 		setCookie(mailCookie, mailSender, 365);
-		$.post(postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id }) 
+		$.post(postUrl, { mail_receiver : mailReceiver, mail_sender : mailSender, name_sender : nameSender, tpn_id_sender: tpn_id, rapture_method: '1' }) 
 		.done(function(data) {
 			$(mailReceiverObject).val('');
 			$(mailReceiverObject).change();
