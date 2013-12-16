@@ -714,8 +714,13 @@ void Store::http(const String &prefix, Http::Request &request)
 					
 					if(this != GlobalInstance)
 					{
-						page.open("td",".delete");
-						if(directories[i] != UploadDirectoryName) page.image("/delete.png", "Delete");
+						page.open("td",".actions");
+						if(directories[i] != UploadDirectoryName)
+						{
+							page.openLink("#", ".deletelink");
+							page.image("/delete.png", "Delete");
+							page.closeLink();
+						}
 						page.close("td");
 					}
 					
@@ -741,10 +746,10 @@ void Store::http(const String &prefix, Http::Request &request)
                                                 }\n\
                                         }");
 
-                                        page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
-                                                event.stopPropagation();\n\
+                                        page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
                                                 var fileName = $(this).closest('tr').find('td.filename a').text();\n\
                                                 deleteDirectory(fileName);\n\
+						return false;\n\
                                         });");
                                 }
 			}
@@ -970,28 +975,26 @@ void Store::http(const String &prefix, Http::Request &request)
 						else page.text(String::hrSize(info.get("size"))); 
 						page.close("td");
 						page.open("td",".actions");
+						if(this != GlobalInstance)
+                                                {
+                                                        page.openLink("#", ".linkdelete");
+                                                        page.image("/delete.png", "Delete", ".deletelink");
+                                                        page.closeLink();
+                                                }
 						if(info.get("type") != "directory")
 						{
-							page.openLink(Http::AppendGet(link,"download"));
+							page.openLink(Http::AppendGet(link,"download"), ".downloadlink");
 							page.image("/down.png", "Download");
 							page.closeLink();
 							
 							if(Mime::IsAudio(name) || Mime::IsVideo(name))
 							{
-								page.openLink(Http::AppendGet(link,"play"));
+								page.openLink(Http::AppendGet(link,"play"), ".playlink");
 								page.image("/play.png", "Play");
 								page.closeLink();
 							}
-						}
+						}	
 						page.close("td");
-						
-						if(this != GlobalInstance)
-						{
-							page.open("td",".delete");
-							page.image("/delete.png", "Delete");
-							page.close("td");
-						}
-						
 						page.close("tr");
 					}
 					page.close("table");
@@ -1013,10 +1016,10 @@ void Store::http(const String &prefix, Http::Request &request)
 							}\n\
 						}");
 
-						page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
-							event.stopPropagation();\n\
+						page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
 							var fileName = $(this).closest('tr').find('td.filename a').text();\n\
 							deleteFile(fileName);\n\
+							return false;\n\
 						});");
 					}
 				}

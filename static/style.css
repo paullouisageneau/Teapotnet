@@ -831,11 +831,6 @@ img.avatar
 	font-weight: bold;
 }
 
-td.delete
-{
-	width: 16px; 
-}
-
 img.preview
 {
 	max-width: 400px;
@@ -945,20 +940,6 @@ a.preview
 	width: 6em; 
 }
 
-.files td.actions
-{
-	width: 16px;
-	height: 16px;
-	padding-left: 0.5em;
-	text-align: left;
-	white-space: nowrap
-}
-
-.files td.actions a
-{
-	margin-right: 16px;
-}
-
 #contacts
 {
 	margin-top: 1em;
@@ -1026,6 +1007,20 @@ a.preview
 {
 	text-align: left;
 	padding-left: 0;
+}
+
+td.actions
+{
+        width: 16px;
+        height: 16px;
+        padding-left: 0.5em;
+        text-align: left;
+        white-space: nowrap
+}
+
+td.actions a
+{
+        margin-right: 16px;
 }
 
 #files .button

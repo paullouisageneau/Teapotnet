@@ -91,13 +91,14 @@ h3
 	padding: 0;
 }
 
-.files td.actions img
+td.actions img
 {
 	margin: 0;
 	padding: 8px;
 }
 
-.files td.actions .streamlink
+.files td.actions .playlink
 {
 	display: none;
 }
+

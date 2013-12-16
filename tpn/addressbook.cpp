@@ -660,7 +660,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.open("td",".checksum");
 					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
 					page.close("td");
-					page.open("td",".delete");
+					page.open("td",".actions");
+					page.openLink('#', ".deletelink");
 					page.image("/delete.png", "Delete");
 					page.closeLink();
 					page.close("td");
@@ -684,7 +685,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}\n\
 				}");
 				
-				page.javascript("$('td.delete').css('cursor', 'pointer').click(function(event) {\n\
+				page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
 					event.stopPropagation();\n\
 					var uname = $(this).closest('tr').find('td.uname').text();\n\
 					deleteContact(uname);\n\

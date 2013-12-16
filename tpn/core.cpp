@@ -517,7 +517,7 @@ void Core::Handler::addRequest(Request *request)
 		Synchronize(this);
 		if(mStopping) return;
 		
-		LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
+		//LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
 		
 		request->addPending(mPeering);
 		mRequests.insert(request->id(), request);
@@ -546,7 +546,7 @@ void Core::Handler::removeRequest(unsigned id)
 	Map<unsigned, Request*>::iterator it = mRequests.find(id);
 	if(it != mRequests.end())
 	{
-		LogDebug("Core::Handler", "Removing request " + String::number(id));
+		//LogDebug("Core::Handler", "Removing request " + String::number(id));
 	
 		Request *request = it->second;
 		Synchronize(request);
@@ -960,7 +960,7 @@ void Core::Handler::process(void)
 				  	Request::Response *response;
 					if(channel)
 					{
-						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
+						//LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
 						ByteStream *sink = NULL;
 						if(request->mContentSink)
@@ -979,7 +979,7 @@ void Core::Handler::process(void)
 						}
 					}
 					else {
-						LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
+						//LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", no data");
 						response = new Request::Response(status, parameters);
 					}
 
@@ -1316,7 +1316,7 @@ void Core::Handler::Sender::run(void)
 							mTransferts.insert(channel,response);
 						}
 						
-						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
+						//LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
@@ -1348,7 +1348,7 @@ void Core::Handler::Sender::run(void)
 			if(!mRequestsQueue.empty())
 			{
 				const RequestInfo &request = mRequestsQueue.front();
-				LogDebug("Core::Handler::Sender", "Sending request "+String::number(request.id));
+				//LogDebug("Core::Handler::Sender", "Sending request "+String::number(request.id));
 				
 				String command;
 				if(request.isData) command = "G";
