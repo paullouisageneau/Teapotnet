@@ -20,11 +20,11 @@
  *************************************************************************/
 
 #include "tpn/portmapping.h"
-#include "tpn/config.h"
 #include "tpn/scheduler.h"
 #include "tpn/http.h"
 #include "tpn/html.h"
 #include "tpn/jsonserializer.h"
+#include "tpn/core.h"
 
 namespace tpn
 {
@@ -138,12 +138,12 @@ void PortMapping::run(void)
 	Synchronize(this);
 	if(!mEnabled) return;
 	
-	List<Address> externalAddresses;
-	Config::GetExternalAddresses(externalAddresses);
+	List<Address> addresses;
+	Core::Instance->getAddresses(addresses);
 
 	bool hasIpv4 = false;
-	List<Address>::iterator it = externalAddresses.begin();
-	while(it != externalAddresses.end())
+	List<Address>::iterator it = addresses.begin();
+	while(it != addresses.end())
 	{
 		if(it->isIpv4() && it->isPublic()) return;
 		hasIpv4|= it->isIpv4();
