@@ -524,7 +524,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
 			
-			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add a contact");
+			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add contact / Answer invitation");
 			else {
 				page.open("div", "contactsTable");
 				page.open("p"); page.text("Loading..."); page.close("p");
@@ -552,7 +552,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text("Shared folders");
 			page.close("h2");
 			
-			if(directories.empty()) page.link(prefix+"/files/","Add a shared folder");
+			if(directories.empty()) page.link(prefix+"/files/","Add shared folder");
 			else {
 				page.open("div",".files");
 				for(int i=0; i<directories.size(); ++i)
@@ -637,10 +637,11 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.open("h2");
-			page.text("Public news feed");
+			page.text("Public messages");
 			page.close("h2");
 			
 			page.open("div", "statusmessages");
+			page.open("p"); page.text("No public messages yet !"); page.close("p");
 			page.close("div");
 
 			page.close("div");

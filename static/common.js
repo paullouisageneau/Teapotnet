@@ -174,7 +174,8 @@ $(window).resize( function() {
 });
 
 function isPageHidden() {
-	return document.hidden || document.msHidden || document.webkitHidden;
+	//return document.hidden || document.msHidden || document.webkitHidden;
+	return !document.hasFocus();
 }
 
 var MessageSound = null;
@@ -239,7 +240,7 @@ function setMessagesReceiver(url, object) {
 	$(window).blur(function() {
 		$(object).find('.message').addClass('oldmessage');
 	});
-	
+	$(object).find('p').remove();
 	setMessagesReceiverRec(url, object, 0);
 }
 
