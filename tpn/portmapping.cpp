@@ -123,7 +123,7 @@ bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) 
 	
 	external = internal;
 	
-	if(!mProtocol) return false;
+	if(!mEnabled || !mProtocol) return false;
 	
 	Entry entry;
 	if(mMap.get(Descriptor(protocol, internal), entry)) return false;
@@ -145,11 +145,21 @@ void PortMapping::run(void)
 	List<Address>::iterator it = addresses.begin();
 	while(it != addresses.end())
 	{
-		if(it->isIpv4() && it->isPublic()) return;
+		if(it->isIpv4() && it->isPublic()) 
+		{
+			disable();
+			return;
+		}
+		
 		hasIpv4|= it->isIpv4();
 		++it;
 	}
-	if(!hasIpv4) return;
+	
+	if(!hasIpv4) 
+	{
+		disable();
+		return;
+	}
 	
 	LogDebug("PortMapping", "Potential NAT detected");
 	
