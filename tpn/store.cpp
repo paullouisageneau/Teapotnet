@@ -1043,7 +1043,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				}
 			  
 				Http::Response response(request,200);
-				if(request.get.contains("download")) response.headers["Content-Type"] = "application/octet-stream";
+				if(request.get.contains("download")) response.headers["Content-Type"] = "application/force-download";
 				else response.headers["Content-Type"] = Mime::GetType(path);
 				response.headers["Content-Length"] << File::Size(path);
 				response.headers["Last-Modified"] = File::Time(path).toHttpDate();
