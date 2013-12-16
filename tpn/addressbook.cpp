@@ -2028,7 +2028,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					if(request.get.contains("download"))
 					{
 						response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
-						response.headers["Content-Type"] = "application/octet-stream";
+						response.headers["Content-Type"] = "application/force-download";
 					}
 					else {
 						response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
