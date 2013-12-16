@@ -123,7 +123,7 @@ bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) 
 	
 	external = internal;
 	
-	if(!mEnabled || !mProtocol) return false;
+	if(!mProtocol) return false;
 	
 	Entry entry;
 	if(mMap.get(Descriptor(protocol, internal), entry)) return false;
@@ -142,22 +142,19 @@ void PortMapping::run(void)
 	Core::Instance->getAddresses(addresses);
 
 	bool hasIpv4 = false;
+	bool hasPublicIpv4 = false;
 	List<Address>::iterator it = addresses.begin();
 	while(it != addresses.end())
 	{
-		if(it->isIpv4() && it->isPublic()) 
-		{
-			disable();
-			return;
-		}
-		
 		hasIpv4|= it->isIpv4();
+		hasPublicIpv4|= (it->isIpv4() && it->isPublic());
 		++it;
 	}
 	
-	if(!hasIpv4) 
+	if(!hasIpv4 || hasPublicIpv4) 
 	{
-		disable();
+		delete mProtocol;
+		mProtocol = NULL;
 		return;
 	}
 	
