@@ -752,7 +752,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			if(this != GlobalInstance)
 			{
 				page.openForm(prefix+"/","post");
-				page.input("hidden", "token", user()->generateToken("directory_create"));
+				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("New directory");
 				page.label("name","Name"); page.input("text","name"); page.br();
 				page.label("add"); page.button("add","Create directory");
