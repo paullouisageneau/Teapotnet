@@ -93,7 +93,7 @@ void Core::getKnownPublicAdresses(List<Address> &list) const
 
 bool Core::isPublicConnectable(void) const
 {
-	return (Time::Now()-mLastPublicIncomingTime <= 2*3600.); 
+	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
 }
 
 void Core::registerPeering(	const Identifier &peering,
@@ -202,7 +202,9 @@ void Core::run(void)
 			try {
 				Address addr = sock->getRemoteAddress();
                         	LogDebug("Core::run", "Incoming connection from " + addr.toString());
-                        	if(addr.isPublic()) mLastPublicIncomingTime = Time::Now();
+				
+                        	if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
+					mLastPublicIncomingTime = Time::Now();
 
 				// TODO: this is not a clean way to proceed
 				const size_t peekSize = 5;	

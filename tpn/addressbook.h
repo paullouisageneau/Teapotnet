@@ -145,7 +145,6 @@ public:
 		
 		bool mFound;
 		AddressMap mAddrs;
-		Time mFirstUpdateTime;
 		Set<String> mExcludedInstances;
 		Set<String> mOnlineInstances;
 		

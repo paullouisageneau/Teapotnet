@@ -867,7 +867,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mTracker(tracker),
 	mDeleted(false),
 	mFound(false),
-	mFirstUpdateTime(0),
 	mProfile(NULL)
 {	
 	Assert(addressBook != NULL);
@@ -920,7 +919,6 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 	mAddressBook(addressBook),
 	mDeleted(false),
 	mFound(false),
-	mFirstUpdateTime(0),
 	mProfile(NULL)
 {
 
@@ -1330,12 +1328,9 @@ void AddressBook::Contact::run(void)
 {
 	Synchronize(mAddressBook);
 	
-	if(mFirstUpdateTime == Time(0))
-		mFirstUpdateTime = Time::Now();
-	
 	DesynchronizeStatement(mAddressBook, update(false));
 	
-	if(Time::Now() - mFirstUpdateTime >= UpdateInterval)
+	if(!Core::Instance->isPublicConnectable())
 		DesynchronizeStatement(mAddressBook, update(true));
 }
 
