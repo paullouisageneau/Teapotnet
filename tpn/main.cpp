@@ -340,7 +340,7 @@ int main(int argc, char** argv)
 		
 		if(!InterfacePort) try {
 			int port = Config::Get("interface_port").toInt();
-			Socket sock(Address("127.0.0.1", port), 0.1);
+			Socket sock(Address("127.0.0.1", port), 0.2);
 			InterfacePort = port;
 		}
 		catch(...) {}
@@ -377,7 +377,7 @@ int main(int argc, char** argv)
 				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
 				ForceLogToFile = true;
 				
-				if(!args.contains("boot"))	// If it's not the service process
+				if(!isBoot)	// If it's not the service process
 				{
 String plist = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -422,6 +422,20 @@ String plist = "\
 					
 					// Let some time for the service process to launch
 					Thread::Sleep(1.);
+					
+					// Try interface
+					if(!InterfacePort) try {
+						int port = Config::Get("interface_port").toInt();
+						Socket sock(Address("127.0.0.1", port), 0.2);
+						InterfacePort = port;
+					}
+					catch(...) {}
+
+					if(InterfacePort)
+					{
+						if(!isSilent) openUserInterface();
+						return 0;
+					}
 				}
 				
 				CFRelease(resourcesURL);
