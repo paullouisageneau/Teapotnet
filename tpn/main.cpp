@@ -322,6 +322,10 @@ int main(int argc, char** argv)
 		Config::Default("cache_max_size", "100");		// MiB
 		Config::Default("cache_max_file_size", "10");		// MiB
 		Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
+		
+		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
+		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
+		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
 #else
 		Config::Default("force_http_tunnel", "false");
 		Config::Default("cache_max_size", "10000");		// MiB
@@ -329,6 +333,26 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
+#if defined(WINDOWS) || defined(MACOSX)
+		bool isBoot = args.contains("boot");
+		bool isSilent = args.contains("nointerface");
+		if(isBoot) ForceLogToFile = true;
+		
+		if(!InterfacePort) try {
+			int port = Config::Get("interface_port").toInt();
+			Socket sock(Address("127.0.0.1", port), 0.1);
+			InterfacePort = port;
+		}
+		catch(...) {}
+
+		if(InterfacePort)
+		{
+			if(!isSilent && !isBoot)
+				openUserInterface();
+			return 0;
+		}
+#endif
+		
 		String workingDirectory;
 
 #ifdef MACOSX
@@ -416,42 +440,13 @@ String plist = "\
 			Directory::ChangeCurrent(workingDirectory);
 		}
 		
-#ifdef ANDROID
-		if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
-		if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
-		if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
-#endif
-
-#if defined(WINDOWS)
-		ForceLogToFile = true;
-#endif
-	
-#if defined(WINDOWS) || defined(MACOSX)
-		bool isBoot = args.contains("boot");
-		bool isSilent = args.contains("nointerface");
-		if(isBoot) ForceLogToFile = true;
-		
-		if(!InterfacePort) try {
-			int port = Config::Get("interface_port").toInt();
-			Socket sock(Address("127.0.0.1", port), 0.1);
-			InterfacePort = port;
-		}
-		catch(...) {}
-
-		if(InterfacePort)
-		{
-			if(!isSilent && !isBoot)
-				openUserInterface();
-			return 0;
-		}
-#endif
-	
 		// Remove old log file
 		File::Remove("log.txt");
-	
-//	----- Log system is usable safely -----
+
 	
 #if defined(WINDOWS)
+		ForceLogToFile = true;
+
 		if(isBoot)
 		{
 			Config::Save(configFileName);
