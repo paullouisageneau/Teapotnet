@@ -740,7 +740,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	String tracker = user()->tracker();
 	
 	try {
-		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
+		String url("http://" + tracker + "/tracker/?id=" + remotePeering.toString());
 		
 		List<Address> list;
 		Config::GetExternalAddresses(list);
@@ -810,7 +810,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	if(host.empty()) host = Config::Get("tracker");
 	
 	try {
-		String url = "http://" + host + "/tracker?id=" + peering.toString();
+		String url = "http://" + host + "/tracker/?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
