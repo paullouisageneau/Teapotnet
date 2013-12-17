@@ -758,7 +758,7 @@ int Http::Get(const String &url, Stream *output, int maxRedirections, bool nopro
 		sock.close();
 
 		// TODO: relative location (even if not RFC-compliant)
-		return Get(response.headers["Location"], output, maxRedirections-1);
+		return Get(response.headers["Location"], output, maxRedirections-1, noproxy);
 	}
 
 	if(output) sock.read(*output);
@@ -802,7 +802,10 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, int max
 		sock.close();
 
 		// TODO: support relative URLs, even if not RFC-compliant
-		return Get(response.headers["Location"], output, maxRedirections-1);
+		String location = response.headers["Location"];
+		
+		if(response.code == 303) return Get(location, output, maxRedirections-1, noproxy);
+		else return Post(location, post, output, maxRedirections-1, noproxy);
 	}
 
 	if(output) sock.read(*output);
