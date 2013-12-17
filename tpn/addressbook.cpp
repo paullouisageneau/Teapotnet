@@ -1266,14 +1266,18 @@ void AddressBook::Contact::update(bool alternate)
 	bool shuffle = alternate;
 	bool success = false;
 	
-	if((mFound = !newAddrs.empty()))
+	if(!newAddrs.empty())
 	{
+		mFound = true;
 		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
 		else LogDebug("AddressBook::Contact", "Alternative addresses for " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
 	}
 	else {
 		if(!alternate)
+		{
+			mFound = false;
 			newAddrs = addresses();
+		}
 	}
 	
 	if(!newAddrs.empty())
