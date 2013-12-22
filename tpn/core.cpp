@@ -458,6 +458,7 @@ Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
 	mSender(NULL),
 	mIsIncoming(true),
 	mLinkStatus(Disconnected),
+	mScheduler(1),
 	mStopping(false)
 {
 
@@ -1089,24 +1090,55 @@ void Core::Handler::process(void)
 					LogDebug("Core::Handler", "No listener for request " + String::number(id));
 				}
 				else {
-					try {
-						Desynchronize(this);
-						if(!listener->request(peering, request)) break;
-					}
-					catch(const Exception &e)
+					class RequestTask : public Task
 					{
-						LogWarn("Core::Handler", String("Listener failed to process request "+String::number(id)+": ") + e.what()); 
-					}
-				}
+					public:
+						RequestTask(	const Identifier &peering,
+								Listener *listener,
+								Request *request, 
+								Sender *sender)
+						{
+							this->peering = peering;
+							this->listener = listener;
+							this->request = request;
+							this->sender = sender;
+						}
+						
+						void run(void)
+						{
+							try {
+								listener->request(peering, request);
+							}
+							catch(const Exception &e)
+							{
+								LogWarn("RequestTask::run", String("Listener failed to process request "+String::number(request->mId)+": ") + e.what()); 
+							}
+							
+							try {
+								if(request->responsesCount() == 0) 
+									request->addResponse(new Request::Response(Request::Response::Failed));
 					
-				if(request->responsesCount() == 0) 
-					request->addResponse(new Request::Response(Request::Response::Failed));
+								Synchronize(sender);	
+								sender->mRequestsToRespond.push_back(request);
+								request->mResponseSender = sender;
+								sender->notify();
+							}
+							catch(const Exception &e)
+							{
+								LogWarn("RequestTask::run", e.what()); 
+							}
+							
+							delete this;	// autodelete
+						}
+						
+					private:
+						Identifier peering;
+						Listener *listener;
+						Request *request;
+						Sender  *sender;
+					};
 					
-				{
-					Synchronize(mSender);	
-					mSender->mRequestsToRespond.push_back(request);
-					request->mResponseSender = mSender;
-					mSender->notify();
+					mScheduler.schedule(new RequestTask(peering, listener, request, mSender));
 				}
 			}
 			else if(command == "M")
@@ -1164,6 +1196,9 @@ void Core::Handler::process(void)
 		LogWarn("Core::Handler", e.what()); 
 	}
 
+	// Wait for tasks to finish
+	mScheduler.clear();
+	
 	try {
 		Synchronize(this);
 

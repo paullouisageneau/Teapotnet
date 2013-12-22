@@ -34,6 +34,7 @@
 #include "tpn/identifier.h"
 #include "tpn/notification.h"
 #include "tpn/request.h"
+#include "tpn/scheduler.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
@@ -137,6 +138,7 @@ private:
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
+		Scheduler mScheduler;
 		bool mStopping;
 
 		ByteString mObfuscatedHello;
