@@ -51,6 +51,15 @@ h1 a:hover
 	text-decoration: underline;
 }
 
+iframe
+{
+	display: block;
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 div
 {
 	margin: 0;
@@ -616,7 +625,7 @@ a.button:hover
 
 #newsfeed .message .attachment
 {
-	display: block;
+	display: inline-block;
 	float: right;
 }
 
@@ -785,6 +794,7 @@ img.avatar
 .message .header img.avatar
 {
 	float: left;
+	margin: 0em 0.5em 0.5em 0em;
 }
 
 .message .attachment
@@ -806,6 +816,14 @@ img.avatar
 	float: right;
 	clear: right;
 	margin: 0.5em 0em 0em 0.5em;
+}
+
+.message iframe
+{
+	display: block;
+	margin: 0.5em;
+	border: 1px solid black;
+	background-color: #000000;
 }
 
 .oldmessage
@@ -1431,13 +1449,38 @@ form #trackerlink
 	.message .attachment
 	{
 		display: block;
-		float: none;
+		clear: both;
+		float: right;
+		width: 100%;
+		max-width: 100%;
+		margin: 0.5em 0em 0.5em 0em;
+		text-align: right;
 	}
 	
 	#newsfeed .message .attachment
 	{
 		display: block;
+		clear: both;
+		float: right;
+		width: 100%;
+		max-width: 100%;
+		margin: 0.5em 0em 0.5em 0em;
+		text-align: center;
+	}
+	
+	.message .attachment img
+	{
+		max-width: 100%;
+	}
+	
+	.message iframe
+	{
+		display: block;
+		clear: both;
 		float: none;
+		width: 100%;
+		max-width: 100%;
+		margin: 0.5em 0em 0.5em 0em;
 	}
 	
 	.files td.actions a

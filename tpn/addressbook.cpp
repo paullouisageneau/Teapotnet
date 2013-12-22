@@ -1749,8 +1749,16 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 bool AddressBook::Contact::request(const Identifier &peering, Request *request)
 {
 	Assert(request);
-	if(!mDeleted) request->execute(mAddressBook->user(), isSelf());
-	else request->executeDummy();
+	if(mDeleted) 
+	{
+		request->executeDummy();
+		return false;
+	}
+	
+	request->execute(mAddressBook->user(), isSelf());
+
+	// TODO
+	
 	return true;
 }
 

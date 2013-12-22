@@ -63,7 +63,12 @@ if(!String.linkify) {
 		// Email addresses
 		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)($|\s)/gim;
 
+		// Youtube video pattern
+		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^\s]+)(?:$|\s)/gim;
+		var youtubeFrame = '<iframe width="420" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
+	
 		return this
+		    .replace(youtubePattern, youtubeFrame)
 		    .replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
 		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
 		    .replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
@@ -437,7 +442,7 @@ function setMessagesReceiverRec(url, object, next) {
 	      
 				if('attachment' in message.headers) {
 					
-					$('#'+id+' .header').after('<span class="attachment"></span>');
+					$('#'+id+' .header').after('<div class="attachment"></div>');
 					$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Loading attachment...');
 					
 					var url = '/'+message.headers.attachment;
