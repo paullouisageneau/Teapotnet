@@ -524,7 +524,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);
 			
-			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add contact / Answer invitation");
+			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add contact / Accept request");
 			else {
 				page.open("div", "contactsTable");
 				page.open("p"); page.text("Loading..."); page.close("p");
