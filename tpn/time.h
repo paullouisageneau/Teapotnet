@@ -34,6 +34,7 @@ class Time : public Serializable
 {
 public:
 	static Time Now(void);
+	static Time Start(void);
 	static uint64_t Milliseconds(void);
 	static double StructToSeconds(const struct timeval &tv);
 	static double StructToSeconds(const struct timespec &ts);
@@ -95,6 +96,7 @@ public:
 
 private:
   	static Mutex TimeMutex;
+	static Time StartTime;
 	
 	void parse(const String &str);
 	

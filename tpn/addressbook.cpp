@@ -718,7 +718,9 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
+		double startupDelay = 5.;
+		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
+		mScheduler.schedule(contact, std::max(Time::Now() + delay - Time::Start(), startupDelay));
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
@@ -1382,7 +1384,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	mAddressBook->mScheduler.schedule(this, 10.);
+	mAddressBook->mScheduler.schedule(this, 5.);
 	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peering.getName()));
 }
 

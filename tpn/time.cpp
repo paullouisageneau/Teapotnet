@@ -28,10 +28,16 @@ namespace tpn
 {
 
 Mutex Time::TimeMutex;
-  
+Time  Time::StartTime = Time();  
+
 Time Time::Now(void)
 {
 	return Time(); 
+}
+
+Time Time::Start(void)
+{
+	return StartTime;
 }
 
 uint64_t Time::Milliseconds(void)
