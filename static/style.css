@@ -69,6 +69,11 @@ img
 	-moz-box-sizing: border-box;
 }
 
+p
+{
+	margin: 0.5em;
+}
+
 form
 {
 	display: inline;	
@@ -940,6 +945,11 @@ a.preview
 	width: 6em; 
 }
 
+.files td.add
+{
+	width: 5em;
+}
+
 #contacts
 {
 	margin-top: 1em;
@@ -1183,18 +1193,6 @@ td.actions a
 	margin-bottom: 1.5em;
 }
 
-.add
-{
-	float: left;
-	width: auto;
-}
-
-td.add
-{
-	float: none;
-	width: 5em;
-}
-
 .profileinfo
 {
 	font-size: 1.1em;
@@ -1298,11 +1296,6 @@ form #trackerlink
 	margin: 2px;
 }
 
-.howtorequests
-{
-	margin: 1em;
-}
-
 .isvalid
 {
 	background-color: #80FF80 !important;
@@ -1354,8 +1347,8 @@ form #trackerlink
 
 	#page p
 	{
-		margin-left: 0.5em;
-		margin-right: 0.5em;
+		margin-left: 1em;
+		margin-right: 1em;
 		text-align: center;
 	}
 
