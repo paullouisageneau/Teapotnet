@@ -65,7 +65,7 @@ if(!String.linkify) {
 
 		// Youtube video pattern
 		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^\s]+)(?:$|\s)/gim;
-		var youtubeFrame = '<iframe width="420" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
+		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
 	
 		return this
 		    .replace(youtubePattern, youtubeFrame)
