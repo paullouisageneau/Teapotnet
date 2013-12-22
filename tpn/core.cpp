@@ -37,8 +37,6 @@ Core::Core(int port) :
 		mLastRequest(0),
 		mLastPublicIncomingTime(0)
 {
-	Interface::Instance->add("/peers", this);
-	
 	mName = Config::Get("instance_name");
 	
 	if(mName.empty())
@@ -64,7 +62,7 @@ Core::Core(int port) :
 
 Core::~Core(void)
 {
-	Interface::Instance->remove("/peers");
+
 }
 
 String Core::getName(void) const
@@ -334,45 +332,6 @@ void Core::removeRequest(unsigned id)
 			handler->removeRequest(id);
 		}
 	}
-}
-
-void Core::http(const String &prefix, Http::Request &request)
-{
-	Synchronize(this);
-	
-	if(prefix == "/peers")
-	{
-		if(request.url == "/")
-		{
-			Http::Response response(request, 200);
-			response.send();
-
-			Html page(response.sock);
-			page.header("Peers");
-			page.open("h1");
-			page.text("Peers");
-			page.close("h1");
-
-			if(mHandlers.empty()) page.text("No peer...");
-			else for(Map<Identifier,Handler*>::iterator it = mHandlers.begin();
-							it != mHandlers.end();
-							++it)
-			{
-				String str(it->first.toString());
-				page.link(str,String("/peers/")+str);
-				page.br();
-			}
-
-			page.footer();
-		}
-		else {
-			//Identifier ident;
-			//list.front() >> ident;
-
-			// TODO
-		}
-	}
-	else throw 404;
 }
 
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)

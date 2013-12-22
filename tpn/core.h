@@ -47,7 +47,7 @@ namespace tpn
 // Core of the TeapotNet node
 // Implements the TPN protocol
 // This is a singleton class, all users use it.  
-class Core : public Thread, protected Synchronizable, public HttpInterfaceable
+class Core : public Thread, protected Synchronizable
 {
 public:
 	static Core *Instance;
@@ -85,8 +85,6 @@ public:
 	bool sendNotification(const Notification &notification);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
-	
-	void http(const String &prefix, Http::Request &request);
 
 private:
 	void run(void);
