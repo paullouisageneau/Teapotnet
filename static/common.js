@@ -442,7 +442,7 @@ function setMessagesReceiverRec(url, object, next) {
 	      
 				if('attachment' in message.headers) {
 					
-					$('#'+id+' .header').after('<div class="attachment"></div>');
+					$('#'+id+' .header').after('<span class="attachment"></span>');
 					$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Loading attachment...');
 					
 					var url = '/'+message.headers.attachment;
