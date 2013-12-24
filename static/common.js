@@ -406,7 +406,7 @@ function setMessagesReceiverRec(url, object, next) {
 					authorHtml = message.author.escape();
 				}
 	      
-				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>")+'</span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -443,7 +443,7 @@ function setMessagesReceiverRec(url, object, next) {
 				if('attachment' in message.headers) {
 					
 					$('#'+id+' .header').after('<span class="attachment"></span>');
-					$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Loading attachment...');
+					$('#'+id+' .attachment').html('<img class="icon" src="/smallpaperclip.png">Loading attachment...');
 					
 					var url = '/'+message.headers.attachment;
 					
@@ -459,13 +459,13 @@ function setMessagesReceiverRec(url, object, next) {
 							var media = type.substr(0, type.indexOf('/'));
 							
 							if(media == 'image') {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"><img class="clip" src="/clip.png"></a>');
 							}
 							else if(media == 'audio' || media == 'video') {
-								$('#'+id+' .attachment').html('<a href="'+url+(deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
+								$('#'+id+' .attachment').html('<a href="'+url+(deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'"><img class="icon" src="/smallpaperclip.png"><span class="filename">'+name.escape()+'</span></a>');
 							}
 							else {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
+								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/smallpaperclip.png"><span class="filename">'+name.escape()+'</span></a>');
 							}
 							
 							setTimeout(function() { 
@@ -473,13 +473,14 @@ function setMessagesReceiverRec(url, object, next) {
 							}, 10);
 						})
 						.fail(function(jqXHR, textStatus) {
-							$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Attachment not available');
+							$('#'+id+' .attachment').html('<img class="icon" src="/paperclip.png">Attachment not available');
 						});
 					
 					})(id, url);
 				}
+				
+				$('#'+id).append('<span class="footer"></span>');
 			}
-			
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
