@@ -91,14 +91,19 @@ h3
 	padding: 0;
 }
 
+.files td.actions .playlink
+{
+	display: none;
+}
+
 td.actions img
 {
 	margin: 0;
 	padding: 8px;
 }
 
-.files td.actions .playlink
+.message .attachment img.icon
 {
-	display: none;
+	margin: 0;
+	padding: 8px;
 }
-

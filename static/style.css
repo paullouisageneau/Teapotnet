@@ -544,6 +544,18 @@ a.button:hover
 	overflow-y: scroll;
 }
 
+#chatmessages .message
+{
+	margin-right: 0.5em;
+	margin-left: 8em;
+}
+
+#chatmessages .me
+{
+	margin-right: 8em;
+	margin-left: 0.5em;
+}
+
 #chatpanel
 {
 	display: table;
@@ -623,7 +635,7 @@ a.button:hover
 	
 }
 
-#newsfeed .message a.preview
+#newsfeed .message .attachment .attached
 {
 	margin-top: -2.6em;
 	margin-right: -4em;
@@ -763,7 +775,7 @@ img.avatar
 	display: block;
 	clear: both;
 	position: relative;
-	margin: 0.25em;
+	margin: 0.5em;
 	margin-left: 0.5em;
 	margin-right: 0.5em;
 	padding: 0.5em;
@@ -782,7 +794,7 @@ img.avatar
 .message .header .date
 {
 	font-size: 0.8em;
-	color: grey;
+	color: #606060;
 }
 
 .message .header .author
@@ -809,26 +821,41 @@ img.avatar
 	float: right;
 	margin: 0.5em;
 	white-space: nowrap;
+	color: #606060;
 }
 
-.message a.preview
+.message .attached
 {
 	position: relative;
-	margin-top: -1em;
 	background-color: #FFFFFF;
 	border: 1px solid black;
 	box-shadow: 1px 1px 5px #202020;
+	color: black;
 }
 
-.message a.preview .clip
+.message .attached .filename
+{
+	display: block;
+	line-height: 16px;
+	margin: 8px;
+	margin-left: 32px;
+}
+
+.message .attached .clip
 {
 	position: absolute;
 	top: -19px;
-	left: 12px;
+	left: 10px;
+}
+
+.message .attachment .attached
+{
+	margin-top: -1em;
 }
 
 .message .attachment .icon
 {
+	margin-left: 0.5em;
 	margin-right: 0.5em;
 	max-width: 32px;
 	max-height: 32px;
@@ -857,6 +884,7 @@ img.avatar
 .me
 {
 	background-color: #FFFFA0;
+	border-color: #E0E050;
 }
 
 .important
@@ -877,7 +905,7 @@ img.avatar
 	font-weight: bold;
 }
 
-a.preview
+.attached
 {
 	display: block;
 }
@@ -1485,7 +1513,7 @@ form #trackerlink
 		max-width: 100%;
 	}
 	
-	.message .attachment a.preview
+	.message .attachment .attached
 	{
 		display: block;
 		float: left;
@@ -1493,12 +1521,17 @@ form #trackerlink
 		box-shadow: none;
 	}
 	
-	#newsfeed .message a.preview
+	#newsfeed .message .attachment .attached
 	{
 		margin: 0;
 	}
 	
-	.message .attachment a.preview .clip
+	.message .attachment .attached .filename
+	{
+		margin: 0.5em;
+	}
+	
+	.message .attachment .attached .clip
 	{
 		display: none;
 	}
@@ -1508,7 +1541,6 @@ form #trackerlink
 		display: block;
 		clear: both;
 		float: none;
-		width: 100%;
 		max-width: 100%;
 		margin: 0.5em 0em 0.5em 0em;
 	}

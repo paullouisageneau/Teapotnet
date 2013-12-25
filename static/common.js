@@ -458,14 +458,17 @@ function setMessagesReceiverRec(url, object, next) {
 							var type = request.getResponseHeader('Content-Type');
 							var media = type.substr(0, type.indexOf('/'));
 							
+							$('#'+id+' .attachment').html('<span class="attached"></a>');
+							
 							if(media == 'image') {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"><img class="clip" src="/clip.png"></a>');
+								$('#'+id+' .attached').html('<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a><img class="clip" src="/clip.png">');
 							}
 							else if(media == 'audio' || media == 'video') {
-								$('#'+id+' .attachment').html('<a href="'+url+(deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'"><img class="icon" src="/smallpaperclip.png"><span class="filename">'+name.escape()+'</span></a>');
+								var usePlaylist = (deviceAgent.indexOf('android') < 0);
+								$('#'+id+' .attached').html('<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">');
 							}
 							else {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/smallpaperclip.png"><span class="filename">'+name.escape()+'</span></a>');
+								$('#'+id+' .attached').html('<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">');
 							}
 							
 							setTimeout(function() { 
