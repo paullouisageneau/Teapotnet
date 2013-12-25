@@ -249,6 +249,11 @@ function setMessagesReceiver(url, object) {
 	setMessagesReceiverRec(url, object, 0);
 }
 
+function updateMessagesReceiver(url, object) {
+	$(object).html("");
+	setMessagesReceiver(url, object);
+}
+
 var BaseDocumentTitle = document.title;
 var NbNewMessages = 0;
 
