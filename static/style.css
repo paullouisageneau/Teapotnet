@@ -587,7 +587,7 @@ a.button:hover
 
 #attachedfile
 {
-
+	display: none;
 }
 
 #attachedfile .filename
@@ -716,7 +716,6 @@ a.button:hover
 
 #statuspanel #attachedfile
 {
-	display: inline-block;
 	margin: 0.2em;
 	padding: 0.2em 0.5em;
 	background-color: #FFFFFF;

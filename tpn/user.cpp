@@ -733,12 +733,12 @@ void User::http(const String &prefix, Http::Request &request)
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
 				listCount.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
 				\n\
 				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
 				listIncoming.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
 				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
 				// Events for the reply textareas : \n\

@@ -262,17 +262,6 @@ $(window).blur(clearNewMessages);
 $(window).keydown(clearNewMessages);
 $(window).mousedown(clearNewMessages);
 
-var stopBool = false;
-
-function updateMessagesReceiver(url, object) {
-	stopBool = true;
-	$(object).html("");
-	setTimeout(function() {
-		setMessagesReceiver(url, object);
-		stopBool = false;
-	}, 100);
-}
-
 function clickedReply(id) 
 {
 	$('#'+id.id).css('display','block');
@@ -352,18 +341,11 @@ function displayContacts(url, period, object) {
 
 function setMessagesReceiverRec(url, object, next) {
 
-	var timeout;
-
-	if(stopBool) {
-		//alert('Function stopped !');
-		clearTimeout(timeout);
-	}
+	if(typeof this.messagesTimeout != 'undefined')
+		clearTimeout(this.messagesTimeout);
 
 	var baseUrl = url;
-	
-	if(next > 0) {
-		url+= (url.contains('?') ? '&' : '?') + 'next=' + next;
-	}
+	if(next > 0) url+= (url.contains('?') ? '&' : '?') + 'next=' + next;
 	
 	$.ajax({
 		url: url,
@@ -387,7 +369,7 @@ function setMessagesReceiverRec(url, object, next) {
 				var authorHtml;
 				if(!message.incoming) {
 					var link = getBasePath(1) + 'myself/';
-					author = message.author
+					author = message.author;
 					authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
 				}
 				else if(message.contact) {
@@ -406,7 +388,7 @@ function setMessagesReceiverRec(url, object, next) {
 					authorHtml = message.author.escape();
 				}
 	      
-				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>")+'</span></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content"></span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -437,6 +419,7 @@ function setMessagesReceiverRec(url, object, next) {
 					}, 10);
 				}
 				
+				$('#'+id+' .content').html(message.content.escape().smileys().linkify().split("\n").join("<br>"));
 				if(!message.incoming) $('#'+id).addClass('me');
 				if(isLocalRead) $('#'+id).addClass('oldmessage');
 	      
@@ -457,19 +440,20 @@ function setMessagesReceiverRec(url, object, next) {
 							var name = request.getResponseHeader('Content-Name');
 							var type = request.getResponseHeader('Content-Type');
 							var media = type.substr(0, type.indexOf('/'));
-							
-							$('#'+id+' .attachment').html('<span class="attached"></a>');
-							
+						
+							var content = '';
 							if(media == 'image') {
-								$('#'+id+' .attached').html('<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a><img class="clip" src="/clip.png">');
+								content = '<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a><img class="clip" src="/clip.png">';
 							}
 							else if(media == 'audio' || media == 'video') {
 								var usePlaylist = (deviceAgent.indexOf('android') < 0);
-								$('#'+id+' .attached').html('<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">');
+								content = '<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">';
 							}
 							else {
-								$('#'+id+' .attached').html('<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">');
+								content = '<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';
 							}
+							
+							transition('#'+id+' .attachment', '<span class="attached">'+content+'</a>');
 							
 							setTimeout(function() { 
 								$(object).scrollTop($(object)[0].scrollHeight);
@@ -491,23 +475,16 @@ function setMessagesReceiverRec(url, object, next) {
 			}
 		}
 
-		timeout = setTimeout(function() {
+		this.messagesTimeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
-		timeout = setTimeout(function() {
+		this.messagesTimeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
-
 	});
-
-	if(stopBool)
-	{
-		//alert('Function stopped !');
-		timeout = setTimeout(function() {clearTimeout(timeout);}, 1000); // ugly but tricks slowness of javascript
-	}
 }
 
 function setCookie(c_name,value,exdays)
