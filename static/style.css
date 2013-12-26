@@ -1506,18 +1506,15 @@ form #trackerlink
 		margin: 0.5em 0em 0.5em 0em;
 	}
 	
-	.message .attachment img.preview
-	{
-		width: 100%;
-		max-width: 100%;
-	}
-	
 	.message .attachment .attached
 	{
 		display: block;
 		float: left;
+		max-width: 100%;
 		margin: 0;
 		box-shadow: none;
+		box-sizing: border-box;
+		-moz-box-sizing: border-box;
 	}
 	
 	#newsfeed .message .attachment .attached
@@ -1533,6 +1530,11 @@ form #trackerlink
 	.message .attachment .attached .clip
 	{
 		display: none;
+	}
+	
+	.message .attachment img.preview
+	{
+		max-width: 100%;
 	}
 	
 	.message iframe

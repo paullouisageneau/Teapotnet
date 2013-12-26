@@ -107,3 +107,11 @@ td.actions img
 	margin: 0;
 	padding: 8px;
 }
+
+@media screen and (min-width : 791px)
+{
+	body
+	{
+		font-size: 100%;
+	}
+}
