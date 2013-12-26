@@ -52,7 +52,7 @@ bool LineSerializer::input(Serializable &s)
 bool LineSerializer::input(Element &element)
 {
 	String line;
-	if(!input(line)) return false;
+	if(!mStream->readLine(line)) return false;
 	if(line.empty()) return false;
 	LineSerializer serializer(&line);
 	AssertIO(element.deserialize(serializer));
@@ -63,7 +63,7 @@ bool LineSerializer::input(Element &element)
 bool LineSerializer::input(Pair &pair)
 {
 	String line;
-	if(!input(line)) return false;
+	if(!mStream->readLine(line)) return false;
 	if(line.empty()) return false;
 	
 	String value = line.cut('=');
