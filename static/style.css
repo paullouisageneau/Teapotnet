@@ -547,12 +547,12 @@ a.button:hover
 #chatmessages .message
 {
 	margin-right: 0.5em;
-	margin-left: 8em;
+	margin-left: 10%;
 }
 
 #chatmessages .me
 {
-	margin-right: 8em;
+	margin-right: 10%;
 	margin-left: 0.5em;
 }
 
