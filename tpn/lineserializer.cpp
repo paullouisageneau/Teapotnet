@@ -79,7 +79,7 @@ bool LineSerializer::input(Pair &pair)
 bool LineSerializer::input(String &str)
 {
 	// TODO: unescape
-	return mStream->read(str);
+	return mStream->readLine(str);
 }
 
 void LineSerializer::output(const Serializable &s)
@@ -118,7 +118,7 @@ void LineSerializer::output(const Pair &pair)
 void LineSerializer::output(const String &str)
 {	
 	// TODO: escape
-	mStream->write(str);
+	mStream->writeLine(str);
 	mStream->space();
 }
 
