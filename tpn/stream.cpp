@@ -164,24 +164,32 @@ bool Stream::ignoreWhile(const String &chars)
 
 bool Stream::readUntil(Stream &output, char delimiter)
 {
+	const int maxCount = 10240;	// 10 Ko for security reasons
+	
+	int left = maxCount;
 	char chr;
 	if(!get(chr)) return false;
 	while(chr != delimiter)
 	{
 		output.write(chr);
-		if(!get(chr)) break;
+		--left;
+		if(!left || !get(chr)) break;
 	}
 	return true;
 }
 
 bool Stream::readUntil(Stream &output, const String &delimiters)
 {
+	const int maxCount = 10240;	// 10 Ko for security reasons
+	
+	int left = maxCount;
 	char chr;
 	if(!get(chr)) return false;
 	while(!delimiters.contains(chr))
 	{
 		output.write(chr);
-		if(!get(chr)) break;
+		--left;
+		if(!left || !get(chr)) break;
 	}
 	return true;
 }

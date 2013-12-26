@@ -85,8 +85,7 @@ bool LineSerializer::input(String &str)
 void LineSerializer::output(const Serializable &s)
 {
 	if(s.isInlineSerializable() && !s.isNativeSerializable()) output(s.toString());
-	else s.serialize(*this);
-	
+	else s.serialize(*this);	
 	mStream->newline();
 }
 
@@ -97,7 +96,6 @@ void LineSerializer::output(const Element &element)
 	element.serialize(serializer);
 	if(!line.empty()) line.resize(line.size()-1);
 	output(line);
-	mStream->newline();
 }
 
 void LineSerializer::output(const Pair &pair)
@@ -109,17 +107,15 @@ void LineSerializer::output(const Pair &pair)
 	pair.serializeValue(valueSerializer);
 	key.trim();
 	value.trim();
-	String str;
-	str<<key<<'='<<value;
-	output(str);
-	mStream->newline();
+	String line;
+	line<<key<<'='<<value;
+	output(line);
 }
 
 void LineSerializer::output(const String &str)
 {	
 	// TODO: escape
 	mStream->writeLine(str);
-	mStream->space();
 }
 
 bool LineSerializer::inputArrayBegin(void)
