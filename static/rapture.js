@@ -276,7 +276,7 @@ function postAcceptRequest() {
 		$.post(postUrl, {tpn_id: tpn_id}) 
 		.done(function(data) {
 			if(data == EMPTY_REQUEST) 
-				alert('Error, request not found'); 
+				alert('Error: request not found'); 
 			else if(data == REQUEST_ALREADY_ACCEPTED) 
 				alert('This request has already been accepted.'); 
 			else if(isJsonString(data)) { 
@@ -285,10 +285,10 @@ function postAcceptRequest() {
 				var tpnid = arr['tpn_id']; 
 				addContact(tpnid, secret, nStep); 
 			} 
-			else	alert('Error, request not found'); 
+			else	alert('Error: request not found'); 
 		}) 
-		.fail(function() { 
-			alert('Error, the entered code does not seem to be valid.');
+		.fail(function() {
+			alert('Error, please check your internet connectivity and try again.');
 		});
 	} 
 	else { 
@@ -299,11 +299,11 @@ function postAcceptRequest() {
 function addContact(tpnid, secret, nStep) { 
 	$.post(prefix+"/", {name: tpnid, secret: secret, token: token})
 	.done(function(data) {
-		alert('Contact added to list'); 
+		alert('Contact added to list: ' + tpnid); 
 		// Refresh contacts list
 		location.reload(); 
 	}) 
 	.fail(function() { 
-		alert('Error, the contact could not be added');
+		alert('Error: the contact could not be added');
 	});
 }
