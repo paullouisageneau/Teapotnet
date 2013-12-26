@@ -34,6 +34,7 @@
 #include "tpn/identifier.h"
 #include "tpn/notification.h"
 #include "tpn/request.h"
+#include "tpn/scheduler.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
@@ -46,7 +47,7 @@ namespace tpn
 // Core of the TeapotNet node
 // Implements the TPN protocol
 // This is a singleton class, all users use it.  
-class Core : public Thread, protected Synchronizable, public HttpInterfaceable
+class Core : public Thread, protected Synchronizable
 {
 public:
 	static Core *Instance;
@@ -84,8 +85,6 @@ public:
 	bool sendNotification(const Notification &notification);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
-	
-	void http(const String &prefix, Http::Request &request);
 
 private:
 	void run(void);
@@ -137,6 +136,7 @@ private:
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
+		Scheduler mScheduler;
 		bool mStopping;
 
 		ByteString mObfuscatedHello;

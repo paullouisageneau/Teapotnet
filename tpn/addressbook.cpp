@@ -516,21 +516,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			String token = user()->generateToken("contact");
 
-			// Personnal secret
-			page.openForm(prefix+"/","post");
-			page.openFieldset("Personal secret");
-			page.input("hidden", "token", token);
-			page.input("hidden","name",user()->name()+"@"+user()->tracker());
-			page.input("hidden","self","true");
-			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
-			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization. The longer the secret, the more secure it is.");
-			page.br();
-			page.br();
-			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
-			page.label("add"); page.button("add","Set secret");
-			page.closeFieldset();
-			page.closeForm();
-			
 			// Parameters that are to be sent in friend request
 			const String centralizedFriendSystemUrl = RAPTUREURL;
 			int lengthUrl = centralizedFriendSystemUrl.length();
@@ -621,13 +606,30 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Accept request");
 			page.close("h2");
-			page.open("div", ".howtorequests");
-			page.text("If you've received from a friend a TeapotNet code, paste it here. Your friend will automatically be added to your contacts list");
-			page.close("div");
+			page.open("p");
+			page.text("If you've received from a friend a TeapotNet code, paste it here. Your friend will automatically be added to your contacts list.");
+			page.close("p");
 			page.input("text","posturl");
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
 			//page.closeForm();
+			
+			// Personal secret
+			page.open("div","personalsecret.box");
+			page.open("h2");
+			page.text("Personal secret");
+			page.close("h2");
+			page.open("p");
+			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
+			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization. The longer the secret, the more secure it is.");
+			page.close("p");
+			page.openForm(prefix+"/","post");
+			page.input("hidden", "token", token);
+			page.input("hidden","name",user()->name()+"@"+user()->tracker());
+			page.input("hidden","self","true");
+			page.input("text","secret","",true); page.button("add","Set secret");
+			page.closeForm();
+			page.close("div");
 			
 			// Load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
@@ -718,7 +720,9 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		mScheduler.schedule(contact, UpdateStep*ordinal + uniform(0., UpdateStep));
+		double startupDelay = 5.;
+		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
+		mScheduler.schedule(contact, std::max(Time::Now() + delay - Time::Start(), startupDelay));
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
@@ -740,7 +744,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	String tracker = user()->tracker();
 	
 	try {
-		String url("http://" + tracker + "/tracker?id=" + remotePeering.toString());
+		String url("http://" + tracker + "/tracker/?id=" + remotePeering.toString());
 		
 		List<Address> list;
 		Config::GetExternalAddresses(list);
@@ -810,7 +814,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	if(host.empty()) host = Config::Get("tracker");
 	
 	try {
-		String url = "http://" + host + "/tracker?id=" + peering.toString();
+		String url = "http://" + host + "/tracker/?id=" + peering.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
@@ -1382,7 +1386,7 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 
 void AddressBook::Contact::disconnected(const Identifier &peering)
 {
-	mAddressBook->mScheduler.schedule(this, 10.);
+	mAddressBook->mScheduler.schedule(this, 5.);
 	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peering.getName()));
 }
 
@@ -1745,8 +1749,16 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 bool AddressBook::Contact::request(const Identifier &peering, Request *request)
 {
 	Assert(request);
-	if(!mDeleted) request->execute(mAddressBook->user(), isSelf());
-	else request->executeDummy();
+	if(mDeleted) 
+	{
+		request->executeDummy();
+		return false;
+	}
+	
+	request->execute(mAddressBook->user(), isSelf());
+
+	// TODO
+	
 	return true;
 }
 

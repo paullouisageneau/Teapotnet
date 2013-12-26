@@ -51,6 +51,15 @@ h1 a:hover
 	text-decoration: underline;
 }
 
+iframe
+{
+	display: block;
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 div
 {
 	margin: 0;
@@ -67,6 +76,11 @@ img
 	vertical-align: middle;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
+}
+
+p
+{
+	margin: 0.5em;
 }
 
 form
@@ -530,6 +544,18 @@ a.button:hover
 	overflow-y: scroll;
 }
 
+#chatmessages .message
+{
+	margin-right: 0.5em;
+	margin-left: 8em;
+}
+
+#chatmessages .me
+{
+	margin-right: 8em;
+	margin-left: 0.5em;
+}
+
 #chatpanel
 {
 	display: table;
@@ -561,7 +587,7 @@ a.button:hover
 
 #attachedfile
 {
-
+	display: none;
 }
 
 #attachedfile .filename
@@ -587,7 +613,7 @@ a.button:hover
 
 #newsfeed .message
 {
-	max-width: 90%;
+	max-width: 80%;
 	margin: 0;
 	margin-bottom: 0.5em;
 }
@@ -609,10 +635,10 @@ a.button:hover
 	
 }
 
-#newsfeed .message .attachment
+#newsfeed .message .attachment .attached
 {
-	display: block;
-	float: right;
+	margin-top: -2.6em;
+	margin-right: -4em;
 }
 
 #newsfeed .oldmessage
@@ -690,7 +716,6 @@ a.button:hover
 
 #statuspanel #attachedfile
 {
-	display: inline-block;
 	margin: 0.2em;
 	padding: 0.2em 0.5em;
 	background-color: #FFFFFF;
@@ -749,13 +774,13 @@ img.avatar
 	display: block;
 	clear: both;
 	position: relative;
-	overflow: auto;
-	margin: 0.25em;
+	margin: 0.5em;
 	margin-left: 0.5em;
 	margin-right: 0.5em;
 	padding: 0.5em;
-	border: 1px solid #505050;
-	border-radius: 0.5em;
+	border: 1px solid #B0B0B0;
+        border-radius: 0.5em;
+	background-color: #F5F5F5;
 	box-shadow: 0px 0px 8px 4px #FFDC0A;
 	word-wrap: break-word;
 }
@@ -768,7 +793,7 @@ img.avatar
 .message .header .date
 {
 	font-size: 0.8em;
-	color: grey;
+	color: #606060;
 }
 
 .message .header .author
@@ -780,37 +805,85 @@ img.avatar
 .message .header img.avatar
 {
 	float: left;
+	margin: 0em 0.5em 0em 0em;
+}
+
+.message .footer
+{
+	display: block;
+	clear: both;
 }
 
 .message .attachment
 {
 	display: block;
 	float: right;
-	max-width: 50%;
 	margin: 0.5em;
 	white-space: nowrap;
+	color: #606060;
+}
+
+.message .attached
+{
+	position: relative;
+	background-color: #FFFFFF;
+	border: 1px solid black;
+	box-shadow: 1px 1px 5px #202020;
+	color: black;
+}
+
+.message .attached .filename
+{
+	display: block;
+	line-height: 16px;
+	margin: 8px;
+	margin-left: 32px;
+}
+
+.message .attached .clip
+{
+	position: absolute;
+	top: -19px;
+	left: 10px;
+}
+
+.message .attachment .attached
+{
+	margin-top: -1em;
 }
 
 .message .attachment .icon
 {
+	margin-left: 0.5em;
 	margin-right: 0.5em;
+	max-width: 32px;
+	max-height: 32px;
 }
 
 .message .button
 {
 	float: right;
 	clear: right;
-	margin: 0.5em 0em 0em 0.5em;
+	margin: 0.25em 0em 0em 0.5em;
+}
+
+.message iframe
+{
+	display: block;
+	margin: 0.5em;
+	border: 1px solid black;
+	background-color: #000000;
 }
 
 .oldmessage
 {
-	box-shadow: none;
+	box-shadow: 1px 1px 3px #202020;
 }
 
 .me
 {
 	background-color: #FFFFA0;
+	border-color: #E0E050;
 }
 
 .important
@@ -831,16 +904,15 @@ img.avatar
 	font-weight: bold;
 }
 
-img.preview
+.attached
+{
+	display: block;
+}
+
+img.preview 
 {
 	max-width: 400px;
 	max-height: 200px;
-	border: 1px solid black;
-}
-
-a.preview
-{
-	display: block;
 }
 
 .box
@@ -938,6 +1010,11 @@ a.preview
 .files td.size
 {
 	width: 6em; 
+}
+
+.files td.add
+{
+	width: 5em;
 }
 
 #contacts
@@ -1180,19 +1257,7 @@ td.actions a
 
 .conversation
 {
-	margin-bottom: 1.5em;
-}
-
-.add
-{
-	float: left;
-	width: auto;
-}
-
-td.add
-{
-	float: none;
-	width: 5em;
+	margin-bottom: 2em;
 }
 
 .profileinfo
@@ -1298,11 +1363,6 @@ form #trackerlink
 	margin: 2px;
 }
 
-.howtorequests
-{
-	margin: 1em;
-}
-
 .isvalid
 {
 	background-color: #80FF80 !important;
@@ -1354,8 +1414,8 @@ form #trackerlink
 
 	#page p
 	{
-		margin-left: 0.5em;
-		margin-right: 0.5em;
+		margin-left: 1em;
+		margin-right: 1em;
 		text-align: center;
 	}
 
@@ -1438,13 +1498,50 @@ form #trackerlink
 	.message .attachment
 	{
 		display: block;
+		clear: none;
 		float: none;
+		overflow: auto;
+		max-width: 100%;
+		min-height: 2em;
+		margin: 0.5em 0em 0.5em 0em;
 	}
 	
-	#newsfeed .message .attachment
+	.message .attachment img.preview
+	{
+		width: 100%;
+		max-width: 100%;
+	}
+	
+	.message .attachment .attached
 	{
 		display: block;
+		float: left;
+		margin: 0;
+		box-shadow: none;
+	}
+	
+	#newsfeed .message .attachment .attached
+	{
+		margin: 0;
+	}
+	
+	.message .attachment .attached .filename
+	{
+		margin: 0.5em;
+	}
+	
+	.message .attachment .attached .clip
+	{
+		display: none;
+	}
+	
+	.message iframe
+	{
+		display: block;
+		clear: both;
 		float: none;
+		max-width: 100%;
+		margin: 0.5em 0em 0.5em 0em;
 	}
 	
 	.files td.actions a

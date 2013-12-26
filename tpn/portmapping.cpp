@@ -254,6 +254,8 @@ bool PortMapping::NatPMP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
+			if(!sender.isLocal()) continue;
+			
 			LogDebug("PortMapping::NatPMP", String("Got response from ") + sender.toString());
 			if(parse(dgram, 0))
 			{
@@ -303,8 +305,12 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 		Address sender;
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
+		{
+			if(!sender.isLocal()) continue;
+			
 			if(parse(dgram, op, internal))
 				return true;
+		}
 			
 		timeout*= 2;
 	}
@@ -400,7 +406,10 @@ bool PortMapping::UPnP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
+			if(!sender.isLocal()) continue;
+			
 			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
+			time = std::max(time, 0.250);	// some devices are slow and send a bunch of datagrams
 			try {
 				if(parse(dgram))
 				{
@@ -445,14 +454,14 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
 <s:Body>\r\n\
 <m:AddPortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\r\n\
-<NewPortMappingDescription>"+Html::escape(String(APPNAME))+"</NewPortMappingDescription>\r\n\
-<NewInternalClient>"+Html::escape(localAddr.host())+"</NewInternalClient>\r\n\
-<NewLeaseDuration>"+String::number(duration)+"</NewLeaseDuration>\r\n\
-<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
-<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
-<NewInternalPort>" + String::number(internal) + "</NewInternalPort>\r\n\
 <NewRemoteHost></NewRemoteHost>\r\n\
+<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
+<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
+<NewInternalPort>" + String::number(internal) + "</NewInternalPort>\r\n\
+<NewInternalClient>"+Html::escape(localAddr.host())+"</NewInternalClient>\r\n\
 <NewEnabled>1</NewEnabled>\r\n\
+<NewPortMappingDescription>"+Html::escape(String(APPNAME))+"</NewPortMappingDescription>\r\n\
+<NewLeaseDuration>"+String::number(duration)+"</NewLeaseDuration>\r\n\
 </m:AddPortMapping>\r\n\
 </s:Body>\r\n\
 </s:Envelope>\r\n";
@@ -490,14 +499,22 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		if(errorCode == 718)
 		{
 			// The port mapping entry specified conflicts with a mapping assigned previously to another client
-			if(localAddr.isIpv4())
+			
+			if(i == attempts-2)
 			{
-				if(i == 0) gen = localAddr.host().dottedToInt(256) + external;	
-				uint32_t rnd = gen = uint32_t(22695477*gen + 1); rnd = rnd >> 17;
-				external = 1024 + rnd;
+				// The device is probably bogus, and the mapping is actually assigned to us
+				remove(protocol, internal, external); 
 			}
 			else {
-				external = 1024 + pseudorand() % (49151 - 1024);
+				if(localAddr.isIpv4())
+				{
+					if(i == 0) gen = localAddr.host().dottedToInt(256) + external;	
+					uint32_t rnd = gen = uint32_t(22695477*gen + 1); rnd = rnd >> 17;
+					external = 1024 + rnd;
+				}
+				else {
+					external = 1024 + pseudorand() % (49151 - 1024);
+				}
 			}
 			continue;
 		}
@@ -514,6 +531,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		return false;
 	}
 
+	LogWarn("PortMapping::UPnP", String("AddPortMapping: Reached max number of attempts, giving up"));
 	return false;
 }
 
@@ -531,9 +549,9 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
 <s:Body>\r\n\
 <m:DeletePortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\r\n\
-<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
-<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
 <NewRemoteHost></NewRemoteHost>\r\n\
+<NewExternalPort>" + String::number(external) + "</NewExternalPort>\r\n\
+<NewProtocol>"+(protocol == TCP ? String("TCP") : String("UDP"))+"</NewProtocol>\r\n\
 </m:DeletePortMapping>\r\n\
 </s:Body>\r\n\
 </s:Envelope>\r\n";

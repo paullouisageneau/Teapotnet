@@ -63,7 +63,12 @@ if(!String.linkify) {
 		// Email addresses
 		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)($|\s)/gim;
 
+		// Youtube video pattern
+		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^\s]+)(?:$|\s)/gim;
+		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
+	
 		return this
+		    .replace(youtubePattern, youtubeFrame)
 		    .replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
 		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
 		    .replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
@@ -244,6 +249,11 @@ function setMessagesReceiver(url, object) {
 	setMessagesReceiverRec(url, object, 0);
 }
 
+function updateMessagesReceiver(url, object) {
+	$(object).html("");
+	setMessagesReceiver(url, object);
+}
+
 var BaseDocumentTitle = document.title;
 var NbNewMessages = 0;
 
@@ -256,17 +266,6 @@ $(window).focus(clearNewMessages);
 $(window).blur(clearNewMessages);
 $(window).keydown(clearNewMessages);
 $(window).mousedown(clearNewMessages);
-
-var stopBool = false;
-
-function updateMessagesReceiver(url, object) {
-	stopBool = true;
-	$(object).html("");
-	setTimeout(function() {
-		setMessagesReceiver(url, object);
-		stopBool = false;
-	}, 100);
-}
 
 function clickedReply(id) 
 {
@@ -347,18 +346,11 @@ function displayContacts(url, period, object) {
 
 function setMessagesReceiverRec(url, object, next) {
 
-	var timeout;
-
-	if(stopBool) {
-		//alert('Function stopped !');
-		clearTimeout(timeout);
-	}
+	if(typeof this.messagesTimeout != 'undefined')
+		clearTimeout(this.messagesTimeout);
 
 	var baseUrl = url;
-	
-	if(next > 0) {
-		url+= (url.contains('?') ? '&' : '?') + 'next=' + next;
-	}
+	if(next > 0) url+= (url.contains('?') ? '&' : '?') + 'next=' + next;
 	
 	$.ajax({
 		url: url,
@@ -382,7 +374,7 @@ function setMessagesReceiverRec(url, object, next) {
 				var authorHtml;
 				if(!message.incoming) {
 					var link = getBasePath(1) + 'myself/';
-					author = message.author
+					author = message.author;
 					authorHtml = '<a href="'+link+'"><img class="avatar" src="'+link+'avatar">'+message.author.escape()+'</a>';
 				}
 				else if(message.contact) {
@@ -401,7 +393,7 @@ function setMessagesReceiverRec(url, object, next) {
 					authorHtml = message.author.escape();
 				}
 	      
-				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content">'+message.content.escape().smileys().linkify().split("\n").join("<br>");+'</span></div>';
+				var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+authorHtml+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content"></span></div>';
 				
 				if(message.public) {
 					var idReply = "reply_" + id;
@@ -432,13 +424,14 @@ function setMessagesReceiverRec(url, object, next) {
 					}, 10);
 				}
 				
+				$('#'+id+' .content').html(message.content.escape().smileys().linkify().split("\n").join("<br>"));
 				if(!message.incoming) $('#'+id).addClass('me');
 				if(isLocalRead) $('#'+id).addClass('oldmessage');
 	      
 				if('attachment' in message.headers) {
 					
 					$('#'+id+' .header').after('<span class="attachment"></span>');
-					$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Loading attachment...');
+					$('#'+id+' .attachment').html('<img class="icon" src="/smallpaperclip.png">Loading attachment...');
 					
 					var url = '/'+message.headers.attachment;
 					
@@ -452,29 +445,34 @@ function setMessagesReceiverRec(url, object, next) {
 							var name = request.getResponseHeader('Content-Name');
 							var type = request.getResponseHeader('Content-Type');
 							var media = type.substr(0, type.indexOf('/'));
-							
+						
+							var content = '';
 							if(media == 'image') {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank" class="preview"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a>');
+								content = '<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a><img class="clip" src="/clip.png">';
 							}
 							else if(media == 'audio' || media == 'video') {
-								$('#'+id+' .attachment').html('<a href="'+url+(deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
+								var usePlaylist = (deviceAgent.indexOf('android') < 0);
+								content = '<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">';
 							}
 							else {
-								$('#'+id+' .attachment').html('<a href="'+url+'" target="_blank"><img class="icon" src="/file.png"><span class="filename">'+name.escape()+'</span></a>');
+								content = '<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';
 							}
+							
+							transition('#'+id+' .attachment', '<span class="attached">'+content+'</a>');
 							
 							setTimeout(function() { 
 								$(object).scrollTop($(object)[0].scrollHeight);
 							}, 10);
 						})
 						.fail(function(jqXHR, textStatus) {
-							$('#'+id+' .attachment').html('<img class="icon" src="/file.png">Attachment not available');
+							$('#'+id+' .attachment').html('<img class="icon" src="/paperclip.png">Attachment not available');
 						});
 					
 					})(id, url);
 				}
+				
+				$('#'+id).append('<span class="footer"></span>');
 			}
-			
 			
 			if(NbNewMessages) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
@@ -482,23 +480,16 @@ function setMessagesReceiverRec(url, object, next) {
 			}
 		}
 
-		timeout = setTimeout(function() {
+		this.messagesTimeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
-		timeout = setTimeout(function() {
+		this.messagesTimeout = setTimeout(function() {
 			setMessagesReceiverRec(baseUrl, object, next);
 		}, 1000);
-
 	});
-
-	if(stopBool)
-	{
-		//alert('Function stopped !');
-		timeout = setTimeout(function() {clearTimeout(timeout);}, 1000); // ugly but tricks slowness of javascript
-	}
 }
 
 function setCookie(c_name,value,exdays)

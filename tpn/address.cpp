@@ -232,7 +232,7 @@ String Address::reverse(void) const
         char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
         if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
-                throw InvalidData("Invalid stored network address");
+		return toString();
         
 	String str(host);
 	if(addrFamily() == AF_INET6 && str.contains(':')) 

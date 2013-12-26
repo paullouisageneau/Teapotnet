@@ -583,7 +583,7 @@ String plist = "\
 		// Creating global store
 		Store::GlobalInstance = new Store(NULL);
 		
-		// Starting interface and core
+		// Starting interface
 		Interface::Instance = new Interface(ifport);
 		Interface::Instance->start();
 		

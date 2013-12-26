@@ -124,7 +124,10 @@ Store::Store(User *user) :
 				++it;
 			}
 		}
-		catch(...) {}
+		catch(const Exception &e) 
+		{
+			LogWarn("Store", String("Unable to load directories: ") + e.what());
+		}
 	}
 	
 	// Special upload directory
