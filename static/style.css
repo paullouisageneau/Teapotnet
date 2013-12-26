@@ -613,7 +613,7 @@ a.button:hover
 
 #newsfeed .message
 {
-	max-width: 80%;
+	max-width: 85%;
 	margin: 0;
 	margin-bottom: 0.5em;
 }
@@ -648,16 +648,16 @@ a.button:hover
 
 #newsfeed .childmessage
 {
-	width: 75%;
-	margin-left: 25%;
+	width: 85%;
+	margin-left: 15%;
 	margin-bottom: 0.5em;
 }
 
 #newsfeed .reply
 {
 	display: none;
-	width: 75%;
-	margin-left: 25%;
+	width: 85%;
+	margin-left: 15%;
 	margin-bottom: 0.5em;
 	padding: 0;
 }
