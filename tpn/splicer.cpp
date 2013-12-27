@@ -424,20 +424,15 @@ void Splicer::run(void)
 			Assert(mStripes[i]);
 			Synchronize(mRequests[i]);
 			
-			byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
-			
 			if(mRequests[i]->responsesCount())
 			{
 				const Request::Response *response = mRequests[i]->response(0);
 				Assert(response != NULL);
 				
-				if(response->finished())
-				{
-					--nbPending;
-				}
+				if(response->error()) onError.push_back(i);
 				else {
-					if(response->error())
-						onError.push_back(i);
+					byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
+					if(response->finished()) --nbPending;
 				}
 			}
 
@@ -471,21 +466,19 @@ void Splicer::run(void)
 			}
 		}
 		
-		if(onError.empty())
+		if(byBlocks.size() >= 2)
 		{
-			if(mRequests.size() >= 2)
+			int slowest = byBlocks.begin()->second;
+			int fastest = byBlocks.rbegin()->second;
+			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
+				|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
 			{
-				int slowest = byBlocks.begin()->second;
-				int fastest = byBlocks.rbegin()->second;
-				if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
-					|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
-				{
-					LogDebug("Splicer::run", "Switching, source "+String::number(slowest)+" is too slow...");
-					if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
-						query(slowest, mRequests[fastest]->receiver());
-				}
+				LogDebug("Splicer::run", "Switching, source "+String::number(slowest)+" is too slow...");
+				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
+					query(slowest, mRequests[fastest]->receiver());
 			}
 		}
+		
 		else for(int k=0; k<onError.size(); ++k)
 		{
 			int i = onError[k];
