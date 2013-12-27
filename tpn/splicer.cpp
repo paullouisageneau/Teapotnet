@@ -256,7 +256,7 @@ void Splicer::start(bool autoDelete)
 		if(it == mSources.end()) it = mSources.begin();
 	}
 	
-	Scheduler::Global->repeat(this, milliseconds(100));
+	Scheduler::Global->repeat(this, milliseconds(200));
 	
 	LogDebug("Splicer", "Transfers launched successfully");
 }
