@@ -316,6 +316,7 @@ int main(int argc, char** argv)
 		Config::Default("http_proxy", "auto");
 		Config::Default("http_proxy_connect", "false");
 		Config::Default("prefetch_delay", "300000");
+		Config::Default("max_connections", "1024");
 		
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "false");

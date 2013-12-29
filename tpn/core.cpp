@@ -34,6 +34,7 @@ Core *Core::Instance = NULL;
 
 Core::Core(int port) :
 		mSock(port),
+		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
 		mLastRequest(0),
 		mLastPublicIncomingTime(0)
 {
@@ -133,18 +134,18 @@ Core::LinkStatus Core::addPeer(ByteStream *bs, const Address &remoteAddr, const 
 	
 	{
 		Desynchronize(this);
-		LogDebug("Core", "Spawning new handler");
+		//LogDebug("Core", "Spawning new handler");
 		Handler *handler = new Handler(this, bs, remoteAddr);
 		if(hasPeering) handler->setPeering(peering);
 
 		if(async)
 		{
-			handler->start(true);
+			mThreadPool.launch(handler);
 			return Core::Disconnected;
 		}
 		else {
 			Synchronize(handler);
-			handler->start(true);	// autodelete
+			mThreadPool.launch(handler);
 			
 			// Timeout is just a security here
 			const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
@@ -417,7 +418,7 @@ Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
 	mSender(NULL),
 	mIsIncoming(true),
 	mLinkStatus(Disconnected),
-	mScheduler(1),
+	mThreadPool(0, 1, 8),
 	mStopping(false)
 {
 
@@ -1104,7 +1105,7 @@ void Core::Handler::process(void)
 						Sender  *sender;
 					};
 					
-					mScheduler.schedule(new RequestTask(peering, listener, request, mSender));
+					mThreadPool.launch(new RequestTask(peering, listener, request, mSender));
 				}
 			}
 			else if(command == "M")
@@ -1163,7 +1164,7 @@ void Core::Handler::process(void)
 	}
 
 	// Wait for tasks to finish
-	mScheduler.clear();
+	mThreadPool.clear();
 	
 	try {
 		Synchronize(this);
@@ -1234,8 +1235,8 @@ void Core::Handler::run(void)
 	notifyAll();
 	
 	// TODO
-	Thread::Sleep(5.);	
-	Synchronize(this);
+	Thread::Sleep(10.);
+	delete this;	// autodelete
 }
 
 const size_t Core::Handler::Sender::ChunkSize = BufferSize;

@@ -34,7 +34,7 @@
 #include "tpn/identifier.h"
 #include "tpn/notification.h"
 #include "tpn/request.h"
-#include "tpn/scheduler.h"
+#include "tpn/threadpool.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
@@ -89,7 +89,7 @@ public:
 private:
 	void run(void);
 
-	class Handler : public Thread, public Synchronizable
+	class Handler : public Task, public Synchronizable
 	{
 	public:
 		Handler(Core *core, ByteStream *bs, const Address &remoteAddr);
@@ -136,7 +136,7 @@ private:
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;
 		Set<unsigned> mCancelled;
-		Scheduler mScheduler;
+		ThreadPool mThreadPool;
 		bool mStopping;
 
 		ByteString mObfuscatedHello;
@@ -177,6 +177,7 @@ private:
 
 	String mName;
 	ServerSocket mSock;
+	ThreadPool mThreadPool;
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, ByteString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
