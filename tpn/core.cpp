@@ -630,22 +630,24 @@ void Core::Handler::process(void)
 			if((!instance.empty() && instance != mCore->getName())
 				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
 			{
+				Desynchronize(this);
+				
+				Synchronizable *meeting = &mCore->mMeetingPoint;
+				Synchronize(meeting);
+			 
 				if(!Config::Get("relay_enabled").toBool()) 
 				{
+					Desynchronize(meeting);
 					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
 					return;
 				}
-			  
+			 
 				const double meetingStepTimeout = milliseconds(std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt()));
-			  
 				double timeout = meetingStepTimeout;
+				while(timeout > 0.)
 				{
-					Synchronize(&mCore->mMeetingPoint);
-					while(timeout > 0.)
-					{
-						if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
-						if(!mCore->mMeetingPoint.wait(timeout)) break;
-					}
+					if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
+					if(!meeting->wait(timeout)) break;
 				}
 				
 				Handler *handler = NULL;
@@ -653,6 +655,7 @@ void Core::Handler::process(void)
 				{
 					if(handler)
 					{
+						Desynchronize(meeting);
 						LogDebug("Core::Handler", "Connection already forwarded");
 						sendCommand(mStream, "Q", String::number(RedirectionExists), StringMap());
 						return;
@@ -660,8 +663,15 @@ void Core::Handler::process(void)
 					
 					//Log("Core::Handler", "Reached forwarding meeting point");
 					SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
-					mCore->mMeetingPoint.notifyAll();
-					wait(meetingStepTimeout);
+					meeting->notifyAll();
+					
+					timeout = meetingStepTimeout;
+					while(timeout > 0.)
+					{
+						if(!mStream) break;
+						if(!meeting->wait(timeout)) break;
+					}
+					
 					SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
 					if(mStream) sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
 					return;
@@ -685,7 +695,7 @@ void Core::Handler::process(void)
 				if(!instance.empty()) request.setParameter("instance", instance);
 				request.submit();
 				request.wait(meetingStepTimeout);
-						
+				
 				String remote;
 				for(int i=0; i<request.responsesCount(); ++i)
 				{
@@ -695,6 +705,7 @@ void Core::Handler::process(void)
 				
 				if(remote.empty())
 				{
+					Desynchronize(meeting);
 					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
 					return;
 				}
@@ -703,52 +714,48 @@ void Core::Handler::process(void)
 					
 				remote >> mRemotePeering;
 				SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
-					
+				
 				Handler *otherHandler = NULL;
 				
+				meeting->notifyAll();
 				timeout = meetingStepTimeout;
+				while(timeout > 0.)
 				{
-					Synchronize(&mCore->mMeetingPoint);
-					mCore->mMeetingPoint.notifyAll();
-					while(timeout > 0.)
-					{
-						SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
-						if(otherHandler) break;
-						if(!mCore->mMeetingPoint.wait(timeout)) break;
-					}
+					SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
+					if(otherHandler) break;
+					if(!meeting->wait(timeout)) break;
 				}
-				
+			
 				if(otherHandler)
 				{
 					Stream     *otherStream    = NULL;
 					ByteStream *otherRawStream = NULL;
 					
-					{
-						Synchronize(otherHandler);
-						
-						otherStream    = otherHandler->mStream;
-						otherRawStream = otherHandler->mRawStream;
-						otherHandler->mStream      = NULL;
-						otherHandler->mRawStream   = NULL;
-						
-						mRawStream->writeBinary(otherHandler->mObfuscatedHello);
-						otherRawStream->writeBinary(mObfuscatedHello);
-						mObfuscatedHello.clear();
+					otherStream    = otherHandler->mStream;
+					otherRawStream = otherHandler->mRawStream;
+					otherHandler->mStream      = NULL;
+					otherHandler->mRawStream   = NULL;
 					
-						otherHandler->notifyAll();
-					}
-					
+					mRawStream->writeBinary(otherHandler->mObfuscatedHello);
+					otherRawStream->writeBinary(mObfuscatedHello);
+					mObfuscatedHello.clear();
 					otherHandler = NULL;
+					meeting->notifyAll();
 					
-					LogInfo("Core::Handler", "Successfully forwarded connection");
+					if(mRawStream)
+					{
+						Desynchronize(meeting);
+						LogInfo("Core::Handler", "Successfully forwarded connection");
 					
-					// Transfer
-					ByteStream::Transfer(mRawStream, otherRawStream);
+						// Transfer
+						ByteStream::Transfer(mRawStream, otherRawStream);
+					}
 					
 					delete otherStream;
 					delete otherRawStream;
 				}
 				else {
+					Desynchronize(meeting);
 					LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
 					sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
 				}
