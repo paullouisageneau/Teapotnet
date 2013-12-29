@@ -1231,12 +1231,21 @@ void Core::Handler::process(void)
 
 void Core::Handler::run(void)
 {
-	process();
+	try {
+		process();
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Core::Handler::run", String("Unhandled exception: ") + e.what()); 
+	}
+	catch(...)
+	{
+		LogWarn("Core::Handler::run", String("Unhandled unknown exception")); 
+	}
+		
 	notifyAll();
-	
-	// TODO
-	Thread::Sleep(10.);
-	delete this;	// autodelete
+	Thread::Sleep(5.);	// TODO
+	delete this;		// autodelete
 }
 
 const size_t Core::Handler::Sender::ChunkSize = BufferSize;
