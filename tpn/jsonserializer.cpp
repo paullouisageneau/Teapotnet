@@ -114,7 +114,8 @@ bool JsonSerializer::input(String &str)
 				break;
 			}
 			default: 
-				chr = 0; 
+				if(isalpha(chr) || isdigit(chr)) 
+					chr = 0; // unknown escape sequence
 				break;
 			}
 		}
