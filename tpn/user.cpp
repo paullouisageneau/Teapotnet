@@ -712,7 +712,7 @@ void User::http(const String &prefix, Http::Request &request)
 					}\n\
 				}\n\
 				document.statusform.statusinput.onfocus = function() {\n\
-					if(document.statusform.statusinput.style.color == 'grey') {\n\
+					if(document.statusform.statusinput.style.color != 'black') {\n\
 						document.statusform.statusinput.value = '';\n\
 						document.statusform.statusinput.style.color = 'black';\n\
 					}\n\
