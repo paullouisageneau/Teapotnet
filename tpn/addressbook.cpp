@@ -1115,7 +1115,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 
-	const double timeout = 4.;      // TODO
+	const double timeout = 4.;      // TODO; Change according to PortMapping
         const bool forceNoTunnel = (!addr.isPublic() || addr.port() == 443);	
 	const Identifier peering(this->peering(), instance);
 	Core::LinkStatus status = Core::Disconnected;

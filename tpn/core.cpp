@@ -727,13 +727,12 @@ void Core::Handler::process(void)
 					if(!meeting->wait(timeout)) break;
 				}
 			
-				if(otherHandler)
+				if(otherHandler && otherHandler->mStream)
 				{
-					Stream     *otherStream    = NULL;
-					ByteStream *otherRawStream = NULL;
+					Assert(otherHandler->mRawStream);
 					
-					otherStream    = otherHandler->mStream;
-					otherRawStream = otherHandler->mRawStream;
+					Stream     *otherStream    = otherHandler->mStream;
+					ByteStream *otherRawStream = otherHandler->mRawStream;
 					otherHandler->mStream      = NULL;
 					otherHandler->mRawStream   = NULL;
 					
