@@ -395,8 +395,8 @@ bool PortMapping::UPnP::check(String &host)
 	message << "MX: 10\r\n";
 	message << "ST: ssdp:all\r\n";
 	
-	int attempts = 3;
-	double timeout = 0.250;
+	int attempts = 1;
+	double timeout = 2.;
 	for(int i=0; i<attempts; ++i)
 	{
 		ByteString dgram(message);
@@ -409,7 +409,6 @@ bool PortMapping::UPnP::check(String &host)
 			if(!sender.isLocal()) continue;
 			
 			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
-			time = std::max(time, 0.250);	// some devices are slow and send a bunch of datagrams
 			try {
 				if(parse(dgram))
 				{
