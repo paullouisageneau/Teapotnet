@@ -357,6 +357,8 @@ bool Splicer::query(int i, const Identifier &source)
 		Assert(i < mRequests.size());
 		Assert(i < mStripes.size());
 
+		const double timeout = milliseconds(Config::Get("request_timeout").toInt());
+
 		int nbStripes = mStripes.size();
 		unsigned block = mFirstBlock;
 		size_t offset = 0;
@@ -382,7 +384,7 @@ bool Splicer::query(int i, const Identifier &source)
 		request->setTarget(mCacheEntry->target().toString(),true);
 		request->setParameters(parameters);
 		request->setContentSink(stripe);
-		request->submit(source);
+		request->submit(source, timeout);
 	}
 	catch(const Exception &e)
 	{
@@ -429,11 +431,18 @@ void Splicer::run(void)
 				const Request::Response *response = mRequests[i]->response(0);
 				Assert(response != NULL);
 				
-				if(response->error()) onError.push_back(i);
+				if(response->error()) 
+				{
+					onError.push_back(i);
+				} 
 				else {
 					byBlocks.insert(std::pair<unsigned,int>(mStripes[i]->tellWriteBlock(), i));
 					if(response->finished()) --nbPending;
 				}
+			}
+			else {
+				if(!mRequests[i]->isPending())
+					onError.push_back(i);
 			}
 
 			currentBlock = std::min(currentBlock, mStripes[i]->tellWriteBlock());

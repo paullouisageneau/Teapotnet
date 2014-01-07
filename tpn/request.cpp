@@ -26,6 +26,7 @@
 #include "tpn/store.h"
 #include "tpn/stripedfile.h"
 #include "tpn/yamlserializer.h"
+#include "tpn/scheduler.h"
 
 namespace tpn
 {
@@ -43,13 +44,15 @@ const int Request::Response::ReadFailed = 6;
 Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
 		mResponseSender(NULL),
-		mContentSink(NULL)
+		mContentSink(NULL),
+		mCancelTask(this)
 {
 	setTarget(target, data);
 }
 
 Request::~Request(void)
 {
+	Scheduler::Global->remove(&mCancelTask);
 	cancel();
 
 	for(int i=0; i<mResponses.size(); ++i)
@@ -93,7 +96,7 @@ void Request::setParameter(const String &name, const String &value)
 	mParameters.insert(name, value);
 }
 
-void Request::submit(void)
+void Request::submit(double timeout)
 {
 	Synchronize(this);
 	if(!mId) 
@@ -101,9 +104,12 @@ void Request::submit(void)
 		Desynchronize(this);
 		Core::Instance->addRequest(this);	// mId set by Core
 	}
+
+	if(timeout > 0.) 
+		Scheduler::Global->schedule(&mCancelTask, timeout);  
 }
 
-void Request::submit(const Identifier &receiver)
+void Request::submit(const Identifier &receiver, double timeout)
 {
 	Synchronize(this);
 	if(!mId)
@@ -112,6 +118,9 @@ void Request::submit(const Identifier &receiver)
 		Desynchronize(this);
 		Core::Instance->addRequest(this);	// mId set by Core
 	}
+
+	if(timeout > 0.)
+                Scheduler::Global->schedule(&mCancelTask, timeout);
 }
 
 void Request::cancel(void)

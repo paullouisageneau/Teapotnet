@@ -30,6 +30,7 @@
 #include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/store.h"
+#include "tpn/task.h"
 
 namespace tpn
 {
@@ -51,8 +52,8 @@ public:
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
 	
-	void submit(void);
-	void submit(const Identifier &receiver);
+	void submit(double timeout = -1.);
+	void submit(const Identifier &receiver, double timeout = -1.);
 	void cancel(void);
 	bool execute(User *user, bool isFromSelf = false);
 	bool executeDummy(void);
@@ -126,6 +127,18 @@ private:
 	Set<Identifier> mPending;
 
 	Array<Response*> mResponses;
+
+	class CancelTask : public Task
+	{
+	public:
+		CancelTask(Request *request) { mRequest = request; }
+		void run(void) { mRequest->cancel(); }
+	
+	private:
+		Request *mRequest;
+	};
+
+	CancelTask mCancelTask;
 
 	friend class Core;
 };
