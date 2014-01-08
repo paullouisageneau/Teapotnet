@@ -498,10 +498,6 @@ void Splicer::run(void)
 			Map<unsigned, int>::reverse_iterator it = byBlocks.rbegin();
 			while(true)
 			{
-				Assert(it->second < mRequests.size());
-				source = mRequests[it->second]->receiver();
-				if(source != formerSource) break;
-				++it;
 				if(it == byBlocks.rend())
 				{
 					Set<Identifier> sources;
@@ -528,6 +524,11 @@ void Splicer::run(void)
 					source = *jt;
 					break;
 				}
+
+				Assert(it->second < mRequests.size());
+                                source = mRequests[it->second]->receiver();
+                                if(source != formerSource) break;
+                                ++it;
 			}
 			
 			LogDebug("Splicer::run", "Stripe " + String::number(i) + ": Sending new request");
