@@ -131,8 +131,8 @@ private:
 	class CancelTask : public Task
 	{
 	public:
-		CancelTask(Request *request) { mRequest = request; }
-		void run(void) { mRequest->cancel(); }
+		CancelTask(Request *request);
+		void run(void);
 	
 	private:
 		Request *mRequest;

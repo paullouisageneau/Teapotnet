@@ -545,4 +545,16 @@ bool Request::Response::finished(void) const
 	return status() < 0;
 }
 
+Request::CancelTask::CancelTask(Request *request) : 
+	mRequest(request)
+{
+	
+}
+
+void Request::CancelTask::run(void) 
+{
+	if(mRequest->responsesCount()) mRequest->notifyAll(); 
+	else mRequest->cancel();
+}
+
 }
