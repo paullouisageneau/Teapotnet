@@ -479,8 +479,7 @@ void Splicer::run(void)
 		{
 			int slowest = byBlocks.begin()->second;
 			int fastest = byBlocks.rbegin()->second;
-			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver() 
-				|| mRequests[fastest]->receiver().getName() != mRequests[slowest]->receiver().getName())
+			if(mRequests[fastest]->receiver() != mRequests[slowest]->receiver())
 			{
 				LogDebug("Splicer::run", "Switching, source "+String::number(slowest)+" is too slow...");
 				if((mStripes[fastest]->tellWriteBlock()-mFirstBlock) > 2*(mStripes[slowest]->tellWriteBlock()-mFirstBlock) + 2)
