@@ -54,16 +54,16 @@ uninstall:
 
 bundle: teapotnet
 ifeq ($(UNAME_S),Darwin)
-	mkdir -p TeapotNet.app/Contents
-	cp Info.plist TeapotNet.app/Contents/Info.plist
-	mkdir -p TeapotNet.app/Contents/MacOS
-	cp teapotnet TeapotNet.app/Contents/MacOS/TeapotNet
-	mkdir -p TeapotNet.app/Contents/Resources
-	cp teapotnet.icns TeapotNet.app/Contents/Resources/TeapotNetIcon.icns
-	cp -r static TeapotNet.app/Contents/Resources/static
+	mkdir -p Teapotnet.app/Contents
+	cp Info.plist Teapotnet.app/Contents/Info.plist
+	mkdir -p Teapotnet.app/Contents/MacOS
+	cp teapotnet Teapotnet.app/Contents/MacOS/Teapotnet
+	mkdir -p Teapotnet.app/Contents/Resources
+	cp teapotnet.icns Teapotnet.app/Contents/Resources/TeapotnetIcon.icns
+	cp -r static Teapotnet.app/Contents/Resources/static
 	cd ..
-	zip -r TeapotNet.zip TeapotNet.app
-	rm -r TeapotNet.app
+	zip -r Teapotnet.zip Teapotnet.app
+	rm -r Teapotnet.app
 else
 	@echo "This target is only available on Mac OS"
 endif

@@ -2,20 +2,20 @@
  *   Copyright (C) 2011-2012 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
- *   TeapotNet is free software: you can redistribute it and/or modify   *
+ *   Teapotnet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
  *   published by the Free Software Foundation, either version 3 of      *
  *   the License, or (at your option) any later version.                 *
  *                                                                       *
- *   TeapotNet is distributed in the hope that it will be useful, but    *
+ *   Teapotnet is distributed in the hope that it will be useful, but    *
  *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
  *   GNU Affero General Public License for more details.                 *
  *                                                                       *
  *   You should have received a copy of the GNU Affero General Public    *
- *   License along with TeapotNet.                                       *
+ *   License along with Teapotnet.                                       *
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 			GetModuleFileName(NULL, szPath, MAX_PATH);
 
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS); 
-			SC_HANDLE hService = CreateService(hSCManager, "TeapotNet", "TeapotNet", 
+			SC_HANDLE hService = CreateService(hSCManager, "Teapotnet", "Teapotnet", 
 				SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, 
 				SERVICE_ERROR_NORMAL, szPath, NULL, NULL, NULL, NULL, NULL); 
 
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 			}
 			
 			SERVICE_DESCRIPTION sd;
-			sd.lpDescription = "TeapotNet service"; 
+			sd.lpDescription = "Teapotnet service"; 
 			ChangeServiceConfig2(hService, SERVICE_CONFIG_DESCRIPTION, &sd);
 			CloseServiceHandle(hService);
 			return 0;
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 		if(!strcmp(szAction, "uninstall"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL,NULL,SC_MANAGER_ALL_ACCESS); 
-			SC_HANDLE hService = OpenService(hSCManager,"TeapotNet",SERVICE_ALL_ACCESS); 
+			SC_HANDLE hService = OpenService(hSCManager,"Teapotnet",SERVICE_ALL_ACCESS); 
 			if(!hService) return 1;
 			DeleteService(hService); 
 			CloseServiceHandle(hService); 
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 		if(!strcmp(szAction, "start"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
-			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_START); 
+			SC_HANDLE hService = OpenService(hSCManager, "Teapotnet", SERVICE_START); 
 			if(!hService) return 1;
 			StartService(hService, 0, NULL);
 			CloseServiceHandle(hService); 
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		if(!strcmp(szAction, "stop"))
 		{
 			SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, GENERIC_EXECUTE) ; 
-			SC_HANDLE hService = OpenService(hSCManager, "TeapotNet", SERVICE_STOP);
+			SC_HANDLE hService = OpenService(hSCManager, "Teapotnet", SERVICE_STOP);
 			if(!hService) return 1;
 			SERVICE_STATUS_PROCESS ssp; 
 			ControlService(hService, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS) &ssp);
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	
-	SERVICE_TABLE_ENTRY table[] = {{"TeapotNet", ServiceMain}, {NULL, NULL}}; 
+	SERVICE_TABLE_ENTRY table[] = {{"Teapotnet", ServiceMain}, {NULL, NULL}}; 
         if(!StartServiceCtrlDispatcher(table))
 	{
 		DWORD error = GetLastError();
@@ -152,7 +152,7 @@ void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
         serviceStatus.dwCheckPoint = 0;
         serviceStatus.dwWaitHint = 0;
 
-	hServiceStatus = RegisterServiceCtrlHandler("TeapotNet", ServCtrlHandler);
+	hServiceStatus = RegisterServiceCtrlHandler("Teapotnet", ServCtrlHandler);
         SetServiceStatus(hServiceStatus, &serviceStatus);
         bServiceStarted = TRUE;
 	

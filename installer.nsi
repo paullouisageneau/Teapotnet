@@ -1,7 +1,7 @@
 
-!define APPNAME "TeapotNet"
+!define APPNAME "Teapotnet"
 !define AUTHOR "Paul-Louis Ageneau"
-!define DESCRIPTION "TeapotNet is an Easy but Advanced Privacy-Oriented Transmission Network"
+!define DESCRIPTION "Teapotnet is an Easy but Advanced Privacy-Oriented Transmission Network"
 
 !define HELPURL "http://teapotnet.org/help/" # "Support Information" link
 !define ABOUTURL "http://teapotnet.org/" # "Publisher" link
@@ -78,7 +78,7 @@ section "install"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "NoRepair" 1
 
 	# Registry information for startup
-	#WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
+	#WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "Teapotnet" "$\"$INSTDIR\teapotnet.exe$\" -nointerface"
 
 	# Install and start the service
 	setOutPath $INSTDIR
@@ -102,7 +102,7 @@ functionEnd
 section "uninstall"
 
 	# Remove startup information from the registry  
-        #DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "TeapotNet"
+        #DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "Teapotnet"
 
 	# Stop and uninstall the service
 	ExecWait '"$INSTDIR\winservice.exe" stop'

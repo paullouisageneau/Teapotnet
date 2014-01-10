@@ -2,20 +2,20 @@
  *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
- *   TeapotNet is free software: you can redistribute it and/or modify   *
+ *   Teapotnet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
  *   published by the Free Software Foundation, either version 3 of      *
  *   the License, or (at your option) any later version.                 *
  *                                                                       *
- *   TeapotNet is distributed in the hope that it will be useful, but    *
+ *   Teapotnet is distributed in the hope that it will be useful, but    *
  *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
  *   GNU Affero General Public License for more details.                 *
  *                                                                       *
  *   You should have received a copy of the GNU Affero General Public    *
- *   License along with TeapotNet.                                       *
+ *   License along with Teapotnet.                                       *
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
@@ -375,7 +375,7 @@ int main(int argc, char** argv)
 				
 				// Set directories
 				Config::Put("static_dir", resourcesPath + "/static");
-				workingDirectory = Directory::GetHomeDirectory() + "/TeapotNet";
+				workingDirectory = Directory::GetHomeDirectory() + "/Teapotnet";
 				ForceLogToFile = true;
 				
 				if(!isBoot)	// If it's not the service process
@@ -386,7 +386,7 @@ String plist = "\
 <plist version=\"1.0\">\n\
 <dict>\n\
 	<key>Label</key>\n\
-	<string>org.teapotnet.TeapotNet</string>\n\
+	<string>org.teapotnet.Teapotnet</string>\n\
 	<key>ProgramArguments</key>\n\
 	<array>\n\
 		<string>"+executablePath+"</string>\n\
@@ -401,24 +401,24 @@ String plist = "\
 </dict>\n\
 </plist>\n";
 					
-					File plistFile("/tmp/TeapotNet.plist", File::Truncate);
+					File plistFile("/tmp/Teapotnet.plist", File::Truncate);
 					plistFile.write(plist);
 					plistFile.close();
 					
 					String command;
 					
 					// Clean
-					command = "launchctl remove org.teapotnet.TeapotNet";
+					command = "launchctl remove org.teapotnet.Teapotnet";
 					system(command.c_str());
 					
 					// Launch now
-					command = "launchctl load /tmp/TeapotNet.plist";
+					command = "launchctl load /tmp/Teapotnet.plist";
 					system(command.c_str());
 					
 					// Launch at startup
 					command = "mkdir -p ~/Library/LaunchAgents";
 					system(command.c_str());
-					command = "mv /tmp/TeapotNet.plist ~/Library/LaunchAgents";
+					command = "mv /tmp/Teapotnet.plist ~/Library/LaunchAgents";
 					system(command.c_str());
 					
 					// Let some time for the service process to launch
@@ -710,11 +710,11 @@ String plist = "\
 #ifdef WINDOWS
 		UINT uType = MB_OK|MB_ICONERROR|MB_SETFOREGROUND|MB_SYSTEMMODAL;
 		if(args.contains("daemon") || args.contains("boot")) uType|= MB_SERVICE_NOTIFICATION;
-		MessageBox(NULL, e.what(), "TeapotNet - Error", uType);
+		MessageBox(NULL, e.what(), "Teapotnet - Error", uType);
 #endif
 		
 #ifdef MACOSX
-		const char *header = "TeapotNet - Error";
+		const char *header = "Teapotnet - Error";
 		const char *message = e.what();
 		CFStringRef headerRef  = CFStringCreateWithCString(NULL, header, strlen(header));
 		CFStringRef messageRef = CFStringCreateWithCString(NULL, message, strlen(message));

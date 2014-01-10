@@ -1,5 +1,5 @@
 [Unit]
-Description=TeapotNet
+Description=Teapotnet
 After=local-fs.target network.target
 
 [Service]

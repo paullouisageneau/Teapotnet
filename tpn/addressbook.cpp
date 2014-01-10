@@ -2,20 +2,20 @@
  *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
- *   TeapotNet is free software: you can redistribute it and/or modify   *
+ *   Teapotnet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
  *   published by the Free Software Foundation, either version 3 of      *
  *   the License, or (at your option) any later version.                 *
  *                                                                       *
- *   TeapotNet is distributed in the hope that it will be useful, but    *
+ *   Teapotnet is distributed in the hope that it will be useful, but    *
  *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
  *   GNU Affero General Public License for more details.                 *
  *                                                                       *
  *   You should have received a copy of the GNU Affero General Public    *
- *   License along with TeapotNet.                                       *
+ *   License along with Teapotnet.                                       *
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
@@ -584,7 +584,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Add contact");
 			page.close("h2");
 			page.input("hidden", "token", token);
-			page.label("name","TeapotNet ID"); page.input("text","name"); page.br();
+			page.label("name","Teapotnet ID"); page.input("text","name"); page.br();
 			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
 			page.label("add"); page.button("add","Add contact");
 			page.close("div");
@@ -607,7 +607,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Accept request");
 			page.close("h2");
 			page.open("p");
-			page.text("If you've received from a friend a TeapotNet code, paste it here. Your friend will automatically be added to your contacts list.");
+			page.text("If you've received from a friend a Teapotnet code, paste it here. Your friend will automatically be added to your contacts list.");
 			page.close("p");
 			page.input("text","posturl");
 			page.button("postfriendrequest","Go !"); 
@@ -904,14 +904,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	
 	// Compute peering
 	salt.clear();
-	ssalt.output("TeapotNet");
+	ssalt.output("Teapotnet");
 	ssalt.output(mAddressBook->userName());
 	ssalt.output(mName);
 	Sha512::DerivateKey(halfSecret, salt, mPeering, Sha512::CryptRounds);
 	
 	// Compute remote peering
 	salt.clear();
-	ssalt.output("TeapotNet");
+	ssalt.output("Teapotnet");
 	ssalt.output(mName);
 	ssalt.output(mAddressBook->userName());
 	Sha512::DerivateKey(halfSecret, salt, mRemotePeering, Sha512::CryptRounds);
