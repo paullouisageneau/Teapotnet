@@ -141,6 +141,11 @@ function resizeContent() {
 	if(chatpanel.length && chatinput.length) {
 		chatinput.height(Math.max(chatpanel.height()-10, 20));
         }
+        
+        var chatmessages = $('#chatmessages');
+	if(chatmessages.length) {
+		chatmessages.scrollTop(chatmessages[0].scrollHeight);
+	}
 }
 
 function displayLoading()
@@ -258,8 +263,10 @@ var BaseDocumentTitle = document.title;
 var NbNewMessages = 0;
 
 function clearNewMessages() {
-	document.title = BaseDocumentTitle;
-	NbNewMessages = 0;
+	if(NbNewMessages) {
+		document.title = BaseDocumentTitle;
+		NbNewMessages = 0;
+	}
 }
 
 $(window).focus(clearNewMessages);
@@ -319,7 +326,7 @@ function displayContacts(url, period, object) {
 				
 					var count = parseInt(info.messages);
 					var str = '';
-					if(count != 0) str = ' ('+count+')';
+					if(count != 0) str = ' <a href=\"'+info.prefix+'/chat/\">('+count+')</a>';
 					transition($('#contact_'+uname+' .messagescount'), str);
 					totalmessages+= count;
 					if(count > 0 && info.newmessages)

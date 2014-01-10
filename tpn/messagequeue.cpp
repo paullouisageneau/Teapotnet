@@ -101,7 +101,7 @@ User *MessageQueue::user(void) const
 bool MessageQueue::hasNew(void) const
 {
 	Synchronize(this);
-	
+
 	bool old = mHasNew;
 	mHasNew = false;
 	return old;
