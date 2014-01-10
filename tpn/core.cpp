@@ -556,7 +556,7 @@ void Core::Handler::process(void)
 	  
 		// Set up obfuscation cipher
 		ByteString tmp;
-		Sha512::Hash(String("Teapotnet"), tmp);
+		Sha512::Hash(String("TeapotNet"), tmp); // Attention: upper case 'T' and 'N'
 		ByteString tmpkey, tmpiv;
 		tmp.readBinary(tmpkey, 32);	// 256 bits
 		tmp.readBinary(tmpiv, 16);	// 128 bits

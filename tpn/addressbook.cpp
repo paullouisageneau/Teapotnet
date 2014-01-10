@@ -904,14 +904,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	
 	// Compute peering
 	salt.clear();
-	ssalt.output("Teapotnet");
+	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
 	ssalt.output(mAddressBook->userName());
 	ssalt.output(mName);
 	Sha512::DerivateKey(halfSecret, salt, mPeering, Sha512::CryptRounds);
 	
 	// Compute remote peering
 	salt.clear();
-	ssalt.output("Teapotnet");
+	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
 	ssalt.output(mName);
 	ssalt.output(mAddressBook->userName());
 	Sha512::DerivateKey(halfSecret, salt, mRemotePeering, Sha512::CryptRounds);
