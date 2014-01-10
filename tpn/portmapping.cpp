@@ -254,7 +254,7 @@ bool PortMapping::NatPMP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
-			if(!sender.isLocal()) continue;
+			if(!sender.isPrivate()) continue;
 			
 			LogDebug("PortMapping::NatPMP", String("Got response from ") + sender.toString());
 			if(parse(dgram, 0))
@@ -306,7 +306,7 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
-			if(!sender.isLocal()) continue;
+			if(!sender.isPrivate()) continue;
 			
 			if(parse(dgram, op, internal))
 				return true;
@@ -406,7 +406,7 @@ bool PortMapping::UPnP::check(String &host)
 		double time = timeout;
 		while(mSock.read(dgram, sender, time))
 		{
-			if(!sender.isLocal()) continue;
+			if(!sender.isPrivate()) continue;
 			
 			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
 			try {
