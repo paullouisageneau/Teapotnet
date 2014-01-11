@@ -32,6 +32,7 @@
 #include "tpn/directory.h"
 #include "tpn/portmapping.h"
 #include "tpn/thread.h"
+#include "tpn/scheduler.h"
 
 #include <signal.h>
 
@@ -481,6 +482,9 @@ String plist = "\
 			}
 		}
 		
+		if(File::Exist("winupdater.new.exe"))
+			File::Rename("winupdater.new.exe", "winupdater.exe");
+		
 		if(!args.contains("noupdate"))
 		{
 			unsigned currentDay = Time::Now().toDays();
@@ -501,7 +505,7 @@ String plist = "\
 					
 					if(isBoot)
 					{
-						int attempts = 6;
+						int attempts = 4;
 						while(true)
 						{
 							try {
@@ -517,7 +521,7 @@ String plist = "\
 							}
 							catch(...)
 							{
-							  
+								// Timeouts are catched here
 							}
 							
 							break;
@@ -536,12 +540,8 @@ String plist = "\
 					
 					Assert(appVersion != 0);
 					if(lastVersion > appVersion)
-					{
-						LogInfo("main", "Downloading update...");
-						if(int(ShellExecute(NULL, NULL, "winupdater.exe", commandLine.c_str(), NULL, SW_SHOW)) > 32)
+						if(Config::LaunchUpdater(&commandLine))
 							return 0;
-						else LogWarn("main", "Unable to run the updater, skipping program update.");
-					}
 				}
 				catch(const Exception &e)
 				{
@@ -684,15 +684,28 @@ String plist = "\
 			InterfacePort = ifport;
 			if(!isSilent && !isBoot)
 				openUserInterface();
-#endif
 
 			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");
 
-#if defined(MACOSX)
-			Config::CheckUpdate();		
+			class CheckUpdateTask : public Task
+			{
+			public:
+				void run(void)
+				{
+					Config::CheckUpdate();
+				}
+			};
+			
+			CheckUpdateTask checkUpdateTask;
+			Scheduler::Global->schedule(&checkUpdateTask, 300.);	// 5 min
+			Scheduler::Global->repeat(&checkUpdateTask, 86400.);	// 1 day
 #endif
 
 			Core::Instance->join();
+			
+#if defined(WINDOWS) || defined(MACOSX)
+			Scheduler::Global->remove(&checkUpdateTask);
+#endif		
 		}
 		catch(...)
 		{

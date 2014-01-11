@@ -433,23 +433,47 @@ void User::http(const String &prefix, Http::Request &request)
 		{
 			if(request.method == "POST")
 			{
-				if(!checkToken(request.post["token"], "shutdown"))
+				if(!checkToken(request.post["token"], "admin"))
 					throw 403;
 
 				String redirect;
-				if(!request.post.get("redirect", redirect))
-					redirect = prefix + "/";
-
+				request.post.get("redirect", redirect);
+				if(redirect.empty()) redirect = prefix + "/";
+				
+				String command = request.post["command"];
+				
 				bool shutdown = false;
 
-				String command = request.post["command"];
-				if(command == "shutdown")
+				if(command == "update")
+				{
+					if(!request.sock->getRemoteAddress().isLocal()) throw 403;
+					if(!Config::LaunchUpdater()) throw 500;
+					
+					Http::Response response(request, 200);
+					Html page(response.sock);
+					page.header(response.message, true);
+					page.open("div", "notification");
+					page.image("/loading.png", "Please wait");
+					page.br();
+					page.open("h1",".huge");
+					page.text("Updating and restarting...");
+					page.close("h1");
+					page.close("div");
+					page.javascript("setTimeout(function() {window.location.href = \""+redirect+"\";}, 20000);");
+					page.footer();
+					
+					response.sock->close();
+					
+					LogInfo("User::http", "Exiting");
+					exit(0);
+				}
+				else if(command == "shutdown")
 				{
 					if(!request.sock->getRemoteAddress().isLocal()) throw 403;
 					shutdown = true;
 				}
 				else throw 400;
-
+				
 				Http::Response response(request, 303);
 				response.headers["Location"] = redirect;
 				response.send();
@@ -474,12 +498,30 @@ void User::http(const String &prefix, Http::Request &request)
 			// TODO: This is awful
 			page.javascript("$('#page').css('max-width','100%');");
 			
-#ifdef MACOSX
+#if defined(WINDOWS)
                         if(request.sock->getRemoteAddress().isLocal() && Config::IsUpdateAvailable())
                         {
                                 page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
-				page.input("hidden", "token", generateToken("shutdown"));
+				page.input("hidden", "token", generateToken("admin"));
+                        	page.input("hidden", "command", "update");
+				page.text("New version available - ");
+                                page.link(SECUREDOWNLOADURL, "Install now", "shutdownAndUpdateLink");
+				page.closeForm();
+				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
+					event.preventDefault();\n\
+					document.shutdownAndUpdateForm.submit();\n\
+				});");
+                                page.close("div");
+                        }
+#endif
+		
+#if defined(MACOSX)
+                        if(request.sock->getRemoteAddress().isLocal() && Config::IsUpdateAvailable())
+                        {
+                                page.open("div", "updateavailable.banner");
+				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
+				page.input("hidden", "token", generateToken("admin"));
                         	page.input("hidden", "command", "shutdown");
                         	page.input("hidden", "redirect", SECUREDOWNLOADURL);
 				page.text("New version available - ");
@@ -492,7 +534,7 @@ void User::http(const String &prefix, Http::Request &request)
                                 page.close("div");
                         }
 #endif
-			
+		
 			page.open("div", "wrapper");
 			
 			page.open("div","leftcolumn");

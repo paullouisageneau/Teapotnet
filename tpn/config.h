@@ -44,7 +44,8 @@ public:
 
 	static bool IsUpdateAvailable(void);
 	static bool CheckUpdate(void);
-
+	static bool LaunchUpdater(String *commandLine = NULL);
+	
 	static void GetExternalAddresses(List<Address> &list);
 	static bool GetProxyForUrl(const String &url, Address &addr);
 private:

@@ -138,6 +138,12 @@ void Config::GetExternalAddresses(List<Address> &list)
 	}
 }
 
+bool Config::IsUpdateAvailable(void)
+{
+	return UpdateAvailableFlag;
+}
+
+
 bool Config::CheckUpdate(void)
 {
 	String release;
@@ -177,9 +183,19 @@ bool Config::CheckUpdate(void)
         return false;
 }
 
-bool Config::IsUpdateAvailable(void)
+bool Config::LaunchUpdater(String *commandLine)
 {
-	return UpdateAvailableFlag;
+#if defined(WINDOWS)
+	String parameters;
+	if(commandLine) parameters = *commandLine;
+	else parameters = "--nointerface";
+	LogInfo("Config::ExitAndUpdate", "Running WinUpdater...");
+	if(int(ShellExecute(NULL, NULL, "winupdater.exe", parameters.c_str(), NULL, SW_SHOW)) > 32)
+		return true;
+	LogWarn("Config::ExitAndUpdate", "Unable to run WinUpdater");
+#endif
+	
+	return false;
 }
 
 bool Config::GetProxyForUrl(const String &url, Address &addr)

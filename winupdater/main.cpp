@@ -108,8 +108,13 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 	WinHttpCloseHandle		= (WINHTTPCLOSEHANDLE)		GetProcAddress(hWinHttp, "WinHttpCloseHandle");
 #endif
 	
+	const char *newOptions = " --noupdate";
+	char *newCmdLine = (char*)malloc(strlen(lpCmdLine) + strlen(newOptions) + 1);
+	strcpy(newCmdLine, lpCmdLine);
+	strcat(newCmdLine, newOptions);
+	
 	int ret = DoUpdate();
-	ShellExecute(NULL, NULL, "teapotnet.exe", lpCmdLine, NULL, nCmdShow);
+	ShellExecute(NULL, NULL, "teapotnet.exe", newCmdLine, NULL, nCmdShow);
 
 #ifdef USE_WINHTTP
 	FreeLibrary(hWinHttp);
@@ -120,8 +125,11 @@ int CALLBACK WinMain(	HINSTANCE hInstance,
 
 void Error(const char *szMessage)
 {
-	//MessageBox(NULL, szMessage, "Error during Teapotnet update process", MB_OK|MB_ICONERROR|MB_SETFOREGROUND);
-	fprintf(stderr, "Error: %s\n", szMessage);
+	//fprintf(stderr, "Error: %s\n", szMessage);
+	
+	char szErrorMessage[BUFFERSIZE];
+	sprintf(szErrorMessage, "Teapotnet update failed: %s", szMessage);
+	MessageBox(NULL, szErrorMessage, "Warning", MB_OK|MB_ICONWARNING|MB_SETFOREGROUND);
 }
 
 int DoUpdate(void)
@@ -155,7 +163,7 @@ int DoUpdate(void)
 
 	if(!WinHttpSendRequest(hRequest, NULL, 0, NULL, 0, 0, 0))
 	{
-		if(GetLastError() == ERROR_WINHTTP_SECURE_FAILURE) Error("Invalid SSL certificate");
+		if(GetLastError() == ERROR_WINHTTP_SECURE_FAILURE) Error("Invalid SSL/TLS certificate");
 		else Error("Connection failed");
 		return 3;
 	}
@@ -255,7 +263,7 @@ int DoUpdate(void)
 				dwConnectFlags, dwConnectContext);
 	
 	PCSTR szVerb = "GET";
-	PCSTR szObjectName = "/download/?release=win32";
+	PCSTR szObjectName = "/download/?release=win32&update=1";
 	PCSTR szVersion = NULL;		// Use default.
 	PCSTR szReferrer = NULL;	// No referrer.
 	PCSTR *lpszAcceptTypes = NULL;	// We don't care
@@ -289,7 +297,7 @@ int DoUpdate(void)
 			if(dwRet == ERROR_SUCCESS) continue;
 		}
 		else {
-			Error("Invalid SSL certificate");
+			Error("Invalid SSL/TLS certificate");
 		}
 		
 		return 1;
@@ -297,7 +305,7 @@ int DoUpdate(void)
 
 	if(!HttpSendRequest(hRequest, NULL, 0, NULL, 0))
 	{
-		if(dwError == ERROR_INTERNET_INVALID_CA) Error("Invalid SSL certificate");
+		if(dwError == ERROR_INTERNET_INVALID_CA) Error("Invalid SSL/TLS certificate");
 		else Error("Connection failed");
 		return 3;
 	}
@@ -320,12 +328,12 @@ int DoUpdate(void)
 		DWORD dwRead = 0;
 		if(!InternetReadFile(hRequest, pBuffer, BUFFERSIZE, &dwRead))
 		{
-			Error("Error while downloading the update");
+			Error("Error while downloading the new files");
 			return 6;
 		}
 		
 		if (dwRead == 0)
-			break;	// End of File.
+			break;	// End of file
 
 		DWORD dwWritten = 0;
 		WriteFile(hTempFile, pBuffer, dwRead, &dwWritten, NULL);
@@ -339,6 +347,36 @@ int DoUpdate(void)
 	CloseHandle(hTempFile);
 #endif
 	
+	HANDLE hWritable = CreateFile("TEST", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+	if(hWritable == INVALID_HANDLE_VALUE)
+	{
+		Error("Unable to write to the directory");
+		DeleteFile(szTempPath);
+		return 7;
+	}
+	CloseHandle(hWritable);
+	DeleteFile("TEST");
+	
+	int attempts = 10;
+	while(--attempts)
+	{
+		HANDLE hWritable = CreateFile("teapotnet.exe", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+		if(hWritable != INVALID_HANDLE_VALUE)
+		{
+				CloseHandle(hWritable);
+				break;
+		}
+		
+		Sleep(1000);
+	}
+	
+	if(!attempts) 
+	{
+		Error("The program is in use");
+		DeleteFile(szTempPath);
+		return 8;
+	}
+	
 	// Unzip files
 	HZIP hZip = OpenZip(szTempFileName, 0);
 	ZIPENTRY ze; 
@@ -351,7 +389,8 @@ int DoUpdate(void)
 		const char *name = ze.name;
 		if(!strcmp(name,"teapotnet/")) continue;
 		if(!strncmp(name,"teapotnet/",10)) name+= 10; 
-
+		if(!strcmp(name, "winupdater.exe")) name = "winupdater.new.exe";
+		
 		UnzipItem(hZip, i, name);
 	}
 	CloseZip(hZip);
