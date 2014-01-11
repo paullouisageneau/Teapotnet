@@ -464,7 +464,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.footer();
 					response.sock->close();
 					
-					Sleep(1000);	// Some time for the browser to load resources
+					Thread::Sleep(1.);	// Some time for the browser to load resources
 					
 					LogInfo("User::http", "Exiting");
 					exit(0);
