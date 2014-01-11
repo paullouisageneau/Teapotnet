@@ -720,7 +720,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		double startupDelay = 5.;
+		double startupDelay = 5.;	// TODO; Change according to PortMapping
 		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
 		mScheduler.schedule(contact, std::max(Time::Now() + delay - Time::Start(), startupDelay));
 		mScheduler.repeat(contact, UpdateInterval);
@@ -1122,7 +1122,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 
-	const double timeout = 4.;      // TODO; Change according to PortMapping
+	const double timeout = 4.;	// TODO
         const bool forceNoTunnel = (!addr.isPublic() || addr.port() == 443);	
 	const Identifier peering(this->peering(), instance);
 	Core::LinkStatus status = Core::Disconnected;

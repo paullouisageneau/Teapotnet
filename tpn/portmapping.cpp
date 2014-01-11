@@ -401,7 +401,7 @@ bool PortMapping::UPnP::check(String &host)
 	message << "HOST: "<<addr<<"\r\n";
 	message << "MAN: ssdp:discover\r\n";
 	message << "MX: 10\r\n";
-	message << "ST: ssdp:all\r\n";
+	message << "ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n";
 	
 	int attempts = 1;
 	double timeout = 2.;
@@ -611,7 +611,7 @@ bool PortMapping::UPnP::parse(ByteString &dgram)
 	String result;
 	if(Http::Get(location, &result, 2, true) != 200) return false;
 
-	size_t pos = result.find("service:WANIPConnection");
+	size_t pos = result.find("urn:schemas-upnp-org:service:WANIPConnection");
 	if(pos == String::NotFound) return false;
 	
 	mControlUrl = extract(result, "controlURL", pos);
