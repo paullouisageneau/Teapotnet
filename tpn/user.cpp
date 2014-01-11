@@ -450,8 +450,9 @@ void User::http(const String &prefix, Http::Request &request)
 					if(!Config::LaunchUpdater()) throw 500;
 					
 					Http::Response response(request, 200);
+					response.send();
 					Html page(response.sock);
-					page.header(response.message, true);
+					page.header("Please wait", true);
 					page.open("div", "notification");
 					page.image("/loading.png", "Please wait");
 					page.br();
@@ -461,8 +462,9 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("div");
 					page.javascript("setTimeout(function() {window.location.href = \""+redirect+"\";}, 20000);");
 					page.footer();
-					
 					response.sock->close();
+					
+					Sleep(2000);	// Some time for the browser to load resources
 					
 					LogInfo("User::http", "Exiting");
 					exit(0);
@@ -477,11 +479,10 @@ void User::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 303);
 				response.headers["Location"] = redirect;
 				response.send();
+				response.sock->close();
 				
 				if(shutdown)
 				{
-					response.sock->close();
-					
 					LogInfo("User::http", "Shutdown");
 					exit(0);
 				}
@@ -506,7 +507,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.input("hidden", "token", generateToken("admin"));
                         	page.input("hidden", "command", "update");
 				page.text("New version available - ");
-                                page.link(SECUREDOWNLOADURL, "Install now", "shutdownAndUpdateLink");
+                                page.link("#", "Install now", "shutdownAndUpdateLink");
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\

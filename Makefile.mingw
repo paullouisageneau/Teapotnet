@@ -42,7 +42,7 @@ res.o: teapotnet.ico teapotnet.exe.manifest
 winservice.exe: winservice.c
 	$(CC) -o winservice.exe winservice.c
 
-winupdater.exe:
+winupdater.exe: winupdater/Makefile winupdater/main.cpp
 	cd winupdater && make all && cp winupdater.exe ..
 
 test: all

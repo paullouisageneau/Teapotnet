@@ -118,22 +118,18 @@ void Config::GetExternalAddresses(List<Address> &list)
 		++it)
 	{
 		const Address &addr = *it;
-		if(addr.addrFamily() == AF_INET)
+		
+		if(addr.addrFamily() == AF_INET && PortMapping::Instance->isAvailable())
 		{
-			String host = PortMapping::Instance->getExternalHost();
-			if(!host.empty()) 
-			{
-				uint16_t port;
-				PortMapping::Instance->get(PortMapping::TCP, addr.port(), port);
-				list.push_back(Address(host, port));
-			}
+			list.push_back(PortMapping::Instance->getExternalAddress(PortMapping::TCP, addr.port()));
 		}
-			
-		String host = addr.host();
-		if(host != "127.0.0.1" && host != "::1"
-			&& std::find(list.begin(), list.end(), addr) == list.end())
-		{
-			list.push_back(addr);
+		else {
+			String host = addr.host();
+			if(host != "127.0.0.1" && host != "::1"
+				&& std::find(list.begin(), list.end(), addr) == list.end())
+			{
+				list.push_back(addr);
+			}
 		}
 	}
 }
