@@ -507,7 +507,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.input("hidden", "token", generateToken("admin"));
                         	page.input("hidden", "command", "update");
 				page.text("New version available - ");
-                                page.link("#", "Install now", "shutdownAndUpdateLink");
+                                page.link("#", "Update now", "shutdownAndUpdateLink");
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\
