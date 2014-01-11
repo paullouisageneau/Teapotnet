@@ -762,10 +762,17 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		post["instance"] = Core::Instance->getName();
 		post["addresses"] = addresses;
 	
-		String externalPort = Config::Get("external_port");
-		if(!externalPort.empty() && externalPort != "auto") post["port"] = externalPort;
-                else post["port"] = Config::Get("port");
-	
+		const String externalPort = Config::Get("external_port");
+		if(!externalPort.empty() && externalPort != "auto") 
+		{
+			post["port"] = externalPort;
+		}
+                else if(!PortMapping::Instance->isAvailable()
+			|| !PortMapping::Instance->getExternalAddress(PortMapping::TCP, Config::Get("port").toInt()).isPublic())	// Cascading NATs
+		{
+			post["port"] = Config::Get("port");
+		}
+		
 		if(!Core::Instance->isPublicConnectable())
 		{
 			list.clear();

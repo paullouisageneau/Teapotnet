@@ -79,16 +79,24 @@ bool PortMapping::isEnabled(void) const
 	return mEnabled; 
 }
 
+bool PortMapping::isAvailable(void) const
+{
+	Synchronize(this);
+	return !mExternalHost.empty(); 
+}
+
 String PortMapping::getExternalHost(void) const
 {	
 	Synchronize(this);
 	return mExternalHost;
 }
 
-Address PortMapping::getExternalAddress(uint16_t port) const
+Address PortMapping::getExternalAddress(Protocol protocol, uint16_t internal) const
 {
 	Synchronize(this);
-	return Address(mExternalHost, port);  
+	uint16_t external = internal;
+	get(protocol, internal, external);
+	return Address(mExternalHost, external);  
 }
 
 void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)

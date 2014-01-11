@@ -44,15 +44,16 @@ public:
 	void enable(void);
 	void disable(void);
 	bool isEnabled(void) const;
+	bool isAvailable(void) const;
 	
-	String  getExternalHost(void) const;
-	Address getExternalAddress(uint16_t port) const;
-
 	enum Protocol
 	{
 		UDP,
 		TCP
 	};
+	
+	String  getExternalHost(void) const;
+	Address getExternalAddress(Protocol protocol, uint16_t internal) const;
 	
 	void add(Protocol protocol, uint16_t internal, uint16_t suggested);
 	void remove(Protocol protocol, uint16_t internal);
