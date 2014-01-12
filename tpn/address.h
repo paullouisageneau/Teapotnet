@@ -24,6 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/serializable.h"
+#include "tpn/list.h"
 
 namespace tpn
 {
@@ -31,6 +32,11 @@ namespace tpn
 class Address : public Serializable
 {
 public:
+	static bool Resolve(const String &host, const String &service, List<Address> &result);
+	static bool Resolve(const String &host, uint16_t port, List<Address> &result);
+	static bool Resolve(const String &str, List<Address> &result);
+	static bool Reverse(const Address &a, String &result);
+	
 	Address(void);
 	Address(const String &host, const String &service);
 	Address(const String &host, uint16_t port);

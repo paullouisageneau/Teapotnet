@@ -119,7 +119,7 @@ void Config::GetExternalAddresses(List<Address> &list)
 	{
 		const Address &addr = *it;
 		
-		if(addr.addrFamily() == AF_INET && PortMapping::Instance->isAvailable())
+		if(addr.isIpv4() && PortMapping::Instance->isAvailable())
 		{
 			list.push_back(PortMapping::Instance->getExternalAddress(PortMapping::TCP, addr.port()));
 		}

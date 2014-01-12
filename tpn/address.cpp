@@ -27,6 +27,92 @@
 namespace tpn
 {
 
+bool Address::Resolve(const String &host, const String &service, List<Address> &result)
+{
+	result.clear();
+	
+	addrinfo aiHints;
+	std::memset(&aiHints, 0, sizeof(aiHints));
+	aiHints.ai_family = AF_UNSPEC;
+	aiHints.ai_socktype = SOCK_STREAM;
+	aiHints.ai_protocol = 0;
+	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
+	else aiHints.ai_flags = AI_ADDRCONFIG;
+
+	addrinfo *aiList = NULL;
+	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
+	{
+		freeaddrinfo(aiList);
+		return false;
+	}
+
+	addrinfo *ai = aiList;
+	while(ai)
+	{
+		result.push_back(Address(aiList->ai_addr, aiList->ai_addrlen));
+		ai = ai->ai_next;
+	}
+	
+	freeaddrinfo(aiList);
+	return !result.empty();
+}
+
+bool Address::Resolve(const String &host, uint16_t port, List<Address> &result)
+{
+	String service;
+	service << port;
+	return Resolve(host, service, result);
+}
+
+bool Address::Resolve(const String &str, List<Address> &result)
+{
+	result.clear();
+	
+	String host, service;
+	
+	int separator = str.find_last_of(':');
+	if(separator != String::NotFound && !String(str,separator+1).contains(']'))
+	{
+		host = str.substr(0,separator);
+		service = str.substr(separator+1);
+	}
+	else {
+		host = str;
+		service = "80";
+	}
+
+	if(!host.empty() && host[0] == '[')
+		host = host.substr(1, host.find(']')-1);
+	
+	if(host.empty() || service.empty()) 
+		return false;
+		
+	return Resolve(host, service, result);
+}
+
+bool Address::Reverse(const Address &a, String &result)
+{
+	if(a.isNull()) return "";
+
+        char host[HOST_NAME_MAX];
+	char service[SERVICE_NAME_MAX];
+        if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+	{
+		result = a.toString();
+		return false;
+	}
+	
+	result = host;
+	if(a.addrFamily() == AF_INET6 && result.contains(':')) 
+	{
+		result.clear();
+		result << '[' << host << ']';
+	}
+
+	result << ':' << service;
+	return true;
+}
+	
 Address::Address(void)
 {
 	setNull();
@@ -364,22 +450,11 @@ bool Address::deserialize(Stream &s)
 
 	if(!host.empty() && host[0] == '[')
 		host = host.substr(1, host.find(']')-1);
-	if(host.empty() || service.empty()) throw InvalidData("Invalid network address: " + str);
+	
+	if(host.empty() || service.empty())
+		throw InvalidData("Invalid network address: " + str);
 
-	addrinfo aiHints;
-	std::memset(&aiHints, 0, sizeof(aiHints));
-	aiHints.ai_family = AF_UNSPEC;
-	aiHints.ai_socktype = SOCK_STREAM;
-	aiHints.ai_protocol = 0;
-	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
-	else aiHints.ai_flags = AI_ADDRCONFIG;
-
-	addrinfo *aiList = NULL;
-	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
-		throw NetException("Unable to resolve address: " + str);
-
-	set(aiList->ai_addr, aiList->ai_addrlen);
-	freeaddrinfo(aiList);
+	set(host, service, AF_UNSPEC);
 	return true;
 }
 

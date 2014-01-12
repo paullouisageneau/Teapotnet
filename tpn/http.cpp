@@ -732,26 +732,51 @@ int Http::Get(const String &url, Stream *output, int maxRedirections, bool nopro
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 
-	Address addr;
-	bool hasProxy = !noproxy && Config::GetProxyForUrl(url, addr);
-	if(hasProxy) request.url = url;		// Full URL for proxy
-	else addr.fromString(host);
-	
 	Socket sock;
 	sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
-	try {
-		sock.connect(addr, true);	// Connect without proxy
-		request.send(sock);
-	}
-	catch(const NetException &e)
+		
+	Address proxyAddr;
+	bool hasProxy = !noproxy && Config::GetProxyForUrl(url, proxyAddr);
+	if(hasProxy) 
 	{
-		if(hasProxy) LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
-		throw;
+		request.url = url;		// Full URL for proxy
+		
+		try {
+			sock.connect(proxyAddr, true);	// Connect without proxy
+			request.send(sock);
+		}
+		catch(const NetException &e)
+		{
+			LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
+			throw;
+		}
+	}
+	else {
+		List<Address> addrs;
+		if(!Address::Resolve(host, addrs))
+			throw NetException("Unable to resolve: " + host);
+	
+		for(List<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
+		{
+			try {
+				sock.connect(*it, true);	// Connect without proxy
+				break;
+			}
+			catch(const NetException &e)
+			{
+				// Connection failed for this address
+			}
+		}
+		
+		if(!sock.isConnected())
+			throw NetException("Connection to " + host + " failed");
+		
+		request.send(sock);
 	}
 
 	Response response;
         response.recv(sock);
-
+	
 	if(maxRedirections && response.code/100 == 3 && response.headers.contains("Location"))
 	{
 		sock.discard();
@@ -776,22 +801,47 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, int max
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
 	
-	Address addr;
-        bool hasProxy = !noproxy && Config::GetProxyForUrl(url, addr);
-        if(hasProxy) request.url = url;		// Full URL for proxy
-        else addr.fromString(host);
-
 	Socket sock;
-        sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
-	try {
-                sock.connect(addr, true);       // Connect without proxy
-                request.send(sock);
-        }
-        catch(const NetException &e)
-        {
-                if(hasProxy) LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
-                throw;
-        }
+	sock.setTimeout(milliseconds(Config::Get("http_timeout").toInt()));
+		
+	Address proxyAddr;
+	bool hasProxy = !noproxy && Config::GetProxyForUrl(url, proxyAddr);
+	if(hasProxy) 
+	{
+		request.url = url;		// Full URL for proxy
+		
+		try {
+			sock.connect(proxyAddr, true);	// Connect without proxy
+			request.send(sock);
+		}
+		catch(const NetException &e)
+		{
+			LogWarn("Http::Post", String("HTTP proxy error: ") + e.what());
+			throw;
+		}
+	}
+	else {
+		List<Address> addrs;
+		if(!Address::Resolve(host, addrs))
+			throw NetException("Unable to resolve: " + host);
+	
+		for(List<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
+		{
+			try {
+				sock.connect(*it, true);	// Connect without proxy
+				break;
+			}
+			catch(const NetException &e)
+			{
+				// Connection failed for this address
+			}
+		}
+		
+		if(!sock.isConnected())
+			throw NetException("Connection to " + host + " failed");
+		
+		request.send(sock);
+	}
 
 	Response response;
         response.recv(sock);
