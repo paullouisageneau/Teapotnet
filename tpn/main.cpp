@@ -371,13 +371,18 @@ int main(int argc, char** argv)
 				CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
 				if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
 					throw Exception("Unable to find application executable path");
-			
+				
 				String executablePath(path);
 				
 				// Set directories
 				Config::Put("static_dir", resourcesPath + "/static");
 				workingDirectory = Directory::GetHomeDirectory() + "/Teapotnet";
 				ForceLogToFile = true;
+				
+				// TODO: backward compatibility, should be removed
+				system("if [ -d ~/TeapotNet ]; then mv ~/TeapotNet ~/Teapotnet; fi");
+				system("if [ -f ~/Library/LaunchAgents/TeapotNet.plist ]; then rm ~/Library/LaunchAgents/TeapotNet.plist; fi");
+				//
 				
 				if(!isBoot)	// If it's not the service process
 				{
@@ -387,7 +392,7 @@ String plist = "\
 <plist version=\"1.0\">\n\
 <dict>\n\
 	<key>Label</key>\n\
-	<string>org.teapotnet.Teapotnet</string>\n\
+	<string>org.ageneau.teapotnet</string>\n\
 	<key>ProgramArguments</key>\n\
 	<array>\n\
 		<string>"+executablePath+"</string>\n\
@@ -406,21 +411,15 @@ String plist = "\
 					plistFile.write(plist);
 					plistFile.close();
 					
-					String command;
-					
 					// Clean
-					command = "launchctl remove org.teapotnet.Teapotnet";
-					system(command.c_str());
+					system("launchctl remove org.ageneau.teapotnet");
 					
 					// Launch now
-					command = "launchctl load /tmp/Teapotnet.plist";
-					system(command.c_str());
+					system("launchctl load /tmp/Teapotnet.plist");
 					
 					// Launch at startup
-					command = "mkdir -p ~/Library/LaunchAgents";
-					system(command.c_str());
-					command = "mv /tmp/Teapotnet.plist ~/Library/LaunchAgents";
-					system(command.c_str());
+					system("mkdir -p ~/Library/LaunchAgents");
+					system("mv /tmp/Teapotnet.plist ~/Library/LaunchAgents");
 					
 					// Let some time for the service process to launch
 					Thread::Sleep(1.);
