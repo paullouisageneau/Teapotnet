@@ -403,8 +403,8 @@ bool PortMapping::UPnP::check(String &host)
 	message << "MX: 10\r\n";
 	message << "ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n";
 	
-	int attempts = 1;
-	double timeout = 2.;
+	int attempts = 3;
+	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
 		ByteString dgram(message);

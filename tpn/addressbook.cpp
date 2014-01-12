@@ -38,6 +38,7 @@
 namespace tpn
 {
 
+const double AddressBook::StartupDelay = 4.;	// depends on PortMapping
 const double AddressBook::UpdateInterval = 300.;
 const double AddressBook::UpdateStep = 0.20;
 const int AddressBook::MaxChecksumDistance = 1000;
@@ -376,7 +377,9 @@ void AddressBook::update(void)
 	for(int i=0; i<keys.size(); ++i)
         {
                 Contact *contact = getContact(keys[i]);
-		if(contact) mScheduler.schedule(contact, UpdateStep*i + UpdateStep*uniform(0., UpdateStep));
+		
+		double delay = UpdateStep*i + uniform(0., UpdateStep);
+		if(contact) mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
 	}
 }
 
@@ -720,9 +723,8 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		double startupDelay = 5.;	// TODO; Change according to PortMapping
 		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
-		mScheduler.schedule(contact, std::max(Time::Now() + delay - Time::Start(), startupDelay));
+		mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }

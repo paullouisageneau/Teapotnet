@@ -164,6 +164,7 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
+	static const double StartupDelay;	// time before starting connections (useful for UPnP)
 	static const double UpdateInterval;	// for contacts connection attemps
 	static const double UpdateStep;		// between contacts
 	static const int MaxChecksumDistance;	// for message synchronization
