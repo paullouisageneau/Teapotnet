@@ -72,7 +72,7 @@ $('#fbimg').click(function() {
 
 function isValidMail(object) {
 	// TODO : Corrected to integrate tags in email, maybe further corrections to make
-	var str = getInputText(object); 
+	var str = getInputText(object);
 	var mailRegex = new RegExp("^[a-z0-9]+([_|\\.|-|\+]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$", "i"); 
 	return mailRegex.test(str); 
 }
