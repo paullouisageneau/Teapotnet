@@ -34,7 +34,7 @@ bool Address::Resolve(const String &host, const String &service, List<Address> &
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
-	aiHints.ai_socktype = SOCK_STREAM;
+	aiHints.ai_socktype = 0;
 	aiHints.ai_protocol = 0;
 	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
 	else aiHints.ai_flags = AI_ADDRCONFIG;
@@ -143,12 +143,12 @@ Address::~Address(void)
 
 }
 
-void Address::set(const String &host, const String &service, int family)
+void Address::set(const String &host, const String &service, int family, int socktype)
 {
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = family;
-	aiHints.ai_socktype = SOCK_STREAM;
+	aiHints.ai_socktype = socktype;
 	aiHints.ai_protocol = 0;
 	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
 	else aiHints.ai_flags = AI_ADDRCONFIG;
@@ -166,7 +166,7 @@ void Address::set(const String &host, const String &service, int family)
 	freeaddrinfo(aiList);
 }
 
-void Address::set(const String &host, uint16_t port, int family)
+void Address::set(const String &host, uint16_t port, int family, int socktype)
 {
 	String service;
 	service << port;

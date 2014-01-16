@@ -235,7 +235,7 @@ void PortMapping::run(void)
 PortMapping::NatPMP::NatPMP(void)
 {
 	mSock.bind(5350, true);
-	mGatewayAddr.set("255.255.255.255", 5351, AF_INET);	// TODO
+	mGatewayAddr.set("255.255.255.255", 5351, AF_INET, SOCK_DGRAM);	// TODO
 }
 
 PortMapping::NatPMP::~NatPMP(void)
@@ -394,7 +394,7 @@ bool PortMapping::UPnP::check(String &host)
 	LogDebug("PortMapping::UPnP", "Trying UPnP...");
 	
 	Address addr;
-	addr.set("239.255.255.250", 1900, AF_INET);
+	addr.set("239.255.255.250", 1900, AF_INET, SOCK_DGRAM);
 	
 	String message;
 	message << "M-SEARCH * HTTP/1.1\r\n";

@@ -44,8 +44,8 @@ public:
 	Address(const sockaddr *addr, socklen_t addrlen);
 	~Address(void);
 
-	void set(const String &host, const String &service, int family = AF_UNSPEC);
-	void set(const String &host, uint16_t port, int family = AF_UNSPEC);
+	void set(const String &host, const String &service, int family = AF_UNSPEC, int socktype = 0);
+	void set(const String &host, uint16_t port, int family = AF_UNSPEC, int socktype = 0);
 	void set(const String &str);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
 	void setNull(void);
