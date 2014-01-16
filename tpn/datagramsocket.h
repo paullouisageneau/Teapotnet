@@ -42,7 +42,7 @@ public:
 	Address getBindAddress(void) const;
 	void getLocalAddresses(List<Address> &list) const;
 	
-	void bind(int port, bool broascast = false);
+	void bind(int port, bool broascast = false, int family = AF_UNSPEC);
 	void bind(const Address &local, bool broadcast = false);
 	void close(void);
 	

@@ -150,7 +150,7 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 #endif
 }
 
-void DatagramSocket::bind(int port, bool broadcast)
+void DatagramSocket::bind(int port, bool broadcast, int family)
 {
 	close();
 	
@@ -160,7 +160,7 @@ void DatagramSocket::bind(int port, bool broadcast)
 	addrinfo *aiList = NULL;
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
-	aiHints.ai_family = AF_UNSPEC;
+	aiHints.ai_family = family;
 	aiHints.ai_socktype = SOCK_DGRAM;
 	aiHints.ai_protocol = 0;
 	aiHints.ai_flags = AI_PASSIVE;

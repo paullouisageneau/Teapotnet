@@ -234,7 +234,7 @@ void PortMapping::run(void)
 
 PortMapping::NatPMP::NatPMP(void)
 {
-	mSock.bind(5350, true);
+	mSock.bind(5350, true, AF_INET);
 	mGatewayAddr.set("255.255.255.255", 5351, AF_INET, SOCK_DGRAM);	// TODO
 }
 
@@ -381,7 +381,7 @@ bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqIn
 
 PortMapping::UPnP::UPnP(void)
 {
-	mSock.bind(1900, true);
+	mSock.bind(1900, true, AF_INET);
 }
 
 PortMapping::UPnP::~UPnP(void)
