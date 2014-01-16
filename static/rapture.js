@@ -70,11 +70,11 @@ $('#fbimg').click(function() {
 	alert('Coming soon !');
 }); 
 
-function isValidMail(object) { 
-	/*var str = getInputText(object); 
+function isValidMail(object) {
+	// TODO : is not correct, rejects mails with a '+' in it
+	var str = getInputText(object); 
 	var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); 
-	return mailRegex.test(str);*/
-	return true;
+	return mailRegex.test(str); 
 }
 
 function isValidSecret(object) { 
