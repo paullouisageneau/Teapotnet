@@ -71,9 +71,10 @@ $('#fbimg').click(function() {
 }); 
 
 function isValidMail(object) { 
-	var str = getInputText(object); 
+	/*var str = getInputText(object); 
 	var mailRegex = new RegExp('^[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*@[a-z0-9]+([_|\\.|-]{1}[a-z0-9]+)*[\\.]{1}[a-z]{2,6}$', 'i'); 
-	return mailRegex.test(str); 
+	return mailRegex.test(str);*/
+	return true;
 }
 
 function isValidSecret(object) { 
