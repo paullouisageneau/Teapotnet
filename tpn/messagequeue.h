@@ -73,7 +73,8 @@ public:
 		
 		int count(void) const;
 		int unreadCount(void) const;
-
+		bool contains(const String &stamp) const;
+		
 		bool getOffset(int offset, Message &result) const;
 		bool getRange(int offset, int count, Array<Message> &result) const;
 		
