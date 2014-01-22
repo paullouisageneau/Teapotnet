@@ -155,6 +155,17 @@ bool MessageQueue::add(Message &message)
 		notifyAll();
 		SyncYield(this);
 		
+		// Broadcast public messages when parent is broadcasted 
+		if(message.isPublic() && !message.parent().empty())
+		{
+			Message parent;
+			if(get(message.parent(), parent) && parent.contact().empty())
+			{
+				// TODO: we shouldn't resend it to the source
+				user()->addressBook()->send(message);
+			}
+		}
+			
 		String attachment = message.header("attachment");
 		if(!attachment.empty())
 		try {
@@ -569,8 +580,8 @@ int MessageQueue::Selection::count(void) const
 	int count = 0;
 	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter());
 	filterBind(statement);
-	if(!statement.step()) return 0;
-	statement.input(count);
+	if(statement.step())
+		statement.input(count);
 	statement.finalize();
 	return count;
 }
@@ -583,10 +594,20 @@ int MessageQueue::Selection::unreadCount(void) const
 	int count = 0;
         Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND message.isread=0 AND message.incoming=1");
 	filterBind(statement);
-	if(!statement.step()) return 0;
-        statement.input(count);
+	if(statement.step())
+		statement.input(count);
         statement.finalize();
         return count;
+}
+
+bool MessageQueue::Selection::contains(const String &stamp) const
+{
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE message.stamp=@stamp AND "+filter());
+	filterBind(statement);
+	statement.bind(statement.parameterIndex("stamp"), stamp);
+	bool found = statement.step();
+        statement.finalize();
+        return found;
 }
 
 bool MessageQueue::Selection::getOffset(int offset, Message &result) const
