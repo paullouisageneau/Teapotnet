@@ -378,8 +378,8 @@ void AddressBook::update(void)
         {
                 Contact *contact = getContact(keys[i]);
 		
-		double delay = UpdateStep*i + uniform(0., UpdateStep);
-		if(contact) mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*i + uniform(0., UpdateStep);
+		if(contact) mScheduler.schedule(contact, time);
 	}
 }
 
@@ -723,8 +723,8 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
-		mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*ordinal + uniform(0., UpdateStep);
+		mScheduler.schedule(contact, time);
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
