@@ -508,7 +508,7 @@ function insertToday($db, $identifier, $instance, $address, $enableLogs)
 function createTables($db)
 {
 	try {
-		$results1 = $db->query('CREATE TABLE IF NOT EXISTS storage(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(45), time DATETIME);');
+		$results1 = $db->query('CREATE TABLE IF NOT EXISTS storage(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
@@ -517,7 +517,7 @@ function createTables($db)
 	}	
 
 	try {
-		$results2 = $db->query('CREATE TABLE IF NOT EXISTS alternate(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(45), time DATETIME);');
+		$results2 = $db->query('CREATE TABLE IF NOT EXISTS alternate(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
@@ -526,7 +526,7 @@ function createTables($db)
 	}
 
 	try {
-		$results3 = $db->query('CREATE TABLE IF NOT EXISTS stats(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(45), time DATETIME);');
+		$results3 = $db->query('CREATE TABLE IF NOT EXISTS stats(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
