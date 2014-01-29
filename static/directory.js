@@ -24,12 +24,16 @@ function getResourceLink(resource) {
 	if(resource.digest) 
 		return '/' + resource.digest.escape();
 	
+	var url = window.location.href;
 	var basePath = getBasePath(1);
+	var fromSelf = (resource.contact && basePath == '/'+resource.contact+'/');
+	var browse = (url.substr(url.length-7) != '/files/' && url.substr(url.length-6) != '/files');
 	
-	var subPath;
-	if(resource.hops == 0) subPath = 'myself/files';
-	else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
-	else subPath = 'browse';
+	var subPath = 'browse';
+	if(!browse) {
+		if(resource.hops == 0 || fromSelf) subPath = 'myself/files';
+		else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
+	}
 	
 	return basePath + subPath
 		+ (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
