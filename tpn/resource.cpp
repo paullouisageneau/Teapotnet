@@ -108,11 +108,8 @@ void Resource::clear(void)
 	mPath.clear();
 	mPeering = Identifier::Null;
 	
-	if(mAccessor)
-	{
-		delete mAccessor;
-		mAccessor = NULL;
-	}
+	delete mAccessor;
+	mAccessor = NULL;
 }
 
 void Resource::fetch(bool forceLocal)
