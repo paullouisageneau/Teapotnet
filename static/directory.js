@@ -27,9 +27,10 @@ function getResourceLink(resource, privateMode) {
 	var url = window.location.href;
 	var basePath = getBasePath(1);
 	var fromSelf = (resource.contact && basePath == '/'+resource.contact+'/');
+	var browse = (url.substr(url.length-7) != '/files/' && url.substr(url.length-6) != '/files');
 	
 	var subPath = 'browse';
-	if(privateMode) {
+	if(!browse) {
 		if(resource.hops == 0 || fromSelf) subPath = 'myself/files';
 		else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
 	}
