@@ -90,7 +90,7 @@ void Splicer::Prefetch(const ByteString &target)
 				}
 				catch(const Exception &e)
 				{
-					if(splicer) delete splicer;
+					delete splicer;
 				}
 			}
 
