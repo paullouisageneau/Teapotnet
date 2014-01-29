@@ -190,11 +190,6 @@ int Resource::type(void) const
 	return mType;
 }
 
-Identifier Resource::peering(void) const
-{
-	return mPeering;
-}
-
 String Resource::url(void) const
 {
 	return mUrl;
@@ -210,6 +205,16 @@ String Resource::name(void) const
 bool Resource::isDirectory(void) const
 {
 	return (mType == 0);
+}
+
+Identifier Resource::peering(void) const
+{
+	return mPeering;
+}
+
+int Resource::hops(void) const
+{
+	return mHops;
 }
 
 Resource::Accessor *Resource::accessor(void) const
