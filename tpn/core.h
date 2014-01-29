@@ -87,8 +87,9 @@ public:
 	void removeRequest(unsigned id);
 
 private:
+	bool isRequestSeen(const Request *request);
 	void run(void);
-
+	
 	class Handler : public Task, public Synchronizable
 	{
 	public:
@@ -183,6 +184,7 @@ private:
 	Map<Identifier, Listener*> mListeners;
 	Map<Identifier, Handler*>  mRedirections;
 	Map<Identifier, Handler*> mHandlers;
+	Set<String>  mSeenRequests;
 	
 	unsigned mLastRequest;
 

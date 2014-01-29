@@ -27,6 +27,7 @@
 #include "tpn/stripedfile.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/scheduler.h"
+#include "tpn/config.h"
 
 namespace tpn
 {
@@ -37,12 +38,13 @@ const int Request::Response::Pending = 1;
 const int Request::Response::Failed = 2;
 const int Request::Response::NotFound = 3;
 const int Request::Response::Empty = 4;
-const int Request::Response::Interrupted = 5;
-const int Request::Response::ReadFailed = 6;
-
+const int Request::Response::AlreadyResponded = 5;
+const int Request::Response::Interrupted = 6;
+const int Request::Response::ReadFailed = 7;
 
 Request::Request(const String &target, bool data) :
 		mId(0),				// 0 = invalid id
+		mRemoteId(0),
 		mResponseSender(NULL),
 		mContentSink(NULL),
 		mCancelTask(this)
@@ -62,7 +64,7 @@ Request::~Request(void)
 unsigned Request::id(void) const
 {
 	Synchronize(this);
-	return mId;
+	return (mRemoteId ? mRemoteId : mId);
 }
 
 String Request::target(void) const
@@ -96,9 +98,16 @@ void Request::setParameter(const String &name, const String &value)
 	mParameters.insert(name, value);
 }
 
+void Request::setNonReceiver(const Identifier &nonreceiver)
+{
+	Synchronize(this);
+	mNonReceiver = nonreceiver;
+}
+
 void Request::submit(double timeout)
 {
 	Synchronize(this);
+	
 	if(!mId) 
 	{
 		Desynchronize(this);
@@ -131,6 +140,42 @@ void Request::cancel(void)
 		Desynchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
+}
+
+bool Request::forward(const Identifier &receiver, const Identifier &source)
+{
+	Synchronize(this);
+	
+	int hops = 1;
+	if(mParameters.contains("hops"))
+		hops = mParameters.get("hops").toInt();
+	
+	// Zeros means unlimited
+	if(hops == 1) return false;
+	
+	double timeout = milliseconds(Config::Get("request_timeout").toInt());
+	if(mParameters.contains("timeout"))
+		timeout = mParameters.get("timeout").toDouble();
+	timeout*= 0.66;	// TODO
+	
+	LogDebug("Request::forward", "Forwarding request " + String::number(mRemoteId));
+	
+	mParameters["access"] = "public";
+	mParameters["hops"] = String::number((hops == 0 ? 0 : hops-1));
+	mParameters["timeout"] = String::number(timeout);
+	setNonReceiver(source);	// TODO: and we shouldn't send to self
+	
+	try {
+		submit(receiver);
+		wait(timeout);
+	}
+	catch(const Exception &e) 
+	{
+		LogWarn("Request::forward", e.what());
+		return false;
+	}
+	
+	return true;
 }
 
 bool Request::execute(User *user, bool isFromSelf)
@@ -301,7 +346,7 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 			rparameters["processing"] = "none";
 			rparameters["formatting"] = "YAML";
 			
-			Response *response = new Response(Response::Success, rparameters, new ByteString);
+			Response *response = new Response(Response::Success, rparameters, new TempFile);
 			
 			Assert(store);
 			Assert(response->content());
@@ -421,7 +466,29 @@ int Request::addResponse(Response *response)
 {
 	Synchronize(this);
 	Assert(response != NULL);
-	//Assert(!mResponses.contains(response));
+	Assert(!mResponses.contains(response));
+	
+	int hops = 1;
+	if(response->mParameters.contains("hops"))
+		hops = response->mParameters["hops"].toInt();
+		
+	if(mId && mRemoteId)	// if forwarded
+	{
+		// Add only successful responses
+		if(response->error())
+			return -1;
+
+		// Remove existing negative responses
+		for(int i=0; i<mResponses.size();)
+		{
+			if(mResponses[i]->error()) mResponses.erase(i);
+			else ++i;
+		}
+		
+		hops = std::max(hops,1) + 1;
+	}
+	
+	response->mParameters["hops"] = String::number(hops);
 	
 	mResponses.push_back(response);
 	if(mResponseSender) mResponseSender->notify();
