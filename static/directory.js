@@ -21,11 +21,19 @@
 
 function getResourceLink(resource) {
 	
+	if(resource.digest) 
+		return '/' + resource.digest.escape();
+	
 	var basePath = getBasePath(1);
-	return (resource.digest ? '/' + resource.digest.escape() : 
-		basePath + (resource.contact && basePath != '/'+resource.contact+'/' ? 'contacts/' + resource.contact.escape() : 'myself') 
-		+ '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
-		+ (resource.type == "directory" ? '/' : ''));
+	
+	var subPath;
+	if(resource.hops == 0) subPath = 'myself/files';
+	else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
+	else subPath = 'browse';
+	
+	return basePath + subPath
+		+ (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
+		+ (resource.type == "directory" ? '/' : '');
 }
 
 function listDirectory(url, object, showButtons) {

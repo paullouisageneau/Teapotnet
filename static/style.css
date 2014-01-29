@@ -250,6 +250,13 @@ input[type="password"]
         background-color: #FFFFFF;
 }
 
+select
+{
+	display: inline-block;
+	margin: 0.2em;
+	padding: 0.2em;
+}
+
 textarea
 {
 	display: block;
@@ -996,6 +1003,11 @@ img.preview
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis; 
+}
+
+.files td.access
+{
+	width: 6em;
 }
 
 .files td.filename .type
