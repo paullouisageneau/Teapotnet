@@ -44,6 +44,8 @@ class Splicer;
 class Resource : public Serializable
 {
 public:
+	enum AccessLevel { Public, Private, Personal };
+
 	class Query : public Serializable
 	{
 	public:
@@ -57,7 +59,9 @@ public:
 		void setRange(int first, int last);
 		void setLimit(int count);
 		void setMatch(const String &match);
-		void setFromSelf(bool fromSelf = true);
+		
+		void setAccessLevel(AccessLevel level);
+		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
 		
 		bool submitLocal(Resource &result);
 		bool submitLocal(Set<Resource> &result);
@@ -76,7 +80,7 @@ public:
 		ByteString mDigest;
 		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
-		bool mFromSelf;
+		AccessLevel mAccessLevel;
 		
 		Store *mStore;
 
@@ -141,6 +145,7 @@ private:
 	int		mType;
 	
 	Identifier 	mPeering;
+	int 		mHops;
 	String 		mPath;		// if local
 	Set<Identifier>	mSources;
 	

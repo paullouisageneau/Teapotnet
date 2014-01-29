@@ -76,6 +76,7 @@ Resource::Resource(const ByteString &digest, Store *store) :
 	mTime(0),
 	mSize(0),
 	mType(1),
+	mHops(0),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
@@ -86,6 +87,7 @@ Resource::Resource(Store *store) :
 	mTime(0),
 	mSize(0),
 	mType(1),
+	mHops(0),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
@@ -276,6 +278,7 @@ void Resource::createQuery(Query &query) const
 void Resource::serialize(Serializer &s) const
 {
 	// TODO: WARNING: This will break if serialized to database (wrong type field)
+	// + hops field
 
 	String strType = (mType == 0 ? "directory" : "file");
 	String tmpName = name();
@@ -292,6 +295,7 @@ void Resource::serialize(Serializer &s) const
 	}
 	
 	ConstSerializableWrapper<int64_t> sizeWrapper(mSize);
+	ConstSerializableWrapper<int> hopsWrapper(mHops);
 	
 	// Note path is not serialized
 	Serializer::ConstObjectMapping mapping;
@@ -301,7 +305,8 @@ void Resource::serialize(Serializer &s) const
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;
 	mapping["size"] = &sizeWrapper;
-
+	mapping["hops"] = &hopsWrapper;
+	
 	if(!tmpContact.empty()) mapping["contact"] = &tmpContact;
 	
 	s.outputObject(mapping);
@@ -315,7 +320,8 @@ bool Resource::deserialize(Serializer &s)
 	String tmpName;
 	String tmpContact;
 	SerializableWrapper<int64_t> sizeWrapper(&mSize);
-
+	SerializableWrapper<int> hopsWrapper(&mHops);
+	
 	// Note path is not deserialized
 	Serializer::ObjectMapping mapping;
 	mapping["digest"] = &mDigest;
@@ -324,7 +330,8 @@ bool Resource::deserialize(Serializer &s)
 	mapping["time"] = &mTime;
 	mapping["type"] = &strType;
 	mapping["size"] = &sizeWrapper;
-
+	mapping["hops"] = &hopsWrapper;
+	
 	mapping["contact"] = &tmpContact;
 	
 	if(!s.inputObject(mapping)) return false;
@@ -389,7 +396,7 @@ Resource::Query::Query(Store *store, const String &url) :
 	mStore(store),
 	mMinAge(0), mMaxAge(0),
 	mOffset(0), mCount(-1),
-	mFromSelf(false)
+	mAccessLevel(Private)
 {
   	if(!mStore) mStore = Store::GlobalInstance;
 }
@@ -435,9 +442,15 @@ void Resource::Query::setMatch(const String &match)
 	mMatch = match;
 }
 
-void Resource::Query::setFromSelf(bool fromSelf)
+void Resource::Query::setAccessLevel(AccessLevel level)
 {
-	mFromSelf = fromSelf;
+	mAccessLevel = level;
+}
+
+void Resource::Query::setFromSelf(bool isFromSelf)
+{
+	if(isFromSelf) mAccessLevel = Personal;
+	else if(mAccessLevel == Personal) mAccessLevel = Private;
 }
 
 bool Resource::Query::submitLocal(Resource &result)
@@ -469,6 +482,12 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 
 	Request request;
 	createRequest(request);
+	
+	if(peering == Identifier::Null)
+	{
+		request.setParameter("hops", "0");				// Unlimited hops
+		request.setParameter("timeout", String::number(timeout));	// Hint for neighbors
+	}
 	
 	try {
 		request.submit(peering);
@@ -550,6 +569,7 @@ void Resource::Query::serialize(Serializer &s) const
 	ConstSerializableWrapper<int> maxAgeWrapper(mMaxAge);
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
 	ConstSerializableWrapper<int> countWrapper(mCount);
+	String strAccessLevel = (mAccessLevel == Private || mAccessLevel == Personal ? "private" : "public");
 	
 	Serializer::ConstObjectMapping mapping;
 	if(!mUrl.empty())	mapping["url"] = &mUrl;
@@ -559,19 +579,19 @@ void Resource::Query::serialize(Serializer &s) const
 	if(mMaxAge > 0)		mapping["maxage"] = &maxAgeWrapper;
 	if(mOffset > 0)		mapping["offset"] = &offsetWrapper;
 	if(mCount > 0)		mapping["count"] = &countWrapper;
+	mapping["access"] = &strAccessLevel;
 
 	s.outputObject(mapping);
 }
 
 bool Resource::Query::deserialize(Serializer &s)
 {
-	mFromSelf = false;
-	
 	SerializableWrapper<int> minAgeWrapper(&mMinAge);
 	SerializableWrapper<int> maxAgeWrapper(&mMaxAge);
 	SerializableWrapper<int> offsetWrapper(&mOffset);
 	SerializableWrapper<int> countWrapper(&mCount);
-
+	String strAccessLevel;
+	
 	Serializer::ObjectMapping mapping;
 	mapping["url"] = &mUrl;
 	mapping["match"] = &mMatch;
@@ -580,6 +600,10 @@ bool Resource::Query::deserialize(Serializer &s)
 	mapping["maxage"] = &maxAgeWrapper;
 	mapping["offset"] = &offsetWrapper;
 	mapping["count"] = &countWrapper;
+	mapping["access"] = &strAccessLevel;
+	
+	if(strAccessLevel == "private") mAccessLevel = Private;
+	else mAccessLevel = Public;
 	
 	return s.inputObject(mapping);
 }

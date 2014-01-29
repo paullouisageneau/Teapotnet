@@ -132,7 +132,7 @@ Store::Store(User *user) :
 	
 	// Special upload directory
 	if(mUser && !mDirectories.contains(UploadDirectoryName)) 
-		addDirectory(UploadDirectoryName, UploadDirectoryName);
+		addDirectory(UploadDirectoryName, UploadDirectoryName, Resource::Public);
 	
 	save();
 	
@@ -170,7 +170,7 @@ String Store::userName(void) const
 	else return "";
 }
 
-void Store::addDirectory(const String &name, String path)
+void Store::addDirectory(const String &name, String path, Resource::AccessLevel level)
 {
 	Synchronize(this);
   
@@ -197,6 +197,8 @@ void Store::addDirectory(const String &name, String path)
 		save();
 		start();
 	}
+
+	setDirectoryAccessLevel(name, level);
 }
 
 void Store::removeDirectory(const String &name)
@@ -206,6 +208,7 @@ void Store::removeDirectory(const String &name)
 	if(mDirectories.contains(name))
 	{
   		mDirectories.erase(name);
+		mDirectoriesAccessLevel.erase(name);
 		save();
 		start();
 	}
@@ -217,6 +220,18 @@ void Store::getDirectories(Array<String> &array) const
 	mDirectories.getKeys(array);
 	array.remove(CacheDirectoryName);
 	array.remove(UploadDirectoryName);
+}
+
+void Store::setDirectoryAccessLevel(const String &name, Resource::AccessLevel level)
+{
+	mDirectoriesAccessLevel[name] = level;
+}
+
+Resource::AccessLevel Store::directoryAccessLevel(const String &name) const
+{
+	Resource::AccessLevel level;
+	if(mDirectoriesAccessLevel.get(name, level)) return level;
+	else return Resource::Public;
 }
 
 bool Store::moveFileToCache(String &fileName, String name)
@@ -236,12 +251,12 @@ bool Store::moveFileToCache(String &fileName, String name)
 	if(!mDirectories.contains(CacheDirectoryName))
 	{
 		// Create cache directory
-        	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName);
+        	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Public);
         	else {
 			String cacheDir = Config::Get("cache_dir");
 			if(!Directory::Exist(cacheDir))
 				Directory::Create(cacheDir);
-			addDirectory(CacheDirectoryName, cacheDir);
+			addDirectory(CacheDirectoryName, cacheDir, Resource::Public);
 		}
 	}
 
@@ -327,9 +342,13 @@ bool Store::query(const Resource::Query &query, Resource &resource)
 	{
 		while(statement.step())
 		{
-			resource.clear();
-			statement.retrieve(resource); 
+			Resource tmp;
+			statement.retrieve(tmp);
+			if(urlAccessLevel(tmp.mUrl) > query.mAccessLevel) continue; 
+			
+			resource = tmp;
 			resource.mPath = urlToPath(resource.mUrl); 
+			resource.mHops = 0;
 			resource.mStore = this;
 			statement.finalize();
 			return true;
@@ -355,8 +374,10 @@ bool Store::query(const Resource::Query &query, Set<Resource> &resources)
 		{
 			Resource resource;
 			statement.retrieve(resource);
+			if(urlAccessLevel(resource.mUrl) > query.mAccessLevel) continue; 
 			if(query.mUrl == "/" && isHiddenUrl(resource.mUrl)) continue; 
 			resource.mPath = urlToPath(resource.mUrl);
+			resource.mHops = 0;
 			resource.mStore = this;
 			resources.insert(resource);
 		}
@@ -373,9 +394,14 @@ void Store::http(const String &prefix, Http::Request &request)
 	const String &url = request.url;
 	if(mUser) mUser->setOnline();
 
-	Synchronize(this);
-	
+ 	StringMap accessSelectMap;
+	accessSelectMap["public"] = "Everyone";
+	accessSelectMap["private"] = "Only contacts";
+	accessSelectMap["personal"] = "Only me";
+
 	try {
+		Synchronize(this);	// TODO: There shouldn't be a global Synchronize
+
 		if(prefix.afterLast('/') == "explore")
 		{
 			if(url != "/") throw 404;
@@ -452,14 +478,21 @@ void Store::http(const String &prefix, Http::Request &request)
 						throw 403;
 					
 					request.post.get("name", name);
-					
+				
+					String access;
+					request.post.get("access", access);
+                                        Resource::AccessLevel accessLevel;
+                                        if(access == "personal") accessLevel = Resource::Personal;
+                                        else if(access == "private") accessLevel = Resource::Private;
+                                        else accessLevel = Resource::Public;
+	
 					try {
 						if(name.empty()
 							|| name.contains('/') || name.contains('\\') 
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
 
-						addDirectory(name, path);
+						addDirectory(name, path, accessLevel);
 					}
 					catch(const Exception &e)
 					{
@@ -489,6 +522,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.openFieldset("Add directory");
 				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
+				page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
 				page.label("add"); page.button("add","Add directory");
 				page.closeFieldset();
 				page.closeForm();
@@ -617,6 +651,13 @@ void Store::http(const String &prefix, Http::Request &request)
 			  	else if(request.post.contains("name"))
 				{
 					String name = request.post["name"];
+					String access = request.post["access"];
+
+					Resource::AccessLevel accessLevel;
+					if(access == "personal") accessLevel = Resource::Personal;
+					else if(access == "private") accessLevel = Resource::Private;
+					else accessLevel = Resource::Public;
+
 					try {
 						if(name.empty()
 							|| name.contains('/') || name.contains('\\') 
@@ -628,7 +669,7 @@ void Store::http(const String &prefix, Http::Request &request)
 						// TODO: sanitize dirname
 						
 						Assert(!dirname.empty());
-					 	addDirectory(name, dirname);
+					 	addDirectory(name, dirname, accessLevel);
 					}
 					catch(const Exception &e)
 					{
@@ -710,9 +751,19 @@ void Store::http(const String &prefix, Http::Request &request)
 					page.open("td",".icon");
 					page.image("/dir.png");
 					page.close("td");
+					page.open("td",".access");
+					page.text("(");
+					if(isHiddenUrl(directories[i])) page.text("Invisible");
+					else {
+						Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
+						if(accessLevel == Resource::Personal) page.text("Personal");
+						else if(accessLevel == Resource::Private) page.text("Private");
+						else page.text("Public");
+					}
+					page.text(")");
+					page.close("td");
 					page.open("td",".filename");
 					page.link(directories[i], name);
-					if(isHiddenUrl(directories[i])) page.text(" (not visible)");
 					page.close("td");
 					
 					if(this != GlobalInstance)
@@ -763,6 +814,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("New directory");
 				page.label("name","Name"); page.input("text","name"); page.br();
+				page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
 				page.label("add"); page.button("add","Create directory");
 				page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory", ".button"); 
 				page.br();
@@ -1100,6 +1152,7 @@ bool Store::getResource(const ByteString &digest, Resource &resource)
 	resource.clear();
 	resource.mDigest = digest;
 	resource.mPath = path;
+	resource.mHops = 0;
 	resource.mUrl = path.afterLast(Directory::Separator);	// this way the name is available
 	resource.mSize = File::Size(path);
 	resource.mTime = File::Time(path);
@@ -1151,6 +1204,8 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	int count = query.mCount;
 	if(oneRowOnly) count = 1;
 	
+	bool isFromSelf = (query.mAccessLevel == Resource::Personal);
+	
 	// Limit for security purposes
 	if(!query.mMatch.empty() && (count <= 0 || count > 200)) count = 200;	// TODO: variable
 	
@@ -1161,7 +1216,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 		url.resize(url.size()-1);
 		
 		// Do not allow listing hidden directories for others
-		if(!query.mFromSelf && isHiddenUrl(url)) return false;
+		if(!isFromSelf && isHiddenUrl(url)) return false;
 		
 		if(url.empty()) parentId = 0;
 		else {
@@ -1190,7 +1245,7 @@ bool Store::prepareQuery(Database::Statement &statement, const Resource::Query &
 	if(parentId >= 0)				sql<<"AND parent_id = ? ";
 	else if(!url.empty())				sql<<"AND url = ? ";
 	if(!query.mDigest.empty())			sql<<"AND digest = ? ";
-	else if(url.empty() || !query.mFromSelf)	sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
+	else if(url.empty() || !isFromSelf)		sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
 	if(!query.mMatch.empty())			sql<<"AND names.name MATCH ? ";
 	
 	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
@@ -1381,6 +1436,12 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 	}
 }
 
+String Store::urlToDirectory(const String &url) const
+{
+	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
+	return String(url.substr(1)).cut('/');
+}
+
 String Store::urlToPath(const String &url) const
 {
 	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
@@ -1422,6 +1483,11 @@ bool Store::isHiddenUrl(const String &url) const
 	if(url[0] == '_') return true;
 	if(url.size() >= 2 && url[0] == '/' && url[1] == '_') return true;
 	return false;
+}
+
+Resource::AccessLevel Store::urlAccessLevel(const String &url) const
+{
+	return directoryAccessLevel(urlToDirectory(url));	
 }
 
 int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)

@@ -815,8 +815,68 @@ void User::http(const String &prefix, Http::Request &request)
 			return;
 		}
 		
-		if(url == "/search" || url == "/search/")
+		String directory = url;
+		directory.ignore();		// remove first '/'
+		url = "/" + directory.cut('/');
+		if(directory.empty()) throw 404;
+		
+		if(directory == "browse")
 		{
+			String target(url);
+			Assert(!target.empty());
+			
+			if(request.get.contains("json") || request.get.contains("playlist"))
+			{
+				// Query resources
+				Resource::Query query(store(), target);
+				query.setFromSelf(true);
+				
+				SerializableSet<Resource> resources;
+				bool success = query.submitRemote(resources, Identifier::Null);
+				success|= query.submitLocal(resources);
+				if(!success) throw 404;
+				
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+					JsonSerializer json(response.sock);
+					json.output(resources);
+				}
+				else {
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
+					response.send();
+					
+					String host;
+					request.headers.get("Host", host);
+					Resource::CreatePlaylist(resources, response.sock, host);
+				}
+				return;
+			}
+			
+			Http::Response response(request, 200);
+			response.send();
+			
+			Html page(response.sock);
+			if(target == "/") page.header("Browse files");
+			else page.header("Browse files: "+target.substr(1));
+			page.open("div","topmenu");
+			page.link(prefix+"/search/","Search files",".button");
+			page.link(prefix+request.url+"?playlist","Play all","playall.button");
+			page.close("div");
+
+			page.div("","list.box");
+			page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true);");
+			page.footer();
+			return;
+		}
+		else if(directory == "search")
+		{
+			if(url != "/") throw 404;
+			
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
@@ -881,24 +941,22 @@ void User::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "#list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+name()+"');");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true);");
 				page.footer();
 			}
 			return;
 		}
-		
-		if(url == "/myself" || url == "/myself/")
-		{
-			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = prefix + "/files/";
-			response.send();
-			return;
-		}
-		
-		if(url == "/avatar" || url == "/myself/avatar")
+		else if(directory == "avatar" || request.url == "/myself/avatar")
 		{
 			Http::Response response(request, 303);	// See other
 			response.headers["Location"] = profile()->avatarUrl(); 
+			response.send();
+			return;
+		}
+		else if(directory == "myself")
+		{
+			Http::Response response(request, 303);	// See other
+			response.headers["Location"] = prefix + "/files/";
 			response.send();
 			return;
 		}

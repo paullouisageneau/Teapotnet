@@ -25,6 +25,7 @@
 #include "tpn/aescipher.h"
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
+#include "tpn/scheduler.h"
 
 namespace tpn
 {
@@ -186,6 +187,40 @@ bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
 	return true;
 }
 
+bool Core::isRequestSeen(const Request *request)
+{
+	Synchronize(this);
+	
+	String uid;
+	request->mParameters.get("uid", uid);
+	if(!uid.empty())
+	{
+		if(mSeenRequests.contains(uid)) return true;
+		mSeenRequests.insert(uid);
+		
+		class RemoveSeenTask : public Task
+		{
+		public:
+			RemoveSeenTask(const String &uid) { this->uid = uid; }
+			
+			void run(void)
+			{
+				Synchronize(Core::Instance);
+				Core::Instance->mSeenRequests.erase(uid);
+				delete this;
+			}
+			
+		private:
+			String uid;
+		};
+		
+		Scheduler::Global->schedule(new RemoveSeenTask(uid), 60000);
+		return false;
+	}
+	
+	return false;
+}
+
 void Core::run(void)
 {
 	LogDebug("Core", "Starting...");
@@ -284,6 +319,9 @@ unsigned Core::addRequest(Request *request)
 		Synchronize(request);
 		if(!request->mId)
 			request->mId = ++mLastRequest;
+		
+		if(!request->mParameters.contains("uid"))
+			request->mParameters["uid"] = String::random(16);
 	}
 
 	Array<Identifier> identifiers;
@@ -306,6 +344,9 @@ unsigned Core::addRequest(Request *request)
 	if(identifiers.empty()) request->notifyAll();
 	else for(int i=0; i<identifiers.size(); ++i)
 	{
+		if(identifiers[i] == request->mNonReceiver)
+			continue;
+		
 		Handler *handler;
 		if(mHandlers.get(identifiers[i], handler))
 		{
@@ -953,7 +994,6 @@ void Core::Handler::process(void)
 					}
 
 					response->mPeering = peering;
-					response->mTransfertStarted = true;
 					request->addResponse(response);
 					if(response->status() != Request::Response::Pending) 
 						request->removePending(peering);	// this triggers the notification
@@ -979,7 +1019,6 @@ void Core::Handler::process(void)
 					else {
 						LogDebug("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
-						response->mTransfertFinished = true;
 						response->mStatus = Request::Response::Finished;
 						mResponses.erase(channel);
 					}
@@ -1047,65 +1086,82 @@ void Core::Handler::process(void)
 
 				Request *request = new Request(target, (command == "G"));
 				request->setParameters(parameters);
-				request->mId = id;
+				request->mRemoteId = id;
 				request->mRemoteAddr = mRemoteAddr;
+				
+				if(mCore->isRequestSeen(request))
+				{
+					request->addResponse(new Request::Response(Request::Response::AlreadyResponded));
+		
+					Synchronize(mSender);	
+					mSender->mRequestsToRespond.push_back(request);
+					request->mResponseSender = mSender;
+					mSender->notify();
+					continue;
+				}
 				
 				Listener *listener = NULL;
 				if(!SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 				{
 					LogDebug("Core::Handler", "No listener for request " + String::number(id));
 				}
-				else {
-					class RequestTask : public Task
+				
+				class RequestTask : public Task
+				{
+				public:
+					RequestTask(	const Identifier &peering,
+							Listener *listener,
+							Request *request, 
+							Sender *sender)
 					{
-					public:
-						RequestTask(	const Identifier &peering,
-								Listener *listener,
-								Request *request, 
-								Sender *sender)
+						this->peering = peering;
+						this->listener = listener;
+						this->request = request;
+						this->sender = sender;
+					}
+					
+					void run(void)
+					{
+						try {
+							if(listener) listener->request(peering, request);
+						}
+						catch(const Exception &e)
 						{
-							this->peering = peering;
-							this->listener = listener;
-							this->request = request;
-							this->sender = sender;
+							LogWarn("RequestTask::run", String("Listener failed to process request "+String::number(request->mRemoteId)+": ") + e.what()); 
 						}
 						
-						void run(void)
+						try {
+							if(request->responsesCount() == 0) 
+								request->addResponse(new Request::Response(Request::Response::Failed));
+				
+							for(int i=0; i<request->responsesCount(); ++i)
+							{
+								Request::Response *response = request->response(i);
+								response->mTransfertStarted = false;
+								response->mTransfertFinished = false;
+							}
+							
+							Synchronize(sender);	
+							sender->mRequestsToRespond.push_back(request);
+							request->mResponseSender = sender;
+							sender->notify();
+						}
+						catch(const Exception &e)
 						{
-							try {
-								listener->request(peering, request);
-							}
-							catch(const Exception &e)
-							{
-								LogWarn("RequestTask::run", String("Listener failed to process request "+String::number(request->mId)+": ") + e.what()); 
-							}
-							
-							try {
-								if(request->responsesCount() == 0) 
-									request->addResponse(new Request::Response(Request::Response::Failed));
-					
-								Synchronize(sender);	
-								sender->mRequestsToRespond.push_back(request);
-								request->mResponseSender = sender;
-								sender->notify();
-							}
-							catch(const Exception &e)
-							{
-								LogWarn("RequestTask::run", e.what()); 
-							}
-							
-							delete this;	// autodelete
+							LogWarn("RequestTask::run", e.what()); 
 						}
 						
-					private:
-						Identifier peering;
-						Listener *listener;
-						Request *request;
-						Sender  *sender;
-					};
+						delete this;	// autodelete
+					}
 					
-					mThreadPool.launch(new RequestTask(peering, listener, request, mSender));
-				}
+				private:
+					Identifier peering;
+					Listener *listener;
+					Request *request;
+					Sender  *sender;
+				};
+				
+				mThreadPool.launch(new RequestTask(peering, listener, request, mSender));
 			}
 			else if(command == "M")
 			{
@@ -1328,14 +1384,14 @@ void Core::Handler::Sender::run(void)
 							mTransferts.insert(channel,response);
 						}
 						
-						//LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
+						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
 							status = Request::Response::Pending;
 						
 						String args;
-						args << request->id() << " " << status << " " <<channel;
+						args << request->mRemoteId << " " << status << " " <<channel;
 						DesynchronizeStatement(this, Handler::sendCommand(mStream, "R", args, response->mParameters));
 					}
 				}
@@ -1456,7 +1512,6 @@ void Core::Handler::Sender::run(void)
 				}
 				
 				mRequestsToRespond.erase(i);
-				request->mId = 0;	// request MUST NOT be suppressed from the core like a sent request !
 				delete request; 
 			}
 		}
