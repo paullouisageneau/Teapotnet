@@ -116,10 +116,12 @@ public:
 	int64_t		size(void) const;
 	int		type(void) const;
 
-	Identifier	peering(void) const;	// null if local
 	String		url(void) const;
 	String		name(void) const;
 	bool		isDirectory(void) const;
+	
+	Identifier	peering(void) const;	// null if local
+	int		hops(void) const;
 	
 	Accessor *accessor(void) const;
 	void dissociateAccessor(void) const;
