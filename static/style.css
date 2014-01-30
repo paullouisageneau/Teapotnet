@@ -368,27 +368,36 @@ a.button:hover
 #leftcolumn #search
 {
 	width: 100%;
+	margin-bottom: 1em;
 }
 
 #leftcolumn #search form
 {
 	display: block;
-	width: 80%;
+	width: 90%;
+	max-width: 420px;
 	margin: 0;
 	padding: 0;
 	margin-left: auto;
 	margin-right: auto;
 }
 
+
+#leftcolumn #search .button
+{
+	display: inline-block;
+	width: 25%;
+	margin: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 #leftcolumn #search input[type="text"]
 {
-	display: block;
-	width: 100%;
-	max-width: 480px;
-	margin-top: 0;
-	margin-left: auto;
-	margin-right: auto;
-	margin-bottom: 0.5em;
+	display: inline-block;
+	width: 74%;
+	margin: 0;
+	margin-left: 1%;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
 }
