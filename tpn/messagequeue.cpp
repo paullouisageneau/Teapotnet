@@ -651,45 +651,38 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 
-	// Find the id of the last message without counting only messages without a parent
-	int64_t lastId = 0;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE "+filter()+" AND NULLIF(message.parent,'') IS NULL ORDER BY message.id DESC LIMIT @count");
+	if(count == 0) return false;
+
+	// Fetch the highest id
+        int64_t maxId = 0;
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("MAX(message.id) AS maxid")+" WHERE "+filter());
+        if(!statement.step())
+        {
+                statement.finalize();
+                return false;
+        }
+        statement.input(maxId);
+        statement.finalize();
+
+	// Find the time of the last message counting only messages without a parent
+	Time lastTime = Time(0);
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("time")+" WHERE "+filter()+" AND NULLIF(message.parent,'') IS NULL ORDER BY message.time DESC,message.id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
 	while(statement.step())
-		statement.input(lastId);
+		statement.input(lastTime);
 	statement.finalize();
-	
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@lastid OR parent.id>=@lastid ORDER BY message.time,message.id");
-	filterBind(statement);
-	statement.bind(statement.parameterIndex("lastid"), lastId);
-        statement.fetch(result);
-	statement.finalize();
-	
-	if(!result.empty())
-	{
-		if(mIncludePrivate) mMessageQueue->mHasNew = false;
-		return true;
-	}
-        return false;
-}
 
-bool MessageQueue::Selection::getLast(const Time &time, int max, Array<Message> &result) const
-{
-	Assert(mMessageQueue);
-	Synchronize(mMessageQueue);
-	result.clear();
-	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.time>=@time ORDER BY message.id DESC LIMIT @max");
+	// Fetch messages by time
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND (message.id==@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
 	filterBind(statement);
-	statement.bind(statement.parameterIndex("time"), time);
-	statement.bind(statement.parameterIndex("max"), max);
+	statement.bind(statement.parameterIndex("maxid"), maxId);
+	statement.bind(statement.parameterIndex("lasttime"), lastTime);
         statement.fetch(result);
 	statement.finalize();
-	
+
 	if(!result.empty())
 	{
-		result.reverse();
 		if(mIncludePrivate) mMessageQueue->mHasNew = false;
 		return true;
 	}
