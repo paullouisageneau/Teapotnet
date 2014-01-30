@@ -869,7 +869,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.div("","list.box");
-			page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true);");
+			page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,false);");
 			page.footer();
 			return;
 		}
@@ -941,7 +941,7 @@ void User::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "#list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true);");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,false);");
 				page.footer();
 			}
 			return;
