@@ -484,13 +484,14 @@ bool Resource::Query::submitLocal(Set<Resource> &result)
 bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-
+	const int hops = 3;
+	
 	Request request;
 	createRequest(request);
 	
 	if(peering == Identifier::Null)
 	{
-		request.setParameter("hops", "0");				// Unlimited hops
+		request.setParameter("hops", String::number(hops));
 		request.setParameter("timeout", String::number(timeout));	// Hint for neighbors
 	}
 	
