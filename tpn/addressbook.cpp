@@ -1927,7 +1927,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			int maxAge = 60*60*24*7;	// 7 days
 			int count = 20;
-			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false);");
+			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false,true);");
 			
 			page.footer();
 			return;
@@ -2094,7 +2094,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				});");
 			
 				page.div("","list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true);");
+				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,true);");
 				page.footer();
 			}
 			
@@ -2183,7 +2183,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true);");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,true);");
 			}
 			
 			page.footer();
