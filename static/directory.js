@@ -19,7 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function getResourceLink(resource) {
+function getResourceLink(resource, privateMode) {
 	
 	if(resource.digest) 
 		return '/' + resource.digest.escape();
@@ -27,10 +27,9 @@ function getResourceLink(resource) {
 	var url = window.location.href;
 	var basePath = getBasePath(1);
 	var fromSelf = (resource.contact && basePath == '/'+resource.contact+'/');
-	var browse = (url.substr(url.length-7) != '/files/' && url.substr(url.length-6) != '/files');
 	
 	var subPath = 'browse';
-	if(!browse) {
+	if(privateMode) {
 		if(resource.hops == 0 || fromSelf) subPath = 'myself/files';
 		else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
 	}
@@ -40,7 +39,7 @@ function getResourceLink(resource) {
 		+ (resource.type == "directory" ? '/' : '');
 }
 
-function listDirectory(url, object, showButtons) {
+function listDirectory(url, object, showButtons, privateMode) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
@@ -68,7 +67,7 @@ function listDirectory(url, object, showButtons) {
 				var resource = data[i];
 				if(!resource.url) continue;
 				
-				var link = getResourceLink(resource);
+				var link = getResourceLink(resource, privateMode);
 				var line = '<tr>';
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
