@@ -84,7 +84,8 @@ Time::Time(void) :
 
 Time::Time(time_t time, int usec) :
 	mTime(time),
-	mUsec(0)
+	mUsec(0),
+	mFormat(Timestamp)
 {
 	addMicroseconds(usec);
 }
