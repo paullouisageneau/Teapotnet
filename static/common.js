@@ -250,7 +250,6 @@ function setMessagesReceiver(url, object) {
 	$(window).blur(function() {
 		$(object).find('.message').addClass('oldmessage');
 	});
-	$(object).find('p').remove();
 	setMessagesReceiverRec(url, object, 0);
 }
 
@@ -371,6 +370,8 @@ function setMessagesReceiverRec(url, object, next) {
 				if(message.number >= next) next = message.number + 1;
 				if(message.parent && $('#message_'+message.parent).length == 0) continue;
 				
+				$(object).find('p').remove();
+	      
 				var id = "message_" + message.stamp;
 				$('#'+id).remove();
 				
