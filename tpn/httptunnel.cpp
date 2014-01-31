@@ -466,7 +466,7 @@ void HttpTunnel::Client::flush(void)
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("HttpTunnel::Client::flush", e.what());
+		//LogWarn("HttpTunnel::Client::flush", e.what());
 	}
 }
 
