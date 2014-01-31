@@ -1215,7 +1215,7 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 			// TODO: update time for currenly connected address
 			continue;
 		}
-
+		
 		Array<Address> addrs;
 		block.getKeys(addrs);
 		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
