@@ -112,25 +112,31 @@ void Config::GetExternalAddresses(List<Address> &list)
 
 	List<Address> tmp;
 	Core::Instance->getAddresses(tmp);
+	
+	uint16_t port = 0;
+	for(List<Address>::const_iterator it = tmp.begin();
+		it != tmp.end();
+		++it)
+	{
+		const Address &addr = *it;
+
+		if(addr.isIpv4() && addr.isPrivate())
+			port = addr.port();
 		
+		if(!addr.isLocal() && std::find(list.begin(), list.end(), addr) == list.end())
+			list.push_back(addr);
+	}
+	
+	if(port && PortMapping::Instance->isAvailable())
+		list.push_back(PortMapping::Instance->getExternalAddress(PortMapping::TCP, port));
+	
 	for(List<Address>::const_iterator it = tmp.begin();
 		it != tmp.end();
 		++it)
 	{
 		const Address &addr = *it;
 		
-		if(addr.isIpv4() && PortMapping::Instance->isAvailable())
-		{
-			list.push_back(PortMapping::Instance->getExternalAddress(PortMapping::TCP, addr.port()));
-		}
-		else {
-			String host = addr.host();
-			if(host != "127.0.0.1" && host != "::1"
-				&& std::find(list.begin(), list.end(), addr) == list.end())
-			{
-				list.push_back(addr);
-			}
-		}
+		
 	}
 }
 
