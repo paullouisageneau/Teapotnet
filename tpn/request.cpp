@@ -59,6 +59,9 @@ Request::~Request(void)
 	Scheduler::Global->remove(&mCancelTask);
 	cancel();
 
+	if(!hasContent())
+		delete mContentSink;
+	
 	for(int i=0; i<mResponses.size(); ++i)
 		delete mResponses[i];
 }
@@ -364,7 +367,7 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 			rparameters["processing"] = "none";
 			rparameters["formatting"] = "YAML";
 			
-			Response *response = new Response(Response::Success, rparameters, new TempFile);
+			Response *response = new Response(Response::Success, rparameters, new ByteString);
 			
 			Assert(store);
 			Assert(response->content());
@@ -499,7 +502,11 @@ int Request::addResponse(Response *response)
 		// Remove existing negative responses
 		for(int i=0; i<mResponses.size();)
 		{
-			if(mResponses[i]->error()) mResponses.erase(i);
+			if(mResponses[i]->error()) 
+			{
+				delete mResponses[i];
+				mResponses.erase(i);
+			}
 			else ++i;
 		}
 		

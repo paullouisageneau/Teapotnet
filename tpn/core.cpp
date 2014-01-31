@@ -564,6 +564,8 @@ void Core::Handler::removeRequest(unsigned id)
 		request->removePending(mPeering);
 		mRequests.erase(it);
 	}
+	
+	
 }
 
 bool Core::Handler::isIncoming(void) const
@@ -978,7 +980,7 @@ void Core::Handler::process(void)
 							if(!request->hasContent())
 								sink = request->mContentSink;
 						}
-						else sink = new TempFile;	// TODO: or ByteString ?
+						else sink = new TempFile;
 						
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
@@ -1131,20 +1133,27 @@ void Core::Handler::process(void)
 						}
 						
 						try {
-							if(request->responsesCount() == 0) 
-								request->addResponse(new Request::Response(Request::Response::Failed));
-				
-							for(int i=0; i<request->responsesCount(); ++i)
 							{
-								Request::Response *response = request->response(i);
-								response->mTransfertStarted = false;
-								response->mTransfertFinished = false;
+								Synchronize(request);
+								
+								if(request->responsesCount() == 0) 
+									request->addResponse(new Request::Response(Request::Response::Failed));
+					
+								for(int i=0; i<request->responsesCount(); ++i)
+								{
+									Request::Response *response = request->response(i);
+									response->mTransfertStarted = false;
+									response->mTransfertFinished = false;
+								}
 							}
 							
-							Synchronize(sender);	
-							sender->mRequestsToRespond.push_back(request);
-							request->mResponseSender = sender;
-							sender->notify();
+							{
+								Synchronize(sender);
+								
+								sender->mRequestsToRespond.push_back(request);
+								request->mResponseSender = sender;
+								sender->notify();
+							}
 						}
 						catch(const Exception &e)
 						{
