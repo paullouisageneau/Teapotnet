@@ -1511,8 +1511,8 @@ void Core::Handler::Sender::run(void)
 					if(!finished) continue;
 				}
 				
+				if(!request->mId) delete request;
 				mRequestsToRespond.erase(i);
-				delete request; 
 			}
 		}
 		
