@@ -358,7 +358,8 @@ bool Splicer::query(int i, const Identifier &source)
 		Assert(i < mStripes.size());
 
 		const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-
+		const int hops = 3;
+		
 		int nbStripes = mStripes.size();
 		unsigned block = mFirstBlock;
 		size_t offset = 0;
@@ -368,8 +369,10 @@ bool Splicer::query(int i, const Identifier &source)
 			block = std::max(block, mStripes[i]->tellWriteBlock());
 			mStripes[i]->flush();
 		}
-		
+	
 		StringMap parameters;
+		parameters["hops"] << hops;
+		parameters["timeout"] << timeout;
 		parameters["block-size"] << mCacheEntry->blockSize();
 		parameters["stripes-count"] << nbStripes;
 		parameters["stripe"] << i;

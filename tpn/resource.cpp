@@ -484,7 +484,7 @@ bool Resource::Query::submitLocal(Set<Resource> &result)
 bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-	const int hops = 3;
+	const int hops = 3;	// Must be less or equals to splicer requests
 	
 	Request request;
 	createRequest(request);
