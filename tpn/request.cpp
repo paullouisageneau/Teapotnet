@@ -43,10 +43,12 @@ const int Request::Response::Interrupted = 6;
 const int Request::Response::ReadFailed = 7;
 
 Request::Request(const String &target, bool data) :
+		mIsData(false),
+		mIsForwardable(true),		// forwardable by default
+		mContentSink(NULL),
+		mResponseSender(NULL),
 		mId(0),				// 0 = invalid id
 		mRemoteId(0),
-		mResponseSender(NULL),
-		mContentSink(NULL),
 		mCancelTask(this)
 {
 	setTarget(target, data);
@@ -104,6 +106,12 @@ void Request::setNonReceiver(const Identifier &nonreceiver)
 	mNonReceiver = nonreceiver;
 }
 
+void Request::setForwardable(bool forwardable)
+{
+	Synchronize(this);
+	mIsForwardable = forwardable;
+}
+
 void Request::submit(double timeout)
 {
 	Synchronize(this);
@@ -146,6 +154,8 @@ bool Request::forward(const Identifier &receiver, const Identifier &source)
 {
 	Synchronize(this);
 	
+	if(!mIsForwardable) return false;
+
 	int hops = 1;
 	if(mParameters.contains("hops"))
 		hops = mParameters.get("hops").toInt();
@@ -228,6 +238,8 @@ bool Request::execute(User *user, bool isFromSelf)
 				const String &instance = identifier.getName();
 				if(contact && !contact->isConnected(instance))
 				{
+					setForwardable(false);
+
 					List<String> list;
 					mParameters.get("adresses").explode(list, ',');
 					
@@ -266,6 +278,7 @@ bool Request::execute(User *user, bool isFromSelf)
 				Resource resource;
 				if(query.submitLocal(resource))
 				{
+					setForwardable(false);
 					addResponse(createResponse(resource, parameters, store));
 					return true;
 				}
@@ -284,13 +297,18 @@ bool Request::execute(User *user, bool isFromSelf)
 			{
 				addResponse(new Response(Response::Empty));
 			}
-			else for(Set<Resource>::iterator it = resources.begin();
-				it != resources.end();
-				++it)
-			{
-				addResponse(createResponse(*it, parameters, store));
+			else {
+				if(argument.empty() || argument[argument.size()-1] != '/')	// if not a directory listing
+					setForwardable(false);
+
+				for(Set<Resource>::iterator it = resources.begin();
+					it != resources.end();
+					++it)
+				{
+					addResponse(createResponse(*it, parameters, store));
+				}
 			}
-			
+		
 			return true;
 		}
 	}
