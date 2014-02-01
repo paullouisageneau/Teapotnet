@@ -181,6 +181,7 @@ bool Request::forward(const Identifier &receiver, const Identifier &source)
 	try {
 		submit(receiver);
 		wait(timeout);
+		cancel();
 	}
 	catch(const Exception &e) 
 	{
@@ -548,7 +549,7 @@ bool Request::hasContent(void) const
 	Synchronize(this);
   
 	for(int i=0; i<responsesCount(); ++i)
-		if(!response(i)->content())
+		if(response(i)->content())
 			return true;
 	
 	return false;

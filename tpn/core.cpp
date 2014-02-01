@@ -521,10 +521,10 @@ void Core::Handler::addRequest(Request *request)
 		Synchronize(this);
 		if(mStopping) return;
 		
-		//LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
+		//LogDebug("Core::Handler", "Adding request " + String::number(request->mId));
 		
 		request->addPending(mPeering);
-		mRequests.insert(request->id(), request);
+		mRequests.insert(request->mId, request);
 	}
 	
 	if(mSender)
@@ -532,7 +532,7 @@ void Core::Handler::addRequest(Request *request)
 		Synchronize(mSender);
 		
 		Sender::RequestInfo requestInfo;
-		requestInfo.id = request->id();
+		requestInfo.id = request->mId;
 		requestInfo.target = request->target();
 		requestInfo.parameters = request->mParameters;
 		requestInfo.isData = request->mIsData;
@@ -739,7 +739,8 @@ void Core::Handler::process(void)
 				if(!instance.empty()) request.setParameter("instance", instance);
 				request.submit();
 				request.wait(meetingStepTimeout);
-				
+				request.cancel();
+
 				String remote;
 				for(int i=0; i<request.responsesCount(); ++i)
 				{
@@ -1393,7 +1394,7 @@ void Core::Handler::Sender::run(void)
 							mTransferts.insert(channel,response);
 						}
 						
-						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
+						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->mRemoteId));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
