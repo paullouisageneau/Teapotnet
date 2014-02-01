@@ -181,7 +181,6 @@ bool Request::forward(const Identifier &receiver, const Identifier &source)
 	try {
 		submit(receiver);
 		wait(timeout);
-		cancel();
 	}
 	catch(const Exception &e) 
 	{
