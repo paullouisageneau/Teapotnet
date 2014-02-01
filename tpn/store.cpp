@@ -231,7 +231,7 @@ Resource::AccessLevel Store::directoryAccessLevel(const String &name) const
 {
 	Resource::AccessLevel level;
 	if(mDirectoriesAccessLevel.get(name, level)) return level;
-	else return Resource::Public;
+	else return Resource::Public;	// Global directories default to public too
 }
 
 bool Store::moveFileToCache(String &fileName, String name)
@@ -736,80 +736,74 @@ void Store::http(const String &prefix, Http::Request &request)
 			getDirectories(directories);
 			directories.prepend(UploadDirectoryName);
 			
-			if(!directories.empty())
+			page.open("div",".box");
+			page.open("table",".files");
+			
+			for(int i=0; i<directories.size(); ++i)
 			{
-				page.open("div",".box");
-				page.open("table",".files");
+				String name;
+				if(directories[i] == UploadDirectoryName) name = "Sent files";
+				else name = directories[i];
 				
-				for(int i=0; i<directories.size(); ++i)
+				page.open("tr");
+				page.open("td",".icon");
+				page.image("/dir.png");
+				page.close("td");
+				page.open("td",".access");
+				page.text("(");
+				if(isHiddenUrl(directories[i])) page.text("Invisible");
+				else {
+					Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
+					if(accessLevel == Resource::Personal) page.text("Personal");
+					else if(accessLevel == Resource::Private) page.text("Private");
+					else page.text("Public");
+				}
+				page.text(")");
+				page.close("td");
+				page.open("td",".filename");
+				page.link(directories[i], name);
+				page.close("td");
+				
+				if(this != GlobalInstance)
 				{
-					String name;
-					if(directories[i] == UploadDirectoryName) name = "Sent files";
-					else name = directories[i];
-					
-					page.open("tr");
-					page.open("td",".icon");
-					page.image("/dir.png");
-					page.close("td");
-					page.open("td",".access");
-					page.text("(");
-					if(isHiddenUrl(directories[i])) page.text("Invisible");
-					else {
-						Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
-						if(accessLevel == Resource::Personal) page.text("Personal");
-						else if(accessLevel == Resource::Private) page.text("Private");
-						else page.text("Public");
-					}
-					page.text(")");
-					page.close("td");
-					page.open("td",".filename");
-					page.link(directories[i], name);
-					page.close("td");
-					
-					if(this != GlobalInstance)
+					page.open("td",".actions");
+					if(directories[i] != UploadDirectoryName)
 					{
-						page.open("td",".actions");
-						if(directories[i] != UploadDirectoryName)
-						{
-							page.openLink("#", ".deletelink");
-							page.image("/delete.png", "Delete");
-							page.closeLink();
-						}
-						page.close("td");
+						page.openLink("#", ".deletelink");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
 					}
-					
-					page.close("tr");
+					page.close("td");
 				}
 				
-				page.close("table");
-				page.close("div");
-
-				if(this != GlobalInstance)
-                                {
-                                        page.openForm(prefix+url, "post", "executeForm");
-                                        page.input("hidden", "token", user()->generateToken("directory"));
-					page.input("hidden", "command");
-                                        page.input("hidden", "argument");
-                                        page.closeForm();
-
-                                        page.javascript("function deleteDirectory(name) {\n\
-                                                if(confirm('Do you really want to delete the shared directory '+name+' ?')) {\n\
-                                                        document.executeForm.command.value = 'delete';\n\
-                                                        document.executeForm.argument.value = name;\n\
-                                                        document.executeForm.submit();\n\
-                                                }\n\
-                                        }");
-
-                                        page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
-                                                var fileName = $(this).closest('tr').find('td.filename a').text();\n\
-                                                deleteDirectory(fileName);\n\
-						return false;\n\
-                                        });");
-                                }
+				page.close("tr");
 			}
 			
+			page.close("table");
+			page.close("div");
+
 			if(this != GlobalInstance)
 			{
+				page.openForm(prefix+url, "post", "executeForm");
+				page.input("hidden", "token", user()->generateToken("directory"));
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.closeForm();
+
+				page.javascript("function deleteDirectory(name) {\n\
+					if(confirm('Do you really want to delete the shared directory '+name+' ?')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = name;\n\
+						document.executeForm.submit();\n\
+					}\n\
+				}");
+
+				page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
+					var fileName = $(this).closest('tr').find('td.filename a').text();\n\
+					deleteDirectory(fileName);\n\
+					return false;\n\
+				});");
+				
 				page.openForm(prefix+"/","post");
 				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("New directory");
