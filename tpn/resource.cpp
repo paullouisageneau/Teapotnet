@@ -454,8 +454,15 @@ void Resource::Query::setAccessLevel(AccessLevel level)
 
 void Resource::Query::setFromSelf(bool isFromSelf)
 {
-	if(isFromSelf) mAccessLevel = Personal;
-	else if(mAccessLevel == Personal) mAccessLevel = Private;
+	if(isFromSelf)
+	{
+		if(mAccessLevel == Private)
+			mAccessLevel = Personal;
+	}
+	else {
+		if(mAccessLevel == Personal) 
+			mAccessLevel = Private;
+	}
 }
 
 bool Resource::Query::submitLocal(Resource &result)
