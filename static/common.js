@@ -273,12 +273,6 @@ $(window).blur(clearNewMessages);
 $(window).keydown(clearNewMessages);
 $(window).mousedown(clearNewMessages);
 
-function clickedReply(id) 
-{
-	$('#'+id.id).css('display','block');
-	$('textarea[name=\"'+id.id+'\"]').focus();
-}
-
 function submitReply(object, idParent) 
 {
 	post(object, idParent); 
@@ -408,16 +402,50 @@ function setMessagesReceiverRec(url, object, next) {
 					
 					if(!message.parent) {
 						$(object).prepend('<div class="conversation">'+div+'</div>');
-						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+'); return false;">Reply</a>');
+						$('#'+id).append('<a href="#" class="button">Reply</a>');
+						(function(idReply) {
+							$('#'+id+' .button').click(function() {
+								$('#'+idReply).toggle();
+								$('#'+idReply+' textarea').focus();
+								return false;
+							});
+						})(idReply);
 					}
 					else {
-						$('#message_'+message.parent).parent().append(div);
+						$('#reply_message_'+message.parent).before(div);	// insert before parent reply
 						$('#'+id).addClass('childmessage');
 					}
 					
 					// Reply form
-					$('#'+id).parent().append('<div id='+idReply+' class="reply"><form name="replyform'+id+'" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="reply_'+id+'"></textarea></form></div>');
-				
+					$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+message.stamp+'"><input type="hidden" name="public" value="1"><input type="hidden" name="token" value="'+TokenMessage+'"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+					(function(idReply) {
+						$('#'+idReply+' .attachedfile').hide();
+						$('#'+idReply+' form').ajaxForm(function() {
+							$(this).clearForm();
+							$('#'+idReply+' .attachedfile').html('');
+							$('#'+idReply+' .fileselector').html('');
+							$('#'+idReply).hide();
+						});
+						$('#'+idReply+' .button').click(function() {
+							createFileSelector(getBasePath(1) + 'myself/files/?json', '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory); 
+							return false;
+						});
+						$('#'+idReply+' input[name="attachment"]').change(function() {
+                                      			$('#'+idReply+' .attachedfile').html('').hide();
+                                        		var filename = $('#'+idReply+' input[name="attachmentname"]').val();
+                                        		if(filename != '') {
+								$('#'+idReply+' .attachedfile')
+									.append('<img class=\"icon\" src=\"/file.png\">')
+									.append('<span class=\"filename\">'+filename+'</span>')
+									.show();
+                                        		}
+							var input = $('#'+idReply+' .replyinput');
+                                        		input.focus();
+                                        		if(input.val() == '') {
+                                                		input.val(filename).select();
+                                        		}
+                                		});
+					})(idReply);
 				}
 				else {
 					$(object).append(div);
