@@ -154,6 +154,13 @@ String Profile::infoPath(void) const
         return path + Directory::Separator;
 }
 
+void Profile::setTracker(const String &tracker)
+{
+	Synchronize(this);
+	mTracker = tracker;
+	save();
+}
+
 void Profile::load()
 {
 	Synchronize(this);

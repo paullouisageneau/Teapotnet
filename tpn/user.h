@@ -55,6 +55,9 @@ public:
 	String tracker(void) const;
 	String profilePath(void) const;
 	String urlPrefix(void) const;
+	
+	void setTracker(const String &tracker);
+	
 	AddressBook *addressBook(void) const;
 	MessageQueue *messageQueue(void) const;
 	Store *store(void) const;

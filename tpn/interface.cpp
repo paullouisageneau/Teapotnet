@@ -75,165 +75,147 @@ void Interface::process(Http::Request &request)
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
 	
-	User *user = NULL;
-	String auth;
-	if(request.headers.get("Authorization", auth))
-	{
-	 	String tmp = auth.cut(' ');
-		auth.trim();
-		tmp.trim();
-		if(auth != "Basic") throw 400;
-		
-		String name = tmp.base64Decode();
-		String password = name.cut(':');
-		user = User::Authenticate(name, password);
-	}
-	
-#ifdef ANDROID
-	if(!user && remoteAddr.isLocal() && User::Count() == 1)
-	{
-		Array<String> names;
-		User::GetNames(names);
-		user = User::Get(names[0]);
-	}
-#endif
-	
 	if(request.url == "/")
 	{
-		if(user)
+		if(request.method == "POST")
 		{
+			String name, password, tracker;
+			request.post.get("name", name);
+			request.post.get("password", password);
+			request.post.get("tracker", tracker);
+			
+			if(name.contains('@'))
+				tracker = name.cut('@');
+			
+			User *user = NULL;
+			try {
+				user = User::Authenticate(name, password);
+				if(user) 
+				{
+					if(!tracker.empty())
+						user->setTracker(tracker);
+				}
+				else {
+					if(!User::Exist(name))
+						user = new User(name, password, tracker);
+				}
+			}
+			catch(const Exception &e)
+			{
+				Http::Response response(request, 200);
+				response.send();
+				
+				Html page(response.sock);
+				page.header("Error", false, "/");
+				page.text(e.what());
+				page.footer();
+				return;
+			}
+			
+			if(!user) throw 401;	// TODO
+			
+			String token = user->generateToken("auth");
+				
 			Http::Response response(request, 303);
 			response.headers["Location"] = "/" + user->name();
+			response.cookies["auth_"+user->name()] = token;
 			response.send();
 			return;
 		}
-		else if(User::Count() == 0) 
+	
+/*
+#ifdef ANDROID
+		if(!user && remoteAddr.isLocal() && User::Count() == 1)
 		{
-			String name;
-			try {
-				Directory dir(Config::Get("profiles_dir"));
-				while(dir.nextFile())
-					if(dir.fileIsDir())
-					{
-						name = dir.fileName();
-						break;
-					}
-			}
-			catch(...)
-			{
-
-			}
-
-			if(remoteAddr.isLocal() || remoteAddr.isPrivate())
-			{
-				if(request.method == "POST")
-				{
-					if(request.post.contains("name"))
-					{
-						String name = request.post["name"].trimmed();
-						String tracker = request.post["tracker"].trimmed();
-						if(tracker == Config::Get("tracker")) tracker.clear();
-#ifdef ANDROID
-						String password = String::random(32);
-#else
-						String password = request.post["password"];
-#endif
-						try {
-							if(!name.empty() && !password.empty())
-							{
-								User *user = new User(name, password, tracker);
-								// nothing to do
-							}
-						}
-						catch(const Exception &e)
-						{
-							Http::Response response(request, 200);
-							response.send();
-							
-							Html page(response.sock);
-							page.header("Error", false, "/");
-							page.text(e.what());
-							page.footer();
-							return;
-						}
-					}
-					
-					Http::Response response(request,303);
-					response.send();
-					Html page(response.sock);
-					page.header("Please wait...", false, "/");
-					page.open("h1");
-					page.text("The user has been set up.");
-					page.close("h1");
-					page.open("p");
-#ifndef ANDROID
-					page.text("Please enter your username and password when prompted to log in.");
-#endif
-					page.close("p");
-					page.footer();
-					return;
-				}
-				
-				Http::Response response(request, 200);
-				response.send();
+			Array<String> names;
+			User::GetNames(names);
+			user = User::Get(names[0]);
 			
-				Html page(response.sock);
-				page.header();
-				page.open("h1");
-				page.text(String("Welcome to ") + APPNAME + " !");
-				page.close("h1");
-				page.open("p");
-#ifdef ANDROID
-				page.text("Please choose your username.");
-#else
-				if(name.empty()) page.text("No user has been configured yet, please choose your username and password.");
-				else page.text("Please reset your password.");
-#endif
-				page.close("p");
-				
-				page.openForm("/", "post");
-				page.openFieldset("User");
-				page.label("name", "Name"); page.input("text", "name"); page.link("#", "Change tracker", "trackerlink"); page.br();
-				page.open("div", "trackerselection");
-				page.label("tracker", "Tracker"); page.input("tracker", "tracker", Config::Get("tracker")); page.br();
-				page.close("div");
-#ifndef ANDROID
-				page.label("password", "Password"); page.input("password", "password"); page.br();
-#endif
-				page.label("add"); page.button("add", "OK");
-				page.closeFieldset();
-				page.closeForm();
-				
-				page.javascript("$('#trackerselection').hide();\n\
-					$('#trackerlink').click(function() {\n\
-						$(this).hide();\n\
-						$('#trackerselection').show();\n\
-					});");
-				
-				page.footer();
-				return;
-			}
-			else {
-				Http::Response response(request, 200);
+			if(user)
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = "/" + user->name();
 				response.send();
-			
-				Html page(response.sock);
-				page.header();
-				page.open("h1");
-				page.text(String("Welcome to ") + APPNAME + " !");
-				page.close("h1");
-				if(name.empty()) page.text("No user has been configured yet.");
-				else page.text("Local intervention needed.");
-				page.footer();
 				return;
 			}
 		}
+#endif
+*/
+		Http::Response response(request, 200);
+		response.send();
+		
+		Html page(response.sock);
+		page.header("Teapotnet - Login", true);
+		page.open("div","login");
+		page.open("div","logo");
+		page.openLink("/");
+		page.image("/logo.png", "Teapotnet");
+		page.closeLink();
+		page.close("div");
+		
+		page.openForm("/", "post");
+		page.open("table");
+		page.open("tr");
+		page.open("td",".label"); page.label("name", "Name"); page.close("td");
+		page.open("td"); page.input("text", "name"); page.close("td"); 
+		page.open("td"); page.link("#", "Change trackers", "trackerlink"); page.close("td");
+		page.close("tr");
+		page.open("tr", "trackerselection");
+		page.open("td",".label"); page.label("tracker", "Tracker"); page.close("td");
+		page.open("td"); page.input("tracker", "tracker", ""); page.close("td");
+		page.open("td"); page.close("td");
+		page.close("tr");
+		page.open("tr");
+		page.open("td",".label"); page.label("password", "Password"); page.close("td");
+		page.open("td"); page.input("password", "password"); page.close("td");
+		page.open("td"); page.close("td");
+		page.close("tr");
+		page.open("tr");
+		page.open("td",".label"); page.label("add"); page.close("td");
+		page.open("td"); page.button("add", "OK"); page.close("td");
+		page.close("tr");
+		page.close("table");
+		page.closeForm();
+		
+		for(StringMap::iterator it = request.cookies.begin();
+			it != request.cookies.end(); 
+			++it)
+		{
+			String cookieName = it->first;
+			String name = cookieName.cut('_');
+			if(cookieName != "auth" || name.empty()) 
+				continue;
+			
+			User *user = User::Get(name);
+			if(!user || !user->checkToken(it->second, "auth"))
+				continue;
+			
+			page.openLink("/" + name);
+			page.open("div",".user");
+			page.image(user->profile()->avatarUrl(), "", ".avatar");
+			page.text(name);
+			page.close("div");
+			page.closeLink();
+		}
+		
+		page.close("div");
+		
+		page.javascript("$('#trackerselection').hide();\n\
+			$('#trackerlink').click(function() {\n\
+				$(this).hide();\n\
+				$('#trackerselection').show();\n\
+				$('#trackerselection .tracker').val('"+Config::Get("tracker")+"');\n\
+			});");
+		
+		page.footer();
+		return;
 	}
 	
 	List<String> list;
 	request.url.explode(list,'/');
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
+	if(list.front().empty()) throw 404;
 	
 	if(list.size() == 1 && list.front().contains('.') && request.url[request.url.size()-1] != '/') 
 	{
@@ -247,34 +229,17 @@ void Interface::process(Http::Request &request)
 		if(!User::Exist(list.front())) throw 404;
 	}
 	
-	if(list.front().empty()
-		|| User::Exist(list.front()) 
-		|| (!user && !remoteAddr.isLocal() && !remoteAddr.isPrivate()))
+	if(User::Exist(list.front()))
 	{
-		if(!user || list.front() != user->name())
-		{
-			String realm = APPNAME;
-			
-			Http::Response response(request, 401);
-			response.headers.insert("WWW-Authenticate", "Basic realm=\""+realm+"\"");
-			response.send();
-			
-			Html page(response.sock);
-			page.header(response.message, true);
-			page.open("div", "error");
-			page.openLink("/");
-			page.image("/error.png", "Error");
-			page.closeLink();
-			page.br();
-			page.br();
-			page.open("h1",".huge");
-			page.text("Authentication required");
-			page.close("h1");
-			page.close("div");
-			page.footer();
-			return;
-		}
+		String name = list.front();
+		
+		String token;
+		request.cookies.get("auth_"+name, token);
 
+		User *user = User::Get(list.front());
+		if(!user || !user->checkToken(token, "auth"))
+			throw 401;
+		
 		while(!list.empty())
 		{
 			String prefix;
@@ -362,7 +327,8 @@ void Interface::process(Http::Request &request)
 			response.headers["Last-Modified"] = resource.time().toHttpDate();
 			response.headers["Accept-Ranges"] = "bytes";
 			
-			if(request.get.contains("download"))
+			String ext = resource.name().afterLast('.');
+			if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
 			{
 				response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
 				response.headers["Content-Type"] = "application/force-download";

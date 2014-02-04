@@ -535,6 +535,59 @@ a.button:hover
 	width: 64px;
 }
 
+#login #logo
+{
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 2em;
+	margin-bottom: 2em;
+}
+
+#login .user
+{
+	width: 20em;
+	margin: 0.5em;
+	padding: 0.5em;
+	margin-left: auto;
+	margin-right: auto;
+	font-weight: bold;
+	border: 1px solid #B0B0B0;
+        border-radius: 0.5em;
+	background-color: #F5F5F5;
+	box-shadow: 1px 1px 3px #202020;
+	overflow: hidden;
+	text-overflow: ellipsis; 
+}
+
+#login label
+{
+	float: none;
+}
+
+#login input
+{
+	max-width: 14em;
+}
+
+#login table
+{
+	width: 48em;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 2em;
+}
+
+#login table td
+{
+	width: 16em;
+}
+
+#login table td.label
+{
+	text-align: right;
+}
+
+
 #leftcolumn #logo
 {
 	margin-left: auto;
@@ -598,16 +651,6 @@ a.button:hover
 	background-color: #FFFFFF;
 }
 
-#attachedfile
-{
-	display: none;
-}
-
-#attachedfile .filename
-{
-	margin-left: 0.5em;
-}
-
 #status
 {
 	margin-top: 0.5em;
@@ -661,7 +704,7 @@ a.button:hover
 
 #newsfeed .childmessage
 {
-	width: 85%;
+	width: 80%;
 	margin-left: 15%;
 	margin-bottom: 0.5em;
 }
@@ -669,16 +712,40 @@ a.button:hover
 #newsfeed .reply
 {
 	display: none;
-	width: 85%;
+	width: 80%;
 	margin-left: 15%;
 	margin-bottom: 0.5em;
 	padding: 0;
 }
 
-#newsfeed .reply textarea
+#newsfeed .replypanel form
+{
+	display: block;
+	overflow: hidden;
+}
+
+#newsfeed .replypanel textarea
 {
         width: 100%;
+	height: 5em;
 	margin: 0;
+}
+
+#newsfeed .replypanel .button
+{
+	float: left;
+	width: 4em;
+	height: 5em;
+	margin: 0;
+	margin-right: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
+#newsfeed .replypanel .button img
+{
+	max-width: 4em;
+	max-height: 3.6em;
 }
 
 #optionsnewsfeed
@@ -723,17 +790,24 @@ a.button:hover
 	width: 100%;
 	height: 5em;
 	margin: 0;
-	box-sizing: border-box;
-	-moz-box-sizing: border-box;
 }
 
-#statuspanel #attachedfile
+.attachedfile
 {
+	display: none;
 	margin: 0.2em;
 	padding: 0.2em 0.5em;
 	background-color: #FFFFFF;
 	border: 1px solid black;
 	border-radius: 0.5em;
+	max-width: 30em;
+	overflow: hidden;
+	text-overflow: ellipsis; 
+}
+
+.attachedfile .filename
+{
+	margin-left: 0.5em;
 }
 
 #info

@@ -225,6 +225,12 @@ String User::urlPrefix(void) const
 	return String("/") + mName;
 }
 
+void User::setTracker(const String &tracker)
+{
+	Synchronize(this);
+	mProfile->setTracker(tracker);
+}
+
 AddressBook *User::addressBook(void) const
 {
 	return mAddressBook;
@@ -637,14 +643,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			String broadcastUrl = "/messages";
-			String publicUrl = "?public=1";
-			String countUrl = "&count=";
-			String defaultCount = "20";
-			String displayOthersUrl = "&incoming=1";
-			String displaySelfUrl = "&incoming=0";
-
-			String setDisplayUrl = displaySelfUrl;		
-
+			
 			page.open("div", "statuspanel");
 			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
 			page.openForm("#", "post", "statusform");
@@ -654,7 +653,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
-			page.div("","attachedfile");
+			page.div("",".attachedfile");
 			page.close("div");
 
 			page.div("", "fileSelector");
@@ -690,16 +689,16 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 		 
-			String token = generateToken("message");
-			
-			page.javascript("function postStatus() {\n\
+			page.javascript("var TokenMessage = '"+generateToken("message")+"';\n\
+					var TokenDirectory = '"+generateToken("directory")+"';\n\
+					function postStatus() {\n\
 					var message = $(document.statusform.statusinput).val();\n\
 					var attachment = $(document.statusform.attachment).val();\n\
 					if(!message) return false;\n\
 					var fields = {};\n\
 					fields['message'] = message;\n\
 					fields['public'] = 1;\n\
-					fields['token'] = '"+token+"';\n\
+					fields['token'] = '"+generateToken("message")+"';\n\
 					if(attachment) fields['attachment'] = attachment;\n\
 					var request = $.post('"+prefix+broadcastUrl+"/"+"', fields);\n\
 					request.fail(function(jqXHR, textStatus) {\n\
@@ -708,39 +707,24 @@ void User::http(const String &prefix, Http::Request &request)
 					$(document.statusform.statusinput).val('');\n\
 					$(document.statusform.attachment).val('');\n\
 					$(document.statusform.attachmentname).val('');\n\
-					$('#attachedfile').hide();\n\
+					$('#statuspanel .attachedfile').hide();\n\
 				}\n\
 				$(document.statusform.attachment).change(function() {\n\
-					$('#attachedfile').html('');\n\
-					$('#attachedfile').hide();\n\
+					$('#statuspanel .attachedfile').html('');\n\
+					$('#statuspanel .attachedfile').hide();\n\
 					var filename = $(document.statusform.attachmentname).val();\n\
 					if(filename != '') {\n\
-						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
-						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
-						$('#attachedfile').show();\n\
+						$('#statuspanel .attachedfile')\n\
+							.append('<img class=\"icon\" src=\"/file.png\">')\n\
+							.append('<span class=\"filename\">'+filename+'</span>')\n\
+							.show();\n\
 					}\n\
-					$(document.statusform.statusinput).focus();\n\
-					if($(document.statusform.statusinput).val() == '') {\n\
-						$(document.statusform.statusinput).val(filename);\n\
-						$(document.statusform.statusinput).select();\n\
+					var input = $(document.statusform.statusinput);\n\
+					input.focus();\n\
+					if(input.val() == '') {\n\
+						input.val(filename).select();\n\
 					}\n\
 				});\n\
-				function post(object, parentStamp) {\n\
-					var message = $(object).val();\n\
-					if(!message) return false;\n\
-					$(object).val('');\n\
-					if(!parentStamp) {\n\
-						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
-					}\n\
-					else {\n\
-						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'parent': parentStamp, 'token': '"+token+"'});\n\
-					}\n\
-					request.fail(function(jqXHR, textStatus) {\n\
-						alert('The message could not be sent.');\n\
-					});\n\
-				}\n\
 				document.statusform.onsubmit = function() {\n\
 					postStatus();\n\
 					return false;\n\
@@ -784,20 +768,17 @@ void User::http(const String &prefix, Http::Request &request)
 				listIncoming.addEventListener('change', function() {\n\
 					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
-				// Events for the reply textareas : \n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0"+"'+listCount.value.toString(),'#statusmessages');\n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
-						var name = $(this).attr('name');\n\
-						var parentStamp = name.substr(name.lastIndexOf('_')+1);\n\
-						post(this, parentStamp);\n\
+						$(this).closest('form').submit();\n\
 						return false; \n\
 					}\n\
 				});\n\
-				$('#newsfeed').on('blur','.reply', function (e) {\n\
-					$(this).hide();\n\
-				});\n\
-				$('#attachedfile').hide();\n\
+				//$('#newsfeed').on('blur','.reply', function (e) {\n\
+				//	$(this).hide();\n\
+				//});\n\
+				$('.attachedfile').hide();\n\
 			");
 			
 			page.open("div", "footer");

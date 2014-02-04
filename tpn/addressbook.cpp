@@ -2046,7 +2046,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.headers["Last-Modified"] = resource.time().toHttpDate();
 				response.headers["Accept-Ranges"] = "bytes";
 				
-				if(request.get.contains("download"))
+				String ext = resource.name().afterLast('.');
+				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
 				{
 					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
 					response.headers["Content-Type"] = "application/force-download";
