@@ -626,7 +626,7 @@ function deleteStats($db, $date)
 	$marker = "STATS_SENT";
 
 	try {
-		$results = $db->prepare("DELETE FROM stats WHERE(time = CURDATE()-".daysBetween($date, $today)." AND instance != ?);");
+		$results = $db->prepare("DELETE FROM stats WHERE(time >= CURDATE()-".daysBetween($date, $today)." AND time < CURDATE()-".daysBetween($date, $today)."+1 AND instance != ?);");
 		$results->execute(array($marker));
 	}
 	catch(PDOException $ex) 
