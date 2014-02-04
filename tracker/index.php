@@ -223,7 +223,10 @@
 			}
 			// Alternate addresses should not be copied in table stats
 			if(!$alternate)
+			{
 				insertToday($db, $identifier, $instance, $addr, $enableLogs);
+				insertTodayPostingAddr($db, $identifier, $instance, $enableLogs);
+			}
 
 			$count = $count+1;
 		}
@@ -256,7 +259,10 @@
 
 					// Alternate addresses should not be copied in table stats
 					if(!$alternate)
+					{
 						insertToday($db, $identifier, $instance, $array_addresses[$i], $enableLogs);
+						insertTodayPostingAddr($db, $identifier, $instance, $enableLogs);
+					}
 				}
 			}
 
@@ -286,6 +292,7 @@
 					}
 
 					// No insertToday because alternate addresses should not be copied in table stats
+					insertTodayPostingAddr($db, $identifier, $instance, $enableLogs);
 				}
 			}
 			
@@ -366,7 +373,7 @@ function insert($db, $alternate, $identifier, $instance, $address)
 		$table="storage";
 
 	try {
-		$results = $db->prepare("INSERT INTO ".$table." VALUES(null, ?, ?, ?, NOW());");
+		$results = $db->prepare("INSERT INTO ".$table." (`identifier`,`instance`, `address`, `time`) VALUES(?, ?, ?, NOW());");
 		$results->execute(array($identifier, $instance, $address));
 	}
 	catch(PDOException $ex) 
@@ -488,12 +495,26 @@ function selectToday($db, $identifier, $address)
 	return $time;
 }
 
+function selectTodayPostingAddr($db, $identifier, $postingAddr)
+{
+	$results = $db->prepare("SELECT DISTINCT identifier, postingaddr, time FROM stats WHERE(identifier=? AND postingaddr=? AND time >= CURDATE());");
+
+	$results->execute(array($identifier, $postingAddr));
+
+	// TODO : if empty
+	while ($row = $results->fetch()) {
+		$time = $row['time'];
+	}
+
+	return $time;
+}
+
 function insertToday($db, $identifier, $instance, $address, $enableLogs)
 {
 	if(selectToday($db, $identifier, $address) == '')
 	{
 		try {
-			$results = $db->prepare("INSERT INTO stats VALUES(null, ?, ?, ?, NOW());");
+			$results = $db->prepare("INSERT INTO stats (`identifier`,`instance`, `address`, `time`) VALUES(?, ?, ?, NOW());");
 			$results->execute(array($identifier, $instance, $address));
 		}
 		catch(PDOException $ex) 
@@ -505,10 +526,29 @@ function insertToday($db, $identifier, $instance, $address, $enableLogs)
 	}
 }
 
+function insertTodayPostingAddr($db, $identifier, $instance, $enableLogs)
+{
+	$postingAddress = $_SERVER['REMOTE_ADDR'];
+
+	if(selectTodayPostingAddr($db, $identifier, $postingAddress) == '')
+	{
+		try {
+			$results = $db->prepare("INSERT INTO stats (`identifier`,`instance`, `postingaddr`, `time`) VALUES(?, ?, ?, NOW());");
+			$results->execute(array($identifier, $instance, $postingAddress));
+		}
+		catch(PDOException $ex) 
+		{
+			print $ex->getMessage();
+			logWrite($ex->getMessage(), $enableLogs);
+		}
+		logWrite('Insertion in table stats made : '.$identifier.' ; '.$postingAddress , $enableLogs);
+	}
+}
+
 function createTables($db)
 {
 	try {
-		$results1 = $db->query('CREATE TABLE IF NOT EXISTS storage(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
+		$results1 = $db->query('CREATE TABLE IF NOT EXISTS storage(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), postingaddr VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
@@ -517,7 +557,7 @@ function createTables($db)
 	}	
 
 	try {
-		$results2 = $db->query('CREATE TABLE IF NOT EXISTS alternate(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
+		$results2 = $db->query('CREATE TABLE IF NOT EXISTS alternate(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), postingaddr VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
@@ -526,7 +566,7 @@ function createTables($db)
 	}
 
 	try {
-		$results3 = $db->query('CREATE TABLE IF NOT EXISTS stats(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
+		$results3 = $db->query('CREATE TABLE IF NOT EXISTS stats(reqid INT PRIMARY KEY NOT NULL AUTO_INCREMENT, identifier VARCHAR(128), instance VARCHAR(50), address VARCHAR(60), postingaddr VARCHAR(60), time DATETIME, INDEX index_IdAd (identifier(20),address(10)));');
 	}
 	catch(PDOException $ex) 
 	{
@@ -565,16 +605,35 @@ function insertStatsSentMarker($db, $date)
 	if(daysBetween($date, $today) <= 10000) // Just to be sure nothing stupid is going on
 	{
 		try {
-			$results = $db->prepare("INSERT INTO stats VALUES(null, null, ?, null, CURDATE()-".daysBetween($date, $today).");");
-			$results->execute(array($marker));
+			$results = $db->prepare("INSERT INTO stats (`instance`,`identifier`,`address`,`postingaddr`,`time`) VALUES(?,?,?,?, CURDATE()-".daysBetween($date, $today).");");
+			$results->execute(array($marker, nIdentifiers($db, $date), nAddresses($db, $date), nPostingAddr($db, $date)));
 		}
 		catch(PDOException $ex) 
 		{
 			print $ex->getMessage();
-			logWrite($ex->getMessage(), $enableLogs);
+			//logWrite($ex->getMessage(), $enableLogs);
+			return;
 		}
+
+		deleteStats($db, $date);
 	}
 	
+}
+
+function deleteStats($db, $date)
+{
+	$today = date('Y-m-d 00:00:00');
+	$marker = "STATS_SENT";
+
+	try {
+		$results = $db->prepare("DELETE FROM stats WHERE(time = CURDATE()-".daysBetween($date, $today)." AND instance != ?);");
+		$results->execute(array($marker));
+	}
+	catch(PDOException $ex) 
+	{
+		print $ex->getMessage();
+		//logWrite($ex->getMessage(), $enableLogs);
+	}
 }
 
 // TODO : potentially (?) poor performances for big trackers having been active for a long time, as marker is searched for every day
@@ -592,6 +651,7 @@ function sendStats($db)
 		if(!checkStatsSent($db, $d))
 		{
 			$naddresses = nAddresses($db, $d);
+			$npostingaddr = nPostingAddr($db, $d);
 			$nidentifiers = nIdentifiers($db, $d);
 			// Send
 			$trackername = $_SERVER['SERVER_NAME'];
@@ -600,6 +660,7 @@ function sendStats($db)
 				'date'      => $d,
 				'tracker'    => $trackername,
 				'naddresses'       => $naddresses,
+				'npostingaddr' => $npostingaddr,
 				'nidentifiers' => $nidentifiers,
 			);
 
@@ -722,6 +783,32 @@ function nIdentifiersBetween($db, $d1, $d2)
 	$daysBetween2 = daysBetween($today, $d2)-1;
 
 	$stat_results = $db->query("SELECT COUNT(*) as count FROM (SELECT DISTINCT identifier FROM stats WHERE(time >= CURDATE()-".$daysBetween1." AND time < CURDATE()-".$daysBetween2." AND instance != 'STATS_SENT')) as sub;");
+
+	while ($row = $stat_results->fetch()) 
+	{
+		$count = $row['count'];
+	}
+
+	return $count;
+}
+
+
+function nPostingAddr($db, $date)
+{
+	return nPostingAddrBetween($db, $date, $date);
+}
+
+function nPostingAddrBetween($db, $d1, $d2)
+{
+	$count = -1;
+
+	$today = date('Y-m-d 00:00:00');
+	$dt = strtotime($today);
+
+	$daysBetween1 = daysBetween($today, $d1);
+	$daysBetween2 = daysBetween($today, $d2)-1;
+
+	$stat_results = $db->query("SELECT COUNT(*) as count FROM (SELECT DISTINCT postingaddr FROM stats WHERE(time >= CURDATE()-".$daysBetween1." AND time < CURDATE()-".$daysBetween2." AND instance != 'STATS_SENT')) as sub;");
 
 	while ($row = $stat_results->fetch()) 
 	{
