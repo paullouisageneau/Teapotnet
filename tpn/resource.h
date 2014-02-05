@@ -127,6 +127,7 @@ public:
 	void dissociateAccessor(void) const;
 	
 	void setPeering(const Identifier &peering);
+	void addHop(void);
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
