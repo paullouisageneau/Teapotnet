@@ -1638,6 +1638,16 @@ form #trackerlink
 		margin: 0.5em 0em 0.5em 0em;
 	}
 	
+	#newsfeed .childmessage
+	{
+		width: 85%;
+	}
+
+	#newsfeed .reply
+	{
+		width: 85%;
+	}
+	
 	.files td.actions a
 	{	
 		margin: 0;
