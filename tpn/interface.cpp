@@ -238,7 +238,12 @@ void Interface::process(Http::Request &request)
 
 		User *user = User::Get(list.front());
 		if(!user || !user->checkToken(token, "auth"))
-			throw 401;
+		{
+			Http::Response response(request, 303);
+			response.headers["Location"] = "/";
+			response.send();
+			return;
+		}
 		
 		while(!list.empty())
 		{
