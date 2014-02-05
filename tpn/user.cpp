@@ -814,8 +814,8 @@ void User::http(const String &prefix, Http::Request &request)
 				query.setFromSelf(true);
 				
 				SerializableSet<Resource> resources;
-				bool success = query.submitRemote(resources, Identifier::Null);
-				success|= query.submitLocal(resources);
+				bool success = query.submitLocal(resources);
+				success|= query.submitRemote(resources, Identifier::Null);
 				if(!success) throw 404;
 				
 				if(request.get.contains("json"))
