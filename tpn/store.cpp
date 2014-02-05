@@ -1433,7 +1433,7 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 String Store::urlToDirectory(const String &url) const
 {
 	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
-	return String(url.substr(1)).cut('/');
+	return String(url.substr(1)).before('/');
 }
 
 String Store::urlToPath(const String &url) const
