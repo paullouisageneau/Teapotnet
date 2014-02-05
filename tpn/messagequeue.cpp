@@ -310,11 +310,13 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			message.setPublic(isPublic);
 			if(!isPublic) message.setContact(uname);
 			
-			if(request.post.contains("parent"))
-				message.setParent(request.post["parent"]);
-		
-			if(request.post.contains("attachment"))
-				message.setHeader("attachment", request.post.get("attachment"));
+			String parent;
+			request.post.get("parent", parent);
+			if(!parent.empty()) message.setParent(parent);
+			
+			String attachment;
+			request.post.get("attachment", attachment);
+			if(!attachment.empty()) message.setHeader("attachment", attachment);
 	
 			add(message);	// signs the message
 			
