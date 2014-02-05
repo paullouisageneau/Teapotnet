@@ -421,7 +421,7 @@ function setMessagesReceiverRec(url, object, next) {
 					(function(idReply) {
 						$('#'+idReply+' .attachedfile').hide();
 						$('#'+idReply+' form').ajaxForm(function() {
-							$(this).clearForm();
+							$('#'+idReply+' form').resetForm();
 							$('#'+idReply+' .attachedfile').html('');
 							$('#'+idReply+' .fileselector').html('');
 							$('#'+idReply).hide();
