@@ -254,6 +254,11 @@ void Resource::setPeering(const Identifier &peering)
 	mPeering = peering;
 }
 
+void Resource::addHop(void)
+{
+	++mHops;
+}
+
 void Resource::merge(const Resource &resource)
 {
 	if(resource.mTime > mTime)
@@ -526,6 +531,7 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 				StringMap parameters = response->parameters();
 				resource.deserialize(parameters);
 				resource.setPeering(response->peering());
+				resource.addHop();
 				result.insert(resource);
 			}
 			catch(const Exception &e)
