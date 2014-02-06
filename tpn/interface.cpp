@@ -190,12 +190,22 @@ void Interface::process(Http::Request &request)
 			if(!user || !user->checkToken(it->second, "auth"))
 				continue;
 			
-			page.openLink("/" + name);
 			page.open("div",".user");
+			page.openLink("/" + name);
 			page.image(user->profile()->avatarUrl(), "", ".avatar");
+			page.open("span", ".username");
 			page.text(name);
-			page.close("div");
+			page.close("span");
 			page.closeLink();
+			page.text(" - ");
+			page.link("#", "Logout", ".logoutlink");
+			page.close("div");
+			
+			page.javascript("$('.user a.logoutlink').click(function() {\n\
+				unsetCookie('auth_'+$(this).parent().find('.username').text());\n\
+				window.location.reload();\n\
+				return false;\n\
+			});");
 		}
 		
 		page.close("div");
