@@ -556,7 +556,7 @@ a.button:hover
 	background-color: #F5F5F5;
 	box-shadow: 1px 1px 3px #202020;
 	overflow: hidden;
-	text-overflow: ellipsis; 
+	text-overflow: ellipsis;
 }
 
 #login label

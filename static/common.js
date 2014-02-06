@@ -530,10 +530,13 @@ function setMessagesReceiverRec(url, object, next) {
 
 function setCookie(c_name,value,exdays)
 {
-	var exdate=new Date();
-	exdate.setDate(exdate.getDate() + exdays);
-	var c_value=escape(value) + ((exdays==null) ? '' : '; expires='+exdate.toUTCString());
-	document.cookie=c_name + '=' + c_value;
+	if (exdays) {
+		var exdate = new Date();
+		exdate.setDate(exdate.getDate() + exdays);
+		var expires = "; expires="+exdate.toUTCString();
+	}
+	else var expires = "";
+	document.cookie = c_name + "=" + value + expires;
 }
 
 function getCookie(c_name)
@@ -559,6 +562,11 @@ function getCookie(c_name)
 		c_value = unescape(c_value.substring(c_start,c_end));
 	}
 	return c_value;
+}
+
+function unsetCookie(c_name)
+{
+	setCookie(c_name, "", -1);
 }
 
 function checkCookie(name)
