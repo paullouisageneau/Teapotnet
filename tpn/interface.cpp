@@ -89,15 +89,14 @@ void Interface::process(Http::Request &request)
 			
 			User *user = NULL;
 			try {
-				user = User::Authenticate(name, password);
-				if(user) 
+				if(request.post.contains("create") && !User::Exist(name))
 				{
-					if(!tracker.empty())
-						user->setTracker(tracker);
+					user = new User(name, password, tracker);
 				}
 				else {
-					if(!User::Exist(name))
-						user = new User(name, password, tracker);
+					user = User::Authenticate(name, password);
+					if(user && !tracker.empty())
+						user->setTracker(tracker);
 				}
 			}
 			catch(const Exception &e)
@@ -171,8 +170,8 @@ void Interface::process(Http::Request &request)
 		page.open("td"); page.close("td");
 		page.close("tr");
 		page.open("tr");
-		page.open("td",".label"); page.label("add"); page.close("td");
-		page.open("td"); page.button("add", "OK"); page.close("td");
+		page.open("td",".label"); page.close("td");
+		page.open("td"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
 		page.close("tr");
 		page.close("table");
 		page.closeForm();
