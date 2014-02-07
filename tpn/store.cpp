@@ -1077,6 +1077,8 @@ void Store::http(const String &prefix, Http::Request &request)
 			}
 			else if(File::Exist(path))
 			{
+				Desynchronize(this);
+				
 				if(request.get.contains("play"))
 				{
 					String host;
