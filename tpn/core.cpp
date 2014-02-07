@@ -320,8 +320,15 @@ unsigned Core::addRequest(Request *request)
 		if(!request->mId)
 			request->mId = ++mLastRequest;
 		
-		if(!request->mParameters.contains("uid"))
-			request->mParameters["uid"] = String::random(16);
+		String uid;
+		request->mParameters.get("uid", uid);
+		if(uid.empty())
+		{
+			uid = String::random(16);
+			request->mParameters["uid"] = uid;
+		}
+		
+		mSeenRequests.insert(uid);
 	}
 
 	Array<Identifier> identifiers;
