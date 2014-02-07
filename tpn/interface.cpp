@@ -144,7 +144,7 @@ void Interface::process(Http::Request &request)
 		response.send();
 		
 		Html page(response.sock);
-		page.header("Teapotnet - Login", true);
+		page.header("Login - Teapotnet", true);
 		page.open("div","login");
 		page.open("div","logo");
 		page.openLink("/");
