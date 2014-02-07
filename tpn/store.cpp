@@ -823,6 +823,7 @@ void Store::http(const String &prefix, Http::Request &request)
 			
 			if(path.empty())
 			{
+				Desynchronize(this);
 				if(this == GlobalInstance) throw 404;
 				GlobalInstance->http(prefix, request);
 				return;
