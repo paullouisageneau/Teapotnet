@@ -241,17 +241,63 @@ void Interface::process(Http::Request &request)
 	if(User::Exist(list.front()))
 	{
 		String name = list.front();
-		
-		String token;
-		request.cookies.get("auth_"+name, token);
-
-		User *user = User::Get(list.front());
-		if(!user || !user->checkToken(token, "auth"))
+		User *user = NULL;
+	
+		String auth;
+		if(request.headers.get("Authorization", auth))
 		{
-			Http::Response response(request, 303);
-			response.headers["Location"] = "/";
-			response.send();
-			return;
+			String tmp = auth.cut(' ');
+			auth.trim();
+			tmp.trim();
+			if(auth != "Basic") throw 400;
+
+			String authName = tmp.base64Decode();
+			String authPassword = authName.cut(':');
+			
+			if(authName == name)
+				user = User::Authenticate(authName, authPassword);
+		}
+		else {
+			String token;
+			request.cookies.get("auth_"+name, token);
+			User *tmp = User::Get(list.front());
+			if(tmp->checkToken(token, "auth"))
+				user = tmp;
+		}
+		
+		if(!user)
+		{
+			String userAgent;
+			request.headers.get("User-Agent", userAgent);
+			
+			// If it is a browser
+			if(userAgent.substr(0,7) == "Mozilla")
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = "/";
+				response.send();
+				return;
+			}
+			else {
+				Http::Response response(request, 401);
+				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
+				response.send();
+
+				Html page(response.sock);
+				page.header(response.message, true);
+				page.open("div", "error");
+				page.openLink("/");
+				page.image("/error.png", "Error");
+				page.closeLink();
+				page.br();
+				page.br();
+				page.open("h1",".huge");
+				page.text("Authentication required");
+				page.close("h1");
+				page.close("div");
+				page.footer();
+				return;
+			}
 		}
 		
 		while(!list.empty())
@@ -288,6 +334,8 @@ void Interface::process(Http::Request &request)
 	else {
 	  	if(list.size() != 1) throw 404; 
 	  
+		// TODO: Security: if remote address is not local, check if one user at least is authenticated
+		
 	 	try {
 			ByteString digest;
 			String tmp = list.front();
