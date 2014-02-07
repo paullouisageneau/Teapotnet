@@ -472,6 +472,11 @@ a.button:hover
 	margin: 0;
 }
 
+#rightheader .button
+{
+	float: right;
+}
+
 #leftcolumn
 {
 	float: left;
@@ -569,6 +574,11 @@ a.button:hover
 	max-width: 14em;
 }
 
+#login input[type="submit"]
+{
+	width: 7.1em;
+}
+
 #login table
 {
 	width: 48em;
@@ -586,7 +596,6 @@ a.button:hover
 {
 	text-align: right;
 }
-
 
 #leftcolumn #logo
 {
