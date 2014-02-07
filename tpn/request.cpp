@@ -169,7 +169,7 @@ bool Request::forward(const Identifier &receiver, const Identifier &source)
 	double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	if(mParameters.contains("timeout"))
 		timeout = mParameters.get("timeout").toDouble();
-	timeout*= 0.66;	// TODO
+	timeout*= 0.5;	// TODO
 	
 	LogDebug("Request::forward", "Forwarding request " + String::number(mRemoteId));
 	
