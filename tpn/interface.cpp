@@ -238,7 +238,7 @@ void Interface::process(Http::Request &request)
 		if(!User::Exist(list.front())) throw 404;
 	}
 	
-	if(User::Exist(list.front()))
+	if(list.front().size() < 64 || User::Exist(list.front()))
 	{
 		String name = list.front();
 		User *user = NULL;
@@ -261,7 +261,7 @@ void Interface::process(Http::Request &request)
 			String token;
 			request.cookies.get("auth_"+name, token);
 			User *tmp = User::Get(list.front());
-			if(tmp->checkToken(token, "auth"))
+			if(tmp && tmp->checkToken(token, "auth"))
 				user = tmp;
 		}
 		
