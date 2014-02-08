@@ -54,8 +54,15 @@ function listDirectory(url, object, showButtons, privateMode) {
 		if(showButtons) {
 			var location = url.split('?')[0];
 			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-			$(object).append('<span class="button"> '+data.length+' files</span>');
-			$(object).append('<a href="'+parentLink+'" class="button"><img src="/arrow_up.png" alt="Parent"></a>');
+			$(object)
+				.append('<span class="button"> '+data.length+' files</span>')
+				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+				
+			$(object).find('a.refreshlink').click(function() {
+				listDirectory(url, object, showButtons, privateMode);
+				return false;
+			});
 		}
 		
 		if(data && data.length > 0) {
@@ -94,11 +101,32 @@ function listDirectory(url, object, showButtons, privateMode) {
 			
 		}
 		else {
-			$(object).html('<div class="files">No files</div>');
+			$(object).append('<div class="files">No files</div>');
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Unable to access files');
+		
+		$(object).html('');
+		
+		if(showButtons) {
+			var location = url.split('?')[0];
+			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+			$(object)
+				.append('<span class="button">0 files</span>')
+				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.append('<a href="#" class="button refreshlink">Retry</a>');
+		}
+		
+		$(object).append('<div class="files">Unable to access files</div>');
+		
+		if(!showButtons) {
+			$(object).append('<a href="#" class="button refreshlink">Retry</a>');
+		}
+		
+		$(object).find('a.refreshlink').click(function() {
+			listDirectory(url, object, showButtons, privateMode);
+			return false;
+		});
 	});
 }
 
@@ -116,14 +144,20 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 	      
 		$(object)
 			.html('<h2>Select a file</h2>')
-			.append('<a class="button quitbutton" href="#">Cancel</a>')
-			.find('a.quitbutton').click(function() {
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+		
+		$(object).find('a.quitlink').click(function() {
 				$(inputName).val("").change();
 				$(input).val("").change();
 				$(object).remove();
 				return false;
+			})
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				return false;
 			});
-		
+			
 		//$(object).append('<a class="button" href="'+uploadUrl+'">Choose another file</a>');
 		
 		if(directoryToken)
@@ -219,7 +253,22 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Unable to access files');
+		$(object)
+			.html('')
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.append('<a href="#" class="button refreshlink">Retry</a>')
+			.append('<div class="files">Unable to access files</div>');
+			
+		$(object).find('a.quitlink').click(function() {
+				$(inputName).val("").change();
+				$(input).val("").change();
+				$(object).remove();
+				return false;
+			})
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				return false;
+			});
 	});
 }
 
