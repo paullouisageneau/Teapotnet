@@ -145,6 +145,16 @@ void Message::setHeaders(const StringMap &headers)
 	mHeaders = headers;
 }
 
+void Message::setTime(const String &time)
+{
+	mTime = Time(time);
+}
+
+void Message::setAuthor(const String &author)
+{
+	mAuthor = author;
+}
+
 void Message::setHeader(const String &name, const String &value)
 {
 	mHeaders[name] = value; 

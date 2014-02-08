@@ -61,6 +61,8 @@ public:
 	void setParent(const String &stamp);
 	void setPublic(bool ispublic);
 	void setHeaders(const StringMap &headers);
+	void setTime(const String &time);
+	void setAuthor(const String &author);
 	void setHeader(const String &name, const String &value);
 	void setDefaultHeader(const String &name, const String &value);
 	void removeHeader(const String &name);

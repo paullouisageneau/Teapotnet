@@ -402,6 +402,9 @@ function setMessagesReceiverRec(url, object, next) {
 					
 					if(!message.parent) {
 						$(object).prepend('<div class="conversation">'+div+'</div>');
+
+						$('#'+id).append('<form name="passform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="stamp" value="'+message.stamp+'"><input type="hidden" name="pass" value="1"><input type="hidden" name="token" value="'+TokenMessage+'"><input type="submit" value="Pass"></form>');
+
 						$('#'+id).append('<a href="#" class="button">Reply</a>');
 						(function(idReply) {
 							$('#'+id+' .button').click(function() {
@@ -410,6 +413,7 @@ function setMessagesReceiverRec(url, object, next) {
 								return false;
 							});
 						})(idReply);
+						
 					}
 					else {
 						$('#reply_message_'+message.parent).before(div);	// insert before parent reply

@@ -50,6 +50,7 @@ public:
 	bool add(Message &message);
 	bool get(const String &stamp, Message &result) const;
 	void markReceived(const String &stamp, const String &uname);
+	void markPass(const String &stamp);
 	void markRead(const String &stamp);
 	void ack(const Array<Message> &messages);
 	void erase(const String &uname);

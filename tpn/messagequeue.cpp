@@ -82,6 +82,10 @@ MessageQueue::MessageQueue(User *user) :
 		mDatabase->execute("DELETE FROM received WHERE rowid NOT IN (SELECT MIN(rowid) FROM received GROUP BY contact, stamp)");
 		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
 	}
+
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS flags\
+	(stamp TEXT NOT NULL,\
+	pass INTEGER(1) NOT NULL)");
 	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
@@ -199,6 +203,30 @@ bool MessageQueue::get(const String &stamp, Message &result) const
         return false;
 }
 
+void MessageQueue::markPass(const String &stamp)
+{
+	Synchronize(this);
+	
+	// If message has already been passed, don't insert
+	Array<String> result;
+
+	Database::Statement fetchStatement = this->mDatabase->prepare("SELECT flags.stamp FROM flags WHERE flags.stamp=?1");
+	fetchStatement.bind(1, stamp);
+	fetchStatement.fetch(result);
+	fetchStatement.execute();
+
+	if(result.empty())
+	{
+		Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp, pass) VALUES (?1,1)");
+		statement.bind(1, stamp);
+		statement.execute();
+	}
+	else
+	{
+		// TODO : "message has already been passed"
+	}
+}
+
 void MessageQueue::markReceived(const String &stamp, const String &uname)
 {
 	Synchronize(this);
@@ -300,7 +328,48 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			throw 403;
 		
                 if(!request.post.contains("message") || request.post["message"].empty())
-			throw 400;
+		{
+			if(request.post.contains("pass"))
+			{
+				String stamp;
+				if(request.post["pass"] && request.post["stamp"])
+				{
+					request.post.get("stamp", stamp);
+					std::cout << "stamp = " << stamp << std::endl;
+					markPass(stamp);
+
+					// Reconstruct message to be passed
+					//Array<String> result;
+
+					Message message;
+					Database::Statement statement = this->mDatabase->prepare("SELECT messages.* FROM messages WHERE messages.stamp=?1");
+					statement.bind(1, stamp);
+					statement.input(message);
+					statement.finalize();
+					
+					add(message); // TODO : No, sign differently because author gets rewritten here
+
+					// Send message
+					if(contact)
+					{
+						contact->send(message);
+						if(self && self != contact)
+							self->send(message);
+					}
+					else {
+						user()->addressBook()->send(message);
+					}
+
+					// TODO : ask other myself instances to mark message as passed				
+				}
+
+				Http::Response response(request, 200);
+				response.send();
+				return;
+			}
+			else
+				throw 400;
+		}
 
 		bool isPublic = request.post["public"].toBool();
 		
@@ -816,7 +885,7 @@ String MessageQueue::Selection::target(const String &columns) const
 
 String MessageQueue::Selection::table(void) const
 {
-	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'')";
+	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') LEFT JOIN flags AS flag ON flag.stamp=message.stamp";
 }
 
 String MessageQueue::Selection::filter(void) const
