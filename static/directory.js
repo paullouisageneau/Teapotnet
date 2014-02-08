@@ -207,7 +207,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 				return false;
 			});
 		
-		$(object).append('<br><table class="files"></table>');
+		$(object).append('<br><div class="fileselectorwindow"><table class="files"></table></div>');
 		var table = $(object).find('table');
 		
 		if(parents.length == 0) {
