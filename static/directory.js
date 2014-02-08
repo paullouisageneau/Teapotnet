@@ -142,17 +142,21 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 	.done(function(data) {
 		if(!data) data = [];
 	      
-		$(object)
-			.html('<h2>Select a file</h2>')
-			.append('<a href="#" class="button quitlink">Cancel</a>')
-			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+		$(object).html('<h2>Select a file</h2>')
 		
-		$(object).find('a.quitlink').click(function() {
-				$(inputName).val("").change();
-				$(input).val("").change();
-				$(object).remove();
-				return false;
-			})
+		if(parents.length > 0) {
+			$(object)
+				.append('<span class="button"> '+data.length+' files</span>')
+				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.find('a.parentlink').click(function() {
+					var parentUrl = parents.pop();
+					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+					return false;
+				});
+		}
+		
+		$(object)
+			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
 			.find('a.refreshlink').click(function() {
 				listFileSelector(url, object, input, inputName, directoryToken, parents);
 				return false;
@@ -167,7 +171,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 			$(object).append('<form id="uploadform" action="'+uploadUrl+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+directoryToken+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
 			$('#selector_file')
 				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
-				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Send another file</a>')
+				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">New file</a>')
 				.change(function() {
 					$(object).children().hide();
 					$(object).append('<span>Please wait...</span>');
@@ -193,18 +197,16 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 					});
 				});
 		}	
-			
-		if(parents.length > 0) {
-			$(object)
-				.append('<span class="button"> '+data.length+' files</span>')
-				.append('<a href="#" class="button"><img src="/arrow_up.png" alt="Parent"></a>')
-				.find('a:last').click(function() {
-					var parentUrl = parents.pop();
-					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
-					return false;
-				});
-		}
 
+		$(object)
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.find('a.quitlink').click(function() {
+				$(inputName).val("").change();
+				$(input).val("").change();
+				$(object).remove();
+				return false;
+			});
+		
 		$(object).append('<br><table class="files"></table>');
 		var table = $(object).find('table');
 		
@@ -255,18 +257,30 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 	.fail(function(jqXHR, textStatus) {
 		$(object)
 			.html('')
-			.append('<a href="#" class="button quitlink">Cancel</a>')
-			.append('<a href="#" class="button refreshlink">Retry</a>')
-			.append('<div class="files">Unable to access files</div>');
 			
-		$(object).find('a.quitlink').click(function() {
+		if(parents.length > 0) {
+			$(object)
+				.append('<span class="button">0 files</span>')
+				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.find('a.parentlink').click(function() {
+					var parentUrl = parents.pop();
+					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+					return false;
+				});
+		}
+			
+		$(object)
+			.append('<a href="#" class="button refreshlink">Retry</a>')
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.append('<div class="files">Unable to access files</div>')
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				return false;
+			})
+			.find('a.quitlink').click(function() {
 				$(inputName).val("").change();
 				$(input).val("").change();
 				$(object).remove();
-				return false;
-			})
-			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, directoryToken, parents);
 				return false;
 			});
 	});
