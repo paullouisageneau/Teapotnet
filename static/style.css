@@ -1118,6 +1118,12 @@ img.preview
 	width: 5em;
 }
 
+.fileselectorwindow
+{
+	max-height: 20em;
+	overflow-y: auto;
+}
+
 #contacts
 {
 	margin-top: 1em;
