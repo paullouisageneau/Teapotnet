@@ -82,7 +82,8 @@ function listDirectory(url, object, showButtons, privateMode) {
 					line+= '<td class="actions"></td>';
 				}
 				else {
-					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
+					var pos = resource.name.escape().lastIndexOf('.');
+					var extension = (pos > 0 ? resource.name.escape().substring(pos+1,resource.name.escape().length) : '');
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
