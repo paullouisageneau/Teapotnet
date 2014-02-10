@@ -67,7 +67,7 @@ MessageQueue::MessageQueue(User *user) :
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON flags (stamp)");
 	
-	// TODO: backward compatibility, should be removed (09/01/2014)
+	// TODO: backward compatibility, should be removed (09/02/2014)
 	// Populate flags table with read flags and remove isread column
 	bool updateNeeded = false;
 	Database::Statement statement = mDatabase->prepare("PRAGMA table_info(messages)");
