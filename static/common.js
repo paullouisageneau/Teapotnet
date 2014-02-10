@@ -406,22 +406,24 @@ function setMessagesReceiverRec(url, object, next) {
 						
 						if(!message.passed)
 						{
-							$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink">Pass</a>');
+							$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img height="15" src="/pass_blue.png"/></a>');
 							(function(id, stamp) {
 								$('#'+id+' .passlink').click(function() {
-									$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
-									.done(function(data) {
-										$('#'+id+' .passlink').replaceWith('<span class="button">Passed</span>');
-									});
-									return false;
+									if(confirm('Do you want to pass this message to your friends ?')) {
+										$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
+										.done(function(data) {
+											$('#'+id+' .passlink').replaceWith('<span class="button"><img height="15" src="/pass_black.png"/></span>');
+										});
+										return false;
+									}
 								});
 							})(id, message.stamp);
 						}
 						else {
-							$('#'+id+' .buttonsbar').append('<span class="button">Passed</span>');
+							$('#'+id+' .buttonsbar').append('<span class="button"><img height="15" src="/pass_black.png"/></span>');
 						}
 						
-						$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink">Reply</a>');
+						$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img height="15" src="/reply_black.png"/></a>');
 						(function(idReply) {
 							$('#'+id+' .replylink').click(function() {
 								$('#'+idReply).toggle();
