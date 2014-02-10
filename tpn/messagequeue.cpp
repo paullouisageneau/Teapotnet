@@ -442,6 +442,22 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 
 				// Broadcast
 				user()->addressBook()->send(message);
+
+				// Send notification
+				AddressBook::Contact *self = mUser->addressBook()->getSelf();
+				if(self)
+				{
+					StringList list;
+					list.push_back(message.stamp());
+					
+					String tmp;
+					YamlSerializer serializer(&tmp);
+					serializer.output(list);
+
+					Notification notification(tmp);
+					notification.setParameter("type", "pass");
+					self->send(notification);
+				}
 				
 				Http::Response response(request, 200);
 				response.send();
