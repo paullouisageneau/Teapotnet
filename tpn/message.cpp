@@ -26,6 +26,7 @@
 #include "tpn/sha512.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/byteserializer.h"
+#include "tpn/messagequeue.h"
 
 namespace tpn
 {
@@ -40,7 +41,6 @@ Message::Message(const String &content) :
 	mIsPublic(false),
 	mIsIncoming(false),
 	mIsRelayed(false),
-	mIsRead(false),
 	mNumber(0)
 {
 	if(!content.empty()) setContent(content);
@@ -91,11 +91,6 @@ bool Message::isRelayed(void) const
         return mIsRelayed;
 }
 
-bool Message::isRead(void) const
-{
-        return mIsRead;
-}
-
 const String &Message::content(void) const
 {
 	return mContent;
@@ -125,9 +120,19 @@ void Message::setContent(const String &content)
 	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
 }
 
+void Message::setParent(const String &stamp)
+{
+	mParent = stamp;
+}
+
 void Message::setPublic(bool ispublic)
 {
 	mIsPublic = ispublic;
+}
+
+void Message::setAuthor(const String &author)
+{
+	mAuthor = author;
 }
 
 void Message::setContact(const String &uname)
@@ -135,24 +140,9 @@ void Message::setContact(const String &uname)
 	mContact = uname;
 }
 
-void Message::setParent(const String &stamp)
-{
-	mParent = stamp;
-}
-
 void Message::setHeaders(const StringMap &headers)
 {
 	mHeaders = headers;
-}
-
-void Message::setTime(const String &time)
-{
-	mTime = Time(time);
-}
-
-void Message::setAuthor(const String &author)
-{
-	mAuthor = author;
 }
 
 void Message::setHeader(const String &name, const String &value)
@@ -193,11 +183,6 @@ void Message::setRelayed(bool relayed)
         mIsRelayed = relayed;
 }
 
-void Message::markRead(bool read) const
-{
-	mIsRead = read; 
-}
-
 bool Message::send(const Identifier &peering) const
 {
 	Assert(!mStamp.empty());
@@ -228,8 +213,6 @@ void Message::serialize(Serializer &s) const
 	ConstSerializableWrapper<bool> isPublicWrapper(mIsPublic);
 	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
 	ConstSerializableWrapper<bool> isRelayedWrapper(mIsRelayed);
-	ConstSerializableWrapper<bool> isReadWrapper(mIsRead);
-	ConstSerializableWrapper<int64_t> numberWrapper(&mNumber);
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
@@ -244,9 +227,17 @@ void Message::serialize(Serializer &s) const
 	mapping["contact"] = &mContact;
         mapping["incoming"] = &isIncomingWrapper;
 	mapping["relayed"] = &isRelayedWrapper;
-	mapping["isread"] = &isReadWrapper;
 	
-	if(mNumber) mapping["number"] = &numberWrapper;
+	ConstSerializableWrapper<int64_t> numberWrapper(mNumber);
+	ConstSerializableWrapper<bool>    isReadWrapper(mIsRead);
+	ConstSerializableWrapper<bool>    isPassedWrapper(mIsPassed);
+	
+	if(mNumber) 
+	{
+		mapping["number"] = &numberWrapper;
+		mapping["read"] = &isReadWrapper;
+		mapping["passed"] = &isPassedWrapper;
+	}
 	
 	s.outputObject(mapping);
 }
@@ -258,9 +249,7 @@ bool Message::deserialize(Serializer &s)
 	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
-	SerializableWrapper<bool> isReadWrapper(&mIsRead);
-	SerializableWrapper<int64_t> numberWrapper(&mNumber);
-	
+
 	Serializer::ObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
         mapping["content"] = &mContent;
@@ -274,9 +263,14 @@ bool Message::deserialize(Serializer &s)
 	mapping["contact"] = &mContact;
 	mapping["incoming"] = &isIncomingWrapper;
 	mapping["relayed"] = &isRelayedWrapper;
-	mapping["isread"] = &isReadWrapper;
+
+	SerializableWrapper<int64_t> numberWrapper(&mNumber);
+	SerializableWrapper<bool>    isReadWrapper(&mIsRead);
+	SerializableWrapper<bool>    isPassedWrapper(&mIsPassed);
 	
 	mapping["number"] = &numberWrapper;
+	mapping["read"] = &isReadWrapper;
+	mapping["passed"] = &isPassedWrapper;
 	
 	bool success = s.inputObject(mapping);
 	if(mStamp.empty()) throw InvalidData("Message without stamp");

@@ -1457,13 +1457,15 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
                 bool privateOnly = !isSelf();   // others may not mark public messages as read
                 MessageQueue::Selection selection = selectMessages(privateOnly);
 
-		Array<Message> unread;
+		List<Message> unread;
 		selection.getUnread(unread);
 		
 		// Mark not present stamps as read
-		for(int i=0; i<unread.size(); ++i)
+		for(List<Message>::iterator it = unread.begin();
+			it != unread.end();
+			++it)
 		{
-			String stamp = unread[i].stamp();
+			String stamp = it->stamp();
 			if(recvStamps.contains(stamp)) recvStamps.erase(stamp);
 			else selection.markRead(stamp);
 		}
@@ -1482,6 +1484,24 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			notification.setParameter("type", "read");
 			notification.send(peering);
 		}
+	}
+	else if(type == "pass")
+	{
+		if(!isSelf())
+		{
+			LogWarn("AddressBook::Contact::notification", "Received pass notification from other than self, dropping");
+			return true;
+		}
+		
+		String data = notification->content();
+                YamlSerializer serializer(&data);
+		StringArray stamps;
+		serializer.input(stamps);
+
+		// Mark messages as passed
+		MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
+		for(int i=0; i<stamps.size(); ++i)
+			messageQueue->markPassed(stamps[i]);
 	}
 	else if(type == "checksum")
 	{
@@ -1705,11 +1725,15 @@ void AddressBook::Contact::sendMessages(const Identifier &peering, const Message
 
 	LogDebug("AddressBook::Contact", "Synchronization: Sending messages: " + String::number(offset) + ", " + String::number(count));
 
-	Array<Message> messages;
+	List<Message> messages;
 	selection.getRange(offset, count, messages);
 	
-	for(int i=0; i<messages.size(); ++i)
-		messages[i].send(peering);
+	for(List<Message>::iterator it = messages.begin();
+		it != messages.end();
+		++it)
+	{
+		it->send(peering);
+	}
 }
 
 void AddressBook::Contact::sendMessagesChecksum(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count, bool recursion) const
@@ -1743,7 +1767,7 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 	bool privateOnly = !isSelf();
 	MessageQueue::Selection selection = selectMessages(privateOnly);
 	
-	StringArray unreadStamps;
+	StringList unreadStamps;
 	selection.getUnreadStamps(unreadStamps);
 	
 	String tmp;

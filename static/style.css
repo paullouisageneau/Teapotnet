@@ -956,10 +956,15 @@ img.avatar
 	max-height: 32px;
 }
 
-.message .button
+.message .buttonsbar
 {
 	float: right;
 	clear: right;
+}
+
+.message .button
+{
+	float: right;
 	margin: 0.25em 0em 0em 0.5em;
 }
 
