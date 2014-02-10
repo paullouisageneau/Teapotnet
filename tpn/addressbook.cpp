@@ -1596,6 +1596,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				sendMessages(peering, selection, total, localTotal - total);
 			
 			sendUnread(peering);
+			sendPassed(peering);
 		}
 	}
 	else if(type == "checkself")
@@ -1767,15 +1768,33 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 	bool privateOnly = !isSelf();
 	MessageQueue::Selection selection = selectMessages(privateOnly);
 	
-	StringList unreadStamps;
-	selection.getUnreadStamps(unreadStamps);
+	StringList stamps;
+	selection.getUnreadStamps(stamps);
 	
 	String tmp;
 	YamlSerializer serializer(&tmp);
-	serializer.output(unreadStamps);
+	serializer.output(stamps);
 
 	Notification notification(tmp);
 	notification.setParameter("type", "unread");
+	notification.send(peering);
+}
+
+void AddressBook::Contact::sendPassed(const Identifier &peering) const
+{
+	bool privateOnly = !isSelf();
+	MessageQueue::Selection selection = selectMessages(privateOnly);
+	
+	// Send the last passed messages
+	StringList stamps;
+	selection.getPassedStamps(stamps, 10);	// TODO
+	
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serializer.output(stamps);
+
+	Notification notification(tmp);
+	notification.setParameter("type", "pass");
 	notification.send(peering);
 }
 
