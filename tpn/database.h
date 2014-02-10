@@ -28,6 +28,8 @@
 #include "tpn/exception.h"
 #include "tpn/serializer.h"
 #include "tpn/time.h"
+#include "tpn/array.h"
+#include "tpn/list.h"
 
 #ifdef USE_SYSTEM_SQLITE3
 #include <sqlite3.h>
@@ -56,6 +58,8 @@ public:
 		void finalize(void);		
 		void execute(void);	// step + finalize
 
+		template<typename T> bool fetch(List<T> &result);
+		template<typename T> bool fetchColumn(int index, List<T> &result);
 		template<typename T> bool fetch(Array<T> &result);
 		template<typename T> bool fetchColumn(int index, Array<T> &result);
 	
@@ -156,6 +160,34 @@ public:
 	DatabaseException(sqlite3 *db, const String &message);
 };
 
+template<typename T> bool Database::Statement::fetch(List<T> &result)
+{
+	result.clear();
+	while(step())
+	{
+		T tmp;
+		tmp.deserialize(*this);
+		result.push_back(tmp);
+	}
+
+	// finalize is not called here
+	return (!result.empty());
+}
+
+template<typename T> bool Database::Statement::fetchColumn(int index, List<T> &result)
+{
+	result.clear();
+	while(step())
+	{
+		T tmp;
+		value(index, tmp);
+		result.push_back(tmp);
+	}
+
+	// finalize is not called here
+	return (!result.empty());
+}
+
 template<typename T> bool Database::Statement::fetch(Array<T> &result)
 {
 	result.clear();
@@ -163,7 +195,7 @@ template<typename T> bool Database::Statement::fetch(Array<T> &result)
 	{
 		T tmp;
 		tmp.deserialize(*this);
-		result.append(tmp);
+		result.push_back(tmp);
 	}
 
 	// finalize is not called here
@@ -177,7 +209,7 @@ template<typename T> bool Database::Statement::fetchColumn(int index, Array<T> &
 	{
 		T tmp;
 		value(index, tmp);
-		result.append(tmp);
+		result.push_back(tmp);
 	}
 
 	// finalize is not called here

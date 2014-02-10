@@ -37,55 +37,108 @@ MessageQueue::MessageQueue(User *user) :
 {
 	if(mUser) mDatabase = new Database(mUser->profilePath() + "messages.db");
 	else mDatabase = new Database("messages.db");
-	
-	// TODO: backward compatibility, sould be removed (27/10/2013)
-	try {
-		mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
-	}
-	catch(...)
-	{
-		mDatabase->execute("DROP TABLE IF EXISTS messages");
-	}
-	//
-	
+		
 	// WARNING: Additionnal fields in messages should be declared in erase()
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS messages\
-	(id INTEGER PRIMARY KEY AUTOINCREMENT,\
-	stamp TEXT UNIQUE NOT NULL,\
-	parent TEXT,\
-	headers TEXT,\
-	content TEXT,\
-	author TEXT,\
-	signature TEXT,\
-	contact TEXT NOT NULL,\
-	time INTEGER(8) NOT NULL,\
-	public INTEGER(1) NOT NULL,\
-	incoming INTEGER(1) NOT NULL,\
-	relayed INTEGER(1) NOT NULL,\
-	isread INTEGER(1) NOT NULL)");
+		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		stamp TEXT UNIQUE NOT NULL,\
+		parent TEXT,\
+		headers TEXT,\
+		content TEXT,\
+		author TEXT,\
+		signature TEXT,\
+		contact TEXT NOT NULL,\
+		time INTEGER(8) NOT NULL,\
+		public INTEGER(1) NOT NULL,\
+		incoming INTEGER(1) NOT NULL,\
+		relayed INTEGER(1) NOT NULL)");
 
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS received\
+		(stamp TEXT UNIQUE NOT NULL,\
+		contact TEXT NOT NULL)");
+	
+	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
+	
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS flags\
+		(stamp TEXT UNIQUE NOT NULL,\
+		read INTEGER(1) DEFAULT 0 NOT NULL,\
+		passed INTEGER(1) DEFAULT 0 NOT NULL,\
+		time INTEGER(8) DEFAULT 0 NOT NULL)");
+	
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON flags (stamp)");
+	
+	// TODO: backward compatibility, should be removed (09/01/2014)
+	// Populate flags table with read flags and remove isread column
+	bool updateNeeded = false;
+	Database::Statement statement = mDatabase->prepare("PRAGMA table_info(messages)");
+	while(statement.step())
+	{
+		String columnName;
+		statement.value(1, columnName);
+		if(columnName == "isread")
+		{
+			updateNeeded = true;
+			break;
+		}
+	}
+	statement.finalize();
+	
+	if(updateNeeded)
+	{
+		LogInfo("MessageQueue", "Updating messages table to new format...");
+		
+		try {
+			mDatabase->execute("BEGIN TRANSACTION");
+			
+			mDatabase->execute("INSERT OR IGNORE INTO flags (stamp,read) SELECT stamp, isread FROM messages");
+			
+			mDatabase->execute("CREATE TEMPORARY TABLE messages_backup\
+					(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+					stamp TEXT UNIQUE NOT NULL,\
+					parent TEXT,\
+					headers TEXT,\
+					content TEXT,\
+					author TEXT,\
+					signature TEXT,\
+					contact TEXT NOT NULL,\
+					time INTEGER(8) NOT NULL,\
+					public INTEGER(1) NOT NULL,\
+					incoming INTEGER(1) NOT NULL,\
+					relayed INTEGER(1) NOT NULL)");
+			
+			mDatabase->execute("INSERT INTO messages_backup SELECT id,stamp,parent,headers,content,author,signature,contact,time,public,incoming,relayed FROM messages");
+			mDatabase->execute("DROP TABLE messages");
+			
+			mDatabase->execute("CREATE TABLE messages\
+					(id INTEGER PRIMARY KEY AUTOINCREMENT,\
+					stamp TEXT UNIQUE NOT NULL,\
+					parent TEXT,\
+					headers TEXT,\
+					content TEXT,\
+					author TEXT,\
+					signature TEXT,\
+					contact TEXT NOT NULL,\
+					time INTEGER(8) NOT NULL,\
+					public INTEGER(1) NOT NULL,\
+					incoming INTEGER(1) NOT NULL,\
+					relayed INTEGER(1) NOT NULL)");
+					
+			mDatabase->execute("INSERT INTO messages SELECT * FROM messages_backup");
+			mDatabase->execute("DROP TABLE messages_backup");
+			mDatabase->execute("COMMIT");
+	
+			LogInfo("MessageQueue", "Finished updating messages table");
+		}
+		catch(const Exception &e)
+		{
+			throw Exception(String("Database update failed: ") + e.what());
+		}
+	}
+	// End of backward compatibility code
+	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON messages (contact)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON messages (time)");
-	
-	mDatabase->execute("CREATE TABLE IF NOT EXISTS received\
-	(stamp TEXT NOT NULL,\
-	contact TEXT NOT NULL)");
-	
-	try {
-		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
-	}
-	catch(...)
-	{
-		// TODO: backward compatibility, should be removed (08/12/2013)
-		// Delete duplicates from table and recreate unique index
-		mDatabase->execute("DELETE FROM received WHERE rowid NOT IN (SELECT MIN(rowid) FROM received GROUP BY contact, stamp)");
-		mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
-	}
-
-	mDatabase->execute("CREATE TABLE IF NOT EXISTS flags\
-	(stamp TEXT NOT NULL,\
-	pass INTEGER(1) NOT NULL)");
 	
 	Interface::Instance->add("/"+mUser->name()+"/messages", this);
 }
@@ -203,28 +256,72 @@ bool MessageQueue::get(const String &stamp, Message &result) const
         return false;
 }
 
-void MessageQueue::markPass(const String &stamp)
+void MessageQueue::ack(const List<Message> &messages)
+{
+	Map<String, StringList> stamps;
+	for(List<Message>::const_iterator it = messages.begin();
+		it != messages.end();
+		++it)
+	{
+		const Message &message = *it;
+		if(message.isIncoming() && !isRead(message.stamp()))
+		{
+			stamps[message.contact()].push_back(message.stamp());
+			markRead(message.stamp());
+			Assert(isRead(message.stamp()));
+		}
+	}
+	
+	if(!stamps.empty())
+	{
+		LogDebug("MessageQueue::ack", "Sending Acknowledgements");
+		
+		for(Map<String, StringList>::iterator it = stamps.begin();
+			it != stamps.end();
+			++it)
+		{
+			// TODO: ACKs are sent but ignored at reception for public messages
+
+			String tmp;
+			YamlSerializer serializer(&tmp);
+			serializer.output(it->second);
+
+			Notification notification(tmp);
+			notification.setParameter("type", "ack");
+			
+			AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(it->first);
+			if(contact)
+				contact->send(notification);
+			
+			AddressBook::Contact *self = mUser->addressBook()->getSelf();
+			if(self && self != contact) 
+				self->send(notification);
+		}
+	}
+}
+
+void MessageQueue::erase(const String &uname)
 {
 	Synchronize(this);
+
+	// Additionnal fields in messages should be added here
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO messages \
+(id, stamp, parent, headers, content, author, signature, contact, time, public, incoming, relayed) \
+SELECT m.id, m.stamp, m.parent, m.headers, m.content, m.author, '', p.contact, m.time, m.public, m.incoming, 1 \
+FROM messages AS m LEFT JOIN messages AS p ON p.stamp=NULLIF(m.parent,'') WHERE m.contact=?1 AND p.contact IS NOT NULL");
+	statement.bind(1, uname);
+	statement.execute();
+
+        statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
+        statement.bind(1, uname);
+        statement.execute();
 	
-	// If message has already been passed, don't insert
-	Array<String> result;
-
-	Database::Statement fetchStatement = this->mDatabase->prepare("SELECT flags.stamp FROM flags WHERE flags.stamp=?1");
-	fetchStatement.bind(1, stamp);
-	fetchStatement.fetch(result);
-	fetchStatement.execute();
-
-	if(result.empty())
-	{
-		Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp, pass) VALUES (?1,1)");
-		statement.bind(1, stamp);
-		statement.execute();
-	}
-	else
-	{
-		// TODO : "message has already been passed"
-	}
+	statement = mDatabase->prepare("DELETE FROM received WHERE contact=?1");
+        statement.bind(1, uname);
+        statement.execute();
+	
+	statement = mDatabase->prepare("DELETE FROM flags WHERE NOT EXISTS(SELECT 1 FROM messages WHERE messages.stamp=flags.stamp)");
+        statement.execute();
 }
 
 void MessageQueue::markReceived(const String &stamp, const String &uname)
@@ -239,68 +336,68 @@ void MessageQueue::markReceived(const String &stamp, const String &uname)
 
 void MessageQueue::markRead(const String &stamp)
 {
-	Synchronize(this);
-  
-	Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=?1");
-	statement.bind(1, stamp);
-	statement.execute();
+	setFlag(stamp, "read", true);
 }
 
-void MessageQueue::ack(const Array<Message> &messages)
+void MessageQueue::markPassed(const String &stamp)
 {
-	Map<String, StringArray> stamps;
-	for(int i=0; i<messages.size(); ++i)
-		if(!messages[i].isRead() && messages[i].isIncoming())
-		{
-			stamps[messages[i].contact()].append(messages[i].stamp());
-
-			Database::Statement statement = mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=?1");
-        		statement.bind(1, messages[i].stamp());
-        		statement.execute();
-		}
-
-	for(Map<String, StringArray>::iterator it = stamps.begin();
-		it != stamps.end();
-		++it)
-	{
-		// TODO: ACKs are sent but ignored at reception for public messages
-
-		String tmp;
-		YamlSerializer serializer(&tmp);
-		serializer.output(it->second);
-
-		Notification notification(tmp);
-		notification.setParameter("type", "ack");
-		
-		AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(it->first);
-		if(contact)
-			contact->send(notification);
-		
-		AddressBook::Contact *self = mUser->addressBook()->getSelf();
-		if(self && self != contact) 
-			self->send(notification);
-	}
+	setFlag(stamp, "passed", true);
 }
 
-void MessageQueue::erase(const String &uname)
+bool MessageQueue::isRead(const String &stamp) const
+{
+	return getFlag(stamp, "read");
+}
+
+bool MessageQueue::isPassed(const String &stamp) const
+{
+	return getFlag(stamp, "passed");
+}
+
+void MessageQueue::setFlag(const String &stamp, const String &name, bool value)
 {
 	Synchronize(this);
-
-	// Additionnal fields in messages should be added here
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO messages \
-(id, stamp, parent, headers, content, author, signature, contact, time, public, incoming, relayed, isread) \
-SELECT m.id, m.stamp, m.parent, m.headers, m.content, m.author, '', p.contact, m.time, m.public, m.incoming, 1, m.isread \
-FROM messages AS m LEFT JOIN messages AS p ON p.stamp=NULLIF(m.parent,'') WHERE m.contact=?1 AND p.contact IS NOT NULL");
-	statement.bind(1, uname);
-	statement.execute();
-
-        statement = mDatabase->prepare("DELETE FROM messages WHERE contact=?1");
-        statement.bind(1, uname);
-        statement.execute();
 	
-	statement = mDatabase->prepare("DELETE FROM received WHERE contact=?1");
-        statement.bind(1, uname);
-        statement.execute();
+	Database::Statement statement = mDatabase->prepare("SELECT "+name+" FROM flags WHERE stamp=?1");
+	statement.bind(1, stamp);
+	if(statement.step())
+	{
+		bool currentValue = false;
+		statement.input(currentValue);
+		statement.finalize();
+		if(value == currentValue) return;
+	}
+	else {
+		statement.finalize();
+		
+		statement = mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp) VALUES (?1)");
+		statement.bind(1, stamp);
+		statement.execute();
+	}
+	
+	statement = mDatabase->prepare("UPDATE flags SET "+name+"=?2, time=?3 WHERE stamp=?1");
+	statement.bind(1, stamp);
+	statement.bind(2, value);
+	statement.bind(3, Time::Now());
+	statement.execute();
+}
+
+bool MessageQueue::getFlag(const String &stamp, const String &name) const
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("SELECT "+name+" FROM flags WHERE stamp=?1");
+	statement.bind(1, stamp);
+	if(statement.step())
+	{
+		bool value = false;
+		statement.input(value);
+		statement.finalize();
+		return value;
+	}
+	
+	statement.finalize();
+	return false;
 }
 
 void MessageQueue::http(const String &prefix, Http::Request &request)
@@ -327,49 +424,36 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		if(!user()->checkToken(request.post["token"], "message")) 
 			throw 403;
 		
-                if(!request.post.contains("message") || request.post["message"].empty())
+		String action;
+		if(request.post.get("action", action))
 		{
-			if(request.post.contains("pass"))
+			String stamp;
+			if(!request.post.get("stamp", stamp))
+				throw 400;	// Missing stamp
+			
+			Message message;
+			if(!get(stamp, message))
+				throw 400;	// Unknown message
+			
+			if(action == "pass")
 			{
-				String stamp;
-				if(request.post["pass"] && request.post["stamp"])
-				{
-					request.post.get("stamp", stamp);
-					std::cout << "stamp = " << stamp << std::endl;
-					markPass(stamp);
+				// Mark as passed
+				markPassed(stamp);
 
-					// Reconstruct message to be passed
-					//Array<String> result;
-
-					Message message;
-					Database::Statement statement = this->mDatabase->prepare("SELECT messages.* FROM messages WHERE messages.stamp=?1");
-					statement.bind(1, stamp);
-					statement.input(message);
-					statement.finalize();
-					
-					add(message); // TODO : No, sign differently because author gets rewritten here
-
-					// Send message
-					if(contact)
-					{
-						contact->send(message);
-						if(self && self != contact)
-							self->send(message);
-					}
-					else {
-						user()->addressBook()->send(message);
-					}
-
-					// TODO : ask other myself instances to mark message as passed				
-				}
-
+				// Broadcast
+				user()->addressBook()->send(message);
+				
 				Http::Response response(request, 200);
 				response.send();
 				return;
 			}
-			else
-				throw 400;
+
+			// Unknown action
+			throw 400;
 		}
+		
+                if(!request.post.contains("message") || request.post["message"].empty())
+			throw 400;
 
 		bool isPublic = request.post["public"].toBool();
 		
@@ -428,14 +512,14 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 		int count = 100; // TODO: 100 messages selected is max
 		if(request.get.contains("count")) request.get.get("count").extract(count);
 		
-		SerializableArray<Message> array;
-		while(!selection.getLast(next, count, array))
+		SerializableList<Message> list;
+		while(!selection.getLast(next, count, list))
 			if(!wait(60.)) return;
 
-		ack(array);
+		ack(list);
 		
 		JsonSerializer serializer(response.sock);
-		serializer.output(array);
+		serializer.output(list);
 		return;
 	}
 	
@@ -663,7 +747,7 @@ int MessageQueue::Selection::unreadCount(void) const
 	Synchronize(mMessageQueue);
 	
 	int count = 0;
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND message.isread=0 AND message.incoming=1");
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND flags.read=0 AND message.incoming=1");
 	filterBind(statement);
 	if(statement.step())
 		statement.input(count);
@@ -700,7 +784,7 @@ bool MessageQueue::Selection::getOffset(int offset, Message &result) const
         return true;
 }
 
-bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &result) const
+bool MessageQueue::Selection::getRange(int offset, int count, List<Message> &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
@@ -716,7 +800,7 @@ bool MessageQueue::Selection::getRange(int offset, int count, Array<Message> &re
         return (!result.empty());
 }
 
-bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
+bool MessageQueue::Selection::getLast(int count, List<Message> &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
@@ -745,7 +829,8 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
 	statement.finalize();
 
 	// Fetch messages by time
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND (message.id==@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
+	const String fields = "message.*, message.id AS number, flags.read, flags.passed";
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND (message.id==@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("maxid"), maxId);
 	statement.bind(statement.parameterIndex("lasttime"), lastTime);
@@ -760,7 +845,7 @@ bool MessageQueue::Selection::getLast(int count, Array<Message> &result) const
         return false;
 }
 
-bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, Array<Message> &result) const
+bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, List<Message> &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
@@ -769,7 +854,8 @@ bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, Array<Messa
 	if(nextNumber <= 0) 
 		return getLast(count, result);
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("message.*, message.id AS number")+" WHERE "+filter()+" AND message.id>=@id ORDER BY message.id ASC LIMIT @count");
+	const String fields = "message.*, message.id AS number, flags.read, flags.passed";
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND message.id>=@id ORDER BY message.id ASC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("id"), nextNumber);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -778,34 +864,47 @@ bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, Array<Messa
 	
 	if(!result.empty())
 	{
-		// No reverse here
 		if(mIncludePrivate) mMessageQueue->mHasNew = false;
 		return true;
 	}
         return false;
 }
 
-bool MessageQueue::Selection::getUnread(Array<Message> &result) const
+bool MessageQueue::Selection::getUnread(List<Message> &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.isread=0");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND flags.read=0");
         filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
         return (!result.empty());
 }
 
-bool MessageQueue::Selection::getUnreadStamps(StringArray &result) const
+bool MessageQueue::Selection::getUnreadStamps(StringList &result) const
 {
 	Assert(mMessageQueue);
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND message.isread=0");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND flags.read=0");
         filterBind(statement);
+	statement.fetchColumn(0, result);
+	statement.finalize();
+        return (!result.empty());
+}
+
+bool MessageQueue::Selection::getPassedStamps(StringList &result, int count) const
+{
+	Assert(mMessageQueue);
+	Synchronize(mMessageQueue);
+	result.clear();
+	
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND flags.passed=1 ORDER by flags.time DESC LIMIT @count");
+        filterBind(statement);
+	statement.bind(statement.parameterIndex("count"), count);
 	statement.fetchColumn(0, result);
 	statement.finalize();
         return (!result.empty());
@@ -825,8 +924,14 @@ void MessageQueue::Selection::markRead(const String &stamp)
 	
 	if(found)
 	{
-		statement = mMessageQueue->mDatabase->prepare("UPDATE messages SET isread=1 WHERE stamp=@stamp");
-		statement.bind(statement.parameterIndex("stamp"), stamp);
+		statement = mMessageQueue->mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp) VALUES (?1)");
+		statement.bind(1, stamp);
+		statement.execute();
+		
+		statement = mMessageQueue->mDatabase->prepare("UPDATE flags SET read=?2, time=?3 WHERE stamp=?1");
+		statement.bind(1, stamp);
+		statement.bind(2, true);
+		statement.bind(2, Time::Now());
 		statement.execute();
 	}
 }
@@ -885,7 +990,12 @@ String MessageQueue::Selection::target(const String &columns) const
 
 String MessageQueue::Selection::table(void) const
 {
-	return "messages AS message LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'') LEFT JOIN flags AS flag ON flag.stamp=message.stamp";
+	String joining = "messages AS message LEFT JOIN flags ON flags.stamp=message.stamp";
+		
+	if(!mContact.empty())
+		joining+=" LEFT JOIN messages AS parent ON parent.stamp=NULLIF(message.parent,'')";
+	
+	return joining;
 }
 
 String MessageQueue::Selection::filter(void) const
@@ -893,9 +1003,10 @@ String MessageQueue::Selection::filter(void) const
         String condition;
         if(mContact.empty()) condition = "1=1";
 	else {
-		condition = "(EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
-			OR (message.contact='' OR message.contact=@contact)\
-			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact)))";
+		condition = "((message.contact='' OR message.contact=@contact)\
+			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact))\
+			OR EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
+			OR (flags.passed OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND flags.passed=1)))";
 	}
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";

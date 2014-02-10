@@ -369,8 +369,8 @@ function setMessagesReceiverRec(url, object, next) {
 				var id = "message_" + message.stamp;
 				$('#'+id).remove();
 				
-				var isLocalRead = (!message.incoming || message.isread);
-				var isRemoteRead = (message.incoming || message.isread);
+				var isLocalRead = (!message.incoming || message.read);
+				var isRemoteRead = (message.incoming || message.read);
 				
 				var author;	// equals uname when non-relayed
 				var authorHtml;
@@ -402,18 +402,33 @@ function setMessagesReceiverRec(url, object, next) {
 					
 					if(!message.parent) {
 						$(object).prepend('<div class="conversation">'+div+'</div>');
-
-						$('#'+id).append('<form name="passform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="stamp" value="'+message.stamp+'"><input type="hidden" name="pass" value="1"><input type="hidden" name="token" value="'+TokenMessage+'"><input type="submit" value="Pass"></form>');
-
-						$('#'+id).append('<a href="#" class="button">Reply</a>');
+						$('#'+id).append('<div class="buttonsbar"></div>');
+						
+						if(!message.passed)
+						{
+							$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink">Pass</a>');
+							(function(id, stamp) {
+								$('#'+id+' .passlink').click(function() {
+									$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
+									.done(function(data) {
+										$('#'+id+' .passlink').replaceWith('<span class="button">Passed</span>');
+									});
+									return false;
+								});
+							})(id, message.stamp);
+						}
+						else {
+							$('#'+id+' .buttonsbar').append('<span class="button">Passed</span>');
+						}
+						
+						$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink">Reply</a>');
 						(function(idReply) {
-							$('#'+id+' .button').click(function() {
+							$('#'+id+' .replylink').click(function() {
 								$('#'+idReply).toggle();
 								$('#'+idReply+' textarea').focus();
 								return false;
 							});
 						})(idReply);
-						
 					}
 					else {
 						$('#reply_message_'+message.parent).before(div);	// insert before parent reply
