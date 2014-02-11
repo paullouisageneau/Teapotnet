@@ -414,8 +414,8 @@ function setMessagesReceiverRec(url, object, next) {
 										.done(function(data) {
 											$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
 										});
-										return false;
 									}
+									return false;
 								});
 							})(id, message.stamp);
 						}
