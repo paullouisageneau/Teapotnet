@@ -49,7 +49,9 @@ public:
 	bool hasNew(void) const;
 	bool add(Message &message);
 	bool get(const String &stamp, Message &result) const;
+	bool getChilds(const String &stamp, List<Message> &result) const;
 	void ack(const List<Message> &messages);
+	void pass(const List<Message> &messages);
 	void erase(const String &uname);
 
 	void markReceived(const String &stamp, const String &uname);
