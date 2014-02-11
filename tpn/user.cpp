@@ -423,7 +423,7 @@ bool User::checkToken(const String &token, const String &action) const
 		}
 	}
 	
-	LogWarn("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
+	LogDebug("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
 	return false;
 }
 
