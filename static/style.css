@@ -569,9 +569,14 @@ a.button:hover
 	float: none;
 }
 
-#login input
+#login input[type="text"]
 {
-	max-width: 14em;
+	width: 14em;
+}
+
+#login input[type="password"]
+{
+	width: 14em;
 }
 
 #login input[type="submit"]
