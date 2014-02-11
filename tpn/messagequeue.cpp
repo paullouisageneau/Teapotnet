@@ -212,17 +212,18 @@ bool MessageQueue::add(Message &message)
 		notifyAll();
 		SyncYield(this);
 		
-		// Broadcast public messages when parent is broadcasted 
-		if(message.isPublic() && !message.parent().empty())
+		// Broadcast messages when parent is broadcasted or passed 
+		if(!message.parent().empty())
 		{
 			Message parent;
-			if(get(message.parent(), parent) && parent.contact().empty())
+			if(get(message.parent(), parent)
+				&& (parent.contact().empty() || isPassed(parent.stamp())))
 			{
 				// TODO: we shouldn't resend it to the source
 				user()->addressBook()->send(message);
 			}
 		}
-			
+		
 		String attachment = message.header("attachment");
 		if(!attachment.empty())
 		try {
@@ -254,6 +255,20 @@ bool MessageQueue::get(const String &stamp, Message &result) const
 
 	statement.finalize();
         return false;
+}
+
+bool MessageQueue::getChilds(const String &stamp, List<Message> &result) const
+{
+	Synchronize(this);
+
+	result.clear();
+	if(stamp.empty()) return false;
+
+	Database::Statement statement = mDatabase->prepare("SELECT * FROM messages WHERE parent=?1 LIMIT 1");
+	statement.bind(1, stamp);
+	statement.fetch(result);                
+        statement.finalize();
+        return !result.empty();
 }
 
 void MessageQueue::ack(const List<Message> &messages)
@@ -296,6 +311,56 @@ void MessageQueue::ack(const List<Message> &messages)
 			AddressBook::Contact *self = mUser->addressBook()->getSelf();
 			if(self && self != contact) 
 				self->send(notification);
+		}
+	}
+}
+
+void MessageQueue::pass(const List<Message> &messages)
+{
+	SerializableList<Message> list;
+
+	for(List<Message>::const_iterator it = messages.begin();
+		it != messages.end();
+		++it)
+	{
+		if(isPassed(it->stamp())) continue;
+
+		// Mark as passed
+		markPassed(it->stamp());
+
+		// Broadcast the message
+		// TODO: we shouldn't resend it to the source
+		user()->addressBook()->send(*it);
+
+		// Broadcast its childs
+		List<Message> childs;
+		if(getChilds(it->stamp(), childs))
+		{
+			for(List<Message>::const_iterator jt = childs.begin();
+				jt != childs.end();
+				++jt)
+			{
+				// TODO: we shouldn't resend it to the source
+				user()->addressBook()->send(*jt);
+			}
+		}
+
+		list.push_back(*it);
+	}
+
+	if(!list.empty())
+	{
+		// Send notification
+		AddressBook::Contact *self = mUser->addressBook()->getSelf();
+		if(self)
+		{
+			String tmp;
+			YamlSerializer serializer(&tmp);
+			serializer.output(list);
+	
+			Notification notification(tmp);
+			notification.setParameter("type", "pass");
+			self->send(notification);
 		}
 	}
 }
@@ -437,28 +502,10 @@ void MessageQueue::http(const String &prefix, Http::Request &request)
 			
 			if(action == "pass")
 			{
-				// Mark as passed
-				markPassed(stamp);
-
-				// Broadcast
-				user()->addressBook()->send(message);
-
-				// Send notification
-				AddressBook::Contact *self = mUser->addressBook()->getSelf();
-				if(self)
-				{
-					StringList list;
-					list.push_back(message.stamp());
-					
-					String tmp;
-					YamlSerializer serializer(&tmp);
-					serializer.output(list);
-
-					Notification notification(tmp);
-					notification.setParameter("type", "pass");
-					self->send(notification);
-				}
-				
+				List<Message> list;
+				list.push_back(message);
+				pass(list);
+	
 				Http::Response response(request, 200);
 				response.send();
 				return;

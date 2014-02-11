@@ -409,7 +409,7 @@ function setMessagesReceiverRec(url, object, next) {
 							$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img height="15" src="/pass_blue.png"/></a>');
 							(function(id, stamp) {
 								$('#'+id+' .passlink').click(function() {
-									if(confirm('Do you want to pass this message to your friends ?')) {
+									if(confirm('Do you want to pass this message to your contacts ?')) {
 										$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
 										.done(function(data) {
 											$('#'+id+' .passlink').replaceWith('<span class="button"><img height="15" src="/pass_black.png"/></span>');
