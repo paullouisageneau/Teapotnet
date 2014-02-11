@@ -308,7 +308,7 @@ int main(int argc, char** argv)
 		Config::Default("external_port", "auto");
 		Config::Default("port_mapping_enabled", "true");
 		Config::Default("http_timeout", "5000");
-		Config::Default("request_timeout", "5000");
+		Config::Default("request_timeout", "10000");
 		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "5000");
 		Config::Default("tpot_read_timeout", "60000");
@@ -319,6 +319,11 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_delay", "300000");
 		Config::Default("max_connections", "1024");
 		
+// TODO: backward compatibility
+		if(Config::Get("request_timeout").toInt() < 10000)
+			Config::Put("request_timeout", "10000");
+//
+
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "false");
 		Config::Default("cache_max_size", "100");		// MiB
