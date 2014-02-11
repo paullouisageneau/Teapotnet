@@ -994,7 +994,7 @@ void MessageQueue::Selection::markRead(const String &stamp)
 		statement = mMessageQueue->mDatabase->prepare("UPDATE flags SET read=?2, time=?3 WHERE stamp=?1");
 		statement.bind(1, stamp);
 		statement.bind(2, true);
-		statement.bind(2, Time::Now());
+		statement.bind(3, Time::Now());
 		statement.execute();
 	}
 }
@@ -1069,7 +1069,7 @@ String MessageQueue::Selection::filter(void) const
 		condition = "((message.contact='' OR message.contact=@contact)\
 			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact))\
 			OR EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
-			OR (flags.passed OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND flags.passed=1)))";
+			OR (flags.passed OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND flags.passed)))";
 	}
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";
