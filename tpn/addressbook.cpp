@@ -1596,7 +1596,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				sendMessages(peering, selection, total, localTotal - total);
 			
 			sendUnread(peering);
-			sendPassed(peering);
+			if(isSelf()) sendPassed(peering);
 		}
 	}
 	else if(type == "checkself")
