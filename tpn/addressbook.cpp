@@ -1436,15 +1436,19 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	{
 		String data = notification->content();
                 YamlSerializer serializer(&data);
-		StringArray stamps;
+		StringList stamps;
 		serializer.input(stamps);
 
 		// Mark messages as read
 		bool privateOnly = !isSelf();	// others may not mark public messages as read
 		MessageQueue::Selection selection = selectMessages(privateOnly);
 		
-		for(int i=0; i<stamps.size(); ++i)
-			selection.markRead(stamps[i]);
+		for(StringList::iterator it = stamps.begin();
+			it != stamps.end();
+			++it)
+		{
+			selection.markRead(*it);
+		}
 	}
 	else if(type == "unread")
 	{
