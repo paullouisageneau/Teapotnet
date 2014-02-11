@@ -388,7 +388,7 @@ function setMessagesReceiverRec(url, object, next) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
 					if(message.relayed) {
 						author = message.author;
-						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
+						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' ('+(message.parent ? 'via' : 'passed&nbsp;by')+'&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
 					}
 					else {
 						author = message.contact;
