@@ -231,14 +231,19 @@ function setCallback(url, period, callback) {
 		timeout: period,
 		success: function(data) {
 			callback(data);
+		},
+		statusCode: {
+			401: function() {
+				window.location.href = "/";
+			}
 		}
 	})
-	.done(function(data) {
+	.done(function() {
 		setTimeout(function() {
 			setCallback(url, period, callback);
 		}, period);
 	})
-	.fail(function(jqXHR, textStatus) {
+	.fail(function() {
 		setTimeout(function() {
 			setCallback(url, period, callback);
 		}, period);

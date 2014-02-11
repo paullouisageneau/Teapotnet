@@ -267,9 +267,16 @@ void Interface::process(Http::Request &request)
 		
 		if(!user)
 		{
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 401);
+				response.send();
+				return;
+			}
+		
 			String userAgent;
 			request.headers.get("User-Agent", userAgent);
-			
+		
 			// If it is a browser
 			if(userAgent.substr(0,7) == "Mozilla")
 			{
