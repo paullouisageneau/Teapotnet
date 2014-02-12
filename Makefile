@@ -1,4 +1,4 @@
-prefix=/usr/local
+prefix=/usr
 
 DESTDIR=
 TPROOT=/var/lib/teapotnet
