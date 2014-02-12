@@ -409,25 +409,28 @@ function setMessagesReceiverRec(url, object, next) {
 						$(object).prepend('<div class="conversation">'+div+'</div>');
 						$('#'+id).append('<div class="buttonsbar"></div>');
 						
-						if(!message.passed)
+						if(message.incoming)
 						{
-							$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img alt="Pass" src="/arrow_pass.png"></a>');
-							(function(id, stamp) {
-								$('#'+id+' .passlink').click(function() {
-									if(confirm('Do you want to pass this message to your contacts ?')) {
-										$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
-										.done(function(data) {
-											$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
-										});
-									}
-									return false;
-								});
-							})(id, message.stamp);
+							if(!message.passed)
+							{
+								$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img alt="Pass" src="/arrow_pass.png"></a>');
+								(function(id, stamp) {
+									$('#'+id+' .passlink').click(function() {
+										if(confirm('Do you want to pass this message to your contacts ?')) {
+											$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
+											.done(function(data) {
+												$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
+											});
+										}
+										return false;
+									});
+								})(id, message.stamp);
+							}
+							else {
+								$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
+							}
 						}
-						else {
-							$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
-						}
-						
+
 						$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img alt="Reply" src="/arrow_reply.png"></a>');
 						(function(idReply) {
 							$('#'+id+' .replylink').click(function() {
