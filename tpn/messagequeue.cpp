@@ -1067,7 +1067,7 @@ String MessageQueue::Selection::filter(void) const
         if(mContact.empty()) condition = "1=1";
 	else {
 		condition = "((message.contact='' OR message.contact=@contact)\
-			OR (NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact))\
+			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact))\
 			OR EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
 			OR (flags.passed OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND flags.passed)))";
 	}
