@@ -1,0 +1,15 @@
+Source: teapotnet
+Section: net
+Priority: extra
+Maintainer: Paul-Louis Ageneau <paul-louis@ageneau.org>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: https://github.com/paullouisageneau/Teapotnet.git
+#Vcs-Git: git://git.debian.org/collab-maint/teapotnet.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/teapotnet.git;a=summary
+
+Package: teapotnet
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Private and decentralized social network for file sharing and streaming
+
