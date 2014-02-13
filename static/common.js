@@ -550,7 +550,7 @@ function setMessagesReceiverRec(url, object, next) {
 
 			// Hide replies if they're too many
 			$('.conversation').each(function() {
-				var nReplies = $(this).children().size()/2 - 1;
+				var nReplies = $(this).find('.childmessage').size();
 				var nHiddenReplies = nReplies-5;
 				var object = this;
 				var showMoreReplies = false;
