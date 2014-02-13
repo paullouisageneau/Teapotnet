@@ -364,8 +364,12 @@ function setMessagesReceiverRec(url, object, next) {
 	})
 	.done(function(data) {
 		if(data != null) {
-			for(var i=0; i<data.length; i++) {
+			for(var i=0; i<data.length; i++) {				
 				var message = data[i];
+				
+				// Hide double messages created during stamp format change
+				if(message.time < 1392181200 && message.stamp.length >= 32) continue;
+				
 				if(message.number >= next) next = message.number + 1;
 				if(message.parent && $('#message_'+message.parent).length == 0) continue;
 				
