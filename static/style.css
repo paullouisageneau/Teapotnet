@@ -723,6 +723,15 @@ a.button:hover
 	margin-bottom: 0.5em;
 }
 
+#newsfeed .morereplies
+{
+	width: 80%;
+	text-align: center;
+	margin-bottom: 0.5em;
+	cursor: pointer;
+	border: 2px solid #FFF48D;
+}
+
 #newsfeed .reply
 {
 	display: none;
