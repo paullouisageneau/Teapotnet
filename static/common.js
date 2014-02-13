@@ -547,6 +547,44 @@ function setMessagesReceiverRec(url, object, next) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
 				if(isPageHidden()) playMessageSound();
 			}
+
+			// Hide replies if they're too many
+			$('.conversation').each(function() {
+				var nReplies = $(this).children().size()/2 - 1;
+				var nHiddenReplies = nReplies-5;
+				var object = this;
+				var showMoreReplies = false;
+
+				if(nReplies >= 7) // We hide at least 2 replies
+				{
+					$(object).find('.childmessage').eq(0).before('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
+
+					for(i = 0; i < nReplies-5; i++){
+						$(object).find('.childmessage').eq(i).toggle();
+					}
+
+					function clickMoreReplies(){
+
+						for(i = 0; i < nReplies-5; i++){
+							$(object).find('.childmessage').eq(i).toggle();
+						}
+
+						if(!showMoreReplies)
+						{
+							$(object).find('.morereplies').replaceWith('<div class="morereplies">Hide first '+nHiddenReplies+' replies</div>');
+							showMoreReplies = true;
+						}
+						else
+						{
+							$(object).find('.morereplies').replaceWith('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
+							showMoreReplies = false;
+						}
+						$(object).find('.morereplies').click(clickMoreReplies);
+					}
+
+					$(object).find('.morereplies').click(clickMoreReplies);
+				}
+			});
 		}
 
 		this.messagesTimeout = setTimeout(function() {
