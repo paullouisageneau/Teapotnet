@@ -158,7 +158,13 @@ void Message::removeHeader(const String &name)
 void Message::writeSignature(User *user)
 {
 	mAuthor = user->name();
-	mStamp = computeStamp();
+	
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.empty() || mStamp.size() >= 32)
+	//
+		mStamp = computeStamp();
+
 	mSignature = computeSignature(user);
 }
 
@@ -309,6 +315,29 @@ String Message::computeSignature(User *user) const
 	if(mStamp.empty())
 		throw Exception("Cannot compute message signature: no stamp");
 
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.size() < 32)
+	{
+		// Note: contact, incoming, relayed and isread are NOT signed
+		ByteString agregate;
+		ByteSerializer serializer(&agregate);
+		serializer.output(mHeaders);
+		serializer.output(mContent);
+		serializer.output(mAuthor);
+		serializer.output(mStamp);
+		serializer.output(mParent);
+		serializer.output(int64_t(mTime.toUnixTime()));
+		serializer.output(mIsPublic);
+
+		ByteString signature;
+		Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
+		signature.resize(16);
+
+		return signature.toString();
+	}
+	//
+	
 	ByteString stamp;
 	stamp.fromString(mStamp);
 

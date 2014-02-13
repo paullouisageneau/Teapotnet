@@ -168,13 +168,13 @@ bool MessageQueue::add(Message &message)
 {
 	Synchronize(this);
 	
+	if(!message.isIncoming()) message.writeSignature(user());
+	
 	if(message.stamp().empty()) 
 	{
 		LogWarn("MessageQueue::add", "Message with empty stamp, dropping");
 		return false;
 	}
-	
-	if(!message.isIncoming()) message.writeSignature(user());
 	
 	bool exist = false;
 	Message oldMessage;
