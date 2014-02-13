@@ -31,11 +31,6 @@
 namespace tpn
 {
 
-String Message::GenerateStamp(void)
-{
-	return String::random(4) + String::hexa(Time::Now().toUnixTime());
-}
-
 Message::Message(const String &content) :
 	mTime(Time::Now()),
 	mIsPublic(false),
@@ -115,7 +110,6 @@ String Message::header(const String &name) const
 
 void Message::setContent(const String &content)
 {
-	if(mStamp.empty()) mStamp = GenerateStamp();
 	mContent = content;
 	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
 }
@@ -163,9 +157,23 @@ void Message::removeHeader(const String &name)
 
 void Message::writeSignature(User *user)
 {
-	if(mStamp.empty()) mStamp = GenerateStamp();
 	mAuthor = user->name();
+	mStamp = computeStamp();
 	mSignature = computeSignature(user);
+}
+
+bool Message::checkStamp(void) const
+{
+	if(mStamp.empty())
+		return false;
+	
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.size() < 32) 
+		return true;
+	//
+
+	return (mStamp == computeStamp());
 }
 
 bool Message::checkSignature(User *user) const
@@ -273,29 +281,39 @@ bool Message::deserialize(Serializer &s)
 	mapping["passed"] = &isPassedWrapper;
 	
 	bool success = s.inputObject(mapping);
-	if(mStamp.empty()) throw InvalidData("Message without stamp");
+	if(!checkStamp()) throw InvalidData("Message with invalid stamp");
 	return success;
+}
+
+String Message::computeStamp(void) const
+{
+	 // Note: contact, incoming, relayed and isread are NOT in the digest
+        ByteString agregate;
+        ByteSerializer serializer(&agregate);
+        serializer.output(mHeaders);
+        serializer.output(mContent);
+        serializer.output(mAuthor);
+        serializer.output(mParent);
+        serializer.output(int64_t(mTime.toUnixTime()));
+        serializer.output(mIsPublic);
+
+	ByteString stamp;
+	Sha512::Hash(agregate, stamp);
+	return stamp.toString();
 }
 
 String Message::computeSignature(User *user) const
 {
 	Assert(user);
-	
-	// Note: contact, incoming, relayed and isread are NOT signed
-	ByteString agregate;
-	ByteSerializer serializer(&agregate);
-	serializer.output(mHeaders);
-        serializer.output(mContent);
-        serializer.output(mAuthor);
-	serializer.output(mStamp);
-	serializer.output(mParent);
-	serializer.output(int64_t(mTime.toUnixTime()));
-	serializer.output(mIsPublic);
+
+	if(mStamp.empty())
+		throw Exception("Cannot compute message signature: no stamp");
+
+	ByteString stamp;
+	stamp.fromString(mStamp);
 
 	ByteString signature;
-	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
-	signature.resize(16);
-	
+	Sha512::AuthenticationCode(user->getSecretKey("message"), stamp, signature);
 	return signature.toString();
 }
 

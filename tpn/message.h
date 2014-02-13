@@ -66,8 +66,9 @@ public:
 	void setDefaultHeader(const String &name, const String &value);
 	void removeHeader(const String &name);
 	
-	// Signature
+	// Stamp and signature
 	void writeSignature(User *user);
+	bool checkStamp(void) const;
 	bool checkSignature(User *user) const;
 
 	// NOT covered by signature
@@ -84,7 +85,7 @@ public:
 	virtual bool isInlineSerializable(void) const;
 	
 private:
-	static String GenerateStamp(void);
+	String computeStamp(void) const;
 	String computeSignature(User *user) const;
 	
 	// Signed
