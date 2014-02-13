@@ -839,20 +839,94 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			
-			Http::Response response(request, 200);
-			response.send();
-			
-			Html page(response.sock);
-			if(target == "/") page.header("Browse files");
-			else page.header("Browse files: "+target.substr(1));
-			page.open("div","topmenu");
-			page.link(prefix+"/search/","Search files",".button");
-			page.link(prefix+request.url+"?playlist","Play all","playall.button");
-			page.close("div");
+			// if it seems to be a file
+			if(target[target.size()-1] != '/')
+			{
+				Resource resource(Identifier::Null, url, mAddressBook->user()->store());
+				try {
+					resource.fetch();	// we might find a better way to access it
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
+					throw 404;
+				}
+				
+				// redirect if it's a directory
+				if(resource.isDirectory())
+				{
+					if(request.get.contains("download"))
+						throw 404;
+					
+					Http::Response response(request, 301);	// Moved permanently
+					response.headers["Location"] = prefix + request.url + '/';
+					response.send();
+					return;
+				}
+				
+				// Get range
+				int64_t rangeBegin = 0;
+				int64_t rangeEnd = 0;
+				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+				int64_t rangeSize = rangeEnd - rangeBegin;
+				
+				// Get resource accessor
+				Resource::Accessor *accessor = resource.accessor();
+				if(!accessor) throw 404;
+				
+				// Forge HTTP response header
+				Http::Response response(request, 200);
+				if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+				response.headers["Content-Length"] << rangeSize;
+				response.headers["Content-Name"] = resource.name();
+				response.headers["Last-Modified"] = resource.time().toHttpDate();
+				response.headers["Accept-Ranges"] = "bytes";
+				
+				String ext = resource.name().afterLast('.');
+				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
+				{
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = "application/force-download";
+				}
+				else {
+					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = Mime::GetType(resource.name());
+				}
+				
+				response.send();
+				if(request.method == "HEAD") return;
+				
+				try {
+					// Launch transfer
+					if(hasRange) accessor->seekRead(rangeBegin);
+					accessor->readBinary(*response.sock, rangeSize);	// let's go !
+				}
+				catch(const NetException &e)
+				{
+					return;	// nothing to do
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+				}
+			}
+			else {
+				Http::Response response(request, 200);
+				response.send();
+				
+				Html page(response.sock);
+				if(target == "/") page.header("Browse files");
+				else page.header("Browse files: "+target.substr(1));
+				page.open("div","topmenu");
+				page.link(prefix+"/search/","Search files",".button");
+				page.link(prefix+request.url+"?playlist","Play all","playall.button");
+				page.close("div");
 
-			page.div("","list.box");
-			page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,false);");
-			page.footer();
+				page.div("","list.box");
+				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,false);");
+				page.footer();
+			}
+			
 			return;
 		}
 		else if(directory == "search")
