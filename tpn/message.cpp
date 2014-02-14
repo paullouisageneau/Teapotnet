@@ -161,7 +161,7 @@ void Message::writeSignature(User *user)
 
 	// TODO: should be removed
 	// Backward compatibility for legacy stamps 
-	if(mStamp.empty() || mStamp.size() >= 32)
+	if(mStamp.empty() || mStamp.size() == 32)
 	//
 		mStamp = computeStamp();
 
@@ -175,7 +175,7 @@ bool Message::checkStamp(void) const
 	
 	// TODO: should be removed
 	// Backward compatibility for legacy stamps 
-	if(mStamp.size() < 32) 
+	if(mStamp.size() != 32) 
 		return true;
 	//
 
@@ -311,7 +311,10 @@ String Message::computeStamp(void) const
 	computeAgregate(agregate);
 	Sha512::Hash(agregate, digest);
 	digest.resize(24);
-	return digest.base64Encode();
+	
+	String stamp = digest.base64Encode();
+	Assert(stamp.size() == 32);	// 24 * 4/3 = 32
+	return stamp;
 }
 
 String Message::computeSignature(User *user) const
@@ -320,7 +323,7 @@ String Message::computeSignature(User *user) const
 
 	// TODO: should be removed
 	// Backward compatibility for legacy stamps 
-	if(mStamp.size() < 32)
+	if(mStamp.size() != 32)
 	{
 		// Note: contact, incoming and relayed are NOT signed
 		ByteString agregate;
@@ -341,11 +344,14 @@ String Message::computeSignature(User *user) const
 	}
 	//
 	
-	ByteString agregate, signature;
+	ByteString agregate, hmac;
 	computeAgregate(agregate);
-	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
-	signature.resize(24);
-	return signature.base64Encode();
+	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, hmac);
+	hmac.resize(24);
+	
+	String signature = hmac.base64Encode();
+	Assert(signature.size() == 32);	// 24 * 4/3 = 32
+	return signature;
 }
 
 bool Message::isInlineSerializable(void) const
