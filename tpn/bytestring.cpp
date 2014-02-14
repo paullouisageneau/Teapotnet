@@ -92,10 +92,14 @@ void ByteString::fill(char value, int n)
 	assign(n, value);
 }
 
-String ByteString::base64Encode(void) const
+String ByteString::base64Encode(bool safeMode) const
 {
-        static char tab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
+	// safeMode is RFC 4648 'base64url' encoding
+	
+        static const char standardTab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static const char safeTab[]     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	const char *tab = (safeMode ? safeTab : standardTab);
+	
         String out;
         int i = 0;
         while (size()-i >= 3)
@@ -114,13 +118,13 @@ String ByteString::base64Encode(void) const
                 if (left == 1)
                 {
                         out+= tab[(uint8_t(at(i)) & 3) << 4];
-                        out+= '=';
+                        if(!safeMode) out+= '=';
                 }
                 else {
                         out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
                         out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
                 }
-                out+= '=';
+                if(!safeMode) out+= '=';
         }
 
         return out;

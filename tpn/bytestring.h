@@ -52,7 +52,7 @@ public:
 	void fill(char value, int n);
 
 	// TODO: should be flow-based in ByteStream
-	String base64Encode(void) const;
+	String base64Encode(bool safeMode = false) const;
 
 	uint16_t checksum16(void) const { uint16_t i = 0; return checksum(i); }
 	uint32_t checksum32(void) const { uint32_t i = 0; return checksum(i); }

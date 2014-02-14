@@ -287,7 +287,7 @@ bool Message::deserialize(Serializer &s)
 	mapping["passed"] = &isPassedWrapper;
 	
 	bool success = s.inputObject(mapping);
-	if(!checkStamp()) throw InvalidData("Message with invalid stamp");
+	if(mStamp.empty()) throw InvalidData("Message without stamp");
 	return success;
 }
 
@@ -312,7 +312,7 @@ String Message::computeStamp(void) const
 	Sha512::Hash(agregate, digest);
 	digest.resize(24);
 	
-	String stamp = digest.base64Encode();
+	String stamp = digest.base64Encode(true);	// safe mode
 	Assert(stamp.size() == 32);	// 24 * 4/3 = 32
 	return stamp;
 }
@@ -349,7 +349,7 @@ String Message::computeSignature(User *user) const
 	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, hmac);
 	hmac.resize(24);
 	
-	String signature = hmac.base64Encode();
+	String signature = hmac.base64Encode(true);	// safeMode
 	Assert(signature.size() == 32);	// 24 * 4/3 = 32
 	return signature;
 }

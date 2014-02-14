@@ -168,12 +168,23 @@ bool MessageQueue::add(Message &message)
 {
 	Synchronize(this);
 	
-	if(!message.isIncoming()) message.writeSignature(user());
-	
-	if(message.stamp().empty()) 
+	if(message.stamp().empty())
 	{
-		LogWarn("MessageQueue::add", "Message with empty stamp, dropping");
-		return false;
+		if(message.isIncoming()) 
+		{
+			LogWarn("MessageQueue::add", "Message with empty stamp, dropping");
+			return false;
+		}
+		
+		message.writeSignature(user());
+	}
+	else {
+		if(!message.checkStamp())
+		{
+			// TODO: the message should be kept and marked as deleted
+			LogWarn("MessageQueue::add", "Message with invalid stamp, dropping");
+			return false;
+		}
 	}
 	
 	bool exist = false;

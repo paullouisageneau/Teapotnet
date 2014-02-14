@@ -464,8 +464,8 @@ String String::base64Decode(void) const
 			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
 			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
 			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
-			else if (c == '+') tab[j] = 62;
-			else if (c == '/') tab[j] = 63;
+			else if (c == '+' || c == '-') tab[j] = 62;
+			else if (c == '/' || c == '_') tab[j] = 63;
 			else throw IOException("Invalid character");
 			
 			++i; ++j;

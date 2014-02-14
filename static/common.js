@@ -367,11 +367,14 @@ function setMessagesReceiverRec(url, object, next) {
 			for(var i=0; i<data.length; i++) {				
 				var message = data[i];
 				
+				// TODO: Backward compatibility, should be removed
 				// Hide double messages created during stamp format change
 				if(message.time < 1392181200 && message.stamp.length >= 32) continue;
+				//
 				
 				if(message.number >= next) next = message.number + 1;
-				if(message.parent && $('#message_'+message.parent).length == 0) continue;
+				if(!/^[A-Za-z0-9\-_]+$/.test(message.stamp)) continue;				// Invalid stamp
+				if(message.parent && $('#message_'+message.parent).length == 0) continue;	// Parent not found
 				
 				$(object).find('p').remove();
 	      
