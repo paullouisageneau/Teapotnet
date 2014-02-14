@@ -55,16 +55,16 @@ if(!String.linkify) {
 	String.prototype.linkify = function() {
 
 		// http://, https://, ftp://
-		var urlPattern = /(^|\s)((?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|])($|\s)/gim;
+		var urlPattern = /(^|\s)((?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|])([!?:,.;]*(?:$|\s))/gim;
 
 		// www. without http:// or https://
-		var pseudoUrlPattern = /(^|\s)(www\.[\S]+)($|\s)/gim;
+		var pseudoUrlPattern = /(^|\s)(www\.[\S]+)([!?:,.;]*(?:$|\s))/gim;
 
 		// Email addresses
-		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)($|\s)/gim;
+		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)([!?:,.;]*(?:$|\s))/gim;
 
 		// Youtube video pattern
-		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*(?:$|\s)/gim;
+		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*([!?:,.;]*(?:$|\s))/gim;
 		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
 	
 		return this
