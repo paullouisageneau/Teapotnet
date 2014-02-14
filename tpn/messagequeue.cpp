@@ -937,7 +937,7 @@ bool MessageQueue::Selection::getLast(int count, List<Message> &result) const
 
 	// Fetch messages by time
 	const String fields = "message.*, message.id AS number, flags.read, flags.passed";
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND (message.id=@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND (message.id=@maxid OR message.time>=@lasttime OR IFNULL(flags.read,0)=0) ORDER BY message.time,message.id");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("maxid"), maxId);
 	statement.bind(statement.parameterIndex("lasttime"), lastTime);
