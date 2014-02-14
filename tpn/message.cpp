@@ -158,7 +158,7 @@ void Message::removeHeader(const String &name)
 void Message::writeSignature(User *user)
 {
 	mAuthor = user->name();
-	
+
 	// TODO: should be removed
 	// Backward compatibility for legacy stamps 
 	if(mStamp.empty() || mStamp.size() >= 32)
@@ -291,35 +291,38 @@ bool Message::deserialize(Serializer &s)
 	return success;
 }
 
+void Message::computeAgregate(ByteString &result) const
+{
+	result.clear();
+
+	// Note: contact, incoming, and relayed are NOT in the agregate
+        ByteSerializer serializer(&result); 
+        serializer.output(int64_t(mTime.toUnixTime()));
+	serializer.output(mIsPublic);
+	serializer.output(mAuthor);
+        serializer.output(mParent);
+	serializer.output(mHeaders);
+        serializer.output(mContent);
+}
+
 String Message::computeStamp(void) const
 {
-	 // Note: contact, incoming, relayed and isread are NOT in the digest
-        ByteString agregate;
-        ByteSerializer serializer(&agregate);
-        serializer.output(mHeaders);
-        serializer.output(mContent);
-        serializer.output(mAuthor);
-        serializer.output(mParent);
-        serializer.output(int64_t(mTime.toUnixTime()));
-        serializer.output(mIsPublic);
-
-	ByteString stamp;
-	Sha512::Hash(agregate, stamp);
-	return stamp.toString();
+	ByteString agregate, digest;
+	computeAgregate(agregate);
+	Sha512::Hash(agregate, digest);
+	digest.resize(24);
+	return digest.base64Encode();
 }
 
 String Message::computeSignature(User *user) const
 {
 	Assert(user);
 
-	if(mStamp.empty())
-		throw Exception("Cannot compute message signature: no stamp");
-
 	// TODO: should be removed
 	// Backward compatibility for legacy stamps 
 	if(mStamp.size() < 32)
 	{
-		// Note: contact, incoming, relayed and isread are NOT signed
+		// Note: contact, incoming and relayed are NOT signed
 		ByteString agregate;
 		ByteSerializer serializer(&agregate);
 		serializer.output(mHeaders);
@@ -338,12 +341,11 @@ String Message::computeSignature(User *user) const
 	}
 	//
 	
-	ByteString stamp;
-	stamp.fromString(mStamp);
-
-	ByteString signature;
-	Sha512::AuthenticationCode(user->getSecretKey("message"), stamp, signature);
-	return signature.toString();
+	ByteString agregate, signature;
+	computeAgregate(agregate);
+	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
+	signature.resize(24);
+	return signature.base64Encode();
 }
 
 bool Message::isInlineSerializable(void) const
