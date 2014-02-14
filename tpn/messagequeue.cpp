@@ -63,6 +63,7 @@ MessageQueue::MessageQueue(User *user) :
 		(stamp TEXT UNIQUE NOT NULL,\
 		read INTEGER(1) DEFAULT 0 NOT NULL,\
 		passed INTEGER(1) DEFAULT 0 NOT NULL,\
+		deleted INTEGER(1) DEFAULT 0 NOT NULL,\
 		time INTEGER(8) DEFAULT 0 NOT NULL)");
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON flags (stamp)");
@@ -90,7 +91,7 @@ MessageQueue::MessageQueue(User *user) :
 		try {
 			mDatabase->execute("BEGIN TRANSACTION");
 			
-			mDatabase->execute("INSERT OR IGNORE INTO flags (stamp,read) SELECT stamp, isread FROM messages");
+			mDatabase->execute("INSERT OR IGNORE INTO flags (stamp,read) SELECT stamp,isread FROM messages");
 			
 			mDatabase->execute("CREATE TEMPORARY TABLE messages_backup\
 					(id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -134,6 +135,24 @@ MessageQueue::MessageQueue(User *user) :
 			throw Exception(String("Database update failed: ") + e.what());
 		}
 	}
+	
+	// Add deleted column to flags if it doesn't exist
+	updateNeeded = true;
+	statement = mDatabase->prepare("PRAGMA table_info(flags)");
+	while(statement.step())
+	{
+		String columnName;
+		statement.value(1, columnName);
+		if(columnName == "deleted")
+		{
+			updateNeeded = false;
+			break;
+		}
+	}
+	statement.finalize();
+	
+	if(updateNeeded)
+		mDatabase->execute("ALTER TABLE flags ADD COLUMN deleted INTEGER(1) DEFAULT 0 NOT NULL");
 	// End of backward compatibility code
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
@@ -168,6 +187,7 @@ bool MessageQueue::add(Message &message)
 {
 	Synchronize(this);
 	
+	bool deleted = false;
 	if(message.stamp().empty())
 	{
 		if(message.isIncoming()) 
@@ -181,9 +201,8 @@ bool MessageQueue::add(Message &message)
 	else {
 		if(!message.checkStamp())
 		{
-			// TODO: the message should be kept and marked as deleted
-			LogWarn("MessageQueue::add", "Message with invalid stamp, dropping");
-			return false;
+			LogWarn("MessageQueue::add", "Message with invalid stamp");
+			deleted = true;
 		}
 	}
 	
@@ -217,7 +236,11 @@ bool MessageQueue::add(Message &message)
 	
 	mDatabase->insert("messages", message);
 	
-	if(!exist)
+	if(deleted) 
+	{
+		markDeleted(message.stamp());
+	}
+	else if(!exist)
 	{
 		if(message.isIncoming() && !message.isPublic()) mHasNew = true;
 		notifyAll();
@@ -420,6 +443,11 @@ void MessageQueue::markPassed(const String &stamp)
 	setFlag(stamp, "passed", true);
 }
 
+void MessageQueue::markDeleted(const String &stamp)
+{
+	setFlag(stamp, "deleted", true);
+}
+
 bool MessageQueue::isRead(const String &stamp) const
 {
 	return getFlag(stamp, "read");
@@ -428,6 +456,11 @@ bool MessageQueue::isRead(const String &stamp) const
 bool MessageQueue::isPassed(const String &stamp) const
 {
 	return getFlag(stamp, "passed");
+}
+
+bool MessageQueue::isDeleted(const String &stamp) const
+{
+	return getFlag(stamp, "deleted");
 }
 
 void MessageQueue::setFlag(const String &stamp, const String &name, bool value)
@@ -821,7 +854,7 @@ int MessageQueue::Selection::unreadCount(void) const
 	Synchronize(mMessageQueue);
 	
 	int count = 0;
-        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND flags.read=0 AND message.incoming=1");
+        Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND message.incoming=1 AND IFNULL(flags.read,0)=0");
 	filterBind(statement);
 	if(statement.step())
 		statement.input(count);
@@ -884,7 +917,7 @@ bool MessageQueue::Selection::getLast(int count, List<Message> &result) const
 
 	// Fetch the highest id
         int64_t maxId = 0;
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("MAX(message.id) AS maxid")+" WHERE "+filter());
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("MAX(message.id) AS maxid")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0");
         if(!statement.step())
         {
                 statement.finalize();
@@ -895,7 +928,7 @@ bool MessageQueue::Selection::getLast(int count, List<Message> &result) const
 
 	// Find the time of the last message counting only messages without a parent
 	Time lastTime = Time(0);
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("time")+" WHERE "+filter()+" AND NULLIF(message.parent,'') IS NULL ORDER BY message.time DESC,message.id DESC LIMIT @count");
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target("time")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND NULLIF(message.parent,'') IS NULL ORDER BY message.time DESC,message.id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
 	while(statement.step())
@@ -904,7 +937,7 @@ bool MessageQueue::Selection::getLast(int count, List<Message> &result) const
 
 	// Fetch messages by time
 	const String fields = "message.*, message.id AS number, flags.read, flags.passed";
-	statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND (message.id==@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
+	statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND (message.id=@maxid OR message.time>=@lasttime) ORDER BY message.time,message.id");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("maxid"), maxId);
 	statement.bind(statement.parameterIndex("lasttime"), lastTime);
@@ -929,7 +962,7 @@ bool MessageQueue::Selection::getLast(int64_t nextNumber, int count, List<Messag
 		return getLast(count, result);
 	
 	const String fields = "message.*, message.id AS number, flags.read, flags.passed";
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND message.id>=@id ORDER BY message.id ASC LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND message.id>=@id ORDER BY message.id ASC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("id"), nextNumber);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -950,7 +983,7 @@ bool MessageQueue::Selection::getUnread(List<Message> &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND flags.read=0");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND message.incoming=1 AND IFNULL(flags.read,0)=0");
         filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
@@ -963,7 +996,7 @@ bool MessageQueue::Selection::getUnreadStamps(StringList &result) const
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND flags.read=0");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND message.incoming=1 AND IFNULL(flags.read,0)=0");
         filterBind(statement);
 	statement.fetchColumn(0, result);
 	statement.finalize();
@@ -976,7 +1009,7 @@ bool MessageQueue::Selection::getPassedStamps(StringList &result, int count) con
 	Synchronize(mMessageQueue);
 	result.clear();
 	
-	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND flags.passed=1 ORDER by flags.time DESC LIMIT @count");
+	Database::Statement statement = mMessageQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND IFNULL(flags.passed,0)=1 ORDER by flags.time DESC LIMIT @count");
         filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
 	statement.fetchColumn(0, result);
@@ -1080,7 +1113,7 @@ String MessageQueue::Selection::filter(void) const
 		condition = "((message.contact='' OR message.contact=@contact)\
 			OR (NOT message.relayed AND NULLIF(message.parent,'') IS NOT NULL AND (parent.contact='' OR parent.contact=@contact))\
 			OR EXISTS(SELECT 1 FROM received WHERE received.contact=@contact AND received.stamp=message.stamp)\
-			OR (flags.passed OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND flags.passed)))";
+			OR (IFNULL(flags.passed,0)=1 OR EXISTS(SELECT 1 FROM flags WHERE stamp=NULLIF(message.parent,'') AND IFNULL(flags.passed,0)=1)))";
 	}
 
         if(!mBaseStamp.empty()) condition+= " AND (message.time>@basetime OR (message.time=@basetime AND message.stamp>=@basestamp))";

@@ -57,9 +57,11 @@ public:
 	void markReceived(const String &stamp, const String &uname);
 	void markRead(const String &stamp);
 	void markPassed(const String &stamp);
+	void markDeleted(const String &stamp);
 
 	bool isRead(const String &stamp) const;
 	bool isPassed(const String &stamp) const;
+	bool isDeleted(const String &stamp) const;
 	
 	void http(const String &prefix, Http::Request &request);
 	

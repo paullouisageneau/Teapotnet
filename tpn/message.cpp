@@ -282,9 +282,13 @@ bool Message::deserialize(Serializer &s)
 	SerializableWrapper<bool>    isReadWrapper(&mIsRead);
 	SerializableWrapper<bool>    isPassedWrapper(&mIsPassed);
 	
+	bool dummy = false;
+	SerializableWrapper<bool>    dummyBoolWrapper(&dummy);
+	
 	mapping["number"] = &numberWrapper;
 	mapping["read"] = &isReadWrapper;
 	mapping["passed"] = &isPassedWrapper;
+	mapping["deleted"] = &dummyBoolWrapper;
 	
 	bool success = s.inputObject(mapping);
 	if(mStamp.empty()) throw InvalidData("Message without stamp");
