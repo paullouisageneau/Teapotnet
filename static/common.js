@@ -554,11 +554,13 @@ function setMessagesReceiverRec(url, object, next) {
 
 			// Hide replies if they're too many
 			$('.conversation').each(function() {
-				var nReplies = $(this).find('.childmessage').size();
+				if($(this).find('.morereplies').length) return;
+				
+				var nReplies = $(this).find('.childmessage').length;
 				var nHiddenReplies = nReplies-5;
 				var object = this;
 				var showMoreReplies = false;
-
+				
 				if(nReplies >= 7) // We hide at least 2 replies
 				{
 					$(object).find('.childmessage').eq(0).before('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
