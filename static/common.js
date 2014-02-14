@@ -374,6 +374,7 @@ function setMessagesReceiverRec(url, object, next) {
 				
 				if(message.number >= next) next = message.number + 1;
 				if(!/^[A-Za-z0-9\-_]+$/.test(message.stamp)) continue;				// Invalid stamp
+				if(!/^[A-Za-z0-9\-_]*$/.test(message.parent)) continue;				// Invalid parent stamp
 				if(message.parent && $('#message_'+message.parent).length == 0) continue;	// Parent not found
 				
 				$(object).find('p').remove();
