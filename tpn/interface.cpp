@@ -75,6 +75,12 @@ void Interface::process(Http::Request &request)
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
 	
+#ifdef ANDROID
+	bool localAutoLogin = true;
+#else
+	bool localAutoLogin = false;
+#endif
+	
 	if(request.url == "/")
 	{
 		if(request.method == "POST")
@@ -89,14 +95,29 @@ void Interface::process(Http::Request &request)
 			
 			User *user = NULL;
 			try {
-				if(request.post.contains("create") && !User::Exist(name))
+				if(localAutoLogin && remoteAddr.isLocal())
 				{
-					user = new User(name, password, tracker);
+					if(request.post.contains("create") && !User::Exist(name))
+					{
+						if(password.empty()) password = String::random(32);
+						user = new User(name, password, tracker);
+					}
+					else {
+						user = User::Get(name);
+						if(user && !tracker.empty())
+							user->setTracker(tracker);
+					}
 				}
 				else {
-					user = User::Authenticate(name, password);
-					if(user && !tracker.empty())
-						user->setTracker(tracker);
+					if(request.post.contains("create") && !User::Exist(name))
+					{
+						user = new User(name, password, tracker);
+					}
+					else {
+						user = User::Authenticate(name, password);
+						if(user && !tracker.empty())
+							user->setTracker(tracker);
+					}
 				}
 			}
 			catch(const Exception &e)
@@ -121,25 +142,7 @@ void Interface::process(Http::Request &request)
 			response.send();
 			return;
 		}
-	
-/*
-#ifdef ANDROID
-		if(!user && remoteAddr.isLocal() && User::Count() == 1)
-		{
-			Array<String> names;
-			User::GetNames(names);
-			user = User::Get(names[0]);
-			
-			if(user)
-			{
-				Http::Response response(request, 303);
-				response.headers["Location"] = "/" + user->name();
-				response.send();
-				return;
-			}
-		}
-#endif
-*/
+		
 		Http::Response response(request, 200);
 		response.send();
 		
@@ -151,12 +154,42 @@ void Interface::process(Http::Request &request)
 		page.image("/logo.png", "Teapotnet");
 		page.closeLink();
 		page.close("div");
+
+#ifdef ANDROID
+		if(remoteAddr.isLocal())
+		{
+			Array<String> names;
+			User::GetNames(names);
+			if(names.size() == 1)
+			{
+				bool isAuth = false;
+				for(StringMap::iterator it = request.cookies.begin();
+					it != request.cookies.end(); 
+					++it)
+				{
+					if(it->first == "auth_" + names[0])
+					{
+						isAuth = true;
+						break;
+					}
+				}
+				
+				if(!isAuth)
+				{
+					Http::Response response(request, 303);
+					response.headers["Location"] = "/" + names[0];
+					response.send();
+					return;
+				}
+			}
+		}
+#endif
 		
 		page.openForm("/", "post");
 		page.open("table");
 		page.open("tr");
 		page.open("td",".label"); page.label("name", "Name"); page.close("td");
-		page.open("td"); page.input("text", "name"); page.close("td"); 
+		page.open("td"); page.input("text", "name", defaultName); page.close("td"); 
 		page.open("td"); page.link("#", "Change trackers", "trackerlink"); page.close("td");
 		page.close("tr");
 		page.open("tr", "trackerselection");
@@ -165,10 +198,13 @@ void Interface::process(Http::Request &request)
 		page.open("td"); page.close("td");
 		page.close("tr");
 		page.open("tr");
-		page.open("td",".label"); page.label("password", "Password"); page.close("td");
-		page.open("td"); page.input("password", "password"); page.close("td");
-		page.open("td"); page.close("td");
-		page.close("tr");
+		if(!localAutoLogin || !remoteAddr.isLocal())
+		{
+			page.open("td",".label"); page.label("password", "Password"); page.close("td");
+			page.open("td"); page.input("password", "password"); page.close("td");
+			page.open("td"); page.close("td");
+			page.close("tr");
+		}
 		page.open("tr");
 		page.open("td",".label"); page.close("td");
 		page.open("td"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
