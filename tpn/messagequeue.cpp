@@ -53,9 +53,11 @@ MessageQueue::MessageQueue(User *user) :
 		incoming INTEGER(1) NOT NULL,\
 		relayed INTEGER(1) NOT NULL)");
 
+	// Warning: stamp is not unique in received
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS received\
-		(stamp TEXT UNIQUE NOT NULL,\
-		contact TEXT NOT NULL)");
+		(stamp TEXT NOT NULL,\
+		contact TEXT NOT NULL,\
+		time INTEGER(8) DEFAULT 0 NOT NULL)");
 	
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS contact_stamp ON received (contact,stamp)");
 	
@@ -153,6 +155,32 @@ MessageQueue::MessageQueue(User *user) :
 	
 	if(updateNeeded)
 		mDatabase->execute("ALTER TABLE flags ADD COLUMN deleted INTEGER(1) DEFAULT 0 NOT NULL");
+	
+	// Rebuild clean received table
+	updateNeeded = true;
+	statement = mDatabase->prepare("PRAGMA table_info(received)");
+	while(statement.step())
+	{
+		String columnName;
+		statement.value(1, columnName);
+		if(columnName == "time")
+		{
+			updateNeeded = false;
+			break;
+		}
+	}
+	statement.finalize();
+	
+	if(updateNeeded)
+	{
+		mDatabase->execute("DROP TABLE received");
+		mDatabase->execute("CREATE TABLE received\
+		(stamp TEXT NOT NULL,\
+		contact TEXT NOT NULL,\
+		time INTEGER(8) DEFAULT 0 NOT NULL)");
+		mDatabase->execute("CREATE UNIQUE INDEX contact_stamp ON received (contact,stamp)");
+	}
+	
 	// End of backward compatibility code
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON messages (stamp)");
@@ -427,9 +455,10 @@ void MessageQueue::markReceived(const String &stamp, const String &uname)
 {
 	Synchronize(this);
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO received (stamp, contact) VALUES (?1,?2)");
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO received (stamp, contact, time) VALUES (?1,?2,?3)");
 	statement.bind(1, stamp);
 	statement.bind(2, uname);
+	statement.bind(3, Time::Now());
 	statement.execute();
 }
 
