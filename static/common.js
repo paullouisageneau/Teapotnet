@@ -525,7 +525,7 @@ function setMessagesReceiverRec(url, object, next) {
 							}
 							else if(media == 'audio' || media == 'video') {
 								var usePlaylist = (deviceAgent.indexOf('android') < 0);
-								content = '<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">';
+								content = '<span class="filename"><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';
 							}
 							else {
 								content = '<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';

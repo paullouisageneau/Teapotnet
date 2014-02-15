@@ -665,11 +665,11 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div", "optionsnewsfeed");
 
 			StringMap optionsCount;
-			optionsCount["&count=15"] << "Last 15";
-			optionsCount["&count=30"] << "Last 30";
+			optionsCount["&count=20"] << "Last 20";
+			optionsCount["&count=50"] << "Last 50";
 			optionsCount[""] << "All";
 			page.raw("<span class=\"customselect\">");
-			page.select("listCount", optionsCount, "&count=15");
+			page.select("listCount", optionsCount, "&count=20");
 			page.raw("</span>");
 
 			StringMap optionsIncoming;
@@ -770,7 +770,7 @@ void User::http(const String &prefix, Http::Request &request)
 				listIncoming.addEventListener('change', function() {\n\
 					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=15','#statusmessages');\n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmessages');\n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						$(this).closest('form').submit();\n\

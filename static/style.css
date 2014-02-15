@@ -956,6 +956,7 @@ img.avatar
 	border: 1px solid black;
 	box-shadow: 1px 1px 5px #202020;
 	color: black;
+	text-overflow: ellipsis;
 }
 
 .message .attached .filename
