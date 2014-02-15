@@ -143,8 +143,7 @@ void Interface::process(Http::Request &request)
 			return;
 		}
 		
-#ifdef ANDROID
-		if(remoteAddr.isLocal() && !request.get.contains("changeuser"))
+		if(localAutoLogin && remoteAddr.isLocal() && !request.get.contains("changeuser"))
 		{
 			Array<String> names;
 			User::GetNames(names);
@@ -156,7 +155,6 @@ void Interface::process(Http::Request &request)
 				return;
 			}
 		}
-#endif
 		
 		Http::Response response(request, 200);
 		response.send();
@@ -278,6 +276,10 @@ void Interface::process(Http::Request &request)
 			
 			if(authName == name)
 				user = User::Authenticate(authName, authPassword);
+		}
+		else if(localAutoLogin && remoteAddr.isLocal())
+		{
+			user = User::Get(name);
 		}
 		else {
 			String token;
