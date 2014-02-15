@@ -631,7 +631,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div", "rightcolumn");
 
 			page.open("div", "rightheader");
-			page.link("/", "Change account", ".button");
+			page.link("/?changeuser", "Change account", ".button");
 			page.open("h1");
 			const String instance = Core::Instance->getName().before('.');
 			page.openLink(profile()->urlPrefix());

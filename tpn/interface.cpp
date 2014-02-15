@@ -143,6 +143,21 @@ void Interface::process(Http::Request &request)
 			return;
 		}
 		
+#ifdef ANDROID
+		if(remoteAddr.isLocal() && !request.get.contains("changeuser"))
+		{
+			Array<String> names;
+			User::GetNames(names);
+			if(names.size() == 1)
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = "/" + names[0];
+				response.send();
+				return;
+			}
+		}
+#endif
+		
 		Http::Response response(request, 200);
 		response.send();
 		
@@ -154,36 +169,6 @@ void Interface::process(Http::Request &request)
 		page.image("/logo.png", "Teapotnet");
 		page.closeLink();
 		page.close("div");
-
-#ifdef ANDROID
-		if(remoteAddr.isLocal())
-		{
-			Array<String> names;
-			User::GetNames(names);
-			if(names.size() == 1)
-			{
-				bool isAuth = false;
-				for(StringMap::iterator it = request.cookies.begin();
-					it != request.cookies.end(); 
-					++it)
-				{
-					if(it->first == "auth_" + names[0])
-					{
-						isAuth = true;
-						break;
-					}
-				}
-				
-				if(!isAuth)
-				{
-					Http::Response response(request, 303);
-					response.headers["Location"] = "/" + names[0];
-					response.send();
-					return;
-				}
-			}
-		}
-#endif
 		
 		page.openForm("/", "post");
 		page.open("table");
