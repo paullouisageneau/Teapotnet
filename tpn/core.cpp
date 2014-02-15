@@ -234,22 +234,31 @@ void Core::run(void)
 			mSock.accept(*sock);
 			
 			try {
-				Address addr = sock->getRemoteAddress();
-                        	LogDebug("Core::run", "Incoming connection from " + addr.toString());
-				
-                        	if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
-					mLastPublicIncomingTime = Time::Now();
-
-				// TODO: this is not a clean way to proceed
+				Address addr;
 				const size_t peekSize = 5;	
 				char peekData[peekSize];
-				sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
-				if(sock->peekData(peekData, peekSize) != peekSize)
-					continue;
-	
-				sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+				
+				try {
+					addr = sock->getRemoteAddress();
+					LogDebug("Core::run", "Incoming connection from " + addr.toString());
+					
+					if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
+						mLastPublicIncomingTime = Time::Now();
 
-				ByteStream *bs = sock;
+					sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
+					if(sock->peekData(peekData, peekSize) != peekSize)
+						continue;
+		
+					sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+				}
+				catch(const std::exception &e)
+				{
+					delete sock;
+					throw;
+				}
+			
+				ByteStream *bs = NULL;
+				
 				if(std::memcmp(peekData, "GET ", 4) == 0
 					|| std::memcmp(peekData, "POST ", 5) == 0)
 				{
@@ -257,14 +266,16 @@ void Core::run(void)
 					bs = HttpTunnel::Incoming(sock);
 					if(!bs) continue;
 				}
+				else {
+					bs = sock;
+				}
 				
 				LogInfo("Core", "Incoming peer from " + addr.toString() + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
 				addPeer(bs, addr, Identifier::Null, true);	// async
 			}
-			catch(const Exception &e)
+			catch(const std::exception &e)
 			{
 				LogDebug("Core::run", String("Processing failed: ") + e.what());
-				delete sock;
 			}
 		}
 	}
