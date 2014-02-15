@@ -763,14 +763,14 @@ void User::http(const String &prefix, Http::Request &request)
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
 				listCount.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
 				\n\
 				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
 				listIncoming.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0"+"'+listCount.value.toString(),'#statusmessages');\n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=15','#statusmessages');\n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						$(this).closest('form').submit();\n\
