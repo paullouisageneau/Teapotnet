@@ -188,26 +188,27 @@ void Interface::process(Http::Request &request)
 		page.openForm("/", "post");
 		page.open("table");
 		page.open("tr");
-		page.open("td",".label"); page.label("name", "Name"); page.close("td");
-		page.open("td"); page.input("text", "name"); page.close("td"); 
-		page.open("td"); page.link("#", "Change trackers", "trackerlink"); page.close("td");
-		page.close("tr");
-		page.open("tr", "trackerselection");
-		page.open("td",".label"); page.label("tracker", "Tracker"); page.close("td");
-		page.open("td"); page.input("tracker", "tracker", ""); page.close("td");
-		page.open("td"); page.close("td");
+		page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");
+		page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
+		page.open("td", ".rightcolumn"); page.link("#", "Tracker", "trackerlink"); page.close("td");
 		page.close("tr");
 		if(!localAutoLogin || !remoteAddr.isLocal())
 		{
 			page.open("tr");
-			page.open("td",".label"); page.label("password", "Password"); page.close("td");
-			page.open("td"); page.input("password", "password"); page.close("td");
-			page.open("td"); page.close("td");
+			page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
+			page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
+			page.open("td",".rightcolumn"); page.close("td");
 			page.close("tr");
 		}
+		page.open("tr", "trackerselection");
+		page.open("td", ".leftcolumn"); page.label("tracker", "Tracker"); page.close("td");
+		page.open("td", ".middlecolumn"); page.input("text", "tracker", ""); page.close("td");
+		page.open("td", ".rightcolumn"); page.close("td");
+		page.close("tr");
 		page.open("tr");
-		page.open("td",".label"); page.close("td");
-		page.open("td"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
+		page.open("td",".leftcolumn"); page.close("td");
+		page.open("td",".middlecolumn"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
+		page.open("td",".rightcolumn"); page.close("td");
 		page.close("tr");
 		page.close("table");
 		page.closeForm();

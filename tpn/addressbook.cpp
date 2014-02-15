@@ -1477,12 +1477,9 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		// Ack left stamps
 		if(!recvStamps.empty())
 		{
-			StringArray ackedStamps;
-			ackedStamps.assign(recvStamps.begin(), recvStamps.end());
-			
 			String tmp;
 			YamlSerializer outSerializer(&tmp);
-			outSerializer.output(ackedStamps);
+			outSerializer.output(recvStamps);
 
 			Notification notification(tmp);
 			notification.setParameter("type", "read");

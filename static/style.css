@@ -551,6 +551,7 @@ a.button:hover
 #login .user
 {
 	width: 20em;
+	max-width: 80%;
 	margin: 0.5em;
 	padding: 0.5em;
 	margin-left: auto;
@@ -571,35 +572,43 @@ a.button:hover
 
 #login input[type="text"]
 {
-	width: 14em;
+	width: 90%;
 }
 
 #login input[type="password"]
 {
-	width: 14em;
+	width: 90%;
 }
 
 #login input[type="submit"]
 {
-	width: 7.1em;
+	width: 45%;
 }
 
 #login table
 {
-	width: 48em;
+	width: 40em;
+	max-width: 100%;
 	margin-left: auto;
 	margin-right: auto;
 	margin-bottom: 2em;
 }
 
-#login table td
+#login table td.leftcolumn
 {
-	width: 16em;
+	width: 25%;
+	text-align: right;
 }
 
-#login table td.label
+#login table td.rightcolumn
 {
-	text-align: right;
+	width: 25%;
+}
+
+#login table td.middlecolumn
+{
+	width: 50%;
+	text-align: center;
 }
 
 #leftcolumn #logo
@@ -684,6 +693,7 @@ a.button:hover
 #newsfeed .message
 {
 	max-width: 85%;
+	width: 85%;
 	margin: 0;
 	margin-bottom: 0.5em;
 }
@@ -725,11 +735,14 @@ a.button:hover
 
 #newsfeed .morereplies
 {
-	width: 85%;
+	width: 80%;
+	margin-left: 15%;
 	text-align: center;
 	margin-bottom: 0.5em;
 	cursor: pointer;
+	background-color: #FFFFD0;
 	border: 2px solid #FFF48D;
+	border-radius: 0.25em;
 }
 
 #newsfeed .reply
@@ -1672,14 +1685,33 @@ form #trackerlink
 		margin: 0.5em 0em 0.5em 0em;
 	}
 	
+	#newsfeed .message
+	{
+		max-width: 100%;
+		width: 100%;
+	}
+	
 	#newsfeed .childmessage
 	{
-		width: 85%;
+		width: 90%;
+		margin-left: 10%;
 	}
-
+	
 	#newsfeed .reply
 	{
-		width: 85%;
+		width: 90%;
+		margin-left: 10%;
+	}
+	
+	#newsfeed .morereplies
+	{
+		width: 90%;
+		margin-left: 10%;
+	}
+	
+	.conversation
+	{
+		margin-bottom: 2.5em;
 	}
 	
 	.files td.actions a
