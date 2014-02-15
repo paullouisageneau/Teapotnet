@@ -189,7 +189,7 @@ void Interface::process(Http::Request &request)
 		page.open("table");
 		page.open("tr");
 		page.open("td",".label"); page.label("name", "Name"); page.close("td");
-		page.open("td"); page.input("text", "name", defaultName); page.close("td"); 
+		page.open("td"); page.input("text", "name"); page.close("td"); 
 		page.open("td"); page.link("#", "Change trackers", "trackerlink"); page.close("td");
 		page.close("tr");
 		page.open("tr", "trackerselection");
@@ -197,9 +197,9 @@ void Interface::process(Http::Request &request)
 		page.open("td"); page.input("tracker", "tracker", ""); page.close("td");
 		page.open("td"); page.close("td");
 		page.close("tr");
-		page.open("tr");
 		if(!localAutoLogin || !remoteAddr.isLocal())
 		{
+			page.open("tr");
 			page.open("td",".label"); page.label("password", "Password"); page.close("td");
 			page.open("td"); page.input("password", "password"); page.close("td");
 			page.open("td"); page.close("td");
