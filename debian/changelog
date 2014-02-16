@@ -1,4 +1,10 @@
-teapotnet (0.8.3-1) unstable; urgency=low
+teapotnet (0.8.4) unstable; urgency=low
+
+  * Version 0.8.4
+
+ -- Paul-Louis Ageneau <paul-louis@ageneau.org>  Sat, 15 Feb 2014 17:30:00 +0100
+
+teapotnet (0.8.3) unstable; urgency=low
 
   * Initial release
 
