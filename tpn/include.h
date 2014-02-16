@@ -350,6 +350,8 @@ inline unsigned threadId(pthread_t thread)
 // Debug tools
 #define VAR(x) 				{ std::ostringstream s; s<<""#x"="<<x; Log("VAR", s.str()); }
 
+std::string GetFormattedLogTime(void);
+
 template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)
 {
 	if(level < LogLevel) return;
@@ -366,15 +368,16 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	
 	std::ostringstream oss;
 	oss.fill(' ');
+	oss<<GetFormattedLogTime()<<' ';
 #ifdef DEBUG
 	oss<<file<<':'<<std::dec<<line;
 	std::string tmp = oss.str();
 	oss.str("");
 	oss<<tmp;
 	if(tmp.size() < 25) oss<<std::string(25-tmp.size(), ' ');
-	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' ';
+	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' '<<std::setw(40)<<prefix<<' ';
 #endif
-	oss<<std::setw(40)<<prefix<<' '<<std::setw(8)<<strLevel<<' '<<value;
+	oss<<std::setw(8)<<strLevel<<' '<<value;
 
 	LogMutex.lock();
 	

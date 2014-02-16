@@ -55,6 +55,12 @@ Mutex	tpn::LogMutex;
 int	tpn::LogLevel = LEVEL_INFO;
 bool	tpn::ForceLogToFile = false;
 
+std::string tpn::GetFormattedLogTime(void)
+{
+	Time time(Time::Now());
+	return std::string(time.toIsoDate() + " " + time.toIsoTime());
+}
+
 #ifdef WINDOWS
 int InterfacePort SHARED = 0;
 
@@ -685,12 +691,12 @@ String plist = "\
 				File::Remove(usersFileName);
 			}
 
+			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");
+			
 #if defined(WINDOWS) || defined(MACOSX)
 			InterfacePort = ifport;
 			if(!isSilent && !isBoot)
 				openUserInterface();
-
-			LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");
 
 			class CheckUpdateTask : public Task
 			{
