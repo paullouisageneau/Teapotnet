@@ -25,6 +25,7 @@
 #include "tpn/list.h"
 #include "tpn/set.h"
 #include "tpn/map.h"
+#include "tpn/bytestring.h"
 
 namespace tpn
 {
@@ -444,36 +445,7 @@ String String::urlDecode(void) const
 
 String String::base64Encode(void) const
 {
-	static char tab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-	String out;
-	int i = 0;
-	while (size()-i >= 3)
-	{
-		out+= tab[uint8_t(at(i)) >> 2];
-		out+= tab[((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
-		out+= tab[((uint8_t(at(i+1)) & 0x0F) << 2) | (uint8_t(at(i+2)) >> 6)];
-		out+= tab[uint8_t(at(i+2)) & 0x3F];
-		i+= 3;
-	}
-
-	int left = size()-i;
-	if(left)
-	{
-		out+= tab[at(i) >> 2];
-		if (left == 1)
-		{
-			out+= tab[(uint8_t(at(i)) & 3) << 4];
-			out+= '=';
-		}
-		else {
-			out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
-			out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
-		}
-		out+= '=';
-	}
-	
-	return out;
+	return ByteString(*this).base64Encode();
 }
 
 String String::base64Decode(void) const
@@ -492,8 +464,8 @@ String String::base64Decode(void) const
 			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
 			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
 			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
-			else if (c == '+') tab[j] = 62;
-			else if (c == '/') tab[j] = 63;
+			else if (c == '+' || c == '-') tab[j] = 62;
+			else if (c == '/' || c == '_') tab[j] = 63;
 			else throw IOException("Invalid character");
 			
 			++i; ++j;

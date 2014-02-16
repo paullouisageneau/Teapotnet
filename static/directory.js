@@ -19,16 +19,27 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function getResourceLink(resource) {
+function getResourceLink(resource, privateMode) {
 	
+	if(resource.digest) 
+		return '/' + resource.digest.escape();
+	
+	var url = window.location.href;
 	var basePath = getBasePath(1);
-	return (resource.digest ? '/' + resource.digest.escape() : 
-		basePath + (resource.contact && basePath != '/'+resource.contact+'/' ? 'contacts/' + resource.contact.escape() : 'myself') 
-		+ '/files' + (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
-		+ (resource.type == "directory" ? '/' : ''));
+	var fromSelf = (resource.contact && basePath == '/'+resource.contact+'/');
+	
+	var subPath = 'browse';
+	if(privateMode) {
+		if(resource.hops == 0 || fromSelf) subPath = 'myself/files';
+		else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
+	}
+	
+	return basePath + subPath
+		+ (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
+		+ (resource.type == "directory" ? '/' : '');
 }
 
-function listDirectory(url, object, showButtons) {
+function listDirectory(url, object, showButtons, privateMode) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
@@ -43,8 +54,15 @@ function listDirectory(url, object, showButtons) {
 		if(showButtons) {
 			var location = url.split('?')[0];
 			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-			$(object).append('<span class="button"> '+data.length+' files</span>');
-			$(object).append('<a href="'+parentLink+'" class="button"><img src="/arrow_up.png" alt="Parent"></a>');
+			$(object)
+				.append('<span class="button"> '+data.length+' files</span>')
+				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+				
+			$(object).find('a.refreshlink').click(function() {
+				listDirectory(url, object, showButtons, privateMode);
+				return false;
+			});
 		}
 		
 		if(data && data.length > 0) {
@@ -56,7 +74,7 @@ function listDirectory(url, object, showButtons) {
 				var resource = data[i];
 				if(!resource.url) continue;
 				
-				var link = getResourceLink(resource);
+				var link = getResourceLink(resource, privateMode);
 				var line = '<tr>';
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
@@ -64,7 +82,8 @@ function listDirectory(url, object, showButtons) {
 					line+= '<td class="actions"></td>';
 				}
 				else {
-					var extension = resource.name.escape().substring(resource.name.escape().lastIndexOf('.')+1,resource.name.escape().length);
+					var pos = resource.name.escape().lastIndexOf('.');
+					var extension = (pos > 0 ? resource.name.escape().substring(pos+1,resource.name.escape().length) : '');
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
@@ -83,11 +102,32 @@ function listDirectory(url, object, showButtons) {
 			
 		}
 		else {
-			$(object).html('<div class="files">No files</div>');
+			$(object).append('<div class="files">No files</div>');
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Unable to access files');
+		
+		$(object).html('');
+		
+		if(showButtons) {
+			var location = url.split('?')[0];
+			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+			$(object)
+				.append('<span class="button">0 files</span>')
+				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.append('<a href="#" class="button refreshlink">Retry</a>');
+		}
+		
+		$(object).append('<div class="files">Unable to access files</div>');
+		
+		if(!showButtons) {
+			$(object).append('<a href="#" class="button refreshlink">Retry</a>');
+		}
+		
+		$(object).find('a.refreshlink').click(function() {
+			listDirectory(url, object, showButtons, privateMode);
+			return false;
+		});
 	});
 }
 
@@ -101,16 +141,29 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		timeout: 30000
 	})
 	.done(function(data) {
-		$(object).html('<h2>Select a file</h2>');
+		if(!data) data = [];
+	      
+		$(object).html('<h2>Select a file</h2>')
 		
-		$(object).append('<a class="button quitbutton" href="#">Cancel</a>');
-		$(object).find('a.quitbutton').click(function() {
-			$(inputName).val("").change();
-			$(input).val("").change();
-			$(object).remove();
-		});
+		if(parents.length > 0) {
+			$(object)
+				.append('<span class="button"> '+data.length+' files</span>')
+				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.find('a.parentlink').click(function() {
+					var parentUrl = parents.pop();
+					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+					return false;
+				});
+		}
 		
-		//$(object).append('<a class="button" href="'+uploadUrl+'">Send another file</a>');
+		$(object)
+			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				return false;
+			});
+			
+		//$(object).append('<a class="button" href="'+uploadUrl+'">Choose another file</a>');
 		
 		if(directoryToken)
 		{
@@ -119,7 +172,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 			$(object).append('<form id="uploadform" action="'+uploadUrl+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+directoryToken+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
 			$('#selector_file')
 				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
-				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Send another file</a>')
+				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">New file</a>')
 				.change(function() {
 					$(object).children().hide();
 					$(object).append('<span>Please wait...</span>');
@@ -145,71 +198,92 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 					});
 				});
 		}	
-			
-		if(parents.length > 0) {
-			$(object).append('<span class="button"> '+data.length+' files</span>');
-			$(object).append('<a href="#" class="button"><img src="/arrow_up.png" alt="Parent"></a>');
-			$(object).find('a:last').click(function() {
-				var parentUrl = parents.pop();
-				listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+
+		$(object)
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.find('a.quitlink').click(function() {
+				$(inputName).val("").change();
+				$(input).val("").change();
+				$(object).remove();
+				return false;
+			});
+		
+		$(object).append('<br><div class="fileselectorwindow"><table class="files"></table></div>');
+		var table = $(object).find('table');
+		
+		if(parents.length == 0) {
+			data.unshift({
+				url: "/_upload",
+				name: "Recently sent files",
+				type: "directory"
 			});
 		}
-
-		$(object).append('<br>');
 		
-		if(data && data.length > 0) {
-			
-			$(object).append('<table class="files"></table>');
-			var table = $(object).find('table');
-			
-			if(parents.length == 0) {
-				data.unshift({
-					url: "/_upload",
-					name: "Recently sent files",
-					type: "directory"
-				});
-			}
-			
-			for(var i=0; i<data.length; i++) {
-				var resource = data[i];
-				if(!resource.url) continue;
+		for(var i=0; i<data.length; i++) {
+			var resource = data[i];
+			if(!resource.url) continue;
 
-				var line = '<tr>';
-				var func;
-				(function(resource) { // copy resource (only the reference is passed to callbacks)
-					if(resource.type == "directory") {
-						line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
-						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-		
-						func = function() {
-							var link = getResourceLink(resource) + "?json";
-							parents.push(url);
-							listFileSelector(link, object, input, inputName, directoryToken, parents);
-						};
-					}
-					else {
-						line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
-						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-						
-						func = function() {
-							$(inputName).val(resource.name).change();
-							$(input).val(resource.digest).change();
-							$(object).remove();
-						};
-					}
-				})(resource);
-				line+= '</tr>';
-				table.append(line);
-				table.find('tr:last').click(func).css('cursor', 'pointer');
-				table.find('tr:last a').click(func);
-			}
-		}
-		else {
-			$(object).append('<div class="files">No files</div>');
+			var line = '<tr>';
+			var func;
+			(function(resource) { // copy resource (only the reference is passed to callbacks)
+				if(resource.type == "directory") {
+					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
+					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
+	
+					func = function() {
+						var link = getResourceLink(resource) + "?json";
+						parents.push(url);
+						listFileSelector(link, object, input, inputName, directoryToken, parents);
+						return false;
+					};
+				}
+				else {
+					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
+					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
+					
+					func = function() {
+						$(inputName).val(resource.name).change();
+						$(input).val(resource.digest).change();
+						$(object).remove();
+						return false;
+					};
+				}
+			})(resource);
+			line+= '</tr>';
+			table.append(line);
+			table.find('tr:last').click(func).css('cursor', 'pointer');
+			table.find('tr:last a').click(func);
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).html('Unable to access files');
+		$(object)
+			.html('')
+			
+		if(parents.length > 0) {
+			$(object)
+				.append('<span class="button">0 files</span>')
+				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				.find('a.parentlink').click(function() {
+					var parentUrl = parents.pop();
+					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+					return false;
+				});
+		}
+			
+		$(object)
+			.append('<a href="#" class="button refreshlink">Retry</a>')
+			.append('<a href="#" class="button quitlink">Cancel</a>')
+			.append('<div class="files">Unable to access files</div>')
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				return false;
+			})
+			.find('a.quitlink').click(function() {
+				$(inputName).val("").change();
+				$(input).val("").change();
+				$(object).remove();
+				return false;
+			});
 	});
 }
 
@@ -221,7 +295,7 @@ function createFileSelector(url, object, input, inputName, directoryToken)
 		$(input).val("").change();
 		return;
 	}
-
+	
 	$(object).show();
 	$(object).html('<div class="box"></div>');
 	var div = $(object).find('div');

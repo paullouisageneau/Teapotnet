@@ -103,12 +103,13 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	if(!mBlank)
 	{
 		open("div","header");
-		openLink("/"); image("/logo.png", APPNAME, "logo"); closeLink();
+		openLink("/","#backlink"); image("/logo.png", APPNAME, "logo"); closeLink();
 		open("div","title");
 		if(title.empty()) text(APPNAME);
 		else text(title);
 		close("div");
 		close("div");
+		javascript("$('#backlink').click(function(){ window.location.href = getBasePath(1); return false;});");
 		open("div","content");
 	}
 }

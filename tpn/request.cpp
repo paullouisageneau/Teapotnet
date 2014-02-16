@@ -27,6 +27,7 @@
 #include "tpn/stripedfile.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/scheduler.h"
+#include "tpn/config.h"
 
 namespace tpn
 {
@@ -37,14 +38,17 @@ const int Request::Response::Pending = 1;
 const int Request::Response::Failed = 2;
 const int Request::Response::NotFound = 3;
 const int Request::Response::Empty = 4;
-const int Request::Response::Interrupted = 5;
-const int Request::Response::ReadFailed = 6;
-
+const int Request::Response::AlreadyResponded = 5;
+const int Request::Response::Interrupted = 6;
+const int Request::Response::ReadFailed = 7;
 
 Request::Request(const String &target, bool data) :
-		mId(0),				// 0 = invalid id
-		mResponseSender(NULL),
+		mIsData(false),
+		mIsForwardable(true),		// forwardable by default
 		mContentSink(NULL),
+		mResponseSender(NULL),
+		mId(0),				// 0 = invalid id
+		mRemoteId(0),
 		mCancelTask(this)
 {
 	setTarget(target, data);
@@ -55,6 +59,9 @@ Request::~Request(void)
 	Scheduler::Global->remove(&mCancelTask);
 	cancel();
 
+	if(!hasContent())
+		delete mContentSink;
+	
 	for(int i=0; i<mResponses.size(); ++i)
 		delete mResponses[i];
 }
@@ -62,7 +69,7 @@ Request::~Request(void)
 unsigned Request::id(void) const
 {
 	Synchronize(this);
-	return mId;
+	return (mRemoteId ? mRemoteId : mId);
 }
 
 String Request::target(void) const
@@ -96,9 +103,22 @@ void Request::setParameter(const String &name, const String &value)
 	mParameters.insert(name, value);
 }
 
+void Request::setNonReceiver(const Identifier &nonreceiver)
+{
+	Synchronize(this);
+	mNonReceiver = nonreceiver;
+}
+
+void Request::setForwardable(bool forwardable)
+{
+	Synchronize(this);
+	mIsForwardable = forwardable;
+}
+
 void Request::submit(double timeout)
 {
 	Synchronize(this);
+	
 	if(!mId) 
 	{
 		Desynchronize(this);
@@ -131,6 +151,44 @@ void Request::cancel(void)
 		Desynchronize(this);
 		Core::Instance->removeRequest(mId);
 	}
+}
+
+bool Request::forward(const Identifier &receiver, const Identifier &source)
+{
+	Synchronize(this);
+	
+	if(!mIsForwardable) return false;
+
+	int hops = 1;
+	if(mParameters.contains("hops"))
+		hops = mParameters.get("hops").toInt();
+	
+	// Zeros means unlimited
+	if(hops == 1) return false;
+	
+	double timeout = milliseconds(Config::Get("request_timeout").toInt());
+	if(mParameters.contains("timeout"))
+		timeout = mParameters.get("timeout").toDouble();
+	timeout*= 0.5;	// TODO
+	
+	LogDebug("Request::forward", "Forwarding request " + String::number(mRemoteId));
+	
+	mParameters["access"] = "public";
+	mParameters["hops"] = String::number((hops == 0 ? 0 : hops-1));
+	mParameters["timeout"] = String::number(timeout);
+	setNonReceiver(source);	// TODO: and we shouldn't send to self
+	
+	try {
+		submit(receiver);
+		wait(timeout);
+	}
+	catch(const Exception &e) 
+	{
+		LogWarn("Request::forward", e.what());
+		return false;
+	}
+	
+	return true;
 }
 
 bool Request::execute(User *user, bool isFromSelf)
@@ -183,6 +241,8 @@ bool Request::execute(User *user, bool isFromSelf)
 				const String &instance = identifier.getName();
 				if(contact && !contact->isConnected(instance))
 				{
+					setForwardable(false);
+
 					List<String> list;
 					mParameters.get("adresses").explode(list, ',');
 					
@@ -221,6 +281,7 @@ bool Request::execute(User *user, bool isFromSelf)
 				Resource resource;
 				if(query.submitLocal(resource))
 				{
+					setForwardable(false);
 					addResponse(createResponse(resource, parameters, store));
 					return true;
 				}
@@ -239,13 +300,18 @@ bool Request::execute(User *user, bool isFromSelf)
 			{
 				addResponse(new Response(Response::Empty));
 			}
-			else for(Set<Resource>::iterator it = resources.begin();
-				it != resources.end();
-				++it)
-			{
-				addResponse(createResponse(*it, parameters, store));
+			else {
+				if(argument.empty() || argument[argument.size()-1] != '/')	// if not a directory listing
+					setForwardable(false);
+
+				for(Set<Resource>::iterator it = resources.begin();
+					it != resources.end();
+					++it)
+				{
+					addResponse(createResponse(*it, parameters, store));
+				}
 			}
-			
+		
 			return true;
 		}
 	}
@@ -421,7 +487,33 @@ int Request::addResponse(Response *response)
 {
 	Synchronize(this);
 	Assert(response != NULL);
-	//Assert(!mResponses.contains(response));
+	Assert(!mResponses.contains(response));
+	
+	int hops = 1;
+	if(response->mParameters.contains("hops"))
+		hops = response->mParameters["hops"].toInt();
+		
+	if(mId && mRemoteId)	// if forwarded
+	{
+		// Add only successful responses
+		if(response->error())
+			return -1;
+
+		// Remove existing negative responses
+		for(int i=0; i<mResponses.size();)
+		{
+			if(mResponses[i]->error()) 
+			{
+				delete mResponses[i];
+				mResponses.erase(i);
+			}
+			else ++i;
+		}
+		
+		hops = std::max(hops,1) + 1;
+	}
+	
+	response->mParameters["hops"] = String::number(hops);
 	
 	mResponses.push_back(response);
 	if(mResponseSender) mResponseSender->notify();

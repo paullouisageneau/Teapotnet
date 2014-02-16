@@ -51,11 +51,14 @@ public:
 	void setTarget(const String &target, bool data);
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
-	
+	void setNonReceiver(const Identifier &nonreceiver);
+	void setForwardable(bool forwardable = true);	
+
 	void submit(double timeout = -1.);
 	void submit(const Identifier &receiver, double timeout = -1.);
 	void cancel(void);
-	bool execute(User *user, bool isFromSelf = false);
+	bool forward(const Identifier &receiver, const Identifier &source);	// false if not forwarded (e.g. not forwardable, hop count reached or error)
+	bool execute(User *user, bool isFromSelf = false);			// false if execution failed
 	bool executeDummy(void);
 	
 	Identifier receiver(void) const;
@@ -73,6 +76,7 @@ public:
 		static const int Failed;
 		static const int NotFound;
 		static const int Empty;
+		static const int AlreadyResponded;
 		static const int Interrupted;
 		static const int ReadFailed;
 	  
@@ -103,6 +107,7 @@ public:
 		bool mTransfertFinished;
 		
 		friend class Core;
+		friend class Request;
 	};
 
 	int responsesCount(void) const;
@@ -115,15 +120,16 @@ private:
 	Response *createResponse(const Resource &resource, const StringMap &parameters, Store *store);
 	int addResponse(Response *response);
 
-	Identifier mReceiver;
+	Identifier mReceiver, mNonReceiver;
 	String mTarget;
 	bool mIsData;
+	bool mIsForwardable;		// This only depends on execution, not on hops number
 	StringMap mParameters;
 	ByteStream *mContentSink;
 	Synchronizable *mResponseSender;
 	Address mRemoteAddr;
 	
-	unsigned mId;
+	unsigned mId, mRemoteId;
 	Set<Identifier> mPending;
 
 	Array<Response*> mResponses;

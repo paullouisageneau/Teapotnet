@@ -6,8 +6,8 @@ TPROOT=/var/lib/teapotnet
 CC=gcc
 CXX=g++
 RM=rm -f
-CPPFLAGS=-g -O2 -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
-LDFLAGS=-g -O2
+CPPFLAGS=-O2
+LDFLAGS=-O2
 LDLIBS=-lpthread -ldl
 
 UNAME_S := $(shell uname -s)
@@ -20,22 +20,23 @@ OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet
 
+include/sqlite3.o: include/sqlite3.c
+	$(CC) -c $(CPPFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS $*.c -o $*.o
+	
+%.o: %.cpp
+	$(CXX) $(CPPFLAGS) -I. -MMD -MP -o $@ -c $<
+	
+-include $(subst .o,.d,$(OBJS))
+	
 teapotnet: $(OBJS) include/sqlite3.o
 	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS) 
-
-depend: .depend
-
-.depend: $(SRCS)
-	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
 	
 clean:
-	$(RM) tpn/*.o include/*.o
+	$(RM) include/*.o tpn/*.o tpn/*.d
 
 dist-clean: clean
 	$(RM) teapotnet
-	$(RM) tpn/*~ ./.depend
-
-include .depend
+	$(RM) tpn/*~
 
 install: teapotnet teapotnet.service
 	install -d $(DESTDIR)$(prefix)/bin

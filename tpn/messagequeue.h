@@ -49,11 +49,20 @@ public:
 	bool hasNew(void) const;
 	bool add(Message &message);
 	bool get(const String &stamp, Message &result) const;
-	void markReceived(const String &stamp, const String &uname);
-	void markRead(const String &stamp);
-	void ack(const Array<Message> &messages);
+	bool getChilds(const String &stamp, List<Message> &result) const;
+	void ack(const List<Message> &messages);
+	void pass(const List<Message> &messages);
 	void erase(const String &uname);
 
+	void markReceived(const String &stamp, const String &uname);
+	void markRead(const String &stamp);
+	void markPassed(const String &stamp);
+	void markDeleted(const String &stamp);
+
+	bool isRead(const String &stamp) const;
+	bool isPassed(const String &stamp) const;
+	bool isDeleted(const String &stamp) const;
+	
 	void http(const String &prefix, Http::Request &request);
 	
 	class Selection
@@ -76,16 +85,19 @@ public:
 		bool contains(const String &stamp) const;
 		
 		bool getOffset(int offset, Message &result) const;
-		bool getRange(int offset, int count, Array<Message> &result) const;
+		bool getRange(int offset, int count, List<Message> &result) const;
 		
-		bool getLast(int count, Array<Message> &result) const;
-		bool getLast(int64_t nextNumber, int count, Array<Message> &result) const;
+		bool getLast(int count, List<Message> &result) const;
+		bool getLast(int64_t nextNumber, int count, List<Message> &result) const;
 	
-		bool getUnread(Array<Message> &result) const;
-		bool getUnreadStamps(StringArray &result) const;
-		void markRead(const String &stamp);
-
+		bool getUnread(List<Message> &result) const;
+		bool getUnreadStamps(StringList &result) const;
+		bool getPassedStamps(StringList &result, int count) const;
+		
+		void markRead(const String &stamp);	// used to enforce access rights based on selected messages
+		
 		int checksum(int offset, int count, ByteStream &result) const;
+		// TODO: synchro flags
 	
 	private:
 		String target(const String &columns) const;
@@ -111,6 +123,9 @@ public:
 	Selection selectChilds(const String &parentStamp) const;
 	
 private:
+	void setFlag(const String &stamp, const String &name, bool value = true);	// Warning: name is not escaped
+	bool getFlag(const String &stamp, const String &name) const;
+	
 	User *mUser;
 	Database *mDatabase;
 	

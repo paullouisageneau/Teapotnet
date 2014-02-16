@@ -99,7 +99,6 @@ h1
 	padding: 0;
 	font-size: 1.3em;
 	font-weight: bold;
-	text-shadow: 2px 2px 1px #A0A0A0;
 }
 
 h2
@@ -109,7 +108,6 @@ h2
 	margin-bottom: 0.5em;
 	font-size: 1.2em;
 	font-weight: bold;
-	text-shadow: 2px 2px 1px #A0A0A0;
 }
 
 h3
@@ -119,7 +117,6 @@ h3
         margin-bottom: 0.5em;
 	font-size: 1.1em;
 	font-weight: bold;
-	text-shadow: 0.1em 0.1em 0.05em #A0A0A0;
 }
 
 table 
@@ -250,6 +247,13 @@ input[type="password"]
         background-color: #FFFFFF;
 }
 
+select
+{
+	display: inline-block;
+	margin: 0.2em;
+	padding: 0.2em;
+}
+
 textarea
 {
 	display: block;
@@ -361,27 +365,36 @@ a.button:hover
 #leftcolumn #search
 {
 	width: 100%;
+	margin-bottom: 1em;
 }
 
 #leftcolumn #search form
 {
 	display: block;
-	width: 80%;
+	width: 90%;
+	max-width: 420px;
 	margin: 0;
 	padding: 0;
 	margin-left: auto;
 	margin-right: auto;
 }
 
+
+#leftcolumn #search .button
+{
+	display: inline-block;
+	width: 25%;
+	margin: 0;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
 #leftcolumn #search input[type="text"]
 {
-	display: block;
-	width: 100%;
-	max-width: 480px;
-	margin-top: 0;
-	margin-left: auto;
-	margin-right: auto;
-	margin-bottom: 0.5em;
+	display: inline-block;
+	width: 74%;
+	margin: 0;
+	margin-left: 1%;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
 }
@@ -459,6 +472,11 @@ a.button:hover
 	margin: 0;
 }
 
+#rightheader .button
+{
+	float: right;
+}
+
 #leftcolumn
 {
 	float: left;
@@ -520,6 +538,77 @@ a.button:hover
 #header #logo img
 {
 	width: 64px;
+}
+
+#login #logo
+{
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 2em;
+	margin-bottom: 2em;
+}
+
+#login .user
+{
+	width: 20em;
+	max-width: 80%;
+	margin: 0.5em;
+	padding: 0.5em;
+	margin-left: auto;
+	margin-right: auto;
+	font-weight: bold;
+	border: 1px solid #B0B0B0;
+        border-radius: 0.5em;
+	background-color: #F5F5F5;
+	box-shadow: 1px 1px 3px #202020;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#login label
+{
+	float: none;
+}
+
+#login input[type="text"]
+{
+	width: 90%;
+}
+
+#login input[type="password"]
+{
+	width: 90%;
+}
+
+#login input[type="submit"]
+{
+	width: 45%;
+}
+
+#login table
+{
+	max-width: 40em;
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 2em;
+}
+
+#login table td.leftcolumn
+{
+	width: 25%;
+	text-align: right;
+}
+
+#login table td.rightcolumn
+{
+	width: 25%;
+}
+
+#login table td.middlecolumn
+{
+	width: 50%;
+	text-align: center;
 }
 
 #leftcolumn #logo
@@ -585,16 +674,6 @@ a.button:hover
 	background-color: #FFFFFF;
 }
 
-#attachedfile
-{
-	display: none;
-}
-
-#attachedfile .filename
-{
-	margin-left: 0.5em;
-}
-
 #status
 {
 	margin-top: 0.5em;
@@ -614,6 +693,7 @@ a.button:hover
 #newsfeed .message
 {
 	max-width: 85%;
+	width: 85%;
 	margin: 0;
 	margin-bottom: 0.5em;
 }
@@ -621,6 +701,7 @@ a.button:hover
 #newsfeed .message .header
 {
 	display: block;
+	
 }
 
 #newsfeed .message .header img.avatar
@@ -648,24 +729,60 @@ a.button:hover
 
 #newsfeed .childmessage
 {
-	width: 85%;
+	width: 80%;
 	margin-left: 15%;
 	margin-bottom: 0.5em;
+}
+
+#newsfeed .morereplies
+{
+	width: 80%;
+	margin-left: 15%;
+	text-align: center;
+	margin-bottom: 0.5em;
+	cursor: pointer;
+	background-color: #FFFFD0;
+	border: 2px solid #FFF48D;
+	border-radius: 0.25em;
 }
 
 #newsfeed .reply
 {
 	display: none;
-	width: 85%;
+	width: 80%;
 	margin-left: 15%;
 	margin-bottom: 0.5em;
 	padding: 0;
 }
 
-#newsfeed .reply textarea
+#newsfeed .replypanel form
+{
+	display: block;
+	overflow: hidden;
+}
+
+#newsfeed .replypanel textarea
 {
         width: 100%;
+	height: 5em;
 	margin: 0;
+}
+
+#newsfeed .replypanel .button
+{
+	float: left;
+	width: 4em;
+	height: 5em;
+	margin: 0;
+	margin-right: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
+#newsfeed .replypanel .button img
+{
+	max-width: 4em;
+	max-height: 3.6em;
 }
 
 #optionsnewsfeed
@@ -710,17 +827,24 @@ a.button:hover
 	width: 100%;
 	height: 5em;
 	margin: 0;
-	box-sizing: border-box;
-	-moz-box-sizing: border-box;
 }
 
-#statuspanel #attachedfile
+.attachedfile
 {
+	display: none;
 	margin: 0.2em;
 	padding: 0.2em 0.5em;
 	background-color: #FFFFFF;
 	border: 1px solid black;
 	border-radius: 0.5em;
+	max-width: 30em;
+	overflow: hidden;
+	text-overflow: ellipsis; 
+}
+
+.attachedfile .filename
+{
+	margin-left: 0.5em;
 }
 
 #info
@@ -788,6 +912,8 @@ img.avatar
 .message .header
 {
 	margin-right: 0.75em;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .message .header .date
@@ -830,6 +956,7 @@ img.avatar
 	border: 1px solid black;
 	box-shadow: 1px 1px 5px #202020;
 	color: black;
+	text-overflow: ellipsis;
 }
 
 .message .attached .filename
@@ -860,10 +987,15 @@ img.avatar
 	max-height: 32px;
 }
 
-.message .button
+.message .buttonsbar
 {
 	float: right;
 	clear: right;
+}
+
+.message .button
+{
+	float: right;
 	margin: 0.25em 0em 0em 0.5em;
 }
 
@@ -998,6 +1130,11 @@ img.preview
 	text-overflow: ellipsis; 
 }
 
+.files td.access
+{
+	width: 6em;
+}
+
 .files td.filename .type
 {
 	padding-right: 0.25em;
@@ -1015,6 +1152,12 @@ img.preview
 .files td.add
 {
 	width: 5em;
+}
+
+.fileselectorwindow
+{
+	max-height: 20em;
+	overflow-y: auto;
 }
 
 #contacts
@@ -1544,6 +1687,35 @@ form #trackerlink
 		float: none;
 		max-width: 100%;
 		margin: 0.5em 0em 0.5em 0em;
+	}
+	
+	#newsfeed .message
+	{
+		max-width: 100%;
+		width: 100%;
+	}
+	
+	#newsfeed .childmessage
+	{
+		width: 90%;
+		margin-left: 10%;
+	}
+	
+	#newsfeed .reply
+	{
+		width: 90%;
+		margin-left: 10%;
+	}
+	
+	#newsfeed .morereplies
+	{
+		width: 90%;
+		margin-left: 10%;
+	}
+	
+	.conversation
+	{
+		margin-bottom: 2.5em;
 	}
 	
 	.files td.actions a

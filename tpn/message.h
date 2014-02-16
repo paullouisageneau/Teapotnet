@@ -34,6 +34,7 @@ namespace tpn
 {
 
 class User;
+class MessageQueue;
 	
 class Message : public Serializable
 {
@@ -49,7 +50,6 @@ public:
 	bool isPublic(void) const;
 	bool isIncoming(void) const;
 	bool isRelayed(void) const;
-	bool isRead(void) const;
 
 	const String &content(void) const;
 	const StringMap &headers(void) const;
@@ -60,20 +60,21 @@ public:
 	void setContent(const String &content);
 	void setParent(const String &stamp);
 	void setPublic(bool ispublic);
+	void setAuthor(const String &author);
 	void setHeaders(const StringMap &headers);
 	void setHeader(const String &name, const String &value);
 	void setDefaultHeader(const String &name, const String &value);
 	void removeHeader(const String &name);
 	
-	// Signature
+	// Stamp and signature
 	void writeSignature(User *user);
+	bool checkStamp(void) const;
 	bool checkSignature(User *user) const;
 
 	// NOT covered by signature
 	void setContact(const String &uname);	
 	void setIncoming(bool incoming);
 	void setRelayed(bool relayed);
-	void markRead(bool read = true) const;
 
 	bool send(const Identifier &peering = Identifier::Null) const;
 	bool recv(const Notification &notification);
@@ -84,7 +85,8 @@ public:
 	virtual bool isInlineSerializable(void) const;
 	
 private:
-	static String GenerateStamp(void);
+	void computeAgregate(ByteString &result) const;
+	String computeStamp(void) const;
 	String computeSignature(User *user) const;
 	
 	// Signed
@@ -104,8 +106,8 @@ private:
 
 	// Only used when MessageQueue outputs to interface
 	int64_t mNumber;
-	
-	mutable bool mIsRead;
+	bool	mIsRead;
+	bool	mIsPassed;
 	
 	friend class Core;
 };

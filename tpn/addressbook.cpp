@@ -378,8 +378,8 @@ void AddressBook::update(void)
         {
                 Contact *contact = getContact(keys[i]);
 		
-		double delay = UpdateStep*i + uniform(0., UpdateStep);
-		if(contact) mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*i + uniform(0., UpdateStep);
+		if(contact) mScheduler.schedule(contact, time);
 	}
 }
 
@@ -723,8 +723,8 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		double delay = UpdateStep*ordinal + uniform(0., UpdateStep);
-		mScheduler.schedule(contact, std::max(Time::Now() + delay, Time::Start() + StartupDelay));
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*ordinal + uniform(0., UpdateStep);
+		mScheduler.schedule(contact, time);
 		mScheduler.repeat(contact, UpdateInterval);
 	}
 }
@@ -1215,7 +1215,7 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 			// TODO: update time for currenly connected address
 			continue;
 		}
-
+		
 		Array<Address> addrs;
 		block.getKeys(addrs);
 		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
@@ -1436,15 +1436,19 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	{
 		String data = notification->content();
                 YamlSerializer serializer(&data);
-		StringArray stamps;
+		StringList stamps;
 		serializer.input(stamps);
 
 		// Mark messages as read
 		bool privateOnly = !isSelf();	// others may not mark public messages as read
 		MessageQueue::Selection selection = selectMessages(privateOnly);
 		
-		for(int i=0; i<stamps.size(); ++i)
-			selection.markRead(stamps[i]);
+		for(StringList::iterator it = stamps.begin();
+			it != stamps.end();
+			++it)
+		{
+			selection.markRead(*it);
+		}
 	}
 	else if(type == "unread")
 	{
@@ -1457,13 +1461,15 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
                 bool privateOnly = !isSelf();   // others may not mark public messages as read
                 MessageQueue::Selection selection = selectMessages(privateOnly);
 
-		Array<Message> unread;
+		List<Message> unread;
 		selection.getUnread(unread);
 		
 		// Mark not present stamps as read
-		for(int i=0; i<unread.size(); ++i)
+		for(List<Message>::iterator it = unread.begin();
+			it != unread.end();
+			++it)
 		{
-			String stamp = unread[i].stamp();
+			String stamp = it->stamp();
 			if(recvStamps.contains(stamp)) recvStamps.erase(stamp);
 			else selection.markRead(stamp);
 		}
@@ -1471,17 +1477,32 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		// Ack left stamps
 		if(!recvStamps.empty())
 		{
-			StringArray ackedStamps;
-			ackedStamps.assign(recvStamps.begin(), recvStamps.end());
-			
 			String tmp;
 			YamlSerializer outSerializer(&tmp);
-			outSerializer.output(ackedStamps);
+			outSerializer.output(recvStamps);
 
 			Notification notification(tmp);
 			notification.setParameter("type", "read");
 			notification.send(peering);
 		}
+	}
+	else if(type == "pass")
+	{
+		if(!isSelf())
+		{
+			LogWarn("AddressBook::Contact::notification", "Received pass notification from other than self, dropping");
+			return true;
+		}
+		
+		String data = notification->content();
+                YamlSerializer serializer(&data);
+		StringArray stamps;
+		serializer.input(stamps);
+
+		// Mark messages as passed
+		MessageQueue *messageQueue = mAddressBook->user()->messageQueue();
+		for(int i=0; i<stamps.size(); ++i)
+			messageQueue->markPassed(stamps[i]);
 	}
 	else if(type == "checksum")
 	{
@@ -1576,6 +1597,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 				sendMessages(peering, selection, total, localTotal - total);
 			
 			sendUnread(peering);
+			if(isSelf()) sendPassed(peering);
 		}
 	}
 	else if(type == "checkself")
@@ -1705,11 +1727,15 @@ void AddressBook::Contact::sendMessages(const Identifier &peering, const Message
 
 	LogDebug("AddressBook::Contact", "Synchronization: Sending messages: " + String::number(offset) + ", " + String::number(count));
 
-	Array<Message> messages;
+	List<Message> messages;
 	selection.getRange(offset, count, messages);
 	
-	for(int i=0; i<messages.size(); ++i)
-		messages[i].send(peering);
+	for(List<Message>::iterator it = messages.begin();
+		it != messages.end();
+		++it)
+	{
+		it->send(peering);
+	}
 }
 
 void AddressBook::Contact::sendMessagesChecksum(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count, bool recursion) const
@@ -1743,15 +1769,33 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 	bool privateOnly = !isSelf();
 	MessageQueue::Selection selection = selectMessages(privateOnly);
 	
-	StringArray unreadStamps;
-	selection.getUnreadStamps(unreadStamps);
+	StringList stamps;
+	selection.getUnreadStamps(stamps);
 	
 	String tmp;
 	YamlSerializer serializer(&tmp);
-	serializer.output(unreadStamps);
+	serializer.output(stamps);
 
 	Notification notification(tmp);
 	notification.setParameter("type", "unread");
+	notification.send(peering);
+}
+
+void AddressBook::Contact::sendPassed(const Identifier &peering) const
+{
+	bool privateOnly = !isSelf();
+	MessageQueue::Selection selection = selectMessages(privateOnly);
+	
+	// Send the last passed messages
+	StringList stamps;
+	selection.getPassedStamps(stamps, 10);	// TODO
+	
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serializer.output(stamps);
+
+	Notification notification(tmp);
+	notification.setParameter("type", "pass");
 	notification.send(peering);
 }
 
@@ -1765,9 +1809,7 @@ bool AddressBook::Contact::request(const Identifier &peering, Request *request)
 	}
 	
 	request->execute(mAddressBook->user(), isSelf());
-
-	// TODO
-	
+	if(!isSelf()) request->forward(Identifier::Null, this->peering());
 	return true;
 }
 
@@ -1786,7 +1828,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	mAddressBook->user()->setOnline();
 
 	try {
-		if(request.url.empty() || request.url == "/")
+		String url = request.url;
+		if(url.empty() || url[0] != '/') throw 404;
+		
+		if(url == "/")
 		{
 			if(request.get.contains("json"))
 			{
@@ -1926,251 +1971,164 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			int maxAge = 60*60*24*7;	// 7 days
 			int count = 20;
-			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false);");
+			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false,true);");
 			
 			page.footer();
 			return;
 		}
-		else {
-			String url = request.url;
-			String directory = url;
-			directory.ignore();		// remove first '/'
-			url = "/" + directory.cut('/');
-			if(directory.empty()) throw 404;
-			  
-			if(request.get.contains("play"))
-			{			  	
-				String host;
-				if(!request.headers.get("Host", host))
-				host = String("localhost:") + Config::Get("interface_port");
-					 
-				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
-				response.headers["Content-Type"] = "audio/x-mpegurl";
-				response.send();
-				
-				String link = "http://" + host + prefix + request.url + "?file=1";
-				String instance;
-				if(request.get.get("instance", instance))
-					link+= "&instance=" + instance; 
-				
-				response.sock->writeLine("#EXTM3U");
-				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
-				response.sock->writeLine(link);
-				return;
-			}
+		
+		String directory = url;
+		directory.ignore();		// remove first '/'
+		url = "/" + directory.cut('/');
+		if(directory.empty()) throw 404;
 			
-			if(directory == "files")
+		if(request.get.contains("play"))
+		{			  	
+			String host;
+			if(!request.headers.get("Host", host))
+			host = String("localhost:") + Config::Get("interface_port");
+					
+			Http::Response response(request, 200);
+			response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
+			response.headers["Content-Type"] = "audio/x-mpegurl";
+			response.send();
+			
+			String link = "http://" + host + prefix + request.url + "?file=1";
+			String instance;
+			if(request.get.get("instance", instance))
+				link+= "&instance=" + instance; 
+			
+			response.sock->writeLine("#EXTM3U");
+			response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
+			response.sock->writeLine(link);
+			return;
+		}
+		
+		if(directory == "files")
+		{
+			String target(url);
+			Assert(!target.empty());
+			
+			if(request.get.contains("json") || request.get.contains("playlist"))
 			{
-				String target(url);
-				Assert(!target.empty());
+				// Query resources
+				Resource::Query query(mAddressBook->user()->store(), target);
+				query.setFromSelf(isSelf());
 				
-				if(request.get.contains("json") || request.get.contains("playlist"))
-				{
-					// Query resources
-					Resource::Query query(mAddressBook->user()->store(), target);
-					query.setFromSelf(isSelf());
-					
-					SerializableSet<Resource> resources;
-					bool success = query.submitRemote(resources, peering());
-					if(isSelf()) success|= query.submitLocal(resources);
-					if(!success) throw 404;
-					
-					if(request.get.contains("json"))
-					{
-						Http::Response response(request, 200);
-						response.headers["Content-Type"] = "application/json";
-						response.send();
-						JsonSerializer json(response.sock);
-						json.output(resources);
-					}
-					else {
-						Http::Response response(request, 200);
-					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-						response.headers["Content-Type"] = "audio/x-mpegurl";
-						response.send();
-						
-						String host;
-						request.headers.get("Host", host);
-						Resource::CreatePlaylist(resources, response.sock, host);
-					}
-					return;
-				}
+				SerializableSet<Resource> resources;
+				bool success = query.submitRemote(resources, peering());
+				if(isSelf()) success|= query.submitLocal(resources);
+				if(!success) throw 404;
 				
-				// if it seems to be a file
-				if(target[target.size()-1] != '/')
+				if(request.get.contains("json"))
 				{
-					String instance;
-					request.get.get("instance", instance);
-					
-					Identifier instancePeering(peering());
-					if(!instancePeering.empty()) instancePeering.setName(instance);
-					
-					Resource resource(instancePeering, url, mAddressBook->user()->store());
-					try {
-						resource.fetch(isSelf());	// we might find a better way to access it
-					}
-					catch(const Exception &e)
-					{
-						LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
-						throw 404;
-					}
-					
-					// redirect if it's a directory
-					if(resource.isDirectory())
-					{
-						if(request.get.contains("download"))
-							throw 404;
-						
-						Http::Response response(request, 301);	// Moved permanently
-						response.headers["Location"] = prefix + request.url + '/';
-						response.send();
-						return;
-					}
-					
-					// Get range
-					int64_t rangeBegin = 0;
-					int64_t rangeEnd = 0;
-					bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
-					int64_t rangeSize = rangeEnd - rangeBegin;
-					
-					// Get resource accessor
-					Resource::Accessor *accessor = resource.accessor();
-					if(!accessor) throw 404;
-					
-					// Forge HTTP response header
 					Http::Response response(request, 200);
-					if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
-					response.headers["Content-Length"] << rangeSize;
-					response.headers["Content-Name"] = resource.name();
-					response.headers["Last-Modified"] = resource.time().toHttpDate();
-					response.headers["Accept-Ranges"] = "bytes";
-					
-					if(request.get.contains("download"))
-					{
-						response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
-						response.headers["Content-Type"] = "application/force-download";
-					}
-					else {
-						response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
-						response.headers["Content-Type"] = Mime::GetType(resource.name());
-					}
-					
+					response.headers["Content-Type"] = "application/json";
 					response.send();
-					if(request.method == "HEAD") return;
-					
-					try {
-						// Launch transfer
-						if(hasRange) accessor->seekRead(rangeBegin);
-						accessor->readBinary(*response.sock, rangeSize);	// let's go !
-					}
-					catch(const NetException &e)
-					{
-						return;	// nothing to do
-					}
-					catch(const Exception &e)
-					{
-						LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
-					}
+					JsonSerializer json(response.sock);
+					json.output(resources);
 				}
 				else {
 					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
 					response.send();
 					
-					Html page(response.sock);
-					if(target == "/") page.header(name()+": Browse files");
-					else page.header(name()+": "+target.substr(1));
-					page.open("div","topmenu");
-					if(!isSelf()) page.span(status().capitalized(), "status.button");
-					page.link(prefix+"/search/","Search files",".button");
-					page.link(prefix+request.url+"?playlist","Play all","playall.button");
-					page.close("div");
-
-					unsigned refreshPeriod = 5000;
-					page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-						transition($('#status'), info.status.capitalize());\n\
-						$('#status').removeClass().addClass('button').addClass(info.status);\n\
-						if(info.newmessages) playMessageSound();\n\
-					});");
-				
-					page.div("","list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true);");
-					page.footer();
+					String host;
+					request.headers.get("Host", host);
+					Resource::CreatePlaylist(resources, response.sock, host);
 				}
-				
 				return;
 			}
-			else if(directory == "search")
+			
+			// if it seems to be a file
+			if(target[target.size()-1] != '/')
 			{
-				if(url != "/") throw 404;
+				String instance;
+				request.get.get("instance", instance);
 				
-				String match;
-				if(!request.post.get("query", match))
-					request.get.get("query", match);
-				match.trim();
+				Identifier instancePeering(peering());
+				if(!instancePeering.empty()) instancePeering.setName(instance);
 				
-				if(request.get.contains("json") || request.get.contains("playlist"))
+				Resource resource(instancePeering, url, mAddressBook->user()->store());
+				try {
+					resource.fetch(isSelf());	// we might find a better way to access it
+				}
+				catch(const Exception &e)
 				{
-					String tmp;
+					LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
+					throw 404;
+				}
+				
+				// redirect if it's a directory
+				if(resource.isDirectory())
+				{
+					if(request.get.contains("download"))
+						throw 404;
 					
-					int minAge = 0;
-					int maxAge = 0;
-					int count = 0;
-					if(request.get.get("minage", tmp)) tmp >> minAge;
-					if(request.get.get("maxage", tmp)) tmp >> maxAge;
-					if(request.get.get("count", tmp)) tmp >> count;
-					
-					if(match.empty() && maxAge <= 0) throw 400;
-					
-					Resource::Query query(mAddressBook->user()->store());
-					if(isSelf()) query.setFromSelf(isSelf());
-					if(!match.empty()) query.setMatch(match);
-					if(minAge > 0) query.setMinAge(minAge);
-					if(maxAge > 0) query.setMaxAge(maxAge);
-					if(count > 0) query.setLimit(count);
-					
-					SerializableSet<Resource> resources;
-					bool success = query.submitRemote(resources, peering());
-					if(isSelf()) success|= query.submitLocal(resources);
-					if(!success) throw 404;
-					
-					if(request.get.contains("json"))
-					{
-						Http::Response response(request, 200);
-						response.headers["Content-Type"] = "application/json";
-						response.send();
-						JsonSerializer json(response.sock);
-						json.output(resources);
-					}
-					else {
-						Http::Response response(request, 200);
-					 	response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-						response.headers["Content-Type"] = "audio/x-mpegurl";
-						response.send();
-						
-						String host;
-						request.headers.get("Host", host);
-						Resource::CreatePlaylist(resources, response.sock, host);
-					}
+					Http::Response response(request, 301);	// Moved permanently
+					response.headers["Location"] = prefix + request.url + '/';
+					response.send();
 					return;
 				}
 				
+				// Get range
+				int64_t rangeBegin = 0;
+				int64_t rangeEnd = 0;
+				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+				int64_t rangeSize = rangeEnd - rangeBegin;
+				
+				// Get resource accessor
+				Resource::Accessor *accessor = resource.accessor();
+				if(!accessor) throw 404;
+				
+				// Forge HTTP response header
+				Http::Response response(request, 200);
+				if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+				response.headers["Content-Length"] << rangeSize;
+				response.headers["Content-Name"] = resource.name();
+				response.headers["Last-Modified"] = resource.time().toHttpDate();
+				response.headers["Accept-Ranges"] = "bytes";
+				
+				String ext = resource.name().afterLast('.');
+				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
+				{
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = "application/force-download";
+				}
+				else {
+					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = Mime::GetType(resource.name());
+				}
+				
+				response.send();
+				if(request.method == "HEAD") return;
+				
+				try {
+					// Launch transfer
+					if(hasRange) accessor->seekRead(rangeBegin);
+					accessor->readBinary(*response.sock, rangeSize);	// let's go !
+				}
+				catch(const NetException &e)
+				{
+					return;	// nothing to do
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+				}
+			}
+			else {
 				Http::Response response(request, 200);
 				response.send();
-					
+				
 				Html page(response.sock);
-				
-				if(match.empty()) page.header(name() + ": Search");
-				else page.header(name() + ": Searching " + match);
-				
+				if(target == "/") page.header(name()+": Browse files");
+				else page.header(name()+": "+target.substr(1));
 				page.open("div","topmenu");
 				if(!isSelf()) page.span(status().capitalized(), "status.button");
-				page.openForm(prefix + "/search", "post", "searchForm");
-				page.input("text", "query", match);
-				page.button("search","Search");
-				page.closeForm();
-				page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-				if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+				page.link(prefix+"/search/","Search files",".button");
+				page.link(prefix+request.url+"?playlist","Play all","playall.button");
 				page.close("div");
 
 				unsigned refreshPeriod = 5000;
@@ -2179,32 +2137,118 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 					$('#status').removeClass().addClass('button').addClass(info.status);\n\
 					if(info.newmessages) playMessageSound();\n\
 				});");
-				
-				if(!match.empty())
-				{
-					page.div("", "list.box");
-					page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list');");
-				}
-				
+			
+				page.div("","list.box");
+				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,true);");
 				page.footer();
-				return;
 			}
-			else if(directory == "avatar")
+			
+			return;
+		}
+		else if(directory == "search")
+		{
+			if(url != "/") throw 404;
+			
+			String match;
+			if(!request.post.get("query", match))
+				request.get.get("query", match);
+			match.trim();
+			
+			if(request.get.contains("json") || request.get.contains("playlist"))
 			{
-				Http::Response response(request, 303);	// See other
-                                response.headers["Location"] = profile()->avatarUrl(); 
-                                response.send();
+				String tmp;
+				
+				int minAge = 0;
+				int maxAge = 0;
+				int count = 0;
+				if(request.get.get("minage", tmp)) tmp >> minAge;
+				if(request.get.get("maxage", tmp)) tmp >> maxAge;
+				if(request.get.get("count", tmp)) tmp >> count;
+				
+				if(match.empty() && maxAge <= 0) throw 400;
+				
+				Resource::Query query(mAddressBook->user()->store());
+				if(isSelf()) query.setFromSelf(isSelf());
+				if(!match.empty()) query.setMatch(match);
+				if(minAge > 0) query.setMinAge(minAge);
+				if(maxAge > 0) query.setMaxAge(maxAge);
+				if(count > 0) query.setLimit(count);
+				
+				SerializableSet<Resource> resources;
+				bool success = query.submitRemote(resources, peering());
+				if(isSelf()) success|= query.submitLocal(resources);
+				if(!success) throw 404;
+				
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+					JsonSerializer json(response.sock);
+					json.output(resources);
+				}
+				else {
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
+					response.send();
+					
+					String host;
+					request.headers.get("Host", host);
+					Resource::CreatePlaylist(resources, response.sock, host);
+				}
 				return;
 			}
-			else if(directory == "chat")
+			
+			Http::Response response(request, 200);
+			response.send();
+				
+			Html page(response.sock);
+			
+			if(match.empty()) page.header(name() + ": Search");
+			else page.header(name() + ": Searching " + match);
+			
+			page.open("div","topmenu");
+			if(!isSelf()) page.span(status().capitalized(), "status.button");
+			page.openForm(prefix + "/search", "post", "searchForm");
+			page.input("text", "query", match);
+			page.button("search","Search");
+			page.closeForm();
+			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
+			if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+			page.close("div");
+
+			unsigned refreshPeriod = 5000;
+			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+				transition($('#status'), info.status.capitalize());\n\
+				$('#status').removeClass().addClass('button').addClass(info.status);\n\
+				if(info.newmessages) playMessageSound();\n\
+			});");
+			
+			if(!match.empty())
 			{
-				if(isSelf()) throw 404;
-			  
-				Http::Response response(request, 301);	// Moved permanently
-                                response.headers["Location"] = mAddressBook->user()->urlPrefix() + "/messages/" + uniqueName().urlEncode() + "/";
-                                response.send();
-				return;
+				page.div("", "list.box");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,true);");
 			}
+			
+			page.footer();
+			return;
+		}
+		else if(directory == "avatar")
+		{
+			Http::Response response(request, 303);	// See other
+			response.headers["Location"] = profile()->avatarUrl(); 
+			response.send();
+			return;
+		}
+		else if(directory == "chat")
+		{
+			if(isSelf()) throw 404;
+			
+			Http::Response response(request, 301);	// Moved permanently
+			response.headers["Location"] = mAddressBook->user()->urlPrefix() + "/messages/" + uniqueName().urlEncode() + "/";
+			response.send();
+			return;
 		}
 	}
 	catch(const NetException &e)

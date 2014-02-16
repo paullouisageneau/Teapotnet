@@ -3,11 +3,8 @@ CXX=$(CROSS)g++
 RES=$(CROSS)windres
 STRIP=$(CROSS)strip
 RM=rm -f
-#CPPFLAGS=-O
-#LDFLAGS=-O -static-libgcc
-#LDLIBS=-lws2_32 -lpthread
-CPPFLAGS=-O2 -I. -DPTW32_STATIC_LIB -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
-LDFLAGS=-O2 -static -static-libgcc -mwindows
+CPPFLAGS=-O2
+LDFLAGS=-O2
 LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2
 
 SRCS=$(shell printf "%s " tpn/*.cpp)
@@ -15,17 +12,20 @@ OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet.exe winservice.exe winupdater.exe
 
+include/sqlite3.o: include/sqlite3.c
+	$(CC) -c $(CPPFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS $*.c -o $*.o
+	
+%.o: %.cpp
+	$(CXX) $(CPPFLAGS) -I. -DPTW32_STATIC_LIB -MMD -MP -o $@ -c $<
+	
+-include $(subst .o,.d,$(OBJS))
+
 teapotnet.exe: $(OBJS) include/sqlite3.o res.o
-	$(CXX) $(LDFLAGS) -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
+	$(CXX) $(LDFLAGS) -static -static-libgcc -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
 	$(STRIP) teapotnet.exe
-
-depend: .depend
-
-.depend: $(SRCS)
-	$(CXX) $(CPPFLAGS) -MM $^ > ./.depend
 	
 clean:
-	$(RM) tpn/*.o include/*.o res.o
+	$(RM) include/*.o tpn/*.o tpn/*.d res.o
 	$(RM) res.rc
 	cd winupdater && make clean
 	
@@ -50,6 +50,3 @@ test: all
 	mkdir -p ~/vmshare/teapotnet
 	cp *.exe ~/vmshare/teapotnet
 	cp -r static ~/vmshare/teapotnet
-
-include .depend
-

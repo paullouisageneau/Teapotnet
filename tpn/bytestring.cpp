@@ -21,6 +21,7 @@
 
 #include "tpn/bytestring.h"
 #include "tpn/exception.h"
+#include "tpn/string.h"
 
 namespace tpn
 {
@@ -89,6 +90,44 @@ void ByteString::append(const char *array, size_t size)
 void ByteString::fill(char value, int n)
 {
 	assign(n, value);
+}
+
+String ByteString::base64Encode(bool safeMode) const
+{
+	// safeMode is RFC 4648 'base64url' encoding
+	
+        static const char standardTab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static const char safeTab[]     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	const char *tab = (safeMode ? safeTab : standardTab);
+	
+        String out;
+        int i = 0;
+        while (size()-i >= 3)
+        {
+                out+= tab[uint8_t(at(i)) >> 2];
+                out+= tab[((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+                out+= tab[((uint8_t(at(i+1)) & 0x0F) << 2) | (uint8_t(at(i+2)) >> 6)];
+                out+= tab[uint8_t(at(i+2)) & 0x3F];
+                i+= 3;
+        }
+
+        int left = size()-i;
+        if(left)
+        {
+                out+= tab[at(i) >> 2];
+                if (left == 1)
+                {
+                        out+= tab[(uint8_t(at(i)) & 3) << 4];
+                        if(!safeMode) out+= '=';
+                }
+                else {
+                        out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+                        out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
+                }
+                if(!safeMode) out+= '=';
+        }
+
+        return out;
 }
 
 void ByteString::serialize(Serializer &s) const

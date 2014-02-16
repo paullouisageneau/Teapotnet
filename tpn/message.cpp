@@ -26,21 +26,16 @@
 #include "tpn/sha512.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/byteserializer.h"
+#include "tpn/messagequeue.h"
 
 namespace tpn
 {
-
-String Message::GenerateStamp(void)
-{
-	return String::random(4) + String::hexa(Time::Now().toUnixTime());
-}
 
 Message::Message(const String &content) :
 	mTime(Time::Now()),
 	mIsPublic(false),
 	mIsIncoming(false),
 	mIsRelayed(false),
-	mIsRead(false),
 	mNumber(0)
 {
 	if(!content.empty()) setContent(content);
@@ -91,11 +86,6 @@ bool Message::isRelayed(void) const
         return mIsRelayed;
 }
 
-bool Message::isRead(void) const
-{
-        return mIsRead;
-}
-
 const String &Message::content(void) const
 {
 	return mContent;
@@ -120,9 +110,13 @@ String Message::header(const String &name) const
 
 void Message::setContent(const String &content)
 {
-	if(mStamp.empty()) mStamp = GenerateStamp();
 	mContent = content;
 	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
+}
+
+void Message::setParent(const String &stamp)
+{
+	mParent = stamp;
 }
 
 void Message::setPublic(bool ispublic)
@@ -130,14 +124,14 @@ void Message::setPublic(bool ispublic)
 	mIsPublic = ispublic;
 }
 
+void Message::setAuthor(const String &author)
+{
+	mAuthor = author;
+}
+
 void Message::setContact(const String &uname)
 {
 	mContact = uname;
-}
-
-void Message::setParent(const String &stamp)
-{
-	mParent = stamp;
 }
 
 void Message::setHeaders(const StringMap &headers)
@@ -163,9 +157,29 @@ void Message::removeHeader(const String &name)
 
 void Message::writeSignature(User *user)
 {
-	if(mStamp.empty()) mStamp = GenerateStamp();
 	mAuthor = user->name();
+
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.empty() || mStamp.size() == 32)
+	//
+		mStamp = computeStamp();
+
 	mSignature = computeSignature(user);
+}
+
+bool Message::checkStamp(void) const
+{
+	if(mStamp.empty())
+		return false;
+	
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.size() != 32) 
+		return true;
+	//
+
+	return (mStamp == computeStamp());
 }
 
 bool Message::checkSignature(User *user) const
@@ -181,11 +195,6 @@ void Message::setIncoming(bool incoming)
 void Message::setRelayed(bool relayed)
 {
         mIsRelayed = relayed;
-}
-
-void Message::markRead(bool read) const
-{
-	mIsRead = read; 
 }
 
 bool Message::send(const Identifier &peering) const
@@ -218,8 +227,6 @@ void Message::serialize(Serializer &s) const
 	ConstSerializableWrapper<bool> isPublicWrapper(mIsPublic);
 	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
 	ConstSerializableWrapper<bool> isRelayedWrapper(mIsRelayed);
-	ConstSerializableWrapper<bool> isReadWrapper(mIsRead);
-	ConstSerializableWrapper<int64_t> numberWrapper(&mNumber);
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
@@ -234,9 +241,17 @@ void Message::serialize(Serializer &s) const
 	mapping["contact"] = &mContact;
         mapping["incoming"] = &isIncomingWrapper;
 	mapping["relayed"] = &isRelayedWrapper;
-	mapping["isread"] = &isReadWrapper;
 	
-	if(mNumber) mapping["number"] = &numberWrapper;
+	ConstSerializableWrapper<int64_t> numberWrapper(mNumber);
+	ConstSerializableWrapper<bool>    isReadWrapper(mIsRead);
+	ConstSerializableWrapper<bool>    isPassedWrapper(mIsPassed);
+	
+	if(mNumber) 
+	{
+		mapping["number"] = &numberWrapper;
+		mapping["read"] = &isReadWrapper;
+		mapping["passed"] = &isPassedWrapper;
+	}
 	
 	s.outputObject(mapping);
 }
@@ -248,9 +263,7 @@ bool Message::deserialize(Serializer &s)
 	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
 	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
 	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
-	SerializableWrapper<bool> isReadWrapper(&mIsRead);
-	SerializableWrapper<int64_t> numberWrapper(&mNumber);
-	
+
 	Serializer::ObjectMapping mapping;
 	mapping["headers"] = &mHeaders;
         mapping["content"] = &mContent;
@@ -264,35 +277,85 @@ bool Message::deserialize(Serializer &s)
 	mapping["contact"] = &mContact;
 	mapping["incoming"] = &isIncomingWrapper;
 	mapping["relayed"] = &isRelayedWrapper;
-	mapping["isread"] = &isReadWrapper;
+
+	SerializableWrapper<int64_t> numberWrapper(&mNumber);
+	SerializableWrapper<bool>    isReadWrapper(&mIsRead);
+	SerializableWrapper<bool>    isPassedWrapper(&mIsPassed);
+	
+	bool dummy = false;
+	SerializableWrapper<bool>    dummyBoolWrapper(&dummy);
 	
 	mapping["number"] = &numberWrapper;
+	mapping["read"] = &isReadWrapper;
+	mapping["passed"] = &isPassedWrapper;
+	mapping["deleted"] = &dummyBoolWrapper;
 	
 	bool success = s.inputObject(mapping);
 	if(mStamp.empty()) throw InvalidData("Message without stamp");
 	return success;
 }
 
+void Message::computeAgregate(ByteString &result) const
+{
+	result.clear();
+
+	// Note: contact, incoming, and relayed are NOT in the agregate
+        ByteSerializer serializer(&result); 
+        serializer.output(int64_t(mTime.toUnixTime()));
+	serializer.output(mIsPublic);
+	serializer.output(mAuthor);
+        serializer.output(mParent);
+	serializer.output(mHeaders);
+        serializer.output(mContent);
+}
+
+String Message::computeStamp(void) const
+{
+	ByteString agregate, digest;
+	computeAgregate(agregate);
+	Sha512::Hash(agregate, digest);
+	digest.resize(24);
+	
+	String stamp = digest.base64Encode(true);	// safe mode
+	Assert(stamp.size() == 32);	// 24 * 4/3 = 32
+	return stamp;
+}
+
 String Message::computeSignature(User *user) const
 {
 	Assert(user);
-	
-	// Note: contact, incoming, relayed and isread are NOT signed
-	ByteString agregate;
-	ByteSerializer serializer(&agregate);
-	serializer.output(mHeaders);
-        serializer.output(mContent);
-        serializer.output(mAuthor);
-	serializer.output(mStamp);
-	serializer.output(mParent);
-	serializer.output(int64_t(mTime.toUnixTime()));
-	serializer.output(mIsPublic);
 
-	ByteString signature;
-	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
-	signature.resize(16);
+	// TODO: should be removed
+	// Backward compatibility for legacy stamps 
+	if(mStamp.size() != 32)
+	{
+		// Note: contact, incoming and relayed are NOT signed
+		ByteString agregate;
+		ByteSerializer serializer(&agregate);
+		serializer.output(mHeaders);
+		serializer.output(mContent);
+		serializer.output(mAuthor);
+		serializer.output(mStamp);
+		serializer.output(mParent);
+		serializer.output(int64_t(mTime.toUnixTime()));
+		serializer.output(mIsPublic);
+
+		ByteString signature;
+		Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
+		signature.resize(16);
+
+		return signature.toString();
+	}
+	//
 	
-	return signature.toString();
+	ByteString agregate, hmac;
+	computeAgregate(agregate);
+	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, hmac);
+	hmac.resize(24);
+	
+	String signature = hmac.base64Encode(true);	// safeMode
+	Assert(signature.size() == 32);	// 24 * 4/3 = 32
+	return signature;
 }
 
 bool Message::isInlineSerializable(void) const

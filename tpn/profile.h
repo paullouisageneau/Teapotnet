@@ -52,6 +52,8 @@ public:
 	Time time(void) const;
 	bool isSelf(void) const;
 	
+	void setTracker(const String &tracker);
+	
 	void load(void);
 	void save(void);
 	void clear(void);

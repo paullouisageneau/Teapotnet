@@ -776,6 +776,7 @@ void Mime::Init(void)
 	Types["ics"] = "text/calendar";
 	Types["css"] = "text/css";
 	Types["csv"] = "text/csv";
+	Types["htm"] = "text/html";
 	Types["html"] = "text/html";
 	Types["n3"] = "text/n3";
 	Types["txt"] = "text/plain";

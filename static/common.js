@@ -55,16 +55,16 @@ if(!String.linkify) {
 	String.prototype.linkify = function() {
 
 		// http://, https://, ftp://
-		var urlPattern = /(^|\s)((?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|])($|\s)/gim;
+		var urlPattern = /(^|\s)((?:https?|ftp):\/\/[a-z0-9\-+&@#\/%?=~_|!:,.;]*[a-z0-9\-+&@#\/%=~_|])([!?:,.;]*(?:$|\s))/gim;
 
 		// www. without http:// or https://
-		var pseudoUrlPattern = /(^|\s)(www\.[\S]+)($|\s)/gim;
+		var pseudoUrlPattern = /(^|\s)(www\.[\S]+)([!?:,.;]*(?:$|\s))/gim;
 
 		// Email addresses
-		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)($|\s)/gim;
+		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)([!?:,.;]*(?:$|\s))/gim;
 
 		// Youtube video pattern
-		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*(?:$|\s)/gim;
+		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*([!?:,.;]*(?:$|\s))/gim;
 		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
 	
 		return this
@@ -231,14 +231,19 @@ function setCallback(url, period, callback) {
 		timeout: period,
 		success: function(data) {
 			callback(data);
+		},
+		statusCode: {
+			401: function() {
+				window.location.href = "/";
+			}
 		}
 	})
-	.done(function(data) {
+	.done(function() {
 		setTimeout(function() {
 			setCallback(url, period, callback);
 		}, period);
 	})
-	.fail(function(jqXHR, textStatus) {
+	.fail(function() {
 		setTimeout(function() {
 			setCallback(url, period, callback);
 		}, period);
@@ -250,7 +255,6 @@ function setMessagesReceiver(url, object) {
 	$(window).blur(function() {
 		$(object).find('.message').addClass('oldmessage');
 	});
-	$(object).find('p').remove();
 	setMessagesReceiverRec(url, object, 0);
 }
 
@@ -273,12 +277,6 @@ $(window).focus(clearNewMessages);
 $(window).blur(clearNewMessages);
 $(window).keydown(clearNewMessages);
 $(window).mousedown(clearNewMessages);
-
-function clickedReply(id) 
-{
-	$('#'+id.id).css('display','block');
-	$('textarea[name=\"'+id.id+'\"]').focus();
-}
 
 function submitReply(object, idParent) 
 {
@@ -369,17 +367,23 @@ function setMessagesReceiverRec(url, object, next) {
 			for(var i=0; i<data.length; i++) {				
 				var message = data[i];
 				
+				// TODO: Backward compatibility, should be removed
 				// Hide double messages created during stamp format change
 				if(message.time < 1392181200 && message.stamp.length >= 32) continue;
-				
+				//
+	
 				if(message.number >= next) next = message.number + 1;
-				if(message.parent && $('#message_'+message.parent).length == 0) continue;
+				if(!/^[A-Za-z0-9\-_]+$/.test(message.stamp)) continue;				// Invalid stamp
+				if(!/^[A-Za-z0-9\-_]*$/.test(message.parent)) continue;				// Invalid parent stamp
+				if(message.parent && $('#message_'+message.parent).length == 0) continue;	// Parent not found
 				
+				$(object).find('p').remove();
+	      
 				var id = "message_" + message.stamp;
 				$('#'+id).remove();
 				
-				var isLocalRead = (!message.incoming || message.isread);
-				var isRemoteRead = (message.incoming || message.isread);
+				var isLocalRead = (!message.incoming || message.read);
+				var isRemoteRead = (message.incoming || message.read);
 				
 				var author;	// equals uname when non-relayed
 				var authorHtml;
@@ -392,7 +396,7 @@ function setMessagesReceiverRec(url, object, next) {
 					var link = getBasePath(1) + 'contacts/' + message.contact.escape() + '/';
 					if(message.relayed) {
 						author = message.author;
-						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' (via&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
+						authorHtml = '<img class="avatar" src="/default_avatar.png">'+message.author.escape()+' ('+(message.parent || !message.public ? 'via' : 'passed&nbsp;by')+'&nbsp;<a href="'+link+'">'+message.contact.escape()+'</a>)';
 					}
 					else {
 						author = message.contact;
@@ -411,16 +415,74 @@ function setMessagesReceiverRec(url, object, next) {
 					
 					if(!message.parent) {
 						$(object).prepend('<div class="conversation">'+div+'</div>');
-						$('#'+id).append('<a href="#" class="button" onclick="clickedReply('+idReply+'); return false;">Reply</a>');
+						$('#'+id).append('<div class="buttonsbar"></div>');
+						
+						if(message.incoming)
+						{
+							if(!message.passed)
+							{
+								$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img alt="Pass" src="/arrow_pass.png"></a>');
+								(function(id, stamp) {
+									$('#'+id+' .passlink').click(function() {
+										if(confirm('Do you want to pass this message to your contacts ?')) {
+											$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
+											.done(function(data) {
+												$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
+											});
+										}
+										return false;
+									});
+								})(id, message.stamp);
+							}
+							else {
+								$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
+							}
+						}
+
+						$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img alt="Reply" src="/arrow_reply.png"></a>');
+						(function(idReply) {
+							$('#'+id+' .replylink').click(function() {
+								$('#'+idReply).toggle();
+								$('#'+idReply+' textarea').focus();
+								return false;
+							});
+						})(idReply);
 					}
 					else {
-						$('#message_'+message.parent).parent().append(div);
+						$('#reply_message_'+message.parent).before(div);	// insert before parent reply
 						$('#'+id).addClass('childmessage');
 					}
 					
 					// Reply form
-					$('#'+id).parent().append('<div id='+idReply+' class="reply"><form name="replyform'+id+'" action="#" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="reply_'+id+'"></textarea></form></div>');
-				
+					$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+message.stamp+'"><input type="hidden" name="public" value="1"><input type="hidden" name="token" value="'+TokenMessage+'"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+					(function(idReply) {
+						$('#'+idReply+' .attachedfile').hide();
+						$('#'+idReply+' form').ajaxForm(function() {
+							$('#'+idReply+' form').resetForm();
+							$('#'+idReply+' .attachedfile').html('');
+							$('#'+idReply+' .fileselector').html('');
+							$('#'+idReply).hide();
+						});
+						$('#'+idReply+' .button').click(function() {
+							createFileSelector(getBasePath(1) + 'myself/files/?json', '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory); 
+							return false;
+						});
+						$('#'+idReply+' input[name="attachment"]').change(function() {
+                                      			$('#'+idReply+' .attachedfile').html('').hide();
+                                        		var filename = $('#'+idReply+' input[name="attachmentname"]').val();
+                                        		if(filename != '') {
+								$('#'+idReply+' .attachedfile')
+									.append('<img class=\"icon\" src=\"/file.png\">')
+									.append('<span class=\"filename\">'+filename+'</span>')
+									.show();
+                                        		}
+							var input = $('#'+idReply+' .replyinput');
+                                        		input.focus();
+                                        		if(input.val() == '') {
+                                                		input.val(filename).select();
+                                        		}
+                                		});
+					})(idReply);
 				}
 				else {
 					$(object).append(div);
@@ -463,7 +525,7 @@ function setMessagesReceiverRec(url, object, next) {
 							}
 							else if(media == 'audio' || media == 'video') {
 								var usePlaylist = (deviceAgent.indexOf('android') < 0);
-								content = '<span class="filename"><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a></span><img class="clip" src="/clip.png">';
+								content = '<span class="filename"><a href="'+url+'?download=1"><img class="icon" src="/down.png"></a><a href="'+url+(usePlaylist ? '?play=1' : '')+'"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';
 							}
 							else {
 								content = '<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/file.png">'+name.escape()+'</a></span><img class="clip" src="/clip.png">';
@@ -489,6 +551,46 @@ function setMessagesReceiverRec(url, object, next) {
 				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
 				if(isPageHidden()) playMessageSound();
 			}
+
+			// Hide replies if they're too many
+			$('.conversation').each(function() {
+				if($(this).find('.morereplies').length) return;
+				
+				var nReplies = $(this).find('.childmessage').length;
+				var nHiddenReplies = nReplies-5;
+				var object = this;
+				var showMoreReplies = false;
+				
+				if(nReplies >= 7) // We hide at least 2 replies
+				{
+					$(object).find('.childmessage').eq(0).before('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
+
+					for(i = 0; i < nReplies-5; i++){
+						$(object).find('.childmessage').eq(i).toggle();
+					}
+
+					function clickMoreReplies(){
+
+						for(i = 0; i < nReplies-5; i++){
+							$(object).find('.childmessage').eq(i).toggle();
+						}
+
+						if(!showMoreReplies)
+						{
+							$(object).find('.morereplies').replaceWith('<div class="morereplies">Hide first '+nHiddenReplies+' replies</div>');
+							showMoreReplies = true;
+						}
+						else
+						{
+							$(object).find('.morereplies').replaceWith('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
+							showMoreReplies = false;
+						}
+						$(object).find('.morereplies').click(clickMoreReplies);
+					}
+
+					$(object).find('.morereplies').click(clickMoreReplies);
+				}
+			});
 		}
 
 		this.messagesTimeout = setTimeout(function() {
@@ -505,10 +607,13 @@ function setMessagesReceiverRec(url, object, next) {
 
 function setCookie(c_name,value,exdays)
 {
-	var exdate=new Date();
-	exdate.setDate(exdate.getDate() + exdays);
-	var c_value=escape(value) + ((exdays==null) ? '' : '; expires='+exdate.toUTCString());
-	document.cookie=c_name + '=' + c_value;
+	if (exdays) {
+		var exdate = new Date();
+		exdate.setDate(exdate.getDate() + exdays);
+		var expires = "; expires="+exdate.toUTCString();
+	}
+	else var expires = "";
+	document.cookie = c_name + "=" + value + expires;
 }
 
 function getCookie(c_name)
@@ -534,6 +639,11 @@ function getCookie(c_name)
 		c_value = unescape(c_value.substring(c_start,c_end));
 	}
 	return c_value;
+}
+
+function unsetCookie(c_name)
+{
+	setCookie(c_name, "", -1);
 }
 
 function checkCookie(name)

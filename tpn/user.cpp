@@ -225,6 +225,12 @@ String User::urlPrefix(void) const
 	return String("/") + mName;
 }
 
+void User::setTracker(const String &tracker)
+{
+	Synchronize(this);
+	mProfile->setTracker(tracker);
+}
+
 AddressBook *User::addressBook(void) const
 {
 	return mAddressBook;
@@ -417,7 +423,7 @@ bool User::checkToken(const String &token, const String &action) const
 		}
 	}
 	
-	LogWarn("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
+	LogDebug("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
 	return false;
 }
 
@@ -546,8 +552,9 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div","search");
 			page.openForm(prefix + "/search", "post", "searchForm");
-			//page.button("search","Search");
+			page.link(prefix+"/browse/", "Browse", ".button");
 			page.input("text","query", "Search for files...");
+			//page.button("search","Search");
 			page.closeForm();
 			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
 			page.javascript("$(document).ready(function() { document.searchForm.query.style.color = 'grey'; });");
@@ -623,27 +630,22 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div", "rightcolumn");
 
-			page.open("div");
+			page.open("div", "rightheader");
+			page.link("/?changeuser", "Change account", ".button");
 			page.open("h1");
 			const String instance = Core::Instance->getName().before('.');
 			page.openLink(profile()->urlPrefix());
 			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name() + "@" + tracker());
+#ifndef ANDROID
 			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
+#endif
 			page.closeLink();
 			page.close("h1");
-
 			page.close("div");
 			
 			String broadcastUrl = "/messages";
-			String publicUrl = "?public=1";
-			String countUrl = "&count=";
-			String defaultCount = "20";
-			String displayOthersUrl = "&incoming=1";
-			String displaySelfUrl = "&incoming=0";
-
-			String setDisplayUrl = displaySelfUrl;		
-
+			
 			page.open("div", "statuspanel");
 			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
 			page.openForm("#", "post", "statusform");
@@ -653,7 +655,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("send","Send");
 			//page.br();
 			page.closeForm();
-			page.div("","attachedfile");
+			page.div("",".attachedfile");
 			page.close("div");
 
 			page.div("", "fileSelector");
@@ -663,11 +665,11 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div", "optionsnewsfeed");
 
 			StringMap optionsCount;
-			optionsCount["&count=15"] << "Last 15";
-			optionsCount["&count=30"] << "Last 30";
+			optionsCount["&count=20"] << "Last 20";
+			optionsCount["&count=50"] << "Last 50";
 			optionsCount[""] << "All";
 			page.raw("<span class=\"customselect\">");
-			page.select("listCount", optionsCount, "&count=15");
+			page.select("listCount", optionsCount, "&count=20");
 			page.raw("</span>");
 
 			StringMap optionsIncoming;
@@ -689,16 +691,16 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 		 
-			String token = generateToken("message");
-			
-			page.javascript("function postStatus() {\n\
+			page.javascript("var TokenMessage = '"+generateToken("message")+"';\n\
+					var TokenDirectory = '"+generateToken("directory")+"';\n\
+					function postStatus() {\n\
 					var message = $(document.statusform.statusinput).val();\n\
 					var attachment = $(document.statusform.attachment).val();\n\
 					if(!message) return false;\n\
 					var fields = {};\n\
 					fields['message'] = message;\n\
 					fields['public'] = 1;\n\
-					fields['token'] = '"+token+"';\n\
+					fields['token'] = '"+generateToken("message")+"';\n\
 					if(attachment) fields['attachment'] = attachment;\n\
 					var request = $.post('"+prefix+broadcastUrl+"/"+"', fields);\n\
 					request.fail(function(jqXHR, textStatus) {\n\
@@ -707,39 +709,24 @@ void User::http(const String &prefix, Http::Request &request)
 					$(document.statusform.statusinput).val('');\n\
 					$(document.statusform.attachment).val('');\n\
 					$(document.statusform.attachmentname).val('');\n\
-					$('#attachedfile').hide();\n\
+					$('#statuspanel .attachedfile').hide();\n\
 				}\n\
 				$(document.statusform.attachment).change(function() {\n\
-					$('#attachedfile').html('');\n\
-					$('#attachedfile').hide();\n\
+					$('#statuspanel .attachedfile').html('');\n\
+					$('#statuspanel .attachedfile').hide();\n\
 					var filename = $(document.statusform.attachmentname).val();\n\
 					if(filename != '') {\n\
-						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
-						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
-						$('#attachedfile').show();\n\
+						$('#statuspanel .attachedfile')\n\
+							.append('<img class=\"icon\" src=\"/file.png\">')\n\
+							.append('<span class=\"filename\">'+filename+'</span>')\n\
+							.show();\n\
 					}\n\
-					$(document.statusform.statusinput).focus();\n\
-					if($(document.statusform.statusinput).val() == '') {\n\
-						$(document.statusform.statusinput).val(filename);\n\
-						$(document.statusform.statusinput).select();\n\
+					var input = $(document.statusform.statusinput);\n\
+					input.focus();\n\
+					if(input.val() == '') {\n\
+						input.val(filename).select();\n\
 					}\n\
 				});\n\
-				function post(object, parentStamp) {\n\
-					var message = $(object).val();\n\
-					if(!message) return false;\n\
-					$(object).val('');\n\
-					if(!parentStamp) {\n\
-						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'token': '"+token+"'});\n\
-					}\n\
-					else {\n\
-						var request = $.post('"+prefix+broadcastUrl+"/"+"',\n\
-							{ 'message': message , 'public': 1, 'parent': parentStamp, 'token': '"+token+"'});\n\
-					}\n\
-					request.fail(function(jqXHR, textStatus) {\n\
-						alert('The message could not be sent.');\n\
-					});\n\
-				}\n\
 				document.statusform.onsubmit = function() {\n\
 					postStatus();\n\
 					return false;\n\
@@ -776,27 +763,24 @@ void User::http(const String &prefix, Http::Request &request)
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
 				listCount.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
 				\n\
 				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
 				listIncoming.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1"+"&incoming='+listIncoming.value.toString()+'"+"'+listCount.value.toString(),'#statusmessages');\n\
+					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/"+publicUrl+setDisplayUrl+"&json"+"'+listCount.value.toString(),'#statusmessages');\n\
-				// Events for the reply textareas : \n\
+				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmessages');\n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
-						var name = $(this).attr('name');\n\
-						var parentStamp = name.substr(name.lastIndexOf('_')+1);\n\
-						post(this, parentStamp);\n\
+						$(this).closest('form').submit();\n\
 						return false; \n\
 					}\n\
 				});\n\
-				$('#newsfeed').on('blur','.reply', function (e) {\n\
-					$(this).hide();\n\
-				});\n\
-				$('#attachedfile').hide();\n\
+				//$('#newsfeed').on('blur','.reply', function (e) {\n\
+				//	$(this).hide();\n\
+				//});\n\
+				$('.attachedfile').hide();\n\
 			");
 			
 			page.open("div", "footer");
@@ -815,8 +799,142 @@ void User::http(const String &prefix, Http::Request &request)
 			return;
 		}
 		
-		if(url == "/search" || url == "/search/")
+		String directory = url;
+		directory.ignore();		// remove first '/'
+		url = "/" + directory.cut('/');
+		if(directory.empty()) throw 404;
+		
+		if(directory == "browse")
 		{
+			String target(url);
+			Assert(!target.empty());
+			
+			if(request.get.contains("json") || request.get.contains("playlist"))
+			{
+				// Query resources
+				Resource::Query query(store(), target);
+				query.setAccessLevel(Resource::Public);
+				
+				SerializableSet<Resource> resources;
+				bool success = query.submitLocal(resources);
+				success|= query.submitRemote(resources, Identifier::Null);
+				if(!success) throw 404;
+				
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+					JsonSerializer json(response.sock);
+					json.output(resources);
+				}
+				else {
+					Http::Response response(request, 200);
+					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+					response.headers["Content-Type"] = "audio/x-mpegurl";
+					response.send();
+					
+					String host;
+					request.headers.get("Host", host);
+					Resource::CreatePlaylist(resources, response.sock, host);
+				}
+				return;
+			}
+			
+			// if it seems to be a file
+			if(target[target.size()-1] != '/')
+			{
+				Resource resource(Identifier::Null, url, mAddressBook->user()->store());
+				try {
+					resource.fetch();	// we might find a better way to access it
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
+					throw 404;
+				}
+				
+				// redirect if it's a directory
+				if(resource.isDirectory())
+				{
+					if(request.get.contains("download"))
+						throw 404;
+					
+					Http::Response response(request, 301);	// Moved permanently
+					response.headers["Location"] = prefix + request.url + '/';
+					response.send();
+					return;
+				}
+				
+				// Get range
+				int64_t rangeBegin = 0;
+				int64_t rangeEnd = 0;
+				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+				int64_t rangeSize = rangeEnd - rangeBegin;
+				
+				// Get resource accessor
+				Resource::Accessor *accessor = resource.accessor();
+				if(!accessor) throw 404;
+				
+				// Forge HTTP response header
+				Http::Response response(request, 200);
+				if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+				response.headers["Content-Length"] << rangeSize;
+				response.headers["Content-Name"] = resource.name();
+				response.headers["Last-Modified"] = resource.time().toHttpDate();
+				response.headers["Accept-Ranges"] = "bytes";
+				
+				String ext = resource.name().afterLast('.');
+				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
+				{
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = "application/force-download";
+				}
+				else {
+					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = Mime::GetType(resource.name());
+				}
+				
+				response.send();
+				if(request.method == "HEAD") return;
+				
+				try {
+					// Launch transfer
+					if(hasRange) accessor->seekRead(rangeBegin);
+					accessor->readBinary(*response.sock, rangeSize);	// let's go !
+				}
+				catch(const NetException &e)
+				{
+					return;	// nothing to do
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+				}
+			}
+			else {
+				Http::Response response(request, 200);
+				response.send();
+				
+				Html page(response.sock);
+				if(target == "/") page.header("Browse files");
+				else page.header("Browse files: "+target.substr(1));
+				page.open("div","topmenu");
+				page.link(prefix+"/search/","Search files",".button");
+				page.link(prefix+request.url+"?playlist","Play all","playall.button");
+				page.close("div");
+
+				page.div("","list.box");
+				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,false);");
+				page.footer();
+			}
+			
+			return;
+		}
+		else if(directory == "search")
+		{
+			if(url != "/") throw 404;
+			
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
@@ -881,24 +999,22 @@ void User::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "#list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list','"+name()+"');");
+				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,false);");
 				page.footer();
 			}
 			return;
 		}
-		
-		if(url == "/myself" || url == "/myself/")
-		{
-			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = prefix + "/files/";
-			response.send();
-			return;
-		}
-		
-		if(url == "/avatar" || url == "/myself/avatar")
+		else if(directory == "avatar" || request.url == "/myself/avatar")
 		{
 			Http::Response response(request, 303);	// See other
 			response.headers["Location"] = profile()->avatarUrl(); 
+			response.send();
+			return;
+		}
+		else if(directory == "myself")
+		{
+			Http::Response response(request, 303);	// See other
+			response.headers["Location"] = prefix + "/files/";
 			response.send();
 			return;
 		}

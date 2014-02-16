@@ -25,6 +25,7 @@
 #include "tpn/aescipher.h"
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
+#include "tpn/scheduler.h"
 
 namespace tpn
 {
@@ -186,6 +187,40 @@ bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
 	return true;
 }
 
+bool Core::isRequestSeen(const Request *request)
+{
+	Synchronize(this);
+	
+	String uid;
+	request->mParameters.get("uid", uid);
+	if(!uid.empty())
+	{
+		if(mSeenRequests.contains(uid)) return true;
+		mSeenRequests.insert(uid);
+		
+		class RemoveSeenTask : public Task
+		{
+		public:
+			RemoveSeenTask(const String &uid) { this->uid = uid; }
+			
+			void run(void)
+			{
+				Synchronize(Core::Instance);
+				Core::Instance->mSeenRequests.erase(uid);
+				delete this;
+			}
+			
+		private:
+			String uid;
+		};
+		
+		Scheduler::Global->schedule(new RemoveSeenTask(uid), 60000);
+		return false;
+	}
+	
+	return false;
+}
+
 void Core::run(void)
 {
 	LogDebug("Core", "Starting...");
@@ -199,22 +234,31 @@ void Core::run(void)
 			mSock.accept(*sock);
 			
 			try {
-				Address addr = sock->getRemoteAddress();
-                        	LogDebug("Core::run", "Incoming connection from " + addr.toString());
-				
-                        	if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
-					mLastPublicIncomingTime = Time::Now();
-
-				// TODO: this is not a clean way to proceed
+				Address addr;
 				const size_t peekSize = 5;	
 				char peekData[peekSize];
-				sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
-				if(sock->peekData(peekData, peekSize) != peekSize)
-					continue;
-	
-				sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+				
+				try {
+					addr = sock->getRemoteAddress();
+					LogDebug("Core::run", "Incoming connection from " + addr.toString());
+					
+					if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
+						mLastPublicIncomingTime = Time::Now();
 
-				ByteStream *bs = sock;
+					sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
+					if(sock->peekData(peekData, peekSize) != peekSize)
+						continue;
+		
+					sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
+				}
+				catch(const std::exception &e)
+				{
+					delete sock;
+					throw;
+				}
+			
+				ByteStream *bs = NULL;
+				
 				if(std::memcmp(peekData, "GET ", 4) == 0
 					|| std::memcmp(peekData, "POST ", 5) == 0)
 				{
@@ -222,14 +266,16 @@ void Core::run(void)
 					bs = HttpTunnel::Incoming(sock);
 					if(!bs) continue;
 				}
+				else {
+					bs = sock;
+				}
 				
 				LogInfo("Core", "Incoming peer from " + addr.toString() + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
 				addPeer(bs, addr, Identifier::Null, true);	// async
 			}
-			catch(const Exception &e)
+			catch(const std::exception &e)
 			{
 				LogDebug("Core::run", String("Processing failed: ") + e.what());
-				delete sock;
 			}
 		}
 	}
@@ -284,6 +330,16 @@ unsigned Core::addRequest(Request *request)
 		Synchronize(request);
 		if(!request->mId)
 			request->mId = ++mLastRequest;
+		
+		String uid;
+		request->mParameters.get("uid", uid);
+		if(uid.empty())
+		{
+			uid = String::random(16);
+			request->mParameters["uid"] = uid;
+		}
+		
+		mSeenRequests.insert(uid);
 	}
 
 	Array<Identifier> identifiers;
@@ -306,6 +362,9 @@ unsigned Core::addRequest(Request *request)
 	if(identifiers.empty()) request->notifyAll();
 	else for(int i=0; i<identifiers.size(); ++i)
 	{
+		if(identifiers[i] == request->mNonReceiver)
+			continue;
+		
 		Handler *handler;
 		if(mHandlers.get(identifiers[i], handler))
 		{
@@ -480,10 +539,10 @@ void Core::Handler::addRequest(Request *request)
 		Synchronize(this);
 		if(mStopping) return;
 		
-		//LogDebug("Core::Handler", "Adding request " + String::number(request->id()));
+		//LogDebug("Core::Handler", "Adding request " + String::number(request->mId));
 		
 		request->addPending(mPeering);
-		mRequests.insert(request->id(), request);
+		mRequests.insert(request->mId, request);
 	}
 	
 	if(mSender)
@@ -491,7 +550,7 @@ void Core::Handler::addRequest(Request *request)
 		Synchronize(mSender);
 		
 		Sender::RequestInfo requestInfo;
-		requestInfo.id = request->id();
+		requestInfo.id = request->mId;
 		requestInfo.target = request->target();
 		requestInfo.parameters = request->mParameters;
 		requestInfo.isData = request->mIsData;
@@ -523,6 +582,8 @@ void Core::Handler::removeRequest(unsigned id)
 		request->removePending(mPeering);
 		mRequests.erase(it);
 	}
+	
+	
 }
 
 bool Core::Handler::isIncoming(void) const
@@ -696,7 +757,8 @@ void Core::Handler::process(void)
 				if(!instance.empty()) request.setParameter("instance", instance);
 				request.submit();
 				request.wait(meetingStepTimeout);
-				
+				request.cancel();
+
 				String remote;
 				for(int i=0; i<request.responsesCount(); ++i)
 				{
@@ -937,7 +999,7 @@ void Core::Handler::process(void)
 							if(!request->hasContent())
 								sink = request->mContentSink;
 						}
-						else sink = new TempFile;	// TODO: or ByteString ?
+						else sink = new TempFile;
 						
 						response = new Request::Response(status, parameters, sink);
 						response->mChannel = channel;
@@ -953,7 +1015,6 @@ void Core::Handler::process(void)
 					}
 
 					response->mPeering = peering;
-					response->mTransfertStarted = true;
 					request->addResponse(response);
 					if(response->status() != Request::Response::Pending) 
 						request->removePending(peering);	// this triggers the notification
@@ -979,7 +1040,6 @@ void Core::Handler::process(void)
 					else {
 						LogDebug("Core::Handler", "Finished receiving on channel "+String::number(channel));
 						response->content()->close();
-						response->mTransfertFinished = true;
 						response->mStatus = Request::Response::Finished;
 						mResponses.erase(channel);
 					}
@@ -1047,65 +1107,89 @@ void Core::Handler::process(void)
 
 				Request *request = new Request(target, (command == "G"));
 				request->setParameters(parameters);
-				request->mId = id;
+				request->mRemoteId = id;
 				request->mRemoteAddr = mRemoteAddr;
+				
+				if(mCore->isRequestSeen(request))
+				{
+					request->addResponse(new Request::Response(Request::Response::AlreadyResponded));
+		
+					Synchronize(mSender);	
+					mSender->mRequestsToRespond.push_back(request);
+					request->mResponseSender = mSender;
+					mSender->notify();
+					continue;
+				}
 				
 				Listener *listener = NULL;
 				if(!SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
 				{
 					LogDebug("Core::Handler", "No listener for request " + String::number(id));
 				}
-				else {
-					class RequestTask : public Task
+				
+				class RequestTask : public Task
+				{
+				public:
+					RequestTask(	const Identifier &peering,
+							Listener *listener,
+							Request *request, 
+							Sender *sender)
 					{
-					public:
-						RequestTask(	const Identifier &peering,
-								Listener *listener,
-								Request *request, 
-								Sender *sender)
+						this->peering = peering;
+						this->listener = listener;
+						this->request = request;
+						this->sender = sender;
+					}
+					
+					void run(void)
+					{
+						try {
+							if(listener) listener->request(peering, request);
+						}
+						catch(const Exception &e)
 						{
-							this->peering = peering;
-							this->listener = listener;
-							this->request = request;
-							this->sender = sender;
+							LogWarn("RequestTask::run", String("Listener failed to process request "+String::number(request->mRemoteId)+": ") + e.what()); 
 						}
 						
-						void run(void)
-						{
-							try {
-								listener->request(peering, request);
-							}
-							catch(const Exception &e)
+						try {
 							{
-								LogWarn("RequestTask::run", String("Listener failed to process request "+String::number(request->mId)+": ") + e.what()); 
-							}
-							
-							try {
+								Synchronize(request);
+								
 								if(request->responsesCount() == 0) 
 									request->addResponse(new Request::Response(Request::Response::Failed));
 					
-								Synchronize(sender);	
+								for(int i=0; i<request->responsesCount(); ++i)
+								{
+									Request::Response *response = request->response(i);
+									response->mTransfertStarted = false;
+									response->mTransfertFinished = false;
+								}
+							}
+							
+							{
+								Synchronize(sender);
+								
 								sender->mRequestsToRespond.push_back(request);
 								request->mResponseSender = sender;
 								sender->notify();
 							}
-							catch(const Exception &e)
-							{
-								LogWarn("RequestTask::run", e.what()); 
-							}
-							
-							delete this;	// autodelete
+						}
+						catch(const Exception &e)
+						{
+							LogWarn("RequestTask::run", e.what()); 
 						}
 						
-					private:
-						Identifier peering;
-						Listener *listener;
-						Request *request;
-						Sender  *sender;
-					};
+						delete this;	// autodelete
+					}
 					
-					mThreadPool.launch(new RequestTask(peering, listener, request, mSender));
-				}
+				private:
+					Identifier peering;
+					Listener *listener;
+					Request *request;
+					Sender  *sender;
+				};
+				
+				mThreadPool.launch(new RequestTask(peering, listener, request, mSender));
 			}
 			else if(command == "M")
 			{
@@ -1328,14 +1412,14 @@ void Core::Handler::Sender::run(void)
 							mTransferts.insert(channel,response);
 						}
 						
-						//LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->id()));
+						LogDebug("Core::Handler::Sender", "Sending response " + String::number(j) + " for request " + String::number(request->mRemoteId));
 						
 						int status = response->status();
 						if(status == Request::Response::Success && j != request->responsesCount()-1)
 							status = Request::Response::Pending;
 						
 						String args;
-						args << request->id() << " " << status << " " <<channel;
+						args << request->mRemoteId << " " << status << " " <<channel;
 						DesynchronizeStatement(this, Handler::sendCommand(mStream, "R", args, response->mParameters));
 					}
 				}
@@ -1455,9 +1539,8 @@ void Core::Handler::Sender::run(void)
 					if(!finished) continue;
 				}
 				
+				if(!request->mId) delete request;
 				mRequestsToRespond.erase(i);
-				request->mId = 0;	// request MUST NOT be suppressed from the core like a sent request !
-				delete request; 
 			}
 		}
 		
