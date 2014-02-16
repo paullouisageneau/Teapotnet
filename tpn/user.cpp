@@ -946,6 +946,7 @@ void User::http(const String &prefix, Http::Request &request)
 				
 				Resource::Query query(store());
 				query.setMatch(match);
+				query.setAccessLevel(Resource::Personal);
 				
 				SerializableSet<Resource> resources;
 				if(!query.submit(resources))

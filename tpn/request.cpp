@@ -492,7 +492,7 @@ int Request::addResponse(Response *response)
 	int hops = 0;
 	if(response->mParameters.contains("hops"))
 		hops = std::max(0, response->mParameters["hops"].toInt());
-		
+	
 	if(mId && mRemoteId)	// if forwarded
 	{
 		// Add only successful responses
