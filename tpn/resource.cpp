@@ -65,6 +65,7 @@ Resource::Resource(const Identifier &peering, const String &url, Store *store) :
 	mSize(0),
 	mType(1),
 	mPeering(peering),
+	mHops(0),
 	mStore(Store::GlobalInstance),
 	mAccessor(NULL)
 {
@@ -107,6 +108,7 @@ void Resource::clear(void)
 	mTime = Time::Now();
 	mSize = 0;
 	mType = 1;
+	mHops = 0;
 	mPath.clear();
 	mPeering = Identifier::Null;
 	
@@ -529,6 +531,7 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 			try {
 				Resource resource(mStore);
 				StringMap parameters = response->parameters();
+				VAR(parameters);
 				resource.deserialize(parameters);
 				resource.setPeering(response->peering());
 				resource.addHop();
