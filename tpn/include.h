@@ -22,9 +22,9 @@
 #ifndef TPN_INCLUDE_H
 #define TPN_INCLUDE_H
 
-#define DEBUG			1
+//#define DEBUG			1
 #define APPNAME			"Teapotnet"
-#define APPVERSION		"0.8.3"
+#define APPVERSION		"0.8.4"
 #define APPAUTHOR		"Paul-Louis Ageneau"
 #define APPLINK			"http://teapotnet.org/"
 #define SOURCELINK		"http://teapotnet.org/source"
