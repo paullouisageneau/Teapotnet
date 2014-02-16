@@ -489,9 +489,9 @@ int Request::addResponse(Response *response)
 	Assert(response != NULL);
 	Assert(!mResponses.contains(response));
 	
-	int hops = 1;
+	int hops = 0;
 	if(response->mParameters.contains("hops"))
-		hops = response->mParameters["hops"].toInt();
+		hops = std::max(0, response->mParameters["hops"].toInt());
 		
 	if(mId && mRemoteId)	// if forwarded
 	{
@@ -510,7 +510,7 @@ int Request::addResponse(Response *response)
 			else ++i;
 		}
 		
-		hops = std::max(hops,1) + 1;
+		hops+= 1;
 	}
 	
 	response->mParameters["hops"] = String::number(hops);

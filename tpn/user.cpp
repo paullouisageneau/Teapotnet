@@ -813,7 +813,7 @@ void User::http(const String &prefix, Http::Request &request)
 			{
 				// Query resources
 				Resource::Query query(store(), target);
-				query.setAccessLevel(Resource::Public);
+				query.setAccessLevel(Resource::Personal);
 				
 				SerializableSet<Resource> resources;
 				bool success = query.submitLocal(resources);
