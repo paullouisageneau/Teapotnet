@@ -531,7 +531,6 @@ bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peer
 			try {
 				Resource resource(mStore);
 				StringMap parameters = response->parameters();
-				VAR(parameters);
 				resource.deserialize(parameters);
 				resource.setPeering(response->peering());
 				resource.addHop();
