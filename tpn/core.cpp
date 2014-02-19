@@ -22,7 +22,7 @@
 #include "tpn/core.h"
 #include "tpn/html.h"
 #include "tpn/sha512.h"
-#include "tpn/aescipher.h"
+#include "tpn/cipher.h"
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
 #include "tpn/scheduler.h"
