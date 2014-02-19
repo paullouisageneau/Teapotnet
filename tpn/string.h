@@ -126,7 +126,6 @@ public:
 	virtual String toString(void) const;
         virtual void fromString(String str);
 
-protected:
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);

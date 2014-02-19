@@ -57,7 +57,7 @@ public:
 	#define Assert(condition) DoNothing(!(condition))
 #endif
 
-#define assert(condition) Assert(condition)
+//#define assert(condition) Assert(condition)
 
 // If a file cannot be loaded
 class LoadingFailed : public Exception
