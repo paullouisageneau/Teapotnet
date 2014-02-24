@@ -25,7 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
 #include "tpn/identifier.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/array.h"
 #include "tpn/list.h"
 #include "tpn/map.h"
@@ -47,7 +47,7 @@ public:
 	unsigned id() const;
 	String target(void) const;
 
-	void setContentSink(ByteStream *bs);
+	void setContentSink(Stream *bs);
 	void setTarget(const String &target, bool data);
 	void setParameters(StringMap &params);
 	void setParameter(const String &name, const String &value);
@@ -81,7 +81,7 @@ public:
 		static const int ReadFailed;
 	  
 		Response(int status = 0);
-		Response(int status, const StringMap &parameters, ByteStream *content = NULL, bool readOnly = false);
+		Response(int status, const StringMap &parameters, Stream *content = NULL, bool readOnly = false);
 		~Response(void);
 
 		const Identifier &peering(void) const;
@@ -125,7 +125,7 @@ private:
 	bool mIsData;
 	bool mIsForwardable;		// This only depends on execution, not on hops number
 	StringMap mParameters;
-	ByteStream *mContentSink;
+	Stream *mContentSink;
 	Synchronizable *mResponseSender;
 	Address mRemoteAddr;
 	

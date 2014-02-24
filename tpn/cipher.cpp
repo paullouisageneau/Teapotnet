@@ -26,25 +26,25 @@
 namespace tpn
 {
 
-Cipher::Cipher(	ByteStream *bs,				// WILL NOT be deleted
+Cipher::Cipher(	Stream *bs,				// WILL NOT be deleted
 	CryptoPP::SymmetricCipher *readCipher,		// WILL be deleted
 	CryptoPP::SymmetricCipher *writeCipher) :		// WILL be deleted
 	
-	mByteStream(bs),
+	mStream(bs),
 	mDumpStream(NULL),
 	mReadCipher(NULL),
 	mReadFilter(NULL),
 	mWriteCipher(NULL),
 	mWriteFilter(NULL)
 {
-	Assert(mByteStream);
+	Assert(mStream);
 	setReadCipher(readCipher);
 	setWriteCipher(writeCipher);
 }
 
 Cipher::~Cipher(void)
 {
-	// mByteStream is not deleted
+	// mStream is not deleted
 	
 	delete mReadFilter;
 	delete mReadCipher;
@@ -61,7 +61,10 @@ void Cipher::setReadCipher(CryptoPP::SymmetricCipher *cipher)
 	if(cipher)
 	{
 		mReadCipher = cipher;
-		mReadFilter = new CryptoPP::StreamTransformationFilter(*mReadCipher, new CryptoPP::StringSink(mReadBuffer));
+		mReadFilter = new CryptoPP::StreamTransformationFilter(
+					*mReadCipher, 
+					new CryptoPP::StringSink(mReadBuffer),
+					CryptoPP::StreamTransformationFilter::PKCS_PADDING);
 	}
 	else {
 		mReadCipher = NULL;
@@ -77,7 +80,10 @@ void Cipher::setWriteCipher(CryptoPP::SymmetricCipher *cipher)
 	if(cipher)
 	{
 		mWriteCipher = cipher;
-		mWriteFilter = new CryptoPP::StreamTransformationFilter(*mWriteCipher, new CryptoPP::StringSink(mWriteBuffer));
+		mWriteFilter = new CryptoPP::StreamTransformationFilter(
+					*mWriteCipher,
+					new CryptoPP::StringSink(mWriteBuffer),
+					CryptoPP::StreamTransformationFilter::PKCS_PADDING);
 	}
 	else {
 		mWriteCipher = NULL;
@@ -85,7 +91,7 @@ void Cipher::setWriteCipher(CryptoPP::SymmetricCipher *cipher)
 	}
 }
 
-void Cipher::dumpStream(ByteStream *bs)
+void Cipher::dumpStream(Stream *bs)
 {
 	mDumpStream = bs; 
 }
@@ -96,9 +102,9 @@ size_t Cipher::readData(char *buffer, size_t size)
 	if(!mReadCipher) throw Exception("Block cipher not initialized for reading");
 	
 	size_t readSize;
-	while((readSize = mReadBuffer.readData(buffer, size)) == 0) 
+	while((readSize = mReadBuffer.readData(buffer, size)) == 0)
 	{
-		readSize = mByteStream->readData(buffer, size);
+		readSize = mStream->readData(buffer, size);
 		if(!readSize) return 0;
 		
 		mReadFilter->Put(reinterpret_cast<const byte*>(buffer), readSize);
@@ -116,7 +122,7 @@ void Cipher::writeData(const char *data, size_t size)
 	mWriteFilter->Put(reinterpret_cast<const byte*>(data), size);
 	mWriteFilter->Flush(false);
 	
-	mByteStream->writeData(mWriteBuffer.data(), mWriteBuffer.size());
+	mStream->writeData(mWriteBuffer.data(), mWriteBuffer.size());
 }
 
 }

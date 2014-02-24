@@ -78,7 +78,7 @@ String Request::target(void) const
 	return mTarget;
 }
 
-void Request::setContentSink(ByteStream *bs)
+void Request::setContentSink(Stream *bs)
 {
 	Synchronize(this);
 	mContentSink = bs;
@@ -359,7 +359,7 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 	StringMap rparameters;
 	resource.serialize(rparameters);
 	
-	ByteStream *content = NULL;
+	Stream *content = NULL;
 	if(mIsData)
 	{
 		if(resource.isDirectory())
@@ -367,7 +367,7 @@ Request::Response *Request::createResponse(const Resource &resource, const Strin
 			rparameters["processing"] = "none";
 			rparameters["formatting"] = "YAML";
 			
-			Response *response = new Response(Response::Success, rparameters, new ByteString);
+			Response *response = new Response(Response::Success, rparameters, new BinaryString);
 			
 			Assert(store);
 			Assert(response->content());
@@ -564,7 +564,7 @@ Request::Response::Response(int status) :
 	Assert(status >= 0);
 }
 
-Request::Response::Response(int status, const StringMap &parameters, ByteStream *content, bool readOnly) :
+Request::Response::Response(int status, const StringMap &parameters, Stream *content, bool readOnly) :
 	mStatus(status),
 	mParameters(parameters),
 	mContent(NULL),

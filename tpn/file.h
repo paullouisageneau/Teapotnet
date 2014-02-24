@@ -23,7 +23,7 @@
 #define TPN_FILE_H
 
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/string.h"
 #include "tpn/mutex.h"
 #include "tpn/time.h"
@@ -33,13 +33,12 @@
 namespace tpn
 {
 
-class File : public Stream, public ByteStream, public std::fstream
+class File : public Stream, public std::fstream
 {
 public:
 	using Stream::read;
 	using Stream::write;
-	using Stream::ignore;
-
+	
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
 	static void Rename(const String &source, const String &destination);
@@ -66,7 +65,7 @@ public:
 	OpenMode mode(void) const;
 	uint64_t size(void) const;
 	
-	// Stream, ByteStream
+	// Stream, Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 	void flush(void);
@@ -75,7 +74,7 @@ protected:
 	static String TempPath(void);
   	static const String TempPrefix;
 	
-	ByteStream *pipeIn(void);
+	Stream *pipeIn(void);
 	String mName;
 	OpenMode mMode;
 };

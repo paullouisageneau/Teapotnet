@@ -24,7 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/address.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/list.h"
 
 namespace tpn
@@ -50,9 +50,9 @@ public:
 	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
 	void write(const char *buffer, size_t size, const Address &receiver);
 
-	bool read(ByteStream &stream, Address &sender, double &timeout);
-	bool read(ByteStream &stream, Address &sender, const double &timeout = -1.);
-	void write(ByteStream &stream, const Address &receiver);
+	bool read(Stream &stream, Address &sender, double &timeout);
+	bool read(Stream &stream, Address &sender, const double &timeout = -1.);
+	void write(Stream &stream, const Address &receiver);
 	
 private:
 	socket_t mSock;

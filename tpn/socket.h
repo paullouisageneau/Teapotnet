@@ -24,7 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/address.h"
 
 namespace tpn
@@ -32,11 +32,9 @@ namespace tpn
 
 class ServerSocket;
 	
-class Socket : public Stream, public ByteStream
+class Socket : public Stream
 {
 public:
-	using Stream::ignore;
-
 	static void Transfer(Socket *sock1, Socket *sock2);
 	
 	Socket(void);
@@ -58,7 +56,7 @@ public:
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
 
-	// Stream, ByteStream
+	// Stream, Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 

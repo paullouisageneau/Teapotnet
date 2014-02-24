@@ -36,13 +36,13 @@ namespace tpn
 
 // "I'll wrap you in a sheet !"
 
-class Splicer : protected Synchronizable, public Task, public ByteStream
+class Splicer : protected Synchronizable, public Task, public Stream
 {
 public:
-	static void Prefetch(const ByteString &target);
-	static void Hint(const ByteString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
+	static void Prefetch(const BinaryString &target);
+	static void Hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
 	
-	Splicer(const ByteString &target, int64_t begin = 0, int64_t end = -1);
+	Splicer(const BinaryString &target, int64_t begin = 0, int64_t end = -1);
 	~Splicer(void);
 	
 	void addSources(const Set<Identifier> &sources);
@@ -72,12 +72,12 @@ private:
 	class CacheEntry : public Synchronizable
 	{
 	public:
-		CacheEntry(const ByteString &target);
+		CacheEntry(const BinaryString &target);
 		~CacheEntry(void);
 		
 		String fileName(void);
 		String name(void) const;
-		ByteString target(void) const;
+		BinaryString target(void) const;
 		int64_t size(void) const;
 		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
@@ -101,7 +101,7 @@ private:
 		bool isDownloading(void) const;
 		
 	private:
-		ByteString mTarget;
+		BinaryString mTarget;
 		String mFileName;
 		bool mIsFileInCache;
 		String mName;
@@ -117,8 +117,8 @@ private:
 	CacheEntry *mCacheEntry;
 	Set<Identifier> mSources;
 	
-	static Splicer::CacheEntry *GetCacheEntry(const ByteString &target);
-	static Map<ByteString, CacheEntry*> Cache;
+	static Splicer::CacheEntry *GetCacheEntry(const BinaryString &target);
+	static Map<BinaryString, CacheEntry*> Cache;
 	static Mutex CacheMutex;
 };
 

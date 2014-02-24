@@ -23,6 +23,7 @@
 #define TPN_STREAM_H
 
 #include "tpn/include.h"
+#include "tpn/task.h"
 
 #include <sstream>
 
@@ -30,12 +31,15 @@ namespace tpn
 {
 
 class Serializable;
+class BinaryString;
 class String;
-class ByteStream;
+class Pipe;
 
 class Stream
 {
 public:
+	static void Transfer(Stream *s1, Stream *s2); // Warning: performance issue: uses 2 threads
+	
 	static const String IgnoredCharacters;
 	static const String BlankCharacters;
 	static const String NewLine;
@@ -51,12 +55,18 @@ public:
 	// Data-level access
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-	size_t readData(ByteStream &s, size_t max);
-	size_t writeData(ByteStream &s, size_t max);
+	size_t readData(Stream &s, size_t max);
+	size_t writeData(Stream &s, size_t max);
+	virtual void seekRead(int64_t position);
+	virtual void seekWrite(int64_t position);
+	virtual void clear(void);
+	virtual void flush(void);
+	virtual bool ignore(size_t size = 1);
+	
+	inline void discard(void) { clear(); }
 	
 	// Atomic
 	bool get(char &chr);
-	bool ignore(size_t size = 1);
 	void put(char chr);
 	void space(void);
 	void newline(void);
@@ -70,14 +80,18 @@ public:
 	bool ignoreWhile(const String &chars);
 	bool readUntil(Stream &output, char delimiter);
 	bool readUntil(Stream &output, const String &delimiters);
-	
+
 	// Reading
 	int64_t	read(Stream &s);
-	bool	read(Serializable &s);
 	int64_t	read(Stream &s, int64_t max);
-	bool	read(String &s);
+	
+	bool	read(Serializable &s);
 	bool	read(bool &b);
-
+	
+	// Disambiguation
+	bool	read(BinaryString &str);
+	bool	read(String &str);
+	
 	inline bool	read(char &c) 			{ return readData(&c,1); }
 	inline bool	read(signed char &i) 		{ return readStd(i); }
 	inline bool	read(signed short &i) 		{ return readStd(i); }
@@ -98,12 +112,17 @@ public:
 	bool 	readBool(void);
 
 	// Writing
-	void	write(Stream &s);
+	int64_t	write(Stream &s);
+	int64_t	write(Stream &s, int64_t max);
+	
 	void	write(const Serializable &s);
-	void	write(const String &s);
-	void	write(const char *s);
-	void	write(const std::string &s);
+	void	write(const char *str);
+	void	write(const std::string &str);
 	void	write(bool b);
+	
+	// Disambiguation
+	void	write(const BinaryString &str);
+	void	write(const String &str);
 	
 	inline void	write(char c) 			{ writeData(&c,1); }
 	inline void	write(signed char i) 		{ writeStd(i); }
@@ -132,6 +151,53 @@ public:
 	template<typename T> bool readLine(T &output);
 	template<typename T> void writeLine(const T &input);
 	
+	// Binary reading
+	int64_t	readBinary(Stream &s, int64_t max)	{ return read(s, max); }
+	bool	readBinary(char *data, size_t size);	// blocks until size bytes are read
+	bool	readBinary(BinaryString &str);
+	bool	readBinary(int8_t &i);
+	bool	readBinary(int16_t &i);
+	bool	readBinary(int32_t &i);
+	bool	readBinary(int64_t &i);
+	bool	readBinary(uint8_t &i);
+	bool	readBinary(uint16_t &i);
+	bool	readBinary(uint32_t &i);
+	bool	readBinary(uint64_t &i);
+	bool	readBinary(float32_t &f);
+	bool	readBinary(float64_t &f);
+
+	template<class T> bool readBinary(T *ptr);
+
+	// Binary writing
+	int64_t	writeBinary(Stream &s, int64_t max)		{ return write(s, max); }
+	void    writeBinary(const char *data, size_t size)	{ writeData(data, size); }
+	void	writeBinary(const BinaryString &str);
+	void	writeBinary(int8_t i);
+	void	writeBinary(int16_t i);
+	void	writeBinary(int32_t i);
+	void	writeBinary(int64_t i);
+	void	writeBinary(uint8_t i);
+	void	writeBinary(uint16_t i);
+	void	writeBinary(uint32_t i);
+	void	writeBinary(uint64_t i);
+	void	writeBinary(float32_t f);
+	void	writeBinary(float64_t f);
+
+	template<class T> void writeBinary(const T *ptr);
+
+	void writeZero(size_t size = 1);	
+	void writeRandom(size_t size = 1);
+
+	// Handy task to schedule flushing
+	class FlushTask : public Task
+        {
+        public:
+                FlushTask(Stream *bs) { this->bs = bs; }
+                void run(void) { bs->flush(); }
+        private:
+                Stream *bs;
+        };
+	
 protected:
 	char mLast;
 	bool mHexa;
@@ -143,6 +209,14 @@ private:
 
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
+	
+	virtual Stream *pipeIn(void);	// return the write end for a pipe
+
+	uint16_t fixEndianess(uint16_t n);
+	uint32_t fixEndianess(uint32_t n);
+	uint64_t fixEndianess(uint64_t n);
+
+	friend class Pipe;
 };
 
 // NB: String is not defined here, as it herits from Stream.

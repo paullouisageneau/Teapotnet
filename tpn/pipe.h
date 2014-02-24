@@ -23,42 +23,40 @@
 #define TPN_PIPE_H
 
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/mutex.h"
 #include "tpn/signal.h"
 
 namespace tpn
 {
 
-class Pipe : public Stream, public ByteStream
+class Pipe : public Stream
 {
 public:
-	using ByteStream::ignore;
-
 	Pipe(void);
-	Pipe(ByteStream *buffer, bool readOnly = false);	// buffer destroyed at deletion
+	Pipe(Stream *buffer, bool readOnly = false);	// buffer destroyed at deletion
 	virtual ~Pipe(void);
 
 	void close(void);		// closes the write end
 	bool is_open(void) const;	// true if the write end is open
 	
-	// Stream, ByteStream
+	// Stream, Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
 protected:
-	void open(ByteStream *buffer, bool readOnly = false);
+	void open(Stream *buffer, bool readOnly = false);
 
 private:
-	ByteStream *mReadBuffer;
-	ByteStream *mWriteBuffer;
+	Stream *mReadBuffer;
+	Stream *mWriteBuffer;
 	Mutex mMutex;
 	Signal mSignal;
 };
 
 class ReadOnlyPipe : public Pipe
 {
- 	ReadOnlyPipe(ByteStream *buffer);	// buffer destroyed at deletion
+ 	ReadOnlyPipe(Stream *buffer);	// buffer destroyed at deletion
 	virtual ~ReadOnlyPipe(void);
 };
 

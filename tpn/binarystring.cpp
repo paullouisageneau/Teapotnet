@@ -19,80 +19,60 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
 
 namespace tpn
 {
 
-ByteString::ByteString(void)
+BinaryString::BinaryString(void)
 {
 
 }
 
-ByteString::ByteString(const ByteString &bs) :
-	std::deque<char>(bs)
+BinaryString::BinaryString(const char *data, size_t size) :
+		std::string(data, data+size)
 {
 
 }
 
-ByteString::ByteString(const ByteString &bs, size_t begin) :
-	std::deque<char>(bs.begin()+std::min(begin, bs.size()), bs.end())
+BinaryString::BinaryString(const std::string &str) :
+		std::string(str)
 {
 
 }
 
-ByteString::ByteString(const ByteString &bs, size_t begin, size_t end) :
-	std::deque<char>(bs.begin()+std::min(begin, bs.size()), bs.begin()+std::min(end, bs.size()))
+BinaryString::BinaryString(size_t n, char chr) :
+		std::string(n, chr)
+{
+
+}
+	
+
+BinaryString::BinaryString(const BinaryString &str, int begin) :
+		std::string(str,begin)
 {
 
 }
 
-ByteString::ByteString(const char *data, size_t size) :
-	std::deque<char>(data,data+size)
+BinaryString::BinaryString(const BinaryString &str, int begin, int end) :
+		std::string(str,begin,end)
 {
 
 }
 
-ByteString::ByteString(const String &str) :
-	std::deque<char>(str.data(),str.data()+str.size())
+BinaryString::~BinaryString(void)
 {
 
 }
 
-ByteString::~ByteString(void)
+const byte *BinaryString::bytes(void) const
 {
-
+	return reinterpret_cast<const byte*>(data());
 }
 
-void ByteString::clear(void)
-{
-	std::deque<char>::clear();
-}
-
-void ByteString::append(char value, int n)
-{
-	for(int i=0; i<n; ++i)
-		push_back(value);
-}
-
-void ByteString::append(const ByteString &bs)
-{
-	insert(end(), bs.begin(), bs.end());
-}
-
-void ByteString::append(const char *array, size_t size)
-{
-	insert(end(), array, array+size);
-}
-
-void ByteString::fill(char value, int n)
-{
-	assign(n, value);
-}
-
-String ByteString::base64Encode(bool safeMode) const
+BinaryString BinaryString::base64Encode(bool safeMode) const
 {
 	// safeMode is RFC 4648 'base64url' encoding
 	
@@ -130,21 +110,72 @@ String ByteString::base64Encode(bool safeMode) const
         return out;
 }
 
-void ByteString::serialize(Serializer &s) const
+BinaryString BinaryString::base64Decode(void) const
 {
-	// implemented in Serializer::output(const ByteString &)
-	s.output(*this);
+	String out;
+	int i = 0;
+	while(i < size())
+	{
+		unsigned char tab[4];
+		int j = 0;
+		while(i < size() && j < 4)
+		{
+			char c = at(i);
+			if(c == '=') break;
+			
+			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
+			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
+			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
+			else if (c == '+' || c == '-') tab[j] = 62;
+			else if (c == '/' || c == '_') tab[j] = 63;
+			else throw IOException("Invalid character");
+			
+			++i; ++j;
+		}
+
+		if(j)
+		{
+			out+= (tab[0] << 2) | (tab[1] >> 4);
+			if (j > 2)
+			{
+				out+= (tab[1] << 4) | (tab[2] >> 2);
+				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
+			}
+		}
+		
+		if(i < size() && at(i) == '=') break;
+	}
+
+	return out;
 }
 
-bool ByteString::deserialize(Serializer &s)
+void BinaryString::serialize(Serializer &s) const
 {
-	// implemented in Serializer::input(ByteString &)
-	return s.input(*this);
+	s.output(uint32_t(size()));
+
+	for(int i=0; i<size(); ++i)
+		s.output(uint8_t(at(i)));
 }
 
-void ByteString::serialize(Stream &s) const
+bool BinaryString::deserialize(Serializer &s)
 {
-	String str;
+	clear();
+	
+	uint32_t count;
+	if(!s.input(count)) return false;
+
+	uint8_t b;
+	for(uint32_t i=0; i<count; ++i)
+	{
+		AssertIO(s.input(b));
+		push_back(b);
+	}
+
+	return true;
+}
+
+void BinaryString::serialize(Stream &s) const
+{
 	for(int i=0; i<size(); ++i)
 	{
 		std::ostringstream oss;
@@ -155,7 +186,7 @@ void ByteString::serialize(Stream &s) const
 	}
 }
 
-bool ByteString::deserialize(Stream &s)
+bool BinaryString::deserialize(Stream &s)
 {
 	clear();
 	
@@ -164,6 +195,7 @@ bool ByteString::deserialize(Stream &s)
 	if(str.empty()) return true;
 	
 	int count = (str.size()+1)/2;
+	reserve(count);
 	for(int i=0; i<count; ++i)
 	{
 		std::string byte;
@@ -183,49 +215,28 @@ bool ByteString::deserialize(Stream &s)
 	return true;
 }
 
-bool ByteString::isNativeSerializable(void) const
+bool BinaryString::isNativeSerializable(void) const
 {
         return false;
 }
 
-size_t ByteString::readData(char *buffer, size_t size)
+size_t BinaryString::readData(char *buffer, size_t size)
 {
-	if(this->empty()) return 0;
-	size = std::min(size, this->size());
-	std::copy(begin(), begin()+size, buffer);
-	erase(begin(), begin()+size);
+	size = std::min(size,this->size());
+	std::copy(begin(),begin()+size,buffer);
+	erase(begin(),begin()+size); // WARNING: linear with string size
 	return size;
 }
 
-void ByteString::writeData(const char *data, size_t size)
+void BinaryString::writeData(const char *data, size_t size)
 {
 	insert(end(), data, data+size);
 }
 
-#ifdef __GNUC__
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
-#endif
-
-bool ByteString::constantTimeEquals(const ByteString &bs) const
+void BinaryString::clear(void)
 {
-	const_iterator it = begin();
-	const_iterator jt = bs.begin();
-
-	bool match = (size() == bs.size());
-	while(it != end() && jt != bs.end())
-	{
-		match&= (*it == *jt);
-		++it;
-		++jt;
-	}
-
-	return match;
+	std::string::clear();
 }
-
-#ifdef __GNUC__
-#pragma GCC pop_options
-#endif
 
 }
 

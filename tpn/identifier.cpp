@@ -32,7 +32,7 @@ Identifier::Identifier(void)
 
 }
 
-Identifier::Identifier(const ByteString &digest, const String &name) :
+Identifier::Identifier(const BinaryString &digest, const String &name) :
 	mDigest(digest),
 	mName(name)
 {
@@ -44,7 +44,7 @@ Identifier::~Identifier(void)
 
 }
 
-ByteString Identifier::getDigest(void) const
+BinaryString Identifier::getDigest(void) const
 {
 	return mDigest;
 }
@@ -54,7 +54,7 @@ String Identifier::getName(void) const
 	return mName;
 }
 	
-void Identifier::setDigest(const ByteString &digest)
+void Identifier::setDigest(const BinaryString &digest)
 {
 	mDigest = digest;
 }
@@ -75,12 +75,12 @@ void Identifier::clear(void)
 	mName.clear();
 }
 
-Identifier::operator ByteString &(void)
+Identifier::operator BinaryString &(void)
 {
 	return mDigest; 
 }
 
-Identifier::operator const ByteString &(void) const
+Identifier::operator const BinaryString &(void) const
 {
 	return mDigest; 
 }

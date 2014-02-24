@@ -24,8 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
-#include "tpn/string.h"
+#include "tpn/binarystring.h"
 
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/filters.h>
@@ -33,32 +32,32 @@
 namespace tpn
 {
 
-class Cipher : public Stream, public ByteStream
+class Cipher : public Stream
 {
 public:
-  	Cipher(	ByteStream *bs,					// WILL NOT be deleted
+  	Cipher(	Stream *bs,					// WILL NOT be deleted
 		CryptoPP::SymmetricCipher *readCipher = NULL,	// WILL be deleted
 		CryptoPP::SymmetricCipher *writeCipher = NULL);	// WILL be deleted
 	~Cipher(void);
 	
 	void setReadCipher(CryptoPP::SymmetricCipher *cipher);
 	void setWriteCipher(CryptoPP::SymmetricCipher *cipher);
-	void dumpStream(ByteStream *bs);
+	void dumpStream(Stream *bs);
 	
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 
 private:
-	ByteStream *mByteStream;
-	ByteStream *mDumpStream;
+	Stream *mStream;
+	Stream *mDumpStream;
 	
 	CryptoPP::SymmetricCipher *mReadCipher;			// can be NULL
 	CryptoPP::StreamTransformationFilter *mReadFilter;
-	String mReadBuffer;
+	BinaryString mReadBuffer;
 	
 	CryptoPP::SymmetricCipher *mWriteCipher;		// can be NULL
 	CryptoPP::StreamTransformationFilter *mWriteFilter;
-	String mWriteBuffer;
+	BinaryString mWriteBuffer;
 };
 
 }

@@ -47,6 +47,17 @@ ByteArray::ByteArray(char *array, size_t length) :
 
 }
 
+ByteArray::ByteArray(byte *array, size_t length) :
+		mArray(reinterpret_cast<char*>(array)),
+		mLength(length),
+		mLeft(length),
+		mReadPos(0),
+		mWritePos(0),
+		mMustDelete(false)
+{
+
+}
+
 ByteArray::ByteArray(const ByteArray &array) :
 	mArray(array.mArray),
 	mLength(array.mLength),
@@ -83,6 +94,11 @@ const char *ByteArray::data(void) const
 	return mArray+mReadPos;
 }
 
+const byte *ByteArray::bytes(void) const
+{
+	return reinterpret_cast<const byte*>(data());
+}
+
 size_t ByteArray::size(void) const
 {
 	return mLeft;
@@ -93,6 +109,65 @@ void ByteArray::clear(void)
 	mReadPos = 0;
 	mWritePos = 0;
 	mLeft = 0;
+}
+
+void ByteArray::serialize(Serializer &s) const
+{
+	// implemented in Serializer::output(const BinaryString &)
+	s.output(*this);
+}
+
+bool ByteArray::deserialize(Serializer &s)
+{
+	// implemented in Serializer::input(BinaryString &)
+	return s.input(*this);
+}
+
+void ByteArray::serialize(Stream &s) const
+{
+	String str;
+	for(int i=0; i<size(); ++i)
+	{
+		std::ostringstream oss;
+		oss.width(2);
+		oss.fill('0');
+		oss<<std::hex<<std::uppercase<<unsigned(uint8_t(*(data()+i)));
+		s<<oss.str();
+	}
+}
+
+bool ByteArray::deserialize(Stream &s)
+{
+	clear();
+	
+	String str;
+	if(!s.read(str)) return false;
+	if(str.empty()) return true;
+	
+	int count = (str.size()+1)/2;
+	for(int i=0; i<count; ++i)
+	{
+		std::string byte;
+		byte+= str[i*2];
+		if(i*2+1 != str.size()) byte+= str[i*2+1];
+		else byte+= '0';
+		std::istringstream iss(byte);
+
+		unsigned value = 0;
+		iss>>std::hex;
+		if(!(iss>>value))
+			throw InvalidData("Invalid hexadecimal representation");
+
+		char chr(value % 256);
+		writeData(&chr, 1);
+	}
+	
+	return true;
+}
+
+bool ByteArray::isNativeSerializable(void) const
+{
+        return false;
 }
 
 size_t ByteArray::readData(char *buffer, size_t size)

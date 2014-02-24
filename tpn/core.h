@@ -71,13 +71,13 @@ public:
 	
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const ByteString &secret,
+		       		const BinaryString &secret,
 				Listener *listener = NULL);
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
 	enum LinkStatus {Disconnected, Established, Authenticated};
-	LinkStatus addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
+	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
 	LinkStatus addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
@@ -93,7 +93,7 @@ private:
 	class Handler : public Task, public Synchronizable
 	{
 	public:
-		Handler(Core *core, ByteStream *bs, const Address &remoteAddr);
+		Handler(Core *core, Stream *bs, const Address &remoteAddr);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering);
@@ -129,7 +129,7 @@ private:
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
-		ByteStream  *mRawStream;
+		Stream  *mRawStream;
 		Stream  *mStream;
 		Address mRemoteAddr;
 		bool mIsIncoming;
@@ -140,7 +140,7 @@ private:
 		ThreadPool mThreadPool;
 		bool mStopping;
 
-		ByteString mObfuscatedHello;
+		BinaryString mObfuscatedHello;
 		
 		class Sender : public Thread, public Synchronizable
 		{
@@ -180,7 +180,7 @@ private:
 	ServerSocket mSock;
 	ThreadPool mThreadPool;
 	Map<Identifier, Identifier> mPeerings;
-	Map<Identifier, ByteString> mSecrets;
+	Map<Identifier, BinaryString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
 	Map<Identifier, Handler*>  mRedirections;
 	Map<Identifier, Handler*> mHandlers;

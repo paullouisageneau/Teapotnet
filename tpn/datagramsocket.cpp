@@ -305,7 +305,7 @@ void DatagramSocket::write(const char *buffer, size_t size, const Address &recei
 	if(result < 0) throw NetException("Unable to write to socket (error " + String::number(sockerrno) + ")");
 }
 
-bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
+bool DatagramSocket::read(Stream &stream, Address &sender, double &timeout)
 {
 	stream.clear();
 	char buffer[MaxDatagramSize];
@@ -316,13 +316,13 @@ bool DatagramSocket::read(ByteStream &stream, Address &sender, double &timeout)
 	return true;
 }
 
-bool DatagramSocket::read(ByteStream &stream, Address &sender, const double &timeout)
+bool DatagramSocket::read(Stream &stream, Address &sender, const double &timeout)
 {
 	double dummy = timeout;
 	return  read(stream, sender, dummy);
 }
 
-void DatagramSocket::write(ByteStream &stream, const Address &receiver)
+void DatagramSocket::write(Stream &stream, const Address &receiver)
 {
 	char buffer[MaxDatagramSize];
 	size_t size = stream.readData(buffer,MaxDatagramSize);

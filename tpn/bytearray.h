@@ -23,16 +23,18 @@
 #define TPN_BYTEARRAY_H
 
 #include "tpn/include.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
+#include "tpn/serializable.h"
 
 namespace tpn
 {
 
-class ByteArray : public ByteStream
+class ByteArray : public Stream, public Serializable
 {
 public:
 	ByteArray(size_t size);
 	ByteArray(char *array, size_t length);	// data is NOT copied
+	ByteArray(byte *array, size_t length);	// data is NOT copied
 	ByteArray(const ByteArray &array);	// data is NOT copied
 	virtual ~ByteArray(void);
 
@@ -41,14 +43,22 @@ public:
 	size_t length(void) const;		// total size
 
 	const char *data(void) const;		// reading position
+	const byte *bytes(void) const;		// reading position
 	size_t size(void) const;		// data left
 	
 	void clear(void);
 
+	// Serializable
+	virtual void serialize(Serializer &s) const;
+	virtual bool deserialize(Serializer &s);
+	virtual void serialize(Stream &s) const;
+	virtual bool deserialize(Stream &s);
+	virtual bool isNativeSerializable(void) const;
+	
 protected:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-
+	
 private:
 	char *mArray;
 	size_t mLength;

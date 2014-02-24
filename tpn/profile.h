@@ -27,7 +27,7 @@
 #include "tpn/serializable.h"
 #include "tpn/interface.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/identifier.h"
 #include "tpn/html.h"
 
@@ -48,7 +48,7 @@ public:
 	String tracker(void) const;
 	String urlPrefix(void) const;
 	String avatarUrl(void) const;
-	ByteString avatar(void) const;	
+	BinaryString avatar(void) const;	
 	Time time(void) const;
 	bool isSelf(void) const;
 	
@@ -130,7 +130,7 @@ private:
 	String mStatus;
 	
 	// Avatar
-	ByteString mAvatar;
+	BinaryString mAvatar;
 	
 	// Basic Info
 	String mRealName;

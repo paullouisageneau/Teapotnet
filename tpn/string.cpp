@@ -25,7 +25,7 @@
 #include "tpn/list.h"
 #include "tpn/set.h"
 #include "tpn/map.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {
@@ -100,39 +100,42 @@ String::String(void)
 
 }
 
-String::String(const char chr) :
-		std::string(1, chr)
+String::String(char chr)
 {
-
+	(*this)+= chr;
 }
 
-String::String(const char *str) :
-		std::string(str)
+String::String(const char *str)
 {
+	(*this)+= str;
+}
 
+String::String(const char *data, size_t size) :
+	BinaryString(data, size)
+{
+	
 }
 
 String::String(const std::string &str) :
-		std::string(str)
+	BinaryString(str)
 {
 
 }
 
 String::String(size_t n, char chr) :
-		std::string(n, chr)
+	BinaryString(n, chr)
 {
 
 }
-	
 
 String::String(const String &str, int begin) :
-		std::string(str,begin)
+	BinaryString(str,begin)
 {
 
 }
 
 String::String(const String &str, int begin, int end) :
-		std::string(str,begin,end)
+	BinaryString(str,begin,end)
 {
 
 }
@@ -252,11 +255,6 @@ void String::remove(int pos, int n)
     std::string::size_type end = std::string::npos;
     if(n >= 0) end = pos + n;
     *this = String(this->substr(0, pos) + this->substr(end, std::string::npos));
-}
-
-bool String::isEmpty() const
-{
-    return this->empty();
 }
 
 int String::indexOf(char c, int from) const
@@ -440,50 +438,6 @@ String String::urlDecode(void) const
     		else if(c == '+') out+= ' ';
 		else out+= c;
 	}
-	return out;
-}
-
-String String::base64Encode(void) const
-{
-	return ByteString(*this).base64Encode();
-}
-
-String String::base64Decode(void) const
-{
-	String out;
-	int i = 0;
-	while(i < size())
-	{
-		unsigned char tab[4];
-		int j = 0;
-		while(i < size() && j < 4)
-		{
-			char c = at(i);
-			if(c == '=') break;
-			
-			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
-			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
-			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
-			else if (c == '+' || c == '-') tab[j] = 62;
-			else if (c == '/' || c == '_') tab[j] = 63;
-			else throw IOException("Invalid character");
-			
-			++i; ++j;
-		}
-
-		if(j)
-		{
-			out+= (tab[0] << 2) | (tab[1] >> 4);
-			if (j > 2)
-			{
-				out+= (tab[1] << 4) | (tab[2] >> 2);
-				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
-			}
-		}
-		
-		if(i < size() && at(i) == '=') break;
-	}
-
 	return out;
 }
 
@@ -680,12 +634,26 @@ bool String::deserialize(Serializer &s)
 
 void String::serialize(Stream &s) const
 {
-	s.write(*this);
+	s.writeData(data(), size());
 }
 
 bool String::deserialize(Stream &s)
 {
-	return s.read(*this); 
+	clear();
+  
+	char chr;
+	if(!s.get(chr)) return false;
+
+	while(Stream::BlankCharacters.contains(chr))
+		if(!get(chr)) return false;
+
+	while(!Stream::BlankCharacters.contains(chr))
+	{
+		push_back(chr);
+		if(!s.get(chr)) break;
+	}
+
+	return true;
 }
 
 bool String::isNativeSerializable(void) const

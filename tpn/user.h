@@ -69,8 +69,8 @@ public:
 	void sendStatus(const Identifier &identifier = Identifier::Null);
 	void sendSecret(const Identifier &identifier);
 	
-	void setSecret(const ByteString &secret, const Time &time);
-	ByteString getSecretKey(const String &action);
+	void setSecret(const BinaryString &secret, const Time &time);
+	BinaryString getSecretKey(const String &action);
 	
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
@@ -79,16 +79,16 @@ public:
 	
 private:
 	String mName;
-	ByteString mAuth;
+	BinaryString mAuth;
 	AddressBook *mAddressBook;
 	MessageQueue *mMessageQueue;
 	Store *mStore;
 	Profile *mProfile;
 	
 	bool mOnline;
-	ByteString mTokenSecret;
-	ByteString mSecret;
-	Map<String, ByteString> mSecretKeysCache;
+	BinaryString mTokenSecret;
+	BinaryString mSecret;
+	Map<String, BinaryString> mSecretKeysCache;
 	
 	class SetOfflineTask : public Task
 	{
@@ -102,7 +102,7 @@ private:
 	SetOfflineTask mSetOfflineTask;
 	
 	static Map<String, User*>	UsersByName;
-	static Map<ByteString, User*>	UsersByAuth;
+	static Map<BinaryString, User*>	UsersByAuth;
 	static Mutex			UsersMutex;
 };
 

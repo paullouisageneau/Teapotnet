@@ -250,7 +250,7 @@ void File::flush(void)
 	std::fstream::flush(); 
 }
 
-ByteStream *File::pipeIn(void)
+Stream *File::pipeIn(void)
 {
 	// Somehow using Append here can result in a write failure
 	try {

@@ -24,7 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/exception.h"
 #include "tpn/serializer.h"
 #include "tpn/time.h"
@@ -75,7 +75,7 @@ public:
 		void bind(int parameter, float value);
 		void bind(int parameter, double value);
 		void bind(int parameter, const String &value);
-		void bind(int parameter, const ByteString &value);
+		void bind(int parameter, const BinaryString &value);
 		void bind(int parameter, const Time &value);
 		void bindNull(int parameter);
 		
@@ -90,7 +90,7 @@ public:
 		void value(int column, float &v) const;
 		void value(int column, double &v) const;
 		void value(int column, String &v) const;
-		void value(int column, ByteString &v) const;
+		void value(int column, BinaryString &v) const;
 		void value(int column, Time &v) const;
 	
 		inline bool retrieve(Serializable &s) { return input(s); }
@@ -101,7 +101,7 @@ public:
 		virtual bool	input(Pair &pair);
 	
 		virtual bool    input(String &str);
-		virtual bool    input(ByteString &str);
+		virtual bool    input(BinaryString &str);
 		virtual bool	input(int8_t &i);
 		virtual bool	input(int16_t &i);
 		virtual bool	input(int32_t &i);
@@ -119,7 +119,7 @@ public:
 		virtual void	output(const Pair &pair);
 		
 		virtual void    output(const String &str);
-		virtual void    output(const ByteString &str);
+		virtual void    output(const BinaryString &str);
 		virtual void	output(int8_t i);
 		virtual void	output(int16_t i);
 		virtual void	output(int32_t i);

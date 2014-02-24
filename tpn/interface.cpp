@@ -368,7 +368,7 @@ void Interface::process(Http::Request &request)
 		// TODO: Security: if remote address is not local, check if one user at least is authenticated
 		
 	 	try {
-			ByteString digest;
+			BinaryString digest;
 			String tmp = list.front();
 			try { tmp >> digest; }
 			catch(...) { throw 404; }

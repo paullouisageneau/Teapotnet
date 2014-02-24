@@ -33,21 +33,21 @@ namespace tpn
 
 const int Sha512::CryptRounds = 10000;
 
-size_t Sha512::Hash(const char *data, size_t size, ByteStream &out)
+size_t Sha512::Hash(const char *data, size_t size, Stream &out)
 {
 	// TODO: ConstByteArray ?
 	ByteArray array(const_cast<char *>(data), size);
 	return Hash(array, out);
 }
 
-size_t Sha512::Hash(const ByteString &message, ByteStream &out)
+size_t Sha512::Hash(const BinaryString &message, Stream &out)
 {
-	ByteString tmp(message);
-	ByteStream *p = &tmp;
+	BinaryString tmp(message);
+	Stream *p = &tmp;
 	return Hash(*p, out);
 }
 
-size_t Sha512::Hash(ByteStream &data, ByteStream &out)
+size_t Sha512::Hash(Stream &data, Stream &out)
 {
 	Sha512 sha;
 	size_t size = sha.process(data);
@@ -55,7 +55,7 @@ size_t Sha512::Hash(ByteStream &data, ByteStream &out)
 	return size;
 }
 
-size_t Sha512::Hash(ByteStream &data, size_t size, ByteStream &out)
+size_t Sha512::Hash(Stream &data, size_t size, Stream &out)
 {
 	Sha512 sha;
 	size = sha.process(data, size);
@@ -63,14 +63,14 @@ size_t Sha512::Hash(ByteStream &data, size_t size, ByteStream &out)
 	return size;
 }
 
-void Sha512::RecursiveHash(const ByteString &message, const ByteString &salt, ByteStream &out, int rounds)
+void Sha512::RecursiveHash(const BinaryString &message, const BinaryString &salt, Stream &out, int rounds)
 {
 	Assert(rounds >= 1);
 
-	ByteString buffer(message);
+	BinaryString buffer(message);
 	while(--rounds)
 	{
-		ByteString tmp(salt);
+		BinaryString tmp(salt);
 
 		Sha512 sha;
         	sha.process(tmp);
@@ -81,13 +81,13 @@ void Sha512::RecursiveHash(const ByteString &message, const ByteString &salt, By
 	out.writeBinary(buffer);
 }
 
-void Sha512::AuthenticationCode(const ByteString &key, ByteStream &data, ByteStream &out)
+void Sha512::AuthenticationCode(const BinaryString &key, Stream &data, Stream &out)
 {
-	ByteString ikey;
-	ByteString okey;
+	BinaryString ikey;
+	BinaryString okey;
 
 	// Pad key
-	ByteString tmp(key);
+	BinaryString tmp(key);
 	if(tmp.size() < 64) tmp.writeZero(64 - tmp.size());
 	
 	// Inner and outer padding
@@ -109,14 +109,14 @@ void Sha512::AuthenticationCode(const ByteString &key, ByteStream &data, ByteStr
 	sha.finalize(out);
 }
 
-void Sha512::DerivateKey(const ByteString &password, const ByteString &salt, ByteStream &out, int rounds)
+void Sha512::DerivateKey(const BinaryString &password, const BinaryString &salt, Stream &out, int rounds)
 {
 	Assert(rounds >= 1);
 
-	ByteString buffer(salt);
+	BinaryString buffer(salt);
         while(--rounds)
         {
-		ByteString tmp;
+		BinaryString tmp;
 		AuthenticationCode(password, buffer, tmp);
 		buffer = tmp;
         }
@@ -253,7 +253,7 @@ void Sha512::process(const char *data, size_t size)
 }
 
 // Process a stream through the hash
-size_t Sha512::process(ByteStream &data)
+size_t Sha512::process(Stream &data)
 {
 	char buffer[BufferSize];
 	size_t total = 0;
@@ -267,7 +267,7 @@ size_t Sha512::process(ByteStream &data)
 }
 
 // Process a stream through the hash
-size_t Sha512::process(ByteStream &data, size_t max)
+size_t Sha512::process(Stream &data, size_t max)
 {
 	char buffer[BufferSize];
 	size_t left = max;
@@ -324,7 +324,7 @@ void Sha512::finalize(unsigned char *out)
 }
 
 // Terminate the hash to get the digest
-void Sha512::finalize(ByteStream &out)
+void Sha512::finalize(Stream &out)
 {
 	unsigned char temp[64];
 	finalize(temp);

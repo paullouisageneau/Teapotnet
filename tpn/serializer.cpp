@@ -23,7 +23,7 @@
 #include "tpn/serializable.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
 
@@ -68,33 +68,6 @@ void Serializer::output(const Element &element)
 void Serializer::output(const Pair &pair)
 {
         pair.serialize(*this);  
-}
-
-bool Serializer::input(ByteString &str)
-{
-	// Default behaviour
-	str.clear();
-
-	uint32_t count;
-	if(!input(count)) return false;
-
-	uint8_t b;
-	for(uint32_t i=0; i<count; ++i)
-	{
-		AssertIO(input(b));
-		str.push_back(b);
-	}
-
-	return true;
-}
-
-void Serializer::output(const ByteString &str)
-{
-	// Default behaviour
-	output(uint32_t(str.size()));
-
-	for(int i=0; i<str.size(); ++i)
-		output(uint8_t(str.at(i)));
 }
 
 bool Serializer::inputObject(ObjectMapping &mapping)

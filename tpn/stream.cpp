@@ -20,9 +20,10 @@
  *************************************************************************/
 
 #include "tpn/stream.h"
+#include "tpn/string.h"
 #include "tpn/serializable.h"
 #include "tpn/exception.h"
-#include "tpn/bytestream.h"
+#include "tpn/thread.h"
 
 namespace tpn
 {
@@ -31,6 +32,27 @@ const String Stream::IgnoredCharacters = "\r\0";
 const String Stream::BlankCharacters = " \t\r\n";
 const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
+
+void Stream::Transfer(Stream *s1, Stream *s2)
+{
+	class TransferThread : public Thread
+        {
+        public:
+                TransferThread(Stream *src, Stream *dst) { this->src = src; this->dst = dst; }
+                void run(void) { src->read(*dst); }
+        private:
+                Stream *src, *dst;
+        };
+
+	Assert(s1);
+	Assert(s2);
+
+	TransferThread thread(s2, s1);
+	thread.start();
+
+	s1->read(*s2);
+	thread.join();
+}
 
 Stream::Stream(void) :
 	mLast(0),
@@ -45,7 +67,7 @@ Stream::~Stream(void)
 
 }
 
-size_t Stream::readData(ByteStream &s, size_t max)
+size_t Stream::readData(Stream &s, size_t max)
 {
 	char buffer[BufferSize];
 	size_t left = max;
@@ -58,7 +80,7 @@ size_t Stream::readData(ByteStream &s, size_t max)
 	return max-left;
 }
 
-size_t Stream::writeData(ByteStream &s, size_t max)
+size_t Stream::writeData(Stream &s, size_t max)
 {
 	char buffer[BufferSize];
 	size_t left = max;
@@ -69,6 +91,43 @@ size_t Stream::writeData(ByteStream &s, size_t max)
 		writeData(buffer,size);
 	}
 	return max-left;
+}
+
+void Stream::seekRead(int64_t position)
+{
+	throw Unsupported("seekRead");
+}
+
+void Stream::seekWrite(int64_t position)
+{
+	throw Unsupported("seekWrite");
+}
+
+void Stream::clear(void)
+{
+	char buffer[BufferSize];
+	size_t len;
+	while(len = readData(buffer,BufferSize))
+		mLast = buffer[len-1];
+}
+
+void Stream::flush(void)
+{
+	// do nothing
+}
+
+bool Stream::ignore(size_t size)
+{
+	char buffer[BufferSize];
+	size_t len;
+	while(size && (len = readData(buffer, std::min(size, BufferSize))))
+	{
+		if(!len) return false;
+		size-= len;
+		mLast = buffer[len-1];
+	}
+
+	return true;
 }
 
 bool Stream::hexaMode(void)
@@ -97,20 +156,6 @@ bool Stream::get(char &chr)
 	
 	mEnd = true;
 	return false;
-}
-
-bool Stream::ignore(size_t size)
-{
-	char buffer[BufferSize];
-	size_t len;
-	while(size && (len = readData(buffer, std::min(size, BufferSize))))
-	{
-		if(!len) return false;
-		size-= len;
-		mLast = buffer[len-1];
-	}
-
-	return true;
 }
 
 void Stream::put(char chr)
@@ -229,25 +274,6 @@ bool Stream::read(Serializable &s)
 	return s.deserialize(*this);
 }
 
-bool Stream::read(String &s)
-{
-	s.clear();
-  
-	char chr;
-	if(!get(chr)) return false;
-
-	while(BlankCharacters.contains(chr))
-		if(!get(chr)) return false;
-
-	while(!BlankCharacters.contains(chr))
-	{
-		s+= chr;
-		if(!get(chr)) break;
-	}
-
-	return true;
-}
-
 bool Stream::read(bool &b)
 {
 	String s;
@@ -258,6 +284,16 @@ bool Stream::read(bool &b)
 	else if(str.empty() || str == "false" || str == "no" || str == "off"  || str == "0") b = false;
 	else throw Exception("Invalid boolean value: \""+s+"\"");
 	return true;
+}
+
+bool Stream::read(BinaryString &str)
+{
+	return read(*static_cast<Serializable*>(&str));
+}
+
+bool Stream::read(String &str)
+{
+	return read(*static_cast<Serializable*>(&str));
 }
 
 double Stream::readDouble(void)
@@ -288,19 +324,19 @@ bool Stream::readBool(void)
 	return value;
 }
 
-void Stream::write(Stream &s)
+int64_t Stream::write(Stream &s)
 {
-	s.read(*this);
+	return s.read(*this);
+}
+
+int64_t Stream::write(Stream &s, int64_t max)
+{
+	return s.read(*this, max);
 }
 
 void Stream::write(const Serializable &s)
 {
 	s.serialize(*this);
-}
-
-void Stream::write(const String &s)
-{
-  	writeData(s.data(), s.size());
 }
 
 void Stream::write(const char *s)
@@ -317,6 +353,15 @@ void Stream::write(bool b)
 {
 	if(b) write("true");
 	else write("false");
+}
+
+void Stream::write(const BinaryString &str)	
+{
+	write(*static_cast<const Serializable*>(&str));
+}
+void Stream::write(const String &str)
+{
+	write(*static_cast<const Serializable*>(&str));
 }
 
 Stream &Stream::operator<<(Stream &s)
@@ -364,4 +409,212 @@ void Stream::error(void)
 	throw IOException();
 }
 
+bool Stream::readBinary(char *data, size_t size)
+{
+	if(!size) return true;
+	
+	size_t r;
+	if(!(r = readData(data, size))) return false;
+	
+	do {
+		data+= r;
+		size-= r;
+		if(!size) return true;
+	}
+	while((r = readData(data, size)));
+	
+	throw IOException();
 }
+
+bool Stream::readBinary(BinaryString &str)
+{
+	read(*static_cast<Stream*>(&str));
+}
+
+bool Stream::readBinary(int8_t &i)
+{
+	uint8_t u;
+	if(!readBinary(u)) return false;
+	i = int8_t(u);
+	return true;
+}
+
+bool Stream::readBinary(int16_t &i)
+{
+	uint16_t u;
+	if(!readBinary(u)) return false;
+	i = int16_t(u);
+	return true;
+}
+
+bool Stream::readBinary(int32_t &i)
+{
+	uint32_t u;
+	if(!readBinary(u)) return false;
+	i = int32_t(u);
+	return true;
+}
+
+bool Stream::readBinary(int64_t &i)
+{
+	uint64_t u;
+	if(!readBinary(u)) return false;
+	i = int64_t(u);
+	return true;
+}
+
+bool Stream::readBinary(uint8_t &i)
+{
+	if(!readBinary(reinterpret_cast<char*>(&i),1)) return false;
+	return true;
+}
+
+bool Stream::readBinary(uint16_t &i)
+{
+	if(!readBinary(reinterpret_cast<char*>(&i),2)) return false;
+	i = fixEndianess(i);
+	return true;
+}
+
+bool Stream::readBinary(uint32_t &i)
+{
+	if(!readBinary(reinterpret_cast<char*>(&i),4)) return false;
+	i = fixEndianess(i);
+	return true;
+}
+
+bool Stream::readBinary(uint64_t &i)
+{
+	if(!readBinary(reinterpret_cast<char*>(&i),8)) return false;
+	i = fixEndianess(i);
+	return true;
+}
+
+bool Stream::readBinary(float32_t &f)
+{
+	return readBinary(reinterpret_cast<char*>(&f),4);
+}
+
+bool Stream::readBinary(float64_t &f)
+{
+	return readBinary(reinterpret_cast<char*>(&f),8);
+}
+
+void Stream::writeBinary(const BinaryString &str)
+{
+	writeData(str.data(), str.size());
+}
+
+void Stream::writeBinary(int8_t i)
+{
+	writeBinary(uint8_t(i));
+}
+
+void Stream::writeBinary(int16_t i)
+{
+	writeBinary(uint16_t(i));
+}
+
+void Stream::writeBinary(int32_t i)
+{
+	writeBinary(uint32_t(i));
+}
+
+void Stream::writeBinary(int64_t i)
+{
+	writeBinary(uint64_t(i));
+}
+
+void Stream::writeBinary(uint8_t i)
+{
+	writeData(reinterpret_cast<char*>(&i),1);
+}
+
+void Stream::writeBinary(uint16_t i)
+{
+	i = fixEndianess(i);
+	writeData(reinterpret_cast<char*>(&i),2);
+}
+
+void Stream::writeBinary(uint32_t i)
+{
+	i = fixEndianess(i);
+	writeData(reinterpret_cast<char*>(&i),4);
+}
+
+void Stream::writeBinary(uint64_t i)
+{
+	i = fixEndianess(i);
+	writeData(reinterpret_cast<char*>(&i),8);
+}
+
+void Stream::writeBinary(float32_t f)
+{
+	writeData(reinterpret_cast<char*>(&f),4);
+}
+
+void Stream::writeBinary(float64_t f)
+{
+	writeData(reinterpret_cast<char*>(&f),8);
+}
+
+void Stream::writeZero(size_t size)
+{
+	char buffer[BufferSize];
+	std::memset(buffer, 0, std::min(size, BufferSize));
+	while(size)
+	{
+		size_t len = std::min(size, BufferSize);
+		writeData(buffer,len);
+		size-= len;
+	}
+}
+
+void Stream::writeRandom(size_t size)
+{
+	char buffer[BufferSize];
+	while(size)
+	{
+		size_t len = std::min(size, BufferSize);
+		cryptrand(buffer, len);
+		writeData(buffer,len);
+		size-= len;
+	}
+}
+
+Stream *Stream::pipeIn(void)
+{
+	return this;
+}
+
+uint16_t Stream::fixEndianess(uint16_t n)
+{
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint16_t(p[0]) << 8) |
+		(uint16_t(p[1]));
+}
+
+uint32_t Stream::fixEndianess(uint32_t n)
+{
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint32_t(p[0]) << 24) |
+		(uint32_t(p[1]) << 16) |
+		(uint32_t(p[2]) <<  8) |
+		(uint32_t(p[3]));
+}
+
+uint64_t Stream::fixEndianess(uint64_t n)
+{
+	unsigned char *p = reinterpret_cast<unsigned char *>(&n);
+	return	(uint64_t(p[0]) << 56) |
+		(uint64_t(p[1]) << 48) |
+		(uint64_t(p[2]) << 40) |
+		(uint64_t(p[3]) << 32) |
+		(uint64_t(p[4]) << 24) |
+		(uint64_t(p[5]) << 16) |
+		(uint64_t(p[6]) <<  8) |
+		(uint64_t(p[7]));
+}
+
+}
+

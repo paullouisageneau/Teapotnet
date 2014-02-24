@@ -29,7 +29,7 @@
 namespace tpn
 {
 
-class StripedFile : public ByteStream, protected Synchronizable
+class StripedFile : public Stream, protected Synchronizable
 {
 public:
 	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);	// file is destroyed
