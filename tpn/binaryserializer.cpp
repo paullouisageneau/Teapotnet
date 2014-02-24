@@ -19,7 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/byteserializer.h"
+#include "tpn/binaryserializer.h"
 #include "tpn/exception.h"
 #include "tpn/serializable.h"
 #include "tpn/map.h"
@@ -28,18 +28,18 @@
 namespace tpn
 {
 
-ByteSerializer::ByteSerializer(ByteStream *stream) :
+BinarySerializer::BinarySerializer(Stream *stream) :
 	mStream(stream)
 {
 	Assert(stream);
 }
 
-ByteSerializer::~ByteSerializer(void)
+BinarySerializer::~BinarySerializer(void)
 {
 	 
 }
 
-bool ByteSerializer::input(String &str)
+bool BinarySerializer::input(String &str)
 {
 	uint32_t size;
 	if(!input(size)) return false;	
@@ -57,7 +57,7 @@ bool ByteSerializer::input(String &str)
 	return true;
 }
 
-void ByteSerializer::output(const String &str)
+void BinarySerializer::output(const String &str)
 {
 	output(uint32_t(str.size()));
 	
@@ -65,7 +65,7 @@ void ByteSerializer::output(const String &str)
 		output(uint8_t(str[i]));
 }
 
-bool ByteSerializer::input(bool &b)
+bool BinarySerializer::input(bool &b)
 {
 	uint8_t i;
 	if(!input(i)) return false;
@@ -73,7 +73,7 @@ bool ByteSerializer::input(bool &b)
 	return true;
 }
 
-void ByteSerializer::output(bool b)
+void BinarySerializer::output(bool b)
 {
 	uint8_t i;
 	if(b) i = 1;
@@ -81,7 +81,7 @@ void ByteSerializer::output(bool b)
 	output(i);
 }
 
-bool ByteSerializer::inputArrayBegin(void)
+bool BinarySerializer::inputArrayBegin(void)
 {
 	uint32_t size;
 	if(!input(size)) return false;
@@ -89,7 +89,7 @@ bool ByteSerializer::inputArrayBegin(void)
 	return true;
 }
 
-bool ByteSerializer::inputArrayCheck(void)
+bool BinarySerializer::inputArrayCheck(void)
 {
 	Assert(!mLeft.empty());
 	Assert(mLeft.top() >= 0);
@@ -104,7 +104,7 @@ bool ByteSerializer::inputArrayCheck(void)
 	return true;
 }
 
-bool ByteSerializer::inputMapBegin(void)
+bool BinarySerializer::inputMapBegin(void)
 {
 	uint32_t size;
 	if(!input(size)) return false;
@@ -112,7 +112,7 @@ bool ByteSerializer::inputMapBegin(void)
 	return true;  
 }
 
-bool ByteSerializer::inputMapCheck(void)
+bool BinarySerializer::inputMapCheck(void)
 {
 	Assert(!mLeft.empty());
 	Assert(mLeft.top() >= 0);
@@ -127,22 +127,22 @@ bool ByteSerializer::inputMapCheck(void)
 	return true;
 }
 	
-void ByteSerializer::outputArrayBegin(int size)
+void BinarySerializer::outputArrayBegin(int size)
 {
 	output(uint32_t(size));
 }
 
-void ByteSerializer::outputArrayEnd(void)
+void BinarySerializer::outputArrayEnd(void)
 {
  	// Nothing to do 
 }
 
-void ByteSerializer::outputMapBegin(int size)
+void BinarySerializer::outputMapBegin(int size)
 {
 	output(uint32_t(size));
 }
 
-void ByteSerializer::outputMapEnd(void)
+void BinarySerializer::outputMapEnd(void)
 {
  	// Nothing to do   
 }

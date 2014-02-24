@@ -36,7 +36,7 @@
 namespace tpn
 {
 
-Map<ByteString, Resource> Resource::Cache;
+Map<BinaryString, Resource> Resource::Cache;
 Mutex Resource::CacheMutex;
 
 int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, String host)
@@ -72,7 +72,7 @@ Resource::Resource(const Identifier &peering, const String &url, Store *store) :
 	if(store) mStore = store;
 }
 
-Resource::Resource(const ByteString &digest, Store *store) :
+Resource::Resource(const BinaryString &digest, Store *store) :
 	mDigest(digest),
 	mTime(0),
 	mSize(0),
@@ -158,7 +158,7 @@ void Resource::refresh(bool forceLocal)
 		CacheMutex.lock();
 		while(Cache.size() >= 1000)
 		{
-			Map<ByteString, Resource>::iterator it = Cache.begin();
+			Map<BinaryString, Resource>::iterator it = Cache.begin();
 			int r = uniform(0, int(Cache.size())-1);
 			while(r--) it++;
 			Cache.erase(it);
@@ -171,7 +171,7 @@ void Resource::refresh(bool forceLocal)
 	}
 }
 
-ByteString Resource::digest(void) const
+BinaryString Resource::digest(void) const
 {
 	return mDigest;
 }
@@ -423,7 +423,7 @@ void Resource::Query::setLocation(const String &url)
 	mUrl = url;
 }
 
-void Resource::Query::setDigest(const ByteString &digest)
+void Resource::Query::setDigest(const BinaryString &digest)
 {
 	mDigest = digest;
 }
@@ -634,7 +634,7 @@ bool Resource::Query::isInlineSerializable(void) const
 	return false;
 }
 
-size_t Resource::Accessor::hashData(ByteString &digest, size_t size)
+size_t Resource::Accessor::hashData(BinaryString &digest, size_t size)
 {
 	// Default implementation
 	return Sha512::Hash(*this, size, digest);
@@ -690,7 +690,7 @@ Resource::RemoteAccessor::RemoteAccessor(const Identifier &peering, const String
 	mPosition(0),
 	mSize(-1),
 	mRequest(NULL),
-	mByteStream(NULL)
+	mStream(NULL)
 {
 	Assert(!mUrl.empty());
 }
@@ -700,7 +700,7 @@ Resource::RemoteAccessor::~RemoteAccessor(void)
 	clearRequest();
 }
 
-size_t Resource::RemoteAccessor::hashData(ByteString &digest, size_t size)
+size_t Resource::RemoteAccessor::hashData(BinaryString &digest, size_t size)
 {
 	// TODO
 	return Accessor::hashData(digest, size);
@@ -708,8 +708,8 @@ size_t Resource::RemoteAccessor::hashData(ByteString &digest, size_t size)
 
 size_t Resource::RemoteAccessor::readData(char *buffer, size_t size)
 {
-	if(!mByteStream) initRequest();
-	size = mByteStream->readData(buffer, size);
+	if(!mStream) initRequest();
+	size = mStream->readData(buffer, size);
 	mPosition+= size;
 	return size;
 }
@@ -732,7 +732,7 @@ void Resource::RemoteAccessor::seekWrite(int64_t position)
 
 int64_t Resource::RemoteAccessor::size(void)
 {
-	if(!mByteStream) initRequest();
+	if(!mStream) initRequest();
 	return mSize;
 }
 
@@ -749,7 +749,7 @@ void Resource::RemoteAccessor::initRequest(void)
 	mRequest->submit(mPeering);
 	mRequest->wait(timeout);
 	
-	mByteStream = NULL;
+	mStream = NULL;
 	for(int i=0; i<mRequest->responsesCount(); ++i)
 	{
 		Request::Response *response = mRequest->response(i);
@@ -765,9 +765,9 @@ void Resource::RemoteAccessor::initRequest(void)
 			catch(...) {}
 		}
 		
-		if(!mByteStream)
+		if(!mStream)
 		{
-			mByteStream = response->content();
+			mStream = response->content();
 			mPeering = response->peering();
 		}
 		else {
@@ -776,7 +776,7 @@ void Resource::RemoteAccessor::initRequest(void)
 		}
 	}
 	
-	if(!mByteStream) 
+	if(!mStream) 
 	{
 		delete mRequest;
 		mRequest = NULL;
@@ -788,10 +788,10 @@ void Resource::RemoteAccessor::clearRequest(void)
 {
 	delete mRequest;
 	mRequest = NULL;
-	mByteStream = NULL;	// deleted by the request
+	mStream = NULL;	// deleted by the request
 }
 
-Resource::SplicerAccessor::SplicerAccessor(const ByteString &digest, const Set<Identifier> &sources) :
+Resource::SplicerAccessor::SplicerAccessor(const BinaryString &digest, const Set<Identifier> &sources) :
 	mDigest(digest),
 	mSources(sources),
 	mPosition(0),
@@ -805,7 +805,7 @@ Resource::SplicerAccessor::~SplicerAccessor(void)
 	delete mSplicer;
 }
 
-size_t Resource::SplicerAccessor::hashData(ByteString &digest, size_t size)
+size_t Resource::SplicerAccessor::hashData(BinaryString &digest, size_t size)
 {
 	// TODO
         return Accessor::hashData(digest, size);

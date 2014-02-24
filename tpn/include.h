@@ -211,6 +211,7 @@ inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
 
 #endif
 
+typedef unsigned char		byte;
 typedef float			float32_t;	// 32 bits float
 typedef double			float64_t;	// 64 bits float
 

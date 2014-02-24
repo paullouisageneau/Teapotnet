@@ -149,7 +149,7 @@ void Html::object(const Serializable &s)
 
 void Html::open(const String &type, String id)
 {
-	assert(!type.empty());
+	Assert(!type.empty());
 	
 	if(!id.empty() && id[0] == '#') id.ignore();
 	String cl = id.cut('.');
@@ -162,7 +162,7 @@ void Html::open(const String &type, String id)
 
 void Html::close(const String &type)
 {
-	assert(!type.empty());
+	Assert(!type.empty());
 	*mStream<<"</"<<type<<">\n";
 }
 

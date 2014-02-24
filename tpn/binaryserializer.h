@@ -19,21 +19,21 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_BYTESERIALIZER_H
-#define TPN_BYTESERIALIZER_H
+#ifndef TPN_BINARYSERIALIZER_H
+#define TPN_BINARYSERIALIZER_H
 
 #include "tpn/serializer.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/string.h"
 
 namespace tpn
 {
 
-class ByteSerializer : public Serializer
+class BinarySerializer : public Serializer
 {
 public:
-	ByteSerializer(ByteStream *stream);	// stream WON'T be destroyed
-	virtual ~ByteSerializer(void);
+	BinarySerializer(Stream *stream);	// stream WON'T be destroyed
+	virtual ~BinarySerializer(void);
 	
 	bool		input(String &str);
 	inline bool	input(int8_t &i)	{ return mStream->readBinary(i); }
@@ -73,7 +73,7 @@ public:
 	void	outputMapEnd(void);
 	
 private:
-  	ByteStream *mStream;
+  	Stream *mStream;
 	Stack<uint32_t> mLeft;
 };
 

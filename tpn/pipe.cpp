@@ -20,7 +20,7 @@
  *************************************************************************/
 
 #include "tpn/pipe.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/file.h"
 
 namespace tpn
@@ -28,10 +28,10 @@ namespace tpn
 
 Pipe::Pipe(void)
 {
-	open(new ByteString, false);
+	open(new BinaryString, false);
 }
 
-Pipe::Pipe(ByteStream *buffer, bool readOnly)
+Pipe::Pipe(Stream *buffer, bool readOnly)
 {
 	open(buffer, readOnly);
 }
@@ -42,7 +42,7 @@ Pipe::~Pipe(void)
 	delete mReadBuffer;
 }
 
-void Pipe::open(ByteStream *buffer, bool readOnly)
+void Pipe::open(Stream *buffer, bool readOnly)
 {
 	mReadBuffer = buffer;
 	if(!readOnly) mWriteBuffer = buffer->pipeIn();
@@ -100,7 +100,7 @@ void Pipe::writeData(const char *data, size_t size)
 }
 
 
-ReadOnlyPipe::ReadOnlyPipe(ByteStream *buffer)
+ReadOnlyPipe::ReadOnlyPipe(Stream *buffer)
 {
 	open(buffer, true);
 }

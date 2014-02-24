@@ -289,7 +289,7 @@ bool MessageQueue::add(Message &message)
 		String attachment = message.header("attachment");
 		if(!attachment.empty())
 		try {
-			ByteString target;
+			BinaryString target;
 			target.fromString(attachment);
 			Splicer::Prefetch(target);
 		}
@@ -1072,7 +1072,7 @@ void MessageQueue::Selection::markRead(const String &stamp)
 	}
 }
 
-int MessageQueue::Selection::checksum(int offset, int count, ByteStream &result) const
+int MessageQueue::Selection::checksum(int offset, int count, Stream &result) const
 {
 	StringList stamps;
 

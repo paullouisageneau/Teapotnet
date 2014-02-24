@@ -50,7 +50,7 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["status"]      	= new TypedField<String>("status", &mStatus, "Status");
 	
 	// Avatar
-	mFields["avatar"]      	= new TypedField<ByteString>("avatar", &mAvatar, "Avatar");
+	mFields["avatar"]      	= new TypedField<BinaryString>("avatar", &mAvatar, "Avatar");
 	
 	// Basic Info
 	mFields["realname"]	= new TypedField<String>("realname", &mRealName, "Name", "What's your name ?");
@@ -128,7 +128,7 @@ String Profile::avatarUrl(void) const
 	else return "/default_avatar.png"; 
 }
 
-ByteString Profile::avatar(void) const
+BinaryString Profile::avatar(void) const
 {
 	Synchronize(this);
 	return mAvatar;

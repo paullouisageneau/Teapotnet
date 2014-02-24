@@ -128,7 +128,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
-		ByteString secret(void) const;
+		BinaryString secret(void) const;
 		void run(void);
 		
 		MessageQueue::Selection selectMessages(bool privateOnly = false) const;
@@ -140,7 +140,7 @@ public:
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;
 		Identifier mPeering, mRemotePeering;
-		ByteString mSecret;
+		BinaryString mSecret;
 		Time mTime;
 		bool mDeleted;
 		

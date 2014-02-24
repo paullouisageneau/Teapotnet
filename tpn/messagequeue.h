@@ -96,7 +96,7 @@ public:
 		
 		void markRead(const String &stamp);	// used to enforce access rights based on selected messages
 		
-		int checksum(int offset, int count, ByteStream &result) const;
+		int checksum(int offset, int count, Stream &result) const;
 		// TODO: synchro flags
 	
 	private:

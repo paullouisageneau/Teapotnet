@@ -21,7 +21,7 @@
 
 #include "tpn/notification.h"
 #include "tpn/core.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {

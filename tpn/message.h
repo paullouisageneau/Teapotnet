@@ -85,7 +85,7 @@ public:
 	virtual bool isInlineSerializable(void) const;
 	
 private:
-	void computeAgregate(ByteString &result) const;
+	void computeAgregate(BinaryString &result) const;
 	String computeStamp(void) const;
 	String computeSignature(User *user) const;
 	

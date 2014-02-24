@@ -247,7 +247,7 @@ bool PortMapping::NatPMP::check(String &host)
 {
 	LogDebug("PortMapping::NatPMP", "Trying NAT-PMP...");
 	
-	ByteString query;
+	BinaryString query;
 	query.writeBinary(uint8_t(0));	// version
 	query.writeBinary(uint8_t(0));	// op
 	
@@ -255,7 +255,7 @@ bool PortMapping::NatPMP::check(String &host)
 	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
-		ByteString dgram = query;
+		BinaryString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
 		Address sender;
@@ -295,7 +295,7 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 {
 	if(!op) return false;
 	
-	ByteString query;
+	BinaryString query;
 	query.writeBinary(uint8_t(0));	// version
 	query.writeBinary(op);		// op
 	query.writeBinary(uint16_t(0));	// reserved
@@ -307,7 +307,7 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
-		ByteString dgram = query;
+		BinaryString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
 		Address sender;
@@ -326,7 +326,7 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 	return false;
 }
 
-bool PortMapping::NatPMP::parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal, uint16_t *retExternal)
+bool PortMapping::NatPMP::parse(BinaryString &dgram, uint8_t reqOp, uint16_t reqInternal, uint16_t *retExternal)
 {
 	uint8_t version;
 	uint8_t op;
@@ -407,7 +407,7 @@ bool PortMapping::UPnP::check(String &host)
 	double timeout = 0.250;
 	for(int i=0; i<attempts; ++i)
 	{
-		ByteString dgram(message);
+		BinaryString dgram(message);
 		mSock.write(dgram, addr);
 		
 		Address sender;
@@ -577,7 +577,7 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 	return (response.code == 200);
 }
 
-bool PortMapping::UPnP::parse(ByteString &dgram)
+bool PortMapping::UPnP::parse(BinaryString &dgram)
 {
 	String message(dgram.begin(), dgram.end());
 	

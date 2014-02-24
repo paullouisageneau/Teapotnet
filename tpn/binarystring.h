@@ -19,71 +19,63 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_BYTESTRING_H
-#define TPN_BYTESTRING_H
+#ifndef TPN_BINARYSTRING_H
+#define TPN_BINARYSTRING_H
 
 #include "tpn/include.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/serializable.h"
-
-#include <deque>
 
 namespace tpn
 {
 
-class String;
-  
-class ByteString : public std::deque<char>, public ByteStream, public Serializable
+class BinaryString : public std::string, public Stream, public Serializable
 {
-public:	
-	ByteString(void);
-	ByteString(const ByteString &bs);
-	ByteString(const ByteString &bs, size_t begin);
-	ByteString(const ByteString &bs, size_t begin, size_t end);
-	ByteString(const char *data, size_t size);
-	ByteString(const String &str);
-	template <class InputIterator> ByteString(InputIterator first, InputIterator last) : std::deque<char>(first, last) {}
-	virtual ~ByteString(void);
-
-	void clear(void);
-	void append(char value, int n = 1);
-	void append(const ByteString &bs);
-	void append(const char *array, size_t size);
-	void fill(char value, int n);
-
-	// TODO: should be flow-based in ByteStream
-	String base64Encode(bool safeMode = false) const;
-
+public:
+	BinaryString(void);
+	BinaryString(const char *data, size_t size);
+	BinaryString(const std::string &str);
+	BinaryString(size_t n, char chr);
+	BinaryString(const BinaryString &str, int begin = 0);
+	BinaryString(const BinaryString &str, int begin, int end);
+	template <class InputIterator> BinaryString(InputIterator first, InputIterator last) : std::string(first, last) {}
+	virtual ~BinaryString(void);
+	
+	const byte *bytes(void) const;
+	
+	BinaryString base64Encode(bool safeMode = false) const;
+	BinaryString base64Decode(void) const;
+	
 	uint16_t checksum16(void) const { uint16_t i = 0; return checksum(i); }
 	uint32_t checksum32(void) const { uint32_t i = 0; return checksum(i); }
 	uint64_t checksum64(void) const { uint64_t i = 0; return checksum(i); }
 
-	bool constantTimeEquals(const ByteString &bs) const;
-	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual void serialize(Stream &s) const;
 	virtual bool deserialize(Stream &s);
 	virtual bool isNativeSerializable(void) const;
-	
-protected:
+
+	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
+	void clear(void);
 	
+protected:
 	template<typename T> T checksum(T &result) const;
 };
 
 template<typename T>
-T ByteString::checksum(T &result) const
+T BinaryString::checksum(T &result) const
 {
- 	ByteString copy(*this);
+ 	BinaryString copy(*this);
 	
 	while(copy.size() % sizeof(T))
 	  copy.writeBinary(uint8_t(0));
 
 	result = 0;
-	for(size_t i=0; i<size(); ++i)
+	for(size_t i=0; i<this->size(); ++i)
 	{
 	  	T value;
 		copy.readBinary(value);

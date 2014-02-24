@@ -23,8 +23,8 @@
 #define TPN_SHA512_H
 
 #include "tpn/include.h"
-#include "tpn/bytestream.h"
-#include "tpn/bytestring.h"
+#include "tpn/stream.h"
+#include "tpn/binarystring.h"
 #include "tpn/string.h"
 
 namespace tpn
@@ -35,24 +35,24 @@ class Sha512
 public:
 	static const int CryptRounds;
   
-	static size_t Hash(const char *data, size_t size, ByteStream &out);
-	static size_t Hash(const ByteString &message, ByteStream &out);
-	static size_t Hash(ByteStream &data, ByteStream &out);
-	static size_t Hash(ByteStream &data, size_t size, ByteStream &out);
+	static size_t Hash(const char *data, size_t size, Stream &out);
+	static size_t Hash(const BinaryString &message, Stream &out);
+	static size_t Hash(Stream &data, Stream &out);
+	static size_t Hash(Stream &data, size_t size, Stream &out);
 
-	static void RecursiveHash(const ByteString &message, const ByteString &salt, ByteStream &out, int rounds = CryptRounds);
-	static void AuthenticationCode(const ByteString &key, ByteStream &data, ByteStream &out);
-	static void DerivateKey(const ByteString &password, const ByteString &salt, ByteStream &out, int rounds = CryptRounds);
+	static void RecursiveHash(const BinaryString &message, const BinaryString &salt, Stream &out, int rounds = CryptRounds);
+	static void AuthenticationCode(const BinaryString &key, Stream &data, Stream &out);
+	static void DerivateKey(const BinaryString &password, const BinaryString &salt, Stream &out, int rounds = CryptRounds);
 
 	Sha512(void);
 	~Sha512(void);
 	
 	void init(void);
 	void process(const char *data, size_t size);
-	size_t process(ByteStream &data);
-	size_t process(ByteStream &data, size_t max);
+	size_t process(Stream &data);
+	size_t process(Stream &data, size_t max);
 	void finalize(unsigned char *out);
-	void finalize(ByteStream &out);
+	void finalize(Stream &out);
 	
 private:
 	static const uint64_t K[80];

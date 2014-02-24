@@ -233,7 +233,7 @@ void Database::Statement::bind(int parameter, const String &value)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
-void Database::Statement::bind(int parameter, const ByteString &value)
+void Database::Statement::bind(int parameter, const BinaryString &value)
 {
 	if(!parameter) return;
 	// TODO
@@ -323,7 +323,7 @@ void Database::Statement::value(int column, String &v) const
 	else v.clear();
 }
 
-void Database::Statement::value(int column, ByteString &v) const
+void Database::Statement::value(int column, BinaryString &v) const
 {
 	int size = sqlite3_column_bytes(mStmt, column);
 	const char *data = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
@@ -379,7 +379,7 @@ bool Database::Statement::input(String &str)
 	return true;
 }
 
-bool Database::Statement::input(ByteString &str)
+bool Database::Statement::input(BinaryString &str)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, str);
@@ -517,7 +517,7 @@ void Database::Statement::output(const String &str)
 	bind(mOutputParameter++, str);
 }
 
-void Database::Statement::output(const ByteString &str)
+void Database::Statement::output(const BinaryString &str)
 {
 	bind(mOutputParameter++, str);
 }

@@ -29,10 +29,10 @@
 namespace tpn
 {
 	
-Map<ByteString, Splicer::CacheEntry*> Splicer::Cache;
+Map<BinaryString, Splicer::CacheEntry*> Splicer::Cache;
 Mutex Splicer::CacheMutex;
 
-Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
+Splicer::CacheEntry *Splicer::GetCacheEntry(const BinaryString &target)
 {
 	CacheEntry *entry = NULL;
 	
@@ -48,7 +48,7 @@ Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
 		
 		entry->setAccessTime();
 		
-		Map<ByteString, CacheEntry*>::iterator it = Cache.begin();
+		Map<BinaryString, CacheEntry*>::iterator it = Cache.begin();
 		while(it != Cache.end())
 		{
 			if(!it->second || Time::Now() - it->second->lastAccessTime() > 3600)
@@ -66,12 +66,12 @@ Splicer::CacheEntry *Splicer::GetCacheEntry(const ByteString &target)
 	return entry;
 }
 
-void Splicer::Prefetch(const ByteString &target)
+void Splicer::Prefetch(const BinaryString &target)
 {
 	class PrefetchTask : public Task
 	{
 	public:
-		PrefetchTask(const ByteString &target, int64_t maxSize)
+		PrefetchTask(const BinaryString &target, int64_t maxSize)
 		{ 
 			this->target = target; 
 			this->maxSize = maxSize;
@@ -98,7 +98,7 @@ void Splicer::Prefetch(const ByteString &target)
 		}
 		
 	private:
-		ByteString target;
+		BinaryString target;
 		int64_t maxSize;
 	};
 	
@@ -118,7 +118,7 @@ void Splicer::Prefetch(const ByteString &target)
 	}
 }
 
-void Splicer::Hint(const ByteString &target, const String &name, const Set<Identifier> &sources, int64_t size)
+void Splicer::Hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size)
 {
 	CacheEntry *entry = GetCacheEntry(target);
 	entry->hintSources(sources);
@@ -126,7 +126,7 @@ void Splicer::Hint(const ByteString &target, const String &name, const Set<Ident
 	if(size >= 0) entry->hintSize(size);
 }
 
-Splicer::Splicer(const ByteString &target, int64_t begin, int64_t end) :
+Splicer::Splicer(const BinaryString &target, int64_t begin, int64_t end) :
 	mFirstBlock(0),
 	mCurrentBlock(0),
 	mBegin(begin),
@@ -553,7 +553,7 @@ void Splicer::run(void)
 	}
 }
 
-Splicer::CacheEntry::CacheEntry(const ByteString &target) :
+Splicer::CacheEntry::CacheEntry(const BinaryString &target) :
 	mTarget(target),
 	mIsFileInCache(false),
 	mSize(-1),
@@ -590,7 +590,7 @@ String Splicer::CacheEntry::name(void) const
 	return mName;
 }
 
-ByteString Splicer::CacheEntry::target(void) const
+BinaryString Splicer::CacheEntry::target(void) const
 {
 	Synchronize(this);
 	return mTarget;

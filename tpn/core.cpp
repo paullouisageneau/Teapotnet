@@ -26,6 +26,12 @@
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
 #include "tpn/scheduler.h"
+#include "tpn/bytearray.h"
+
+#include <cryptopp/pwdbased.h>
+#include <cryptopp/modes.h>
+#include <cryptopp/sha.h>
+#include <cryptopp/aes.h>
 
 namespace tpn
 {
@@ -98,7 +104,7 @@ bool Core::isPublicConnectable(void) const
 
 void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const ByteString &secret,
+		       		const BinaryString &secret,
 				Core::Listener *listener)
 {
 	Synchronize(this);
@@ -123,7 +129,7 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-Core::LinkStatus Core::addPeer(ByteStream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
+Core::LinkStatus Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
 {
 	Assert(bs);
 	Synchronize(this);
@@ -160,7 +166,7 @@ Core::LinkStatus Core::addPeer(Socket *sock, const Identifier &peering, bool asy
 {
 	const double timeout = milliseconds(Config::Get("tpot_read_timeout").toInt());
 	sock->setTimeout(timeout);
-	return addPeer(static_cast<ByteStream*>(sock), sock->getRemoteAddress(), peering, async);
+	return addPeer(static_cast<Stream*>(sock), sock->getRemoteAddress(), peering, async);
 }
 
 bool Core::hasPeer(const Identifier &peering)
@@ -257,7 +263,7 @@ void Core::run(void)
 					throw;
 				}
 			
-				ByteStream *bs = NULL;
+				Stream *bs = NULL;
 				
 				if(std::memcmp(peekData, "GET ", 4) == 0
 					|| std::memcmp(peekData, "POST ", 5) == 0)
@@ -469,7 +475,7 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	return true;
 }
 
-Core::Handler::Handler(Core *core, ByteStream *bs, const Address &remoteAddr) :
+Core::Handler::Handler(Core *core, Stream *bs, const Address &remoteAddr) :
 	mCore(core),
 	mRawStream(bs),
 	mStream(NULL),
@@ -616,23 +622,16 @@ void Core::Handler::process(void)
 		LogDebug("Core::Handler", "Starting...");
 	  
 		// Set up obfuscation cipher
-		ByteString tmp;
-		Sha512::Hash(String("TeapotNet"), tmp); // Attention: upper case 'T' and 'N'
-		ByteString tmpkey, tmpiv;
-		tmp.readBinary(tmpkey, 32);	// 256 bits
-		tmp.readBinary(tmpiv, 16);	// 128 bits
-		tmp.clear();		
-
-		AesCipher *cipher = new AesCipher(mRawStream);
-		cipher->setEncryptionKey(tmpkey);
-		cipher->setEncryptionInit(tmpiv);
-		cipher->setDecryptionKey(tmpkey);
-		cipher->setDecryptionInit(tmpiv);
+		String magicString = "TeapotNet";	// Attention: upper case 'T' and 'N'
+		byte digest[CryptoPP::SHA512::DIGESTSIZE];
+		CryptoPP::SHA512().CalculateDigest(digest, magicString.bytes(), magicString.size());
+		Cipher *cipher = new Cipher(mRawStream);
+		cipher->setReadCipher( new CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption(digest, 32, digest+32));
+		cipher->setWriteCipher(new CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption(digest, 32, digest+32));
+		cipher->dumpStream(&mObfuscatedHello);
 		mStream = cipher;
 		
-		cipher->dumpStream(&mObfuscatedHello);
-		
-		ByteString nonce_a, salt_a, iv_a;
+		BinaryString nonce_a, salt_a, iv_a;
 		nonce_a.writeBinary(uint32_t(Time::Now()));	// 32 bits
 		nonce_a.writeRandom(28);			// total 256 bits
 		salt_a.writeRandom(32);				// 256 bits
@@ -665,7 +664,8 @@ void Core::Handler::process(void)
 		mLinkStatus = Established;	// Established means we got a response
 
 		String appname, appversion, instance;
-		Identifier peering, nonce_b;
+		Identifier peering;
+		BinaryString nonce_b;
 		args >> peering;
 		parameters["application"] >> appname;
 		parameters["version"] >> appversion;
@@ -794,7 +794,7 @@ void Core::Handler::process(void)
 					Assert(otherHandler->mRawStream);
 					
 					Stream     *otherStream    = otherHandler->mStream;
-					ByteStream *otherRawStream = otherHandler->mRawStream;
+					Stream *otherRawStream = otherHandler->mRawStream;
 					otherHandler->mStream      = NULL;
 					otherHandler->mRawStream   = NULL;
 					
@@ -810,7 +810,7 @@ void Core::Handler::process(void)
 						LogInfo("Core::Handler", "Successfully forwarded connection");
 					
 						// Transfer
-						ByteStream::Transfer(mRawStream, otherRawStream);
+						Stream::Transfer(mRawStream, otherRawStream);
 					}
 					
 					delete otherStream;
@@ -843,28 +843,33 @@ void Core::Handler::process(void)
 		cipher->dumpStream(NULL);
 		mObfuscatedHello.clear();
 		
-		ByteString secret;
+		BinaryString secret;
 		if(SynchronizeTest(mCore, !mCore->mSecrets.get(peering, secret)))
 			throw Exception(String("Warning: No secret for peering: ") + peering.toString());
-	
-		// Derivate session key	
-		ByteString key_a;
-                Sha512::DerivateKey(secret, salt_a, key_a, Sha512::CryptRounds);
 
-		// Get authentication key
-		ByteString authkey_a;
-		key_a.readBinary(authkey_a, 32);	// 256 bits
-
-		// Generate HMAC
-		ByteString hmac_a;
-		Sha512::AuthenticationCode(authkey_a, nonce_b, hmac_a);
-	
+		// Derivate session key
+		byte key_a[64];
+		CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
+			key_a, 64,
+			byte(0),		// "purpose" ?
+			secret.bytes(), secret.size(),
+			salt_a.bytes(), salt_a.size(),
+			10000);
+		
+		const byte *authkey_a  = key_a;
+                const byte *cryptkey_a = key_a + 32;
+		
+		// Compute HMAC
+		byte mac_a[64];
+		CryptoPP::HMAC<CryptoPP::SHA512> hmac_a(authkey_a, 32);
+		CryptoPP::ArraySource(nonce_b.bytes(), nonce_b.size(), true, new CryptoPP::HashFilter(hmac_a, new CryptoPP::ArraySink(mac_a, 64)));
+		
 		parameters.clear();
 		parameters["method"] << "DIGEST";
 		parameters["cipher"] << "AES256";
 		parameters["salt"] << salt_a;
 		parameters["init"] << iv_a;
-		sendCommand(mStream, "A", hmac_a.toString(), parameters);
+		sendCommand(mStream, "A", ByteArray(mac_a, 64).toString(), parameters);
 		
 		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
 		if(command == "Q") return;
@@ -879,38 +884,42 @@ void Core::Handler::process(void)
 		if(strMethod != "DIGEST") throw Exception("Unknown authentication method: " + strMethod);
 		if(strCipher != "AES256") throw Exception("Unknown authentication cipher: " + strCipher);
 		
-		ByteString test_b, salt_b, iv_b;
+		BinaryString test_b, salt_b, iv_b;
 		args >> test_b;
 		parameters["salt"] >> salt_b;
 		parameters["init"] >> iv_b;		
 
 		// Derivate remote session key
-		ByteString key_b;
-                Sha512::DerivateKey(secret, salt_b, key_b, Sha512::CryptRounds);
-	
-		// Get remote authentication key
-		ByteString authkey_b;
-                key_b.readBinary(authkey_b, 32);	// 256 bits
-		Assert(key_a.size() == 32);    	 	// 256 bits
-
-		// Generate remote HMAC
-		ByteString hmac_b;
-		Sha512::AuthenticationCode(authkey_b, nonce_a, hmac_b);
+		byte key_b[64];
+		CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
+			key_b, 64,
+			byte(0),		// "purpose" ?
+			secret.bytes(), secret.size(),
+			salt_b.bytes(), salt_b.size(),
+			10000);
 		
-		if(mIsIncoming) Thread::Sleep(uniform(0.0, 0.5));
+		const byte *authkey_b  = key_b;
+                const byte *cryptkey_b = key_b + 32;
 
-		if(!test_b.constantTimeEquals(hmac_b)) throw Exception("Authentication failed (remote="+appversion+")");
+		// Verify remote HMAC
+		byte mac_b[64];
+		CryptoPP::HMAC<CryptoPP::SHA512> hmac_b(authkey_b, 32);
+
+		//const int verificationFlags = CryptoPP::HashVerificationFilter::THROW_EXCEPTION | CryptoPP::HashVerificationFilter::HASH_AT_END;
+		//CryptoPP::StringSource(nonce_a + test_b, true, new CryptoPP::HashVerificationFilter(hmac_b, NULL, verificationFlags));
+
+		bool result = false;
+		CryptoPP::StringSource(test_b + nonce_a, true, new CryptoPP::HashVerificationFilter(hmac_b, new CryptoPP::ArraySink((byte*)&result, sizeof(result))));
+		if(!result) throw Exception("Authentication failed (remote="+appversion+")");
+		
 		LogInfo("Core::Handler", "Authentication successful: " + mPeering.getName() + " (remote="+appversion+")");
-		mLinkStatus = Authenticated;		
+		mLinkStatus = Authenticated;
 
-		// Set up new cipher for the connection
-		delete cipher;
-		cipher = new AesCipher(mRawStream);
-		cipher->setEncryptionKey(key_a);
-		cipher->setEncryptionInit(iv_a);
-		cipher->setDecryptionKey(key_b);
-		cipher->setDecryptionInit(iv_b);
-		mStream = cipher;
+		// Set up the new cipher for the connection
+		Assert(iv_a.size() >= 16);
+		Assert(iv_b.size() >= 16);
+		cipher->setReadCipher( new CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption(cryptkey_b, 32, reinterpret_cast<const byte*>(iv_b.data())));
+		cipher->setWriteCipher(new CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption(cryptkey_a, 32, reinterpret_cast<const byte*>(iv_a.data())));
 		
 		if(!mIsIncoming && relayEnabled && mRemoteAddr.isPublic())
 		{
@@ -993,7 +1002,7 @@ void Core::Handler::process(void)
 					{
 						//LogDebug("Core::Handler", "Received response for request "+String::number(id)+", status "+String::number(status)+", receiving on channel "+String::number(channel));
 	
-						ByteStream *sink = NULL;
+						Stream *sink = NULL;
 						if(request->mContentSink)
 						{
 							if(!request->hasContent())
@@ -1485,7 +1494,7 @@ void Core::Handler::Sender::run(void)
 				size_t size = 0;
 				
 				try {
-					ByteStream *content = response->content();
+					Stream *content = response->content();
 					size = content->readData(buffer, ChunkSize);
 				}
 				catch(const Exception &e)

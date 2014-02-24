@@ -22,7 +22,7 @@
 #include "tpn/address.h"
 #include "tpn/exception.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {

@@ -28,7 +28,7 @@
 #include "tpn/synchronizable.h"
 #include "tpn/address.h"
 #include "tpn/datagramsocket.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {
@@ -103,7 +103,7 @@ private:
 
 	private:
         	bool request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external = NULL);
-        	bool parse(ByteString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
+        	bool parse(BinaryString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
 
 		DatagramSocket mSock;
         	Address mGatewayAddr;
@@ -121,7 +121,7 @@ private:
                 bool remove(Protocol protocol, uint16_t internal, uint16_t external);
 
 	private:
-		bool parse(ByteString &dgram);
+		bool parse(BinaryString &dgram);
 		String extract(String &xml, const String &field, size_t pos = 0);
 		
 		DatagramSocket mSock;

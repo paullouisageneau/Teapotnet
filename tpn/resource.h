@@ -25,10 +25,10 @@
 #include "tpn/include.h"
 #include "tpn/serializable.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/identifier.h"
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/time.h"
 #include "tpn/set.h"
 #include "tpn/map.h"
@@ -53,7 +53,7 @@ public:
 		~Query(void);
 		
 		void setLocation(const String &url);
-		void setDigest(const ByteString &digest);
+		void setDigest(const BinaryString &digest);
 		void setMinAge(int seconds);
 		void setMaxAge(int seconds);
 		void setRange(int first, int last);
@@ -77,7 +77,7 @@ public:
 		
 	private:
 		String mUrl, mMatch;
-		ByteString mDigest;
+		BinaryString mDigest;
 		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
 		AccessLevel mAccessLevel;
@@ -87,23 +87,23 @@ public:
 		friend class Store;
 	};
 	
-	class Accessor : public Stream, public ByteStream
+	class Accessor : public Stream
 	{
 	public:
-		// ByteStream
+		// Stream
 		virtual size_t readData(char *buffer, size_t size) = 0;
 		virtual void writeData(const char *data, size_t size) = 0;
 		virtual void seekRead(int64_t position) = 0;
 		virtual void seekWrite(int64_t position) = 0;
 		
 		virtual int64_t size(void) = 0;
-		virtual size_t hashData(ByteString &digest, size_t size);
+		virtual size_t hashData(BinaryString &digest, size_t size);
 	};
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
 	Resource(const Identifier &peering, const String &url, Store *store = NULL);
-	Resource(const ByteString &digest, Store *store = NULL);
+	Resource(const BinaryString &digest, Store *store = NULL);
 	Resource(Store *store = NULL);
 	~Resource(void);
 
@@ -111,7 +111,7 @@ public:
 	void fetch(bool forceLocal = false);
 	void refresh(bool forceLocal = false);
 	
-	ByteString 	digest(void) const;
+	BinaryString 	digest(void) const;
 	Time		time(void) const;
 	int64_t		size(void) const;
 	int		type(void) const;
@@ -135,13 +135,13 @@ public:
 	virtual bool isInlineSerializable(void) const;
 
 private:
-	static Map<ByteString, Resource> Cache;
+	static Map<BinaryString, Resource> Cache;
 	static Mutex CacheMutex;
 	
 	void merge(const Resource &resource);
 	void createQuery(Query &query) const;
 	
-	ByteString 	mDigest;
+	BinaryString 	mDigest;
 	String		mUrl;
 	Time		mTime;
 	int64_t		mSize;
@@ -178,7 +178,7 @@ private:
 		RemoteAccessor(const Identifier &peering, const String &url);
 		~RemoteAccessor(void);
 		
-		size_t hashData(ByteString &digest, size_t size);
+		size_t hashData(BinaryString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
@@ -195,16 +195,16 @@ private:
 		int64_t mPosition;
 		int64_t mSize;
 		Request *mRequest;
-		ByteStream *mByteStream;
+		Stream *mStream;
 	};
 	
 	class SplicerAccessor : public Accessor
 	{
 	public:
-		SplicerAccessor(const ByteString &digest, const Set<Identifier> &sources);
+		SplicerAccessor(const BinaryString &digest, const Set<Identifier> &sources);
 		~SplicerAccessor(void);
 		
-		size_t hashData(ByteString &digest, size_t size);
+		size_t hashData(BinaryString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
@@ -212,7 +212,7 @@ private:
 		int64_t size(void);
 		
 	private:
-		const ByteString mDigest;
+		const BinaryString mDigest;
 		const Set<Identifier> mSources;
 		
 		int64_t mPosition;

@@ -29,11 +29,15 @@
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
-#include "tpn/byteserializer.h"
+#include "tpn/binaryserializer.h"
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"
 #include "tpn/mime.h"
 #include "tpn/splicer.h"
+
+#include <cryptopp/cryptlib.h>
+#include <cryptopp/pwdbased.h>
+#include <cryptopp/sha.h>
 
 namespace tpn
 {
@@ -889,41 +893,62 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!secret.empty());
 
 	// The secret will be salted with a XOR of the two names, as this is symmetrical
-	ByteString xored;
+	BinaryString xored;
 	const String &a = mName;
         const String &b = mAddressBook->userName();
         for(size_t i=0; i<std::max(a.size(), b.size()); ++i)
-        {       
+        {
                 char c = 0;
-                if(i < a.size()) c^= a[i];
+                if(i < a.size()) c = a[i];
                 if(i < b.size()) c^= b[i];
-                xored.push_back(c);
+                xored+= c;
         }
 
-	ByteString salt;
-	ByteSerializer ssalt(&salt);
+	BinaryString salt;
+	BinarySerializer ssalt(&salt);
 	
 	// Compute secret
 	salt.clear();
 	ssalt.output(xored);
-	Sha512::DerivateKey(secret, salt, mSecret, Sha512::CryptRounds);
+
+	byte buffer[64];
+	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
+		buffer, 64,
+		byte(0),		// "purpose" ?
+		reinterpret_cast<const byte*>(secret.data()), secret.size(),
+		reinterpret_cast<const byte*>(salt.data()), salt.size(),
+		10000);
+	mSecret.assign(reinterpret_cast<char*>(buffer), 64);
 	
 	// Only half the secret (256 bits) is used to compute peerings
-	ByteString halfSecret(mSecret, 0, mSecret.size()/2);
-	
+
 	// Compute peering
 	salt.clear();
 	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
 	ssalt.output(mAddressBook->userName());
 	ssalt.output(mName);
-	Sha512::DerivateKey(halfSecret, salt, mPeering, Sha512::CryptRounds);
+	
+	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
+		buffer, 64,
+		byte(0),		// "purpose" ?
+		reinterpret_cast<const byte*>(mSecret.data()), 32,
+		reinterpret_cast<const byte*>(salt.data()), salt.size(),
+		10000);
+	mPeering.setDigest(BinaryString(reinterpret_cast<char*>(buffer), 64));
 	
 	// Compute remote peering
 	salt.clear();
 	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
 	ssalt.output(mName);
 	ssalt.output(mAddressBook->userName());
-	Sha512::DerivateKey(halfSecret, salt, mRemotePeering, Sha512::CryptRounds);
+	
+	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
+		buffer, 64,
+		byte(0),		// "purpose" ?
+		reinterpret_cast<const byte*>(mSecret.data()), 32,
+		reinterpret_cast<const byte*>(salt.data()), salt.size(),
+		10000);
+	mRemotePeering.setDigest(BinaryString(reinterpret_cast<char*>(buffer), 64));
 	
 	createProfile();
 }
@@ -994,7 +1019,7 @@ String AddressBook::Contact::urlPrefix(void) const
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
 }
 
-ByteString AddressBook::Contact::secret(void) const
+BinaryString AddressBook::Contact::secret(void) const
 {
         Synchronize(mAddressBook);
         return mSecret;
@@ -1147,7 +1172,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 	if(!sock || (status = Core::Instance->addPeer(sock, peering)) == Core::Disconnected)
 	{
 		// Unable to connect, no direct connection or failure using direct connection
-		ByteStream *bs = NULL;
+		Stream *bs = NULL;
 		if(!forceNoTunnel)
 		{
 			try {
@@ -1529,7 +1554,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			throw InvalidData("checksum notification parameters: " + String(e.what()));
 		}
 		
-		ByteString checksum;
+		BinaryString checksum;
 		
 		try {
 			notification->content().extract(checksum);
@@ -1552,7 +1577,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		bool isLastIteration = false;
 		if(offset + count <= localTotal)
 		{
-			ByteString result;
+			BinaryString result;
 			selection.checksum(offset, count, result);
 		
 			if(result != checksum)
@@ -1635,7 +1660,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			return true;
 		}
 		
-		ByteString secret;
+		BinaryString secret;
 		
 		try {
 			notification->content().extract(secret);
@@ -1746,7 +1771,7 @@ void AddressBook::Contact::sendMessagesChecksum(const Identifier &peering, const
 	
 	LogDebug("AddressBook::Contact", "Synchronization: Sending checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
 
-	ByteString result;
+	BinaryString result;
 	selection.checksum(offset, count, result);
 	
 	StringMap parameters;

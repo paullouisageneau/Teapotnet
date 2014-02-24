@@ -46,7 +46,7 @@ class Store : public Task, protected Synchronizable, public HttpInterfaceable
 {
 public:
 	static Store *GlobalInstance;
-  	static bool Get(const ByteString &digest, Resource &resource);
+  	static bool Get(const BinaryString &digest, Resource &resource);
 	static const size_t ChunkSize;
 
 	Store(User *user);
@@ -74,8 +74,8 @@ private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
 	
-	bool getResource(const ByteString &digest, Resource &resource);
-	void insertResource(const ByteString &digest, const String &path);
+	bool getResource(const BinaryString &digest, Resource &resource);
+	void insertResource(const BinaryString &digest, const String &path);
 	
 	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);

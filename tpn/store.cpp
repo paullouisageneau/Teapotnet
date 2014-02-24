@@ -37,7 +37,7 @@ Store *Store::GlobalInstance = NULL;
 const String Store::CacheDirectoryName = "_cache";
 const String Store::UploadDirectoryName = "_upload";  
 
-bool Store::Get(const ByteString &digest, Resource &resource)
+bool Store::Get(const BinaryString &digest, Resource &resource)
 {
 	if(!GlobalInstance) return false;
 	
@@ -1105,7 +1105,7 @@ void Store::http(const String &prefix, Http::Request &request)
 				response.send();
 
 				File file(path, File::Read);
-				response.sock->writeBinary(file);
+				response.sock->write(file);
 			}
 			else throw 404;
 		}
@@ -1117,7 +1117,7 @@ void Store::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Store::getResource(const ByteString &digest, Resource &resource)
+bool Store::getResource(const BinaryString &digest, Resource &resource)
 {
 	Synchronize(this);
 	
@@ -1157,7 +1157,7 @@ bool Store::getResource(const ByteString &digest, Resource &resource)
 	return true;
 }
 
-void Store::insertResource(const ByteString &digest, const String &path)
+void Store::insertResource(const BinaryString &digest, const String &path)
 {
 	Synchronize(this);
 	
@@ -1172,7 +1172,7 @@ void Store::insertResource(const ByteString &digest, const String &path)
 	
 	if(selectStatement.step())
 	{
-		ByteString oldDigest;
+		BinaryString oldDigest;
 		selectStatement.input(oldDigest);
 		
 		if(digest != oldDigest)
@@ -1314,7 +1314,7 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 		statement.bind(1, url);
 		
 		int64_t id;
-		ByteString digest;
+		BinaryString digest;
 		
 		if(statement.step())	// entry already exists
 		{

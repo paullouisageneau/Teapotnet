@@ -25,7 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
 #include "tpn/stream.h"
-#include "tpn/bytestream.h"
+#include "tpn/stream.h"
 #include "tpn/address.h"
 #include "tpn/socket.h"
 #include "tpn/http.h"
@@ -42,7 +42,7 @@ public:
 	
 	static Server *Incoming(Socket *sock);
 	
-	class Client : protected Synchronizable, public Stream, public ByteStream
+	class Client : protected Synchronizable, public Stream
 	{
 	public:
 		Client(const Address &a, double timeout = -1.); // timeout used for first connection only
@@ -50,7 +50,7 @@ public:
 
 		void close(void);
 		
-		// Stream, ByteStream
+		// Stream, Stream
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
@@ -62,20 +62,20 @@ public:
 		Address mAddress;
 		String mReverse;
 		Socket *mUpSock, *mDownSock;
-		ByteStream::FlushTask mFlushTask;
+		Stream::FlushTask mFlushTask;
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
 		double mConnTimeout;
 	};
 	
-	class Server : protected Synchronizable, public Stream, public ByteStream
+	class Server : protected Synchronizable, public Stream
 	{
 	public:
 		~Server(void);
 		
 		void close(void);
 		
-		// Stream, ByteStream
+		// Stream, Stream
                 size_t readData(char *buffer, size_t size);
                 void writeData(const char *data, size_t size);
 		void flush(void);
@@ -84,7 +84,7 @@ public:
 		Server(uint32_t session);	// instanciated by Incoming() only
 		
 		Socket *mUpSock, *mDownSock;
-		ByteStream::FlushTask mFlushTask;
+		Stream::FlushTask mFlushTask;
 		Http::Request mUpRequest;
 		uint32_t mSession;
 		size_t mPostBlockLeft;

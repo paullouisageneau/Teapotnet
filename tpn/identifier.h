@@ -24,7 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/string.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/serializable.h"
 
 namespace tpn
@@ -36,19 +36,19 @@ public:
 	static const Identifier Null;
 
 	Identifier(void);
-	Identifier(const ByteString &digest, const String &name = "");
+	Identifier(const BinaryString &digest, const String &name = "");
 	~Identifier(void);
 
-	ByteString getDigest(void) const;
+	BinaryString getDigest(void) const;
 	String getName(void) const;
-	void setDigest(const ByteString &digest);
+	void setDigest(const BinaryString &digest);
 	void setName(const String &name);
 	
 	bool empty(void);
 	void clear(void);
 	
-	operator ByteString &(void);
-	operator const ByteString &(void) const;
+	operator BinaryString &(void);
+	operator const BinaryString &(void) const;
 	
 	// Serializable
 	void serialize(Serializer &s) const;
@@ -57,7 +57,7 @@ public:
 	bool deserialize(Stream &s);
 
 private:
-	ByteString 	mDigest;
+	BinaryString 	mDigest;
 	String		mName;
 };
 

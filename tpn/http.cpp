@@ -25,7 +25,7 @@
 #include "tpn/config.h"
 #include "tpn/mime.h"
 #include "tpn/directory.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {

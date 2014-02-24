@@ -27,14 +27,14 @@
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
-#include "tpn/byteserializer.h"
+#include "tpn/binaryserializer.h"
 #include "tpn/mime.h"
 
 namespace tpn
 {
 
 Map<String, User*>	User::UsersByName;
-Map<ByteString, User*>	User::UsersByAuth;
+Map<BinaryString, User*>	User::UsersByAuth;
 Mutex			User::UsersMutex;
 
 unsigned User::Count(void)
@@ -72,7 +72,9 @@ User *User::Get(const String &name)
 
 User *User::Authenticate(const String &name, const String &password)
 {
-	ByteString hash;
+	// TODO: Crypto++
+	
+	BinaryString hash;
 	Sha512::RecursiveHash(password, name, hash, Sha512::CryptRounds);
 	
 	User *user = NULL;
@@ -316,7 +318,7 @@ void User::sendSecret(const Identifier &identifier)
 	DesynchronizeStatement(this, notification.send(identifier));
 }
 
-void User::setSecret(const ByteString &secret, const Time &time)
+void User::setSecret(const BinaryString &secret, const Time &time)
 {
 	Synchronize(this);
 	
@@ -338,18 +340,18 @@ void User::setSecret(const ByteString &secret, const Time &time)
 	}
 }
 
-ByteString User::getSecretKey(const String &action)
+BinaryString User::getSecretKey(const String &action)
 {
 	// Create secret if it does not exist
 	if(mSecret.empty())
 	{
-		ByteString secret;
+		BinaryString secret;
 		secret.writeRandom(64);
 		setSecret(secret, Time::Now());
 	}
 	
 	// Cache for subkeys
-	ByteString key;
+	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
 		Sha512::DerivateKey(mSecret, action, key, Sha512::CryptRounds);
@@ -361,23 +363,23 @@ ByteString User::getSecretKey(const String &action)
 
 String User::generateToken(const String &action) const
 {
-	ByteString salt;
+	BinaryString salt;
 	salt.writeRandom(8);
 
-	ByteString plain;
-	ByteSerializer splain(&plain);
+	BinaryString plain;
+	BinarySerializer splain(&plain);
 	splain.output(name());
 	splain.output(action);
 	splain.output(salt);
 	SynchronizeStatement(this, splain.output(mTokenSecret));
 
-	ByteString digest;
+	BinaryString digest;
 	Sha512::Hash(plain, digest);
 	
-	ByteString key;
+	BinaryString key;
 	digest.readBinary(key, 8);
 
-	ByteString token;
+	BinaryString token;
 	token.writeBinary(salt);	// 8 bytes
 	token.writeBinary(key);		// 8 bytes
 	
@@ -389,7 +391,7 @@ bool User::checkToken(const String &token, const String &action) const
 {
 	if(!token.empty())
 	{
-		ByteString bs;
+		BinaryString bs;
 		try {
 			token.extract(bs);
 		}
@@ -401,21 +403,21 @@ bool User::checkToken(const String &token, const String &action) const
 
 		if(bs.size() == 16)
 		{
-			ByteString salt, remoteKey;
+			BinaryString salt, remoteKey;
 			AssertIO(bs.readBinary(salt, 8));
 			AssertIO(bs.readBinary(remoteKey, 8));
 			
-			ByteString plain;
-			ByteSerializer splain(&plain);
+			BinaryString plain;
+			BinarySerializer splain(&plain);
 			splain.output(name());
 			splain.output(action);
 			splain.output(salt);
 			SynchronizeStatement(this, splain.output(mTokenSecret));
 			
-			ByteString digest;
+			BinaryString digest;
 			Sha512::Hash(plain, digest);
 			
-			ByteString key;
+			BinaryString key;
 			digest.readBinary(key, 8);
 
 			if(key == remoteKey) 

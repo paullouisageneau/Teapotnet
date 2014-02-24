@@ -22,10 +22,10 @@
 #include "tpn/message.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
-#include "tpn/bytestring.h"
+#include "tpn/binarystring.h"
 #include "tpn/sha512.h"
 #include "tpn/yamlserializer.h"
-#include "tpn/byteserializer.h"
+#include "tpn/binaryserializer.h"
 #include "tpn/messagequeue.h"
 
 namespace tpn
@@ -295,12 +295,12 @@ bool Message::deserialize(Serializer &s)
 	return success;
 }
 
-void Message::computeAgregate(ByteString &result) const
+void Message::computeAgregate(BinaryString &result) const
 {
 	result.clear();
 
 	// Note: contact, incoming, and relayed are NOT in the agregate
-        ByteSerializer serializer(&result); 
+        BinarySerializer serializer(&result); 
         serializer.output(int64_t(mTime.toUnixTime()));
 	serializer.output(mIsPublic);
 	serializer.output(mAuthor);
@@ -311,7 +311,7 @@ void Message::computeAgregate(ByteString &result) const
 
 String Message::computeStamp(void) const
 {
-	ByteString agregate, digest;
+	BinaryString agregate, digest;
 	computeAgregate(agregate);
 	Sha512::Hash(agregate, digest);
 	digest.resize(24);
@@ -330,8 +330,8 @@ String Message::computeSignature(User *user) const
 	if(mStamp.size() != 32)
 	{
 		// Note: contact, incoming and relayed are NOT signed
-		ByteString agregate;
-		ByteSerializer serializer(&agregate);
+		BinaryString agregate;
+		BinarySerializer serializer(&agregate);
 		serializer.output(mHeaders);
 		serializer.output(mContent);
 		serializer.output(mAuthor);
@@ -340,7 +340,7 @@ String Message::computeSignature(User *user) const
 		serializer.output(int64_t(mTime.toUnixTime()));
 		serializer.output(mIsPublic);
 
-		ByteString signature;
+		BinaryString signature;
 		Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
 		signature.resize(16);
 
@@ -348,7 +348,7 @@ String Message::computeSignature(User *user) const
 	}
 	//
 	
-	ByteString agregate, hmac;
+	BinaryString agregate, hmac;
 	computeAgregate(agregate);
 	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, hmac);
 	hmac.resize(24);

@@ -23,8 +23,7 @@
 #define TPN_STRING_H
 
 #include "tpn/include.h"
-#include "tpn/stream.h"
-#include "tpn/serializable.h"
+#include "tpn/binarystring.h"
 
 namespace tpn
 {
@@ -32,8 +31,8 @@ namespace tpn
 template<typename T> class Array;
 template<typename T> class Set;
 template<typename K, typename V> class Map;
-  
-class String : public Stream, public Serializable, public std::string
+
+class String : public BinaryString
 {
 public:
 	template<typename T> static String number(T n);
@@ -48,13 +47,14 @@ public:
 	static const size_type NotFound = npos;
 	
 	String(void);
-	String(const char chr);
+	String(char chr);
 	String(const char *str);
+	String(const char *data, size_t size);
 	String(const std::string &str);
 	String(size_t n, char chr);
 	String(const String &str, int begin = 0);
 	String(const String &str, int begin, int end);
-	template <class InputIterator> String(InputIterator first, InputIterator last) : std::string(first, last) {}
+	template <class InputIterator> String(InputIterator first, InputIterator last) : BinaryString(first, last) {}
 	virtual ~String(void);
 	
 	void explode(std::list<String> &strings, char separator) const;
@@ -69,7 +69,6 @@ public:
 	bool containsLetters(void) const;
 	bool isAlphanumeric(void) const;
 	void remove(int pos, int n = -1);
-	bool isEmpty() const;
 
 	int indexOf(char c, int from = 0) const;
 	int indexOf(const char* c, int from = 0) const;
@@ -94,8 +93,6 @@ public:
 	String trimmed(void) const;
 	String urlEncode(void) const;
 	String urlDecode(void) const;
-	String base64Encode(void) const;
-	String base64Decode(void) const;
 	String windowsEncode(void) const;
 	String windowsDecode(void) const;
 	String pathEncode(void) const;
@@ -125,7 +122,8 @@ public:
 	virtual bool isNativeSerializable(void) const;
 	virtual String toString(void) const;
         virtual void fromString(String str);
-
+	
+protected:
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
