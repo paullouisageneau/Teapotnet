@@ -63,7 +63,7 @@ void Cipher::setReadCipher(CryptoPP::SymmetricCipher *cipher)
 		mReadCipher = cipher;
 		mReadFilter = new CryptoPP::StreamTransformationFilter(
 					*mReadCipher, 
-					new CryptoPP::StringSink(mReadBuffer),
+					NULL,
 					CryptoPP::StreamTransformationFilter::PKCS_PADDING);
 	}
 	else {
@@ -82,7 +82,7 @@ void Cipher::setWriteCipher(CryptoPP::SymmetricCipher *cipher)
 		mWriteCipher = cipher;
 		mWriteFilter = new CryptoPP::StreamTransformationFilter(
 					*mWriteCipher,
-					new CryptoPP::StringSink(mWriteBuffer),
+					NULL,
 					CryptoPP::StreamTransformationFilter::PKCS_PADDING);
 	}
 	else {
@@ -100,29 +100,48 @@ size_t Cipher::readData(char *buffer, size_t size)
 {
 	Assert(buffer);
 	if(!mReadCipher) throw Exception("Block cipher not initialized for reading");
+	if(!size) return 0;
 	
-	size_t readSize;
-	while((readSize = mReadBuffer.readData(buffer, size)) == 0)
+	while(!mReadFilter->AnyRetrievable())
 	{
-		readSize = mStream->readData(buffer, size);
+		char buf[BufferSize];
+		size_t readSize = mStream->readData(buf, BufferSize);
 		if(!readSize) return 0;
 		
-		mReadFilter->Put(reinterpret_cast<const byte*>(buffer), readSize);
+		mReadFilter->Put(reinterpret_cast<byte*>(buf), readSize);
 		mReadFilter->Flush(false);
 	}
 	
-	return readSize;
+	// DEBUG
+	byte debug[1024];
+	size_t debugSize = mReadFilter->Peek(debug, 1024);
+	VAR(debugSize);
+	VAR(BinaryString(reinterpret_cast<char*>(debug), debugSize));
+	//
+	
+	size = mReadFilter->Get(reinterpret_cast<byte*>(buffer), size);
+	//VAR(size);
+	return size;
 }
 
 void Cipher::writeData(const char *data, size_t size)
 {
 	Assert(data);
 	if(!mWriteCipher) throw Exception("Block cipher not initialized for writing");
-	
+	if(!size) return;
+
 	mWriteFilter->Put(reinterpret_cast<const byte*>(data), size);
-	mWriteFilter->Flush(false);
+	mWriteFilter->MessageEnd();
+	mWriteFilter->Flush(true);
 	
-	mStream->writeData(mWriteBuffer.data(), mWriteBuffer.size());
+	mWriteFilter->GetNextMessage();
+	Assert(mWriteFilter->MaxRetrievable() >= size);
+
+	char buf[BufferSize];
+	while(size = mWriteFilter->Get(reinterpret_cast<byte*>(buf), BufferSize))
+	{
+		mStream->writeData(buf, size);
+	}
 }
 
 }
