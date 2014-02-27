@@ -53,11 +53,9 @@ private:
 	
 	CryptoPP::SymmetricCipher *mReadCipher;			// can be NULL
 	CryptoPP::StreamTransformationFilter *mReadFilter;
-	BinaryString mReadBuffer;
 	
 	CryptoPP::SymmetricCipher *mWriteCipher;		// can be NULL
 	CryptoPP::StreamTransformationFilter *mWriteFilter;
-	BinaryString mWriteBuffer;
 };
 
 }
