@@ -23,7 +23,7 @@
 #include "tpn/core.h"
 #include "tpn/user.h"
 #include "tpn/binarystring.h"
-#include "tpn/sha512.h"
+#include "tpn/crypto.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/binaryserializer.h"
 #include "tpn/messagequeue.h"
@@ -313,7 +313,7 @@ String Message::computeStamp(void) const
 {
 	BinaryString agregate, digest;
 	computeAgregate(agregate);
-	Sha512::Hash(agregate, digest);
+	Sha512().compute(agregate, digest);
 	digest.resize(24);
 	
 	String stamp = digest.base64Encode(true);	// safe mode
@@ -341,7 +341,7 @@ String Message::computeSignature(User *user) const
 		serializer.output(mIsPublic);
 
 		BinaryString signature;
-		Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, signature);
+		Sha512().hmac(user->getSecretKey("message"), agregate, signature);
 		signature.resize(16);
 
 		return signature.toString();
@@ -350,7 +350,7 @@ String Message::computeSignature(User *user) const
 	
 	BinaryString agregate, hmac;
 	computeAgregate(agregate);
-	Sha512::AuthenticationCode(user->getSecretKey("message"), agregate, hmac);
+	Sha512().hmac(user->getSecretKey("message"), agregate, hmac);
 	hmac.resize(24);
 	
 	String signature = hmac.base64Encode(true);	// safeMode

@@ -20,18 +20,12 @@
  *************************************************************************/
 
 #include "tpn/core.h"
-#include "tpn/html.h"
-#include "tpn/sha512.h"
-#include "tpn/cipher.h"
-#include "tpn/httptunnel.h"
 #include "tpn/config.h"
 #include "tpn/scheduler.h"
 #include "tpn/bytearray.h"
-
-#include <cryptopp/pwdbased.h>
-#include <cryptopp/modes.h>
-#include <cryptopp/sha.h>
-#include <cryptopp/aes.h>
+#include "tpn/crypto.h"
+#include "tpn/securetransport.h"
+#include "tpn/httptunnel.h"
 
 namespace tpn
 {
@@ -477,11 +471,12 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 
 Core::Handler::Handler(Core *core, Stream *bs, const Address &remoteAddr) :
 	mCore(core),
-	mRawStream(bs),
-	mStream(NULL),
+	mStream(bs),
 	mRemoteAddr(remoteAddr),
 	mSender(NULL),
 	mIsIncoming(true),
+	mIsRelay(false),
+	mIsRelayEnabled(Config::Get("relay_enabled").toBool()),
 	mLinkStatus(Disconnected),
 	mThreadPool(0, 1, 8),
 	mStopping(false)
@@ -491,20 +486,17 @@ Core::Handler::Handler(Core *core, Stream *bs, const Address &remoteAddr) :
 
 Core::Handler::~Handler(void)
 {	
-	if(mStream)
-	{
-		
-	}
-	
 	delete mSender;
 	delete mStream;
-	delete mRawStream;
 }
 
-void Core::Handler::setPeering(const Identifier &peering)
+void Core::Handler::setPeering(const Identifier &peering, bool relayed)
 {
 	Synchronize(this);
+	
 	mPeering = peering;
+	mIsRelay = relayed;
+	
 	if(peering == Identifier::Null) mIsIncoming = true;
 	else {
 		mIsIncoming = false;
@@ -612,6 +604,298 @@ Core::LinkStatus Core::Handler::linkStatus(void) const
 	return mLinkStatus;
 }
 
+void Core::Handler::clientHandshake(void)
+{
+	Assert(!mPeering.empty());
+	
+	if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+		throw Exception("Peering is not registered");
+	
+	mRemotePeering.setName(mCore->getName());
+	
+	if(!mIsRelay)
+	{
+		BinaryString secret;
+		if(!SynchronizeTest(mCore, !mCore->mSecrets.get(mPeering, secret)))
+			throw Exception("No secret for peering");
+		
+		String name = "teapotnet:" + mRemotePeering.toString();
+		mStream = new SecureTransportClient(mStream, new SecureTransportClient::PrivateSharedKey(name, secret));
+	}
+	else {
+		mStream = new SecureTransportClient(mStream, new SecureTransportClient::PrivateSharedKey("teapotnet:anonymous", "anonymous"));
+	}
+	
+	String args;
+	args << mRemotePeering;
+	StringMap parameters;
+	parameters["application"] << APPNAME;
+	parameters["version"] << APPVERSION;
+	parameters["instance"] << mPeering.getName();
+	parameters["relay"] << false;
+	sendCommand(mStream, "H", args, parameters);
+	
+	String command;
+	DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
+	if(command == "Q") return;
+	if(command != "H") throw Exception("Unexpected command: " + command);
+	
+	String appname, appversion, instance, target;
+	args >> target;
+	parameters["application"] >> appname;
+	parameters["version"] >> appversion;
+	parameters.get("instance", instance);
+	
+	Identifier peering;
+	if(target.size() >= 32) target.extract(peering);
+	
+	// TODO
+	mIsRelayEnabled = (!parameters.contains("relay") || parameters["relay"].toBool());
+	
+	if(mIsRelay)
+	{
+		mIsRelay = false;
+		clientHandshake();
+	}
+}	
+
+void Core::Handler::serverHandshake(void)
+{
+	class Callback : public SecureTransportServer::PrivateSharedKeyCallback
+	{
+	public:
+		Core *core;
+		BinaryString peering;
+		
+		bool callback(const String &name, BinaryString &key)
+		{
+			String tmp(name);
+			String afterColon = tmp.cut(':');
+			if(tmp.toLower() != "teapotnet") return false;
+			
+			// Anonymous account
+			if(afterColon.toLower() == "anonymous")
+			{
+				key = "anonymous";
+				return true;
+			}
+			
+			peering.fromString(afterColon);
+			
+			BinaryString secret;
+			if(SynchronizeTest(core, !core->mSecrets.get(peering, secret)))
+			{	
+				key = secret;
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	};
+	
+	Callback *cb = new Callback;
+	cb->core = mCore;
+	mStream = new SecureTransportClient(mStream, cb);
+	mPeering = cb->peering;
+	
+	if(!mPeering.empty())
+	{
+		if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+			throw Exception("Peering is not registered");
+	
+		mRemotePeering.setName(mCore->getName());
+	}
+	else {
+		mIsRelay = true;
+	}
+	
+	String command;
+	String args;
+	StringMap parameters;
+	DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
+	if(command == "Q") return;
+	if(command != "H") throw Exception("Unexpected command: " + command);
+	
+	String appname, appversion, instance, target;
+	args >> target;
+	parameters["application"] >> appname;
+	parameters["version"] >> appversion;
+	parameters.get("instance", instance);
+	
+	Identifier peering;
+	if(target.size() >= 32) target.extract(peering);
+	
+	mLinkStatus = Established;	// Established means TLS hanshake was performed (possibly anonymously)
+	
+	if(!mIsRelay)
+	{
+		if(mPeering != peering) 
+			throw Exception("Peering does not match");
+	}
+	else {
+		mPeering = peering;
+		
+		if(mPeering.empty())
+			throw Exception("Expected peering");
+		
+		if(mPeering.getName().empty())
+		{
+			LogWarn("Core::Handler", "Got peering with undefined instance");
+			mPeering.setName("default");
+		}
+		
+		if((!instance.empty() && instance != mCore->getName())
+			|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
+		{
+			Desynchronize(this);
+			
+			Synchronizable *meeting = &mCore->mMeetingPoint;
+			Synchronize(meeting);
+			
+			if(!Config::Get("relay_enabled").toBool()) 
+			{
+				Desynchronize(meeting);
+				sendCommand(mStream, "Q", String::number(NotFound), StringMap());
+				return;
+			}
+			
+			const double meetingStepTimeout = milliseconds(std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt()));
+			double timeout = meetingStepTimeout;
+			while(timeout > 0.)
+			{
+				if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
+				if(!meeting->wait(timeout)) break;
+			}
+			
+			Handler *handler = NULL;
+			if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
+			{
+				if(handler)
+				{
+					Desynchronize(meeting);
+					LogDebug("Core::Handler", "Connection already forwarded");
+					sendCommand(mStream, "Q", String::number(RedirectionExists), StringMap());
+					return;
+				}
+				
+				//Log("Core::Handler", "Reached forwarding meeting point");
+				SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
+				meeting->notifyAll();
+				
+				timeout = meetingStepTimeout;
+				while(timeout > 0.)
+				{
+					if(!mStream) break;
+					if(!meeting->wait(timeout)) break;
+				}
+				
+				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
+				if(mStream) sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
+				return;
+			}
+			
+			LogDebug("Core::Handler", "Asking peers for redirection target peering");
+			
+			String adresses;
+			List<Address> list;
+			Config::GetExternalAddresses(list);
+			for(	List<Address>::iterator it = list.begin();
+				it != list.end();
+				++it)
+			{
+				if(!adresses.empty()) adresses+= ',';
+				adresses+= it->toString();
+			}
+				
+			Request request(String("peer:") + mPeering.toString(), false);
+			request.setParameter("adresses", adresses);
+			if(!instance.empty()) request.setParameter("instance", instance);
+			request.submit();
+			request.wait(meetingStepTimeout);
+			request.cancel();
+
+			String remote;
+			for(int i=0; i<request.responsesCount(); ++i)
+			{
+				if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
+					break;
+			}
+			
+			if(remote.empty())
+			{
+				Desynchronize(meeting);
+				sendCommand(mStream, "Q", String::number(NotFound), StringMap());
+				return;
+			}
+			
+			LogDebug("Core::Handler", "Got positive response for peering");
+				
+			remote >> mRemotePeering;
+			SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
+			
+			Handler *otherHandler = NULL;
+			
+			meeting->notifyAll();
+			timeout = meetingStepTimeout;
+			while(timeout > 0.)
+			{
+				SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
+				if(otherHandler) break;
+				if(!meeting->wait(timeout)) break;
+			}
+			
+			if(otherHandler && otherHandler->mStream)
+			{
+				Stream     *otherStream    = otherHandler->mStream;
+				otherHandler->mStream      = NULL;
+				
+				meeting->notifyAll();
+				
+				if(mStream)
+				{
+					Desynchronize(meeting);
+					LogInfo("Core::Handler", "Successfully forwarded connection");
+					
+					// Answer
+					args.clear();
+					args << "anonymous";
+					parameters.clear();
+					parameters["application"] << APPNAME;
+					parameters["version"] << APPVERSION;
+					parameters["relay"] << mIsRelayEnabled;
+					sendCommand(mStream, "H", args, parameters);
+					
+					// Transfer
+					Stream::Transfer(mStream, otherStream);
+				}
+				
+				delete otherStream;
+			}
+			else {
+				Desynchronize(meeting);
+				LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
+				sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
+			}
+				
+			SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
+			return;
+		}
+		
+		if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
+			throw Exception("Tried to connect same user on same instance");
+		
+		args.clear();
+		args << mRemotePeering;
+		parameters.clear();
+		parameters["application"] << APPNAME;
+		parameters["version"] << APPVERSION;
+		parameters["instance"] << mPeering.getName();
+		parameters["relay"] << mIsRelayEnabled;
+		sendCommand(mStream, "H", args, parameters);
+	}
+}
+
 void Core::Handler::process(void)
 {
 	String command, args;
@@ -620,308 +904,11 @@ void Core::Handler::process(void)
 	try {
 		Synchronize(this);
 		LogDebug("Core::Handler", "Starting...");
-	  
-		// Set up obfuscation cipher
-		String magicString = "TeapotNet";	// Attention: upper case 'T' and 'N'
-		byte digest[CryptoPP::SHA512::DIGESTSIZE];
-		CryptoPP::SHA512().CalculateDigest(digest, magicString.bytes(), magicString.size());
-		Cipher *cipher = new Cipher(mRawStream);
-		cipher->setReadCipher( new CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption(digest, 32, digest+32));
-		cipher->setWriteCipher(new CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption(digest, 32, digest+32));
-		cipher->dumpStream(&mObfuscatedHello);
-		mStream = cipher;
 		
-		BinaryString nonce_a, salt_a, iv_a;
-		nonce_a.writeBinary(uint32_t(Time::Now()));	// 32 bits
-		nonce_a.writeRandom(28);			// total 256 bits
-		salt_a.writeRandom(32);				// 256 bits
-		iv_a.writeRandom(16);				// 128 bits		
+		if(mIsIncoming) serverHandshake(); 
+		else clientHandshake();
 
-		if(!mIsIncoming)	
-		{
-			LogDebug("Handler", "Initiating handshake...");
-
-			if(SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
-				throw Exception("Peering is not registered: " + mPeering.toString());
-			
-			mRemotePeering.setName(mCore->getName());
-			
-			args.clear();
-			args << mRemotePeering;
-			parameters.clear();
-			parameters["application"] << APPNAME;
-			parameters["version"] << APPVERSION;
-			parameters["nonce"] << nonce_a;
-			parameters["instance"] << mPeering.getName();
-			parameters["relay"] << false;
-			sendCommand(mStream, "H", args, parameters);
-		}
-
-		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
-		if(command == "Q") return;
-		if(command != "H") throw Exception("Unexpected command: " + command);
-		
-		mLinkStatus = Established;	// Established means we got a response
-
-		String appname, appversion, instance;
-		Identifier peering;
-		BinaryString nonce_b;
-		args >> peering;
-		parameters["application"] >> appname;
-		parameters["version"] >> appversion;
-		parameters["nonce"] >> nonce_b;
-		parameters.get("instance", instance);
-		
-		bool relayEnabled;
-		if(mIsIncoming) relayEnabled = Config::Get("relay_enabled").toBool();
-		else relayEnabled = (!parameters.contains("relay") || parameters["relay"].toBool());
-		
-		if(!mIsIncoming && mPeering != peering) 
-			throw Exception("Peering in response does not match");
-		
-		if(mIsIncoming)
-		{
-			mPeering = peering;
-			
-			if(mPeering.getName().empty())
-			{
-				LogWarn("Core::Handler", "Got peering with undefined instance");
-				mPeering.setName("default");
-			}
-	
-			if((!instance.empty() && instance != mCore->getName())
-				|| SynchronizeTest(mCore, !mCore->mPeerings.get(mPeering, mRemotePeering)))
-			{
-				Desynchronize(this);
-				
-				Synchronizable *meeting = &mCore->mMeetingPoint;
-				Synchronize(meeting);
-			 
-				if(!Config::Get("relay_enabled").toBool()) 
-				{
-					Desynchronize(meeting);
-					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
-					return;
-				}
-			 
-				const double meetingStepTimeout = milliseconds(std::min(Config::Get("meeting_timeout").toInt()/3, Config::Get("request_timeout").toInt()));
-				double timeout = meetingStepTimeout;
-				while(timeout > 0.)
-				{
-					if(SynchronizeTest(mCore, mCore->mRedirections.contains(mPeering))) break;
-					if(!meeting->wait(timeout)) break;
-				}
-				
-				Handler *handler = NULL;
-				if(SynchronizeTest(mCore, mCore->mRedirections.get(mPeering, handler)))
-				{
-					if(handler)
-					{
-						Desynchronize(meeting);
-						LogDebug("Core::Handler", "Connection already forwarded");
-						sendCommand(mStream, "Q", String::number(RedirectionExists), StringMap());
-						return;
-					}
-					
-					//Log("Core::Handler", "Reached forwarding meeting point");
-					SynchronizeStatement(mCore, mCore->mRedirections.insert(mPeering, this));
-					meeting->notifyAll();
-					
-					timeout = meetingStepTimeout;
-					while(timeout > 0.)
-					{
-						if(!mStream) break;
-						if(!meeting->wait(timeout)) break;
-					}
-					
-					SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));
-					if(mStream) sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
-					return;
-				}
-				
-				LogDebug("Core::Handler", "Got non local peering, asking peers");
-				
-				String adresses;
-				List<Address> list;
-				Config::GetExternalAddresses(list);
-				for(	List<Address>::iterator it = list.begin();
-					it != list.end();
-					++it)
-				{
-					if(!adresses.empty()) adresses+= ',';
-					adresses+= it->toString();
-				}
-					
-				Request request(String("peer:") + mPeering.toString(), false);
-				request.setParameter("adresses", adresses);
-				if(!instance.empty()) request.setParameter("instance", instance);
-				request.submit();
-				request.wait(meetingStepTimeout);
-				request.cancel();
-
-				String remote;
-				for(int i=0; i<request.responsesCount(); ++i)
-				{
-					if(!request.response(i)->error() && request.response(i)->parameter("remote", remote))
-						break;
-				}
-				
-				if(remote.empty())
-				{
-					Desynchronize(meeting);
-					sendCommand(mStream, "Q", String::number(NotFound), StringMap());
-					return;
-				}
-				
-				LogDebug("Core::Handler", "Got positive response for peering");
-					
-				remote >> mRemotePeering;
-				SynchronizeStatement(mCore, mCore->mRedirections.insert(mRemotePeering, NULL));
-				
-				Handler *otherHandler = NULL;
-				
-				meeting->notifyAll();
-				timeout = meetingStepTimeout;
-				while(timeout > 0.)
-				{
-					SynchronizeStatement(mCore, mCore->mRedirections.get(mRemotePeering, otherHandler));
-					if(otherHandler) break;
-					if(!meeting->wait(timeout)) break;
-				}
-			
-				if(otherHandler && otherHandler->mStream)
-				{
-					Assert(otherHandler->mRawStream);
-					
-					Stream     *otherStream    = otherHandler->mStream;
-					Stream *otherRawStream = otherHandler->mRawStream;
-					otherHandler->mStream      = NULL;
-					otherHandler->mRawStream   = NULL;
-					
-					mRawStream->writeBinary(otherHandler->mObfuscatedHello);
-					otherRawStream->writeBinary(mObfuscatedHello);
-					mObfuscatedHello.clear();
-					otherHandler = NULL;
-					meeting->notifyAll();
-					
-					if(mRawStream)
-					{
-						Desynchronize(meeting);
-						LogInfo("Core::Handler", "Successfully forwarded connection");
-					
-						// Transfer
-						Stream::Transfer(mRawStream, otherRawStream);
-					}
-					
-					delete otherStream;
-					delete otherRawStream;
-				}
-				else {
-					Desynchronize(meeting);
-					LogWarn("Core::Handler", "No other handler reached forwarding meeting point");
-					sendCommand(mStream, "Q", String::number(RedirectionFailed), StringMap());
-				}
-					
-				SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
-				return;
-			}
-			
-			if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
-				throw Exception("Tried to connect same user on same instance");
-			
-			args.clear();
-			args << mRemotePeering;
-			parameters.clear();
-			parameters["application"] << APPNAME;
-			parameters["version"] << APPVERSION;
-			parameters["nonce"] << nonce_a;
-			parameters["instance"] << mPeering.getName();
-			parameters["relay"] << relayEnabled;
-			sendCommand(mStream, "H", args, parameters);
-		}
-		
-		cipher->dumpStream(NULL);
-		mObfuscatedHello.clear();
-		
-		BinaryString secret;
-		if(SynchronizeTest(mCore, !mCore->mSecrets.get(peering, secret)))
-			throw Exception(String("Warning: No secret for peering: ") + peering.toString());
-
-		// Derivate session key
-		byte key_a[64];
-		CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
-			key_a, 64,
-			byte(0),		// "purpose" ?
-			secret.bytes(), secret.size(),
-			salt_a.bytes(), salt_a.size(),
-			10000);
-		
-		const byte *authkey_a  = key_a;
-                const byte *cryptkey_a = key_a + 32;
-		
-		// Compute HMAC
-		byte mac_a[64];
-		CryptoPP::HMAC<CryptoPP::SHA512> hmac_a(authkey_a, 32);
-		CryptoPP::ArraySource(nonce_b.bytes(), nonce_b.size(), true, new CryptoPP::HashFilter(hmac_a, new CryptoPP::ArraySink(mac_a, 64)));
-		
-		parameters.clear();
-		parameters["method"] << "DIGEST";
-		parameters["cipher"] << "AES256";
-		parameters["salt"] << salt_a;
-		parameters["init"] << iv_a;
-		sendCommand(mStream, "A", ByteArray(mac_a, 64).toString(), parameters);
-		
-		DesynchronizeStatement(this, AssertIO(recvCommand(mStream, command, args, parameters)));
-		if(command == "Q") return;
-		if(command != "A") throw Exception("Unexpected command: " + command);
-		
-		String strMethod = "DIGEST";
-		String strCipher = "AES256";
-		if(parameters.get("method", strMethod)) strMethod = strMethod.toUpper();
-		if(parameters.get("cipher", strCipher)) strCipher = strCipher.toUpper();
-
-		// Only one method is supported for now
-		if(strMethod != "DIGEST") throw Exception("Unknown authentication method: " + strMethod);
-		if(strCipher != "AES256") throw Exception("Unknown authentication cipher: " + strCipher);
-		
-		BinaryString test_b, salt_b, iv_b;
-		args >> test_b;
-		parameters["salt"] >> salt_b;
-		parameters["init"] >> iv_b;		
-
-		// Derivate remote session key
-		byte key_b[64];
-		CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
-			key_b, 64,
-			byte(0),		// "purpose" ?
-			secret.bytes(), secret.size(),
-			salt_b.bytes(), salt_b.size(),
-			10000);
-		
-		const byte *authkey_b  = key_b;
-                const byte *cryptkey_b = key_b + 32;
-
-		// Verify remote HMAC
-		byte mac_b[64];
-		CryptoPP::HMAC<CryptoPP::SHA512> hmac_b(authkey_b, 32);
-
-		//const int verificationFlags = CryptoPP::HashVerificationFilter::THROW_EXCEPTION | CryptoPP::HashVerificationFilter::HASH_AT_END;
-		//CryptoPP::StringSource(nonce_a + test_b, true, new CryptoPP::HashVerificationFilter(hmac_b, NULL, verificationFlags));
-
-		bool result = false;
-		CryptoPP::StringSource(test_b + nonce_a, true, new CryptoPP::HashVerificationFilter(hmac_b, new CryptoPP::ArraySink((byte*)&result, sizeof(result))));
-		if(!result) throw Exception("Authentication failed (remote="+appversion+")");
-		
-		LogInfo("Core::Handler", "Authentication successful: " + mPeering.getName() + " (remote="+appversion+")");
-		mLinkStatus = Authenticated;
-
-		// Set up the new cipher for the connection
-		Assert(iv_a.size() >= 16);
-		Assert(iv_b.size() >= 16);
-		cipher->setReadCipher( new CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption(cryptkey_b, 32, reinterpret_cast<const byte*>(iv_b.data())));
-		cipher->setWriteCipher(new CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption(cryptkey_a, 32, reinterpret_cast<const byte*>(iv_a.data())));
-		
-		if(!mIsIncoming && relayEnabled && mRemoteAddr.isPublic())
+		if(!mIsIncoming && mIsRelayEnabled && mRemoteAddr.isPublic())
 		{
 			Synchronize(mCore);
 			LogDebug("Core::Handler", "Found potential relay " + mRemoteAddr.toString());

@@ -23,7 +23,7 @@
 #include "tpn/config.h"
 #include "tpn/file.h"
 #include "tpn/directory.h"
-#include "tpn/sha512.h"
+#include "tpn/crypto.h"
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
@@ -72,10 +72,8 @@ User *User::Get(const String &name)
 
 User *User::Authenticate(const String &name, const String &password)
 {
-	// TODO: Crypto++
-	
 	BinaryString hash;
-	Sha512::RecursiveHash(password, name, hash, Sha512::CryptRounds);
+	Sha256().pbkdf2_hmac(password, name, hash, 64, 10000);	// TODO: 512 ?
 	
 	User *user = NULL;
 	UsersMutex.lock();
@@ -131,8 +129,9 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.close();
 	}
 	else {
-		Sha512::RecursiveHash(password, mName, mAuth, Sha512::CryptRounds);
-		
+		BinaryString hash;
+		Sha256().pbkdf2_hmac(password, name, hash, 64, 10000);	// TODO: 512 ?
+	
 		File file(profilePath()+"auth", File::Truncate);
 		file.write(mAuth);
 		file.close();
@@ -354,7 +353,7 @@ BinaryString User::getSecretKey(const String &action)
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
-		Sha512::DerivateKey(mSecret, action, key, Sha512::CryptRounds);
+		Sha256().pbkdf2_hmac(mSecret, action, key, 64, 10000);	// TODO: 512 ?
 		mSecretKeysCache.insert(action, key);
 	}
 
@@ -374,7 +373,7 @@ String User::generateToken(const String &action) const
 	SynchronizeStatement(this, splain.output(mTokenSecret));
 
 	BinaryString digest;
-	Sha512::Hash(plain, digest);
+	Sha512().compute(plain, digest);
 	
 	BinaryString key;
 	digest.readBinary(key, 8);
@@ -415,7 +414,7 @@ bool User::checkToken(const String &token, const String &action) const
 			SynchronizeStatement(this, splain.output(mTokenSecret));
 			
 			BinaryString digest;
-			Sha512::Hash(plain, digest);
+			Sha512().compute(plain, digest);
 			
 			BinaryString key;
 			digest.readBinary(key, 8);

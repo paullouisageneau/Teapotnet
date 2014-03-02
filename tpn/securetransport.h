@@ -124,19 +124,19 @@ public:
 		gnutls_anon_server_credentials_t mCreds;
 	};
 
-	class PrivateSharedKey : public Credentials
+	class PrivateSharedKeyCallback : public Credentials
         {
         public:
-                PrivateSharedKey(void);
-                ~PrivateSharedKey(void);
+                PrivateSharedKeyCallback(void);
+                ~PrivateSharedKeyCallback(void);
 
 		// Callback to fetch key given username
 		virtual bool callback(const String &username, BinaryString &key) = 0;
 		
 	protected:
 		// Mapping to retrieve PrivateSharedKey from static callback
-		static Map<gnutls_session_t, PrivateSharedKey*> CredsMap;
-		static Map<PrivateSharedKey*, gnutls_session_t> CredsMapReverse;
+		static Map<gnutls_session_t, PrivateSharedKeyCallback*> CredsMap;
+		static Map<PrivateSharedKeyCallback*, gnutls_session_t> CredsMapReverse;
 		static Mutex CredsMapMutex;
 		static int CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
 		

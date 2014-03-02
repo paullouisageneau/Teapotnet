@@ -21,7 +21,6 @@
 
 #include "tpn/main.h"
 #include "tpn/map.h"
-#include "tpn/sha512.h"
 #include "tpn/time.h"
 #include "tpn/store.h"
 #include "tpn/tracker.h"

@@ -274,21 +274,32 @@ void SecureTransportServer::Anonymous::install(gnutls_session_t session)
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_ANON, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-Map<gnutls_session_t, SecureTransportServer::PrivateSharedKey*> SecureTransportServer::PrivateSharedKey::CredsMap;
-Map<SecureTransportServer::PrivateSharedKey*, gnutls_session_t> SecureTransportServer::PrivateSharedKey::CredsMapReverse;
-Mutex SecureTransportServer::PrivateSharedKey::CredsMapMutex;
+Map<gnutls_session_t, SecureTransportServer::PrivateSharedKeyCallback*> SecureTransportServer::PrivateSharedKeyCallback::CredsMap;
+Map<SecureTransportServer::PrivateSharedKeyCallback*, gnutls_session_t> SecureTransportServer::PrivateSharedKeyCallback::CredsMapReverse;
+Mutex SecureTransportServer::PrivateSharedKeyCallback::CredsMapMutex;
 
-int SecureTransportServer::PrivateSharedKey::CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
+int SecureTransportServer::PrivateSharedKeyCallback::CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
 {
-	PrivateSharedKey *psk = NULL;
+	PrivateSharedKeyCallback *pskcb = NULL;
 	CredsMapMutex.lock();
-	CredsMap.get(session, psk);
+	CredsMap.get(session, pskcb);
 	CredsMapMutex.unlock();
 	
-	if(!psk) return -1;
+	if(!pskcb) 
+	{
+		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", "TLS PSK callback called with unknown session");
+		return -1;
+	}
 	
 	BinaryString key;
-	if(!psk->callback(String(username), key)) return -1;
+	try {
+		if(!pskcb->callback(String(username), key)) return -1;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", String("TLS PSK callback failed: ") + e.what());
+		return -1;
+	}
 	
 	datum->size = key.size();
 	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
@@ -296,7 +307,7 @@ int SecureTransportServer::PrivateSharedKey::CredsCallback(gnutls_session_t sess
 	return 0;
 }
 
-SecureTransportServer::PrivateSharedKey::PrivateSharedKey(void)
+SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
 {
 	// Allocate PSK credentials
 	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
@@ -305,7 +316,7 @@ SecureTransportServer::PrivateSharedKey::PrivateSharedKey(void)
 	gnutls_psk_set_server_credentials_function(mCreds, CredsCallback);
 }
 
-SecureTransportServer::PrivateSharedKey::~PrivateSharedKey(void)
+SecureTransportServer::PrivateSharedKeyCallback::~PrivateSharedKeyCallback(void)
 {
 	gnutls_psk_free_server_credentials(mCreds);
 	
@@ -320,7 +331,7 @@ SecureTransportServer::PrivateSharedKey::~PrivateSharedKey(void)
 	CredsMapMutex.unlock();
 }
 
-void SecureTransportServer::PrivateSharedKey::install(gnutls_session_t session)
+void SecureTransportServer::PrivateSharedKeyCallback::install(gnutls_session_t session)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
 	

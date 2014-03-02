@@ -31,6 +31,12 @@ BinaryString::BinaryString(void)
 
 }
 
+BinaryString::BinaryString(const char *str) :
+		std::string(str)
+{
+
+}
+
 BinaryString::BinaryString(const char *data, size_t size) :
 		std::string(data, data+size)
 {
@@ -67,9 +73,24 @@ BinaryString::~BinaryString(void)
 
 }
 
+char *BinaryString::ptr(void)
+{
+        return reinterpret_cast<char*>(&at(0));
+}
+
+const char *BinaryString::ptr(void) const
+{
+        return reinterpret_cast<const char*>(&at(0));
+}
+
+byte *BinaryString::bytes(void)
+{
+        return reinterpret_cast<byte*>(&at(0));
+}
+
 const byte *BinaryString::bytes(void) const
 {
-	return reinterpret_cast<const byte*>(data());
+	return reinterpret_cast<const byte*>(&at(0));
 }
 
 BinaryString BinaryString::base64Encode(bool safeMode) const
