@@ -28,6 +28,7 @@
 #include "tpn/database.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
+#include "tpn/binarystring.h"
 #include "tpn/string.h"
 #include "tpn/set.h"
 #include "tpn/array.h"
@@ -96,7 +97,7 @@ public:
 		
 		void markRead(const String &stamp);	// used to enforce access rights based on selected messages
 		
-		int checksum(int offset, int count, Stream &result) const;
+		int checksum(int offset, int count, BinaryString &result) const;
 		// TODO: synchro flags
 	
 	private:

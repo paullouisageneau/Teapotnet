@@ -96,7 +96,7 @@ private:
 		Handler(Core *core, Stream *bs, const Address &remoteAddr);
 		~Handler(void);
 
-		void setPeering(const Identifier &peering);
+		void setPeering(const Identifier &peering, bool relayed = false);
 		void setStopping(void);
 		
 		void sendNotification(const Notification &notification);
@@ -124,15 +124,18 @@ private:
 					StringMap &parameters);
 		
 	private:
+		void clientHandshake(void);
+		void serverHandshake(void);
 		void process(void);
 		void run(void);
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
-		Stream  *mRawStream;
 		Stream  *mStream;
 		Address mRemoteAddr;
 		bool mIsIncoming;
+		bool mIsRelay;
+		bool mIsRelayEnabled;
 		LinkStatus mLinkStatus;
 		Map<unsigned, Request*> mRequests;
 		Map<unsigned, Request::Response*> mResponses;

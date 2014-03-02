@@ -5,7 +5,7 @@ STRIP=$(CROSS)strip
 RM=rm -f
 CPPFLAGS=-O2
 LDFLAGS=-O2
-LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2
+LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2 -lnettle -lgnutls
 
 SRCS=$(shell printf "%s " tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))

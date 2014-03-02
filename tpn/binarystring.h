@@ -33,6 +33,7 @@ class BinaryString : public std::string, public Stream, public Serializable
 {
 public:
 	BinaryString(void);
+	BinaryString(const char *str);
 	BinaryString(const char *data, size_t size);
 	BinaryString(const std::string &str);
 	BinaryString(size_t n, char chr);
@@ -40,7 +41,11 @@ public:
 	BinaryString(const BinaryString &str, int begin, int end);
 	template <class InputIterator> BinaryString(InputIterator first, InputIterator last) : std::string(first, last) {}
 	virtual ~BinaryString(void);
-	
+
+	// Prefer data() for standard read-only access
+	char *ptr(void);
+	const char *ptr(void) const;
+	byte *bytes(void);
 	const byte *bytes(void) const;
 	
 	BinaryString base64Encode(bool safeMode = false) const;

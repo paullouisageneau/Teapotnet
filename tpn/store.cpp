@@ -22,8 +22,8 @@
 #include "tpn/store.h"
 #include "tpn/user.h"
 #include "tpn/directory.h"
-#include "tpn/sha512.h"
 #include "tpn/html.h"
+#include "tpn/crypto.h"
 #include "tpn/lineserializer.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/config.h"
@@ -1344,7 +1344,7 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 					Desynchronize(this);
 					digest.clear();
 					File data(absPath, File::Read);
-					Sha512::Hash(data, digest);
+					Sha512().compute(data, digest);
 					data.close();
 				}
 				
@@ -1369,7 +1369,7 @@ void Store::update(const String &url, String path, int64_t parentId, bool comput
 				Desynchronize(this);
 				digest.clear();
 				File data(absPath, File::Read);
-				Sha512::Hash(data, digest);
+				Sha512().compute(data, digest);
 				data.close();
 			}
 			

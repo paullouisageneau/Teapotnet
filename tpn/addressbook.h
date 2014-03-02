@@ -76,8 +76,8 @@ public:
 	  	Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
-	     			const String &tracker,
-	     			const String &secret);
+				const String &tracker,
+				const String &secret);
 		Contact(AddressBook *addressBook);
 		~Contact(void);
 

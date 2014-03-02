@@ -21,7 +21,7 @@
 
 #include "tpn/resource.h"
 #include "tpn/config.h"
-#include "tpn/sha512.h"
+#include "tpn/crypto.h"
 #include "tpn/store.h"
 #include "tpn/file.h"
 #include "tpn/request.h"
@@ -637,7 +637,7 @@ bool Resource::Query::isInlineSerializable(void) const
 size_t Resource::Accessor::hashData(BinaryString &digest, size_t size)
 {
 	// Default implementation
-	return Sha512::Hash(*this, size, digest);
+	return Sha512().compute(*this, size, digest);
 }
 
 Resource::LocalAccessor::LocalAccessor(const String &path)

@@ -100,14 +100,16 @@ String::String(void)
 
 }
 
-String::String(char chr)
+String::String(char chr) :
+	BinaryString(&chr, size_t(1))
 {
-	(*this)+= chr;
+
 }
 
-String::String(const char *str)
+String::String(const char *str) :
+	BinaryString(str)
 {
-	(*this)+= str;
+	
 }
 
 String::String(const char *data, size_t size) :

@@ -22,7 +22,7 @@
 #include "tpn/messagequeue.h"
 #include "tpn/user.h"
 #include "tpn/html.h"
-#include "tpn/sha512.h"
+#include "tpn/crypto.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/notification.h"
@@ -1072,7 +1072,7 @@ void MessageQueue::Selection::markRead(const String &stamp)
 	}
 }
 
-int MessageQueue::Selection::checksum(int offset, int count, Stream &result) const
+int MessageQueue::Selection::checksum(int offset, int count, BinaryString &result) const
 {
 	StringList stamps;
 

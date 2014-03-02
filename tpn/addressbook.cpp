@@ -22,7 +22,7 @@
 #include "tpn/addressbook.h"
 #include "tpn/user.h"
 #include "tpn/core.h"
-#include "tpn/sha512.h"
+#include "tpn/crypto.h"
 #include "tpn/config.h"
 #include "tpn/file.h"
 #include "tpn/directory.h"
@@ -34,10 +34,6 @@
 #include "tpn/httptunnel.h"
 #include "tpn/mime.h"
 #include "tpn/splicer.h"
-
-#include <cryptopp/cryptlib.h>
-#include <cryptopp/pwdbased.h>
-#include <cryptopp/sha.h>
 
 namespace tpn
 {
@@ -892,63 +888,15 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!tracker.empty());
 	Assert(!secret.empty());
 
-	// The secret will be salted with a XOR of the two names, as this is symmetrical
-	BinaryString xored;
-	const String &a = mName;
-        const String &b = mAddressBook->userName();
-        for(size_t i=0; i<std::max(a.size(), b.size()); ++i)
-        {
-                char c = 0;
-                if(i < a.size()) c = a[i];
-                if(i < b.size()) c^= b[i];
-                xored+= c;
-        }
-
-	BinaryString salt;
-	BinarySerializer ssalt(&salt);
+	// TODO: SHA512 ?
+	const unsigned iterations = 10000;
 	
-	// Compute secret
-	salt.clear();
-	ssalt.output(xored);
-
-	byte buffer[64];
-	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
-		buffer, 64,
-		byte(0),		// "purpose" ?
-		reinterpret_cast<const byte*>(secret.data()), secret.size(),
-		reinterpret_cast<const byte*>(salt.data()), salt.size(),
-		10000);
-	mSecret.assign(reinterpret_cast<char*>(buffer), 64);
+	String salt = std::min(mAddressBook->userName(), mName) + "/" + std::max(mAddressBook->userName(), mName);
+	Sha256().pbkdf2_hmac(secret, salt, mSecret, 64, iterations);
 	
-	// Only half the secret (256 bits) is used to compute peerings
-
-	// Compute peering
-	salt.clear();
-	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
-	ssalt.output(mAddressBook->userName());
-	ssalt.output(mName);
-	
-	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
-		buffer, 64,
-		byte(0),		// "purpose" ?
-		reinterpret_cast<const byte*>(mSecret.data()), 32,
-		reinterpret_cast<const byte*>(salt.data()), salt.size(),
-		10000);
-	mPeering.setDigest(BinaryString(reinterpret_cast<char*>(buffer), 64));
-	
-	// Compute remote peering
-	salt.clear();
-	ssalt.output("TeapotNet");	// Attention: upper case 'T' and 'N'
-	ssalt.output(mName);
-	ssalt.output(mAddressBook->userName());
-	
-	CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA512>().DeriveKey(
-		buffer, 64,
-		byte(0),		// "purpose" ?
-		reinterpret_cast<const byte*>(mSecret.data()), 32,
-		reinterpret_cast<const byte*>(salt.data()), salt.size(),
-		10000);
-	mRemotePeering.setDigest(BinaryString(reinterpret_cast<char*>(buffer), 64));
+	String peeringSecret(mSecret, 0, 32);
+	Sha256().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
+	Sha256().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
 	
 	createProfile();
 }
