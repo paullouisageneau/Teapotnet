@@ -616,7 +616,7 @@ void Core::Handler::clientHandshake(void)
 	if(!mIsRelay)
 	{
 		BinaryString secret;
-		if(!SynchronizeTest(mCore, !mCore->mSecrets.get(mPeering, secret)))
+		if(SynchronizeTest(mCore, !mCore->mSecrets.get(mPeering, secret)))
 			throw Exception("No secret for peering");
 		
 		String name = "teapotnet:" + mRemotePeering.toString();
@@ -696,7 +696,7 @@ void Core::Handler::serverHandshake(void)
 	
 	Callback *cb = new Callback;
 	cb->core = mCore;
-	mStream = new SecureTransportClient(mStream, cb);
+	mStream = new SecureTransportServer(mStream, cb);
 	mPeering = cb->peering;
 	
 	if(!mPeering.empty())

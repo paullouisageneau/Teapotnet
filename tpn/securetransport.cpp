@@ -41,31 +41,38 @@ SecureTransport::SecureTransport(bool server, Stream *stream, Credentials *creds
 {
 	Assert(stream);
 	Assert(creds);
-	
-	// Init mSession
-	// TODO: DTLS
-	unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
-	Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
-	
-	 // Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
-	const char *priorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
-	const char *err_pos = NULL;
-	if(gnutls_priority_set_direct(mSession, priorities, &err_pos))
-		throw Exception("Unable to set TLS priorities");
-	
-	// Set callbacks
-	gnutls_transport_set_ptr(mSession, static_cast<gnutls_transport_ptr_t>(this));
-        gnutls_transport_set_pull_function(mSession, ReadCallback);
-        gnutls_transport_set_pull_function(mSession, WriteCallback);
-	
-	if(creds) handshake(creds);
+
+	try {
+		// Init mSession
+		// TODO: DTLS
+		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
+		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
+		
+		// Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
+		const char *priorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
+		const char *err_pos = NULL;
+		if(gnutls_priority_set_direct(mSession, priorities, &err_pos))
+			throw Exception("Unable to set TLS priorities");
+		
+		// Set callbacks
+		gnutls_transport_set_ptr(mSession, static_cast<gnutls_transport_ptr_t>(this));
+		gnutls_transport_set_pull_function(mSession, ReadCallback);
+		gnutls_transport_set_pull_function(mSession, WriteCallback);
+		
+		if(creds) handshake(creds);
+	}
+	catch(...)
+	{
+		gnutls_deinit(mSession);
+		throw;
+	}
 }
 
 SecureTransport::~SecureTransport(void)
 {
-	delete mCreds;
 	gnutls_deinit(mSession);
 	
+	delete mCreds;
 	delete mStream;
 }
 
@@ -171,9 +178,9 @@ void SecureTransport::Credentials::install(SecureTransport *st)
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds) :
-	SecureTransport(false, stream, creds)
+	SecureTransport(false, stream, NULL)
 {
-	
+	if(creds) handshake(creds);
 }
 
 SecureTransportClient::~SecureTransportClient(void)
@@ -248,9 +255,9 @@ void SecureTransportClient::Certificate::install(gnutls_session_t session)
 }
 
 SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds) :
-	SecureTransport(true, stream, creds)
+	SecureTransport(true, stream, NULL)
 {
-	
+	if(creds) handshake(creds);
 }
 
 SecureTransportServer::~SecureTransportServer(void)
