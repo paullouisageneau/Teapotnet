@@ -192,5 +192,23 @@ void Sha512::hmac(const BinaryString &message, const BinaryString &key, BinarySt
 	hmac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
 }
 
+void Sha512::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
+{
+	Assert(iterations != 0);
+	
+	struct hmac_sha512_ctx ctx;
+	hmac_sha512_set_key(&ctx, len, reinterpret_cast<const uint8_t*>(secret));
+	PBKDF2(&ctx, hmac_sha512_update, hmac_sha512_digest, 
+		64, iterations,
+		salt_len, reinterpret_cast<const uint8_t*>(salt),
+		key_len, reinterpret_cast<uint8_t*>(key));
+}
+
+void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
+{
+	key.resize(key_len);
+	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
+}
+
 }
 
