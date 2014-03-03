@@ -117,14 +117,14 @@ User::User(const String &name, const String &password, const String &tracker) :
 		throw Exception("User name must be alphanumeric");
 	
 	// TODO: backward compatibility, should be removed
-	if(File::Exist(profilePath()+"password"))
-		File::Remove(profilePath()+"password");
+	if(File::Exist(profilePath()+"auth"))
+		File::Remove(profilePath()+"auth");
 	//
 
 	// Auth digest
 	if(password.empty())
 	{
-		File file(profilePath()+"auth", File::Read);
+		File file(profilePath()+"password", File::Read);
 		file.read(mAuth);
 		file.close();
 	}
@@ -132,7 +132,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 		BinaryString hash;
 		Sha512().pbkdf2_hmac(password, name, hash, 64, 10000);
 	
-		File file(profilePath()+"auth", File::Truncate);
+		File file(profilePath()+"password", File::Truncate);
 		file.write(mAuth);
 		file.close();
 	}
