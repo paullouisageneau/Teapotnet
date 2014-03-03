@@ -73,7 +73,7 @@ User *User::Get(const String &name)
 User *User::Authenticate(const String &name, const String &password)
 {
 	BinaryString hash;
-	Sha256().pbkdf2_hmac(password, name, hash, 64, 10000);	// TODO: 512 ?
+	Sha512().pbkdf2_hmac(password, name, hash, 64, 10000);
 	
 	User *user = NULL;
 	UsersMutex.lock();
@@ -130,7 +130,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	}
 	else {
 		BinaryString hash;
-		Sha256().pbkdf2_hmac(password, name, hash, 64, 10000);	// TODO: 512 ?
+		Sha512().pbkdf2_hmac(password, name, hash, 64, 10000);
 	
 		File file(profilePath()+"auth", File::Truncate);
 		file.write(mAuth);
@@ -353,7 +353,7 @@ BinaryString User::getSecretKey(const String &action)
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
-		Sha256().pbkdf2_hmac(mSecret, action, key, 64, 10000);	// TODO: 512 ?
+		Sha512().pbkdf2_hmac(mSecret, action, key, 64, 10000);
 		mSecretKeysCache.insert(action, key);
 	}
 

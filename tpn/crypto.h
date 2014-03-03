@@ -94,6 +94,10 @@ public:
 
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+
+	// PBKDF2-HMAC-SHA256
+	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
+	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 	
 private:
 	struct sha512_ctx mCtx;

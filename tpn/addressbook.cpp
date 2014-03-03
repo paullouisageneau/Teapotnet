@@ -888,15 +888,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!tracker.empty());
 	Assert(!secret.empty());
 
-	// TODO: SHA512 ?
 	const unsigned iterations = 10000;
 	
 	String salt = std::min(mAddressBook->userName(), mName) + "/" + std::max(mAddressBook->userName(), mName);
-	Sha256().pbkdf2_hmac(secret, salt, mSecret, 64, iterations);
+	Sha512().pbkdf2_hmac(secret, salt, mSecret, 64, iterations);
 	
 	String peeringSecret(mSecret, 0, 32);
-	Sha256().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
-	Sha256().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
+	Sha512().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
+	Sha512().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
 	
 	createProfile();
 }
