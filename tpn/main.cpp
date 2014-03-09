@@ -32,6 +32,7 @@
 #include "tpn/portmapping.h"
 #include "tpn/thread.h"
 #include "tpn/scheduler.h"
+#include "tpn/securetransport.h"
 
 #include <signal.h>
 
@@ -567,7 +568,8 @@ String plist = "\
 
 		LogInfo("main", "Starting...");
                 File::CleanTemp();
-
+		SecureTransport::Init();
+		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
 		{
@@ -724,6 +726,7 @@ String plist = "\
 		}
 		
 		PortMapping::Instance->disable();
+		SecureTransport::Cleanup();
 		LogInfo("main", "Finished");
 	}
 	catch(const std::exception &e)
