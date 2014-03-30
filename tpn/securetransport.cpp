@@ -35,12 +35,11 @@ void SecureTransport::Cleanup(void)
 	gnutls_global_deinit();
 }
 
-SecureTransport::SecureTransport(bool server, Stream *stream, Credentials *creds) :
+SecureTransport::SecureTransport(bool server, Stream *stream) :
 	mStream(stream),
-	mCreds(creds)
+	mCreds(NULL)
 {
 	Assert(stream);
-	Assert(creds);
 
 	try {
 		// Init mSession
@@ -58,8 +57,6 @@ SecureTransport::SecureTransport(bool server, Stream *stream, Credentials *creds
 		gnutls_transport_set_ptr(mSession, static_cast<gnutls_transport_ptr_t>(this));
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
 		gnutls_transport_set_pull_function(mSession, WriteCallback);
-		
-		if(creds) handshake(creds);
 	}
 	catch(...)
 	{
@@ -178,9 +175,16 @@ void SecureTransport::Credentials::install(SecureTransport *st)
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds) :
-	SecureTransport(false, stream, NULL)
+	SecureTransport(false, stream)
 {
-	if(creds) handshake(creds);
+	try {
+		if(creds) handshake(creds);
+	}
+	catch(...)
+	{
+		mStream = NULL;	// so stream won't be delete
+		throw;
+	}
 }
 
 SecureTransportClient::~SecureTransportClient(void)
@@ -255,9 +259,16 @@ void SecureTransportClient::Certificate::install(gnutls_session_t session)
 }
 
 SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds) :
-	SecureTransport(true, stream, NULL)
+	SecureTransport(true, stream)
 {
-	if(creds) handshake(creds);
+	try {
+		if(creds) handshake(creds);
+	}
+	catch(...)
+	{
+		mStream = NULL;	// so stream won't be delete
+		throw;
+	}
 }
 
 SecureTransportServer::~SecureTransportServer(void)

@@ -469,9 +469,9 @@ bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, S
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Stream *bs, const Address &remoteAddr) :
+Core::Handler::Handler(Core *core, Stream *stream, const Address &remoteAddr) :
 	mCore(core),
-	mStream(bs),
+	mStream(stream),
 	mRemoteAddr(remoteAddr),
 	mSender(NULL),
 	mIsIncoming(true),
@@ -485,7 +485,7 @@ Core::Handler::Handler(Core *core, Stream *bs, const Address &remoteAddr) :
 }
 
 Core::Handler::~Handler(void)
-{	
+{
 	delete mSender;
 	delete mStream;
 }

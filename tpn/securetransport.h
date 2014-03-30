@@ -57,16 +57,16 @@ public:
 	void writeData(const char *data, size_t size);
 
 protected:
-	SecureTransport(bool server, Stream *stream, Credentials *creds);	// stream and creds will be deleted
+	SecureTransport(bool server, Stream *stream);	// stream will be deleted
 	virtual ~SecureTransport(void);
 	
 	gnutls_session_t mSession;
-
+	Stream *mStream;	
+	
 private:
 	static ssize_t ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
 	static ssize_t WriteCallback(gnutls_transport_ptr_t ptr, void* data, size_t len);
 	
-	Stream *mStream;	
 	Credentials *mCreds;
 };
 
@@ -106,7 +106,7 @@ public:
                 gnutls_certificate_credentials_t mCreds;
         };
 
-	SecureTransportClient(Stream *stream, Credentials *creds);	// stream and creds will be deleted
+	SecureTransportClient(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted
 	~SecureTransportClient(void);
 };
 
@@ -146,7 +146,7 @@ public:
 
 	// TODO: server certificate credentials
 	
-	SecureTransportServer(Stream *stream, Credentials *creds);	// stream and creds will be deleted
+	SecureTransportServer(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted
 	~SecureTransportServer(void);
 };
 

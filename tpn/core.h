@@ -93,7 +93,7 @@ private:
 	class Handler : public Task, public Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *bs, const Address &remoteAddr);
+		Handler(Core *core, Stream *stream, const Address &remoteAddr);
 		~Handler(void);
 
 		void setPeering(const Identifier &peering, bool relayed = false);
