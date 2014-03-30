@@ -774,5 +774,3 @@ String plist = "\
 	
 	return 0;
 }
-
-
