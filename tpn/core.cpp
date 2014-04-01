@@ -129,7 +129,7 @@ Core::LinkStatus Core::addPeer(Stream *bs, const Address &remoteAddr, const Iden
 	Synchronize(this);
 	
 	bool hasPeering = (peering != Identifier::Null);
-	
+
 	if(hasPeering && !mPeerings.contains(peering))
 		throw Exception("Added peer with unknown peering");
 	
@@ -237,6 +237,7 @@ void Core::run(void)
 				Address addr;
 				const size_t peekSize = 5;	
 				char peekData[peekSize];
+				std::memset(peekData, 0, peekSize);
 				
 				try {
 					addr = sock->getRemoteAddress();
@@ -244,11 +245,10 @@ void Core::run(void)
 					
 					if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
 						mLastPublicIncomingTime = Time::Now();
-
+					
 					sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
-					if(sock->peekData(peekData, peekSize) != peekSize)
-						continue;
-		
+					sock->peekData(peekData, peekSize);
+					
 					sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
 				}
 				catch(const std::exception &e)
@@ -619,11 +619,11 @@ void Core::Handler::clientHandshake(void)
 		if(SynchronizeTest(mCore, !mCore->mSecrets.get(mPeering, secret)))
 			throw Exception("No secret for peering");
 		
-		String name = "teapotnet:" + mRemotePeering.toString();
+		String name = mRemotePeering.getDigest().toString();
 		mStream = new SecureTransportClient(mStream, new SecureTransportClient::PrivateSharedKey(name, secret));
 	}
 	else {
-		mStream = new SecureTransportClient(mStream, new SecureTransportClient::PrivateSharedKey("teapotnet:anonymous", "anonymous"));
+		mStream = new SecureTransportClient(mStream, new SecureTransportClient::PrivateSharedKey("anonymous", "anonymous"));
 	}
 	
 	String args;
@@ -669,21 +669,23 @@ void Core::Handler::serverHandshake(void)
 		
 		bool callback(const String &name, BinaryString &key)
 		{
-			String tmp(name);
-			String afterColon = tmp.cut(':');
-			if(tmp.toLower() != "teapotnet") return false;
-			
 			// Anonymous account
-			if(afterColon.toLower() == "anonymous")
+			if(name.toLower() == "anonymous")
 			{
 				key = "anonymous";
 				return true;
 			}
 			
-			peering.fromString(afterColon);
+			try {
+				peering.fromString(name);
+			}
+			catch(...)
+			{
+				return false;
+			}
 			
 			BinaryString secret;
-			if(SynchronizeTest(core, !core->mSecrets.get(peering, secret)))
+			if(SynchronizeTest(core, core->mSecrets.get(peering, secret)))
 			{	
 				key = secret;
 				return true;
@@ -881,19 +883,19 @@ void Core::Handler::serverHandshake(void)
 			SynchronizeStatement(mCore, mCore->mRedirections.erase(mPeering));	
 			return;
 		}
-		
-		if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
-			throw Exception("Tried to connect same user on same instance");
-		
-		args.clear();
-		args << mRemotePeering;
-		parameters.clear();
-		parameters["application"] << APPNAME;
-		parameters["version"] << APPVERSION;
-		parameters["instance"] << mPeering.getName();
-		parameters["relay"] << mIsRelayEnabled;
-		sendCommand(mStream, "H", args, parameters);
 	}
+	
+	if(mPeering == mRemotePeering && mPeering.getName() == mCore->getName())
+		throw Exception("Tried to connect same user on same instance");
+		
+	args.clear();
+	args << mRemotePeering;
+	parameters.clear();
+	parameters["application"] << APPNAME;
+	parameters["version"] << APPVERSION;
+	parameters["instance"] << mPeering.getName();
+	parameters["relay"] << mIsRelayEnabled;
+	sendCommand(mStream, "H", args, parameters);
 }
 
 void Core::Handler::process(void)
@@ -904,7 +906,7 @@ void Core::Handler::process(void)
 	try {
 		Synchronize(this);
 		LogDebug("Core::Handler", "Starting...");
-		
+
 		if(mIsIncoming) serverHandshake(); 
 		else clientHandshake();
 
