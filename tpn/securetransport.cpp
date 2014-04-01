@@ -36,8 +36,7 @@ void SecureTransport::Cleanup(void)
 }
 
 SecureTransport::SecureTransport(bool server, Stream *stream) :
-	mStream(stream),
-	mCreds(NULL)
+	mStream(stream)
 {
 	Assert(stream);
 
@@ -48,7 +47,8 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
 		
 		// Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
-		const char *priorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
+		// TODO: Do not hardcode PSK here
+		const char *priorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128:+PSK:+DHE-PSK";
 		const char *err_pos = NULL;
 		if(gnutls_priority_set_direct(mSession, priorities, &err_pos))
 			throw Exception("Unable to set TLS priorities");
@@ -56,7 +56,7 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 		// Set callbacks
 		gnutls_transport_set_ptr(mSession, static_cast<gnutls_transport_ptr_t>(this));
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
-		gnutls_transport_set_pull_function(mSession, WriteCallback);
+		gnutls_transport_set_push_function(mSession, WriteCallback);
 	}
 	catch(...)
 	{
@@ -69,32 +69,35 @@ SecureTransport::~SecureTransport(void)
 {
 	gnutls_deinit(mSession);
 	
-	delete mCreds;
+	for(List<Credentials*>::iterator it = mCreds.begin();
+		it != mCreds.end();
+		++it)
+	{
+		delete *it;
+	}
+	
 	delete mStream;
 }
 
-void SecureTransport::handshake(Credentials *creds)
+void SecureTransport::addCredentials(Credentials *creds)
 {
-	if(creds)
+	// Install credentials
+	try {
+		creds->install(this);
+	}
+	catch(...)
 	{
-		delete mCreds;
-		mCreds = NULL;
-		
-		// Install credentials
-		try {
-			creds->install(this);
-		}
-		catch(...)
-		{
-			delete creds;
-			throw;
-		}
-		
-		mCreds = creds;
+		delete creds;
+		throw;
 	}
-	else {
-		if(!mCreds) throw Exception("Missing credentials for TLS handshake");
-	}
+	
+	mCreds.push_back(creds);
+}
+
+void SecureTransport::handshake(void)
+{
+	if(mCreds.empty())
+		throw Exception("Missing credentials for TLS handshake");
 	
 	// Perform the TLS handshake
 	int ret;
@@ -103,7 +106,7 @@ void SecureTransport::handshake(Credentials *creds)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if (ret < 0) throw Exception("TLS handshake failed");
+        if (ret < 0) throw Exception(String("TLS handshake failed: error ") + gnutls_strerror(ret));
 }
 
 void SecureTransport::close(void)
@@ -155,7 +158,7 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 	}
 }
 
-ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, void* data, size_t len)
+ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)
 {
 	try {
 		SecureTransport *st = static_cast<SecureTransport*>(ptr);
@@ -178,7 +181,11 @@ SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds)
 	SecureTransport(false, stream)
 {
 	try {
-		if(creds) handshake(creds);
+		if(creds) 
+		{
+			addCredentials(creds);
+			handshake();
+		}
 	}
 	catch(...)
 	{
@@ -217,7 +224,7 @@ SecureTransportClient::PrivateSharedKey::PrivateSharedKey(const String &username
 	gnutls_datum_t datum;
 	datum.size = key.size();
 	datum.data = static_cast<unsigned char *>(gnutls_malloc(datum.size));
-	std::memcpy(datum.data, key.data(), datum.size);
+	std::memcpy(datum.data, key.data(), key.size());
 	
 	if(gnutls_psk_set_client_credentials(mCreds, username.c_str(), &datum, GNUTLS_PSK_KEY_RAW) != GNUTLS_E_SUCCESS)
 	{
@@ -262,11 +269,15 @@ SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds)
 	SecureTransport(true, stream)
 {
 	try {
-		if(creds) handshake(creds);
+		if(creds) 
+		{
+			addCredentials(creds);
+			handshake();
+		}
 	}
 	catch(...)
 	{
-		mStream = NULL;	// so stream won't be delete
+		mStream = NULL;	// so stream won't be deleted
 		throw;
 	}
 }

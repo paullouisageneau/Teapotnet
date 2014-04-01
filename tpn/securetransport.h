@@ -25,6 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/stream.h"
 #include "tpn/string.h"
+#include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/mutex.h"
 
@@ -50,7 +51,8 @@ public:
 		virtual void install(gnutls_session_t session) = 0;
 	};
 	
-	void handshake(Credentials *creds);	// creds will be deleted
+	void addCredentials(Credentials *creds); // creds will be deleted
+	void handshake(void);
 	void close(void);
 	
 	size_t readData(char *buffer, size_t size); 
@@ -65,9 +67,9 @@ protected:
 	
 private:
 	static ssize_t ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
-	static ssize_t WriteCallback(gnutls_transport_ptr_t ptr, void* data, size_t len);
+	static ssize_t WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
 	
-	Credentials *mCreds;
+	List<Credentials*> mCreds;
 };
 
 class SecureTransportClient : public SecureTransport
