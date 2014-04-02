@@ -28,7 +28,7 @@
 namespace tpn
 {
 
-class Random : Stream
+class Random : public Stream
 {
 public:
 	enum QualityLevel { Nonce, Crypto, Key };
