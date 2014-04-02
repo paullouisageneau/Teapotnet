@@ -25,6 +25,7 @@
 #include "tpn/config.h"
 #include "tpn/task.h"
 #include "tpn/scheduler.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
@@ -110,7 +111,7 @@ void Splicer::Prefetch(const BinaryString &target)
 	if(maxFileSize > 0)
 	{
 		double average = 1./milliseconds(Config::Get("prefetch_delay").toInt());
-		double delay = -average*std::log(uniform(0.,1.));	// exponential law
+		double delay = -average*std::log(Random().uniform(0.,1.));	// exponential law
 		
 		LogDebug("Splicer::Prefetch", "Scheduling prefetching in " + String::number(int(delay)) + " seconds");
 		PrefetchTask *task = new PrefetchTask(target, maxFileSize);

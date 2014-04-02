@@ -23,6 +23,7 @@
 #include "tpn/user.h"
 #include "tpn/core.h"
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/config.h"
 #include "tpn/file.h"
 #include "tpn/directory.h"
@@ -378,7 +379,7 @@ void AddressBook::update(void)
         {
                 Contact *contact = getContact(keys[i]);
 		
-		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*i + uniform(0., UpdateStep);
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*i + Random().uniform(0., UpdateStep);
 		if(contact) mScheduler.schedule(contact, time);
 	}
 }
@@ -723,7 +724,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 		Interface::Instance->add(contact->urlPrefix(), contact);
 		contact->createProfile();
 		
-		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*ordinal + uniform(0., UpdateStep);
+		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*ordinal + Random().uniform(0., UpdateStep);
 		mScheduler.schedule(contact, time);
 		mScheduler.repeat(contact, UpdateInterval);
 	}
