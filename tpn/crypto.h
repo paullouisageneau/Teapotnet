@@ -27,6 +27,7 @@
 #include "tpn/stream.h"
 
 #include <nettle/sha2.h>
+#include <nettle/ecdsa.h>
 
 namespace tpn
 {
@@ -101,6 +102,66 @@ public:
 	
 private:
 	struct sha512_ctx mCtx;
+};
+
+class Ecdsa : public Serializable
+{
+public:
+	class PrivateKey : public Serializable
+	{
+	public:
+		~PrivateKey(void);
+
+		// Serializable
+        	void serialize(Serializer &s) const;
+        	bool deserialize(Serializer &s);
+        	void serialize(Stream &s) const;
+        	bool deserialize(Stream &s);
+
+	private:
+		PrivateKey(void);
+		
+		struct ecc_scalar mScalar;
+		friend class Ecdsa;
+	};
+
+	class PublicKey : public Serializable
+        {
+        public:
+                 ~PublicKey(void);
+
+                 // Serializable
+                void serialize(Serializer &s) const;
+                bool deserialize(Serializer &s);
+                void serialize(Stream &s) const;
+                bool deserialize(Stream &s);
+
+        private:
+                PublicKey(void);
+		
+		struct ecc_point mPoint;
+		friend class Ecdsa;
+        };
+	
+	Ecdsa(void);
+	~Ecdsa(void);
+	
+	void generate(void);
+	void sign(const BinaryString &digest, BinaryString &signature) const;
+	bool verify(const BinaryString &digest, const BinaryString &signature) const;	
+
+	const PublicKey  &publicKey(void) const;
+	const PrivateKey &privateKey(void) const;
+
+	// Serializable
+	void serialize(Serializer &s) const;
+        bool deserialize(Serializer &s);
+        void serialize(Stream &s) const;
+        bool deserialize(Stream &s);	
+
+private:
+	PrivateKey mPrivateKey;
+	PublicKey  mPublicKey;
 };
 
 }
