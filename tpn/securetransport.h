@@ -37,9 +37,6 @@ namespace tpn
 class SecureTransport : public Stream
 {
 public:
-	static void Init(void);
-	static void Cleanup(void);
-
 	class Credentials
 	{
 	public:

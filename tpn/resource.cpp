@@ -22,6 +22,7 @@
 #include "tpn/resource.h"
 #include "tpn/config.h"
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/store.h"
 #include "tpn/file.h"
 #include "tpn/request.h"
@@ -159,7 +160,7 @@ void Resource::refresh(bool forceLocal)
 		while(Cache.size() >= 1000)
 		{
 			Map<BinaryString, Resource>::iterator it = Cache.begin();
-			int r = uniform(0, int(Cache.size())-1);
+			int r = Random().uniform(0, int(Cache.size())-1);
 			while(r--) it++;
 			Cache.erase(it);
 		}

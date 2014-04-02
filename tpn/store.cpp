@@ -24,6 +24,7 @@
 #include "tpn/directory.h"
 #include "tpn/html.h"
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/lineserializer.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/config.h"
@@ -1517,7 +1518,7 @@ int64_t Store::freeSpace(String path, int64_t maxSize, int64_t space)
 		
 		while(!list.empty() && totalSize > maxSize - space)
 		{
-			int r = uniform(0, int(list.size()));
+			int r = Random().uniform(0, int(list.size()));
 			StringList::iterator it = list.begin();
 			while(r--) ++it;
 			

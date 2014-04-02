@@ -25,16 +25,6 @@
 namespace tpn
 {
 
-void SecureTransport::Init(void)
-{
-	gnutls_global_init();
-}
-
-void SecureTransport::Cleanup(void)
-{
-	gnutls_global_deinit();
-}
-
 SecureTransport::SecureTransport(bool server, Stream *stream) :
 	mStream(stream)
 {

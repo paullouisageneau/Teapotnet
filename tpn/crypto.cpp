@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/exception.h"
 
 #include <nettle/hmac.h>
@@ -217,7 +218,7 @@ Ecdsa::PrivateKey::PrivateKey(void)
 
 Ecdsa::PrivateKey::~PrivateKey(void)
 {
-	ecc_scalar_clear(&mScalar);
+	//ecc_scalar_clear(&mScalar);
 }
 
 void Ecdsa::PrivateKey::serialize(Serializer &s) const
@@ -249,7 +250,7 @@ Ecdsa::PublicKey::PublicKey(void)
 
 Ecdsa::PublicKey::~PublicKey(void)
 {
-	ecc_point_clear(&mPoint);
+	//ecc_point_clear(&mPoint);
 }
 
 void Ecdsa::PublicKey::serialize(Serializer &s) const
@@ -286,12 +287,12 @@ Ecdsa::~Ecdsa(void)
 
 void Ecdsa::generate(void)
 {
-	//ecdsa_generate_keypair(&mPublicKey.mPoint, &mPrivateKey.mScalar, random_ctx, random_func);
+	//ecdsa_generate_keypair(&mPublicKey.mPoint, &mPrivateKey.mScalar, NULL, Random::wrapperKey);
 }
 
 void Ecdsa::sign(const BinaryString &digest, BinaryString &signature) const
 {
-	//ecdsa_sign(&mPrivateKey.mScalar, random_ctx, random_func, digest.size(), digest.bytes(), struct dsa_signature *signature);
+	//ecdsa_sign(&mPrivateKey.mScalar, NULL, Random::wrapperCrypto, digest.size(), digest.bytes(), struct dsa_signature *signature);
 }
 
 bool Ecdsa::verify(const BinaryString &digest, const BinaryString &signature) const

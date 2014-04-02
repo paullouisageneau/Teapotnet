@@ -32,9 +32,9 @@
 #include "tpn/portmapping.h"
 #include "tpn/thread.h"
 #include "tpn/scheduler.h"
-#include "tpn/securetransport.h"
 
 #include <signal.h>
+#include <gnutls/gnutls.h>
 
 #ifdef WINDOWS
 #include <shellapi.h>
@@ -197,6 +197,8 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv 
 
 int main(int argc, char** argv)
 {
+	int returnCode = 0;
+	
 	struct timeval tv;
   	Assert(gettimeofday(&tv, 0) == 0);
   	unsigned seed = unsigned(tv.tv_sec) ^ unsigned(tv.tv_usec); 
@@ -221,6 +223,8 @@ int main(int argc, char** argv)
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_attach_np();
 #endif
+
+	gnutls_global_init();
 	
 	StringMap args;
 	try {
@@ -568,7 +572,6 @@ String plist = "\
 
 		LogInfo("main", "Starting...");
                 File::CleanTemp();
-		SecureTransport::Init();
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))
@@ -726,7 +729,6 @@ String plist = "\
 		}
 		
 		PortMapping::Instance->disable();
-		SecureTransport::Cleanup();
 		LogInfo("main", "Finished");
 	}
 	catch(const std::exception &e)
@@ -761,8 +763,10 @@ String plist = "\
 		CFRelease(headerRef);
 		CFRelease(messageRef);
 #endif
-		return 1;	  
+		returnCode = 1;	  
 	}
+	
+	gnutls_global_deinit();
 	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_detach_np();
@@ -772,5 +776,5 @@ String plist = "\
 	WSACleanup();
 #endif
 	
-	return 0;
+	return returnCode;
 }
