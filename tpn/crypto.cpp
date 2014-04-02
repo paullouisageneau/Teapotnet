@@ -210,5 +210,126 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
+Ecdsa::PrivateKey::PrivateKey(void)
+{
+	//ecc_scalar_init(&mScalar, secp256r1);
+}
+
+Ecdsa::PrivateKey::~PrivateKey(void)
+{
+	ecc_scalar_clear(&mScalar);
+}
+
+void Ecdsa::PrivateKey::serialize(Serializer &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::PrivateKey::deserialize(Serializer &s)
+{
+	// TODO
+	return false;
+}
+
+void Ecdsa::PrivateKey::serialize(Stream &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::PrivateKey::deserialize(Stream &s)
+{
+	// TODO
+	return false;
+}
+		
+Ecdsa::PublicKey::PublicKey(void)
+{
+	//ecc_point_init(&mPoint, secp256r1);
+}
+
+Ecdsa::PublicKey::~PublicKey(void)
+{
+	ecc_point_clear(&mPoint);
+}
+
+void Ecdsa::PublicKey::serialize(Serializer &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::PublicKey::deserialize(Serializer &s)
+{
+	// TODO
+	return false;
+}
+
+void Ecdsa::PublicKey::serialize(Stream &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::PublicKey::deserialize(Stream &s)
+{
+	// TODO
+	return false;
+}
+
+Ecdsa::Ecdsa(void)
+{
+
+}
+
+Ecdsa::~Ecdsa(void)
+{
+
+}
+
+void Ecdsa::generate(void)
+{
+	//ecdsa_generate_keypair(&mPublicKey.mPoint, &mPrivateKey.mScalar, random_ctx, random_func);
+}
+
+void Ecdsa::sign(const BinaryString &digest, BinaryString &signature) const
+{
+	//ecdsa_sign(&mPrivateKey.mScalar, random_ctx, random_func, digest.size(), digest.bytes(), struct dsa_signature *signature);
+}
+
+bool Ecdsa::verify(const BinaryString &digest, const BinaryString &signature) const
+{
+	//return (ecdsa_verify(&mPublicKey.mPoint, digest.size(), digest.bytes(), const struct dsa_signature *signature) == 1);
+}
+
+const Ecdsa::PublicKey &Ecdsa::publicKey(void) const
+{
+	return mPublicKey;
+}
+
+const Ecdsa::PrivateKey &Ecdsa::privateKey(void) const
+{
+	return mPrivateKey;
+}
+
+void Ecdsa::serialize(Serializer &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::deserialize(Serializer &s)
+{
+	// TODO
+	return false;
+}
+
+void Ecdsa::serialize(Stream &s) const
+{
+	// TODO
+}
+
+bool Ecdsa::deserialize(Stream &s)
+{
+	// TODO
+	return false;
+}
+
 }
 
