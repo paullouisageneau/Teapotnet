@@ -570,18 +570,6 @@ void Stream::writeZero(size_t size)
 	}
 }
 
-void Stream::writeRandom(size_t size)
-{
-	char buffer[BufferSize];
-	while(size)
-	{
-		size_t len = std::min(size, BufferSize);
-		cryptrand(buffer, len);
-		writeData(buffer,len);
-		size-= len;
-	}
-}
-
 Stream *Stream::pipeIn(void)
 {
 	return this;

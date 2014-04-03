@@ -39,7 +39,7 @@ public:
 	static String number(double d, int digits = 4);
 	static String number(unsigned int n, int minDigits);
 	static String hexa(unsigned int n, int minDigits = 1);
-	static String random(size_t nbr);
+	static String random(size_t nbr);	// do not use for crypto
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
 	

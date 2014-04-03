@@ -26,6 +26,7 @@
 #include "tpn/set.h"
 #include "tpn/map.h"
 #include "tpn/binarystring.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
@@ -56,7 +57,7 @@ String String::random(size_t nbr)
 	String result;
 	while(nbr--)
 	{
-		int i = cryptrand() % (26 + 26 + 10);
+		int i = Random().readInt() % (26 + 26 + 10);
 		
 		if(i < 26) result+= char('a' + i);
 		else {

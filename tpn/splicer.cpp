@@ -232,7 +232,7 @@ void Splicer::start(bool autoDelete)
 	
 	// Query sources
 	Set<Identifier>::iterator it = mSources.begin();
-	int r = pseudorand() % nbSources;
+	int r = Random().readInt() % nbSources;
 	while(r--) ++it;
 	
 	int i = 0;
@@ -521,7 +521,7 @@ void Splicer::run(void)
 					Set<Identifier>::iterator jt = sources.begin();
 					if(sources.size() > 1)
 					{
-						int r = pseudorand() % sources.size();
+						int r = Random().readInt() % sources.size();
 						while(r--) ++jt;
 					}
 					source = *jt;
