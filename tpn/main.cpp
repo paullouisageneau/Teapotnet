@@ -32,6 +32,7 @@
 #include "tpn/portmapping.h"
 #include "tpn/thread.h"
 #include "tpn/scheduler.h"
+#include "tpn/random.h"
 
 #include <signal.h>
 #include <gnutls/gnutls.h>
@@ -615,7 +616,7 @@ String plist = "\
 			{
 				if(--attempts == 0) throw NetException("Unable to listen for incoming network connections");
 				
-				int newPort = 1024 + pseudorand() % (49151 - 1024);
+				int newPort = 1024 + Random().readInt() % (49151 - 1024);
 				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
 				port = newPort;
 				portChanged = true;

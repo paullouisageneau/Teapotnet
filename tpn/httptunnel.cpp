@@ -23,6 +23,7 @@
 #include "tpn/exception.h"
 #include "tpn/scheduler.h"
 #include "tpn/config.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
@@ -73,7 +74,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				
 				SessionsMutex.lock();
 				while(!session || Sessions.contains(session))
-					session = pseudorand();
+					Random().read(session);
 				Sessions.insert(session, NULL);
 				SessionsMutex.unlock();
 

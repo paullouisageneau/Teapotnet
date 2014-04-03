@@ -257,50 +257,6 @@ inline double milliseconds(int msecs)
 	return double(msecs)*0.001;
 }
 
-inline int pseudorand(void)
-{
-#ifdef WINDOWS
-	return rand();
-#else
-	return int(random());
-#endif
-}
-
-inline void cryptrand(char *buffer, int size)
-{
-#ifdef WINDOWS
-	HCRYPTPROV prov;
-	if(CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, 0)) 
-	{
-		BOOL success = CryptGenRandom(prov, size, reinterpret_cast<BYTE*>(buffer));
-		CryptReleaseContext(prov, 0);
-		if(success) return;
-	}
-	
-	std::generate(buffer, buffer+size, pseudorand);
-#else
-	std::ifstream ifs("/dev/urandom");
-	if(ifs.is_open())
-	{
-		ifs.read(buffer,size);
-		bool success = (ifs.gcount() == size);
-		ifs.close();
-		if(success) return;
-	}
-
-	std::generate(buffer, buffer+size, pseudorand);
-#endif
-}
-
-inline int cryptrand(void)
-{
-	unsigned u = 0;
-	cryptrand(reinterpret_cast<char*>(&u), sizeof(u));
-	return int(u/2);
-}
-
-
-
 #define Queue std::queue
 #define Stack std::stack
 #define Deque std::deque

@@ -24,6 +24,7 @@
 #include "tpn/file.h"
 #include "tpn/directory.h"
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/html.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/jsonserializer.h"
@@ -138,7 +139,8 @@ User::User(const String &name, const String &password, const String &tracker) :
 	}
 		
 	// Token secret
-	mTokenSecret.writeRandom(16);
+	Random rnd(Random::Key);
+	mTokenSecret.writeBinary(rnd, 16);
 	
 	// Secret
 	if(File::Exist(profilePath()+"secret"))
@@ -344,8 +346,9 @@ BinaryString User::getSecretKey(const String &action)
 	// Create secret if it does not exist
 	if(mSecret.empty())
 	{
+		Random rnd(Random::Key);
 		BinaryString secret;
-		secret.writeRandom(64);
+		secret.writeBinary(rnd, 64);
 		setSecret(secret, Time::Now());
 	}
 	
@@ -362,8 +365,10 @@ BinaryString User::getSecretKey(const String &action)
 
 String User::generateToken(const String &action) const
 {
+	Random rnd(Random::Nonce);
+	
 	BinaryString salt;
-	salt.writeRandom(8);
+	salt.writeBinary(rnd, 8);
 
 	BinaryString plain;
 	BinarySerializer splain(&plain);

@@ -25,6 +25,7 @@
 #include "tpn/html.h"
 #include "tpn/jsonserializer.h"
 #include "tpn/core.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
@@ -442,7 +443,7 @@ bool PortMapping::UPnP::check(String &host)
 bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
 	if(mControlUrl.empty()) return false;
-	if(!external) external = 1024 + pseudorand() % (49151 - 1024);
+	if(!external) external = 1024 + Random().readInt() % (49151 - 1024);
 
 	unsigned duration = 3600;	// 1h
 	unsigned attempts = 20;
@@ -520,7 +521,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 					external = 1024 + rnd;
 				}
 				else {
-					external = 1024 + pseudorand() % (49151 - 1024);
+					external = 1024 + Random().readInt() % (49151 - 1024);
 				}
 			}
 			continue;

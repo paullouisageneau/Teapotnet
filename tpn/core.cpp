@@ -24,6 +24,7 @@
 #include "tpn/scheduler.h"
 #include "tpn/bytearray.h"
 #include "tpn/crypto.h"
+#include "tpn/random.h"
 #include "tpn/securetransport.h"
 #include "tpn/httptunnel.h"
 
@@ -1379,7 +1380,7 @@ void Core::Handler::Sender::run(void)
 			{
 				// Keep Alive
 				String args;
-				args << unsigned(cryptrand());
+				args << unsigned(Random().readInt());
 				StringMap parameters;
 				DesynchronizeStatement(this, Handler::sendCommand(mStream, "K", args, parameters));
 
