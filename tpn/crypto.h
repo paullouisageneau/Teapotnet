@@ -27,7 +27,7 @@
 #include "tpn/stream.h"
 
 #include <nettle/sha2.h>
-#include <nettle/ecdsa.h>
+#include <nettle/rsa.h>
 
 namespace tpn
 {
@@ -104,7 +104,7 @@ private:
 	struct sha512_ctx mCtx;
 };
 
-class Ecdsa : public Serializable
+class Rsa : public Serializable
 {
 public:
 	class PrivateKey : public Serializable
@@ -121,8 +121,8 @@ public:
 	private:
 		PrivateKey(void);
 		
-		struct ecc_scalar mScalar;
-		friend class Ecdsa;
+		struct rsa_private_key mKey;
+		friend class Rsa;
 	};
 
 	class PublicKey : public Serializable
@@ -139,12 +139,12 @@ public:
         private:
                 PublicKey(void);
 		
-		struct ecc_point mPoint;
-		friend class Ecdsa;
+		struct rsa_public_key mKey;
+		friend class Rsa;
         };
 	
-	Ecdsa(void);
-	~Ecdsa(void);
+	Rsa(void);
+	~Rsa(void);
 	
 	void generate(void);
 	void sign(const BinaryString &digest, BinaryString &signature) const;

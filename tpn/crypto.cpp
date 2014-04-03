@@ -26,6 +26,10 @@
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
 
+#include <nettle/ecc.h>
+#include <nettle/ecc-curve.h>
+#include <nettle/ecdsa.h>
+
 namespace tpn
 {
 
@@ -211,122 +215,122 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
-Ecdsa::PrivateKey::PrivateKey(void)
-{
-	//ecc_scalar_init(&mScalar, secp256r1);
-}
-
-Ecdsa::PrivateKey::~PrivateKey(void)
-{
-	//ecc_scalar_clear(&mScalar);
-}
-
-void Ecdsa::PrivateKey::serialize(Serializer &s) const
+Rsa::PrivateKey::PrivateKey(void)
 {
 	// TODO
 }
 
-bool Ecdsa::PrivateKey::deserialize(Serializer &s)
+Rsa::PrivateKey::~PrivateKey(void)
+{
+	// TODO
+}
+
+void Rsa::PrivateKey::serialize(Serializer &s) const
+{
+	// TODO
+}
+
+bool Rsa::PrivateKey::deserialize(Serializer &s)
 {
 	// TODO
 	return false;
 }
 
-void Ecdsa::PrivateKey::serialize(Stream &s) const
+void Rsa::PrivateKey::serialize(Stream &s) const
 {
 	// TODO
 }
 
-bool Ecdsa::PrivateKey::deserialize(Stream &s)
+bool Rsa::PrivateKey::deserialize(Stream &s)
 {
 	// TODO
 	return false;
 }
 		
-Ecdsa::PublicKey::PublicKey(void)
-{
-	//ecc_point_init(&mPoint, secp256r1);
-}
-
-Ecdsa::PublicKey::~PublicKey(void)
-{
-	//ecc_point_clear(&mPoint);
-}
-
-void Ecdsa::PublicKey::serialize(Serializer &s) const
+Rsa::PublicKey::PublicKey(void)
 {
 	// TODO
 }
 
-bool Ecdsa::PublicKey::deserialize(Serializer &s)
-{
-	// TODO
-	return false;
-}
-
-void Ecdsa::PublicKey::serialize(Stream &s) const
+Rsa::PublicKey::~PublicKey(void)
 {
 	// TODO
 }
 
-bool Ecdsa::PublicKey::deserialize(Stream &s)
+void Rsa::PublicKey::serialize(Serializer &s) const
+{
+	// TODO
+}
+
+bool Rsa::PublicKey::deserialize(Serializer &s)
 {
 	// TODO
 	return false;
 }
 
-Ecdsa::Ecdsa(void)
+void Rsa::PublicKey::serialize(Stream &s) const
+{
+	// TODO
+}
+
+bool Rsa::PublicKey::deserialize(Stream &s)
+{
+	// TODO
+	return false;
+}
+
+Rsa::Rsa(void)
 {
 
 }
 
-Ecdsa::~Ecdsa(void)
+Rsa::~Rsa(void)
 {
 
 }
 
-void Ecdsa::generate(void)
+void Rsa::generate(void)
 {
-	//ecdsa_generate_keypair(&mPublicKey.mPoint, &mPrivateKey.mScalar, NULL, Random::wrapperKey);
+	// TODO
 }
 
-void Ecdsa::sign(const BinaryString &digest, BinaryString &signature) const
+void Rsa::sign(const BinaryString &digest, BinaryString &signature) const
 {
-	//ecdsa_sign(&mPrivateKey.mScalar, NULL, Random::wrapperCrypto, digest.size(), digest.bytes(), struct dsa_signature *signature);
+	// TODO
 }
 
-bool Ecdsa::verify(const BinaryString &digest, const BinaryString &signature) const
+bool Rsa::verify(const BinaryString &digest, const BinaryString &signature) const
 {
-	//return (ecdsa_verify(&mPublicKey.mPoint, digest.size(), digest.bytes(), const struct dsa_signature *signature) == 1);
+	// TODO
 }
 
-const Ecdsa::PublicKey &Ecdsa::publicKey(void) const
+const Rsa::PublicKey &Rsa::publicKey(void) const
 {
 	return mPublicKey;
 }
 
-const Ecdsa::PrivateKey &Ecdsa::privateKey(void) const
+const Rsa::PrivateKey &Rsa::privateKey(void) const
 {
 	return mPrivateKey;
 }
 
-void Ecdsa::serialize(Serializer &s) const
+void Rsa::serialize(Serializer &s) const
 {
 	// TODO
 }
 
-bool Ecdsa::deserialize(Serializer &s)
+bool Rsa::deserialize(Serializer &s)
 {
 	// TODO
 	return false;
 }
 
-void Ecdsa::serialize(Stream &s) const
+void Rsa::serialize(Stream &s) const
 {
 	// TODO
 }
 
-bool Ecdsa::deserialize(Stream &s)
+bool Rsa::deserialize(Stream &s)
 {
 	// TODO
 	return false;
