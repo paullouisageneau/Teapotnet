@@ -52,6 +52,23 @@ class Core : public Thread, protected Synchronizable
 public:
 	static Core *Instance;
 	
+	class Tunnel : public Stream
+	{
+	public:
+		~Tunnel(void);
+		
+		// Stream
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *data, size_t size);
+		
+	protected:
+		Tunnel(void);
+		
+	private:
+		BinaryString mLocal;
+		BinaryString mRemote;
+	};
+	
 	class Listener
 	{
 	public:
@@ -87,6 +104,38 @@ public:
 	void removeRequest(unsigned id);
 
 private:
+	class Backend : public Stream
+	{
+	public:
+		Backend(void);
+		~Backend(void);
+		
+		// Stream
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *data, size_t size);
+	};
+	
+	class UdpBackend : public Backend
+	{
+	public:
+		UdpBackend(void);
+		~UdpBackend(void);
+	};
+	
+	class TcpBackend : public Backend
+	{
+	public:
+		TcpBackend(void);
+		~TcpBackend(void);
+	};
+	
+	class HttpBackend : public Backend
+	{
+	public:
+		HttpBackend(void);
+		~HttpBackend(void);
+	};
+	
 	bool isRequestSeen(const Request *request);
 	void run(void);
 	
