@@ -77,7 +77,7 @@ public:
 class InvalidData : public Exception
 {
 public:
-    InvalidData(const String &dataName);
+    InvalidData(const String &message);
 };
 
 // If an IO exception occured

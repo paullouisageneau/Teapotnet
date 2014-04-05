@@ -22,13 +22,12 @@
 #include "tpn/crypto.h"
 #include "tpn/random.h"
 #include "tpn/exception.h"
+#include "tpn/binaryserializer.h"
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
 
-#include <nettle/ecc.h>
-#include <nettle/ecc-curve.h>
-#include <nettle/ecdsa.h>
+#include <gmp.h>
 
 namespace tpn
 {
@@ -215,73 +214,266 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
-Rsa::PrivateKey::PrivateKey(void)
-{
-	// TODO
-}
-
-Rsa::PrivateKey::~PrivateKey(void)
-{
-	// TODO
-}
-
-void Rsa::PrivateKey::serialize(Serializer &s) const
-{
-	// TODO
-}
-
-bool Rsa::PrivateKey::deserialize(Serializer &s)
-{
-	// TODO
-	return false;
-}
-
-void Rsa::PrivateKey::serialize(Stream &s) const
-{
-	// TODO
-}
-
-bool Rsa::PrivateKey::deserialize(Stream &s)
-{
-	// TODO
-	return false;
-}
-		
 Rsa::PublicKey::PublicKey(void)
 {
-	// TODO
+	rsa_public_key_init(&mKey);
+}
+
+Rsa::PublicKey::PublicKey(const Rsa::PublicKey &key)
+{
+	rsa_public_key_init(&mKey);
+	*this = key;
 }
 
 Rsa::PublicKey::~PublicKey(void)
 {
-	// TODO
+	rsa_public_key_clear(&mKey);
+}
+
+Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
+{
+	mKey.size = key.mKey.size;
+	mpz_set(mKey.n, key.mKey.n);
+	mpz_set(mKey.e, key.mKey.e);
+	return *this;
+}
+
+bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &signature) const
+{
+	if(digest.empty())
+		throw Exception("Empty digest used for RSA verification");
+	
+	mpz_t s;
+	mpz_init(s);
+	
+	int ret = 0;
+	try {
+		mpz_import_binary(s, signature);
+		
+		switch(digest.size()*8)
+		{
+			case 256: ret = rsa_sha256_verify_digest(&mKey, digest.bytes(), s); break;
+			case 512: ret = rsa_sha512_verify_digest(&mKey, digest.bytes(), s); break;
+			default: throw Exception("Incompatible digest used for RSA signature"); break;
+		}
+	}
+	catch(...)
+	{
+		mpz_clear(s);
+		throw;
+	}
+	
+	mpz_clear(s);
+	return (ret != 0);
 }
 
 void Rsa::PublicKey::serialize(Serializer &s) const
 {
-	// TODO
+	BinaryString e, n;
+	
+	mpz_export_binary(mKey.e, e);
+	mpz_export_binary(mKey.n, n);
+	
+	s.output(e);
+	s.output(n);
 }
 
 bool Rsa::PublicKey::deserialize(Serializer &s)
 {
-	// TODO
-	return false;
+	BinaryString e, n;
+	
+	if(!s.input(e)) return false;
+	AssertIO(s.input(n));
+	
+	try {
+		mpz_import_binary(mKey.e, e);
+		mpz_import_binary(mKey.n, n);
+		if(!rsa_public_key_prepare(&mKey))
+			throw Exception("Invalid parameters");
+	}
+	catch(const Exception &e)
+	{
+		throw InvalidData(String("RSA public key: ") + e.what());
+	}
+	
+	return true;
 }
 
 void Rsa::PublicKey::serialize(Stream &s) const
 {
-	// TODO
+	BinaryString bs;
+	BinarySerializer serializer(&bs);
+	
+	serialize(serializer);
+	String str(bs.base64Encode());
+	s.write(str);
 }
 
 bool Rsa::PublicKey::deserialize(Stream &s)
 {
-	// TODO
-	return false;
+	String str;
+	if(!s.read(str)) return false;
+	
+	try {
+		BinaryString bs(str.base64Decode());
+		BinarySerializer serializer(&bs);
+		AssertIO(deserialize(serializer));
+	}
+	catch(const InvalidData &e)
+	{
+		throw;
+	}
+	catch(const Exception &e)
+	{
+		throw InvalidData(String("Invalid RSA public key: ") + e.what());
+	}
+	
+	return true;
 }
 
-Rsa::Rsa(void)
+Rsa::PrivateKey::PrivateKey(void)
 {
+	rsa_private_key_init(&mKey);
+}
 
+Rsa::PrivateKey::PrivateKey(const PrivateKey &key)
+{
+	rsa_private_key_init(&mKey);
+	*this = key;
+}
+
+Rsa::PrivateKey::~PrivateKey(void)
+{
+	rsa_private_key_clear(&mKey);
+}
+
+Rsa::PrivateKey &Rsa::PrivateKey::operator=(const Rsa::PrivateKey &key)
+{
+	mKey.size = key.mKey.size;
+	mpz_set(mKey.d, key.mKey.d);
+	mpz_set(mKey.p, key.mKey.p);
+	mpz_set(mKey.q, key.mKey.q);
+	mpz_set(mKey.a, key.mKey.a);
+	mpz_set(mKey.b, key.mKey.b);
+	mpz_set(mKey.c, key.mKey.c);
+}
+
+void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) const
+{
+	if(digest.empty())
+		throw Exception("Empty digest used for RSA signature");
+	
+	mpz_t s;
+	mpz_init(s);
+	
+	try {
+		int ret;
+		switch(digest.size()*8)
+		{
+			case 256: ret = rsa_sha256_sign_digest(&mKey, digest.bytes(), s); break;
+			case 512: ret = rsa_sha512_sign_digest(&mKey, digest.bytes(), s); break;
+			default: throw Exception("Incompatible digest used for RSA signature"); break;
+		}
+	
+		if(!ret) throw Exception("RSA signature failed");
+		
+		mpz_export_binary(s, signature);
+	}
+	catch(...)
+	{
+		mpz_clear(s);
+		throw;
+	}
+
+	mpz_clear(s);
+}
+
+void Rsa::PrivateKey::serialize(Serializer &s) const
+{
+	BinaryString d, p, q, a, b, c;
+	
+	mpz_export_binary(mKey.d, d);
+	mpz_export_binary(mKey.p, p);
+	mpz_export_binary(mKey.q, q);
+	mpz_export_binary(mKey.a, a);
+	mpz_export_binary(mKey.b, b);
+	mpz_export_binary(mKey.c, c);
+	
+	s.output(d);
+	s.output(p);
+	s.output(q);
+	s.output(a);
+	s.output(b);
+	s.output(c);
+}
+
+bool Rsa::PrivateKey::deserialize(Serializer &s)
+{
+	BinaryString d, p, q, a, b, c;
+	
+	if(!s.input(d)) return false;
+	AssertIO(s.input(p));
+	AssertIO(s.input(q));
+	AssertIO(s.input(a));
+	AssertIO(s.input(b));
+	AssertIO(s.input(c));
+	
+	try {
+		mpz_import_binary(mKey.d, d);
+		mpz_import_binary(mKey.p, p);
+		mpz_import_binary(mKey.q, q);
+		mpz_import_binary(mKey.a, a);
+		mpz_import_binary(mKey.b, b);
+		mpz_import_binary(mKey.c, c);
+		
+		if(!rsa_private_key_prepare(&mKey))
+			throw Exception("Invalid parameters");
+	}
+	catch(const Exception &e)
+	{
+		throw InvalidData(String("RSA private key: ") + e.what());
+	}
+	
+	return true;
+}
+
+void Rsa::PrivateKey::serialize(Stream &s) const
+{
+	BinaryString bs;
+	BinarySerializer serializer(&bs);
+	
+	serialize(serializer);
+	String str(bs.base64Encode());
+	s.write(str);
+}
+
+bool Rsa::PrivateKey::deserialize(Stream &s)
+{
+	String str;
+	if(!s.read(str)) return false;
+	
+	try {
+		BinaryString bs(str.base64Decode());
+		BinarySerializer serializer(&bs);
+		AssertIO(deserialize(serializer));
+	}
+	catch(const InvalidData &e)
+	{
+		throw;
+	}
+	catch(const Exception &e)
+	{
+		throw InvalidData(String("RSA private key: ") + e.what());
+	}
+	
+	return true;
+}
+
+Rsa::Rsa(unsigned bits) :
+	mBits(bits)
+{
+	Assert(bits >= 1024);
+	Assert(bits <= 16384);
 }
 
 Rsa::~Rsa(void)
@@ -289,51 +481,44 @@ Rsa::~Rsa(void)
 
 }
 
-void Rsa::generate(void)
+void Rsa::generate(PublicKey &pub, PrivateKey &priv)
 {
-	// TODO
+	// Use exponent 65537 for compatibility and performance
+	const unsigned long exponent = 65537;
+	mpz_set_ui(pub.mKey.e, exponent);
+	
+	if(!rsa_generate_keypair (&pub.mKey, &priv.mKey, NULL, Random::wrapperKey, NULL, NULL, mBits, 0 /*e already set*/))
+		throw Exception("RSA keypair generation failed (size=" + String::number(mBits) + ")");
 }
 
-void Rsa::sign(const BinaryString &digest, BinaryString &signature) const
+void mpz_import_binary(mpz_t n, const BinaryString &bs)
 {
-	// TODO
+	mpz_import(n, bs.size(), 1, 1, 1, 0, bs.ptr());	// big endian
 }
 
-bool Rsa::verify(const BinaryString &digest, const BinaryString &signature) const
+void mpz_export_binary(const mpz_t n, BinaryString &bs)
 {
-	// TODO
+	size_t size = (mpz_sizeinbase(n, 2) + 7) / 8;
+	bs.resize(size);
+	
+	size_t len = 0;
+	mpz_export(bs.ptr(), &len, 1, 1, 1, 0, n);	// big endian
+	
+	Assert(len == size);
 }
 
-const Rsa::PublicKey &Rsa::publicKey(void) const
+void mpz_import_string(mpz_t n, const String &str)
 {
-	return mPublicKey;
+	if(mpz_set_str(n, str.c_str(), 16))
+		throw InvalidData("Invalid hexadecimal number: " + str);
 }
 
-const Rsa::PrivateKey &Rsa::privateKey(void) const
+void mpz_export_string(const mpz_t n, String &str)
 {
-	return mPrivateKey;
-}
-
-void Rsa::serialize(Serializer &s) const
-{
-	// TODO
-}
-
-bool Rsa::deserialize(Serializer &s)
-{
-	// TODO
-	return false;
-}
-
-void Rsa::serialize(Stream &s) const
-{
-	// TODO
-}
-
-bool Rsa::deserialize(Stream &s)
-{
-	// TODO
-	return false;
+	size_t size = mpz_sizeinbase(n, 16) + 2;
+	str.resize(size);
+	mpz_get_str(str.ptr(), 16, n);
+	str.resize(std::strlen(str.c_str()));
 }
 
 }

@@ -59,16 +59,16 @@ Unsupported::Unsupported(const String &feature)
 	else mMessage+= " feature";
 }
 
-InvalidData::InvalidData(const String &dataName)
+InvalidData::InvalidData(const String &message)
 {
 	mMessage = "Invalid Data";
-	if(!dataName.empty()) mMessage+= ": " + dataName;
+	if(!message.empty()) mMessage+= ": " + message;
 }
 
 IOException::IOException(const String &message) :
 	Exception(String() + message)
 {
-	mMessage = "IO error";
+	mMessage = "Unexpected end of input";
 	if(!message.empty()) mMessage+= ": " + message;
 }
 
