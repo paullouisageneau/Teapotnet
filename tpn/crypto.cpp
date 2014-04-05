@@ -26,6 +26,7 @@
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
+#include <gnutls/x509.h>
 
 #include <gmp.h>
 
@@ -223,6 +224,32 @@ Rsa::PublicKey::PublicKey(const Rsa::PublicKey &key)
 {
 	rsa_public_key_init(&mKey);
 	*this = key;
+}
+
+Rsa::PublicKey::PublicKey(gnutls_x509_crt_t crt)
+{
+	rsa_public_key_init(&mKey);
+	
+	try {
+		gnutls_datum_t n, e;
+		
+		int ret = gnutls_x509_crt_get_pk_rsa_raw(crt, &n, &e);
+		if(ret != GNUTLS_E_SUCCESS)
+			throw Exception(String("Key exportation failed: ") + gnutls_strerror(ret));
+		
+		mpz_import(mKey.n, n.size, 1, 1, 1, 0, n.data);	// big endian
+		mpz_import(mKey.e, e.size, 1, 1, 1, 0, e.data);	// big endian
+		gnutls_free(n.data);
+		gnutls_free(e.data);
+		
+		if(!rsa_public_key_prepare(&mKey))
+			throw Exception("Invalid parameters");
+	}
+	catch(const std::exception &e)
+	{
+		rsa_public_key_clear(&mKey);
+		throw Exception(String("Unable to get RSA public key from x509 certificate: ") + e.what());
+	}
 }
 
 Rsa::PublicKey::~PublicKey(void)
