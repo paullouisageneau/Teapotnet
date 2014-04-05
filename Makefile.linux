@@ -8,7 +8,7 @@ CXX=g++
 RM=rm -f
 CPPFLAGS=-O2
 LDFLAGS=-O2
-LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgnutls
+LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)

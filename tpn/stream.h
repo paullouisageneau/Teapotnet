@@ -165,7 +165,7 @@ public:
 	bool	readBinary(uint64_t &i);
 	bool	readBinary(float32_t &f);
 	bool	readBinary(float64_t &f);
-
+	
 	template<class T> bool readBinary(T *ptr);
 
 	// Binary writing
@@ -182,7 +182,7 @@ public:
 	void	writeBinary(uint64_t i);
 	void	writeBinary(float32_t f);
 	void	writeBinary(float64_t f);
-
+	
 	template<class T> void writeBinary(const T *ptr);
 
 	void writeZero(size_t size = 1);

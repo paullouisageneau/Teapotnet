@@ -24,6 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/binarystring.h"
+#include "tpn/string.h"
 #include "tpn/stream.h"
 
 #include <nettle/sha2.h>
@@ -104,32 +105,19 @@ private:
 	struct sha512_ctx mCtx;
 };
 
-class Rsa : public Serializable
+class Rsa
 {
 public:
-	class PrivateKey : public Serializable
-	{
-	public:
-		~PrivateKey(void);
-
-		// Serializable
-        	void serialize(Serializer &s) const;
-        	bool deserialize(Serializer &s);
-        	void serialize(Stream &s) const;
-        	bool deserialize(Stream &s);
-
-	private:
-		PrivateKey(void);
-		
-		struct rsa_private_key mKey;
-		friend class Rsa;
-	};
-
 	class PublicKey : public Serializable
         {
         public:
-                 ~PublicKey(void);
-
+		PublicKey(void);
+		PublicKey(const PublicKey &key);
+		~PublicKey(void);
+		PublicKey &operator=(const PublicKey &key);
+	
+		bool verify(const BinaryString &digest, const BinaryString &signature) const;
+		
                  // Serializable
                 void serialize(Serializer &s) const;
                 bool deserialize(Serializer &s);
@@ -137,34 +125,46 @@ public:
                 bool deserialize(Stream &s);
 
         private:
-                PublicKey(void);
-		
 		struct rsa_public_key mKey;
 		friend class Rsa;
         };
 	
-	Rsa(void);
+	class PrivateKey : public Serializable
+	{
+	public:
+		PrivateKey(void);
+		PrivateKey(const PrivateKey &key);
+		~PrivateKey(void);
+		PrivateKey &operator=(const PrivateKey &key);
+		
+		void sign(const BinaryString &digest, BinaryString &signature) const;
+		
+		// Serializable
+        	void serialize(Serializer &s) const;
+        	bool deserialize(Serializer &s);
+        	void serialize(Stream &s) const;
+        	bool deserialize(Stream &s);
+
+	private:
+		struct rsa_private_key mKey;
+		friend class Rsa;
+	};
+	
+	Rsa(unsigned bits = 4096);
 	~Rsa(void);
 	
-	void generate(void);
-	void sign(const BinaryString &digest, BinaryString &signature) const;
-	bool verify(const BinaryString &digest, const BinaryString &signature) const;	
-
-	const PublicKey  &publicKey(void) const;
-	const PrivateKey &privateKey(void) const;
-
-	// Serializable
-	void serialize(Serializer &s) const;
-        bool deserialize(Serializer &s);
-        void serialize(Stream &s) const;
-        bool deserialize(Stream &s);	
+	void generate(PublicKey &pub, PrivateKey &priv);
 
 private:
-	PrivateKey mPrivateKey;
-	PublicKey  mPublicKey;
+	unsigned mBits;
 };
+
+// Add-on functions for custom mpz import/export
+void mpz_import_binary(mpz_t n, const BinaryString &bs);
+void mpz_export_binary(const mpz_t n, BinaryString &bs);
+void mpz_import_string(mpz_t n, const String &str);
+void mpz_export_string(const mpz_t n, String &str);
 
 }
 
 #endif
-

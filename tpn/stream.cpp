@@ -282,7 +282,7 @@ bool Stream::read(bool &b)
 	String str = s.toLower();
 	if(str == "true" || str == "yes" || str == "on" || str == "1") b = true;
 	else if(str.empty() || str == "false" || str == "no" || str == "off"  || str == "0") b = false;
-	else throw Exception("Invalid boolean value: \""+s+"\"");
+	else throw InvalidData("Invalid boolean value: \""+s+"\"");
 	return true;
 }
 
