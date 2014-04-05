@@ -29,6 +29,7 @@
 
 #include <nettle/sha2.h>
 #include <nettle/rsa.h>
+#include <gnutls/gnutls.h>
 
 namespace tpn
 {
@@ -113,6 +114,7 @@ public:
         public:
 		PublicKey(void);
 		PublicKey(const PublicKey &key);
+		PublicKey(gnutls_x509_crt_t crt);
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 	
