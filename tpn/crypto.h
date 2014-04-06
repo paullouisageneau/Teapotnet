@@ -30,6 +30,7 @@
 #include <nettle/sha2.h>
 #include <nettle/rsa.h>
 #include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 
 namespace tpn
 {
