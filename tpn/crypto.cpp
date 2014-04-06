@@ -228,6 +228,9 @@ Rsa::PublicKey::PublicKey(const Rsa::PublicKey &key)
 
 Rsa::PublicKey::PublicKey(gnutls_x509_crt_t crt)
 {
+	if(gnutls_x509_crt_get_pk_algorithm(crt, NULL) != GNUTLS_PK_RSA)
+		throw Exception("Certificate public key algorithm is not RSA");
+	
 	rsa_public_key_init(&mKey);
 	
 	try {
