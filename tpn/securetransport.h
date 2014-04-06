@@ -28,8 +28,11 @@
 #include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/mutex.h"
+#include "tpn/crypto.h"
 
 #include <gnutls/gnutls.h>
+#include <gnutls/abstract.h>
+#include <gnutls/x509.h>
 
 namespace tpn
 {
@@ -47,6 +50,21 @@ public:
 	protected:
 		virtual void install(gnutls_session_t session) = 0;
 	};
+	
+	class Certificate : public Credentials
+        {
+        public:
+                Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+                ~Certificate(void);
+		
+	protected:
+		void install(gnutls_session_t session);
+                gnutls_certificate_credentials_t mCreds;
+		gnutls_pcert_st mPcert;
+		gnutls_privkey_t mPkey;
+		gnutls_x509_crt_t mCrt;
+		gnutls_x509_privkey_t mKey;
+        };
 	
 	void addCredentials(Credentials *creds); // creds will be deleted
 	void handshake(void);
@@ -92,17 +110,6 @@ public:
 	protected:
 		void install(gnutls_session_t session);
                 gnutls_psk_client_credentials_t mCreds;
-        };	
-
-	class Certificate : public Credentials
-        {
-        public:
-                Certificate(const String &filename);
-                ~Certificate(void);
-		
-	protected:
-		void install(gnutls_session_t session);
-                gnutls_certificate_credentials_t mCreds;
         };
 
 	SecureTransportClient(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted

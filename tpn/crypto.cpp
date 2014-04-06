@@ -27,7 +27,6 @@
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
-#include <gnutls/x509.h>
 
 #include <gmp.h>
 

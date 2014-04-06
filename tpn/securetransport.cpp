@@ -167,6 +167,62 @@ void SecureTransport::Credentials::install(SecureTransport *st)
 	install(st->mSession);
 }
 
+SecureTransport::Certificate::Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
+{
+	// Allocate certificate credentials
+	Assert(gnutls_certificate_allocate_credentials(&mCreds) == GNUTLS_E_SUCCESS);
+	Assert(gnutls_privkey_init(&mPkey) == GNUTLS_E_SUCCESS);
+	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
+	Assert(gnutls_x509_privkey_init(&mKey) == GNUTLS_E_SUCCESS);
+
+	try {
+		int ret;
+		
+		Rsa::CreateCertificate(mCrt, mKey, pub, priv);
+		
+		ret = gnutls_pcert_import_x509(&mPcert, mCrt, 0);
+		if(ret != GNUTLS_E_SUCCESS)
+			throw Exception(String("Unable to import X509 certificate: ") + gnutls_strerror(ret));
+		
+		try {
+			ret = gnutls_privkey_import_x509(mPkey, mKey, 0);
+			if(ret != GNUTLS_E_SUCCESS)
+				throw Exception(String("Unable to import X509 key pair: ") + gnutls_strerror(ret));
+			
+			ret = gnutls_certificate_set_key(mCreds, NULL, 0, &mPcert, 1, mPkey);
+			if(ret != GNUTLS_E_SUCCESS)
+				throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
+		}
+		catch(...)
+		{
+			gnutls_pcert_deinit(&mPcert);
+			throw;
+		}
+	}
+	catch(...)
+	{
+		gnutls_certificate_free_credentials(mCreds);
+		gnutls_privkey_deinit(mPkey);
+		gnutls_x509_crt_deinit(mCrt);
+		gnutls_x509_privkey_deinit(mKey);
+		throw;
+	}
+}
+
+SecureTransport::Certificate::~Certificate(void)
+{
+	gnutls_certificate_free_credentials(mCreds);
+	gnutls_pcert_deinit(&mPcert);
+	gnutls_privkey_deinit(mPkey);
+	gnutls_x509_crt_deinit(mCrt);
+	gnutls_x509_privkey_deinit(mKey);
+}
+
+void SecureTransport::Certificate::install(gnutls_session_t session)
+{
+	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
+}
+
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds) :
 	SecureTransport(false, stream)
 {
@@ -233,26 +289,6 @@ SecureTransportClient::PrivateSharedKey::~PrivateSharedKey(void)
 void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
-}
-
-SecureTransportClient::Certificate::Certificate(const String &cafile)
-{
-	// Allocate certificate credentials
-	Assert(gnutls_certificate_allocate_credentials(&mCreds) == GNUTLS_E_SUCCESS);
-	
-	// Set certificate
-	if(gnutls_certificate_set_x509_trust_file(mCreds, cafile.c_str(), GNUTLS_X509_FMT_PEM) != GNUTLS_E_SUCCESS)
-		throw Exception("Invalid CA file: " + cafile);
-}
-
-SecureTransportClient::Certificate::~Certificate(void)
-{
-	gnutls_certificate_free_credentials(mCreds);
-}
-
-void SecureTransportClient::Certificate::install(gnutls_session_t session)
-{
-	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 }
 
 SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds) :
