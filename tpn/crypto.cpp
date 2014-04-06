@@ -23,6 +23,7 @@
 #include "tpn/random.h"
 #include "tpn/exception.h"
 #include "tpn/binaryserializer.h"
+#include "tpn/time.h"
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
@@ -516,6 +517,44 @@ void Rsa::generate(PublicKey &pub, PrivateKey &priv)
 	
 	if(!rsa_generate_keypair (&pub.mKey, &priv.mKey, NULL, Random::wrapperKey, NULL, NULL, mBits, 0 /*e already set*/))
 		throw Exception("RSA keypair generation failed (size=" + String::number(mBits) + ")");
+}
+
+void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv)
+{
+	BinaryString bs_n; mpz_export_binary(pub.mKey.n,  bs_n);
+	BinaryString bs_e; mpz_export_binary(pub.mKey.e,  bs_e);
+	BinaryString bs_d; mpz_export_binary(priv.mKey.d, bs_d);
+	BinaryString bs_p; mpz_export_binary(priv.mKey.p, bs_p);
+	BinaryString bs_q; mpz_export_binary(priv.mKey.q, bs_q);
+	BinaryString bs_c; mpz_export_binary(priv.mKey.c, bs_c);
+	
+	gnutls_datum_t n; n.data = bs_n.bytes(); n.size = bs_n.size();
+	gnutls_datum_t e; e.data = bs_e.bytes(); e.size = bs_e.size();
+	gnutls_datum_t d; d.data = bs_d.bytes(); d.size = bs_d.size();
+	gnutls_datum_t p; p.data = bs_p.bytes(); p.size = bs_p.size();
+	gnutls_datum_t q; q.data = bs_q.bytes(); q.size = bs_q.size();
+	gnutls_datum_t c; c.data = bs_c.bytes(); c.size = bs_c.size();
+	
+	int ret = gnutls_x509_privkey_import_rsa_raw(key, &n, &e, &d, &p, &q, &c);
+	if(ret != GNUTLS_E_SUCCESS)
+		throw Exception(String("Unable to convert RSA key pair to X509: ") + gnutls_strerror(ret));
+	
+	Time activationTime(Time::Now());
+	Time expirationTime(Time::Now()); expirationTime.addDays(365);
+	
+	gnutls_x509_crt_set_activation_time(crt, activationTime.toUnixTime());
+	gnutls_x509_crt_set_expiration_time(crt, expirationTime.toUnixTime());
+	gnutls_x509_crt_set_version(crt, 1);
+	gnutls_x509_crt_set_key(crt, key);
+	
+	const size_t serialSize = 16;
+	char serial[serialSize];
+	Random(Random::Nonce).readData(serial, serialSize);
+	gnutls_x509_crt_set_serial(crt, serial, serialSize);
+	
+	ret = gnutls_x509_crt_sign2(crt, crt, key, GNUTLS_DIG_SHA256, 0);
+	if(ret != GNUTLS_E_SUCCESS)
+		throw Exception(String("Unable to sign X509 certificate: ") + gnutls_strerror(ret));
 }
 
 void mpz_import_binary(mpz_t n, const BinaryString &bs)
