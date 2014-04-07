@@ -148,8 +148,6 @@ public:
                 gnutls_psk_server_credentials_t mCreds;
         };	
 
-	// TODO: server certificate credentials
-	
 	SecureTransportServer(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted
 	~SecureTransportServer(void);
 };
