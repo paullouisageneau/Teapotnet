@@ -167,14 +167,21 @@ void SecureTransport::Credentials::install(SecureTransport *st)
 	install(st->mSession);
 }
 
-SecureTransport::Certificate::Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
+SecureTransport::CertificateCallback::CertificateCallback(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
 	// Allocate certificate credentials
 	Assert(gnutls_certificate_allocate_credentials(&mCreds) == GNUTLS_E_SUCCESS);
+	
 	Assert(gnutls_privkey_init(&mPkey) == GNUTLS_E_SUCCESS);
 	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
 	Assert(gnutls_x509_privkey_init(&mKey) == GNUTLS_E_SUCCESS);
 
+	// gnutls_certificate_set_verify_flags(mCreds, GNUTLS_VERIFY_DISABLE_CA_SIGN
+	// 						| GNUTLS_VERIFY_ALLOW_X509_V1_CA_CRT
+	// 						| GNUTLS_VERIFY_ALLOW_ANY_X509_V1_CA_CRT);
+
+        gnutls_certificate_set_verify_function(mCreds, VerifyCallback);
+	
 	try {
 		int ret;
 		
@@ -209,7 +216,7 @@ SecureTransport::Certificate::Certificate(const Rsa::PublicKey &pub, const Rsa::
 	}
 }
 
-SecureTransport::Certificate::~Certificate(void)
+SecureTransport::CertificateCallback::~CertificateCallback(void)
 {
 	gnutls_certificate_free_credentials(mCreds);
 	gnutls_pcert_deinit(&mPcert);
@@ -218,9 +225,54 @@ SecureTransport::Certificate::~Certificate(void)
 	gnutls_x509_privkey_deinit(mKey);
 }
 
-void SecureTransport::Certificate::install(gnutls_session_t session)
+void SecureTransport::CertificateCallback::install(gnutls_session_t session)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
+	gnutls_session_set_ptr(session, reinterpret_cast<void*>(this));
+}
+
+int SecureTransport::CertificateCallback::VerifyCallback(gnutls_session_t session)
+{
+	CertificateCallback *cc = reinterpret_cast<CertificateCallback*>(gnutls_session_get_ptr(session));
+	
+	if(!cc) 
+	{
+		LogWarn("SecureTransport::Certificate::VerifyCallback", "TLS certificate verification callback called with unknown session");
+		return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+	
+	try {
+		unsigned count = 0;
+		const gnutls_datum_t *array = gnutls_certificate_get_peers(session, &count);
+		if(!array || !count) throw Exception("No certificates retrieved from peer");
+		
+		gnutls_x509_crt_t crt;
+		Assert(gnutls_x509_crt_init(&crt) == GNUTLS_E_SUCCESS);
+		
+		bool valid = false;
+		try {
+			int ret = gnutls_x509_crt_import(crt, array, GNUTLS_X509_FMT_DER);
+			if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
+			
+			Rsa::PublicKey pub(crt);
+			bool valid = cc->callback(pub);
+		}
+		catch(...)
+		{
+			gnutls_x509_crt_deinit(crt);
+			throw;
+		}
+		
+		gnutls_x509_crt_deinit(crt);
+		
+		if(valid) return 0;
+		else return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", String("TLS certificate verification callback failed: ") + e.what());
+		return GNUTLS_E_CERTIFICATE_ERROR;
+	}
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds) :
@@ -329,16 +381,29 @@ void SecureTransportServer::Anonymous::install(gnutls_session_t session)
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_ANON, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-Map<gnutls_session_t, SecureTransportServer::PrivateSharedKeyCallback*> SecureTransportServer::PrivateSharedKeyCallback::CredsMap;
-Map<SecureTransportServer::PrivateSharedKeyCallback*, gnutls_session_t> SecureTransportServer::PrivateSharedKeyCallback::CredsMapReverse;
-Mutex SecureTransportServer::PrivateSharedKeyCallback::CredsMapMutex;
+SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
+{
+	// Allocate PSK credentials
+	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
+	
+	// Set PSK callback
+	gnutls_psk_set_server_credentials_function(mCreds, CredsCallback);
+}
+
+SecureTransportServer::PrivateSharedKeyCallback::~PrivateSharedKeyCallback(void)
+{
+	gnutls_psk_free_server_credentials(mCreds);
+}
+
+void SecureTransportServer::PrivateSharedKeyCallback::install(gnutls_session_t session)
+{
+	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
+	gnutls_session_set_ptr(session, reinterpret_cast<void*>(this));
+}
 
 int SecureTransportServer::PrivateSharedKeyCallback::CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
 {
-	PrivateSharedKeyCallback *pskcb = NULL;
-	CredsMapMutex.lock();
-	CredsMap.get(session, pskcb);
-	CredsMapMutex.unlock();
+	PrivateSharedKeyCallback *pskcb = reinterpret_cast<PrivateSharedKeyCallback*>(gnutls_session_get_ptr(session));
 	
 	if(!pskcb) 
 	{
@@ -360,41 +425,6 @@ int SecureTransportServer::PrivateSharedKeyCallback::CredsCallback(gnutls_sessio
 	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
 	std::memcpy(datum->data, key.data(), datum->size);
 	return 0;
-}
-
-SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
-{
-	// Allocate PSK credentials
-	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
-	
-	// Set PSK callback
-	gnutls_psk_set_server_credentials_function(mCreds, CredsCallback);
-}
-
-SecureTransportServer::PrivateSharedKeyCallback::~PrivateSharedKeyCallback(void)
-{
-	gnutls_psk_free_server_credentials(mCreds);
-	
-	// Remove mapping
-	CredsMapMutex.lock();
-	gnutls_session_t mSession;
-	if(CredsMapReverse.get(this, mSession))
-	{
-		CredsMap.erase(mSession);
-		CredsMapReverse.erase(this);
-	}
-	CredsMapMutex.unlock();
-}
-
-void SecureTransportServer::PrivateSharedKeyCallback::install(gnutls_session_t session)
-{
-	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
-	
-	// Set mapping
-	CredsMapMutex.lock();
-	CredsMap.insert(session, this);
-	CredsMapReverse.insert(this, session);
-	CredsMapMutex.unlock();
 }
 
 }

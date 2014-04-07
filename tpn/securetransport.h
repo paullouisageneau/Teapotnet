@@ -26,8 +26,6 @@
 #include "tpn/stream.h"
 #include "tpn/string.h"
 #include "tpn/list.h"
-#include "tpn/map.h"
-#include "tpn/mutex.h"
 #include "tpn/crypto.h"
 
 #include <gnutls/gnutls.h>
@@ -51,13 +49,17 @@ public:
 		virtual void install(gnutls_session_t session) = 0;
 	};
 	
-	class Certificate : public Credentials
+	class CertificateCallback : public Credentials
         {
         public:
-                Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
-                ~Certificate(void);
+                CertificateCallback(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+                ~CertificateCallback(void);
+		
+		virtual bool callback(const Rsa::PublicKey &pub) = 0;
 		
 	protected:
+		static int VerifyCallback(gnutls_session_t session);
+		
 		void install(gnutls_session_t session);
                 gnutls_certificate_credentials_t mCreds;
 		gnutls_pcert_st mPcert;
@@ -140,10 +142,6 @@ public:
 		virtual bool callback(const String &username, BinaryString &key) = 0;
 		
 	protected:
-		// Mapping to retrieve PrivateSharedKey from static callback
-		static Map<gnutls_session_t, PrivateSharedKeyCallback*> CredsMap;
-		static Map<PrivateSharedKeyCallback*, gnutls_session_t> CredsMapReverse;
-		static Mutex CredsMapMutex;
 		static int CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
 		
 		void install(gnutls_session_t session);
