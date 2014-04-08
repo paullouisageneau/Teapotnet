@@ -119,6 +119,7 @@ public:
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 	
+		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 		
                  // Serializable
@@ -129,6 +130,7 @@ public:
 
         private:
 		struct rsa_public_key mKey;
+		mutable BinaryString mDigest;
 		friend class Rsa;
         };
 	
