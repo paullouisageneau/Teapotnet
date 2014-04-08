@@ -265,7 +265,21 @@ Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
 	mKey.size = key.mKey.size;
 	mpz_set(mKey.n, key.mKey.n);
 	mpz_set(mKey.e, key.mKey.e);
+	mDigest = key.mDigest;
 	return *this;
+}
+
+const BinaryString &Rsa::PublicKey::digest(void) const
+{
+	if(mDigest.empty())
+	{
+		BinaryString tmp;
+		BinarySerializer serializer(&tmp);
+		serialize(serializer);
+		Sha256().compute(tmp, mDigest);
+	}
+	
+	return mDigest;
 }
 
 bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &signature) const
