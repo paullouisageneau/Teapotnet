@@ -25,6 +25,9 @@
 namespace tpn
 {
 
+// Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
+const String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
+	
 SecureTransport::SecureTransport(bool server, Stream *stream) :
 	mStream(stream)
 {
@@ -36,11 +39,9 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
 		
-		// Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
-		// TODO: Do not hardcode PSK here
-		const char *priorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128:+PSK:+DHE-PSK";
+		// Set priorities
 		const char *err_pos = NULL;
-		if(gnutls_priority_set_direct(mSession, priorities, &err_pos))
+		if(gnutls_priority_set_direct(mSession, DefaultPriorities.c_str(), &err_pos))
 			throw Exception("Unable to set TLS priorities");
 		
 		// Set callbacks
@@ -270,7 +271,7 @@ int SecureTransport::CertificateCallback::VerifyCallback(gnutls_session_t sessio
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", String("TLS certificate verification callback failed: ") + e.what());
+		LogWarn("SecureTransportServer::CertificateCallback::VerifyCallback", String("TLS certificate verification callback failed: ") + e.what());
 		return GNUTLS_E_CERTIFICATE_ERROR;
 	}
 }
@@ -340,6 +341,12 @@ SecureTransportClient::PrivateSharedKey::~PrivateSharedKey(void)
 
 void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session)
 {
+	// Enable PSK
+	String priorities = DefaultPriorities + ":+PSK:+DHE-PSK";
+	const char *err_pos = NULL;
+	if(gnutls_priority_set_direct(session, priorities.c_str(), &err_pos))
+		throw Exception("Unable to set TLS priorities for PSK");
+
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
 }
 

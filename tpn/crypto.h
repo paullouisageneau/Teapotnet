@@ -118,7 +118,7 @@ public:
 		PublicKey(gnutls_x509_crt_t crt);
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
-	
+		
 		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 		

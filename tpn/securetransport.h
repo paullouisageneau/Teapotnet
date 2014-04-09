@@ -76,6 +76,8 @@ public:
 	void writeData(const char *data, size_t size);
 
 protected:
+	static const String DefaultPriorities;
+	
 	SecureTransport(bool server, Stream *stream);	// stream will be deleted
 	virtual ~SecureTransport(void);
 	
