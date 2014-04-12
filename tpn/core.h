@@ -25,6 +25,9 @@
 #include "tpn/include.h"
 #include "tpn/address.h"
 #include "tpn/stream.h"
+#include "tpn/bytearray.h"
+#include "tpn/binarystring.h"
+#include "tpn/string.h"
 #include "tpn/serversocket.h"
 #include "tpn/socket.h"
 #include "tpn/pipe.h"
@@ -106,6 +109,40 @@ public:
 private:
 	bool isRequestSeen(const Request *request);
 	void run(void);
+	
+	// Magic header for incoming connections
+	struct Magic
+	{
+		Magic(uint8_t mode);
+		~Magic(void);
+		
+		bool recv(Stream &s);
+		void send(Stream &s) const;
+		
+		// Fields
+		uint8_t major;
+		uint8_t minor;
+		uint8_t revision;
+		uint8_t mode;
+	};
+	
+	
+	// Low-level datagram structure
+	struct Datagram : public Serializable
+	{
+		Datagram(void);
+		~Datagram(void);
+		
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		
+		// Fields
+		Identifier source;		// 32 o
+		Identifier destination;		// 32 o
+		ByteArray descriptor;		// 32 o
+		ByteArray data;			// 1 Ko
+	};
 	
 	class Handler : public Task, public Synchronizable
 	{
