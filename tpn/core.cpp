@@ -421,6 +421,75 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
+Core::Magic::Magic(uint8_t mode)
+{
+	StringList version;
+	String(APPVERSION).explode(version, '.');
+	Assert(version.size() >= 3);
+	
+	StringList::iterator v = version.begin();
+	this->major    = (v++)->toInt();
+	this->minor    = (v++)->toInt();
+	this->revision = (v++)->toInt();
+	this->mode = mode;
+}
+
+Core::Magic::~Magic(void)
+{
+	
+}
+
+bool Core::Magic::recv(Stream &s)
+{
+	uint32_t rnd, data, magic;
+	if(!s.readBinary(rnd))   return false;	// 32 bits
+	if(!s.readBinary(magic)) return false;	// 32 bits
+	if(!s.readBinary(data))  return false;	// 32 bits
+	
+	magic^= rnd;
+	data^=  rnd;
+	
+	// Check magic number
+	if(magic != APPMAGIC) 
+	{
+		LogDebug("Core::Magic::recv", "Invalid magic number");
+		return false;
+	}
+	
+	// Read data
+	BinaryString tmp(reinterpret_cast<char*>(&data), size_t(4));
+	tmp.readBinary(major);		// 8 bits
+	tmp.readBinary(minor);		// 8 bits
+	tmp.readBinary(revision);	// 8 bits
+	tmp.readBinary(mode);		// 8 bits
+	
+	return true;
+}
+
+void Core::Magic::send(Stream &s) const
+{
+	// Random nonce
+	uint32_t rnd;
+	Random(Random::Nonce).read(rnd);
+	
+	// Magic number
+	uint32_t magic = APPMAGIC;
+	
+	// Data
+	BinaryString tmp;
+	tmp.writeBinary(major);		// 8 bits
+	tmp.writeBinary(minor);		// 8 bits
+	tmp.writeBinary(revision);	// 8 bits
+	tmp.writeBinary(mode);		// 8 bits
+	
+	uint32_t data;
+	Assert(tmp.readBinary(data));	// 32 bits
+	
+	s.writeBinary(rnd);		// 32 bits
+	s.writeBinary(magic ^ rnd);	// 32 bits
+	s.writeBinary(data  ^ rnd);	// 32 bits
+}
+
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
 {
 	String line;
