@@ -49,12 +49,19 @@ public:
 	int read(char *buffer, size_t size, Address &sender, double &timeout);
 	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
 	void write(const char *buffer, size_t size, const Address &receiver);
-
+	
 	bool read(Stream &stream, Address &sender, double &timeout);
 	bool read(Stream &stream, Address &sender, const double &timeout = -1.);
+	bool peek(Stream &stream, Address &sender, double &timeout);
+	bool peek(Stream &stream, Address &sender, const double &timeout = -1.);
 	void write(Stream &stream, const Address &receiver);
 	
+	bool wait(double &timeout);
+	
 private:
+	int recv(char *buffer, size_t size, Address &sender, double &timeout, int flags);
+	void send(const char *buffer, size_t size, const Address &receiver, int flags);
+	
 	socket_t mSock;
 	int mPort;
 };

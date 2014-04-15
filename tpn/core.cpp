@@ -421,6 +421,14 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
+Core::Magic::Magic(void)
+{
+	this->major    = 0;
+	this->minor    = 0;
+	this->revision = 0;
+	this->mode     = 0;
+}
+
 Core::Magic::Magic(uint8_t mode)
 {
 	StringList version;
@@ -439,7 +447,7 @@ Core::Magic::~Magic(void)
 	
 }
 
-bool Core::Magic::recv(Stream &s)
+bool Core::Magic::read(Stream &s)
 {
 	uint32_t rnd, data, magic;
 	if(!s.readBinary(rnd))   return false;	// 32 bits
@@ -466,7 +474,7 @@ bool Core::Magic::recv(Stream &s)
 	return true;
 }
 
-void Core::Magic::send(Stream &s) const
+void Core::Magic::write(Stream &s) const
 {
 	// Random nonce
 	uint32_t rnd;
@@ -488,6 +496,109 @@ void Core::Magic::send(Stream &s) const
 	s.writeBinary(rnd);		// 32 bits
 	s.writeBinary(magic ^ rnd);	// 32 bits
 	s.writeBinary(data  ^ rnd);	// 32 bits
+}
+
+Backend::Backend(void)
+{
+	
+}
+
+Backend::~Backend(void)
+{
+	
+}
+
+void Backend::launch(Core *core)
+{
+	
+}
+
+void Backend::addIncoming(Stream *stream)
+{
+	
+}
+
+void Backend::run(void)
+{
+	
+}
+
+StreamBackend::StreamBackend(int port)
+{
+	
+}
+
+StreamBackend::~StreamBackend(void)
+{
+	
+}
+
+void StreamBackend::connect(const Address &addr)
+{
+	
+}
+
+void StreamBackend::listen(void)
+{
+	
+}
+
+DatagramBackend::DatagramBackend(int port)
+{
+	
+}
+
+DatagramBackend::~DatagramBackend(void)
+{
+	
+}
+
+void DatagramBackend::connect(const Address &addr)
+{
+	
+}
+
+void DatagramBackend::run(void)
+{
+	
+}
+
+DatagramBackend::DatagramWrapper::DatagramWrapper(DatagramBackend *backend) :
+	mBackend(backend);
+{
+	Assert(backend);
+}
+
+DatagramBackend::DatagramWrapper::~DatagramWrapper(void)
+{
+	// TODO: unreg.
+}
+
+void DatagramBackend::DatagramWrapper::addIncoming(Stream &datagram);
+{
+	Magic magic;
+	if(!magic.read(datagram))
+	{
+		LogWarn("DatagramBackend::DatagramWrapper::addIncoming", "Invalid magic header");
+		return;
+	}
+	
+	// TODO
+}
+
+size_t DatagramBackend::DatagramWrapper::readData(char *buffer, size_t size)
+{
+	// TODO
+}
+
+void DatagramBackend::DatagramWrapper::writeData(const char *data, size_t size)
+{
+	// TODO
+}
+
+bool DatagramBackend::DatagramWrapper::waitData(double &timeout)
+{
+	// TODO
 }
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)

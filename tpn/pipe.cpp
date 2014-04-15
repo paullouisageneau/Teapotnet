@@ -99,6 +99,15 @@ void Pipe::writeData(const char *data, size_t size)
 	mMutex.unlock();
 }
 
+bool Pipe::waitData(double &timeout)
+{
+	mMutex.lock();
+	bool hasData = mSignal.wait(mMutex, timeout);
+	hasData|= mReadBuffer->waitData(timeout);
+	mMutex.unlock();
+	return hasData;
+}
+
 
 ReadOnlyPipe::ReadOnlyPipe(Stream *buffer)
 {

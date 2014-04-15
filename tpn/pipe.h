@@ -40,10 +40,11 @@ public:
 	void close(void);		// closes the write end
 	bool is_open(void) const;	// true if the write end is open
 	
-	// Stream, Stream
+	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-
+	bool waitData(double &timeout);
+	
 protected:
 	void open(Stream *buffer, bool readOnly = false);
 

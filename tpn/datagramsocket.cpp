@@ -200,6 +200,9 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 		if(ai->ai_family == AF_INET6) 
 			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
+		// TODO: Seems necessary for DTLS
+                setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		
 		// Bind it
 		if(::bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)
 			throw NetException(String("Binding failed on UDP port ") + String::number(port));
@@ -266,31 +269,7 @@ void DatagramSocket::close(void)
 
 int DatagramSocket::read(char *buffer, size_t size, Address &sender, double &timeout)
 {
-	if(timeout > 0.)
-	{
-		fd_set readfds;
-		FD_ZERO(&readfds);
-		FD_SET(mSock, &readfds);
-
-		struct timeval tv;
-		Time::SecondsToStruct(timeout, tv);
-		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
-		if (ret == -1) throw Exception("Unable to wait on socket");
-		if (ret ==  0)
-		{
-			timeout = 0.;
-			return -1;
-		}
-		
-		timeout = Time::StructToSeconds(tv);
-	}
-  
-	sockaddr_storage sa;
-	socklen_t sl = sizeof(sa);
-	int result = ::recvfrom(mSock, buffer, size, 0, reinterpret_cast<sockaddr*>(&sa), &sl);
-	sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-	if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
-	return result;
+	return recv(buffer, size, sender, timeout, 0);
 }
 
 int DatagramSocket::read(char *buffer, size_t size, Address &sender, const double &timeout)
@@ -299,10 +278,20 @@ int DatagramSocket::read(char *buffer, size_t size, Address &sender, const doubl
 	return  read(buffer, size, sender, dummy);
 }
 
+int DatagramSocket::peek(char *buffer, size_t size, Address &sender, double &timeout)
+{
+	return recv(buffer, size, sender, timeout, MSG_PEEK);
+}
+
+int DatagramSocket::peek(char *buffer, size_t size, Address &sender, const double &timeout)
+{
+	double dummy = timeout;
+	return  peek(buffer, size, sender, dummy);
+}
+
 void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
 {
-	int result = ::sendto(mSock, buffer, size, 0, receiver.addr(), receiver.addrLen());
-	if(result < 0) throw NetException("Unable to write to socket (error " + String::number(sockerrno) + ")");
+	send(buffer, size, receiver, 0);
 }
 
 bool DatagramSocket::read(Stream &stream, Address &sender, double &timeout)
@@ -328,6 +317,48 @@ void DatagramSocket::write(Stream &stream, const Address &receiver)
 	size_t size = stream.readData(buffer,MaxDatagramSize);
 	write(buffer, size, receiver);
 	stream.clear();
+}
+
+bool DatagramSocket::wait(double &timeout)
+{
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET(mSock, &readfds);
+	
+	struct timeval tv;
+	Time::SecondsToStruct(timeout, tv);
+	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+	if (ret < 0) throw Exception("Unable to wait on socket");
+	if (ret ==  0)
+	{
+		timeout = 0.;
+		return false;
+	}
+	
+	timeout = Time::StructToSeconds(tv);
+	return true;
+}
+
+int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &timeout, int flags)
+{
+	if(timeout > 0.)
+	{
+		if(!wait(timeout))
+			return -1;
+	}
+  
+	sockaddr_storage sa;
+	socklen_t sl = sizeof(sa);
+	int result = ::recvfrom(mSock, buffer, size, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
+	sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
+	if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
+	return result;
+}
+
+void DatagramSocket::send(const char *buffer, size_t size, const Address &receiver, int flags)
+{
+	int result = ::sendto(mSock, buffer, size, flags, receiver.addr(), receiver.addrLen());
+	if(result < 0) throw NetException("Unable to write to socket (error " + String::number(sockerrno) + ")");
 }
 
 }

@@ -237,7 +237,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			Time::SecondsToStruct(mConnectTimeout, tv);
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
-			if (ret == -1) 
+			if (ret < 0) 
 				throw Exception("Unable to wait on socket");
 			
 			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
@@ -281,6 +281,26 @@ void Socket::writeData(const char *data, size_t size)
 	sendData(data, size, 0);
 }
 
+bool Socket::waitData(double &timeout)
+{
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET(mSock, &readfds);
+
+	struct timeval tv;
+	Time::SecondsToStruct(timeout, tv);
+	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
+	if (ret < 0) throw Exception("Unable to wait on socket");
+	if(ret == 0)
+	{
+		timeout = 0.;
+		return false;
+	}
+	
+	timeout = Time::StructToSeconds(tv);
+	return true;
+}
+
 size_t Socket::peekData(char *buffer, size_t size)
 {
         return recvData(buffer, size, MSG_PEEK);
@@ -290,16 +310,8 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
 	if(mReadTimeout >= 0.)
 	{
-		fd_set readfds;
-		FD_ZERO(&readfds);
-		FD_SET(mSock, &readfds);
-
-		struct timeval tv;
-		Time::SecondsToStruct(mReadTimeout, tv);
-		int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
-		if (ret == -1)
-			throw Exception("Unable to wait on socket");
-		if (ret == 0)
+		double timeout = mReadTimeout;
+		if(!waitData(timeout)) 
 			throw Timeout();
 	}
 

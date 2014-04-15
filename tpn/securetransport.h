@@ -38,6 +38,10 @@ namespace tpn
 class SecureTransport : public Stream
 {
 public:
+	static Init(void);
+	static Cleanup(void);
+	static GenerateParams(void);
+	
 	class Credentials
 	{
 	public:
@@ -77,6 +81,8 @@ public:
 
 protected:
 	static const String DefaultPriorities;
+	static gnutls_dh_params_t Params;
+	static Mutex ParamsMutex;
 	
 	SecureTransport(bool server, Stream *stream);	// stream will be deleted
 	virtual ~SecureTransport(void);
@@ -85,8 +91,9 @@ protected:
 	Stream *mStream;	
 	
 private:
-	static ssize_t ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
-	static ssize_t WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
+	static ssize_t	WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
+	static ssize_t	ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
+	static int	TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
 	
 	List<Credentials*> mCreds;
 };
