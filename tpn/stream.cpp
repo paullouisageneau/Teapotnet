@@ -67,30 +67,15 @@ Stream::~Stream(void)
 
 }
 
-size_t Stream::readData(Stream &s, size_t max)
+bool Stream::waitData(double &timeout)
 {
-	char buffer[BufferSize];
-	size_t left = max;
-	size_t size;
-	while(left && (size = readData(buffer,std::min(BufferSize,left))))
-	{
-		left-= size;
-		s.writeData(buffer,size);
-	}
-	return max-left;
+	return true;
 }
 
-size_t Stream::writeData(Stream &s, size_t max)
+bool Stream::waitData(const double &timeout)
 {
-	char buffer[BufferSize];
-	size_t left = max;
-	size_t size;
-	while(left && (size = s.readData(buffer,std::min(BufferSize,left))))
-	{
-		left-= size;
-		writeData(buffer,size);
-	}
-	return max-left;
+	double tmp = timeout;
+	return waitData(tmp);
 }
 
 void Stream::seekRead(int64_t position)
@@ -128,6 +113,32 @@ bool Stream::ignore(size_t size)
 	}
 
 	return true;
+}
+
+size_t Stream::readData(Stream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = readData(buffer,std::min(BufferSize,left))))
+	{
+		left-= size;
+		s.writeData(buffer,size);
+	}
+	return max-left;
+}
+
+size_t Stream::writeData(Stream &s, size_t max)
+{
+	char buffer[BufferSize];
+	size_t left = max;
+	size_t size;
+	while(left && (size = s.readData(buffer,std::min(BufferSize,left))))
+	{
+		left-= size;
+		writeData(buffer,size);
+	}
+	return max-left;
 }
 
 bool Stream::hexaMode(void)

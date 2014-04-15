@@ -51,18 +51,20 @@ public:
 	// Settings
 	bool hexaMode(void);
 	bool hexaMode(bool enabled);
-		
+	
 	// Data-level access
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-	size_t readData(Stream &s, size_t max);
-	size_t writeData(Stream &s, size_t max);
+	virtual bool waitData(double &timeout);
+	virtual bool waitData(const double &timeout);
 	virtual void seekRead(int64_t position);
 	virtual void seekWrite(int64_t position);
 	virtual void clear(void);
 	virtual void flush(void);
 	virtual bool ignore(size_t size = 1);
 	
+	size_t readData(Stream &s, size_t max);
+	size_t writeData(Stream &s, size_t max);
 	inline void discard(void) { clear(); }
 	
 	// Atomic

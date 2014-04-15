@@ -35,7 +35,6 @@
 #include "tpn/random.h"
 
 #include <signal.h>
-#include <gnutls/gnutls.h>
 
 #ifdef WINDOWS
 #include <shellapi.h>
@@ -225,7 +224,8 @@ int main(int argc, char** argv)
 	pthread_win32_process_attach_np();
 #endif
 
-	gnutls_global_init();
+	// This is necessary for Random
+	SecureTransport::Init();
 	
 	StringMap args;
 	try {
@@ -767,7 +767,7 @@ String plist = "\
 		returnCode = 1;	  
 	}
 	
-	gnutls_global_deinit();
+	SecureTransport::Cleanup();
 	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_detach_np();

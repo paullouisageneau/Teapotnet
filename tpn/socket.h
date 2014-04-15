@@ -56,10 +56,11 @@ public:
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
 
-	// Stream, Stream
+	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-
+	bool waitData(double &timeout);
+	
 	// Socket-specific
 	size_t peekData(char *buffer, size_t size);
 

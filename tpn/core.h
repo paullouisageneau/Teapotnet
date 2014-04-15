@@ -30,6 +30,7 @@
 #include "tpn/string.h"
 #include "tpn/serversocket.h"
 #include "tpn/socket.h"
+#include "tpn/datagramsocket.h"
 #include "tpn/pipe.h"
 #include "tpn/thread.h"
 #include "tpn/mutex.h"
@@ -113,11 +114,12 @@ private:
 	// Magic header for incoming connections
 	struct Magic
 	{
+		Magic(void);
 		Magic(uint8_t mode);
 		~Magic(void);
 		
-		bool recv(Stream &s);
-		void send(Stream &s) const;
+		bool read(Stream &s);
+		void write(Stream &s) const;
 		
 		// Fields
 		uint8_t major;
@@ -126,8 +128,71 @@ private:
 		uint8_t mode;
 	};
 	
+	class Backend : protected Thread
+	{
+	public:
+		Backend(void);
+		virtual ~Backend(void);
+		
+		virtual void connect(const Address &addr) = 0;
+		virtual void listen(void) = 0;
+		
+		void launch(Core *core);
+		void addIncoming(Stream *stream);	// Push the new stream to the core
+		
+	protected:
+		void run(void);
+		
+	private:
+		Core *mCore;
+	};
 	
-	// Low-level datagram structure
+	class StreamBackend : public Backend
+	{
+	public:
+		StreamBackend(int port);
+		~StreamBackend(void);
+		
+		void connect(const Address &addr);
+		void listen(void);
+		
+	private:
+		ServerSocket mSock;
+	};
+	
+	class DatagramBackend : public Backend
+	{
+	public:
+		DatagramBackend(int port);
+		~DatagramBackend(void);
+		
+		void connect(const Address &addr);
+		void run(void);
+		
+	private:
+		class DatagramWrapper : protected Synchronizable, public Stream
+		{
+		public:
+			DatagramWrapper(DatagramBackend *backend);
+			~DatagramWrapper(void);
+			
+			void addIncoming(Stream &datagram);
+			
+			// Stream
+			size_t readData(char *buffer, size_t size);
+			void writeData(const char *data, size_t size);
+			bool waitData(double &timeout);
+			
+		private:
+			Queue<BinaryString> mQueue;
+			DatagramBackend *mBackend;
+		};
+		
+		DatagramSocket mSock;
+		Map<Address, DatagramWrapper*> mWrappers;
+	};
+	
+	// Routing-level datagram structure
 	struct Datagram : public Serializable
 	{
 		Datagram(void);
