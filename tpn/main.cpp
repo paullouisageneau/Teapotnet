@@ -33,6 +33,7 @@
 #include "tpn/thread.h"
 #include "tpn/scheduler.h"
 #include "tpn/random.h"
+#include "tpn/securetransport.h"
 
 #include <signal.h>
 

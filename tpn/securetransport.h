@@ -27,6 +27,8 @@
 #include "tpn/string.h"
 #include "tpn/list.h"
 #include "tpn/crypto.h"
+#include "tpn/serversocket.h"
+#include "tpn/datagramsocket.h"
 
 #include <gnutls/gnutls.h>
 #include <gnutls/abstract.h>
@@ -38,9 +40,9 @@ namespace tpn
 class SecureTransport : public Stream
 {
 public:
-	static Init(void);
-	static Cleanup(void);
-	static GenerateParams(void);
+	static void Init(void);
+	static void Cleanup(void);
+	static void GenerateParams(void);
 	
 	class Credentials
 	{
@@ -78,24 +80,24 @@ public:
 	
 	size_t readData(char *buffer, size_t size); 
 	void writeData(const char *data, size_t size);
-
+	
 protected:
+	static ssize_t	DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
+	static ssize_t	WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
+	static ssize_t	ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
+	static int	TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
+	
 	static const String DefaultPriorities;
 	static gnutls_dh_params_t Params;
 	static Mutex ParamsMutex;
 	
-	SecureTransport(bool server, Stream *stream);	// stream will be deleted
+	SecureTransport(Stream *stream, bool server, bool datagram);	// stream will be deleted
 	virtual ~SecureTransport(void);
 	
 	gnutls_session_t mSession;
 	Stream *mStream;	
 	
 private:
-	static ssize_t	DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
-	static ssize_t	WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
-	static ssize_t	ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
-	static int	TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
-	
 	List<Credentials*> mCreds;
 };
 
@@ -124,7 +126,7 @@ public:
                 gnutls_psk_client_credentials_t mCreds;
         };
 
-	SecureTransportClient(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted
+	SecureTransportClient(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// stream (if success) and creds will be deleted
 	~SecureTransportClient(void);
 };
 
@@ -158,7 +160,11 @@ public:
                 gnutls_psk_server_credentials_t mCreds;
         };	
 
-	SecureTransportServer(Stream *stream, Credentials *creds);	// stream (if success) and creds will be deleted
+	// These functions are preferred, especially for datagrams
+	static Stream *Listen(ServerSocket &sock, Credentials *creds);
+	static Stream *Listen(DatagramSocket &sock, Credentials *creds);
+	
+	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// stream (if success) and creds will be deleted
 	~SecureTransportServer(void);
 };
 

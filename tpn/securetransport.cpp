@@ -21,6 +21,10 @@
 
 #include "tpn/securetransport.h"
 #include "tpn/exception.h"
+#include "tpn/random.h"
+#include "tpn/thread.h"
+
+#include <gnutls/dtls.h>
 
 namespace tpn
 {
@@ -30,148 +34,29 @@ const String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-
 gnutls_dh_params_t SecureTransport::Params;
 Mutex SecureTransport::ParamsMutex;
 
-SecureTransport::Init(void)
+void SecureTransport::Init(void)
 {
 	Assert(gnutls_global_init() ==  GNUTLS_E_SUCCESS);
 	Assert(gnutls_dh_params_init(&Params));
 }
 
-SecureTransport::Cleanup(void)
+void SecureTransport::Cleanup(void)
 {
 	gnutls_global_deinit();
 	gnutls_dh_params_deinit(Params);
 }
 
-SecureTransport::GenerateParams(void)
+void SecureTransport::GenerateParams(void)
 {
 	const int bits = 4096;
-	ParamsMutex.lock();
-	LogDebug("Generating DH parameters");
-	int ret = gnutls_dh_params_generate2(Params, bits);
-	ParamsMutex.unlock();
 	
+	MutexLocker lock(&ParamsMutex);
+	LogDebug("SecureTransport::GenerateParams", "Generating DH parameters");
+	int ret = gnutls_dh_params_generate2(Params, bits);
 	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + gnutls_strerror(ret));
 }
 
-SecureTransport::Datagram(Stream *stream)
-{
-	gnutls_datum_t cookieKey;
-	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
-	
-	Address sender;
-	int len;
-	while(len = sock.peek(buffer, size, sender)) >= 0)
-	{
-		gnutls_dtls_prestate_st prestate;
-		std::memset(&prestate, 0, sizeof(prestate));
-			
-		int ret = gnutls_dtls_cookie_verify(&cookieKey,
-						sender.addr(),
-						sender.addrLen(),
-						buffer, len,
-						&prestate);
-		
-		if(ret < 0)	// cookie not valid
-		{
-			DatagramStream stream(&sock, sender);
-
-			gnutls_dtls_cookie_send(&cookieKey,
-						sender.addr(),
-						sender.addrLen(),
-						&prestate,
-						static_cast<gnutls_transport_ptr_t>(&stream),
-						DirectWriteCallback);
-
-			// discard peeked data
-			sock.read(buffer, size, sender);
-			
-			Thread::Sleep(milliseconds(1));
-			continue;
-		}
-		
-		gnutls_init(&session, GNUTLS_SERVER | GNUTLS_DATAGRAM);
-		gnutls_priority_set(session, priority_cache);
-		gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE,
-					x509_cred);
-		
-		gnutls_dtls_prestate_set(session, &prestate);
-		gnutls_dtls_set_mtu(session, mtu);
-		
-		priv.session = session;
-		priv.fd = sock;
-		priv.cli_addr = (struct sockaddr *) &cli_addr;
-		priv.cli_addr_size = sizeof(cli_addr);
-
-		gnutls_transport_set_ptr(session, &priv);
-		gnutls_transport_set_push_function(session, push_func);
-		gnutls_transport_set_pull_function(session, pull_func);
-		gnutls_transport_set_pull_timeout_function(session,
-								pull_timeout_func);
-
-		do {
-			ret = gnutls_handshake(session);
-		}
-		while (ret == GNUTLS_E_INTERRUPTED
-			|| ret == GNUTLS_E_AGAIN);
-		/* Note that DTLS may also receive GNUTLS_E_LARGE_PACKET.
-			* In that case the MTU should be adjusted.
-			*/
-
-		if (ret < 0) {
-			fprintf(stderr, "Error in handshake(): %s\n",
-				gnutls_strerror(ret));
-			gnutls_deinit(session);
-			continue;
-		}
-
-		printf("- Handshake was completed\n");
-
-		for (;;) {
-			do {
-				ret =
-					gnutls_record_recv_seq(session, buffer,
-								MAX_BUFFER,
-								sequence);
-			}
-			while (ret == GNUTLS_E_AGAIN
-				|| ret == GNUTLS_E_INTERRUPTED);
-
-			if (ret < 0 && gnutls_error_is_fatal(ret) == 0) {
-				fprintf(stderr, "*** Warning: %s\n",
-					gnutls_strerror(ret));
-				continue;
-			} else if (ret < 0) {
-				fprintf(stderr, "Error in recv(): %s\n",
-					gnutls_strerror(ret));
-				break;
-			}
-
-			if (ret == 0) {
-				printf("EOF\n\n");
-				break;
-			}
-
-			buffer[ret] = 0;
-			printf
-				("received[%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x]: %s\n",
-				sequence[0], sequence[1], sequence[2],
-				sequence[3], sequence[4], sequence[5],
-				sequence[6], sequence[7], buffer);
-
-			/* reply back */
-			ret = gnutls_record_send(session, buffer, ret);
-			if (ret < 0) {
-				fprintf(stderr, "Error in send(): %s\n",
-					gnutls_strerror(ret));
-				break;
-			}
-		}
-
-		gnutls_bye(session, GNUTLS_SHUT_WR);
-		gnutls_deinit(session);
-};
-
-SecureTransport::SecureTransport(bool server, Stream *stream) :
+SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 	mStream(stream)
 {
 	Assert(stream);
@@ -180,9 +65,9 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 		if(server && Random().uniform(0, 1000) == 0)
 			GenerateParams();
 		
-		// Init mSession
-		// TODO: GNUTLS_DATAGRAM for DTLS
+		// Init session
 		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
+		if(datagram) flags|= GNUTLS_DATAGRAM;
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
 		
 		// Set priorities
@@ -195,6 +80,8 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 		gnutls_transport_set_push_function(mSession, WriteCallback);
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
 		gnutls_transport_set_pull_timeout_function(mSession, TimeoutCallback);
+		
+		if(datagram) gnutls_dtls_set_mtu(mSession, 1024);	// TODO
 	}
 	catch(...)
 	{
@@ -327,7 +214,7 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 {
 	try {
 		SecureTransport *st = static_cast<SecureTransport*>(ptr);
-		if(st->mStream->waitData(milliseconds(ms)) return 1;
+		if(st->mStream->waitData(milliseconds(ms))) return 1;
 		else return 0;
 	}
 	catch(const std::exception &e)
@@ -348,7 +235,9 @@ SecureTransport::CertificateCallback::CertificateCallback(const Rsa::PublicKey &
 	Assert(gnutls_certificate_allocate_credentials(&mCreds) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
-	Assert(gnutls_certificate_set_dh_params(mCreds, Params) == GNUTLS_E_SUCCESS);
+	ParamsMutex.lock();
+	gnutls_certificate_set_dh_params(mCreds, Params);
+	ParamsMutex.unlock();
 	
 	// Init certificate and key
 	Assert(gnutls_privkey_init(&mPkey) == GNUTLS_E_SUCCESS);
@@ -454,8 +343,8 @@ int SecureTransport::CertificateCallback::VerifyCallback(gnutls_session_t sessio
 	}
 }
 
-SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds) :
-	SecureTransport(false, stream)
+SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, bool datagram) :
+	SecureTransport(stream, false, datagram)
 {
 	try {
 		if(creds) 
@@ -528,8 +417,8 @@ void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session)
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds) :
-	SecureTransport(true, stream)
+SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool datagram) :
+	SecureTransport(stream, true, datagram)
 {
 	try {
 		if(creds) 
@@ -550,13 +439,89 @@ SecureTransportServer::~SecureTransportServer(void)
 	
 }
 
+
+Stream *SecureTransportServer::Listen(ServerSocket &lsock, Credentials *creds)
+{
+	while(true)
+	{
+		Socket *sock = new Socket;
+		
+		try {
+			lsock.accept(*sock);
+			return new SecureTransportServer(sock, creds, true);
+		}
+		catch(const std::exception &e)
+		{
+			delete sock;
+			LogWarn("SecureTransportServer::Listen(stream)", e.what());
+		}
+	}
+}
+
+Stream *SecureTransportServer::Listen(DatagramSocket &sock, Credentials *creds)
+{
+	gnutls_datum_t cookieKey;
+	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
+	
+	while(true)
+	{
+		char buffer[DatagramSocket::MaxDatagramSize];
+		Address sender;
+		int len = sock.peek(buffer, DatagramSocket::MaxDatagramSize, sender);
+		if(len < 0) throw NetException("Failed to listen on datagram socket");
+		
+		gnutls_dtls_prestate_st prestate;
+		std::memset(&prestate, 0, sizeof(prestate));
+			
+		int ret = gnutls_dtls_cookie_verify(&cookieKey,
+						const_cast<sockaddr*>(sender.addr()),	// WTF ?
+						sender.addrLen(),
+						buffer, len,
+						&prestate);
+		
+		if(ret == GNUTLS_E_SUCCESS)	// valid cookie
+		{
+			Stream *stream = new DatagramStream(&sock, sender);
+			SecureTransportServer *result = NULL;
+			try {
+				result = new SecureTransportServer(stream, creds, true);
+			}
+			catch(const std::exception &e)
+			{
+				delete stream;
+				LogWarn("SecureTransportServer::Listen(datagram)", e.what());
+				continue;
+			}
+			
+			gnutls_dtls_prestate_set(result->mSession, &prestate);
+			return result;
+		}
+		
+		DatagramStream stream(&sock, sender);
+		
+		gnutls_dtls_cookie_send(&cookieKey,
+					const_cast<sockaddr*>(sender.addr()),	// WTF ?
+					sender.addrLen(),
+					&prestate,
+					static_cast<gnutls_transport_ptr_t>(&stream),
+					DirectWriteCallback);
+
+		// discard peeked data
+		sock.read(buffer, DatagramSocket::MaxDatagramSize, sender);
+		
+		Thread::Sleep(milliseconds(1));
+	}
+}
+
 SecureTransportServer::Anonymous::Anonymous(void)
 {
 	// Allocate anonymous credentials
 	Assert(gnutls_anon_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
-	Assert(gnutls_anon_set_server_dh_params(mCreds, Params) == GNUTLS_E_SUCCESS);
+	ParamsMutex.lock();
+	gnutls_anon_set_server_dh_params(mCreds, Params);
+	ParamsMutex.unlock();
 }
 
 SecureTransportServer::Anonymous::~Anonymous(void)
@@ -575,7 +540,9 @@ SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
 	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
-	Assert(gnutls_psk_set_server_dh_params(&mCreds, Params) == GNUTLS_E_SUCCESS);
+	ParamsMutex.lock();
+	gnutls_psk_set_server_dh_params(mCreds, Params);
+	ParamsMutex.unlock();
 	
 	// Set PSK callback
 	gnutls_psk_set_server_credentials_function(mCreds, CredsCallback);
