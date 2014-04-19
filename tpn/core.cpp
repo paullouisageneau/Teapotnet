@@ -498,107 +498,69 @@ void Core::Magic::write(Stream &s) const
 	s.writeBinary(data  ^ rnd);	// 32 bits
 }
 
-Backend::Backend(void)
+Core::Backend::Backend(void)
 {
 	
 }
 
-Backend::~Backend(void)
+Core::Backend::~Backend(void)
 {
 	
 }
 
-void Backend::launch(Core *core)
+void Core::Backend::launch(Core *core)
 {
 	
 }
 
-void Backend::addIncoming(Stream *stream)
+void Core::Backend::addIncoming(Stream *stream)
 {
 	
 }
 
-void Backend::run(void)
+void Core::Backend::run(void)
 {
 	
 }
 
-StreamBackend::StreamBackend(int port)
+Core::StreamBackend::StreamBackend(int port)
 {
 	
 }
 
-StreamBackend::~StreamBackend(void)
+Core::StreamBackend::~StreamBackend(void)
 {
 	
 }
 
-void StreamBackend::connect(const Address &addr)
+void Core::StreamBackend::connect(const Address &addr)
 {
 	
 }
 
-void StreamBackend::listen(void)
+void Core::StreamBackend::listen(void)
 {
 	
 }
 
-DatagramBackend::DatagramBackend(int port)
+Core::DatagramBackend::DatagramBackend(int port)
 {
 	
 }
 
-DatagramBackend::~DatagramBackend(void)
+Core::DatagramBackend::~DatagramBackend(void)
 {
 	
 }
 
-void DatagramBackend::connect(const Address &addr)
+void Core::DatagramBackend::connect(const Address &addr)
 {
 	
 }
 
-void DatagramBackend::run(void)
+void Core::DatagramBackend::listen(void)
 {
 	
-}
-
-DatagramBackend::DatagramWrapper::DatagramWrapper(DatagramBackend *backend) :
-	mBackend(backend);
-{
-	Assert(backend);
-}
-
-DatagramBackend::DatagramWrapper::~DatagramWrapper(void)
-{
-	// TODO: unreg.
-}
-
-void DatagramBackend::DatagramWrapper::addIncoming(Stream &datagram);
-{
-	Magic magic;
-	if(!magic.read(datagram))
-	{
-		LogWarn("DatagramBackend::DatagramWrapper::addIncoming", "Invalid magic header");
-		return;
-	}
-	
-	// TODO
-}
-
-size_t DatagramBackend::DatagramWrapper::readData(char *buffer, size_t size)
-{
-	// TODO
-}
-
-void DatagramBackend::DatagramWrapper::writeData(const char *data, size_t size)
-{
-	// TODO
-}
-
-bool DatagramBackend::DatagramWrapper::waitData(double &timeout)
-{
-	// TODO
 }
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
