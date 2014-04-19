@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -53,54 +53,41 @@ SecureTransport::GenerateParams(void)
 	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + gnutls_strerror(ret));
 }
 
-SecureTransport::Datagram(DatagramSocket &sock)
+SecureTransport::Datagram(Stream *stream)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
 	
-	// TODO: sock should be a stream, cf magic header etc
-	// TODO: mStream MUST be set (for WriteCallback)
-	
-	for (;;)
+	Address sender;
+	int len;
+	while(len = sock.peek(buffer, size, sender)) >= 0)
 	{
-		Address sender;
-		int len = sock.peek(buffer, size, sender, timeout);
+		gnutls_dtls_prestate_st prestate;
+		std::memset(&prestate, 0, sizeof(prestate));
+			
+		int ret = gnutls_dtls_cookie_verify(&cookieKey,
+						sender.addr(),
+						sender.addrLen(),
+						buffer, len,
+						&prestate);
 		
-		if (len > 0)
+		if(ret < 0)	// cookie not valid
 		{
-			gnutls_dtls_prestate_st prestate;
-			std::memset(&prestate, 0, sizeof(prestate));
-			
-			int ret = gnutls_dtls_cookie_verify(&cookieKey,
-							sender.addr(),
-							sender.addrLen(),
-							buffer, len,
-							&prestate);
-			
-			if (ret < 0)	// cookie not valid
-			{
-				gnutls_dtls_cookie_send(&cookieKey,
-							sender.addr(),
-							sender.addrLen(),
-							&prestate,
-							static_cast<gnutls_transport_ptr_t>(this),
-							WriteCallback);
+			DatagramStream stream(&sock, sender);
 
-				// discard peeked data
-				sock.read(buffer, size, sender);
-				
-				Thread::Sleep(milliseconds(1));
-				continue;
-			}
+			gnutls_dtls_cookie_send(&cookieKey,
+						sender.addr(),
+						sender.addrLen(),
+						&prestate,
+						static_cast<gnutls_transport_ptr_t>(&stream),
+						DirectWriteCallback);
+
+			// discard peeked data
+			sock.read(buffer, size, sender);
 			
-			//printf("Accepted connection from %s\n",
-			//	human_addr((struct sockaddr *)
-			//			&cli_addr, sizeof(cli_addr),
-			//			buffer, sizeof(buffer)));
-		} else
+			Thread::Sleep(milliseconds(1));
 			continue;
-		
-		// TODO
+		}
 		
 		gnutls_init(&session, GNUTLS_SERVER | GNUTLS_DATAGRAM);
 		gnutls_priority_set(session, priority_cache);
@@ -194,7 +181,7 @@ SecureTransport::SecureTransport(bool server, Stream *stream) :
 			GenerateParams();
 		
 		// Init mSession
-		// TODO: DTLS
+		// TODO: GNUTLS_DATAGRAM for DTLS
 		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
 		
@@ -293,6 +280,20 @@ void SecureTransport::writeData(const char *data, size_t size)
 		size-= ret;
 	}
 	while(size);
+}
+
+ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)
+{
+	try {
+		Stream *s = static_cast<Stream*>(ptr);
+		s->writeData(static_cast<const char*>(data), len);
+		return ssize_t(len);
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("SecureTransport::DirectWriteCallback", e.what());
+		return -1;
+	}
 }
 
 ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)

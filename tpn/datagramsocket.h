@@ -26,14 +26,17 @@
 #include "tpn/address.h"
 #include "tpn/stream.h"
 #include "tpn/list.h"
+#include "tpn/map.h"
 
 namespace tpn
 {
 
+class DatagramStream;
+
 class DatagramSocket
 {
 public:
-	static const int MaxDatagramSize;
+	static const size_t MaxDatagramSize;
 	
 	DatagramSocket(int port = 0, bool broadcast = false);
 	DatagramSocket(const Address &local, bool broadcast = false);
@@ -58,12 +61,43 @@ public:
 	
 	bool wait(double &timeout);
 	
+	void accept(DatagramStream &stream);
+
 private:
 	int recv(char *buffer, size_t size, Address &sender, double &timeout, int flags);
 	void send(const char *buffer, size_t size, const Address &receiver, int flags);
 	
 	socket_t mSock;
 	int mPort;
+
+	void registerStream(const Address &addr, DatagramStream *stream);
+	void unregisterStream(const Address &addr, DatagramStream *stream);
+
+	// Mapped streams
+	Map<Address, DatagramStream*> mStreams;
+	Mutex mStreamsMutex;
+};
+
+DatagramStream : public Stream
+{
+public:
+	DatagramStream(DatagramSocket *sock, const Address &addr);	// sock WON'T be destroyed
+	~DatagramStream(void);
+
+	Address getLocalAddress(void) const;
+	Address getRemoteAddress(void) const;
+
+	// Stream
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
+	bool waitData(double &timeout);			
+
+private:
+	DatagramSocket *mSock;
+	Address mAddr;
+	char *mBufferPtr;
+	size_t mBufferPtrSize;	
+	Synchronizable mBufferPtrSync;
 };
 
 }
