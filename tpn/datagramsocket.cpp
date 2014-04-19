@@ -201,7 +201,7 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
 		// TODO: Seems necessary for DTLS
-                setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+                //setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
 		
 		// Bind it
 		if(::bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)
@@ -259,13 +259,14 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 
 void DatagramSocket::close(void)
 {
-	MutexLocker(&mStreamsMutex);
+	MutexLocker lock(&mStreamsMutex);
+	
 	for(Map<Address, DatagramStream*>::iterator it = mStreams.begin();
 		it != mStreams.end();
 		++it)
 	{
 		it->second->mSock = NULL;
-		stream->mBufferPtrSync.notifyAll();
+		it->second->mBufferSync.notifyAll();
 	}
 
 	if(mSock != INVALID_SOCKET)
@@ -318,6 +319,23 @@ bool DatagramSocket::read(Stream &stream, Address &sender, const double &timeout
 {
 	double dummy = timeout;
 	return  read(stream, sender, dummy);
+}
+
+bool DatagramSocket::peek(Stream &stream, Address &sender, double &timeout)
+{
+	stream.clear();
+	char buffer[MaxDatagramSize];
+	int size = MaxDatagramSize;
+	size = peek(buffer, size, sender, timeout);
+	if(size < 0) return false;
+	stream.writeData(buffer,size);
+	return true;
+}
+
+bool DatagramSocket::peek(Stream &stream, Address &sender, const double &timeout)
+{
+	double dummy = timeout;
+	return peek(stream, sender, dummy);
 }
 
 void DatagramSocket::write(Stream &stream, const Address &receiver)
@@ -378,7 +396,7 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
 			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 
-			mStreamsMutex.lock();
+			MutexLocker lock(&mStreamsMutex);
 			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender);
 			if(it == mStreams.end())
 			{
@@ -387,20 +405,20 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 				std::memcpy(buffer, datagramBuffer, result);
 				break;
 			}
-			mStreamsMutex.unlock();
 
 			DatagramStream *stream = it->second;
 			Assert(stream);
 
 			if(result > 0)
 			{
-				Synchronize(&stream->mBufferPtrSync);
-				stream->mBufferPtr = datagramBuffer;
-				stream->mBufferPtrSize = size_t(result);
-				stream->mBufferPtrSync.notifyAll();
-				stream->mBufferPtrSync.wait();
-				stream->mBufferPtr = NULL;
-				stream->mBufferPtrSize = 0;
+				Synchronize(&stream->mBufferSync);
+				
+				// Wait for last datagram to be processed
+				while(!stream->mBuffer.empty())
+					stream->mBufferSync.wait();
+				
+				stream->mBuffer.assign(datagramBuffer, result);
+				stream->mBufferSync.notifyAll();
 			}		
 		}
 	}
@@ -414,18 +432,57 @@ void DatagramSocket::send(const char *buffer, size_t size, const Address &receiv
 	if(result < 0) throw NetException("Unable to write to socket (error " + String::number(sockerrno) + ")");
 }
 
+void DatagramSocket::accept(DatagramStream &stream)
+{
+	BinaryString buffer;
+	Address sender;
+	read(buffer, sender);
+	
+	unregisterStream(&stream);
+	
+	stream.mSock = this;
+	stream.mAddr = sender;
+	std::swap(stream.mBuffer, buffer);
+}
+
+void DatagramSocket::registerStream(const Address &addr, DatagramStream *stream)
+{
+	Assert(stream);
+	MutexLocker lock(&mStreamsMutex);
+	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr);
+	if(it != mStreams.end() && it->second != stream) it->second->mSock = NULL;
+	mStreams.insert(addr, stream);
+}
+
+bool DatagramSocket::unregisterStream(DatagramStream *stream)
+{
+	Assert(stream);
+	MutexLocker lock(&mStreamsMutex);
+	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr);
+	if(it == mStreams.end() || it->second != stream) return false;
+	mStreams.erase(it);
+	return true;
+}
+
+double DatagramStream::ReadTimeout = 60.; // 1 min
+
+DatagramStream::DatagramStream(void) :
+	mSock(NULL)
+{
+	
+}
+
 DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 	mSock(sock),
-	mAddr(addr),
-	mBufferPtr(NULL),
-	mBufferPtrSize(0)
+	mAddr(addr)
 {
-	Assert(sock);
+	Assert(mSock);
+	mSock->registerStream(addr, this);
 }
 
 DatagramStream::~DatagramStream(void)
 {
-	// sock is not destroyed
+	if(mSock) mSock->unregisterStream(this);
 }
 
 Address DatagramStream::getLocalAddress(void) const
@@ -441,35 +498,38 @@ Address DatagramStream::getRemoteAddress(void) const
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	Synchronize(&mBufferPtrSync);
-	while(!mBufferPtr)
+	Synchronize(&mBufferSync);
+	
+	double timeout = ReadTimeout;
+	while(mBuffer.empty())
 	{
 		if(!mSock) return 0;
-		mBufferPtrSync.wait(timeout);
+		if(!mBufferSync.wait(timeout)) return false;
 	}
 
-	Assert(mBufferPtrSize);
-	size = std::min(size, mBufferPtrSize);
-	std::memcpy(buffer, mBufferPtr, size);
-	mBufferPtrSync.notifyAll();	
+	size = std::min(size, size_t(mBuffer.size()));
+	std::memcpy(buffer, mBuffer.data(), size);
+	mBuffer.clear();
+	mBufferSync.notifyAll();	
 	return size;
 }
 
 void DatagramStream::writeData(const char *data, size_t size)
 {
 	if(!mSock) throw Exception("Datagram socket closed");
-	mSock->write(buffer, size, mAddr);
+	mSock->write(data, size, mAddr);
 }
 
 bool DatagramStream::waitData(double &timeout)
 {
-	Synchronize(&mBufferPtrSync);
-	if(!mSock) return true;	// readData will return 0
+	Synchronize(&mBufferSync);
 	
-	while(!mBufferPtr)
-		if(!mBufferPtrSync.wait(timeout))
-			return false;
-
+	while(mBuffer.empty())
+	{
+		if(!mSock) return true;	// readData will return 0
+		if(!mBufferSync.wait(timeout)) return false;
+	}
+	
 	return true;
 }
 

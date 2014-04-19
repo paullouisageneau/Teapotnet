@@ -27,6 +27,7 @@
 #include "tpn/stream.h"
 #include "tpn/list.h"
 #include "tpn/map.h"
+#include "tpn/synchronizable.h"
 
 namespace tpn
 {
@@ -51,6 +52,8 @@ public:
 	
 	int read(char *buffer, size_t size, Address &sender, double &timeout);
 	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
+	int peek(char *buffer, size_t size, Address &sender, double &timeout);
+	int peek(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
 	void write(const char *buffer, size_t size, const Address &receiver);
 	
 	bool read(Stream &stream, Address &sender, double &timeout);
@@ -62,7 +65,9 @@ public:
 	bool wait(double &timeout);
 	
 	void accept(DatagramStream &stream);
-
+	void registerStream(const Address &addr, DatagramStream *stream);
+	bool unregisterStream(DatagramStream *stream);
+	
 private:
 	int recv(char *buffer, size_t size, Address &sender, double &timeout, int flags);
 	void send(const char *buffer, size_t size, const Address &receiver, int flags);
@@ -70,18 +75,16 @@ private:
 	socket_t mSock;
 	int mPort;
 
-	void registerStream(const Address &addr, DatagramStream *stream);
-	void unregisterStream(const Address &addr, DatagramStream *stream);
-
 	// Mapped streams
 	Map<Address, DatagramStream*> mStreams;
 	Mutex mStreamsMutex;
 };
 
-DatagramStream : public Stream
+class DatagramStream : public Stream
 {
 public:
-	DatagramStream(DatagramSocket *sock, const Address &addr);	// sock WON'T be destroyed
+	DatagramStream(void);
+	DatagramStream(DatagramSocket *sock, const Address &addr);
 	~DatagramStream(void);
 
 	Address getLocalAddress(void) const;
@@ -92,12 +95,15 @@ public:
 	void writeData(const char *data, size_t size);
 	bool waitData(double &timeout);			
 
+	static double ReadTimeout;
+	
 private:
 	DatagramSocket *mSock;
 	Address mAddr;
-	char *mBufferPtr;
-	size_t mBufferPtrSize;	
-	Synchronizable mBufferPtrSync;
+	BinaryString mBuffer;
+	Synchronizable mBufferSync;
+	
+	friend class DatagramSocket;
 };
 
 }
