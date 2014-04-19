@@ -27,7 +27,7 @@
 namespace tpn
 {
 
-const int DatagramSocket::MaxDatagramSize = 1500;
+const size_t DatagramSocket::MaxDatagramSize = 1500;
 
 DatagramSocket::DatagramSocket(int port, bool broadcast) :
 		mSock(INVALID_SOCKET)
@@ -259,6 +259,15 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 
 void DatagramSocket::close(void)
 {
+	MutexLocker(&mStreamsMutex);
+	for(Map<Address, DatagramStream*>::iterator it = mStreams.begin();
+		it != mStreams.end();
+		++it)
+	{
+		it->second->mSock = NULL;
+		stream->mBufferPtrSync.notifyAll();
+	}
+
 	if(mSock != INVALID_SOCKET)
 	{
 		::closesocket(mSock);
@@ -341,17 +350,61 @@ bool DatagramSocket::wait(double &timeout)
 
 int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &timeout, int flags)
 {
-	if(timeout > 0.)
+	int result = 0;
+	size = std::min(size, MaxDatagramSize);
+
+	while(true)
 	{
-		if(!wait(timeout))
-			return -1;
-	}
+		if(timeout >= 0.)
+		{
+			if(!wait(timeout))
+				return -1;
+		}
   
-	sockaddr_storage sa;
-	socklen_t sl = sizeof(sa);
-	int result = ::recvfrom(mSock, buffer, size, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
-	sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-	if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
+		if(mStreams.empty())
+		{
+			sockaddr_storage sa;
+			socklen_t sl = sizeof(sa);
+			result = ::recvfrom(mSock, buffer, size, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
+			if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
+			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
+			break;
+		}
+		else {
+			char datagramBuffer[MaxDatagramSize];
+			sockaddr_storage sa;
+			socklen_t sl = sizeof(sa);
+			result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
+			if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
+			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
+
+			mStreamsMutex.lock();
+			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender);
+			if(it == mStreams.end())
+			{
+				mStreamsMutex.unlock();
+				result = std::min(result, int(size));
+				std::memcpy(buffer, datagramBuffer, result);
+				break;
+			}
+			mStreamsMutex.unlock();
+
+			DatagramStream *stream = it->second;
+			Assert(stream);
+
+			if(result > 0)
+			{
+				Synchronize(&stream->mBufferPtrSync);
+				stream->mBufferPtr = datagramBuffer;
+				stream->mBufferPtrSize = size_t(result);
+				stream->mBufferPtrSync.notifyAll();
+				stream->mBufferPtrSync.wait();
+				stream->mBufferPtr = NULL;
+				stream->mBufferPtrSize = 0;
+			}		
+		}
+	}
+	
 	return result;
 }
 
@@ -359,6 +412,65 @@ void DatagramSocket::send(const char *buffer, size_t size, const Address &receiv
 {
 	int result = ::sendto(mSock, buffer, size, flags, receiver.addr(), receiver.addrLen());
 	if(result < 0) throw NetException("Unable to write to socket (error " + String::number(sockerrno) + ")");
+}
+
+DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
+	mSock(sock),
+	mAddr(addr),
+	mBufferPtr(NULL),
+	mBufferPtrSize(0)
+{
+	Assert(sock);
+}
+
+DatagramStream::~DatagramStream(void)
+{
+	// sock is not destroyed
+}
+
+Address DatagramStream::getLocalAddress(void) const
+{
+	// TODO: this is actually different from local address
+	return mSock->getBindAddress();
+}
+
+Address DatagramStream::getRemoteAddress(void) const
+{
+	return mAddr;
+}
+
+size_t DatagramStream::readData(char *buffer, size_t size)
+{
+	Synchronize(&mBufferPtrSync);
+	while(!mBufferPtr)
+	{
+		if(!mSock) return 0;
+		mBufferPtrSync.wait(timeout);
+	}
+
+	Assert(mBufferPtrSize);
+	size = std::min(size, mBufferPtrSize);
+	std::memcpy(buffer, mBufferPtr, size);
+	mBufferPtrSync.notifyAll();	
+	return size;
+}
+
+void DatagramStream::writeData(const char *data, size_t size)
+{
+	if(!mSock) throw Exception("Datagram socket closed");
+	mSock->write(buffer, size, mAddr);
+}
+
+bool DatagramStream::waitData(double &timeout)
+{
+	Synchronize(&mBufferPtrSync);
+	if(!mSock) return true;	// readData will return 0
+	
+	while(!mBufferPtr)
+		if(!mBufferPtrSync.wait(timeout))
+			return false;
+
+	return true;
 }
 
 }

@@ -91,6 +91,7 @@ protected:
 	Stream *mStream;	
 	
 private:
+	static ssize_t	DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
 	static ssize_t	WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
 	static ssize_t	ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
 	static int	TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
