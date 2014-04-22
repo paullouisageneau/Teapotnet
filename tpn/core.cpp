@@ -421,83 +421,6 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-Core::Magic::Magic(void)
-{
-	this->major    = 0;
-	this->minor    = 0;
-	this->revision = 0;
-	this->mode     = 0;
-}
-
-Core::Magic::Magic(uint8_t mode)
-{
-	StringList version;
-	String(APPVERSION).explode(version, '.');
-	Assert(version.size() >= 3);
-	
-	StringList::iterator v = version.begin();
-	this->major    = (v++)->toInt();
-	this->minor    = (v++)->toInt();
-	this->revision = (v++)->toInt();
-	this->mode = mode;
-}
-
-Core::Magic::~Magic(void)
-{
-	
-}
-
-bool Core::Magic::read(Stream &s)
-{
-	uint32_t rnd, data, magic;
-	if(!s.readBinary(rnd))   return false;	// 32 bits
-	if(!s.readBinary(magic)) return false;	// 32 bits
-	if(!s.readBinary(data))  return false;	// 32 bits
-	
-	magic^= rnd;
-	data^=  rnd;
-	
-	// Check magic number
-	if(magic != APPMAGIC) 
-	{
-		LogDebug("Core::Magic::recv", "Invalid magic number");
-		return false;
-	}
-	
-	// Read data
-	BinaryString tmp(reinterpret_cast<char*>(&data), size_t(4));
-	tmp.readBinary(major);		// 8 bits
-	tmp.readBinary(minor);		// 8 bits
-	tmp.readBinary(revision);	// 8 bits
-	tmp.readBinary(mode);		// 8 bits
-	
-	return true;
-}
-
-void Core::Magic::write(Stream &s) const
-{
-	// Random nonce
-	uint32_t rnd;
-	Random(Random::Nonce).read(rnd);
-	
-	// Magic number
-	uint32_t magic = APPMAGIC;
-	
-	// Data
-	BinaryString tmp;
-	tmp.writeBinary(major);		// 8 bits
-	tmp.writeBinary(minor);		// 8 bits
-	tmp.writeBinary(revision);	// 8 bits
-	tmp.writeBinary(mode);		// 8 bits
-	
-	uint32_t data;
-	Assert(tmp.readBinary(data));	// 32 bits
-	
-	s.writeBinary(rnd);		// 32 bits
-	s.writeBinary(magic ^ rnd);	// 32 bits
-	s.writeBinary(data  ^ rnd);	// 32 bits
-}
-
 Core::Backend::Backend(void)
 {
 	
@@ -510,22 +433,110 @@ Core::Backend::~Backend(void)
 
 void Core::Backend::launch(Core *core)
 {
-	
+	mCore = core;
+	start();
 }
 
 void Core::Backend::addIncoming(Stream *stream)
 {
-	
+	// TODO
 }
 
 void Core::Backend::run(void)
 {
+	class MyVerifier : public SecureTransportServer::Verifier
+	{
+	public:
+		Core *core;
+		User *user;
+		BinaryString peering;
+		BinaryString identifier;
+		Rsa::PublicKey publicKey;
+		
+		MyVerifier(Core *core) { this->core = core; this->user = NULL; }
 	
+		bool verifyName(const String &name, SecureTransport *transport)
+		{
+			user = User::Get(name);
+			if(user)
+			{
+				SecureTransport::Credentials *creds = getCertificateCredentials(user);
+				if(creds) transport->addCredentials(creds);
+			}
+			
+			return true;	// continue handshake anyway
+		}
+	
+		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
+		{
+			try {
+				peering.fromString(name);
+			}
+			catch(...)
+			{
+				return false;
+			}
+			
+			// TODO: set identifier
+			
+			BinaryString secret;
+			if(SynchronizeTest(core, core->mSecrets.get(peering, secret)))
+			{
+				key = secret;
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		
+		bool verifyCertificate(const Rsa::PublicKey &pub)
+		{
+			if(!user) return false;
+			
+			// TODO: Compute identifier and check against user
+			publicKey = pub;
+		}
+	};
+	
+	try {
+		while(true)
+		{
+			SecureTransport *transport = listen();
+			if(!transport) break;
+			
+			// TODO: should allocate to threadpool
+			
+			// set verifier
+			MyVerifier verifier(mCore);
+			transport->setVerifier(&verifier);
+			
+			// set credentials (certificate added on name verification)
+			transport->addCredentials(getAnonymousCredentials());
+			transport->addCredentials(getPrivateSharedKeyCredentials());
+			
+			// do handshake
+			transport->handshake();
+			
+			// TODO: read credentials and feed them to addIncoming
+			// Identifier::Null if transport->isAnonymous()
+			// verifier.identifier otherwise
+			
+			if(transport) addIncoming(transport);
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Backend::run", e.what());
+	}
+	
+	LogWarn("Core::Backend::run", "Closing backend");
 }
 
-Core::StreamBackend::StreamBackend(int port)
+Core::StreamBackend::StreamBackend(int port) :
+	mSock(port)
 {
-	
+
 }
 
 Core::StreamBackend::~StreamBackend(void)
@@ -533,17 +544,32 @@ Core::StreamBackend::~StreamBackend(void)
 	
 }
 
-void Core::StreamBackend::connect(const Address &addr)
+SecureTransport *Core::StreamBackend::connect(const Address &addr)
 {
-	
+	Socket *sock = new Socket(addr);
+	try {
+		SecureTransportClient::Credentials *creds = new SecureTransportClient::Anonymous;	// TODO
+		SecureTransport *transport = SecureTransportClient(sock, creds, false);			// stream mode
+		addIncoming(transport);
+	}
+	catch(...)
+	{
+		delete sock;
+		throw;
+	}
 }
 
-void Core::StreamBackend::listen(void)
+SecureTransport *Core::StreamBackend::listen(void)
 {
-	
+	while(true)
+	{
+		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		if(transport) return transport;
+	}
 }
 
-Core::DatagramBackend::DatagramBackend(int port)
+Core::DatagramBackend::DatagramBackend(int port) :
+	mSock(port)
 {
 	
 }
@@ -553,14 +579,27 @@ Core::DatagramBackend::~DatagramBackend(void)
 	
 }
 
-void Core::DatagramBackend::connect(const Address &addr)
+SecureTransport *Core::DatagramBackend::connect(const Address &addr)
 {
-	
+	DatagramStream *stream = new DatagramStream(&mSock, addr);
+	try {
+		SecureTransport *transport = SecureTransportClient(stream, NULL, true);		// datagram mode
+		return transport;
+	}
+	catch(...)
+	{
+		delete stream;
+		throw;
+	}
 }
 
-void Core::DatagramBackend::listen(void)
+SecureTransport *Core::DatagramBackend::listen(void)
 {
-	
+	while(true)
+	{
+		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		if(transport) return transport;
+	}
 }
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
