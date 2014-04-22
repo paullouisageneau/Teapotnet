@@ -56,23 +56,6 @@ class Core : public Thread, protected Synchronizable
 public:
 	static Core *Instance;
 	
-	class Tunnel : public Stream
-	{
-	public:
-		~Tunnel(void);
-		
-		// Stream
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *data, size_t size);
-		
-	protected:
-		Tunnel(void);
-		
-	private:
-		BinaryString mLocal;
-		BinaryString mRemote;
-	};
-	
 	class Listener
 	{
 	public:
@@ -156,11 +139,25 @@ private:
 		DatagramSocket mSock;
 	};
 	
-	// Routing-level datagram structure
-	struct Datagram : public Serializable
+	class TunnelBackend : public Backend
 	{
-		Datagram(void);
-		~Datagram(void);
+	public:
+		TunnelBackend(const Identifier &local);
+		~TunnelBackend(void);
+		
+		SecureTransport *connect(const Identifier &remote);
+		SecureTransport *listen(void);
+		
+	private:
+		// TODO
+		Identifier mLocal;
+	};
+	
+	// Routing-level message structure
+	struct Missive : public Serializable
+	{
+		Missive(void);
+		~Missive(void);
 		
 		// Serializable
 		void serialize(Serializer &s) const;
