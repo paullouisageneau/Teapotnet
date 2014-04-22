@@ -74,12 +74,26 @@ public:
 		gnutls_x509_privkey_t mKey;
         };
 	
-	void addCredentials(Credentials *creds); // creds will be deleted
+	void addCredentials(Credentials *creds); // creds will NOT be deleted
 	void handshake(void);
 	void close(void);
 	
+	bool isAnonymous(void);
+	bool hasPrivateSharedKey(void);
+	bool hasCertificate(void);
+	
 	size_t readData(char *buffer, size_t size); 
 	void writeData(const char *data, size_t size);
+	// TODO: waitData
+	
+	struct Verifier
+        {
+		virtual bool verifyCertificate(const Rsa::PublicKey &pub) { return false; }
+		virtual bool verifyPrivateSharedKey(const String &username, BinaryString &key) { return false; }
+		virtual bool verifyName(const String &name, SecureTransport *transport) { return true; }	// default is true
+        };
+	
+	void setVerifier(Verifier *verifier);
 	
 protected:
 	static ssize_t	DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len);
@@ -87,18 +101,20 @@ protected:
 	static ssize_t	ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen);
 	static int	TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms);
 	
+	static int CertificateCallback(gnutls_session_t session);
+	static int PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
+	
 	static const String DefaultPriorities;
 	static gnutls_dh_params_t Params;
 	static Mutex ParamsMutex;
 	
-	SecureTransport(Stream *stream, bool server, bool datagram);	// stream will be deleted
+	SecureTransport(Stream *stream, bool server, bool datagram);	// stream will be deleted on success
 	virtual ~SecureTransport(void);
 	
 	gnutls_session_t mSession;
-	Stream *mStream;	
+	Stream *mStream;
 	
-private:
-	List<Credentials*> mCreds;
+	Verifier *mVerifier;
 };
 
 class SecureTransportClient : public SecureTransport
@@ -126,7 +142,7 @@ public:
                 gnutls_psk_client_credentials_t mCreds;
         };
 
-	SecureTransportClient(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// stream (if success) and creds will be deleted
+	SecureTransportClient(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will NOT be deleted
 	~SecureTransportClient(void);
 };
 
@@ -160,12 +176,15 @@ public:
                 gnutls_psk_server_credentials_t mCreds;
         };	
 
-	// These functions are preferred, especially for datagrams
-	static Stream *Listen(ServerSocket &sock, Credentials *creds);
-	static Stream *Listen(DatagramSocket &sock, Credentials *creds);
+	// These functions are preferred, especially for datagrams (protection agains DoS)
+	static SecureTransport *Listen(ServerSocket &sock);
+	static SecureTransport *Listen(DatagramSocket &sock);
 	
-	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// stream (if success) and creds will be deleted
+	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will NOT be deleted
 	~SecureTransportServer(void);
+	
+protected:
+	static int PostClientHelloCallback(gnutls_session_t session);
 };
 
 }

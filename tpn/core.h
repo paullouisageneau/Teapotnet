@@ -111,23 +111,6 @@ private:
 	bool isRequestSeen(const Request *request);
 	void run(void);
 	
-	// Magic header for incoming connections
-	struct Magic
-	{
-		Magic(void);
-		Magic(uint8_t mode);
-		~Magic(void);
-		
-		bool read(Stream &s);
-		void write(Stream &s) const;
-		
-		// Fields
-		uint8_t major;
-		uint8_t minor;
-		uint8_t revision;
-		uint8_t mode;
-	};
-	
 	class Backend : protected Thread
 	{
 	public:
@@ -138,9 +121,9 @@ private:
 		virtual void listen(void) = 0;
 		
 		void launch(Core *core);
-		void addIncoming(Stream *stream);	// Push the new stream to the core
 		
 	protected:
+		void addIncoming(Stream *stream);	// Push the new stream to the core
 		void run(void);
 		
 	private:
@@ -153,8 +136,8 @@ private:
 		StreamBackend(int port);
 		~StreamBackend(void);
 		
-		void connect(const Address &addr);
-		void listen(void);
+		SecureTransport *connect(const Address &addr);
+		SecureTransport *listen(void);
 		
 	private:
 		ServerSocket mSock;
@@ -166,8 +149,8 @@ private:
 		DatagramBackend(int port);
 		~DatagramBackend(void);
 		
-		void connect(const Address &addr);
-		void listen(void);
+		SecureTransport *connect(const Address &addr);
+		SecureTransport *listen(void);
 		
 	private:
 		DatagramSocket mSock;

@@ -57,7 +57,8 @@ void SecureTransport::GenerateParams(void)
 }
 
 SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
-	mStream(stream)
+	mStream(stream),
+	mVerifier(NULL),
 {
 	Assert(stream);
 
@@ -92,38 +93,19 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 
 SecureTransport::~SecureTransport(void)
 {
-	gnutls_deinit(mSession);
-	
-	for(List<Credentials*>::iterator it = mCreds.begin();
-		it != mCreds.end();
-		++it)
-	{
-		delete *it;
-	}
-	
+	gnutls_deinit(mSession);	
 	delete mStream;
 }
 
 void SecureTransport::addCredentials(Credentials *creds)
 {
 	// Install credentials
-	try {
-		creds->install(this);
-	}
-	catch(...)
-	{
-		delete creds;
-		throw;
-	}
-	
+	creds->install(this);
 	mCreds.push_back(creds);
 }
 
 void SecureTransport::handshake(void)
 {
-	if(mCreds.empty())
-		throw Exception("Missing credentials for TLS handshake");
-	
 	// Perform the TLS handshake
 	int ret;
 	do {
@@ -131,12 +113,27 @@ void SecureTransport::handshake(void)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if (ret < 0) throw Exception(String("TLS handshake failed: error ") + gnutls_strerror(ret));
+        if(ret < 0) throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
 }
 
 void SecureTransport::close(void)
 {
 	gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+}
+
+bool SecureTransport::isAnonymous(void)
+{
+	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_ANON;
+}
+
+bool hasPrivateSharedKey(void)
+{
+	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_PSK;
+}
+
+bool hasCertificate(void)
+{
+	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_CERTIFICATE;
 }
 
 size_t SecureTransport::readData(char *buffer, size_t size)
@@ -167,6 +164,11 @@ void SecureTransport::writeData(const char *data, size_t size)
 		size-= ret;
 	}
 	while(size);
+}
+
+void SecureTransport::setVerifier(Verifier *verifier)
+{
+	mVerifier = verifier;
 }
 
 ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)
@@ -224,12 +226,90 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 	}
 }
 
+int SecureTransport::CertificateCallback(gnutls_session_t session)
+{
+	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
+	if(!transport)
+	{
+		LogWarn("SecureTransport::CertificateCallback", "TLS certificate verification callback called with unknown session");
+		return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+	
+	if(!transport->mVerifier)
+	{
+		LogWarn("SecureTransport::CertificateCallback", "No certificate verifier specified");
+		return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+	
+	try {
+		unsigned count = 0;
+		const gnutls_datum_t *array = gnutls_certificate_get_peers(session, &count);
+		if(!array || !count) throw Exception("No certificates retrieved from peer");
+		
+		gnutls_x509_crt_t crt;
+		Assert(gnutls_x509_crt_init(&crt) == GNUTLS_E_SUCCESS);
+		
+		bool valid = false;
+		try {
+			int ret = gnutls_x509_crt_import(crt, array, GNUTLS_X509_FMT_DER);
+			if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
+			bool valid = transport->mVerifier->verifyCertificate(Rsa::PublicKey(crt));
+		}
+		catch(...)
+		{
+			gnutls_x509_crt_deinit(crt);
+			throw;
+		}
+		
+		gnutls_x509_crt_deinit(crt);
+		
+		if(valid) return 0;
+		else return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransport::CertificateCallback", String("TLS certificate verification failed: ") + e.what());
+		return GNUTLS_E_CERTIFICATE_ERROR;
+	}
+}
+
+int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
+{
+	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
+	if(!transport) 
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", "TLS PSK callback called with unknown session");
+		return -1;
+	}
+	
+	if(!transport->mVerifier) 
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", "No PSK verifier specified");
+		return -1;
+	}
+	
+	BinaryString key;
+	try {
+		if(!transport->mVerifier->verifyPrivateSharedKey(String(username), key)) return -1;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", String("TLS PSK verification failed: ") + e.what());
+		return -1;
+	}
+	
+	datum->size = key.size();
+	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
+	std::memcpy(datum->data, key.data(), datum->size);
+	return 0;
+}
+
 void SecureTransport::Credentials::install(SecureTransport *st)
 {
 	install(st->mSession);
 }
 
-SecureTransport::CertificateCallback::CertificateCallback(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
+SecureTransport::Certificate::Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
 	// Allocate certificate credentials
 	Assert(gnutls_certificate_allocate_credentials(&mCreds) == GNUTLS_E_SUCCESS);
@@ -248,7 +328,7 @@ SecureTransport::CertificateCallback::CertificateCallback(const Rsa::PublicKey &
 	// 						| GNUTLS_VERIFY_ALLOW_X509_V1_CA_CRT
 	// 						| GNUTLS_VERIFY_ALLOW_ANY_X509_V1_CA_CRT);
 
-        gnutls_certificate_set_verify_function(mCreds, VerifyCallback);
+        gnutls_certificate_set_verify_function(mCreds, SecureTransport::CertificateCallback);
 	
 	try {
 		int ret;
@@ -284,7 +364,7 @@ SecureTransport::CertificateCallback::CertificateCallback(const Rsa::PublicKey &
 	}
 }
 
-SecureTransport::CertificateCallback::~CertificateCallback(void)
+SecureTransport::Certificate::~Certificate(void)
 {
 	gnutls_certificate_free_credentials(mCreds);
 	gnutls_pcert_deinit(&mPcert);
@@ -293,54 +373,10 @@ SecureTransport::CertificateCallback::~CertificateCallback(void)
 	gnutls_x509_privkey_deinit(mKey);
 }
 
-void SecureTransport::CertificateCallback::install(gnutls_session_t session)
+void SecureTransport::Certificate::install(gnutls_session_t session)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 	gnutls_session_set_ptr(session, reinterpret_cast<void*>(this));
-}
-
-int SecureTransport::CertificateCallback::VerifyCallback(gnutls_session_t session)
-{
-	CertificateCallback *cc = reinterpret_cast<CertificateCallback*>(gnutls_session_get_ptr(session));
-	
-	if(!cc) 
-	{
-		LogWarn("SecureTransport::Certificate::VerifyCallback", "TLS certificate verification callback called with unknown session");
-		return GNUTLS_E_CERTIFICATE_ERROR;
-	}
-	
-	try {
-		unsigned count = 0;
-		const gnutls_datum_t *array = gnutls_certificate_get_peers(session, &count);
-		if(!array || !count) throw Exception("No certificates retrieved from peer");
-		
-		gnutls_x509_crt_t crt;
-		Assert(gnutls_x509_crt_init(&crt) == GNUTLS_E_SUCCESS);
-		
-		bool valid = false;
-		try {
-			int ret = gnutls_x509_crt_import(crt, array, GNUTLS_X509_FMT_DER);
-			if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
-			
-			Rsa::PublicKey pub(crt);
-			bool valid = cc->callback(pub);
-		}
-		catch(...)
-		{
-			gnutls_x509_crt_deinit(crt);
-			throw;
-		}
-		
-		gnutls_x509_crt_deinit(crt);
-		
-		if(valid) return 0;
-		else return GNUTLS_E_CERTIFICATE_ERROR;
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("SecureTransport::CertificateCallback::VerifyCallback", String("TLS certificate verification callback failed: ") + e.what());
-		return GNUTLS_E_CERTIFICATE_ERROR;
-	}
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, bool datagram) :
@@ -367,6 +403,12 @@ SecureTransportClient::~SecureTransportClient(void)
 
 SecureTransportClient::Anonymous::Anonymous(void)
 {
+	// Enable anonymous auth
+	String priorities = DefaultPriorities + ":+ANON-DH:+ANON-ECDH";
+	const char *err_pos = NULL;
+	if(gnutls_priority_set_direct(session, priorities.c_str(), &err_pos))
+		throw Exception("Unable to set TLS priorities for anonymous auth");
+	
 	// Allocate anonymous credentials
 	Assert(gnutls_anon_allocate_client_credentials(&mCreds) == GNUTLS_E_SUCCESS);
 }
@@ -421,6 +463,9 @@ SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds,
 	SecureTransport(stream, true, datagram)
 {
 	try {
+		gnutls_certificate_server_set_request(mSession, GNUTLS_CERT_REQUEST);	// TODO
+		gnutls_handshake_set_post_client_hello_function(mSession, PostClientHelloCallback);
+		
 		if(creds) 
 		{
 			addCredentials(creds);
@@ -439,26 +484,74 @@ SecureTransportServer::~SecureTransportServer(void)
 	
 }
 
+bool SecureTransportServer::postClientHello(void)
+{
+	
+}
 
-Stream *SecureTransportServer::Listen(ServerSocket &lsock, Credentials *creds)
+int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
+{
+	SecureTransportServer *transport = reinterpret_cast<SecureTransportServer*>(gnutls_session_get_ptr(session));
+	if(!transport) 
+	{
+		LogWarn("SecureTransportServer::PostClientHelloCallback", "TLS post client hello callback called with unknown session");
+		return -1;
+	}
+
+	if(!transport->mVerifier) return 0;
+	
+	try {
+		String name;
+		
+		char buffer[BufferSize];
+		size_t size = BufferSize;
+		unsigned int type =  GNUTLS_NAME_DNS;
+		if(gnutls_server_name_get(mSession, buffer, &size, &type, 0))
+			name.assign(buffer, size);
+	
+		if(!transport->mVerifier->verifyName(name, transport)) return GNUTLS_E_NO_CERTIFICATE_FOUND;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransportServer::PostClientHelloCallback", String("TLS client hello callback failed: ") + e.what());
+		return -1;
+	}
+	
+	return 0;
+}
+
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock)
 {
 	while(true)
 	{
-		Socket *sock = new Socket;
+		Socket *sock = NULL;
 		
 		try {
+			sock = new Socket;
 			lsock.accept(*sock);
-			return new SecureTransportServer(sock, creds, true);
+		}
+		catch(...)
+		{
+			delete sock;
+			throw;
+		}
+		
+		SecureTransportServer *transport = NULL;
+		try {
+			transport = new SecureTransportServer(sock, NULL, true);
 		}
 		catch(const std::exception &e)
 		{
-			delete sock;
 			LogWarn("SecureTransportServer::Listen(stream)", e.what());
+			delete sock;
+			return NULL;
 		}
+		
+		return transport;
 	}
 }
 
-Stream *SecureTransportServer::Listen(DatagramSocket &sock, Credentials *creds)
+SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
@@ -468,8 +561,8 @@ Stream *SecureTransportServer::Listen(DatagramSocket &sock, Credentials *creds)
 		char buffer[DatagramSocket::MaxDatagramSize];
 		Address sender;
 		int len = sock.peek(buffer, DatagramSocket::MaxDatagramSize, sender);
-		if(len < 0) throw NetException("Failed to listen on datagram socket");
-		
+		if(len < 0) throw NetException("Unable to listen on datagram socket");
+
 		gnutls_dtls_prestate_st prestate;
 		std::memset(&prestate, 0, sizeof(prestate));
 			
@@ -481,20 +574,21 @@ Stream *SecureTransportServer::Listen(DatagramSocket &sock, Credentials *creds)
 		
 		if(ret == GNUTLS_E_SUCCESS)	// valid cookie
 		{
-			Stream *stream = new DatagramStream(&sock, sender);
-			SecureTransportServer *result = NULL;
+			Stream *stream = NULL;
+			SecureTransportServer *transport = NULL;
+			
 			try {
-				result = new SecureTransportServer(stream, creds, true);
+				stream = new DatagramStream(&sock, sender);
+				transport = new SecureTransportServer(stream, NULL, true);
 			}
-			catch(const std::exception &e)
+			catch(...)
 			{
 				delete stream;
-				LogWarn("SecureTransportServer::Listen(datagram)", e.what());
-				continue;
+				throw;
 			}
 			
-			gnutls_dtls_prestate_set(result->mSession, &prestate);
-			return result;
+			gnutls_dtls_prestate_set(transport->mSession, &prestate);
+			return transport;
 		}
 		
 		DatagramStream stream(&sock, sender);
@@ -505,10 +599,9 @@ Stream *SecureTransportServer::Listen(DatagramSocket &sock, Credentials *creds)
 					&prestate,
 					static_cast<gnutls_transport_ptr_t>(&stream),
 					DirectWriteCallback);
-
-		// discard peeked data
-		sock.read(buffer, DatagramSocket::MaxDatagramSize, sender);
 		
+		// discard peeked data
+		NOEXCEPTION(sock.read(buffer, DatagramSocket::MaxDatagramSize, sender));
 		Thread::Sleep(milliseconds(1));
 	}
 }
@@ -534,7 +627,7 @@ void SecureTransportServer::Anonymous::install(gnutls_session_t session)
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_ANON, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
+SecureTransportServer::PrivateSharedKey::PrivateSharedKey(void)
 {
 	// Allocate PSK credentials
 	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
@@ -545,44 +638,18 @@ SecureTransportServer::PrivateSharedKeyCallback::PrivateSharedKeyCallback(void)
 	ParamsMutex.unlock();
 	
 	// Set PSK callback
-	gnutls_psk_set_server_credentials_function(mCreds, CredsCallback);
+	gnutls_psk_set_server_credentials_function(mCreds, SecureTransport::PrivateSharedKeyCallback);
 }
 
-SecureTransportServer::PrivateSharedKeyCallback::~PrivateSharedKeyCallback(void)
+SecureTransportServer::PrivateSharedKey::~PrivateSharedKey(void)
 {
 	gnutls_psk_free_server_credentials(mCreds);
 }
 
-void SecureTransportServer::PrivateSharedKeyCallback::install(gnutls_session_t session)
+void SecureTransportServer::PrivateSharedKey::install(gnutls_session_t session)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
-	gnutls_session_set_ptr(session, reinterpret_cast<void*>(this));
-}
-
-int SecureTransportServer::PrivateSharedKeyCallback::CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
-{
-	PrivateSharedKeyCallback *pskcb = reinterpret_cast<PrivateSharedKeyCallback*>(gnutls_session_get_ptr(session));
 	
-	if(!pskcb) 
-	{
-		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", "TLS PSK callback called with unknown session");
-		return -1;
-	}
-	
-	BinaryString key;
-	try {
-		if(!pskcb->callback(String(username), key)) return -1;
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("SecureTransportServer::PrivateSharedKeyCallback::CredsCallback", String("TLS PSK callback failed: ") + e.what());
-		return -1;
-	}
-	
-	datum->size = key.size();
-	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
-	std::memcpy(datum->data, key.data(), datum->size);
-	return 0;
 }
 
 }
