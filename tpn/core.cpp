@@ -421,20 +421,15 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-Core::Backend::Backend(void)
+Core::Backend::Backend(void) :
+	mCore(core)
 {
-	
+	Assert(mCore);
 }
 
 Core::Backend::~Backend(void)
 {
 	
-}
-
-void Core::Backend::launch(Core *core)
-{
-	mCore = core;
-	start();
 }
 
 void Core::Backend::addIncoming(Stream *stream)
@@ -548,8 +543,7 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr)
 {
 	Socket *sock = new Socket(addr);
 	try {
-		SecureTransportClient::Credentials *creds = new SecureTransportClient::Anonymous;	// TODO
-		SecureTransport *transport = SecureTransportClient(sock, creds, false);			// stream mode
+		SecureTransport *transport = new SecureTransportClient(sock, NULL, false);			// stream mode
 		addIncoming(transport);
 	}
 	catch(...)
@@ -563,7 +557,7 @@ SecureTransport *Core::StreamBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = new SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
 }
@@ -583,7 +577,7 @@ SecureTransport *Core::DatagramBackend::connect(const Address &addr)
 {
 	DatagramStream *stream = new DatagramStream(&mSock, addr);
 	try {
-		SecureTransport *transport = SecureTransportClient(stream, NULL, true);		// datagram mode
+		SecureTransport *transport = new SecureTransportClient(stream, NULL, true);		// datagram mode
 		return transport;
 	}
 	catch(...)
@@ -597,9 +591,53 @@ SecureTransport *Core::DatagramBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = new SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
+}
+
+TunnelBackend::TunnelBackend(void) :
+	Subscriber(Identifier::Null)	// subscribe to everything delegated
+{
+
+}
+
+TunnelBackend::~TunnelBackend(void)
+{
+	
+}
+
+SecureTransport *TunnelBackend::connect(const Identifier &remote)
+{
+	
+}
+
+SecureTransport *TunnelBackend::listen(void)
+{
+	Synchronizable(&mQueueSync);
+	while(mQueue.empty()) mQueueSync.wait();
+	
+	Missive &missive = mQueue.front();
+	
+	// TODO: try/catch
+	// TODO: distinction node/target ?
+	TunnelWrapper *wrapper = new TunnelWrapper(missive.destination, missive.source);
+	SecureTransport *transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
+	
+	mQueue.pop();
+	return transport;
+}
+
+bool Core::Handler::incoming(Missive &missive)
+{
+	if(missive.type() == Missive::Tunnel)
+	{
+		Synchronizable(&mQueueSync);
+		mQueue.push(missive);
+		return true;
+	}
+	
+	return false;
 }
 
 void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
