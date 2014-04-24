@@ -56,6 +56,42 @@ class Core : public Thread, protected Synchronizable
 public:
 	static Core *Instance;
 	
+	// Routing-level message structure
+	struct Missive : public Serializable
+	{
+		Missive(void);
+		~Missive(void);
+		
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		
+		// Fields
+		Identifier source;		// 32 o
+		Identifier destination;		// 32 o
+		ByteArray descriptor;		// 32 o
+		ByteArray data;			// 1 Ko
+	};
+	
+	class Publisher
+	{
+	public:
+		Publisher(const Identifier &id);
+		~Publisher(void);
+		
+		void outgoing(const Missive &missive);
+	};
+	
+	class Subscriber
+	{
+	public:
+		Subscriber(const Identifier &id);
+		~Subscriber(void);	// TODO: unsubscribe ?
+		
+		virtual bool incoming(Missive &missive) = 0;	// return false to delegate
+	};
+	
+	// TODO: might be deprecated
 	class Listener
 	{
 	public:
@@ -64,6 +100,7 @@ public:
 		virtual bool notification(const Identifier &peering, Notification *notification) = 0;
 		virtual bool request(const Identifier &peering, Request *request) = 0;
 	};
+	
 	
 	Core(int port);
 	~Core(void);
@@ -79,6 +116,8 @@ public:
 				Listener *listener = NULL);
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
+	
+	void subscribe(const Identifier &id, Subscriber *subscriber);
 	
 	enum LinkStatus {Disconnected, Established, Authenticated};
 	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
@@ -97,19 +136,16 @@ private:
 	class Backend : protected Thread
 	{
 	public:
-		Backend(void);
+		Backend(Core *core);
 		virtual ~Backend(void);
 		
 		virtual void connect(const Address &addr) = 0;
 		virtual void listen(void) = 0;
 		
-		void launch(Core *core);
-		
 	protected:
 		void addIncoming(Stream *stream);	// Push the new stream to the core
 		void run(void);
 		
-	private:
 		Core *mCore;
 	};
 	
@@ -139,35 +175,41 @@ private:
 		DatagramSocket mSock;
 	};
 	
-	class TunnelBackend : public Backend
+	class TunnelBackend : public Backend, public Subscriber
 	{
 	public:
-		TunnelBackend(const Identifier &local);
+		TunnelBackend(void);
 		~TunnelBackend(void);
 		
+		// Backend
 		SecureTransport *connect(const Identifier &remote);
 		SecureTransport *listen(void);
 		
+		// Subscriber
+		bool incoming(Missive &missive);
+		
 	private:
-		// TODO
-		Identifier mLocal;
-	};
-	
-	// Routing-level message structure
-	struct Missive : public Serializable
-	{
-		Missive(void);
-		~Missive(void);
+		Queue<Missive> mQueue;
+		Synchronizable mQueueSync;
 		
-		// Serializable
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-		
-		// Fields
-		Identifier source;		// 32 o
-		Identifier destination;		// 32 o
-		ByteArray descriptor;		// 32 o
-		ByteArray data;			// 1 Ko
+		class TunnelWrapper : public Stream, public Subscriber, public Publisher
+		{
+		public:
+			TunnelWrapper(const Identifier &local, const Identifier &remote);
+			~TunnelWrapper(void);
+			
+			// Stream
+			size_t readData(char *buffer, size_t size);
+			void writeData(const char *data, size_t size);
+			
+			// Subscriber
+			bool incoming(Missive &missive);
+			
+		private:
+			Identifier mLocal, mRemote;
+			Queue<Missive> mQueue;
+			Synchronizable mQueueSync;
+		};
 	};
 	
 	class Handler : public Task, public Synchronizable
