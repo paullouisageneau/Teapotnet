@@ -607,9 +607,21 @@ TunnelBackend::~TunnelBackend(void)
 	
 }
 
-SecureTransport *TunnelBackend::connect(const Identifier &remote)
+SecureTransport *TunnelBackend::connect(const Identifier &local, const Identifier &remote)
 {
+	TunnelWrapper *wrapper = NULL;
+	SecureTransport *transport = NULL;
+	try {
+		wrapper = new TunnelWrapper(local, remote);
+		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
+	}
+	catch(...)
+	{
+		delete wrapper;
+		throw;
+	}
 	
+	return transport;
 }
 
 SecureTransport *TunnelBackend::listen(void)
@@ -618,11 +630,20 @@ SecureTransport *TunnelBackend::listen(void)
 	while(mQueue.empty()) mQueueSync.wait();
 	
 	Missive &missive = mQueue.front();
+	Assert(missive.type() == Missive::Tunnel);
 	
-	// TODO: try/catch
-	// TODO: distinction node/target ?
-	TunnelWrapper *wrapper = new TunnelWrapper(missive.destination, missive.source);
-	SecureTransport *transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
+	TunnelWrapper *wrapper = NULL;
+	SecureTransport *transport = NULL;
+	try {
+		wrapper = new TunnelWrapper(missive.destination, missive.source);
+		transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
+	}
+	catch(...)
+	{
+		delete wrapper;
+		mQueue.pop();
+		throw;
+	}
 	
 	mQueue.pop();
 	return transport;
