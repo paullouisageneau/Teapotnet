@@ -101,7 +101,6 @@ public:
 		virtual bool request(const Identifier &peering, Request *request) = 0;
 	};
 	
-	
 	Core(int port);
 	~Core(void);
 	
