@@ -28,9 +28,10 @@
 #include "tpn/bytearray.h"
 #include "tpn/binarystring.h"
 #include "tpn/string.h"
-#include "tpn/serversocket.h"
 #include "tpn/socket.h"
+#include "tpn/serversocket.h"
 #include "tpn/datagramsocket.h"
+#include "tpn/securetransport.h"
 #include "tpn/pipe.h"
 #include "tpn/thread.h"
 #include "tpn/mutex.h"
@@ -76,22 +77,34 @@ public:
 	class Publisher
 	{
 	public:
-		Publisher(const Identifier &id);
+		Publisher(void);
 		~Publisher(void);
 		
+		void publish(const Identifier &id);
+		void unpublish(const Identifier &id);
+		
 		void outgoing(const Missive &missive);
+		
+	private:
+		Set<Identifier> mPublishedIds;
 	};
 	
 	class Subscriber
 	{
 	public:
-		Subscriber(const Identifier &id);
-		~Subscriber(void);	// TODO: unsubscribe ?
+		Subscriber(void);
+		~Subscriber(void);
+		
+		void subscribe(const Identifier &id);
+		void unsubscribe(const Identifier &id);
 		
 		virtual bool incoming(Missive &missive) = 0;	// return false to delegate
+		
+	private:
+		Set<Identifier> mSubscribedIds;
 	};
 	
-	// TODO: might be deprecated
+	// TODO: deprecated
 	class Listener
 	{
 	public:
@@ -104,11 +117,14 @@ public:
 	Core(int port);
 	~Core(void);
 	
+	// Global
 	String getName(void) const;
 	void getAddresses(List<Address> &list) const;
 	void getKnownPublicAdresses(List<Address> &list) const;
 	bool isPublicConnectable(void) const;
 	
+	// Peerings
+	// TODO: listener is deprecated
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
 		       		const BinaryString &secret,
@@ -116,14 +132,20 @@ public:
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
+	// Publish/Subscribe
+	void publish(const Identifier &id, Publisher *publisher);
+	void unpublish(const Identifier &id, Publisher *publisher);
 	void subscribe(const Identifier &id, Subscriber *subscriber);
+	void unsubscribe(const Identifier &id, Subscriber *subscriber);
 	
+	// TODO
 	enum LinkStatus {Disconnected, Established, Authenticated};
 	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
 	LinkStatus addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
+	// TODO: deprecated
 	bool sendNotification(const Notification &notification);
 	unsigned addRequest(Request *request);
 	void removeRequest(unsigned id);
@@ -138,8 +160,8 @@ private:
 		Backend(Core *core);
 		virtual ~Backend(void);
 		
-		virtual void connect(const Address &addr) = 0;
-		virtual void listen(void) = 0;
+		virtual SecureTransport *connect(const Address &addr) = 0;
+		virtual SecureTransport *listen(void) = 0;
 		
 	protected:
 		void addIncoming(Stream *stream);	// Push the new stream to the core
@@ -300,6 +322,9 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
+	Map<Identifier, Set<Publisher*> >  mPublishers;
+	Map<Identifier, Set<Subscriber*> > mSubscribers;
+	
 	String mName;
 	ServerSocket mSock;
 	ThreadPool mThreadPool;

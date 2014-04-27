@@ -124,6 +124,38 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
+void Core::publish(const Identifier &id, Publisher *publisher)
+{
+	mPublishers[id].insert(publisher);
+}
+
+void Core::unpublish(const Identifier &id, Publisher *publisher)
+{
+	Map<Identifier, Set<Publisher*> >::iterator it = mPublishers.find(id);
+	if(it != mPublishers.end())
+	{
+		it->second.erase(publisher);
+		if(it->second.empty()) 
+			mPublishers.erase(it);
+	}
+}
+
+void Core::subscribe(const Identifier &id, Subscriber *subscriber)
+{
+	mSubscribers[id].insert(subscriber);
+}
+
+void Core::unsubscribe(const Identifier &id, Subscriber *subscriber)
+{
+	Map<Identifier, Set<Subscriber*> >::iterator it = mSubscribers.find(id);
+	if(it != mSubscribers.end())
+	{
+		it->second.erase(subscriber);
+		if(it->second.empty())
+			mSubscribers.erase(it);
+	}
+}
+
 Core::LinkStatus Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async)
 {
 	Assert(bs);
@@ -419,6 +451,103 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	
 	mHandlers.erase(peer);
 	return true;
+}
+
+Core::Missive::Missive(void)
+{
+	
+}
+
+Core::Missive::~Missive(void)
+{
+	
+}
+
+void Core::Missive::serialize(Serializer &s) const
+{
+	s.output(source);
+	s.output(destination);
+	s.output(descriptor);
+	s.output(data);
+}
+
+bool Core::Missive::deserialize(Serializer &s)
+{
+	if(!s.input(source)) return false;
+	AssertIO(s.output(destination));
+	AssertIO(s.output(descriptor));
+	AssertIO(s.output(data));
+}
+
+Core::Publisher::Publisher(void)
+{
+
+}
+
+Core::Publisher::~Publisher(void)
+{
+	for(Set<Identifier>::iterator it = mPublishedIds.begin();
+		it != mPublishedIds.end();
+		++it)
+	{
+		Core::Instance->unpublish(*it, this);
+	}
+}
+
+void Core::Publisher::publish(const Identifier &id)
+{
+	if(!mPublishedIds.contains(id))
+	{
+		Core::Instance->publish(id, this);
+		mPublishedIds.insert(id);
+	}
+}
+
+void Core::Publisher::unpublish(const Identifier &id)
+{
+	if(mPublishedIds.contains(id))
+	{
+		Core::Instance->unpublish(id, this);
+		mPublishedIds.erase(id);
+	}
+}
+
+void Core::Publisher::outgoing(const Missive &missive)
+{
+	
+}
+
+Core::Subscriber::Subscriber(void)
+{
+	
+}
+
+Core::Subscriber::~Subscriber(void)
+{
+	for(Set<Identifier>::iterator it = mSubscribedIds.begin();
+		it != mSubscribedIds.end();
+		++it)
+	{
+		Core::Instance->unsubscribe(*it, this);
+	}
+}
+
+void Core::Subscriber::subscribe(const Identifier &id)
+{
+	if(!mSubscribedIds.contains(id))
+	{
+		Core::Instance->subscribe(id, this);
+		mSubscribedIds.insert(id);
+	}
+}
+
+void Core::Subscriber::unsubscribe(const Identifier &id)
+{
+	if(mSubscribedIds.contains(id))
+	{
+		Core::Instance->unsubscribe(id, this);
+		mSubscribedIds.erase(id);
+	}
 }
 
 Core::Backend::Backend(void) :
