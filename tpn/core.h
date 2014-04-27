@@ -52,7 +52,7 @@ namespace tpn
 // Core of the Teapotnet node
 // Implements the TPN protocol
 // This is a singleton class, all users use it.  
-class Core : public Thread, protected Synchronizable
+class Core : protected Synchronizable
 {
 public:
 	static Core *Instance;
@@ -114,7 +114,7 @@ public:
 		virtual bool request(const Identifier &peering, Request *request) = 0;
 	};
 	
-	Core(int port);
+	Core(void);
 	~Core(void);
 	
 	// Global
@@ -152,7 +152,6 @@ public:
 
 private:
 	bool isRequestSeen(const Request *request);
-	void run(void);
 	
 	class Backend : protected Thread
 	{
@@ -326,7 +325,6 @@ private:
 	Map<Identifier, Set<Subscriber*> > mSubscribers;
 	
 	String mName;
-	ServerSocket mSock;
 	ThreadPool mThreadPool;
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;

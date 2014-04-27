@@ -27,6 +27,7 @@
 #include "tpn/random.h"
 #include "tpn/securetransport.h"
 #include "tpn/httptunnel.h"
+#include "tpn/user.h"
 
 namespace tpn
 {
@@ -453,7 +454,9 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-Core::Missive::Missive(void)
+Core::Missive::Missive(void) :
+	descriptor(32),
+	data(1024)
 {
 	
 }
@@ -465,6 +468,7 @@ Core::Missive::~Missive(void)
 
 void Core::Missive::serialize(Serializer &s) const
 {
+	// TODO
 	s.output(source);
 	s.output(destination);
 	s.output(descriptor);
@@ -473,10 +477,11 @@ void Core::Missive::serialize(Serializer &s) const
 
 bool Core::Missive::deserialize(Serializer &s)
 {
+	// TODO
 	if(!s.input(source)) return false;
-	AssertIO(s.output(destination));
-	AssertIO(s.output(descriptor));
-	AssertIO(s.output(data));
+	AssertIO(s.input(destination));
+	AssertIO(s.input(descriptor));
+	AssertIO(s.input(data));
 }
 
 Core::Publisher::Publisher(void)
@@ -550,7 +555,7 @@ void Core::Subscriber::unsubscribe(const Identifier &id)
 	}
 }
 
-Core::Backend::Backend(void) :
+Core::Backend::Backend(Core *core) :
 	mCore(core)
 {
 	Assert(mCore);
