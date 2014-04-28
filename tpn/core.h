@@ -69,11 +69,21 @@ public:
 		
 		// Fields
 		Identifier source;		// 32 o
-		Identifier destination;		// 32 o
+		Identifier target;		// 32 o
 		ByteArray descriptor;		// 32 o
 		ByteArray data;			// 1 Ko
 	};
+
+	struct Locator
+	{		
+		Locator(const Identifier &id);
+		Locator(const Address &addr);
+		~Locator(void);
 	
+		Identifier	identifier;
+		List<Address>	addresses;
+	};
+
 	class Publisher
 	{
 	public:
@@ -139,7 +149,6 @@ public:
 	void unsubscribe(const Identifier &id, Subscriber *subscriber);
 	
 	// TODO
-	enum LinkStatus {Disconnected, Established, Authenticated};
 	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
 	LinkStatus addPeer(Socket *sock, const Identifier &peering, bool async = false);
 	bool hasPeer(const Identifier &peering);
@@ -159,7 +168,7 @@ private:
 		Backend(Core *core);
 		virtual ~Backend(void);
 		
-		virtual SecureTransport *connect(const Address &addr) = 0;
+		virtual SecureTransport *connect(const Locator &locator) = 0;
 		virtual SecureTransport *listen(void) = 0;
 		
 	protected:
@@ -175,6 +184,7 @@ private:
 		StreamBackend(int port);
 		~StreamBackend(void);
 		
+		SecureTransport *connect(const Locator &locator);
 		SecureTransport *connect(const Address &addr);
 		SecureTransport *listen(void);
 		
@@ -188,6 +198,7 @@ private:
 		DatagramBackend(int port);
 		~DatagramBackend(void);
 		
+		SecureTransport *connect(const Locator &locator);
 		SecureTransport *connect(const Address &addr);
 		SecureTransport *listen(void);
 		
@@ -202,7 +213,7 @@ private:
 		~TunnelBackend(void);
 		
 		// Backend
-		SecureTransport *connect(const Identifier &remote);
+		SecureTransport *connect(const Locator &locator);
 		SecureTransport *listen(void);
 		
 		// Subscriber
@@ -235,58 +246,25 @@ private:
 	class Handler : public Task, public Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *stream, const Address &remoteAddr);
+		Handler(Core *core, Stream *stream);
 		~Handler(void);
-
-		void setPeering(const Identifier &peering, bool relayed = false);
-		void setStopping(void);
-		
-		void sendNotification(const Notification &notification);
-		void addRequest(Request *request);
-		void removeRequest(unsigned id);
-		
-		bool isIncoming(void) const;
-		bool isAuthenticated(void) const;
-		bool isEstablished(void) const;
-		LinkStatus linkStatus(void) const;
-
-	protected:
-		static const int NotFound = 1;
-		static const int RedirectionExists = 2;
-		static const int RedirectionFailed = 3;
-		
-	  	static void sendCommand(Stream *stream,
-				   	const String &command, 
-		       			const String &args,
-					const StringMap &parameters);
-		
-		static bool recvCommand(Stream *stream,
-				   	String &command, 
-		       			String &args,
-					StringMap &parameters);
 		
 	private:
-		void clientHandshake(void);
-		void serverHandshake(void);
+		bool recv(Missive &missive);
+		void send(const Missive &missive);
+
 		void process(void);
 		void run(void);
 
 		Identifier mPeering, mRemotePeering;
 		Core	*mCore;
 		Stream  *mStream;
-		Address mRemoteAddr;
 		bool mIsIncoming;
 		bool mIsRelay;
 		bool mIsRelayEnabled;
-		LinkStatus mLinkStatus;
-		Map<unsigned, Request*> mRequests;
-		Map<unsigned, Request::Response*> mResponses;
-		Set<unsigned> mCancelled;
 		ThreadPool mThreadPool;
 		bool mStopping;
 
-		BinaryString mObfuscatedHello;
-		
 		class Sender : public Thread, public Synchronizable
 		{
 		public:
@@ -294,24 +272,11 @@ private:
 			~Sender(void);
 
 		private:
-			static const size_t ChunkSize;
 			void run(void);
-
-			struct RequestInfo
-			{
-				unsigned id;
-				String target;
-				StringMap parameters;
-				bool isData;
-			};
 			
 			Stream *mStream;
-			unsigned mLastChannel;
-			Map<unsigned, Request::Response*> mTransferts;
-			Queue<Notification>	mNotificationsQueue;
-			Queue<RequestInfo> 	mRequestsQueue;
-			Array<Request*> mRequestsToRespond;
 			bool mShouldStop;
+			
 			friend class Handler;
 		};
 
@@ -321,6 +286,10 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
+	// Routing
+	void addRoute(const Identifier &id, const Identifier &route);
+	bool getRoute(const Identifier &id, Identifier &route);
+
 	Map<Identifier, Set<Publisher*> >  mPublishers;
 	Map<Identifier, Set<Subscriber*> > mSubscribers;
 	
@@ -328,6 +297,7 @@ private:
 	ThreadPool mThreadPool;
 	
 	List<Backend*> mBackends;
+	Map<Identifier, Identifier> mRoutes;
 	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
@@ -348,3 +318,4 @@ private:
 }
 
 #endif
+

@@ -22,7 +22,7 @@
 #include "tpn/core.h"
 #include "tpn/config.h"
 #include "tpn/scheduler.h"
-#include "tpn/bytearray.h"
+#include "tpn/binaryserializer.h"
 #include "tpn/crypto.h"
 #include "tpn/random.h"
 #include "tpn/securetransport.h"
@@ -342,6 +342,7 @@ void Core::run(void)
 	LogDebug("Core", "Finished");
 }
 
+/*
 bool Core::sendNotification(const Notification &notification)
 {
 	Synchronize(this);
@@ -448,6 +449,7 @@ void Core::removeRequest(unsigned id)
 		}
 	}
 }
+*/
 
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
@@ -475,6 +477,20 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
+bool Core::addRoute(const Identifier &id, const Identifier &route)
+{
+	mRoutes.insert(id, route);
+	return true;
+}
+
+bool Core::getRoute(const Identifier &id, Identifier &route)
+{
+	Map<Identifier, Identifier>::iterator it = mRoutes.find(id);
+	if(it == mRoutes.end()) return false;
+	route = it->second;
+	return true;
+}
+
 Core::Missive::Missive(void) :
 	descriptor(32),
 	data(1024)
@@ -491,7 +507,7 @@ void Core::Missive::serialize(Serializer &s) const
 {
 	// TODO
 	s.output(source);
-	s.output(destination);
+	s.output(target);
 	s.output(descriptor);
 	s.output(data);
 }
@@ -500,9 +516,24 @@ bool Core::Missive::deserialize(Serializer &s)
 {
 	// TODO
 	if(!s.input(source)) return false;
-	AssertIO(s.input(destination));
+	AssertIO(s.input(target));
 	AssertIO(s.input(descriptor));
 	AssertIO(s.input(data));
+}
+
+Core::Locator::Locator(const Identifier &id)
+{
+	identifier = id;
+}
+
+Core::Locator::Locator(const Address &addr)
+{
+	addresses.push_back(addr);
+}
+
+Core::Locator::~Locator(void)
+{
+
 }
 
 Core::Publisher::Publisher(void)
@@ -590,6 +621,7 @@ Core::Backend::~Backend(void)
 void Core::Backend::addIncoming(Stream *stream)
 {
 	// TODO
+	mCore->addPeer(stream);
 }
 
 void Core::Backend::run(void)
@@ -694,6 +726,22 @@ Core::StreamBackend::~StreamBackend(void)
 	
 }
 
+SecureTransport *Core::StreamBackend::connect(const Locator &locator)
+{
+	for(List<Address>::iterator it = locator.addresses.begin();
+		it != locator.addresses.end();
+		++it)
+	{
+		try {
+			return connect(*it);
+		}
+		catch(const NetException &e)
+		{
+			LogDebug("Core::StreamBackend::connect", e.what());
+		}
+	}
+}
+
 SecureTransport *Core::StreamBackend::connect(const Address &addr)
 {
 	Socket *sock = new Socket(addr);
@@ -726,6 +774,22 @@ Core::DatagramBackend::DatagramBackend(int port) :
 Core::DatagramBackend::~DatagramBackend(void)
 {
 	
+}
+
+SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
+{
+	for(List<Address>::iterator it = locator.addresses.begin();
+		it != locator.addresses.end();
+		++it)
+	{
+		try {
+			return connect(*it);
+		}
+		catch(const NetException &e)
+		{
+			LogDebug("Core::DatagramBackend::connect", e.what());
+		}
+	}
 }
 
 SecureTransport *Core::DatagramBackend::connect(const Address &addr)
@@ -762,8 +826,11 @@ TunnelBackend::~TunnelBackend(void)
 	
 }
 
-SecureTransport *TunnelBackend::connect(const Identifier &local, const Identifier &remote)
+SecureTransport *TunnelBackend::connect(const Locator &locator)
 {
+	Identifier remote = locator.identifier;
+	Identifier local = Identifier::Random();
+
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
@@ -790,7 +857,7 @@ SecureTransport *TunnelBackend::listen(void)
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(missive.destination, missive.source);
+		wrapper = new TunnelWrapper(missive.target, missive.source);
 		transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
 	}
 	catch(...)
@@ -804,7 +871,7 @@ SecureTransport *TunnelBackend::listen(void)
 	return transport;
 }
 
-bool Core::Handler::incoming(Missive &missive)
+bool Core::TunnelWrapper::incoming(Missive &missive)
 {
 	if(missive.type() == Missive::Tunnel)
 	{
@@ -816,64 +883,13 @@ bool Core::Handler::incoming(Missive &missive)
 	return false;
 }
 
-void Core::Handler::sendCommand(Stream *stream, const String &command, const String &args, const StringMap &parameters)
-{
-	String line;
-	line << command << " " << args.lineEncode();
-	LogTrace("Core::Handler", "<< " + line);
-	
-	line << Stream::NewLine;
-  	*stream << line;
-
-	for(	StringMap::const_iterator it = parameters.begin();
-		it != parameters.end();
-		++it)
-	{
-	  	line.clear();
-		line << it->first << ": " << it->second.lineEncode();
-		LogTrace("Core::Handler", "<< " + line);
-		line << Stream::NewLine;
-		*stream << line;
-	}
-	*stream << Stream::NewLine;
-}
-		
-bool Core::Handler::recvCommand(Stream *stream, String &command, String &args, StringMap &parameters)
-{
-	command.clear();
-	if(!stream->readLine(command)) return false;
-	LogTrace("Core::Handler", ">> " + command);
-	
-	args = command.cut(' ').lineDecode();
-	command = command.toUpper();
-	
-	parameters.clear();
-	while(true)
-	{
-		String name;
-		AssertIO(stream->readLine(name));
-		if(name.empty()) break;
-		LogTrace("Core::Handler", ">> " + name);
-		
-		String value = name.cut(':');
-		name.trim();
-		value.trim();
-		name = name.toLower();	// TODO: backward compatibility, should be removed
-		parameters.insert(name,value.lineDecode());
-	}
-	
-	return true;
-}
-
-Core::Handler::Handler(Core *core, Stream *stream, const Address &remoteAddr) :
+Core::Handler::Handler(Core *core, Stream *stream) :
 	mCore(core),
 	mStream(stream),
-	mRemoteAddr(remoteAddr),
 	mSender(NULL),
 	mIsIncoming(true),
 	mIsRelay(false),
 	mIsRelayEnabled(Config::Get("relay_enabled").toBool()),
-	mLinkStatus(Disconnected),
 	mThreadPool(0, 1, 8),
 	mStopping(false)
 {
@@ -910,6 +926,7 @@ void Core::Handler::setStopping(void)
 	mStopping = true;
 }
 
+/*
 void Core::Handler::sendNotification(const Notification &notification)
 {
 	{
@@ -979,27 +996,14 @@ void Core::Handler::removeRequest(unsigned id)
 	
 	
 }
+*/
 
 bool Core::Handler::isIncoming(void) const
 {
 	return mIsIncoming;
 }
 
-bool Core::Handler::isEstablished(void) const
-{
-	return (mLinkStatus == Established || mLinkStatus == Authenticated);
-}
-
-bool Core::Handler::isAuthenticated(void) const
-{
-	return (mLinkStatus == Authenticated);
-}
-
-Core::LinkStatus Core::Handler::linkStatus(void) const
-{
-	return mLinkStatus;
-}
-
+/*
 void Core::Handler::clientHandshake(void)
 {
 	Assert(!mPeering.empty());
@@ -1293,6 +1297,19 @@ void Core::Handler::serverHandshake(void)
 	parameters["relay"] << mIsRelayEnabled;
 	sendCommand(mStream, "H", args, parameters);
 }
+*/
+
+bool Core::Handler::recv(Missive &missive)
+{
+	BinarySerializer(mStream);
+	return serializer.read(missive);
+}
+
+void Core::Handler::send(const Missive &missive)
+{
+	BinarySerializer(mStream);
+	serializer.write(missive);
+}
 
 void Core::Handler::process(void)
 {
@@ -1303,9 +1320,25 @@ void Core::Handler::process(void)
 		Synchronize(this);
 		LogDebug("Core::Handler", "Starting...");
 
-		if(mIsIncoming) serverHandshake(); 
-		else clientHandshake();
+		Missive missive;
+		while(recv(missive))
+		{
+			Map<Identifier, Set<Subscriber*> >::iterator it = mSubscribers.find(missive.target);
+			if(it != mSubscribers.end())
+			{
+				for(Set<Subscriber*>::iterator jt = it->second.begin();
+					jt != it->second.end();
+					++jt)
+				{
+					jt->subscribe(*jt);
+				}	
+			}
+			
+			// TODO: when to forward ?
+			route(missive);
+		}
 
+		// TODO
 		if(!mIsIncoming && mIsRelayEnabled && mRemoteAddr.isPublic())
 		{
 			Synchronize(mCore);
