@@ -29,6 +29,7 @@
 namespace tpn
 {
 
+// DEPRECATED, do not use
 class YamlSerializer : public Serializer
 {
 public:
