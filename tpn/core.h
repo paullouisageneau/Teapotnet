@@ -114,7 +114,7 @@ public:
 		virtual bool request(const Identifier &peering, Request *request) = 0;
 	};
 	
-	Core(void);
+	Core(int port);
 	~Core(void);
 	
 	// Global
@@ -326,6 +326,9 @@ private:
 	
 	String mName;
 	ThreadPool mThreadPool;
+	
+	List<Backend*> mBackends;
+	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
 	Map<Identifier, Listener*> mListeners;

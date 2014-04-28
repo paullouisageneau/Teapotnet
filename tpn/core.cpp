@@ -36,13 +36,12 @@ Core *Core::Instance = NULL;
 
 
 Core::Core(int port) :
-		mSock(port),
 		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
 		mLastRequest(0),
 		mLastPublicIncomingTime(0)
 {
+	// Define name
 	mName = Config::Get("instance_name");
-	
 	if(mName.empty())
 	{
 		char hostname[HOST_NAME_MAX];
@@ -62,11 +61,33 @@ Core::Core(int port) :
 			Config::Save(configFileName);
 		}
 	}
+	
+	// Create backends
+	mBackends.push_back(new StreamBackend(port));
+	mBackends.push_back(new DatagramBackend(port));
+	mBackends.push_back(new TunnelBackend());
+	
+	// Start backends
+	for(List<Backend*>::iterator it = mBackends.begin();
+		it != mBackends.end();
+		++it)
+	{
+		Backend *backend = *it;
+		backend->start();
+	}
 }
 
 Core::~Core(void)
 {
-
+	// Delete backends
+	for(List<Backend*>::iterator it = mBackends.begin();
+		it != mBackends.end();
+		++it)
+	{
+		Backend *backend = *it;
+		backend->wait();
+		delete backend;
+	}
 }
 
 String Core::getName(void) const
