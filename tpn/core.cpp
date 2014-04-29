@@ -492,7 +492,6 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 }
 
 Core::Missive::Missive(void) :
-	descriptor(32),
 	data(1024)
 {
 	
@@ -503,12 +502,25 @@ Core::Missive::~Missive(void)
 	
 }
 
+void Core::Missive::prepare(const Identifier &source, const Identifier &target)
+{
+	this->source = source;
+	this->target = target;
+	data.clear();
+}
+
+void Core::Missive::clear(void)
+{
+	source.clear();
+	target.clear();
+	data.clear();
+}
+
 void Core::Missive::serialize(Serializer &s) const
 {
 	// TODO
 	s.output(source);
 	s.output(target);
-	s.output(descriptor);
 	s.output(data);
 }
 
@@ -517,7 +529,6 @@ bool Core::Missive::deserialize(Serializer &s)
 	// TODO
 	if(!s.input(source)) return false;
 	AssertIO(s.input(target));
-	AssertIO(s.input(descriptor));
 	AssertIO(s.input(data));
 }
 
@@ -1316,13 +1327,18 @@ void Core::Handler::process(void)
 	String command, args;
 	StringMap parameters;
   
-	try {
-		Synchronize(this);
-		LogDebug("Core::Handler", "Starting...");
-
-		Missive missive;
-		while(recv(missive))
-		{
+	Synchronize(this);
+	LogDebug("Core::Handler", "Starting...");
+	
+	Missive missive;
+	JsonSerializer json(&missive.data);
+	
+	missive.prepare(mLocal, mRemote);
+	// TODO
+	
+	while(recv(missive))
+	{
+		try {
 			Map<Identifier, Set<Subscriber*> >::iterator it = mSubscribers.find(missive.target);
 			if(it != mSubscribers.end())
 			{
@@ -1337,25 +1353,11 @@ void Core::Handler::process(void)
 			// TODO: when to forward ?
 			route(missive);
 		}
-
-		// TODO
-		if(!mIsIncoming && mIsRelayEnabled && mRemoteAddr.isPublic())
+		catch(const std::exception &e)
 		{
-			Synchronize(mCore);
-			LogDebug("Core::Handler", "Found potential relay " + mRemoteAddr.toString());
-			if(mCore->mKnownPublicAddresses.contains(mRemoteAddr)) mCore->mKnownPublicAddresses[mRemoteAddr] += 1;
-			else mCore->mKnownPublicAddresses[mRemoteAddr] = 1;
+			LogWarn("Core::Handler", e.what()); 
+			return;
 		}
-	}
-	catch(const IOException &e)
-	{
-		LogDebug("Core::Handler", "Handshake aborted");
-		return;
-	}
-	catch(const std::exception &e)
-	{
-		LogWarn("Core::Handler", String("Handshake failed: ") + e.what()); 
-		return;
 	}
 	
 	Identifier peering;

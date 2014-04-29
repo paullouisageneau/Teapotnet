@@ -63,6 +63,9 @@ public:
 		Missive(void);
 		~Missive(void);
 		
+		void prepare(const Identifier &source, const Identifier &target);
+		void clear(void);
+		
 		// Serializable
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
@@ -70,7 +73,6 @@ public:
 		// Fields
 		Identifier source;		// 32 o
 		Identifier target;		// 32 o
-		ByteArray descriptor;		// 32 o
 		ByteArray data;			// 1 Ko
 	};
 
@@ -256,13 +258,14 @@ private:
 		void process(void);
 		void run(void);
 
-		Identifier mPeering, mRemotePeering;
+		Identifier mLocal, mRemote;
+		
 		Core	*mCore;
 		Stream  *mStream;
-		bool mIsIncoming;
-		bool mIsRelay;
-		bool mIsRelayEnabled;
 		ThreadPool mThreadPool;
+		
+		bool mIsIncoming;
+		bool mIsAnonymous;
 		bool mStopping;
 
 		class Sender : public Thread, public Synchronizable
@@ -299,11 +302,12 @@ private:
 	List<Backend*> mBackends;
 	Map<Identifier, Identifier> mRoutes;
 	
+	Map<Identifier, Handler*> mHandlers;
+	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
-	Map<Identifier, Handler*>  mRedirections;
-	Map<Identifier, Handler*> mHandlers;
+	
 	Set<String>  mSeenRequests;
 	
 	unsigned mLastRequest;
