@@ -71,9 +71,18 @@ public:
 		bool deserialize(Serializer &s);
 		
 		// Fields
-		Identifier source;		// 32 o
-		Identifier target;		// 32 o
-		ByteArray data;			// 1 Ko
+		
+		// 16 B header
+		uint8_t version;
+		uint8_t priority;
+		uint16_t hops;
+		uint32_t type;
+		uint64_t flow;
+		Identifier source;		// 32 B
+		Identifier destination;		// 32 B
+		
+		ByteArray descriptor;		// max 256 B
+		ByteArray data;			// 1 KB
 	};
 
 	struct Locator
@@ -92,13 +101,13 @@ public:
 		Publisher(void);
 		~Publisher(void);
 		
-		void publish(const Identifier &id);
-		void unpublish(const Identifier &id);
+		void publish(const String &path);
+		void unpublish(const String &path);
 		
 		void outgoing(const Missive &missive);
 		
 	private:
-		Set<Identifier> mPublishedIds;
+		StringSet mPublishedPaths;
 	};
 	
 	class Subscriber
@@ -107,13 +116,13 @@ public:
 		Subscriber(void);
 		~Subscriber(void);
 		
-		void subscribe(const Identifier &id);
-		void unsubscribe(const Identifier &id);
+		void subscribe(const String &path);
+		void unsubscribe(const String &path);
 		
 		virtual bool incoming(Missive &missive) = 0;	// return false to delegate
 		
 	private:
-		Set<Identifier> mSubscribedIds;
+		StringSet mSubscribedPaths;
 	};
 	
 	// TODO: deprecated
@@ -145,10 +154,10 @@ public:
 	bool hasRegisteredPeering(const Identifier &peering);
 	
 	// Publish/Subscribe
-	void publish(const Identifier &id, Publisher *publisher);
-	void unpublish(const Identifier &id, Publisher *publisher);
-	void subscribe(const Identifier &id, Subscriber *subscriber);
-	void unsubscribe(const Identifier &id, Subscriber *subscriber);
+	void publish(const String &path, Publisher *publisher);
+	void unpublish(const String &path, Publisher *publisher);
+	void subscribe(const String &path, Subscriber *subscriber);
+	void unsubscribe(const String &path, Subscriber *subscriber);
 	
 	// TODO
 	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
@@ -293,8 +302,8 @@ private:
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 
-	Map<Identifier, Set<Publisher*> >  mPublishers;
-	Map<Identifier, Set<Subscriber*> > mSubscribers;
+	Map<String, Set<Publisher*> >  mPublishers;
+	Map<String, Set<Subscriber*> > mSubscribers;
 	
 	String mName;
 	ThreadPool mThreadPool;
