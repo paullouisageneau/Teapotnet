@@ -63,7 +63,7 @@ public:
 		Missive(void);
 		~Missive(void);
 		
-		void prepare(const Identifier &source, const Identifier &target);
+		void prepare(const Identifier &source, const Identifier &destination);
 		void clear(void);
 		
 		// Serializable

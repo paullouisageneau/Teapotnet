@@ -146,14 +146,14 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-void Core::publish(const Identifier &id, Publisher *publisher)
+void Core::publish(const String &path, Publisher *publisher)
 {
-	mPublishers[id].insert(publisher);
+	mPublishers[path].insert(publisher);
 }
 
-void Core::unpublish(const Identifier &id, Publisher *publisher)
+void Core::unpublish(const String &path, Publisher *publisher)
 {
-	Map<Identifier, Set<Publisher*> >::iterator it = mPublishers.find(id);
+	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(path);
 	if(it != mPublishers.end())
 	{
 		it->second.erase(publisher);
@@ -162,14 +162,14 @@ void Core::unpublish(const Identifier &id, Publisher *publisher)
 	}
 }
 
-void Core::subscribe(const Identifier &id, Subscriber *subscriber)
+void Core::subscribe(const String &path, Subscriber *subscriber)
 {
-	mSubscribers[id].insert(subscriber);
+	mSubscribers[path].insert(subscriber);
 }
 
-void Core::unsubscribe(const Identifier &id, Subscriber *subscriber)
+void Core::unsubscribe(const String &path, Subscriber *subscriber)
 {
-	Map<Identifier, Set<Subscriber*> >::iterator it = mSubscribers.find(id);
+	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(path);
 	if(it != mSubscribers.end())
 	{
 		it->second.erase(subscriber);
@@ -502,17 +502,17 @@ Core::Missive::~Missive(void)
 	
 }
 
-void Core::Missive::prepare(const Identifier &source, const Identifier &target)
+void Core::Missive::prepare(const Identifier &source, const Identifier &destination)
 {
 	this->source = source;
-	this->target = target;
+	this->destination = destination;
 	data.clear();
 }
 
 void Core::Missive::clear(void)
 {
 	source.clear();
-	target.clear();
+	destination.clear();
 	data.clear();
 }
 
@@ -520,7 +520,7 @@ void Core::Missive::serialize(Serializer &s) const
 {
 	// TODO
 	s.output(source);
-	s.output(target);
+	s.output(destination);
 	s.output(data);
 }
 
@@ -528,7 +528,7 @@ bool Core::Missive::deserialize(Serializer &s)
 {
 	// TODO
 	if(!s.input(source)) return false;
-	AssertIO(s.input(target));
+	AssertIO(s.input(destination));
 	AssertIO(s.input(data));
 }
 
@@ -554,29 +554,29 @@ Core::Publisher::Publisher(void)
 
 Core::Publisher::~Publisher(void)
 {
-	for(Set<Identifier>::iterator it = mPublishedIds.begin();
-		it != mPublishedIds.end();
+	for(StringSet::iterator it = mPublishedPaths.begin();
+		it != mPublishedPaths.end();
 		++it)
 	{
 		Core::Instance->unpublish(*it, this);
 	}
 }
 
-void Core::Publisher::publish(const Identifier &id)
+void Core::Publisher::publish(const String &path)
 {
-	if(!mPublishedIds.contains(id))
+	if(!mPublishedPaths.contains(path))
 	{
-		Core::Instance->publish(id, this);
-		mPublishedIds.insert(id);
+		Core::Instance->publish(path, this);
+		mPublishedPaths.insert(path);
 	}
 }
 
-void Core::Publisher::unpublish(const Identifier &id)
+void Core::Publisher::unpublish(const String &path)
 {
-	if(mPublishedIds.contains(id))
+	if(mPublishedPaths.contains(path))
 	{
-		Core::Instance->unpublish(id, this);
-		mPublishedIds.erase(id);
+		Core::Instance->unpublish(path, this);
+		mPublishedPaths.erase(path);
 	}
 }
 
@@ -592,29 +592,29 @@ Core::Subscriber::Subscriber(void)
 
 Core::Subscriber::~Subscriber(void)
 {
-	for(Set<Identifier>::iterator it = mSubscribedIds.begin();
-		it != mSubscribedIds.end();
+	for(StringSet::iterator it = mSubscribedPaths.begin();
+		it != mSubscribedPaths.end();
 		++it)
 	{
 		Core::Instance->unsubscribe(*it, this);
 	}
 }
 
-void Core::Subscriber::subscribe(const Identifier &id)
+void Core::Subscriber::subscribe(const String &path)
 {
-	if(!mSubscribedIds.contains(id))
+	if(!mSubscribedPaths.contains(path))
 	{
-		Core::Instance->subscribe(id, this);
-		mSubscribedIds.insert(id);
+		Core::Instance->subscribe(path, this);
+		mSubscribedPaths.insert(path);
 	}
 }
 
-void Core::Subscriber::unsubscribe(const Identifier &id)
+void Core::Subscriber::unsubscribe(const String &path)
 {
-	if(mSubscribedIds.contains(id))
+	if(mSubscribedPaths.contains(path))
 	{
-		Core::Instance->unsubscribe(id, this);
-		mSubscribedIds.erase(id);
+		Core::Instance->unsubscribe(path, this);
+		mSubscribedPaths.erase(path);
 	}
 }
 
@@ -868,7 +868,7 @@ SecureTransport *TunnelBackend::listen(void)
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(missive.target, missive.source);
+		wrapper = new TunnelWrapper(missive.destination, missive.source);
 		transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
 	}
 	catch(...)
@@ -1339,16 +1339,8 @@ void Core::Handler::process(void)
 	while(recv(missive))
 	{
 		try {
-			Map<Identifier, Set<Subscriber*> >::iterator it = mSubscribers.find(missive.target);
-			if(it != mSubscribers.end())
-			{
-				for(Set<Subscriber*>::iterator jt = it->second.begin();
-					jt != it->second.end();
-					++jt)
-				{
-					jt->subscribe(*jt);
-				}	
-			}
+			// Process
+			// TODO
 			
 			// TODO: when to forward ?
 			route(missive);
