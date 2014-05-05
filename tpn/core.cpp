@@ -63,9 +63,10 @@ Core::Core(int port) :
 	}
 	
 	// Create backends
+	mTunnelBackend = new TunnelBackend();
 	mBackends.push_back(new StreamBackend(port));
 	mBackends.push_back(new DatagramBackend(port));
-	mBackends.push_back(new TunnelBackend());
+	mBackends.push_back(mTunnelBackend);
 	
 	// Start backends
 	for(List<Backend*>::iterator it = mBackends.begin();
@@ -146,14 +147,20 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-void Core::publish(const String &path, Publisher *publisher)
+void Core::publish(const String &prefix, Publisher *publisher)
 {
-	mPublishers[path].insert(publisher);
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mPublishers[prefix].insert(publisher);
 }
 
-void Core::unpublish(const String &path, Publisher *publisher)
+void Core::unpublish(const String &prefix, Publisher *publisher)
 {
-	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(path);
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 	if(it != mPublishers.end())
 	{
 		it->second.erase(publisher);
@@ -162,14 +169,20 @@ void Core::unpublish(const String &path, Publisher *publisher)
 	}
 }
 
-void Core::subscribe(const String &path, Subscriber *subscriber)
+void Core::subscribe(const String &prefix, Subscriber *subscriber)
 {
-	mSubscribers[path].insert(subscriber);
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mSubscribers[prefix].insert(subscriber);
 }
 
-void Core::unsubscribe(const String &path, Subscriber *subscriber)
+void Core::unsubscribe(const String &prefix, Subscriber *subscriber)
 {
-	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(path);
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
 	if(it != mSubscribers.end())
 	{
 		it->second.erase(subscriber);
@@ -554,35 +567,30 @@ Core::Publisher::Publisher(void)
 
 Core::Publisher::~Publisher(void)
 {
-	for(StringSet::iterator it = mPublishedPaths.begin();
-		it != mPublishedPaths.end();
+	for(StringSet::iterator it = mPublishedPrefixes.begin();
+		it != mPublishedPrefixes.end();
 		++it)
 	{
 		Core::Instance->unpublish(*it, this);
 	}
 }
 
-void Core::Publisher::publish(const String &path)
+void Core::Publisher::publish(const String &prefix)
 {
-	if(!mPublishedPaths.contains(path))
+	if(!mPublishedPrefixes.contains(path))
 	{
 		Core::Instance->publish(path, this);
-		mPublishedPaths.insert(path);
+		mPublishedPrefixes.insert(path);
 	}
 }
 
-void Core::Publisher::unpublish(const String &path)
+void Core::Publisher::unpublish(const String &prefix)
 {
-	if(mPublishedPaths.contains(path))
+	if(mPublishedPrefixes.contains(path))
 	{
 		Core::Instance->unpublish(path, this);
-		mPublishedPaths.erase(path);
+		mPublishedPrefixes.erase(path);
 	}
-}
-
-void Core::Publisher::outgoing(const Missive &missive)
-{
-	
 }
 
 Core::Subscriber::Subscriber(void)
@@ -592,29 +600,29 @@ Core::Subscriber::Subscriber(void)
 
 Core::Subscriber::~Subscriber(void)
 {
-	for(StringSet::iterator it = mSubscribedPaths.begin();
-		it != mSubscribedPaths.end();
+	for(StringSet::iterator it = mSubscribedPrefixes.begin();
+		it != mSubscribedPrefixes.end();
 		++it)
 	{
 		Core::Instance->unsubscribe(*it, this);
 	}
 }
 
-void Core::Subscriber::subscribe(const String &path)
+void Core::Subscriber::subscribe(const String &prefix)
 {
-	if(!mSubscribedPaths.contains(path))
+	if(!mSubscribedPrefixes.contains(path))
 	{
 		Core::Instance->subscribe(path, this);
-		mSubscribedPaths.insert(path);
+		mSubscribedPrefixes.insert(path);
 	}
 }
 
-void Core::Subscriber::unsubscribe(const String &path)
+void Core::Subscriber::unsubscribe(const String &prefix)
 {
-	if(mSubscribedPaths.contains(path))
+	if(mSubscribedPrefixes.contains(path))
 	{
 		Core::Instance->unsubscribe(path, this);
-		mSubscribedPaths.erase(path);
+		mSubscribedPrefixes.erase(path);
 	}
 }
 
@@ -882,7 +890,7 @@ SecureTransport *TunnelBackend::listen(void)
 	return transport;
 }
 
-bool Core::TunnelWrapper::incoming(Missive &missive)
+bool Core::TunnelBackend::incoming(Missive &missive)
 {
 	if(missive.type() == Missive::Tunnel)
 	{
@@ -1320,6 +1328,99 @@ void Core::Handler::send(const Missive &missive)
 {
 	BinarySerializer(mStream);
 	serializer.write(missive);
+}
+
+void Core::Handler::incoming(Missive &missive)
+{
+	switch(missive.type)
+	{
+		case Missive::Data:
+		{
+			// TODO: should get coding info:
+			// resource, combination coeffs
+			break;
+		}
+
+		case Missive::Tunnel:
+		{
+			BinaryString tunnelId = BinaryString(missive.descriptor);			
+			// TODO: transmit to TunnelBackend
+
+			break;
+		}
+
+		case Missive::Publish:
+		case Missive::Subscribe:
+		{
+			String path = String(missive.descriptor);
+	
+			List<String> list;
+			path.explode(list,'/');
+			if(list.empty()) return;		// TODO
+	
+			// First item should be empty because path begins with /
+			if(list.front().empty()) 
+				list.pop_front();
+	
+			// Match prefixes, longest first
+			while(!list.empty())
+			{
+				String prefix;
+				prefix.implode(list, '/');
+				prefix = "/" + prefix;
+				list.pop_back();
+			
+				if(missive.type == Missive::Publish)
+				{
+					// Pass to local subscribers
+					Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+					if(it != mSubscribers.end())
+					{
+						for(Set<Subscriber*>::iterator jt = it->second.begin();
+							jt != it->second.end();
+							++jt)
+						{
+							if(jt->incoming(prefix, missive))
+								return;					
+						}
+					}
+				}
+				else {
+					// Pass to local publishers
+					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+					if(it != mPublishers.end())
+					{
+						for(Set<Publisher*>::iterator jt = it->second.begin();
+							jt != it->second.end();
+							++jt)
+						{
+							Missive out;
+							if(jt->outgoing(prefix, out))
+								send(out);				
+						}
+					}
+				}			
+			}
+
+			break;
+		}
+	}
+}
+
+void Core::Handler::route(Missive &missive)
+{
+	// 1st case: neighbour
+	// TODO
+
+	// 2nd case: routing table entry exists
+	Identifier route;
+	if(mRoutes.get(missive.destination, route))
+	{
+		// TODO
+	}
+
+	// 3rd case: no routing table entry
+	// TODO
 }
 
 void Core::Handler::process(void)

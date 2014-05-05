@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -19,67 +19,36 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_SPLICER_H
-#define TPN_SPLICER_H
+#ifndef TPN_CACHE_H
+#define TPN_CACHE_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
-#include "tpn/stripedfile.h"
-#include "tpn/identifier.h"
-#include "tpn/request.h"
-#include "tpn/time.h"
-#include "tpn/array.h"
-#include "tpn/set.h"
+#include "tpn/filefountain.h"
 
 namespace tpn
 {
 
-// "I'll wrap you in a sheet !"
-
-class Splicer : protected Synchronizable, public Task, public Stream
+class Cache
 {
 public:
-	static void Prefetch(const BinaryString &target);
-	static void Hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
+	Cache(void);
+	~Cache(void);
 	
-	Splicer(const BinaryString &target, int64_t begin = 0, int64_t end = -1);
-	~Splicer(void);
-	
-	void addSources(const Set<Identifier> &sources);
-	
-	int64_t size(void) const;	// range size
-	int64_t begin(void) const;
-	int64_t end(void) const;
-	bool finished(void) const;	// true if the whole file is downloaded
-	
-	void start(bool autoDelete = false);
-	void stop(void);
-	bool isStarted(void) const;
-	
-	size_t readData(char *buffer, size_t size);
-	void writeData(const char *data, size_t size);
-	
+	void prefetch(const BinaryString &target);
+	void hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
+
+
 private:
-	bool query(int i, const Identifier &source);
-	void run(void);
-	
-	Array<Request*> mRequests;
-	Array<StripedFile*> mStripes;
-	unsigned mFirstBlock, mCurrentBlock;
-	int64_t mBegin, mEnd, mPosition;
-	bool mAutoDelete;
-	
-	class CacheEntry : public Synchronizable
+	class Entry : public FountainFile
 	{
 	public:
-		CacheEntry(const BinaryString &target);
-		~CacheEntry(void);
+		Entry(const BinaryString &target);
+		~Entry(void);
 		
 		String fileName(void);
 		String name(void) const;
 		BinaryString target(void) const;
 		int64_t size(void) const;
-		size_t blockSize(void) const;
 		bool finished(void) const;	// true if the whole file is finished
 		
 		Time lastAccessTime(void) const;
@@ -89,33 +58,25 @@ private:
 		
 		void hintName(const String &name);
 		void hintSize(int64_t size);
-		void hintSources(const Set<Identifier> &sources);
+	
 		bool getSources(Set<Identifier> &sources);
 		void refreshSources(void);
-		
-		bool isBlockFinished(unsigned block) const;
-		bool markBlockFinished(unsigned block);	// true if block was finished
-		
-		bool isBlockDownloading(unsigned block) const;
-		bool markBlockDownloading(unsigned block, bool state = true); // true if block was finished
-		bool isDownloading(void) const;
 		
 	private:
 		BinaryString mTarget;
 		String mFileName;
+		String mMapFileName;
 		bool mIsFileInCache;
 		String mName;
 		int64_t mSize;
-		unsigned mBlockSize;
 		Time mTime;
-	  
+	  	
 		Set<Identifier> mSources;
 		Array<bool> mFinishedBlocks;
 		Set<unsigned> mDownloading;
 	};
 	
 	CacheEntry *mCacheEntry;
-	Set<Identifier> mSources;
 	
 	static Splicer::CacheEntry *GetCacheEntry(const BinaryString &target);
 	static Map<BinaryString, CacheEntry*> Cache;

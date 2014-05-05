@@ -26,7 +26,7 @@
 #include "tpn/store.h"
 #include "tpn/file.h"
 #include "tpn/request.h"
-#include "tpn/splicer.h"
+#include "tpn/Fountain.h"
 #include "tpn/directory.h"
 #include "tpn/pipe.h"
 #include "tpn/thread.h"
@@ -167,8 +167,8 @@ void Resource::refresh(bool forceLocal)
 		Cache.insert(mDigest, *this);
 		CacheMutex.unlock();
 		
-		// Hints for the splicer system
-		Splicer::Hint(mDigest, name(), mSources, mSize);
+		// Hints for the Fountain system
+		Fountain::Hint(mDigest, name(), mSources, mSize);
 	}
 }
 
@@ -236,7 +236,7 @@ Resource::Accessor *Resource::accessor(void) const
 		}
 		else if(!mDigest.empty())
 		{
-			mAccessor = new SplicerAccessor(mDigest, mSources);
+			mAccessor = new ContentAccessor(mDigest, mSources);
 		}
 		else if(!mUrl.empty()) {
 			mAccessor = new RemoteAccessor(mPeering, mUrl);
@@ -499,7 +499,7 @@ bool Resource::Query::submitLocal(Set<Resource> &result)
 bool Resource::Query::submitRemote(Set<Resource> &result, const Identifier &peering)
 {
 	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-	const int hops = 3;	// Must be less or equals to splicer requests
+	const int hops = 3;	// Must be less or equals to Fountain requests
 	
 	Request request;
 	createRequest(request);
@@ -635,12 +635,6 @@ bool Resource::Query::isInlineSerializable(void) const
 	return false;
 }
 
-size_t Resource::Accessor::hashData(BinaryString &digest, size_t size)
-{
-	// Default implementation
-	return Sha512().compute(*this, size, digest);
-}
-
 Resource::LocalAccessor::LocalAccessor(const String &path)
 {
 	Assert(!path.empty());
@@ -699,12 +693,6 @@ Resource::RemoteAccessor::RemoteAccessor(const Identifier &peering, const String
 Resource::RemoteAccessor::~RemoteAccessor(void)
 {
 	clearRequest();
-}
-
-size_t Resource::RemoteAccessor::hashData(BinaryString &digest, size_t size)
-{
-	// TODO
-	return Accessor::hashData(digest, size);
 }
 
 size_t Resource::RemoteAccessor::readData(char *buffer, size_t size)
@@ -792,63 +780,57 @@ void Resource::RemoteAccessor::clearRequest(void)
 	mStream = NULL;	// deleted by the request
 }
 
-Resource::SplicerAccessor::SplicerAccessor(const BinaryString &digest, const Set<Identifier> &sources) :
+Resource::ContentAccessor::ContentAccessor(const BinaryString &digest, const Set<Identifier> &sources) :
 	mDigest(digest),
 	mSources(sources),
 	mPosition(0),
-	mSplicer(NULL)
+	mFountain(NULL)
 {
 	Assert(!mDigest.empty());
 }
 
-Resource::SplicerAccessor::~SplicerAccessor(void)
+Resource::ContentAccessor::~ContentAccessor(void)
 {
-	delete mSplicer;
+	delete mFountain;
 }
 
-size_t Resource::SplicerAccessor::hashData(BinaryString &digest, size_t size)
+size_t Resource::ContentAccessor::readData(char *buffer, size_t size)
 {
-	// TODO
-        return Accessor::hashData(digest, size);
-}
-
-size_t Resource::SplicerAccessor::readData(char *buffer, size_t size)
-{
-	if(!mSplicer)
+	if(!mFountain)
 	{
-		mSplicer = new Splicer(mDigest, mPosition);
-		mSplicer->addSources(mSources);
-		//mSplicer->start();	// Do not start if it's not necessary
+		mFountain = new Fountain(mDigest, mPosition);
+		mFountain->addSources(mSources);
+		//mFountain->start();	// Do not start if it's not necessary
 	}
 
 	if(!size) return 0;
 	
-	size = mSplicer->readData(buffer, size);
+	size = mFountain->readData(buffer, size);
 	mPosition+= size;
 	return size;
 }
 
-void Resource::SplicerAccessor::writeData(const char *data, size_t size)
+void Resource::ContentAccessor::writeData(const char *data, size_t size)
 {
 	throw Unsupported("Writing to remote resource");
 }
 
-void Resource::SplicerAccessor::seekRead(int64_t position)
+void Resource::ContentAccessor::seekRead(int64_t position)
 {
 	mPosition = position;
-	delete mSplicer;
-	mSplicer = NULL;
+	delete mFountain;
+	mFountain = NULL;
 }
 
-void Resource::SplicerAccessor::seekWrite(int64_t position)
+void Resource::ContentAccessor::seekWrite(int64_t position)
 {
 	throw Unsupported("Writing to remote resource");
 }
 
-int64_t Resource::SplicerAccessor::size(void)
+int64_t Resource::ContentAccessor::size(void)
 {
-	if(!mSplicer) readData(NULL, 0);	// create the splicer
-	return mSplicer->size();
+	if(!mFountain) readData(NULL, 0);	// create the Fountain
+	return mFountain->size();
 }
 
 }

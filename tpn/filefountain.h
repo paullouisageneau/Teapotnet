@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -19,49 +19,45 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_STRIPEDFILE_H
-#define TPN_STRIPEDFILE_H
+#ifndef TPN_FILEFOUNTAIN_H
+#define TPN_FILEFOUNTAIN_H
 
 #include "tpn/include.h"
+#include "tpn/fountain.h"
+#include "tpn/stream.h"
 #include "tpn/file.h"
 #include "tpn/synchronizable.h"
 
 namespace tpn
 {
 
-class StripedFile : public Stream, protected Synchronizable
+class FileFountain : public Fountain, public Stream, public Synchronizable
 {
 public:
-	StripedFile(File *file, size_t blockSize, int nbStripes, int stripe);	// file is destroyed
-	~StripedFile(void);
+	FileFountain(File *file);	// file will be destroyed
+	~FileFountain(void);
 
-	uint64_t tellRead(void) const;
-	unsigned tellReadBlock(void) const;
-	size_t   tellReadOffset(void) const;
-	
-	uint64_t tellWrite(void) const;
-	unsigned tellWriteBlock(void) const;
-	size_t   tellWriteOffset(void) const;
-	
-	void seekRead(int64_t position);
-	void seekRead(unsigned block, size_t offset);
+	// Fountain
+	size_t readBlock(int64_t offset, char *buffer, size_t size);
+	void writeBlock(int64_t offset, const char *data, size_t size);
 
-	void seekWrite(int64_t position);
-	void seekWrite(unsigned block, size_t offset);
-	
+	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *buffer, size_t size);
-
+	void seekRead(int64_t position);
+	void seekWrite(int64_t position);
+	void clear(void);
 	void flush(void);
 	
 private:
-	File *mFile;
-	size_t mBlockSize;
-	size_t mStripeSize;
-	size_t mStripeOffset;
+	bool isWritten(int64_t offset);
+	void markWritten(int64_t offset);
 
-	unsigned mReadBlock,  mWriteBlock;	// Current block
-	size_t   mReadOffset, mWriteOffset;	// Current position inside the current stripe
+	File *mFile;
+	File *mMapFile;
+
+	uint64_t mReadPosition;
+	uint64_t mWritePosition;
 };
 
 }

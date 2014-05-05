@@ -78,6 +78,7 @@ public:
 		uint16_t hops;
 		uint32_t type;
 		uint64_t flow;
+
 		Identifier source;		// 32 B
 		Identifier destination;		// 32 B
 		
@@ -101,13 +102,13 @@ public:
 		Publisher(void);
 		~Publisher(void);
 		
-		void publish(const String &path);
-		void unpublish(const String &path);
+		void publish(const String &prefix);
+		void unpublish(const String &prefix);
 		
-		void outgoing(const Missive &missive);
+		virtual bool outgoing(const String &prefix, Missive &missive) = 0;
 		
 	private:
-		StringSet mPublishedPaths;
+		StringSet mPublishedPrefixes;
 	};
 	
 	class Subscriber
@@ -116,13 +117,13 @@ public:
 		Subscriber(void);
 		~Subscriber(void);
 		
-		void subscribe(const String &path);
-		void unsubscribe(const String &path);
+		void subscribe(const String &prefix);
+		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(Missive &missive) = 0;	// return false to delegate
+		virtual bool incoming(const String &prefix, Missive &missive) = 0;	// return false to delegate
 		
 	private:
-		StringSet mSubscribedPaths;
+		StringSet mSubscribedPrefixes;
 	};
 	
 	// TODO: deprecated
@@ -154,10 +155,10 @@ public:
 	bool hasRegisteredPeering(const Identifier &peering);
 	
 	// Publish/Subscribe
-	void publish(const String &path, Publisher *publisher);
-	void unpublish(const String &path, Publisher *publisher);
-	void subscribe(const String &path, Subscriber *subscriber);
-	void unsubscribe(const String &path, Subscriber *subscriber);
+	void publish(const String &prefix, Publisher *publisher);
+	void unpublish(const String &prefix, Publisher *publisher);
+	void subscribe(const String &prefix, Subscriber *subscriber);
+	void unsubscribe(const String &prefix, Subscriber *subscriber);
 	
 	// TODO
 	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
@@ -217,7 +218,7 @@ private:
 		DatagramSocket mSock;
 	};
 	
-	class TunnelBackend : public Backend, public Subscriber
+	class TunnelBackend : public Backend
 	{
 	public:
 		TunnelBackend(void);
@@ -227,14 +228,13 @@ private:
 		SecureTransport *connect(const Locator &locator);
 		SecureTransport *listen(void);
 		
-		// Subscriber
 		bool incoming(Missive &missive);
 		
 	private:
 		Queue<Missive> mQueue;
 		Synchronizable mQueueSync;
 		
-		class TunnelWrapper : public Stream, public Subscriber, public Publisher
+		class TunnelWrapper : public Stream
 		{
 		public:
 			TunnelWrapper(const Identifier &local, const Identifier &remote);
@@ -244,7 +244,6 @@ private:
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
 			
-			// Subscriber
 			bool incoming(Missive &missive);
 			
 		private:
@@ -263,6 +262,8 @@ private:
 	private:
 		bool recv(Missive &missive);
 		void send(const Missive &missive);
+		void incoming(Missive &missive);
+		void route(Missive &missive);
 
 		void process(void);
 		void run(void);
@@ -309,6 +310,7 @@ private:
 	ThreadPool mThreadPool;
 	
 	List<Backend*> mBackends;
+	TunnelBackend *mTunnelBackend;
 	Map<Identifier, Identifier> mRoutes;
 	
 	Map<Identifier, Handler*> mHandlers;
