@@ -31,7 +31,7 @@
 namespace tpn
 {
 
-class FileFountain : public Fountain, public Stream, public Synchronizable
+class FileFountain : public Fountain, public Stream, protected Synchronizable
 {
 public:
 	FileFountain(File *file);	// file will be destroyed
