@@ -1,0 +1,136 @@
+/*************************************************************************
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   paul-louis (at) ageneau (dot) org                                   *
+ *                                                                       *
+ *   This file is part of Teapotnet.                                     *
+ *                                                                       *
+ *   Teapotnet is free software: you can redistribute it and/or modify   *
+ *   it under the terms of the GNU Affero General Public License as      *
+ *   published by the Free Software Foundation, either version 3 of      *
+ *   the License, or (at your option) any later version.                 *
+ *                                                                       *
+ *   Teapotnet is distributed in the hope that it will be useful, but    *
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of          *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+ *   GNU Affero General Public License for more details.                 *
+ *                                                                       *
+ *   You should have received a copy of the GNU Affero General Public    *
+ *   License along with Teapotnet.                                       *
+ *   If not, see <http://www.gnu.org/licenses/>.                         *
+ *************************************************************************/
+
+#include "tpn/filefountain.h"
+
+namespace tpn
+{
+
+FileFountain::FileFountain(File *file) :
+	mReadOffset(0),
+	mWriteOffset(0)
+{
+	Assert(file);
+
+	mFile = file;
+	mMapFile = new File(mFile->name()+".map", File::ReadWrite);
+}
+
+FileFountain::~FileFountain(void)
+{
+	delete mFile;
+	delete mMapFile;
+}
+
+size_t FileFountain::readBlock(int64_t offset, char *buffer, size_t size)
+{
+	Synchronize(this);
+	if(!isWritten(offset)) return 0;
+	mFile->seekRead(offset*BlockSize);
+	return mFile->readData(buffer, size);
+}
+
+void FileFountain::writeBlock(int64_t offset, const char *data, size_t size)
+{
+	Synchronize(this);
+	mFile->seekWrite(offset*BlockSize);
+	mFile->writeData(data, size);
+	markWritten(offset);
+}
+
+size_t FileFountain::readData(char *buffer, size_t size)
+{
+	Synchronize(this);
+	uint64_t offset = mReadPosition/BlockSize;
+	size = std::min(size, size_t(mReadPosition%BlockSize));
+	
+	while(!isWritten(offset))
+		wait();
+
+	return mFile->readData(buffer, size);
+}
+
+void FileFountain::writeData(const char *buffer, size_t size)
+{
+	throw Unsupported("Writing stream data to FileFountain");
+}
+
+void FileFountain::seekRead(int64_t position)
+{
+	Synchronize(this);
+	mReadPosition = position;
+}
+
+void FileFountain::seekWrite(int64_t position)
+{
+	Synchronize(this);
+	mWritePosition = position;
+}
+
+void FileFountain::clear(void)
+{
+	Synchronize(this);
+	mFile->clear();
+	mMapFile->clear();
+}
+	
+void FileFountain::flush(void)
+{
+	Synchronize(this);
+	mFile->flush();
+	mMapFile->flush();
+}
+
+bool FileFountain::isWritten(int64_t offset)
+{
+	Synchronize(this);
+	uint8_t byte = 0;
+	uint8_t mask = 1 << (offset%8);
+	offset/= 8;
+
+	if(offset >= mMapFile->size())
+		return false;
+
+	mMapFile->seekRead(offset);
+	mMapFile->readBinary(byte);
+	return (byte & mask) != 0;
+}
+
+void FileFountain::markWritten(int64_t offset)
+{
+	Synchronize(this);
+	uint8_t byte = 1 << (offset%8);
+	offset/= 8;
+
+	if(offset > mMapFile->size())
+	{
+		mMapFile->seekWrite(mMapFile->size());
+		mMapFile->writeZeros(offset - mMapFile->size());
+	}
+
+	mMapFile->seekWrite(offset);	
+	mMapFile->writeBinary(byte);
+	notifyAll();	
+	return;
+}
+
+}
+

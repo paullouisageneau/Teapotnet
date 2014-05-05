@@ -28,7 +28,7 @@
 #include "tpn/binarystring.h"
 #include "tpn/identifier.h"
 #include "tpn/stream.h"
-#include "tpn/stream.h"
+#include "tpn/foutain.h"
 #include "tpn/time.h"
 #include "tpn/set.h"
 #include "tpn/map.h"
@@ -39,7 +39,7 @@ namespace tpn
 class Store;
 class File;
 class Request;
-class Splicer;
+class Fountain;
 	
 class Resource : public Serializable
 {
@@ -97,7 +97,6 @@ public:
 		virtual void seekWrite(int64_t position) = 0;
 		
 		virtual int64_t size(void) = 0;
-		virtual size_t hashData(BinaryString &digest, size_t size);
 	};
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
@@ -178,7 +177,6 @@ private:
 		RemoteAccessor(const Identifier &peering, const String &url);
 		~RemoteAccessor(void);
 		
-		size_t hashData(BinaryString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
@@ -186,25 +184,15 @@ private:
 		int64_t size(void);
 		
 	private:
-		void initRequest(void);
-		void clearRequest(void);
-		
-		Identifier mPeering;
-		String mUrl;
-
-		int64_t mPosition;
-		int64_t mSize;
-		Request *mRequest;
-		Stream *mStream;
+		// TODO: simple fountain with one source only
 	};
 	
-	class SplicerAccessor : public Accessor
+	class ContentAccessor : public Accessor
 	{
 	public:
-		SplicerAccessor(const BinaryString &digest, const Set<Identifier> &sources);
-		~SplicerAccessor(void);
+		ContentAccessor(const BinaryString &digest, const Set<Identifier> &sources);
+		~ContentAccessor(void);
 		
-		size_t hashData(BinaryString &digest, size_t size);
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void seekRead(int64_t position);
@@ -216,7 +204,7 @@ private:
 		const Set<Identifier> mSources;
 		
 		int64_t mPosition;
-		Splicer *mSplicer;
+		Fountain *mFountain;	// TODO: StreamFountain
 	};
 	
 	friend class Store;
