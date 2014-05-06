@@ -31,7 +31,7 @@
 namespace tpn
 {
 
-class FileFountain : public Fountain, public Stream, protected Synchronizable
+class FileFountain : public Fountain, public Synchronizable
 {
 public:
 	FileFountain(File *file);	// file will be destroyed
@@ -41,13 +41,23 @@ public:
 	size_t readBlock(int64_t offset, char *buffer, size_t size);
 	void writeBlock(int64_t offset, const char *data, size_t size);
 
-	// Stream
-	size_t readData(char *buffer, size_t size);
-	void writeData(const char *buffer, size_t size);
-	void seekRead(int64_t position);
-	void seekWrite(int64_t position);
-	void clear(void);
-	void flush(void);
+	class Reader
+	{
+	public:
+		Reader(FileFountain *fountain);
+		~Reader(void);
+		
+		// Stream
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *buffer, size_t size);
+		void seekRead(int64_t position);
+		void seekWrite(int64_t position);
+		void clear(void);
+		void flush(void);
+		
+	private:
+		FileFountain *mFountain;
+	};
 	
 private:
 	bool isWritten(int64_t offset);
@@ -55,9 +65,8 @@ private:
 
 	File *mFile;
 	File *mMapFile;
-
-	uint64_t mReadPosition;
-	uint64_t mWritePosition;
+	
+	friend class Reader;
 };
 
 }

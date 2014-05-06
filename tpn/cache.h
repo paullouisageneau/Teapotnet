@@ -46,14 +46,14 @@ private:
 		~Entry(void);
 		
 		Fountain *fountain(void);
-		
-		// TODO
+		Stream *stream(void);
 		
 	private:
 		Cache *mCache;
 		BinaryString mTarget;
 		FileFountain *mFountain;	// Null if unused
-		Task *mDeleteFoutainTask;	// To delete the foutain if unused
+		
+		// TODO: filefoutain should be deleted if unused
 	};
 	
 	

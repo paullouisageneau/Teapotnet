@@ -24,6 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/array.h"
+#include "tpn/list.h"
 #include "tpn/binarystring.h"
 
 namespace tpn
@@ -35,15 +36,32 @@ public:
 	Fountain(void);
 	virtual ~Fountain(void);
 	
-	struct Combination
+	class Combination
 	{
-		Combination(void) { this->offset = 0; }
-		Combination(int64_t first) { this->first = first; this->coeffs.append(1); }
+	public:
+		Combination(void);
 		~Combination(void);
 		
-		int64_t first;
-		Array<uint8_t> coeffs;
-		BinaryString data;
+		void addComponent(int64_t i, uint8_t coeff);
+		uint64_t firstComponent(void) const;
+		uint64_t lastComponent(void) const;
+		uint64_t componentsCount(void) const;
+		uint8_t  coeff(int64_t i) const;
+		
+		Combination operator+(const Combination &combination) const;
+		Combination operator*(uint8_t coeff) const;
+		Combination operator/(uint8_t coeff) const;	
+		Combination &operator+=(const Combination &combination);
+		Combination &operator*=(uint8_t coeff);
+		Combination &operator/=(uint8_t coeff);
+		
+	private:
+		static uint8_t gAdd(uint8_t a, uint8_t b);
+		static uint8_t gMul(uint8_t a, uint8_t b); 
+		static uint8_t gInv(uint8_t a);
+		
+		Map<int64_t, uint8_t> mComponents;
+		BinaryString mData;
 	};
 
 	void generate(int64_t first, int64_t last, Combination &c);
@@ -54,6 +72,9 @@ protected:
 	virtual size_t readBlock(int64_t offset, char *buffer, size_t size) = 0;
 	virtual void writeBlock(int64_t offset, const char *data, size_t size) = 0;
 	virtual size_t hashBlock(int64_t offset, BinaryString &digest);
+	
+private:
+	List<Combination> mCombinations;
 };
 
 }
