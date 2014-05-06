@@ -24,63 +24,41 @@
 
 #include "tpn/include.h"
 #include "tpn/filefountain.h"
+#include "tpn/synchronizable.h"
 
 namespace tpn
 {
 
-class Cache
+class Cache : public Synchronizable
 {
 public:
 	Cache(void);
 	~Cache(void);
 	
 	void prefetch(const BinaryString &target);
-	void hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
-
-
+	
+	
 private:
-	class Entry : public FountainFile
+	class Entry
 	{
 	public:
-		Entry(const BinaryString &target);
+		Entry(Cache *cache, const BinaryString &target);
 		~Entry(void);
 		
-		String fileName(void);
-		String name(void) const;
-		BinaryString target(void) const;
-		int64_t size(void) const;
-		bool finished(void) const;	// true if the whole file is finished
+		Fountain *fountain(void);
 		
-		Time lastAccessTime(void) const;
-		void setAccessTime(void);
-		
-		unsigned block(int64_t position) const;
-		
-		void hintName(const String &name);
-		void hintSize(int64_t size);
-	
-		bool getSources(Set<Identifier> &sources);
-		void refreshSources(void);
+		// TODO
 		
 	private:
+		Cache *mCache;
 		BinaryString mTarget;
-		String mFileName;
-		String mMapFileName;
-		bool mIsFileInCache;
-		String mName;
-		int64_t mSize;
-		Time mTime;
-	  	
-		Set<Identifier> mSources;
-		Array<bool> mFinishedBlocks;
-		Set<unsigned> mDownloading;
+		FileFountain *mFountain;	// Null if unused
+		Task *mDeleteFoutainTask;	// To delete the foutain if unused
 	};
 	
-	CacheEntry *mCacheEntry;
 	
-	static Splicer::CacheEntry *GetCacheEntry(const BinaryString &target);
-	static Map<BinaryString, CacheEntry*> Cache;
-	static Mutex CacheMutex;
+	Entry *getEntry(const BinaryString &target);
+	Map<BinaryString, Entry*> mEntries;
 };
 
 }
