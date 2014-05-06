@@ -23,6 +23,7 @@
 #define TPN_FOUNTAIN_H
 
 #include "tpn/include.h"
+#include "tpn/array.h"
 #include "tpn/binarystring.h"
 
 namespace tpn
@@ -31,29 +32,15 @@ namespace tpn
 class Fountain : protected Synchronizable
 {
 public:
-	static void Prefetch(const BinaryString &target);
-	static void Hint(const BinaryString &target, const String &name, const Set<Identifier> &sources, int64_t size = -1);
-	
 	Fountain(void);
 	virtual ~Fountain(void);
-	
-	void addSources(const Set<Identifier> &sources);
-	
-	int64_t size(void) const;	// range size
-	int64_t begin(void) const;
-	int64_t end(void) const;
-	bool finished(void) const;	// true if the whole file is downloaded
-	
-	void start(bool autoDelete = false);
-	void stop(void);
-	bool isStarted(void) const;
 	
 	struct Combination
 	{
 		Combination(void) { this->offset = 0; }
 		Combination(int64_t first) { this->first = first; this->coeffs.append(1); }
 		~Combination(void);
-
+		
 		int64_t first;
 		Array<uint8_t> coeffs;
 		BinaryString data;
@@ -67,54 +54,6 @@ protected:
 	virtual size_t readBlock(int64_t offset, char *buffer, size_t size) = 0;
 	virtual void writeBlock(int64_t offset, const char *data, size_t size) = 0;
 	virtual size_t hashBlock(int64_t offset, BinaryString &digest);
-
-private:
-	bool mAutoDelete;
-	
-	// TODO
-
-	class CacheEntry : public Synchronizable
-	{
-	public:
-		CacheEntry(const BinaryString &target);
-		~CacheEntry(void);
-		
-		String fileName(void);
-		String name(void) const;
-		BinaryString target(void) const;
-		int64_t size(void) const;
-		bool finished(void) const;	// true if the whole file is finished
-		
-		Time lastAccessTime(void) const;
-		void setAccessTime(void);
-		
-		unsigned block(int64_t position) const;
-		
-		void hintName(const String &name);
-		void hintSize(int64_t size);
-	
-		bool getSources(Set<Identifier> &sources);
-		void refreshSources(void);
-		
-	private:
-		BinaryString mTarget;
-		String mFileName;
-		String mMapFileName;
-		bool mIsFileInCache;
-		String mName;
-		int64_t mSize;
-		Time mTime;
-	  
-		Set<Identifier> mSources;
-		Array<bool> mFinishedBlocks;
-		Set<unsigned> mDownloading;
-	};
-	
-	CacheEntry *mCacheEntry;
-	
-	static Splicer::CacheEntry *GetCacheEntry(const BinaryString &target);
-	static Map<BinaryString, CacheEntry*> Cache;
-	static Mutex CacheMutex;
 };
 
 }

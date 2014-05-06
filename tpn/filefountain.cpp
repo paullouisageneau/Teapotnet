@@ -31,6 +31,7 @@ FileFountain::FileFountain(File *file) :
 	Assert(file);
 
 	mFile = file;
+	// TODO: assume file is complete if not empty and no map file
 	mMapFile = new File(mFile->name()+".map", File::ReadWrite);
 }
 

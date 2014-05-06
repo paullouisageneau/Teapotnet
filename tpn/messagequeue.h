@@ -66,6 +66,7 @@ public:
 	
 	void http(const String &prefix, Http::Request &request);
 	
+	// TODO: Fountain interface
 	class Selection
 	{
 	public:
