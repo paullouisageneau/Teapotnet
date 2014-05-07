@@ -36,12 +36,12 @@ Fountain::~Fountain(void)
 
 void Fountain::generate(uint64_t first, int64_t last, Combination &c)
 {
-	// TODO
+	// TODO: use readBlock and mCombinations if available
 }
 
 void Fountain::generate(uint64_t offset, Combination &c)
 {
-	// TODO
+	// TODO: use readblock
 }
 
 void Fountain::solve(const Combination &c)
@@ -152,6 +152,12 @@ Fountain::Combination::Combination(void)
 	
 }
 
+Fountain::Combination::Combination(uint64_t i, const char *data, size_t size)
+{
+	mData.assign(data, size);
+	addComponent(i, 1);
+}
+
 Fountain::Combination::~Combination(void)
 {
 	
@@ -197,6 +203,40 @@ uint8_t Fountain::Combination::coeff(uint64_t i)
 	
 	Assert(it->second != 0);
 	return it->second;
+}
+
+bool Fountain::Combination::isCoded(void) const
+{
+	return (mComponents.size() != 1 || mComponents.begin()->second != 1);
+}
+
+const char *Fountain::Combination::data(void) const
+{
+	return mData.data();
+}
+
+size_t Fountain::Combination::size(void) const
+{
+	return mData.size();
+}
+
+const char *Fountain::Combination::decodedData(void) const
+{
+	if(isCoded() || mData.size() < 2) return NULL;
+	
+	return mData.data() + 2;
+}
+
+size_t Fountain::Combination::decodedSize(void) const
+{
+	if(isCoded() || mData.size() < 2) return 0;
+	
+	uint16_t size = 0;
+	BinaryString tmp(mData, 0, 2);
+	tmp.readBinary(size);
+	
+	// TODO: warning if size too big
+	return std::min(size_t(mData.size()-2), size_t(size));
 }
 
 Fountain::Combination Fountain::Combination::operator+(const Combination &combination) const

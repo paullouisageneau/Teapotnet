@@ -40,6 +40,7 @@ public:
 	{
 	public:
 		Combination(void);
+		Combination(uint64_t i, const char *data, size_t size);
 		~Combination(void);
 		
 		void addComponent(uint64_t i, uint8_t coeff);
@@ -48,8 +49,13 @@ public:
 		uint64_t componentsCount(void) const;
 		uint8_t  coeff(uint64_t i) const;
 		
+		bool isCoded(void) const;
+		
 		const char *data(void) const;
 		size_t size(void) const;
+		
+		const char *decodedData(void) const;
+		size_t decodedSize(void) const;
 		
 		Combination operator+(const Combination &combination) const;
 		Combination operator*(uint8_t coeff) const;
