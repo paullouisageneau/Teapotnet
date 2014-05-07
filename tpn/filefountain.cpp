@@ -24,9 +24,7 @@
 namespace tpn
 {
 
-FileFountain::FileFountain(File *file) :
-	mReadOffset(0),
-	mWriteOffset(0)
+FileFountain::FileFountain(File *file)
 {
 	Assert(file);
 
@@ -41,7 +39,7 @@ FileFountain::~FileFountain(void)
 	delete mMapFile;
 }
 
-size_t FileFountain::readBlock(int64_t offset, char *buffer, size_t size)
+size_t FileFountain::readBlock(uint64_t offset, char *buffer, size_t size)
 {
 	Synchronize(this);
 	if(!isWritten(offset)) return 0;
@@ -49,7 +47,7 @@ size_t FileFountain::readBlock(int64_t offset, char *buffer, size_t size)
 	return mFile->readData(buffer, size);
 }
 
-void FileFountain::writeBlock(int64_t offset, const char *data, size_t size)
+void FileFountain::writeBlock(uint64_t offset, const char *data, size_t size)
 {
 	Synchronize(this);
 	mFile->seekWrite(offset*BlockSize);
@@ -57,50 +55,7 @@ void FileFountain::writeBlock(int64_t offset, const char *data, size_t size)
 	markWritten(offset);
 }
 
-size_t FileFountain::readData(char *buffer, size_t size)
-{
-	Synchronize(this);
-	uint64_t offset = mReadPosition/BlockSize;
-	size = std::min(size, size_t(mReadPosition%BlockSize));
-	
-	while(!isWritten(offset))
-		wait();
-
-	return mFile->readData(buffer, size);
-}
-
-void FileFountain::writeData(const char *buffer, size_t size)
-{
-	throw Unsupported("Writing stream data to FileFountain");
-}
-
-void FileFountain::seekRead(int64_t position)
-{
-	Synchronize(this);
-	mReadPosition = position;
-}
-
-void FileFountain::seekWrite(int64_t position)
-{
-	Synchronize(this);
-	mWritePosition = position;
-}
-
-void FileFountain::clear(void)
-{
-	Synchronize(this);
-	mFile->clear();
-	mMapFile->clear();
-}
-	
-void FileFountain::flush(void)
-{
-	Synchronize(this);
-	mFile->flush();
-	mMapFile->flush();
-}
-
-bool FileFountain::isWritten(int64_t offset)
+bool FileFountain::isWritten(uint64_t offset)
 {
 	Synchronize(this);
 	uint8_t byte = 0;
@@ -115,7 +70,7 @@ bool FileFountain::isWritten(int64_t offset)
 	return (byte & mask) != 0;
 }
 
-void FileFountain::markWritten(int64_t offset)
+void FileFountain::markWritten(uint64_t offset)
 {
 	Synchronize(this);
 	uint8_t byte = 1 << (offset%8);
@@ -131,6 +86,48 @@ void FileFountain::markWritten(int64_t offset)
 	mMapFile->writeBinary(byte);
 	notifyAll();	
 	return;
+}
+
+FileFountain::Reader::Reader(FileFountain *fountain)
+	mFileFountain(fountain)
+{
+	Assert(fountain);
+}
+
+FileFountain::Reader::~Reader(void)
+{
+	
+}
+
+size_t FileFountain::Reader::readData(char *buffer, size_t size)
+{
+	Synchronize(mFileFoutain);
+	
+	uint64_t offset = mReadPosition/BlockSize;
+	size = std::min(size, size_t(mReadPosition%BlockSize));
+	
+	while(!mFileFoutain->isWritten(offset))
+		mFileFoutain->wait();
+
+	mFileFoutain->mFile->seekRead(mReadPosition);
+	size = mFileFoutain->mFile->readData(buffer, size);
+	mReadPosition+= size;
+	return size;
+}
+
+void FileFountain::Reader::writeData(const char *buffer, size_t size)
+{
+	throw Unsupported("Writing to FileFountain::Reader");
+}
+
+void FileFountain::Reader::seekRead(int64_t position)
+{
+	mReadPosition = position;
+}
+
+void FileFountain::Reader::seekWrite(int64_t position)
+{
+	throw Unsupported("Writing to FileFountain::Reader");
 }
 
 }

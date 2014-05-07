@@ -34,12 +34,12 @@ Fountain::~Fountain(void)
 	
 }
 
-void Fountain::generate(int64_t first, int64_t last, Combination &c)
+void Fountain::generate(uint64_t first, int64_t last, Combination &c)
 {
 	// TODO
 }
 
-void Fountain::generate(int64_t offset, Combination &c)
+void Fountain::generate(uint64_t offset, Combination &c)
 {
 	// TODO
 }
@@ -50,7 +50,7 @@ void Fountain::solve(const Combination &c)
 
 	// TODO: use readBlock to remove decoded combinations in elimination
 	
-	uint32_t offset = 0;
+	uint64_t offset = 0;
 	if(!mCombinations.empty())
 	{
 		// Get index offset
@@ -68,7 +68,7 @@ void Fountain::solve(const Combination &c)
 
 	// Gauss-Jordan elimination
 	it = mCombinations.begin();	// pivot equation
-	uint32_t i = offset;		// pivot equation index
+	uint64_t i = offset;		// pivot equation index
 	while(it != mCombinations.end())
 	{
 		List<Combination>::iterator jt = it;
@@ -82,7 +82,7 @@ void Fountain::solve(const Combination &c)
 		Assert(it->coeff(i) == 1);
 		
 		// Suppress coordinate i in each equation
-		uint32_t j = 0;			// secondary equation index
+		uint64_t j = 0;			// secondary equation index
 		jt = mCombinations.begin();	// secondary equation
 		while(jt != mCombinations.end())
 		{
@@ -120,7 +120,7 @@ void Fountain::solve(const Combination &c)
 	it = mCombinations.begin();	// current equation
 	while(it != mCombinations.end())
 	{
-		uint32_t first = it->firstComponent();
+		uint64_t first = it->firstComponent();
 		
 		// Seen packets are not reported if decoding buffer is full
 		if(first >= m_nextSeen)
@@ -142,7 +142,7 @@ void Fountain::solve(const Combination &c)
 	}
 }
 
-size_t Fountain::hashBlock(int64_t offset, BinaryString &digest)
+size_t Fountain::hashBlock(uint64_t offset, BinaryString &digest)
 {
 	
 }
@@ -157,7 +157,7 @@ Fountain::Combination::~Combination(void)
 	
 }
 
-void Fountain::Combination::addComponent(int64_t i, uint8_t coeff)
+void Fountain::Combination::addComponent(uint64_t i, uint8_t coeff)
 {
 	if(i == 0) return;
 	
@@ -190,9 +190,9 @@ uint64_t Fountain::Combination::componentsCount(void) const
 	else return 0;
 }
 
-uint8_t Fountain::Combination::coeff(int64_t i)
+uint8_t Fountain::Combination::coeff(uint64_t i)
 {
-	Map<uint32_t,uint8_t>::const_iterator it = mComponents.find(i);
+	Map<uint64_t, uint8_t>::const_iterator it = mComponents.find(i);
 	if(it == mComponents.end()) return 0; 
 	
 	Assert(it->second != 0);
@@ -233,7 +233,7 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 		mData[i] = gAdd(mData[i], other[i]);
 
 	// Add components
-	for(	Map<uint32_t, uint8_t>::const_iterator jt = combination.mComponents.begin();
+	for(	Map<uint64_t, uint8_t>::const_iterator jt = combination.mComponents.begin();
 		jt != combination.mComponents.end();
 		++jt)
 	{
@@ -252,7 +252,7 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 	for(unsigned i = 0; i < mData.size(); ++i)
 		mData[i] = gMul(mData[i], coeff);
 
-	for(	Map<uint32_t, uint8_t>::iterator it = mComponents.begin();
+	for(	Map<uint64_t, uint8_t>::iterator it = mComponents.begin();
 		it != mComponents.end();
 		++it)
 	{
