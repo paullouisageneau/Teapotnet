@@ -38,8 +38,8 @@ public:
 	~FileFountain(void);
 
 	// Fountain
-	size_t readBlock(int64_t offset, char *buffer, size_t size);
-	void writeBlock(int64_t offset, const char *data, size_t size);
+	size_t readBlock(uint64_t offset, char *buffer, size_t size);
+	void writeBlock(uint64_t offset, const char *data, size_t size);
 
 	class Reader
 	{
@@ -52,16 +52,15 @@ public:
 		void writeData(const char *buffer, size_t size);
 		void seekRead(int64_t position);
 		void seekWrite(int64_t position);
-		void clear(void);
-		void flush(void);
 		
 	private:
 		FileFountain *mFountain;
+		int64_t mReadPosition;
 	};
 	
 private:
-	bool isWritten(int64_t offset);
-	void markWritten(int64_t offset);
+	bool isWritten(uint64_t offset);
+	void markWritten(uint64_t offset);
 
 	File *mFile;
 	File *mMapFile;
