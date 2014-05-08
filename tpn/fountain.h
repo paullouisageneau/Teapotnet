@@ -82,9 +82,11 @@ protected:
 	virtual void writeBlock(uint64_t offset, const char *data, size_t size) = 0;
 	virtual size_t hashBlock(uint64_t offset, BinaryString &digest);
 	
+	void init(void);
+	
 private:
 	List<Combination> mCombinations;
-	uint64_t mNextDecoded, mNextSeen;	// TODO: init
+	uint64_t mNextDecoded, mNextSeen;
 };
 
 }

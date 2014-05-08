@@ -24,7 +24,9 @@
 namespace tpn
 {
 
-Fountain::Fountain(void)
+Fountain::Fountain(void) :
+	mNextSeen(0),
+	mNextDecoded(0)
 {
 
 }
@@ -90,6 +92,9 @@ uint64_t Fountain::generate(uint64_t offset, Combination &c)
 
 void Fountain::solve(const Combination &c)
 {
+	if(mNextSeen == 0 && mCombinations.empty()) 
+		init();
+	
 	List<Combination>::iterator it;	// current equation
 
 	uint64_t first = 0;
@@ -211,7 +216,16 @@ void Fountain::solve(const Combination &c)
 
 size_t Fountain::hashBlock(uint64_t offset, BinaryString &digest)
 {
+	// TODO
+	return 0;
+}
+
+void Fountain::init(void)
+{
+	while(checkBlock(mNextDecoded))
+		++mNextDecoded;
 	
+	mNextSeen = std::max(mNextSeen, mNextDecoded);
 }
 
 Fountain::Combination::Combination(void)
