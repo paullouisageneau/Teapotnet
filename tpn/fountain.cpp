@@ -36,6 +36,8 @@ Fountain::~Fountain(void)
 
 uint64_t Fountain::generate(uint64_t first, int64_t last, Combination &c)
 {
+	c.clear();
+	
 	uint64_t rank = 0;
 	
 	Random rnd;
@@ -90,27 +92,49 @@ void Fountain::solve(const Combination &c)
 {
 	List<Combination>::iterator it;	// current equation
 
-	// TODO: use readBlock to remove decoded combinations in elimination
-	
-	uint64_t offset = 0;
+	uint64_t first = 0;
+	uint64_t last = 0;
 	if(!mCombinations.empty())
 	{
-		// Get index offset
 		it = mCombinations.begin();
-		offset = it->firstComponent();
+		first = it->firstComponent();
+		last  = it->lastComponent();
 		++it;
+		
 		while(it != mCombinations.end())
 		{
-			offset = std::min(offset, it->firstComponent());	
+			first = std::min(first, it->firstComponent());
+			last  = std::min(last, it->lastComponent());	
 			++it;
 		}
 	}
 
 	mCombinations.push_back(c);
 
+	// Suppress known components
+	for(uint64_t i=first; i<=last; ++i)
+	{
+		Combination u;
+		if(generate(i, u))
+		{
+			it = mCombinations.begin();
+			while(it != mCombinations.end())
+			{
+				uint8_t c = it->coeff(i);
+				if(c)	// if term not supressed
+				{
+					(*it)+= u*c;
+					Assert(it->coeff(i) == 0);
+				}
+			}
+			
+			if(i == first) ++first;	// first non-null component in system
+		}
+	}
+	
 	// Gauss-Jordan elimination
 	it = mCombinations.begin();	// pivot equation
-	uint64_t i = offset;		// pivot equation index
+	uint64_t i = first;		// pivot equation index
 	while(it != mCombinations.end())
 	{
 		List<Combination>::iterator jt = it;
@@ -162,7 +186,7 @@ void Fountain::solve(const Combination &c)
 	it = mCombinations.begin();	// current equation
 	while(it != mCombinations.end())
 	{
-		uint64_t first = it->firstComponent();
+		first = it->firstComponent();
 		
 		// Seen packets are not reported if decoding buffer is full
 		if(first >= m_nextSeen)
@@ -177,6 +201,8 @@ void Fountain::solve(const Combination &c)
 
 			writeBlock(first, it->decodedData(), it->decodedSize());
 			mNextDecoded = first + 1;
+			mCombinations.erase(it++);
+			continue;
 		}		
 
 		++it;
@@ -278,6 +304,12 @@ size_t Fountain::Combination::decodedSize(void) const
 	
 	// TODO: warning if size too big
 	return std::min(size_t(mData.size()-2), size_t(size));
+}
+
+void Fountain::Combination::clear(void)
+{
+	mCombinations.clear();
+	mData.clear();
 }
 
 Fountain::Combination Fountain::Combination::operator+(const Combination &combination) const
