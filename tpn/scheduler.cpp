@@ -74,7 +74,7 @@ void Scheduler::repeat(Task *task, double period)
 	
 	if(period < 0.)
 	{
-		remove(task);
+		cancel(task);
 		return;
 	}
 	
@@ -84,7 +84,7 @@ void Scheduler::repeat(Task *task, double period)
 	mPeriods[task] = period;
 }
 
-void Scheduler::remove(Task *task)
+void Scheduler::cancel(Task *task)
 {
 	Synchronize(this);
 

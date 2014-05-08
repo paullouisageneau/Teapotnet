@@ -43,7 +43,7 @@ public:
 	
 	void repeat(Task *task, double period);
 	
-	void remove(Task *task);
+	void cancel(Task *task);
 	void clear(void);
 	
 private:
