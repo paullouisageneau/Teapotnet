@@ -50,7 +50,7 @@ public:
 		void seekWrite(int64_t position);
 		
 	private:
-		FileFountain *mFountain;
+		FileFountain *mFileFountain;
 		int64_t mReadPosition;
 	};
 

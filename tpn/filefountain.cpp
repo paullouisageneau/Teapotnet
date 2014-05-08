@@ -85,7 +85,7 @@ void FileFountain::markWritten(int64_t offset)
 	if(offset > mMapFile->size())
 	{
 		mMapFile->seekWrite(mMapFile->size());
-		mMapFile->writeZeros(offset - mMapFile->size());
+		mMapFile->writeZero(offset - mMapFile->size());
 	}
 
 	mMapFile->seekWrite(offset);	
@@ -94,7 +94,7 @@ void FileFountain::markWritten(int64_t offset)
 	return;
 }
 
-FileFountain::Reader::Reader(FileFountain *fountain)
+FileFountain::Reader::Reader(FileFountain *fountain) :
 	mFileFountain(fountain)
 {
 	Assert(fountain);
@@ -107,16 +107,16 @@ FileFountain::Reader::~Reader(void)
 
 size_t FileFountain::Reader::readData(char *buffer, size_t size)
 {
-	Synchronize(mFileFoutain);
+	Synchronize(mFileFountain);
 	
 	int64_t offset = mReadPosition/BlockSize;
 	size = std::min(size, size_t(mReadPosition%BlockSize));
 	
-	while(!mFileFoutain->isWritten(offset))
-		mFileFoutain->wait();
+	while(!mFileFountain->isWritten(offset))
+		mFileFountain->wait();
 
-	mFileFoutain->mFile->seekRead(mReadPosition);
-	size = mFileFoutain->mFile->readData(buffer, size);
+	mFileFountain->mFile->seekRead(mReadPosition);
+	size = mFileFountain->mFile->readData(buffer, size);
 	mReadPosition+= size;
 	return size;
 }
