@@ -48,14 +48,14 @@ public:
 		uint64_t lastComponent(void) const;
 		uint64_t componentsCount(void) const;
 		uint8_t  coeff(uint64_t i) const;
-		
 		bool isCoded(void) const;
 		
 		const char *data(void) const;
 		size_t size(void) const;
-		
 		const char *decodedData(void) const;
 		size_t decodedSize(void) const;
+		
+		void clear(void);
 		
 		Combination operator+(const Combination &combination) const;
 		Combination operator*(uint8_t coeff) const;
