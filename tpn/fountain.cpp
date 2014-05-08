@@ -238,8 +238,8 @@ Fountain::Combination::Combination(void)
 
 Fountain::Combination::Combination(int64_t offset, const char *data, size_t size)
 {
-	mData.assign(data, size);
 	addComponent(offset, 1);
+	setData(data, size);
 }
 
 Fountain::Combination::~Combination(void)
@@ -260,6 +260,11 @@ void Fountain::Combination::addComponent(int64_t offset, uint8_t coeff)
 	else {
 		mComponents.insert(offset, coeff);
 	}
+}
+
+void Fountain::Combination::setData(const char *data, size_t size)
+{
+	mData.assign(data, size);
 }
 
 int64_t Fountain::Combination::firstComponent(void) const

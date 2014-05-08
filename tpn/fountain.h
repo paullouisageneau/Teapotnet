@@ -47,10 +47,12 @@ public:
 		~Combination(void);
 		
 		void addComponent(int64_t offset, uint8_t coeff);
+		void setData(const char *data, size_t size);
+		
 		int64_t firstComponent(void) const;
 		int64_t lastComponent(void) const;
 		int64_t componentsCount(void) const;
-		uint8_t  coeff(int64_t offset) const;
+		uint8_t coeff(int64_t offset) const;
 		bool isCoded(void) const;
 		
 		const char *data(void) const;
