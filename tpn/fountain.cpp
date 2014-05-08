@@ -400,6 +400,33 @@ Fountain::Combination &Fountain::Combination::operator/=(uint8_t coeff)
 	return *this;
 }
 
+
+void Fountain::Combination::serialize(Serializer &s) const
+{
+	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
+	Assert(firstComponent() >= 0);	// for sanity
+	
+	s.output(uint64_t(firstComponent()));
+	s.output(uint16_t(componentsCount()));
+	for(int64_t i=firstComponent(); i<=lastComponent(); ++i)
+		s.output(uint8_t(coeff(i)));
+}
+
+bool Fountain::Combination::deserialize(Serializer &s)
+{
+	uint64_t first = 0;
+	uint16_t count = 0;
+	if(!s.input(first)) return false;
+	AssertIO(s.input(count));
+	
+	for(int64_t i=first; i<first+count; ++i)
+	{
+		uint8_t coeff = 0;
+		AssertIO(s.input(coeff));
+		addComponent(i, coeff);
+	}
+}
+
 uint8_t Fountain::Combination::gAdd(uint8_t a, uint8_t b)
 {
 	return a ^ b;

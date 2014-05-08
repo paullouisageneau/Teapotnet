@@ -39,7 +39,7 @@ public:
 	Fountain(void);
 	virtual ~Fountain(void);
 	
-	class Combination
+	class Combination : public Serializable
 	{
 	public:
 		Combination(void);
@@ -67,7 +67,12 @@ public:
 		Combination &operator*=(uint8_t coeff);
 		Combination &operator/=(uint8_t coeff);
 		
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		
 	private:
+		// GF(256) operations
 		static uint8_t gAdd(uint8_t a, uint8_t b);
 		static uint8_t gMul(uint8_t a, uint8_t b); 
 		static uint8_t gInv(uint8_t a);
