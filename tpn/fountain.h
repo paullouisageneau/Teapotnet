@@ -73,8 +73,8 @@ public:
 		BinaryString mData;
 	};
 
-	void generate(uint64_t first, uint64_t last, Combination &c);
-	void generate(uint64_t offset, Combination &c);	
+	uint64_t generate(uint64_t first, uint64_t last, Combination &c);
+	uint64_t generate(uint64_t offset, Combination &c);	
 	void solve(const Combination &c);
 
 protected:
@@ -84,6 +84,7 @@ protected:
 	
 private:
 	List<Combination> mCombinations;
+	uint64_t mNextDecoded, mNextSeen;	// TODO: init
 };
 
 }
