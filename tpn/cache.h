@@ -56,7 +56,6 @@ private:
 		// TODO: filefoutain should be deleted if unused
 	};
 	
-	
 	Entry *getEntry(const BinaryString &target);
 	Map<BinaryString, Entry*> mEntries;
 };

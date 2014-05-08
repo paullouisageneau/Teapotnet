@@ -38,13 +38,14 @@
 #include "tpn/signal.h"
 #include "tpn/identifier.h"
 #include "tpn/notification.h"
-#include "tpn/request.h"
 #include "tpn/threadpool.h"
+#include "tpn/scheduler.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
 #include "tpn/http.h"
 #include "tpn/interface.h"
+#include "tpn/cache.h"
 
 namespace tpn
 {
@@ -126,6 +127,21 @@ public:
 		StringSet mSubscribedPrefixes;
 	};
 	
+	class Splicer
+	{
+	public:
+		Splicer(const BinaryString &target);
+		~Splicer(void);
+	
+		void start(void);
+		void stop(void);
+		
+		void incoming(Missive &missive) = 0;
+		
+	private:
+		BinaryString mTarget;
+	};
+	
 	// TODO: deprecated
 	class Listener
 	{
@@ -160,20 +176,22 @@ public:
 	void subscribe(const String &prefix, Subscriber *subscriber);
 	void unsubscribe(const String &prefix, Subscriber *subscriber);
 	
+	// Splicer
+	void registerSplicer(const BinaryString &target, Splicer *splicer);
+	void unregisterSplicer(const BinaryString &target, Splicer *splicer);
+	
+	// Routing
+	void route(Missive &missive, const Identifier &from);
+	void broadcast(Missive &missive, const Identifier &from)
+	void addRoute(const Identifier &id, const Identifier &route);
+	bool getRoute(const Identifier &id, Identifier &route);
+	
 	// TODO
-	LinkStatus addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering, bool async = false);
-	LinkStatus addPeer(Socket *sock, const Identifier &peering, bool async = false);
+	void addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
-	// TODO: deprecated
-	bool sendNotification(const Notification &notification);
-	unsigned addRequest(Request *request);
-	void removeRequest(unsigned id);
-
 private:
-	bool isRequestSeen(const Request *request);
-	
 	class Backend : protected Thread
 	{
 	public:
@@ -262,6 +280,8 @@ private:
 	private:
 		bool recv(Missive &missive);
 		void send(const Missive &missive);
+		void schedule(const Missive &missive, const Time &time);
+		//void cancel(...);
 		void incoming(Missive &missive);
 		void route(Missive &missive);
 
@@ -272,42 +292,23 @@ private:
 		
 		Core	*mCore;
 		Stream  *mStream;
-		ThreadPool mThreadPool;
+		Scheduler mScheduler;
 		
 		bool mIsIncoming;
 		bool mIsAnonymous;
 		bool mStopping;
-
-		class Sender : public Thread, public Synchronizable
-		{
-		public:
-			Sender(void);
-			~Sender(void);
-
-		private:
-			void run(void);
-			
-			Stream *mStream;
-			bool mShouldStop;
-			
-			friend class Handler;
-		};
-
-		Sender *mSender;
 	};
 
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
-	// Routing
-	void addRoute(const Identifier &id, const Identifier &route);
-	bool getRoute(const Identifier &id, Identifier &route);
-
 	Map<String, Set<Publisher*> >  mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	
 	String mName;
-	ThreadPool mThreadPool;
+	Scheduler mThreadPool;
+	Scheduler mScheduler;
+	Cache mCache;
 	
 	List<Backend*> mBackends;
 	TunnelBackend *mTunnelBackend;
@@ -319,12 +320,7 @@ private:
 	Map<Identifier, BinaryString> mSecrets;
 	Map<Identifier, Listener*> mListeners;
 	
-	Set<String>  mSeenRequests;
-	
-	unsigned mLastRequest;
-
 	Time mLastPublicIncomingTime;
-	Synchronizable mMeetingPoint;
 	Map<Address, int> mKnownPublicAddresses;
 	
 	friend class Handler;
