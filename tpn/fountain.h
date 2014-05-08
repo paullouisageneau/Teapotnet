@@ -30,7 +30,7 @@
 namespace tpn
 {
 
-class Fountain : protected Synchronizable
+class Fountain
 {
 public:
 	Fountain(void);
