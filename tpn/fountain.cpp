@@ -26,7 +26,7 @@ namespace tpn
 
 Fountain::Fountain(void)
 {
-	// TODO
+
 }
 
 Fountain::~Fountain(void)
@@ -34,14 +34,56 @@ Fountain::~Fountain(void)
 	
 }
 
-void Fountain::generate(uint64_t first, int64_t last, Combination &c)
+uint64_t Fountain::generate(uint64_t first, int64_t last, Combination &c)
 {
-	// TODO: use readBlock and mCombinations if available
+	uint64_t rank = 0;
+	
+	Random rnd;
+	for(uint64_t i=first; i<=last; ++i)
+	{
+		// TODO: not optimal, useless copy
+		char buffer[BlockSize];
+		size_t size = readBlock(i, buffer, BlockSize);
+		
+		if(size)
+		{
+			uint8_t coeff;
+			rnd.read(coeff);
+			c+= Combination(i, buffer, size)*coeff;
+			
+			++rank;
+		}
+	}
+	
+	if(rank != last-first+1)
+	{
+		for(List<Combination>::iterator it = mCombinations.begin();
+			it != mCombinations.end();
+			++it)
+		{
+			if(it->firstComponent() >= first && it->lastComponent() <= last)
+			{
+				uint8_t coeff;
+				rnd.read(coeff);
+				c+= (*it)*coeff;
+				
+				++ rank;
+			}
+		}
+	}
+	
+	return rank;
 }
 
-void Fountain::generate(uint64_t offset, Combination &c)
+uint64_t Fountain::generate(uint64_t offset, Combination &c)
 {
-	// TODO: use readblock
+	// TODO: not optimal, useless copy
+	char buffer[BlockSize];
+	size_t size = readBlock(i, buffer, BlockSize);
+	if(!size) return 0;
+	
+	c = Combination(offset, buffer, size);
+	return 1;
 }
 
 void Fountain::solve(const Combination &c)
@@ -125,7 +167,7 @@ void Fountain::solve(const Combination &c)
 		// Seen packets are not reported if decoding buffer is full
 		if(first >= m_nextSeen)
 		{
-			m_nextSeen = first + 1;
+			mNextSeen = first + 1;
 		}
 		
 		if(first == m_nextDecoded && it->componentsCount() == 1)
@@ -133,9 +175,8 @@ void Fountain::solve(const Combination &c)
 			uint8_t c = it->coeff(first);
 			if(c != 1) (*it)/= c;
 
-			// TODO: writeBlock
-			
-			m_nextDecoded = first + 1;
+			writeBlock(first, it->decodedData(), it->decodedSize());
+			mNextDecoded = first + 1;
 		}		
 
 		++it;
