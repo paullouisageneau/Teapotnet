@@ -39,7 +39,7 @@ FileFountain::~FileFountain(void)
 	delete mMapFile;
 }
 
-size_t FileFountain::readBlock(uint64_t offset, char *buffer, size_t size)
+size_t FileFountain::readBlock(int64_t offset, char *buffer, size_t size)
 {
 	Synchronize(this);
 	if(!isWritten(offset)) return 0;
@@ -47,7 +47,7 @@ size_t FileFountain::readBlock(uint64_t offset, char *buffer, size_t size)
 	return mFile->readData(buffer, size);
 }
 
-void FileFountain::writeBlock(uint64_t offset, const char *data, size_t size)
+void FileFountain::writeBlock(int64_t offset, const char *data, size_t size)
 {
 	Synchronize(this);
 	mFile->seekWrite(offset*BlockSize);
@@ -55,7 +55,13 @@ void FileFountain::writeBlock(uint64_t offset, const char *data, size_t size)
 	markWritten(offset);
 }
 
-bool FileFountain::isWritten(uint64_t offset)
+bool FileFountain::checkBlock(int64_t offset)
+{
+	Synchronize(this);
+	return isWritten(offset);
+}
+
+bool FileFountain::isWritten(int64_t offset)
 {
 	Synchronize(this);
 	uint8_t byte = 0;
@@ -70,7 +76,7 @@ bool FileFountain::isWritten(uint64_t offset)
 	return (byte & mask) != 0;
 }
 
-void FileFountain::markWritten(uint64_t offset)
+void FileFountain::markWritten(int64_t offset)
 {
 	Synchronize(this);
 	uint8_t byte = 1 << (offset%8);
@@ -103,7 +109,7 @@ size_t FileFountain::Reader::readData(char *buffer, size_t size)
 {
 	Synchronize(mFileFoutain);
 	
-	uint64_t offset = mReadPosition/BlockSize;
+	int64_t offset = mReadPosition/BlockSize;
 	size = std::min(size, size_t(mReadPosition%BlockSize));
 	
 	while(!mFileFoutain->isWritten(offset))
