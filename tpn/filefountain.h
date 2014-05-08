@@ -36,11 +36,7 @@ class FileFountain : public Fountain, public Synchronizable
 public:
 	FileFountain(File *file);	// file will be destroyed
 	~FileFountain(void);
-
-	// Fountain
-	size_t readBlock(uint64_t offset, char *buffer, size_t size);
-	void writeBlock(uint64_t offset, const char *data, size_t size);
-
+	
 	class Reader
 	{
 	public:
@@ -57,10 +53,15 @@ public:
 		FileFountain *mFountain;
 		int64_t mReadPosition;
 	};
-	
+
 private:
-	bool isWritten(uint64_t offset);
-	void markWritten(uint64_t offset);
+	// Fountain
+	size_t readBlock(int64_t offset, char *buffer, size_t size);
+	void writeBlock(int64_t offset, const char *data, size_t size);
+	bool checkBlock(int64_t offset);
+	
+	bool isWritten(int64_t offset);
+	void markWritten(int64_t offset);
 
 	File *mFile;
 	File *mMapFile;

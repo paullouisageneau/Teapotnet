@@ -25,14 +25,17 @@
 #include "tpn/include.h"
 #include "tpn/array.h"
 #include "tpn/list.h"
+#include "tpn/map.h"
 #include "tpn/binarystring.h"
 
 namespace tpn
 {
-
+	
 class Fountain
 {
 public:
+	static const size_t BlockSize = 1024;
+	
 	Fountain(void);
 	virtual ~Fountain(void);
 	
@@ -40,14 +43,14 @@ public:
 	{
 	public:
 		Combination(void);
-		Combination(uint64_t i, const char *data, size_t size);
+		Combination(int64_t offset, const char *data, size_t size);
 		~Combination(void);
 		
-		void addComponent(uint64_t i, uint8_t coeff);
-		uint64_t firstComponent(void) const;
-		uint64_t lastComponent(void) const;
-		uint64_t componentsCount(void) const;
-		uint8_t  coeff(uint64_t i) const;
+		void addComponent(int64_t offset, uint8_t coeff);
+		int64_t firstComponent(void) const;
+		int64_t lastComponent(void) const;
+		int64_t componentsCount(void) const;
+		uint8_t  coeff(int64_t offset) const;
 		bool isCoded(void) const;
 		
 		const char *data(void) const;
@@ -69,24 +72,25 @@ public:
 		static uint8_t gMul(uint8_t a, uint8_t b); 
 		static uint8_t gInv(uint8_t a);
 		
-		Map<uint64_t, uint8_t> mComponents;
+		Map<int64_t, uint8_t> mComponents;
 		BinaryString mData;
 	};
 
-	uint64_t generate(uint64_t first, uint64_t last, Combination &c);
-	uint64_t generate(uint64_t offset, Combination &c);	
+	int64_t generate(int64_t first, int64_t last, Combination &c);
+	int64_t generate(int64_t offset, Combination &c);	
 	void solve(const Combination &c);
 
 protected:
-	virtual size_t readBlock(uint64_t offset, char *buffer, size_t size) = 0;
-	virtual void writeBlock(uint64_t offset, const char *data, size_t size) = 0;
-	virtual size_t hashBlock(uint64_t offset, BinaryString &digest);
+	virtual size_t readBlock(int64_t offset, char *buffer, size_t size) = 0;
+	virtual void writeBlock(int64_t offset, const char *data, size_t size) = 0;
+	virtual bool checkBlock(int64_t offset) = 0;
+	virtual size_t hashBlock(int64_t offset, BinaryString &digest);
 	
 	void init(void);
 	
 private:
 	List<Combination> mCombinations;
-	uint64_t mNextDecoded, mNextSeen;
+	int64_t mNextDecoded, mNextSeen;
 };
 
 }
