@@ -191,6 +191,22 @@ void Core::unsubscribe(const String &prefix, Subscriber *subscriber)
 	}
 }
 
+void Core::registerSplicer(const BinaryString &target, Splicer *splicer)
+{
+	mSplicers[target].insert(splicer);
+}
+
+void Core::unregisterSplicer(const BinaryString &target, Splicer *splicer)
+{
+	Map<BinaryString, Set<Splicer*> >::iterator it = mSplicers.find(target);
+	if(it != mSplicers.end())
+	{
+		it->second.erase(splicer);
+		if(it->second.empty())
+			mSplicers.erase(it);
+	}
+}
+
 void Core::route(Missive &missive, const Identifier &from)
 {
 	Synchronize(this);
@@ -614,6 +630,27 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	}
 }
 
+Splicer::Splicer(const BinaryString &target) :
+	mTarget(target)
+{
+	Assert(!target.empty());
+}
+
+Splicer::~Splicer(void)
+{
+	stop();
+}
+	
+void Splicer::start(void)
+{
+	Core::Instance->registerSplicer(mTarget, this);
+}
+
+void Splicer::stop(void)
+{
+	Core::Instance->unregisterSplicer(mTarget, this);
+}
+
 Core::Backend::Backend(Core *core) :
 	mCore(core)
 {
@@ -973,22 +1010,27 @@ void Core::Handler::schedule(const Missive &missive, const Time &time)
 	mScheduler.schedule(task, time);
 }
 
-void Core::Handler::incoming(Missive &missive)
+bool Core::Handler::incoming(uint8_t content, ByteArray &payload)
 {
-	switch(missive.type)
+	switch(content)
 	{
+		case Missive::Call:
+		{
+			BinaryString target;
+			payload.read(target);
+			
+			Payload answer;
+			if(mCache.fetch(target, answer))
+			{
+				// TODO
+				send(missive);
+				return true;
+			}
+		}
+		
 		case Missive::Data:
 		{
-			// TODO: should get coding info:
-			// resource, combination coeffs
-			break;
-		}
-
-		case Missive::Tunnel:
-		{
-			BinaryString tunnelId = BinaryString(missive.descriptor);			
-			// TODO: transmit to TunnelBackend
-
+			mCache.push(payload);
 			break;
 		}
 
@@ -1023,7 +1065,7 @@ void Core::Handler::incoming(Missive &missive)
 							jt != it->second.end();
 							++jt)
 						{
-							if(jt->incoming(prefix, missive))
+							if(jt->incoming(prefix, payload))
 								return;					
 						}
 					}
@@ -1037,9 +1079,12 @@ void Core::Handler::incoming(Missive &missive)
 							jt != it->second.end();
 							++jt)
 						{
-							Missive out;
-							if(jt->outgoing(prefix, out))
-								send(out);				
+							BinaryString out;
+							if(jt->anounce(prefix, out))
+							{
+								// TODO: missive
+								send(missive);
+							}
 						}
 					}
 				}
@@ -1048,6 +1093,8 @@ void Core::Handler::incoming(Missive &missive)
 			break;
 		}
 	}
+	
+	return true;
 }
 
 void Core::Handler::process(void)
@@ -1059,20 +1106,33 @@ void Core::Handler::process(void)
 	LogDebug("Core::Handler", "Starting...");
 	
 	Missive missive;
-	JsonSerializer json(&missive.data);
-	
 	missive.prepare(mLocal, mRemote);
 	// TODO
 	
 	while(recv(missive))
 	{
 		try {
-			// Process
-			// TODO
-			// incoming
-			
-			// TODO: when to forward ?
-			route(missive);
+			switch(missive.type)
+			{
+				case Missive::Forward:
+					if(missive.destination == mLocal) incoming(missive);
+					else route(missive);
+					break;
+					
+				case Missive::Broadcast:
+					incoming(missive);
+					route(missive);
+					break;
+					
+				case Missive::Lookup:
+					if(missive.destination == mLocal) incoming(missive);
+					else if(!incoming(missive))
+						route(missive);
+					
+				default:
+					// Drop
+					break;
+			}
 		}
 		catch(const std::exception &e)
 		{

@@ -37,6 +37,8 @@ public:
 	
 	void prefetch(const BinaryString &target);
 	
+	void push(ByteArray &input);
+	bool pull(const BinaryString &target, ByteArray &result);
 	
 private:
 	class Entry
