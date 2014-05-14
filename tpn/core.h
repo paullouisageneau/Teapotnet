@@ -72,19 +72,16 @@ public:
 		bool deserialize(Serializer &s);
 		
 		// Fields
-		
-		// 16 B header
 		uint8_t version;
-		uint8_t priority;
+		uint8_t type;
+		uint8_t content;
 		uint16_t hops;
-		uint32_t type;
-		uint64_t flow;
-
+		
 		Identifier source;		// 32 B
 		Identifier destination;		// 32 B
 		
 		ByteArray descriptor;		// max 256 B
-		ByteArray data;			// 1 KB
+		ByteArray payload;		// max 1 KB
 	};
 
 	struct Locator
@@ -106,7 +103,7 @@ public:
 		void publish(const String &prefix);
 		void unpublish(const String &prefix);
 		
-		virtual bool outgoing(const String &prefix, Missive &missive) = 0;
+		virtual bool anounce(const String &prefix, ByteArray &out) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -121,7 +118,8 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &prefix, Missive &missive) = 0;	// return false to delegate
+		virtual bool beacon(const String &prefix, ByteArray &out) = 0;
+		virtual bool incoming(const String &prefix, ByteArray &data) = 0;	// return false to delegate
 		
 	private:
 		StringSet mSubscribedPrefixes;
@@ -282,7 +280,7 @@ private:
 		void send(const Missive &missive);
 		void schedule(const Missive &missive, const Time &time);
 		//void cancel(...);
-		void incoming(Missive &missive);
+		bool incoming(Missive &missive);
 		void route(Missive &missive);
 
 		void process(void);
