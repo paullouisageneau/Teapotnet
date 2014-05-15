@@ -125,16 +125,14 @@ public:
 		StringSet mSubscribedPrefixes;
 	};
 	
-	class Splicer
+	class Caller
 	{
 	public:
-		Splicer(const BinaryString &target);
-		~Splicer(void);
+		Caller(const BinaryString &target);
+		~Caller(void);
 	
 		void start(void);
 		void stop(void);
-		
-		void incoming(Missive &missive) = 0;
 		
 	private:
 		BinaryString mTarget;
@@ -174,9 +172,9 @@ public:
 	void subscribe(const String &prefix, Subscriber *subscriber);
 	void unsubscribe(const String &prefix, Subscriber *subscriber);
 	
-	// Splicer
-	void registerSplicer(const BinaryString &target, Splicer *splicer);
-	void unregisterSplicer(const BinaryString &target, Splicer *splicer);
+	// Caller
+	void registerCaller(const BinaryString &target, Caller *splicer);
+	void unregisterCaller(const BinaryString &target, Caller *splicer);
 	
 	// Routing
 	void route(Missive &missive, const Identifier &from);
