@@ -191,19 +191,19 @@ void Core::unsubscribe(const String &prefix, Subscriber *subscriber)
 	}
 }
 
-void Core::registerSplicer(const BinaryString &target, Splicer *splicer)
+void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
-	mSplicers[target].insert(splicer);
+	mCallers[target].insert(caller);
 }
 
-void Core::unregisterSplicer(const BinaryString &target, Splicer *splicer)
+void Core::unregisterCaller(const BinaryString &target, Caller *caller)
 {
-	Map<BinaryString, Set<Splicer*> >::iterator it = mSplicers.find(target);
-	if(it != mSplicers.end())
+	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(target);
+	if(it != mCallers.end())
 	{
-		it->second.erase(splicer);
-		if(it->second.empty())
-			mSplicers.erase(it);
+		it->second.erase(caller);
+		if(it->second.empty())   
+			mCallers.erase(it);
 	}
 }
 
@@ -373,115 +373,6 @@ void Core::run(void)
 	LogDebug("Core", "Finished");
 }
 
-/*
-bool Core::sendNotification(const Notification &notification)
-{
-	Synchronize(this);
-	
-	Array<Identifier> identifiers;
-	
-	if(notification.mPeering == Identifier::Null)
-	{
-		mHandlers.getKeys(identifiers);
-	}
-	else {
-		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(notification.mPeering);
-		if(it == mHandlers.end() || it->first != notification.mPeering) return false;
-			
-		Array<Handler*> handlers;
-		while(it != mHandlers.end() && it->first == notification.mPeering)
-		{
-			identifiers.push_back(it->first);
-			++it;
-		}
-	}
-	
-	for(int i=0; i<identifiers.size(); ++i)
-	{
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
-		{
-			Desynchronize(this);
-			handler->sendNotification(notification);
-		}
-	}
-	
-	return (!identifiers.empty());
-}
-
-unsigned Core::addRequest(Request *request)
-{
-	Synchronize(this);
-
-	{
-		Synchronize(request);
-		if(!request->mId)
-			request->mId = ++mLastRequest;
-		
-		String uid;
-		request->mParameters.get("uid", uid);
-		if(uid.empty())
-		{
-			uid = String::random(16);
-			request->mParameters["uid"] = uid;
-		}
-		
-		mSeenRequests.insert(uid);
-	}
-
-	Array<Identifier> identifiers;
-	if(request->mReceiver == Identifier::Null)
-	{
-		mHandlers.getKeys(identifiers);
-	}
-	else {
-		Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(request->mReceiver);
-		if(it == mHandlers.end() || it->first != request->mReceiver)
-			throw Exception("Request receiver is not connected");
-		
-		while(it != mHandlers.end() && it->first == request->mReceiver)
-		{
-			identifiers.push_back(it->first);
-			++it;
-		}
-	}
-
-	if(identifiers.empty()) request->notifyAll();
-	else for(int i=0; i<identifiers.size(); ++i)
-	{
-		if(identifiers[i] == request->mNonReceiver)
-			continue;
-		
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
-		{
-			Desynchronize(this);
-			handler->addRequest(request);
-		}
-	}
-	
-	return request->mId;
-}
-
-void Core::removeRequest(unsigned id)
-{
-	Synchronize(this);
-  
-	Array<Identifier> identifiers;
-	mHandlers.getKeys(identifiers);
-	
-	for(int i=0; i<identifiers.size(); ++i)
-	{
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
-		{
-			Desynchronize(this);
-			handler->removeRequest(id);
-		}
-	}
-}
-*/
-
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
@@ -630,25 +521,25 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	}
 }
 
-Splicer::Splicer(const BinaryString &target) :
+Caller::Caller(const BinaryString &target) :
 	mTarget(target)
 {
 	Assert(!target.empty());
 }
 
-Splicer::~Splicer(void)
+Caller::~Caller(void)
 {
 	stop();
 }
 	
-void Splicer::start(void)
+void Caller::start(void)
 {
-	Core::Instance->registerSplicer(mTarget, this);
+	Core::Instance->registerCaller(mTarget, this);
 }
 
-void Splicer::stop(void)
+void Caller::stop(void)
 {
-	Core::Instance->unregisterSplicer(mTarget, this);
+	Core::Instance->unregisterCaller(mTarget, this);
 }
 
 Core::Backend::Backend(Core *core) :
