@@ -85,7 +85,7 @@ public:
 	};
 
 	struct Locator
-	{		
+	{
 		Locator(const Identifier &id);
 		Locator(const Address &addr);
 		~Locator(void);
@@ -125,17 +125,20 @@ public:
 		StringSet mSubscribedPrefixes;
 	};
 	
-	class Caller
+	class Caller : protected Synchronizable, public Task
 	{
 	public:
-		Caller(const BinaryString &target);
+		Caller(const BinaryString &target, int64_t begin, int64_t end);
 		~Caller(void);
-	
+		
 		void start(void);
 		void stop(void);
 		
+		void run(void);
+		
 	private:
 		BinaryString mTarget;
+		int64_t mBegin, mEnd;
 	};
 	
 	// TODO: deprecated
@@ -272,6 +275,23 @@ private:
 	public:
 		Handler(Core *core, Stream *stream);
 		~Handler(void);
+		
+		class Sender : protected Synchronizable, public Task
+		{
+		public:
+			Sender(const BinaryString &target);
+			~Sender(void);
+			
+			void setInterval(int64_t begin, int64_t end);
+			void setTokens(unsigned tokens);
+			
+			void run(void);
+			
+		private:
+			BinaryString mTarget;
+			int64_t mBegin, mEnd;
+			unsigned mTokens;
+		};
 		
 	private:
 		bool recv(Missive &missive);

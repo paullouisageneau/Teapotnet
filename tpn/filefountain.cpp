@@ -24,13 +24,19 @@
 namespace tpn
 {
 
-FileFountain::FileFountain(File *file)
+FileFountain::FileFountain(File *file, bool refresh)
 {
 	Assert(file);
-
 	mFile = file;
-	// TODO: assume file is complete if not empty and no map file
-	mMapFile = new File(mFile->name()+".map", File::ReadWrite);
+	
+	if(mFile->mode() == File::Read) 
+	{
+		if(refresh) throw Exception("Unable to refresh fountain, file is read-only");
+		mMapFile = NULL;
+	}
+	else {
+		mMapFile = new File(mFile->name()+".map", (refresh ? File::TruncateReadWrite : File::ReadWrite));
+	}
 }
 
 FileFountain::~FileFountain(void)
@@ -64,6 +70,8 @@ bool FileFountain::checkBlock(int64_t offset)
 bool FileFountain::isWritten(int64_t offset)
 {
 	Synchronize(this);
+	if(!mMapFile) return true;
+	
 	uint8_t byte = 0;
 	uint8_t mask = 1 << (offset%8);
 	offset/= 8;
@@ -79,6 +87,8 @@ bool FileFountain::isWritten(int64_t offset)
 void FileFountain::markWritten(int64_t offset)
 {
 	Synchronize(this);
+	if(!mMapFile) return;
+
 	uint8_t byte = 1 << (offset%8);
 	offset/= 8;
 
