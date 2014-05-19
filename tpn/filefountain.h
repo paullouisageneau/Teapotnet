@@ -34,7 +34,7 @@ namespace tpn
 class FileFountain : public Fountain, public Synchronizable
 {
 public:
-	FileFountain(File *file);	// file will be destroyed
+	FileFountain(File *file, bool refresh = false);	// file will be destroyed
 	~FileFountain(void);
 	
 	class Reader

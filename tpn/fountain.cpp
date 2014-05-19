@@ -215,12 +215,53 @@ void Fountain::solve(const Combination &c)
 	}
 }
 
+bool Fountain::hash(int64_t first, int64_t last, BinaryString &digest)
+{
+	for(int64_t i=first; i<=last; ++i)
+		if(!hasBlock(i))
+			return false;
+		
+	Sha256 hash;
+	hash.init();
+
+	for(int64_t i=first; i<=last; ++i)
+	{
+		hashBlock(i, digest);
+		hash.process(digest);
+	}
+	
+	hash.finalize(digest);
+	return true;
+}
+
+bool Fountain::validate(int64_t first, int64_t last, const BinaryString &digest)
+{
+	BinaryString tmp;
+	
+	Sha256 hash;
+	hash.init();
+
+	for(int64_t i=first; i<=last; ++i)
+	{
+		hashBlock(i, tmp);
+		hash.process(tmp);
+	}
+	
+	hash.finalize(tmp);
+	
+	if(tmp != digest) 
+		return false;
+	
+	for(int64_t i=first; i<=last; ++i)
+		markWritten(i);
+}
+
 size_t Fountain::hashBlock(int64_t offset, BinaryString &digest)
 {
 	char buffer[BlockSize];
 	size_t size = readBlock(offset, buffer, BlockSize);
 	Sha256().compute(buffer, size, digest);
-	return 0;
+	return size;
 }
 
 void Fountain::init(void)

@@ -521,8 +521,10 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	}
 }
 
-Caller::Caller(const BinaryString &target) :
-	mTarget(target)
+Caller::Caller(const BinaryString &target, int64_t begin, int64_t end) :
+	mTarget(target),
+	mBegin(begin),
+	mEnd(end)
 {
 	Assert(!target.empty());
 }
@@ -542,6 +544,59 @@ void Caller::stop(void)
 	Core::Instance->unregisterCaller(mTarget, this);
 }
 
+void Caller::run(void)
+{
+	int64_t nextSeen = mCache.getNextSeen(target, begin);
+	if(nextSeen > mBegin) mBegin = nextSeen;
+	
+	
+}
+
+Sender::Sender(const BinaryString &target) :
+	mTarget(target),
+	mBegin(0),
+	mEnd(0),
+	mTokens(0)
+{
+	
+}
+
+Sender::~Sender(void)
+{
+	
+}
+
+void Sender::setInterval(int64_t begin, int64_t end)
+{
+	Synchronize(this);
+	
+	mBegin = begin;
+	mEnd = end;
+	setTokens(mTokens);
+}
+
+void Sender::setTokens(unsigned tokens)
+{
+	Synchronize(this);
+	
+	mTokens = std::min(mTokens, unsigned(mEnd - mBegin));
+}
+
+void Sender::run(void)
+{
+	Synchronize(this);
+	
+	// TODO
+	Missive missive;
+	missive.writeBinary(mTarget);
+	mCache.pull(mTarget, mBegin, mEnd, missive);
+	
+	mHander->send(missive);
+
+	if(--mTokens) 
+		Core::Instance->mScheduler.schedule(this);
+}
+		
 Core::Backend::Backend(Core *core) :
 	mCore(core)
 {
@@ -901,27 +956,53 @@ void Core::Handler::schedule(const Missive &missive, const Time &time)
 	mScheduler.schedule(task, time);
 }
 
-bool Core::Handler::incoming(uint8_t content, ByteArray &payload)
+bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArray &payload)
 {
 	switch(content)
 	{
 		case Missive::Call:
+		case Missive::Ack:	// Ack has the same format but is unicast
 		{
 			BinaryString target;
-			payload.read(target);
+			payload.readBinary(target);
 			
-			Payload answer;
-			if(mCache.fetch(target, answer))
+			int64_t begin = 0;
+			int64_t end = 0;
+			int16_t tokens = 0;
+			payload.readBinary(begin);	// for Ack, this is the last seen
+			payload.readBinary(end);
+			payload.readBinary(tokens);
+			
+			Sender *sender = getSender(target, source);
+			if(sender)
 			{
-				// TODO
-				send(missive);
-				return true;
+				sender->setInterval(begin, end);
+				sender->setTokens(tokens);
 			}
+			
+			break;
 		}
 		
 		case Missive::Data:
 		{
-			mCache.push(payload);
+			BinaryString target;
+			payload.read(target);
+			
+			mCache.push(target, payload);
+			
+			Map<String, Set<Caller*> >::iterator it = mCallers.find(target);
+			if(it != mCallers.end())
+			{
+				for(Set<Subscriber*>::iterator jt = it->second.begin();
+							jt != it->second.end();
+							++jt)
+				{
+					// TODO: stop calling retrieved parts	
+				}
+			}
+			
+			// TODO: send ACK to source
+			
 			break;
 		}
 

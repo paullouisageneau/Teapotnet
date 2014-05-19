@@ -36,9 +36,10 @@ public:
 	~Cache(void);
 	
 	void prefetch(const BinaryString &target);
+	void sync(const BinaryString &target, const String &filename);
 	
-	void push(ByteArray &input);
-	bool pull(const BinaryString &target, ByteArray &result);
+	void push(const BinaryString &target, ByteArray &input);
+	bool pull(const BinaryString &target, int64_t begin, int64_t end, ByteArray &result);
 	
 private:
 	class Entry
@@ -53,7 +54,9 @@ private:
 	private:
 		Cache *mCache;
 		BinaryString mTarget;
+		String mFileName;
 		FileFountain *mFountain;	// Null if unused
+		Map<int, BinaryString> mChunks;
 		
 		// TODO: filefoutain should be deleted if unused
 	};
