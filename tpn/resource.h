@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -27,26 +27,18 @@
 #include "tpn/string.h"
 #include "tpn/binarystring.h"
 #include "tpn/identifier.h"
-#include "tpn/stream.h"
-#include "tpn/foutain.h"
-#include "tpn/time.h"
-#include "tpn/set.h"
-#include "tpn/map.h"
+#include "tpn/block.h"
+#include "tpn/file.h"
 
 namespace tpn
 {
 
-class Store;
-class File;
-class Request;
-class Fountain;
-	
-// Resource descriptor
-class Resource : public Serializable
+class Resource : public Chunk
 {
 public:
 	enum AccessLevel { Public, Private, Personal };
 
+	// TODO
 	class Query : public Serializable
 	{
 	public:
@@ -102,64 +94,17 @@ public:
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
-	Resource(const Identifier &peering, const String &url, Store *store = NULL);
-	Resource(const BinaryString &digest, Store *store = NULL);
-	Resource(Store *store = NULL);
+	Resource(const String &filename);	// file will be read and hashed
 	~Resource(void);
-
-	void clear(void);
-	void fetch(bool forceLocal = false);
-	void refresh(bool forceLocal = false);
-	
-	BinaryString 	digest(void) const;
-	Time		time(void) const;
-	int64_t		size(void) const;
-	int		type(void) const;
-
-	String		url(void) const;
-	String		name(void) const;
-	bool		isDirectory(void) const;
-	
-	Identifier	peering(void) const;	// null if local
-	int		hops(void) const;
-	
-	Accessor *accessor(void) const;
-	void dissociateAccessor(void) const;
-	
-	void setPeering(const Identifier &peering);
-	void addHop(void);
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
 
-private:
-	struct Metadata : public Serializable
-	{
-		BinaryString	digest;
-		String 		name;
-		String		type;
-		int64_t		size;
-		
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-	};
+protected:
+	SerializableArray<Block*> mBlocks;
 	
-	struct Chunk : public Serializable
-	{
-		BinaryString	digest;
-		int		size;		// max 1 MB
-		int		blocks;		// max 1024
-		
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-	};
-	
-	Metadata			mMetadata;
-	SerializableArray<Chunk>	mChunks;
-	
-
 	mutable Accessor *mAccessor;
 	
 	class LocalAccessor : public Accessor
