@@ -35,6 +35,7 @@ class Fountain
 {
 public:
 	static const size_t BlockSize = 1024;	// bytes
+	static const size_t ChunkSize = 1024;	// blocks
 	
 	Fountain(void);
 	virtual ~Fountain(void);

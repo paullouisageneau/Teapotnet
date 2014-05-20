@@ -41,6 +41,7 @@ class File;
 class Request;
 class Fountain;
 	
+// Resource descriptor
 class Resource : public Serializable
 {
 public:
@@ -134,25 +135,31 @@ public:
 	virtual bool isInlineSerializable(void) const;
 
 private:
-	static Map<BinaryString, Resource> Cache;
-	static Mutex CacheMutex;
+	struct Metadata : public Serializable
+	{
+		BinaryString	digest;
+		String 		name;
+		String		type;
+		int64_t		size;
+		
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+	};
 	
-	void merge(const Resource &resource);
-	void createQuery(Query &query) const;
+	struct Chunk : public Serializable
+	{
+		BinaryString	digest;
+		int		size;		// max 1 MB
+		int		blocks;		// max 1024
+		
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+	};
 	
-	BinaryString 	mDigest;
-	String		mUrl;
-	Time		mTime;
-	int64_t		mSize;
-	int		mType;
+	Metadata			mMetadata;
+	SerializableArray<Chunk>	mChunks;
 	
-	Identifier 	mPeering;
-	int 		mHops;
-	String 		mPath;		// if local
-	Set<Identifier>	mSources;
-	
-	Store 		*mStore;
-	
+
 	mutable Accessor *mAccessor;
 	
 	class LocalAccessor : public Accessor
@@ -206,9 +213,6 @@ private:
 		int64_t mPosition;
 		Fountain *mFountain;	// TODO: StreamFountain
 	};
-	
-	friend class Store;
-	friend class Request; // TODO: should not
 };
 
 bool operator <  (const Resource &r1, const Resource &r2);
