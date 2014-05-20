@@ -36,7 +36,7 @@
 
 namespace tpn
 {
-
+	
 Map<BinaryString, Resource> Resource::Cache;
 Mutex Resource::CacheMutex;
 
@@ -59,48 +59,39 @@ int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, Str
 	
 	return count;
 }
-	
-Resource::Resource(const Identifier &peering, const String &url, Store *store) :
-		mUrl(url),
-	mTime(0),
-	mSize(0),
-	mType(1),
-	mPeering(peering),
-	mHops(0),
-	mStore(Store::GlobalInstance),
-	mAccessor(NULL)
-{
-	if(store) mStore = store;
-}
 
-Resource::Resource(const BinaryString &digest, Store *store) :
-	mDigest(digest),
-	mTime(0),
-	mSize(0),
-	mType(1),
-	mHops(0),
-	mStore(Store::GlobalInstance),
-	mAccessor(NULL)
+Resource::Resource(const String &filename)
 {
-	if(store) mStore = store;
-}
-
-Resource::Resource(Store *store) :
-	mTime(0),
-	mSize(0),
-	mType(1),
-	mHops(0),
-	mStore(Store::GlobalInstance),
-	mAccessor(NULL)
-{
-	if(store) mStore = store;
+	if(Directory::Exist(filename))
+	{
+		Directory dir(filename);
+		while(dir.nextFile())
+		{
+			Resource *resource = new Resource(dir.filePath());
+			mBlocks.append(resource);
+		}
+	}
+	else {
+		File file(filename);
+		while(true)
+		{
+			Block *block = new Block(file, 1024*1024);	// TODO
+			if(block->size()) mBlocks.append(block);
+			else {
+				delete block;
+				break;
+			}
+		}
+	}
 }
 
 Resource::~Resource(void)
 {
-	delete mAccessor;
+	for(int i=0; i<mBlocks.size(); ++i)
+		delete mBlocks[i];
 }
 
+// TODO
 void Resource::clear(void)
 {
 	mDigest.clear();
