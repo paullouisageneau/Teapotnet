@@ -60,11 +60,11 @@ int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, Str
 	return count;
 }
 
-Resource::Resource(const String &filename)
+Resource::Resource(const String &path)
 {
-	if(Directory::Exist(filename))
+	if(Directory::Exist(path))
 	{
-		Directory dir(filename);
+		Directory dir(path);
 		while(dir.nextFile())
 		{
 			Resource *resource = new Resource(dir.filePath());
@@ -72,17 +72,23 @@ Resource::Resource(const String &filename)
 		}
 	}
 	else {
-		File file(filename);
-		while(true)
+		if(!Cache::Instance->query(path, *this))
 		{
-			Block *block = new Block(file, 1024*1024);	// TODO
-			if(block->size()) mBlocks.append(block);
-			else {
-				delete block;
-				break;
+			File file(path);
+			while(true)
+			{
+				Block *block = new Block(file, 1024*1024);	// TODO
+				if(block->size()) mBlocks.append(block);
+				else {
+					delete block;
+					break;
+				}
 			}
 		}
 	}
+	
+	computeDigest();
+	Cache::Instance->store(path, *this);
 }
 
 Resource::~Resource(void)

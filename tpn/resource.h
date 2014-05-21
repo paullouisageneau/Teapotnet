@@ -94,7 +94,7 @@ public:
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
-	Resource(const String &filename);	// file will be read and hashed
+	Resource(const String &path);	// file will be read and hashed
 	~Resource(void);
 	
 	// Serializable
