@@ -49,7 +49,6 @@ public:
 	int		type(void) const;
 	
 	Accessor *accessor(void) const;
-	void dissociateAccessor(void) const;
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
@@ -63,7 +62,7 @@ protected:
 	Time		mTime;
 	int64_t		mSize;
 	
-	mutable Accessor *mAccessor;
+	Accessor *mAccessor;
 };
 
 }
