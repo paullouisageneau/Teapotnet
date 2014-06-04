@@ -59,6 +59,8 @@ public:
 	virtual bool waitData(const double &timeout);
 	virtual void seekRead(int64_t position);
 	virtual void seekWrite(int64_t position);
+	virtual int64_t tellRead(void) const;
+	virtual int64_t tellWrite(void) const;
 	virtual void clear(void);
 	virtual void flush(void);
 	virtual bool ignore(size_t size = 1);

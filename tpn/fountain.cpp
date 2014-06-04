@@ -48,8 +48,8 @@ int64_t Fountain::generate(int64_t first, int64_t last, Combination &c)
 	for(int64_t i=first; i<=last; ++i)
 	{
 		// TODO: not optimal, useless copy
-		char buffer[BlockSize];
-		size_t size = readBlock(i, buffer, BlockSize);
+		char buffer[ChunkSize];
+		size_t size = readChunk(i, buffer, ChunkSize);
 		
 		if(size)
 		{
@@ -84,8 +84,8 @@ int64_t Fountain::generate(int64_t first, int64_t last, Combination &c)
 int64_t Fountain::generate(int64_t offset, Combination &c)
 {
 	// TODO: not optimal, useless copy
-	char buffer[BlockSize];
-	size_t size = readBlock(offset, buffer, BlockSize);
+	char buffer[ChunkSize];
+	size_t size = readChunk(offset, buffer, ChunkSize);
 	if(!size) return 0;
 	
 	c = Combination(offset, buffer, size);
@@ -205,7 +205,7 @@ void Fountain::solve(const Combination &c)
 			uint8_t c = it->coeff(first);
 			if(c != 1) (*it)/= c;
 
-			writeBlock(first, it->decodedData(), it->decodedSize());
+			writeChunk(first, it->decodedData(), it->decodedSize());
 			mNextDecoded = first + 1;
 			mCombinations.erase(it++);
 			continue;
@@ -218,7 +218,7 @@ void Fountain::solve(const Combination &c)
 bool Fountain::hash(int64_t first, int64_t last, BinaryString &digest)
 {
 	for(int64_t i=first; i<=last; ++i)
-		if(!hasBlock(i))
+		if(!hasChunk(i))
 			return false;
 		
 	Sha256 hash;
@@ -226,7 +226,7 @@ bool Fountain::hash(int64_t first, int64_t last, BinaryString &digest)
 
 	for(int64_t i=first; i<=last; ++i)
 	{
-		hashBlock(i, digest);
+		hashChunk(i, digest);
 		hash.process(digest);
 	}
 	
@@ -243,7 +243,7 @@ bool Fountain::validate(int64_t first, int64_t last, const BinaryString &digest)
 
 	for(int64_t i=first; i<=last; ++i)
 	{
-		hashBlock(i, tmp);
+		hashChunk(i, tmp);
 		hash.process(tmp);
 	}
 	
@@ -256,17 +256,17 @@ bool Fountain::validate(int64_t first, int64_t last, const BinaryString &digest)
 		markWritten(i);
 }
 
-size_t Fountain::hashBlock(int64_t offset, BinaryString &digest)
+size_t Fountain::hashChunk(int64_t offset, BinaryString &digest)
 {
-	char buffer[BlockSize];
-	size_t size = readBlock(offset, buffer, BlockSize);
+	char buffer[ChunkSize];
+	size_t size = readChunk(offset, buffer, ChunkSize);
 	Sha256().compute(buffer, size, digest);
 	return size;
 }
 
 void Fountain::init(void)
 {
-	while(checkBlock(mNextDecoded))
+	while(checkChunk(mNextDecoded))
 		++mNextDecoded;
 	
 	mNextSeen = std::max(mNextSeen, mNextDecoded);

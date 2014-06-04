@@ -26,43 +26,68 @@
 #include "tpn/serializable.h"
 #include "tpn/string.h"
 #include "tpn/binarystring.h"
+#include "tpn/stream.h"
 #include "tpn/time.h"
-#include "tpn/directory.h"
+#include "tpn/core.h"
 
 namespace tpn
 {
-
-class Block : public Serializable
+	
+class Block : protected Core::Caller, public Fountain, public Synchronizable
 {
 public:
-	Block(void);
-	~Block(void);
+	static const size_t ChunkSize = 1024;	// bytes
+	static const size_t MaxChunks = 1024;	// chunks
 	
-	void clear(void);
-	void fetch(void);
-	void refresh(void);
+	static bool ProcessFile(File &file, Block &block);
 	
-	BinaryString 	digest(void) const;
-	String		name(void) const;
-	Time		time(void) const;
-	int64_t		size(void) const;
-	int		type(void) const;
-	
-	Accessor *accessor(void) const;
-	
-	// Serializable
-	virtual void serialize(Serializer &s) const;
-	virtual bool deserialize(Serializer &s);
-	virtual bool isInlineSerializable(void) const;
+	Block(const BinaryString &digest);
+	Block(const BinaryString &digest, const String &filename, int64_t offset = 0);	// override storage file
+	virtual ~Block(void);
 
-protected:
-	BinaryString	mDigest;
-	String 		mName;
-	String		mType;
-	Time		mTime;
-	int64_t		mSize;
+	void load(const BinaryString &digest);
+	void save(void);
+	bool completed(void);
+	BinaryString computeDigest(void);
+
+	class Reader
+	{
+	public:
+		Reader(Block *Block);
+		~Reader(void);
+		
+		// Stream
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *buffer, size_t size);
+		void seekRead(int64_t position);
+		void seekWrite(int64_t position);
+		
+	private:
+		Block *mBlock;
+		int64_t mReadPosition;
+	};
 	
-	Accessor *mAccessor;
+protected:
+	BinaryString mDigest;
+	File *mFile;
+	File *mMapFile;
+	int64_t mOffset;
+	
+	// Block registers to Cache
+	// If the block is not complete, it register a Caller to Core (start)
+	// Upon reception of a combination, Core pushes it to Cache
+	// Cache pushes it to Block as it is registered
+	// When complete, the caller is unregistered (stop)
+	
+	// Fountain
+	size_t readChunk(int64_t offset, char *buffer, size_t size);
+	void writeChunk(int64_t offset, const char *data, size_t size);
+	bool checkChunk(int64_t offset);
+	
+	bool isWritten(int64_t offset);
+	void markWritten(int64_t offset);
+	
+	friend class Reader;
 };
 
 }

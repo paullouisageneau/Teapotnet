@@ -34,9 +34,6 @@ namespace tpn
 class Fountain
 {
 public:
-	static const size_t BlockSize = 1024;	// bytes
-	static const size_t ChunkSize = 1024;	// blocks
-	
 	Fountain(void);
 	virtual ~Fountain(void);
 	
@@ -85,7 +82,7 @@ public:
 	};
 
 	int64_t generate(int64_t first, int64_t last, Combination &c);
-	int64_t generate(int64_t offset, Combination &c);	
+	int64_t generate(int64_t offset, Combination &c);
 	void solve(const Combination &c);
 
 	bool hash(int64_t first, int64_t last, BinaryString &digest);
@@ -94,10 +91,10 @@ public:
 	// TODO: size, truncate
 	
 protected:
-	virtual size_t readBlock(int64_t offset, char *buffer, size_t size) = 0;
-	virtual void writeBlock(int64_t offset, const char *data, size_t size) = 0;
-	virtual bool checkBlock(int64_t offset) = 0;
-	virtual size_t hashBlock(int64_t offset, BinaryString &digest);
+	virtual size_t readChunk(int64_t offset, char *buffer, size_t size) = 0;
+	virtual void writeChunk(int64_t offset, const char *data, size_t size) = 0;
+	virtual bool checkChunk(int64_t offset) = 0;
+	virtual size_t hashChunk(int64_t offset, BinaryString &digest);
 	
 	void init(void);
 	

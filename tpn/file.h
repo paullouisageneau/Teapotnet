@@ -60,6 +60,8 @@ public:
 	
 	void seekRead(int64_t position);
 	void seekWrite(int64_t position);
+	int64_t tellRead(void) const;
+	int64_t tellWrite(void) const;
 	
 	String name(void) const;
 	OpenMode mode(void) const;
@@ -77,6 +79,7 @@ protected:
 	Stream *pipeIn(void);
 	String mName;
 	OpenMode mMode;
+	int64_t mReadPosition, mWritePosition;
 };
 
 class SafeWriteFile : public File

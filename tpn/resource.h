@@ -33,9 +33,11 @@
 namespace tpn
 {
 
-class Resource : public Chunk
+class Resource
 {
 public:
+	static void Process(const String &path, Resource &resource);
+	
 	enum AccessLevel { Public, Private, Personal };
 
 	// TODO
@@ -80,6 +82,7 @@ public:
 		friend class Store;
 	};
 	
+	// TODO
 	class Accessor : public Stream
 	{
 	public:
@@ -94,7 +97,7 @@ public:
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
-	Resource(const String &path);	// file will be read and hashed
+	Resource(const String &path);
 	~Resource(void);
 	
 	// Serializable
@@ -102,8 +105,51 @@ public:
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
 
+	// TODO
+	virtual size_t readChunk(int64_t offset, char *buffer, size_t size) = 0;
+	virtual void writeChunk(int64_t offset, const char *data, size_t size) = 0;
+	virtual bool checkChunk(int64_t offset) = 0;
+	virtual size_t hashChunk(int64_t offset, BinaryString &digest);
+	
 protected:
-	SerializableArray<Block*> mBlocks;
+	class MetaRecord : public Serializable
+	{
+	public:
+		MetaRecord(void);
+		virtual ~MetaRecord(void);
+
+		// Serializable
+		virtual void serialize(Serializer &s) const;
+		virtual bool deserialize(Serializer &s);
+		virtual bool isInlineSerializable(void) const;
+		
+		BinaryString	digest;
+		String 		name;
+		String		type;
+		int64_t		size;
+	};
+
+	class IndexRecord : public MetaRecord
+	{
+	public:
+		IndexRecord(void);
+		~IndexRecord(void);
+		
+		Array<BinaryString> blockDigests;
+	};
+
+	class DirectoryRecord: public MetaRecord
+	{
+	public:
+		DirectoryRecord(void);
+		~DirectoryRecord(void);
+
+		Time time;
+	};
+	
+	Block *mIndexBlock;
+	Array<Block*> mBlocks;
+	File *mDataFile;
 	
 	mutable Accessor *mAccessor;
 	

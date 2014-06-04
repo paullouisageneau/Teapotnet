@@ -23,7 +23,7 @@
 #define TPN_CACHE_H
 
 #include "tpn/include.h"
-#include "tpn/filefountain.h"
+#include "tpn/block.h"
 #include "tpn/synchronizable.h"
 
 namespace tpn
@@ -38,31 +38,22 @@ public:
 	void prefetch(const BinaryString &target);
 	void sync(const BinaryString &target, const String &filename);
 	
-	void push(const BinaryString &target, ByteArray &input);
-	bool pull(const BinaryString &target, int64_t begin, int64_t end, ByteArray &result);
+	void push(const BinaryString &target, ByteArray &input);	// Core pushes new combinations here
+	bool pull(const BinaryString &target, ByteArray &output);	// Core pull new combinations from here
+	
+	void registerBlock(Block *block);
+	void unregisterBlock(Block *block);
+	
+	// TODO: loading blocks from cache
 	
 private:
-	class Entry
-	{
-	public:
-		Entry(Cache *cache, const BinaryString &target);
-		~Entry(void);
-		
-		Fountain *fountain(void);
-		Stream *stream(void);
-		
-	private:
-		Cache *mCache;
-		BinaryString mTarget;
-		String mFileName;
-		FileFountain *mFountain;	// Null if unused
-		Map<int, BinaryString> mChunks;
-		
-		// TODO: filefoutain should be deleted if unused
-	};
+	Block *getBlock(const BinaryString &target);
 	
-	Entry *getEntry(const BinaryString &target);
-	Map<BinaryString, Entry*> mEntries;
+	String mDirectory;
+	
+	Map<BinaryString, Set<Blocks*> > mBlocks;	// Registered blocks
+	Map<BinaryString, Blocks*> mTempBlocks;
+	
 };
 
 }
