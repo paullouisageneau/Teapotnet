@@ -129,12 +129,16 @@ String File::TempPath(void)
 	return tempPath;
 }
 
-File::File(void)
+File::File(void) :
+	mReadPosition(0),
+	mWritePosition(0)
 {
 
 }
 
-File::File(const String &filename, File::OpenMode mode)
+File::File(const String &filename, File::OpenMode mode) :
+	mReadPosition(0),
+	mWritePosition(0)
 {
 	open(filename,mode);
 }
@@ -165,6 +169,12 @@ void File::open(const String &filename, OpenMode mode)
 
 	std::fstream::open(filename.pathEncode().c_str(), m|std::ios_base::binary);
 	if(!std::fstream::is_open() || std::fstream::bad()) throw IOException(String("Unable to open file: ")+filename);
+	
+	mReadPosition = 0;
+	mWritePosition = 0;
+	
+	if(m & std::ios_base::app)
+		mWritePosition = size();
 }
 
 void File::close(void)
@@ -185,6 +195,8 @@ void  File::reopen(OpenMode mode)
 
 void File::seekRead(int64_t position)
 {
+	mReadPosition = position;
+	
 	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekg(0, std::fstream::beg);
 	do {
@@ -197,6 +209,8 @@ void File::seekRead(int64_t position)
 
 void File::seekWrite(int64_t position)
 {
+	mWritePosition = position;
+	
 	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekp(0, std::fstream::beg);
 	do {
@@ -205,6 +219,16 @@ void File::seekWrite(int64_t position)
 		std::fstream::seekp(std::streamoff(offset), std::fstream::cur);
 	}
 	while(position != 0);  
+}
+
+int64_t File::tellRead(void) const
+{
+	return mReadPosition;
+}
+
+int64_t File::tellWrite(void) const
+{
+	return mWritePosition;
 }
 
 String File::name(void) const
@@ -235,6 +259,8 @@ size_t File::readData(char *buffer, size_t size)
 		std::fstream::read(buffer, size);
 	
 	if(std::fstream::bad()) throw IOException(String("Unable to read from file: ") + mName);
+	
+	mReadPosition+= std::fstream::gcount();
 	return std::fstream::gcount();
 }
 
@@ -243,6 +269,8 @@ void File::writeData(const char *data, size_t size)
 	std::fstream::clear();	// clear state
 	std::fstream::write(data,size);
 	if(std::fstream::bad()) throw IOException(String("Unable to write to file: ") + mName);
+	
+	mWritePosition+= std::fstream::gcount();
 }
 
 void File::flush(void)

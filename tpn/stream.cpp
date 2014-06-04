@@ -88,6 +88,16 @@ void Stream::seekWrite(int64_t position)
 	throw Unsupported("seekWrite");
 }
 
+int64_t Stream::tellRead(void) const
+{
+	return 0;
+}
+
+int64_t Stream::tellWrite(void) const
+{
+	return 0;
+}
+
 void Stream::clear(void)
 {
 	char buffer[BufferSize];

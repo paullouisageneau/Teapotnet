@@ -36,10 +36,45 @@
 
 namespace tpn
 {
-	
-Map<BinaryString, Resource> Resource::Cache;
-Mutex Resource::CacheMutex;
 
+void Resource::Process(const String &path, Resource &resource)
+{
+	File *file;
+	
+	if(Directory::Exist(path))
+	{
+		file = new TempFile;
+		
+		// TODO: serialize to file
+		Directory dir(path);
+		while(dir.nextFile())
+		{
+			
+		}
+	}
+	else {
+		file = new File(path, File::Read);
+	}
+	
+	Sha256().compute(*file, resource.mDigest);
+	file->seekRead(0);
+	
+	// Move file to cache if directory
+	
+	// TODO: Fill resource fields
+	
+	// Process blocks
+	resource.mBlocks.clear();
+	resource.mBlocks.reserve(file->size()/(Block::MaxChunks*Block::ChunkSize));
+	
+	Block block;
+	while(Block::ProcessFile(*file, block))
+	{
+		resource.mBlocks.append(block.digest());
+	}
+}
+
+// TODO
 int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, String host)
 {
 	if(host.empty()) host = String("localhost:") + Config::Get("interface_port");
@@ -62,33 +97,7 @@ int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, Str
 
 Resource::Resource(const String &path)
 {
-	if(Directory::Exist(path))
-	{
-		Directory dir(path);
-		while(dir.nextFile())
-		{
-			Resource *resource = new Resource(dir.filePath());
-			mBlocks.append(resource);
-		}
-	}
-	else {
-		if(!Cache::Instance->query(path, *this))
-		{
-			File file(path);
-			while(true)
-			{
-				Block *block = new Block(file, 1024*1024);	// TODO
-				if(block->size()) mBlocks.append(block);
-				else {
-					delete block;
-					break;
-				}
-			}
-		}
-	}
 	
-	computeDigest();
-	Cache::Instance->store(path, *this);
 }
 
 Resource::~Resource(void)

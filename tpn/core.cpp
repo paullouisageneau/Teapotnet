@@ -521,35 +521,34 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	}
 }
 
-Caller::Caller(const BinaryString &target, int64_t begin, int64_t end) :
-	mTarget(target),
-	mBegin(begin),
-	mEnd(end)
+Caller::Caller(void)
 {
-	Assert(!target.empty());
+
 }
 
 Caller::~Caller(void)
 {
-	stop();
+	stopCalling();
 }
 	
-void Caller::start(void)
+void Caller::startCalling(const BinaryString &target)
 {
-	Core::Instance->registerCaller(mTarget, this);
+	if(target != mTarget)
+	{
+		stopCalling();
+		
+		mTarget = target;
+		if(!mTarget.empty()) Core::Instance->registerCaller(mTarget, this);
+	}
 }
 
-void Caller::stop(void)
+void Caller::stopCalling(void)
 {
-	Core::Instance->unregisterCaller(mTarget, this);
-}
-
-void Caller::run(void)
-{
-	int64_t nextSeen = mCache.getNextSeen(target, begin);
-	if(nextSeen > mBegin) mBegin = nextSeen;
-	
-	
+	if(!mTarget.empty())
+	{
+		Core::Instance->unregisterCaller(mTarget, this);
+		mTarget.clear();
+	}
 }
 
 Sender::Sender(const BinaryString &target) :
@@ -566,32 +565,25 @@ Sender::~Sender(void)
 	
 }
 
-void Sender::setInterval(int64_t begin, int64_t end)
-{
-	Synchronize(this);
-	
-	mBegin = begin;
-	mEnd = end;
-	setTokens(mTokens);
-}
-
 void Sender::setTokens(unsigned tokens)
 {
 	Synchronize(this);
 	
-	mTokens = std::min(mTokens, unsigned(mEnd - mBegin));
+	mTokens = tokens;
 }
 
 void Sender::run(void)
 {
 	Synchronize(this);
 	
+	// The sender spends the tokens, sending a combination for each one
+	
 	// TODO
 	Missive missive;
 	missive.writeBinary(mTarget);
-	mCache.pull(mTarget, mBegin, mEnd, missive);
+	mCache.pull(mTarget, missive);
 	
-	mHander->send(missive);
+	mHandler->send(missive);
 
 	if(--mTokens) 
 		Core::Instance->mScheduler.schedule(this);

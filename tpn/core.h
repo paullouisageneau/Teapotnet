@@ -125,20 +125,17 @@ public:
 		StringSet mSubscribedPrefixes;
 	};
 	
-	class Caller : protected Synchronizable, public Task
+	class Caller : protected Synchronizable
 	{
 	public:
-		Caller(const BinaryString &target, int64_t begin, int64_t end);
+		Caller(void);
 		~Caller(void);
 		
-		void start(void);
-		void stop(void);
-		
-		void run(void);
+		void startCalling(const BinaryString &target);
+		void stopCalling(void);
 		
 	private:
 		BinaryString mTarget;
-		int64_t mBegin, mEnd;
 	};
 	
 	// TODO: deprecated
@@ -282,14 +279,11 @@ private:
 			Sender(const BinaryString &target);
 			~Sender(void);
 			
-			void setInterval(int64_t begin, int64_t end);
 			void setTokens(unsigned tokens);
-			
 			void run(void);
 			
 		private:
 			BinaryString mTarget;
-			int64_t mBegin, mEnd;
 			unsigned mTokens;
 		};
 		
