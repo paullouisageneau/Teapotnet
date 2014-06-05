@@ -20,15 +20,12 @@
  *************************************************************************/
 
 #include "tpn/fountain.h"
-#include "tpn/random.h"
 #include "tpn/crypto.h"
 
 namespace tpn
 {
 
-Fountain::Fountain(void) :
-	mNextSeen(0),
-	mNextDecoded(0)
+Fountain::Fountain(void)
 {
 
 }
@@ -38,71 +35,36 @@ Fountain::~Fountain(void)
 	
 }
 
-int64_t Fountain::generate(int64_t first, int64_t last, Combination &c)
+void Fountain::generate(uint32_t seed, BinaryString &result)
 {
-	c.clear();
-	
-	int64_t rank = 0;
-	
-	Random rnd;
-	for(int64_t i=first; i<=last; ++i)
+	result.clear();
+	Combination c(&result);
+	Generator gen(seed);
+	for(int i=0; i<mComponentsCount; ++i)
 	{
 		// TODO: not optimal, useless copy
 		char buffer[ChunkSize];
 		size_t size = readChunk(i, buffer, ChunkSize);
+
+		uint8_t coeff = gen.next();
+		c+= Combination(i, buffer, size)*coeff;
+	}
+}
+
+bool Fountain::solve(uint32_t seed, const BinaryString &data)
+{
+	if(mCombinations.empty()) 
 		
-		if(size)
-		{
-			uint8_t coeff;
-			rnd.read(coeff);
-			c+= Combination(i, buffer, size)*coeff;
-			
-			++rank;
-		}
-	}
-	
-	if(rank != last-first+1)
-	{
-		for(List<Combination>::iterator it = mCombinations.begin();
-			it != mCombinations.end();
-			++it)
-		{
-			if(it->firstComponent() >= first && it->lastComponent() <= last)
-			{
-				uint8_t coeff;
-				rnd.read(coeff);
-				c+= (*it)*coeff;
-				
-				++ rank;
-			}
-		}
-	}
-	
-	return rank;
-}
-
-int64_t Fountain::generate(int64_t offset, Combination &c)
-{
-	// TODO: not optimal, useless copy
-	char buffer[ChunkSize];
-	size_t size = readChunk(offset, buffer, ChunkSize);
-	if(!size) return 0;
-	
-	c = Combination(offset, buffer, size);
-	return 1;
-}
-
-void Fountain::solve(const Combination &c)
-{
-	if(mNextDecoded == 0 && mCombinations.empty()) 
-		init();
 	
 	List<Combination>::iterator it;	// current equation
 
-	int64_t first = 0;
-	int64_t last = 0;
-	if(!mCombinations.empty())
+	int first = 0;
+	int last = 0;
+	if(mCombinations.empty())
 	{
+		init();
+	}
+	else {
 		it = mCombinations.begin();
 		first = it->firstComponent();
 		last  = it->lastComponent();
@@ -270,6 +232,30 @@ void Fountain::init(void)
 		++mNextDecoded;
 	
 	mNextSeen = std::max(mNextSeen, mNextDecoded);
+}
+
+Fountain::Generator::Generator(uint64_t seed) :
+	mSeed(seed)
+{
+
+}
+
+Fountain::Generator::~Generator(void)
+{
+
+}
+
+uint8_t Fountain::Generator::next(void)
+{
+	uint8_t value;
+	do {
+		// Knuth's 64-bit linear congruential generator
+		mSeed = uint64_t(mSeed*6364136223846793005 + 1442695040888963407);		
+		value = uint8_t(mSeed >> 56);
+	}
+	while(!value);	// zero is not a valid output
+
+	return value;
 }
 
 Fountain::Combination::Combination(void)

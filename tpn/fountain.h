@@ -30,27 +30,35 @@
 
 namespace tpn
 {
-	
+
+// PRNG-based linear data fountain implementation
 class Fountain
 {
-public:
-	Fountain(void);
-	virtual ~Fountain(void);
+private:
+	class Generator
+	{
+	public:
+		Generator(uint32_t seed);
+		uint8_t next(void);
+	
+	private:
+		uint32_t mSeed;
+	};
 	
 	class Combination : public Serializable
 	{
 	public:
-		Combination(void);
-		Combination(int64_t offset, const char *data, size_t size);
+		Combination(BinaryString *buffer = NULL);
+		Combination(int offset, const BinaryString &data);
 		~Combination(void);
 		
-		void addComponent(int64_t offset, uint8_t coeff);
-		void setData(const char *data, size_t size);
+		void addComponent(int offset, uint8_t coeff);
+		void setData(const BinaryString &data);
 		
-		int64_t firstComponent(void) const;
-		int64_t lastComponent(void) const;
-		int64_t componentsCount(void) const;
-		uint8_t coeff(int64_t offset) const;
+		int firstComponent(void) const;
+		int lastComponent(void) const;
+		int componentsCount(void) const;
+		uint8_t coeff(int offset) const;
 		bool isCoded(void) const;
 		
 		const char *data(void) const;
@@ -77,30 +85,39 @@ public:
 		static uint8_t gMul(uint8_t a, uint8_t b); 
 		static uint8_t gInv(uint8_t a);
 		
-		Map<int64_t, uint8_t> mComponents;
-		BinaryString mData;
+		Map<int, uint8_t> mComponents;
+		BinaryString *mBuffer;
+		bool mMustDelete;
 	};
-
-	int64_t generate(int64_t first, int64_t last, Combination &c);
-	int64_t generate(int64_t offset, Combination &c);
-	void solve(const Combination &c);
-
-	bool hash(int64_t first, int64_t last, BinaryString &digest);
-	bool validate(int64_t first, int64_t last, const BinaryString &digest);
 	
-	// TODO: size, truncate
+public:
+	class Source
+	{
+	public:
+		Source(File *file);	// file will be deleted
+		~Source(void);
+		
+		void generate(uint32_t seed, BinaryString &result);	// Generate combination from seed
+		
+	private:
+		File *mFile;
+	};
 	
-protected:
-	virtual size_t readChunk(int64_t offset, char *buffer, size_t size) = 0;
-	virtual void writeChunk(int64_t offset, const char *data, size_t size) = 0;
-	virtual bool checkChunk(int64_t offset) = 0;
-	virtual size_t hashChunk(int64_t offset, BinaryString &digest);
-	
-	void init(void);
+	class Sink
+	{
+	public:
+		Sink(void);
+		~Sink(void);
+		
+		bool solve(uint32_t seed, const BinaryString &data);	// Add combination described by seed and try to solve
+									// returns true if solved
+		
+	private:
+		List<Combination> mCombinations;
+	};
 	
 private:
-	List<Combination> mCombinations;
-	int64_t mNextDecoded, mNextSeen;
+	Fountain(void);
 };
 
 }
