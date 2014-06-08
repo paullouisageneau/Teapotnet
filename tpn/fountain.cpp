@@ -20,222 +20,13 @@
  *************************************************************************/
 
 #include "tpn/fountain.h"
-#include "tpn/crypto.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
 
-Fountain::Fountain(void)
-{
-
-}
-
-Fountain::~Fountain(void)
-{
-	
-}
-
-void Fountain::generate(uint32_t seed, BinaryString &result)
-{
-	result.clear();
-	Combination c(&result);
-	Generator gen(seed);
-	for(int i=0; i<mComponentsCount; ++i)
-	{
-		// TODO: not optimal, useless copy
-		char buffer[ChunkSize];
-		size_t size = readChunk(i, buffer, ChunkSize);
-
-		uint8_t coeff = gen.next();
-		c+= Combination(i, buffer, size)*coeff;
-	}
-}
-
-bool Fountain::solve(uint32_t seed, const BinaryString &data)
-{
-	if(mCombinations.empty()) 
-		
-	
-	List<Combination>::iterator it;	// current equation
-
-	int first = 0;
-	int last = 0;
-	if(mCombinations.empty())
-	{
-		init();
-	}
-	else {
-		it = mCombinations.begin();
-		first = it->firstComponent();
-		last  = it->lastComponent();
-		++it;
-		
-		while(it != mCombinations.end())
-		{
-			first = std::min(first, it->firstComponent());
-			last  = std::min(last, it->lastComponent());	
-			++it;
-		}
-	}
-
-	mCombinations.push_back(c);
-
-	// Suppress known components
-	for(int64_t i=first; i<=last; ++i)
-	{
-		Combination u;
-		if(generate(i, u))
-		{
-			it = mCombinations.begin();
-			while(it != mCombinations.end())
-			{
-				uint8_t c = it->coeff(i);
-				if(c)	// if term not supressed
-				{
-					(*it)+= u*c;
-					Assert(it->coeff(i) == 0);
-				}
-			}
-			
-			if(i == first) ++first;	// first non-null component in system
-		}
-	}
-	
-	// Gauss-Jordan elimination
-	it = mCombinations.begin();	// pivot equation
-	int64_t i = first;		// pivot equation index
-	while(it != mCombinations.end())
-	{
-		List<Combination>::iterator jt = it;
-		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
-		if(jt == mCombinations.end()) break;
-		if(jt != it) std::iter_swap(jt, it);
-		
-		// Normalize pivot
-		uint8_t c = it->coeff(i);
-		if(c != 1) (*it)/= c;
-		Assert(it->coeff(i) == 1);
-		
-		// Suppress coordinate i in each equation
-		int64_t j = 0;			// secondary equation index
-		jt = mCombinations.begin();	// secondary equation
-		while(jt != mCombinations.end())
-		{
-			if(it == jt)
-			{
-				++jt; ++j;
-				continue;
-			}
-			
-			uint8_t c = jt->coeff(i);
-			if(c)	// if term not supressed
-			{
-				// it->coeff(i) == 1 here
-				(*jt)+= (*it)*c;
-				Assert(jt->coeff(i) == 0);
-			}
-			
-			++jt; ++j;
-		}
-		
-		++it; ++i;
-	}
-	
-	// Remove null vectors
-	it = mCombinations.begin();
-	while(it != mCombinations.end())
-	{
-		if(it->componentsCount() == 0)	// Null vector, useless equation
-		{
-			mCombinations.erase(it++);
-		}
-		else ++it;
-	}
-	
-	it = mCombinations.begin();	// current equation
-	while(it != mCombinations.end())
-	{
-		first = it->firstComponent();
-		
-		if(first >= mNextSeen)
-		{
-			mNextSeen = first + 1;
-		}
-		
-		if(first == mNextDecoded && it->componentsCount() == 1)
-		{
-			uint8_t c = it->coeff(first);
-			if(c != 1) (*it)/= c;
-
-			writeChunk(first, it->decodedData(), it->decodedSize());
-			mNextDecoded = first + 1;
-			mCombinations.erase(it++);
-			continue;
-		}		
-
-		++it;
-	}
-}
-
-bool Fountain::hash(int64_t first, int64_t last, BinaryString &digest)
-{
-	for(int64_t i=first; i<=last; ++i)
-		if(!hasChunk(i))
-			return false;
-		
-	Sha256 hash;
-	hash.init();
-
-	for(int64_t i=first; i<=last; ++i)
-	{
-		hashChunk(i, digest);
-		hash.process(digest);
-	}
-	
-	hash.finalize(digest);
-	return true;
-}
-
-bool Fountain::validate(int64_t first, int64_t last, const BinaryString &digest)
-{
-	BinaryString tmp;
-	
-	Sha256 hash;
-	hash.init();
-
-	for(int64_t i=first; i<=last; ++i)
-	{
-		hashChunk(i, tmp);
-		hash.process(tmp);
-	}
-	
-	hash.finalize(tmp);
-	
-	if(tmp != digest) 
-		return false;
-	
-	for(int64_t i=first; i<=last; ++i)
-		markWritten(i);
-}
-
-size_t Fountain::hashChunk(int64_t offset, BinaryString &digest)
-{
-	char buffer[ChunkSize];
-	size_t size = readChunk(offset, buffer, ChunkSize);
-	Sha256().compute(buffer, size, digest);
-	return size;
-}
-
-void Fountain::init(void)
-{
-	while(checkChunk(mNextDecoded))
-		++mNextDecoded;
-	
-	mNextSeen = std::max(mNextSeen, mNextDecoded);
-}
-
-Fountain::Generator::Generator(uint64_t seed) :
-	mSeed(seed)
+Fountain::Generator::Generator(uint32_t seed) :
+	mSeed(uint(seed))
 {
 
 }
@@ -250,7 +41,7 @@ uint8_t Fountain::Generator::next(void)
 	uint8_t value;
 	do {
 		// Knuth's 64-bit linear congruential generator
-		mSeed = uint64_t(mSeed*6364136223846793005 + 1442695040888963407);		
+		mSeed = uint(mSeed*6364136223846793005 + 1442695040888963407);		
 		value = uint8_t(mSeed >> 56);
 	}
 	while(!value);	// zero is not a valid output
@@ -263,7 +54,7 @@ Fountain::Combination::Combination(void)
 	
 }
 
-Fountain::Combination::Combination(int64_t offset, const char *data, size_t size)
+Fountain::Combination::Combination(int offset, const char *data, size_t size)
 {
 	addComponent(offset, 1);
 	setData(data, size);
@@ -274,11 +65,11 @@ Fountain::Combination::~Combination(void)
 	
 }
 
-void Fountain::Combination::addComponent(int64_t offset, uint8_t coeff)
+void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 {
 	if(offset == 0) return;
 	
-	Map<int64_t, uint8_t>::iterator it = mComponents.find(offset);
+	Map<int, uint8_t>::iterator it = mComponents.find(offset);
 	if(it != mComponents.end())
 	{
 		it->second = gAdd(it->second, coeff);
@@ -294,27 +85,27 @@ void Fountain::Combination::setData(const char *data, size_t size)
 	mData.assign(data, size);
 }
 
-int64_t Fountain::Combination::firstComponent(void) const
+int Fountain::Combination::firstComponent(void) const
 {
 	if(!mComponents.empty()) return mComponents.begin()->first;
 	else return 0;
 }
 
-int64_t Fountain::Combination::lastComponent(void) const
+int Fountain::Combination::lastComponent(void) const
 {
 	if(!mComponents.empty()) return (--mComponents.end())->first;
 	else return 0;
 }
 
-int64_t Fountain::Combination::componentsCount(void) const
+int Fountain::Combination::componentsCount(void) const
 {
 	if(!mComponents.empty()) return (lastComponent() - firstComponent()) + 1;
 	else return 0;
 }
 
-uint8_t Fountain::Combination::coeff(int64_t offset) const
+uint8_t Fountain::Combination::coeff(int offset) const
 {
-	Map<int64_t, uint8_t>::const_iterator it = mComponents.find(offset);
+	Map<int, uint8_t>::const_iterator it = mComponents.find(offset);
 	if(it == mComponents.end()) return 0; 
 	
 	Assert(it->second != 0);
@@ -395,7 +186,7 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 		mData[i] = gAdd(mData[i], other[i]);
 
 	// Add components
-	for(	Map<int64_t, uint8_t>::const_iterator jt = combination.mComponents.begin();
+	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
 		jt != combination.mComponents.end();
 		++jt)
 	{
@@ -414,7 +205,7 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 	for(unsigned i = 0; i < mData.size(); ++i)
 		mData[i] = gMul(mData[i], coeff);
 
-	for(	Map<int64_t, uint8_t>::iterator it = mComponents.begin();
+	for(	Map<int, uint8_t>::iterator it = mComponents.begin();
 		it != mComponents.end();
 		++it)
 	{
@@ -438,20 +229,20 @@ void Fountain::Combination::serialize(Serializer &s) const
 	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
 	Assert(firstComponent() >= 0);	// for sanity
 	
-	s.output(uint64_t(firstComponent()));
+	s.output(uint(firstComponent()));
 	s.output(uint16_t(componentsCount()));
-	for(int64_t i=firstComponent(); i<=lastComponent(); ++i)
+	for(int i=firstComponent(); i<=lastComponent(); ++i)
 		s.output(uint8_t(coeff(i)));
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
 {
-	uint64_t first = 0;
+	uint first = 0;
 	uint16_t count = 0;
 	if(!s.input(first)) return false;
 	AssertIO(s.input(count));
 	
-	for(int64_t i=first; i<first+count; ++i)
+	for(int i=first; i<first+count; ++i)
 	{
 		uint8_t coeff = 0;
 		AssertIO(s.input(coeff));
@@ -484,7 +275,8 @@ uint8_t Fountain::Combination::gMul(uint8_t a, uint8_t b)
 uint8_t Fountain::Combination::gInv(uint8_t a) 
 {
 	Assert(a != 0);
-	
+
+	// TODO: table	
 	uint8_t b = 1;
 	while(b)
 	{
@@ -493,6 +285,157 @@ uint8_t Fountain::Combination::gInv(uint8_t a)
 	}
 	
 	throw Exception("Combination::gInv failed for input " + String::number(unsigned(a)));
+}
+  
+Fountain::Source::Source(File *file, int64_t offset) :
+	mFile(file),
+	mOffset(offset)
+{
+	Assert(mFile);
+}
+
+Fountain::Source::~Source(void)
+{
+	delete mFile;
+}
+
+void Fountain::Source::generate(BinaryString &result)
+{
+	mFile->seekRead(mOffset);
+  
+	uint32_t seed = 0;
+	Random rnd;
+	rnd.readBinary(seed);
+	Generator gen(seed);
+
+	Combination c;	
+	char buffer[ChunkSize];
+	size_t size;
+	int i = 0;
+	while((size = mFile->readBinary(buffer, ChunkSize)))
+	{
+		uint8_t coeff = gen.next();
+		c+= Combination(i, buffer, size)*coeff;
+		++i;
+	}
+
+	result.clear();
+	result.writeBinary(uint32_t(seed));
+	result.writeBinary(uint16_t(i));
+	result.writeBinary(uint16_t(c.size()));
+	result.writeBinary(c.data(), c.size());
+}
+		
+Fountain::Sink::Sink(void) :
+	mIsComplete(false)
+{
+
+}
+
+Fountain::Sink::~Sink(void)
+{
+  
+}
+
+bool Fountain::Sink::solve(BinaryString &data)
+{
+	uint32_t seed;
+	uint16_t count;
+	uint16_t size;
+	AssertIO(data.readBinary(seed));
+	AssertIO(data.readBinary(count));
+  	AssertIO(data.readBinary(size));
+	Assert(size == data.size());
+	
+	Combination c;
+	c.setData(data.ptr(), size);
+	data.clear();
+	
+	Generator gen(seed);
+	for(int i=0; i<count; ++i)
+	{
+	  	uint8_t coeff = gen.next();
+		c.addComponent(i, coeff);
+	}
+	
+	mCombinations.push_back(c);
+  
+	List<Combination>::iterator it;	// current equation
+	
+	// Gauss-Jordan elimination
+	it = mCombinations.begin();	// pivot equation
+	int i = 0;			// pivot equation index
+	while(it != mCombinations.end())
+	{
+		List<Combination>::iterator jt = it;
+		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
+		if(jt == mCombinations.end()) break;
+		if(jt != it) std::iter_swap(jt, it);
+		
+		// Normalize pivot
+		uint8_t c = it->coeff(i);
+		if(c != 1) (*it)/= c;
+		Assert(it->coeff(i) == 1);
+		
+		// Suppress coordinate i in each equation
+		int j = 0;			// secondary equation index
+		jt = mCombinations.begin();	// secondary equation
+		while(jt != mCombinations.end())
+		{
+			if(it == jt)
+			{
+				++jt; ++j;
+				continue;
+			}
+			
+			uint8_t c = jt->coeff(i);
+			if(c)	// if term not supressed
+			{
+				// it->coeff(i) == 1 here
+				(*jt)+= (*it)*c;
+				Assert(jt->coeff(i) == 0);
+			}
+			
+			++jt; ++j;
+		}
+		
+		++it; ++i;
+	}
+	
+	int decodedCount = 0;
+	it = mCombinations.begin();
+	while(it != mCombinations.end())
+	{
+		if(it->componentsCount() == 0)	// Null vector, useless equation
+		{
+			mCombinations.erase(it++);
+		}
+		else {
+		  	if(!it->isCoded()) ++decodedCount;
+			++it;
+		}
+	}
+	
+	mIsComplete = (decodedCount == int(count));
+	return mIsComplete;
+}
+
+bool Fountain::Sink::isComplete(void) const
+{
+	return mIsComplete; 
+}
+
+void Fountain::Sink::dump(Stream &stream) const
+{ 
+	List<Combination>::const_iterator it = mCombinations.begin();
+	while(it != mCombinations.end() && !it->isCoded())
+		stream.writeBinary(it->decodedData(), it->decodedSize());
+}
+
+void Fountain::Sink::clear(void)
+{
+	mCombinations.clear();
+	mIsComplete = false;
 }
 
 }
