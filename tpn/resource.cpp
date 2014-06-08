@@ -641,202 +641,75 @@ bool Resource::Query::isInlineSerializable(void) const
 	return false;
 }
 
-Resource::LocalAccessor::LocalAccessor(const String &path)
+Resource::Reader::Reader(Resource *resource) :
+	mResource(resource),
+	mReadPosition(0)
+	mCurrentBlock(NULL),
+	mNextBlock(NULL)
 {
-	Assert(!path.empty());
-	mFile = new File(path, File::Read);
+	Assert(mResource);
+	seekRead(0);	// Initialize positions
 }
 
-Resource::LocalAccessor::~LocalAccessor(void)
+Resource::Reader::~Reader(void)
 {
-	delete mFile;
+	delete mCurrentBlock;
+	delete mNextBlock;
 }
-
-size_t Resource::LocalAccessor::readData(char *buffer, size_t size)
+	  
+size_t Resource::Reader::readData(char *buffer, size_t size)
 {
-	return mFile->readData(buffer, size);
-}
-
-void Resource::LocalAccessor::writeData(const char *data, size_t size)
-{
-	// TODO: check if we have the right to modify this resource
-	if(mFile->mode() == File::Read)
-		mFile->reopen(File::ReadWrite);
-	
-	mFile->writeData(data, size);	
-}
-		
-void Resource::LocalAccessor::seekRead(int64_t position)
-{
-	mFile->seekRead(position);
-}
-
-void Resource::LocalAccessor::seekWrite(int64_t position)
-{
-	// TODO: check if we have the right to modify this resource
-	if(mFile->mode() == File::Read)
-		mFile->reopen(File::ReadWrite);
-	
-	mFile->seekWrite(position);
-}
-
-int64_t Resource::LocalAccessor::size(void)
-{
-	return mFile->size();
-}
-
-Resource::RemoteAccessor::RemoteAccessor(const Identifier &peering, const String &url) :
-	mPeering(peering),
-	mUrl(url),
-	mPosition(0),
-	mSize(-1),
-	mRequest(NULL),
-	mStream(NULL)
-{
-	Assert(!mUrl.empty());
-}
-
-Resource::RemoteAccessor::~RemoteAccessor(void)
-{
-	clearRequest();
-}
-
-size_t Resource::RemoteAccessor::readData(char *buffer, size_t size)
-{
-	if(!mStream) initRequest();
-	size = mStream->readData(buffer, size);
-	mPosition+= size;
-	return size;
-}
-
-void Resource::RemoteAccessor::writeData(const char *data, size_t size)
-{
-	throw Unsupported("Writing to remote resource");
-}
-
-void Resource::RemoteAccessor::seekRead(int64_t position)
-{
-	mPosition = position;
-	clearRequest();
-}
-
-void Resource::RemoteAccessor::seekWrite(int64_t position)
-{
-	throw Unsupported("Writing to remote resource");
-}
-
-int64_t Resource::RemoteAccessor::size(void)
-{
-	if(!mStream) initRequest();
-	return mSize;
-}
-
-void Resource::RemoteAccessor::initRequest(void)
-{
-	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-	
-	clearRequest();
-	mRequest = new Request(mUrl, true);
-	StringMap parameters;
-	parameters["position"] << mPosition;
-	mRequest->setParameters(parameters);
-	mRequest->setContentSink(new TempFile);
-	mRequest->submit(mPeering);
-	mRequest->wait(timeout);
-	
-	mStream = NULL;
-	for(int i=0; i<mRequest->responsesCount(); ++i)
+	if(!mCurrentBlock) return 0;	// EOF
+  
+	size_t ret;
+	if((ret = mCurrentBlock->readData(buffer, size)))
 	{
-		Request::Response *response = mRequest->response(i);
-		if(response->error()) continue;
-
-		if(mSize < 0)
-		{
-			try {
-				String tmp;
-				if(response->parameter("size", tmp))
-					tmp.extract(mSize);
-			}
-			catch(...) {}
-		}
-		
-		if(!mStream)
-		{
-			mStream = response->content();
-			mPeering = response->peering();
-		}
-		else {
-			if(response->content())
-				response->content()->close();
-		}
+		mReadPosition+= ret;
+		return ret;
 	}
 	
-	if(!mStream) 
-	{
-		delete mRequest;
-		mRequest = NULL;
-		throw IOException("Unable to access resource: " + mUrl);
-	}
+	delete mCurrentBlock;
+	++mCurrentBlockIndex;
+	mCurrentBlock = mNextBlock;
+	mNextBlock = createBlock(mCurrentBlockIndex + 1);
+	return readData(buffer, size);
 }
 
-void Resource::RemoteAccessor::clearRequest(void)
+void Resource::Reader::writeData(const char *data, size_t size)
 {
-	delete mRequest;
-	mRequest = NULL;
-	mStream = NULL;	// deleted by the request
+	throw Unsupported("Writing to Resource::Reader");
 }
 
-Resource::ContentAccessor::ContentAccessor(const BinaryString &digest, const Set<Identifier> &sources) :
-	mDigest(digest),
-	mSources(sources),
-	mPosition(0),
-	mFountain(NULL)
+void Resource::Reader::seekRead(int64_t position)
 {
-	Assert(!mDigest.empty());
-}
-
-Resource::ContentAccessor::~ContentAccessor(void)
-{
-	delete mFountain;
-}
-
-size_t Resource::ContentAccessor::readData(char *buffer, size_t size)
-{
-	if(!mFountain)
-	{
-		mFountain = new Fountain(mDigest, mPosition);
-		mFountain->addSources(mSources);
-		//mFountain->start();	// Do not start if it's not necessary
-	}
-
-	if(!size) return 0;
+	delete mCurrentBlock;
+	delete mNextBlock;
 	
-	size = mFountain->readData(buffer, size);
-	mPosition+= size;
-	return size;
+	mCurrentBlockIndex = mResource->blockIndex(position);
+	mCurrentBlock	= createBlock(mCurrentBlockIndex);
+	mNextBlock	= createBlock(mCurrentBlockIndex + 1);
+	mReadPosition	= position;
 }
 
-void Resource::ContentAccessor::writeData(const char *data, size_t size)
+void Resource::Reader::seekWrite(int64_t position)
 {
-	throw Unsupported("Writing to remote resource");
+	throw Unsupported("Writing to Resource::Reader");
 }
 
-void Resource::ContentAccessor::seekRead(int64_t position)
+int64_t Resource::Reader::tellRead(void) const
 {
-	mPosition = position;
-	delete mFountain;
-	mFountain = NULL;
+	return mReadPosition;  
 }
 
-void Resource::ContentAccessor::seekWrite(int64_t position)
+int64_t Resource::Reader::tellWrite(void) const
 {
-	throw Unsupported("Writing to remote resource");
+	return 0;  
 }
 
-int64_t Resource::ContentAccessor::size(void)
+Block *Resource::Reader::createBlock(int index)
 {
-	if(!mFountain) readData(NULL, 0);	// create the Fountain
-	return mFountain->size();
+	if(index < 0 || index >= mResource->blocksCount()) return NULL;
+	return new Block(mResource->blockDigest(index)); 
 }
 
 }

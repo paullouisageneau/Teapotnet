@@ -82,17 +82,29 @@ public:
 		friend class Store;
 	};
 	
-	// TODO
-	class Accessor : public Stream
+	class Reader : public Stream
 	{
 	public:
+		Reader(Resource *resource);
+		~Reader(void);
+	  
 		// Stream
-		virtual size_t readData(char *buffer, size_t size) = 0;
-		virtual void writeData(const char *data, size_t size) = 0;
-		virtual void seekRead(int64_t position) = 0;
-		virtual void seekWrite(int64_t position) = 0;
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *data, size_t size);
+		void seekRead(int64_t position);
+		void seekWrite(int64_t position);
+		int64_t tellRead(void) const;
+		int64_t tellWrite(void) const;
 		
-		virtual int64_t size(void) = 0;
+	private:
+		Block *createBlock(int index); 
+	  
+		Resource *mResource;
+		int64_t mReadPosition;
+		
+		int mCurrentBlockIndex;
+		Block *mCurrentBlock;
+		Block *mNextBlock;
 	};
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
@@ -100,16 +112,14 @@ public:
 	Resource(const String &path);
 	~Resource(void);
 	
+	int blocksCount(void) const;
+	int blockIndex(int64_t position) const;
+	BinaryString blockDigest(int index) const;
+	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
-
-	// TODO
-	virtual size_t readChunk(int64_t offset, char *buffer, size_t size) = 0;
-	virtual void writeChunk(int64_t offset, const char *data, size_t size) = 0;
-	virtual bool checkChunk(int64_t offset) = 0;
-	virtual size_t hashChunk(int64_t offset, BinaryString &digest);
 	
 protected:
 	class MetaRecord : public Serializable
@@ -148,62 +158,9 @@ protected:
 	};
 	
 	Block *mIndexBlock;
-	Array<Block*> mBlocks;
-	File *mDataFile;
+	Array<BinaryString> mBlockDigests;
 	
-	mutable Accessor *mAccessor;
-	
-	class LocalAccessor : public Accessor
-	{
-	public:
-		LocalAccessor(const String &path);
-		~LocalAccessor(void);
-		
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *data, size_t size);
-		void seekRead(int64_t position);
-		void seekWrite(int64_t position);
-		int64_t size(void);
-		
-	private:
-		File *mFile;
-	};
-	
-	class RemoteAccessor : public Accessor
-	{
-	public:
-		RemoteAccessor(const Identifier &peering, const String &url);
-		~RemoteAccessor(void);
-		
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *data, size_t size);
-		void seekRead(int64_t position);
-		void seekWrite(int64_t position);
-		int64_t size(void);
-		
-	private:
-		// TODO: simple fountain with one source only
-	};
-	
-	class ContentAccessor : public Accessor
-	{
-	public:
-		ContentAccessor(const BinaryString &digest, const Set<Identifier> &sources);
-		~ContentAccessor(void);
-		
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *data, size_t size);
-		void seekRead(int64_t position);
-		void seekWrite(int64_t position);
-		int64_t size(void);
-		
-	private:
-		const BinaryString mDigest;
-		const Set<Identifier> mSources;
-		
-		int64_t mPosition;
-		Fountain *mFountain;	// TODO: StreamFountain
-	};
+	mutable Reader *mReader;
 };
 
 bool operator <  (const Resource &r1, const Resource &r2);

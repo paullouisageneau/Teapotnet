@@ -50,43 +50,14 @@ public:
 	void save(void);
 	bool completed(void);
 	BinaryString computeDigest(void);
-
-	class Reader
-	{
-	public:
-		Reader(Block *Block);
-		~Reader(void);
-		
-		// Stream
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *buffer, size_t size);
-		void seekRead(int64_t position);
-		void seekWrite(int64_t position);
-		
-	private:
-		Block *mBlock;
-		int64_t mReadPosition;
-	};
+	
+	// TODO: Stream interface
 	
 protected:
 	BinaryString mDigest;
 	File *mFile;
 	File *mMapFile;
 	int64_t mOffset;
-	
-	// Block registers to Cache
-	// If the block is not complete, it register a Caller to Core (start)
-	// Upon reception of a combination, Core pushes it to Cache
-	// Cache pushes it to Block as it is registered
-	// When complete, the caller is unregistered (stop)
-	
-	// Fountain
-	size_t readChunk(int64_t offset, char *buffer, size_t size);
-	void writeChunk(int64_t offset, const char *data, size_t size);
-	bool checkChunk(int64_t offset);
-	
-	bool isWritten(int64_t offset);
-	void markWritten(int64_t offset);
 	
 	friend class Reader;
 };
