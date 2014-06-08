@@ -29,6 +29,7 @@
 #include "tpn/stream.h"
 #include "tpn/time.h"
 #include "tpn/core.h"
+#include "tpn/foutain.h"
 
 namespace tpn
 {
@@ -36,7 +37,7 @@ namespace tpn
 class Block : protected Core::Caller, public Fountain, public Synchronizable
 {
 public:
-	static const size_t ChunkSize = 1024;	// bytes
+	static const size_t ChunkSize = Foutain::ChunkSize;
 	static const size_t MaxChunks = 1024;	// chunks
 	
 	static bool ProcessFile(File &file, Block &block);

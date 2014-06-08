@@ -27,6 +27,7 @@
 #include "tpn/list.h"
 #include "tpn/map.h"
 #include "tpn/binarystring.h"
+#include "tpn/file.h"
 
 namespace tpn
 {
@@ -39,21 +40,22 @@ private:
 	{
 	public:
 		Generator(uint32_t seed);
+		~Generator(void);
 		uint8_t next(void);
 	
 	private:
-		uint32_t mSeed;
+		uint64_t mSeed;
 	};
 	
 	class Combination : public Serializable
 	{
 	public:
-		Combination(BinaryString *buffer = NULL);
-		Combination(int offset, const BinaryString &data);
+		Combination(void);
+		Combination(int offset, const char *data, size_t size);
 		~Combination(void);
 		
 		void addComponent(int offset, uint8_t coeff);
-		void setData(const BinaryString &data);
+		void setData(const char *data, size_t size);
 		
 		int firstComponent(void) const;
 		int lastComponent(void) const;
@@ -86,21 +88,23 @@ private:
 		static uint8_t gInv(uint8_t a);
 		
 		Map<int, uint8_t> mComponents;
-		BinaryString *mBuffer;
-		bool mMustDelete;
+		BinaryString mData;
 	};
 	
 public:
+	static const size_t ChunkSize = 1024;	// bytes
+  
 	class Source
 	{
 	public:
-		Source(File *file);	// file will be deleted
+		Source(File *file, int64_t offset = 0);		// file will be deleted
 		~Source(void);
 		
-		void generate(uint32_t seed, BinaryString &result);	// Generate combination from seed
+		void generate(BinaryString &result);	// Generate combination from seed
 		
 	private:
 		File *mFile;
+		int64_t mOffset;
 	};
 	
 	class Sink
@@ -109,11 +113,16 @@ public:
 		Sink(void);
 		~Sink(void);
 		
-		bool solve(uint32_t seed, const BinaryString &data);	// Add combination described by seed and try to solve
-									// returns true if solved
+		bool solve(BinaryString &data);	// Add combination described by seed and try to solve
+						// returns true if solved
+
+		bool isComplete(void) const;
+		void dump(Stream &stream) const;
+		void clear(void);
 		
 	private:
 		List<Combination> mCombinations;
+		bool mIsComplete;
 	};
 	
 private:
