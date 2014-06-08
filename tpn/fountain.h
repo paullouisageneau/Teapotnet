@@ -56,6 +56,7 @@ private:
 		
 		void addComponent(int offset, uint8_t coeff);
 		void setData(const char *data, size_t size);
+		void setData(const BinaryString &data);
 		
 		int firstComponent(void) const;
 		int lastComponent(void) const;
@@ -100,7 +101,7 @@ public:
 		Source(File *file, int64_t offset = 0);		// file will be deleted
 		~Source(void);
 		
-		void generate(BinaryString &result);	// Generate combination from seed
+		void generate(Stream &output);	// Generate combination from seed
 		
 	private:
 		File *mFile;
@@ -113,9 +114,9 @@ public:
 		Sink(void);
 		~Sink(void);
 		
-		bool solve(BinaryString &data);	// Add combination described by seed and try to solve
+		bool solve(Stream &input);	// Add combination described by seed and try to solve
 						// returns true if solved
-
+		
 		bool isComplete(void) const;
 		void dump(Stream &stream) const;
 		void clear(void);
