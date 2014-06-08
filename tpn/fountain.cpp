@@ -85,6 +85,11 @@ void Fountain::Combination::setData(const char *data, size_t size)
 	mData.assign(data, size);
 }
 
+void Fountain::Combination::setData(const BinaryString &data)
+{
+	mData = data;
+}
+
 int Fountain::Combination::firstComponent(void) const
 {
 	if(!mComponents.empty()) return mComponents.begin()->first;
@@ -299,7 +304,7 @@ Fountain::Source::~Source(void)
 	delete mFile;
 }
 
-void Fountain::Source::generate(BinaryString &result)
+void Fountain::Source::generate(Stream &output)
 {
 	mFile->seekRead(mOffset);
   
@@ -319,11 +324,10 @@ void Fountain::Source::generate(BinaryString &result)
 		++i;
 	}
 
-	result.clear();
-	result.writeBinary(uint32_t(seed));
-	result.writeBinary(uint16_t(i));
-	result.writeBinary(uint16_t(c.size()));
-	result.writeBinary(c.data(), c.size());
+	output.writeBinary(uint32_t(seed));
+	output.writeBinary(uint16_t(i));
+	output.writeBinary(uint16_t(c.size()));
+	output.writeBinary(c.data(), c.size());
 }
 		
 Fountain::Sink::Sink(void) :
@@ -337,19 +341,20 @@ Fountain::Sink::~Sink(void)
   
 }
 
-bool Fountain::Sink::solve(BinaryString &data)
+bool Fountain::Sink::solve(Stream &input)
 {
 	uint32_t seed;
 	uint16_t count;
 	uint16_t size;
-	AssertIO(data.readBinary(seed));
-	AssertIO(data.readBinary(count));
-  	AssertIO(data.readBinary(size));
-	Assert(size == data.size());
+	BinaryString data;
+	AssertIO(input.readBinary(seed));
+	AssertIO(input.readBinary(count));
+  	AssertIO(input.readBinary(size));
+	AssertIO(input.readBinary(data));
+	
 	
 	Combination c;
-	c.setData(data.ptr(), size);
-	data.clear();
+	c.setData(data);
 	
 	Generator gen(seed);
 	for(int i=0; i<count; ++i)

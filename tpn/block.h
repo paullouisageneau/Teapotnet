@@ -29,12 +29,12 @@
 #include "tpn/stream.h"
 #include "tpn/time.h"
 #include "tpn/core.h"
-#include "tpn/foutain.h"
+#include "tpn/fountain.h"
 
 namespace tpn
 {
 	
-class Block : protected Core::Caller, public Fountain, public Synchronizable
+class Block : protected Core::Caller, public Synchronizable
 {
 public:
 	static const size_t ChunkSize = Foutain::ChunkSize;
