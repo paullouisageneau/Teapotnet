@@ -36,7 +36,7 @@ namespace tpn
 class Resource
 {
 public:
-	static void Process(const String &path, Resource &resource);
+	static bool Process(const String &path, Resource &resource, ByteString &digest);
 	
 	enum AccessLevel { Public, Private, Personal };
 
@@ -133,7 +133,6 @@ protected:
 		virtual bool deserialize(Serializer &s);
 		virtual bool isInlineSerializable(void) const;
 		
-		BinaryString	digest;
 		String 		name;
 		String		type;
 		int64_t		size;
@@ -154,13 +153,13 @@ protected:
 		DirectoryRecord(void);
 		~DirectoryRecord(void);
 
-		Time time;
+		BinaryString	digest;
+		Time 		time;
 	};
 	
+	BinaryString mDigest;
 	Block *mIndexBlock;
-	Array<BinaryString> mBlockDigests;
-	
-	mutable Reader *mReader;
+	IndexRecord *mIndexRecord;
 };
 
 bool operator <  (const Resource &r1, const Resource &r2);

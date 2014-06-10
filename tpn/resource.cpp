@@ -37,41 +37,74 @@
 namespace tpn
 {
 
-void Resource::Process(const String &path, Resource &resource)
+bool Resource::Process(const String &path, Resource &resource, BinaryString &digest)
 {
-	File *file;
+	// Sanitize path
+	if(path.empty()) return false;
+	if(path[path.size() - 1] == Directory::Separator)
+		path.resize(path.size() - 1);
 	
-	if(Directory::Exist(path))
+	// Get name and size
+	String name = path.afterLast(Directory::Separator);
+	
+	bool isDirectory;
+	if(isDirectory = Directory::Exist(path))
 	{
-		file = new TempFile;
+		TempFile tempFile;
 		
-		// TODO: serialize to file
+		BinarySerializer serializer(&tempFile);
 		Directory dir(path);
 		while(dir.nextFile())
 		{
+			Resource subResource;
+			BinaryString subDigest;
+			Process(dir.filePath(), subResource, subDigest);
+		  
+			DirectoryRecord record;
+			record = subResource.mIndexRecord;
+			record.digest = subDigest;
+			record.time = dir.fileTime();
 			
+			serializer.output(record);
 		}
+		
+		tempFile.close();
+		path = Cache::Instance->copy(tempFile.name());
+		size = 0;
 	}
 	else {
-		file = new File(path, File::Read);
+		if(!File::Exist())
+			return false;
 	}
 	
-	Sha256().compute(*file, resource.mDigest);
-	file->seekRead(0);
+	int64_t size = File::Size(path);
 	
-	// Move file to cache if directory
-	
-	// TODO: Fill resource fields
+	// Fill index record
+	delete resource.mIndexRecord;
+	resource.mIndexRecord = new IndexRecord;
+	resource.mIndexRecord->name = name;
+	resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
+	resource.mIndexRecord->size = size;
+	resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
 	
 	// Process blocks
-	resource.mBlocks.clear();
-	resource.mBlocks.reserve(file->size()/(Block::MaxChunks*Block::ChunkSize));
+	File file(path, File::Read);
+	BinaryString digest;
+	while(Block::ProcessFile(file, digest))
+		resource.mIndexRecord->blockDigests.append(digest);
 	
-	Block block;
-	while(Block::ProcessFile(*file, block))
-	{
-		resource.mBlocks.append(block.digest());
-	}
+	// Create index
+	TempFile tempFile;
+	BinarySerializer serializer(&tempFile);
+	serializer.output(resource.mIndexRecord);
+	tempFile.close();
+	String indexFilePath = Cache::Instance->copy(tempFile.name());
+	
+	// Create index block
+	delete resource.mIndexBlock;
+	resource.mIndexBlock = new Block(indexFilePath);
+	
+	return true;
 }
 
 // TODO
@@ -95,87 +128,18 @@ int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, Str
 	return count;
 }
 
-Resource::Resource(const String &path)
+Resource::Resource(const String &path) :
+	mIndexBlock(NULL),
+	mIndexRecord(NULL)
 {
-	
+	if(!Process(path, *this, mDigest))
+		throw Exception("Unable to process resource from path: " + path);
 }
 
 Resource::~Resource(void)
 {
-	for(int i=0; i<mBlocks.size(); ++i)
-		delete mBlocks[i];
-}
-
-// TODO
-void Resource::clear(void)
-{
-	mDigest.clear();
-	mUrl.clear();
-	mPath.clear();
-	mTime = Time::Now();
-	mSize = 0;
-	mType = 1;
-	mHops = 0;
-	mPath.clear();
-	mPeering = Identifier::Null;
-	
-	delete mAccessor;
-	mAccessor = NULL;
-}
-
-void Resource::fetch(bool forceLocal)
-{
-	if(!mDigest.empty())
-	{
-		CacheMutex.lock();
-		bool success = Cache.get(mDigest, *this);
-		CacheMutex.unlock();
-		if(success) return;
-	}
-	
-	refresh(forceLocal);
-}
-	
-void Resource::refresh(bool forceLocal)
-{
-	mSources.clear();
-
-	Query query(mStore);
-	createQuery(query);
-	Set<Resource> result;
-	query.submit(result, mPeering, forceLocal);
-
-	if(result.empty())
-		throw Exception("Resource not found");
-	
-	for(Set<Resource>::iterator it = result.begin(); it != result.end(); ++it)
-	{
-		// Merge resources
-		merge(*it);
-		
-		// Add peering as source if remote
-		Identifier peering = it->peering();
-		if(peering != Identifier::Null)
-			mSources.insert(peering);
-	}
-	
-	// If remote and accessed by digest, cache the resource
-	if(!mSources.empty() && !mDigest.empty())
-	{
-		CacheMutex.lock();
-		while(Cache.size() >= 1000)
-		{
-			Map<BinaryString, Resource>::iterator it = Cache.begin();
-			int r = Random().uniform(0, int(Cache.size())-1);
-			while(r--) it++;
-			Cache.erase(it);
-		}
-		Cache.insert(mDigest, *this);
-		CacheMutex.unlock();
-		
-		// Hints for the Fountain system
-		Fountain::Hint(mDigest, name(), mSources, mSize);
-	}
+	delete mIndexBlock;
+	delete mIndexRecord;
 }
 
 BinaryString Resource::digest(void) const
@@ -183,200 +147,14 @@ BinaryString Resource::digest(void) const
 	return mDigest;
 }
 
-Time Resource::time(void) const
-{
-	return mTime;
-}
-
-int64_t Resource::size(void) const
-{
-	if(mAccessor) return mAccessor->size();
-	else return mSize;
-}
-	
-int Resource::type(void) const
-{
-	return mType;
-}
-
-String Resource::url(void) const
-{
-	return mUrl;
-}
-
-String Resource::name(void) const
-{
-	if(!mUrl.empty()) return mUrl.afterLast('/');
-	if(!mPath.empty()) return mPath.afterLast(Directory::Separator);
-	else return mDigest.toString();
-}
-
-bool Resource::isDirectory(void) const
-{
-	return (mType == 0);
-}
-
-Identifier Resource::peering(void) const
-{
-	return mPeering;
-}
-
-int Resource::hops(void) const
-{
-	return mHops;
-}
-
-Resource::Accessor *Resource::accessor(void) const
-{
-	if(isDirectory()) return NULL;
-	
-	if(!mAccessor)
-	{
-		Query query(mStore);
-		createQuery(query);
-		Resource dummy;		// TODO: rather stupid
-		if(query.submitLocal(dummy))
-		{
-			Assert(!dummy.mPath.empty());
-			mAccessor = new LocalAccessor(dummy.mPath);
-		}
-		else if(!mDigest.empty())
-		{
-			mAccessor = new ContentAccessor(mDigest, mSources);
-		}
-		else if(!mUrl.empty()) {
-			mAccessor = new RemoteAccessor(mPeering, mUrl);
-		}
-		else throw Exception("Unable to query resource");
-	}
-
-	return mAccessor;
-}
-
-void Resource::dissociateAccessor(void) const
-{
-	mAccessor = NULL;
-}
-
-void Resource::setPeering(const Identifier &peering)
-{
-	mPeering = peering;
-}
-
-void Resource::addHop(void)
-{
-	++mHops;
-}
-
-void Resource::merge(const Resource &resource)
-{
-	if(resource.mTime > mTime)
-	{
-		mTime = resource.mTime;
-		mSize = resource.mSize;
-		mDigest = resource.mDigest;
-		mType = resource.mType;
-		
-		if(mUrl.empty())
-		{
-			mUrl = resource.mUrl;
-			mPeering = resource.mPeering;
-		}
-	}
-}
-
-void Resource::createQuery(Query &query) const
-{
-	if(!mDigest.empty()) query.setDigest(mDigest);
-	else {
-		Assert(!mUrl.empty());
-		query.setLocation(mUrl);
-	}
-}
-
 void Resource::serialize(Serializer &s) const
 {
-	// TODO: WARNING: This will break if serialized to database (wrong type field)
-	// + hops field
-
-	String strType = (mType == 0 ? "directory" : "file");
-	String tmpName = name();
-	String tmpContact;
-
-	if(mPeering != Identifier::Null)
-	{
-		const User *user = mStore->user();
-		if(user)
-		{
-			const AddressBook::Contact *contact = user->addressBook()->getContact(mPeering);
-			if(contact) tmpContact = contact->uniqueName();
-		}
-	}
-	
-	ConstSerializableWrapper<int64_t> sizeWrapper(mSize);
-	ConstSerializableWrapper<int> hopsWrapper(mHops);
-	
-	// Note path is not serialized
-	Serializer::ConstObjectMapping mapping;
-	if(!mDigest.empty()) mapping["digest"] = &mDigest;
-	if(!mUrl.empty()) mapping["url"] = &mUrl;
-	mapping["name"] = &tmpName;
-	mapping["time"] = &mTime;
-	mapping["type"] = &strType;
-	mapping["size"] = &sizeWrapper;
-	mapping["hops"] = &hopsWrapper;
-	
-	if(!tmpContact.empty()) mapping["contact"] = &tmpContact;
-	
-	s.outputObject(mapping);
+	// TODO
 }
 
 bool Resource::deserialize(Serializer &s)
 {
-	clear();
-	
-	String strType;
-	String tmpName;
-	String tmpContact;
-	SerializableWrapper<int64_t> sizeWrapper(&mSize);
-	SerializableWrapper<int> hopsWrapper(&mHops);
-	
-	// Note path is not deserialized
-	Serializer::ObjectMapping mapping;
-	mapping["digest"] = &mDigest;
-	mapping["url"] = &mUrl;		
-	mapping["name"] = &tmpName;
-	mapping["time"] = &mTime;
-	mapping["type"] = &strType;
-	mapping["size"] = &sizeWrapper;
-	mapping["hops"] = &hopsWrapper;
-	
-	mapping["contact"] = &tmpContact;
-	
-	if(!s.inputObject(mapping)) return false;
-	
-	if(strType.containsLetters())
-	{
-		if(strType == "directory") mType = 0;
-		else mType = 1;
-	}
-	else {
-		// Compatibility with database
-		strType.extract(mType);
-	}
-
-	if(!tmpContact.empty())
-	{
-		const User *user = mStore->user();
-		if(user)
-		{
-			const AddressBook::Contact *contact = user->addressBook()->getContactByUniqueName(tmpContact);
-			if(contact) mPeering = contact->peering();
-		}
-	}
-	
-	if(mUrl.empty()) mUrl = tmpName;
-	
+	// TODO
 	return true;
 }
 
