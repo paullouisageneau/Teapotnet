@@ -44,11 +44,12 @@ bool Resource::Process(const String &path, Resource &resource, BinaryString &dig
 	if(path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
 	
-	// Get name and size
+	// Get name
 	String name = path.afterLast(Directory::Separator);
 	
+	// Recursively process if it's a directory 
 	bool isDirectory;
-	if(isDirectory = Directory::Exist(path))
+	if((isDirectory = Directory::Exist(path)))
 	{
 		TempFile tempFile;
 		
