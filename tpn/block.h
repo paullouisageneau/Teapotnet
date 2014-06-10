@@ -34,32 +34,41 @@
 namespace tpn
 {
 	
-class Block : protected Core::Caller, public Synchronizable
+class Block : public Stream
 {
 public:
+	static const size_t MaxChunks = 1024;
 	static const size_t ChunkSize = Foutain::ChunkSize;
-	static const size_t MaxChunks = 1024;	// chunks
+	static const size_t Size = MaxChunks*ChunkSize;
 	
 	static bool ProcessFile(File &file, Block &block);
+	static bool ProcessFile(File &file, BinaryString &digest);
 	
 	Block(const BinaryString &digest);
-	Block(const BinaryString &digest, const String &filename, int64_t offset = 0);	// override storage file
+	Block(const BinaryString &digest, const String &filename, int64_t offset = 0);	// override file
+	Block(const String &filename, int64_t offset = 0);				// digest computed from file
 	virtual ~Block(void);
-
-	void load(const BinaryString &digest);
-	void save(void);
-	bool completed(void);
-	BinaryString computeDigest(void);
 	
-	// TODO: Stream interface
+	BinaryString digest(void) const;
 	
-protected:
+	// Stream
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
+	bool waitData(double &timeout);
+	bool waitData(const double &timeout);
+	void seekRead(int64_t position);
+	void seekWrite(int64_t position);
+	int64_t tellRead(void) const;
+	int64_t tellWrite(void) const;
+	
+private:
+  	void waitContent(void) const;
+	void notifyStore(void) const;
+  
 	BinaryString mDigest;
 	File *mFile;
-	File *mMapFile;
 	int64_t mOffset;
-	
-	friend class Reader;
+	int64_t mLeft;
 };
 
 }
