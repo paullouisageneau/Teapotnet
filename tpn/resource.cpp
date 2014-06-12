@@ -51,7 +51,8 @@ bool Resource::Process(const String &path, Resource &resource, BinaryString &dig
 	bool isDirectory;
 	if((isDirectory = Directory::Exist(path)))
 	{
-		TempFile tempFile;
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName);
 		
 		BinarySerializer serializer(&tempFile);
 		Directory dir(path);
@@ -70,7 +71,7 @@ bool Resource::Process(const String &path, Resource &resource, BinaryString &dig
 		}
 		
 		tempFile.close();
-		path = Cache::Instance->copy(tempFile.name());
+		path = Cache::Instance->move(tempFileName);
 		size = 0;
 	}
 	else {
@@ -95,11 +96,12 @@ bool Resource::Process(const String &path, Resource &resource, BinaryString &dig
 		resource.mIndexRecord->blockDigests.append(digest);
 	
 	// Create index
-	TempFile tempFile;
+	String tempFileName = File::TempName();
+	File tempFile(tempFileName);
 	BinarySerializer serializer(&tempFile);
 	serializer.output(resource.mIndexRecord);
 	tempFile.close();
-	String indexFilePath = Cache::Instance->copy(tempFile.name());
+	String indexFilePath = Cache::Instance->move(tempFileName);
 	
 	// Create index block
 	delete resource.mIndexBlock;

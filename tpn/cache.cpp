@@ -30,9 +30,11 @@
 namespace tpn
 {
 
+Cache *Cache::Instance = NULL;
+  
 Cache::Cache(void)
 {
-	
+	mDirectory = "cache";	// TODO
 }
 
 Cache::~Cache(void)
@@ -40,60 +42,16 @@ Cache::~Cache(void)
 	
 }
 
-void Cache::prefetch(const BinaryString &target)
+String Cache::move(const String &filename)
 {
+	BinaryString digest;
+	File file(filename);
+	Sha256().compute(file, digest);
+	file.close();
 	
-}
-
-void Cache::sync(const BinaryString &target, const String &filename)
-{
+	String destination = mDirectory + Directory::Separator + digest.toString();
+	File::Rename(filename, destination);
 	
-}
-
-void Cache::push(const BinaryString &target, ByteArray &input)
-{
-	
-}
-
-bool Cache::pull(const BinaryString &target, ByteArray &output)
-{
-	
-}
-
-void Cache::registerBlock(Block *block)
-{
-	const BinaryString &target = block->digest();
-	mBlocks[target].insert(block);
-	
-	// TODO: if data is available, push it to the block
-}
-
-void Cache::unregisterBlock(Block *block)
-{
-	Map<BinaryString, Set<Blocks*> >::iterator it = mBlocks.find(target);
-	if(it != mBlocks.end())
-	{
-		Set<Blocks*> &set = it->second;
-		set.erase(block);
-		if(set.empty()) mBlocks.erase(it);
-	}
-}
-
-Block *Cache::getBlock(const BinaryString &target)
-{
-	Map<BinaryString, Set<Blocks*> >::iterator it = mBlocks.find(target);
-	if(it != mBlocks.end())
-	{
-		Set<Blocks*> &set = it->second;
-		if(!set.empty())
-		{
-			return *set.begin();
-		}
-	}
-	
-	Block *block = new Block(target);
-	mTempBlocks.insert(target, block);
-	return block;
 }
 
 }

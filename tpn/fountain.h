@@ -66,9 +66,6 @@ private:
 		
 		const char *data(void) const;
 		size_t size(void) const;
-		const char *decodedData(void) const;
-		size_t decodedSize(void) const;
-		
 		void clear(void);
 		
 		Combination operator+(const Combination &combination) const;
@@ -98,14 +95,14 @@ public:
 	class Source
 	{
 	public:
-		Source(File *file, int64_t offset = 0);		// file will be deleted
+		Source(File *file, int64_t offset = 0, int64_t size = -1);	// file will be deleted
 		~Source(void);
 		
 		void generate(Stream &output);	// Generate combination from seed
 		
 	private:
 		File *mFile;
-		int64_t mOffset;
+		int64_t mOffset, mSize;
 	};
 	
 	class Sink
@@ -123,6 +120,7 @@ public:
 		
 	private:
 		List<Combination> mCombinations;
+		uint32_t mSize;
 		bool mIsComplete;
 	};
 	

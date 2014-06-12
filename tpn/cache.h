@@ -32,28 +32,17 @@ namespace tpn
 class Cache : public Synchronizable
 {
 public:
+	static Cache *Instance;
+  
 	Cache(void);
 	~Cache(void);
 	
-	void prefetch(const BinaryString &target);
-	void sync(const BinaryString &target, const String &filename);
+	String move(const String &filename);
 	
-	void push(const BinaryString &target, ByteArray &input);	// Core pushes new combinations here
-	bool pull(const BinaryString &target, ByteArray &output);	// Core pull new combinations from here
-	
-	void registerBlock(Block *block);
-	void unregisterBlock(Block *block);
-	
-	// TODO: loading blocks from cache
+	// TODO: cleaning
 	
 private:
-	Block *getBlock(const BinaryString &target);
-	
 	String mDirectory;
-	
-	Map<BinaryString, Set<Blocks*> > mBlocks;	// Registered blocks
-	Map<BinaryString, Blocks*> mTempBlocks;
-	
 };
 
 }
