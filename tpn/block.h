@@ -45,8 +45,8 @@ public:
 	static bool ProcessFile(File &file, BinaryString &digest);
 	
 	Block(const BinaryString &digest);
-	Block(const BinaryString &digest, const String &filename, int64_t offset = 0);	// override file
-	Block(const String &filename, int64_t offset = 0);				// digest computed from file
+	Block(const BinaryString &digest, const String &filename, int64_t offset = 0, int64_t size = -1);	// override file
+	Block(const String &filename, int64_t offset = 0, int64_t size = -1);					// digest computed from file
 	virtual ~Block(void);
 	
 	BinaryString digest(void) const;
@@ -68,7 +68,7 @@ private:
 	BinaryString mDigest;
 	File *mFile;
 	int64_t mOffset;
-	int64_t mLeft;
+	int64_t mSize;
 };
 
 }

@@ -132,25 +132,6 @@ size_t Fountain::Combination::size(void) const
 	return mData.size();
 }
 
-const char *Fountain::Combination::decodedData(void) const
-{
-	if(isCoded() || mData.size() < 2) return NULL;
-	
-	return mData.data() + 2;
-}
-
-size_t Fountain::Combination::decodedSize(void) const
-{
-	if(isCoded() || mData.size() < 2) return 0;
-	
-	uint16_t size = 0;
-	BinaryString tmp(mData, 0, 2);
-	tmp.readBinary(size);
-	
-	// TODO: warning if size too big
-	return std::min(size_t(mData.size()-2), size_t(size));
-}
-
 void Fountain::Combination::clear(void)
 {
 	mComponents.clear();
@@ -292,9 +273,10 @@ uint8_t Fountain::Combination::gInv(uint8_t a)
 	throw Exception("Combination::gInv failed for input " + String::number(unsigned(a)));
 }
   
-Fountain::Source::Source(File *file, int64_t offset) :
+Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
 	mFile(file),
-	mOffset(offset)
+	mOffset(offset),
+	mSize(size)
 {
 	Assert(mFile);
 }
@@ -313,24 +295,34 @@ void Fountain::Source::generate(Stream &output)
 	rnd.readBinary(seed);
 	Generator gen(seed);
 
-	Combination c;	
+	Combination c;
 	char buffer[ChunkSize];
 	size_t size;
 	int i = 0;
-	while((size = mFile->readBinary(buffer, ChunkSize)))
+	
+	if(mSize > std::numeric_limits<uint32_t>::max())
+		throw Exception("File too big for Foutain::Source");
+	
+	uint32_t total = 0;
+	uint32_t left = (mSize >= 0 ? uint32_t(mSize) : std::numeric_limits<uint32_t>::max());
+
+	while((size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
 	{
 		uint8_t coeff = gen.next();
 		c+= Combination(i, buffer, size)*coeff;
+		total+= size;
+		left-= size;
 		++i;
 	}
-
+	
+	output.writeBinary(uint32_t(total));
 	output.writeBinary(uint32_t(seed));
 	output.writeBinary(uint16_t(i));
-	output.writeBinary(uint16_t(c.size()));
 	output.writeBinary(c.data(), c.size());
 }
 		
 Fountain::Sink::Sink(void) :
+	mSize(0)
 	mIsComplete(false)
 {
 
@@ -343,15 +335,16 @@ Fountain::Sink::~Sink(void)
 
 bool Fountain::Sink::solve(Stream &input)
 {
+	uint32_t size;
 	uint32_t seed;
 	uint16_t count;
-	uint16_t size;
 	BinaryString data;
+	AssertIO(input.readBinary(size));
 	AssertIO(input.readBinary(seed));
 	AssertIO(input.readBinary(count));
-  	AssertIO(input.readBinary(size));
 	AssertIO(input.readBinary(data));
 	
+	mSize = std::max(mSize, size);
 	
 	Combination c;
 	c.setData(data);
@@ -433,8 +426,14 @@ bool Fountain::Sink::isComplete(void) const
 void Fountain::Sink::dump(Stream &stream) const
 { 
 	List<Combination>::const_iterator it = mCombinations.begin();
-	while(it != mCombinations.end() && !it->isCoded())
-		stream.writeBinary(it->decodedData(), it->decodedSize());
+	
+	uint32_t left = mSize;
+	while(left && it != mCombinations.end() && !it->isCoded())
+	{
+		size_t size = size_t(std::min(left, uint32_t(it->size())));
+		stream.writeBinary(it->data(), size);
+		left-= size;
+	}
 }
 
 void Fountain::Sink::clear(void)

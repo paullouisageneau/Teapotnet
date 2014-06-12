@@ -34,7 +34,6 @@
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"
 #include "tpn/mime.h"
-#include "tpn/splicer.h"
 
 namespace tpn
 {

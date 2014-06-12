@@ -39,61 +39,26 @@
 
 namespace tpn
 {
-
-class User;
   
-class Store : public Task, protected Synchronizable, public HttpInterfaceable
+class Store : protected Synchronizable
 {
 public:
-	static Store *GlobalInstance;
-  	static bool Get(const BinaryString &digest, Resource &resource);
-	static const size_t ChunkSize;
-
-	Store(User *user);
+	static Store *Instance;
+	
+	Store(void);
 	~Store(void);
 	
-	User *user(void) const;
-	String userName(void) const;
-
-	void addDirectory(const String &name, String path, Resource::AccessLevel level = Resource::Public);
-	void removeDirectory(const String &name);
-	void getDirectories(Array<String> &array) const;
-	void setDirectoryAccessLevel(const String &name, Resource::AccessLevel level);
-	Resource::AccessLevel directoryAccessLevel(const String &name) const; 
-	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
+	// Resource-level access
+	bool get(const BinaryString &digest, Resource &resource);
 	
-	void save(void) const;
-	void start(void);
-
-	bool query(const Resource::Query &query, Resource &resource);
-	bool query(const Resource::Query &query, Set<Resource> &resources);
-	
-	void http(const String &prefix, Http::Request &request);
+	// Block-level access
+	void waitBlock(const BinaryString &digest);
+	File *getBlock(const BinaryString &digest, int64_t &size);
+	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
+	void notifyFileErasure(const String &filename);
 
 private:
-	static const String CacheDirectoryName;
-	static const String UploadDirectoryName;
-	
-	bool getResource(const BinaryString &digest, Resource &resource);
-	void insertResource(const BinaryString &digest, const String &path);
-	
-	bool prepareQuery(Database::Statement &statement, const Resource::Query &query, const String &fields, bool oneRowOnly = false);
-	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);
-	String urlToDirectory(const String &url) const;
-	String urlToPath(const String &url) const;
-	String absolutePath(const String &path) const;
-	bool isHiddenUrl(const String &url) const;
-	Resource::AccessLevel urlAccessLevel(const String &url) const;
-	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
-	void run(void);
-	
-	User *mUser;
 	Database *mDatabase;
-	String mFileName;
-	String mBasePath;
-	StringMap mDirectories;
-	Map<String, Resource::AccessLevel> mDirectoriesAccessLevel;
-	bool mRunning;
 };
 
 }
