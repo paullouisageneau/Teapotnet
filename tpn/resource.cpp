@@ -37,79 +37,6 @@
 namespace tpn
 {
 
-bool Resource::Process(const String &path, Resource &resource, BinaryString &digest)
-{
-	// Sanitize path
-	if(path.empty()) return false;
-	if(path[path.size() - 1] == Directory::Separator)
-		path.resize(path.size() - 1);
-	
-	// Get name
-	String name = path.afterLast(Directory::Separator);
-	
-	// Recursively process if it's a directory 
-	bool isDirectory;
-	if((isDirectory = Directory::Exist(path)))
-	{
-		String tempFileName = File::TempName();
-		File tempFile(tempFileName);
-		
-		BinarySerializer serializer(&tempFile);
-		Directory dir(path);
-		while(dir.nextFile())
-		{
-			Resource subResource;
-			BinaryString subDigest;
-			Process(dir.filePath(), subResource, subDigest);
-		  
-			DirectoryRecord record;
-			record = subResource.mIndexRecord;
-			record.digest = subDigest;
-			record.time = dir.fileTime();
-			
-			serializer.output(record);
-		}
-		
-		tempFile.close();
-		path = Cache::Instance->move(tempFileName);
-		size = 0;
-	}
-	else {
-		if(!File::Exist())
-			return false;
-	}
-	
-	int64_t size = File::Size(path);
-	
-	// Fill index record
-	delete resource.mIndexRecord;
-	resource.mIndexRecord = new IndexRecord;
-	resource.mIndexRecord->name = name;
-	resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
-	resource.mIndexRecord->size = size;
-	resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
-	
-	// Process blocks
-	File file(path, File::Read);
-	BinaryString digest;
-	while(Block::ProcessFile(file, digest))
-		resource.mIndexRecord->blockDigests.append(digest);
-	
-	// Create index
-	String tempFileName = File::TempName();
-	File tempFile(tempFileName);
-	BinarySerializer serializer(&tempFile);
-	serializer.output(resource.mIndexRecord);
-	tempFile.close();
-	String indexFilePath = Cache::Instance->move(tempFileName);
-	
-	// Create index block
-	delete resource.mIndexBlock;
-	resource.mIndexBlock = new Block(indexFilePath);
-	
-	return true;
-}
-
 // TODO
 int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, String host)
 {
@@ -135,7 +62,7 @@ Resource::Resource(const String &path) :
 	mIndexBlock(NULL),
 	mIndexRecord(NULL)
 {
-	if(!Process(path, *this, mDigest))
+	if(!Process(path, *this))
 		throw Exception("Unable to process resource from path: " + path);
 }
 
@@ -147,7 +74,8 @@ Resource::~Resource(void)
 
 BinaryString Resource::digest(void) const
 {
-	return mDigest;
+	Assert(mIndexBlock);
+	return mIndexBlock->digest();
 }
 
 void Resource::serialize(Serializer &s) const
