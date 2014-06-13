@@ -36,7 +36,7 @@ namespace tpn
 class Resource
 {
 public:
-	static bool Process(const String &path, Resource &resource, ByteString &digest);
+	static bool Process(const String &path, Resource &resource);
 	
 	enum AccessLevel { Public, Private, Personal };
 
@@ -157,7 +157,6 @@ protected:
 		Time 		time;
 	};
 	
-	BinaryString mDigest;
 	Block *mIndexBlock;
 	IndexRecord *mIndexRecord;
 };
