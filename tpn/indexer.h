@@ -63,7 +63,7 @@ public:
 
 	bool process(const String &path, Resource &resource);
 	bool get(const String &path, Resource &resource, Time *time = NULL);
-	void notify(const String &path, const Resource &resource);
+	void notify(const String &path, const Resource &resource, const Time &time);
 	
 	void http(const String &prefix, Http::Request &request);
 
@@ -110,10 +110,8 @@ private:
 
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);
-	String urlToDirectory(const String &url) const;
-	String urlToPath(const String &url) const;
-	String absolutePath(const String &path) const;
-	bool isHiddenUrl(const String &url) const;
+	String realPath(String path) const;
+	bool isHiddenPath(const String &url) const;
 	Resource::AccessLevel urlAccessLevel(const String &url) const;
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
 	void run(void);
@@ -121,7 +119,7 @@ private:
 	User *mUser;
 	Database *mDatabase;
 	String mFileName;
-	String mBasePath;
+	String mBaseDirectory;
 	StringMap mDirectories;
 	Map<String, Resource::AccessLevel> mDirectoriesAccessLevel;
 	bool mRunning;

@@ -41,15 +41,17 @@ Indexer::Indexer(User *user) :
 	mUser(user),
 	mRunning(false)
 {
-	if(mUser) mDatabase = new Database(mUser->profilePath() + "files.db");
-	else mDatabase = new Database("files.db");
+	Assert(mUser);
+	mDatabase = new Database(mUser->profilePath() + "files.db");
 	
 	// Files database
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS resources\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		name_rowid INTEGER,\
+		path TEXT,\
+		digest BLOB,\
 		time INTEGER(8),\
-		digest BLOB)");
+		seen INTEGER(1)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON files (digest)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS parent_id ON files (parent_id)");
 	mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
@@ -59,25 +61,16 @@ Indexer::Indexer(User *user) :
 	//if(!statement.step()) mDatabase->execute("CREATE VIRTUAL TABLE names USING FTS3(name)");	
 	//statement.finalize();
 	//
-
-	if(mUser) 
-	{
-		mFileName = mUser->profilePath() + "directories";
-		
-		const String folder = Config::Get("shared_dir");
-		if(!Directory::Exist(folder))
-			Directory::Create(folder);
-		
-		const String subfolder = folder + Directory::Separator + mUser->name();
-		if(!Directory::Exist(subfolder))
-			Directory::Create(subfolder);
-		
-		mBasePath = subfolder + Directory::Separator;
-	}
-	else {
-		mFileName = "directories.txt";
-		mBasePath = "";
-	}
+	
+	mFileName = mUser->profilePath() + "directories";
+	
+	const String sharedDirectory = Config::Get("shared_dir");
+	if(!Directory::Exist(sharedDirectoryv))
+		Directory::Create(sharedDirectory);
+	
+	mBaseDirectory = sharedDirectory + Directory::Separator + mUser->name();
+	if(!Directory::Exist(mBaseDirectory))
+		Directory::Create(mBaseDirectory);
 	
 	if(File::Exist(mFileName))
 	{
@@ -159,14 +152,14 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 	if(path.empty())	// "/" matches here too
 		throw Exception("Invalid directory");
 	
-	String absPath = absolutePath(path);
-	if(!Directory::Exist(absPath))
+	String realPath = realPath(path);
+	if(!Directory::Exist(realPath))
 	{
-		if(absPath != path) Directory::Create(absPath);
-		else throw Exception("The directory does not exist: " + absPath);
+		if(realPath != path) Directory::Create(realPath);
+		else throw Exception("The directory does not exist: " + realPath);
 	}
 	
-	Directory test(absPath);
+	Directory test(realPath);
 	test.close();
 	
 	String oldPath;
@@ -368,21 +361,66 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 
 bool Indexer::process(const String &path, Resource &resource)
 {
+	Synchronize(this);
+	
 	// Sanitize path
-	if(path.empty()) return false;
-	if(path[path.size() - 1] == Directory::Separator)
+	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
 	
 	// Get name
 	String name = path.afterLast(Directory::Separator);
+	String realPath = realPath(path);
 	
 	// Recursively process if it's a directory 
-	bool isDirectory;
-	if((isDirectory = Directory::Exist(path)))
+	bool isDirectory = false;
+	if(path.empty())	// Top-level: Indexer directories
 	{
+		isDirectory = true;
+		
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName);
 		
+		// Iterate on directories
+		BinarySerializer serializer(&tempFile);
+		Array<String> names;
+		mDirectories.getKeys(names);
+		for(int i=0; i<names.size(); ++i)
+		try {
+			String name = names[i];
+			String path = "/" + name;
+			String realPath = realPath(path);
+			
+			if(!Directory::Exist(realPath))
+				Directory::Create(realPath);
+			
+			Resource subResource;
+			Time time;
+			if(!get(path, subResource, &time) || time < dir.fileTime())
+				if(!process(path, subResource))
+					continue;	// ignore this directory
+			
+			DirectoryRecord record;
+			record = subResource.mIndexRecord;
+			record.digest = subResource.digest();
+			record.time = File::Time(realPath);
+			
+			serializer.output(record);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Indexer", String("Update failed for directory ") + names[i] + ": " + e.what());
+		}
+		
+		tempFile.close();
+	}
+	else if(Directory::Exist(path))
+	{
+		isDirectory = true;
+	  
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName);
+		
+		// Iterate on 
 		BinarySerializer serializer(&tempFile);
 		Directory dir(path);
 		while(dir.nextFile())
@@ -410,7 +448,8 @@ bool Indexer::process(const String &path, Resource &resource)
 			return false;
 	}
 	
-	int64_t size = File::Size(path);
+	int64_t size = File::Size(realPath);
+	Time time    = File::Time(realPath);
 	
 	// Fill index record
 	delete resource.mIndexRecord;
@@ -421,7 +460,7 @@ bool Indexer::process(const String &path, Resource &resource)
 	resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
 	
 	// Process blocks
-	File file(path, File::Read);
+	File file(realPath, File::Read);
 	BinaryString blockDigest;
 	while(Block::ProcessFile(file, blockDigest))
 		resource.mIndexRecord->blockDigests.append(blockDigest);
@@ -438,39 +477,28 @@ bool Indexer::process(const String &path, Resource &resource)
 	delete resource.mIndexBlock;
 	resource.mIndexBlock = new Block(indexFilePath);
 	
-	notify(path, resource);
+	notify(path, resource, time);
 	return true;
 }
 
 bool Indexer::get(const String &path, Resource &resource, Time *time);
 {
+	Synchronize(this);
+  
 	// Sanitize path
-	if(path.empty()) return false;
-	if(path[path.size() - 1] == Directory::Separator)
+	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
   
-	Database::Statement statement = mDatabase->prepare("SELECT n.name, r.type, r.size, r.time FROM resources r LEFT JOIN names n ON n.rowid = f.name_rowid WHERE r.path = ?1 LIMIT 1");
+	Database::Statement statement = mDatabase->prepare("SELECT digest, time FROM resources WHERE path = ?1 LIMIT 1");
 	statement.bind(1, path);
 	if(statement.step())
 	{
-		String name;
-		int type;
-		statement.value(0, name);
-		statement.value(1, type);
-		statement.value(2, size);
-		if(time) statement.value(3, *time);
+		BinaryString digest;
+		statement.value(0, digest);
+		if(time) statement.value(1, *time);
 		statement.finalize();
 		
-		try {		
-			File *file = new File(filename);
-			file->seekRead(offset);
-			return file;
-		}
-		catch(...)
-		{
-			notifyFileErasure(filename);
-		}
-		
+		resource.fetch(digest);
 		return NULL;
 	}
 	
@@ -478,9 +506,27 @@ bool Indexer::get(const String &path, Resource &resource, Time *time);
 	return false;
 }
 
-void Indexer::notify(const String &path, const Resource &resource)
+void Indexer::notify(const String &path, const Resource &resource, const Time &time)
 {
+	Synchronize(this);
   
+	// Sanitize path
+	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
+		path.resize(path.size() - 1);
+  
+	const String name = path.afterLast('/');
+	if(name.empty()) return;
+	
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO names (name) VALUES (?1)");
+	statement.bind(1, name);
+	statement.execute();
+	
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+	statement.bind(1, name);
+	statement.bind(2, path);
+	statement.bind(3, resource.digest());
+	statement.bind(4, time);
+	statement.execute();
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)
@@ -1262,10 +1308,12 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	return true;
 }
 
-void Indexer::update(const String &url, String path, int64_t parentId, bool computeDigests)
+void Indexer::update(const String &path)
 {
 	Synchronize(this);
 
+	// TOOD: rewrite: deep first, call process
+	
 	try {
 		Unprioritize(this);
 	  
@@ -1278,15 +1326,15 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 			if(path[0] == Directory::Separator) path.ignore();
 		}
 		
-		String absPath = absolutePath(path);
+		String realPath = realPath(path);
 		
-		int64_t time = File::Time(absPath);
+		int64_t time = File::Time(realPath);
 		int64_t size = 0;
 		int type = 0;
-		if(!Directory::Exist(absPath)) 
+		if(!Directory::Exist(realPath)) 
 		{
 			type = 1;
-			size = File::Size(absPath);
+			size = File::Size(realPath);
 		}
 	
 		if(parentId < 0)
@@ -1331,7 +1379,7 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 				{
 					Desynchronize(this);
 					digest.clear();
-					File data(absPath, File::Read);
+					File data(realPath, File::Read);
 					Sha512().compute(data, digest);
 					data.close();
 				}
@@ -1356,7 +1404,7 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 			{
 				Desynchronize(this);
 				digest.clear();
-				File data(absPath, File::Read);
+				File data(realPath, File::Read);
 				Sha512().compute(data, digest);
 				data.close();
 			}
@@ -1395,7 +1443,7 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 		if(!type)	// directory
 		{
 			Desynchronize(this);
-			Directory dir(absPath);
+			Directory dir(realPath);
 			while(dir.nextFile())
 			{
 				if(dir.fileName() == ".directory" 
@@ -1411,7 +1459,7 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 		else {		// file
 		  
 			Desynchronize(this);
-			insertResource(digest, absPath);
+			insertResource(digest, realPath);
 		}
 	}
 	catch(const Exception &e)
@@ -1421,52 +1469,36 @@ void Indexer::update(const String &url, String path, int64_t parentId, bool comp
 	}
 }
 
-String Indexer::urlToDirectory(const String &url) const
+String Indexer::realPath(String path) const
 {
-	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
-	return String(url.substr(1)).before('/');
-}
-
-String Indexer::urlToPath(const String &url) const
-{
-	if(url.empty() || url[0] != '/') throw Exception("Invalid URL");
-	Synchronize(this);
-  
-	String dir(url.substr(1));
-	String path = dir.cut('/');
-
-	// Do not accept the parent directory symbol as a security protection
-	if(path == ".." || path.find("../") != String::NotFound || path.find("/..") != String::NotFound)
-		throw Exception("Invalid URL");
-
-	String dirPath;
-	if(!mDirectories.get(dir, dirPath)) return "";
-
-	path.replace('/', Directory::Separator);
-
-	return absolutePath(dirPath + Directory::Separator + path);
-}
-
-String Indexer::absolutePath(const String &path) const
-{
-	if(path.empty()) throw Exception("Empty path");
 	Synchronize(this);
 	
-#ifdef WINDOWS
-	bool absolute = (path.size() >= 2 && path[1] == ':' && (path.size() == 2 || path[2] == '\\'));
-#else
-	bool absolute = (path[0] == '/');
-#endif
+	if(path.empty())
+		throw Exception("Empty path");
+	
+	// Do not accept the parent directory symbol as a security protection
+	if(path.find("..") != String::NotFound)
+		throw Exception("Invalid path: " + path);
+	
+	if(!path.empty() && path[0] == '/')
+		path = path.substr(1);
+	
+	directory = path;
+	path = directory.cut('/');
+	String prefix = mDirectories.get(directory);
+	
+	if(path.empty()) 
+		return prefix;
 
-	if(absolute) return path;
-	else return mBasePath + path;
+	if(Directory::Separator != '/') path.replace('/', Directory::Separator);
+	return prefix + Directory::Separator + path;
 }
 
-bool Indexer::isHiddenUrl(const String &url) const
+bool Indexer::isHiddenPath(const String &path) const
 {
-	if(url.empty()) return false;
-	if(url[0] == '_') return true;
-	if(url.size() >= 2 && url[0] == '/' && url[1] == '_') return true;
+	if(path.empty()) return false;
+	if(path[0] == '_') return true;
+	if(path.size() >= 2 && path[0] == '/' && path[1] == '_') return true;
 	return false;
 }
 
@@ -1485,7 +1517,7 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 			path.resize(path.size()-1);
 
 		StringList list;
-		Directory dir(absolutePath(path));
+		Directory dir(realPath(path));
 		while(dir.nextFile())
 			if(!dir.fileIsDir())
 			{
@@ -1517,7 +1549,7 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 			
 			// TODO: delete in Resources
 
-			String absFilePath = absolutePath(filePath);
+			String absFilePath = realPath(filePath);
 			totalSize-= File::Size(absFilePath);
 			File::Remove(absFilePath);
 			list.erase(it);
@@ -1540,43 +1572,18 @@ void Indexer::run(void)
 	try {
 		LogDebug("Indexer::run", "Started");
 		
-		mDatabase->execute("UPDATE files SET seen=0 WHERE url IS NOT NULL");
+		// Invalidate all entries
+		mDatabase->execute("UPDATE files SET seen=0 WHERE path IS NOT NULL");
 		
-		Array<String> names;
-		mDirectories.getKeys(names);
-		
-		for(int i=0; i<names.size(); ++i)
-		try {
-			String name = names[i];
-			String path = mDirectories.get(name);
-			String absPath = absolutePath(path);
-			String url = String("/") + name;
-			
-			if(!Directory::Exist(absPath))
-				Directory::Create(absPath);
-			
-			update(url, path, 0, false);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Indexer", String("Update failed for directory ") + names[i] + ": " + e.what());
-		}
+		// TODO: update
 		
 		mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
 		
 		for(int i=0; i<names.size(); ++i)
 		try {
 			String name = names[i];
-			String path = mDirectories.get(name);
-			String absPath = absolutePath(path);
-			String url = String("/") + name;
-			
-			update(url, path, 0, true);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Indexer", String("Hashing failed for directory ") + names[i] + ": " + e.what());
-
+			String path = "/" + name;
+			update(path);
 		}
 		
 		LogDebug("Indexer::run", "Finished");
