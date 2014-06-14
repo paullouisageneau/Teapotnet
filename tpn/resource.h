@@ -36,51 +36,7 @@ namespace tpn
 class Resource
 {
 public:
-	static bool Process(const String &path, Resource &resource);
-	
 	enum AccessLevel { Public, Private, Personal };
-
-	// TODO
-	class Query : public Serializable
-	{
-	public:
-		Query(Store *store = NULL, const String &url = "");
-		~Query(void);
-		
-		void setLocation(const String &url);
-		void setDigest(const BinaryString &digest);
-		void setMinAge(int seconds);
-		void setMaxAge(int seconds);
-		void setRange(int first, int last);
-		void setLimit(int count);
-		void setMatch(const String &match);
-		
-		void setAccessLevel(AccessLevel level);
-		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
-		
-		bool submitLocal(Resource &result);
-		bool submitLocal(Set<Resource> &result);
-		bool submitRemote(Set<Resource> &result, const Identifier &peering = Identifier::Null);
-		bool submit(Set<Resource> &result, const Identifier &peering = Identifier::Null, bool forceLocal = false);
-
-		void createRequest(Request &request) const;
-		
-		// Serializable
-		virtual void serialize(Serializer &s) const;
-		virtual bool deserialize(Serializer &s);
-		virtual bool isInlineSerializable(void) const;
-		
-	private:
-		String mUrl, mMatch;
-		BinaryString mDigest;
-		int mMinAge, mMaxAge;	// seconds
-		int mOffset, mCount;
-		AccessLevel mAccessLevel;
-		
-		Store *mStore;
-
-		friend class Store;
-	};
 	
 	class Reader : public Stream
 	{
@@ -109,7 +65,7 @@ public:
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
-	Resource(const String &path);
+	Resource(const BinaryString &digest);
 	~Resource(void);
 	
 	int blocksCount(void) const;
@@ -159,6 +115,8 @@ protected:
 	
 	Block *mIndexBlock;
 	IndexRecord *mIndexRecord;
+	
+	friend class Indexer;
 };
 
 bool operator <  (const Resource &r1, const Resource &r2);
