@@ -174,8 +174,9 @@ public:
 	void unsubscribe(const String &prefix, Subscriber *subscriber);
 	
 	// Caller
-	void registerCaller(const BinaryString &target, Caller *splicer);
-	void unregisterCaller(const BinaryString &target, Caller *splicer);
+	void registerCaller(const BinaryString &target, Caller *caller);
+	void unregisterCaller(const BinaryString &target, Caller *caller);
+	void unregisterAllCallers(const BinaryString &target);
 	
 	// Routing
 	void route(Missive &missive, const Identifier &from);
@@ -319,7 +320,6 @@ private:
 	String mName;
 	Scheduler mThreadPool;
 	Scheduler mScheduler;
-	Cache mCache;
 	
 	List<Backend*> mBackends;
 	TunnelBackend *mTunnelBackend;

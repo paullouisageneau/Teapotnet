@@ -207,6 +207,11 @@ void Core::unregisterCaller(const BinaryString &target, Caller *caller)
 	}
 }
 
+void unregisterAllCallers(const BinaryString &target)
+{
+	  mCallers.erase(target);
+}
+
 void Core::route(Missive &missive, const Identifier &from)
 {
 	Synchronize(this);
@@ -559,8 +564,6 @@ void Caller::stopCalling(void)
 
 Sender::Sender(const BinaryString &target) :
 	mTarget(target),
-	mBegin(0),
-	mEnd(0),
 	mTokens(0)
 {
 	
@@ -574,7 +577,6 @@ Sender::~Sender(void)
 void Sender::setTokens(unsigned tokens)
 {
 	Synchronize(this);
-	
 	mTokens = tokens;
 }
 
@@ -583,16 +585,16 @@ void Sender::run(void)
 	Synchronize(this);
 	
 	// The sender spends the tokens, sending a combination for each one
-	
-	// TODO
-	Missive missive;
-	missive.writeBinary(mTarget);
-	mCache.pull(mTarget, missive);
-	
-	mHandler->send(missive);
+	if(mTokens)
+	{
+		Missive missive;
+		missive.writeBinary(mTarget);
+		mStore::Instance->pull(mTarget, missive);
+		
+		mHandler->send(missive);
 
-	if(--mTokens) 
-		Core::Instance->mScheduler.schedule(this);
+		if(--mTokens) Core::Instance->mScheduler.schedule(this);
+	}
 }
 		
 Core::Backend::Backend(Core *core) :
@@ -964,20 +966,11 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 			BinaryString target;
 			payload.readBinary(target);
 			
-			int64_t begin = 0;
-			int64_t end = 0;
 			int16_t tokens = 0;
-			payload.readBinary(begin);	// for Ack, this is the last seen
-			payload.readBinary(end);
 			payload.readBinary(tokens);
 			
 			Sender *sender = getSender(target, source);
-			if(sender)
-			{
-				sender->setInterval(begin, end);
-				sender->setTokens(tokens);
-			}
-			
+			if(sender) sender->setTokens(tokens);
 			break;
 		}
 		
@@ -986,20 +979,12 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 			BinaryString target;
 			payload.read(target);
 			
-			mCache.push(target, payload);
-			
-			Map<String, Set<Caller*> >::iterator it = mCallers.find(target);
-			if(it != mCallers.end())
+			if(mStore::Instance->push(target, payload))
 			{
-				for(Set<Subscriber*>::iterator jt = it->second.begin();
-							jt != it->second.end();
-							++jt)
-				{
-					// TODO: stop calling retrieved parts	
-				}
+				unregisterAllCallers(target);
+			  
+				// TODO: Brake
 			}
-			
-			// TODO: send ACK to source
 			
 			break;
 		}
