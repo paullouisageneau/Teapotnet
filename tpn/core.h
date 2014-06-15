@@ -129,6 +129,7 @@ public:
 	{
 	public:
 		Caller(void);
+		Caller(const BinaryString &target);
 		~Caller(void);
 		
 		void startCalling(const BinaryString &target);

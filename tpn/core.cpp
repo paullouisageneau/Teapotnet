@@ -523,7 +523,13 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 
 Caller::Caller(void)
 {
+	
+}
 
+Caller::Caller(const BinaryString &target)
+{
+	Assert(!target.empty());
+	startCalling(target);
 }
 
 Caller::~Caller(void)
