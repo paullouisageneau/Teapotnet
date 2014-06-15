@@ -20,16 +20,10 @@
  *************************************************************************/
 
 #include "tpn/store.h"
-#include "tpn/user.h"
 #include "tpn/directory.h"
-#include "tpn/html.h"
 #include "tpn/crypto.h"
-#include "tpn/random.h"
-#include "tpn/lineserializer.h"
-#include "tpn/jsonserializer.h"
 #include "tpn/config.h"
-#include "tpn/time.h"
-#include "tpn/mime.h"
+#include "tpn/core.h"
 
 namespace tpn
 {
@@ -64,6 +58,8 @@ Store::~Store(void)
 
 bool Store::push(const BinaryString &digest, Stream &input)
 {
+	Synchronize(this);
+  
 	if(hashBlock(digest)) return true;
   
 	const Fountain::Sink &sink = mSinks[digest];
@@ -91,6 +87,8 @@ bool Store::push(const BinaryString &digest, Stream &input)
 
 bool Store::pull(const BinaryString &digest, Stream &output)
 {
+	Synchronize(this);
+  
 	int64_t size;
 	File *file = getBlock(digest, size);
 	if(!file) return false;
@@ -120,8 +118,14 @@ void Store::waitBlock(const BinaryString &digest)
 {
 	Synchronize(this);
 	
-	while(!hasBlock(digest))
-		wait();
+	if(!hasBlock(digest))
+	{
+		Core::Caller(digest);		// Block is missing locally, call it
+	  
+		do wait();
+		while(!hasBlock(digest));
+			
+	}
 }
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)
