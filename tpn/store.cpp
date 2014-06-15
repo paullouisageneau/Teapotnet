@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -53,6 +53,8 @@ Store::Store(void)
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		name TEXT UNIQUE");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS name ON files (name)");
+	
+	mCacheDirectory = Config::Get("cache_dir");
 }
 
 Store::~Store(void)
@@ -60,31 +62,66 @@ Store::~Store(void)
 
 }
 
-bool Store::get(const BinaryString &digest, Resource &resource)
+bool Store::push(const BinaryString &digest, Stream &input)
 {
-	Synchonize(this);
+	if(hashBlock(digest)) return true;
+  
+	const Fountain::Sink &sink = mSinks[digest];
+	if(!sink.solve(input)) return false;
 	
-	// TODO
+	BinaryString sinkDigest;
+	sink.hash(sinkDigest);
+	if(sinkDigest != digest)
+	{
+		mSinks.erase(digest);
+		return false;
+	}
+	
+	const String filename = mCacheDirectory + Directory::Separator + digest.toString();
+	File file(filename, File::Write);
+	sink.dump(filename);
+	file.close();
+	
+	int64_t size = sink.size();
+	notifyBlock(digest, filename, 0, size);
+	
+	mSinks.erase(digest);
+	return true;
+}
+
+bool Store::pull(const BinaryString &digest, Stream &output)
+{
+	int64_t size;
+	File *file = getBlock(digest, size);
+	if(!file) return false;
+	
+	Fountain::Source source(file, file->tellRead(), size);
+	source.generate(output);
+	return true;
+}
+
+bool Store::hasBlock(const BinaryString &digest)
+{
+	Synchronize(this);
+
+	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
+	statement.bind(1, digest);
+	if(statement.step())
+	{
+		statement.finalize();
+		return true;
+	}
+	
+	statement.finalize();
+	return false;
 }
 
 void Store::waitBlock(const BinaryString &digest)
 {
 	Synchronize(this);
 	
-	while(true)
-	{
-		Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
-		statement.bind(1, digest);
-		if(statement.step())
-		{
-			statement.finalize();
-			return;
-		}
-		
-		statement.finalize();
-		
+	while(!hasBlock(digest))
 		wait();
-	}
 }
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)

@@ -371,6 +371,12 @@ bool Indexer::process(const String &path, Resource &resource)
 	String name = path.afterLast(Directory::Separator);
 	String realPath = realPath(path);
 	
+	// Don't process garbage files
+	if(name == ".directory" 
+		|| name.toLower() == "thumbs.db"
+		|| name.substr(0,7) == ".Trash-")
+		continue;
+	
 	// Recursively process if it's a directory 
 	bool isDirectory = false;
 	if(path.empty())	// Top-level: Indexer directories
@@ -1312,155 +1318,20 @@ void Indexer::update(const String &path)
 {
 	Synchronize(this);
 
-	// TOOD: rewrite: deep first, call process
-	
 	try {
 		Unprioritize(this);
 	  
-		if(url.empty()) return;
-		
-		if(path.empty())
-		{
-			path = url;
-			path.replace('/', Directory::Separator);
-			if(path[0] == Directory::Separator) path.ignore();
-		}
-		
 		String realPath = realPath(path);
 		
-		int64_t time = File::Time(realPath);
-		int64_t size = 0;
-		int type = 0;
-		if(!Directory::Exist(realPath)) 
+		if(Directory::Exists(realPath))
 		{
-			type = 1;
-			size = File::Size(realPath);
-		}
-	
-		if(parentId < 0)
-		{
-			Database::Statement statement = mDatabase->prepare("SELECT id FROM files WHERE url = ?1");
-                	statement.bind(1, url.beforeLast('/'));
-
-			if(statement.step()) statement.value(0, parentId);
-			statement.finalize();
-		}
-	
-		Database::Statement statement = mDatabase->prepare("SELECT id, digest, size, time, type FROM files WHERE url = ?1");
-		statement.bind(1, url);
-		
-		int64_t id;
-		BinaryString digest;
-		
-		if(statement.step())	// entry already exists
-		{
-			int64_t dbSize;
-			int64_t dbTime;
-			int     dbType;
-			statement.value(0, id);
-			statement.value(1, digest);
-			statement.value(2, dbSize);
-			statement.value(3, dbTime);
-			statement.value(4, dbType);
-			statement.finalize();
-			
-			if(time == dbTime && size == dbSize && type == dbType && !(type && digest.empty()))
-			{
-				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, seen=1 WHERE id=?1");
-				statement.bind(1, id);
-				statement.bind(2, parentId);
-				statement.execute();
-			}
-			else {	// file has changed
-				  
-			  	if(computeDigests) LogInfo("Indexer", String("Processing: ") + path);
-			  
-				if(type && computeDigests)
-				{
-					Desynchronize(this);
-					digest.clear();
-					File data(realPath, File::Read);
-					Sha512().compute(data, digest);
-					data.close();
-				}
-				
-				statement = mDatabase->prepare("UPDATE files SET parent_id=?2, digest=?3, size=?4, time=?5, type=?6, seen=1 WHERE id=?1");
-				statement.bind(1, id);
-				statement.bind(2, parentId);
-				if(!digest.empty()) statement.bind(3, digest);
-				else statement.bindNull(3);
-				statement.bind(4, size);
-				statement.bind(5, time);
-				statement.bind(6, type);
-				statement.execute();
-			}
-		}
-		else {
-			statement.finalize();
-			if(computeDigests) LogInfo("Indexer", String("Processing new: ") + path);
-			else LogInfo("Indexer", String("Indexing: ") + path);
-			
-			if(type && computeDigests)
-			{
-				Desynchronize(this);
-				digest.clear();
-				File data(realPath, File::Read);
-				Sha512().compute(data, digest);
-				data.close();
-			}
-			
-			String name = url.afterLast('/');
-			statement = mDatabase->prepare("INSERT INTO names (name) VALUES (?1)");
-			statement.bind(1, name);
-			statement.execute();
-			
-			// This seems bogus
-			//int64_t nameRowId = mDatabase->insertId();
-			
-			// Dirty way to get the correct rowid
-			int64_t nameRowId = 0;
-			statement = mDatabase->prepare("SELECT rowid FROM names WHERE name = ?1 LIMIT 1");
-			statement.bind(1, name);
-			if(statement.step()) statement.value(0, nameRowId);
-			statement.finalize();
-			//
-			
-			statement = mDatabase->prepare("INSERT INTO files (parent_id, url, digest, size, time, type, name_rowid, seen)\
-							VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)");
-			statement.bind(1, parentId);
-			statement.bind(2, url);
-			if(!digest.empty()) statement.bind(3, digest);
-			else statement.bindNull(3);
-			statement.bind(4, size);
-			statement.bind(5, time);
-			statement.bind(6, type);
-			statement.bind(7, nameRowId);
-			statement.execute();
-				
-			id = mDatabase->insertId();
-		}
-			
-		if(!type)	// directory
-		{
-			Desynchronize(this);
 			Directory dir(realPath);
 			while(dir.nextFile())
-			{
-				if(dir.fileName() == ".directory" 
-					|| dir.fileName().toLower() == "thumbs.db"
-					|| dir.fileName().substr(0,7) == ".Trash-")
-					continue;
-				
-				String childPath = path + Directory::Separator + dir.fileName();
-				String childUrl  = url + '/' + dir.fileName();
-				update(childUrl, childPath, id, computeDigests);
-			}
+				update(dir.filePath);
 		}
-		else {		// file
-		  
-			Desynchronize(this);
-			insertResource(digest, realPath);
-		}
+		
+		Resource dummy;
+		process(path, dummy);
 	}
 	catch(const Exception &e)
 	{
@@ -1504,6 +1375,7 @@ bool Indexer::isHiddenPath(const String &path) const
 
 Resource::AccessLevel Indexer::urlAccessLevel(const String &url) const
 {
+  	// TODO
 	return directoryAccessLevel(urlToDirectory(url));	
 }
 

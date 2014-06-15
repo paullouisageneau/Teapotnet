@@ -165,6 +165,8 @@ void Block::waitContent(void) const
 		mFile->reopen(File::Read);
 		mFile->seekRead(mOffset);
 		delete source;
+		
+		// TODO: remove block from cache
 	}
 }
 

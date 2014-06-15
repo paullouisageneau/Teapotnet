@@ -114,8 +114,10 @@ public:
 		bool solve(Stream &input);	// Add combination described by seed and try to solve
 						// returns true if solved
 		
+		size_t size(void) const;
 		bool isComplete(void) const;
 		void dump(Stream &stream) const;
+		void hash(BinaryString &digest) const;
 		void clear(void);
 		
 	private:

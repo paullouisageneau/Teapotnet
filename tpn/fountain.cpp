@@ -418,6 +418,11 @@ bool Fountain::Sink::solve(Stream &input)
 	return mIsComplete;
 }
 
+size_t Fountain::Sink::size(void) const
+{
+	return size_t(mSize);
+}
+
 bool Fountain::Sink::isComplete(void) const
 {
 	return mIsComplete; 
@@ -425,8 +430,7 @@ bool Fountain::Sink::isComplete(void) const
 
 void Fountain::Sink::dump(Stream &stream) const
 { 
-	List<Combination>::const_iterator it = mCombinations.begin();
-	
+	List<Combination>::const_iterator it = mCombinations.begin();	
 	uint32_t left = mSize;
 	while(left && it != mCombinations.end() && !it->isCoded())
 	{
@@ -434,6 +438,23 @@ void Fountain::Sink::dump(Stream &stream) const
 		stream.writeBinary(it->data(), size);
 		left-= size;
 	}
+}
+
+void Fountain::Sink::hash(BinaryString &digest) const
+{
+	Sha256 hash;
+	hash.init();
+	
+	List<Combination>::const_iterator it = mCombinations.begin();
+	uint32_t left = mSize;
+	while(left && it != mCombinations.end() && !it->isCoded())
+	{
+		size_t size = size_t(std::min(left, uint32_t(it->size())));
+		hash.process(it->data(), size);
+		left-= size;
+	}
+	
+	hash.finalize(digest);
 }
 
 void Fountain::Sink::clear(void)

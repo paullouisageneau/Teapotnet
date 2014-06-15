@@ -109,10 +109,10 @@ private:
 	static const String UploadDirectoryName;
 
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
-	void update(const String &url, String path = "", int64_t parentId = -1, bool computeDigests = true);
+	void update(const String &path);
 	String realPath(String path) const;
-	bool isHiddenPath(const String &url) const;
-	Resource::AccessLevel urlAccessLevel(const String &url) const;
+	bool isHiddenPath(const String &path) const;
+	Resource::AccessLevel urlAccessLevel(const String &url) const;	// TODO
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
 	void run(void);
 	
