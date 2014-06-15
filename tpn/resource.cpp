@@ -21,18 +21,7 @@
 
 #include "tpn/resource.h"
 #include "tpn/config.h"
-#include "tpn/crypto.h"
-#include "tpn/random.h"
-#include "tpn/store.h"
-#include "tpn/file.h"
-#include "tpn/request.h"
-#include "tpn/Fountain.h"
-#include "tpn/directory.h"
-#include "tpn/pipe.h"
-#include "tpn/thread.h"
-#include "tpn/mime.h"
-#include "tpn/addressbook.h"
-#include "tpn/user.h"
+#include "tpn/binaryserializer.h"
 
 namespace tpn
 {
@@ -58,10 +47,18 @@ int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, Str
 	return count;
 }
 
-Resource::Resource(const BinaryString &digest)
+Resource::Resource(void) :
+	mIndexBlock(NULL),
+	mIndexRecord(NULL)
 {
-	mIndexBlock = new Block(digest);
-	mIndexRecord = NULL;	// TODO: wait block
+
+}
+
+Resource::Resource(const BinaryString &digest) :
+	mIndexBlock(NULL),
+	mIndexRecord(NULL)
+{
+	fetch(digest);
 }
 
 Resource::~Resource(void)
@@ -70,10 +67,57 @@ Resource::~Resource(void)
 	delete mIndexRecord;
 }
 
+void Resource::fetch(const BinaryString &digest)
+{
+	delete mIndexBlock;
+	delete mIndexRecord;
+	mIndexRecord = NULL;
+	mIndexBlock = NULL;
+	
+	try {
+		mIndexBlock = new Block(digest);
+		mIndexRecord = new IndexRecord;
+	
+		BinarySerializer serializer(mIndexBlock);
+		AssertIO(serializer.input(*mIndexRecord));
+	}
+	catch(...)
+	{
+		delete mIndexBlock;
+		delete mIndexRecord;
+		mIndexRecord = NULL;
+		mIndexBlock = NULL;
+		throw;
+	}
+
+}
+
 BinaryString Resource::digest(void) const
 {
-	Assert(mIndexBlock);
+	if(!mIndexBlock) return BinaryString();
 	return mIndexBlock->digest();
+}
+
+int Resource::blocksCount(void) const
+{
+	if(!mIndexRecord) return 0;
+	return int(mIndexRecord->blockDigests.size());
+}
+
+int Resource::blockIndex(int64_t position) const
+{
+	if(!mIndexBlock || position < 0 || position >= mIndexRecord->size)
+		throw OutOfBounds("Resource position out of bounds");
+  
+	// TODO: block size in record ?
+	return int(position/Block::Size);
+}
+
+BinaryString Resource::blockDigest(int index) const
+{
+	if(!mIndexBlock || index < 0 || index >= mIndexRecord->blockDigests.size())
+		throw OutOfBounds("Block index out of bounds");
+	return mIndexRecord->blockDigests.at(index);  
 }
 
 void Resource::serialize(Serializer &s) const

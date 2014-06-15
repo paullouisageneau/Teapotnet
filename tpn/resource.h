@@ -65,8 +65,12 @@ public:
 	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
+	Resource(void);
 	Resource(const BinaryString &digest);
 	~Resource(void);
+	
+	void fetch(const BinaryString &digest);
+	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
 	int blockIndex(int64_t position) const;
@@ -77,7 +81,7 @@ public:
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
 	
-protected:
+protected:  
 	class MetaRecord : public Serializable
 	{
 	public:
