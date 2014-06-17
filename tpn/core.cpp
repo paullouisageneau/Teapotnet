@@ -1034,9 +1034,12 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 	return true;
 }
 
-bool Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &payload)
+void Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &payload)
 {
-	// TODO
+	Missive missive;
+	missive.prepare(mLocal, dest);
+	missive.write(payload);
+	send(missive);
 }
 
 void Core::Handler::process(void)

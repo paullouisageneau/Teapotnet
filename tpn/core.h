@@ -294,7 +294,7 @@ private:
 		void schedule(const Missive &missive, const Time &time);
 		//void cancel(...);
 		bool incoming(const Identifier &source, uint8_t content, Stream &payload);
-		bool outgoing(const Identifier &dest, uint8_t content, Stream &payload);
+		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
 		void route(Missive &missive);
 
 		void process(void);
