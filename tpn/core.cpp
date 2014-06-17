@@ -147,50 +147,6 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 	return mPeerings.contains(peering);
 }
 
-void Core::publish(const String &prefix, Publisher *publisher)
-{
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	mPublishers[prefix].insert(publisher);
-}
-
-void Core::unpublish(const String &prefix, Publisher *publisher)
-{
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
-	if(it != mPublishers.end())
-	{
-		it->second.erase(publisher);
-		if(it->second.empty()) 
-			mPublishers.erase(it);
-	}
-}
-
-void Core::subscribe(const String &prefix, Subscriber *subscriber)
-{
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	mSubscribers[prefix].insert(subscriber);
-}
-
-void Core::unsubscribe(const String &prefix, Subscriber *subscriber)
-{
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
-	if(it != mSubscribers.end())
-	{
-		it->second.erase(subscriber);
-		if(it->second.empty())
-			mSubscribers.erase(it);
-	}
-}
-
 void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
 	mCallers[target].insert(caller);
@@ -596,7 +552,7 @@ void Sender::run(void)
 		if(--mTokens) Core::Instance->mScheduler.schedule(this);
 	}
 }
-		
+
 Core::Backend::Backend(Core *core) :
 	mCore(core)
 {
@@ -890,33 +846,48 @@ Core::Handler::~Handler(void)
 	delete mStream;
 }
 
-void Core::Handler::setPeering(const Identifier &peering, bool relayed)
+void Core::Handler::publish(const String &prefix, Publisher *publisher)
 {
-	Synchronize(this);
-	
-	mPeering = peering;
-	mIsRelay = relayed;
-	
-	if(peering == Identifier::Null) mIsIncoming = true;
-	else {
-		mIsIncoming = false;
-		if(mPeering.getName().empty())
-		{
-			LogWarn("Core::Handler", "setPeering() called with undefined instance");
-			mPeering.setName("default");
-		}
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mPublishers[prefix].insert(publisher);
+}
+
+void Core::Handler::unpublish(const String &prefix, Publisher *publisher)
+{
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+	if(it != mPublishers.end())
+	{
+		it->second.erase(publisher);
+		if(it->second.empty()) 
+			mPublishers.erase(it);
 	}
 }
 
-void Core::Handler::setStopping(void)
+void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 {
-	Synchronize(this);
-	mStopping = true;
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mSubscribers[prefix].insert(subscriber);
 }
 
-bool Core::Handler::isIncoming(void) const
+void Core::Handler::unsubscribe(const String &prefix, Subscriber *subscriber)
 {
-	return mIsIncoming;
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+	if(it != mSubscribers.end())
+	{
+		it->second.erase(subscriber);
+		if(it->second.empty())
+			mSubscribers.erase(it);
+	}
 }
 
 bool Core::Handler::recv(Missive &missive)
@@ -956,7 +927,7 @@ void Core::Handler::schedule(const Missive &missive, const Time &time)
 	mScheduler.schedule(task, time);
 }
 
-bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArray &payload)
+bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &payload)
 {
 	switch(content)
 	{
@@ -977,7 +948,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 		case Missive::Data:
 		{
 			BinaryString target;
-			payload.read(target);
+			payload.readBinary(target);
 			
 			if(mStore::Instance->push(target, payload))
 			{
@@ -986,13 +957,18 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 				// TODO: Brake
 			}
 			
+			// TODO: Send ack
+			// number of received combinations could be got by push()
+			// number of sent combinations by adding a sequence
+			
 			break;
 		}
 
 		case Missive::Publish:
 		case Missive::Subscribe:
 		{
-			String path = String(missive.descriptor);
+			String path;
+			payload.readBinary(path);
 	
 			List<String> list;
 			path.explode(list,'/');
@@ -1010,22 +986,29 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 				prefix = "/" + prefix;
 				list.pop_back();
 			
-				if(missive.type == Missive::Publish)
+				if(content == Missive::Publish)
 				{
-					// Pass to local subscribers
-					Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
-					if(it != mSubscribers.end())
+					BinaryString target;
+					while(payload.readBinary(target))
 					{
-						for(Set<Subscriber*>::iterator jt = it->second.begin();
-							jt != it->second.end();
-							++jt)
+						// Pass to local subscribers
+						Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+						if(it != mSubscribers.end())
 						{
-							if(jt->incoming(prefix, payload))
-								return;					
+							for(Set<Subscriber*>::iterator jt = it->second.begin();
+								jt != it->second.end();
+								++jt)
+							{
+								if(jt->incoming(prefix, target))
+									return;					
+							}
 						}
 					}
 				}
 				else {
+					BinaryString response;
+				 	response.writeBinary(path);
+					
 					// Pass to local publishers
 					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 					if(it != mPublishers.end())
@@ -1034,14 +1017,13 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 							jt != it->second.end();
 							++jt)
 						{
-							BinaryString out;
-							if(jt->anounce(prefix, out))
-							{
-								// TODO: missive
-								send(missive);
-							}
+							BinaryString target;
+							if(jt->anounce(prefix, target))
+								response.writeBinary(target);
 						}
 					}
+					
+					outgoing(source, Missive::Publish, response);
 				}
 			}
 
@@ -1050,6 +1032,11 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, ByteArra
 	}
 	
 	return true;
+}
+
+bool Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &payload)
+{
+	// TODO
 }
 
 void Core::Handler::process(void)
