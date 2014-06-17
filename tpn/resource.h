@@ -63,6 +63,8 @@ public:
 		Block *mNextBlock;
 	};
 	
+	// TODO: API to read directories
+	
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
 	Resource(void);
@@ -81,7 +83,7 @@ public:
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
 	
-protected:  
+protected:
 	class MetaRecord : public Serializable
 	{
 	public:

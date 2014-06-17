@@ -81,7 +81,7 @@ public:
 		Identifier destination;		// 32 B
 		
 		ByteArray descriptor;		// max 256 B
-		ByteArray payload;		// max 1 KB
+		ByteArray payload;		// max 1 KB TODO
 	};
 
 	struct Locator
@@ -103,7 +103,7 @@ public:
 		void publish(const String &prefix);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const String &prefix, ByteArray &out) = 0;
+		virtual bool anounce(const String &prefix, ByteString &target) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -118,8 +118,7 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool beacon(const String &prefix, ByteArray &out) = 0;
-		virtual bool incoming(const String &prefix, ByteArray &data) = 0;	// return false to delegate
+		virtual bool incoming(const String &prefix, const ByteString &target) = 0;	// return false to delegate
 		
 	private:
 		StringSet mSubscribedPrefixes;
@@ -166,12 +165,6 @@ public:
 				Listener *listener = NULL);
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
-	
-	// Publish/Subscribe
-	void publish(const String &prefix, Publisher *publisher);
-	void unpublish(const String &prefix, Publisher *publisher);
-	void subscribe(const String &prefix, Subscriber *subscriber);
-	void unsubscribe(const String &prefix, Subscriber *subscriber);
 	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
@@ -275,6 +268,12 @@ private:
 		Handler(Core *core, Stream *stream);
 		~Handler(void);
 		
+		// Publish/Subscribe
+		void publish(const String &prefix, Publisher *publisher);
+		void unpublish(const String &prefix, Publisher *publisher);
+		void subscribe(const String &prefix, Subscriber *subscriber);
+		void unsubscribe(const String &prefix, Subscriber *subscriber);
+		
 		class Sender : protected Synchronizable, public Task
 		{
 		public:
@@ -294,7 +293,8 @@ private:
 		void send(const Missive &missive);
 		void schedule(const Missive &missive, const Time &time);
 		//void cancel(...);
-		bool incoming(Missive &missive);
+		bool incoming(const Identifier &source, uint8_t content, Stream &payload);
+		bool outgoing(const Identifier &dest, uint8_t content, Stream &payload);
 		void route(Missive &missive);
 
 		void process(void);
@@ -305,6 +305,9 @@ private:
 		Core	*mCore;
 		Stream  *mStream;
 		Scheduler mScheduler;
+
+		Map<String, Set<Publisher*> >  mPublishers;
+		Map<String, Set<Subscriber*> > mSubscribers;
 		
 		bool mIsIncoming;
 		bool mIsAnonymous;
@@ -314,9 +317,6 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
-	Map<String, Set<Publisher*> >  mPublishers;
-	Map<String, Set<Subscriber*> > mSubscribers;
-	
 	String mName;
 	Scheduler mThreadPool;
 	Scheduler mScheduler;
