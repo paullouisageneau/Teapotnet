@@ -262,7 +262,7 @@ private:
 		};
 	};
 	
-	class Handler : public Task, public Synchronizable
+	class Handler : public Task, protected Synchronizable
 	{
 	public:
 		Handler(Core *core, Stream *stream);
@@ -274,25 +274,29 @@ private:
 		void subscribe(const String &prefix, Subscriber *subscriber);
 		void unsubscribe(const String &prefix, Subscriber *subscriber);
 		
-		class Sender : protected Synchronizable, public Task
+		class Sender : public Task,  protected Synchronizable
 		{
 		public:
-			Sender(const BinaryString &target);
+			Sender(Handler *handler, const BinaryString &destination);
 			~Sender(void);
+		
+			void addTarget(const BinaryString &target);
+			void removeTarget(const BinaryString &target);
+			void addTokens(unsigned tokens);
+			void removeTokens(unsigned tokens);
 			
-			void setTokens(unsigned tokens);
 			void run(void);
 			
 		private:
-			BinaryString mTarget;
+			Handler *mHandler;
+			BinaryString mDestination;
+			Set<BinaryString> mTargets;
 			unsigned mTokens;
 		};
 		
 	private:
 		bool recv(Missive &missive);
 		void send(const Missive &missive);
-		void schedule(const Missive &missive, const Time &time);
-		//void cancel(...);
 		bool incoming(const Identifier &source, uint8_t content, Stream &payload);
 		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
 		void route(Missive &missive);
@@ -304,10 +308,11 @@ private:
 		
 		Core	*mCore;
 		Stream  *mStream;
-		Scheduler mScheduler;
+		Mutex	mStreamMutex;
 
 		Map<String, Set<Publisher*> >  mPublishers;
 		Map<String, Set<Subscriber*> > mSubscribers;
+		Map<BinaryString, Sender> mSenders;
 		
 		bool mIsIncoming;
 		bool mIsAnonymous;

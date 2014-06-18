@@ -518,41 +518,6 @@ void Caller::stopCalling(void)
 	}
 }
 
-Sender::Sender(const BinaryString &target) :
-	mTarget(target),
-	mTokens(0)
-{
-	
-}
-
-Sender::~Sender(void)
-{
-	
-}
-
-void Sender::setTokens(unsigned tokens)
-{
-	Synchronize(this);
-	mTokens = tokens;
-}
-
-void Sender::run(void)
-{
-	Synchronize(this);
-	
-	// The sender spends the tokens, sending a combination for each one
-	if(mTokens)
-	{
-		Missive missive;
-		missive.writeBinary(mTarget);
-		mStore::Instance->pull(mTarget, missive);
-		
-		mHandler->send(missive);
-
-		if(--mTokens) Core::Instance->mScheduler.schedule(this);
-	}
-}
-
 Core::Backend::Backend(Core *core) :
 	mCore(core)
 {
@@ -848,6 +813,8 @@ Core::Handler::~Handler(void)
 
 void Core::Handler::publish(const String &prefix, Publisher *publisher)
 {
+	Synchronize(this);
+	
 	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
@@ -856,6 +823,8 @@ void Core::Handler::publish(const String &prefix, Publisher *publisher)
 
 void Core::Handler::unpublish(const String &prefix, Publisher *publisher)
 {
+	Synchronize(this);
+  
 	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
@@ -870,6 +839,8 @@ void Core::Handler::unpublish(const String &prefix, Publisher *publisher)
 
 void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 {
+	Synchronize(this);
+	
 	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
@@ -878,6 +849,8 @@ void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 
 void Core::Handler::unsubscribe(const String &prefix, Subscriber *subscriber)
 {
+	Synchronize(this);
+  
 	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
@@ -892,39 +865,30 @@ void Core::Handler::unsubscribe(const String &prefix, Subscriber *subscriber)
 
 bool Core::Handler::recv(Missive &missive)
 {
+	Synchronize(this);
+	
+	// TODO: remove serializer
 	BinarySerializer serializer(mStream);
-	return serializer.read(missive);
+	
+	{
+		Desynchronize(this);
+		MutexLocker(&mStreamMutex);
+		return serializer.input(missive);
+	}
 }
 
 void Core::Handler::send(const Missive &missive)
 {
 	Synchronize(this);
-	send(missive, Time::Now);
-}
-
-void Core::Handler::schedule(const Missive &missive, const Time &time)
-{
-	Synchronize(this);
 	
-	class SendTask : public Task
+	// TODO: remove serializer
+	BinarySerializer serializer(mStream);
+	
 	{
-	public:
-		Missive missive;
-		Stream *stream;
-		
-		void run(void)
-		{
-			BinarySerializer serializer(mStream);
-			serializer.write(missive);
-			delete this;
-		}
-	};
-	
-	SendTask *task = new SendTask;
-	task->missive = missive;
-	task->stream = mStream;
-	
-	mScheduler.schedule(task, time);
+		Desynchronize(this);
+		MutexLocker(&StreamMutex);
+		return serializer.output(missive);
+	}
 }
 
 bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &payload)
@@ -932,16 +896,26 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 	switch(content)
 	{
 		case Missive::Call:
-		case Missive::Ack:	// Ack has the same format but is unicast
 		{
 			BinaryString target;
 			payload.readBinary(target);
-			
-			int16_t tokens = 0;
-			payload.readBinary(tokens);
-			
-			Sender *sender = getSender(target, source);
-			if(sender) sender->setTokens(tokens);
+			getSender(source)->addTarget(target);
+			break;
+		}
+		
+		case Missive::Cancel:
+		{
+			BinaryString target;
+			payload.readBinary(target);
+			getSender(source)->removeTarget(target);
+			break;
+		}
+		
+		case Missive::Ack:
+		{
+			uint16_t count = 1;
+			payload.readBinary(count);
+			getSender(source)->addTokens(count);
 			break;
 		}
 		
@@ -953,14 +927,14 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			if(mStore::Instance->push(target, payload))
 			{
 				unregisterAllCallers(target);
-			  
-				// TODO: Brake
+				outgoing(source, Missive::Cancel, target);
 			}
-			
-			// TODO: Send ack
-			// number of received combinations could be got by push()
-			// number of sent combinations by adding a sequence
-			
+			else {
+				// TODO: ONLY IF WE ARE THE DESTINATION
+				BinaryString ack;
+				ack.writeBinary(uint16_t(1));
+				outgoing(source, Missive::Ack, ack);
+			}
 			break;
 		}
 
@@ -1133,6 +1107,60 @@ void Core::Handler::run(void)
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
 	delete this;		// autodelete
+}
+
+Core::Handler::Sender::Sender(Handler *handler, const BinaryString &destination) :
+	mHandler(handler),
+	mDestination(destination)
+{
+	
+}
+
+Core::Handler::Sender::~Sender(void)
+{
+	
+}
+
+void Core::Handler::addTarget(const BinaryString &target)
+{
+	Synchronize(this);
+	mTargets.insert(target);
+}
+
+void Core::Handler::removeTarget(const BinaryString &target)
+{
+	Synchronize(this);
+	mTargets.remove(target);
+}
+
+void Core::Handler::addTokens(unsigned tokens)
+{
+	Synchronize(this);
+	mTokens+= tokens;
+}
+
+void Core::Handler::removeTokens(unsigned tokens)
+{
+	Synchronize(this);
+	if(mTokens > tokens) mTokens-= tokens;
+	else mTokens = 0;
+}
+
+void Core::Handler::Sender::run(void)
+{
+	Synchronize(this);
+	
+	for(	Set<BinaryString>::iterator it = mTargets.begin();
+		it != mTargets.end();
+		++it)
+	{
+		if(mTokens == 0) break;
+		
+		BinaryString data;
+		mStore::Instance->pull(*it, data);
+		mHandler->outgoing(mDest, Missive::Data, data);
+		--mTokens;
+	}
 }
 
 }
