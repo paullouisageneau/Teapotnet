@@ -808,6 +808,7 @@ Core::Handler::Handler(Core *core, Stream *stream) :
 
 Core::Handler::~Handler(void)
 {
+	mRunner.clear();
 	delete mStream;
 }
 
@@ -872,7 +873,7 @@ bool Core::Handler::recv(Missive &missive)
 	
 	{
 		Desynchronize(this);
-		MutexLocker(&mStreamMutex);
+		MutexLocker(&mStreamReadMutex);
 		return serializer.input(missive);
 	}
 }
@@ -886,7 +887,7 @@ void Core::Handler::send(const Missive &missive)
 	
 	{
 		Desynchronize(this);
-		MutexLocker(&StreamMutex);
+		MutexLocker(&StreamWriteMutex);
 		return serializer.output(missive);
 	}
 }
@@ -898,42 +899,48 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 		case Missive::Call:
 		{
 			BinaryString target;
-			payload.readBinary(target);
-			getSender(source)->addTarget(target);
+			uint16_t tokens;
+			AssertIO(payload.readBinary(target));
+			AssertIO(payload.readBinary(tokens));
+			
+			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
+			mSenders[source]->addTarget(target, tokens);
 			break;
 		}
 		
 		case Missive::Cancel:
 		{
 			BinaryString target;
-			payload.readBinary(target);
-			getSender(source)->removeTarget(target);
+			AssertIO(payload.readBinary(target));
+			
+			Map<BinaryString, Sender*>::iterator it = mSenders.find(source);
+			if(it != mSenders.end())
+			{
+				it->second->removeTarget(target);
+				if(it->second->empty())
+				{
+					delete it->second;
+					mSenders.erase(it);
+				}
+			}
 			break;
 		}
 		
 		case Missive::Ack:
 		{
-			uint16_t count = 1;
-			payload.readBinary(count);
-			getSender(source)->addTokens(count);
+			// TODO
 			break;
 		}
 		
 		case Missive::Data:
 		{
 			BinaryString target;
-			payload.readBinary(target);
+			AssertIO(payload.readBinary(target));
 			
 			if(mStore::Instance->push(target, payload))
 			{
 				unregisterAllCallers(target);
 				outgoing(source, Missive::Cancel, target);
-			}
-			else {
-				// TODO: ONLY IF WE ARE THE DESTINATION
-				BinaryString ack;
-				ack.writeBinary(uint16_t(1));
-				outgoing(source, Missive::Ack, ack);
 			}
 			break;
 		}
@@ -942,7 +949,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 		case Missive::Subscribe:
 		{
 			String path;
-			payload.readBinary(path);
+			AssertIO(payload.readBinary(path));
 	
 			List<String> list;
 			path.explode(list,'/');
@@ -1118,25 +1125,27 @@ Core::Handler::Sender::Sender(Handler *handler, const BinaryString &destination)
 
 Core::Handler::Sender::~Sender(void)
 {
-	
+	handler->mRunner.cancel(this);
 }
 
-void Core::Handler::addTarget(const BinaryString &target)
+void Core::Handler::addTarget(const BinaryString &target, unsigned tokens)
 {
 	Synchronize(this);
-	mTargets.insert(target);
+	mTargets.insert(target, tokens);
+	handler->mRunner.schedule(this);
 }
 
 void Core::Handler::removeTarget(const BinaryString &target)
 {
 	Synchronize(this);
-	mTargets.remove(target);
+	mTargets.erase(target);
 }
 
 void Core::Handler::addTokens(unsigned tokens)
 {
 	Synchronize(this);
 	mTokens+= tokens;
+	handler->mRunner.schedule(this);
 }
 
 void Core::Handler::removeTokens(unsigned tokens)
@@ -1146,21 +1155,48 @@ void Core::Handler::removeTokens(unsigned tokens)
 	else mTokens = 0;
 }
 
+bool Core::Handler::empty(void) const
+{
+	Synchronize(this);
+	return mTargets.empty();
+}
+
 void Core::Handler::Sender::run(void)
 {
 	Synchronize(this);
 	
-	for(	Set<BinaryString>::iterator it = mTargets.begin();
-		it != mTargets.end();
-		++it)
+	// TODO: tokens
+	
+	if(/*!mTokens ||*/ mTargets.empty()) 
+		return;
+	
+	Map<BinaryString, unsigned>::iterator it = mTargets.find(mNextTarget);
+	if(it == mTargets.end()) it = mTargets.begin();
+	mNextTarget.clear();
+	
+	if(it->second)
 	{
-		if(mTokens == 0) break;
-		
 		BinaryString data;
-		mStore::Instance->pull(*it, data);
-		mHandler->outgoing(mDest, Missive::Data, data);
-		--mTokens;
+		mStore::Instance->pull(it->first, data);
+		
+		//--mTokens;
+		--it->second;
+		
+		if(it->second) ++it;
+		else mTargets.erase(it++);
+		if(it != mTargets.end()) mNextTarget = it->first;
+		
+		BinaryString dest(mDest);
+		DesynchronizeStatement(this, mHandler->outgoing(dest, Missive::Data, data));
+		
+		// Warning: iterator is not valid anymore here
 	}
+	else {
+		mTargets.erase(it++);
+		if(it != mTargets.end()) mNextTarget = it->first;
+	}
+	
+	handler->mRunner.schedule(this);
 }
 
 }
