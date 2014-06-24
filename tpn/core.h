@@ -40,6 +40,7 @@
 #include "tpn/notification.h"
 #include "tpn/threadpool.h"
 #include "tpn/scheduler.h"
+#include "tpn/runner.h"
 #include "tpn/synchronizable.h"
 #include "tpn/map.h"
 #include "tpn/array.h"
@@ -274,23 +275,26 @@ private:
 		void subscribe(const String &prefix, Subscriber *subscriber);
 		void unsubscribe(const String &prefix, Subscriber *subscriber);
 		
-		class Sender : public Task,  protected Synchronizable
+		class Sender : public Task, protected Synchronizable
 		{
 		public:
 			Sender(Handler *handler, const BinaryString &destination);
 			~Sender(void);
-		
-			void addTarget(const BinaryString &target);
+			
+			void addTarget(const BinaryString &target, unsigned tokens = 1);
 			void removeTarget(const BinaryString &target);
 			void addTokens(unsigned tokens);
 			void removeTokens(unsigned tokens);
-			
+			bool empty(void) const;
 			void run(void);
+			
+			// TODO: messages with acks
 			
 		private:
 			Handler *mHandler;
 			BinaryString mDestination;
-			Set<BinaryString> mTargets;
+			Map<BinaryString, unsigned> mTargets;
+			BinaryString mNextTarget;
 			unsigned mTokens;
 		};
 		
@@ -308,11 +312,13 @@ private:
 		
 		Core	*mCore;
 		Stream  *mStream;
-		Mutex	mStreamMutex;
+		Mutex	mStreamReadMutex, mStreamWriteMutex;
 
 		Map<String, Set<Publisher*> >  mPublishers;
 		Map<String, Set<Subscriber*> > mSubscribers;
-		Map<BinaryString, Sender> mSenders;
+		Map<BinaryString, Sender*> mSenders;
+		
+		Runner mRunner;
 		
 		bool mIsIncoming;
 		bool mIsAnonymous;
