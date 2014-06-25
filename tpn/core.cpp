@@ -894,8 +894,27 @@ void Core::Handler::send(const Missive &missive)
 
 bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &payload)
 {
+	Synchronize(this);
+  
 	switch(content)
 	{
+		case Missive::Notify:
+		{
+			Sender *sender;
+			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
+			mSenders[source]->ack(payload); 
+			mCore->incomingNotification(source, payload);
+			break;
+		}
+		
+		case Missive::Ack:
+		{
+			Sender *sender;
+			if(mSenders.get(source, sender))
+				sender->acked(payload);
+			break;
+		}
+		
 		case Missive::Call:
 		{
 			BinaryString target;
@@ -917,18 +936,14 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			if(it != mSenders.end())
 			{
 				it->second->removeTarget(target);
-				if(it->second->empty())
+				
+				// TODO
+				/*if(it->second->empty())
 				{
 					delete it->second;
 					mSenders.erase(it);
-				}
+				}*/
 			}
-			break;
-		}
-		
-		case Missive::Ack:
-		{
-			// TODO
 			break;
 		}
 		
@@ -1019,7 +1034,8 @@ void Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &pa
 {
 	Missive missive;
 	missive.prepare(mLocal, dest);
-	missive.write(payload);
+	missive.writeBinary(content);
+	missive.writeBinary(payload);
 	send(missive);
 }
 
@@ -1118,7 +1134,8 @@ void Core::Handler::run(void)
 
 Core::Handler::Sender::Sender(Handler *handler, const BinaryString &destination) :
 	mHandler(handler),
-	mDestination(destination)
+	mDestination(destination),
+	mCurrentSequence(0)
 {
 	
 }
@@ -1128,37 +1145,78 @@ Core::Handler::Sender::~Sender(void)
 	handler->mRunner.cancel(this);
 }
 
-void Core::Handler::addTarget(const BinaryString &target, unsigned tokens)
+void Core::Handler::Sender::addTarget(const BinaryString &target, unsigned tokens)
 {
 	Synchronize(this);
 	mTargets.insert(target, tokens);
 	handler->mRunner.schedule(this);
 }
 
-void Core::Handler::removeTarget(const BinaryString &target)
+void Core::Handler::Sender::removeTarget(const BinaryString &target)
 {
 	Synchronize(this);
 	mTargets.erase(target);
 }
 
-void Core::Handler::addTokens(unsigned tokens)
+void Core::Handler::Sender::addTokens(unsigned tokens)
 {
 	Synchronize(this);
 	mTokens+= tokens;
 	handler->mRunner.schedule(this);
 }
 
-void Core::Handler::removeTokens(unsigned tokens)
+void Core::Handler::Sender::removeTokens(unsigned tokens)
 {
 	Synchronize(this);
 	if(mTokens > tokens) mTokens-= tokens;
 	else mTokens = 0;
 }
 
-bool Core::Handler::empty(void) const
+bool Core::Handler::Sender::empty(void) const
 {
 	Synchronize(this);
-	return mTargets.empty();
+	return mTargets.empty() && mUnacked.empty();
+}
+
+void Core::Handler::Sender::notify(Stream &payload, bool ack)
+{
+	uint32_t sequence = 0;
+	if(ack)
+	{
+		++mCurrentSequence;
+		if(!mCurrentSequence) ++mCurrentSequence;
+		sequence = mCurrentSequence;
+	}
+
+	// TODO: Move to SendTask
+	Missive missive;
+	missive.prepare(mLocal, dest);
+	missive.writeBinary(uint8_t(Missive::Notify));
+	missive.writeBinary(uint32_t(sequence));
+	missive.writeBinary(payload);
+	handler->send(missive);
+	
+	const double delay = 0.5;	// TODO
+	const int count = 5;		// TODO
+	mUnacked.insert(sequence, SendTask(this, sequence, missive, delay, count));
+}
+
+void Core::Handler::Sender::ack(Stream &payload)
+{
+	uint32_t sequence;
+	AssertIO(payload.readBinary(sequence));
+	
+	BinaryString ack;
+	ack.writeBinary(sequence);
+	
+	handler->outgoing(dest, Missive::Ack, payload);
+}
+
+void Core::Handler::Sender::acked(Stream &payload)
+{
+	uint32_t sequence;
+	AssertIO(payload.readBinary(sequence));
+	mUnacked.erase(sequence);
 }
 
 void Core::Handler::Sender::run(void)
@@ -1197,6 +1255,39 @@ void Core::Handler::Sender::run(void)
 	}
 	
 	handler->mRunner.schedule(this);
+}
+
+Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, Missive missive, double delay, int count) :
+	mSender(sender),
+	mMissive(missive),
+	mLeft(count),
+	mSequence(sequence)
+{
+	if(mLeft > 0)
+	{
+		Synchronize(sender);
+		sender->mScheduler.schedule(this);
+		sender->mScheduler.repeat(missive, delay);
+	}
+}
+
+Core::Handler::Sender::SendTask::~ResendTask(void)
+{
+	Synchronize(sender);
+	sender->mScheduler.cancel(this);
+}
+
+void Core::Handler::Sender::SendTask::run(void)
+{  
+	sender->mHandler->send(missive);
+	
+	--mLeft;
+	if(mLeft <= 0)
+	{
+		Synchronize(sender);
+		sender->mScheduler.cancel(this);
+		sender->mUnacked.erase(mSequence);
+	}
 }
 
 }
