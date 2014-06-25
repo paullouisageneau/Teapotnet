@@ -288,7 +288,9 @@ private:
 			bool empty(void) const;
 			void run(void);
 			
-			// TODO: messages with acks
+			void notify(Stream &payload, bool ack = true);
+			void ack(Stream &payload);
+			void acked(Stream &payload);
 			
 		private:
 			Handler *mHandler;
@@ -296,6 +298,24 @@ private:
 			Map<BinaryString, unsigned> mTargets;
 			BinaryString mNextTarget;
 			unsigned mTokens;
+			
+			class SendTask : public Task
+			{
+			public:
+				SendTask(Sender *sender, uint32_t sequence, Missive missive, double delay, int count);
+				~SendTask(void);
+				void run(void);
+				
+			private:
+				Sender *mSender;
+				Missive mMissve;
+				int mLeft;
+				uint32_t sequence;
+			};
+			
+			Scheduler mScheduler;
+			Map<uint32_t, ResendTask> mUnacked;
+			uint32_t mCurrentSequence;
 		};
 		
 	private:

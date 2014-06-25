@@ -260,17 +260,28 @@ uint8_t Fountain::Combination::gMul(uint8_t a, uint8_t b)
 
 uint8_t Fountain::Combination::gInv(uint8_t a) 
 {
-	Assert(a != 0);
-
-	// TODO: table	
-	uint8_t b = 1;
-	while(b)
+	static uint8_t *table = NULL;
+	
+	if(!table)
 	{
-		if(gMul(a,b) == 1) return b;
-		++b;
+		table = new uint8_t[256];
+		
+		table[0] = 0;
+		for(uint8_t i = 1; i <= 255; ++i)
+		{
+			for(uint8_t j = i; j <= 255; ++j)
+			{
+				if(gMul(i,j) == 1)	// then gMul(j,i) == 1
+				{
+					  table[i] = j;
+					  table[j] = i;
+				}
+			}
+		}
 	}
 	
-	throw Exception("Combination::gInv failed for input " + String::number(unsigned(a)));
+	Assert(a != 0);
+	return table[a];
 }
   
 Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
