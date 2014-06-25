@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -19,19 +19,19 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/message.h"
+#include "tpn/mail.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
 #include "tpn/binarystring.h"
 #include "tpn/crypto.h"
 #include "tpn/yamlserializer.h"
 #include "tpn/binaryserializer.h"
-#include "tpn/messagequeue.h"
+#include "tpn/mailqueue.h"
 
 namespace tpn
 {
 
-Message::Message(const String &content) :
+Mail::Mail(const String &content) :
 	mTime(Time::Now()),
 	mIsPublic(false),
 	mIsIncoming(false),
@@ -41,121 +41,121 @@ Message::Message(const String &content) :
 	if(!content.empty()) setContent(content);
 }
 
-Message::~Message(void)
+Mail::~Mail(void)
 {
   
 }
 
-Time Message::time(void) const
+Time Mail::time(void) const
 {
 	return mTime; 
 }
 
-String Message::stamp(void) const
+String Mail::stamp(void) const
 {
 	return mStamp;
 }
 
-String Message::parent(void) const
+String Mail::parent(void) const
 {
 	return mParent;
 }
 
-String Message::author(void) const
+String Mail::author(void) const
 {
         return mAuthor;
 }
 
-String Message::contact(void) const
+String Mail::contact(void) const
 {
         return mContact;
 }
 
-bool Message::isPublic(void) const
+bool Mail::isPublic(void) const
 {
 	return mIsPublic;
 }
 
-bool Message::isIncoming(void) const
+bool Mail::isIncoming(void) const
 {
         return mIsIncoming;
 }
 
-bool Message::isRelayed(void) const
+bool Mail::isRelayed(void) const
 {
         return mIsRelayed;
 }
 
-const String &Message::content(void) const
+const String &Mail::content(void) const
 {
 	return mContent;
 }
 
-const StringMap &Message::headers(void) const
+const StringMap &Mail::headers(void) const
 {
 	return mHeaders;
 }
 
-bool Message::header(const String &name, String &value) const
+bool Mail::header(const String &name, String &value) const
 {
 	return mHeaders.get(name, value);
 }
 
-String Message::header(const String &name) const
+String Mail::header(const String &name) const
 {
 	String value;
 	if(mHeaders.get(name, value)) return value;
 	else return "";
 }
 
-void Message::setContent(const String &content)
+void Mail::setContent(const String &content)
 {
 	mContent = content;
 	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
 }
 
-void Message::setParent(const String &stamp)
+void Mail::setParent(const String &stamp)
 {
 	mParent = stamp;
 }
 
-void Message::setPublic(bool ispublic)
+void Mail::setPublic(bool ispublic)
 {
 	mIsPublic = ispublic;
 }
 
-void Message::setAuthor(const String &author)
+void Mail::setAuthor(const String &author)
 {
 	mAuthor = author;
 }
 
-void Message::setContact(const String &uname)
+void Mail::setContact(const String &uname)
 {
 	mContact = uname;
 }
 
-void Message::setHeaders(const StringMap &headers)
+void Mail::setHeaders(const StringMap &headers)
 {
 	mHeaders = headers;
 }
 
-void Message::setHeader(const String &name, const String &value)
+void Mail::setHeader(const String &name, const String &value)
 {
 	mHeaders[name] = value; 
 }
 
-void Message::setDefaultHeader(const String &name, const String &value)
+void Mail::setDefaultHeader(const String &name, const String &value)
 {
 	if(!mHeaders.contains(name))
 		mHeaders[name] = value;
 }
 
-void Message::removeHeader(const String &name)
+void Mail::removeHeader(const String &name)
 {
 	mHeaders.erase(name);
 }
 
-void Message::writeSignature(User *user)
+void Mail::writeSignature(User *user)
 {
 	mAuthor = user->name();
 
@@ -168,7 +168,7 @@ void Message::writeSignature(User *user)
 	mSignature = computeSignature(user);
 }
 
-bool Message::checkStamp(void) const
+bool Mail::checkStamp(void) const
 {
 	if(mStamp.empty())
 		return false;
@@ -182,22 +182,22 @@ bool Message::checkStamp(void) const
 	return (mStamp == computeStamp());
 }
 
-bool Message::checkSignature(User *user) const
+bool Mail::checkSignature(User *user) const
 {
 	return (mAuthor == user->name() && mSignature == computeSignature(user));
 }
 
-void Message::setIncoming(bool incoming)
+void Mail::setIncoming(bool incoming)
 {
 	mIsIncoming = incoming;
 }
 
-void Message::setRelayed(bool relayed)
+void Mail::setRelayed(bool relayed)
 {
         mIsRelayed = relayed;
 }
 
-bool Message::send(const Identifier &peering) const
+bool Mail::send(const Identifier &peering) const
 {
 	Assert(!mStamp.empty());
 	
@@ -206,15 +206,15 @@ bool Message::send(const Identifier &peering) const
 	serializer.output(*this);
 
 	Notification notification(tmp);
-	notification.setParameter("type", "message");
+	notification.setParameter("type", "mail");
 	return notification.send(peering);
 }
 
-bool Message::recv(const Notification &notification)
+bool Mail::recv(const Notification &notification)
 {
 	String type;
 	notification.parameter("type", type);
-	if(!type.empty() && type != "message") return false;
+	if(!type.empty() && type != "mail") return false;
 	
 	String tmp = notification.content();
 	YamlSerializer serializer(&tmp);
@@ -222,7 +222,7 @@ bool Message::recv(const Notification &notification)
 	return true;
 }
 
-void Message::serialize(Serializer &s) const
+void Mail::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<bool> isPublicWrapper(mIsPublic);
 	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
@@ -256,7 +256,7 @@ void Message::serialize(Serializer &s) const
 	s.outputObject(mapping);
 }
 
-bool Message::deserialize(Serializer &s)
+bool Mail::deserialize(Serializer &s)
 {
 	mStamp.clear();
 	
@@ -291,11 +291,11 @@ bool Message::deserialize(Serializer &s)
 	mapping["deleted"] = &dummyBoolWrapper;
 	
 	bool success = s.inputObject(mapping);
-	if(mStamp.empty()) throw InvalidData("Message without stamp");
+	if(mStamp.empty()) throw InvalidData("Mail without stamp");
 	return success;
 }
 
-void Message::computeAgregate(BinaryString &result) const
+void Mail::computeAgregate(BinaryString &result) const
 {
 	result.clear();
 
@@ -309,7 +309,7 @@ void Message::computeAgregate(BinaryString &result) const
         serializer.output(mContent);
 }
 
-String Message::computeStamp(void) const
+String Mail::computeStamp(void) const
 {
 	BinaryString agregate, digest;
 	computeAgregate(agregate);
@@ -321,7 +321,7 @@ String Message::computeStamp(void) const
 	return stamp;
 }
 
-String Message::computeSignature(User *user) const
+String Mail::computeSignature(User *user) const
 {
 	Assert(user);
 
@@ -341,7 +341,7 @@ String Message::computeSignature(User *user) const
 		serializer.output(mIsPublic);
 
 		BinaryString signature;
-		Sha512().hmac(user->getSecretKey("message"), agregate, signature);
+		Sha512().hmac(user->getSecretKey("mail"), agregate, signature);
 		signature.resize(16);
 
 		return signature.toString();
@@ -350,7 +350,7 @@ String Message::computeSignature(User *user) const
 	
 	BinaryString agregate, hmac;
 	computeAgregate(agregate);
-	Sha512().hmac(user->getSecretKey("message"), agregate, hmac);
+	Sha512().hmac(user->getSecretKey("mail"), agregate, hmac);
 	hmac.resize(24);
 	
 	String signature = hmac.base64Encode(true);	// safeMode
@@ -358,28 +358,28 @@ String Message::computeSignature(User *user) const
 	return signature;
 }
 
-bool Message::isInlineSerializable(void) const
+bool Mail::isInlineSerializable(void) const
 {
 	return false;
 }
 
-bool operator < (const Message &m1, const Message &m2)
+bool operator < (const Mail &m1, const Mail &m2)
 {
 	return m1.time() < m2.time();
 }
 
-bool operator > (const Message &m1, const Message &m2)
+bool operator > (const Mail &m1, const Mail &m2)
 {
 	return m1.time() > m2.time();
 }
 
-bool operator == (const Message &m1, const Message &m2)
+bool operator == (const Mail &m1, const Mail &m2)
 {
 	return ((m1.time() != m2.time())
 		&& (m1.content() != m2.content()));   
 }
 
-bool operator != (const Message &m1, const Message &m2)
+bool operator != (const Mail &m1, const Mail &m2)
 {
 	return !(m1 == m2);
 }

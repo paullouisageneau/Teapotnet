@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_MESSAGE_H
-#define TPN_MESSAGE_H
+#ifndef TPN_MAIL_H
+#define TPN_MAIL_H
 
 #include "tpn/include.h"
 #include "tpn/serializable.h"
@@ -34,13 +34,13 @@ namespace tpn
 {
 
 class User;
-class MessageQueue;
+class MailQueue;
 	
-class Message : public Serializable
+class Mail : public Serializable
 {
 public:
-	Message(const String &content = "");
-	virtual ~Message(void);
+	Mail(const String &content = "");
+	virtual ~Mail(void);
 
 	Time time(void) const;
 	String stamp(void) const;
@@ -104,7 +104,7 @@ private:
 	bool mIsIncoming;
 	bool mIsRelayed;
 
-	// Only used when MessageQueue outputs to interface
+	// Only used when MailQueue outputs to interface
 	int64_t mNumber;
 	bool	mIsRead;
 	bool	mIsPassed;
@@ -112,10 +112,10 @@ private:
 	friend class Core;
 };
 
-bool operator <  (const Message &m1, const Message &m2);
-bool operator >  (const Message &m1, const Message &m2);
-bool operator == (const Message &m1, const Message &m2);
-bool operator != (const Message &m1, const Message &m2);
+bool operator <  (const Mail &m1, const Mail &m2);
+bool operator >  (const Mail &m1, const Mail &m2);
+bool operator == (const Mail &m1, const Mail &m2);
+bool operator != (const Mail &m1, const Mail &m2);
 
 }
 

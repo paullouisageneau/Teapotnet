@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -19,12 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_MESSAGEQUEUE_H
-#define TPN_MESSAGEQUEUE_H
+#ifndef TPN_MAILQUEUE_H
+#define TPN_MAILQUEUE_H
 
 #include "tpn/include.h"
 #include "tpn/synchronizable.h"
-#include "tpn/message.h"
+#include "tpn/mail.h"
 #include "tpn/database.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
@@ -39,20 +39,20 @@ namespace tpn
 
 class User;
 	
-class MessageQueue : public Synchronizable, public HttpInterfaceable
+class MailQueue : public Synchronizable, public HttpInterfaceable
 {
 public:
-	MessageQueue(User *user);
-	~MessageQueue(void);
+	MailQueue(User *user);
+	~MailQueue(void);
 
 	User *user(void) const;
 	
 	bool hasNew(void) const;
-	bool add(Message &message);
-	bool get(const String &stamp, Message &result) const;
-	bool getChilds(const String &stamp, List<Message> &result) const;
-	void ack(const List<Message> &messages);
-	void pass(const List<Message> &messages);
+	bool add(Mail &mail);
+	bool get(const String &stamp, Mail &result) const;
+	bool getChilds(const String &stamp, List<Mail> &result) const;
+	void ack(const List<Mail> &mails);
+	void pass(const List<Mail> &mails);
 	void erase(const String &uname);
 
 	void markReceived(const String &stamp, const String &uname);
@@ -71,8 +71,8 @@ public:
 	{
 	public:
 		Selection(void);
-		Selection(const MessageQueue *messageQueue, const String &uname, bool includePrivate, bool includePublic, bool includeOutgoing);
-		Selection(const MessageQueue *messageQueue, const String &parent);
+		Selection(const MailQueue *mailQueue, const String &uname, bool includePrivate, bool includePublic, bool includeOutgoing);
+		Selection(const MailQueue *mailQueue, const String &parent);
 		~Selection(void);
 		
 		void setParentStamp(const String &stamp);
@@ -86,17 +86,17 @@ public:
 		int unreadCount(void) const;
 		bool contains(const String &stamp) const;
 		
-		bool getOffset(int offset, Message &result) const;
-		bool getRange(int offset, int count, List<Message> &result) const;
+		bool getOffset(int offset, Mail &result) const;
+		bool getRange(int offset, int count, List<Mail> &result) const;
 		
-		bool getLast(int count, List<Message> &result) const;
-		bool getLast(int64_t nextNumber, int count, List<Message> &result) const;
+		bool getLast(int count, List<Mail> &result) const;
+		bool getLast(int64_t nextNumber, int count, List<Mail> &result) const;
 	
-		bool getUnread(List<Message> &result) const;
+		bool getUnread(List<Mail> &result) const;
 		bool getUnreadStamps(StringList &result) const;
 		bool getPassedStamps(StringList &result, int count) const;
 		
-		void markRead(const String &stamp);	// used to enforce access rights based on selected messages
+		void markRead(const String &stamp);	// used to enforce access rights based on selected mails
 		
 		int checksum(int offset, int count, BinaryString &result) const;
 		// TODO: synchro flags
@@ -107,7 +107,7 @@ public:
 		String filter(void) const;
 		void filterBind(Database::Statement &statement) const;
 		
-		const MessageQueue *mMessageQueue;
+		const MailQueue *mMailQueue;
 		String mContact;
 		
 		String mParentStamp;
