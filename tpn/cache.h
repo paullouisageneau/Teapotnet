@@ -37,6 +37,8 @@ public:
 	Cache(void);
 	~Cache(void);
 	
+	void prefetch(const BinaryString &target);
+	
 	String move(const String &filename);
 	
 	// TODO: cleaning

@@ -104,7 +104,7 @@ public:
 		void publish(const String &prefix);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const String &prefix, ByteString &target) = 0;
+		virtual bool anounce(const String &prefix, BinaryString &target) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -119,7 +119,7 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &prefix, const ByteString &target) = 0;	// return false to delegate
+		virtual bool incoming(const String &prefix, const BinaryString &target) = 0;	// return false to delegate
 		
 	private:
 		StringSet mSubscribedPrefixes;
@@ -173,12 +173,13 @@ public:
 	
 	// Routing
 	void route(Message &message, const Identifier &from);
-	void broadcast(Message &message, const Identifier &from)
+	void broadcast(Message &message, const Identifier &from);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
 	// TODO
-	void addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering);
+	bool addPeer(Socket *sock, const Identifier &id);
+	bool addPeer(Stream *bs, const Address &remoteAddr, const Identifier &id);
 	bool hasPeer(const Identifier &peering);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
@@ -197,6 +198,7 @@ private:
 		void run(void);
 		
 		Core *mCore;
+		ThreadPool mThreadPool;
 	};
 	
 	class StreamBackend : public Backend
@@ -316,7 +318,7 @@ private:
 			};
 			
 			Scheduler mScheduler;
-			Map<uint32_t, ResendTask> mUnacked;
+			Map<uint32_t, SendTask> mUnacked;
 			uint32_t mCurrentSequence;
 		};
 		

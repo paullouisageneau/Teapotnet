@@ -28,7 +28,7 @@
 #include "tpn/address.h"
 #include "tpn/socket.h"
 #include "tpn/identifier.h"
-#include "tpn/messagequeue.h"
+#include "tpn/mailqueue.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
 #include "tpn/profile.h"
@@ -44,7 +44,7 @@ namespace tpn
 class User;
 class Profile;
   
-class AddressBook : private Synchronizable, public HttpInterfaceable
+class AddressBook : private Synchronizable, public HttpInterfaceable, public Core::Listener
 {
 public:
 	AddressBook(User *user);
@@ -63,14 +63,14 @@ public:
 	
 	void update(void);
 	bool send(const Notification &notification);
-	bool send(const Message &message);
+	bool send(const Mail &mail);
 	
 	void http(const String &prefix, Http::Request &request);
 	
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : public Serializable, public HttpInterfaceable, public Task, public Core::Listener
+	class Contact : public Serializable, public HttpInterfaceable, public Task
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -117,7 +117,7 @@ public:
 		bool notification(const Identifier &peering, Notification *notification);
 		bool request(const Identifier &peering, Request *request);
 		bool send(const Notification &notification);
-		bool send(const Message &message);
+		bool send(const Mail &mail);
 		
 		void http(const String &prefix, Http::Request &request);
 		void copy(const Contact *contact);
@@ -131,9 +131,9 @@ public:
 		BinaryString secret(void) const;
 		void run(void);
 		
-		MessageQueue::Selection selectMessages(bool privateOnly = false) const;
-		void sendMessages(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count) const;
-		void sendMessagesChecksum(const Identifier &peering, const MessageQueue::Selection &selection, int offset, int count, bool recursion) const;
+		MailQueue::Selection selectMails(bool privateOnly = false) const;
+		void sendMails(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count) const;
+		void sendMailsChecksum(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count, bool recursion) const;
 		void sendUnread(const Identifier &peering) const;
 		void sendPassed(const Identifier &peering) const;
 		
@@ -168,7 +168,7 @@ private:
 	static const double StartupDelay;	// time before starting connections (useful for UPnP)
 	static const double UpdateInterval;	// for contacts connection attemps
 	static const double UpdateStep;		// between contacts
-	static const int MaxChecksumDistance;	// for message synchronization
+	static const int MaxChecksumDistance;	// for mail synchronization
 	
 	void registerContact(Contact *contact, int ordinal = 0);
 	void unregisterContact(Contact *contact);
@@ -178,7 +178,7 @@ private:
 	User *mUser;
 	String mUserName;
 	String mFileName;
-	Map<Identifier, Contact*> mContacts;			// Sorted by peering
+	Map<Identifier, Contact*> mContacts;			// Sorted by identifier
 	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
 	Scheduler mScheduler;
 	

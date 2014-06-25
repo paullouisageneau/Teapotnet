@@ -38,7 +38,7 @@ class Block : public Stream
 {
 public:
 	static const size_t MaxChunks = 1024;
-	static const size_t ChunkSize = Foutain::ChunkSize;
+	static const size_t ChunkSize = Fountain::ChunkSize;
 	static const size_t Size = MaxChunks*ChunkSize;
 	
 	static bool ProcessFile(File &file, Block &block);

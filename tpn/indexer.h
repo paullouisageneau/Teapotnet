@@ -81,7 +81,7 @@ public:
 		void setLimit(int count);
 		void setMatch(const String &match);
 		
-		void setAccessLevel(AccessLevel level);
+		void setAccessLevel(Resource::AccessLevel level);
 		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
 		
 		void createRequest(Request &request) const;
@@ -96,7 +96,7 @@ public:
 		BinaryString mDigest;
 		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
-		AccessLevel mAccessLevel;
+		Resource::AccessLevel mAccessLevel;
 
 		friend class Indexer;
 	};
@@ -107,7 +107,7 @@ public:
 private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
-
+	
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &path);
 	String realPath(String path) const;
