@@ -60,10 +60,10 @@ public:
 	static Core *Instance;
 	
 	// Routing-level message structure
-	struct Missive : public Serializable
+	struct Message : public Serializable
 	{
-		Missive(void);
-		~Missive(void);
+		Message(void);
+		~Message(void);
 		
 		void prepare(const Identifier &source, const Identifier &destination);
 		void clear(void);
@@ -139,14 +139,11 @@ public:
 		BinaryString mTarget;
 	};
 	
-	// TODO: deprecated
 	class Listener
 	{
 	public:
-		virtual void connected(const Identifier &peering, bool incoming) = 0;
-		virtual void disconnected(const Identifier &peering) = 0;
-		virtual bool notification(const Identifier &peering, Notification *notification) = 0;
-		virtual bool request(const Identifier &peering, Request *request) = 0;
+		virtual void seen(const Identifier &identifier) = 0;
+		virtual bool notification(const Identifier &identifier, Stream &payload) = 0;
 	};
 	
 	Core(int port);
@@ -159,11 +156,9 @@ public:
 	bool isPublicConnectable(void) const;
 	
 	// Peerings
-	// TODO: listener is deprecated
 	void registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const BinaryString &secret,
-				Listener *listener = NULL);
+				const BinaryString &secret);
 	void unregisterPeering(const Identifier &peering);
 	bool hasRegisteredPeering(const Identifier &peering);
 	
@@ -172,9 +167,13 @@ public:
 	void unregisterCaller(const BinaryString &target, Caller *caller);
 	void unregisterAllCallers(const BinaryString &target);
 	
+	// Listener
+	void registerListener(Listener *listener);
+	void unregisterListener(Listener *listener);
+	
 	// Routing
-	void route(Missive &missive, const Identifier &from);
-	void broadcast(Missive &missive, const Identifier &from)
+	void route(Message &message, const Identifier &from);
+	void broadcast(Message &message, const Identifier &from)
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
@@ -238,10 +237,10 @@ private:
 		SecureTransport *connect(const Locator &locator);
 		SecureTransport *listen(void);
 		
-		bool incoming(Missive &missive);
+		bool incoming(Message &message);
 		
 	private:
-		Queue<Missive> mQueue;
+		Queue<Message> mQueue;
 		Synchronizable mQueueSync;
 		
 		class TunnelWrapper : public Stream
@@ -254,11 +253,11 @@ private:
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
 			
-			bool incoming(Missive &missive);
+			bool incoming(Message &message);
 			
 		private:
 			Identifier mLocal, mRemote;
-			Queue<Missive> mQueue;
+			Queue<Message> mQueue;
 			Synchronizable mQueueSync;
 		};
 	};
@@ -274,6 +273,9 @@ private:
 		void unpublish(const String &prefix, Publisher *publisher);
 		void subscribe(const String &prefix, Subscriber *subscriber);
 		void unsubscribe(const String &prefix, Subscriber *subscriber);
+		
+		// Notify
+		void notify(const Identifier &id, Stream &payload, bool ack = true);
 		
 		class Sender : public Task, protected Synchronizable
 		{
@@ -302,13 +304,13 @@ private:
 			class SendTask : public Task
 			{
 			public:
-				SendTask(Sender *sender, uint32_t sequence, Missive missive, double delay, int count);
+				SendTask(Sender *sender, uint32_t sequence, Message message, double delay, int count);
 				~SendTask(void);
 				void run(void);
 				
 			private:
 				Sender *mSender;
-				Missive mMissve;
+				Message mMissve;
 				int mLeft;
 				uint32_t sequence;
 			};
@@ -319,11 +321,11 @@ private:
 		};
 		
 	private:
-		bool recv(Missive &missive);
-		void send(const Missive &missive);
+		bool recv(Message &message);
+		void send(const Message &message);
 		bool incoming(const Identifier &source, uint8_t content, Stream &payload);
 		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
-		void route(Missive &missive);
+		void route(Message &message);
 
 		void process(void);
 		void run(void);
@@ -360,7 +362,7 @@ private:
 	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
-	Map<Identifier, Listener*> mListeners;
+	Set<Listener*> mListeners;
 	
 	Time mLastPublicIncomingTime;
 	Map<Address, int> mKnownPublicAddresses;

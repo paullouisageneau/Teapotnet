@@ -122,15 +122,12 @@ bool Core::isPublicConnectable(void) const
 
 void Core::registerPeering(	const Identifier &peering,
 				const Identifier &remotePeering,
-		       		const BinaryString &secret,
-				Core::Listener *listener)
+		       		const BinaryString &secret)
 {
 	Synchronize(this);
 	
 	mPeerings[peering] = remotePeering;
 	mSecrets[peering] = secret;
-	if(listener) mListeners[peering] = listener;
-	else mListeners.erase(peering);
 }
 
 void Core::unregisterPeering(const Identifier &peering)
@@ -149,11 +146,14 @@ bool Core::hasRegisteredPeering(const Identifier &peering)
 
 void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
+	Synchronize(this);
 	mCallers[target].insert(caller);
 }
 
 void Core::unregisterCaller(const BinaryString &target, Caller *caller)
 {
+	Synchronize(this);
+	
 	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(target);
 	if(it != mCallers.end())
 	{
@@ -163,12 +163,25 @@ void Core::unregisterCaller(const BinaryString &target, Caller *caller)
 	}
 }
 
-void unregisterAllCallers(const BinaryString &target)
+void Core::unregisterAllCallers(const BinaryString &target)
 {
-	  mCallers.erase(target);
+	Synchronize(this);
+	mCallers.erase(target);
 }
 
-void Core::route(Missive &missive, const Identifier &from)
+void Core::registerListener(Listener *listener)
+{
+	Synchronize(this);
+	mListeners.insert(listener); 
+}
+
+void Core::unregisterListener(Listener *listener)
+{
+	Synchronize(this);
+	mListeners.erase(listener); 
+}
+
+void Core::route(Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
@@ -177,17 +190,17 @@ void Core::route(Missive &missive, const Identifier &from)
 
 	// 2nd case: routing table entry exists
 	Identifier route;
-	if(mRoutes.get(missive.destination, route))
+	if(mRoutes.get(message.destination, route))
 	{
 		// TODO
 		return;
 	}
 
 	// 3rd case: no routing table entry
-	broadcast(missive, from);
+	broadcast(message, from);
 }
 
-void Core::broadcast(Missive &missive, const Identifier &from)
+void Core::broadcast(Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
@@ -202,7 +215,7 @@ void Core::broadcast(Missive &missive, const Identifier &from)
 		if(mHandlers.get(identifiers[i], handler))
 		{
 			Desynchronize(this);
-			handler->send(missive);
+			handler->send(message);
 		}
 	}
 }
@@ -211,7 +224,20 @@ bool Core::addRoute(const Identifier &id, const Identifier &route)
 {
 	Synchronize(this);
 	
+	bool isNew = !mRoutes.contains(id);
 	mRoutes.insert(id, route);
+	
+	if(isNew) 
+	{
+		// New node is seen
+		for(Set<Listener*>::iterator = mListeners.begin();
+			it != mListeners.end();
+			++it)
+		{
+			it->seen(id); 
+		}
+	}
+	
 	return true;
 }
 
@@ -360,32 +386,32 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-Core::Missive::Missive(void) :
+Core::Message::Message(void) :
 	data(1024)
 {
 	
 }
 
-Core::Missive::~Missive(void)
+Core::Message::~Message(void)
 {
 	
 }
 
-void Core::Missive::prepare(const Identifier &source, const Identifier &destination)
+void Core::Message::prepare(const Identifier &source, const Identifier &destination)
 {
 	this->source = source;
 	this->destination = destination;
 	data.clear();
 }
 
-void Core::Missive::clear(void)
+void Core::Message::clear(void)
 {
 	source.clear();
 	destination.clear();
 	data.clear();
 }
 
-void Core::Missive::serialize(Serializer &s) const
+void Core::Message::serialize(Serializer &s) const
 {
 	// TODO
 	s.output(source);
@@ -393,7 +419,7 @@ void Core::Missive::serialize(Serializer &s) const
 	s.output(data);
 }
 
-bool Core::Missive::deserialize(Serializer &s)
+bool Core::Message::deserialize(Serializer &s)
 {
 	// TODO
 	if(!s.input(source)) return false;
@@ -762,13 +788,13 @@ SecureTransport *TunnelBackend::listen(void)
 	Synchronizable(&mQueueSync);
 	while(mQueue.empty()) mQueueSync.wait();
 	
-	Missive &missive = mQueue.front();
-	Assert(missive.type() == Missive::Tunnel);
+	Message &message = mQueue.front();
+	Assert(message.type() == Message::Tunnel);
 	
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(missive.destination, missive.source);
+		wrapper = new TunnelWrapper(message.destination, message.source);
 		transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
 	}
 	catch(...)
@@ -782,12 +808,12 @@ SecureTransport *TunnelBackend::listen(void)
 	return transport;
 }
 
-bool Core::TunnelBackend::incoming(Missive &missive)
+bool Core::TunnelBackend::incoming(Message &message)
 {
-	if(missive.type() == Missive::Tunnel)
+	if(message.type() == Message::Tunnel)
 	{
 		Synchronizable(&mQueueSync);
-		mQueue.push(missive);
+		mQueue.push(message);
 		return true;
 	}
 	
@@ -864,7 +890,15 @@ void Core::Handler::unsubscribe(const String &prefix, Subscriber *subscriber)
 	}
 }
 
-bool Core::Handler::recv(Missive &missive)
+void Core::Handler::notify(const Identifier &id, Stream &payload, bool ack)
+{
+	Synchronize(this);
+  
+	if(!mSenders.contains(id)) mSenders[id] = new Sender(this, id);
+	mSenders[id]->notify(id, ack); 
+}
+
+bool Core::Handler::recv(Message &message)
 {
 	Synchronize(this);
 	
@@ -874,11 +908,11 @@ bool Core::Handler::recv(Missive &missive)
 	{
 		Desynchronize(this);
 		MutexLocker(&mStreamReadMutex);
-		return serializer.input(missive);
+		return serializer.input(message);
 	}
 }
 
-void Core::Handler::send(const Missive &missive)
+void Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
@@ -888,26 +922,31 @@ void Core::Handler::send(const Missive &missive)
 	{
 		Desynchronize(this);
 		MutexLocker(&StreamWriteMutex);
-		return serializer.output(missive);
+		return serializer.output(message);
 	}
 }
 
 bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &payload)
 {
 	Synchronize(this);
-  
+	
 	switch(content)
 	{
-		case Missive::Notify:
+		case Message::Notify:
 		{
-			Sender *sender;
 			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
 			mSenders[source]->ack(payload); 
-			mCore->incomingNotification(source, payload);
+			
+			for(Set<Listener*>::iterator = mListeners.begin();
+				it != mListeners.end();
+				++it)
+			{
+				it->notification(source, payload);
+			}
 			break;
 		}
 		
-		case Missive::Ack:
+		case Message::Ack:
 		{
 			Sender *sender;
 			if(mSenders.get(source, sender))
@@ -915,7 +954,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			break;
 		}
 		
-		case Missive::Call:
+		case Message::Call:
 		{
 			BinaryString target;
 			uint16_t tokens;
@@ -927,7 +966,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			break;
 		}
 		
-		case Missive::Cancel:
+		case Message::Cancel:
 		{
 			BinaryString target;
 			AssertIO(payload.readBinary(target));
@@ -947,7 +986,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			break;
 		}
 		
-		case Missive::Data:
+		case Message::Data:
 		{
 			BinaryString target;
 			AssertIO(payload.readBinary(target));
@@ -955,13 +994,13 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			if(mStore::Instance->push(target, payload))
 			{
 				unregisterAllCallers(target);
-				outgoing(source, Missive::Cancel, target);
+				outgoing(source, Message::Cancel, target);
 			}
 			break;
 		}
-
-		case Missive::Publish:
-		case Missive::Subscribe:
+		
+		case Message::Publish:
+		case Message::Subscribe:
 		{
 			String path;
 			AssertIO(payload.readBinary(path));
@@ -973,7 +1012,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			// First item should be empty because path begins with /
 			if(list.front().empty()) 
 				list.pop_front();
-	
+			
 			// Match prefixes, longest first
 			while(!list.empty())
 			{
@@ -981,8 +1020,8 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
 				list.pop_back();
-			
-				if(content == Missive::Publish)
+				
+				if(content == Message::Publish)
 				{
 					BinaryString target;
 					while(payload.readBinary(target))
@@ -1003,7 +1042,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 				}
 				else {
 					BinaryString response;
-				 	response.writeBinary(path);
+					response.writeBinary(path);
 					
 					// Pass to local publishers
 					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
@@ -1019,7 +1058,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 						}
 					}
 					
-					outgoing(source, Missive::Publish, response);
+					outgoing(source, Message::Publish, response);
 				}
 			}
 
@@ -1032,11 +1071,11 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 
 void Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &payload)
 {
-	Missive missive;
-	missive.prepare(mLocal, dest);
-	missive.writeBinary(content);
-	missive.writeBinary(payload);
-	send(missive);
+	Message message;
+	message.prepare(mLocal, dest);
+	message.writeBinary(content);
+	message.writeBinary(payload);
+	send(message);
 }
 
 void Core::Handler::process(void)
@@ -1047,29 +1086,29 @@ void Core::Handler::process(void)
 	Synchronize(this);
 	LogDebug("Core::Handler", "Starting...");
 	
-	Missive missive;
-	missive.prepare(mLocal, mRemote);
+	Message message;
+	message.prepare(mLocal, mRemote);
 	// TODO
 	
-	while(recv(missive))
+	while(recv(message))
 	{
 		try {
-			switch(missive.type)
+			switch(message.type)
 			{
-				case Missive::Forward:
-					if(missive.destination == mLocal) incoming(missive);
-					else route(missive);
+				case Message::Forward:
+					if(message.destination == mLocal) incoming(message);
+					else route(message);
 					break;
 					
-				case Missive::Broadcast:
-					incoming(missive);
-					route(missive);
+				case Message::Broadcast:
+					incoming(message);
+					route(message);
 					break;
 					
-				case Missive::Lookup:
-					if(missive.destination == mLocal) incoming(missive);
-					else if(!incoming(missive))
-						route(missive);
+				case Message::Lookup:
+					if(message.destination == mLocal) incoming(message);
+					else if(!incoming(message))
+						route(message);
 					
 				default:
 					// Drop
@@ -1086,8 +1125,8 @@ void Core::Handler::process(void)
 	try {
 		Synchronize(mCore);
 		
-		mCore->removeHandler(mPeering, this);
-		 
+		mCore->removeHandler(mRemote, this);
+		
 		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
 		{
 			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
@@ -1098,18 +1137,6 @@ void Core::Handler::process(void)
 	catch(const std::exception &e)
 	{
 		LogError("Core::Handler", e.what()); 
-	}
-	
-	Listener *listener = NULL;
-	if(SynchronizeTest(mCore, mCore->mListeners.get(peering, listener)))
-	{
-		try {
-			listener->disconnected(peering);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Core::Handler", String("Listener disconnected callback failed: ") + e.what());
-		}
 	}
 }
 
@@ -1189,16 +1216,16 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 	}
 
 	// TODO: Move to SendTask
-	Missive missive;
-	missive.prepare(mLocal, dest);
-	missive.writeBinary(uint8_t(Missive::Notify));
-	missive.writeBinary(uint32_t(sequence));
-	missive.writeBinary(payload);
-	handler->send(missive);
+	Message message;
+	message.prepare(mLocal, dest);
+	message.writeBinary(uint8_t(Message::Notify));
+	message.writeBinary(uint32_t(sequence));
+	message.writeBinary(payload);
+	handler->send(message);
 	
 	const double delay = 0.5;	// TODO
 	const int count = 5;		// TODO
-	mUnacked.insert(sequence, SendTask(this, sequence, missive, delay, count));
+	mUnacked.insert(sequence, SendTask(this, sequence, message, delay, count));
 }
 
 void Core::Handler::Sender::ack(Stream &payload)
@@ -1209,7 +1236,7 @@ void Core::Handler::Sender::ack(Stream &payload)
 	BinaryString ack;
 	ack.writeBinary(sequence);
 	
-	handler->outgoing(dest, Missive::Ack, payload);
+	handler->outgoing(dest, Message::Ack, payload);
 }
 
 void Core::Handler::Sender::acked(Stream &payload)
@@ -1245,7 +1272,7 @@ void Core::Handler::Sender::run(void)
 		if(it != mTargets.end()) mNextTarget = it->first;
 		
 		BinaryString dest(mDest);
-		DesynchronizeStatement(this, mHandler->outgoing(dest, Missive::Data, data));
+		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Data, data));
 		
 		// Warning: iterator is not valid anymore here
 	}
@@ -1257,9 +1284,9 @@ void Core::Handler::Sender::run(void)
 	handler->mRunner.schedule(this);
 }
 
-Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, Missive missive, double delay, int count) :
+Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, Message message, double delay, int count) :
 	mSender(sender),
-	mMissive(missive),
+	mMessage(message),
 	mLeft(count),
 	mSequence(sequence)
 {
@@ -1267,7 +1294,7 @@ Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, M
 	{
 		Synchronize(sender);
 		sender->mScheduler.schedule(this);
-		sender->mScheduler.repeat(missive, delay);
+		sender->mScheduler.repeat(message, delay);
 	}
 }
 
@@ -1279,7 +1306,7 @@ Core::Handler::Sender::SendTask::~ResendTask(void)
 
 void Core::Handler::Sender::SendTask::run(void)
 {  
-	sender->mHandler->send(missive);
+	sender->mHandler->send(message);
 	
 	--mLeft;
 	if(mLeft <= 0)
