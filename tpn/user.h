@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -28,8 +28,7 @@
 #include "tpn/task.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
-#include "tpn/addressbook.h"
-#include "tpn/messagequeue.h"
+#include "tpn/mailqueue.h"
 #include "tpn/store.h"
 #include "tpn/profile.h"
 #include "tpn/mutex.h"
@@ -38,6 +37,8 @@
 namespace tpn
 {
 
+class AddressBook;
+  
 class User : protected Synchronizable, public HttpInterfaceable
 {
 public:
@@ -59,7 +60,7 @@ public:
 	void setTracker(const String &tracker);
 	
 	AddressBook *addressBook(void) const;
-	MessageQueue *messageQueue(void) const;
+	MailQueue *mailQueue(void) const;
 	Store *store(void) const;
 	Profile *profile(void) const;
 	
@@ -81,7 +82,7 @@ private:
 	String mName;
 	BinaryString mAuth;
 	AddressBook *mAddressBook;
-	MessageQueue *mMessageQueue;
+	MailQueue *mMailQueue;
 	Store *mStore;
 	Profile *mProfile;
 	

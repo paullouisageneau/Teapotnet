@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -30,13 +30,14 @@
 #include "tpn/jsonserializer.h"
 #include "tpn/binaryserializer.h"
 #include "tpn/mime.h"
+#include "tpn/addressbook.h"
 
 namespace tpn
 {
 
-Map<String, User*>	User::UsersByName;
+Map<String, User*>		User::UsersByName;
 Map<BinaryString, User*>	User::UsersByAuth;
-Mutex			User::UsersMutex;
+Mutex				User::UsersMutex;
 
 unsigned User::Count(void)
 {
@@ -152,20 +153,20 @@ User::User(const String &name, const String &password, const String &tracker) :
 	
 	mStore = NULL;
 	mAddressBook = NULL;
-	mMessageQueue = NULL;
+	mMailQueue = NULL;
 	mProfile = NULL;
 
 	try {
 		mStore = new Store(this); // must be created first
 		mProfile = new Profile(this, mName, tracker); // must be created before AddressBook
         	mAddressBook = new AddressBook(this);
-       	 	mMessageQueue = new MessageQueue(this);
+       	 	mMailQueue = new MailQueue(this);
 	}
 	catch(...)
 	{
 		delete mStore;
 		delete mAddressBook;
-		delete mMessageQueue;
+		delete mMailQueue;
 		delete mProfile;
 		throw;
 	}
@@ -197,7 +198,7 @@ User::~User(void)
 	Scheduler::Global->remove(&mSetOfflineTask);
 	
 	delete mAddressBook;
-	delete mMessageQueue;
+	delete mMailQueue;
 	delete mStore;
 }
 
@@ -239,9 +240,9 @@ AddressBook *User::addressBook(void) const
 	return mAddressBook;
 }
 
-MessageQueue *User::messageQueue(void) const
+MailQueue *User::mailQueue(void) const
 {
-	return mMessageQueue;
+	return mMailQueue;
 }
 
 Store *User::store(void) const
@@ -650,7 +651,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h1");
 			page.close("div");
 			
-			String broadcastUrl = "/messages";
+			String broadcastUrl = "/mails";
 			
 			page.open("div", "statuspanel");
 			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
@@ -688,29 +689,29 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.open("h2");
-			page.text("Public messages");
+			page.text("Public mails");
 			page.close("h2");
 			
-			page.open("div", "statusmessages");
-			page.open("p"); page.text("No public messages yet !"); page.close("p");
+			page.open("div", "statusmails");
+			page.open("p"); page.text("No public mails yet !"); page.close("p");
 			page.close("div");
 
 			page.close("div");
 		 
-			page.javascript("var TokenMessage = '"+generateToken("message")+"';\n\
+			page.javascript("var TokenMail = '"+generateToken("mail")+"';\n\
 					var TokenDirectory = '"+generateToken("directory")+"';\n\
 					function postStatus() {\n\
-					var message = $(document.statusform.statusinput).val();\n\
+					var mail = $(document.statusform.statusinput).val();\n\
 					var attachment = $(document.statusform.attachment).val();\n\
-					if(!message) return false;\n\
+					if(!mail) return false;\n\
 					var fields = {};\n\
-					fields['message'] = message;\n\
+					fields['mail'] = mail;\n\
 					fields['public'] = 1;\n\
-					fields['token'] = '"+generateToken("message")+"';\n\
+					fields['token'] = '"+generateToken("mail")+"';\n\
 					if(attachment) fields['attachment'] = attachment;\n\
 					var request = $.post('"+prefix+broadcastUrl+"/"+"', fields);\n\
 					request.fail(function(jqXHR, textStatus) {\n\
-						alert('The message could not be sent.');\n\
+						alert('The mail could not be sent.');\n\
 					});\n\
 					$(document.statusform.statusinput).val('');\n\
 					$(document.statusform.attachment).val('');\n\
@@ -738,12 +739,12 @@ void User::http(const String &prefix, Http::Request &request)
 					return false;\n\
 				}\n\
 				$(document).ready(function() {\n\
-					document.statusform.statusinput.value = 'Click here to post a public message for all your contacts';\n\
+					document.statusform.statusinput.value = 'Click here to post a public mail for all your contacts';\n\
 					document.statusform.statusinput.style.color = 'grey';\n\
 				});\n\
 				document.statusform.statusinput.onblur = function() {\n\
 					if(document.statusform.statusinput.value == '') {\n\
-						document.statusform.statusinput.value = 'Click here to post a public message for all your contacts';\n\
+						document.statusform.statusinput.value = 'Click here to post a public mail for all your contacts';\n\
 						document.statusform.statusinput.style.color = 'grey';\n\
 					}\n\
 				}\n\
@@ -769,14 +770,14 @@ void User::http(const String &prefix, Http::Request &request)
 				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
 				listCount.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
+					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
 				}, true);\n\
 				\n\
 				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
 				listIncoming.addEventListener('change', function() {\n\
-					updateMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmessages');\n\
+					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
 				}, true);\n\
-				setMessagesReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmessages');\n\
+				setMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmails');\n\
 				$('#newsfeed').on('keypress','textarea', function (e) {\n\
 					if (e.keyCode == 13 && !e.shiftKey) {\n\
 						$(this).closest('form').submit();\n\
@@ -1000,7 +1001,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
-				if(info.newmessages) playMessageSound();\n\
+				if(info.newmails) playMailSound();\n\
 			});");
 			
 			if(!match.empty())

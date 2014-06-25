@@ -23,6 +23,7 @@
 #include "tpn/request.h"
 #include "tpn/pipe.h"
 #include "tpn/config.h"
+#include "tpn/resource.h"
 #include "tpn/task.h"
 #include "tpn/scheduler.h"
 #include "tpn/random.h"
@@ -42,6 +43,30 @@ Cache::~Cache(void)
 	
 }
 
+void Cache::prefetch(const BinaryString &target)
+{
+	class PrefetchTask : public Task
+	{
+	public:
+		PrefetchTask(const BinaryString &target) { this->target = target; }
+		
+		void run(void)
+		{
+			Resource resource(target);
+			Reader reader(&resource);
+			reader.discard();		// read everything
+			
+			delete this;	// autodelete
+		}
+	  
+	private:
+		BinaryString target;
+	};
+	
+	PrefetchTask *task = new PrefetchTask(target);
+	Scheduler::Global->schedule(task);
+}
+
 String Cache::move(const String &filename)
 {
 	BinaryString digest;
@@ -51,7 +76,6 @@ String Cache::move(const String &filename)
 	
 	String destination = mDirectory + Directory::Separator + digest.toString();
 	File::Rename(filename, destination);
-	
 }
 
 }

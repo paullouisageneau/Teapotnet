@@ -251,7 +251,15 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 	return true;
 }
 
-void Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peering)
+bool Core::addPeer(Socket *sock, const Identifier &id)
+{
+	Assert(sock);
+	Synchronize(this);
+	
+	return addPeer(sock, sock->getRemoteAddress(), id);
+}
+
+bool Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &id)
 {
 	Assert(bs);
 	Synchronize(this);
@@ -268,6 +276,8 @@ void Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &peer
 		if(hasPeering) handler->setPeering(peering);
 		mThreadPool.launch(handler);
 	}
+	
+	return true;
 }
 
 bool Core::hasPeer(const Identifier &peering)
@@ -613,8 +623,8 @@ void Core::Backend::run(void)
 		{
 			if(!user) return false;
 			
-			// TODO: Compute identifier and check against user
 			publicKey = pub;
+			identifier = publicKey.digest();
 		}
 	};
 	
@@ -624,24 +634,40 @@ void Core::Backend::run(void)
 			SecureTransport *transport = listen();
 			if(!transport) break;
 			
-			// TODO: should allocate to threadpool
+			class HandshakeTask : public Task
+			{
+			public:
+				HandshakeTask(Core *core) { this->core = core; }
+			  
+				void run(void)
+				{
+					try {
+						// set verifier
+						MyVerifier verifier(core);
+						transport->setVerifier(&verifier);
+						
+						// set credentials (certificate added on name verification)
+						transport->addCredentials(getAnonymousCredentials());
+						transport->addCredentials(getPrivateSharedKeyCredentials());
+						
+						// do handshake
+						transport->handshake();
+						
+						// handshake succeeded, add peer
+						core->addPeer(transport, verifier.identifier);
+					}
+					catch(const std::exception &e)
+					{
+						LogInfo("Core::Backend::run", String("Handshake failed: ") + e.what());
+					}
+	
+					delete this;
+				}
+				
+			};
 			
-			// set verifier
-			MyVerifier verifier(mCore);
-			transport->setVerifier(&verifier);
-			
-			// set credentials (certificate added on name verification)
-			transport->addCredentials(getAnonymousCredentials());
-			transport->addCredentials(getPrivateSharedKeyCredentials());
-			
-			// do handshake
-			transport->handshake();
-			
-			// TODO: read credentials and feed them to addIncoming
-			// Identifier::Null if transport->isAnonymous()
-			// verifier.identifier otherwise
-			
-			if(transport) addIncoming(transport);
+			HandshakeTask *task = new HandshakeTask(mCore);
+			mThreadPool.launch(task);
 		}
 	}
 	catch(const std::exception &e)
