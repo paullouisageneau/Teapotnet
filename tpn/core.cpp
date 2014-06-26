@@ -183,22 +183,60 @@ void Core::unregisterListener(Listener *listener)
 
 void Core::publish(const String &prefix, Publisher *publisher)
 {
-	// TODO: move publishers from Handler to Core
+	Synchronize(this);
+	
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mPublishers[prefix].insert(publisher);
 }
 
 void Core::unpublish(const String &prefix, Publisher *publisher)
 {
-	// TODO
+	Synchronize(this);
+	
+	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
+	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+	if(it != mPublishers.end())
+	{
+		it->second.erase(publisher);
+		if(it->second.empty()) 
+			mPublishers.erase(it);
+	}
 }
 
-void Core::subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+bool Core::subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
 {
-	// TODO
+	Synchronize(this);
+	
+	// TODO: connect if Handler doesn't exist
+	
+	Handler *handler;
+	if(mHandlers.get(peer, handler))
+	{
+		Desynchronize(this);
+		handler->subscribe(prefix, subscriber);
+		return true;
+	}
+	
+	return false;
 }
 
-void Core::unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+bool Core::unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
 {
-	// TODO
+	Synchronize(this);
+	
+	Handler *handler;
+	if(mHandlers.get(peer, handler))
+	{
+		Desynchronize(this);
+		handler->unsubscribe(prefix, subscriber);
+		return true;
+	}
+	
+	return false;
 }
 
 void Core::route(Message &message, const Identifier &from)
@@ -206,15 +244,14 @@ void Core::route(Message &message, const Identifier &from)
 	Synchronize(this);
 	
 	// 1st case: neighbour
-	// TODO
+	if(send(message, message.destination))
+		return;
 
 	// 2nd case: routing table entry exists
 	Identifier route;
 	if(mRoutes.get(message.destination, route))
-	{
-		// TODO
-		return;
-	}
+		if(send(message, route))
+			return;
 
 	// 3rd case: no routing table entry
 	broadcast(message, from);
@@ -238,6 +275,21 @@ void Core::broadcast(Message &message, const Identifier &from)
 			handler->send(message);
 		}
 	}
+}
+
+bool Core::send(Message &message, const Identifier &to)
+{
+	Synchronize(this);
+	
+	Handler *handler;
+	if(mHandlers.get(to, handler))
+	{
+		Desynchronize(this);
+		handler->send(message);
+		return true;
+	}
+	
+	return false;
 }
 
 bool Core::addRoute(const Identifier &id, const Identifier &route)
@@ -414,6 +466,31 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	
 	mHandlers.erase(peer);
 	return true;
+}
+
+bool Core::publishPrefix(const String &prefix, const Identifier &peer)
+{
+	// Pass to local publishers
+	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+	if(it != mPublishers.end())
+	{
+		BinaryString response;
+			response.writeBinary(path);
+		
+		for(Set<Publisher*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			BinaryString target;
+			if(jt->anounce(prefix, target))
+				response.writeBinary(target);
+		}
+		
+		outgoing(source, Message::Publish, response);
+		return true;
+	}
+	
+	return false;
 }
 
 Core::Message::Message(void) :
@@ -887,32 +964,6 @@ Core::Handler::~Handler(void)
 	delete mStream;
 }
 
-void Core::Handler::publish(const String &prefix, Publisher *publisher)
-{
-	Synchronize(this);
-	
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	mPublishers[prefix].insert(publisher);
-}
-
-void Core::Handler::unpublish(const String &prefix, Publisher *publisher)
-{
-	Synchronize(this);
-  
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
-	if(it != mPublishers.end())
-	{
-		it->second.erase(publisher);
-		if(it->second.empty()) 
-			mPublishers.erase(it);
-	}
-}
-
 void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
@@ -1090,24 +1141,7 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 					}
 				}
 				else {
-					BinaryString response;
-					response.writeBinary(path);
-					
-					// Pass to local publishers
-					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
-					if(it != mPublishers.end())
-					{
-						for(Set<Publisher*>::iterator jt = it->second.begin();
-							jt != it->second.end();
-							++jt)
-						{
-							BinaryString target;
-							if(jt->anounce(prefix, target))
-								response.writeBinary(target);
-						}
-					}
-					
-					outgoing(source, Message::Publish, response);
+					publishPrefix(prefix, source);
 				}
 			}
 
