@@ -113,7 +113,7 @@ public:
 	class Subscriber
 	{
 	public:
-		Subscriber(void);
+		Subscriber(const Identifier &peer);
 		~Subscriber(void);
 		
 		void subscribe(const String &prefix);
@@ -122,6 +122,7 @@ public:
 		virtual bool incoming(const String &prefix, const BinaryString &target) = 0;	// return false to delegate
 		
 	private:
+		Identifier mPeer;
 		StringSet mSubscribedPrefixes;
 	};
 	
@@ -172,11 +173,10 @@ public:
 	void unregisterListener(Listener *listener);
 	
 	// Publish/Subscribe
-	// TODO: ?
-	void publish(const Identifier &id, const String &prefix, Publisher *publisher);
-	void unpublish(const Identifier &id, const String &prefix, Publisher *publisher);
-	void subscribe(const Identifier &id, const String &prefix, Subscriber *subscriber);
-	void unsubscribe(const Identifier &id, const String &prefix, Subscriber *subscriber);
+	void publish(const String &prefix, Publisher *publisher);
+	void unpublish(const String &prefix, Publisher *publisher);
+	void subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
+	void unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	
 	// Routing
 	void route(Message &message, const Identifier &from);
