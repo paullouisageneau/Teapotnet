@@ -175,12 +175,13 @@ public:
 	// Publish/Subscribe
 	void publish(const String &prefix, Publisher *publisher);
 	void unpublish(const String &prefix, Publisher *publisher);
-	void subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
-	void unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
+	bool subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
+	bool unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	
 	// Routing
 	void route(Message &message, const Identifier &from);
 	void broadcast(Message &message, const Identifier &from);
+	bool send(Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
@@ -277,9 +278,7 @@ private:
 		Handler(Core *core, Stream *stream);
 		~Handler(void);
 		
-		// Publish/Subscribe
-		void publish(const String &prefix, Publisher *publisher);
-		void unpublish(const String &prefix, Publisher *publisher);
+		// Subscribe
 		void subscribe(const String &prefix, Subscriber *subscriber);
 		void unsubscribe(const String &prefix, Subscriber *subscriber);
 		
@@ -345,7 +344,6 @@ private:
 		Stream  *mStream;
 		Mutex	mStreamReadMutex, mStreamWriteMutex;
 
-		Map<String, Set<Publisher*> >  mPublishers;
 		Map<String, Set<Subscriber*> > mSubscribers;
 		Map<BinaryString, Sender*> mSenders;
 		
@@ -359,6 +357,8 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
+	bool publishPrefix(const String &prefix, const Identifier &peer);
+	
 	String mName;
 	Scheduler mThreadPool;
 	Scheduler mScheduler;
@@ -368,6 +368,8 @@ private:
 	Map<Identifier, Identifier> mRoutes;
 	
 	Map<Identifier, Handler*> mHandlers;
+	
+	Map<String, Set<Publisher*> >  mPublishers;
 	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
