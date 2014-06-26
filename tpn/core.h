@@ -171,6 +171,13 @@ public:
 	void registerListener(Listener *listener);
 	void unregisterListener(Listener *listener);
 	
+	// Publish/Subscribe
+	// TODO: ?
+	void publish(const Identifier &id, const String &prefix, Publisher *publisher);
+	void unpublish(const Identifier &id, const String &prefix, Publisher *publisher);
+	void subscribe(const Identifier &id, const String &prefix, Subscriber *subscriber);
+	void unsubscribe(const Identifier &id, const String &prefix, Subscriber *subscriber);
+	
 	// Routing
 	void route(Message &message, const Identifier &from);
 	void broadcast(Message &message, const Identifier &from);

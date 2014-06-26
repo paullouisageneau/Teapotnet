@@ -661,9 +661,11 @@ void Core::Backend::run(void)
 						LogInfo("Core::Backend::run", String("Handshake failed: ") + e.what());
 					}
 	
-					delete this;
+					delete this;	// autodelete
 				}
 				
+			private:
+				Core *core;
 			};
 			
 			HandshakeTask *task = new HandshakeTask(mCore);
