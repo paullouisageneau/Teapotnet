@@ -181,6 +181,26 @@ void Core::unregisterListener(Listener *listener)
 	mListeners.erase(listener); 
 }
 
+void Core::publish(const String &prefix, Publisher *publisher)
+{
+	// TODO: move publishers from Handler to Core
+}
+
+void Core::unpublish(const String &prefix, Publisher *publisher)
+{
+	// TODO
+}
+
+void Core::subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+{
+	// TODO
+}
+
+void Core::unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+{
+	// TODO
+}
+
 void Core::route(Message &message, const Identifier &from)
 {
 	Synchronize(this);
@@ -485,7 +505,8 @@ void Core::Publisher::unpublish(const String &prefix)
 	}
 }
 
-Core::Subscriber::Subscriber(void)
+Core::Subscriber::Subscriber(const Identifier &peer) :
+	mPeer(peer)
 {
 	
 }
@@ -496,7 +517,7 @@ Core::Subscriber::~Subscriber(void)
 		it != mSubscribedPrefixes.end();
 		++it)
 	{
-		Core::Instance->unsubscribe(*it, this);
+		Core::Instance->unsubscribe(mPeer, *it, this);
 	}
 }
 
@@ -504,7 +525,7 @@ void Core::Subscriber::subscribe(const String &prefix)
 {
 	if(!mSubscribedPrefixes.contains(path))
 	{
-		Core::Instance->subscribe(path, this);
+		Core::Instance->subscribe(mPeer, path, this);
 		mSubscribedPrefixes.insert(path);
 	}
 }
