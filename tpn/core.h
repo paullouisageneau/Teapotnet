@@ -143,8 +143,17 @@ public:
 	class Listener
 	{
 	public:
-		virtual void seen(const Identifier &identifier) = 0;
-		virtual bool notification(const Identifier &identifier, Stream &payload) = 0;
+		Listener(void);
+		~Listener(void);
+		
+		void listen(const Identifier &peer);
+		
+		virtual void seen(void) = 0;
+		virtual bool notification(Stream &payload) = 0;
+		virtual bool query(const Query &query, Set<Resource> &result) = 0;	// TODO: digests only ?
+		
+	private:
+		Set<Identifier> mPeers;
 	};
 	
 	Core(int port);
@@ -169,8 +178,8 @@ public:
 	void unregisterAllCallers(const BinaryString &target);
 	
 	// Listener
-	void registerListener(Listener *listener);
-	void unregisterListener(Listener *listener);
+	void registerListener(const Identifier &id, Listener *listener);
+	void unregisterListener(const Identifier &id, Listener *listener);
 	
 	// Publish/Subscribe
 	void publish(const String &prefix, Publisher *publisher);
@@ -369,7 +378,9 @@ private:
 	
 	Map<Identifier, Handler*> mHandlers;
 	
-	Map<String, Set<Publisher*> >  mPublishers;
+	Map<String, Set<Publisher*> > mPublishers;
+	Map<BinaryString, Set<Caller*> > mCallers;
+	Map<BinaryString, Set<Listener*> > mListeners;
 	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
