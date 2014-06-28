@@ -54,6 +54,13 @@ Resource::Resource(void) :
 
 }
 
+Resource::Resource(const Resource &resource) :
+	mIndexBlock(NULL),
+	mIndexRecord(NULL)
+{
+	*this = resource;
+}
+
 Resource::Resource(const BinaryString &digest) :
 	mIndexBlock(NULL),
 	mIndexRecord(NULL)
@@ -134,6 +141,14 @@ bool Resource::deserialize(Serializer &s)
 bool Resource::isInlineSerializable(void) const
 {
 	return false;
+}
+
+Resource &Resource::operator = (const Resource &resource)
+{
+	delete mIndexBlock;
+	delete mIndexRecord;
+	mIndexBlock = new Block(resource.mIndexBlock);
+	mIndexRecord = new IndexRecord(resource.mIndexRecord);
 }
 
 bool operator <  (const Resource &r1, const Resource &r2)
