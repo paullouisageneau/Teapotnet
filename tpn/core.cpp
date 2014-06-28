@@ -169,16 +169,23 @@ void Core::unregisterAllCallers(const BinaryString &target)
 	mCallers.erase(target);
 }
 
-void Core::registerListener(Listener *listener)
+void Core::registerListener(const BinaryString &id, Listener *listener)
 {
 	Synchronize(this);
-	mListeners.insert(listener); 
+	mCallers[id].insert(listener);
 }
 
-void Core::unregisterListener(Listener *listener)
+void Core::unregisterListener(const BinaryString &id, Listener *listener)
 {
 	Synchronize(this);
-	mListeners.erase(listener); 
+	
+	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(id);
+	if(it != mCallers.end())
+	{
+		it->second.erase(listener);
+		if(it->second.empty())   
+			mCallers.erase(it);
+	}
 }
 
 void Core::publish(const String &prefix, Publisher *publisher)
@@ -650,6 +657,27 @@ void Caller::stopCalling(void)
 		Core::Instance->unregisterCaller(mTarget, this);
 		mTarget.clear();
 	}
+}
+
+Core::Listener::Listener(void)
+{
+	
+}
+
+Core::Listener::~Listener(void)
+{
+	for(Set<Identifier>::iterator it = mPeers.begin();
+		it != mPeers.end();
+		++it)
+	{
+		Core::Instance->unregisterListener(*it, this);
+	}
+}
+
+void Core::Listener::listen(const Identifier &peer)
+{
+	mPeers.insert(peer);
+	Core::Instance->registerListener(peer, this);
 }
 
 Core::Backend::Backend(Core *core) :
