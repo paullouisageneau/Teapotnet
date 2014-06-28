@@ -129,13 +129,24 @@ BinaryString Resource::blockDigest(int index) const
 
 void Resource::serialize(Serializer &s) const
 {
-	// TODO
+	if(!mIndexRecord) throw Unsupported("Serializing empty resource");
+  
+	ConstSerializableWrapper<int64_t> sizeWrapper(mIndexRecord->size);
+	BinaryString digest(mIndexBlock->digest());
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["name"] = &mIndexRecord->name;
+        mapping["type"] = &mIndexRecord->type;
+	mapping["size"] = &sizeWrapper;
+	mapping["digest"] = &digest;
+
+	s.outputObject(mapping);
 }
 
 bool Resource::deserialize(Serializer &s)
 {
-	// TODO
-	return true;
+	throw Unsupported("Deserializing resource");
+	return false;
 }
 
 bool Resource::isInlineSerializable(void) const
