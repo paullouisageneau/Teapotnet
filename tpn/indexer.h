@@ -42,7 +42,7 @@ namespace tpn
 
 class User;
   
-class Indexer : public Task, protected Synchronizable, public HttpInterfaceable
+class Indexer : protected Synchronizable, public Task, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);
@@ -60,7 +60,7 @@ public:
 	
 	void save(void) const;
 	void start(void);
-
+	
 	bool process(const String &path, Resource &resource);
 	bool get(const String &path, Resource &resource, Time *time = NULL);
 	void notify(const String &path, const Resource &resource, const Time &time);

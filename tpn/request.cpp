@@ -42,7 +42,13 @@ String Request::urlPrefix(void) const
 	return mUrlPrefix;
 }
 
-void addResult(const Resource &resource)
+int Request::resultsCount(void) const
+{
+	Synchronize(this);
+	return int(mResults.size());
+}
+
+void Request::addResult(const Resource &resource)
 {
 	Synchronize(this);
 	if(!mDigests.contains(resource.digest()))
@@ -51,6 +57,13 @@ void addResult(const Resource &resource)
 		mDigests.insert(resource.digest());
 		notifyAll();
 	}
+}
+
+void Request::getResult(int i, Resource &resource) const
+{
+	Synchronize(this);
+	Assert(i < resultsCount());
+	resource = mResults.at(i);
 }
 
 void Request::http(const String &prefix, Http::Request &request)
