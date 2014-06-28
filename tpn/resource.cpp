@@ -258,4 +258,87 @@ Block *Resource::Reader::createBlock(int index)
 	return new Block(mResource->blockDigest(index)); 
 }
 
+void Resource::MetaRecord::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	
+	s.outputObject(mapping);
+}
+
+bool Resource::MetaRecord::deserialize(Serializer &s)
+{
+	SerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	
+	return s.inputObject(mapping);
+}
+
+bool Resource::MetaRecord::isInlineSerializable(void) const
+{
+	return false;
+}
+
+void Resource::IndexRecord::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	mapping["digests"] = &blockDigests;
+	
+	s.outputObject(mapping);
+}
+
+bool Resource::IndexRecord::deserialize(Serializer &s)
+{
+	SerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	mapping["digests"] = &blockDigests;
+	
+	return s.inputObject(mapping);
+}
+
+void Resource::DirectoryRecord::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	mapping["digest"] = &digest;
+	mapping["time"] = &time;
+	
+	s.outputObject(mapping);
+}
+
+bool Resource::DirectoryRecord::deserialize(Serializer &s)
+{
+	SerializableWrapper<int64_t> sizeWrapper(size);
+	
+	Serializer::ObjectMapping mapping;
+	mapping["name"] = &name;
+	mapping["type"] = &type;
+	mapping["size"] = &sizeWrapper;
+	mapping["digest"] = &digest;
+	mapping["time"] = &time;
+	
+	return s.inputObject(mapping);
+}
+
 }
