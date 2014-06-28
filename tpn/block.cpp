@@ -52,7 +52,15 @@ bool Block::ProcessFile(File &file, Block &block)
 	
 	// store is already notified
 }
-  
+ 
+Block::Block(const Block &block)
+{
+	mFile = NULL;
+	mOffset = 0;
+	mSize = 0;
+	*this = block;
+}
+ 
 Block::Block(const BinaryString &digest) :
 	mDigest(digest)
 {
@@ -144,6 +152,14 @@ int64_t Block::tellRead(void) const
 int64_t Block::tellWrite(void) const
 {
 	return 0;
+}
+
+Block &Block::operator = (const Block &block)
+{
+	mDigest = block.mDigest;
+	mOffset = block.mOffset;
+	mSize = block.mSize;
+	mFile = new File(block.mFile.name());
 }
 
 void Block::waitContent(void) const

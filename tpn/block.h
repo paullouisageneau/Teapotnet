@@ -44,6 +44,7 @@ public:
 	static bool ProcessFile(File &file, Block &block);
 	static bool ProcessFile(File &file, BinaryString &digest);
 	
+	Block(const Block &block);
 	Block(const BinaryString &digest);
 	Block(const BinaryString &digest, const String &filename, int64_t offset = 0, int64_t size = -1);	// override file
 	Block(const String &filename, int64_t offset = 0, int64_t size = -1);					// digest computed from file
@@ -60,6 +61,8 @@ public:
 	void seekWrite(int64_t position);
 	int64_t tellRead(void) const;
 	int64_t tellWrite(void) const;
+	
+	Block &operator = (const Block &block);
 	
 private:
   	void waitContent(void) const;

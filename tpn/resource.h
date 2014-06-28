@@ -68,6 +68,7 @@ public:
 	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
 	
 	Resource(void);
+	Resource(const Resource &resource);
 	Resource(const BinaryString &digest);
 	~Resource(void);
 	
@@ -82,6 +83,8 @@ public:
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
+	
+	Resource &operator = (const Resource &resource);
 	
 protected:
 	class MetaRecord : public Serializable

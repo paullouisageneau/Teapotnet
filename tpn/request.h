@@ -32,7 +32,7 @@
 namespace tpn
 {
 
-class Request : protected Synchronizable, public HttpInterfaceable
+class Request : public Synchronizable, public HttpInterfaceable
 {
 public:
 	Request(void);
