@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -20,15 +20,12 @@
  *************************************************************************/
 
 #include "tpn/notification.h"
-#include "tpn/core.h"
-#include "tpn/binarystring.h"
 
 namespace tpn
 {
 
-Notification::Notification(const String &content) :
-	mTime(Time::Now()),
-	mContent(content)
+Notification::Notification(void) :
+	mTime(Time::Now())
 {
 
 }
@@ -43,47 +40,11 @@ Time Notification::time(void) const
 	return mTime; 
 }
 
-const String &Notification::content(void) const
-{
-	return mContent;
-}
-
-const StringMap &Notification::parameters(void) const
-{
-	return mParameters;
-}
-
-bool Notification::parameter(const String &name, String &value) const
-{
-	return mParameters.get(name, value);
-}
-
-String Notification::parameter(const String &name) const
+String Notification::content(const String &key) const
 {
 	String value;
-	if(mParameters.get(name, value)) return value;
-	else return String();
-}
-
-void Notification::setContent(const String &content)
-{
-	mContent = content;
-}
-
-void Notification::setParameters(const StringMap &parameters)
-{
-	mParameters = parameters;
-}
-
-void Notification::setParameter(const String &name, const String &value)
-{
-	mParameters[name] = value; 
-}
-
-bool Notification::send(const Identifier &peering) const
-{
-	mPeering = peering;
-	return Core::Instance->sendNotification(*this);
+	mContent.get(key, value);
+	return value;
 }
 
 }

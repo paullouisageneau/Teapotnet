@@ -35,6 +35,7 @@ namespace tpn
 class Request : public Synchronizable, public HttpInterfaceable
 {
 public:
+	// TODO: contruct from Store::Query or URL
 	Request(void);
 	~Request(void);
 

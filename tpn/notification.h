@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -24,39 +24,25 @@
 
 #include "tpn/include.h"
 #include "tpn/string.h"
-#include "tpn/identifier.h"
 #include "tpn/map.h"
 #include "tpn/time.h"
 
 namespace tpn
 {
 
+
 class Notification
 {
 public:
-	Notification(const String &content = "");
-	virtual ~Notification(void);
+	Notification(void);
+	~Notification(void);
 	
 	Time time(void) const;
-	const String &content(void) const;
-	const StringMap &parameters(void) const;
-	bool parameter(const String &name, String &value) const;
-	String parameter(const String &name) const;
-	
-	void setContent(const String &content);
-	void setParameters(const StringMap &parameters);
-	void setParameter(const String &name, const String &value);
-
-	bool send(const Identifier &peering = Identifier::Null) const;
+	String content(const String &key) const;
 	
 private:
 	Time mTime;
-	StringMap mParameters;
-        String mContent;
-	
-	mutable Identifier mPeering;	// only used by the core
-	
-	friend class Core;
+	StringMap mContent;
 };
 
 }
