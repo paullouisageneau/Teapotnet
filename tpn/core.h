@@ -90,7 +90,7 @@ public:
 		Locator(const Identifier &id);
 		Locator(const Address &addr);
 		~Locator(void);
-	
+		
 		Identifier	identifier;
 		List<Address>	addresses;
 	};
@@ -150,7 +150,7 @@ public:
 		
 		virtual void seen(void) = 0;
 		virtual bool notification(Stream &payload) = 0;
-		virtual bool query(const Query &query, Set<Resource> &result) = 0;	// TODO: digests only ?
+		virtual bool query(const Store::Query &query, Set<Resource> &result) = 0;	// TODO: digests only ?
 		
 	private:
 		Set<Identifier> mPeers;
