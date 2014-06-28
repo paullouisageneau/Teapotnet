@@ -109,7 +109,11 @@ protected:
 		IndexRecord(void);
 		~IndexRecord(void);
 		
-		Array<BinaryString> blockDigests;
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		
+		SerializableArray<BinaryString> blockDigests;
 	};
 
 	class DirectoryRecord: public MetaRecord
@@ -117,7 +121,11 @@ protected:
 	public:
 		DirectoryRecord(void);
 		~DirectoryRecord(void);
-
+		
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		
 		BinaryString	digest;
 		Time 		time;
 	};
