@@ -39,7 +39,9 @@ public:
 	~Request(void);
 
 	String urlPrefix(void) const;
+	int resultsCount(void) const;
 	void addResult(const Resource &resource);
+	void getResult(int i, Resource &resource) const;
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
