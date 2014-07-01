@@ -496,7 +496,7 @@ bool Core::publishPrefix(const Identifier &peer, const String &prefix)
 			}
 		}
 		
-		if(written) outgoing(source, Message::Publish, response);
+		if(written) outgoing(peer, Message::Publish, response);
 		return true;
 	}
 	
