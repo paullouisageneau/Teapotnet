@@ -475,25 +475,28 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-bool Core::publishPrefix(const String &prefix, const Identifier &peer)
+bool Core::publishPrefix(const Identifier &peer, const String &prefix)
 {
-	// Pass to local publishers
+	BinaryString response;
+	response.writeBinary(path);
+  
 	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 	if(it != mPublishers.end())
 	{
-		BinaryString response;
-			response.writeBinary(path);
-		
+		bool written = false;
 		for(Set<Publisher*>::iterator jt = it->second.begin();
 			jt != it->second.end();
 			++jt)
 		{
 			BinaryString target;
-			if(jt->anounce(prefix, target))
+			if(jt->anounce(peer, prefix, target))
+			{
 				response.writeBinary(target);
+				written = true;
+			}
 		}
 		
-		outgoing(source, Message::Publish, response);
+		if(written) outgoing(source, Message::Publish, response);
 		return true;
 	}
 	
@@ -906,8 +909,7 @@ SecureTransport *Core::DatagramBackend::listen(void)
 	}
 }
 
-TunnelBackend::TunnelBackend(void) :
-	Subscriber(Identifier::Null)	// subscribe to everything delegated
+TunnelBackend::TunnelBackend(void)
 {
 
 }
@@ -1060,6 +1062,13 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 	
 	switch(content)
 	{
+		case Message::Tunnel:
+		{
+			// TODO
+			if(mCore->mTunnelBackend) mCore->mTunnelBackend->incoming(message);
+			break; 
+		}
+		  
 		case Message::Notify:
 		{
 			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
@@ -1135,19 +1144,18 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 	
 			List<String> list;
 			path.explode(list,'/');
-			if(list.empty()) return;		// TODO
+			if(list.empty()) return false;
 	
 			// First item should be empty because path begins with /
 			if(list.front().empty()) 
 				list.pop_front();
 			
 			// Match prefixes, longest first
-			while(!list.empty())
+			while(true)
 			{
 				String prefix;
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
-				list.pop_back();
 				
 				if(content == Message::Publish)
 				{
@@ -1162,19 +1170,24 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 								jt != it->second.end();
 								++jt)
 							{
-								if(jt->incoming(prefix, target))
-									return;					
+								jt->incoming(prefix, target);
 							}
 						}
 					}
 				}
 				else {
-					publishPrefix(prefix, source);
+					publishPrefix(source, prefix);
 				}
+				
+				if(list.empty()) break;
+				list.pop_back();
 			}
-
+			
 			break;
 		}
+		
+		default:
+			return false;
 	}
 	
 	return true;

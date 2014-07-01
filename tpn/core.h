@@ -104,7 +104,7 @@ public:
 		void publish(const String &prefix);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const String &prefix, BinaryString &target) = 0;
+		virtual bool anounce(const Identifier &peer, const String &prefix, BinaryString &target) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -119,7 +119,7 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &prefix, const BinaryString &target) = 0;	// return false to delegate
+		virtual bool incoming(const String &prefix, const BinaryString &target) = 0;
 		
 	private:
 		Identifier mPeer;
@@ -366,7 +366,7 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
-	bool publishPrefix(const String &prefix, const Identifier &peer);
+	bool publishPrefix(const Identifier &peer, const String &prefix) const;
 	
 	String mName;
 	Scheduler mThreadPool;
