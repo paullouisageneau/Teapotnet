@@ -19,14 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/splicer.h"
-#include "tpn/request.h"
-#include "tpn/pipe.h"
+#include "tpn/cache.h"
 #include "tpn/config.h"
 #include "tpn/resource.h"
-#include "tpn/task.h"
-#include "tpn/scheduler.h"
-#include "tpn/random.h"
+#include "tpn/file.h"
+#include "tpn/directory.h"
 
 namespace tpn
 {
@@ -53,7 +50,7 @@ void Cache::prefetch(const BinaryString &target)
 		void run(void)
 		{
 			Resource resource(target);
-			Reader reader(&resource);
+			Resource::Reader reader(&resource);
 			reader.discard();		// read everything
 			
 			delete this;	// autodelete

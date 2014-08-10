@@ -113,13 +113,13 @@ Identifier AddressBook::addContact(String name, const String &secret)
 	}
 	
 	Contact *contact = new Contact(this, uname, name, tracker, secret);
-	if(mContacts.get(contact->peering(), oldContact))
+	if(mContacts.get(contact->peer(), oldContact))
 	{
 		if(!oldContact->isDeleted())
 		{
 			LogWarn("AddressBook::addContact", "The contact already exists with this secret: " + name);
 			delete contact;
-			return oldContact->peering();
+			return oldContact->peer();
 		}
 
 		oldContact->copy(contact);
@@ -130,18 +130,18 @@ Identifier AddressBook::addContact(String name, const String &secret)
 	registerContact(contact);	
 	save();
 	sendContacts();
-	return contact->peering();
+	return contact->peer();
 }
 
-void AddressBook::removeContact(const Identifier &peering)
+void AddressBook::removeContact(const Identifier &peer)
 {
 	Synchronize(this);
 	
 	Contact *contact;
-	if(mContacts.get(peering, contact))
+	if(mContacts.get(peer, contact))
 	{
 		contact->setDeleted();
-		Core::Instance->unregisterPeering(contact->peering());
+		Core::Instance->unregisterPeering(contact->peer());
 		Interface::Instance->remove(contact->urlPrefix(), contact);
 		mScheduler.cancel(contact);
 		save();
@@ -152,21 +152,21 @@ void AddressBook::removeContact(const Identifier &peering)
 	}
 }
 
-AddressBook::Contact *AddressBook::getContact(const Identifier &peering)
+AddressBook::Contact *AddressBook::getContact(const Identifier &peer)
 {
 	Synchronize(this);
   
 	Contact *contact;
-	if(mContacts.get(peering, contact)) return contact;
+	if(mContacts.get(peer, contact)) return contact;
 	else return NULL;
 }
 
-const AddressBook::Contact *AddressBook::getContact(const Identifier &peering) const
+const AddressBook::Contact *AddressBook::getContact(const Identifier &peer) const
 {
 	Synchronize(this);
   
 	Contact *contact = NULL;
-	if(mContacts.get(peering, contact)) return contact;
+	if(mContacts.get(peer, contact)) return contact;
 	else return NULL;
 }
 
@@ -213,9 +213,9 @@ Identifier AddressBook::setSelf(const String &secret)
 	Contact *self = new Contact(this, userName(), userName(), tracker, secret);
 
 	Contact *tmp;
-        if(mContacts.get(self->peering(), tmp))
+        if(mContacts.get(self->peer(), tmp))
         	if(tmp->uniqueName() != userName())
-			throw Exception("a contact with the same peering already exists");
+			throw Exception("a contact with the same peer already exists");
 	
 	Contact *oldSelf = getSelf();
         if(oldSelf)
@@ -229,7 +229,7 @@ Identifier AddressBook::setSelf(const String &secret)
 	registerContact(self);
 	save();
 	sendContacts();
-	return self->peering();
+	return self->peer();
 }
 
 AddressBook::Contact *AddressBook::getSelf(void)
@@ -339,11 +339,11 @@ void AddressBook::save(void) const
 	file.close();
 }
 
-void AddressBook::sendContacts(const Identifier &peering) const
+void AddressBook::sendContacts(const Identifier &peer) const
 {
 	Synchronize(this);
 	
-	if(peering == Identifier::Null)
+	if(peer == Identifier::Null)
 		throw Exception("Prevented AddressBook::send() to broadcast");
 	
 	String data;
@@ -352,8 +352,8 @@ void AddressBook::sendContacts(const Identifier &peering) const
 	try {
 		Desynchronize(this);
 		Notification notification(data);
-		notification.setParameter("type", "contacts");
-		notification.send(peering);
+		notification.insert("type", "contacts");
+		notification.send(peer);
 	}
 	catch(const Exception &e)
 	{
@@ -367,7 +367,7 @@ void AddressBook::sendContacts(void) const
 	
 	const Contact *self = getSelf();
 	if(self && self->isConnected())
-		sendContacts(self->peering());
+		sendContacts(self->peer());
 }
 
 void AddressBook::update(void)
@@ -438,7 +438,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
-						removeContact(mContactsByUniqueName.get(uname)->peering());
+						removeContact(mContactsByUniqueName.get(uname)->peer());
 					}
 					else {
 						Synchronize(this);
@@ -667,7 +667,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.link(contact->urlPrefix(), contact->uniqueName());
 					page.close("td");
 					page.open("td",".checksum");
-					page.text(String(" check: ")+String::hexa(contact->peeringChecksum(),8));
+					page.text(String(" check: ")+String::hexa(contact->peerChecksum(),8));
 					page.close("td");
 					page.open("td",".actions");
 					page.openLink('#', ".deletelink");
@@ -718,7 +718,7 @@ void AddressBook::registerContact(Contact *contact, int ordinal)
 {
 	Synchronize(this);
 	
-	mContacts.insert(contact->peering(), contact);
+	mContacts.insert(contact->peer(), contact);
 	mContactsByUniqueName.insert(contact->uniqueName(), contact);
 	
 	if(!contact->isDeleted())
@@ -737,10 +737,10 @@ void AddressBook::unregisterContact(Contact *contact)
 {
 	Synchronize(this);
 	
-	mContacts.erase(contact->peering());
+	mContacts.erase(contact->peer());
 	mContactsByUniqueName.erase(contact->uniqueName());
 	
-	Core::Instance->unregisterPeering(contact->peering());
+	Core::Instance->unregisterPeering(contact->peer());
 	Interface::Instance->remove(contact->urlPrefix(), contact);
 	mScheduler.cancel(contact);
 }
@@ -819,7 +819,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	return false;
 }
 
-bool AddressBook::query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate)
+bool AddressBook::query(const Identifier &peer, const String &tracker, AddressMap &output, bool alternate)
 {
 	output.clear();
 	
@@ -827,7 +827,7 @@ bool AddressBook::query(const Identifier &peering, const String &tracker, Addres
 	if(host.empty()) host = Config::Get("tracker");
 	
 	try {
-		String url = "http://" + host + "/tracker/?id=" + peering.toString();
+		String url = "http://" + host + "/tracker/?id=" + peer.toString();
   		if(alternate) url+= "&alternate=1";
 		  
 		String tmp;
@@ -897,9 +897,9 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	String salt = std::min(mAddressBook->userName(), mName) + "/" + std::max(mAddressBook->userName(), mName);
 	Sha512().pbkdf2_hmac(secret, salt, mSecret, 64, iterations);
 	
-	String peeringSecret(mSecret, 0, 32);
-	Sha512().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
-	Sha512().pbkdf2_hmac(peeringSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
+	String peerSecret(mSecret, 0, 32);
+	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
+	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
 	
 	createProfile();
 }
@@ -938,7 +938,7 @@ String AddressBook::Contact::tracker(void) const
 	else return mTracker;
 }
 
-Identifier AddressBook::Contact::peering(void) const
+Identifier AddressBook::Contact::peer(void) const
 {
 	Synchronize(mAddressBook);
 	return mPeering;
@@ -956,7 +956,7 @@ Time AddressBook::Contact::time(void) const
 	return mTime; 
 }
 
-uint32_t AddressBook::Contact::peeringChecksum(void) const
+uint32_t AddressBook::Contact::peerChecksum(void) const
 {
 	Synchronize(mAddressBook);
 	return mPeering.getDigest().checksum32() + mRemotePeering.getDigest().checksum32(); 
@@ -1052,7 +1052,7 @@ void AddressBook::Contact::getInstancesNames(Array<String> &array)
 	SynchronizeStatement(mAddressBook, mAddrs.getKeys(array));
 	
 	Array<String> others;
-	Core::Instance->getInstancesNames(peering(), others);
+	Core::Instance->getInstancesNames(peer(), others);
 	
 	for(int i=0; i<others.size(); ++i)
 		if(!array.contains(others[i]))
@@ -1102,7 +1102,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 
 	const double timeout = 4.;	// TODO
         const bool forceNoTunnel = (!addr.isPublic() || addr.port() == 443);	
-	const Identifier peering(this->peering(), instance);
+	const Identifier peer(this->peer(), instance);
 	
 	Socket *sock = NULL;
 	if(!Config::Get("force_http_tunnel").toBool() || forceNoTunnel)
@@ -1119,7 +1119,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 		if(sock) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=false)");
 	}
 
-	if(!sock || !Core::Instance->addPeer(sock, peering))
+	if(!sock || !Core::Instance->addPeer(sock, peer))
 	{
 		// Unable to connect, no direct connection or failure using direct connection
 		Stream *bs = NULL;
@@ -1137,7 +1137,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 			if(bs) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
 		}
 
-		if(!bs || !Core::Instance->addPeer(bs, addr, peering))
+		if(!bs || !Core::Instance->addPeer(bs, addr, peer))
 		{
 			// HTTP tunnel unable to connect, no HTTP tunnel or failure using HTTP tunnel
 			return false;
@@ -1202,13 +1202,13 @@ void AddressBook::Contact::update(bool alternate)
 	// Warning: NOT synchronized !
 	
 	if(isDeleted()) return;
-	Core::Instance->registerPeering(peering(), remotePeering(), secret());
+	Core::Instance->registerPeering(peer(), remotePeering(), secret());
 	
 	LogDebug("AddressBook::Contact", "Looking for " + uniqueName());
 	
-	if(peering() != remotePeering() && Core::Instance->hasRegisteredPeering(remotePeering()))	// the user is local
+	if(peer() != remotePeering() && Core::Instance->hasRegisteredPeering(remotePeering()))	// the user is local
 	{
-		Identifier identifier(peering(), Core::Instance->getName());
+		Identifier identifier(peer(), Core::Instance->getName());
 		if(!Core::Instance->hasPeer(identifier))
 		{
 			LogDebug("AddressBook::Contact", uniqueName() + " found locally");
@@ -1232,7 +1232,7 @@ void AddressBook::Contact::update(bool alternate)
 	}
 		  
 	AddressMap newAddrs;
-	if(mAddressBook->query(peering(), tracker(), newAddrs, alternate))
+	if(mAddressBook->query(peer(), tracker(), newAddrs, alternate))
 		LogDebug("AddressBook::Contact", "Queried tracker " + tracker() + " for " + uniqueName());	
 	
 	bool save = !alternate;
@@ -1311,9 +1311,9 @@ void AddressBook::Contact::run(void)
 		DesynchronizeStatement(mAddressBook, update(true));
 }
 
-void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
+void AddressBook::Contact::connected(const Identifier &peer, bool incoming)
 {
-	// Handle the special case of symmetric peerings
+	// Handle the special case of symmetric peers
 	if(!isSelf() && mPeering == mRemotePeering)
 	{
 		Contact *self = mAddressBook->getSelf();
@@ -1321,21 +1321,21 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 		// If there is no self contact, the remote instance *should* not be one of ours anyway.
 		if(self)
 		{
-			Notification notification(self->peering().toString());
-			notification.setParameter("type", "checkself");
-			notification.send(peering);
+			Notification notification(self->peer().toString());
+			notification.insert("type", "checkself");
+			notification.send(peer);
 		}
 	}
 	
 	// Send status and profile
-	if(mAddressBook->user()->isOnline()) mAddressBook->user()->sendStatus(peering);
-	mAddressBook->user()->profile()->send(peering);
+	if(mAddressBook->user()->isOnline()) mAddressBook->user()->sendStatus(peer);
+	mAddressBook->user()->profile()->send(peer);
 	
 	// Send secret and contacts if self
 	if(isSelf())
 	{
-		mAddressBook->user()->sendSecret(peering);
-		mAddressBook->sendContacts(peering);
+		mAddressBook->user()->sendSecret(peer);
+		mAddressBook->sendContacts(peer);
 	}
 	
 	if(incoming) 
@@ -1349,33 +1349,48 @@ void AddressBook::Contact::connected(const Identifier &peering, bool incoming)
 				Assert(selection.setBaseStamp(base.stamp()));
 		}
 		
-		sendMailsChecksum(peering, selection, 0, selection.count(), true);
+		sendMailsChecksum(peer, selection, 0, selection.count(), true);
 	}
 }
 
-void AddressBook::Contact::disconnected(const Identifier &peering)
+void AddressBook::Contact::disconnected(const Identifier &peer)
 {
 	mAddressBook->mScheduler.schedule(this, 5.);
-	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peering.getName()));
+	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peer.getName()));
 }
 
-bool AddressBook::Contact::notification(const Identifier &peering, Notification *notification)
+bool AddressBook::Contact::send(const Notification &notification)
+{
+	return notification.send(peer());
+}
+
+bool AddressBook::Contact::send(const Mail &mail)
+{
+	return mail.send(peer());
+}
+
+
+void AddressBook::Contact::seen(const Identifier &peer)
+{
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
+	
+	// TODO
+}
+
+bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
 {
 	// Important: Not synchronized
 	
 	if(isDeleted()) return false;
 
-	Assert(notification);
-	StringMap parameters = notification->parameters();
-	
 	String type;
-	parameters.get("type", type);
-	LogDebug("AddressBook::Contact", "Incoming notification from "+uniqueName()+" (type='" + type + "')");
+	notification.get("type", type);
+	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
 	
-	if(type.empty() || type == "mail")
+	if(type == "mail")
 	{
 		Mail mail;
-		Assert(mail.recv(*notification));
+		Assert(mail.recv(notification));
 		
 		if(!isSelf())
 		{
@@ -1394,7 +1409,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	}
 	else if(type == "read" || type == "ack")
 	{
-		String data = notification->content();
+		String data = notification.content();
                 YamlSerializer serializer(&data);
 		StringList stamps;
 		serializer.input(stamps);
@@ -1412,7 +1427,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 	}
 	else if(type == "unread")
 	{
-		String data = notification->content();
+		String data = notification.content();
                 YamlSerializer serializer(&data);
 		StringSet recvStamps;
 		serializer.input(recvStamps);
@@ -1442,8 +1457,8 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			outSerializer.output(recvStamps);
 
 			Notification notification(tmp);
-			notification.setParameter("type", "read");
-			notification.send(peering);
+			notification.insert("type", "read");
+			notification.send(peer);
 		}
 	}
 	else if(type == "pass")
@@ -1454,7 +1469,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			return true;
 		}
 		
-		String data = notification->content();
+		String data = notification.content();
                 YamlSerializer serializer(&data);
 		StringArray stamps;
 		serializer.input(stamps);
@@ -1473,12 +1488,13 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		String base;
 		
 		try {
-			parameters["offset"] >> offset;
-			parameters["count"] >> count;
-			parameters["total"] >> total;
-			parameters["recursion"] >> recursion;
-			if(parameters.contains("base"))
-				parameters["base"] >> base;
+			StringMap tmp(notification);
+			tmp["offset"] >> offset;
+			tmp["count"] >> count;
+			tmp["total"] >> total;
+			tmp["recursion"] >> recursion;
+			if(tmp.contains("base"))
+				tmp["base"] >> base;
 			
 			Assert(offset >= 0);
 			Assert(count >= 0);
@@ -1486,17 +1502,17 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		}
 		catch(const Exception &e)
 		{
-			throw InvalidData("checksum notification parameters: " + String(e.what()));
+			throw InvalidData("checksum notification: " + String(e.what()));
 		}
 		
 		BinaryString checksum;
 		
 		try {
-			notification->content().extract(checksum);
+			notification.content().extract(checksum);
 		}
 		catch(...)
 		{
-			throw InvalidData("checksum notification content: " + notification->content());
+			throw InvalidData("checksum notification content: " + notification.content());
 		}
 		
 		LogDebug("AddressBook::Contact", "Synchronization: Received checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
@@ -1521,17 +1537,17 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			
 				if(count == 1)	// TODO
 				{
-					sendMails(peering, selection, offset, count);
+					sendMails(peer, selection, offset, count);
 					if(recursion)
 					{
-						sendMailsChecksum(peering, selection, offset, count, false);
+						sendMailsChecksum(peer, selection, offset, count, false);
 						isLastIteration = true;
 					}
 				}
 				else if(recursion)
 				{
-					sendMailsChecksum(peering, selection, offset, count/2, true);
-					sendMailsChecksum(peering, selection, offset + count/2, count - count/2, true);
+					sendMailsChecksum(peer, selection, offset, count/2, true);
+					sendMailsChecksum(peer, selection, offset + count/2, count - count/2, true);
 				}
 			
 				if(!recursion) 
@@ -1546,7 +1562,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 			if(offset == 0)
 			{
 				LogDebug("AddressBook::Contact", "Synchronization: Remote has more mails");
-				sendMailsChecksum(peering, selection, 0, localTotal, true);
+				sendMailsChecksum(peer, selection, 0, localTotal, true);
 			}
 		}
 
@@ -1554,38 +1570,40 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		{
 			// If mails are missing remotely
 			if(total < localTotal)
-				sendMails(peering, selection, total, localTotal - total);
+				sendMails(peer, selection, total, localTotal - total);
 			
-			sendUnread(peering);
-			if(isSelf()) sendPassed(peering);
+			sendUnread(peer);
+			if(isSelf()) sendPassed(peer);
 		}
 	}
 	else if(type == "checkself")
 	{
+	 	// TODO: probably deprecated
+	  
 		Identifier checkself;
 		
 		try {
-			notification->content().extract(checkself);
+			notification.content().extract(checkself);
 		}
 		catch(...)
 		{
-			throw InvalidData("checkself notification content: " + notification->content());
+			throw InvalidData("checkself notification content: " + notification.content());
 		}
 		
 		Contact *self = mAddressBook->getSelf();
-		if(self && (isSelf() != (checkself == self->peering())))
+		if(self && (isSelf() != (checkself == self->peer())))
 		{
-			LogDebug("AddressBook::Contact::notification", "Remote instance belongs to us on a symmetric peering, disconnecting");
-			mExcludedInstances.insert(peering.getName());
+			LogDebug("AddressBook::Contact::notification", "Remote instance belongs to us on a symmetric peer, disconnecting");
+			mExcludedInstances.insert(peer.getName());
 			return false; // disconnect
 		}
 	}
 	else if(type == "status")
 	{
 		Synchronize(mAddressBook);
-		String status = notification->content().toLower().trimmed();
-		if(status == "online") mOnlineInstances.insert(peering.getName());
-		else mOnlineInstances.erase(peering.getName());
+		String status = notification.content().toLower().trimmed();
+		if(status == "online") mOnlineInstances.insert(peer.getName());
+		else mOnlineInstances.erase(peer.getName());
 	}
 	else if(type == "secret")
 	{
@@ -1598,32 +1616,32 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		BinaryString secret;
 		
 		try {
-			notification->content().extract(secret);
+			notification.content().extract(secret);
 		}
 		catch(...)
 		{
-			throw InvalidData("secret notification content: " + notification->content());
+			throw InvalidData("secret notification content: " + notification.content());
 		}
 
 		
-		if(!parameters.contains("time")) 
+		if(!notification.contains("time")) 
 		{
 			LogWarn("AddressBook::Contact::notification", "Received secret update without time, dropping");
 			return true;
 		}
 		
 		Time time;	
-		parameters["time"] >> time;
+		notification.get("time").extract(time);
 		mAddressBook->user()->setSecret(secret, time);
 	}
 	else if(type == "profile" || type == "profilediff")
 	{
-		String data = notification->content();
+		String data = notification.content();
 		YamlSerializer serializer(&data);		
 		Profile *p = profile();
 
 		Time time;
-		if(parameters.contains("time")) parameters["time"] >> time;
+		if(notification.contains("time")) notification.get("time").extract(time);
 		else if(type != "profilediff") 
 		{
 			LogWarn("AddressBook::Contact::notification", "Received profile update without time, dropping");
@@ -1658,7 +1676,7 @@ bool AddressBook::Contact::notification(const Identifier &peering, Notification 
 		}
 		
 		// DO NOT synchronize here, as the contact could disappear during load
-		String data = notification->content();
+		String data = notification.content();
 		AddressBook *addressBook = mAddressBook;
 		addressBook->load(data); // may destroy the contact
 	}
@@ -1681,7 +1699,7 @@ MailQueue::Selection AddressBook::Contact::selectMails(bool privateOnly) const
 	else return mailQueue->selectPrivate(uname);
 }
 
-void AddressBook::Contact::sendMails(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count) const
+void AddressBook::Contact::sendMails(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count) const
 {
 	if(!count) return;
 
@@ -1694,11 +1712,11 @@ void AddressBook::Contact::sendMails(const Identifier &peering, const MailQueue:
 		it != mails.end();
 		++it)
 	{
-		it->send(peering);
+		it->send(peer);
 	}
 }
 
-void AddressBook::Contact::sendMailsChecksum(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count, bool recursion) const
+void AddressBook::Contact::sendMailsChecksum(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count, bool recursion) const
 {
 	int total = selection.count();
 	offset = bounds(offset, 0, total);
@@ -1708,23 +1726,22 @@ void AddressBook::Contact::sendMailsChecksum(const Identifier &peering, const Ma
 
 	BinaryString result;
 	selection.checksum(offset, count, result);
+
+	Notification notification(result.toString());
 	
-	StringMap parameters;
-	parameters["type"] << "checksum";
-	parameters["offset"] << offset;
-	parameters["count"] << count;
-	parameters["total"] << total;
-	parameters["recursion"] << recursion;
+	notification["type"] << "checksum";
+	notification["offset"] << offset;
+	notification["count"] << count;
+	notification["total"] << total;
+	notification["recursion"] << recursion;
 	
 	String base = selection.baseStamp();
-	if(!base.empty()) parameters["base"] << base;
-		
-	Notification notification(result.toString());
-	notification.setParameters(parameters);
-	notification.send(peering);
+	if(!base.empty()) notification["base"] << base;
+	
+	notification.send(peer);
 }
 
-void AddressBook::Contact::sendUnread(const Identifier &peering) const
+void AddressBook::Contact::sendUnread(const Identifier &peer) const
 {
 	bool privateOnly = !isSelf();
 	MailQueue::Selection selection = selectMails(privateOnly);
@@ -1737,11 +1754,11 @@ void AddressBook::Contact::sendUnread(const Identifier &peering) const
 	serializer.output(stamps);
 
 	Notification notification(tmp);
-	notification.setParameter("type", "unread");
-	notification.send(peering);
+	notification.insert("type", "unread");
+	notification.send(peer);
 }
 
-void AddressBook::Contact::sendPassed(const Identifier &peering) const
+void AddressBook::Contact::sendPassed(const Identifier &peer) const
 {
 	bool privateOnly = !isSelf();
 	MailQueue::Selection selection = selectMails(privateOnly);
@@ -1755,32 +1772,8 @@ void AddressBook::Contact::sendPassed(const Identifier &peering) const
 	serializer.output(stamps);
 
 	Notification notification(tmp);
-	notification.setParameter("type", "pass");
-	notification.send(peering);
-}
-
-bool AddressBook::Contact::request(const Identifier &peering, Request *request)
-{
-	Assert(request);
-	if(mDeleted) 
-	{
-		request->executeDummy();
-		return false;
-	}
-	
-	request->execute(mAddressBook->user(), isSelf());
-	if(!isSelf()) request->forward(Identifier::Null, this->peering());
-	return true;
-}
-
-bool AddressBook::Contact::send(const Notification &notification)
-{
-	return notification.send(peering());
-}
-
-bool AddressBook::Contact::send(const Mail &mail)
-{
-	return mail.send(peering());
+	notification.insert("type", "pass");
+	notification.send(peer);
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
@@ -1969,140 +1962,34 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String target(url);
 			Assert(!target.empty());
 			
-			if(request.get.contains("json") || request.get.contains("playlist"))
-			{
-				// Query resources
-				Indexer::Query query(target);
-				query.setFromSelf(isSelf());
-				
-				SerializableSet<Resource> resources;
-				bool success = query.submitRemote(resources, peering());
-				if(isSelf()) success|= query.submitLocal(resources);
-				if(!success) throw 404;
-				
-				if(request.get.contains("json"))
-				{
-					Http::Response response(request, 200);
-					response.headers["Content-Type"] = "application/json";
-					response.send();
-					JsonSerializer json(response.sock);
-					json.output(resources);
-				}
-				else {
-					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-					response.headers["Content-Type"] = "audio/x-mpegurl";
-					response.send();
-					
-					String host;
-					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.sock, host);
-				}
-				return;
-			}
+			Request *req = new Request(peer(), target);
+			String reqPrefix = req->urlPrefix();
+			req->setAutoDelete();
 			
-			// if it seems to be a file
-			if(target[target.size()-1] != '/')
-			{
-				String instance;
-				request.get.get("instance", instance);
+			Http::Response response(request, 200);
+			response.send();
 				
-				Identifier instancePeering(peering());
-				if(!instancePeering.empty()) instancePeering.setName(instance);
-				
-				Resource resource(instancePeering, url, mAddressBook->user()->store());
-				try {
-					resource.fetch(isSelf());	// we might find a better way to access it
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
-					throw 404;
-				}
-				
-				// redirect if it's a directory
-				if(resource.isDirectory())
-				{
-					if(request.get.contains("download"))
-						throw 404;
-					
-					Http::Response response(request, 301);	// Moved permanently
-					response.headers["Location"] = prefix + request.url + '/';
-					response.send();
-					return;
-				}
-				
-				// Get range
-				int64_t rangeBegin = 0;
-				int64_t rangeEnd = 0;
-				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
-				int64_t rangeSize = rangeEnd - rangeBegin;
-				
-				// Get resource accessor
-				Resource::Accessor *accessor = resource.accessor();
-				if(!accessor) throw 404;
-				
-				// Forge HTTP response header
-				Http::Response response(request, 200);
-				if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
-				response.headers["Content-Length"] << rangeSize;
-				response.headers["Content-Name"] = resource.name();
-				response.headers["Last-Modified"] = resource.time().toHttpDate();
-				response.headers["Accept-Ranges"] = "bytes";
-				
-				String ext = resource.name().afterLast('.');
-				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
-				{
-					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
-					response.headers["Content-Type"] = "application/force-download";
-				}
-				else {
-					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
-					response.headers["Content-Type"] = Mime::GetType(resource.name());
-				}
-				
-				response.send();
-				if(request.method == "HEAD") return;
-				
-				try {
-					// Launch transfer
-					if(hasRange) accessor->seekRead(rangeBegin);
-					accessor->readBinary(*response.sock, rangeSize);	// let's go !
-				}
-				catch(const NetException &e)
-				{
-					return;	// nothing to do
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
-				}
-			}
-			else {
-				Http::Response response(request, 200);
-				response.send();
-				
-				Html page(response.sock);
-				if(target == "/") page.header(name()+": Browse files");
-				else page.header(name()+": "+target.substr(1));
-				page.open("div","topmenu");
-				if(!isSelf()) page.span(status().capitalized(), "status.button");
-				page.link(prefix+"/search/","Search files",".button");
-				page.link(prefix+request.url+"?playlist","Play all","playall.button");
-				page.close("div");
+			Html page(response.sock);
+			
+			if(target == "/") page.header(name()+": Browse files");
+			else page.header(name()+": "+target.substr(1));
+			
+			page.open("div","topmenu");
+			if(!isSelf()) page.span(status().capitalized(), "status.button");
+			page.link(prefix+"/search/", "Search files", ".button");
+			page.link(reqPrefix+"?playlist", "Play all", "playall.button");
+			page.close("div");
 
-				unsigned refreshPeriod = 5000;
-				page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-					transition($('#status'), info.status.capitalize());\n\
-					$('#status').removeClass().addClass('button').addClass(info.status);\n\
-					if(info.newmails) playMailSound();\n\
-				});");
-			
-				page.div("","list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,true);");
-				page.footer();
-			}
-			
+			unsigned refreshPeriod = 5000;
+			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
+				transition($('#status'), info.status.capitalize());\n\
+				$('#status').removeClass().addClass('button').addClass(info.status);\n\
+				if(info.newmails) playMailSound();\n\
+			});");
+		
+			page.div("","list.box");
+			page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+			page.footer();
 			return;
 		}
 		else if(directory == "search")
@@ -2114,50 +2001,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				request.get.get("query", match);
 			match.trim();
 			
-			if(request.get.contains("json") || request.get.contains("playlist"))
+			String reqPrefix;
+			if(!match.empty())
 			{
-				String tmp;
-				
-				int minAge = 0;
-				int maxAge = 0;
-				int count = 0;
-				if(request.get.get("minage", tmp)) tmp >> minAge;
-				if(request.get.get("maxage", tmp)) tmp >> maxAge;
-				if(request.get.get("count", tmp)) tmp >> count;
-				
-				if(match.empty() && maxAge <= 0) throw 400;
-				
-				Resource::Query query(mAddressBook->user()->store());
-				if(isSelf()) query.setFromSelf(isSelf());
-				if(!match.empty()) query.setMatch(match);
-				if(minAge > 0) query.setMinAge(minAge);
-				if(maxAge > 0) query.setMaxAge(maxAge);
-				if(count > 0) query.setLimit(count);
-				
-				SerializableSet<Resource> resources;
-				bool success = query.submitRemote(resources, peering());
-				if(isSelf()) success|= query.submitLocal(resources);
-				if(!success) throw 404;
-				
-				if(request.get.contains("json"))
-				{
-					Http::Response response(request, 200);
-					response.headers["Content-Type"] = "application/json";
-					response.send();
-					JsonSerializer json(response.sock);
-					json.output(resources);
-				}
-				else {
-					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-					response.headers["Content-Type"] = "audio/x-mpegurl";
-					response.send();
-					
-					String host;
-					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.sock, host);
-				}
-				return;
+				Request *req = new Request(match);
+				reqPrefix = req->urlPrefix();
+				req->setAutoDelete();
 			}
 			
 			Http::Response response(request, 200);
@@ -2175,11 +2024,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.button("search","Search");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-			if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");
 			page.close("div");
 
 			unsigned refreshPeriod = 5000;
-			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
+			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
 				if(info.newmails) playMailSound();\n\
@@ -2188,7 +2037,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,true);");
+				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
 			}
 			
 			page.footer();
@@ -2250,7 +2099,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	map["name"] << mName;
 	map["tracker"] << tracker();
 	map["secret"] << mSecret;
-	map["peering"] << mPeering;
+	map["peer"] << mPeering;
 	map["remote"] << mRemotePeering;
 	map["time"] << mTime;
 	map["deleted"] << mDeleted;
@@ -2285,7 +2134,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	map["name"] >> mName;
 	map["tracker"] >> mTracker;
 	map["secret"] >> mSecret;
-	map["peering"] >> mPeering;
+	map["peer"] >> mPeering;
 	map["remote"] >> mRemotePeering;
 
 	if(map.contains("time"))

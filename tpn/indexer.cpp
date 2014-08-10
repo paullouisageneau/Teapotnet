@@ -108,27 +108,30 @@ Indexer::Indexer(User *user) :
 	
 	save();
 	
+	// Publisher
+	publish("/files");
+	publish("/search");
+	
+	// Interface
+	Interface::Instance->add("/"+mUser->name()+"/files", this);
+	Interface::Instance->add("/"+mUser->name()+"/myself/files", this);	// overridden by self contact if it exists
+	Interface::Instance->add("/"+mUser->name()+"/explore", this);
+	
+	// Task
 	Scheduler::Global->schedule(this, 60.);		// 1 min
 	Scheduler::Global->repeat(this, 6*60*60.);	// 6h
-	
-	if(mUser)
-	{
-		Interface::Instance->add("/"+mUser->name()+"/files", this);
-		Interface::Instance->add("/"+mUser->name()+"/myself/files", this);	// overridden by self contact if it exists
-		Interface::Instance->add("/"+mUser->name()+"/explore", this);
-	}
 }
 
 Indexer::~Indexer(void)
 {
-	Scheduler::Global->remove(this);
+	unpublish("/files");
+	unpublish("/search");
 	
-	if(mUser)
-	{
-		Interface::Instance->remove("/"+mUser->name()+"/files");
-		Interface::Instance->remove("/"+mUser->name()+"/myself/files");
-		Interface::Instance->remove("/"+mUser->name()+"/explore");
-	}
+	Interface::Instance->remove("/"+mUser->name()+"/files");
+	Interface::Instance->remove("/"+mUser->name()+"/myself/files");
+	Interface::Instance->remove("/"+mUser->name()+"/explore");
+	
+	Scheduler::Global->remove(this);
 }
 
 User *Indexer::user(void) const
@@ -533,6 +536,26 @@ void Indexer::notify(const String &path, const Resource &resource, const Time &t
 	statement.bind(3, resource.digest());
 	statement.bind(4, time);
 	statement.execute();
+}
+
+bool Indexer::anounce(const Identifier &peer, const String &path, BinaryString &target)
+{
+	Synchronize(this);
+	
+	// TODO: access rights, use peer
+	
+	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
+	statement.bind(1, path);
+	if(statement.step())
+	{
+		BinaryString digest;
+		statement.value(0, digest);
+		statement.finalize();
+		return true;
+	}
+	
+	statement.finalize();
+	return false;
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)

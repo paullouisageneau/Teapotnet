@@ -104,7 +104,7 @@ public:
 		void publish(const String &prefix);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const Identifier &peer, const String &prefix, BinaryString &target) = 0;
+		virtual bool anounce(const Identifier &peer, const String &path, BinaryString &target) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -113,13 +113,13 @@ public:
 	class Subscriber
 	{
 	public:
-		Subscriber(const Identifier &peer);
+		Subscriber(const Identifier &peer = Identifier::Null);
 		~Subscriber(void);
 		
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &prefix, const BinaryString &target) = 0;
+		virtual bool incoming(const String &path, const BinaryString &target) = 0;
 		
 	private:
 		Identifier mPeer;
@@ -148,9 +148,8 @@ public:
 		
 		void listen(const Identifier &peer);
 		
-		virtual void seen(void) = 0;
-		virtual bool notification(Stream &payload) = 0;
-		virtual bool query(const Store::Query &query, Set<Resource> &result) = 0;	// TODO: digests only ?
+		virtual void seen(const Identifier &peer) = 0;
+		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
 		
 	private:
 		Set<Identifier> mPeers;
@@ -182,14 +181,18 @@ public:
 	void unregisterListener(const Identifier &id, Listener *listener);
 	
 	// Publish/Subscribe
-	void publish(const String &prefix, Publisher *publisher);
-	void unpublish(const String &prefix, Publisher *publisher);
+	void publish(String prefix, Publisher *publisher);
+	void unpublish(String prefix, Publisher *publisher);
 	bool subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	bool unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	
+	// Notification
+	void broadcast(const Notification &notification);
+	bool send(const Identifier &peer, const Notification &notification);
+	
 	// Routing
-	void route(Message &message, const Identifier &from);
-	void broadcast(Message &message, const Identifier &from);
+	void route(Message &message, const Identifier &from = Identifier::Null);
+	void broadcast(Message &message, const Identifier &from = Identifier::Null);
 	bool send(Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
@@ -201,7 +204,7 @@ public:
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
 private:
-	class Backend : protected Thread
+	class Backend : public Thread
 	{
 	public:
 		Backend(Core *core);
@@ -209,6 +212,8 @@ private:
 		
 		virtual SecureTransport *connect(const Locator &locator) = 0;
 		virtual SecureTransport *listen(void) = 0;
+		
+		virtual void getAddresses(Set<Address> &set) const {}
 		
 	protected:
 		void addIncoming(Stream *stream);	// Push the new stream to the core
@@ -228,6 +233,8 @@ private:
 		SecureTransport *connect(const Address &addr);
 		SecureTransport *listen(void);
 		
+		void getAddresses(Set<Address> &set) const;
+		
 	private:
 		ServerSocket mSock;
 	};
@@ -241,6 +248,8 @@ private:
 		SecureTransport *connect(const Locator &locator);
 		SecureTransport *connect(const Address &addr);
 		SecureTransport *listen(void);
+		
+		void getAddresses(Set<Address> &set) const;
 		
 	private:
 		DatagramSocket mSock;
@@ -286,6 +295,9 @@ private:
 	public:
 		Handler(Core *core, Stream *stream);
 		~Handler(void);
+		
+		Identifier local(void) const;
+		Identifier remote(void) const;
 		
 		// Subscribe
 		void subscribe(const String &prefix, Subscriber *subscriber);
@@ -366,10 +378,8 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 
-	bool publishPrefix(const Identifier &peer, const String &prefix) const;
-	
 	String mName;
-	Scheduler mThreadPool;
+	ThreadPool mThreadPool;
 	Scheduler mScheduler;
 	
 	List<Backend*> mBackends;
@@ -380,11 +390,10 @@ private:
 	
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<BinaryString, Set<Caller*> > mCallers;
-	Map<BinaryString, Set<Listener*> > mListeners;
+	Map<Identifier, Set<Listener*> > mListeners;
 	
 	Map<Identifier, Identifier> mPeerings;
 	Map<Identifier, BinaryString> mSecrets;
-	Set<Listener*> mListeners;
 	
 	Time mLastPublicIncomingTime;
 	Map<Address, int> mKnownPublicAddresses;

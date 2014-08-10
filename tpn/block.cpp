@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/block.h"
+#include "tpn/store.h"
 
 namespace tpn
 {
@@ -31,7 +32,7 @@ bool Block::ProcessFile(File &file, BinaryString &digest)
 	
 	if(size)
 	{
-		Store::NotifyBlock(digest, file.name(), offset);
+		Store::Instance->notifyBlock(digest, file.name(), offset, size);
 		return true;
 	}
 	
@@ -91,7 +92,7 @@ Block::Block(const String &filename, int64_t offset, int64_t size)
 	mOffset = offset;
 	
 	mFile->seekRead(mOffset);
-	mSize = Sha512().compute(mFile, size, mDigest);	// TODO
+	mSize = Sha512().compute(*mFile, size, mDigest);	// TODO
 
 	mFile->seekRead(mOffset);
 	notifyStore();
@@ -159,22 +160,26 @@ Block &Block::operator = (const Block &block)
 	mDigest = block.mDigest;
 	mOffset = block.mOffset;
 	mSize = block.mSize;
-	mFile = new File(block.mFile.name());
+	mFile = new File(block.mFile->name());
 }
 
 void Block::waitContent(void) const
 {
 	if(!mFile)
 	{
-		mFile = Store::Instance->waitBlock(mDigest);
+		Store::Instance->waitBlock(mDigest);
+		
+		mFile = Store::Instance->getBlock(mDigest, mSize);
+		if(!mFile) throw Exception("Unable to wait for block content");
+		
 		mOffset = mFile->tellRead();
 	}
 	else if(mFile->openMode() == File::Write)
 	{
 		Store::Instance->waitBlock(mDigest);
 		
-		mFile = Store::Instance->getBlock(mDigest, mSize);
-		if(!mFile) throw Exception("Unable to wait for block content");
+		File *source = Store::Instance->getBlock(mDigest, mSize);
+		if(!source) throw Exception("Unable to wait for block content");
 		
 		mFile->seekWrite(mOffset);
 		mFile->write(*source);

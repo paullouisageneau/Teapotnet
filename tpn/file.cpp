@@ -186,6 +186,11 @@ void File::close(void)
 	std::fstream::clear();	// clear state
 }
 
+OpenMode File::openMode(void) const
+{
+	return mOpenMode;  
+}
+
 void  File::reopen(OpenMode mode)
 {
 	close();

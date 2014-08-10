@@ -56,6 +56,7 @@ public:
 	virtual void open(const String &filename, OpenMode mode = Read);
 	virtual void close(void);
 	
+	OpenMode openMode(void) const;
 	void reopen(OpenMode mode);
 	
 	void seekRead(int64_t position);

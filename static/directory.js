@@ -43,10 +43,12 @@ function listDirectory(url, object, showButtons, privateMode) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
+	// Loop ajax call until 404
+	
 	$.ajax({
 		url: url,
 		dataType: 'json',
-		timeout: 30000
+		timeout: 300000
 	})
 	.done(function(data) {
 		$(object).html('');

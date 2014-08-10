@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/notification.h"
+#include "tpn/core.h"
 
 namespace tpn
 {
@@ -28,6 +29,12 @@ Notification::Notification(void) :
 	mTime(Time::Now())
 {
 
+}
+
+Notification::Notification(const String &content) :
+	mTime(Time::Now())
+{
+	insert("content", content);
 }
 
 Notification::~Notification(void)
@@ -40,11 +47,14 @@ Time Notification::time(void) const
 	return mTime; 
 }
 
-String Notification::content(const String &key) const
+String Notification::content(void) const
 {
-	String value;
-	mContent.get(key, value);
-	return value;
+	return getOrDefault("content", "");
+}
+
+bool Notification::send(const Identifier &destination) const
+{
+	return Core::Instance->send(destination, *this);
 }
 
 }
