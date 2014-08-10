@@ -26,27 +26,6 @@
 namespace tpn
 {
 
-// TODO
-int Resource::CreatePlaylist(const Set<Resource> &resources, Stream *output, String host)
-{
-	if(host.empty()) host = String("localhost:") + Config::Get("interface_port");
-	
-	int count = 0;
-	output->writeLine("#EXTM3U");
-	for(Set<Resource>::iterator it = resources.begin(); it != resources.end(); ++it)
-	{
-		const Resource &resource = *it;
-		if(resource.isDirectory() || resource.digest().empty()) continue;
-		if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
-		String link = "http://" + host + "/" + resource.digest().toString();
-		output->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
-		output->writeLine(link);
-		++count;
-	}
-	
-	return count;
-}
-
 Resource::Resource(void) :
 	mIndexBlock(NULL),
 	mIndexRecord(NULL)

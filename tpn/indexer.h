@@ -23,26 +23,24 @@
 #define TPN_INDEXER_H
 
 #include "tpn/include.h"
-#include "tpn/thread.h"
 #include "tpn/synchronizable.h"
 #include "tpn/serializable.h"
+#include "tpn/interface.h"
 #include "tpn/resource.h"
-#include "tpn/file.h"
+#include "tpn/database.h"
+#include "tpn/core.h"
+#include "tpn/task.h"
 #include "tpn/map.h"
 #include "tpn/set.h"
 #include "tpn/array.h"
 #include "tpn/list.h"
-#include "tpn/http.h"
-#include "tpn/interface.h"
-#include "tpn/mutex.h"
-#include "tpn/database.h"
 
 namespace tpn
 {
 
 class User;
   
-class Indexer : protected Synchronizable, public Task, public HttpInterfaceable
+class Indexer : protected Synchronizable, public Task, public Core::Publisher, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);
@@ -65,6 +63,10 @@ public:
 	bool get(const String &path, Resource &resource, Time *time = NULL);
 	void notify(const String &path, const Resource &resource, const Time &time);
 	
+	// Publisher
+	bool anounce(const Identifier &peer, const String &path, BinaryString &target);
+	
+	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 
 	class Query : public Serializable
@@ -114,6 +116,8 @@ private:
 	bool isHiddenPath(const String &path) const;
 	Resource::AccessLevel urlAccessLevel(const String &url) const;	// TODO
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
+	
+	// Task
 	void run(void);
 	
 	User *mUser;

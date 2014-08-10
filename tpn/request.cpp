@@ -25,15 +25,34 @@
 namespace tpn
 {
 
-Request::Request(void)
+Request::Request(const String &target) : Subscriber(peer)
+{  
+	mUrlPrefix = "/requests/" + String::random(32);
+	Interface::Instance->add(mUrlPrefix, this);
+	
+	subscribe(path);
+}
+
+Request::Request(const String &match)
 {
 	mUrlPrefix = "/requests/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
+	
+	if(!match.empty())
+	{
+		String m(match);
+		m.replace('/', ' ');
+		subscribe('/$match/'+m);
+	}
 }
 
 Request::~Request(void)
 {
 	Interface::Instance->remove(mUrlPrefix, this);
+	
+	// TODO: wait for http requests to finish
+	
+	// unsubscribe is automatic
 }
 
 String Request::urlPrefix(void) const
@@ -66,6 +85,11 @@ void Request::getResult(int i, Resource &resource) const
 	resource = mResults.at(i);
 }
 
+void Request::setAutoDelete(double timeout = 10.)
+{
+	// TODO
+}
+
 void Request::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
@@ -82,15 +106,62 @@ void Request::http(const String &prefix, Http::Request &request)
 		if(!wait(timeout))
 			break;
 	
-	Http::Response response(request, 200);
-	response.headers["Content-Type"] = "application/json";
-	response.send();
+	if(request.get.contains("playlist"))
+	{
+		// Playlist
+		
+		Http::Response response(request, 200);
+		response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+		response.headers["Content-Type"] = "audio/x-mpegurl";
+		response.send();
+					
+		String host;
+		request.headers.get("Host", host);
+		createPlaylist(response.sock, host);
+	}
+	else {
+		// JSON
+		
+		Http::Response response(request, 200);
+		response.headers["Content-Type"] = "application/json";
+		response.send();
+		
+		JsonSerializer json(response.sock);
+		json.outputArrayBegin();
+		for(int i = next; i < int(mResults.size()); ++i)
+			json.outputArrayElement(mResults[i]);
+		json.outputArrayEnd();
+	}
+}
+
+bool Request::incoming(const String &path, const BinaryString &target)
+{
+	Synchronize(this);
+  
+	// TODO: delegate to thread
+	Resource resource(target);
+	addResult(resource);
+	return true;
+}
+
+void Request::createPlaylist(Stream *output, String host)
+{
+	Synchronize(this);
+	Assert(output);
 	
-	JsonSerializer json(response.sock);
-	json.outputArrayBegin();
-	for(int i = next; i < int(mResults.size()); ++i)
-		json.outputArrayElement(mResults[i]);
-	json.outputArrayEnd();
+	if(host.empty()) 
+		host = String("localhost:") + Config::Get("interface_port");
+	
+	output->writeLine("#EXTM3U");
+	for(Set<Resource>::iterator it = mResults.begin(); it != mResults.end(); ++it)
+	{
+		const Resource &resource = *it;
+		if(resource.isDirectory() || resource.digest().empty()) continue;
+		if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
+		String link = "http://" + host + "/" + resource.digest().toString();
+		output->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
+		output->writeLine(link);
+	}
 }
 
 }

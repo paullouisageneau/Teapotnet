@@ -27,16 +27,17 @@
 #include "tpn/interface.h"
 #include "tpn/binarystring.h"
 #include "tpn/resource.h"
+#include "tpn/identifier.h"
 #include "tpn/core.h"
 
 namespace tpn
 {
 
-class Request : public Synchronizable, public HttpInterfaceable
+class Request :	protected Core::Subscriber, public Synchronizable, public HttpInterfaceable
 {
 public:
-	// TODO: contruct from Store::Query or URL
-	Request(void);
+	Request(const Identifier &peer, const String &path);
+	Request(const String &match);
 	~Request(void);
 
 	String urlPrefix(void) const;
@@ -44,12 +45,20 @@ public:
 	void addResult(const Resource &resource);
 	void getResult(int i, Resource &resource) const;
 	
+	void setAutoDelete(double timeout = 10.);
+	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
+protected:
+	void createPlaylist(Stream &output, String host = "");
+	
+	// Core::Subscriber
+	bool incoming(const String &path, const BinaryString &target);
+	
 private:
 	String mUrlPrefix;
-	Array<Resources> mResults;
+	Array<Resource> mResults;
 	Set<BinaryString> mDigests;
 };
 

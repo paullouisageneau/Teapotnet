@@ -65,8 +65,6 @@ public:
 	
 	// TODO: API to read directories
 	
-	static int CreatePlaylist(const Set<Resource> &resources, Stream *output, String host = "");
-	
 	Resource(void);
 	Resource(const Resource &resource);
 	Resource(const BinaryString &digest);

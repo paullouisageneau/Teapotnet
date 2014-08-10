@@ -44,6 +44,7 @@ public:
 	bool getAndRemove(const K &key, V &value) const;
 	const V &getOrDefault(const K &key, const V &defaultValue) const;
 	
+	int getKeys(Set<K> &set) const;
 	int getKeys(Array<K> &array) const;
 	int getValues(Array<V> &array) const;
 };
@@ -161,6 +162,21 @@ const V &Map<K,V>::getOrDefault(const K &key, const V &defaultValue) const
 	typename std::map<K,V>::const_iterator it = this->find(key);
 	if(it == this->end()) return defaultValue;
 	return it->second;
+}
+
+template<typename K, typename V>
+int Map<K,V>::getKeys(Set<K> &set) const
+{
+	set.clear();
+	set.reserve(this->size());
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+		it != this->end();
+		++it)
+	{
+		      set.insert(it->first);
+	}
+	
+	return set.size();
 }
 
 template<typename K, typename V>

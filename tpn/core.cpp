@@ -23,6 +23,7 @@
 #include "tpn/config.h"
 #include "tpn/scheduler.h"
 #include "tpn/binaryserializer.h"
+#include "tpn/jsonserializer.h"
 #include "tpn/crypto.h"
 #include "tpn/random.h"
 #include "tpn/securetransport.h"
@@ -37,7 +38,6 @@ Core *Core::Instance = NULL;
 
 Core::Core(int port) :
 		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
-		mLastRequest(0),
 		mLastPublicIncomingTime(0)
 {
 	// Define name
@@ -80,13 +80,13 @@ Core::Core(int port) :
 
 Core::~Core(void)
 {
-	// Delete backends
+	// Join and delete backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
 		++it)
 	{
 		Backend *backend = *it;
-		backend->wait();
+		backend->join();
 		delete backend;
 	}
 }
@@ -100,14 +100,30 @@ String Core::getName(void) const
 void Core::getAddresses(List<Address> &list) const
 {
 	Synchronize(this);
-	mSock.getLocalAddresses(list);
+	
+	Set<Address> set;
+	for(List<Backend*>::const_iterator it = mBackends.begin();
+		it != mBackends.end();
+		++it)
+	{
+		const Backend *backend = *it;
+		backend->getAddresses(set);
+	}
+	
+	list.clear();
+	for(Set<Address>::const_iterator it = set.begin();
+		it != set.end();
+		++it)
+	{
+	      list.push_back(*it);
+	}
 }
 
 void Core::getKnownPublicAdresses(List<Address> &list) const
 {
 	Synchronize(this);
 	list.clear();
-	for(	Map<Address, int>::const_iterator it = mKnownPublicAddresses.begin();
+	for(Map<Address, int>::const_iterator it = mKnownPublicAddresses.begin();
 		it != mKnownPublicAddresses.end();
 		++it)
 	{
@@ -169,26 +185,26 @@ void Core::unregisterAllCallers(const BinaryString &target)
 	mCallers.erase(target);
 }
 
-void Core::registerListener(const BinaryString &id, Listener *listener)
+void Core::registerListener(const Identifier &id, Listener *listener)
 {
 	Synchronize(this);
-	mCallers[id].insert(listener);
+	mListeners[id].insert(listener);
 }
 
-void Core::unregisterListener(const BinaryString &id, Listener *listener)
+void Core::unregisterListener(const Identifier &id, Listener *listener)
 {
 	Synchronize(this);
 	
-	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(id);
-	if(it != mCallers.end())
+	Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
+	if(it != mListeners.end())
 	{
 		it->second.erase(listener);
 		if(it->second.empty())   
-			mCallers.erase(it);
+			mListeners.erase(it);
 	}
 }
 
-void Core::publish(const String &prefix, Publisher *publisher)
+void Core::publish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
 	
@@ -198,7 +214,7 @@ void Core::publish(const String &prefix, Publisher *publisher)
 	mPublishers[prefix].insert(publisher);
 }
 
-void Core::unpublish(const String &prefix, Publisher *publisher)
+void Core::unpublish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
 	
@@ -218,14 +234,33 @@ bool Core::subscribe(const Identifier &peer, const String &prefix, Subscriber *s
 {
 	Synchronize(this);
 	
-	// TODO: connect if Handler doesn't exist
-	
-	Handler *handler;
-	if(mHandlers.get(peer, handler))
+	if(peer == Identifier::Null)
 	{
-		Desynchronize(this);
-		handler->subscribe(prefix, subscriber);
+		Array<Identifier> identifiers;
+		mHandlers.getKeys(identifiers);
+		
+		for(int i=0; i<identifiers.size(); ++i)
+		{
+			Handler *handler;
+			if(mHandlers.get(identifiers[i], handler))
+			{
+				Desynchronize(this);
+				handler->subscribe(prefix, subscriber);
+			}
+		}
+		
 		return true;
+	}
+	else {
+		// TODO: connect if Handler doesn't exist
+		
+		Handler *handler;
+		if(mHandlers.get(peer, handler))
+		{
+			Desynchronize(this);
+			handler->subscribe(prefix, subscriber);
+			return true;
+		}
 	}
 	
 	return false;
@@ -235,11 +270,72 @@ bool Core::unsubscribe(const Identifier &peer, const String &prefix, Subscriber 
 {
 	Synchronize(this);
 	
+	if(peer == Identifier::Null)
+	{
+		Array<Identifier> identifiers;
+		mHandlers.getKeys(identifiers);
+		
+		for(int i=0; i<identifiers.size(); ++i)
+		{
+			Handler *handler;
+			if(mHandlers.get(identifiers[i], handler))
+			{
+				Desynchronize(this);
+				handler->unsubscribe(prefix, subscriber);
+			}
+		}
+		
+		return true;
+	}
+	else {
+		Handler *handler;
+		if(mHandlers.get(peer, handler))
+		{
+			Desynchronize(this);
+			handler->unsubscribe(prefix, subscriber);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void Core::broadcast(const Notification &notification)
+{
+	Synchronize(this);
+	
+	String payload;
+	JsonSerializer serializer(&payload);
+	serializer.output(notification);
+	
+	Array<Identifier> identifiers;
+	mHandlers.getKeys(identifiers);
+	
+	for(int i=0; i<identifiers.size(); ++i)
+	{
+		Handler *handler;
+		if(mHandlers.get(identifiers[i], handler))
+		{
+			Desynchronize(this);
+			handler->outgoing(handler->remote(), Message::Notify, String(payload));
+		}
+	}
+}
+
+bool Core::send(const Identifier &peer, const Notification &notification)
+{
+	Synchronize(this);
+	
 	Handler *handler;
 	if(mHandlers.get(peer, handler))
 	{
 		Desynchronize(this);
-		handler->unsubscribe(prefix, subscriber);
+ 
+		String payload;
+		JsonSerializer serializer(&payload);
+		serializer.output(notification);
+		
+		handler->outgoing(peer, Message::Notify, payload);
 		return true;
 	}
 	
@@ -273,7 +369,7 @@ void Core::broadcast(Message &message, const Identifier &from)
 	
 	for(int i=0; i<identifiers.size(); ++i)
 	{
-		if(identifier == from) continue;
+		if(identifiers[i] == from) continue;
 		
 		Handler *handler;
 		if(mHandlers.get(identifiers[i], handler))
@@ -287,6 +383,12 @@ void Core::broadcast(Message &message, const Identifier &from)
 bool Core::send(Message &message, const Identifier &to)
 {
 	Synchronize(this);
+	
+	if(to == Identifier::Null)
+	{
+		broadcast(message);
+		return true;
+	}
 	
 	Handler *handler;
 	if(mHandlers.get(to, handler))
@@ -473,34 +575,6 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	
 	mHandlers.erase(peer);
 	return true;
-}
-
-bool Core::publishPrefix(const Identifier &peer, const String &prefix)
-{
-	BinaryString response;
-	response.writeBinary(path);
-  
-	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
-	if(it != mPublishers.end())
-	{
-		bool written = false;
-		for(Set<Publisher*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
-		{
-			BinaryString target;
-			if(jt->anounce(peer, prefix, target))
-			{
-				response.writeBinary(target);
-				written = true;
-			}
-		}
-		
-		if(written) outgoing(peer, Message::Publish, response);
-		return true;
-	}
-	
-	return false;
 }
 
 Core::Message::Message(void) :
@@ -994,6 +1068,18 @@ Core::Handler::~Handler(void)
 	delete mStream;
 }
 
+Identifier Core::Handler::local(void) const
+{
+	Synchronize(this);
+	return mLocal;
+}
+
+Identifier Core::Handler::remote(void) const
+{
+	Synchronize(this);
+	return mRemote;
+}
+
 void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
@@ -1170,13 +1256,34 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 								jt != it->second.end();
 								++jt)
 							{
-								jt->incoming(prefix, target);
+								jt->incoming(path, target);
 							}
 						}
 					}
 				}
-				else {
-					publishPrefix(source, prefix);
+				else {	// content == Message::Subscribe
+					
+					BinaryString response;
+					response.writeBinary(path);
+					
+					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+					if(it != mPublishers.end())
+					{
+						bool written = false;
+						for(Set<Publisher*>::iterator jt = it->second.begin();
+							jt != it->second.end();
+							++jt)
+						{
+							BinaryString target;
+							if(jt->anounce(peer, path, target))
+							{
+								response.writeBinary(target);
+								written = true;
+							}
+						}
+						
+						if(written) outgoing(source, Message::Publish, response);
+					}
 				}
 				
 				if(list.empty()) break;

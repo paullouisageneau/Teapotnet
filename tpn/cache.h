@@ -23,6 +23,7 @@
 #define TPN_CACHE_H
 
 #include "tpn/include.h"
+#include "tpn/string.h"
 #include "tpn/block.h"
 #include "tpn/synchronizable.h"
 

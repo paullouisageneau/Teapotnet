@@ -26,23 +26,26 @@
 #include "tpn/string.h"
 #include "tpn/map.h"
 #include "tpn/time.h"
+#include "tpn/identifier.h"
 
 namespace tpn
 {
 
 
-class Notification
+class Notification : public StringMap
 {
 public:
 	Notification(void);
+	Notification(const String &content);
 	~Notification(void);
 	
 	Time time(void) const;
-	String content(const String &key) const;
+	String content(void) const;
+	
+	bool send(const Identifier &destination) const;
 	
 private:
 	Time mTime;
-	StringMap mContent;
 };
 
 }

@@ -58,7 +58,7 @@ public:
 	void save(Stream &stream) const;
 	void save(void) const;
 	
-	void sendContacts(const Identifier &peering) const;
+	void sendContacts(const Identifier &peer) const;
 	void sendContacts(void) const;
 	
 	void update(void);
@@ -70,7 +70,7 @@ public:
 	typedef SerializableMap<Address, Time> AddressBlock;
 	typedef SerializableMap<String, AddressBlock> AddressMap;
 	
-	class Contact : public Serializable, public HttpInterfaceable, public Task
+	class Contact : public Serializable, public Core::Listener, public HttpInterfaceable, public Task
 	{
 	public:
 	  	Contact(	AddressBook *addressBook,
@@ -84,10 +84,10 @@ public:
 		String uniqueName(void) const;
 		String name(void) const;
 		String tracker(void) const;
-		Identifier peering(void) const;
+		Identifier peer(void) const;
 		Identifier remotePeering(void) const;
 		Time time(void) const;
-		uint32_t peeringChecksum(void) const;
+		uint32_t peerChecksum(void) const;
 		String urlPrefix(void) const;
 		
 		Profile *profile(void) const;
@@ -112,15 +112,20 @@ public:
 		void update(bool alternate = false);
 		void createProfile(void);
 		
-		void connected(const Identifier &peering, bool incoming);
-		void disconnected(const Identifier &peering);
-		bool notification(const Identifier &peering, Notification *notification);
-		bool request(const Identifier &peering, Request *request);
+		// TODO
+		void connected(const Identifier &peer, bool incoming);
+		void disconnected(const Identifier &peer);
+		
 		bool send(const Notification &notification);
 		bool send(const Mail &mail);
-		
-		void http(const String &prefix, Http::Request &request);
 		void copy(const Contact *contact);
+		
+		// Core::Listener
+		void seen(const Identifier &peer);
+		bool recv(const Identifier &peer, const Notification &notification);
+		
+		// HttpInterfaceable
+		void http(const String &prefix, Http::Request &request);
 		
 		// Serializable
 		void serialize(Serializer &s) const;
@@ -132,10 +137,10 @@ public:
 		void run(void);
 		
 		MailQueue::Selection selectMails(bool privateOnly = false) const;
-		void sendMails(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count) const;
-		void sendMailsChecksum(const Identifier &peering, const MailQueue::Selection &selection, int offset, int count, bool recursion) const;
-		void sendUnread(const Identifier &peering) const;
-		void sendPassed(const Identifier &peering) const;
+		void sendMails(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count) const;
+		void sendMailsChecksum(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count, bool recursion) const;
+		void sendUnread(const Identifier &peer) const;
+		void sendPassed(const Identifier &peer) const;
 		
 	  	AddressBook *mAddressBook;
 		String mUniqueName, mName, mTracker;
@@ -153,9 +158,9 @@ public:
 	};
 	
 	Identifier addContact(String name, const String &secret);
-	void removeContact(const Identifier &peering);
-	Contact *getContact(const Identifier &peering);
-	const Contact *getContact(const Identifier &peering) const;
+	void removeContact(const Identifier &peer);
+	Contact *getContact(const Identifier &peer);
+	const Contact *getContact(const Identifier &peer) const;
 	Contact *getContactByUniqueName(const String &uname);
 	const Contact *getContactByUniqueName(const String &uname) const;
 	void getContacts(Array<Contact *> &array);
@@ -173,7 +178,7 @@ private:
 	void registerContact(Contact *contact, int ordinal = 0);
 	void unregisterContact(Contact *contact);
 	bool publish(const Identifier &remotePeering);
-	bool query(const Identifier &peering, const String &tracker, AddressMap &output, bool alternate = false);	
+	bool query(const Identifier &peer, const String &tracker, AddressMap &output, bool alternate = false);	
 	
 	User *mUser;
 	String mUserName;

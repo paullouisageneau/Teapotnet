@@ -69,9 +69,10 @@ private:
 	void notifyStore(void) const;
   
 	BinaryString mDigest;
-	File *mFile;
-	int64_t mOffset;
-	int64_t mSize;
+	
+	mutable File *mFile;
+	mutable int64_t mOffset;
+	mutable int64_t mSize;
 };
 
 }
