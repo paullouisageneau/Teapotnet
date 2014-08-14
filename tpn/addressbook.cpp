@@ -1137,7 +1137,7 @@ bool AddressBook::Contact::connectAddress(const Address &addr, const String &ins
 			if(bs) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
 		}
 
-		if(!bs || !Core::Instance->addPeer(bs, addr, peer))
+		if(!bs || !Core::Instance->addPeer(bs, peer))
 		{
 			// HTTP tunnel unable to connect, no HTTP tunnel or failure using HTTP tunnel
 			return false;
