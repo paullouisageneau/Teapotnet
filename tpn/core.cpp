@@ -317,7 +317,8 @@ void Core::broadcast(const Notification &notification)
 		if(mHandlers.get(identifiers[i], handler))
 		{
 			Desynchronize(this);
-			handler->outgoing(handler->remote(), Message::Notify, String(payload));
+			String tmp(payload);
+			handler->outgoing(handler->remote(), Message::Notify, tmp);
 		}
 	}
 }
@@ -401,25 +402,27 @@ bool Core::send(Message &message, const Identifier &to)
 	return false;
 }
 
-bool Core::addRoute(const Identifier &id, const Identifier &route)
+void Core::addRoute(const Identifier &id, const Identifier &route)
 {
 	Synchronize(this);
 	
 	bool isNew = !mRoutes.contains(id);
 	mRoutes.insert(id, route);
 	
-	if(isNew) 
+	if(isNew)
 	{
 		// New node is seen
-		for(Set<Listener*>::iterator = mListeners.begin();
-			it != mListeners.end();
-			++it)
+		Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
+		if(it != mListeners.end())
 		{
-			it->seen(id); 
+			for(Set<Listener*>::iterator jt = it->second.begin();
+				jt != it->second.end();
+				++jt)
+			{
+				(*jt)->seen(id); 
+			}
 		}
 	}
-	
-	return true;
 }
 
 bool Core::getRoute(const Identifier &id, Identifier &route)
@@ -432,39 +435,24 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 	return true;
 }
 
-bool Core::addPeer(Socket *sock, const Identifier &id)
+bool Core::addPeer(Stream *bs, const Identifier &id)
 {
-	Assert(sock);
-	Synchronize(this);
-	
-	return addPeer(sock, sock->getRemoteAddress(), id);
-}
-
-bool Core::addPeer(Stream *bs, const Address &remoteAddr, const Identifier &id)
-{
+	// Not synchronized
 	Assert(bs);
-	Synchronize(this);
-	
-	bool hasPeering = (peering != Identifier::Null);
 
-	if(hasPeering && !mPeerings.contains(peering))
-		throw Exception("Added peer with unknown peering");
-	
-	{
-		Desynchronize(this);
-		//LogDebug("Core", "Spawning new handler");
-		Handler *handler = new Handler(this, bs, remoteAddr);
-		if(hasPeering) handler->setPeering(peering);
-		mThreadPool.launch(handler);
-	}
+	LogDebug("Core", "Spawning new handler");
+	Handler *handler = new Handler(this, bs);
+	// TODO
+	//if(id != Identifier::Null) handler->setRemote(id);
+	mThreadPool.launch(handler);
 	
 	return true;
 }
 
-bool Core::hasPeer(const Identifier &peering)
+bool Core::hasPeer(const Identifier &id)
 {
 	Synchronize(this);
-	return mHandlers.contains(peering);
+	return mHandlers.contains(id);
 }
 
 bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
@@ -485,6 +473,7 @@ bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
 	return true;
 }
 
+/*
 void Core::run(void)
 {
 	LogDebug("Core", "Starting...");
@@ -550,6 +539,7 @@ void Core::run(void)
 	
 	LogDebug("Core", "Finished");
 }
+*/
 
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
@@ -578,7 +568,7 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 }
 
 Core::Message::Message(void) :
-	data(1024)
+	payload(1024 + 32)
 {
 	
 }
@@ -592,14 +582,14 @@ void Core::Message::prepare(const Identifier &source, const Identifier &destinat
 {
 	this->source = source;
 	this->destination = destination;
-	data.clear();
+	payload.clear();
 }
 
 void Core::Message::clear(void)
 {
 	source.clear();
 	destination.clear();
-	data.clear();
+	payload.clear();
 }
 
 void Core::Message::serialize(Serializer &s) const
@@ -607,7 +597,7 @@ void Core::Message::serialize(Serializer &s) const
 	// TODO
 	s.output(source);
 	s.output(destination);
-	s.output(data);
+	s.output(payload);
 }
 
 bool Core::Message::deserialize(Serializer &s)
@@ -615,7 +605,7 @@ bool Core::Message::deserialize(Serializer &s)
 	// TODO
 	if(!s.input(source)) return false;
 	AssertIO(s.input(destination));
-	AssertIO(s.input(data));
+	AssertIO(s.input(payload));
 }
 
 Core::Locator::Locator(const Identifier &id)
@@ -650,19 +640,19 @@ Core::Publisher::~Publisher(void)
 
 void Core::Publisher::publish(const String &prefix)
 {
-	if(!mPublishedPrefixes.contains(path))
+	if(!mPublishedPrefixes.contains(prefix))
 	{
-		Core::Instance->publish(path, this);
-		mPublishedPrefixes.insert(path);
+		Core::Instance->publish(prefix, this);
+		mPublishedPrefixes.insert(prefix);
 	}
 }
 
 void Core::Publisher::unpublish(const String &prefix)
 {
-	if(mPublishedPrefixes.contains(path))
+	if(mPublishedPrefixes.contains(prefix))
 	{
-		Core::Instance->unpublish(path, this);
-		mPublishedPrefixes.erase(path);
+		Core::Instance->unpublish(prefix, this);
+		mPublishedPrefixes.erase(prefix);
 	}
 }
 
@@ -684,39 +674,39 @@ Core::Subscriber::~Subscriber(void)
 
 void Core::Subscriber::subscribe(const String &prefix)
 {
-	if(!mSubscribedPrefixes.contains(path))
+	if(!mSubscribedPrefixes.contains(prefix))
 	{
-		Core::Instance->subscribe(mPeer, path, this);
-		mSubscribedPrefixes.insert(path);
+		Core::Instance->subscribe(mPeer, prefix, this);
+		mSubscribedPrefixes.insert(prefix);
 	}
 }
 
 void Core::Subscriber::unsubscribe(const String &prefix)
 {
-	if(mSubscribedPrefixes.contains(path))
+	if(mSubscribedPrefixes.contains(prefix))
 	{
-		Core::Instance->unsubscribe(path, this);
-		mSubscribedPrefixes.erase(path);
+		Core::Instance->unsubscribe(mPeer, prefix, this);
+		mSubscribedPrefixes.erase(prefix);
 	}
 }
 
-Caller::Caller(void)
+Core::Caller::Caller(void)
 {
 	
 }
 
-Caller::Caller(const BinaryString &target)
+Core::Caller::Caller(const BinaryString &target)
 {
 	Assert(!target.empty());
 	startCalling(target);
 }
 
-Caller::~Caller(void)
+Core::Caller::~Caller(void)
 {
 	stopCalling();
 }
 	
-void Caller::startCalling(const BinaryString &target)
+void Core::Caller::startCalling(const BinaryString &target)
 {
 	if(target != mTarget)
 	{
@@ -727,7 +717,7 @@ void Caller::startCalling(const BinaryString &target)
 	}
 }
 
-void Caller::stopCalling(void)
+void Core::Caller::stopCalling(void)
 {
 	if(!mTarget.empty())
 	{
@@ -768,10 +758,9 @@ Core::Backend::~Backend(void)
 	
 }
 
-void Core::Backend::addIncoming(Stream *stream)
+void Core::Backend::addIncoming(Stream *stream, const Identifier &id)
 {
-	// TODO
-	mCore->addPeer(stream);
+	mCore->addPeer(stream, id);
 }
 
 void Core::Backend::run(void)
@@ -914,7 +903,8 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr)
 {
 	Socket *sock = new Socket(addr);
 	try {
-		SecureTransport *transport = new SecureTransportClient(sock, NULL, false);			// stream mode
+		// TODO: credentials
+		SecureTransport *transport = new SecureTransportClient(sock, NULL, false);	// stream mode
 		addIncoming(transport);
 	}
 	catch(...)
@@ -964,7 +954,7 @@ SecureTransport *Core::DatagramBackend::connect(const Address &addr)
 {
 	DatagramStream *stream = new DatagramStream(&mSock, addr);
 	try {
-		SecureTransport *transport = new SecureTransportClient(stream, NULL, true);		// datagram mode
+		SecureTransport *transport = new SecureTransportClient(stream, NULL, true);	// datagram mode
 		return transport;
 	}
 	catch(...)

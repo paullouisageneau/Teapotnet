@@ -176,7 +176,7 @@ public:
                 gnutls_psk_server_credentials_t mCreds;
         };	
 
-	// These functions are preferred, especially for datagrams (protection agains DoS)
+	// These functions are preferred, especially for datagrams (protection against DoS)
 	static SecureTransport *Listen(ServerSocket &sock);
 	static SecureTransport *Listen(DatagramSocket &sock);
 	

@@ -62,6 +62,10 @@ public:
 	// Routing-level message structure
 	struct Message : public Serializable
 	{
+		static const uint8_t Empty = 0;
+		static const uint8_t Tunnel = 1;
+		static const uint8_t Notify = 2;
+	
 		Message(void);
 		~Message(void);
 		
@@ -80,9 +84,7 @@ public:
 		
 		Identifier source;		// 32 B
 		Identifier destination;		// 32 B
-		
-		ByteArray descriptor;		// max 256 B
-		ByteArray payload;		// max 1 KB TODO
+		ByteArray payload;		// 32 B + 1 KB
 	};
 
 	struct Locator
@@ -197,10 +199,8 @@ public:
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
-	// TODO
-	bool addPeer(Socket *sock, const Identifier &id);
-	bool addPeer(Stream *bs, const Address &remoteAddr, const Identifier &id);
-	bool hasPeer(const Identifier &peering);
+	bool addPeer(Stream *bs, const Identifier &id);
+	bool hasPeer(const Identifier &id);
 	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
 private:
@@ -216,7 +216,7 @@ private:
 		virtual void getAddresses(Set<Address> &set) const {}
 		
 	protected:
-		void addIncoming(Stream *stream);	// Push the new stream to the core
+		void addIncoming(Stream *stream, const Identifier &id);	// Push the new stream to the core
 		void run(void);
 		
 		Core *mCore;
@@ -373,6 +373,8 @@ private:
 		bool mIsIncoming;
 		bool mIsAnonymous;
 		bool mStopping;
+		
+		friend class Core;
 	};
 
 	bool addHandler(const Identifier &peer, Handler *Handler);
