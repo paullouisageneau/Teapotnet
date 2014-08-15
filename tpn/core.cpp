@@ -63,9 +63,9 @@ Core::Core(int port) :
 	}
 	
 	// Create backends
-	mTunnelBackend = new TunnelBackend();
-	mBackends.push_back(new StreamBackend(port));
-	mBackends.push_back(new DatagramBackend(port));
+	mTunnelBackend = new TunnelBackend(this);
+	mBackends.push_back(new StreamBackend(this, port));
+	mBackends.push_back(new DatagramBackend(this, port));
 	mBackends.push_back(mTunnelBackend);
 	
 	// Start backends
@@ -608,14 +608,16 @@ bool Core::Message::deserialize(Serializer &s)
 	AssertIO(s.input(payload));
 }
 
-Core::Locator::Locator(const Identifier &id)
+Core::Locator::Locator(User *user, const Identifier &id)
 {
-	identifier = id;
+	this->user = user;
+	this->identifier = id;
 }
 
-Core::Locator::Locator(const Address &addr)
+Core::Locator::Locator(User *user, const Address &addr)
 {
-	addresses.push_back(addr);
+	this->user = user;
+	this->addresses.push_back(addr);
 }
 
 Core::Locator::~Locator(void)
@@ -758,17 +760,33 @@ Core::Backend::~Backend(void)
 	
 }
 
-void Core::Backend::addIncoming(Stream *stream, const Identifier &id)
+void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
-	mCore->addPeer(stream, id);
+	if(!locator.peering.empty())
+	{
+		// Add contact private shared key
+		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
+		if(creds) transport->addCredentials(creds, true);	// must delete
+	}
+	else if(locator.user)
+	{
+		// Add user certificate
+		SecureTransportClient::Certificate *cert = locator.user->getCertificate();
+		if(cert) transport->addCredentials(cert, false);
+	}
+	else {
+		// Add anonymous credentials
+		transport->addCredentials(&mAnonymousClientCreds);
+	}
+	
+	doHandshake(transport, locator.identifier);
 }
 
-void Core::Backend::run(void)
+void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &remote)
 {
-	class MyVerifier : public SecureTransportServer::Verifier
+	class MyVerifier : public SecureTransport::Verifier
 	{
 	public:
-		Core *core;
 		User *user;
 		BinaryString peering;
 		BinaryString identifier;
@@ -781,13 +799,13 @@ void Core::Backend::run(void)
 			user = User::Get(name);
 			if(user)
 			{
-				SecureTransport::Credentials *creds = getCertificateCredentials(user);
+				SecureTransport::Credentials *creds = user->getCertificate();
 				if(creds) transport->addCredentials(creds);
 			}
 			
 			return true;	// continue handshake anyway
 		}
-	
+		
 		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
 		{
 			try {
@@ -818,50 +836,90 @@ void Core::Backend::run(void)
 			publicKey = pub;
 			identifier = publicKey.digest();
 		}
+		
+	private:
+		Core *core;
 	};
 	
+	class HandshakeTask : public Task
+	{
+	public:
+		HandshakeTask(Core *core, SecureTransport *transport, const Identifier &remote)
+		{ 
+			this->core = core;
+			this->transport = transport;
+			this->remote = remote;
+		}
+	  
+		void run(void)
+		{
+			try {
+				// Set verifier
+				MyVerifier verifier(core);
+				transport->setVerifier(&verifier);
+				
+				// Do handshake
+				transport->handshake();
+				
+				// Check identifier
+				if(!remote.empty() && verifier.identifier != remote)
+					throw Exception("invalid identifier");
+				
+				// Handshake succeeded, add peer
+				core->addPeer(transport, verifier.identifier);
+			}
+			catch(const std::exception &e)
+			{
+				LogInfo("Core::Backend::HandshakeTask", String("Handshake failed: ") + e.what());
+				delete transport;
+			}
+
+			delete this;	// autodelete
+		}
+		
+	private:
+		Core *core;
+		SecureTransport *transport;
+		Identifier remote;
+	};
+	
+	HandshakeTask *task = NULL;
+	try {
+		task = new HandshakeTask(mCore, transport, remote);
+		mThreadPool.launch(task);
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Backend::doHandshake", e.what());
+		delete task;
+		delete transport;
+	}
+}
+
+void Core::Backend::run(void)
+{
 	try {
 		while(true)
 		{
 			SecureTransport *transport = listen();
 			if(!transport) break;
 			
-			class HandshakeTask : public Task
+			if(!transport->isHandshakeDone())
 			{
-			public:
-				HandshakeTask(Core *core) { this->core = core; }
-			  
-				void run(void)
-				{
-					try {
-						// set verifier
-						MyVerifier verifier(core);
-						transport->setVerifier(&verifier);
-						
-						// set credentials (certificate added on name verification)
-						transport->addCredentials(getAnonymousCredentials());
-						transport->addCredentials(getPrivateSharedKeyCredentials());
-						
-						// do handshake
-						transport->handshake();
-						
-						// handshake succeeded, add peer
-						core->addPeer(transport, verifier.identifier);
-					}
-					catch(const std::exception &e)
-					{
-						LogInfo("Core::Backend::run", String("Handshake failed: ") + e.what());
-					}
-	
-					delete this;	// autodelete
-				}
+				try {
+					// Add server credentials (certificate added on name verification)
+					transport->addCredentials(&mAnonymousServerCreds, false);
+					transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
 				
-			private:
-				Core *core;
-			};
-			
-			HandshakeTask *task = new HandshakeTask(mCore);
-			mThreadPool.launch(task);
+					// No remote identifier specified, accept any identifier
+					doHandshake(transport, Identifier::Null);	// async
+				}
+				catch(...)	// should not happen
+				{
+					delete transport;
+					throw;
+				}
+			}
 		}
 	}
 	catch(const std::exception &e)
@@ -872,7 +930,8 @@ void Core::Backend::run(void)
 	LogWarn("Core::Backend::run", "Closing backend");
 }
 
-Core::StreamBackend::StreamBackend(int port) :
+Core::StreamBackend::StreamBackend(Core *core, int port) :
+	Backend(core),
 	mSock(port)
 {
 
@@ -885,12 +944,12 @@ Core::StreamBackend::~StreamBackend(void)
 
 SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 {
-	for(List<Address>::iterator it = locator.addresses.begin();
+	for(List<Address>::const_iterator it = locator.addresses.begin();
 		it != locator.addresses.end();
 		++it)
 	{
 		try {
-			return connect(*it);
+			return connect(*it, locator);
 		}
 		catch(const NetException &e)
 		{
@@ -899,17 +958,27 @@ SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 	}
 }
 
-SecureTransport *Core::StreamBackend::connect(const Address &addr)
+SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator &locator)
 {
-	Socket *sock = new Socket(addr);
+	Socket *sock = NULL;
+	SecureTransport *transport = NULL;
+	
 	try {
-		// TODO: credentials
-		SecureTransport *transport = new SecureTransportClient(sock, NULL, false);	// stream mode
-		addIncoming(transport);
+		sock = new Socket(addr);
+		transport = new SecureTransportClient(sock, NULL, false);	// stream mode
 	}
 	catch(...)
 	{
 		delete sock;
+		throw;
+	}
+	
+	try {
+		process(transport, locator);
+	}
+	catch(...)
+	{
+		delete transport;
 		throw;
 	}
 }
@@ -918,12 +987,13 @@ SecureTransport *Core::StreamBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = new SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
 }
 
-Core::DatagramBackend::DatagramBackend(int port) :
+Core::DatagramBackend::DatagramBackend(Core *core, int port) :
+	Backend(core),
 	mSock(port)
 {
 	
@@ -936,12 +1006,12 @@ Core::DatagramBackend::~DatagramBackend(void)
 
 SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 {
-	for(List<Address>::iterator it = locator.addresses.begin();
+	for(List<Address>::const_iterator it = locator.addresses.begin();
 		it != locator.addresses.end();
 		++it)
 	{
 		try {
-			return connect(*it);
+			return connect(*it, locator);
 		}
 		catch(const NetException &e)
 		{
@@ -950,16 +1020,26 @@ SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 	}
 }
 
-SecureTransport *Core::DatagramBackend::connect(const Address &addr)
+SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
 {
-	DatagramStream *stream = new DatagramStream(&mSock, addr);
+	DatagramStream *stream = NULL;
+	SecureTransport *transport = NULL;
 	try {
-		SecureTransport *transport = new SecureTransportClient(stream, NULL, true);	// datagram mode
-		return transport;
+		stream = new DatagramStream(&mSock, addr);
+		transport = new SecureTransportClient(stream, NULL, true);	// datagram mode
 	}
 	catch(...)
 	{
 		delete stream;
+		throw;
+	}
+	
+	try {
+		process(transport, locator);
+	}
+	catch(...)
+	{
+		delete transport;
 		throw;
 	}
 }
@@ -968,22 +1048,23 @@ SecureTransport *Core::DatagramBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = new SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
 }
 
-TunnelBackend::TunnelBackend(void)
+Core::TunnelBackend::TunnelBackend(Core *core) :
+	Backend(core)
 {
 
 }
 
-TunnelBackend::~TunnelBackend(void)
+Core::TunnelBackend::~TunnelBackend(void)
 {
 	
 }
 
-SecureTransport *TunnelBackend::connect(const Locator &locator)
+SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 {
 	Identifier remote = locator.identifier;
 	Identifier local = Identifier::Random();
@@ -1000,22 +1081,31 @@ SecureTransport *TunnelBackend::connect(const Locator &locator)
 		throw;
 	}
 	
+	try {
+		process(transport, locator);
+	}
+	catch(...)
+	{
+		delete transport;
+		throw;
+	}
+	
 	return transport;
 }
 
-SecureTransport *TunnelBackend::listen(void)
+SecureTransport *Core::TunnelBackend::listen(void)
 {
-	Synchronizable(&mQueueSync);
+	Synchronize(&mQueueSync);
 	while(mQueue.empty()) mQueueSync.wait();
 	
 	Message &message = mQueue.front();
-	Assert(message.type() == Message::Tunnel);
+	Assert(message.type == Message::Tunnel);
 	
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(message.destination, message.source);
-		transport = new SecureTransportServer(sock, NULL, true);	// datagram mode
+		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
 	}
 	catch(...)
 	{
@@ -1030,9 +1120,9 @@ SecureTransport *TunnelBackend::listen(void)
 
 bool Core::TunnelBackend::incoming(Message &message)
 {
-	if(message.type() == Message::Tunnel)
+	if(message.type == Message::Tunnel)
 	{
-		Synchronizable(&mQueueSync);
+		Synchronize(&mQueueSync);
 		mQueue.push(message);
 		return true;
 	}
@@ -1044,9 +1134,6 @@ Core::Handler::Handler(Core *core, Stream *stream) :
 	mCore(core),
 	mStream(stream),
 	mIsIncoming(true),
-	mIsRelay(false),
-	mIsRelayEnabled(Config::Get("relay_enabled").toBool()),
-	mThreadPool(0, 1, 8),
 	mStopping(false)
 {
 
@@ -1070,7 +1157,7 @@ Identifier Core::Handler::remote(void) const
 	return mRemote;
 }
 
-void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
+void Core::Handler::subscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
@@ -1080,7 +1167,7 @@ void Core::Handler::subscribe(const String &prefix, Subscriber *subscriber)
 	mSubscribers[prefix].insert(subscriber);
 }
 
-void Core::Handler::unsubscribe(const String &prefix, Subscriber *subscriber)
+void Core::Handler::unsubscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
   
@@ -1101,7 +1188,7 @@ void Core::Handler::notify(const Identifier &id, Stream &payload, bool ack)
 	Synchronize(this);
   
 	if(!mSenders.contains(id)) mSenders[id] = new Sender(this, id);
-	mSenders[id]->notify(id, ack); 
+	mSenders[id]->notify(payload, ack); 
 }
 
 bool Core::Handler::recv(Message &message)
@@ -1113,7 +1200,7 @@ bool Core::Handler::recv(Message &message)
 	
 	{
 		Desynchronize(this);
-		MutexLocker(&mStreamReadMutex);
+		MutexLocker lock(&mStreamReadMutex);
 		return serializer.input(message);
 	}
 }

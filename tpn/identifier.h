@@ -44,7 +44,7 @@ public:
 	void setDigest(const BinaryString &digest);
 	void setName(const String &name);
 	
-	bool empty(void);
+	bool empty(void) const;
 	void clear(void);
 	
 	operator BinaryString &(void);

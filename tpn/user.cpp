@@ -151,14 +151,20 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.close();
 	}
 	
+	// RSA key
+	// TODO
+	Rsa rsa(4096);
+	rsa.generate(mPublicKey, mPrivateKey);
+	
 	mStore = NULL;
 	mAddressBook = NULL;
 	mMailQueue = NULL;
 	mProfile = NULL;
 
 	try {
-		mStore = new Store(this); // must be created first
-		mProfile = new Profile(this, mName, tracker); // must be created before AddressBook
+		mCertificate = new Certificate(mPublicKey, mPrivateKey);
+		mStore = new Store(this); 
+		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
        	 	mMailQueue = new MailQueue(this);
 	}
@@ -432,6 +438,11 @@ bool User::checkToken(const String &token, const String &action) const
 	
 	LogDebug("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
 	return false;
+}
+
+SecureTransport::Certificate *User::getCertificate(void) const
+{
+	return mCertificate;
 }
 
 void User::http(const String &prefix, Http::Request &request)

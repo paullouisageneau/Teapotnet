@@ -26,13 +26,15 @@
 #include "tpn/synchronizable.h"
 #include "tpn/thread.h"
 #include "tpn/task.h"
+#include "tpn/mutex.h"
+#include "tpn/map.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 #include "tpn/mailqueue.h"
 #include "tpn/store.h"
 #include "tpn/profile.h"
-#include "tpn/mutex.h"
-#include "tpn/map.h"
+#include "tpn/crypto.h"
+#include "tpn/securetransport.h"
 
 namespace tpn
 {
@@ -75,7 +77,9 @@ public:
 	
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
-
+	
+	SecureTransport::Certificate *getCertificate(void) const;
+	
 	void http(const String &prefix, Http::Request &request);
 	
 private:
@@ -85,6 +89,10 @@ private:
 	MailQueue *mMailQueue;
 	Store *mStore;
 	Profile *mProfile;
+	
+	Rsa::PublicKey	mPublicKey;
+	Rsa::PrivateKey	mPrivateKey;
+	SecureTransport::Certificate *mCertificate;
 	
 	bool mOnline;
 	BinaryString mTokenSecret;

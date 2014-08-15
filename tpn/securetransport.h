@@ -55,13 +55,11 @@ public:
 		virtual void install(gnutls_session_t session) = 0;
 	};
 	
-	class CertificateCallback : public Credentials
-        {
-        public:
-                CertificateCallback(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
-                ~CertificateCallback(void);
-		
-		virtual bool callback(const Rsa::PublicKey &pub) = 0;
+	class Certificate : public Credentials
+	{
+	public:
+		Certificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+		~Certificate(void);
 		
 	protected:
 		static int VerifyCallback(gnutls_session_t session);
@@ -74,10 +72,13 @@ public:
 		gnutls_x509_privkey_t mKey;
         };
 	
-	void addCredentials(Credentials *creds); // creds will NOT be deleted
+	virtual ~SecureTransport(void);
+	
+	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
 	void handshake(void);
 	void close(void);
 	
+	bool isHandshakeDone(void);
 	bool isAnonymous(void);
 	bool hasPrivateSharedKey(void);
 	bool hasCertificate(void);
@@ -109,12 +110,13 @@ protected:
 	static Mutex ParamsMutex;
 	
 	SecureTransport(Stream *stream, bool server, bool datagram);	// stream will be deleted on success
-	virtual ~SecureTransport(void);
 	
 	gnutls_session_t mSession;
 	Stream *mStream;
-	
 	Verifier *mVerifier;
+	
+	List<Credentials*> mCredsToDelete;
+	bool mIsHandshakeDone;
 };
 
 class SecureTransportClient : public SecureTransport
@@ -136,13 +138,13 @@ public:
         public:
                 PrivateSharedKey(const String &name, const BinaryString &key);
                 ~PrivateSharedKey(void);
-		
+	
 	protected:
 		void install(gnutls_session_t session);
                 gnutls_psk_client_credentials_t mCreds;
         };
 
-	SecureTransportClient(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will NOT be deleted
+	SecureTransportClient(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will be deleted
 	~SecureTransportClient(void);
 };
 
@@ -160,18 +162,13 @@ public:
 		gnutls_anon_server_credentials_t mCreds;
 	};
 
-	class PrivateSharedKeyCallback : public Credentials
-        {
-        public:
-                PrivateSharedKeyCallback(void);
-                ~PrivateSharedKeyCallback(void);
-
-		// Callback to fetch key given username
-		virtual bool callback(const String &username, BinaryString &key) = 0;
+	class PrivateSharedKey : public Credentials
+	{
+	public:
+		PrivateSharedKey(void);
+		~PrivateSharedKey(void);
 		
 	protected:
-		static int CredsCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
-		
 		void install(gnutls_session_t session);
                 gnutls_psk_server_credentials_t mCreds;
         };	
@@ -180,7 +177,7 @@ public:
 	static SecureTransport *Listen(ServerSocket &sock);
 	static SecureTransport *Listen(DatagramSocket &sock);
 	
-	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will NOT be deleted
+	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will be deleted
 	~SecureTransportServer(void);
 	
 protected:
