@@ -59,6 +59,7 @@ void SecureTransport::GenerateParams(void)
 SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 	mStream(stream),
 	mVerifier(NULL),
+	mIsHandshakeDone(false)
 {
 	Assert(stream);
 
@@ -95,13 +96,22 @@ SecureTransport::~SecureTransport(void)
 {
 	gnutls_deinit(mSession);	
 	delete mStream;
+	
+	for(List<Credentials*>::iterator it = mCredsToDelete.begin();
+		it != mCredsToDelete.end();
+		++it)
+	{
+		delete *it;      
+	}
 }
 
-void SecureTransport::addCredentials(Credentials *creds)
+void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 {
 	// Install credentials
 	creds->install(this);
-	mCreds.push_back(creds);
+	
+	if(mustDelete) 
+		mCredsToDelete.push_back(creds);
 }
 
 void SecureTransport::handshake(void)
@@ -113,12 +123,20 @@ void SecureTransport::handshake(void)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if(ret < 0) throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
+        if(ret < 0)
+		throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
+	
+	mIsHandshakeDone = true;
 }
 
 void SecureTransport::close(void)
 {
 	gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+}
+
+bool SecureTransport::isHandshakeDone(void)
+{
+	return mIsHandshakeDone; 
 }
 
 bool SecureTransport::isAnonymous(void)
@@ -385,13 +403,13 @@ SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds,
 	try {
 		if(creds) 
 		{
-			addCredentials(creds);
+			addCredentials(creds, true);	
 			handshake();
 		}
 	}
 	catch(...)
 	{
-		mStream = NULL;	// so stream won't be delete
+		mStream = NULL;	// so stream won't be deleted
 		throw;
 	}
 }
@@ -468,7 +486,7 @@ SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds,
 		
 		if(creds) 
 		{
-			addCredentials(creds);
+			addCredentials(creds, true);
 			handshake();
 		}
 	}

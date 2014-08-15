@@ -64,7 +64,7 @@ void Identifier::setName(const String &name)
 	mName = name;
 }
 
-bool Identifier::empty(void)
+bool Identifier::empty(void) const
 {
  	return mDigest.empty(); 
 }

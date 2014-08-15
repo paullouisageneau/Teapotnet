@@ -51,6 +51,8 @@
 namespace tpn
 {
 
+class User;
+  
 // Core of the Teapotnet node
 // Implements the TPN protocol
 // This is a singleton class, all users use it.  
@@ -89,11 +91,14 @@ public:
 
 	struct Locator
 	{
-		Locator(const Identifier &id);
-		Locator(const Address &addr);
+		Locator(User *user, const Identifier &id);
+		Locator(User *user, const Address &addr);
 		~Locator(void);
 		
+		User *user;
 		Identifier	identifier;
+		Identifier	peering;
+		BinaryString	secret;
 		List<Address>	addresses;
 	};
 
@@ -216,21 +221,28 @@ private:
 		virtual void getAddresses(Set<Address> &set) const {}
 		
 	protected:
-		void addIncoming(Stream *stream, const Identifier &id);	// Push the new stream to the core
+		void process(SecureTransport *transport, const Locator &locator);	// do the client handshake
+		
+	private:
+		void doHandshake(SecureTransport *transport, const Identifier &remote);
 		void run(void);
 		
 		Core *mCore;
 		ThreadPool mThreadPool;
+		
+		SecureTransportClient::Anonymous	mAnonymousClientCreds;
+		SecureTransportServer::Anonymous	mAnonymousServerCreds;
+		SecureTransportServer::PrivateSharedKey	mPrivateSharedKeyServerCreds;
 	};
 	
 	class StreamBackend : public Backend
 	{
 	public:
-		StreamBackend(int port);
+		StreamBackend(Core *core, int port);
 		~StreamBackend(void);
 		
 		SecureTransport *connect(const Locator &locator);
-		SecureTransport *connect(const Address &addr);
+		SecureTransport *connect(const Address &addr, const Locator &locator);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -242,11 +254,11 @@ private:
 	class DatagramBackend : public Backend
 	{
 	public:
-		DatagramBackend(int port);
+		DatagramBackend(Core *core, int port);
 		~DatagramBackend(void);
 		
 		SecureTransport *connect(const Locator &locator);
-		SecureTransport *connect(const Address &addr);
+		SecureTransport *connect(const Address &addr, const Locator &locator);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -258,7 +270,7 @@ private:
 	class TunnelBackend : public Backend
 	{
 	public:
-		TunnelBackend(void);
+		TunnelBackend(Core *core);
 		~TunnelBackend(void);
 		
 		// Backend
@@ -300,8 +312,8 @@ private:
 		Identifier remote(void) const;
 		
 		// Subscribe
-		void subscribe(const String &prefix, Subscriber *subscriber);
-		void unsubscribe(const String &prefix, Subscriber *subscriber);
+		void subscribe(String prefix, Subscriber *subscriber);
+		void unsubscribe(String prefix, Subscriber *subscriber);
 		
 		// Notify
 		void notify(const Identifier &id, Stream &payload, bool ack = true);
