@@ -156,6 +156,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	Rsa rsa(4096);
 	rsa.generate(mPublicKey, mPrivateKey);
 	
+	mCertificate = NULL;
 	mStore = NULL;
 	mAddressBook = NULL;
 	mMailQueue = NULL;
@@ -170,10 +171,11 @@ User::User(const String &name, const String &password, const String &tracker) :
 	}
 	catch(...)
 	{
+		delete mCertificate;
 		delete mStore;
+		delete mProfile;
 		delete mAddressBook;
 		delete mMailQueue;
-		delete mProfile;
 		throw;
 	}
 
@@ -203,6 +205,7 @@ User::~User(void)
 	Interface::Instance->remove(urlPrefix());
 	Scheduler::Global->remove(&mSetOfflineTask);
 	
+	delete mCertificate;
 	delete mAddressBook;
 	delete mMailQueue;
 	delete mStore;
@@ -438,6 +441,11 @@ bool User::checkToken(const String &token, const String &action) const
 	
 	LogDebug("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
 	return false;
+}
+
+Identifier User::getIdentifier(void) const
+{
+	return Identifier(mPublicKey.digest()); 
 }
 
 SecureTransport::Certificate *User::getCertificate(void) const

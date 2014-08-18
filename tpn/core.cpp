@@ -62,19 +62,36 @@ Core::Core(int port) :
 		}
 	}
 	
-	// Create backends
-	mTunnelBackend = new TunnelBackend(this);
-	mBackends.push_back(new StreamBackend(this, port));
-	mBackends.push_back(new DatagramBackend(this, port));
-	mBackends.push_back(mTunnelBackend);
-	
-	// Start backends
-	for(List<Backend*>::iterator it = mBackends.begin();
-		it != mBackends.end();
-		++it)
+	mTunnelBackend = NULL;
+
+	try {
+		// Create backends
+		mTunnelBackend = new TunnelBackend(this);
+		mBackends.push_back(mTunnelBackend);
+		mBackends.push_back(new StreamBackend(this, port));
+		mBackends.push_back(new DatagramBackend(this, port));
+		
+		// Start backends
+		for(List<Backend*>::iterator it = mBackends.begin();
+			it != mBackends.end();
+			++it)
+		{
+			Backend *backend = *it;
+			backend->start();
+		}
+	}
+	catch(...)
 	{
-		Backend *backend = *it;
-		backend->start();
+		for(List<Backend*>::iterator it = mBackends.begin();
+			it != mBackends.end();
+			++it)
+		{
+			Backend *backend = *it;
+			backend->join();
+			delete backend;
+		}
+		
+		throw;
 	}
 }
 
@@ -89,6 +106,11 @@ Core::~Core(void)
 		backend->join();
 		delete backend;
 	}
+}
+
+Identifier Core::getIdentifier(void) const
+{
+	return mPublicKey.digest();
 }
 
 String Core::getName(void) const
@@ -1066,8 +1088,10 @@ Core::TunnelBackend::~TunnelBackend(void)
 
 SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 {
+	Assert(locator.user);
+	
 	Identifier remote = locator.identifier;
-	Identifier local = Identifier::Random();
+	Identifier local = locator.user->getIdentifier();
 
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
@@ -1195,27 +1219,52 @@ bool Core::Handler::recv(Message &message)
 {
 	Synchronize(this);
 	
-	// TODO: remove serializer
-	BinarySerializer serializer(mStream);
-	
 	{
 		Desynchronize(this);
 		MutexLocker lock(&mStreamReadMutex);
-		return serializer.input(message);
+		
+		uint16_t size = 0;
+		
+		if(!buffer.readBinary(message.version)) return false;
+		AssertIO(buffer.readBinary(message.flags));
+		AssertIO(buffer.readBinary(message.type));
+		AssertIO(buffer.readBinary(message.content));
+		AssertIO(buffer.readBinary(message.hops));
+		AssertIO(buffer.readBinary(size));
+		
+		AssertIO(buffer.readBinary(message.source));
+		AssertIO(buffer.readBinary(message.destination));
+		
+		message.payload.clear();
+		if(buffer.readBinary(message.payload, size) != size)
+			throw IOException("Incomplete message");
 	}
+	
+	return true;
 }
 
 void Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
-	// TODO: remove serializer
-	BinarySerializer serializer(mStream);
+	uint16_t size = message.payload.size();
+	
+	ByteArray buffer(1400);
+	buffer.writeBinary(message.version);
+	buffer.writeBinary(message.flags);
+	buffer.writeBinary(message.type);
+	buffer.writeBinary(message.content);
+	buffer.writeBinary(message.hops);
+	buffer.writeBinary(size);
+	
+	buffer.writeBinary(message.source);
+	buffer.writeBinary(message.destination);
+	buffer.writeBinary(message.payload.data(), message.payload.size());
 	
 	{
 		Desynchronize(this);
-		MutexLocker(&StreamWriteMutex);
-		return serializer.output(message);
+		MutexLocker lock(&mStreamWriteMutex);
+		mStream->writeBinary(buffer.data(), buffer.size());
 	}
 }
 

@@ -92,7 +92,6 @@ void Thread::join(void)
 		 pthread_join(mThread, &dummy);
 		 mJoined = true;
 	 }
-
 }
 
 void Thread::terminate(void)

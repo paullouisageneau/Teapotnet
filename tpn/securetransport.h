@@ -170,9 +170,9 @@ public:
 		
 	protected:
 		void install(gnutls_session_t session);
-                gnutls_psk_server_credentials_t mCreds;
-        };	
-
+		gnutls_psk_server_credentials_t mCreds;
+	};	
+	
 	// These functions are preferred, especially for datagrams (protection against DoS)
 	static SecureTransport *Listen(ServerSocket &sock);
 	static SecureTransport *Listen(DatagramSocket &sock);

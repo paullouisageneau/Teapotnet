@@ -269,6 +269,13 @@ Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
 	return *this;
 }
 
+void Rsa::PublicKey::clear(void)
+{
+	rsa_public_key_clear(&mKey);
+	rsa_public_key_init(&mKey);
+	mDigest.clear();
+}
+
 const BinaryString &Rsa::PublicKey::digest(void) const
 {
 	if(mDigest.empty())

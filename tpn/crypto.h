@@ -119,6 +119,7 @@ public:
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 		
+		void clear(void);
 		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 		
