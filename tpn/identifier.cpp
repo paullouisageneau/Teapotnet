@@ -21,6 +21,7 @@
 
 #include "tpn/identifier.h"
 #include "tpn/exception.h"
+#include "tpn/random.h"
 
 namespace tpn
 {
@@ -29,14 +30,14 @@ const Identifier Identifier::Null;
 
 Identifier::Identifier(void)
 {
-
+	mData.writeZeros(Size);
 }
 
-Identifier::Identifier(const BinaryString &digest, const String &name) :
-	mDigest(digest),
-	mName(name)
+Identifier::Identifier(const BinaryString &digest)
 {
-
+	mData.writeData(digest.data(), std::min(digest.size(), Size));
+	if(Size > digest.size())
+		mData.writeZeros(Size - digest.size());
 }
 
 Identifier::~Identifier(void)
@@ -44,96 +45,96 @@ Identifier::~Identifier(void)
 
 }
 
-BinaryString Identifier::getDigest(void) const
+const char *data(void) const
 {
-	return mDigest;
+	return mData.data(); 
 }
 
-String Identifier::getName(void) const
+size_t size(void) const
 {
-	return mName;
-}
-	
-void Identifier::setDigest(const BinaryString &digest)
-{
-	mDigest = digest;
-}
-
-void Identifier::setName(const String &name)
-{
-	mName = name;
+	Assert(mData.size() == Size);
+	return Size; 
 }
 
 bool Identifier::empty(void) const
 {
- 	return mDigest.empty(); 
+ 	return mData.empty(); 
 }
 
 void Identifier::clear(void)
 {
-	mDigest.clear();
-	mName.clear();
+	mData.clear();
+	mData.writeZeros(Size);
+}
+
+BinaryString Identifier::toBinaryString(void) const
+{
+	return mData;
 }
 
 Identifier::operator BinaryString &(void)
 {
-	return mDigest; 
+	return mData; 
 }
 
 Identifier::operator const BinaryString &(void) const
 {
-	return mDigest; 
+	return mData;
 }
 
 void Identifier::serialize(Serializer &s) const
 {
-	mDigest.serialize(s);
-	mName.serialize(s);
+	Assert(mData.size() == Size);
+	for(int i=0; i<Size; ++i)
+		s.output(uint8_t(mData.at(i)));
 }
 
 bool Identifier::deserialize(Serializer &s)
 {
-	if(!mDigest.deserialize(s)) return false;
-	AssertIO(mName.deserialize(s));
+	mData.clear();
+	mData.reserve(Size);
+	
+	uint8_t b;
+	if(!s.input(b)) return false;
+	mData.push_back(b);
+	
+	for(size_t i=1; i<Size; ++i)
+	{
+		AssertIO(s.input(b));
+		mData.push_back(b);
+	}
+
 	return true;
 }
 
 void Identifier::serialize(Stream &s) const
 {
-	String str = mDigest.toString();
-	if(!mName.empty()) str+= ':' + mName;
-	s.write(str);
+	mData.serialize(s);
 }
 
 bool Identifier::deserialize(Stream &s)
 {
-	clear();
-	String str;
-	if(!s.read(str)) return false;
-	if(str.empty()) return true;
-	mName = str.cut(':');
-	AssertIO(str.read(mDigest));
-	return true;
+	bool ret = mData.deserialize(s);
+	
+	if(digest.size() >= Size) mData.resize(Size);
+	else mData.writeZeros(Size - digest.size());
+	
+	return ret;
 }
 
 bool operator < (const Identifier &i1, const Identifier &i2)
 {
-	return (i1.getDigest() < i2.getDigest() 
-	  || (i1.getDigest() == i2.getDigest()
-	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() < i2.getName()));
+	return (i1.toBinaryString() < i2.toBinaryString());
 }
 
 bool operator > (const Identifier &i1, const Identifier &i2)
 {
-	return (i1.getDigest() > i2.getDigest()
-	  || (i1.getDigest() == i2.getDigest()
-	  	&& !i1.getName().empty() && !i2.getName().empty() && i1.getName() > i2.getName()));
+	return (i1.toBinaryString() > i2.toBinaryString());
 }
 
 bool operator == (const Identifier &i1, const Identifier &i2)
 {
-	return (i1.getDigest() == i2.getDigest()
-		&& (i1.getName().empty() || i2.getName().empty() || i1.getName() == i2.getName()));
+	return (i1.toBinaryString() == i2.toBinaryString());
 }
 
 bool operator != (const Identifier &i1, const Identifier &i2)

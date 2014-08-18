@@ -23,15 +23,18 @@
 #define TPN_ADDRESSBOOK_H
 
 #include "tpn/include.h"
-#include "tpn/http.h"
+#include "tpn/synchronizable.h"
+#include "tpn/serializable.h"
 #include "tpn/interface.h"
+#include "tpn/http.h"
+#include "tpn/core.h"
 #include "tpn/address.h"
 #include "tpn/socket.h"
 #include "tpn/identifier.h"
-#include "tpn/mailqueue.h"
-#include "tpn/core.h"
+#include "tpn/crypto.h"
 #include "tpn/user.h"
 #include "tpn/profile.h"
+#include "tpn/mailqueue.h"
 #include "tpn/scheduler.h"
 #include "tpn/task.h"
 #include "tpn/array.h"
@@ -44,7 +47,7 @@ namespace tpn
 class User;
 class Profile;
   
-class AddressBook : private Synchronizable, public HttpInterfaceable, public Core::Listener
+class AddressBook : private Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
 {
 public:
 	AddressBook(User *user);
@@ -65,10 +68,13 @@ public:
 	bool send(const Notification &notification);
 	bool send(const Mail &mail);
 	
-	void http(const String &prefix, Http::Request &request);
+	// Serializable
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
 	
-	typedef SerializableMap<Address, Time> AddressBlock;
-	typedef SerializableMap<String, AddressBlock> AddressMap;
+	// HttpInterfaceable
+	void http(const String &prefix, Http::Request &request);
 	
 	class Contact : public Serializable, public Core::Listener, public HttpInterfaceable, public Task
 	{
@@ -84,8 +90,7 @@ public:
 		String uniqueName(void) const;
 		String name(void) const;
 		String tracker(void) const;
-		Identifier peer(void) const;
-		Identifier remotePeering(void) const;
+		Identifier peering(void) const;
 		Time time(void) const;
 		uint32_t peerChecksum(void) const;
 		String urlPrefix(void) const;
@@ -98,12 +103,8 @@ public:
 		bool isConnected(const String &instance) const;
 		bool isOnline(void) const;
 		String status(void) const;
-		AddressMap addresses(void) const;
-		bool isDeleted(void) const;
-		void setDeleted(void);
-		void getInstancesNames(Array<String> &array);
-		
-		bool addAddresses(const AddressMap &map);
+		int getIdentifiers(Array<Identifier> &result) const;
+		int getInstancesNames(Array<String> &array) const;
 		
 		// These functions return true if addr is successfully connected
 		bool connectAddress(const Address &addr, const String &instance, bool save = true);
@@ -133,34 +134,64 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		class Instance : public Serializable
+		{
+			Instance(void);
+			Instance(const Rsa::PublicKey &key);
+			~Instance();
+			
+			const Rsa::PublicKey &publicKey(void) const;
+			Identifier identifier(void) const;
+			String name(void) const;
+			void setName(const String &name);
+			
+			void addAddress(const Address &addr);
+			void addAddresses(const List<Address> &addrs);
+			
+			// TODO: addresses access
+			
+			// Serializable
+			void serialize(Serializer &s) const;
+			bool deserialize(Serializer &s);
+			bool isInlineSerializable(void) const;
+			
+		private:
+			Rsa::PublicKey mPublicKey;
+			String mName;
+			
+			typedef SerializableMap<Address, Time> AddressBlock;
+			AddressBlock mAddrs;
+		};
+		
 		BinaryString secret(void) const;
 		void run(void);
 		
 		MailQueue::Selection selectMails(bool privateOnly = false) const;
-		void sendMails(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count) const;
-		void sendMailsChecksum(const Identifier &peer, const MailQueue::Selection &selection, int offset, int count, bool recursion) const;
-		void sendUnread(const Identifier &peer) const;
-		void sendPassed(const Identifier &peer) const;
+		void sendMails(const Instance &instance, const MailQueue::Selection &selection, int offset, int count) const;
+		void sendMailsChecksum(const Instance &instance, const MailQueue::Selection &selection, int offset, int count, bool recursion) const;
+		void sendUnread(const Instance &instance) const;
+		void sendPassed(const Instance &instance) const;
 		
-	  	AddressBook *mAddressBook;
+		AddressBook *mAddressBook;
+		Profile *mProfile;
 		String mUniqueName, mName, mTracker;
-		Identifier mPeering, mRemotePeering;
+		Identifier mPeering;
 		BinaryString mSecret;
 		Time mTime;
-		bool mDeleted;
 		
+		typedef SerializableMap<Identifier, Instance> InstancesMap;
+		InstancesMap mInstances;
+		
+		// TODO
 		bool mFound;
-		AddressMap mAddrs;
 		Set<String> mExcludedInstances;
 		Set<String> mOnlineInstances;
-		
-		Profile *mProfile;
 	};
 	
 	Identifier addContact(String name, const String &secret);
-	void removeContact(const Identifier &peer);
-	Contact *getContact(const Identifier &peer);
-	const Contact *getContact(const Identifier &peer) const;
+	void removeContact(const Identifier &id);
+	Contact *getContact(const Identifier &id);
+	const Contact *getContact(const Identifier &id) const;
 	Contact *getContactByUniqueName(const String &uname);
 	const Contact *getContactByUniqueName(const String &uname) const;
 	void getContacts(Array<Contact *> &array);
@@ -183,8 +214,8 @@ private:
 	User *mUser;
 	String mUserName;
 	String mFileName;
-	Map<Identifier, Contact*> mContacts;			// Sorted by identifier
-	Map<String, Contact*> mContactsByUniqueName;		// Sorted by unique name
+	SerializableMap<Identifier, Contact> mContacts;
+	SerializableMap<String, Contact*> mContactsByUniqueName;	// Sorted by unique name
 	Scheduler mScheduler;
 	
 	Set<String> mBogusTrackers;

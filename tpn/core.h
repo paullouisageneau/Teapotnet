@@ -80,6 +80,7 @@ public:
 		
 		// Fields
 		uint8_t version;
+		uint8_t flags;
 		uint8_t type;
 		uint8_t content;
 		uint16_t hops;
@@ -391,7 +392,7 @@ private:
 
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
-
+	
 	String mName;
 	ThreadPool mThreadPool;
 	Scheduler mScheduler;

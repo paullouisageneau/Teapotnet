@@ -33,20 +33,19 @@ namespace tpn
 class Identifier : public Serializable
 {
 public:
+	static const size_t Size = 32;
 	static const Identifier Null;
-
-	Identifier(void);
-	Identifier(const BinaryString &digest, const String &name = "");
-	~Identifier(void);
-
-	BinaryString getDigest(void) const;
-	String getName(void) const;
-	void setDigest(const BinaryString &digest);
-	void setName(const String &name);
 	
+	Identifier(void);
+	Identifier(const BinaryString &digest);
+	~Identifier(void);
+	
+	const char *data(void) const;
+	size_t size(void) const;
 	bool empty(void) const;
 	void clear(void);
 	
+	BinaryString toBinaryString(void) const;
 	operator BinaryString &(void);
 	operator const BinaryString &(void) const;
 	
@@ -57,8 +56,7 @@ public:
 	bool deserialize(Stream &s);
 
 private:
-	BinaryString 	mDigest;
-	String		mName;
+	BinaryString mData;
 };
 
 // The principle is that an empty name is equal to ANY other name
