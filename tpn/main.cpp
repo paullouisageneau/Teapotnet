@@ -52,16 +52,6 @@
 
 using namespace tpn;
 
-Mutex	tpn::LogMutex;
-int	tpn::LogLevel = LEVEL_INFO;
-bool	tpn::ForceLogToFile = false;
-
-std::string tpn::GetFormattedLogTime(void)
-{
-	Time time(Time::Now());
-	return std::string(time.toIsoDate() + " " + time.toIsoTime());
-}
-
 #ifdef WINDOWS
 int InterfacePort SHARED = 0;
 
@@ -327,7 +317,6 @@ int main(int argc, char** argv)
 		Config::Default("user_global_shares", "true");
 		Config::Default("relay_enabled", "true");
 		Config::Default("http_proxy", "auto");
-		Config::Default("http_proxy_connect", "false");
 		Config::Default("prefetch_delay", "300000");
 		Config::Default("max_connections", "1024");
 		
@@ -573,7 +562,11 @@ String plist = "\
 #endif
 
 		LogInfo("main", "Starting...");
+		
                 File::CleanTemp();
+		Http::UserAgent = String(APPNAME) + '/' + APPVERSION;
+		Http::RequestTimeout = milliseconds(Config::Get("http_timeout"));
+		Proxy::HttpProxy = Config::Get("http_proxy");
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))

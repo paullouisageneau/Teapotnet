@@ -85,9 +85,9 @@ public:
 		uint8_t content;
 		uint16_t hops;
 		
-		Identifier source;		// 32 B
-		Identifier destination;		// 32 B
-		ByteArray payload;		// 32 B + 1 KB
+		Identifier source;		// 40 B
+		Identifier destination;		// 40 B
+		ByteArray payload;		// 40 B + 1 KB
 	};
 
 	struct Locator
@@ -167,6 +167,7 @@ public:
 	~Core(void);
 	
 	// Global
+	uint64_t getNumber(void) const;
 	String getName(void) const;
 	void getAddresses(List<Address> &list) const;
 	void getKnownPublicAdresses(List<Address> &list) const;
@@ -393,6 +394,7 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 	
+	uint64_t mNumber;
 	String mName;
 	ThreadPool mThreadPool;
 	Scheduler mScheduler;

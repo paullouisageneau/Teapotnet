@@ -15,7 +15,7 @@ ifeq ($(UNAME_S),Darwin)
         LDLIBS += -framework CoreFoundation
 endif
 
-SRCS=$(shell printf "%s " tpn/*.cpp)
+SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet
@@ -32,11 +32,11 @@ teapotnet: $(OBJS) include/sqlite3.o
 	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS) 
 	
 clean:
-	$(RM) include/*.o tpn/*.o tpn/*.d
+	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d
 
 dist-clean: clean
 	$(RM) teapotnet
-	$(RM) tpn/*~
+	$(RM) pla/*~ tpn/*~
 
 install: teapotnet teapotnet.service
 	install -d $(DESTDIR)$(prefix)/bin
@@ -48,7 +48,7 @@ install: teapotnet teapotnet.service
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh install $(prefix) $(TPROOT)"; fi
 
 uninstall:
-	rm -f $(DESTDIR)$(prefix)/bin/teaponet
+	rm -f $(DESTDIR)$(prefix)/bin/teapotnet
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
 	rm -f $(DESTDIR)/etc/teapotnet/config.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix) $(TPROOT)"; fi

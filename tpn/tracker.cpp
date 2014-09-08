@@ -30,8 +30,7 @@ const double Tracker::EntryLife = 3600.;	// seconds
 Tracker::Tracker(int port) :
 		Http::Server(port)
 {
-	mStorage.cleaner   = mStorage.map.begin();
-	mAlternate.cleaner = mAlternate.map.begin();
+	mCleaner = mMap.begin();
 }
 
 Tracker::~Tracker(void)
@@ -59,20 +58,21 @@ void Tracker::process(Http::Request &request)
 			throw Exception("Invalid identifier");
 		}
 		
-		if(identifier.getDigest().size() != 64)
+		if(identifier.getDigest().size() != 32)
 			throw Exception("Invalid indentifier size");
-	
-		bool alternate = false;
-		if(request.get.contains("alternate")) alternate = true;
 		
 		if(request.method == "POST")
 		{
-			String instance;
-			if(request.post.get("instance", instance)) identifier.setName(instance);
-			if(identifier.getName().empty()) identifier.setName("default");
+			uint64_t instance = 0;
+			String tmp;
+			request.post.get("instance", tmp);
+			tmp.read(instance);
+			if(instance == 0)
+				throw Exception("Invalid or missing instance number");
+			
+			identifier.setNumber(instance);
 		
 			int count = 0;
-			
 			String port;
 			if(request.post.get("port", port))
 			{
@@ -85,7 +85,7 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				SynchronizeStatement(this, insert(mStorage, identifier, addr));
+				insert(identifier, addr);
 				++count;
 				LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
 			}
@@ -101,16 +101,9 @@ void Tracker::process(Http::Request &request)
 					++it)
 				try {
 				      	Address addr(*it);
-				      	if(alternate)
-					{
-						LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
-						SynchronizeStatement(this, insert(mAlternate, identifier, addr));
-					}
-				      	else {
-						LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
-						SynchronizeStatement(this, insert(mStorage, identifier, addr));
-					}
-					
+				      	
+					LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+					insert(identifier, addr);
 					++count;
 				}
 				catch(...)
@@ -118,47 +111,22 @@ void Tracker::process(Http::Request &request)
 				  
 				}
 			}
-
-			if(!alternate && request.post.get("alternate", addresses))
-			{
-				List<String> list;
-				addresses.explode(list, ',');
-				
-				for(	List<String>::iterator it = list.begin();
-					it != list.end();
-					++it)
-				try {
-				      Address addr(*it);
-				      SynchronizeStatement(this, insert(mAlternate, identifier, addr));
-				      ++count;
-				      LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString() + " (alternate)");
-				}
-				catch(...)
-				{
-				  
-				}
-			}
 			
-			SynchronizeStatement(this, clean(mStorage, 2*count+1));
-			SynchronizeStatement(this, clean(mAlternate, 2*count+1));
+			clean(2*count + 1);
 			
 			Http::Response response(request,200);
 			response.send();
 		}
 		else {
 			Http::Response response(request, 200);
-			response.headers["Content-Type"] = "text/plain";
+			response.headers["Content-Type"] = "application/json";
 			response.send();
 			
-			if(alternate) 
-			{
-				LogDebug("Tracker", "GET " + identifier.toString() + " (alternate)");
-				SynchronizeStatement(this, retrieve(mAlternate, identifier, *response.sock));
-			}
-			else {
-				LogDebug("Tracker", "GET " + identifier.toString());
-				SynchronizeStatement(this, retrieve(mStorage, identifier, *response.sock));
-			}
+			LogDebug("Tracker", "GET " + identifier.toString());
+			
+			String buffer;
+			retrieve(identifier, buffer);
+			response.sock->write(buffer);
 		}
 	}
 	catch(int code)
@@ -174,15 +142,17 @@ void Tracker::process(Http::Request &request)
 	}
 }
 
-void Tracker::clean(Tracker::Storage &s, int nbr)
+void Tracker::clean(int nbr)
 {
-  	if(nbr < 0) nbr = s.map.size();
-	else if(nbr > s.map.size()) nbr = s.map.size();
+	Synchronize(this);
+	
+	if(nbr < 0) nbr = mMap.size();
+	else if(nbr > mMap.size()) nbr = mMap.size();
 	for(int i=0; i<nbr; ++i)
 	{
-	  	if(s.cleaner == s.map.end()) s.cleaner = s.map.begin();
+	  	if(mCleaner == mMap.end()) mCleaner = mMap.begin();
 
-		Map<Address,Time> &submap = s.cleaner->second;
+		Map<Address,Time> &submap = mCleaner->second;
 		Map<Address,Time>::iterator it = submap.begin();
 		while(it != submap.end())
 		{
@@ -190,43 +160,47 @@ void Tracker::clean(Tracker::Storage &s, int nbr)
 			else it++;
 		}
 		
-		if(submap.empty()) s.map.erase(s.cleaner++);
-		else s.cleaner++;	
+		if(submap.empty()) mMap.erase(mCleaner++);
+		else mCleaner++;
 	} 
 }
 
-void Tracker::insert(Tracker::Storage &s, const Identifier &identifier, const Address &addr)
+void Tracker::insert(const Identifier &identifier, const Address &addr)
 {
-	Map<Address,Time> &submap = s.map[identifier];
+	Synchronize(this);
+	
+	Map<Address,Time> &submap = mMap[identifier];
 	submap[addr] = Time::Now();
 }
 
-void Tracker::retrieve(Tracker::Storage &s, const Identifier &identifier, Stream &output) const
+void Tracker::retrieve(const Identifier &identifier, Stream &output) const
 {
-	map_t::const_iterator it = s.map.lower_bound(identifier);
-	if(it == s.map.end() || it->first != identifier) return;
-
-	YamlSerializer serializer(&output);
-	serializer.outputMapBegin();
+	Synchronize(this);
 	
-	while(it != s.map.end() && it->first == identifier)
+	map_t::const_iterator it = mMap.lower_bound(identifier);
+	if(it == mMap.end() || it->first != identifier) return;
+	
+	JsonSerializer serializer(&output);
+	serializer.outputMapBegin();
+	while(it != mMap.end() && it->first == identifier)
 	{
 		SerializableArray<Address> array;
 		it->second.getKeys(array);
 		if(!array.empty())
 		{
 			std::random_shuffle(array.begin(), array.end());
-			serializer.outputMapElement(it->first.getName(), array);
+			serializer.outputMapElement(it->first.getNumber(), array);
 		}
 		++it;
 	}
-	
 	serializer.outputMapEnd();
 }
 
-bool Tracker::contains(Storage &s, const Identifier &identifier)
+bool Tracker::contains(const Identifier &identifier)
 {
-	return s.map.contains(identifier);  
+	Synchronize(this);
+	
+	return mMap.contains(identifier);  
 }
 
 }

@@ -42,16 +42,9 @@
 namespace tpn
 {
 
-const double AddressBook::StartupDelay = 4.;	// depends on PortMapping
-const double AddressBook::UpdateInterval = 300.;
-const double AddressBook::UpdateStep = 0.20;
-const int AddressBook::MaxChecksumDistance = 1000;
-
 AddressBook::AddressBook(User *user) :
-	mUser(user),
-	mUserName(user->name())
+	mUser(user)
 {
-	Assert(UpdateInterval > 0);
 	Assert(mUser != NULL);
 	
 	mFileName = mUser->profilePath() + "contacts";
@@ -86,245 +79,30 @@ User *AddressBook::user(void) const
 String AddressBook::userName(void) const
 {
 	Synchronize(this);
- 	return mUserName; 
-}
-
-Identifier AddressBook::addContact(String name, const String &secret)
-{
-	Synchronize(this);
-
-	String tracker = name.cut('@');
-	if(tracker.empty()) tracker = Config::Get("tracker");
-	
-	String uname = name;
-	unsigned i = 1;
-	while((mContactsByUniqueName.contains(uname))
-		|| uname == userName())	// userName reserved for self
-	{
-		uname = name;
-		uname << ++i;
-	}
-	
-	Contact *oldContact;
-	if(mContactsByUniqueName.get(uname, oldContact))
-	{
-		unregisterContact(oldContact);
-		delete oldContact;
-	}
-	
-	Contact *contact = new Contact(this, uname, name, tracker, secret);
-	if(mContacts.get(contact->peering(), oldContact))
-	{
-		LogWarn("AddressBook::addContact", "The contact already exists with this secret: " + name);
-		delete contact;
-		return oldContact->peering();
-
-		oldContact->copy(contact);
-		delete contact;
-		contact = oldContact;
-	}
-
-	registerContact(contact);	
-	save();
-	sendContacts();
-	return contact->peering();
-}
-
-void AddressBook::removeContact(const Identifier &id)
-{
-	Synchronize(this);
-	
-	Contact *contact;
-	if(mContacts.get(id, contact))
-	{
-		contact->setDeleted();
-		Core::Instance->unregisterPeering(contact->peering());
-		Interface::Instance->remove(contact->urlPrefix(), contact);
-		mScheduler.cancel(contact);
-		save();
-		sendContacts();
-
-		// Erase mails
-		mUser->mailQueue()->erase(contact->uniqueName());
-	}
-}
-
-AddressBook::Contact *AddressBook::getContact(const Identifier &peer)
-{
-	Synchronize(this);
-  
-	Contact *contact;
-	if(mContacts.get(peer, contact)) return contact;
-	else return NULL;
-}
-
-const AddressBook::Contact *AddressBook::getContact(const Identifier &peer) const
-{
-	Synchronize(this);
-  
-	Contact *contact = NULL;
-	if(mContacts.get(peer, contact)) return contact;
-	else return NULL;
-}
-
-AddressBook::Contact *AddressBook::getContactByUniqueName(const String &uname)
-{
-	Synchronize(this);
-  
-	Contact *contact = NULL;
-	if(mContactsByUniqueName.get(uname, contact)) return contact;
-	else return NULL;
-}
-
-const AddressBook::Contact *AddressBook::getContactByUniqueName(const String &uname) const
-{
-	Synchronize(this);
-  
-	Contact *contact = NULL;
-	if(mContactsByUniqueName.get(uname, contact)) return contact;
-	else return NULL;
-}
-
-void AddressBook::getContacts(Array<AddressBook::Contact *> &array)
-{
-	Synchronize(this); 
-  
-	mContactsByUniqueName.getValues(array);
-	
-	Contact *self = getSelf();
-	if(self) array.remove(self);
-	
-	int i=0; 
-	while(i<array.size())
-	{
-		if(array[i]->isDeleted()) array.erase(i);
-		else ++i;
-	}
-}
-
-Identifier AddressBook::setSelf(const String &secret)
-{
-	Synchronize(this);
-  
-	const String tracker = Config::Get("tracker");	
-	Contact *self = new Contact(this, userName(), userName(), tracker, secret);
-
-	Contact *tmp;
-        if(mContacts.get(self->peering(), tmp))
-        	if(tmp->uniqueName() != userName())
-			throw Exception("a contact with the same peer already exists");
-	
-	Contact *oldSelf = getSelf();
-        if(oldSelf)
-	{
-		unregisterContact(oldSelf);
-		oldSelf->copy(self);
-		delete self;
-		self = oldSelf;
-	}
-
-	registerContact(self);
-	save();
-	sendContacts();
-	return self->peering();
-}
-
-AddressBook::Contact *AddressBook::getSelf(void)
-{
-	Synchronize(this);
-	
-	Contact *contact;
-	if(mContactsByUniqueName.get(userName(), contact)) return contact;
-	else return NULL;
-}
-
-const AddressBook::Contact *AddressBook::getSelf(void) const
-{
-	Synchronize(this);
-	
-	Contact *contact;
-	if(mContactsByUniqueName.get(userName(), contact)) return contact;
-	else return NULL;
+ 	return mUser->name(); 
 }
 
 void AddressBook::clear(void)
 {
 	Synchronize(this);
-  
-	mScheduler.clear();	// we make sure no task is running
-	
-	for(Map<Identifier, Contact*>::iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		Contact *contact = it->second;
-		delete contact;
-	}
-	
+	mContactsByIdentifier.clear();
 	mContacts.clear();
-	mContactsByUniqueName.clear();
 }
 
 void AddressBook::load(Stream &stream)
 {
 	Synchronize(this);
 
-	int count = 0;
-	while(true)
-	{
-		Contact *contact = new Contact(this);
-
-		// Not really clean but it protects from parse errors propagation
-		YamlSerializer serializer(&stream);
-		if(!serializer.input(*contact)) 
-		{
-			delete contact;
-			break;
-		}
-
-		Contact *oldContact = NULL;
-		if(mContactsByUniqueName.get(contact->uniqueName(), oldContact))
-		{
-			if(oldContact->time() >= contact->time())
-			{
-				oldContact->addAddresses(contact->addresses());
-				delete contact;
-				continue;
-			}
-	
-			unregisterContact(oldContact);
-			
-			if(!oldContact->isDeleted() && contact->isDeleted())
-			{
-				// Erase mails
-				mUser->mailQueue()->erase(contact->uniqueName());
-			}
-
-			oldContact->copy(contact);
-			std::swap(oldContact, contact);
-			delete oldContact;
-		}
-		
-		registerContact(contact, count);
-		++count;
-	}
-
-	if(count) save();
+	JsonSerializer serializer(&stream);
+	serializer.input(*this);
 }
 
 void AddressBook::save(Stream &stream) const
 {
 	Synchronize(this);
   
-	YamlSerializer serializer(&stream);
-
-	for(Map<Identifier, Contact*>::const_iterator it = mContacts.begin();
-                it != mContacts.end();
-                ++it)
-        {
-                const Contact *contact = it->second;
-		serializer.output(*contact);
-	}
+	JsonSerializer serializer(&stream);
+	serializer.output(*this);
 }
 
 void AddressBook::save(void) const
@@ -343,19 +121,7 @@ void AddressBook::sendContacts(const Identifier &peer) const
 	if(peer == Identifier::Null)
 		throw Exception("Prevented AddressBook::send() to broadcast");
 	
-	String data;
-	save(data);
-	
-	try {
-		Desynchronize(this);
-		Notification notification(data);
-		notification.insert("type", "contacts");
-		notification.send(peer);
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("AddressBook::send", String("Contacts synchronization failed: ") + e.what()); 
-	}
+	// TODO: send file hash
 }
 
 void AddressBook::sendContacts(void) const
@@ -364,30 +130,103 @@ void AddressBook::sendContacts(void) const
 	
 	const Contact *self = getSelf();
 	if(self && self->isConnected())
-		sendContacts(self->peering());
+		sendContacts(self->identifier());
 }
 
-void AddressBook::update(void)
+String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(this);
 	
-	Array<Identifier> keys;
-	mContacts.getKeys(keys);
-	std::random_shuffle(keys.begin(), keys.end());
-
-	for(int i=0; i<keys.size(); ++i)
-        {
-                Contact *contact = getContact(keys[i]);
-		
-		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*i + Random().uniform(0., UpdateStep);
-		if(contact) mScheduler.schedule(contact, time);
+	String uname = name;
+	unsigned i = 1;
+	while((mContacts.contains(uname))
+		|| uname == userName())	// userName reserved for self
+	{
+		uname = name;
+		uname << ++i;
 	}
+	
+	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey));
+	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
+		
+	save();
+	sendContacts();
+	
+	return uname;
+}
+
+bool AddressBook::removeContact(const String &uname)
+{
+	Synchronize(this);
+	
+	Map<String, Contact>::iterator it = mContacts.find(uname);
+	if(it != mContacts.end())
+	{
+		//TODO: erase mails
+		
+		mContactsByIdentifier.erase(it->second.identifier());
+		mContacts.erase(it);
+		return false;
+	}
+	
+	return true;
+}
+
+AddressBook::Contact *AddressBook::getContact(const String &uname)
+{
+	Synchronize(this);
+  
+	Map<String, Contact>::iterator it = mContacts.find(uname);
+	if(it != mContacts.end()) return &it->second;
+	return NULL;
+}
+
+const AddressBook::Contact *AddressBook::getContact(const String &uname) const
+{
+	Synchronize(this);
+  
+	Map<String, Contact>::const_iterator it = mContacts.find(uname);
+	if(it != mContacts.end()) return &it->second;
+	return NULL;
+}
+
+void AddressBook::getContacts(Array<AddressBook::Contact*> &result)
+{
+	Synchronize(this);
+  
+	mContactsByIdentifier.getValues(result);
+	Contact *self = getSelf();
+	if(self) result.remove(self);
+}
+
+void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
+{
+	Synchronize(this);
+	
+	String uname = userName();
+	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, uname, pubKey));
+	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
+	
+	save();
+	sendContacts();
+}
+
+AddressBook::Contact *AddressBook::getSelf(void)
+{
+	Synchronize(this);
+	return getContact(userName());
+}
+
+const AddressBook::Contact *AddressBook::getSelf(void) const
+{
+	Synchronize(this);
+	return getContact(userName());
 }
 
 bool AddressBook::send(const Notification &notification)
 {
 	Array<Identifier> keys;
-	SynchronizeStatement(this, mContacts.getKeys(keys));
+	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
 
 	bool success = false;
 	for(int i=0; i<keys.size(); ++i)
@@ -405,7 +244,7 @@ bool AddressBook::send(const Mail &mail)
 	// should convert the mail and use send(notification)
 	
 	Array<Identifier> keys;
-	SynchronizeStatement(this, mContacts.getKeys(keys));
+	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
 
 	bool success = false;
 	for(int i=0; i<keys.size(); ++i)
@@ -419,7 +258,7 @@ bool AddressBook::send(const Mail &mail)
 
 void AddressBook::serialize(Serializer &s) const
 {
-	Synchronize(mAddressBook);
+	Synchronize(this);
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["contacts"] = &mContacts;
@@ -429,10 +268,10 @@ void AddressBook::serialize(Serializer &s) const
 
 bool AddressBook::deserialize(Serializer &s)
 {
-	Synchronize(mAddressBook);
+	Synchronize(this);
 	
-	mContactsByIdentifier.clear();
-	mContacts.clear();
+	// TODO: should load in a temporary map to trigger unregister and delete messages
+	clear();
 	
 	Serializer::ObjectMapping mapping;
 	mapping["contacts"] = &mContacts;
@@ -444,18 +283,15 @@ bool AddressBook::deserialize(Serializer &s)
 		it != mContacts.end();
 		++it)
 	{
-		const Contact &contact = it->second;
-		
-		Array<Identifier> identifiers;
-		contact->getIdentifiers(identifiers);
-		for(int i=0; i<identifiers.size(); ++i)
-			mContactsByIdentifier[identifiers[i]] = &contact;
+		Contact *contact = &it->second;
+		contact->mAddressBook = this;	// TODO
+		mContactsByIdentifier[contact->uniqueName()] = contact;
 	}
 	
 	return true;
 }
 
-bool AddressBook::Contact::isInlineSerializable(void) const
+bool AddressBook::isInlineSerializable(void) const
 {
 	return false; 
 }
@@ -478,24 +314,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
-						removeContact(mContacts.get(uname).peer());
+						removeContact(uname);
 					}
 					else {
-						Synchronize(this);
-						
-						String name = request.post["name"];
-						String secret = request.post["secret"];
-						if(name.empty() || secret.empty()) throw 400;
-						
-						// Answer now as adding a contact can be a long operation on slow devices
-						Http::Response response(request, 303);
-						response.headers["Location"] = prefix + "/";
-						response.send();
-						response.sock->close();
-						
-						if(request.post.contains("self")) setSelf(secret);
-						else addContact(name, secret);
-						
+						// TODO
+						throw 500;
 						return;
 					}
 				}
@@ -517,37 +340,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 
-				Array<Contact*> contacts;
-				getContacts(contacts);
-				Contact *self = getSelf();
-				if(self) contacts.prepend(self);
-
 				JsonSerializer json(response.sock);
-				json.outputMapBegin();
-				for(int i=0; i<contacts.size(); ++i)
-        			{
-                			Contact *contact = contacts[i];
-                			if(contact->isDeleted()) continue;
-                        			
-					String name = contact->name();
-					String tracker = contact->tracker();
-					String status = contact->status();
-					String strPrefix = contact->urlPrefix();
-					
-					MailQueue *mailQueue = user()->mailQueue();
-					ConstSerializableWrapper<int> mailsWrapper(mailQueue->selectPrivate(contact->uniqueName()).unreadCount());
-					ConstSerializableWrapper<bool> newMailsWrapper(mailQueue->hasNew());
-					
-					SerializableMap<String, Serializable*> map;
-					map["name"] = &name;
-					map["tracker"] = &tracker;
-					map["status"] = &status;
-					map["prefix"] = &strPrefix;
-					map["mails"] = &mailsWrapper;
-					map["newmails"] = &newMailsWrapper;
-					json.outputMapElement(contact->uniqueName(), map);
-				}
-				json.outputMapEnd();
+				json.output(*this);
 				return;
 			}
 			
@@ -693,21 +487,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				for(int i=0; i<contacts.size(); ++i)
 				{
 					Contact *contact = contacts[i];
-					if(contact->isDeleted()) continue;
-					String contactUrl = prefix + '/' + contact->uniqueName() + '/';
-					
+
 					page.open("tr");
 					page.open("td",".name");
 					page.text(contact->name());
 					page.close("td");
-					page.open("td",".tracker");
-					page.text(String("@") + contact->tracker());
-					page.close("td");
 					page.open("td",".uname");
 					page.link(contact->urlPrefix(), contact->uniqueName());
-					page.close("td");
-					page.open("td",".checksum");
-					page.text(String(" check: ")+String::hexa(contact->peerChecksum(),8));
 					page.close("td");
 					page.open("td",".actions");
 					page.openLink('#', ".deletelink");
@@ -754,43 +540,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void AddressBook::registerContact(Contact *contact, int ordinal)
-{
-	Synchronize(this);
-	
-	mContacts.insert(contact->peering(), contact);
-	mContactsByUniqueName.insert(contact->uniqueName(), contact);
-	
-	if(!contact->isDeleted())
-	{
-		if(contact->isSelf()) Interface::Instance->remove("/"+userName()+"/myself/files");	// overriding Store
-		Interface::Instance->add(contact->urlPrefix(), contact);
-		contact->createProfile();
-		
-		Time time = std::max(Time::Now(), Time::Start() + StartupDelay) + UpdateStep*ordinal + Random().uniform(0., UpdateStep);
-		mScheduler.schedule(contact, time);
-		mScheduler.repeat(contact, UpdateInterval);
-	}
-}
-
-void AddressBook::unregisterContact(Contact *contact)
-{
-	Synchronize(this);
-	
-	mContacts.erase(contact->peering());
-	mContactsByUniqueName.erase(contact->uniqueName());
-	
-	Core::Instance->unregisterPeering(contact->peering());
-	Interface::Instance->remove(contact->urlPrefix(), contact);
-	mScheduler.cancel(contact);
-}
-
-bool AddressBook::publish(const Identifier &remotePeering)
+bool AddressBook::publish(const Identifier &identifier)
 {
 	String tracker = user()->tracker();
 	
 	try {
-		String url("http://" + tracker + "/tracker/?id=" + remotePeering.toString());
+		String url("http://" + tracker + "/tracker/?id=" + identifier.toString());
 		
 		List<Address> list;
 		Config::GetExternalAddresses(list);
@@ -805,7 +560,7 @@ bool AddressBook::publish(const Identifier &remotePeering)
 		}
 		
 		StringMap post;
-		post["instance"] = Core::Instance->getName();
+		post["instance"] << Core::Instance->getNumber();
 		post["addresses"] = addresses;
 	
 		const String externalPort = Config::Get("external_port");
@@ -819,7 +574,8 @@ bool AddressBook::publish(const Identifier &remotePeering)
 			post["port"] = Config::Get("port");
 		}
 		
-		if(!Core::Instance->isPublicConnectable())
+		// TODO: separately report known public addresses to tracker
+		/*if(!Core::Instance->isPublicConnectable())
 		{
 			list.clear();
 			Core::Instance->getKnownPublicAdresses(list);
@@ -832,15 +588,10 @@ bool AddressBook::publish(const Identifier &remotePeering)
 				if(!altAddresses.empty()) altAddresses+= ',';
 				altAddresses+= it->toString();
 			}
-			
-			post["alternate"] = altAddresses;
-		}
+		}*/
 		
 		if(Http::Post(url, post) == 200)
-		{
-			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
 			return true;
-		}
 	}
 	catch(const Timeout &e)
 	{
@@ -854,46 +605,23 @@ bool AddressBook::publish(const Identifier &remotePeering)
 	{
 		LogWarn("AddressBook::publish", e.what()); 
 	}
-	
-	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
+
 	return false;
 }
 
-bool AddressBook::query(const Identifier &peer, const String &tracker, AddressMap &output, bool alternate)
+bool AddressBook::query(const Identifier &identifier, const String &tracker, Serializable &result)
 {
-	output.clear();
-	
 	String host(tracker);
 	if(host.empty()) host = Config::Get("tracker");
 	
 	try {
-		String url = "http://" + host + "/tracker/?id=" + peer.toString();
-  		if(alternate) url+= "&alternate=1";
+		String url = "http://" + host + "/tracker/?id=" + identifier.toString();
 		  
-		String tmp;
-		if(Http::Get(url, &tmp) == 200) 
+		String json;
+		if(Http::Get(url, &json) == 200) 
 		{
-			SynchronizeStatement(this, mBogusTrackers.erase(tracker));
-			
-			tmp.trim();
-			if(tmp.empty()) return false;
-		
-			YamlSerializer serializer(&tmp);
-			typedef SerializableMap<String, SerializableArray<Address> > content_t;
-			content_t content;
-			serializer.input(content);
-			
-			for(content_t::const_iterator it = content.begin();
-				it != content.end();
-				++it)
-			{
-				const String &instance = it->first;
-				const Array<Address> &addrs = it->second;
-				for(int i=0; i<addrs.size(); ++i)
-					output[instance].insert(addrs[i], Time::Now());
-			}
-			
-			return !output.empty();
+			JsonSerializer serializer(&json);
+			return serializer.input(result);
 		}
 	}
 	catch(const Timeout &e)
@@ -909,29 +637,183 @@ bool AddressBook::query(const Identifier &peer, const String &tracker, AddressMa
 		LogWarn("AddressBook::query", e.what()); 
 	}
 	
-	SynchronizeStatement(this, mBogusTrackers.insert(tracker));
 	return false;
+}
+
+AddressBook::MeetingPoint::MeetingPoint(void) :
+	mFound(false)
+{
+
+}
+
+AddressBook::MeetingPoint::MeetingPoint(const Identifier &identifier, const String &tracker) :
+	mIdentifier(identifier),
+	mTracker(tracker),
+	mFound(false)
+{
+
+}
+
+AddressBook::MeetingPoint::~MeetingPoint(void)
+{
+
+}
+
+Identifier AddressBook::MeetingPoint::identifier(void) const
+{
+	Synchronize(mAddressBook);
+	return mIdentifier;
+}
+
+String AddressBook::MeetingPoint::tracker(void) const
+{
+	Synchronize(mAddressBook);
+	return mTracker;
+}
+
+uint32_t AddressBook::MeetingPoint::checksum(void) const
+{
+	Synchronize(mAddressBook);
+	return mIdentifier.getDigest().checksum32() + uint32_t(mIdentifier.getNumber());
+}
+
+bool AddressBook::MeetingPoint::isFound(void) const
+{
+	Synchronize(mAddressBook);
+	
+	// TODO
+	return mFound;
+}
+
+bool AddressBook::MeetingPoint::isConnected(void) const
+{
+	Synchronize(mAddressBook);
+	return Core::Instance->hasPeer(identifier());
+}
+
+bool AddressBook::MeetingPoint::isConnected(uint64_t number) const
+{
+	Synchronize(mAddressBook);
+	return Core::Instance->hasPeer(getInstanceIdentifier(number)); 
+}
+
+void AddressBook::MeetingPoint::getInstanceNumbers(Array<uint64_t> &result) const
+{
+	Synchronize(mAddressBook);
+	
+	result.clear();
+	result.reserve(mInstances.size());
+	 
+	for(InstancesMap::iterator it = mInstances.begin();
+		it != mInstances.end();
+		++it)
+	{
+		result.append(it->first); 
+	}
+	 
+	return result.size();
+}
+
+bool AddressBook::MeetingPoint::getInstanceIdentifier(uint64_t number, Identifier &result) const
+{
+	InstancesMap::iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		result = Identifier(mIdentifier, number);
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::MeetingPoint::getInstanceName(uint64_t number, String &result) const
+{
+	InstancesMap::iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		result = it->name();
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::MeetingPoint::getInstanceAddresses(uint64_t number, Array<Address> &result) const
+{
+	InstancesMap::iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		result = it->addresses();
+		return true;
+	}
+	
+	return false;
+}
+
+void AddressBook::MeetingPoint::seen(const Identifier &peer)
+{
+	if(peer != identifier()) return;
+	mInstance[peer].setSeen();
+}
+
+bool AddressBook::MeetingPoint::recv(const Identifier &peer, const Notification &notification)
+{
+  
+}
+
+void AddressBook::MeetingPoint::serialize(Serializer &s) const
+{
+	ConstSerializableWrapper<uint64_t> numberWrapper(mNumber);
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["identifier"] = &mIdentifier;
+	mapping["tracker"] = &mTracker;
+	mapping["instances"] = &mInstances;
+	
+	s.outputObject(mapping); 
+}
+
+bool AddressBook::MeetingPoint::deserialize(Serializer &s)
+{
+	mIdentifier.clear();
+	mTracker.clear();
+	mInstances.clear();
+
+	Serializer::ObjectMapping mapping;
+	mapping["identifier"] = &mIdentifier;
+	mapping["tracker"] = &mTracker;
+	mapping["instances"] = &mInstances;
+	
+	// TODO: sanity checks
+	return s.inputObject(mapping);  
+}
+
+bool AddressBook::MeetingPoint::isInlineSerializable(void) const
+{
+	return false;
+}
+
+AddressBook::Contact::Contact(void) :
+	mAddressBook(NULL),
+	mProfile(NULL)
+{	
+
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
 				const String &uname,
 				const String &name,
-			        const String &tracker,
-			        const String &secret) :
+			        const Rsa::PublicKey &pubKey) :
 	mAddressBook(addressBook),
 	mUniqueName(uname),
 	mName(name),
-	mTracker(tracker),
-	mIsDeleted(false),
-	mFound(false),
 	mProfile(NULL)
-{	
+{
 	Assert(addressBook != NULL);
 	Assert(!uname.empty());
 	Assert(!name.empty());
-	Assert(!tracker.empty());
-	Assert(!secret.empty());
 
+/*
 	const unsigned iterations = 10000;
 	
 	String salt = std::min(mAddressBook->userName(), mName) + "/" + std::max(mAddressBook->userName(), mName);
@@ -940,14 +822,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	String peerSecret(mSecret, 0, 32);
 	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
 	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
-	
+*/
+
 	createProfile();
+	
+	Interface::Instance->add(urlPrefix(), this);
 }
 
 AddressBook::Contact::Contact(AddressBook *addressBook) :
-	mAddressBook(addressBook),
-	mIsDeleted(false),
-	mFound(false),
 	mProfile(NULL)
 {
 
@@ -956,7 +838,18 @@ AddressBook::Contact::Contact(AddressBook *addressBook) :
 AddressBook::Contact::~Contact(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
+	
 	delete mProfile;
+}
+
+const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const
+{
+	return mPublicKey; 
+}
+
+Identifier AddressBook::Contact::identifier(void) const
+{
+	return mPublicKey.digest();
 }
 
 String AddressBook::Contact::uniqueName(void) const
@@ -971,29 +864,16 @@ String AddressBook::Contact::name(void) const
 	return mName;
 }
 
-String AddressBook::Contact::tracker(void) const
+Identifier AddressBook::Contact::identifier(void) const
 {
 	Synchronize(mAddressBook);
-	if(mProfile) return mProfile->tracker();
-	else return mTracker;
-}
-
-Identifier AddressBook::Contact::peering(void) const
-{
-	Synchronize(mAddressBook);
-	return mPeering;
+	return mPublicKey.digest();
 }
 
 Time AddressBook::Contact::time(void) const
 {
 	Synchronize(mAddressBook);
 	return mTime; 
-}
-
-uint32_t AddressBook::Contact::peerChecksum(void) const
-{
-	Synchronize(mAddressBook);
-	return mPeering.toBinaryString().checksum32() + mRemotePeering.toBinaryString().checksum32(); 
 }
 
 String AddressBook::Contact::urlPrefix(void) const
@@ -1026,25 +906,6 @@ bool AddressBook::Contact::isSelf(void) const
 	return (mUniqueName == mAddressBook->userName());
 }
 
-bool AddressBook::Contact::isFound(void) const
-{
-	return mFound;
-}
-
-bool AddressBook::Contact::isConnected(void) const
-{
-	Synchronize(mAddressBook);
-	return Core::Instance->hasPeer(mPeering); 
-}
-
-bool AddressBook::Contact::isConnected(const String &instance) const
-{
-	Synchronize(mAddressBook);
-	
-	// TODO
-	return false;
-}
-
 bool AddressBook::Contact::isOnline(void) const
 {
 	Synchronize(mAddressBook);
@@ -1063,46 +924,12 @@ String AddressBook::Contact::status(void) const
 	else return "disconnected";
 }
 
-int getIdentifiers(Array<Identifier> &result) const
-{
-	 Synchronize(mAddressBook);
-	 
-	 result.clear();
-	 result.reserve(mInstances.size());
-	 
-	 for(InstancesMap::iterator it = mInstances.begin();
-	 	it != mInstances.end();
-	 	++it)
-	 {
-	 	result.append(it->second.identifier()); 
-	 }
-	 
-	 return result.size();
-}
-
-int AddressBook::Contact::getInstancesNames(Array<String> &result) const
-{
-	Synchronize(mAddressBook);
-	 
-	result.clear();
-	result.reserve(mInstances.size());
-	 
-	for(InstancesMap::iterator it = mInstances.begin();
-		it != mInstances.end();
-		++it)
-	{
-		result.append(it->second.name()); 
-	}
-	 
-	return result.size();
-}
-
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
 	// Warning: NOT synchronized !
 	
 	if(addr.isNull()) return false;
-	if(instance == Core::Instance->getName()) return false;
+	if(instance == Core::Instance->getNumber()) return false;
 	
 	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
 
@@ -1172,7 +999,7 @@ bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bo
 		const String &instance = it->first;
 		const AddressBlock &block = it->second;
 	  
-		if(instance == Core::Instance->getName() 
+		if(instance == Core::Instance->getNumber() 
 			|| mExcludedInstances.contains(instance)) continue;
 		
 	  	// TODO: look for a better address than the already connected one
@@ -1214,7 +1041,7 @@ void AddressBook::Contact::update(bool alternate)
 	
 	if(peer() != remotePeering() && Core::Instance->hasRegisteredPeering(remotePeering()))	// the user is local
 	{
-		Identifier identifier(peer(), Core::Instance->getName());
+		Identifier identifier(peer(), Core::Instance->getNumber());
 		if(!Core::Instance->hasPeer(identifier))
 		{
 			LogDebug("AddressBook::Contact", uniqueName() + " found locally");
@@ -1236,7 +1063,7 @@ void AddressBook::Contact::update(bool alternate)
 		if(mAddressBook->publish(remotePeering()))
 			LogDebug("AddressBook::Contact", "Published to tracker " + mAddressBook->user()->tracker() + " for " + uniqueName());
 	}
-		  
+	
 	AddressMap newAddrs;
 	if(mAddressBook->query(peer(), tracker(), newAddrs, alternate))
 		LogDebug("AddressBook::Contact", "Queried tracker " + tracker() + " for " + uniqueName());	
@@ -1307,16 +1134,6 @@ void AddressBook::Contact::createProfile(void)
 	}
 }
 
-void AddressBook::Contact::run(void)
-{
-	Synchronize(mAddressBook);
-	
-	DesynchronizeStatement(mAddressBook, update(false));
-	
-	if(!Core::Instance->isPublicConnectable())
-		DesynchronizeStatement(mAddressBook, update(true));
-}
-
 void AddressBook::Contact::connected(const Identifier &peer, bool incoming)
 {
 	// Handle the special case of symmetric peers
@@ -1385,401 +1202,15 @@ void AddressBook::Contact::seen(const Identifier &peer)
 
 bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
 {
-	// Important: Not synchronized
-	
-	if(isDeleted()) return false;
+	// Not synchronized
 
 	String type;
 	notification.get("type", type);
 	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
-	
-	if(type == "mail")
-	{
-		Mail mail;
-		Assert(mail.recv(notification));
-		
-		if(!isSelf())
-		{
-			mail.setIncoming(!mail.checkSignature(mAddressBook->user()));
-			
-			if(mail.isPublic() && !mail.isIncoming()) mail.setContact("");
-			else {
-				if(mail.isPublic() && !mail.contact().empty()) mail.setRelayed(true);
-				mail.setContact(uniqueName());
-			}
-		}
-		
-		MailQueue *mails = mAddressBook->user()->mailQueue();
-		mails->add(mail);
-		if(!isSelf()) mails->markReceived(mail.stamp(), uniqueName());
-	}
-	else if(type == "read" || type == "ack")
-	{
-		String data = notification.content();
-                YamlSerializer serializer(&data);
-		StringList stamps;
-		serializer.input(stamps);
 
-		// Mark mails as read
-		bool privateOnly = !isSelf();	// others may not mark public mails as read
-		MailQueue::Selection selection = selectMails(privateOnly);
-		
-		for(StringList::iterator it = stamps.begin();
-			it != stamps.end();
-			++it)
-		{
-			selection.markRead(*it);
-		}
-	}
-	else if(type == "unread")
-	{
-		String data = notification.content();
-                YamlSerializer serializer(&data);
-		StringSet recvStamps;
-		serializer.input(recvStamps);
-
-		// Mark mails as read
-                bool privateOnly = !isSelf();   // others may not mark public mails as read
-                MailQueue::Selection selection = selectMails(privateOnly);
-
-		List<Mail> unread;
-		selection.getUnread(unread);
-		
-		// Mark not present stamps as read
-		for(List<Mail>::iterator it = unread.begin();
-			it != unread.end();
-			++it)
-		{
-			String stamp = it->stamp();
-			if(recvStamps.contains(stamp)) recvStamps.erase(stamp);
-			else selection.markRead(stamp);
-		}
-		
-		// Ack left stamps
-		if(!recvStamps.empty())
-		{
-			String tmp;
-			YamlSerializer outSerializer(&tmp);
-			outSerializer.output(recvStamps);
-
-			Notification notification(tmp);
-			notification.insert("type", "read");
-			notification.send(peer);
-		}
-	}
-	else if(type == "pass")
-	{
-		if(!isSelf())
-		{
-			LogWarn("AddressBook::Contact::notification", "Received pass notification from other than self, dropping");
-			return true;
-		}
-		
-		String data = notification.content();
-                YamlSerializer serializer(&data);
-		StringArray stamps;
-		serializer.input(stamps);
-
-		// Mark mails as passed
-		MailQueue *mailQueue = mAddressBook->user()->mailQueue();
-		for(int i=0; i<stamps.size(); ++i)
-			mailQueue->markPassed(stamps[i]);
-	}
-	else if(type == "checksum")
-	{
-		int offset = 0;
-		int count = 0;
-		int total = 0;
-		bool recursion = false;
-		String base;
-		
-		try {
-			StringMap tmp(notification);
-			tmp["offset"] >> offset;
-			tmp["count"] >> count;
-			tmp["total"] >> total;
-			tmp["recursion"] >> recursion;
-			if(tmp.contains("base"))
-				tmp["base"] >> base;
-			
-			Assert(offset >= 0);
-			Assert(count >= 0);
-			Assert(offset + count <= total);
-		}
-		catch(const Exception &e)
-		{
-			throw InvalidData("checksum notification: " + String(e.what()));
-		}
-		
-		BinaryString checksum;
-		
-		try {
-			notification.content().extract(checksum);
-		}
-		catch(...)
-		{
-			throw InvalidData("checksum notification content: " + notification.content());
-		}
-		
-		LogDebug("AddressBook::Contact", "Synchronization: Received checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
-		
-		MailQueue::Selection selection = selectMails();
-		if(!base.empty())
-		{
-			if(!selection.setBaseStamp(base))
-				LogDebug("AddressBook::Contact", "Synchronization: Base mail '"+base+"' does not exist");
-		}
-		
-		int localTotal = selection.count();
-		bool isLastIteration = false;
-		if(offset + count <= localTotal)
-		{
-			BinaryString result;
-			selection.checksum(offset, count, result);
-		
-			if(result != checksum)
-			{
-				LogDebug("AddressBook::Contact", "Synchronization: No match: " + String::number(offset) + ", " + String::number(count));
-			
-				if(count == 1)	// TODO
-				{
-					sendMails(peer, selection, offset, count);
-					if(recursion)
-					{
-						sendMailsChecksum(peer, selection, offset, count, false);
-						isLastIteration = true;
-					}
-				}
-				else if(recursion)
-				{
-					sendMailsChecksum(peer, selection, offset, count/2, true);
-					sendMailsChecksum(peer, selection, offset + count/2, count - count/2, true);
-				}
-			
-				if(!recursion) 
-					isLastIteration = true;
-			}
-			else {
-				LogDebug("AddressBook::Contact", "Synchronization: Match: " + String::number(offset) + ", " + String::number(count));
-				isLastIteration = true;
-			}
-		}
-		else {
-			if(offset == 0)
-			{
-				LogDebug("AddressBook::Contact", "Synchronization: Remote has more mails");
-				sendMailsChecksum(peer, selection, 0, localTotal, true);
-			}
-		}
-
-		if(isLastIteration && offset == 0)
-		{
-			// If mails are missing remotely
-			if(total < localTotal)
-				sendMails(peer, selection, total, localTotal - total);
-			
-			sendUnread(peer);
-			if(isSelf()) sendPassed(peer);
-		}
-	}
-	else if(type == "checkself")
-	{
-	 	// TODO: probably deprecated
-	  
-		Identifier checkself;
-		
-		try {
-			notification.content().extract(checkself);
-		}
-		catch(...)
-		{
-			throw InvalidData("checkself notification content: " + notification.content());
-		}
-		
-		Contact *self = mAddressBook->getSelf();
-		if(self && (isSelf() != (checkself == self->peering())))
-		{
-			LogDebug("AddressBook::Contact::notification", "Remote instance belongs to us on a symmetric peer, disconnecting");
-			mExcludedInstances.insert(peer.getName());
-			return false; // disconnect
-		}
-	}
-	else if(type == "status")
-	{
-		Synchronize(mAddressBook);
-		String status = notification.content().toLower().trimmed();
-		if(status == "online") mOnlineInstances.insert(peer.getName());
-		else mOnlineInstances.erase(peer.getName());
-	}
-	else if(type == "secret")
-	{
-		if(!isSelf())
-		{
-			LogWarn("AddressBook::Contact::notification", "Received secret update from other than self, dropping");
-			return true;
-		}
-		
-		BinaryString secret;
-		
-		try {
-			notification.content().extract(secret);
-		}
-		catch(...)
-		{
-			throw InvalidData("secret notification content: " + notification.content());
-		}
-
-		
-		if(!notification.contains("time")) 
-		{
-			LogWarn("AddressBook::Contact::notification", "Received secret update without time, dropping");
-			return true;
-		}
-		
-		Time time;	
-		notification.get("time").extract(time);
-		mAddressBook->user()->setSecret(secret, time);
-	}
-	else if(type == "profile" || type == "profilediff")
-	{
-		String data = notification.content();
-		YamlSerializer serializer(&data);		
-		Profile *p = profile();
-
-		Time time;
-		if(notification.contains("time")) notification.get("time").extract(time);
-		else if(type != "profilediff") 
-		{
-			LogWarn("AddressBook::Contact::notification", "Received profile update without time, dropping");
-			return true;
-		}
-
-		if(time > p->time())
-		{
-			Synchronize(p);
-			if(type != "profilediff") p->clear();
-			p->deserialize(serializer);
-			p->save();
-			
-			if(!p->avatar().empty())
-			{
-				try {
-					Cache::Instance->prefetch(p->avatar());
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact", String("Avatar prefetching failed: ") + e.what());
-				}
-			}
-		}
-	}
-	else if(type == "contacts")
-	{
-		if(!isSelf())
-		{
-			LogWarn("AddressBook::Contact::notification", "Received contacts update from other than self, dropping");
-			return true;
-		}
-		
-		// DO NOT synchronize here, as the contact could disappear during load
-		String data = notification.content();
-		AddressBook *addressBook = mAddressBook;
-		addressBook->load(data); // may destroy the contact
-	}
-	else if(type == "text")
-	{
-		LogDebug("AddressBook::Contact", "Got deprecated notification with type 'text'");
-	}
-	else LogDebug("AddressBook::Contact", "Unknown notification type '" + type + "'");
+	// TODO
 	
 	return true;
-}
-
-MailQueue::Selection AddressBook::Contact::selectMails(bool privateOnly) const
-{
-	MailQueue *mailQueue = mAddressBook->user()->mailQueue();
-	String uname;
-	if(!isSelf()) uname = uniqueName();
-
-	if(!privateOnly) return mailQueue->select(uname);
-	else return mailQueue->selectPrivate(uname);
-}
-
-void AddressBook::Contact::sendMails(const Instance &instance, const MailQueue::Selection &selection, int offset, int count) const
-{
-	if(!count) return;
-
-	LogDebug("AddressBook::Contact", "Synchronization: Sending mails: " + String::number(offset) + ", " + String::number(count));
-
-	List<Mail> mails;
-	selection.getRange(offset, count, mails);
-	
-	for(List<Mail>::iterator it = mails.begin();
-		it != mails.end();
-		++it)
-	{
-		it->send(instance.identifier());
-	}
-}
-
-void AddressBook::Contact::sendMailsChecksum(const Instance &instance, const MailQueue::Selection &selection, int offset, int count, bool recursion) const
-{
-	int total = selection.count();
-	offset = bounds(offset, 0, total);
-	count = bounds(count, 0, total - offset); 
-	
-	LogDebug("AddressBook::Contact", "Synchronization: Sending checksum: " + String::number(offset) + ", " + String::number(count) + " (recursion " + (recursion ? "enabled" : "disabled") + ")");
-
-	BinaryString result;
-	selection.checksum(offset, count, result);
-
-	Notification notification(result.toString());
-	
-	notification["type"] << "checksum";
-	notification["offset"] << offset;
-	notification["count"] << count;
-	notification["total"] << total;
-	notification["recursion"] << recursion;
-	
-	String base = selection.baseStamp();
-	if(!base.empty()) notification["base"] << base;
-	
-	notification.send(instance.identifier());
-}
-
-void AddressBook::Contact::sendUnread(const Instance &instance) const
-{
-	bool privateOnly = !isSelf();
-	MailQueue::Selection selection = selectMails(privateOnly);
-	
-	StringList stamps;
-	selection.getUnreadStamps(stamps);
-	
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serializer.output(stamps);
-
-	Notification notification(tmp);
-	notification.insert("type", "unread");
-	notification.send(instance.identifier());
-}
-
-void AddressBook::Contact::sendPassed(const Instance &instance) const
-{
-	bool privateOnly = !isSelf();
-	MailQueue::Selection selection = selectMails(privateOnly);
-	
-	// Send the last passed mails
-	StringList stamps;
-	selection.getPassedStamps(stamps, 10);	// TODO
-	
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serializer.output(stamps);
-	
-	Notification notification(tmp);
-	notification.insert("type", "pass");
-	notification.send(instance.identifier());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
@@ -1839,8 +1270,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.span(status().capitalized(), "status.button");
 				page.close("div");
 			}
-
-
+			
 			// TODO: insert here profile infos
 			
 			page.open("div",".box");
@@ -2079,23 +1509,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-void AddressBook::Contact::copy(const AddressBook::Contact *contact)
-{
-	Synchronize(mAddressBook);
-	Assert(contact);
-	
-	mUniqueName = contact->mUniqueName;
-	mName = contact->mName;
-	mTracker = contact->mTracker;
-	mSecret = contact->mSecret;
-	mPeering = contact->mPeering;
-	mRemotePeering = contact->mRemotePeering;
-	mTime = contact->mTime;
-	mIsDeleted = contact->mIsDeleted;
-	
-	addAddresses(contact->addresses());
-}
-
 void AddressBook::Contact::serialize(Serializer &s) const
 {
 	Synchronize(mAddressBook);
@@ -2103,11 +1516,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	Serializer::ConstObjectMapping mapping;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["tracker"] = &mTracker;
-	mapping["peering"] = &mPeering;
-	mapping["secret"] = &mSecret;
-	mapping["time"] = &mTime;
-	mapping["instances"] = &mInstances;
+	mapping["meetingpoints"] = &mMeetingPoint;
 	
 	s.outputObject(mapping);
 }
@@ -2127,13 +1536,11 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	Serializer::ObjectMapping mapping;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["tracker"] = &mTracker;
-	mapping["peering"] = &mPeering;
-	mapping["secret"] = &mSecret;
-	mapping["time"] = &mTime;
-	mapping["instances"] = &mInstances;
+	mapping["meetingpoints"] = &mMeetingPoint;
 	
 	// TODO: sanity checks
+
+	Interface::Instance->add(urlPrefix(), this);
 	return s.inputObject(mapping);
 }
 
@@ -2142,30 +1549,23 @@ bool AddressBook::Contact::isInlineSerializable(void) const
 	return false; 
 }
 
-AddressBook::Contact::Instance::Instance(void)
+AddressBook::Contact::Instance::Instance(void) :
+	mNumber(0),
+	mLastSeen(0)
 {
   
 }
 
-AddressBook::Contact::Instance::Instance(const Rsa::PublicKey &key) :
-	mPublicKey(key)
+AddressBook::Contact::Instance::Instance(uint64_t number) :
+	mNumber(number),
+	mLastSeen(0)
 {
- 
+	Assert(mNumber != 0);
 }
 
 AddressBook::Contact::Instance::~Instance()
 {
   
-}
-
-const Rsa::PublicKey &AddressBook::Contact::Instance::publicKey(void) const
-{
-	return mPublicKey;
-}
-
-Identifier AddressBook::Contact::Instance::identifier(void) const
-{
-	return mPublicKey.digest(); 
 }
 
 String AddressBook::Contact::Instance::name(void) const
@@ -2178,14 +1578,24 @@ String AddressBook::Contact::Instance::setName(void)
 	mName = name;
 }
 
+Time AddressBook::MeetingPoint::lastSeen(void) const
+{
+	return mLastTime;
+}
+
+void AddressBook::MeetingPoint::setSeen(void)
+{
+	mLastTime = Time::Now(); 
+}
+
 void AddressBook::Contact::Instance::addAddress(const Address &addr)
 {
 	mAddrs.insert(addr, Time::Now());
 }
 
-void AddressBook::Contact::Instance::addAddresses(const List<Address> &addrs)
+void AddressBook::Contact::Instance::addAddresses(const Set<Address> &addrs)
 {
-	for(List<Address>::iterator it = addrs.begin(),
+	for(Set<Address>::iterator it = addrs.begin(),
 		it != addrs.end();
 		++it)
 	{
@@ -2193,10 +1603,22 @@ void AddressBook::Contact::Instance::addAddresses(const List<Address> &addrs)
 	}
 }
 
+void AddressBook::Contact::Instance::getAddresses(Set<Address> &result) const
+{
+	mAddrs.getKeys(result);
+}
+
+const AddressBlock &AddressBook::Contact::Instance::addresses(void) const
+{
+	return mAddrs;
+}
+
 void AddressBook::Contact::Instance::serialize(Serializer &s) const
 {
+	Synchronize(mAddressBook);
+	
 	Serializer::ConstObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
+	mapping["number"] = &mNumber;
 	mapping["name"] = &mName;
 	mapping["addresses"] = &mAddrs;
 	
@@ -2205,12 +1627,14 @@ void AddressBook::Contact::Instance::serialize(Serializer &s) const
 
 bool AddressBook::Contact::Instance::deserialize(Serializer &s)
 {
-	mPublicKey.clear();
+	Synchronize(mAddressBook);
+	
+	mNumber = 0;
 	mName.clear();
 	mAddrs.clear();
 	
 	Serializer::ObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
+	mapping["number"] = &mNumber;
 	mapping["name"] = &mName;
 	mapping["addresses"] = &mAddrs;
 	

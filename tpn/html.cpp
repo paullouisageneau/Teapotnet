@@ -50,20 +50,10 @@ String Html::escape(const String &str)
   
 Html::Html(Stream *stream) :
 	mStream(stream),
-	mBlank(false),
-	mAdmin(false)
+	mBlank(false)
 {
 
 }
-
-Html::Html(Socket *sock) :
-	mStream(sock),
-	mBlank(false),
-	mAdmin(sock->getRemoteAddress().isLocal())
-{
-
-}
-
 
 Html::~Html(void)
 {
