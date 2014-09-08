@@ -40,7 +40,49 @@ Core::Core(int port) :
 		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
 		mLastPublicIncomingTime(0)
 {
-	// Define name
+	bool configChanged = false;
+	String tmp;
+	
+	// Define instance number
+	mNumber = 0;
+	tmp = Config::Get("instance_number");
+	tmp.hexaMode(true);
+	tmp.read(mNumber);
+	if(!mNumber)
+	{
+		List<BinaryString> hardwareAddrs;
+		
+		try {
+			DatagramSocket dummy;
+			dummy.getHardwareAddresses(hardwareAddrs);
+		}
+		catch(...)
+		{
+
+		}
+		
+		if(!hardwareAddrs.empty())
+		{
+			BinaryString digest;
+			Sha256().compute(hardwareAddrs.last(), digest);
+			digest.read(mNumber);
+		}
+		else {
+			LogWarn("Core", "Unable to get a hardware address, using a random instance number");
+		}
+		
+		if(mNumber == 0)
+		{
+			Random rnd(Random::Nonce);
+			while(mNumber == 0) 
+				rnd.read(mNumber);
+		}
+		
+		Config::Put("instance_number", String::hexa(mNumber));
+		configChanged = true;
+	}
+	
+	// Define instance name
 	mName = Config::Get("instance_name");
 	if(mName.empty())
 	{
@@ -51,15 +93,22 @@ Core::Core(int port) :
 		if(mName.empty() || mName == "localhost")
 		{
 		#ifdef ANDROID
-			mName = String("android.") + String::number(unsigned(pseudorand()%1000), 4);
+			mName = String("Android");
 		#else
-			mName = String(".") + String::random(6);
+			mName = String::hexa(mNumber);
 		#endif
-			Config::Put("instance_name", mName);
 			
-			const String configFileName = "config.txt";
-			Config::Save(configFileName);
+			Config::Put("instance_name", mName);
+			configChanged = true;
 		}
+	}
+	
+	LogInfo("Core", "Instance name is \"" + mName + "\", unique number is " + String::hexa(mNumber));
+	
+	if(configChanged)
+	{
+		const String configFileName = "config.txt";
+		Config::Save(configFileName);
 	}
 	
 	mTunnelBackend = NULL;
@@ -108,14 +157,17 @@ Core::~Core(void)
 	}
 }
 
-Identifier Core::getIdentifier(void) const
+uint64_t Core::getNumber(void) const
 {
-	return mPublicKey.digest();
+	Synchronize(this);
+	Assert(mNumber != 0);
+	return mNumber;
 }
 
 String Core::getName(void) const
 {
 	Synchronize(this);
+	Assert(!mName.empty());
 	return mName;
 }
 

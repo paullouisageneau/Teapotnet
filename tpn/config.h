@@ -47,7 +47,7 @@ public:
 	static bool LaunchUpdater(String *commandLine = NULL);
 	
 	static void GetExternalAddresses(List<Address> &list);
-	static bool GetProxyForUrl(const String &url, Address &addr);
+	
 private:
 	static StringMap Params;
 	static Mutex ParamsMutex;
@@ -55,10 +55,6 @@ private:
 
 	Config(void);
 	~Config(void);
-
-#ifdef WINDOWS
-	static bool parseWinHttpProxy(LPWSTR lpszProxy, Address &addr);
-#endif
 };
 
 }

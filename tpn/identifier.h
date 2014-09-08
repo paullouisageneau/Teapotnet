@@ -33,19 +33,24 @@ namespace tpn
 class Identifier : public Serializable
 {
 public:
-	static const size_t Size = 32;
+	// Hardcoded identifier size, do not change
+	static const size_t DigestSize = 32;		// digest: 32 B
+	static const size_t Size = DigestSize + 8;	// total:  40 B
 	static const Identifier Null;
 	
 	Identifier(void);
-	Identifier(const BinaryString &digest);
+	Identifier(const BinaryString &digest, uint64_t number = 0);
 	~Identifier(void);
 	
-	const char *data(void) const;
-	size_t size(void) const;
+	const BinaryString &digest(void) const;
+	uint64_t number(void) const;
+	
+	void setDigest(const BinaryString &digest);
+	void setNumber(uint64_t number);
+	
 	bool empty(void) const;
 	void clear(void);
 	
-	BinaryString toBinaryString(void) const;
 	operator BinaryString &(void);
 	operator const BinaryString &(void) const;
 	
@@ -56,10 +61,11 @@ public:
 	bool deserialize(Stream &s);
 
 private:
-	BinaryString mData;
+	BinaryString mDigest;
+	uint64_t mNumber;
 };
 
-// The principle is that an empty name is equal to ANY other name
+// The principle is that a null number is equal to ANY other number
 bool operator < (const Identifier &i1, const Identifier &i2);
 bool operator > (const Identifier &i1, const Identifier &i2);
 bool operator == (const Identifier &i1, const Identifier &i2);

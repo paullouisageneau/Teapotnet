@@ -7,7 +7,7 @@ CPPFLAGS=-O2
 LDFLAGS=-O2
 LDLIBS=-lws2_32 -lwininet -L win32 -lpthreadGC2 -lnettle -lhogweed -lgmp -lgnutls
 
-SRCS=$(shell printf "%s " tpn/*.cpp)
+SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
 all: teapotnet.exe winservice.exe winupdater.exe
@@ -25,13 +25,13 @@ teapotnet.exe: $(OBJS) include/sqlite3.o res.o
 	$(STRIP) teapotnet.exe
 	
 clean:
-	$(RM) include/*.o tpn/*.o tpn/*.d res.o
+	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d res.o
 	$(RM) res.rc
 	cd winupdater && make clean
 	
 dist-clean: clean
 	$(RM) teapotnet.exe winupdater.exe
-	$(RM) tpn/*~ ./.depend
+	$(RM) pla/*~ tpn/*~ ./.depend
 	cd winupdater && make dist-clean
 
 res.o: teapotnet.ico teapotnet.exe.manifest

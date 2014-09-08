@@ -43,21 +43,15 @@ public:
 	~Tracker(void);
 
 private:
-	typedef Map<Identifier, Map<Address,Time> > map_t;
-	struct Storage
-	{
-		map_t map;
-		map_t::iterator cleaner;
-	};
-	
-	Storage mStorage;
-	Storage mAlternate;
+	typedef Map<Identifier, Map<Address, Time> > map_t;
+	map_t mMap;
+	map_t::iterator mCleaner;
 	
 	void process(Http::Request &request);
 	void clean(Storage &s, int nbr = -1);
-	void insert(Storage &s, const Identifier &identifier, const Address &addr);
-	void retrieve(Storage &s, const Identifier &identifier, Stream &output) const;
-	bool contains(Storage &s, const Identifier &identifier);
+	void insert(const Identifier &identifier, const Address &addr);
+	void retrieve(const Identifier &identifier, Stream &output) const;
+	bool contains(const Identifier &identifier);
 };
 
 }
