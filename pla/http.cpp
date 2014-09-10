@@ -138,7 +138,7 @@ void Http::Request::send(Stream *stream)
 	
 	buf<<"\r\n";
 	*stream<<buf;
-
+	
 	if(!postData.empty())
 		*stream<<postData;
 }
@@ -587,7 +587,7 @@ void Http::Response::recv(Stream *stream)
 	// Read first line
 	String line;
 	if(!stream->readLine(line)) throw NetException("Connection closed");
-
+	
 	String protocol;
 	line.readString(protocol);
 	version = protocol.cut('/');
@@ -604,7 +604,7 @@ void Http::Response::recv(Stream *stream)
 		String line;
 		AssertIO(stream->readLine(line));
 		if(line.empty()) break;
-
+		
 		String value = line.cut(':');
 		line.trim();
 		value.trim();
@@ -811,10 +811,12 @@ int Http::Action(const String &method, const String &url, const String &data, co
 				{
 					request.url = url;              // Full URL for proxy
 				}
-				else {
-					Http::Request connectRequest(host, "CONNECT");
+				else {	// HTTPS
+					String connectHost = host;
+					if(!connectHost.contains(':')) connectHost+= ":443";
+					Http::Request connectRequest(connectHost, "CONNECT");
 					connectRequest.version = "1.1";
-					connectRequest.headers["Host"] = host;
+					connectRequest.headers["Host"] = connectHost;
 					connectRequest.send(sock);
 					
 					Http::Response connectResponse;
@@ -823,14 +825,14 @@ int Http::Action(const String &method, const String &url, const String &data, co
 					if(connectResponse.code != 200)
 					{
 						String msg = String::number(connectResponse.code) + " " + connectResponse.message;
-						LogWarn("Http::Get", String("HTTP proxy error: ") + msg);
+						LogWarn("Http::Action", String("HTTP proxy error: ") + msg);
 						throw Exception(msg);
 					}
 				}
 			}
 			catch(const NetException &e)
 			{
-				LogWarn("Http::Get", String("HTTP proxy error: ") + e.what());
+				LogWarn("Http::Action", String("HTTP proxy error: ") + e.what());
 				throw;
 			}
 		}
