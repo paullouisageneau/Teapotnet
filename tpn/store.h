@@ -23,12 +23,13 @@
 #define TPN_STORE_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
-#include "tpn/binarystring.h"
-#include "tpn/file.h"
-#include "tpn/map.h"
 #include "tpn/database.h"
 #include "tpn/fountain.h"
+
+#include "pla/synchronizable.h"
+#include "pla/binarystring.h"
+#include "pla/file.h"
+#include "pla/map.h"
 
 namespace tpn
 {

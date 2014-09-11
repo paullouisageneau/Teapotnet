@@ -23,13 +23,14 @@
 #define TPN_PROFILE_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
-#include "tpn/serializable.h"
 #include "tpn/interface.h"
-#include "tpn/string.h"
-#include "tpn/binarystring.h"
 #include "tpn/identifier.h"
 #include "tpn/html.h"
+
+#include "pla/synchronizable.h"
+#include "pla/serializable.h"
+#include "pla/string.h"
+#include "pla/binarystring.h"
 
 namespace tpn
 {

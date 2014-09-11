@@ -20,13 +20,14 @@
  *************************************************************************/
 
 #include "tpn/mail.h"
+#include "tpn/mailqueue.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
-#include "tpn/binarystring.h"
-#include "tpn/crypto.h"
-#include "tpn/yamlserializer.h"
-#include "tpn/binaryserializer.h"
-#include "tpn/mailqueue.h"
+
+#include "pla/binarystring.h"
+#include "pla/yamlserializer.h"
+#include "pla/binaryserializer.h"
+#include "pla/crypto.h"
 
 namespace tpn
 {

@@ -20,7 +20,8 @@
  *************************************************************************/
 
 #include "tpn/fountain.h"
-#include "tpn/random.h"
+
+#include "pla/random.h"
 
 namespace tpn
 {

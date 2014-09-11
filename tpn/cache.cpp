@@ -22,8 +22,9 @@
 #include "tpn/cache.h"
 #include "tpn/config.h"
 #include "tpn/resource.h"
-#include "tpn/file.h"
-#include "tpn/directory.h"
+
+#include "pla/file.h"
+#include "pla/directory.h"
 
 namespace tpn
 {

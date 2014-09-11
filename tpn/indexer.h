@@ -23,17 +23,18 @@
 #define TPN_INDEXER_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
-#include "tpn/serializable.h"
 #include "tpn/interface.h"
 #include "tpn/resource.h"
 #include "tpn/database.h"
 #include "tpn/core.h"
-#include "tpn/task.h"
-#include "tpn/map.h"
-#include "tpn/set.h"
-#include "tpn/array.h"
-#include "tpn/list.h"
+
+#include "pla/synchronizable.h"
+#include "pla/serializable.h"
+#include "pla/task.h"
+#include "pla/map.h"
+#include "pla/set.h"
+#include "pla/array.h"
+#include "pla/list.h"
 
 namespace tpn
 {

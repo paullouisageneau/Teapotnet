@@ -20,10 +20,11 @@
  *************************************************************************/
 
 #include "tpn/httptunnel.h"
-#include "tpn/exception.h"
-#include "tpn/scheduler.h"
 #include "tpn/config.h"
-#include "tpn/random.h"
+
+#include "pla/exception.h"
+#include "pla/scheduler.h"
+#include "pla/random.h"
 
 namespace tpn
 {

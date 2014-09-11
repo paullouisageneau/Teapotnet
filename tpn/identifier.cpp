@@ -20,8 +20,9 @@
  *************************************************************************/
 
 #include "tpn/identifier.h"
-#include "tpn/exception.h"
-#include "tpn/random.h"
+
+#include "pla/exception.h"
+#include "pla/random.h"
 
 namespace tpn
 {

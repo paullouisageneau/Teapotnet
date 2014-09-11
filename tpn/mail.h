@@ -23,12 +23,13 @@
 #define TPN_MAIL_H
 
 #include "tpn/include.h"
-#include "tpn/serializable.h"
 #include "tpn/notification.h"
-#include "tpn/string.h"
 #include "tpn/identifier.h"
-#include "tpn/map.h"
-#include "tpn/time.h"
+
+#include "pla/serializable.h"
+#include "pla/string.h"
+#include "pla/map.h"
+#include "pla/time.h"
 
 namespace tpn
 {

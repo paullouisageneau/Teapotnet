@@ -23,10 +23,10 @@
 #include "tpn/html.h"
 #include "tpn/user.h"
 #include "tpn/store.h"
-#include "tpn/splicer.h"
 #include "tpn/config.h"
-#include "tpn/directory.h"
-#include "tpn/mime.h"
+
+#include "pla/directory.h"
+#include "pla/mime.h"
 
 namespace tpn
 {

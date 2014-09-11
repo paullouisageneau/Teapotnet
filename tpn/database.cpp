@@ -20,8 +20,9 @@
  *************************************************************************/
 
 #include "tpn/database.h"
-#include "tpn/lineserializer.h"
-#include "tpn/yamlserializer.h"
+
+#include "pla/lineserializer.h"
+#include "pla/yamlserializer.h"
 
 namespace tpn
 {

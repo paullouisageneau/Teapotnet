@@ -20,10 +20,11 @@
  *************************************************************************/
 
 #include "tpn/store.h"
-#include "tpn/directory.h"
-#include "tpn/crypto.h"
 #include "tpn/config.h"
 #include "tpn/core.h"
+
+#include "pla/directory.h"
+#include "pla/crypto.h"
 
 namespace tpn
 {

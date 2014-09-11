@@ -23,13 +23,14 @@
 #define TPN_DATABASE_H
 
 #include "tpn/include.h"
-#include "tpn/string.h"
-#include "tpn/binarystring.h"
-#include "tpn/exception.h"
-#include "tpn/serializer.h"
-#include "tpn/time.h"
-#include "tpn/array.h"
-#include "tpn/list.h"
+
+#include "pla/string.h"
+#include "pla/binarystring.h"
+#include "pla/exception.h"
+#include "pla/serializer.h"
+#include "pla/time.h"
+#include "pla/array.h"
+#include "pla/list.h"
 
 #ifdef USE_SYSTEM_SQLITE3
 #include <sqlite3.h>

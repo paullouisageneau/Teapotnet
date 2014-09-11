@@ -23,9 +23,10 @@
 #define TPN_INTERFACE_H
 
 #include "tpn/include.h"
-#include "tpn/http.h"
-#include "tpn/mutex.h"
-#include "tpn/map.h"
+
+#include "pla/http.h"
+#include "pla/mutex.h"
+#include "pla/map.h"
 
 namespace tpn
 {
