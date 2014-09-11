@@ -22,11 +22,11 @@
 #include "tpn/mailqueue.h"
 #include "tpn/user.h"
 #include "tpn/html.h"
-#include "tpn/crypto.h"
-#include "tpn/yamlserializer.h"
-#include "tpn/jsonserializer.h"
 #include "tpn/notification.h"
-#include "tpn/splicer.h"
+
+#include "pla/yamlserializer.h"
+#include "pla/jsonserializer.h"
+#include "pla/crypto.h"
 
 namespace tpn
 {

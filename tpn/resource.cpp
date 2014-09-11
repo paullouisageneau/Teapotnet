@@ -21,7 +21,8 @@
 
 #include "tpn/resource.h"
 #include "tpn/config.h"
-#include "tpn/binaryserializer.h"
+
+#include "pla/binaryserializer.h"
 
 namespace tpn
 {

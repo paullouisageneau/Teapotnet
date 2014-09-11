@@ -23,11 +23,12 @@
 #define TPN_HTML_H
 
 #include "tpn/include.h"
-#include "tpn/stream.h"
-#include "tpn/socket.h"
-#include "tpn/serializable.h"
-#include "tpn/map.h"
-#include "tpn/http.h"
+
+#include "pla/stream.h"
+#include "pla/socket.h"
+#include "pla/serializable.h"
+#include "pla/map.h"
+#include "pla/http.h"
 
 namespace tpn
 {

@@ -23,9 +23,9 @@
 #define TPN_IDENTIFIER_H
 
 #include "tpn/include.h"
-#include "tpn/string.h"
-#include "tpn/binarystring.h"
-#include "tpn/serializable.h"
+
+#include "pla/binarystring.h"
+#include "pla/serializable.h"
 
 namespace tpn
 {

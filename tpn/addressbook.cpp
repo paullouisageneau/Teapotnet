@@ -22,22 +22,23 @@
 #include "tpn/addressbook.h"
 #include "tpn/user.h"
 #include "tpn/core.h"
-#include "tpn/crypto.h"
-#include "tpn/random.h"
 #include "tpn/config.h"
 #include "tpn/cache.h"
-#include "tpn/file.h"
-#include "tpn/directory.h"
 #include "tpn/request.h"
 #include "tpn/resource.h"
 #include "tpn/indexer.h"
 #include "tpn/html.h"
-#include "tpn/yamlserializer.h"
-#include "tpn/jsonserializer.h"
-#include "tpn/binaryserializer.h"
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"
-#include "tpn/mime.h"
+
+#include "pla/crypto.h"
+#include "pla/random.h"
+#include "pla/file.h"
+#include "pla/directory.h"
+#include "pla/yamlserializer.h"
+#include "pla/jsonserializer.h"
+#include "pla/binaryserializer.h"
+#include "pla/mime.h"
 
 namespace tpn
 {
@@ -340,7 +341,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 
-				JsonSerializer json(response.sock);
+				JsonSerializer json(response.stream);
 				json.output(*this);
 				return;
 			}
@@ -348,7 +349,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			Http::Response response(request, 200);
 			response.send();
 			
-			Html page(response.sock);
+			Html page(response.stream);
 			page.header("Contacts");
 			
 			// Loading will block here if a contact is added at the same time

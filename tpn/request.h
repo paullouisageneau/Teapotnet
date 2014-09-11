@@ -23,12 +23,13 @@
 #define TPN_REQUEST_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
+#include "tpn/core.h"
 #include "tpn/interface.h"
-#include "tpn/binarystring.h"
 #include "tpn/resource.h"
 #include "tpn/identifier.h"
-#include "tpn/core.h"
+
+#include "pla/synchronizable.h"
+#include "pla/binarystring.h"
 
 namespace tpn
 {

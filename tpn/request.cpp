@@ -20,7 +20,8 @@
  *************************************************************************/
 
 #include "tpn/request.h"
-#include "tpn/jsonserializer.h"
+
+#include "pla/jsonserializer.h"
 
 namespace tpn
 {

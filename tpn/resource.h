@@ -23,12 +23,13 @@
 #define TPN_RESOURCE_H
 
 #include "tpn/include.h"
-#include "tpn/serializable.h"
-#include "tpn/string.h"
-#include "tpn/binarystring.h"
 #include "tpn/identifier.h"
 #include "tpn/block.h"
-#include "tpn/file.h"
+
+#include "pla/serializable.h"
+#include "pla/string.h"
+#include "pla/binarystring.h"
+#include "pla/file.h"
 
 namespace tpn
 {

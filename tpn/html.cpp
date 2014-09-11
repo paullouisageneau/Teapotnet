@@ -20,11 +20,12 @@
  *************************************************************************/
 
 #include "tpn/html.h"
-#include "tpn/exception.h"
 #include "tpn/request.h"
 #include "tpn/user.h"
-#include "tpn/mime.h"
-#include "tpn/config.h"
+
+#include "pla/config.h"
+#include "pla/exception.h"
+#include "pla/mime.h"
 
 namespace tpn
 {

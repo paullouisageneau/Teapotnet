@@ -20,7 +20,8 @@
  *************************************************************************/
 
 #include "tpn/tracker.h"
-#include "tpn/yamlserializer.h"
+
+#include "pla/yamlserializer.h"
 
 namespace tpn
 {

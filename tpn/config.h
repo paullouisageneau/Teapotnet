@@ -23,12 +23,13 @@
 #define TPN_CONFIG_H
 
 #include "tpn/include.h"
-#include "tpn/string.h"
-#include "tpn/mutex.h"
-#include "tpn/file.h"
-#include "tpn/map.h"
-#include "tpn/list.h"
-#include "tpn/address.h"
+
+#include "pla/string.h"
+#include "pla/mutex.h"
+#include "pla/file.h"
+#include "pla/map.h"
+#include "pla/list.h"
+#include "pla/address.h"
 
 namespace tpn
 {

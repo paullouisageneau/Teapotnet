@@ -23,16 +23,17 @@
 #define TPN_MAILQUEUE_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
 #include "tpn/mail.h"
 #include "tpn/database.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
-#include "tpn/binarystring.h"
-#include "tpn/string.h"
-#include "tpn/set.h"
-#include "tpn/array.h"
-#include "tpn/map.h"
+
+#include "pla/synchronizable.h"
+#include "pla/binarystring.h"
+#include "pla/string.h"
+#include "pla/set.h"
+#include "pla/array.h"
+#include "pla/map.h"
 
 namespace tpn
 {

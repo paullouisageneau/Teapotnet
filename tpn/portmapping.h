@@ -23,12 +23,13 @@
 #define TPN_PORTMAPPING_H
 
 #include "tpn/include.h"
-#include "tpn/map.h"
-#include "tpn/task.h"
-#include "tpn/synchronizable.h"
-#include "tpn/address.h"
-#include "tpn/datagramsocket.h"
-#include "tpn/binarystring.h"
+
+#include "pla/synchronizable.h"
+#include "pla/binarystring.h"
+#include "pla/datagramsocket.h"
+#include "pla/address.h"
+#include "pla/task.h"
+#include "pla/map.h"
 
 namespace tpn
 {

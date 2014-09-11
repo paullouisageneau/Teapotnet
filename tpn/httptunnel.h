@@ -23,13 +23,13 @@
 #define TPN_HTTPTUNNEL_H
 
 #include "tpn/include.h"
-#include "tpn/synchronizable.h"
-#include "tpn/stream.h"
-#include "tpn/stream.h"
-#include "tpn/address.h"
-#include "tpn/socket.h"
-#include "tpn/http.h"
-#include "tpn/task.h"
+
+#include "pla/synchronizable.h"
+#include "pla/stream.h"
+#include "pla/socket.h"
+#include "pla/address.h"
+#include "pla/http.h"
+#include "pla/task.h"
 
 namespace tpn
 {

@@ -37,4 +37,6 @@
 
 #include "pla/include.h"
 
+using namespace pla;
+
 #endif
