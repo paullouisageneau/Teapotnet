@@ -80,9 +80,9 @@
 // Windows compatibility
 #ifdef WINDOWS
 
-#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #include <iphlpapi.h>
 #include <wincrypt.h>
 #undef min
@@ -99,7 +99,7 @@ typedef u_long ctl_t;
 #define SEADDRINUSE	WSAEADDRINUSE
 #define SOCK_TO_INT(x) 0
 
-#define mkdir(d,x) _mkdir(d)
+#define mkdirmod(d,m) mkdir(d)
 
 #ifdef MINGW
 #include <sys/stat.h>
@@ -143,6 +143,8 @@ typedef int ctl_t;
 #define SEADDRINUSE	EADDRINUSE
 #define INVALID_SOCKET -1
 #define SOCK_TO_INT(x) (x)
+
+#define mkdirmod(d,m) mkdir(d,m)
 
 #endif
 
