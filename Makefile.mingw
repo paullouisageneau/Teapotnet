@@ -1,7 +1,7 @@
-CC=$(CROSS)gcc
-CXX=$(CROSS)g++
-RES=$(CROSS)windres
-STRIP=$(CROSS)strip
+CC=$(CROSS)-gcc
+CXX=$(CROSS)-g++
+RES=$(CROSS)-windres
+STRIP=$(CROSS)-strip
 RM=rm -f
 CPPFLAGS=-O2
 LDFLAGS=-O2
