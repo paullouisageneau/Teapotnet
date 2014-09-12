@@ -21,9 +21,18 @@ include/sqlite3.o: include/sqlite3.c
 -include $(subst .o,.d,$(OBJS))
 
 teapotnet.exe: $(OBJS) include/sqlite3.o res.o
-	$(CXX) $(LDFLAGS) -static -static-libgcc -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
+	$(CXX) $(LDFLAGS) -static -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
 	$(STRIP) teapotnet.exe
-	
+	cp /usr/$(CROSS)/bin/libgcc_*.dll .
+	cp /usr/$(CROSS)/bin/libwinpthread-*.dll .
+	cp /usr/$(CROSS)/bin/libnettle-*.dll .
+	cp /usr/$(CROSS)/bin/libhogweed-*.dll .
+	cp /usr/$(CROSS)/bin/libgmp-*.dll .
+	cp /usr/$(CROSS)/bin/libgnutls-*.dll .
+	cp /usr/$(CROSS)/bin/libreadline*.dll .
+	cp /usr/$(CROSS)/bin/libtasn1-*.dll .
+	cp /usr/$(CROSS)/bin/zlib*.dll .
+
 clean:
 	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d res.o
 	$(RM) res.rc
@@ -31,6 +40,7 @@ clean:
 	
 dist-clean: clean
 	$(RM) teapotnet.exe winupdater.exe
+	$(RM) *.dll
 	$(RM) pla/*~ tpn/*~ ./.depend
 	cd winupdater && make dist-clean
 
