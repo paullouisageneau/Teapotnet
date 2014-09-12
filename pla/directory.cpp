@@ -68,7 +68,7 @@ bool Directory::Remove(const String &path)
 
 void Directory::Create(const String &path)
 {
-	if(mkdir(fixPath(path).pathEncode().c_str(), 0770) != 0)
+	if(mkdirmod(fixPath(path).pathEncode().c_str(), 0770) != 0)
 		throw IOException("Cannot create directory \""+path+"\"");
 }
 

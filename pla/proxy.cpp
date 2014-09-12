@@ -21,6 +21,7 @@
 
 #include "pla/proxy.h"
 #include "pla/exception.h"
+#include "pla/http.h"
 
 namespace pla
 {
@@ -97,7 +98,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 	}
 	
 	bool hasProxy = false;
-	std::string ua(HttpTunnel::UserAgent);
+	std::string ua(Http::UserAgent);
 	std::wstring wua(ua.begin(), ua.end());
 	HINTERNET hSession = WinHttpOpen(wua.c_str(), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
 	if(hSession)
@@ -107,7 +108,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 		
 		if(hasUserProxyConfig && !userProxyConfig.fAutoDetect && userProxyConfig.lpszProxy)
 		{
-			hasProxy = parseWinHttpProxy(userProxyConfig.lpszProxy, addr);
+			hasProxy = ParseWinHttpProxy(userProxyConfig.lpszProxy, addr);
 		}
 		else {
 			WINHTTP_AUTOPROXY_OPTIONS autoProxyOptions;
@@ -132,7 +133,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 			if(WinHttpGetProxyForUrl(hSession, wurl.c_str(), &autoProxyOptions, &proxyInfo))
 			{
 				if(proxyInfo.lpszProxy && proxyInfo.dwAccessType == WINHTTP_ACCESS_TYPE_NAMED_PROXY)
-					hasProxy = parseWinHttpProxy(proxyInfo.lpszProxy, addr);
+					hasProxy = ParseWinHttpProxy(proxyInfo.lpszProxy, addr);
 
 				if(proxyInfo.lpszProxy)         GlobalFree(proxyInfo.lpszProxy);
 				if(proxyInfo.lpszProxyBypass)   GlobalFree(proxyInfo.lpszProxyBypass);
@@ -140,7 +141,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 			else if(WinHttpGetDefaultProxyConfiguration(&proxyInfo))
 			{
 				if(proxyInfo.lpszProxy && proxyInfo.dwAccessType == WINHTTP_ACCESS_TYPE_NAMED_PROXY)
-					hasProxy = parseWinHttpProxy(proxyInfo.lpszProxy, addr);
+					hasProxy = ParseWinHttpProxy(proxyInfo.lpszProxy, addr);
 
 				if(proxyInfo.lpszProxy)         GlobalFree(proxyInfo.lpszProxy);
 				if(proxyInfo.lpszProxyBypass)   GlobalFree(proxyInfo.lpszProxyBypass);
@@ -166,7 +167,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 
 #ifdef WINDOWS
 
-bool Config::ParseWinHttpProxy(LPWSTR lpszProxy, Address &addr)
+bool Proxy::ParseWinHttpProxy(LPWSTR lpszProxy, Address &addr)
 {
 	Assert(lpszProxy);
 	String proxy(lpszProxy, lpszProxy + std::char_traits<wchar_t>::length(lpszProxy));
@@ -187,7 +188,7 @@ bool Config::ParseWinHttpProxy(LPWSTR lpszProxy, Address &addr)
 		}
 		catch(...)
 		{
-			LogDebug("Config::parseWinHtppProxy", "Got invalid proxy address: " + proxy);
+			LogDebug("Proxy::ParseWinHtppProxy", "Got invalid proxy address: " + proxy);
 		}
 	}
 
