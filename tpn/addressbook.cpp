@@ -1478,14 +1478,14 @@ void AddressBook::Contact::Instance::setName(const String &name)
 	mName = name;
 }
 
-Time AddressBook::MeetingPoint::lastSeen(void) const
+Time AddressBook::Contact::Instance::lastSeen(void) const
 {
-	return mLastTime;
+	return mLastSeen;
 }
 
-void AddressBook::MeetingPoint::setSeen(void)
+void AddressBook::Contact::Instance::setSeen(void)
 {
-	mLastTime = Time::Now(); 
+	mLastSeen = Time::Now(); 
 }
 
 void AddressBook::Contact::Instance::addAddress(const Address &addr)
@@ -1495,7 +1495,7 @@ void AddressBook::Contact::Instance::addAddress(const Address &addr)
 
 void AddressBook::Contact::Instance::addAddresses(const Set<Address> &addrs)
 {
-	for(Set<Address>::iterator it = addrs.begin(),
+	for(Set<Address>::iterator it = addrs.begin();
 		it != addrs.end();
 		++it)
 	{
@@ -1503,22 +1503,18 @@ void AddressBook::Contact::Instance::addAddresses(const Set<Address> &addrs)
 	}
 }
 
-void AddressBook::Contact::Instance::getAddresses(Set<Address> &result) const
+int AddressBook::Contact::Instance::getAddresses(Set<Address> &result) const
 {
 	mAddrs.getKeys(result);
-}
-
-const AddressBlock &AddressBook::Contact::Instance::addresses(void) const
-{
-	return mAddrs;
+	return result.size();
 }
 
 void AddressBook::Contact::Instance::serialize(Serializer &s) const
 {
-	Synchronize(mAddressBook);
+	ConstSerializableWrapper<uint64_t> numberWrapper(mNumber);
 	
 	Serializer::ConstObjectMapping mapping;
-	mapping["number"] = &mNumber;
+	mapping["number"] = &numberWrapper;
 	mapping["name"] = &mName;
 	mapping["addresses"] = &mAddrs;
 	
@@ -1526,15 +1522,15 @@ void AddressBook::Contact::Instance::serialize(Serializer &s) const
 }
 
 bool AddressBook::Contact::Instance::deserialize(Serializer &s)
-{
-	Synchronize(mAddressBook);
-	
+{  
 	mNumber = 0;
 	mName.clear();
 	mAddrs.clear();
 	
+	SerializableWrapper<uint64_t> numberWrapper(&mNumber);
+	
 	Serializer::ObjectMapping mapping;
-	mapping["number"] = &mNumber;
+	mapping["number"] = &numberWrapper;
 	mapping["name"] = &mName;
 	mapping["addresses"] = &mAddrs;
 	
