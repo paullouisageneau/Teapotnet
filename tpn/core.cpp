@@ -22,8 +22,8 @@
 #include "tpn/core.h"
 #include "tpn/user.h"
 #include "tpn/httptunnel.h"
+#include "tpn/config.h"
 
-#include "pla/config.h"
 #include "pla/scheduler.h"
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"

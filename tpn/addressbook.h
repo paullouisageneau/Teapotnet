@@ -176,7 +176,7 @@ public:
 			
 			void addAddress(const Address &addr);
 			void addAddresses(const Set<Address> &addrs);
-			void getAddresses(Set<Address> &result) const;
+			int  getAddresses(Set<Address> &result) const;
 			
 			// Serializable
 			void serialize(Serializer &s) const;
