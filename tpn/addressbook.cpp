@@ -279,13 +279,13 @@ bool AddressBook::deserialize(Serializer &s)
 	
 	if(!s.inputObject(mapping)) return false;
 	
-	// Fill mContactsByIdentifier
+	// Fill mContactsByIdentifier and set AddressBook
 	for(Map<String, Contact>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
 		Contact *contact = &it->second;
-		contact->mAddressBook = this;	// TODO
+		contact->setAddressBook(this);
 		mContactsByIdentifier[contact->uniqueName()] = contact;
 	}
 	
@@ -642,12 +642,14 @@ bool AddressBook::query(const Identifier &identifier, const String &tracker, Ser
 }
 
 AddressBook::MeetingPoint::MeetingPoint(void) :
+	mAddressBook(NULL),
 	mFound(false)
 {
 
 }
 
-AddressBook::MeetingPoint::MeetingPoint(const Identifier &identifier, const String &tracker) :
+AddressBook::MeetingPoint::MeetingPoint(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
+	mAddressBook(addressBook),
 	mIdentifier(identifier),
 	mTracker(tracker),
 	mFound(false)
@@ -655,9 +657,25 @@ AddressBook::MeetingPoint::MeetingPoint(const Identifier &identifier, const Stri
 
 }
 
+AddressBook::MeetingPoint::MeetingPoint(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
+	mAddressBook(addressBook),
+	mTracker(tracker),
+	mFound(false)
+{
+	const unsigned iterations = 10000;
+	
+	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
+	Sha256().pbkdf2_hmac(secret, salt, mIdentifier, 32, iterations);
+}
+
 AddressBook::MeetingPoint::~MeetingPoint(void)
 {
 
+}
+
+void AddressBook::MeetingPoint::setAddressBook(AddressBook *addressBook)
+{
+	mAddressBook = addressBook; 
 }
 
 Identifier AddressBook::MeetingPoint::identifier(void) const
@@ -675,7 +693,7 @@ String AddressBook::MeetingPoint::tracker(void) const
 uint32_t AddressBook::MeetingPoint::checksum(void) const
 {
 	Synchronize(mAddressBook);
-	return mIdentifier.getDigest().checksum32() + uint32_t(mIdentifier.getNumber());
+	return mIdentifier.digest().checksum32() + uint32_t(mIdentifier.number());
 }
 
 bool AddressBook::MeetingPoint::isFound(void) const
@@ -686,77 +704,6 @@ bool AddressBook::MeetingPoint::isFound(void) const
 	return mFound;
 }
 
-bool AddressBook::MeetingPoint::isConnected(void) const
-{
-	Synchronize(mAddressBook);
-	return Core::Instance->hasPeer(identifier());
-}
-
-bool AddressBook::MeetingPoint::isConnected(uint64_t number) const
-{
-	Synchronize(mAddressBook);
-	return Core::Instance->hasPeer(getInstanceIdentifier(number)); 
-}
-
-void AddressBook::MeetingPoint::getInstanceNumbers(Array<uint64_t> &result) const
-{
-	Synchronize(mAddressBook);
-	
-	result.clear();
-	result.reserve(mInstances.size());
-	 
-	for(InstancesMap::iterator it = mInstances.begin();
-		it != mInstances.end();
-		++it)
-	{
-		result.append(it->first); 
-	}
-	 
-	return result.size();
-}
-
-bool AddressBook::MeetingPoint::getInstanceIdentifier(uint64_t number, Identifier &result) const
-{
-	InstancesMap::iterator it = mInstances.find(number);
-	if(it != mInstances.end())
-	{
-		result = Identifier(mIdentifier, number);
-		return true;
-	}
-	
-	return false;
-}
-
-bool AddressBook::MeetingPoint::getInstanceName(uint64_t number, String &result) const
-{
-	InstancesMap::iterator it = mInstances.find(number);
-	if(it != mInstances.end())
-	{
-		result = it->name();
-		return true;
-	}
-	
-	return false;
-}
-
-bool AddressBook::MeetingPoint::getInstanceAddresses(uint64_t number, Array<Address> &result) const
-{
-	InstancesMap::iterator it = mInstances.find(number);
-	if(it != mInstances.end())
-	{
-		result = it->addresses();
-		return true;
-	}
-	
-	return false;
-}
-
-void AddressBook::MeetingPoint::seen(const Identifier &peer)
-{
-	if(peer != identifier()) return;
-	mInstance[peer].setSeen();
-}
-
 bool AddressBook::MeetingPoint::recv(const Identifier &peer, const Notification &notification)
 {
   
@@ -764,12 +711,9 @@ bool AddressBook::MeetingPoint::recv(const Identifier &peer, const Notification 
 
 void AddressBook::MeetingPoint::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<uint64_t> numberWrapper(mNumber);
-	
 	Serializer::ConstObjectMapping mapping;
 	mapping["identifier"] = &mIdentifier;
 	mapping["tracker"] = &mTracker;
-	mapping["instances"] = &mInstances;
 	
 	s.outputObject(mapping); 
 }
@@ -778,12 +722,10 @@ bool AddressBook::MeetingPoint::deserialize(Serializer &s)
 {
 	mIdentifier.clear();
 	mTracker.clear();
-	mInstances.clear();
 
 	Serializer::ObjectMapping mapping;
 	mapping["identifier"] = &mIdentifier;
 	mapping["tracker"] = &mTracker;
-	mapping["instances"] = &mInstances;
 	
 	// TODO: sanity checks
 	return s.inputObject(mapping);  
@@ -814,26 +756,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!uname.empty());
 	Assert(!name.empty());
 
-/*
-	const unsigned iterations = 10000;
-	
-	String salt = std::min(mAddressBook->userName(), mName) + "/" + std::max(mAddressBook->userName(), mName);
-	Sha512().pbkdf2_hmac(secret, salt, mSecret, 64, iterations);
-	
-	String peerSecret(mSecret, 0, 32);
-	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mAddressBook->userName() + "/" + mName, mPeering, 64, iterations);
-	Sha512().pbkdf2_hmac(peerSecret, "Teapotnet/" + mName + "/" + mAddressBook->userName(), mRemotePeering, 64, iterations);
-*/
-
-	createProfile();
-	
+	//createProfile();
 	Interface::Instance->add(urlPrefix(), this);
-}
-
-AddressBook::Contact::Contact(AddressBook *addressBook) :
-	mProfile(NULL)
-{
-
 }
 
 AddressBook::Contact::~Contact(void)
@@ -843,13 +767,28 @@ AddressBook::Contact::~Contact(void)
 	delete mProfile;
 }
 
+void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
+{
+	mAddressBook = addressBook;
+	
+	for(List<MeetingPoint>::iterator it = mMeetingPoints.begin();
+		it != mMeetingPoints.end();
+		++it)
+	{
+		MeetingPoint *meetingPoint = &*it;
+		meetingPoint->setAddressBook(addressBook);
+	} 
+}
+
 const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const
 {
+	Synchronize(mAddressBook);
 	return mPublicKey; 
 }
 
 Identifier AddressBook::Contact::identifier(void) const
 {
+	Synchronize(mAddressBook);
 	return mPublicKey.digest();
 }
 
@@ -865,30 +804,12 @@ String AddressBook::Contact::name(void) const
 	return mName;
 }
 
-Identifier AddressBook::Contact::identifier(void) const
-{
-	Synchronize(mAddressBook);
-	return mPublicKey.digest();
-}
-
-Time AddressBook::Contact::time(void) const
-{
-	Synchronize(mAddressBook);
-	return mTime; 
-}
-
 String AddressBook::Contact::urlPrefix(void) const
 {
 	Synchronize(mAddressBook);
 	if(mUniqueName.empty()) return "";
 	if(isSelf()) return String("/")+mAddressBook->userName()+"/myself";
 	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
-}
-
-BinaryString AddressBook::Contact::secret(void) const
-{
-        Synchronize(mAddressBook);
-        return mSecret;
 }
 
 Profile *AddressBook::Contact::profile(void) const
@@ -906,25 +827,7 @@ bool AddressBook::Contact::isSelf(void) const
 {
 	return (mUniqueName == mAddressBook->userName());
 }
-
-bool AddressBook::Contact::isOnline(void) const
-{
-	Synchronize(mAddressBook);
-	if(isSelf() && mAddressBook->user()->isOnline()) return true;
-	if(!isConnected()) return false;
-	return !mOnlineInstances.empty();
-}
-
-String AddressBook::Contact::status(void) const
-{
-	Synchronize(mAddressBook);
-	if(isSelf()) return "myself";
-	if(isOnline()) return "online";
-	else if(isConnected()) return "connected";
-	else if(isFound()) return "found";
-	else return "disconnected";
-}
-
+/*
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {
 	// Warning: NOT synchronized !
@@ -1134,71 +1037,94 @@ void AddressBook::Contact::createProfile(void)
 		}
 	}
 }
+*/
 
-void AddressBook::Contact::connected(const Identifier &peer, bool incoming)
+int AddressBook::Contact::getInstanceNumbers(Array<uint64_t> &result) const
 {
-	// Handle the special case of symmetric peers
-	if(!isSelf() && mPeering == mRemotePeering)
+	Synchronize(mAddressBook);
+	
+	result.clear();
+	result.reserve(mInstances.size());
+	 
+	for(InstancesMap::const_iterator it = mInstances.begin();
+		it != mInstances.end();
+		++it)
 	{
-		Contact *self = mAddressBook->getSelf();
-		
-		// If there is no self contact, the remote instance *should* not be one of ours anyway.
-		if(self)
-		{
-			Notification notification(self->peering().toString());
-			notification.insert("type", "checkself");
-			notification.send(peer);
-		}
+		result.append(it->first); 
 	}
 	
-	// Send status and profile
-	if(mAddressBook->user()->isOnline()) mAddressBook->user()->sendStatus(peer);
-	mAddressBook->user()->profile()->send(peer);
-	
-	// Send secret and contacts if self
-	if(isSelf())
-	{
-		mAddressBook->user()->sendSecret(peer);
-		mAddressBook->sendContacts(peer);
-	}
-	
-	if(incoming) 
-	{
-		MailQueue::Selection selection = selectMails();
-		int total = selection.count();
-		if(total > MaxChecksumDistance)
-		{
-			Mail base;
-			if(selection.getOffset(total - MaxChecksumDistance, base))
-				Assert(selection.setBaseStamp(base.stamp()));
-		}
-		
-		sendMailsChecksum(peer, selection, 0, selection.count(), true);
-	}
+	return result.size();
 }
 
-void AddressBook::Contact::disconnected(const Identifier &peer)
+int AddressBook::Contact::getInstanceIdentifiers(Array<Identifier> &result) const
 {
-	mAddressBook->mScheduler.schedule(this, 5.);
-	SynchronizeStatement(mAddressBook, mOnlineInstances.erase(peer.getName()));
+	Synchronize(mAddressBook);
+	
+	result.clear();
+	result.reserve(mInstances.size());
+	 
+	for(InstancesMap::const_iterator it = mInstances.begin();
+		it != mInstances.end();
+		++it)
+	{
+		result.append(Identifier(identifier(), it->first)); 
+	}
+	
+	return result.size();
+}
+
+bool AddressBook::Contact::getInstanceIdentifier(uint64_t number, Identifier &result) const
+{
+	InstancesMap::const_iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		result = Identifier(identifier(), number);
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::Contact::getInstanceName(uint64_t number, String &result) const
+{
+	InstancesMap::const_iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		result = it->second.name();
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::Contact::getInstanceAddresses(uint64_t number, Set<Address> &result) const
+{
+	InstancesMap::const_iterator it = mInstances.find(number);
+	if(it != mInstances.end())
+	{
+		it->second.getAddresses(result);
+		return true;
+	}
+	
+	return false;
 }
 
 bool AddressBook::Contact::send(const Notification &notification)
 {
-	return notification.send(peer());
+	return notification.send(identifier());
 }
 
 bool AddressBook::Contact::send(const Mail &mail)
 {
-	return mail.send(peer());
+	return mail.send(identifier());
 }
-
 
 void AddressBook::Contact::seen(const Identifier &peer)
 {
+	if(peer != identifier()) return;
+  
 	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
-	
-	// TODO
+	mInstances[peer.number()].setSeen();
 }
 
 bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
@@ -1230,45 +1156,20 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 				
-				JsonSerializer json(response.sock);
-				
-				String strName = name();
-				String strTracker = tracker();
-				String strStatus = status();
-				
-				MailQueue *mailQueue = mAddressBook->user()->mailQueue();
-				ConstSerializableWrapper<int> mailsWrapper(mailQueue->selectPrivate(uniqueName()).unreadCount());
-				ConstSerializableWrapper<bool> newMailsWrapper(mailQueue->hasNew());
-				
-				Array<String> instances;
- 				getInstancesNames(instances);
-				StringMap instancesMap;
-				for(int i=0; i<instances.size(); ++i)
-        			{
-                			if(isConnected(instances[i])) instancesMap[instances[i]] = "connected";
-					else instancesMap[instances[i]] = "disconnected";
-                		}
-				
-				SerializableMap<String, Serializable*> map;
-				map["name"] = &strName;
-				map["tracker"] = &strTracker;
-				map["status"] = &strStatus;
-				map["mails"] = &mailsWrapper;
-				map["newmails"] = &newMailsWrapper;
-				map["instances"] = &instancesMap;
-				json.output(map);
+				JsonSerializer json(response.stream);
+				json.output(*this);
 				return;
 			}
 		  
 			Http::Response response(request,200);
 			response.send();
 
-			Html page(response.sock);
+			Html page(response.stream);
 			if(isSelf()) page.header("Myself");
 			else {
 				page.header("Contact: "+name());
 				page.open("div", "topmenu");
-				page.span(status().capitalized(), "status.button");
+				page.span("TODO", "status.button");	// TODO
 				page.close("div");
 			}
 			
@@ -1388,9 +1289,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(request.get.get("instance", instance))
 				link+= "&instance=" + instance; 
 			
-			response.sock->writeLine("#EXTM3U");
-			response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
-			response.sock->writeLine(link);
+			response.stream->writeLine("#EXTM3U");
+			response.stream->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
+			response.stream->writeLine(link);
 			return;
 		}
 		
@@ -1399,20 +1300,20 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String target(url);
 			Assert(!target.empty());
 			
-			Request *req = new Request(peer(), target);
+			Request *req = new Request(identifier(), target);
 			String reqPrefix = req->urlPrefix();
 			req->setAutoDelete();
 			
 			Http::Response response(request, 200);
 			response.send();
-				
-			Html page(response.sock);
+			
+			Html page(response.stream);
 			
 			if(target == "/") page.header(name()+": Browse files");
 			else page.header(name()+": "+target.substr(1));
 			
 			page.open("div","topmenu");
-			if(!isSelf()) page.span(status().capitalized(), "status.button");
+			if(!isSelf()) page.span("TODO", "status.button");	// TODO
 			page.link(prefix+"/search/", "Search files", ".button");
 			page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 			page.close("div");
@@ -1449,13 +1350,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			Http::Response response(request, 200);
 			response.send();
 				
-			Html page(response.sock);
+			Html page(response.stream);
 			
 			if(match.empty()) page.header(name() + ": Search");
 			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
-			if(!isSelf()) page.span(status().capitalized(), "status.button");
+			if(!isSelf()) page.span("TODO", "status.button");	// TODO
 			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text", "query", match);
 			page.button("search","Search");
@@ -1512,35 +1413,33 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 void AddressBook::Contact::serialize(Serializer &s) const
 {
-	Synchronize(mAddressBook);
-	
 	Serializer::ConstObjectMapping mapping;
+	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["meetingpoints"] = &mMeetingPoint;
-	
+	mapping["instances"] = &mInstances;
+	mapping["meetingpoints"] = &mMeetingPoints;
+
 	s.outputObject(mapping);
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
 {
-	Synchronize(mAddressBook);
-	
-	mUniqueName.clear();
+	mPublicKey.clear();
+  	mUniqueName.clear();
   	mName.clear();
-	mTracker.clear();
-	mPeering.clear();
-	mSecret.clear();
-	mTime = Time::Now();
 	mInstances.clear();
+	mMeetingPoints.clear();
 	
 	Serializer::ObjectMapping mapping;
+	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["meetingpoints"] = &mMeetingPoint;
-	
+	mapping["instances"] = &mInstances;
+	mapping["meetingpoints"] = &mMeetingPoints;
+		
 	// TODO: sanity checks
-
+	
 	Interface::Instance->add(urlPrefix(), this);
 	return s.inputObject(mapping);
 }
@@ -1574,7 +1473,7 @@ String AddressBook::Contact::Instance::name(void) const
 	return mName;
 }
 
-String AddressBook::Contact::Instance::setName(void)
+void AddressBook::Contact::Instance::setName(const String &name)
 {
 	mName = name;
 }

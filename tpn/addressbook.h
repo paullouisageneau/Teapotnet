@@ -81,9 +81,16 @@ public:
 	{
 	public:
 		MeetingPoint(void);
-		MeetingPoint(	const Identifier &identifier,
+		MeetingPoint(	AddressBook *addressBook,
+				const Identifier &identifier,
+				const String &tracker);
+		MeetingPoint(	AddressBook *addressBook,
+				const String &name,
+				const String &secret,
 				const String &tracker);
 		virtual ~MeetingPoint(void);
+		
+		void setAddressBook(AddressBook *addressBook);
 		
 		Identifier identifier(void) const;
 		String tracker(void) const;
@@ -101,6 +108,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	protected:
+		AddressBook *mAddressBook;
 		Identifier mIdentifier;
 		String mTracker;
 		bool mFound;
@@ -108,7 +116,7 @@ public:
 		friend class AddressBook;
 	};
 	
-	class Contact
+	class Contact : public Serializable, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
@@ -117,6 +125,8 @@ public:
 				const String &name,
 				const Rsa::PublicKey &pubKey);
 		~Contact(void);
+		
+		void setAddressBook(AddressBook *addressBook);
 		
 		const Rsa::PublicKey &publicKey(void) const;
 		Identifier identifier(void) const;
@@ -129,10 +139,11 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(uint64_t number) const;
 		
-		void getInstanceNumbers(Array<uint64_t> &result) const;
+		int  getInstanceNumbers(Array<uint64_t> &result) const;
+		int  getInstanceIdentifiers(Array<Identifier> &result) const;
 		bool getInstanceIdentifier(uint64_t number, Identifier &result) const;
 		bool getInstanceName(uint64_t number, String &result) const;
-		bool getInstanceAddresses(uint64_t number, Array<Address> &result) const;
+		bool getInstanceAddresses(uint64_t number, Set<Address> &result) const;
 		
 		bool send(const Notification &notification);
 		bool send(const Mail &mail);
@@ -152,6 +163,7 @@ public:
 	private:
 		class Instance : public Serializable
 		{
+		public:
 			Instance(void);
 			Instance(uint64_t number);
 			~Instance();
