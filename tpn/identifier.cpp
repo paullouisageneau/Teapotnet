@@ -31,7 +31,7 @@ const Identifier Identifier::Null;
 
 Identifier::Identifier(void)
 {
-	mDigest.writeZeros(DigestSize);
+	mDigest.writeZero(DigestSize);
 	mNumber = 0;
 }
 
@@ -39,7 +39,7 @@ Identifier::Identifier(const BinaryString &digest, uint64_t number)
 {
 	mDigest.writeData(digest.data(), std::min(digest.size(), DigestSize));
 	if(DigestSize > digest.size())
-		mDigest.writeZeros(DigestSize - digest.size());
+		mDigest.writeZero(DigestSize - digest.size());
 	
 	mNumber = number;
 }
@@ -81,7 +81,7 @@ bool Identifier::empty(void) const
 void Identifier::clear(void)
 {
 	mDigest.clear();
-	mDigest.writeZeros(DigestSize);
+	mDigest.writeZero(DigestSize);
 	mNumber = 0;
 }
 
@@ -125,7 +125,7 @@ bool Identifier::deserialize(Serializer &s)
 
 void Identifier::serialize(Stream &s) const
 {
-	if(mNumber != 0) s.write(mDigest.toString() + ":" + String::number(mNumber);
+	if(mNumber != 0) s.write(mDigest.toString() + ":" + String::number(mNumber));
 	else s.write(mDigest.toString());
 }
 
@@ -138,7 +138,7 @@ bool Identifier::deserialize(Stream &s)
 	if(!s.read(str)) return false;
 	if(str.empty()) return true;
 	
-	str.cut(':').read(mNumber));
+	str.cut(':').read(mNumber);
 	AssertIO(str.read(mDigest));
 	return true;
 }

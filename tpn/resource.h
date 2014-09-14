@@ -85,7 +85,6 @@ public:
 	
 	Resource &operator = (const Resource &resource);
 	
-protected:
 	class MetaRecord : public Serializable
 	{
 	public:
@@ -129,6 +128,7 @@ protected:
 		Time 		time;
 	};
 	
+protected:
 	Block *mIndexBlock;
 	IndexRecord *mIndexRecord;
 	

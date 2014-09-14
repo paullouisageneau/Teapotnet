@@ -22,8 +22,8 @@
 #include "tpn/html.h"
 #include "tpn/request.h"
 #include "tpn/user.h"
+#include "tpn/config.h"
 
-#include "pla/config.h"
 #include "pla/exception.h"
 #include "pla/mime.h"
 

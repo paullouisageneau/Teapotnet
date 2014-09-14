@@ -25,12 +25,13 @@
 #include "pla/exception.h"
 #include "pla/scheduler.h"
 #include "pla/random.h"
+#include "pla/proxy.h"
 
 namespace tpn
 {
 
 #ifdef ANDROID
-String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:24.0) Gecko/24.0 Firefox/24.0";	// mobile is important
+String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:32.0) Gecko/32.0 Firefox/32.0";	// mobile is important
 #else
 String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
 #endif
@@ -52,7 +53,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 	try {
 		try {
 			sock->setTimeout(SockTimeout);
-			request.recv(*sock, false); // POST content is not parsed
+			request.recv(sock, false); // POST content is not parsed
 		
 			uint32_t session = 0;
 
@@ -104,13 +105,13 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					if(isNew)
 					{
 						response.headers["Content-Type"] = "text/html";
-						response.send(*sock);
+						response.send(sock);
 						delete sock;
 						return server;
 					}
 	
 					response.headers["Content-Type"] = "application/octet-stream";
-					response.send(*sock);
+					response.send(sock);
 					server->mDownSock = sock;
 					server->mDownloadLeft = MaxDownloadSize;
 					server->notifyAll();
@@ -170,7 +171,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 	{
 		try {
 			Http::Response response(request, code);
-			response.send(*sock);
+			response.send(sock);
 		}
 		catch(...)
 		{
@@ -208,7 +209,7 @@ void HttpTunnel::Client::close(void)
 {
 	Synchronize(this);
 
-	Scheduler::Global->remove(&mFlushTask);
+	Scheduler::Global->cancel(&mFlushTask);
 	
 	try {
 		if(mUpSock && mUpSock->isConnected() && mPostLeft)
@@ -261,14 +262,14 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
                         if(mSession) request.cookies["session"] << mSession;
 
         		Address addr = mAddress;
-        		bool hasProxy = Config::GetProxyForUrl(url, addr);
+        		bool hasProxy = Proxy::GetProxyForUrl(url, addr);
         		if(hasProxy) request.url = url;			// Full URL for proxy
 
 			try {
 				mDownSock->setConnectTimeout(mConnTimeout);
                 		
 				DesynchronizeStatement(this, mDownSock->connect(addr, true));		// Connect without proxy
-                		request.send(*mDownSock);
+                		request.send(mDownSock);
         		}
 			catch(const NetException &e)
         		{
@@ -279,7 +280,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			mDownSock->setReadTimeout(SockTimeout);
 			
 			Http::Response response;
-			response.recv(*mDownSock);
+			response.recv(mDownSock);
 
 			if(response.code != 200)
 			{
@@ -349,7 +350,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		mUpSock->setTimeout(SockTimeout);
 	}
 
-	Scheduler::Global->remove(&mFlushTask);
+	Scheduler::Global->cancel(&mFlushTask);
 
 	while(size)
 	{
@@ -367,7 +368,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			request.cookies["session"] << mSession;
 
                         Address addr = mAddress;
-                        bool hasProxy = Config::GetProxyForUrl(url, addr);
+                        bool hasProxy = Proxy::GetProxyForUrl(url, addr);
                         if(hasProxy) request.url = url; 	        // Full URL for proxy
 
                         try {
@@ -377,7 +378,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 				DesynchronizeStatement(this, sock->connect(addr, true));	// Connect without proxy
 				mUpSock = sock;
 
-				request.send(*mUpSock);
+				request.send(mUpSock);
 			}
                         catch(const NetException &e)
                         {
@@ -419,7 +420,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			updatePostSize(0);
 			
 			Http::Response response;
-			response.recv(*mUpSock);
+			response.recv(mUpSock);
 			mUpSock->clear();
 			mUpSock->close();
 
@@ -458,7 +459,7 @@ void HttpTunnel::Client::flush(void)
 			
 			mUpSock->setTimeout(ReadTimeout);
 			Http::Response response;
-			response.recv(*mUpSock);
+			response.recv(mUpSock);
 			mUpSock->clear();
 			mUpSock->close();
 
@@ -533,7 +534,7 @@ void HttpTunnel::Server::close(void)
 {
 	Synchronize(this);
 
-	Scheduler::Global->remove(&mFlushTask);
+	Scheduler::Global->cancel(&mFlushTask);
 	
 	SessionsMutex.lock();
         Sessions.erase(mSession);
@@ -613,7 +614,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		case TunnelDisconnect:
 		{
 			Http::Response response(mUpRequest, 204);	// no content
-			response.send(*mUpSock);
+			response.send(mUpSock);
 			mUpRequest.clear();
 			mUpSock->close();
 			break;
@@ -650,7 +651,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 			mDownSock = NULL;
 		}
 
-		Scheduler::Global->remove(&mFlushTask);
+		Scheduler::Global->cancel(&mFlushTask);
 
 		double timeleft = ConnTimeout;
 		while(!mDownSock)
