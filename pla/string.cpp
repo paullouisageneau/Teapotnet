@@ -333,7 +333,7 @@ bool String::remove(char chr)
 	for(int i=0; i<this->size();)
 		if(this->at(i) == chr)
 		{
-			this->erase(i);
+			this->erase(i, 1);
 			found = true;
 		}
 		else ++i;
