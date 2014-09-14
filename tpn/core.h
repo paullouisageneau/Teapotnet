@@ -65,10 +65,22 @@ public:
 	// Routing-level message structure
 	struct Message : public Serializable
 	{
-		static const uint8_t Empty = 0;
-		static const uint8_t Tunnel = 1;
-		static const uint8_t Notify = 2;
-	
+		// type
+		static const uint8_t Forward   = 0;
+		static const uint8_t Broadcast = 1;
+		static const uint8_t Lookup    = 2;
+		
+		// content
+		static const uint8_t Empty     = 0;
+		static const uint8_t Tunnel    = 1;
+		static const uint8_t Notify    = 2;
+		static const uint8_t Ack       = 3;
+		static const uint8_t Call      = 4;
+		static const uint8_t Data      = 5;
+		static const uint8_t Cancel    = 6;
+		static const uint8_t Publish   = 7;
+		static const uint8_t Subscribe = 8;
+		
 		Message(void);
 		~Message(void);
 		
@@ -347,15 +359,15 @@ private:
 			class SendTask : public Task
 			{
 			public:
-				SendTask(Sender *sender, uint32_t sequence, Message message, double delay, int count);
+				SendTask(Sender *sender, uint32_t sequence, const Message &message, double delay, int count);
 				~SendTask(void);
 				void run(void);
 				
 			private:
 				Sender *mSender;
-				Message mMissve;
+				Message mMessage;
 				int mLeft;
-				uint32_t sequence;
+				uint32_t mSequence;
 			};
 			
 			Scheduler mScheduler;
@@ -413,7 +425,7 @@ private:
 	Map<Identifier, BinaryString> mSecrets;
 	
 	Time mLastPublicIncomingTime;
-	Map<Address, int> mKnownPublicAddresses;
+	Map<Address, Time> mKnownPublicAddresses;
 	
 	friend class Handler;
 };

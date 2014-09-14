@@ -250,7 +250,12 @@ void String::trimQuotes(void)
 
 bool String::contains(char chr) const
 {
-	return (find(chr) != NotFound);
+	return (std::string::find(chr) != std::string::npos);
+}
+
+bool String::contains(const String &str) const
+{
+	return (std::string::find(str) != std::string::npos);
 }
 
 bool String::containsDigits(void) const
