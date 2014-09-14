@@ -199,7 +199,7 @@ void Core::getKnownPublicAdresses(List<Address> &list) const
 {
 	Synchronize(this);
 	list.clear();
-	for(Map<Address, int>::const_iterator it = mKnownPublicAddresses.begin();
+	for(Map<Address, Time>::const_iterator it = mKnownPublicAddresses.begin();
 		it != mKnownPublicAddresses.end();
 		++it)
 	{
@@ -489,7 +489,7 @@ void Core::addRoute(const Identifier &id, const Identifier &route)
 	{
 		// New node is seen
 		Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
-		if(it != mListeners.end())
+		while(it != mListeners.end() && it->first == id)
 		{
 			for(Set<Listener*>::iterator jt = it->second.begin();
 				jt != it->second.end();
@@ -497,6 +497,8 @@ void Core::addRoute(const Identifier &id, const Identifier &route)
 			{
 				(*jt)->seen(id); 
 			}
+			
+			++it;
 		}
 	}
 }
@@ -1318,7 +1320,6 @@ bool Core::Handler::incoming(Message &message)
 	{
 		case Message::Tunnel:
 		{
-			// TODO
 			if(mCore->mTunnelBackend) mCore->mTunnelBackend->incoming(message);
 			break; 
 		}
@@ -1328,14 +1329,21 @@ bool Core::Handler::incoming(Message &message)
 			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
 			mSenders[source]->ack(payload); 
 			
-			Map<Identifier, Set<Listener*> >::iterator it 
-			
-			for(Set<Listener*>::iterator it = mCore->mListeners.begin();
-				it != mCore->mListeners.end();
-				++it)
+			Desynchronize(this);
+			Synchronize(mCore);
+			Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(source);
+			while(it != mCore->mListeners.end() && it->first == source)
 			{
-				it->notification(source, payload);
+				for(Set<Listener*>::iterator jt = it->second.begin();
+					jt != it->second.end();
+					++jt)
+				{
+					(*jt)->recv(source, Notification(String(message.payload)));
+				}
+				
+				++it;
 			}
+			
 			break;
 		}
 		
@@ -1384,9 +1392,10 @@ bool Core::Handler::incoming(Message &message)
 			BinaryString target;
 			AssertIO(payload.readBinary(target));
 			
-			if(mStore::Instance->push(target, payload))
+			if(Store::Instance->push(target, payload))
 			{
-				unregisterAllCallers(target);
+				Desynchronize(this);
+				mCore->unregisterAllCallers(target);
 				outgoing(source, Message::Cancel, target);
 			}
 			break;
@@ -1426,18 +1435,20 @@ bool Core::Handler::incoming(Message &message)
 								jt != it->second.end();
 								++jt)
 							{
-								jt->incoming(path, target);
+								(*jt)->incoming(path, target);
 							}
 						}
 					}
 				}
 				else {	// content == Message::Subscribe
 					
+					Desynchronize(this);
+				  
 					BinaryString response;
 					response.writeBinary(path);
 					
-					Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
-					if(it != mPublishers.end())
+					Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
+					if(it != mCore->mPublishers.end())
 					{
 						bool written = false;
 						for(Set<Publisher*>::iterator jt = it->second.begin();
@@ -1445,7 +1456,7 @@ bool Core::Handler::incoming(Message &message)
 							++jt)
 						{
 							BinaryString target;
-							if(jt->anounce(peer, path, target))
+							if((*jt)->anounce(source, path, target))
 							{
 								response.writeBinary(target);
 								written = true;
@@ -1474,8 +1485,8 @@ void Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &pa
 {
 	Message message;
 	message.prepare(mLocal, dest);
-	message.writeBinary(content);
-	message.writeBinary(payload);
+	message.payload.writeBinary(content);
+	message.payload.write(payload);
 	send(message);
 }
 
@@ -1527,13 +1538,6 @@ void Core::Handler::process(void)
 		Synchronize(mCore);
 		
 		mCore->removeHandler(mRemote, this);
-		
-		if(mCore->mKnownPublicAddresses.contains(mRemoteAddr))
-		{
-			mCore->mKnownPublicAddresses[mRemoteAddr]-= 1;
-			if(mCore->mKnownPublicAddresses[mRemoteAddr] == 0)
-				mCore->mKnownPublicAddresses.erase(mRemoteAddr);
-		}
 	}
 	catch(const std::exception &e)
 	{
@@ -1570,14 +1574,14 @@ Core::Handler::Sender::Sender(Handler *handler, const BinaryString &destination)
 
 Core::Handler::Sender::~Sender(void)
 {
-	handler->mRunner.cancel(this);
+	mHandler->mRunner.cancel(this);
 }
 
 void Core::Handler::Sender::addTarget(const BinaryString &target, unsigned tokens)
 {
 	Synchronize(this);
 	mTargets.insert(target, tokens);
-	handler->mRunner.schedule(this);
+	mHandler->mRunner.schedule(this);
 }
 
 void Core::Handler::Sender::removeTarget(const BinaryString &target)
@@ -1590,7 +1594,7 @@ void Core::Handler::Sender::addTokens(unsigned tokens)
 {
 	Synchronize(this);
 	mTokens+= tokens;
-	handler->mRunner.schedule(this);
+	mHandler->mRunner.schedule(this);
 }
 
 void Core::Handler::Sender::removeTokens(unsigned tokens)
@@ -1615,18 +1619,16 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 		if(!mCurrentSequence) ++mCurrentSequence;
 		sequence = mCurrentSequence;
 	}
-
-	// TODO: Move to SendTask
+	
 	Message message;
-	message.prepare(mLocal, dest);
-	message.writeBinary(uint8_t(Message::Notify));
-	message.writeBinary(uint32_t(sequence));
-	message.writeBinary(payload);
-	handler->send(message);
+	message.prepare(mHandler->mLocal, mDestination);
+	message.payload.writeBinary(uint8_t(Message::Notify));
+	message.payload.writeBinary(uint32_t(sequence));
+	message.payload.write(payload);
 	
 	const double delay = 0.5;	// TODO
 	const int count = 5;		// TODO
-	mUnacked.insert(sequence, SendTask(this, sequence, message, delay, count));
+	mUnacked.insert(sequence, SendTask(this, sequence, message, delay, count + 1));
 }
 
 void Core::Handler::Sender::ack(Stream &payload)
@@ -1637,7 +1639,7 @@ void Core::Handler::Sender::ack(Stream &payload)
 	BinaryString ack;
 	ack.writeBinary(sequence);
 	
-	handler->outgoing(dest, Message::Ack, payload);
+	mHandler->outgoing(mDestination, Message::Ack, payload);
 }
 
 void Core::Handler::Sender::acked(Stream &payload)
@@ -1663,7 +1665,7 @@ void Core::Handler::Sender::run(void)
 	if(it->second)
 	{
 		BinaryString data;
-		mStore::Instance->pull(it->first, data);
+		Store::Instance->pull(it->first, data);
 		
 		//--mTokens;
 		--it->second;
@@ -1672,7 +1674,7 @@ void Core::Handler::Sender::run(void)
 		else mTargets.erase(it++);
 		if(it != mTargets.end()) mNextTarget = it->first;
 		
-		BinaryString dest(mDest);
+		BinaryString dest(mDestination);
 		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Data, data));
 		
 		// Warning: iterator is not valid anymore here
@@ -1682,10 +1684,10 @@ void Core::Handler::Sender::run(void)
 		if(it != mTargets.end()) mNextTarget = it->first;
 	}
 	
-	handler->mRunner.schedule(this);
+	mHandler->mRunner.schedule(this);
 }
 
-Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, Message message, double delay, int count) :
+Core::Handler::Sender::SendTask::SendTask(Sender *sender, uint32_t sequence, const Message &message, double delay, int count) :
 	mSender(sender),
 	mMessage(message),
 	mLeft(count),
@@ -1693,28 +1695,28 @@ Core::Handler::Sender::SendTask::ResendTask(Sender *sender, uint32_t sequence, M
 {
 	if(mLeft > 0)
 	{
-		Synchronize(sender);
-		sender->mScheduler.schedule(this);
-		sender->mScheduler.repeat(message, delay);
+		Synchronize(mSender);
+		mSender->mScheduler.schedule(this);
+		mSender->mScheduler.repeat(this, delay);
 	}
 }
 
-Core::Handler::Sender::SendTask::~ResendTask(void)
+Core::Handler::Sender::SendTask::~SendTask(void)
 {
-	Synchronize(sender);
-	sender->mScheduler.cancel(this);
+	Synchronize(mSender);
+	mSender->mScheduler.cancel(this);
 }
 
 void Core::Handler::Sender::SendTask::run(void)
 {  
-	sender->mHandler->send(message);
+	mSender->mHandler->send(mMessage);
 	
 	--mLeft;
 	if(mLeft <= 0)
 	{
-		Synchronize(sender);
-		sender->mScheduler.cancel(this);
-		sender->mUnacked.erase(mSequence);
+		Synchronize(mSender);
+		mSender->mScheduler.cancel(this);
+		mSender->mUnacked.erase(mSequence);
 	}
 }
 

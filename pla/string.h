@@ -68,6 +68,7 @@ public:
 	void trimQuotes(void);
 
 	bool contains(char chr) const;
+	bool contains(const String &str) const;
 	bool containsDigits(void) const;
 	bool containsLetters(void) const;
 	bool isAlphanumeric(void) const;
