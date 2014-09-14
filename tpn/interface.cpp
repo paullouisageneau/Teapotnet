@@ -22,7 +22,7 @@
 #include "tpn/interface.h"
 #include "tpn/html.h"
 #include "tpn/user.h"
-#include "tpn/store.h"
+#include "tpn/resource.h"
 #include "tpn/config.h"
 
 #include "pla/directory.h"
@@ -68,18 +68,10 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 
 void Interface::process(Http::Request &request)
 {
-	Address remoteAddr = request.sock->getRemoteAddress();
-  	
 	LogDebug("Interface", "Request for URL \""+request.fullUrl+"\"");
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
-	
-#ifdef ANDROID
-	bool localAutoLogin = true;
-#else
-	bool localAutoLogin = false;
-#endif
 	
 	if(request.url == "/")
 	{
@@ -95,29 +87,14 @@ void Interface::process(Http::Request &request)
 			
 			User *user = NULL;
 			try {
-				if(localAutoLogin && remoteAddr.isLocal())
+				if(request.post.contains("create") && !User::Exist(name))
 				{
-					if(request.post.contains("create") && !User::Exist(name))
-					{
-						if(password.empty()) password = String::random(32);
-						user = new User(name, password, tracker);
-					}
-					else {
-						user = User::Get(name);
-						if(user && !tracker.empty())
-							user->setTracker(tracker);
-					}
+					user = new User(name, password, tracker);
 				}
 				else {
-					if(request.post.contains("create") && !User::Exist(name))
-					{
-						user = new User(name, password, tracker);
-					}
-					else {
-						user = User::Authenticate(name, password);
-						if(user && !tracker.empty())
-							user->setTracker(tracker);
-					}
+					user = User::Authenticate(name, password);
+					if(user && !tracker.empty())
+						user->setTracker(tracker);
 				}
 			}
 			catch(const Exception &e)
@@ -125,7 +102,7 @@ void Interface::process(Http::Request &request)
 				Http::Response response(request, 200);
 				response.send();
 				
-				Html page(response.sock);
+				Html page(response.stream);
 				page.header("Error", false, "/");
 				page.text(e.what());
 				page.footer();
@@ -143,23 +120,10 @@ void Interface::process(Http::Request &request)
 			return;
 		}
 		
-		if(localAutoLogin && remoteAddr.isLocal() && !request.get.contains("changeuser"))
-		{
-			Array<String> names;
-			User::GetNames(names);
-			if(names.size() == 1)
-			{
-				Http::Response response(request, 303);
-				response.headers["Location"] = "/" + names[0];
-				response.send();
-				return;
-			}
-		}
-		
 		Http::Response response(request, 200);
 		response.send();
 		
-		Html page(response.sock);
+		Html page(response.stream);
 		page.header("Login - Teapotnet", true);
 		page.open("div","login");
 		page.open("div","logo");
@@ -175,14 +139,11 @@ void Interface::process(Http::Request &request)
 		page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
 		page.open("td", ".rightcolumn"); page.link("#", "Tracker", "trackerlink"); page.close("td");
 		page.close("tr");
-		if(!localAutoLogin || !remoteAddr.isLocal())
-		{
-			page.open("tr");
-			page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
-			page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
-			page.open("td",".rightcolumn"); page.close("td");
-			page.close("tr");
-		}
+		page.open("tr");
+		page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
+		page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
+		page.open("td",".rightcolumn"); page.close("td");
+		page.close("tr");
 		page.open("tr", "trackerselection");
 		page.open("td", ".leftcolumn"); page.label("tracker", "Tracker"); page.close("td");
 		page.open("td", ".middlecolumn"); page.input("text", "tracker", ""); page.close("td");
@@ -277,10 +238,6 @@ void Interface::process(Http::Request &request)
 			if(authName == name)
 				user = User::Authenticate(authName, authPassword);
 		}
-		else if(localAutoLogin && remoteAddr.isLocal())
-		{
-			user = User::Get(name);
-		}
 		else {
 			String token;
 			request.cookies.get("auth_"+name, token);
@@ -314,7 +271,7 @@ void Interface::process(Http::Request &request)
 				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
 				response.send();
 
-				Html page(response.sock);
+				Html page(response.stream);
 				page.header(response.message, true);
 				page.open("div", "error");
 				page.openLink("/");
@@ -384,23 +341,15 @@ void Interface::process(Http::Request &request)
 				response.headers["Content-Type"] = "audio/x-mpegurl";
 				response.send();
 				
-				response.sock->writeLine("#EXTM3U");
-				response.sock->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
-				response.sock->writeLine("http://" + host + "/" + digest.toString());
-				response.sock->close();
-				
-				try {
-					// Request the sources now to gain some time afterwards
-					Resource resource(digest);
-					resource.fetch();
-				}
-				catch(...) {}
+				response.stream->writeLine("#EXTM3U");
+				response.stream->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
+				response.stream->writeLine("http://" + host + "/" + digest.toString());
 				return;
 			}			
 		
 			// Query resource
-			Resource resource(digest);
-			resource.fetch();		// this can take some time
+			Resource resource;
+			resource.fetch(digest);		// this can take some time
 			
 			// Get range
 			int64_t rangeBegin = 0;
@@ -437,7 +386,7 @@ void Interface::process(Http::Request &request)
 			try {
 				// Launch transfer
 				if(hasRange) accessor->seekRead(rangeBegin);
-				int64_t size = accessor->readBinary(*response.sock, rangeSize);	// let's go !
+				int64_t size = accessor->readBinary(*response.stream, rangeSize);	// let's go !
 				if(size != rangeSize)
 					throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
 			}

@@ -26,6 +26,7 @@
 #include "tpn/interface.h"
 #include "tpn/resource.h"
 #include "tpn/database.h"
+#include "tpn/request.h"
 #include "tpn/core.h"
 
 #include "pla/synchronizable.h"
@@ -60,9 +61,9 @@ public:
 	void save(void) const;
 	void start(void);
 	
-	bool process(const String &path, Resource &resource);
-	bool get(const String &path, Resource &resource, Time *time = NULL);
-	void notify(const String &path, const Resource &resource, const Time &time);
+	bool process(String path, Resource &resource);
+	bool get(String path, Resource &resource, Time *time = NULL);
+	void notify(String path, const Resource &resource, const Time &time);
 	
 	// Publisher
 	bool anounce(const Identifier &peer, const String &path, BinaryString &target);
@@ -113,6 +114,7 @@ private:
 	
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
 	void update(const String &path);
+	String urlToPath(String url) const;
 	String realPath(String path) const;
 	bool isHiddenPath(const String &path) const;
 	Resource::AccessLevel urlAccessLevel(const String &url) const;	// TODO

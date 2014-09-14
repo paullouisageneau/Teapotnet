@@ -22,6 +22,7 @@
 #include "tpn/fountain.h"
 
 #include "pla/random.h"
+#include "pla/crypto.h"
 
 namespace tpn
 {
@@ -334,7 +335,7 @@ void Fountain::Source::generate(Stream &output)
 }
 		
 Fountain::Sink::Sink(void) :
-	mSize(0)
+	mSize(0),
 	mIsComplete(false)
 {
 

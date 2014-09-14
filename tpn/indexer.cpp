@@ -30,6 +30,7 @@
 #include "pla/directory.h"
 #include "pla/lineserializer.h"
 #include "pla/jsonserializer.h"
+#include "pla/binaryserializer.h"
 #include "pla/time.h"
 #include "pla/mime.h"
 
@@ -67,7 +68,7 @@ Indexer::Indexer(User *user) :
 	mFileName = mUser->profilePath() + "directories";
 	
 	const String sharedDirectory = Config::Get("shared_dir");
-	if(!Directory::Exist(sharedDirectoryv))
+	if(!Directory::Exist(sharedDirectory))
 		Directory::Create(sharedDirectory);
 	
 	mBaseDirectory = sharedDirectory + Directory::Separator + mUser->name();
@@ -133,7 +134,7 @@ Indexer::~Indexer(void)
 	Interface::Instance->remove("/"+mUser->name()+"/myself/files");
 	Interface::Instance->remove("/"+mUser->name()+"/explore");
 	
-	Scheduler::Global->remove(this);
+	Scheduler::Global->cancel(this);
 }
 
 User *Indexer::user(void) const
@@ -157,7 +158,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 	if(path.empty())	// "/" matches here too
 		throw Exception("Invalid directory");
 	
-	String realPath = realPath(path);
+	String realPath = this->realPath(path);
 	if(!Directory::Exist(realPath))
 	{
 		if(realPath != path) Directory::Create(realPath);
@@ -278,7 +279,7 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 		throw;
 	}
 
-	update(url, path);
+	update(path);
 	fileName = path;
 	return true;
 }
@@ -303,31 +304,22 @@ bool Indexer::query(const Query &query, Resource &resource)
 {
 	Synchronize(this);
 	
-	if(query.mUrl == "/")	// root directory
-	{
-		resource.clear();
-		resource.mUrl = "/";
-		resource.mType = 0;	// directory
-		resource.mTime = Time::Now();
-		resource.mIndex = this;
-		return true;
-	}
-	
-	const String fields = "url, digest, type, size, time";
 	Database::Statement statement;
-	if(prepareQuery(statement, query, fields, true))
+	if(prepareQuery(statement, query, "url, digest", true))
 	{
 		while(statement.step())
 		{
-			Resource tmp;
-			statement.retrieve(tmp);
-			if(urlAccessLevel(tmp.mUrl) > query.mAccessLevel) continue; 
+			String url;
+			statement.input(url);
 			
-			resource = tmp;
-			resource.mPath = urlToPath(resource.mUrl); 
-			resource.mHops = 0;
-			resource.mIndex = this;
+			BinaryString digest;
+			statement.input(digest);
+			
+			if(urlAccessLevel(url) > query.mAccessLevel) 
+				continue; 
+			
 			statement.finalize();
+			resource.fetch(digest);
 			return true;
 		}
 		
@@ -340,21 +332,22 @@ bool Indexer::query(const Query &query, Resource &resource)
 bool Indexer::query(const Query &query, Set<Resource> &resources)
 {
 	Synchronize(this);
-
-	const String fields = "url, digest, type, size, time";
+	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, fields, false))
+	if(prepareQuery(statement, query, "url, digest", false))
 	{
 		while(statement.step())
 		{
-			Resource resource;
-			statement.retrieve(resource);
-			if(urlAccessLevel(resource.mUrl) > query.mAccessLevel) continue; 
-			if(query.mUrl == "/" && isHiddenUrl(resource.mUrl)) continue; 
-			resource.mPath = urlToPath(resource.mUrl);
-			resource.mHops = 0;
-			resource.mIndex = this;
-			resources.insert(resource);
+			String url;
+			statement.input(url);
+			
+			BinaryString digest;
+			statement.input(digest);
+			
+			if(urlAccessLevel(url) > query.mAccessLevel)
+				continue; 
+			
+			resources.insert(Resource(digest));
 		}
 
 		statement.finalize();
@@ -364,7 +357,7 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 	return false;
 }
 
-bool Indexer::process(const String &path, Resource &resource)
+bool Indexer::process(String path, Resource &resource)
 {
 	Synchronize(this);
 	
@@ -374,13 +367,13 @@ bool Indexer::process(const String &path, Resource &resource)
 	
 	// Get name
 	String name = path.afterLast(Directory::Separator);
-	String realPath = realPath(path);
+	String realPath = this->realPath(path);
 	
 	// Don't process garbage files
 	if(name == ".directory" 
 		|| name.toLower() == "thumbs.db"
 		|| name.substr(0,7) == ".Trash-")
-		continue;
+		return false;
 	
 	// Recursively process if it's a directory 
 	bool isDirectory = false;
@@ -399,19 +392,19 @@ bool Indexer::process(const String &path, Resource &resource)
 		try {
 			String name = names[i];
 			String path = "/" + name;
-			String realPath = realPath(path);
+			String realPath = this->realPath(path);
 			
 			if(!Directory::Exist(realPath))
 				Directory::Create(realPath);
 			
 			Resource subResource;
 			Time time;
-			if(!get(path, subResource, &time) || time < dir.fileTime())
+			if(!get(path, subResource, &time) || time < File::Time(path))
 				if(!process(path, subResource))
 					continue;	// ignore this directory
 			
-			DirectoryRecord record;
-			record = subResource.mIndexRecord;
+			Resource::DirectoryRecord record;
+			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
 			record.time = File::Time(realPath);
 			
@@ -442,8 +435,8 @@ bool Indexer::process(const String &path, Resource &resource)
 				if(!process(dir.filePath(), subResource))
 					continue;	// ignore this file
 			
-			DirectoryRecord record;
-			record = subResource.mIndexRecord;
+			Resource::DirectoryRecord record;
+			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
 			record.time = dir.fileTime();
 			
@@ -452,7 +445,6 @@ bool Indexer::process(const String &path, Resource &resource)
 		
 		tempFile.close();
 		path = Cache::Instance->move(tempFileName);
-		size = 0;
 	}
 	else {
 		if(!File::Exist(path))
@@ -464,7 +456,7 @@ bool Indexer::process(const String &path, Resource &resource)
 	
 	// Fill index record
 	delete resource.mIndexRecord;
-	resource.mIndexRecord = new IndexRecord;
+	resource.mIndexRecord = new Resource::IndexRecord;
 	resource.mIndexRecord->name = name;
 	resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
 	resource.mIndexRecord->size = size;
@@ -492,14 +484,14 @@ bool Indexer::process(const String &path, Resource &resource)
 	return true;
 }
 
-bool Indexer::get(const String &path, Resource &resource, Time *time);
+bool Indexer::get(String path, Resource &resource, Time *time)
 {
 	Synchronize(this);
-  
+	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
-  
+	
 	Database::Statement statement = mDatabase->prepare("SELECT digest, time FROM resources WHERE path = ?1 LIMIT 1");
 	statement.bind(1, path);
 	if(statement.step())
@@ -517,7 +509,7 @@ bool Indexer::get(const String &path, Resource &resource, Time *time);
 	return false;
 }
 
-void Indexer::notify(const String &path, const Resource &resource, const Time &time)
+void Indexer::notify(String path, const Resource &resource, const Time &time)
 {
 	Synchronize(this);
   
@@ -532,7 +524,7 @@ void Indexer::notify(const String &path, const Resource &resource, const Time &t
 	statement.bind(1, name);
 	statement.execute();
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+	statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
 	statement.bind(1, name);
 	statement.bind(2, path);
 	statement.bind(3, resource.digest());
@@ -590,7 +582,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request,200);
 				response.send();
 							
-				Html page(response.sock);
+				Html page(response.stream);
 				page.header(path);
 				
 				page.open("div",".box");
@@ -664,7 +656,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						Http::Response response(request,200);
 						response.send();
 						
-						Html page(response.sock);
+						Html page(response.stream);
 						page.header("Error", false, prefix + url);
 						page.text(e.what());
 						page.footer();
@@ -680,7 +672,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request,200);
 				response.send();
 				  
-				Html page(response.sock);
+				Html page(response.stream);
 				page.header("Add directory");
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
 				page.input("hidden", "token", user()->generateToken("directory_add"));
@@ -712,7 +704,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			Http::Response response(request,200);
 			response.send();
 			
-			Html page(response.sock);
+			Html page(response.stream);
 			page.header("Share directory");
 			
 			page.open("div",".box");
@@ -766,8 +758,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 		if(request.method != "POST" && (request.get.contains("json")  || request.get.contains("playlist")))
 		{
+			// TODO
+			/*
 			// Query resources
-			Query query(this, url);
+			Query query(url);
 			query.setFromSelf(true);
 
 			SerializableSet<Resource> resources;
@@ -778,7 +772,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/json";
 				response.send();
-				JsonSerializer json(response.sock);
+				JsonSerializer json(response.stream);
 				json.output(resources);
 			}
 			else {
@@ -789,8 +783,11 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				
 				String host;
 				request.headers.get("Host", host);
-				Resource::CreatePlaylist(resources, response.sock, host);
+				
+				// TODO
+				//Resource::CreatePlaylist(resources, response.stream, host);
 			}
+			*/
 			return;
 		}
 		
@@ -841,7 +838,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						Http::Response response(request,200);
 						response.send();
 						
-						Html page(response.sock);
+						Html page(response.stream);
 						page.header("Error", false, prefix + "/");
 						page.text(e.what());
 						page.footer();
@@ -869,7 +866,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					response.send();
 					
-					Html page(response.sock);
+					Html page(response.stream);
 					page.header("Refreshing in background...", true, redirect);
 					page.open("div", "notification");
 					page.openLink("/");
@@ -893,7 +890,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			Http::Response response(request,200);
 			response.send();
 
-			Html page(response.sock);
+			Html page(response.stream);
 			page.header("Shared folders");
 			
 			Array<String> directories;
@@ -915,13 +912,13 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.close("td");
 				page.open("td",".access");
 				page.text("(");
-				if(isHiddenUrl(directories[i])) page.text("Invisible");
-				else {
+				//if(isHiddenUrl(directories[i])) page.text("Invisible");
+				//else {
 					Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
 					if(accessLevel == Resource::Personal) page.text("Personal");
 					else if(accessLevel == Resource::Private) page.text("Private");
 					else page.text("Public");
-				}
+				//}
 				page.text(")");
 				page.close("td");
 				page.open("td",".filename");
@@ -1026,7 +1023,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						}
 					}
 					else {
-						SerializableSet<Resource> resources;
+						Set<Resource> resources;
 						
 						for(Map<String,TempFile*>::iterator it = request.files.begin();
 						it != request.files.end();
@@ -1071,8 +1068,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							Http::Response response(request, 200);
 							response.headers["Content-Type"] = "application/json";
 							response.send();
-							JsonSerializer json(response.sock);
-							json.output(resources);
+							
+							// TODO
+							//JsonSerializer json(response.stream);
+							//json.output(resources);
 							return;
 						}
 						
@@ -1088,7 +1087,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 200);
 				response.send();
 
-				Html page(response.sock);
+				Html page(response.stream);
 				
 				String directory = url.substr(1);
 				directory.cut('/');
@@ -1234,9 +1233,9 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					response.headers["Content-Type"] = "audio/x-mpegurl";
 					response.send();
 					
-					response.sock->writeLine("#EXTM3U");
-					response.sock->writeLine(String("#EXTINF:-1, ") + path.afterLast(Directory::Separator));
-					response.sock->writeLine("http://" + host + prefix + request.url);
+					response.stream->writeLine("#EXTM3U");
+					response.stream->writeLine(String("#EXTINF:-1, ") + path.afterLast(Directory::Separator));
+					response.stream->writeLine("http://" + host + prefix + request.url);
 					return;
 				}
 			  
@@ -1248,7 +1247,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				response.send();
 
 				File file(path, File::Read);
-				response.sock->write(file);
+				response.stream->write(file);
 			}
 			else throw 404;
 		}
@@ -1278,7 +1277,8 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 		url.resize(url.size()-1);
 		
 		// Do not allow listing hidden directories for others
-		if(!isFromSelf && isHiddenUrl(url)) return false;
+		// TODO
+		//if(!isFromSelf && isHiddenUrl(url)) return false;
 		
 		if(url.empty()) parentId = 0;
 		else {
@@ -1346,13 +1346,13 @@ void Indexer::update(const String &path)
 	try {
 		Unprioritize(this);
 	  
-		String realPath = realPath(path);
+		String realPath = this->realPath(path);
 		
-		if(Directory::Exists(realPath))
+		if(Directory::Exist(realPath))
 		{
 			Directory dir(realPath);
 			while(dir.nextFile())
-				update(dir.filePath);
+				update(dir.filePath());
 		}
 		
 		Resource dummy;
@@ -1363,6 +1363,12 @@ void Indexer::update(const String &path)
 		LogWarn("Indexer", String("Processing failed for ") + path + ": " + e.what());
 
 	}
+}
+
+String Indexer::urlToPath(String url) const
+{
+	// TODO
+	throw Unsupported("TODO implement Indexer::urlToPath");
 }
 
 String Indexer::realPath(String path) const
@@ -1379,7 +1385,7 @@ String Indexer::realPath(String path) const
 	if(!path.empty() && path[0] == '/')
 		path = path.substr(1);
 	
-	directory = path;
+	String directory = path;
 	path = directory.cut('/');
 	String prefix = mDirectories.get(directory);
 	
@@ -1401,7 +1407,8 @@ bool Indexer::isHiddenPath(const String &path) const
 Resource::AccessLevel Indexer::urlAccessLevel(const String &url) const
 {
   	// TODO
-	return directoryAccessLevel(urlToDirectory(url));	
+	//return directoryAccessLevel(urlToDirectory(url));
+	return Resource::Public;
 }
 
 int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
@@ -1476,11 +1483,18 @@ void Indexer::run(void)
 		
 		mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
 		
+		// TODO
+		StringArray names;
+		mDirectories.getKeys(names);
 		for(int i=0; i<names.size(); ++i)
 		try {
 			String name = names[i];
 			String path = "/" + name;
 			update(path);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Indexer::run", e.what());
 		}
 		
 		LogDebug("Indexer::run", "Finished");
@@ -1497,7 +1511,7 @@ Indexer::Query::Query(const String &url) :
 	mUrl(url),
 	mMinAge(0), mMaxAge(0),
 	mOffset(0), mCount(-1),
-	mAccessLevel(Private)
+	mAccessLevel(Resource::Private)
 {
 
 }
@@ -1543,7 +1557,7 @@ void Indexer::Query::setMatch(const String &match)
 	mMatch = match;
 }
 
-void Indexer::Query::setAccessLevel(AccessLevel level)
+void Indexer::Query::setAccessLevel(Resource::AccessLevel level)
 {
 	mAccessLevel = level;
 }
@@ -1552,37 +1566,18 @@ void Indexer::Query::setFromSelf(bool isFromSelf)
 {
 	if(isFromSelf)
 	{
-		if(mAccessLevel == Private)
-			mAccessLevel = Personal;
+		if(mAccessLevel == Resource::Private)
+			mAccessLevel = Resource::Personal;
 	}
 	else {
-		if(mAccessLevel == Personal) 
-			mAccessLevel = Private;
+		if(mAccessLevel == Resource::Personal) 
+			mAccessLevel = Resource::Private;
 	}
 }
 
 void Indexer::Query::createRequest(Request &request) const
 {
-	StringMap parameters;
-	serialize(parameters);
-	
-	if(!mDigest.empty()) 
-	{
-		request.setTarget(mDigest.toString(), false);
-		parameters.erase("digest");
-	}
-	else if(!mUrl.empty()) 
-	{
-		request.setTarget(mUrl, false);
-		parameters.erase("url");
-	}
-	else {
-		if(!mMatch.empty()) request.setTarget("search:"+mMatch, false);
-		else request.setTarget("search:*", false);
-		parameters.erase("match");
-	}
-	
-	request.setParameters(parameters);
+	// TODO
 }
 
 void Indexer::Query::serialize(Serializer &s) const
@@ -1591,7 +1586,7 @@ void Indexer::Query::serialize(Serializer &s) const
 	ConstSerializableWrapper<int> maxAgeWrapper(mMaxAge);
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
 	ConstSerializableWrapper<int> countWrapper(mCount);
-	String strAccessLevel = (mAccessLevel == Private || mAccessLevel == Personal ? "private" : "public");
+	String strAccessLevel = (mAccessLevel == Resource::Private || mAccessLevel == Resource::Personal ? "private" : "public");
 	
 	Serializer::ConstObjectMapping mapping;
 	if(!mUrl.empty())	mapping["url"] = &mUrl;
@@ -1624,8 +1619,8 @@ bool Indexer::Query::deserialize(Serializer &s)
 	mapping["count"] = &countWrapper;
 	mapping["access"] = &strAccessLevel;
 	
-	if(strAccessLevel == "private") mAccessLevel = Private;
-	else mAccessLevel = Public;
+	if(strAccessLevel == "private") mAccessLevel = Resource::Private;
+	else mAccessLevel = Resource::Public;
 	
 	return s.inputObject(mapping);
 }
