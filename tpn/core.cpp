@@ -66,7 +66,7 @@ Core::Core(int port) :
 		if(!hardwareAddrs.empty())
 		{
 			BinaryString digest;
-			Sha256().compute(hardwareAddrs.last(), digest);
+			Sha256().compute(*hardwareAddrs.rbegin(), digest);
 			digest.read(mNumber);
 		}
 		else {
@@ -529,24 +529,6 @@ bool Core::hasPeer(const Identifier &id)
 {
 	Synchronize(this);
 	return mHandlers.contains(id);
-}
-
-bool Core::getInstancesNames(const Identifier &peering, Array<String> &array)
-{
-	array.clear();
-	
-	Map<Identifier,Handler*>::iterator it = mHandlers.lower_bound(peering);
-	if(it == mHandlers.end() || it->first != peering) return false;
-		
-	while(it != mHandlers.end() && it->first == peering)
-	{
-		String name = it->first.getName();
-		if(name.empty()) name = "default";
-		array.push_back(name);
-		++it;
-	}
-	
-	return true;
 }
 
 /*
@@ -1041,7 +1023,7 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator
 	
 	try {
 		sock = new Socket(addr);
-		transport = new SecureTransportClient(sock, NULL, false);	// stream mode
+		transport = new SecureTransportClient(sock, NULL, "", false);	// stream mode
 	}
 	catch(...)
 	{
@@ -1279,18 +1261,18 @@ bool Core::Handler::recv(Message &message)
 		
 		uint16_t size = 0;
 		
-		if(!buffer.readBinary(message.version)) return false;
-		AssertIO(buffer.readBinary(message.flags));
-		AssertIO(buffer.readBinary(message.type));
-		AssertIO(buffer.readBinary(message.content));
-		AssertIO(buffer.readBinary(message.hops));
-		AssertIO(buffer.readBinary(size));
+		if(!mStream->readBinary(message.version)) return false;
+		AssertIO(mStream->readBinary(message.flags));
+		AssertIO(mStream->readBinary(message.type));
+		AssertIO(mStream->readBinary(message.content));
+		AssertIO(mStream->readBinary(message.hops));
+		AssertIO(mStream->readBinary(size));
 		
-		AssertIO(buffer.readBinary(message.source));
-		AssertIO(buffer.readBinary(message.destination));
+		AssertIO(mStream->readBinary(message.source));
+		AssertIO(mStream->readBinary(message.destination));
 		
 		message.payload.clear();
-		if(buffer.readBinary(message.payload, size) != size)
+		if(mStream->readBinary(message.payload, size) != size)
 			throw IOException("Incomplete message");
 	}
 	
@@ -1322,9 +1304,15 @@ void Core::Handler::send(const Message &message)
 	}
 }
 
-bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &payload)
+bool Core::Handler::incoming(Message &message)
 {
 	Synchronize(this);
+	
+	const Identifier &source = message.source;
+	Stream &payload = message.payload;
+	
+	uint8_t content;
+	payload.readBinary(content);
 	
 	switch(content)
 	{
@@ -1340,8 +1328,10 @@ bool Core::Handler::incoming(const Identifier &source, uint8_t content, Stream &
 			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
 			mSenders[source]->ack(payload); 
 			
-			for(Set<Listener*>::iterator = mListeners.begin();
-				it != mListeners.end();
+			Map<Identifier, Set<Listener*> >::iterator it 
+			
+			for(Set<Listener*>::iterator it = mCore->mListeners.begin();
+				it != mCore->mListeners.end();
 				++it)
 			{
 				it->notification(source, payload);

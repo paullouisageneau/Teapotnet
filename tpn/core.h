@@ -209,7 +209,6 @@ public:
 	
 	bool addPeer(Stream *bs, const Identifier &id);
 	bool hasPeer(const Identifier &id);
-	bool getInstancesNames(const Identifier &peering, Array<String> &array);
 	
 private:
 	class Backend : public Thread
@@ -367,7 +366,7 @@ private:
 	private:
 		bool recv(Message &message);
 		void send(const Message &message);
-		bool incoming(const Identifier &source, uint8_t content, Stream &payload);
+		bool incoming(Message &message);
 		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
 		void route(Message &message);
 
