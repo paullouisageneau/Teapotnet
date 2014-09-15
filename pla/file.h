@@ -68,10 +68,11 @@ public:
 	OpenMode mode(void) const;
 	uint64_t size(void) const;
 	
-	// Stream, Stream
+	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 	void flush(void);
+	bool skipMark(void);
 	
 protected:
 	static String TempPath(void);

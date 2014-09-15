@@ -64,6 +64,7 @@ public:
 	virtual void clear(void);
 	virtual void flush(void);
 	virtual bool ignore(size_t size = 1);
+	virtual bool skipMark(void);
 	
 	size_t readData(Stream &s, size_t max);
 	size_t writeData(Stream &s, size_t max);

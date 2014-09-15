@@ -275,6 +275,28 @@ void File::flush(void)
 	std::fstream::flush(); 
 }
 
+bool File::skipMark(void)
+{
+	if(mReadPosition == 0)
+	{
+		// Skip UTF-8 BOM
+		char buf[3];
+		if(readData(buf, 3) == 3)
+		{
+			if(uint8_t(buf[0]) == 0xEF
+				&& uint8_t(buf[1]) == 0xBB
+				&& uint8_t(buf[2]) == 0xBF)
+			{
+				return true;
+			}
+		}
+		
+		seekRead(0);
+	}
+	
+	return false;
+}
+
 Stream *File::pipeIn(void)
 {
 	// Somehow using Append here can result in a write failure
