@@ -46,8 +46,16 @@ bool YamlSerializer::input(Serializable &s)
 		if(mLine.empty() && !mStream->readLine(mLine))
 			return false;
 		
-		if(mLine.trimmed() == "...") return false;
-		if(mLine.trimmed() == "---") mLine.clear();
+		String trimmed = mLine.trimmed();
+		while(!trimmed.empty() && trimmed[0] == '#')	// comment
+		{
+			if(!mStream->readLine(mLine))
+				return false;
+			trimmed = mLine.trimmed();
+		}
+		
+		if(trimmed == "...") return false;
+		if(trimmed == "---") mLine.clear();
 	}
 	
 	if(s.isInlineSerializable() && !s.isNativeSerializable())
@@ -62,7 +70,10 @@ bool YamlSerializer::input(Serializable &s)
 
 bool YamlSerializer::input(Element &element)
 {  
-  	String trimmed = mLine.trimmed();
+	String trimmed = mLine.trimmed();
+	if(!trimmed.empty() && trimmed[0] == '#')	// comment
+		trimmed.clear();
+	
 	while(trimmed.empty())
 	{
 		mLine.clear();
@@ -73,6 +84,8 @@ bool YamlSerializer::input(Element &element)
 		}
 		
 		trimmed =  mLine.trimmed();
+		if(!trimmed.empty() && trimmed[0] == '#')	// comment
+			trimmed.clear();
 	}
 	
 	if(trimmed == "..." || trimmed == "---")
@@ -122,6 +135,9 @@ bool YamlSerializer::input(Element &element)
 bool YamlSerializer::input(Pair &pair)
 {
 	String trimmed = mLine.trimmed();
+	if(!trimmed.empty() && trimmed[0] == '#')	// comment
+		trimmed.clear();
+	
 	while(trimmed.empty())
 	{
 		mLine.clear();
@@ -132,6 +148,8 @@ bool YamlSerializer::input(Pair &pair)
 		}
 		
 		trimmed =  mLine.trimmed();
+		if(!trimmed.empty() && trimmed[0] == '#')	// comment
+			trimmed.clear();
 	}
 	
 	if(trimmed == "..." || trimmed == "---")
@@ -193,6 +211,7 @@ bool YamlSerializer::input(String &str)
 		if(mLine.empty() && !mStream->readLine(mLine))
 			return false;
 		
+		// Note: no comment inside litteral
 		if(mLine.trimmed() == "...") return false;
 		if(mLine.trimmed() == "---") mLine.clear();
 	}
