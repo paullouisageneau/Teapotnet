@@ -29,9 +29,9 @@ Mutex	LogMutex;
 bool	ForceLogToFile = false;
 
 #ifdef DEBUG
-int	LogLevel = LEVEL_INFO;
-#else
 int	LogLevel = LEVEL_DEBUG;
+#else
+int	LogLevel = LEVEL_INFO;
 #endif
 
 std::string GetFormattedLogTime(void)

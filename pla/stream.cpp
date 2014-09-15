@@ -125,6 +125,12 @@ bool Stream::ignore(size_t size)
 	return true;
 }
 
+bool Stream::skipMark(void)
+{
+	// do nothing
+	return false;
+}
+
 size_t Stream::readData(Stream &s, size_t max)
 {
 	char buffer[BufferSize];
@@ -165,6 +171,8 @@ bool Stream::hexaMode(bool enabled)
 
 bool Stream::get(char &chr)
 {
+	skipMark();
+  
 	while(readData(&mLast,1))
 	{
 		mEnd = false;
