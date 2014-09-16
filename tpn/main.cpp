@@ -20,20 +20,22 @@
  *************************************************************************/
 
 #include "tpn/main.h"
-#include "tpn/map.h"
-#include "tpn/time.h"
 #include "tpn/store.h"
 #include "tpn/tracker.h"
-#include "tpn/http.h"
-#include "tpn/config.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
-#include "tpn/directory.h"
+#include "tpn/config.h"
 #include "tpn/portmapping.h"
-#include "tpn/thread.h"
-#include "tpn/scheduler.h"
-#include "tpn/random.h"
-#include "tpn/securetransport.h"
+
+#include "pla/map.h"
+#include "pla/time.h"
+#include "pla/http.h"
+#include "pla/directory.h"
+#include "pla/thread.h"
+#include "pla/scheduler.h"
+#include "pla/random.h"
+#include "pla/securetransport.h"
+#include "pla/proxy.h"
 
 #include <signal.h>
 
@@ -565,7 +567,7 @@ String plist = "\
 		
                 File::CleanTemp();
 		Http::UserAgent = String(APPNAME) + '/' + APPVERSION;
-		Http::RequestTimeout = milliseconds(Config::Get("http_timeout"));
+		Http::RequestTimeout = milliseconds(Config::Get("http_timeout").toInt());
 		Proxy::HttpProxy = Config::Get("http_proxy");
 		
 		Tracker *tracker = NULL;
@@ -590,9 +592,6 @@ String plist = "\
 		if(args.contains("ifport")) sifport = args["ifport"];
 		int ifport;
 		sifport >> ifport;
-
-		// Creating global store
-		Store::GlobalInstance = new Store(NULL);
 		
 		// Starting interface
 		Interface::Instance = new Interface(ifport);

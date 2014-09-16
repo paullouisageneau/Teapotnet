@@ -66,7 +66,7 @@ void Resource::fetch(const BinaryString &digest)
 		mIndexRecord = new IndexRecord;
 	
 		BinarySerializer serializer(mIndexBlock);
-		AssertIO(serializer.input(*mIndexRecord));
+		AssertIO(static_cast<Serializer*>(&serializer)->input(mIndexRecord));
 	}
 	catch(...)
 	{
@@ -107,6 +107,29 @@ BinaryString Resource::blockDigest(int index) const
 	return mIndexRecord->blockDigests.at(index);  
 }
 
+String  Resource::name(void) const
+{
+	if(mIndexRecord) mIndexRecord->name;
+	else return "";
+}
+
+String  Resource::type(void) const
+{
+	if(mIndexRecord) mIndexRecord->type;
+	else return "";
+}
+
+int64_t Resource::size(void) const
+{
+	if(mIndexRecord) mIndexRecord->size;
+	else return 0;
+}
+
+bool Resource::isDirectory(void) const
+{
+	return (type() == "directory");
+}
+
 void Resource::serialize(Serializer &s) const
 {
 	if(!mIndexRecord) throw Unsupported("Serializing empty resource");
@@ -138,27 +161,27 @@ Resource &Resource::operator = (const Resource &resource)
 {
 	delete mIndexBlock;
 	delete mIndexRecord;
-	mIndexBlock = new Block(resource.mIndexBlock);
-	mIndexRecord = new IndexRecord(resource.mIndexRecord);
+	mIndexBlock = new Block(*resource.mIndexBlock);
+	mIndexRecord = new IndexRecord(*resource.mIndexRecord);
 }
 
 bool operator <  (const Resource &r1, const Resource &r2)
 {
 	if(r1.isDirectory() && !r2.isDirectory()) return true;
 	if(!r1.isDirectory() && r2.isDirectory()) return false;
-	return r1.url().toLower() < r2.url().toLower();
+	return r1.name().toLower() < r2.name().toLower();
 }
 
 bool operator >  (const Resource &r1, const Resource &r2)
 {
 	if(r1.isDirectory() && !r2.isDirectory()) return false;
 	if(!r1.isDirectory() && r2.isDirectory()) return true;
-	return r1.url().toLower() > r2.url().toLower();
+	return r1.name().toLower() > r2.name().toLower();
 }
 
 bool operator == (const Resource &r1, const Resource &r2)
 {
-	if(r1.url() != r2.url()) return false;
+	if(r1.name() != r2.name()) return false;
 	return r1.digest() == r2.digest() && r1.isDirectory() == r2.isDirectory();
 }
 
@@ -169,7 +192,7 @@ bool operator != (const Resource &r1, const Resource &r2)
 
 Resource::Reader::Reader(Resource *resource) :
 	mResource(resource),
-	mReadPosition(0)
+	mReadPosition(0),
 	mCurrentBlock(NULL),
 	mNextBlock(NULL)
 {
@@ -252,7 +275,7 @@ void Resource::MetaRecord::serialize(Serializer &s) const
 
 bool Resource::MetaRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(size);
+	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
 	Serializer::ObjectMapping mapping;
 	mapping["name"] = &name;
@@ -282,7 +305,7 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(size);
+	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
 	Serializer::ObjectMapping mapping;
 	mapping["name"] = &name;
@@ -309,7 +332,7 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 
 bool Resource::DirectoryRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(size);
+	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
 	Serializer::ObjectMapping mapping;
 	mapping["name"] = &name;

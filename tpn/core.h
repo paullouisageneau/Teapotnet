@@ -179,11 +179,14 @@ public:
 	Core(int port);
 	~Core(void);
 	
+	void start(void);
+	void join(void);
+	
 	// Global
 	uint64_t getNumber(void) const;
 	String getName(void) const;
-	void getAddresses(List<Address> &list) const;
-	void getKnownPublicAdresses(List<Address> &list) const;
+	void getAddresses(Set<Address> &set) const;
+	void getKnownPublicAdresses(Set<Address> &set) const;
 	bool isPublicConnectable(void) const;
 	
 	// Peerings
@@ -213,9 +216,9 @@ public:
 	bool send(const Identifier &peer, const Notification &notification);
 	
 	// Routing
-	void route(Message &message, const Identifier &from = Identifier::Null);
-	void broadcast(Message &message, const Identifier &from = Identifier::Null);
-	bool send(Message &message, const Identifier &to);
+	void route(const Message &message, const Identifier &from = Identifier::Null);
+	void broadcast(const Message &message, const Identifier &from = Identifier::Null);
+	bool send(const Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
@@ -232,16 +235,17 @@ private:
 		virtual SecureTransport *connect(const Locator &locator) = 0;
 		virtual SecureTransport *listen(void) = 0;
 		
-		virtual void getAddresses(Set<Address> &set) const {}
+		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
 		void process(SecureTransport *transport, const Locator &locator);	// do the client handshake
-		
+	
+		Core *mCore;
+	
 	private:
 		void doHandshake(SecureTransport *transport, const Identifier &remote);
 		void run(void);
 		
-		Core *mCore;
 		ThreadPool mThreadPool;
 		
 		SecureTransportClient::Anonymous	mAnonymousClientCreds;
@@ -294,26 +298,30 @@ private:
 		bool incoming(Message &message);
 		
 	private:
+		// Queue for listen ()
 		Queue<Message> mQueue;
 		Synchronizable mQueueSync;
-		
+
 		class TunnelWrapper : public Stream
 		{
 		public:
-			TunnelWrapper(const Identifier &local, const Identifier &remote);
+			TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote);
 			~TunnelWrapper(void);
 			
 			// Stream
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
-			
+		
 			bool incoming(Message &message);
-			
+	
 		private:
+			Core *mCore;
 			Identifier mLocal, mRemote;
 			Queue<Message> mQueue;
-			Synchronizable mQueueSync;
+                	Synchronizable mQueueSync;
 		};
+
+		Map<IdentifierPair, TunnelWrapper*> mWrappers;
 	};
 	
 	class Handler : public Task, protected Synchronizable
@@ -378,9 +386,9 @@ private:
 	private:
 		bool recv(Message &message);
 		void send(const Message &message);
+		void route(const Message &message);
 		bool incoming(Message &message);
 		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
-		void route(Message &message);
 
 		void process(void);
 		void run(void);

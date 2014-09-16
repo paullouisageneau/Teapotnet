@@ -21,7 +21,7 @@
 
 #include "tpn/tracker.h"
 
-#include "pla/yamlserializer.h"
+#include "pla/jsonserializer.h"
 
 namespace tpn
 {
@@ -59,7 +59,7 @@ void Tracker::process(Http::Request &request)
 			throw Exception("Invalid identifier");
 		}
 		
-		if(identifier.getDigest().size() != 32)
+		if(identifier.digest().size() != 32)
 			throw Exception("Invalid indentifier size");
 		
 		if(request.method == "POST")
@@ -82,7 +82,9 @@ void Tracker::process(Http::Request &request)
 				{
 					if(request.headers.contains("X-Forwarded-For")) 
 						host = request.headers["X-Forwarded-For"].beforeLast(',').trimmed();
-					else host = request.sock->getRemoteAddress().host();
+					
+					// TODO
+					else host = "DUMMY"; //request.sock->getRemoteAddress().host();
 				}
 				
 				Address addr(host, port);
@@ -127,7 +129,7 @@ void Tracker::process(Http::Request &request)
 			
 			String buffer;
 			retrieve(identifier, buffer);
-			response.sock->write(buffer);
+			response.stream->write(buffer);
 		}
 	}
 	catch(int code)
@@ -190,7 +192,7 @@ void Tracker::retrieve(const Identifier &identifier, Stream &output) const
 		if(!array.empty())
 		{
 			std::random_shuffle(array.begin(), array.end());
-			serializer.outputMapElement(it->first.getNumber(), array);
+			serializer.outputMapElement(it->first.number(), array);
 		}
 		++it;
 	}

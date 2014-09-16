@@ -21,6 +21,7 @@
 
 #include "tpn/profile.h"
 #include "tpn/user.h"
+#include "tpn/addressbook.h"
 #include "tpn/config.h"
 
 #include "pla/file.h"
@@ -194,8 +195,8 @@ void Profile::send(const Identifier &identifier)
 	serialize(serializer);
 	
 	Notification notification(tmp);
-	notification.setParameter("type", "profile");
-	notification.setParameter("time", time().toString());
+	//notification.setParameter("type", "profile");		// TODO
+	//notification.setParameter("time", time().toString());
 	if(identifier != Identifier::Null) notification.send(identifier);
 	else mUser->addressBook()->send(notification);
 }
@@ -285,7 +286,7 @@ void Profile::http(const String &prefix, Http::Request &request)
 			Http::Response response(request, 200);
 			response.send();
 		
-			Html page(response.sock);
+			Html page(response.stream);
 			page.header(APPNAME, true);
 
 			try {
@@ -542,7 +543,7 @@ bool Profile::updateField(const String &name, const String &value)
 	map.serialize(serializer);
 	
 	Notification notification(tmp);
-	notification.setParameter("type", "profilediff");
+	//notification.setParameter("type", "profilediff");	// TODO
 	mUser->addressBook()->send(notification);
 	return true;
 }

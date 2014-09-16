@@ -66,9 +66,9 @@ Address ServerSocket::getBindAddress(void) const
 	return Address(reinterpret_cast<sockaddr*>(&sa), sl);
 }
 
-void ServerSocket::getLocalAddresses(List<Address> &list) const
+void ServerSocket::getLocalAddresses(Set<Address> &set) const
 {
-	list.clear();
+	set.clear();
   
 	Address bindAddr = getBindAddress();
   
@@ -93,7 +93,7 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 		LogWarn("ServerSocket", "Local hostname is not resolvable !");
 		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
 		{
-			list.push_back(bindAddr);
+			set.insert(bindAddr);
 			return;
 		}
 	}
@@ -104,13 +104,13 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 		Address addr(ai->ai_addr,ai->ai_addrlen);
 		if(addr == bindAddr)
 		{
-			list.clear();
-			list.push_back(addr);
+			set.clear();
+			set.insert(addr);
 			break;
 		}
 		
 		if(ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
-			list.push_back(addr);
+			set.insert(addr);
 		
 		ai = ai->ai_next;
 	}
@@ -143,11 +143,11 @@ void ServerSocket::getLocalAddresses(List<Address> &list) const
 					addr.set(host, mPort);
 					if(addr == bindAddr)
 					{
-						list.clear();
-						list.push_back(addr);
+						set.clear();
+						set.insert(addr);
 						break;
 					}
-					list.push_back(addr);
+					set.insert(addr);
 				}
 			}
 		}

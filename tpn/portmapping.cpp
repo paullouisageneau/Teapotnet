@@ -59,7 +59,7 @@ void PortMapping::disable(void)
 	Synchronize(this);
 	mEnabled = false;
 	
-	Scheduler::Global->remove(this);
+	Scheduler::Global->cancel(this);
 
 	if(mProtocol)
 	{
@@ -148,12 +148,12 @@ void PortMapping::run(void)
 	Synchronize(this);
 	if(!mEnabled) return;
 	
-	List<Address> addresses;
+	Set<Address> addresses;
 	Core::Instance->getAddresses(addresses);
 
 	bool hasIpv4 = false;
 	bool hasPublicIpv4 = false;
-	List<Address>::iterator it = addresses.begin();
+	Set<Address>::iterator it = addresses.begin();
 	while(it != addresses.end())
 	{
 		hasIpv4|= it->isIpv4();
@@ -479,11 +479,11 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 		request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#AddPortMapping";
 
-		request.send(sock);
+		request.send(&sock);
 		sock.write(content);
 		
 		Http::Response response;
-		response.recv(sock);
+		response.recv(&sock);
 		
 		if(response.code == 200)
 		{
@@ -569,11 +569,11 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#DeletePortMapping";
 
-	request.send(sock);
+	request.send(&sock);
 	sock.write(content);
 	
 	Http::Response response;
-	response.recv(sock);
+	response.recv(&sock);
 	sock.clear();
 	
 	return (response.code == 200);
@@ -633,14 +633,14 @@ bool PortMapping::UPnP::parse(BinaryString &dgram)
 	request.headers.get("Host", host);
 	
 	Socket sock(host, 10.);
-	request.send(sock);
+	request.send(&sock);
 	sock.write(content);
 
 	result.clear();
 	Stream &stream = result;
 
 	Http::Response response;
-	response.recv(sock);
+	response.recv(&sock);
 	sock.read(stream);
 	
 	if(response.code != 200) return false;
@@ -690,11 +690,11 @@ bool PortMapping::FreeboxAPI::check(String &host)
 	
 	Socket sock(hhost, 2.);
 	sock.connect(hhost);
-	request.send(sock);
+	request.send(&sock);
 	mLocalAddr = sock.getLocalAddress();
 	
 	Http::Response response;
-	response.recv(sock);
+	response.recv(&sock);
 	if(response.code != 200) return false;
 	
 	StringMap map;
@@ -748,10 +748,10 @@ bool PortMapping::FreeboxAPI::get(const String &url, FreeboxResponse &response)
 	request.headers.get("Host", host);
 	
 	Socket sock(host, 10.);
-	request.send(sock);
+	request.send(&sock);
 	
 	Http::Response hresponse;
-	hresponse.recv(sock);
+	hresponse.recv(&sock);
 	if(hresponse.code != 200) return false;
 	
 	JsonSerializer serializer(&sock);
@@ -776,11 +776,11 @@ bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, Freebox
 	
 	Socket sock;
 	sock.connect(host);
-	request.send(sock);
+	request.send(&sock);
 	sock.write(post);
 	
 	Http::Response hresponse;
-	hresponse.recv(sock);
+	hresponse.recv(&sock);
 	if(hresponse.code != 200) return false;
 	
 	JsonSerializer serializer(&sock);

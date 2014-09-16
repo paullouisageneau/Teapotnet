@@ -548,12 +548,12 @@ bool AddressBook::publish(const Identifier &identifier)
 	try {
 		String url("http://" + tracker + "/tracker/?id=" + identifier.toString());
 		
-		List<Address> list;
-		Config::GetExternalAddresses(list);
+		Set<Address> set;
+		Config::GetExternalAddresses(set);
 		
 		String addresses;
-		for(	List<Address>::iterator it = list.begin();
-			it != list.end();
+		for(	Set<Address>::iterator it = set.begin();
+			it != set.end();
 			++it)
 		{
 			if(!addresses.empty()) addresses+= ',';
@@ -704,9 +704,14 @@ bool AddressBook::MeetingPoint::isFound(void) const
 	return mFound;
 }
 
+void AddressBook::MeetingPoint::seen(const Identifier &peer)
+{
+	// TODO
+}
+
 bool AddressBook::MeetingPoint::recv(const Identifier &peer, const Notification &notification)
 {
-  
+	// TODO 
 }
 
 void AddressBook::MeetingPoint::serialize(Serializer &s) const
@@ -823,10 +828,23 @@ Profile *AddressBook::Contact::profile(void) const
 	}
 }
 
-bool AddressBook::Contact::isSelf(void) const
+bool AddressBook::Contact::Contact::isSelf(void) const
 {
 	return (mUniqueName == mAddressBook->userName());
 }
+
+bool AddressBook::Contact::isConnected(void) const
+{
+	return Core::Instance->hasPeer(identifier()); 
+}
+
+bool AddressBook::Contact::isConnected(uint64_t number) const
+{
+	Identifier id;
+	if(!getInstanceIdentifier(number, id)) return false;
+	return Core::Instance->hasPeer(id); 
+}
+
 /*
 bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
 {

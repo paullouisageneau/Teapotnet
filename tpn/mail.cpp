@@ -207,15 +207,15 @@ bool Mail::send(const Identifier &peering) const
 	serializer.output(*this);
 
 	Notification notification(tmp);
-	notification.setParameter("type", "mail");
+	//notification.setParameter("type", "mail");	// TODO
 	return notification.send(peering);
 }
 
 bool Mail::recv(const Notification &notification)
 {
 	String type;
-	notification.parameter("type", type);
-	if(!type.empty() && type != "mail") return false;
+	//notification.parameter("type", type);	// TODO
+	//if(!type.empty() && type != "mail") return false;
 	
 	String tmp = notification.content();
 	YamlSerializer serializer(&tmp);

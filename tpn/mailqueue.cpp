@@ -21,8 +21,9 @@
 
 #include "tpn/mailqueue.h"
 #include "tpn/user.h"
-#include "tpn/html.h"
+#include "tpn/addressbook.h"
 #include "tpn/notification.h"
+#include "tpn/html.h"
 
 #include "pla/yamlserializer.h"
 #include "pla/jsonserializer.h"
@@ -291,7 +292,7 @@ bool MailQueue::add(Mail &mail)
 		try {
 			BinaryString target;
 			target.fromString(attachment);
-			Splicer::Prefetch(target);
+			//TODO: prefetch target;
 		}
 		catch(const Exception &e)
 		{
@@ -364,9 +365,9 @@ void MailQueue::ack(const List<Mail> &mails)
 			serializer.output(it->second);
 
 			Notification notification(tmp);
-			notification.setParameter("type", "ack");
+			//notification.setParameter("type", "ack");	// TODO
 			
-			AddressBook::Contact *contact = mUser->addressBook()->getContactByUniqueName(it->first);
+			AddressBook::Contact *contact = mUser->addressBook()->getContact(it->first);
 			if(contact)
 				contact->send(notification);
 			
@@ -421,7 +422,7 @@ void MailQueue::pass(const List<Mail> &mails)
 			serializer.output(list);
 	
 			Notification notification(tmp);
-			notification.setParameter("type", "pass");
+			//notification.setParameter("type", "pass");	// TODO
 			self->send(notification);
 		}
 	}
@@ -551,7 +552,7 @@ void MailQueue::http(const String &prefix, Http::Request &request)
 	AddressBook::Contact *contact = NULL;
 	if(!uname.empty()) 
 	{
-		contact = mUser->addressBook()->getContactByUniqueName(uname);
+		contact = mUser->addressBook()->getContact(uname);
 		if(!contact) throw 404;
 	}
 	
@@ -654,21 +655,21 @@ void MailQueue::http(const String &prefix, Http::Request &request)
 
 		ack(list);
 		
-		JsonSerializer serializer(response.sock);
+		JsonSerializer serializer(response.stream);
 		serializer.output(list);
 		return;
 	}
 	
 	if(!contact) throw 400;
 	String name = contact->name();
-	String status = contact->status();
+	String status = "Dummy"; // TODO
 	
 	bool isPopup = request.get.contains("popup");
 
 	Http::Response response(request, 200);
 	response.send();
 
-	Html page(response.sock);
+	Html page(response.stream);
 	
 	String title= "Chat with "+name;
 	page.header(title, isPopup);

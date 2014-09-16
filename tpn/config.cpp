@@ -93,9 +93,9 @@ void Config::Save(const String &filename)
 	ParamsMutex.unlock();
 }
 
-void Config::GetExternalAddresses(List<Address> &list)
+void Config::GetExternalAddresses(Set<Address> &set)
 {
-	list.clear();
+	set.clear();
 	
 	String externalAddress = Config::Get("external_address");
 	if(!externalAddress.empty() && externalAddress != "auto")
@@ -108,14 +108,14 @@ void Config::GetExternalAddresses(List<Address> &list)
                 	if(!externalPort.empty() && externalPort != "auto") port = externalPort;
 			addr.set(externalAddress, port);
 		}
-		list.push_back(addr);
+		set.insert(addr);
 	}
 
-	List<Address> tmp;
+	Set<Address> tmp;
 	Core::Instance->getAddresses(tmp);
 	
 	uint16_t port = 0;
-	for(List<Address>::const_iterator it = tmp.begin();
+	for(Set<Address>::const_iterator it = tmp.begin();
 		it != tmp.end();
 		++it)
 	{
@@ -124,21 +124,12 @@ void Config::GetExternalAddresses(List<Address> &list)
 		if(addr.isIpv4() && addr.isPrivate())
 			port = addr.port();
 		
-		if(!addr.isLocal() && std::find(list.begin(), list.end(), addr) == list.end())
-			list.push_back(addr);
+		if(!addr.isLocal())
+			set.insert(addr);
 	}
 	
 	if(port && PortMapping::Instance->isAvailable())
-		list.push_back(PortMapping::Instance->getExternalAddress(PortMapping::TCP, port));
-	
-	for(List<Address>::const_iterator it = tmp.begin();
-		it != tmp.end();
-		++it)
-	{
-		const Address &addr = *it;
-		
-		
-	}
+		set.insert(PortMapping::Instance->getExternalAddress(PortMapping::TCP, port));
 }
 
 bool Config::IsUpdateAvailable(void)

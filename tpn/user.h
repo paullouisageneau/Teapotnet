@@ -26,7 +26,7 @@
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 #include "tpn/mailqueue.h"
-#include "tpn/store.h"
+#include "tpn/indexer.h"
 #include "tpn/profile.h"
 
 #include "pla/synchronizable.h"
@@ -64,7 +64,7 @@ public:
 	
 	AddressBook *addressBook(void) const;
 	MailQueue *mailQueue(void) const;
-	Store *store(void) const;
+	Indexer *indexer(void) const;
 	Profile *profile(void) const;
 	
 	bool isOnline(void) const;
@@ -89,7 +89,7 @@ private:
 	BinaryString mAuth;
 	AddressBook *mAddressBook;
 	MailQueue *mMailQueue;
-	Store *mStore;
+	Indexer *mIndexer;
 	Profile *mProfile;
 	
 	Rsa::PublicKey	mPublicKey;

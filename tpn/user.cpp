@@ -105,7 +105,8 @@ void User::UpdateAll(void)
 		UsersByName.get(names[i], user);
 		UsersMutex.unlock();
 		
-		user->addressBook()->update();
+		// TODO
+		//user->addressBook()->update();
 	}
 }
 
@@ -159,14 +160,14 @@ User::User(const String &name, const String &password, const String &tracker) :
 	rsa.generate(mPublicKey, mPrivateKey);
 	
 	mCertificate = NULL;
-	mStore = NULL;
+	mIndexer = NULL;
 	mAddressBook = NULL;
 	mMailQueue = NULL;
 	mProfile = NULL;
 
 	try {
-		mCertificate = new Certificate(mPublicKey, mPrivateKey);
-		mStore = new Store(this); 
+		mCertificate = new SecureTransport::Certificate(mPublicKey, mPrivateKey);
+		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
        	 	mMailQueue = new MailQueue(this);
@@ -174,7 +175,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	catch(...)
 	{
 		delete mCertificate;
-		delete mStore;
+		delete mIndexer;
 		delete mProfile;
 		delete mAddressBook;
 		delete mMailQueue;
@@ -205,12 +206,12 @@ User::~User(void)
 	UsersMutex.unlock();
 	
 	Interface::Instance->remove(urlPrefix());
-	Scheduler::Global->remove(&mSetOfflineTask);
+	Scheduler::Global->cancel(&mSetOfflineTask);
 	
 	delete mCertificate;
 	delete mAddressBook;
 	delete mMailQueue;
-	delete mStore;
+	delete mIndexer;
 }
 
 String User::name(void) const
@@ -256,9 +257,9 @@ MailQueue *User::mailQueue(void) const
 	return mMailQueue;
 }
 
-Store *User::store(void) const
+Indexer *User::indexer(void) const
 {
-	return mStore;
+	return mIndexer;
 }
 
 Profile *User::profile(void) const
@@ -279,8 +280,9 @@ void User::setOnline(void)
 	{
 		mOnline = true;
 		sendStatus();
-		
-		DesynchronizeStatement(this, mAddressBook->update());
+	
+		// TODO	
+		//DesynchronizeStatement(this, mAddressBook->update());
 	}
 	
 	Scheduler::Global->schedule(&mSetOfflineTask, 60.);
@@ -304,7 +306,7 @@ void User::sendStatus(const Identifier &identifier)
 	String status = (mOnline ? "online" : "offline");
 	
 	Notification notification(status);
-	notification.setParameter("type", "status");
+	//notification.setParameter("type", "status");	// TODO
 	
 	if(identifier != Identifier::Null)
 	{
@@ -325,8 +327,8 @@ void User::sendSecret(const Identifier &identifier)
 		throw Exception("Prevented sendSecret() to broadcast");
 	
 	Notification notification(mSecret.toString());
-	notification.setParameter("type", "secret");
-	notification.setParameter("time", File::Time(profilePath()+"secret").toString());
+	//notification.setParameter("type", "secret");	// TODO
+	//notification.setParameter("time", File::Time(profilePath()+"secret").toString());
 	
 	DesynchronizeStatement(this, notification.send(identifier));
 }
@@ -348,7 +350,7 @@ void User::setSecret(const BinaryString &secret, const Time &time)
 		if(mSecret != secret)
 		{
 			AddressBook::Contact *self = addressBook()->getSelf();
-			if(self) sendSecret(self->peering());
+			if(self) sendSecret(self->identifier());
 		}
 	}
 }
@@ -480,12 +482,12 @@ void User::http(const String &prefix, Http::Request &request)
 
 				if(command == "update")
 				{
-					if(!request.sock->getRemoteAddress().isLocal()) throw 403;
+					//if(!request.sock->getRemoteAddress().isLocal()) throw 403;	// TODO
 					if(!Config::LaunchUpdater()) throw 500;
 					
 					Http::Response response(request, 200);
 					response.send();
-					Html page(response.sock);
+					Html page(response.stream);
 					page.header("Please wait", true);
 					page.open("div", "notification");
 					page.image("/loading.png", "Please wait");
@@ -496,7 +498,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.close("div");
 					page.javascript("setTimeout(function() {window.location.href = \""+redirect+"\";}, 20000);");
 					page.footer();
-					response.sock->close();
+					response.stream->close();
 					
 					Thread::Sleep(1.);	// Some time for the browser to load resources
 					
@@ -505,7 +507,8 @@ void User::http(const String &prefix, Http::Request &request)
 				}
 				else if(command == "shutdown")
 				{
-					if(!request.sock->getRemoteAddress().isLocal()) throw 403;
+					// TODO
+					//if(!request.sock->getRemoteAddress().isLocal()) throw 403;
 					shutdown = true;
 				}
 				else throw 400;
@@ -513,7 +516,7 @@ void User::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 303);
 				response.headers["Location"] = redirect;
 				response.send();
-				response.sock->close();
+				response.stream->close();
 				
 				if(shutdown)
 				{
@@ -527,7 +530,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Http::Response response(request,200);
 			response.send();
 			
-			Html page(response.sock);
+			Html page(response.stream);
 			page.header(APPNAME, true);
 
 			// TODO: This is awful
@@ -617,11 +620,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","files.box");
 			
 			Array<String> directories;
-			mStore->getDirectories(directories);
-			
-			Array<String> globalDirectories;
-			Store::GlobalInstance->getDirectories(globalDirectories);
-			directories.append(globalDirectories);
+			mIndexer->getDirectories(directories);
 			
 			page.link(prefix+"/files/","Edit",".button");
 			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", "refreshfiles.button");
@@ -834,13 +833,13 @@ void User::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "browse")
 		{
-			String target(url);
+			/*String target(url);
 			Assert(!target.empty());
 			
 			if(request.get.contains("json") || request.get.contains("playlist"))
 			{
 				// Query resources
-				Resource::Query query(store(), target);
+				Indexer::Query query(indexer(), target);
 				query.setAccessLevel(Resource::Personal);
 				
 				SerializableSet<Resource> resources;
@@ -853,7 +852,7 @@ void User::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					response.headers["Content-Type"] = "application/json";
 					response.send();
-					JsonSerializer json(response.sock);
+					JsonSerializer json(response.stream);
 					json.output(resources);
 				}
 				else {
@@ -864,7 +863,7 @@ void User::http(const String &prefix, Http::Request &request)
 					
 					String host;
 					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.sock, host);
+					Resource::CreatePlaylist(resources, response.stream, host);
 				}
 				return;
 			}
@@ -872,7 +871,7 @@ void User::http(const String &prefix, Http::Request &request)
 			// if it seems to be a file
 			if(target[target.size()-1] != '/')
 			{
-				Resource resource(Identifier::Null, url, mAddressBook->user()->store());
+				Resource resource(Identifier::Null, url, mAddressBook->user()->indexer());
 				try {
 					resource.fetch();	// we might find a better way to access it
 				}
@@ -929,7 +928,7 @@ void User::http(const String &prefix, Http::Request &request)
 				try {
 					// Launch transfer
 					if(hasRange) accessor->seekRead(rangeBegin);
-					accessor->readBinary(*response.sock, rangeSize);	// let's go !
+					accessor->readBinary(*response.stream, rangeSize);	// let's go !
 				}
 				catch(const NetException &e)
 				{
@@ -944,7 +943,7 @@ void User::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 200);
 				response.send();
 				
-				Html page(response.sock);
+				Html page(response.stream);
 				if(target == "/") page.header("Browse files");
 				else page.header("Browse files: "+target.substr(1));
 				page.open("div","topmenu");
@@ -957,11 +956,11 @@ void User::http(const String &prefix, Http::Request &request)
 				page.footer();
 			}
 			
-			return;
+			return;*/
 		}
 		else if(directory == "search")
 		{
-			if(url != "/") throw 404;
+			/*if(url != "/") throw 404;
 			
 			String match;
 			if(!request.post.get("query", match))
@@ -972,7 +971,7 @@ void User::http(const String &prefix, Http::Request &request)
 			{
 				if(match.empty()) throw 400;
 				
-				Resource::Query query(store());
+				Resource::Query query(indexer());
 				query.setMatch(match);
 				query.setAccessLevel(Resource::Personal);
 				
@@ -985,7 +984,7 @@ void User::http(const String &prefix, Http::Request &request)
 					Http::Response response(request, 200);
 					response.headers["Content-Type"] = "application/json";
 					response.send();
-					JsonSerializer json(response.sock);
+					JsonSerializer json(response.stream);
 					json.output(resources);
 				}
 				else {
@@ -996,7 +995,7 @@ void User::http(const String &prefix, Http::Request &request)
 					
 					String host;
 					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.sock, host);
+					Resource::CreatePlaylist(resources, response.stream, host);
 				}
 				return;
 			}
@@ -1004,7 +1003,7 @@ void User::http(const String &prefix, Http::Request &request)
 			Http::Response response(request, 200);
 			response.send();
 				
-			Html page(response.sock);
+			Html page(response.stream);
 			
 			if(match.empty()) page.header("Search");
 			else page.header(String("Searching ") + match);
@@ -1031,7 +1030,7 @@ void User::http(const String &prefix, Http::Request &request)
 				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,false);");
 				page.footer();
 			}
-			return;
+			return;*/
 		}
 		else if(directory == "avatar" || request.url == "/myself/avatar")
 		{

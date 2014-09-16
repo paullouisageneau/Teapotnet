@@ -61,9 +61,9 @@ bool Store::push(const BinaryString &digest, Stream &input)
 {
 	Synchronize(this);
   
-	if(hashBlock(digest)) return true;
+	if(hasBlock(digest)) return true;
   
-	const Fountain::Sink &sink = mSinks[digest];
+	Fountain::Sink &sink = mSinks[digest];
 	if(!sink.solve(input)) return false;
 	
 	BinaryString sinkDigest;
@@ -76,7 +76,7 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	
 	const String filename = mCacheDirectory + Directory::Separator + digest.toString();
 	File file(filename, File::Write);
-	sink.dump(filename);
+	sink.dump(file);
 	file.close();
 	
 	int64_t size = sink.size();
@@ -121,11 +121,10 @@ void Store::waitBlock(const BinaryString &digest)
 	
 	if(!hasBlock(digest))
 	{
-		Core::Caller(digest);		// Block is missing locally, call it
+		Core::Caller caller(digest);		// Block is missing locally, call it
 	  
 		do wait();
 		while(!hasBlock(digest));
-			
 	}
 }
 
@@ -163,13 +162,13 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 
 void Store::notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size)
 {
-	Synchonize(this);
+	Synchronize(this);
 	
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
 	statement.bind(1, filename);
 	statement.execute();
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO blocks (file_id, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3)");
+	statement = mDatabase->prepare("INSERT OR IGNORE INTO blocks (file_id, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3)");
 	statement.bind(1, filename);
 	statement.bind(2, offset);
 	statement.bind(3, size);
@@ -180,13 +179,13 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 
 void Store::notifyFileErasure(const String &filename)
 {
-	Synchonize(this);
+	Synchronize(this);
 	
 	Database::Statement statement = mDatabase->prepare("DELETE FROM blocks WHERE file_id = (SELECT id FROM files WHERE name = ?1)");
 	statement.bind(1, filename);
 	statement.execute();
 	
-	Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE name = ?1");
+	statement = mDatabase->prepare("DELETE FROM files WHERE name = ?1");
 	statement.bind(1, filename);
 	statement.execute();
 }

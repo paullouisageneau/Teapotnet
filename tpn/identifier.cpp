@@ -27,6 +27,9 @@
 namespace tpn
 {
 
+// Hardcoded identifier size, do not change
+const size_t Identifier::DigestSize = 32;            // digest: 32 B
+const size_t Identifier::Size = DigestSize + 8;      // total:  40 B
 const Identifier Identifier::Null;
 
 Identifier::Identifier(void)

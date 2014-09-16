@@ -357,16 +357,12 @@ void Interface::process(Http::Request &request)
 			bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
 			int64_t rangeSize = rangeEnd - rangeBegin + 1;
 			
-			// Get resource accessor
-			Resource::Accessor *accessor = resource.accessor();
-			if(!accessor) throw 404;
-			
 			// Forge HTTP response header
 			Http::Response response(request, 200);
-			if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
+			if(!hasRange) response.headers["Content-SHA256"] << resource.digest();
 			response.headers["Content-Length"] << rangeSize;
 			response.headers["Content-Name"] = resource.name();
-			response.headers["Last-Modified"] = resource.time().toHttpDate();
+			//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
 			response.headers["Accept-Ranges"] = "bytes";
 			
 			String ext = resource.name().afterLast('.');
@@ -385,8 +381,9 @@ void Interface::process(Http::Request &request)
 			
 			try {
 				// Launch transfer
-				if(hasRange) accessor->seekRead(rangeBegin);
-				int64_t size = accessor->readBinary(*response.stream, rangeSize);	// let's go !
+				Resource::Reader reader(&resource);
+				if(hasRange) reader.seekRead(rangeBegin);
+				int64_t size = reader.readBinary(*response.stream, rangeSize);	// let's go !
 				if(size != rangeSize)
 					throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
 			}

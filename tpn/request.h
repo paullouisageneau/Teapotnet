@@ -52,7 +52,7 @@ public:
 	void http(const String &prefix, Http::Request &request);
 	
 protected:
-	void createPlaylist(Stream &output, String host = "");
+	void createPlaylist(Stream *output, String host = "");
 	
 	// Core::Subscriber
 	bool incoming(const String &path, const BinaryString &target);
