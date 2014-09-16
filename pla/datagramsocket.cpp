@@ -60,9 +60,9 @@ Address DatagramSocket::getBindAddress(void) const
 	return Address(reinterpret_cast<sockaddr*>(&sa), sl);
 }
 
-void DatagramSocket::getLocalAddresses(List<Address> &list) const
+void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 {
-	list.clear();
+	set.clear();
   
 	Address bindAddr = getBindAddress();
   
@@ -87,7 +87,7 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 		LogWarn("DatagramSocket", "Local hostname is not resolvable !");
 		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
 		{
-			list.push_back(bindAddr);
+			set.insert(bindAddr);
 			return;
 		}
 	}
@@ -98,13 +98,13 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 		Address addr(ai->ai_addr,ai->ai_addrlen);
 		if(addr == bindAddr)
 		{
-			list.clear();
-			list.push_back(addr);
+			set.clear();
+			set.insert(addr);
 			break;
 		}
 		
 		if(ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
-			list.push_back(addr);
+			set.insert(addr);
 		
 		ai = ai->ai_next;
 	}
@@ -135,11 +135,11 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 				addr.set(host, mPort);
 				if(addr == bindAddr)
 				{
-					list.clear();
-					list.push_back(addr);
+					set.clear();
+					set.insert(addr);
 					break;
 				}
-				list.push_back(addr);
+				set.insert(addr);
 			}
 		}
 		
@@ -150,9 +150,9 @@ void DatagramSocket::getLocalAddresses(List<Address> &list) const
 #endif
 }
 
-void DatagramSocket::getHardwareAddresses(List<BinaryString> &list) const
+void DatagramSocket::getHardwareAddresses(Set<BinaryString> &set) const
 {
-	list.clear();
+	set.clear();
 	
 #ifdef WINDOWS
 	IP_ADAPTER_ADDRESSES adapterInfo[16];   
@@ -166,7 +166,7 @@ void DatagramSocket::getHardwareAddresses(List<BinaryString> &list) const
 	while(pAdapterInfo)
 	{
 		if(pAdapterInfo->PhysicalAddressLength)
-			list.push_back(BinaryString((char*)pAdapterInfo->PhysicalAddress, pAdapterInfo->PhysicalAddressLength));
+			set.insert(BinaryString((char*)pAdapterInfo->PhysicalAddress, pAdapterInfo->PhysicalAddressLength));
 		
 		pAdapterInfo = pAdapterInfo->Next;
 	}
@@ -193,7 +193,7 @@ void DatagramSocket::getHardwareAddresses(List<BinaryString> &list) const
 			{
 				if (ioctl(mSock, SIOCGIFHWADDR, &ifr) == 0)
 				{
-					list.push_back(BinaryString(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data), size_t(IFHWADDRLEN)));	// hwaddr.sa_data is big endian
+					set.insert(BinaryString(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data), size_t(IFHWADDRLEN)));	// hwaddr.sa_data is big endian
 				}
 			}
 		}

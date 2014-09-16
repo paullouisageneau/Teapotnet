@@ -20,18 +20,20 @@
  *************************************************************************/
 
 #include "tpn/request.h"
+#include "tpn/config.h"
 
 #include "pla/jsonserializer.h"
+#include "pla/mime.h"
 
 namespace tpn
 {
 
-Request::Request(const String &target) : Subscriber(peer)
+Request::Request(const Identifier &peer, const String &target) : Subscriber(peer)
 {  
 	mUrlPrefix = "/requests/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
 	
-	subscribe(path);
+	subscribe(target);
 }
 
 Request::Request(const String &match)
@@ -43,7 +45,7 @@ Request::Request(const String &match)
 	{
 		String m(match);
 		m.replace('/', ' ');
-		subscribe('/$match/'+m);
+		subscribe("/$match/"+m);
 	}
 }
 
@@ -86,7 +88,7 @@ void Request::getResult(int i, Resource &resource) const
 	resource = mResults.at(i);
 }
 
-void Request::setAutoDelete(double timeout = 10.)
+void Request::setAutoDelete(double timeout)
 {
 	// TODO
 }
@@ -118,7 +120,7 @@ void Request::http(const String &prefix, Http::Request &request)
 					
 		String host;
 		request.headers.get("Host", host);
-		createPlaylist(response.sock, host);
+		createPlaylist(response.stream, host);
 	}
 	else {
 		// JSON
@@ -127,7 +129,7 @@ void Request::http(const String &prefix, Http::Request &request)
 		response.headers["Content-Type"] = "application/json";
 		response.send();
 		
-		JsonSerializer json(response.sock);
+		JsonSerializer json(response.stream);
 		json.outputArrayBegin();
 		for(int i = next; i < int(mResults.size()); ++i)
 			json.outputArrayElement(mResults[i]);
@@ -154,9 +156,9 @@ void Request::createPlaylist(Stream *output, String host)
 		host = String("localhost:") + Config::Get("interface_port");
 	
 	output->writeLine("#EXTM3U");
-	for(Set<Resource>::iterator it = mResults.begin(); it != mResults.end(); ++it)
+	for(int i = 0; i < int(mResults.size()); ++i)
 	{
-		const Resource &resource = *it;
+		const Resource &resource = mResults[i];
 		if(resource.isDirectory() || resource.digest().empty()) continue;
 		if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
 		String link = "http://" + host + "/" + resource.digest().toString();

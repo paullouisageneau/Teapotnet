@@ -21,6 +21,7 @@
 
 #include "tpn/core.h"
 #include "tpn/user.h"
+#include "tpn/store.h"
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
 
@@ -52,7 +53,7 @@ Core::Core(int port) :
 	tmp.read(mNumber);
 	if(!mNumber)
 	{
-		List<BinaryString> hardwareAddrs;
+		Set<BinaryString> hardwareAddrs;
 		
 		try {
 			DatagramSocket dummy;
@@ -65,9 +66,10 @@ Core::Core(int port) :
 		
 		if(!hardwareAddrs.empty())
 		{
+			BinaryString tmp = *hardwareAddrs.rbegin();
 			BinaryString digest;
-			Sha256().compute(*hardwareAddrs.rbegin(), digest);
-			digest.read(mNumber);
+			Sha256().compute(tmp, digest);
+			digest.readBinary(mNumber);
 		}
 		else {
 			LogWarn("Core", "Unable to get a hardware address, using a random instance number");
@@ -121,24 +123,15 @@ Core::Core(int port) :
 		mBackends.push_back(mTunnelBackend);
 		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
-		
-		// Start backends
-		for(List<Backend*>::iterator it = mBackends.begin();
-			it != mBackends.end();
-			++it)
-		{
-			Backend *backend = *it;
-			backend->start();
-		}
 	}
 	catch(...)
 	{
+		// Delete created backends
 		for(List<Backend*>::iterator it = mBackends.begin();
 			it != mBackends.end();
 			++it)
 		{
 			Backend *backend = *it;
-			backend->join();
 			delete backend;
 		}
 		
@@ -148,14 +141,39 @@ Core::Core(int port) :
 
 Core::~Core(void)
 {
-	// Join and delete backends
+	join();
+	
+	// Delete backends
+	for(List<Backend*>::iterator it = mBackends.begin();
+		it != mBackends.end();
+		++it)
+	{
+		Backend *backend = *it;
+		delete backend;
+	}
+}
+
+void Core::start(void)
+{
+	// Join backends
+	for(List<Backend*>::iterator it = mBackends.begin();
+		it != mBackends.end();
+		++it)
+	{
+		Backend *backend = *it;
+		backend->start();
+	}
+}
+
+void Core::join(void)
+{
+	// Join backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
 		++it)
 	{
 		Backend *backend = *it;
 		backend->join();
-		delete backend;
 	}
 }
 
@@ -173,38 +191,26 @@ String Core::getName(void) const
 	return mName;
 }
 
-void Core::getAddresses(List<Address> &list) const
+void Core::getAddresses(Set<Address> &set) const
 {
 	Synchronize(this);
 	
-	Set<Address> set;
+	set.clear();
 	for(List<Backend*>::const_iterator it = mBackends.begin();
 		it != mBackends.end();
 		++it)
 	{
 		const Backend *backend = *it;
-		backend->getAddresses(set);
-	}
-	
-	list.clear();
-	for(Set<Address>::const_iterator it = set.begin();
-		it != set.end();
-		++it)
-	{
-	      list.push_back(*it);
+		Set<Address> backendSet;
+		backend->getAddresses(backendSet);
+		set.insertAll(backendSet);
 	}
 }
 
-void Core::getKnownPublicAdresses(List<Address> &list) const
+void Core::getKnownPublicAdresses(Set<Address> &set) const
 {
 	Synchronize(this);
-	list.clear();
-	for(Map<Address, Time>::const_iterator it = mKnownPublicAddresses.begin();
-		it != mKnownPublicAddresses.end();
-		++it)
-	{
-		list.push_back(it->first);
-	}
+	mKnownPublicAddresses.getKeys(set);
 }
 
 bool Core::isPublicConnectable(void) const
@@ -419,7 +425,7 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 	return false;
 }
 
-void Core::route(Message &message, const Identifier &from)
+void Core::route(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
@@ -437,7 +443,7 @@ void Core::route(Message &message, const Identifier &from)
 	broadcast(message, from);
 }
 
-void Core::broadcast(Message &message, const Identifier &from)
+void Core::broadcast(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
@@ -457,7 +463,7 @@ void Core::broadcast(Message &message, const Identifier &from)
 	}
 }
 
-bool Core::send(Message &message, const Identifier &to)
+bool Core::send(const Message &message, const Identifier &to)
 {
 	Synchronize(this);
 	
@@ -1052,6 +1058,11 @@ SecureTransport *Core::StreamBackend::listen(void)
 	}
 }
 
+void Core::StreamBackend::getAddresses(Set<Address> &set) const
+{
+	mSock.getLocalAddresses(set);
+}
+
 Core::DatagramBackend::DatagramBackend(Core *core, int port) :
 	Backend(core),
 	mSock(port)
@@ -1113,6 +1124,11 @@ SecureTransport *Core::DatagramBackend::listen(void)
 	}
 }
 
+void Core::DatagramBackend::getAddresses(Set<Address> &set) const
+{
+	mSock.getLocalAddresses(set);
+}
+
 Core::TunnelBackend::TunnelBackend(Core *core) :
 	Backend(core)
 {
@@ -1134,7 +1150,7 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(local, remote);
+		wrapper = new TunnelWrapper(mCore, local, remote);
 		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
 	}
 	catch(...)
@@ -1152,6 +1168,7 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 		throw;
 	}
 	
+	mWrappers.insert(IdentifierPair(local, remote), wrapper);
 	return transport;
 }
 
@@ -1166,7 +1183,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(message.destination, message.source);
+		wrapper = new TunnelWrapper(mCore, message.destination, message.source);
 		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
 	}
 	catch(...)
@@ -1177,19 +1194,70 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	}
 	
 	mQueue.pop();
+	mWrappers.insert(IdentifierPair(message.destination, message.source), wrapper);
 	return transport;
 }
 
 bool Core::TunnelBackend::incoming(Message &message)
 {
-	if(message.type == Message::Tunnel)
+	if(message.type != Message::Tunnel)
+		return false;
+	
+	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(message.destination, message.source));	
+	if(it != mWrappers.end())
 	{
+		return it->second->incoming(message);
+	}
+	else {
 		Synchronize(&mQueueSync);
 		mQueue.push(message);
-		return true;
+		mQueueSync.notifyAll();
 	}
 	
-	return false;
+	return true;
+}
+
+Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote) :
+	mCore(core),
+	mLocal(local),
+	mRemote(remote)
+{
+
+}
+
+Core::TunnelBackend::TunnelWrapper::~TunnelWrapper(void)
+{
+
+}                        
+
+size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
+{
+	// TODO: timeout
+
+	Synchronize(&mQueueSync);
+        while(mQueue.empty()) mQueueSync.wait();
+
+        Message &message = mQueue.front();
+	size = std::min(size, size_t(message.payload.size()));
+        std::copy(message.payload.data(), message.payload.data() + size, buffer);
+        mQueue.pop();
+        return size;
+}
+
+void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
+{
+	Message message;
+	message.prepare(mLocal, mRemote);
+	message.payload.writeBinary(data, size);
+	mCore->route(message);
+}
+
+bool Core::TunnelBackend::TunnelWrapper::incoming(Message &message)
+{
+	Synchronize(&mQueueSync);
+	mQueue.push(message);
+	mQueueSync.notifyAll();
+	return true;
 }
 
 Core::Handler::Handler(Core *core, Stream *stream) :
@@ -1304,6 +1372,12 @@ void Core::Handler::send(const Message &message)
 		MutexLocker lock(&mStreamWriteMutex);
 		mStream->writeBinary(buffer.data(), buffer.size());
 	}
+}
+
+void Core::Handler::route(const Message &message)
+{
+	Synchronize(this);	
+	DesynchronizeStatement(mCore, mCore->route(message, mLocal));
 }
 
 bool Core::Handler::incoming(Message &message)

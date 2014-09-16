@@ -63,6 +63,7 @@ public:
 	virtual int64_t tellWrite(void) const;
 	virtual void clear(void);
 	virtual void flush(void);
+	virtual void close(void);
 	virtual bool ignore(size_t size = 1);
 	virtual bool skipMark(void);
 	

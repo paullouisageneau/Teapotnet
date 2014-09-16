@@ -48,7 +48,7 @@ namespace tpn
 class User;
 class Profile;
   
-class AddressBook : private Synchronizable, public Serializable, public HttpInterfaceable, public Core::Listener
+class AddressBook : private Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);

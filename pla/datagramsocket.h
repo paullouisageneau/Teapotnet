@@ -25,7 +25,7 @@
 #include "pla/include.h"
 #include "pla/address.h"
 #include "pla/stream.h"
-#include "pla/list.h"
+#include "pla/set.h"
 #include "pla/map.h"
 #include "pla/synchronizable.h"
 
@@ -44,8 +44,8 @@ public:
 	~DatagramSocket(void);
 
 	Address getBindAddress(void) const;
-	void getLocalAddresses(List<Address> &list) const;
-	void getHardwareAddresses(List<BinaryString> &list) const;
+	void getLocalAddresses(Set<Address> &set) const;
+	void getHardwareAddresses(Set<BinaryString> &set) const;
 	
 	void bind(int port, bool broascast = false, int family = AF_UNSPEC);
 	void bind(const Address &local, bool broadcast = false);

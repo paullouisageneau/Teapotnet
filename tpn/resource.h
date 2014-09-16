@@ -34,7 +34,7 @@
 namespace tpn
 {
 
-class Resource
+class Resource : public Serializable
 {
 public:
 	enum AccessLevel { Public, Private, Personal };
@@ -78,6 +78,12 @@ public:
 	int blockIndex(int64_t position) const;
 	BinaryString blockDigest(int index) const;
 	
+	String  name(void) const;
+	String  type(void) const;
+	int64_t size(void) const;
+	bool isDirectory(void) const;
+	
+	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
@@ -88,8 +94,8 @@ public:
 	class MetaRecord : public Serializable
 	{
 	public:
-		MetaRecord(void);
-		virtual ~MetaRecord(void);
+		MetaRecord(void)		{ size = 0; }
+		virtual ~MetaRecord(void)	{}
 
 		// Serializable
 		virtual void serialize(Serializer &s) const;
@@ -104,8 +110,8 @@ public:
 	class IndexRecord : public MetaRecord
 	{
 	public:
-		IndexRecord(void);
-		~IndexRecord(void);
+		IndexRecord(void)	{}
+		~IndexRecord(void)	{}
 		
 		// Serializable
 		void serialize(Serializer &s) const;
@@ -117,8 +123,8 @@ public:
 	class DirectoryRecord: public MetaRecord
 	{
 	public:
-		DirectoryRecord(void);
-		~DirectoryRecord(void);
+		DirectoryRecord(void)	{}
+		~DirectoryRecord(void)	{}
 		
 		// Serializable
 		void serialize(Serializer &s) const;

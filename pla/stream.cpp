@@ -111,6 +111,11 @@ void Stream::flush(void)
 	// do nothing
 }
 
+void Stream::close(void)
+{
+	clear();
+}
+
 bool Stream::ignore(size_t size)
 {
 	char buffer[BufferSize];

@@ -28,7 +28,7 @@
 #include "pla/mutex.h"
 #include "pla/file.h"
 #include "pla/map.h"
-#include "pla/list.h"
+#include "pla/set.h"
 #include "pla/address.h"
 
 namespace tpn
@@ -47,7 +47,7 @@ public:
 	static bool CheckUpdate(void);
 	static bool LaunchUpdater(String *commandLine = NULL);
 	
-	static void GetExternalAddresses(List<Address> &list);
+	static void GetExternalAddresses(Set<Address> &set);
 	
 private:
 	static StringMap Params;

@@ -33,9 +33,8 @@ namespace tpn
 class Identifier : public Serializable
 {
 public:
-	// Hardcoded identifier size, do not change
-	static const size_t DigestSize = 32;		// digest: 32 B
-	static const size_t Size = DigestSize + 8;	// total:  40 B
+	static const size_t DigestSize;
+	static const size_t Size;
 	static const Identifier Null;
 	
 	Identifier(void);
@@ -70,6 +69,8 @@ bool operator < (const Identifier &i1, const Identifier &i2);
 bool operator > (const Identifier &i1, const Identifier &i2);
 bool operator == (const Identifier &i1, const Identifier &i2);
 bool operator != (const Identifier &i1, const Identifier &i2);
+
+typedef std::pair<Identifier, Identifier> IdentifierPair;
 
 }
 

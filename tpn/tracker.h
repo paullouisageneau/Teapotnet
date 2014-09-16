@@ -49,7 +49,7 @@ private:
 	map_t::iterator mCleaner;
 	
 	void process(Http::Request &request);
-	void clean(Storage &s, int nbr = -1);
+	void clean(int nbr = -1);
 	void insert(const Identifier &identifier, const Address &addr);
 	void retrieve(const Identifier &identifier, Stream &output) const;
 	bool contains(const Identifier &identifier);
