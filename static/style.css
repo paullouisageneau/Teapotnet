@@ -161,7 +161,7 @@ fieldset
 	padding-right: 1em;
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	box-shadow: 0px 0px 8px 2px #404040;
 }
 
@@ -184,7 +184,7 @@ legend
 	text-align: right;
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	box-shadow: 0px 0px 8px 2px #404040;
 }
 
@@ -196,7 +196,7 @@ input
 	line-height: 1.4em;
 	color: #000000;
 	border: 1px solid #606060;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	font-family: inherit;
 	font-size: inherit;
 }
@@ -205,7 +205,7 @@ input[type="submit"]
 {
 	min-width: 6em;
 	padding: 0.4em;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	cursor: pointer;
 	color: #000000;
 	background-color: #FFDC0A;
@@ -222,7 +222,7 @@ input[type="button"]
 {
 	min-width: 6em;
 	padding: 0.4em;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	cursor: pointer;
 	color: #000000;
 	background-color: #FFDC0A;
@@ -252,6 +252,7 @@ select
 	display: inline-block;
 	margin: 0.2em;
 	padding: 0.2em;
+	padding-right: 1em;
 }
 
 textarea
@@ -261,7 +262,7 @@ textarea
 	overflow: auto;
 	padding: 0.5em;
 	border: 1px solid #000000;
-        border-radius: 0.5em;
+        border-radius: 4px;
 	color: #000000;
 	background-color: #FFFFFF;
 	font-family: inherit;
@@ -281,7 +282,7 @@ textarea
         color: #000000;
         background-color: #B0B0B0;
 	border: 1px solid #A0A0A0;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	text-align: center;
 }
 
@@ -297,57 +298,6 @@ a.button:hover
 {
 	background-color: #FFF040;
 	text-decoration: none;
-}
-
-.customselect
-{
-	display: inline-block;
-	overflow: hidden;
-	min-width: 10em;
-	margin: 0.2em;
-	padding: 0.4em;
-	color: #000000;
-	background: url(/select_arrow.png) no-repeat right #BBD2E1;
-	border: 1px solid #A0A0A0;
-	border-radius: 0.5em;
-}
-
-.customselect select
-{
-	display: inline-block;
-	width: 100%;
-	margin: 0;
-	padding: 0;
-	margin-right: 10px;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	background: transparent;
-	border: none;
-	font-family: inherit;
-	font-size: inherit;
-	text-align: left;
-}
-
-.customselect select, .customselect x:-moz-any-link, .customselect x:default 
-{
-	display: inline-block;
-	width: 100%;
-	margin: 0;
-	padding: 0;
-	margin-right: 10px;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	background: transparent;
-	border: none;
-	font-family: inherit;
-	font-size: inherit;
-	text-align: left;
-
-	/* Hack to make browser arrow disappear on Firefox */
-	text-indent: 1px;
-	text-overflow: '';
 }
 
 .banner
@@ -558,7 +508,7 @@ a.button:hover
 	margin-right: auto;
 	font-weight: bold;
 	border: 1px solid #B0B0B0;
-        border-radius: 0.5em;
+        border-radius: 4px;
 	background-color: #F5F5F5;
 	box-shadow: 1px 1px 3px #202020;
 	overflow: hidden;
@@ -742,7 +692,7 @@ a.button:hover
 	margin-bottom: 0.5em;
 	cursor: pointer;
 	background-color: #FFFFD0;
-	border: 2px solid #FFF48D;
+	border: 1px solid #FFF48D;
 	border-radius: 0.25em;
 }
 
@@ -836,7 +786,7 @@ a.button:hover
 	padding: 0.2em 0.5em;
 	background-color: #FFFFFF;
 	border: 1px solid black;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	max-width: 30em;
 	overflow: hidden;
 	text-overflow: ellipsis; 
@@ -903,7 +853,7 @@ img.avatar
 	margin-right: 0.5em;
 	padding: 0.5em;
 	border: 1px solid #B0B0B0;
-        border-radius: 0.5em;
+        border-radius: 4px;
 	background-color: #F5F5F5;
 	box-shadow: 0px 0px 8px 4px #FFDC0A;
 	word-wrap: break-word;
@@ -1055,8 +1005,8 @@ img.preview
 	padding: 0.5em;
 	width: 100%;
 	background-color: #FFFFFF;
-	border: 2px solid #E0E0E0;
-	border-radius: 0.5em;
+	border: 1px solid #E0E0E0;
+	border-radius: 4px;
 	box-shadow: 0px 0px 8px 2px #404040;
 	overflow: hidden;
 }
@@ -1343,7 +1293,7 @@ td.actions a
         margin-bottom: 0.5em;
         padding: 0.4em;
 	border: 1px solid #A0A0A0;
-	border-radius: 0.5em;
+	border-radius: 4px;
 	text-align: center;
 }
 
@@ -1367,7 +1317,7 @@ td.actions a
 	width: 100%;
 	padding: 2px;
 	background-color: #FFFFFF;
-	border: 2px solid #E0E0E0;
+	border: 1px solid #E0E0E0;
 	text-align: left;
 	display: none;
 }
@@ -1448,7 +1398,7 @@ td.actions a
 #profileavatar
 {
 	float: right;
-	border: 2px solid black;
+	border: 1px solid black;
 	width: auto;
 	height: auto;
 	min-width: 128px;
@@ -1526,7 +1476,7 @@ form #trackerlink
 	background-color: #FFF48D;
 	padding: 0.5em;
 	text-align: center;
-	border-radius: 0.5em;
+	border-radius: 4px;
 }
 
 /* Mobile version */  

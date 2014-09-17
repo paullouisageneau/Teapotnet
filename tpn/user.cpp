@@ -689,21 +689,17 @@ void User::http(const String &prefix, Http::Request &request)
 			optionsCount["&count=20"] << "Last 20";
 			optionsCount["&count=50"] << "Last 50";
 			optionsCount[""] << "All";
-			page.raw("<span class=\"customselect\">");
 			page.select("listCount", optionsCount, "&count=20");
-			page.raw("</span>");
 
 			StringMap optionsIncoming;
 			optionsIncoming["0"] << "Mine & others";
 			optionsIncoming["1"] << "Others only";
-			page.raw("<span class=\"customselect\">");
 			page.select("listIncoming", optionsIncoming, "0");
-			page.raw("</span>");
 
 			page.close("div");
 
 			page.open("h2");
-			page.text("Public mails");
+			page.text("Public messages");
 			page.close("h2");
 			
 			page.open("div", "statusmails");
