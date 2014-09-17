@@ -68,7 +68,7 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 
 void Interface::process(Http::Request &request)
 {
-	LogDebug("Interface", "Request for URL \""+request.fullUrl+"\"");
+	LogDebug("Interface", request.method + " " + request.fullUrl);
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
@@ -137,17 +137,12 @@ void Interface::process(Http::Request &request)
 		page.open("tr");
 		page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");
 		page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
-		page.open("td", ".rightcolumn"); page.link("#", "Tracker", "trackerlink"); page.close("td");
+		page.open("td", ".rightcolumn"); page.close("td");
 		page.close("tr");
 		page.open("tr");
 		page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
 		page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
 		page.open("td",".rightcolumn"); page.close("td");
-		page.close("tr");
-		page.open("tr", "trackerselection");
-		page.open("td", ".leftcolumn"); page.label("tracker", "Tracker"); page.close("td");
-		page.open("td", ".middlecolumn"); page.input("text", "tracker", ""); page.close("td");
-		page.open("td", ".rightcolumn"); page.close("td");
 		page.close("tr");
 		page.open("tr");
 		page.open("td",".leftcolumn"); page.close("td");
@@ -189,14 +184,6 @@ void Interface::process(Http::Request &request)
 		}
 		
 		page.close("div");
-		
-		page.javascript("$('#trackerselection').hide();\n\
-			$('#trackerlink').click(function() {\n\
-				$(this).hide();\n\
-				$('#trackerselection').show();\n\
-				$('#trackerselection .tracker').val('"+Config::Get("tracker")+"');\n\
-			});");
-		
 		page.footer();
 		return;
 	}

@@ -77,7 +77,7 @@ User *User::Get(const String &name)
 User *User::Authenticate(const String &name, const String &password)
 {
 	BinaryString hash;
-	Sha512().pbkdf2_hmac(password, name, hash, 64, 10000);
+	Sha256().pbkdf2_hmac(password, name, hash, 32, 10000);
 	
 	User *user = NULL;
 	UsersMutex.lock();
@@ -121,11 +121,6 @@ User::User(const String &name, const String &password, const String &tracker) :
 	if(!mName.isAlphanumeric()) 
 		throw Exception("User name must be alphanumeric");
 	
-	// TODO: backward compatibility, should be removed
-	if(File::Exist(profilePath()+"auth"))
-		File::Remove(profilePath()+"auth");
-	//
-
 	// Auth digest
 	if(password.empty())
 	{
@@ -134,8 +129,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.close();
 	}
 	else {
-		BinaryString hash;
-		Sha512().pbkdf2_hmac(password, name, hash, 64, 10000);
+		Sha256().pbkdf2_hmac(password, name, mAuth, 32, 10000);
 	
 		File file(profilePath()+"password", File::Truncate);
 		file.write(mAuth);
@@ -166,7 +160,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mProfile = NULL;
 
 	try {
-		mCertificate = new SecureTransport::Certificate(mPublicKey, mPrivateKey);
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey);
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
@@ -362,7 +356,7 @@ BinaryString User::getSecretKey(const String &action)
 	{
 		Random rnd(Random::Key);
 		BinaryString secret;
-		secret.writeBinary(rnd, 64);
+		secret.writeBinary(rnd, 32);
 		setSecret(secret, Time::Now());
 	}
 	
@@ -370,7 +364,7 @@ BinaryString User::getSecretKey(const String &action)
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
-		Sha512().pbkdf2_hmac(mSecret, action, key, 64, 10000);
+		Sha256().pbkdf2_hmac(mSecret, action, key, 32, 10000);
 		mSecretKeysCache.insert(action, key);
 	}
 
@@ -392,7 +386,7 @@ String User::generateToken(const String &action) const
 	SynchronizeStatement(this, splain.output(mTokenSecret));
 
 	BinaryString digest;
-	Sha512().compute(plain, digest);
+	Sha256().compute(plain, digest);
 	
 	BinaryString key;
 	digest.readBinary(key, 8);
@@ -433,7 +427,7 @@ bool User::checkToken(const String &token, const String &action) const
 			SynchronizeStatement(this, splain.output(mTokenSecret));
 			
 			BinaryString digest;
-			Sha512().compute(plain, digest);
+			Sha256().compute(plain, digest);
 			
 			BinaryString key;
 			digest.readBinary(key, 8);

@@ -54,9 +54,9 @@ Indexer::Indexer(User *user) :
 		path TEXT,\
 		digest BLOB,\
 		time INTEGER(8),\
-		seen INTEGER(1)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON files (digest)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS parent_id ON files (parent_id)");
+		seen INTEGER(1))");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON resources (digest)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS path ON resources (path)");
 	mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
 	
 	// Fix: "IF NOT EXISTS" is not available for virtual tables with old sqlite3 versions
@@ -106,8 +106,8 @@ Indexer::Indexer(User *user) :
 	}
 	
 	// Special upload directory
-	if(mUser && !mDirectories.contains(UploadDirectoryName)) 
-		addDirectory(UploadDirectoryName, UploadDirectoryName, Resource::Public);
+	if(!mDirectories.contains(UploadDirectoryName)) 
+		addDirectory(UploadDirectoryName, "", Resource::Public);
 	
 	save();
 	
@@ -151,21 +151,20 @@ String Indexer::userName(void) const
 void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel level)
 {
 	Synchronize(this);
+
+	Assert(!name.empty());
+	Assert(!name.contains('/') && !name.contains('\\'));
+
+	if(path.empty())
+		path = mBaseDirectory + Directory::Separator + name;
   
-	if(!path.empty() && path[path.size()-1] == '/')
-		path.resize(path.size()-1);
+	if(path[path.size()-1] == Directory::Separator)
+		path.ignore(1);
 	
-	if(path.empty())	// "/" matches here too
-		throw Exception("Invalid directory");
+	if(!Directory::Exist(path))
+		Directory::Create(path);
 	
-	String realPath = this->realPath(path);
-	if(!Directory::Exist(realPath))
-	{
-		if(realPath != path) Directory::Create(realPath);
-		else throw Exception("The directory does not exist: " + realPath);
-	}
-	
-	Directory test(realPath);
+	Directory test(path);
 	test.close();
 	
 	String oldPath;
@@ -1006,8 +1005,8 @@ void Indexer::http(const String &prefix, Http::Request &request)
 								// TODO: recursively delete directories
 								if(Directory::Remove(filePath))
 								{
-									Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE url = ?1");
-                                                                	statement.bind(1, url);
+									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
+                                                                	statement.bind(1, path);
                                                                 	statement.execute();
 								}
                                                         }
@@ -1015,8 +1014,8 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							{
 								if(File::Remove(filePath))
 								{
-									Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE url = ?1");
-									statement.bind(1, url);
+									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
+									statement.bind(1, path);
 									statement.execute();
 								}
 							}
@@ -1301,7 +1300,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	}
 	
 	String sql;
-	sql<<"SELECT "<<fields<<" FROM files ";
+	sql<<"SELECT "<<fields<<" FROM resources ";
 	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
 	sql<<"WHERE url NOT NULL ";
 	if(parentId >= 0)				sql<<"AND parent_id = ? ";
@@ -1383,12 +1382,14 @@ String Indexer::realPath(String path) const
 		throw Exception("Invalid path: " + path);
 	
 	if(!path.empty() && path[0] == '/')
-		path = path.substr(1);
+		path.ignore(1);
 	
 	String directory = path;
 	path = directory.cut('/');
-	String prefix = mDirectories.get(directory);
-	
+	String prefix;
+	if(!mDirectories.get(directory, prefix))
+		throw Exception("Invalid path: unknown directory: " + directory);
+
 	if(path.empty()) 
 		return prefix;
 
@@ -1447,7 +1448,7 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 			
 			String filePath = path + Directory::Separator + *it;
 			
-			Database::Statement statement = mDatabase->prepare("DELETE FROM files WHERE path = ?1");
+			Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
                 	statement.bind(1, filePath);
 			statement.execute();
 			
@@ -1477,11 +1478,11 @@ void Indexer::run(void)
 		LogDebug("Indexer::run", "Started");
 		
 		// Invalidate all entries
-		mDatabase->execute("UPDATE files SET seen=0 WHERE path IS NOT NULL");
+		mDatabase->execute("UPDATE resources SET seen=0 WHERE path IS NOT NULL");
 		
 		// TODO: update
 		
-		mDatabase->execute("DELETE FROM files WHERE seen=0");	// TODO: delete from names
+		mDatabase->execute("DELETE FROM resources WHERE seen=0");	// TODO: delete from names
 		
 		// TODO
 		StringArray names;

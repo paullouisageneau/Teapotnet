@@ -416,7 +416,8 @@ SecureTransport::Certificate::Certificate(const String &certFilename, const Stri
 
 SecureTransport::Certificate::~Certificate(void)
 {
-	gnutls_certificate_free_credentials(mCreds);
+	// TODO
+	//gnutls_certificate_free_credentials(mCreds);
 }
 
 void SecureTransport::Certificate::install(gnutls_session_t session)
@@ -464,10 +465,7 @@ SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const
 
 SecureTransport::RsaCertificate::~RsaCertificate(void)
 {
-	gnutls_pcert_deinit(&mPcert);
-	gnutls_privkey_deinit(mPkey);
-	gnutls_x509_crt_deinit(mCrt);
-	gnutls_x509_privkey_deinit(mKey);
+	// Keys are freed by gnutls_certificate_free_credentials
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, const String &hostname, bool datagram) :

@@ -303,12 +303,11 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	oss.fill(' ');
 	oss<<pla::GetFormattedLogTime()<<' ';
 #ifdef DEBUG
-	oss<<file<<':'<<std::dec<<line;
-	std::string tmp = oss.str();
-	oss.str("");
-	oss<<tmp;
-	if(tmp.size() < 25) oss<<std::string(25-tmp.size(), ' ');
-	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' '<<std::setw(40)<<prefix<<' ';
+	std::ostringstream tmp;
+	tmp<<file<<':'<<std::dec<<line;
+	oss<<tmp.str();
+	if(tmp.str().size() < 25) oss<<std::string(25-tmp.str().size(), ' ');
+	oss<<' '<<std::setw(4)<<threadId(pthread_self())<<' '<<std::setw(30)<<prefix<<' ';
 #endif
 	oss<<std::setw(8)<<strLevel<<' '<<value;
 
@@ -352,3 +351,4 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 #endif
 
 #endif
+
