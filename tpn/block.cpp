@@ -28,7 +28,7 @@ namespace tpn
 bool Block::ProcessFile(File &file, BinaryString &digest)
 {
 	int64_t offset = file.tellRead();
-	int64_t size = Sha512().compute(file, Size, digest);
+	int64_t size = Sha256().compute(file, Size, digest);
 	
 	if(size)
 	{
@@ -92,7 +92,7 @@ Block::Block(const String &filename, int64_t offset, int64_t size)
 	mOffset = offset;
 	
 	mFile->seekRead(mOffset);
-	mSize = Sha512().compute(*mFile, size, mDigest);	// TODO
+	mSize = Sha256().compute(*mFile, size, mDigest);
 
 	mFile->seekRead(mOffset);
 	notifyStore();

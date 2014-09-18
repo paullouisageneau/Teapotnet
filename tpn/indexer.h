@@ -74,10 +74,10 @@ public:
 	class Query : public Serializable
 	{
 	public:
-		Query(const String &url = "");
+		Query(const String &path = "");
 		~Query(void);
 		
-		void setLocation(const String &url);
+		void setLocation(const String &path);
 		void setDigest(const BinaryString &digest);
 		void setMinAge(int seconds);
 		void setMaxAge(int seconds);
@@ -96,7 +96,7 @@ public:
 		virtual bool isInlineSerializable(void) const;
 		
 	private:
-		String mUrl, mMatch;
+		String mPath, mMatch;
 		BinaryString mDigest;
 		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
@@ -113,11 +113,10 @@ private:
 	static const String UploadDirectoryName;
 	
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
-	void update(const String &path);
-	String urlToPath(String url) const;
+	void update(String path);
 	String realPath(String path) const;
 	bool isHiddenPath(const String &path) const;
-	Resource::AccessLevel urlAccessLevel(const String &url) const;	// TODO
+	Resource::AccessLevel pathAccessLevel(const String &path) const;
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
 	
 	// Task

@@ -92,6 +92,7 @@ public:
 		
 		void setAddressBook(AddressBook *addressBook);
 		
+		// TODO: add name ?
 		Identifier identifier(void) const;
 		String tracker(void) const;
 		uint32_t checksum(void) const;
@@ -225,6 +226,7 @@ private:
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
+	SerializableList<MeetingPoint> mInvitations;
 };
 
 }

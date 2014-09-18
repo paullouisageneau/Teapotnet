@@ -255,12 +255,11 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 	
 	// Find a unique name
 	int count = 0;
-	String url, path;
+	String path;
 	do {
-		url = "/" + CacheDirectoryName + "/" + name.beforeLast('.');
-		if(++count >= 2) url+= "_" + String::number(count);
-		if(name.contains('.')) url+= "." + name.afterLast('.');
-		path = urlToPath(url);
+		path = "/" + CacheDirectoryName + "/" + name.beforeLast('.');
+		if(++count >= 2) path+= "_" + String::number(count);
+		if(name.contains('.')) path+= "." + name.afterLast('.');
 	} 
 	while(File::Exist(path));
 
@@ -304,17 +303,17 @@ bool Indexer::query(const Query &query, Resource &resource)
 	Synchronize(this);
 	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, "url, digest", true))
+	if(prepareQuery(statement, query, "path, digest", true))
 	{
 		while(statement.step())
 		{
-			String url;
-			statement.input(url);
+			String path;
+			statement.input(path);
 			
 			BinaryString digest;
 			statement.input(digest);
 			
-			if(urlAccessLevel(url) > query.mAccessLevel) 
+			if(pathAccessLevel(path) > query.mAccessLevel) 
 				continue; 
 			
 			statement.finalize();
@@ -333,17 +332,17 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 	Synchronize(this);
 	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, "url, digest", false))
+	if(prepareQuery(statement, query, "path, digest", false))
 	{
 		while(statement.step())
 		{
-			String url;
-			statement.input(url);
+			String path;
+			statement.input(path);
 			
 			BinaryString digest;
 			statement.input(digest);
 			
-			if(urlAccessLevel(url) > query.mAccessLevel)
+			if(pathAccessLevel(path) > query.mAccessLevel)
 				continue; 
 			
 			resources.insert(Resource(digest));
@@ -363,6 +362,8 @@ bool Indexer::process(String path, Resource &resource)
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
+	
+	LogDebug("Index::process", "Processing: " + path);
 	
 	// Get name
 	String name = path.afterLast(Directory::Separator);
@@ -416,7 +417,7 @@ bool Indexer::process(String path, Resource &resource)
 		
 		tempFile.close();
 	}
-	else if(Directory::Exist(path))
+	else if(Directory::Exist(realPath))
 	{
 		isDirectory = true;
 	  
@@ -425,7 +426,7 @@ bool Indexer::process(String path, Resource &resource)
 		
 		// Iterate on 
 		BinarySerializer serializer(&tempFile);
-		Directory dir(path);
+		Directory dir(realPath);
 		while(dir.nextFile())
 		{
 			Resource subResource;
@@ -446,8 +447,11 @@ bool Indexer::process(String path, Resource &resource)
 		path = Cache::Instance->move(tempFileName);
 	}
 	else {
-		if(!File::Exist(path))
+		if(!File::Exist(realPath))
+		{
+			LogWarn("Indexer", String("Update failed: File does not exist: ") + realPath);
 			return false;
+		}
 	}
 	
 	int64_t size = File::Size(realPath);
@@ -516,6 +520,8 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
   
+	LogDebug("Indexer::notify", "Notified: " + path);
+	
 	const String name = path.afterLast('/');
 	if(name.empty()) return;
 	
@@ -973,10 +979,19 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.footer();
 		}
 		else {
-			String path = urlToPath(url);
-			if(path.empty()) throw 404;
-			if(path[path.size()-1] == Directory::Separator) path.resize(path.size()-1);
-			
+			String path;
+			try {
+				path = realPath(url);
+			}
+			catch(const Exception &e)
+			{
+				LogWarn("Indexer::http", e.what());
+				throw 404;	
+			}
+
+			if(path[path.size()-1] == Directory::Separator)
+				path.resize(path.size()-1);
+
 			if(Directory::Exist(path))
 			{
 				if(url[url.size()-1] != '/')
@@ -1049,10 +1064,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 								update(fileUrl);
 								
 								Resource res; 
-								Query qry;
-								qry.setLocation(fileUrl);
-								qry.setFromSelf(true);
-								if(!query(qry, res)) throw Exception("Query failed for " + fileUrl);
+								Query q;
+								q.setLocation(fileUrl);
+								q.setFromSelf(true);
+								if(!query(q, res)) throw Exception("Query failed for " + fileUrl);
 									
 								resources.insert(res);
 							}
@@ -1260,7 +1275,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly)
 {
-	String url = query.mUrl;
+	String path = query.mPath;
 	int count = query.mCount;
 	if(oneRowOnly) count = 1;
 	
@@ -1269,20 +1284,20 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	// Limit for security purposes
 	if(!query.mMatch.empty() && (count <= 0 || count > 200)) count = 200;	// TODO: variable
 	
-	// If multiple rows are expected and url finishes with '/', this is a directory listing
+	// If multiple rows are expected and path finishes with '/', this is a directory listing
 	int64_t parentId = -1;
-	if(!oneRowOnly && !url.empty() && url[url.size()-1] == '/')
+	if(!oneRowOnly && !path.empty() && path[path.size()-1] == '/')
 	{
-		url.resize(url.size()-1);
+		path.resize(path.size()-1);
 		
 		// Do not allow listing hidden directories for others
 		// TODO
-		//if(!isFromSelf && isHiddenUrl(url)) return false;
+		//if(!isFromSelf && isHiddenUrl(path)) return false;
 		
-		if(url.empty()) parentId = 0;
+		if(path.empty()) parentId = 0;
 		else {
-			statement = mDatabase->prepare("SELECT id, type FROM files WHERE url = ?1");
-			statement.bind(1, url);
+			statement = mDatabase->prepare("SELECT id, type FROM files WHERE path = ?1");
+			statement.bind(1, path);
 			
 			if(!statement.step())
 			{
@@ -1302,11 +1317,11 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	String sql;
 	sql<<"SELECT "<<fields<<" FROM resources ";
 	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
-	sql<<"WHERE url NOT NULL ";
+	sql<<"WHERE path NOT NULL ";
 	if(parentId >= 0)				sql<<"AND parent_id = ? ";
-	else if(!url.empty())				sql<<"AND url = ? ";
+	else if(!path.empty())				sql<<"AND path = ? ";
 	if(!query.mDigest.empty())			sql<<"AND digest = ? ";
-	else if(url.empty() || !isFromSelf)		sql<<"AND url NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
+	else if(path.empty() || !isFromSelf)		sql<<"AND path NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
 	if(!query.mMatch.empty())			sql<<"AND names.name MATCH ? ";
 	
 	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
@@ -1323,7 +1338,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	statement = mDatabase->prepare(sql);
 	int parameter = 0;
 	if(parentId >= 0)		statement.bind(++parameter, parentId);
-	else if(!url.empty())		statement.bind(++parameter, url);
+	else if(!path.empty())		statement.bind(++parameter, path);
 	if(!query.mDigest.empty())	statement.bind(++parameter, query.mDigest);
 	if(!query.mMatch.empty())	
 	{
@@ -1338,10 +1353,14 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	return true;
 }
 
-void Indexer::update(const String &path)
+void Indexer::update(String path)
 {
 	Synchronize(this);
 
+	Assert(!path.empty());
+	if(path[path.size() - 1] == '/')
+		path.resize(path.size() - 1);
+	
 	try {
 		Unprioritize(this);
 	  
@@ -1351,7 +1370,10 @@ void Indexer::update(const String &path)
 		{
 			Directory dir(realPath);
 			while(dir.nextFile())
-				update(dir.filePath());
+			{
+				String subpath = path + '/' + dir.fileName();
+				update(subpath);
+			}
 		}
 		
 		Resource dummy;
@@ -1360,14 +1382,7 @@ void Indexer::update(const String &path)
 	catch(const Exception &e)
 	{
 		LogWarn("Indexer", String("Processing failed for ") + path + ": " + e.what());
-
 	}
-}
-
-String Indexer::urlToPath(String url) const
-{
-	// TODO
-	throw Unsupported("TODO implement Indexer::urlToPath");
 }
 
 String Indexer::realPath(String path) const
@@ -1405,7 +1420,7 @@ bool Indexer::isHiddenPath(const String &path) const
 	return false;
 }
 
-Resource::AccessLevel Indexer::urlAccessLevel(const String &url) const
+Resource::AccessLevel Indexer::pathAccessLevel(const String &path) const
 {
   	// TODO
 	//return directoryAccessLevel(urlToDirectory(url));
@@ -1508,8 +1523,8 @@ void Indexer::run(void)
 	mRunning = false;
 }
 
-Indexer::Query::Query(const String &url) :
-	mUrl(url),
+Indexer::Query::Query(const String &path) :
+	mPath(path),
 	mMinAge(0), mMaxAge(0),
 	mOffset(0), mCount(-1),
 	mAccessLevel(Resource::Private)
@@ -1522,9 +1537,9 @@ Indexer::Query::~Query(void)
 	
 }
 
-void Indexer::Query::setLocation(const String &url)
+void Indexer::Query::setLocation(const String &path)
 {
-	mUrl = url;
+	mPath = path;
 }
 
 void Indexer::Query::setDigest(const BinaryString &digest)
@@ -1590,7 +1605,7 @@ void Indexer::Query::serialize(Serializer &s) const
 	String strAccessLevel = (mAccessLevel == Resource::Private || mAccessLevel == Resource::Personal ? "private" : "public");
 	
 	Serializer::ConstObjectMapping mapping;
-	if(!mUrl.empty())	mapping["url"] = &mUrl;
+	if(!mPath.empty())	mapping["path"] = &mPath;
 	if(!mMatch.empty())	mapping["match"] = &mMatch;
 	if(!mDigest.empty())	mapping["digest"] = &mDigest;
 	if(mMinAge > 0)		mapping["minage"] = &minAgeWrapper;
@@ -1611,7 +1626,7 @@ bool Indexer::Query::deserialize(Serializer &s)
 	String strAccessLevel;
 	
 	Serializer::ObjectMapping mapping;
-	mapping["url"] = &mUrl;
+	mapping["path"] = &mPath;
 	mapping["match"] = &mMatch;
 	mapping["digest"] = &mDigest;
 	mapping["minage"] = &minAgeWrapper;

@@ -299,10 +299,11 @@ bool AddressBook::isInlineSerializable(void) const
 
 void AddressBook::http(const String &prefix, Http::Request &request)
 {
+	Assert(!request.url.empty());
 	user()->setOnline();
 	
 	try {
-		if(request.url.empty() || request.url == "/")
+		if(request.url == "/")
 		{
 			if(request.method == "POST")
 			{
@@ -382,11 +383,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.open("div","invitationmethods");
 
 			page.open("span",".invitationimg");
-			//page.openForm(centralizedFriendSystemUrl+gcontacts,"post","gmailform");
-			// TODO : add parmeter target in class html ?
-			page.raw("<a href=\""+centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id+"\" target=\"_newtab\" class=\"gmailimg\">");
+			page.openLink(centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id, ".gmailimg", true);
 			page.image("/gmail.png","GMail","gmailimg");
-			page.raw("</a>");
+			page.closeLink();
 			page.closeForm();
 			page.close("span");
 
@@ -455,23 +454,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.button("postfriendrequest","Go !"); 
 			page.close("div");
 			//page.closeForm();
-			
-			// Personal secret
-			page.open("div","personalsecret.box");
-			page.open("h2");
-			page.text("Personal secret");
-			page.close("h2");
-			page.open("p");
-			if(getSelf()) page.text("Your personal secret is already set, but you can change it here.");
-			else page.text("Set the same username and the same personal secret on multiple devices to enable automatic synchronization. The longer the secret, the more secure it is.");
-			page.close("p");
-			page.openForm(prefix+"/","post");
-			page.input("hidden", "token", token);
-			page.input("hidden","name",user()->name()+"@"+user()->tracker());
-			page.input("hidden","self","true");
-			page.input("text","secret","",true); page.button("add","Set secret");
-			page.closeForm();
-			page.close("div");
 			
 			// Load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");

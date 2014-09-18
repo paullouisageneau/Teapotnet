@@ -40,13 +40,13 @@ Store::Store(void)
 		digest BLOB,\
 		file_id INTEGER,\
 		offset INTEGER(8),\
-		size INTEGER(8)");
+		size INTEGER(8))");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON blocks (digest)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS file_id ON blocks (file_id)");
 	
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
-		name TEXT UNIQUE");
+		name TEXT UNIQUE)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS name ON files (name)");
 	
 	mCacheDirectory = Config::Get("cache_dir");

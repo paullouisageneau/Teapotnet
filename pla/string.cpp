@@ -54,10 +54,13 @@ String String::hexa(unsigned int n, int minDigits)
 
 String String::random(size_t nbr)
 {
+	Random rnd;
 	String result;
 	while(nbr--)
 	{
-		int i = Random().readInt() % (26 + 26 + 10);
+		uint32_t r;
+		rnd.readBinary(r);
+		int i = r % (26 + 26 + 10);
 		
 		if(i < 26) result+= char('a' + i);
 		else {

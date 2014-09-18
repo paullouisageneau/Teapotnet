@@ -22,6 +22,7 @@
 #include "tpn/main.h"
 #include "tpn/store.h"
 #include "tpn/tracker.h"
+#include "tpn/store.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
 #include "tpn/config.h"
@@ -592,6 +593,9 @@ String plist = "\
 		if(args.contains("ifport")) sifport = args["ifport"];
 		int ifport;
 		sifport >> ifport;
+		
+		// Init Store
+		Store::Instance = new Store;
 		
 		// Starting interface
 		Interface::Instance = new Interface(ifport);

@@ -316,22 +316,22 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 						else if(key == "filename") fileName = value;
 					}
 					
-					Stream *stream = NULL;
-					if(fileName.empty()) stream = &post[name];
+					Stream *output = NULL;
+					if(fileName.empty()) output = &post[name];
 					else {
 						post[name] = fileName;
 						TempFile *tempFile = new TempFile();
 						files[name] = tempFile;
-						stream = tempFile;
+						output = tempFile;
 						LogDebug("Http::Request", String("File upload: ") + fileName);
 					}
 	
 					String contentLength;
 					if(mimeHeaders.get("Content-Length", contentLength))
 					{
-						size_t size = 0;
+						int64_t size = 0;
 						contentLength >> size;
-						stream->read(*stream,size);
+						stream->read(*output,size);
 						
 						String line;
 						AssertIO(stream->readLine(line));
@@ -344,17 +344,17 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 						while(stream->readLine(line))
 						{
 							if(line == boundary) break;
-							if(stream) stream->write(line);
+							output->write(line);
 							line.clear();
 						}*/
 						
-						// TODO: This should be replaced with Boyer-Moore algorithm for performance
+						// TODO: This must be replaced with Boyer-Moore algorithm for performance
 						String bound = String("\r\n") + boundary;
 						char *buffer = new char[bound.size()];
 						try {
-							size_t size = 0;
-							size_t c = 0;
-							size_t i = 0;
+							int size = 0;
+							int c = 0;
+							int i = 0;
 							while(true)
 							{
 								if(c == size)
@@ -367,7 +367,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 								if(buffer[c] == bound[i])
 								{
 									++i; ++c;
-									if(i == bound.size()) 
+									if(i == bound.size())
 									{
 										// If we are here there is no data left in buffer
 										String line;
@@ -377,12 +377,10 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 									}
 								}
 								else {
-								  	if(i) stream->writeData(bound.data(), i);
-									
-									// WARNING: this works only if the pattern is not redundant
-									i = c;
+									if(i) output->writeData(bound.data(), i);
+									int d = c;
 									while(c != size && buffer[c] != bound[0]) ++c;
-									if(c != i) stream->writeData(buffer + i, c - i);
+									if(c != d) output->writeData(buffer + d, c - d);
 									i = 0;
 								}
 							}
