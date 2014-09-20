@@ -171,6 +171,7 @@ public:
 		
 		virtual void seen(const Identifier &peer) = 0;
 		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
+		virtual bool auth(const Identifier &peer, BinaryString &secret) { return false; }
 		
 	private:
 		Set<Identifier> mPeers;
@@ -188,13 +189,6 @@ public:
 	void getAddresses(Set<Address> &set) const;
 	void getKnownPublicAdresses(Set<Address> &set) const;
 	bool isPublicConnectable(void) const;
-	
-	// Peerings
-	void registerPeering(	const Identifier &peering,
-				const Identifier &remotePeering,
-				const BinaryString &secret);
-	void unregisterPeering(const Identifier &peering);
-	bool hasRegisteredPeering(const Identifier &peering);
 	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
@@ -428,9 +422,6 @@ private:
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<Identifier, Set<Listener*> > mListeners;
-	
-	Map<Identifier, Identifier> mPeerings;
-	Map<Identifier, BinaryString> mSecrets;
 	
 	Time mLastPublicIncomingTime;
 	Map<Address, Time> mKnownPublicAddresses;

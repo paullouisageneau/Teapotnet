@@ -79,8 +79,8 @@ public:
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
 	
-	Identifier getIdentifier(void) const;
-	SecureTransport::Certificate *getCertificate(void) const;
+	Identifier identifier(void) const;
+	SecureTransport::Certificate *certificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);
 	

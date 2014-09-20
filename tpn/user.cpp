@@ -441,12 +441,12 @@ bool User::checkToken(const String &token, const String &action) const
 	return false;
 }
 
-Identifier User::getIdentifier(void) const
+Identifier User::identifier(void) const
 {
 	return Identifier(mPublicKey.digest()); 
 }
 
-SecureTransport::Certificate *User::getCertificate(void) const
+SecureTransport::Certificate *User::certificate(void) const
 {
 	return mCertificate;
 }

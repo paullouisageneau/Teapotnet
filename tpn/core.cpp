@@ -218,30 +218,6 @@ bool Core::isPublicConnectable(void) const
 	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
 }
 
-void Core::registerPeering(	const Identifier &peering,
-				const Identifier &remotePeering,
-		       		const BinaryString &secret)
-{
-	Synchronize(this);
-	
-	mPeerings[peering] = remotePeering;
-	mSecrets[peering] = secret;
-}
-
-void Core::unregisterPeering(const Identifier &peering)
-{
-	Synchronize(this);
-	
-	mPeerings.erase(peering);
-	mSecrets.erase(peering);
-}
-
-bool Core::hasRegisteredPeering(const Identifier &peering)
-{
-	Synchronize(this);
-	return mPeerings.contains(peering);
-}
-
 void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
@@ -837,7 +813,7 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	else if(locator.user)
 	{
 		// Add user certificate
-		SecureTransportClient::Certificate *cert = locator.user->getCertificate();
+		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
 	}
 	else {
@@ -854,8 +830,8 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	{
 	public:
 		User *user;
-		BinaryString peering;
-		BinaryString identifier;
+		Identifier peering;
+		Identifier identifier;
 		Rsa::PublicKey publicKey;
 		
 		MyVerifier(Core *core) { this->core = core; this->user = NULL; }
@@ -865,7 +841,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			user = User::Get(name);
 			if(user)
 			{
-				SecureTransport::Credentials *creds = user->getCertificate();
+				SecureTransport::Credentials *creds = user->certificate();
 				if(creds) transport->addCredentials(creds);
 			}
 			
@@ -882,17 +858,26 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				return false;
 			}
 			
-			// TODO: set identifier
-			
-			BinaryString secret;
-			if(SynchronizeTest(core, core->mSecrets.get(peering, secret)))
+			if(!peering.empty())
 			{
-				key = secret;
-				return true;
+				Synchronize(core);
+				
+				Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(peering);
+				while(it != core->mListeners.end() && it->first == peering)
+				{
+					for(Set<Listener*>::iterator jt = it->second.begin();
+						jt != it->second.end();
+						++jt)
+					{
+						if((*jt)->auth(peering, key))
+							return true;
+					}
+					
+					++it;
+				}
 			}
-			else {
-				return false;
-			}
+			
+			return false;
 		}
 		
 		bool verifyCertificate(const Rsa::PublicKey &pub)
@@ -901,6 +886,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			
 			publicKey = pub;
 			identifier = publicKey.digest();
+			return (identifier == user->identifier());
 		}
 		
 	private:
@@ -1145,7 +1131,7 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 	Assert(locator.user);
 	
 	Identifier remote = locator.identifier;
-	Identifier local = locator.user->getIdentifier();
+	Identifier local = locator.user->identifier();
 
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;

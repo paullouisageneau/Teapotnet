@@ -91,7 +91,7 @@ public:
 		
 		String name(void) const;
 		BinaryString secret(void) const;
-		Identifier identifier(void) const;
+		Identifier peering(void) const;
 		String tracker(void) const;
 		uint32_t checksum(void) const;
 		
@@ -100,6 +100,7 @@ public:
 		// Listener
 		void seen(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
+		bool auth(const Identifier &peer, BinaryString &secret);
 		
 		// Serializable
 		void serialize(Serializer &s) const;
@@ -110,7 +111,7 @@ public:
 		AddressBook *mAddressBook;
 		String mName;
 		BinaryString mSecret;
-		Identifier mIdentifier;
+		Identifier mPeering;
 		String mTracker;
 		bool mFound;
 		

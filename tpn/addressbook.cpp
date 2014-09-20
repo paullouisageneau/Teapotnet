@@ -661,7 +661,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	const String salt = "/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
 	
 	Sha256().pbkdf2_hmac(secret, "Secret" + salt, mSecret, 32, iterations);
-	Sha256().pbkdf2_hmac(mSecret, "Teapotnet" + salt, mIdentifier, 32, iterations);
+	Sha256().pbkdf2_hmac(mSecret, "Teapotnet" + salt, mPeering, 32, iterations);
 }
 
 AddressBook::Invitation::~Invitation(void)
@@ -687,10 +687,10 @@ BinaryString AddressBook::Invitation::secret(void) const
 	return mSecret;
 }
 
-Identifier AddressBook::Invitation::identifier(void) const
+Identifier AddressBook::Invitation::peering(void) const
 {
 	Synchronize(mAddressBook);
-	return mIdentifier;
+	return mPeering;
 }
 
 String AddressBook::Invitation::tracker(void) const
@@ -702,7 +702,7 @@ String AddressBook::Invitation::tracker(void) const
 uint32_t AddressBook::Invitation::checksum(void) const
 {
 	Synchronize(mAddressBook);
-	return mIdentifier.digest().checksum32() + uint32_t(mIdentifier.number());
+	return mPeering.digest().checksum32() + uint32_t(mPeering.number());
 }
 
 bool AddressBook::Invitation::isFound(void) const
@@ -720,13 +720,22 @@ void AddressBook::Invitation::seen(const Identifier &peer)
 
 bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
-	// TODO 
+	// TODO
+	return false;
+}
+
+bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
+{
+	 // TODO
+	return false;
 }
 
 void AddressBook::Invitation::serialize(Serializer &s) const
 {
 	Serializer::ConstObjectMapping mapping;
-	mapping["identifier"] = &mIdentifier;
+	mapping["name"] = &mName;
+	mapping["secret"] = &mSecret;
+	mapping["peering"] = &mPeering;
 	mapping["tracker"] = &mTracker;
 	
 	s.outputObject(mapping); 
@@ -734,11 +743,15 @@ void AddressBook::Invitation::serialize(Serializer &s) const
 
 bool AddressBook::Invitation::deserialize(Serializer &s)
 {
-	mIdentifier.clear();
+	mName.clear();
+	mSecret.clear();
+	mPeering.clear();
 	mTracker.clear();
 
 	Serializer::ObjectMapping mapping;
-	mapping["identifier"] = &mIdentifier;
+	mapping["name"] = &mName;
+	mapping["secret"] = &mSecret;
+	mapping["peering"] = &mPeering;
 	mapping["tracker"] = &mTracker;
 	
 	// TODO: sanity checks
