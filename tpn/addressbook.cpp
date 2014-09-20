@@ -811,12 +811,6 @@ AddressBook::Contact::~Contact(void)
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
 	mAddressBook = addressBook;
-	
-	for(int i=0; i<mInvitations.size(); ++i)
-	{
-		Invitation *invitation = &mInvitations[i];
-		invitation->setAddressBook(addressBook);
-	} 
 }
 
 const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const
@@ -1470,7 +1464,6 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["invitations"] = &mInvitations;
 
 	s.outputObject(mapping);
 }
@@ -1481,14 +1474,12 @@ bool AddressBook::Contact::deserialize(Serializer &s)
   	mUniqueName.clear();
   	mName.clear();
 	mInstances.clear();
-	mInvitations.clear();
 	
 	Serializer::ObjectMapping mapping;
 	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["invitations"] = &mInvitations;
 		
 	// TODO: sanity checks
 	

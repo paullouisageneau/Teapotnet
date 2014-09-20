@@ -200,9 +200,7 @@ public:
 		
 		String mUniqueName, mName;
 		Rsa::PublicKey mPublicKey;
-		
-		SerializableArray<Invitation> mInvitations;
-		
+
 		typedef SerializableMap<uint64_t, Instance> InstancesMap;
 		InstancesMap mInstances;
 		
