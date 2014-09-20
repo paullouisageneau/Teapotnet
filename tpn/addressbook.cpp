@@ -263,6 +263,7 @@ void AddressBook::serialize(Serializer &s) const
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["contacts"] = &mContacts;
+	mapping["invitations"] = &mInvitations;
 	
 	s.outputObject(mapping);
 }
@@ -276,10 +277,11 @@ bool AddressBook::deserialize(Serializer &s)
 	
 	Serializer::ObjectMapping mapping;
 	mapping["contacts"] = &mContacts;
+	mapping["invitations"] = &mInvitations;
 	
 	if(!s.inputObject(mapping)) return false;
 	
-	// Fill mContactsByIdentifier and set AddressBook
+	// Fill mContactsByIdentifier and set addressbook in contacts
 	for(Map<String, Contact>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
@@ -287,6 +289,13 @@ bool AddressBook::deserialize(Serializer &s)
 		Contact *contact = &it->second;
 		contact->setAddressBook(this);
 		mContactsByIdentifier[contact->uniqueName()] = contact;
+	}
+	
+	// Set addressbook in invitations
+	for(int i=0; i<mInvitations.size(); ++i)
+	{
+		Invitation *invitation = &mInvitations[i];
+		invitation->setAddressBook(this);
 	}
 	
 	return true;
@@ -1461,7 +1470,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["meetingpoints"] = &mInvitations;
+	mapping["invitations"] = &mInvitations;
 
 	s.outputObject(mapping);
 }
@@ -1479,7 +1488,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["meetingpoints"] = &mInvitations;
+	mapping["invitations"] = &mInvitations;
 		
 	// TODO: sanity checks
 	
