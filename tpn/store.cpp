@@ -42,7 +42,7 @@ Store::Store(void)
 		offset INTEGER(8),\
 		size INTEGER(8))");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON blocks (digest)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS file_id ON blocks (file_id)");
+	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS location ON blocks (file_id, offset)");
 	
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -168,10 +168,11 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 	statement.bind(1, filename);
 	statement.execute();
 	
-	statement = mDatabase->prepare("INSERT OR IGNORE INTO blocks (file_id, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3)");
+	statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
 	statement.bind(1, filename);
-	statement.bind(2, offset);
-	statement.bind(3, size);
+	statement.bind(2, digest);
+	statement.bind(3, offset);
+	statement.bind(4, size);
 	statement.execute();
 	
 	notifyAll();

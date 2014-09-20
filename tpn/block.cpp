@@ -92,8 +92,9 @@ Block::Block(const String &filename, int64_t offset, int64_t size)
 	mOffset = offset;
 	
 	mFile->seekRead(mOffset);
-	mSize = Sha256().compute(*mFile, size, mDigest);
-
+	if(size >= 0) mSize = Sha256().compute(*mFile, size, mDigest);
+	else mSize = Sha256().compute(*mFile, mDigest);
+	
 	mFile->seekRead(mOffset);
 	notifyStore();
 }
@@ -114,6 +115,7 @@ size_t Block::readData(char *buffer, size_t size)
 	int64_t left = mSize - tellRead();
 	if(left <= 0) return 0;
 	size = size_t(std::min(left, int64_t(size)));
+	
 	return mFile->readData(buffer, size);
 }
 

@@ -22,6 +22,7 @@
 #include "tpn/main.h"
 #include "tpn/store.h"
 #include "tpn/tracker.h"
+#include "tpn/cache.h"
 #include "tpn/store.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
@@ -594,7 +595,8 @@ String plist = "\
 		int ifport;
 		sifport >> ifport;
 		
-		// Init Store
+		// Init Cache and Store
+		Cache::Instance = new Cache;
 		Store::Instance = new Store;
 		
 		// Starting interface

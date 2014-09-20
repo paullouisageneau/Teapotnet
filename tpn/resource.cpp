@@ -68,13 +68,13 @@ void Resource::fetch(const BinaryString &digest)
 		BinarySerializer serializer(mIndexBlock);
 		AssertIO(static_cast<Serializer*>(&serializer)->input(mIndexRecord));
 	}
-	catch(...)
+	catch(const std::exception &e)
 	{
 		delete mIndexBlock;
 		delete mIndexRecord;
 		mIndexRecord = NULL;
 		mIndexBlock = NULL;
-		throw;
+		throw Exception(String("Unable to fetch resource index block: ") + e.what());
 	}
 
 }

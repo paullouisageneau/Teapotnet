@@ -34,6 +34,9 @@ Cache *Cache::Instance = NULL;
 Cache::Cache(void)
 {
 	mDirectory = "cache";	// TODO
+
+	if(!Directory::Exist(mDirectory))
+		Directory::Create(mDirectory);
 }
 
 Cache::~Cache(void)
@@ -74,6 +77,7 @@ String Cache::move(const String &filename)
 	
 	String destination = mDirectory + Directory::Separator + digest.toString();
 	File::Rename(filename, destination);
+	return destination;
 }
 
 }

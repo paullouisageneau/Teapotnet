@@ -121,7 +121,7 @@ Indexer::Indexer(User *user) :
 	Interface::Instance->add("/"+mUser->name()+"/explore", this);
 	
 	// Task
-	Scheduler::Global->schedule(this, 60.);		// 1 min
+	Scheduler::Global->schedule(this, 0 /*60.*/);		// 1 min
 	Scheduler::Global->repeat(this, 6*60*60.);	// 6h
 }
 
@@ -382,7 +382,7 @@ bool Indexer::process(String path, Resource &resource)
 		isDirectory = true;
 		
 		String tempFileName = File::TempName();
-		File tempFile(tempFileName);
+		File tempFile(tempFileName, File::Truncate);
 		
 		// Iterate on directories
 		BinarySerializer serializer(&tempFile);
@@ -391,22 +391,22 @@ bool Indexer::process(String path, Resource &resource)
 		for(int i=0; i<names.size(); ++i)
 		try {
 			String name = names[i];
-			String path = "/" + name;
-			String realPath = this->realPath(path);
+			String subPath = "/" + name;
+			String realSubPath = this->realPath(subPath);
 			
-			if(!Directory::Exist(realPath))
-				Directory::Create(realPath);
+			if(!Directory::Exist(realSubPath))
+				Directory::Create(realSubPath);
 			
 			Resource subResource;
 			Time time;
-			if(!get(path, subResource, &time) || time < File::Time(path))
-				if(!process(path, subResource))
+			if(!get(subPath, subResource, &time) || time < File::Time(subPath))
+				if(!process(subPath, subResource))
 					continue;	// ignore this directory
 			
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
-			record.time = File::Time(realPath);
+			record.time = File::Time(realSubPath);
 			
 			serializer.output(record);
 		}
@@ -416,23 +416,25 @@ bool Indexer::process(String path, Resource &resource)
 		}
 		
 		tempFile.close();
+		realPath = Cache::Instance->move(tempFileName);
 	}
 	else if(Directory::Exist(realPath))
 	{
 		isDirectory = true;
 	  
 		String tempFileName = File::TempName();
-		File tempFile(tempFileName);
+		File tempFile(tempFileName, File::Truncate);
 		
-		// Iterate on 
+		// Iterate on
 		BinarySerializer serializer(&tempFile);
 		Directory dir(realPath);
 		while(dir.nextFile())
 		{
+			String subPath = path + '/' + dir.fileName();
 			Resource subResource;
 			Time time;
-			if(!get(dir.filePath(), subResource, &time) || time < dir.fileTime())
-				if(!process(dir.filePath(), subResource))
+			if(!get(subPath, subResource, &time) || time < dir.fileTime())	// TODO: just getting the digest is sufficient
+				if(!process(subPath, subResource))
 					continue;	// ignore this file
 			
 			Resource::DirectoryRecord record;
@@ -444,7 +446,7 @@ bool Indexer::process(String path, Resource &resource)
 		}
 		
 		tempFile.close();
-		path = Cache::Instance->move(tempFileName);
+		realPath = Cache::Instance->move(tempFileName);
 	}
 	else {
 		if(!File::Exist(realPath))
@@ -473,9 +475,9 @@ bool Indexer::process(String path, Resource &resource)
 	
 	// Create index
 	String tempFileName = File::TempName();
-	File tempFile(tempFileName);
+	File tempFile(tempFileName, File::Truncate);
 	BinarySerializer serializer(&tempFile);
-	serializer.output(resource.mIndexRecord);
+	static_cast<Serializer*>(&serializer)->output(resource.mIndexRecord);
 	tempFile.close();
 	String indexFilePath = Cache::Instance->move(tempFileName);
 	
@@ -505,7 +507,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 		statement.finalize();
 		
 		resource.fetch(digest);
-		return NULL;
+		return true;
 	}
 	
 	statement.finalize();
@@ -520,7 +522,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
   
-	LogDebug("Indexer::notify", "Notified: " + path);
+	//LogDebug("Indexer::notify", "Notified: " + path);
 	
 	const String name = path.afterLast('/');
 	if(name.empty()) return;
@@ -529,7 +531,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.bind(1, name);
 	statement.execute();
 	
-	statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+	statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT rowid FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
 	statement.bind(1, name);
 	statement.bind(2, path);
 	statement.bind(3, resource.digest());
