@@ -726,7 +726,12 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 
 bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
 {
-	 // TODO
+	if(peer == mPeering)
+	{
+		secret = mSecret;
+		return true;
+	}
+	
 	return false;
 }
 
