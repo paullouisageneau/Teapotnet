@@ -113,7 +113,7 @@ private:
 	static const String UploadDirectoryName;
 	
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
-	void update(String path);
+	void update(String path = "/");
 	String realPath(String path) const;
 	bool isHiddenPath(const String &path) const;
 	Resource::AccessLevel pathAccessLevel(const String &path) const;

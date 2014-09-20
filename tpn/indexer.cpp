@@ -362,12 +362,12 @@ bool Indexer::process(String path, Resource &resource)
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
+	if(path.empty()) path = "/";
 	
-	LogDebug("Index::process", "Processing: " + path);
+	LogDebug("Index::process", "Indexing: " + path);
 	
 	// Get name
 	String name = path.afterLast(Directory::Separator);
-	String realPath = this->realPath(path);
 	
 	// Don't process garbage files
 	if(name == ".directory" 
@@ -375,9 +375,12 @@ bool Indexer::process(String path, Resource &resource)
 		|| name.substr(0,7) == ".Trash-")
 		return false;
 	
+	String realPath = this->realPath(path);
+	Time   fileTime = File::Time(realPath);
+	
 	// Recursively process if it's a directory 
 	bool isDirectory = false;
-	if(path.empty())	// Top-level: Indexer directories
+	if(path == "/")	// Top-level: Indexer directories
 	{
 		isDirectory = true;
 		
@@ -399,16 +402,19 @@ bool Indexer::process(String path, Resource &resource)
 			
 			Resource subResource;
 			Time time;
-			if(!get(subPath, subResource, &time) || time < File::Time(subPath))
+			if(!get(subPath, subResource, &time) || time < File::Time(realSubPath))
 				if(!process(subPath, subResource))
 					continue;	// ignore this directory
+			
+			time = File::Time(realSubPath);
 			
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
-			record.time = File::Time(realSubPath);
-			
+			record.time = time;
 			serializer.output(record);
+			
+			fileTime = std::max(fileTime, time);
 		}
 		catch(const Exception &e)
 		{
@@ -437,12 +443,15 @@ bool Indexer::process(String path, Resource &resource)
 				if(!process(subPath, subResource))
 					continue;	// ignore this file
 			
+			time = dir.fileTime();
+			
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
-			record.time = dir.fileTime();
-			
+			record.time = time;
 			serializer.output(record);
+			
+			fileTime = std::max(fileTime, time);
 		}
 		
 		tempFile.close();
@@ -456,36 +465,48 @@ bool Indexer::process(String path, Resource &resource)
 		}
 	}
 	
-	int64_t size = File::Size(realPath);
-	Time time    = File::Time(realPath);
+	Time time;
+	if(!get(path, resource, &time) || time < fileTime)
+	{
+		time = fileTime;
+		
+		LogDebug("Index::process", "Processing: " + path);
+		
+		// Fill index record
+		delete resource.mIndexRecord;
+		int64_t size = File::Size(realPath);
+		resource.mIndexRecord = new Resource::IndexRecord;
+		resource.mIndexRecord->name = name;
+		resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
+		resource.mIndexRecord->size = size;
+		resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
+		
+		// Process blocks
+		File file(realPath, File::Read);
+		BinaryString blockDigest;
+		while(Block::ProcessFile(file, blockDigest))
+			resource.mIndexRecord->blockDigests.append(blockDigest);
+		
+		// Create index
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName, File::Truncate);
+		BinarySerializer serializer(&tempFile);
+		static_cast<Serializer*>(&serializer)->output(resource.mIndexRecord);
+		tempFile.close();
+		String indexFilePath = Cache::Instance->move(tempFileName);
+		
+		// Create index block
+		delete resource.mIndexBlock;
+		resource.mIndexBlock = new Block(indexFilePath);
+		
+		notify(path, resource, time);
+	}
 	
-	// Fill index record
-	delete resource.mIndexRecord;
-	resource.mIndexRecord = new Resource::IndexRecord;
-	resource.mIndexRecord->name = name;
-	resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
-	resource.mIndexRecord->size = size;
-	resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
+	// Mark as seen
+	Database::Statement statement = mDatabase->prepare("UPDATE resources SET seen=1 WHERE path=?1");
+	statement.bind(1, path);
+	statement.execute();
 	
-	// Process blocks
-	File file(realPath, File::Read);
-	BinaryString blockDigest;
-	while(Block::ProcessFile(file, blockDigest))
-		resource.mIndexRecord->blockDigests.append(blockDigest);
-	
-	// Create index
-	String tempFileName = File::TempName();
-	File tempFile(tempFileName, File::Truncate);
-	BinarySerializer serializer(&tempFile);
-	static_cast<Serializer*>(&serializer)->output(resource.mIndexRecord);
-	tempFile.close();
-	String indexFilePath = Cache::Instance->move(tempFileName);
-	
-	// Create index block
-	delete resource.mIndexBlock;
-	resource.mIndexBlock = new Block(indexFilePath);
-	
-	notify(path, resource, time);
 	return true;
 }
 
@@ -496,6 +517,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
+	if(path.empty()) path = "/";
 	
 	Database::Statement statement = mDatabase->prepare("SELECT digest, time FROM resources WHERE path = ?1 LIMIT 1");
 	statement.bind(1, path);
@@ -521,17 +543,20 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
-  
-	//LogDebug("Indexer::notify", "Notified: " + path);
+	if(path.empty()) path = "/";
 	
-	const String name = path.afterLast('/');
-	if(name.empty()) return;
+	String name;
+	if(path == "/") name = "/";
+	else name = path.afterLast('/');
+
+	//LogDebug("Indexer::notify", "Notified: " + path);
+	Assert(!name.empty());
 	
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO names (name) VALUES (?1)");
 	statement.bind(1, name);
 	statement.execute();
 	
-	statement = mDatabase->prepare("INSERT OR IGNORE INTO resources (name_rowid, path, digest, time) VALUES ((SELECT rowid FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+	statement = mDatabase->prepare("INSERT OR REPLACE INTO resources (name_rowid, path, digest, time, seen) VALUES ((SELECT rowid FROM names WHERE name = ?1 LIMIT 1), ?2, ?3, ?4, 1)");
 	statement.bind(1, name);
 	statement.bind(2, path);
 	statement.bind(3, resource.digest());
@@ -1391,8 +1416,8 @@ String Indexer::realPath(String path) const
 {
 	Synchronize(this);
 	
-	if(path.empty())
-		throw Exception("Empty path");
+	if(path.empty() || path == "/")
+		return mBaseDirectory;
 	
 	// Do not accept the parent directory symbol as a security protection
 	if(path.find("..") != String::NotFound)
@@ -1495,25 +1520,13 @@ void Indexer::run(void)
 		LogDebug("Indexer::run", "Started");
 		
 		// Invalidate all entries
-		mDatabase->execute("UPDATE resources SET seen=0 WHERE path IS NOT NULL");
+		mDatabase->execute("UPDATE resources SET seen=0");
 		
-		// TODO: update
+		// Update
+		update("/");
 		
+		// Clean
 		mDatabase->execute("DELETE FROM resources WHERE seen=0");	// TODO: delete from names
-		
-		// TODO
-		StringArray names;
-		mDirectories.getKeys(names);
-		for(int i=0; i<names.size(); ++i)
-		try {
-			String name = names[i];
-			String path = "/" + name;
-			update(path);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Indexer::run", e.what());
-		}
 		
 		LogDebug("Indexer::run", "Finished");
 	}
