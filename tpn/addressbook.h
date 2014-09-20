@@ -77,22 +77,20 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class MeetingPoint : public Serializable, public Core::Listener
+	class Invitation : public Serializable, public Core::Listener
 	{
 	public:
-		MeetingPoint(void);
-		MeetingPoint(	AddressBook *addressBook,
-				const Identifier &identifier,
-				const String &tracker);
-		MeetingPoint(	AddressBook *addressBook,
+		Invitation(void);
+		Invitation(	AddressBook *addressBook,
 				const String &name,
 				const String &secret,
 				const String &tracker);
-		virtual ~MeetingPoint(void);
+		virtual ~Invitation(void);
 		
 		void setAddressBook(AddressBook *addressBook);
 		
-		// TODO: add name ?
+		String name(void) const;
+		BinaryString secret(void) const;
 		Identifier identifier(void) const;
 		String tracker(void) const;
 		uint32_t checksum(void) const;
@@ -110,6 +108,8 @@ public:
 		
 	protected:
 		AddressBook *mAddressBook;
+		String mName;
+		BinaryString mSecret;
 		Identifier mIdentifier;
 		String mTracker;
 		bool mFound;
@@ -200,7 +200,7 @@ public:
 		String mUniqueName, mName;
 		Rsa::PublicKey mPublicKey;
 		
-		SerializableList<MeetingPoint> mMeetingPoints;
+		SerializableArray<Invitation> mInvitations;
 		
 		typedef SerializableMap<uint64_t, Instance> InstancesMap;
 		InstancesMap mInstances;
@@ -226,7 +226,7 @@ private:
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
-	SerializableList<MeetingPoint> mInvitations;
+	SerializableArray<Invitation> mInvitations;
 };
 
 }

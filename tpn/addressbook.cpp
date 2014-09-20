@@ -489,6 +489,27 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.close("table");
 				page.close("div");
 				
+				page.open("table",".invitations");
+				
+				for(int i=0; i<mInvitations.size(); ++i)
+				{
+					Invitation *invitation = &mInvitations[i];
+
+					page.open("tr");
+					page.open("td",".name");
+					page.text(invitation->name());
+					page.close("td");
+					page.open("td",".actions");
+					page.openLink('#', ".deletelink");
+					page.image("/delete.png", "Delete");
+					page.closeLink();
+					page.close("td");
+					page.close("tr");
+				}
+				
+				page.close("table");
+				page.close("div");
+				
 				page.openForm(prefix+"/", "post", "executeForm");
 				page.input("hidden", "command");
 				page.input("hidden", "argument");
@@ -623,62 +644,68 @@ bool AddressBook::query(const Identifier &identifier, const String &tracker, Ser
 	return false;
 }
 
-AddressBook::MeetingPoint::MeetingPoint(void) :
+AddressBook::Invitation::Invitation(void) :
 	mAddressBook(NULL),
 	mFound(false)
 {
 
 }
 
-AddressBook::MeetingPoint::MeetingPoint(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
 	mAddressBook(addressBook),
-	mIdentifier(identifier),
-	mTracker(tracker),
-	mFound(false)
-{
-
-}
-
-AddressBook::MeetingPoint::MeetingPoint(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
-	mAddressBook(addressBook),
+	mName(name),
 	mTracker(tracker),
 	mFound(false)
 {
 	const unsigned iterations = 10000;
+	const String salt = "/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
 	
-	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
-	Sha256().pbkdf2_hmac(secret, salt, mIdentifier, 32, iterations);
+	Sha256().pbkdf2_hmac(secret, "Secret" + salt, mSecret, 32, iterations);
+	Sha256().pbkdf2_hmac(mSecret, "Teapotnet" + salt, mIdentifier, 32, iterations);
 }
 
-AddressBook::MeetingPoint::~MeetingPoint(void)
+AddressBook::Invitation::~Invitation(void)
 {
 
 }
 
-void AddressBook::MeetingPoint::setAddressBook(AddressBook *addressBook)
+void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
 {
 	mAddressBook = addressBook; 
 }
 
-Identifier AddressBook::MeetingPoint::identifier(void) const
+String AddressBook::Invitation::name(void) const
+{
+	Synchronize(mAddressBook);
+	return mName;
+}
+
+
+BinaryString AddressBook::Invitation::secret(void) const
+{
+	Synchronize(mAddressBook);
+	return mSecret;
+}
+
+Identifier AddressBook::Invitation::identifier(void) const
 {
 	Synchronize(mAddressBook);
 	return mIdentifier;
 }
 
-String AddressBook::MeetingPoint::tracker(void) const
+String AddressBook::Invitation::tracker(void) const
 {
 	Synchronize(mAddressBook);
 	return mTracker;
 }
 
-uint32_t AddressBook::MeetingPoint::checksum(void) const
+uint32_t AddressBook::Invitation::checksum(void) const
 {
 	Synchronize(mAddressBook);
 	return mIdentifier.digest().checksum32() + uint32_t(mIdentifier.number());
 }
 
-bool AddressBook::MeetingPoint::isFound(void) const
+bool AddressBook::Invitation::isFound(void) const
 {
 	Synchronize(mAddressBook);
 	
@@ -686,17 +713,17 @@ bool AddressBook::MeetingPoint::isFound(void) const
 	return mFound;
 }
 
-void AddressBook::MeetingPoint::seen(const Identifier &peer)
+void AddressBook::Invitation::seen(const Identifier &peer)
 {
 	// TODO
 }
 
-bool AddressBook::MeetingPoint::recv(const Identifier &peer, const Notification &notification)
+bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
 	// TODO 
 }
 
-void AddressBook::MeetingPoint::serialize(Serializer &s) const
+void AddressBook::Invitation::serialize(Serializer &s) const
 {
 	Serializer::ConstObjectMapping mapping;
 	mapping["identifier"] = &mIdentifier;
@@ -705,7 +732,7 @@ void AddressBook::MeetingPoint::serialize(Serializer &s) const
 	s.outputObject(mapping); 
 }
 
-bool AddressBook::MeetingPoint::deserialize(Serializer &s)
+bool AddressBook::Invitation::deserialize(Serializer &s)
 {
 	mIdentifier.clear();
 	mTracker.clear();
@@ -718,7 +745,7 @@ bool AddressBook::MeetingPoint::deserialize(Serializer &s)
 	return s.inputObject(mapping);  
 }
 
-bool AddressBook::MeetingPoint::isInlineSerializable(void) const
+bool AddressBook::Invitation::isInlineSerializable(void) const
 {
 	return false;
 }
@@ -758,12 +785,10 @@ void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
 	mAddressBook = addressBook;
 	
-	for(List<MeetingPoint>::iterator it = mMeetingPoints.begin();
-		it != mMeetingPoints.end();
-		++it)
+	for(int i=0; i<mInvitations.size(); ++i)
 	{
-		MeetingPoint *meetingPoint = &*it;
-		meetingPoint->setAddressBook(addressBook);
+		Invitation *invitation = &mInvitations[i];
+		invitation->setAddressBook(addressBook);
 	} 
 }
 
@@ -1160,10 +1185,10 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				json.output(*this);
 				return;
 			}
-		  
+			
 			Http::Response response(request,200);
 			response.send();
-
+			
 			Html page(response.stream);
 			if(isSelf()) page.header("Myself");
 			else {
@@ -1418,7 +1443,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["meetingpoints"] = &mMeetingPoints;
+	mapping["meetingpoints"] = &mInvitations;
 
 	s.outputObject(mapping);
 }
@@ -1429,14 +1454,14 @@ bool AddressBook::Contact::deserialize(Serializer &s)
   	mUniqueName.clear();
   	mName.clear();
 	mInstances.clear();
-	mMeetingPoints.clear();
+	mInvitations.clear();
 	
 	Serializer::ObjectMapping mapping;
 	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["meetingpoints"] = &mMeetingPoints;
+	mapping["meetingpoints"] = &mInvitations;
 		
 	// TODO: sanity checks
 	
