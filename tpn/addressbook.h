@@ -82,12 +82,16 @@ public:
 	public:
 		Invitation(void);
 		Invitation(	AddressBook *addressBook,
+				const Identifier &identifier,
+				const String &tracker = "");
+		Invitation(	AddressBook *addressBook,
 				const String &code,
-				unsigned pin);
+				unsigned pin,
+				const String &tracker = "");
 		Invitation(	AddressBook *addressBook,
 				const String &name,
 				const String &secret,
-				const String &tracker);
+				const String &tracker = "");
 		virtual ~Invitation(void);
 		
 		void setAddressBook(AddressBook *addressBook);

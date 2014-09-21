@@ -660,9 +660,17 @@ AddressBook::Invitation::Invitation(void) :
 
 }
 
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, unsigned pin) :
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
 	mAddressBook(addressBook),
-	mTracker(addressBook->user()->tracker()),
+	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
+	mFound(false)
+{
+	mPeering = identifier;
+}
+
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, unsigned pin, const String &tracker) :
+	mAddressBook(addressBook),
+	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
 	generate(code, String::number(pin));
@@ -671,7 +679,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
 	mAddressBook(addressBook),
 	mName(name),
-	mTracker(tracker),
+	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
 	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
@@ -710,7 +718,6 @@ String AddressBook::Invitation::name(void) const
 	return mName;
 }
 
-
 BinaryString AddressBook::Invitation::secret(void) const
 {
 	Synchronize(mAddressBook);
@@ -738,8 +745,6 @@ uint32_t AddressBook::Invitation::checksum(void) const
 bool AddressBook::Invitation::isFound(void) const
 {
 	Synchronize(mAddressBook);
-	
-	// TODO
 	return mFound;
 }
 
@@ -756,7 +761,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 
 bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
 {
-	if(peer == mPeering)
+	if(peer == mPeering && !mSecret.empty())
 	{
 		secret = mSecret;
 		return true;

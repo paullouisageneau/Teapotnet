@@ -886,7 +886,9 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			
 			publicKey = pub;
 			identifier = publicKey.digest();
-			return (identifier == user->identifier());
+			
+			// TODO: use listener to check
+			return false;
 		}
 		
 	private:
