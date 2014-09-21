@@ -625,7 +625,7 @@ bool AddressBook::publish(const Identifier &identifier)
 bool AddressBook::query(const Identifier &identifier, const String &tracker, Serializable &result)
 {
 	String host(tracker);
-	if(host.empty()) host = Config::Get("tracker");
+	if(host.empty()) host = user()->tracker();
 	
 	try {
 		String url = "http://" + host + "/tracker/?id=" + identifier.toString();
@@ -660,22 +660,42 @@ AddressBook::Invitation::Invitation(void) :
 
 }
 
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, unsigned pin) :
+	mAddressBook(addressBook),
+	mTracker(addressBook->user()->tracker()),
+	mFound(false)
+{
+	generate(code, String::number(pin));
+}
+
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
 	mAddressBook(addressBook),
 	mName(name),
 	mTracker(tracker),
 	mFound(false)
 {
-	const unsigned iterations = 10000;
-	const String salt = "/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
-	
-	Sha256().pbkdf2_hmac(secret, "Secret" + salt, mSecret, 32, iterations);
-	Sha256().pbkdf2_hmac(mSecret, "Teapotnet" + salt, mPeering, 32, iterations);
+	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
+	generate(salt, secret);
 }
 
 AddressBook::Invitation::~Invitation(void)
 {
 
+}
+
+void AddressBook::Invitation::generate(const String &salt, const String &secret)
+{
+	const unsigned iterations = 10000;
+	
+	// Compute salt
+	String tmp(salt);
+	Sha256().compute(tmp, mSalt);
+	
+	// Compute secret
+	Sha256().pbkdf2_hmac(secret, mSalt, mSecret, 32, iterations);
+	
+	// Compute peering
+	Sha256().pbkdf2_hmac(mSecret, mSalt, mPeering, 32, iterations);
 }
 
 void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)

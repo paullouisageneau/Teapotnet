@@ -82,6 +82,9 @@ public:
 	public:
 		Invitation(void);
 		Invitation(	AddressBook *addressBook,
+				const String &code,
+				unsigned pin);
+		Invitation(	AddressBook *addressBook,
 				const String &name,
 				const String &secret,
 				const String &tracker);
@@ -90,6 +93,7 @@ public:
 		void setAddressBook(AddressBook *addressBook);
 		
 		String name(void) const;
+		BinaryString salt(void) const;
 		BinaryString secret(void) const;
 		Identifier peering(void) const;
 		String tracker(void) const;
@@ -108,9 +112,11 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	protected:
+		void generate(const String &salt, const String &secret);
+		
 		AddressBook *mAddressBook;
 		String mName;
-		BinaryString mSecret;
+		BinaryString mSalt, mSecret;
 		Identifier mPeering;
 		String mTracker;
 		bool mFound;
