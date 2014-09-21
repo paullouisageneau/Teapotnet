@@ -686,16 +686,17 @@ AddressBook::Invitation::~Invitation(void)
 void AddressBook::Invitation::generate(const String &salt, const String &secret)
 {
 	const unsigned iterations = 10000;
+	BinaryString bsalt;
 	
 	// Compute salt
 	String tmp(salt);
-	Sha256().compute(tmp, mSalt);
+	Sha256().compute(tmp, bsalt);
 	
 	// Compute secret
-	Sha256().pbkdf2_hmac(secret, mSalt, mSecret, 32, iterations);
+	Sha256().pbkdf2_hmac(secret, bsalt, mSecret, 32, iterations);
 	
 	// Compute peering
-	Sha256().pbkdf2_hmac(mSecret, mSalt, mPeering, 32, iterations);
+	Sha256().pbkdf2_hmac(mSecret, bsalt, mPeering, 32, iterations);
 }
 
 void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)

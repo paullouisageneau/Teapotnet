@@ -93,7 +93,6 @@ public:
 		void setAddressBook(AddressBook *addressBook);
 		
 		String name(void) const;
-		BinaryString salt(void) const;
 		BinaryString secret(void) const;
 		Identifier peering(void) const;
 		String tracker(void) const;
@@ -116,7 +115,7 @@ public:
 		
 		AddressBook *mAddressBook;
 		String mName;
-		BinaryString mSalt, mSecret;
+		BinaryString mSecret;
 		Identifier mPeering;
 		String mTracker;
 		bool mFound;
