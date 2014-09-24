@@ -562,6 +562,10 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.bind(3, resource.digest());
 	statement.bind(4, time);
 	statement.execute();
+	
+	// Resource has changed, re-publish it
+	// TODO: access rights
+	publish(path, resource.digest());
 }
 
 bool Indexer::anounce(const Identifier &peer, const String &path, BinaryString &target)

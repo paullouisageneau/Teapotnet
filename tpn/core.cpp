@@ -609,6 +609,29 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
+void Core::outgoing(uint8_t content, Stream &payload)
+{
+	Synchronize(this);
+	
+	BinaryString bs;
+	bs << payload;
+	
+	Array<Identifier> identifiers;
+	mHandlers.getKeys(identifiers);
+		
+	for(int i=0; i<identifiers.size(); ++i)
+	{
+		Handler *handler;
+		if(mHandlers.get(identifiers[i], handler))
+		{
+			Desynchronize(this);
+			
+			BinaryString tmp(bs);	// TODO
+			handler->outgoing(Identifier::Null, content, tmp);
+		}
+	}
+}
+
 Core::Message::Message(void) :
 	payload(1024 + 32)
 {
@@ -689,6 +712,26 @@ void Core::Publisher::publish(const String &prefix)
 		Core::Instance->publish(prefix, this);
 		mPublishedPrefixes.insert(prefix);
 	}
+	
+	// Call announce and trigger broadcast if necessary
+	BinaryString target;
+	if(anounce(Identifier::Null, prefix, target))
+		publish(prefix, target);
+}
+
+void Core::Publisher::publish(const String &prefix, const BinaryString &target)
+{
+	if(!mPublishedPrefixes.contains(prefix))
+	{
+		Core::Instance->publish(prefix, this);
+		mPublishedPrefixes.insert(prefix);
+	}
+	
+	// Broadcast
+	BinaryString payload;
+	payload.writeBinary(prefix);
+	payload.writeBinary(target);
+	Core::Instance->outgoing(Message::Publish, payload);
 }
 
 void Core::Publisher::unpublish(const String &prefix)
@@ -1505,7 +1548,7 @@ bool Core::Handler::incoming(Message &message)
 				else {	// content == Message::Subscribe
 					
 					Desynchronize(this);
-				  
+					
 					BinaryString response;
 					response.writeBinary(path);
 					
