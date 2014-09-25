@@ -123,6 +123,7 @@ public:
 		~Publisher(void);
 		
 		void publish(const String &prefix);
+		void publish(const String &prefix, const BinaryString &target);
 		void unpublish(const String &prefix);
 		
 		virtual bool anounce(const Identifier &peer, const String &path, BinaryString &target) = 0;
@@ -408,6 +409,8 @@ private:
 
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
+	
+	void outgoing(uint8_t content, Stream &payload);
 	
 	uint64_t mNumber;
 	String mName;
