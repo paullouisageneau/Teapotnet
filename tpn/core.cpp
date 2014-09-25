@@ -887,7 +887,22 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			publicKey = pub;
 			identifier = publicKey.digest();
 			
-			// TODO: use listener to check
+			Synchronize(core);
+			
+			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(peering);
+			while(it != core->mListeners.end() && it->first == peering)
+			{
+				for(Set<Listener*>::iterator jt = it->second.begin();
+					jt != it->second.end();
+					++jt)
+				{
+					if((*jt)->auth(identifier, publicKey))
+						return true;
+				}
+				
+				++it;
+			}
+			
 			return false;
 		}
 		

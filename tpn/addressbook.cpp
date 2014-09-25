@@ -321,6 +321,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						throw 403;
 					
 			  		String command = request.post["command"];
+					if(command == "createinvitation")
+					{
+						
+					}
 			  		if(command == "delete")
 					{
 						Synchronize(this);
@@ -466,7 +470,25 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			// Load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
-
+			
+			page.open("div",".box");
+			page.openForm(prefix + "/", "post", "invitation");
+			page.open("h2"); page.text("Invitation"); page.close("h2");
+			page.input("hidden", "token", token);
+			page.label("generate"); page.button("generate", "Generate invitation");
+			page.closeForm();
+			page.close("div");
+			
+			page.open("div",".box");
+			page.openForm(prefix + "/", "post", "invitationreply");
+			page.open("h2"); page.text("Invitation reply"); page.close("h2");
+			page.input("hidden", "token", token);
+			page.label("code", "Code"); page.input("text", "code"); page.br();
+			page.label("pin", "PIN"); page.input("text", "pin", "", true); page.br();
+			page.label("add"); page.button("add", "Add contact");
+			page.closeForm();
+			page.close("div");
+			
 			if(!contacts.empty())
 			{
 				page.open("div",".box");
@@ -498,6 +520,29 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.close("table");
 				page.close("div");
 				
+				page.openForm(prefix+"/", "post", "executeForm");
+				page.input("hidden", "command");
+				page.input("hidden", "argument");
+				page.input("hidden", "token", token);
+				page.closeForm();
+				
+				page.javascript("function deleteContact(uname) {\n\
+					if(confirm('Do you really want to delete '+uname+' ? The corresponding mails will be deleted too.')) {\n\
+						document.executeForm.command.value = 'delete';\n\
+						document.executeForm.argument.value = uname;\n\
+						document.executeForm.submit();\n\
+					}\n\
+				}");
+				
+				page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var uname = $(this).closest('tr').find('td.uname').text();\n\
+					deleteContact(uname);\n\
+				});");
+			}
+			
+			if(!mInvitations.empty())
+			{
 				page.open("table",".invitations");
 				
 				for(int i=0; i<mInvitations.size(); ++i)
@@ -518,26 +563,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				
 				page.close("table");
 				page.close("div");
-				
-				page.openForm(prefix+"/", "post", "executeForm");
-				page.input("hidden", "command");
-				page.input("hidden", "argument");
-				page.input("hidden", "token", token);
-				page.closeForm();
-				
-				page.javascript("function deleteContact(uname) {\n\
-					if(confirm('Do you really want to delete '+uname+' ? The corresponding mails will be deleted too.')) {\n\
-						document.executeForm.command.value = 'delete';\n\
-						document.executeForm.argument.value = uname;\n\
-						document.executeForm.submit();\n\
-					}\n\
-				}");
-				
-				page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
-					event.stopPropagation();\n\
-					var uname = $(this).closest('tr').find('td.uname').text();\n\
-					deleteContact(uname);\n\
-				});");
 			}
 			
 			page.footer();
@@ -653,6 +678,34 @@ bool AddressBook::query(const Identifier &identifier, const String &tracker, Ser
 	return false;
 }
 
+uint64_t AddressBook::PinGenerate(void)
+{
+	const unsigned digits = 10;
+
+	Random rnd(Random::Crypto);
+	uint64_t val = rnd.uniform(uint64_t(1), uint64_t(10)*(digits-1));
+	return val * 10 + PinChecksum(val);
+}
+
+uint64_t AddressBook::PinChecksum(uint64_t pin)
+{
+	uint64_t accum = 0;
+	while (pin)
+	{
+		accum += 3 * (pin % 10);
+		pin /= 10;
+		accum += pin % 10;
+		pin /= 10;
+	}
+
+	return (10 - accum % 10) % 10;
+}
+
+bool AddressBook::PinIsValid(uint64_t pin)
+{
+	return PinChecksum(pin / 10) == (pin % 10);
+}
+
 AddressBook::Invitation::Invitation(void) :
 	mAddressBook(NULL),
 	mFound(false)
@@ -668,12 +721,14 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 	mPeering = identifier;
 }
 
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, unsigned pin, const String &tracker) :
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
 	mAddressBook(addressBook),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
-	generate(code, String::number(pin));
+	String secret;
+	secret << pin;
+	generate(code, secret);
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
@@ -750,20 +805,38 @@ bool AddressBook::Invitation::isFound(void) const
 
 void AddressBook::Invitation::seen(const Identifier &peer)
 {
+	Synchronize(mAddressBook);
+	
 	// TODO
 }
 
 bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
+	Synchronize(mAddressBook);
+	
 	// TODO
 	return false;
 }
 
 bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
 {
+	Synchronize(mAddressBook);
+	
 	if(peer == mPeering && !mSecret.empty())
 	{
 		secret = mSecret;
+		return true;
+	}
+	
+	return false;
+}
+
+bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
+{
+	Synchronize(mAddressBook);
+	
+	if(peer == mPeering && mSecret.empty())
+	{
 		return true;
 	}
 	
@@ -1210,6 +1283,11 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 	// TODO
 	
 	return true;
+}
+
+bool AddressBook::Contact::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
+{
+	return (peer == identifier());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

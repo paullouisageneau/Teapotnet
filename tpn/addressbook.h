@@ -86,7 +86,7 @@ public:
 				const String &tracker = "");
 		Invitation(	AddressBook *addressBook,
 				const String &code,
-				unsigned pin,
+				uint64_t pin,
 				const String &tracker = "");
 		Invitation(	AddressBook *addressBook,
 				const String &name,
@@ -108,6 +108,7 @@ public:
 		void seen(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
 		bool auth(const Identifier &peer, BinaryString &secret);
+		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
 		
 		// Serializable
 		void serialize(Serializer &s) const;
@@ -162,6 +163,7 @@ public:
 		// Core::Listener
 		void seen(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
+		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
 		
 		// HttpInterfaceable
 		void http(const String &prefix, Http::Request &request);
@@ -229,6 +231,11 @@ public:
 private:
 	bool publish(const Identifier &identifier);
 	bool query(const Identifier &identifier, const String &tracker, Serializable &result);	
+	
+	// Pin
+	static uint64_t PinGenerate(void);
+	static uint64_t PinChecksum(uint64_t pin);
+	static bool PinIsValid(uint64_t pin);
 	
 	User *mUser;
 	String mFileName;

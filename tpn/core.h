@@ -171,7 +171,8 @@ public:
 		
 		virtual void seen(const Identifier &peer) = 0;
 		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
-		virtual bool auth(const Identifier &peer, BinaryString &secret) { return false; }
+		virtual bool auth(const Identifier &peer, BinaryString &secret)         { return false; }
+		virtual bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey) { return false; }
 		
 	private:
 		Set<Identifier> mPeers;
