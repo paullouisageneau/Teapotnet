@@ -57,7 +57,7 @@ bool JsonSerializer::input(Element &element)
 
 bool JsonSerializer::input(Pair &pair)
 {
-	AssertIO(pair.deserializeKey(*this));
+	if(!pair.deserializeKey(*this)) return false;
 	AssertIO(mStream->last() == ':');
 	AssertIO(pair.deserializeValue(*this));
 	return true;
@@ -75,6 +75,9 @@ bool JsonSerializer::input(String &str)
 	while(Stream::BlankCharacters.contains(chr))
 		if(!mStream->get(chr)) return false;
 	
+	if(fieldDelimiters.contains(chr))
+		return false;
+		
 	// Special case: read map or array in string
 	if(chr == '{' || chr == '[')
 	{

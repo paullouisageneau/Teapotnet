@@ -580,7 +580,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			{
 				page.open("div",".box");
                                 page.open("h2");
-                                page.text("Contacts");
+                                page.text("Invitations");
                                 page.close("h2");
 				page.open("table",".invitations");
 				

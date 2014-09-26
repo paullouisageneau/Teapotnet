@@ -54,8 +54,8 @@ private:
 class Synchronizer
 {
 public:
-	inline Synchronizer(const Synchronizable *_s) : s(_s) { s->lock(); }
-	inline ~Synchronizer(void) { s->unlock(); }
+	inline Synchronizer(const Synchronizable *_s) : s(_s) { if(s) s->lock(); }
+	inline ~Synchronizer(void) { if(s) s->unlock(); }
 
 private:
 	const Synchronizable *s;
@@ -64,8 +64,8 @@ private:
 class Desynchronizer
 {
 public:
-	inline Desynchronizer(const Synchronizable *_s) : s(_s) { c = s->unlockAll(); }
-	inline ~Desynchronizer(void) { s->lock(c); }
+	inline Desynchronizer(const Synchronizable *_s) : s(_s), c(0) { if(s) c = s->unlockAll(); }
+	inline ~Desynchronizer(void) { if(s) s->lock(c); }
 
 private:
 	const Synchronizable *s;

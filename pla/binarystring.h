@@ -61,6 +61,7 @@ public:
 	virtual void serialize(Stream &s) const;
 	virtual bool deserialize(Stream &s);
 	virtual bool isNativeSerializable(void) const;
+	virtual bool isInlineSerializable(void) const;
 
 	// Stream
 	size_t readData(char *buffer, size_t size);

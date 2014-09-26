@@ -241,6 +241,11 @@ bool BinaryString::isNativeSerializable(void) const
         return false;
 }
 
+bool BinaryString::isInlineSerializable(void) const
+{
+        return true;
+}
+
 size_t BinaryString::readData(char *buffer, size_t size)
 {
 	size = std::min(size,this->size());

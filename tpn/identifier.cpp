@@ -146,6 +146,16 @@ bool Identifier::deserialize(Stream &s)
 	return true;
 }
 
+bool Identifier::isNativeSerializable(void) const
+{
+        return false;
+}
+
+bool Identifier::isInlineSerializable(void) const
+{
+        return true;
+}
+
 bool operator < (const Identifier &i1, const Identifier &i2)
 {
 	return (i1.digest() < i2.digest()
