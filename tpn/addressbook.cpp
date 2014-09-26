@@ -320,12 +320,45 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					if(!user()->checkToken(request.post["token"], "contact")) 
 						throw 403;
 					
-			  		String command = request.post["command"];
-					if(command == "createinvitation")
+			  		String action = request.post["action"];
+					if(action == "createinvitation")
 					{
+						uint64_t pin = PinGenerate();
+						String code = String::random(32, Random::Crypto);
 						
+						LogDebug("AddressBook::http", "Generating new invitation with code: " + code);
+						mInvitations.append(Invitation(this, code, pin, user()->tracker()));
+						save();
+
+						Http::Response response(request, 200);
+                        			response.send();
+
+                        			Html page(response.stream);
+                        			page.header("New invitation");
+						page.text("Code: " + code + "\n");
+						page.text("PIN: " + String::number64(pin, 10) + "\n");
+						page.footer();
+						return;
 					}
-			  		if(command == "delete")
+					else if(action == "acceptinvitation")
+					{
+						uint64_t pin;
+						String code;
+						String tracker;
+						request.post["pin"] >> pin;
+						request.post["code"] >> code;
+
+						tracker = request.post["tracker"];
+						if(tracker.empty()) tracker = user()->tracker(); 
+
+						if(!PinIsValid(pin)) throw 500;
+						if(code.size() != 32) throw 500;
+
+						LogDebug("AddressBook::http", "Accepting invitation with code: " + code);
+						mInvitations.append(Invitation(this, code, pin, tracker));
+						save();
+					}
+			  		else if(action == "delete")
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
@@ -472,20 +505,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
 			
 			page.open("div",".box");
-			page.openForm(prefix + "/", "post", "invitation");
+			page.openForm(prefix + "/", "post", "createinvitation");
 			page.open("h2"); page.text("Invitation"); page.close("h2");
 			page.input("hidden", "token", token);
+			page.input("hidden", "action", "createinvitation");
 			page.label("generate"); page.button("generate", "Generate invitation");
 			page.closeForm();
 			page.close("div");
 			
 			page.open("div",".box");
-			page.openForm(prefix + "/", "post", "invitationreply");
+			page.openForm(prefix + "/", "post", "acceptinvitation");
 			page.open("h2"); page.text("Invitation reply"); page.close("h2");
 			page.input("hidden", "token", token);
+			page.input("hidden", "action", "acceptinvitation");
 			page.label("code", "Code"); page.input("text", "code"); page.br();
 			page.label("pin", "PIN"); page.input("text", "pin", "", true); page.br();
-			page.label("add"); page.button("add", "Add contact");
+			page.label("accept"); page.button("accept", "Accept invitation");
 			page.closeForm();
 			page.close("div");
 			
@@ -520,17 +555,17 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.close("table");
 				page.close("div");
 				
-				page.openForm(prefix+"/", "post", "executeForm");
-				page.input("hidden", "command");
+				page.openForm(prefix+"/", "post", "actionForm");
+				page.input("hidden", "action");
 				page.input("hidden", "argument");
 				page.input("hidden", "token", token);
 				page.closeForm();
 				
 				page.javascript("function deleteContact(uname) {\n\
 					if(confirm('Do you really want to delete '+uname+' ? The corresponding mails will be deleted too.')) {\n\
-						document.executeForm.command.value = 'delete';\n\
-						document.executeForm.argument.value = uname;\n\
-						document.executeForm.submit();\n\
+						document.actionForm.action.value = 'delete';\n\
+						document.actionForm.argument.value = uname;\n\
+						document.actionForm.submit();\n\
 					}\n\
 				}");
 				
@@ -543,6 +578,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			if(!mInvitations.empty())
 			{
+				page.open("div",".box");
+                                page.open("h2");
+                                page.text("Contacts");
+                                page.close("h2");
 				page.open("table",".invitations");
 				
 				for(int i=0; i<mInvitations.size(); ++i)
@@ -683,7 +722,9 @@ uint64_t AddressBook::PinGenerate(void)
 	const unsigned digits = 10;
 
 	Random rnd(Random::Crypto);
-	uint64_t val = rnd.uniform(uint64_t(1), uint64_t(10)*(digits-1));
+	uint64_t max = 1;
+	for(int i=0; i<digits-1; ++i) max*= 10;
+	uint64_t val = rnd.uniform(uint64_t(1), max);
 	return val * 10 + PinChecksum(val);
 }
 
@@ -726,9 +767,8 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
-	String secret;
-	secret << pin;
-	generate(code, secret);
+	mName = code;
+	generate(code, String::number64(pin, 10));
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :

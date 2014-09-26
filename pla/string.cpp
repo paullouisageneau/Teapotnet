@@ -26,7 +26,6 @@
 #include "pla/set.h"
 #include "pla/map.h"
 #include "pla/binarystring.h"
-#include "pla/random.h"
 
 namespace pla
 {
@@ -38,7 +37,21 @@ String String::number(double d, int digits)
     return out.str();
 }
 
+String String::number(int n, int minDigits)
+{
+    std::ostringstream out;
+    out << std::abs(n);
+    return (n < 0 ? "-" : "") + String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+}
+
 String String::number(unsigned int n, int minDigits)
+{
+    std::ostringstream out;
+    out << n;
+    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+}
+
+String String::number64(uint64_t n, int minDigits)
 {
     std::ostringstream out;
     out << n;
@@ -52,21 +65,22 @@ String String::hexa(unsigned int n, int minDigits)
     return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
 
-String String::random(size_t nbr)
+String String::random(size_t nbr, Random::QualityLevel level)
 {
-	Random rnd;
+	Random rnd(level);
 	String result;
 	while(nbr--)
 	{
-		uint32_t r;
-		rnd.readBinary(r);
-		int i = r % (26 + 26 + 10);
+		int i = rnd.uniform(0, 26 + 26 + 10);
 		
 		if(i < 26) result+= char('a' + i);
 		else {
 			i-= 26;
 			if(i < 26) result+= char('A' + i);
-			else result+= char('0' + i%10);
+			else {
+				i-= 26;
+				result+= char('0' + i);
+			}
 		}
 	}
 

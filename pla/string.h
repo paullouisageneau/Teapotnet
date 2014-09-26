@@ -24,6 +24,7 @@
 
 #include "pla/include.h"
 #include "pla/binarystring.h"
+#include "pla/random.h"
 
 #include <cwchar>
 
@@ -39,9 +40,11 @@ class String : public BinaryString
 public:
 	template<typename T> static String number(T n);
 	static String number(double d, int digits = 4);
-	static String number(unsigned int n, int minDigits);
+	static String number(int n, int minDigits = 1);
+	static String number(unsigned int n, int minDigits = 1);
+	static String number64(uint64_t n, int minDigits = 1);
 	static String hexa(unsigned int n, int minDigits = 1);
-	static String random(size_t nbr);	// do not use for crypto
+	static String random(size_t nbr, Random::QualityLevel level = Random::Nonce);
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
 	
