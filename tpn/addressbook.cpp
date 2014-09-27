@@ -64,6 +64,9 @@ AddressBook::AddressBook(User *user) :
 			LogError("AddressBook", String("Loading failed: ") + e.what());
 		}
 	}
+	
+	mScheduler.schedule(this, 1.);
+	mScheduler.repeat(this, 300.);
 }
 
 AddressBook::~AddressBook(void)
@@ -351,8 +354,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						tracker = request.post["tracker"];
 						if(tracker.empty()) tracker = user()->tracker(); 
 
-						if(!PinIsValid(pin)) throw 500;
-						if(code.size() != 32) throw 500;
+						code = code.trimmed();
+						if(code.size() != 32) throw Exception("Invalid invitation code");
+						if(!PinIsValid(pin)) throw Exception("Invalid invitation PIN");
 
 						LogDebug("AddressBook::http", "Accepting invitation with code: " + code);
 						mInvitations.append(Invitation(this, code, pin, tracker));
@@ -617,10 +621,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-bool AddressBook::publish(const Identifier &identifier)
+bool AddressBook::publish(const Identifier &identifier, const String &tracker)
 {
-	String tracker = user()->tracker();
-	
 	try {
 		String url("http://" + tracker + "/tracker/?id=" + identifier.toString());
 		
@@ -717,6 +719,11 @@ bool AddressBook::query(const Identifier &identifier, const String &tracker, Ser
 	return false;
 }
 
+void AddressBook::run(void)
+{
+	publish(user()->identifier(), user()->tracker()); 
+}
+
 uint64_t AddressBook::PinGenerate(void)
 {
 	const unsigned digits = 10;
@@ -755,30 +762,33 @@ AddressBook::Invitation::Invitation(void) :
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
-	mAddressBook(addressBook),
+	mAddressBook(NULL),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
 	mPeering = identifier;
+	setAddressBook(addressBook);
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
-	mAddressBook(addressBook),
+	mAddressBook(NULL),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
 	mName = code;
 	generate(code, String::number64(pin, 10));
+	setAddressBook(addressBook);
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
-	mAddressBook(addressBook),
+	mAddressBook(NULL),
 	mName(name),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
 	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
 	generate(salt, secret);
+	setAddressBook(addressBook);
 }
 
 AddressBook::Invitation::~Invitation(void)
@@ -802,9 +812,33 @@ void AddressBook::Invitation::generate(const String &salt, const String &secret)
 	Sha256().pbkdf2_hmac(mSecret, bsalt, mPeering, 32, iterations);
 }
 
+void AddressBook::Invitation::run(void)
+{
+	if(!mAddressBook) return;
+	
+	mAddressBook->publish(peering(), tracker());
+	
+	SerializableMap<uint64_t, SerializableSet<Address> > result;
+	if(mAddressBook->query(peering(), tracker(), result))
+	{
+		for(SerializableMap<uint64_t, SerializableSet<Address> >::iterator it = result.begin();
+			it != result.end();
+			++it)
+		{
+			// TODO
+			//Core::Instance->connect(Locator(mAddressBook->user(), it->second));
+		}	
+	}
+}
+
 void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
 {
-	mAddressBook = addressBook; 
+	if(mAddressBook) mAddressBook->mScheduler.cancel(this);
+	mAddressBook = addressBook;
+	if(mAddressBook) {
+		mAddressBook->mScheduler.schedule(this, 1.);
+		mAddressBook->mScheduler.repeat(this, 300.);
+	}
 }
 
 String AddressBook::Invitation::name(void) const
@@ -927,15 +961,15 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
 			        const Rsa::PublicKey &pubKey) :
-	mAddressBook(addressBook),
+	mAddressBook(NULL),
 	mUniqueName(uname),
 	mName(name),
 	mProfile(NULL)
 {
-	Assert(addressBook != NULL);
 	Assert(!uname.empty());
 	Assert(!name.empty());
 
+	setAddressBook(addressBook);
 	//createProfile();
 	Interface::Instance->add(urlPrefix(), this);
 }
@@ -947,9 +981,33 @@ AddressBook::Contact::~Contact(void)
 	delete mProfile;
 }
 
+void AddressBook::Contact::run(void)
+{
+	if(!mAddressBook) return;
+	
+	SerializableMap<uint64_t, SerializableSet<Address> > result;
+	String tracker = mAddressBook->user()->tracker();	// TODO
+	if(mAddressBook->query(identifier(), tracker, result))
+	{
+		for(SerializableMap<uint64_t, SerializableSet<Address> >::iterator it = result.begin();
+			it != result.end();
+			++it)
+		{
+			// TODO
+			//Core::Instance->connect(Locator(mAddressBook->user(), it->second));
+			mInstances[it->first].addAddresses(it->second);
+		}	
+	}
+}
+
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
+	if(mAddressBook) mAddressBook->mScheduler.cancel(this);
 	mAddressBook = addressBook;
+	if(mAddressBook) {
+		mAddressBook->mScheduler.schedule(this, 1.);
+		mAddressBook->mScheduler.repeat(this, 300.);
+	}
 }
 
 const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const

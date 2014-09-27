@@ -117,7 +117,7 @@ void Tracker::process(Http::Request &request)
 			
 			clean(2*count + 1);
 			
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
 			response.send();
 		}
 		else {

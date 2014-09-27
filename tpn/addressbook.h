@@ -48,7 +48,7 @@ namespace tpn
 class User;
 class Profile;
   
-class AddressBook : private Synchronizable, public Serializable, public HttpInterfaceable
+class AddressBook : private Task, private Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -77,7 +77,7 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class Invitation : public Serializable, public Core::Listener
+	class Invitation : private Task, public Serializable, public Core::Listener
 	{
 	public:
 		Invitation(void);
@@ -92,7 +92,7 @@ public:
 				const String &name,
 				const String &secret,
 				const String &tracker = "");
-		virtual ~Invitation(void);
+		~Invitation(void);
 		
 		void setAddressBook(AddressBook *addressBook);
 		
@@ -117,6 +117,7 @@ public:
 		
 	protected:
 		void generate(const String &salt, const String &secret);
+		void run(void);
 		
 		AddressBook *mAddressBook;
 		String mName;
@@ -128,7 +129,7 @@ public:
 		friend class AddressBook;
 	};
 	
-	class Contact : public Serializable, public HttpInterfaceable
+	class Contact : private Task, public Serializable, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
@@ -174,6 +175,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void run(void);
+	  
 		class Instance : public Serializable
 		{
 		public:
@@ -229,8 +232,9 @@ public:
 	const Contact *getSelf(void) const;
 	
 private:
-	bool publish(const Identifier &identifier);
+	bool publish(const Identifier &identifier, const String &tracker);
 	bool query(const Identifier &identifier, const String &tracker, Serializable &result);	
+	void run(void);
 	
 	// Pin
 	static uint64_t PinGenerate(void);
@@ -242,6 +246,7 @@ private:
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
 	SerializableArray<Invitation> mInvitations;
+	Scheduler mScheduler;
 };
 
 }

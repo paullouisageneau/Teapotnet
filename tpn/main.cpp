@@ -570,7 +570,7 @@ String plist = "\
                 File::CleanTemp();
 		Http::UserAgent = String(APPNAME) + '/' + APPVERSION;
 		Http::RequestTimeout = milliseconds(Config::Get("http_timeout").toInt());
-		Proxy::HttpProxy = Config::Get("http_proxy");
+		Proxy::HttpProxy = Config::Get("http_proxy").trimmed();
 		
 		Tracker *tracker = NULL;
 		if(args.contains("tracker"))

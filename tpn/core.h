@@ -107,13 +107,14 @@ public:
 	{
 		Locator(User *user, const Identifier &id);
 		Locator(User *user, const Address &addr);
+		Locator(User *user, const Set<Address> &addrs);
 		~Locator(void);
 		
 		User *user;
 		Identifier	identifier;
 		Identifier	peering;
 		BinaryString	secret;
-		List<Address>	addresses;
+		Set<Address>	addresses;
 	};
 
 	class Publisher

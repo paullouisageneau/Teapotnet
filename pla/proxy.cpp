@@ -30,7 +30,10 @@ String Proxy::HttpProxy = "";
 
 bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 {
-        if(!HttpProxy.empty())
+	if(HttpProxy == "none")
+                return false;
+
+        if(!HttpProxy.empty() && HttpProxy != "auto")
         {
                 addr.fromString(HttpProxy);
                 return true;

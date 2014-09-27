@@ -682,7 +682,13 @@ Core::Locator::Locator(User *user, const Identifier &id)
 Core::Locator::Locator(User *user, const Address &addr)
 {
 	this->user = user;
-	this->addresses.push_back(addr);
+	this->addresses.insert(addr);
+}
+
+Core::Locator::Locator(User *user, const Set<Address> &addrs)
+{
+	this->user = user;
+	this->addresses = addrs;
 }
 
 Core::Locator::~Locator(void)
@@ -1056,7 +1062,7 @@ Core::StreamBackend::~StreamBackend(void)
 
 SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 {
-	for(List<Address>::const_iterator it = locator.addresses.begin();
+	for(Set<Address>::const_iterator it = locator.addresses.begin();
 		it != locator.addresses.end();
 		++it)
 	{
@@ -1123,7 +1129,7 @@ Core::DatagramBackend::~DatagramBackend(void)
 
 SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 {
-	for(List<Address>::const_iterator it = locator.addresses.begin();
+	for(Set<Address>::const_iterator it = locator.addresses.begin();
 		it != locator.addresses.end();
 		++it)
 	{
