@@ -71,12 +71,21 @@ bool JsonSerializer::input(String &str)
 	
 	char chr;
 	if(!mStream->get(chr)) return false;
-
 	while(Stream::BlankCharacters.contains(chr))
 		if(!mStream->get(chr)) return false;
 	
 	if(fieldDelimiters.contains(chr))
+	{
+		if(chr == '}' || chr == ']')
+		{
+			do {
+				if(!mStream->get(chr)) 
+					return false;
+			}
+			while(Stream::BlankCharacters.contains(chr));
+		}
 		return false;
+	}
 		
 	// Special case: read map or array in string
 	if(chr == '{' || chr == '[')
@@ -239,6 +248,10 @@ bool JsonSerializer::inputArrayBegin(void)
 bool JsonSerializer::inputArrayCheck(void)
 {
 	char chr = mStream->last();
+	while(Stream::BlankCharacters.contains(chr))
+		if(!mStream->get(chr)) 
+			return false;
+
 	if(chr == '[' || chr == ',') return true;
 	if(chr == ']') 
 	{
@@ -257,6 +270,10 @@ bool JsonSerializer::inputMapBegin(void)
 bool JsonSerializer::inputMapCheck(void)
 {
   	char chr = mStream->last();
+	while(Stream::BlankCharacters.contains(chr))
+		if(!mStream->get(chr)) 
+			return false;
+		
 	if(chr == '{' || chr == ',') return true;
 	if(chr == '}')
 	{

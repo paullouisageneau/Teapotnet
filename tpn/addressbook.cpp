@@ -99,6 +99,8 @@ void AddressBook::load(Stream &stream)
 
 	JsonSerializer serializer(&stream);
 	serializer.input(*this);
+	
+	LogDebug("AddressBook::load", "Loaded " + String::number(mContacts.size()) + " contacts and " + String::number(mInvitations.size()) + " invitations");
 }
 
 void AddressBook::save(Stream &stream) const
