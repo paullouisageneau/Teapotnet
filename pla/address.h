@@ -70,6 +70,8 @@ public:
 	bool deserialize(Serializer &s);
 	void serialize(Stream &s) const;
 	bool deserialize(Stream &s);
+	bool isNativeSerializable(void) const;
+	bool isInlineSerializable(void) const;
 
 private:
 	sockaddr_storage 	mAddr;

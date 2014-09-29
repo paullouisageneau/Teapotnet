@@ -60,7 +60,8 @@ public:
 		StringMap get;          // URL parameters
 		StringMap post;         // POST parameters
 		Map<String, TempFile*> files; // Files posted with POST
-		
+		Address remoteAddress;	// Remote address, set by Server	
+	
 		String fullUrl;		// URL with parameters, used only by recv
 		Stream *stream;		// Internal use for Response construction
 	};
@@ -93,7 +94,7 @@ public:
 		virtual void process(Http::Request &request) = 0;
 
 	protected:
-		virtual void handle(Stream *stream);
+		virtual void handle(Stream *stream, const Address &remote);
 		void run(void);
 
 		class Handler : public Task
@@ -120,7 +121,7 @@ public:
                 virtual ~SecureServer(void);
 
        	protected:
-                virtual void handle(Stream *stream);
+                virtual void handle(Stream *stream, const Address &remote);
 		
 	private:
 		SecureTransportServer::Credentials *mCredentials;

@@ -324,11 +324,6 @@ int main(int argc, char** argv)
 		Config::Default("prefetch_delay", "300000");
 		Config::Default("max_connections", "1024");
 		
-// TODO: backward compatibility
-		if(Config::Get("request_timeout").toInt() < 10000)
-			Config::Put("request_timeout", "10000");
-//
-
 #ifdef ANDROID
 		Config::Default("force_http_tunnel", "false");
 		Config::Default("cache_max_size", "100");		// MiB
@@ -577,9 +572,16 @@ String plist = "\
 		{
 			if(args["tracker"].empty()) 
 				args["tracker"] = Config::Get("tracker_port");
-			int port;
-			args["tracker"] >> port;
 			
+			int port;
+			try {
+				args["tracker"] >> port;
+			}
+			catch(...)
+			{
+				throw Exception("Invalid tracker port specified");
+			}
+
 			LogInfo("main", "Launching the tracker...");
 			tracker = new Tracker(port);
 			tracker->start();
@@ -615,7 +617,7 @@ String plist = "\
 			{
 				if(--attempts == 0) throw NetException("Unable to listen for incoming network connections");
 				
-				int newPort = 1024 + Random().readInt() % (49151 - 1024);
+				int newPort = Random().uniform(1024, 49151);
 				LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));
 				port = newPort;
 				portChanged = true;

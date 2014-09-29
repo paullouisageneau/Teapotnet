@@ -459,6 +459,16 @@ bool Address::deserialize(Stream &s)
 	return true;
 }
 
+bool Address::isNativeSerializable(void) const
+{
+	return false;
+}
+
+bool Address::isInlineSerializable(void) const
+{
+	return true;
+}
+
 const sockaddr *Address::addr(void) const
 {
 	return reinterpret_cast<const sockaddr*>(&mAddr);

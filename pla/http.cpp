@@ -641,12 +641,13 @@ Http::Server::~Server(void)
 	mSock.close();	// useless
 }
 
-void Http::Server::handle(Stream *stream)
+void Http::Server::handle(Stream *stream, const Address &remote)
 {
 	Request request;
 	try {
 		try {
 			request.recv(stream);
+			request.remoteAddress = remote;
 			process(request);
 		}
 		catch(const Timeout &e)
@@ -743,7 +744,7 @@ Http::Server::Handler::~Handler(void)
 void Http::Server::Handler::run(void)
 {
 	try {
-		mServer->handle(mSock);
+		mServer->handle(mSock, mSock->getRemoteAddress());
 	}
 	catch(...)
 	{
@@ -765,7 +766,7 @@ Http::SecureServer::~SecureServer(void)
 	delete mCredentials;
 }
 
-void Http::SecureServer::handle(Stream *stream)
+void Http::SecureServer::handle(Stream *stream, const Address &remote)
 {
 	SecureTransportServer *transport = NULL;
 	try {
@@ -773,7 +774,7 @@ void Http::SecureServer::handle(Stream *stream)
 		transport->addCredentials(mCredentials);
 		transport->handshake();
 		
-		Server::handle(transport);
+		Server::handle(transport, remote);
 	}
 	catch(const std::exception &e)
 	{

@@ -128,7 +128,7 @@ bool Identifier::deserialize(Serializer &s)
 
 void Identifier::serialize(Stream &s) const
 {
-	if(mNumber != 0) s.write(mDigest.toString() + ":" + String::number(mNumber));
+	if(mNumber != 0) s.write(mDigest.toString() + ":" + String::hexa(mNumber));
 	else s.write(mDigest.toString());
 }
 
@@ -141,7 +141,9 @@ bool Identifier::deserialize(Stream &s)
 	if(!s.read(str)) return false;
 	if(str.empty()) return true;
 	
-	str.cut(':').read(mNumber);
+	String tmp = str.cut(':');
+	tmp.hexaMode(true);
+	tmp.read(mNumber);
 	AssertIO(str.read(mDigest));
 	return true;
 }
