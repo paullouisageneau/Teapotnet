@@ -1183,7 +1183,7 @@ SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locat
 	
 	try {
 		stream = new DatagramStream(&mSock, addr);
-		transport = new SecureTransportClient(stream, NULL, true);	// datagram mode
+		transport = new SecureTransportClient(stream, NULL, "", true);	// datagram mode
 	}
 	catch(...)
 	{

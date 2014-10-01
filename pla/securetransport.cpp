@@ -632,7 +632,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock)
 		
 		SecureTransportServer *transport = NULL;
 		try {
-			transport = new SecureTransportServer(sock, NULL, true);
+			transport = new SecureTransportServer(sock, NULL, false);	// stream mode
 		}
 		catch(const std::exception &e)
 		{
@@ -673,7 +673,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock)
 			
 			try {
 				stream = new DatagramStream(&sock, sender);
-				transport = new SecureTransportServer(stream, NULL, true);
+				transport = new SecureTransportServer(stream, NULL, true);	// datagramMode
 			}
 			catch(...)
 			{
