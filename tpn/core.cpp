@@ -218,6 +218,23 @@ bool Core::isPublicConnectable(void) const
 	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
 }
 
+bool Core::connect(const Locator &locator)
+{
+	List<Backend*> backends;
+	SynchronizeStatement(this, backends = mBackends);
+	
+	for(List<Backend*>::iterator it = backends.begin();
+		it != backends.end();
+		++it)
+	{
+		Backend *backend = *it;
+		if(backend->connect(locator))
+			return true;
+	}
+	
+	return false;
+}
+
 void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
@@ -971,6 +988,8 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	  
 		void run(void)
 		{
+			LogDebug("Core::Backend::doHandshake", "Performing handshake...");
+			
 			try {
 				// Set verifier
 				MyVerifier verifier(core);
@@ -988,7 +1007,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			}
 			catch(const std::exception &e)
 			{
-				LogInfo("Core::Backend::HandshakeTask", String("Handshake failed: ") + e.what());
+				LogInfo("Core::Backend::doHandshake", String("Handshake failed: ") + e.what());
 				delete transport;
 			}
 
@@ -1021,6 +1040,8 @@ void Core::Backend::run(void)
 		{
 			SecureTransport *transport = listen();
 			if(!transport) break;
+			
+			LogDebug("Core::Backend::run", "Incoming connection");
 			
 			if(!transport->isHandshakeDone())
 			{
@@ -1074,12 +1095,16 @@ SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 			LogDebug("Core::StreamBackend::connect", e.what());
 		}
 	}
+	
+	return NULL;
 }
 
 SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator &locator)
 {
 	Socket *sock = NULL;
 	SecureTransport *transport = NULL;
+	
+	LogDebug("Core::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
 	try {
 		sock = new Socket(addr);
@@ -1099,6 +1124,8 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator
 		delete transport;
 		throw;
 	}
+	
+	return transport;
 }
 
 SecureTransport *Core::StreamBackend::listen(void)
@@ -1108,6 +1135,8 @@ SecureTransport *Core::StreamBackend::listen(void)
 		SecureTransport *transport = SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
+	
+	return NULL;
 }
 
 void Core::StreamBackend::getAddresses(Set<Address> &set) const
@@ -1141,12 +1170,17 @@ SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 			LogDebug("Core::DatagramBackend::connect", e.what());
 		}
 	}
+	
+	return NULL;
 }
 
 SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
 {
 	DatagramStream *stream = NULL;
 	SecureTransport *transport = NULL;
+	
+	LogDebug("Core::DatagramBackend::connect", "Trying address " + addr.toString() + " (UDP)");
+	
 	try {
 		stream = new DatagramStream(&mSock, addr);
 		transport = new SecureTransportClient(stream, NULL, true);	// datagram mode
@@ -1165,6 +1199,8 @@ SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locat
 		delete transport;
 		throw;
 	}
+	
+	return transport;
 }
 
 SecureTransport *Core::DatagramBackend::listen(void)
@@ -1174,6 +1210,8 @@ SecureTransport *Core::DatagramBackend::listen(void)
 		SecureTransport *transport = SecureTransportServer::Listen(mSock);
 		if(transport) return transport;
 	}
+	
+	return NULL;
 }
 
 void Core::DatagramBackend::getAddresses(Set<Address> &set) const
@@ -1195,6 +1233,11 @@ Core::TunnelBackend::~TunnelBackend(void)
 SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 {
 	Assert(locator.user);
+	
+	if(locator.identifier.empty())
+		return NULL;
+	
+	LogDebug("Core::TunnelBackend::connect", "Trying tunnel for " + locator.identifier.toString());
 	
 	Identifier remote = locator.identifier;
 	Identifier local = locator.user->identifier();

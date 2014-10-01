@@ -830,9 +830,8 @@ void AddressBook::Invitation::run(void)
 			if(it->first != Core::Instance->getNumber())
 			{
 				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
-
-				// TODO	
-				//Core::Instance->connect(Locator(mAddressBook->user(), it->second));
+				
+				Core::Instance->connect(Core::Locator(mAddressBook->user(), it->second));
 			}
 		}	
 	}

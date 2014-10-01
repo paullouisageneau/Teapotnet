@@ -193,6 +193,9 @@ public:
 	void getKnownPublicAdresses(Set<Address> &set) const;
 	bool isPublicConnectable(void) const;
 	
+	// Connections
+	bool connect(const Locator &locator);
+	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
 	void unregisterCaller(const BinaryString &target, Caller *caller);
