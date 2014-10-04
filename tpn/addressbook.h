@@ -81,6 +81,7 @@ public:
 	{
 	public:
 		Invitation(void);
+		Invitation(const Invitation &invitation);
 		Invitation(	AddressBook *addressBook,
 				const Identifier &identifier,
 				const String &tracker = "");
@@ -129,10 +130,11 @@ public:
 		friend class AddressBook;
 	};
 	
-	class Contact : private Task, public Serializable, public HttpInterfaceable
+	class Contact : private Task, public Serializable, public Core::Listener, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
+		Contact(const Contact &contact);
 		Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,

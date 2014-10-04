@@ -763,6 +763,18 @@ AddressBook::Invitation::Invitation(void) :
 
 }
 
+AddressBook::Invitation::Invitation(const Invitation &invitation) :
+	mAddressBook(NULL),
+	mName(invitation.mName),
+	mSecret(invitation.mSecret),
+	mPeering(invitation.mPeering),
+	mTracker(invitation.mTracker),
+	mFound(false)
+{
+	setAddressBook(invitation.mAddressBook);
+	listen(peering());
+}
+
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
 	mAddressBook(NULL),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
@@ -770,6 +782,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 {
 	mPeering = identifier;
 	setAddressBook(addressBook);
+	listen(peering());
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
@@ -780,6 +793,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 	mName = code;
 	generate(code, String::number64(pin, 10));
 	setAddressBook(addressBook);
+	listen(peering());
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
@@ -791,6 +805,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
 	generate(salt, secret);
 	setAddressBook(addressBook);
+	listen(peering());
 }
 
 AddressBook::Invitation::~Invitation(void)
@@ -831,7 +846,10 @@ void AddressBook::Invitation::run(void)
 			{
 				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
 				
-				Core::Instance->connect(Core::Locator(mAddressBook->user(), it->second));
+				Core::Locator locator(mAddressBook->user(), it->second);
+				locator.peering = peering();
+				locator.secret = secret();
+				Core::Instance->connect(locator);
 			}
 		}	
 	}
@@ -925,6 +943,8 @@ bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey 
 
 void AddressBook::Invitation::serialize(Serializer &s) const
 {
+	Synchronize(mAddressBook);  
+	
 	Serializer::ConstObjectMapping mapping;
 	mapping["name"] = &mName;
 	mapping["secret"] = &mSecret;
@@ -936,6 +956,8 @@ void AddressBook::Invitation::serialize(Serializer &s) const
 
 bool AddressBook::Invitation::deserialize(Serializer &s)
 {
+	Synchronize(mAddressBook);
+	
 	mName.clear();
 	mSecret.clear();
 	mPeering.clear();
@@ -947,8 +969,13 @@ bool AddressBook::Invitation::deserialize(Serializer &s)
 	mapping["peering"] = &mPeering;
 	mapping["tracker"] = &mTracker;
 	
+	if(!s.inputObject(mapping))
+		return false;
+	
 	// TODO: sanity checks
-	return s.inputObject(mapping);  
+	
+	listen(peering());
+	return true;
 }
 
 bool AddressBook::Invitation::isInlineSerializable(void) const
@@ -963,6 +990,21 @@ AddressBook::Contact::Contact(void) :
 
 }
 
+AddressBook::Contact::Contact(const Contact &contact) :
+	mAddressBook(NULL),
+	mProfile(NULL),
+	mUniqueName(contact.mUniqueName),
+	mName(contact.mName),
+	mPublicKey(contact.mPublicKey),
+	mInstances(contact.mInstances)
+	
+{
+	setAddressBook(contact.mAddressBook);
+	//createProfile();
+	listen(identifier());
+	Interface::Instance->add(urlPrefix(), this);
+}
+
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
 				const String &uname,
 				const String &name,
@@ -970,6 +1012,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mAddressBook(NULL),
 	mUniqueName(uname),
 	mName(name),
+	mPublicKey(pubKey),
 	mProfile(NULL)
 {
 	Assert(!uname.empty());
@@ -977,6 +1020,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 
 	setAddressBook(addressBook);
 	//createProfile();
+	listen(identifier());
 	Interface::Instance->add(urlPrefix(), this);
 }
 
@@ -999,8 +1043,7 @@ void AddressBook::Contact::run(void)
 			it != result.end();
 			++it)
 		{
-			// TODO
-			//Core::Instance->connect(Locator(mAddressBook->user(), it->second));
+			Core::Instance->connect(Core::Locator(mAddressBook->user(), it->second));
 			mInstances[it->first].addAddresses(it->second);
 		}	
 	}
@@ -1688,11 +1731,15 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-		
+	
+	if(!s.inputObject(mapping));
+		return false;
+	
 	// TODO: sanity checks
 	
+	listen(identifier());
 	Interface::Instance->add(urlPrefix(), this);
-	return s.inputObject(mapping);
+	return true;
 }
 
 bool AddressBook::Contact::isInlineSerializable(void) const

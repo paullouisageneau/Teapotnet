@@ -264,6 +264,8 @@ void Core::registerListener(const Identifier &id, Listener *listener)
 {
 	Synchronize(this);
 	mListeners[id].insert(listener);
+	
+	LogDebug("Core::registerListener", "Registered listener: " + id.toString());
 }
 
 void Core::unregisterListener(const Identifier &id, Listener *listener)
@@ -271,11 +273,15 @@ void Core::unregisterListener(const Identifier &id, Listener *listener)
 	Synchronize(this);
 	
 	Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
-	if(it != mListeners.end())
+	while(it != mListeners.end() && it->first == id)
 	{
-		it->second.erase(listener);
+		if(it->second.erase(listener))
+			LogDebug("Core::unregisterListener", "Unregistered listener: " + id.toString());
+		
 		if(it->second.empty())   
 			mListeners.erase(it);
+			
+		++it;
 	}
 }
 
@@ -872,17 +878,23 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
 	if(!locator.peering.empty())
 	{
+		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
+	  
 		// Add contact private shared key
 		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
-		if(creds) transport->addCredentials(creds, true);	// must delete
+		transport->addCredentials(creds, true);	// must delete
 	}
 	else if(locator.user)
 	{
+		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
+		
 		// Add user certificate
 		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
 	}
 	else {
+		LogDebug("Core::Backend::process", "Setting anonymous credentials");
+	  
 		// Add anonymous credentials
 		transport->addCredentials(&mAnonymousClientCreds);
 	}
@@ -904,11 +916,16 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
+			LogDebug("Core::Backend::doHandshake", String("Verification for certificate mode, remote: ") + name);
+			
 			user = User::Get(name);
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
 				if(creds) transport->addCredentials(creds);
+			}
+			else {
+				 LogDebug("Core::Backend::doHandshake", String("User does not exist: ") + name);
 			}
 			
 			return true;	// continue handshake anyway
@@ -916,11 +933,14 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 		
 		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
 		{
+			LogDebug("Core::Backend::doHandshake", String("Verification for PSK mode, remote: ") + name);
+			
 			try {
 				peering.fromString(name);
 			}
 			catch(...)
 			{
+				LogDebug("Core::Backend::doHandshake", String("Invalid peering: ") + name);
 				return false;
 			}
 			
@@ -943,6 +963,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				}
 			}
 			
+			LogDebug("Core::Backend::doHandshake", String("Peering not found: ") + peering.toString());
 			return false;
 		}
 		
@@ -988,7 +1009,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	  
 		void run(void)
 		{
-			LogDebug("Core::Backend::doHandshake", "Performing handshake...");
+			//LogDebug("Core::Backend::doHandshake", "HandshakeTask starting...");
 			
 			try {
 				// Set verifier
@@ -1047,7 +1068,7 @@ void Core::Backend::run(void)
 			{
 				try {
 					// Add server credentials (certificate added on name verification)
-					transport->addCredentials(&mAnonymousServerCreds, false);
+					//transport->addCredentials(&mAnonymousServerCreds, false);
 					transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
 				
 					// No remote identifier specified, accept any identifier

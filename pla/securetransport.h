@@ -52,7 +52,7 @@ public:
 		void install(SecureTransport *st);
 		
 	protected:
-		virtual void install(gnutls_session_t session) = 0;
+		virtual void install(gnutls_session_t session, String &priorities) = 0;
 	}; 
 	
 	class Certificate : public Credentials
@@ -63,7 +63,7 @@ public:
 		~Certificate(void);
 		
 	protected:
-		void install(gnutls_session_t session);
+		void install(gnutls_session_t session, String &priorities);
                 gnutls_certificate_credentials_t mCreds;
         };
 
@@ -123,6 +123,7 @@ protected:
 	gnutls_session_t mSession;
 	Stream *mStream;
 	Verifier *mVerifier;
+	String mPriorities;
 	String mRemoteHostname;
 	
 	List<Credentials*> mCredsToDelete;
@@ -139,7 +140,7 @@ public:
 		~Anonymous(void);
 		
 	protected:
-		void install(gnutls_session_t session);
+		void install(gnutls_session_t session, String &priorities);
 		gnutls_anon_client_credentials_t mCreds;
 	};
 
@@ -150,7 +151,7 @@ public:
                 ~PrivateSharedKey(void);
 	
 	protected:
-		void install(gnutls_session_t session);
+		void install(gnutls_session_t session, String &priorities);
                 gnutls_psk_client_credentials_t mCreds;
         };
 
@@ -170,7 +171,7 @@ public:
 		~Anonymous(void);
 		
 	protected:
-		void install(gnutls_session_t session);
+		void install(gnutls_session_t session, String &priorities);
 		gnutls_anon_server_credentials_t mCreds;
 	};
 
@@ -181,7 +182,7 @@ public:
 		~PrivateSharedKey(void);
 		
 	protected:
-		void install(gnutls_session_t session);
+		void install(gnutls_session_t session, String &priorities);
 		gnutls_psk_server_credentials_t mCreds;
 	};	
 	

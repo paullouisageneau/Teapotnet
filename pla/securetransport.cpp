@@ -59,6 +59,7 @@ void SecureTransport::GenerateParams(void)
 SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 	mStream(stream),
 	mVerifier(NULL),
+	mPriorities(DefaultPriorities),
 	mIsHandshakeDone(false)
 {
 	Assert(stream);
@@ -71,11 +72,6 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
 		if(datagram) flags|= GNUTLS_DATAGRAM;
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
-		
-		// Set priorities
-		const char *err_pos = NULL;
-		if(gnutls_priority_set_direct(mSession, DefaultPriorities.c_str(), &err_pos))
-			throw Exception("Unable to set TLS priorities");
 		
 		// Set session pointer
 		gnutls_session_set_ptr(mSession, reinterpret_cast<void*>(this));
@@ -119,9 +115,16 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 
 void SecureTransport::handshake(void)
 {
+	// Set priorities
+	LogDebug("SecureTransport::handshake", "Setting priorities: " + mPriorities);
+	const char *err_pos = NULL;
+	if(gnutls_priority_set_direct(mSession, mPriorities.c_str(), &err_pos))
+			throw Exception("Unable to set TLS priorities: " + mPriorities);
+		
 	// Perform the TLS handshake
 	int ret;
 	do {
+		LogDebug("SecureTransport::handshake", "Performing handshake...");
                 ret = gnutls_handshake(mSession);
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
@@ -251,6 +254,8 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 
 int SecureTransport::CertificateCallback(gnutls_session_t session)
 {
+	LogDebug("SecureTransport::CertificateCallback", "Entering certificate callback");
+	
 	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
 	if(!transport)
 	{
@@ -336,6 +341,8 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 
 int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
 {
+	LogDebug("SecureTransport", "Entering PSK callback");
+	
 	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
 	if(!transport) 
 	{
@@ -367,7 +374,7 @@ int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const ch
 
 void SecureTransport::Credentials::install(SecureTransport *st)
 {
-	install(st->mSession);
+	install(st->mSession, st->mPriorities);
 }
 
 SecureTransport::Certificate::Certificate(void)
@@ -420,7 +427,7 @@ SecureTransport::Certificate::~Certificate(void)
 	//gnutls_certificate_free_credentials(mCreds);
 }
 
-void SecureTransport::Certificate::install(gnutls_session_t session)
+void SecureTransport::Certificate::install(gnutls_session_t session, String &priorities)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 }
@@ -511,15 +518,10 @@ SecureTransportClient::Anonymous::~Anonymous(void)
 	gnutls_anon_free_client_credentials(mCreds);
 }
 
-void SecureTransportClient::Anonymous::install(gnutls_session_t session)
+void SecureTransportClient::Anonymous::install(gnutls_session_t session, String &priorities)
 {
-	// Enable anonymous auth
-	String priorities = DefaultPriorities + ":+ANON-DH:+ANON-ECDH";
-	const char *err_pos = NULL;
-	if(gnutls_priority_set_direct(session, priorities.c_str(), &err_pos))
-		throw Exception("Unable to set TLS priorities for anonymous auth");
-	
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_ANON, mCreds) == GNUTLS_E_SUCCESS);
+	priorities+= ":+ANON-DH:+ANON-ECDH";
 }
 
 SecureTransportClient::PrivateSharedKey::PrivateSharedKey(const String &username, const BinaryString &key)
@@ -547,15 +549,10 @@ SecureTransportClient::PrivateSharedKey::~PrivateSharedKey(void)
 	gnutls_psk_free_client_credentials(mCreds);
 }
 
-void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session)
+void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session, String &priorities)
 {
-	// Enable PSK
-	String priorities = DefaultPriorities + ":+PSK:+DHE-PSK";
-	const char *err_pos = NULL;
-	if(gnutls_priority_set_direct(session, priorities.c_str(), &err_pos))
-		throw Exception("Unable to set TLS priorities for PSK");
-
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
+	priorities+= ":+PSK:+DHE-PSK";
 }
 
 SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool datagram) :
@@ -585,6 +582,8 @@ SecureTransportServer::~SecureTransportServer(void)
 
 int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 {
+	LogDebug("SecureTransportServer", "Entering post client hello callback");
+	
 	SecureTransportServer *transport = reinterpret_cast<SecureTransportServer*>(gnutls_session_get_ptr(session));
 	if(!transport) 
 	{
@@ -600,10 +599,12 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 		char buffer[BufferSize];
 		size_t size = BufferSize;
 		unsigned int type =  GNUTLS_NAME_DNS;
-		if(gnutls_server_name_get(session, buffer, &size, &type, 0))
+		if(gnutls_server_name_get(session, buffer, &size, &type, 0) == GNUTLS_E_SUCCESS)
+		{
 			name.assign(buffer, size);
-	
-		if(!transport->mVerifier->verifyName(name, transport)) return GNUTLS_E_NO_CERTIFICATE_FOUND;
+			if(!transport->mVerifier->verifyName(name, transport)) 
+				return GNUTLS_E_NO_CERTIFICATE_FOUND;
+		}
 	}
 	catch(const Exception &e)
 	{
@@ -716,9 +717,10 @@ SecureTransportServer::Anonymous::~Anonymous(void)
 	gnutls_anon_free_server_credentials(mCreds);
 }
 
-void SecureTransportServer::Anonymous::install(gnutls_session_t session)
+void SecureTransportServer::Anonymous::install(gnutls_session_t session, String &priorities)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_ANON, mCreds) == GNUTLS_E_SUCCESS);
+	priorities+= ":+ANON-DH:+ANON-ECDH";
 }
 
 SecureTransportServer::PrivateSharedKey::PrivateSharedKey(void)
@@ -740,10 +742,10 @@ SecureTransportServer::PrivateSharedKey::~PrivateSharedKey(void)
 	gnutls_psk_free_server_credentials(mCreds);
 }
 
-void SecureTransportServer::PrivateSharedKey::install(gnutls_session_t session)
+void SecureTransportServer::PrivateSharedKey::install(gnutls_session_t session, String &priorities)
 {
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_PSK, mCreds) == GNUTLS_E_SUCCESS);
-	
+	priorities+= ":+PSK:+DHE-PSK";
 }
 
 }
