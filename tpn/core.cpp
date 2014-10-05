@@ -518,13 +518,13 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 	return true;
 }
 
-bool Core::addPeer(Stream *bs, const Identifier &local, const Identifier &remote)
+bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &remote)
 {
 	// Not synchronized
-	Assert(bs);
+	Assert(stream);
 
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, bs, local, remote);
+	Handler *handler = new Handler(this, stream, local, remote);
 	mThreadPool.launch(handler);
 	return true;
 }
