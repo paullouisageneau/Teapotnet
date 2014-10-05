@@ -80,6 +80,7 @@ public:
 	bool checkToken(const String &token, const String &action = "") const;
 	
 	Identifier identifier(void) const;
+	const Rsa::PublicKey &publicKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);

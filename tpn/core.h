@@ -84,7 +84,8 @@ public:
 		Message(void);
 		~Message(void);
 		
-		void prepare(const Identifier &source, const Identifier &destination);
+		void prepare(const Identifier &source, const Identifier &destination, 
+			uint8_t type = Forward, uint8_t content = Empty);
 		void clear(void);
 		
 		// Serializable
@@ -100,7 +101,7 @@ public:
 		
 		Identifier source;		// 40 B
 		Identifier destination;		// 40 B
-		ByteArray payload;		// 40 B + 1 KB
+		ByteArray payload;		// 32 B + 1024 B
 	};
 
 	struct Locator
@@ -171,7 +172,8 @@ public:
 		
 		void listen(const Identifier &peer);
 		
-		virtual void seen(const Identifier &peer) = 0;
+		virtual void seen(const Identifier &peer) {}
+		virtual void connected(const Identifier &peer) {}
 		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
 		virtual bool auth(const Identifier &peer, BinaryString &secret)         { return false; }
 		virtual bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey) { return false; }
@@ -388,7 +390,7 @@ private:
 		void send(const Message &message);
 		void route(const Message &message);
 		bool incoming(Message &message);
-		void outgoing(const Identifier &dest, uint8_t content, Stream &payload);
+		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 
 		void process(void);
 		void run(void);
@@ -414,7 +416,7 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 	
-	void outgoing(uint8_t content, Stream &payload);
+	void outgoing(uint8_t type, uint8_t content, Stream &payload);
 	
 	uint64_t mNumber;
 	String mName;

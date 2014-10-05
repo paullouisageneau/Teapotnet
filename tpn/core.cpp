@@ -265,7 +265,7 @@ void Core::registerListener(const Identifier &id, Listener *listener)
 	Synchronize(this);
 	mListeners[id].insert(listener);
 	
-	LogDebug("Core::registerListener", "Registered listener: " + id.toString());
+	//LogDebug("Core::registerListener", "Registered listener: " + id.toString());
 }
 
 void Core::unregisterListener(const Identifier &id, Listener *listener)
@@ -275,8 +275,9 @@ void Core::unregisterListener(const Identifier &id, Listener *listener)
 	Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
 	while(it != mListeners.end() && it->first == id)
 	{
-		if(it->second.erase(listener))
-			LogDebug("Core::unregisterListener", "Unregistered listener: " + id.toString());
+		it->second.erase(listener);
+		//if(it->second.erase(listener))
+		//	LogDebug("Core::unregisterListener", "Unregistered listener: " + id.toString());
 		
 		if(it->second.empty())   
 			mListeners.erase(it);
@@ -399,7 +400,7 @@ void Core::broadcast(const Notification &notification)
 		{
 			Desynchronize(this);
 			String tmp(payload);
-			handler->outgoing(handler->remote(), Message::Notify, tmp);
+			handler->outgoing(handler->remote(), Message::Broadcast, Message::Notify, tmp);
 		}
 	}
 }
@@ -417,7 +418,7 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 		JsonSerializer serializer(&payload);
 		serializer.output(notification);
 		
-		handler->outgoing(peer, Message::Notify, payload);
+		handler->outgoing(peer, Message::Forward, Message::Notify, payload);
 		return true;
 	}
 	
@@ -629,7 +630,7 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	return true;
 }
 
-void Core::outgoing(uint8_t content, Stream &payload)
+void Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
 {
 	Synchronize(this);
 	
@@ -647,13 +648,18 @@ void Core::outgoing(uint8_t content, Stream &payload)
 			Desynchronize(this);
 			
 			BinaryString tmp(bs);	// TODO
-			handler->outgoing(Identifier::Null, content, tmp);
+			handler->outgoing(Identifier::Null, type, content, tmp);
 		}
 	}
 }
 
 Core::Message::Message(void) :
-	payload(1024 + 32)
+	version(0),
+	flags(0),
+	type(Forward),
+	content(Empty),
+	hops(0),
+	payload(32 + 1024)
 {
 	
 }
@@ -663,10 +669,12 @@ Core::Message::~Message(void)
 	
 }
 
-void Core::Message::prepare(const Identifier &source, const Identifier &destination)
+void Core::Message::prepare(const Identifier &source, const Identifier &destination, uint8_t type, uint8_t content)
 {
 	this->source = source;
 	this->destination = destination;
+	this->type = type;
+	this->content = content;
 	payload.clear();
 }
 
@@ -757,7 +765,7 @@ void Core::Publisher::publish(const String &prefix, const BinaryString &target)
 	BinaryString payload;
 	payload.writeBinary(prefix);
 	payload.writeBinary(target);
-	Core::Instance->outgoing(Message::Publish, payload);
+	Core::Instance->outgoing(Message::Broadcast, Message::Publish, payload);
 }
 
 void Core::Publisher::unpublish(const String &prefix)
@@ -1475,11 +1483,15 @@ bool Core::Handler::recv(Message &message)
 		AssertIO(mStream->readBinary(message.hops));
 		AssertIO(mStream->readBinary(size));
 		
-		AssertIO(mStream->readBinary(message.source));
-		AssertIO(mStream->readBinary(message.destination));
+		BinarySerializer serializer(mStream);
+		AssertIO(static_cast<Serializer*>(&serializer)->input(message.source));
+		AssertIO(static_cast<Serializer*>(&serializer)->input(message.destination));
 		
 		message.payload.clear();
-		if(mStream->readBinary(message.payload, size) != size)
+		if(size > message.payload.length())
+			throw IOException("Message payload too big");
+		
+		if(!mStream->readBinary(message.payload, size))
 			throw IOException("Incomplete message");
 	}
 	
@@ -1500,9 +1512,11 @@ void Core::Handler::send(const Message &message)
 	buffer.writeBinary(message.hops);
 	buffer.writeBinary(size);
 	
-	buffer.writeBinary(message.source);
-	buffer.writeBinary(message.destination);
-	buffer.writeBinary(message.payload.data(), message.payload.size());
+	BinarySerializer serializer(&buffer);
+	static_cast<Serializer*>(&serializer)->output(message.source);
+	static_cast<Serializer*>(&serializer)->output(message.destination);
+	
+	buffer.writeBinary(message.payload.data(), size);
 	
 	{
 		Desynchronize(this);
@@ -1524,10 +1538,8 @@ bool Core::Handler::incoming(Message &message)
 	const Identifier &source = message.source;
 	Stream &payload = message.payload;
 	
-	uint8_t content;
-	payload.readBinary(content);
 	
-	switch(content)
+	switch(message.content)
 	{
 		case Message::Tunnel:
 		{
@@ -1537,8 +1549,13 @@ bool Core::Handler::incoming(Message &message)
 		  
 		case Message::Notify:
 		{
-			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
-			mSenders[source]->ack(payload); 
+			// TODO
+			//if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
+			//mSenders[source]->ack(payload);
+			
+			Notification notification;
+			JsonSerializer json(&payload);
+			json.input(notification);
 			
 			Desynchronize(this);
 			Synchronize(mCore);
@@ -1549,7 +1566,7 @@ bool Core::Handler::incoming(Message &message)
 					jt != it->second.end();
 					++jt)
 				{
-					(*jt)->recv(source, Notification(String(message.payload)));
+					(*jt)->recv(source, notification);
 				}
 				
 				++it;
@@ -1607,7 +1624,7 @@ bool Core::Handler::incoming(Message &message)
 			{
 				Desynchronize(this);
 				mCore->unregisterAllCallers(target);
-				outgoing(source, Message::Cancel, target);
+				outgoing(source, Message::Forward, Message::Cancel, target);
 			}
 			break;
 		}
@@ -1633,7 +1650,7 @@ bool Core::Handler::incoming(Message &message)
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
 				
-				if(content == Message::Publish)
+				if(message.content == Message::Publish)
 				{
 					BinaryString target;
 					while(payload.readBinary(target))
@@ -1651,7 +1668,7 @@ bool Core::Handler::incoming(Message &message)
 						}
 					}
 				}
-				else {	// content == Message::Subscribe
+				else {	// message.content == Message::Subscribe
 					
 					Desynchronize(this);
 					
@@ -1674,7 +1691,7 @@ bool Core::Handler::incoming(Message &message)
 							}
 						}
 						
-						if(written) outgoing(source, Message::Publish, response);
+						if(written) outgoing(source, Message::Broadcast, Message::Publish, response);
 					}
 				}
 				
@@ -1692,29 +1709,47 @@ bool Core::Handler::incoming(Message &message)
 	return true;
 }
 
-void Core::Handler::outgoing(const Identifier &dest, uint8_t content, Stream &payload)
+void Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
 	Message message;
-	message.prepare(mLocal, dest);
-	message.payload.writeBinary(content);
+	message.prepare(mLocal, dest, type, content);
 	message.payload.write(payload);
 	send(message);
 }
 
 void Core::Handler::process(void)
 {
+	Synchronize(this);
+
 	String command, args;
 	StringMap parameters;
-  
-	Synchronize(this);
-	LogDebug("Core::Handler", "Starting...");
-
-	// TODO: send hello notification
+	
+	// New node is connected
+	if(mRemote != Identifier::Null)
+	{
+		Desynchronize(this);
+		Synchronize(mCore);
+		
+		Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(mRemote);
+		while(it != mCore->mListeners.end() && it->first == mRemote)
+		{
+			for(Set<Listener*>::iterator jt = it->second.begin();
+				jt != it->second.end();
+				++jt)
+			{
+				(*jt)->connected(mRemote); 
+			}
+			
+			++it;
+		}
+	}
 	
 	Message message;
 	while(recv(message))
 	{
 		try {
+			LogDebug("Core::Handler", "Incoming message (type=" + String::number(unsigned(message.type)) + ", content=" + String::number(unsigned(message.content)) + ")");
+			
 			switch(message.type)
 			{
 				case Message::Forward:
@@ -1733,42 +1768,42 @@ void Core::Handler::process(void)
 						route(message);
 					
 				default:
-					// Drop
+					LogDebug("Core::Handler", "Unknwon message type " + String::number(unsigned(message.type)) + ", dropping");
 					break;
 			}
 		}
 		catch(const std::exception &e)
 		{
-			LogWarn("Core::Handler", e.what()); 
+			LogWarn("Core::Handler", String("Unable to process message: ") + e.what()); 
 			return;
 		}
-	}
-	
-	try {
-		Synchronize(mCore);
-		
-		mCore->removeHandler(mRemote, this);
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Core::Handler", e.what()); 
 	}
 }
 
 void Core::Handler::run(void)
 {
+	mCore->addHandler(mRemote, this);
+	
 	try {
+		LogDebug("Core::Handler", "Starting link handler");
+	
 		process();
+		
+		LogDebug("Core::Handler", "Closing link handler");
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("Core::Handler::run", String("Unhandled exception: ") + e.what()); 
+		LogDebug("Core::Handler", String("Closing link handler: ") + e.what());
+	}
+	
+	try {
+		mCore->removeHandler(mRemote, this);
 	}
 	catch(...)
 	{
-		LogWarn("Core::Handler::run", String("Unhandled unknown exception")); 
+	  
 	}
-		
+	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
 	delete this;		// autodelete
@@ -1830,9 +1865,10 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 		sequence = mCurrentSequence;
 	}
 	
+	// TODO
+	
 	Message message;
-	message.prepare(mHandler->mLocal, mDestination);
-	message.payload.writeBinary(uint8_t(Message::Notify));
+	message.prepare(mHandler->mLocal, mDestination, Message::Forward, Message::Notify);
 	message.payload.writeBinary(uint32_t(sequence));
 	message.payload.write(payload);
 	
@@ -1849,7 +1885,7 @@ void Core::Handler::Sender::ack(Stream &payload)
 	BinaryString ack;
 	ack.writeBinary(sequence);
 	
-	mHandler->outgoing(mDestination, Message::Ack, payload);
+	mHandler->outgoing(mDestination, Message::Forward, Message::Ack, payload);
 }
 
 void Core::Handler::Sender::acked(Stream &payload)
@@ -1885,7 +1921,7 @@ void Core::Handler::Sender::run(void)
 		if(it != mTargets.end()) mNextTarget = it->first;
 		
 		BinaryString dest(mDestination);
-		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Data, data));
+		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, data));
 		
 		// Warning: iterator is not valid anymore here
 	}

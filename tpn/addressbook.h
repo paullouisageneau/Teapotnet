@@ -107,6 +107,7 @@ public:
 
 		// Listener
 		void seen(const Identifier &peer);
+		void connected(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
 		bool auth(const Identifier &peer, BinaryString &secret);
 		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
@@ -165,6 +166,7 @@ public:
 		
 		// Core::Listener
 		void seen(const Identifier &peer);
+		void connected(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
 		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
 		

@@ -908,11 +908,26 @@ void AddressBook::Invitation::seen(const Identifier &peer)
 	// TODO
 }
 
+void AddressBook::Invitation::connected(const Identifier &peer)
+{
+	LogDebug("AddressBook::Invitation", "Connected");
+  
+	Notification notification;
+	notification["type"] << "hello";
+	notification["publickey"] << mAddressBook->user()->publicKey();
+	
+	// TODO: force direct
+	if(!Core::Instance->send(peer, notification))
+		throw Exception("Unable to send hello");
+}
+
 bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
 	Synchronize(mAddressBook);
 	
 	// TODO
+	VAR(notification);
+	
 	return false;
 }
 
@@ -1367,6 +1382,8 @@ int AddressBook::Contact::getInstanceIdentifiers(Array<Identifier> &result) cons
 
 bool AddressBook::Contact::getInstanceIdentifier(uint64_t number, Identifier &result) const
 {
+	Synchronize(mAddressBook);
+	
 	InstancesMap::const_iterator it = mInstances.find(number);
 	if(it != mInstances.end())
 	{
@@ -1379,6 +1396,8 @@ bool AddressBook::Contact::getInstanceIdentifier(uint64_t number, Identifier &re
 
 bool AddressBook::Contact::getInstanceName(uint64_t number, String &result) const
 {
+	Synchronize(mAddressBook);
+	
 	InstancesMap::const_iterator it = mInstances.find(number);
 	if(it != mInstances.end())
 	{
@@ -1391,6 +1410,8 @@ bool AddressBook::Contact::getInstanceName(uint64_t number, String &result) cons
 
 bool AddressBook::Contact::getInstanceAddresses(uint64_t number, Set<Address> &result) const
 {
+	Synchronize(mAddressBook);
+	
 	InstancesMap::const_iterator it = mInstances.find(number);
 	if(it != mInstances.end())
 	{
@@ -1413,20 +1434,30 @@ bool AddressBook::Contact::send(const Mail &mail)
 
 void AddressBook::Contact::seen(const Identifier &peer)
 {
+	Synchronize(mAddressBook);
 	if(peer != identifier()) return;
   
 	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
 	mInstances[peer.number()].setSeen();
 }
 
+void AddressBook::Contact::connected(const Identifier &peer)
+{
+	Synchronize(mAddressBook);
+	if(peer != identifier()) return;
+	
+	// TODO
+}
+
 bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
 {
 	// Not synchronized
-
+	if(peer != identifier()) return false;
+	
 	String type;
 	notification.get("type", type);
 	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
-
+	
 	// TODO
 	
 	return true;

@@ -446,6 +446,11 @@ Identifier User::identifier(void) const
 	return Identifier(mPublicKey.digest()); 
 }
 
+const Rsa::PublicKey &User::publicKey(void) const
+{
+	return mPublicKey; 
+}
+
 SecureTransport::Certificate *User::certificate(void) const
 {
 	return mCertificate;
