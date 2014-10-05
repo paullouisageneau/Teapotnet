@@ -518,24 +518,21 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 	return true;
 }
 
-bool Core::addPeer(Stream *bs, const Identifier &id)
+bool Core::addPeer(Stream *bs, const Identifier &local, const Identifier &remote)
 {
 	// Not synchronized
 	Assert(bs);
 
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, bs);
-	// TODO
-	//if(id != Identifier::Null) handler->setRemote(id);
+	Handler *handler = new Handler(this, bs, local, remote);
 	mThreadPool.launch(handler);
-	
 	return true;
 }
 
-bool Core::hasPeer(const Identifier &id)
+bool Core::hasPeer(const Identifier &remote)
 {
 	Synchronize(this);
-	return mHandlers.contains(id);
+	return mHandlers.contains(remote);
 }
 
 /*
@@ -883,6 +880,8 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		// Add contact private shared key
 		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
 		transport->addCredentials(creds, true);	// must delete
+		
+		doHandshake(transport, locator.peering);
 	}
 	else if(locator.user)
 	{
@@ -891,15 +890,17 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		// Add user certificate
 		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
+		
+		doHandshake(transport, locator.identifier);
 	}
 	else {
 		LogDebug("Core::Backend::process", "Setting anonymous credentials");
 	  
 		// Add anonymous credentials
 		transport->addCredentials(&mAnonymousClientCreds);
+		
+		doHandshake(transport, Identifier::Null);
 	}
-	
-	doHandshake(transport, locator.identifier);
 }
 
 void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &remote)
@@ -908,12 +909,11 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	{
 	public:
 		User *user;
-		Identifier peering;
-		Identifier identifier;
+		Identifier remote;
 		Rsa::PublicKey publicKey;
 		
 		MyVerifier(Core *core) { this->core = core; this->user = NULL; }
-	
+		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
 			LogDebug("Core::Backend::doHandshake", String("Verification for certificate mode, remote: ") + name);
@@ -936,7 +936,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			LogDebug("Core::Backend::doHandshake", String("Verification for PSK mode, remote: ") + name);
 			
 			try {
-				peering.fromString(name);
+				remote.fromString(name);
 			}
 			catch(...)
 			{
@@ -944,26 +944,26 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				return false;
 			}
 			
-			if(!peering.empty())
+			if(!remote.empty())
 			{
 				Synchronize(core);
 				
-				Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(peering);
-				while(it != core->mListeners.end() && it->first == peering)
+				Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
+				while(it != core->mListeners.end() && it->first == remote)
 				{
 					for(Set<Listener*>::iterator jt = it->second.begin();
 						jt != it->second.end();
 						++jt)
 					{
-						if((*jt)->auth(peering, key))
+						if((*jt)->auth(remote, key))
 							return true;
 					}
 					
 					++it;
 				}
 			}
-			
-			LogDebug("Core::Backend::doHandshake", String("Peering not found: ") + peering.toString());
+
+			LogDebug("Core::Backend::doHandshake", String("Peering not found: ") + remote.toString());
 			return false;
 		}
 		
@@ -972,18 +972,18 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 			if(!user) return false;
 			
 			publicKey = pub;
-			identifier = publicKey.digest();
+			remote = publicKey.digest();
 			
 			Synchronize(core);
 			
-			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(peering);
-			while(it != core->mListeners.end() && it->first == peering)
+			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
+			while(it != core->mListeners.end() && it->first == remote)
 			{
 				for(Set<Listener*>::iterator jt = it->second.begin();
 					jt != it->second.end();
 					++jt)
 				{
-					if((*jt)->auth(identifier, publicKey))
+					if((*jt)->auth(remote, publicKey))
 						return true;
 				}
 				
@@ -1019,12 +1019,31 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				// Do handshake
 				transport->handshake();
 				
-				// Check identifier
-				if(!remote.empty() && verifier.identifier != remote)
-					throw Exception("invalid identifier");
+				if(transport->isClient() && !transport->hasCertificate())
+				{
+					// Assign identifier
+					verifier.remote = remote;
+				}
+				else {
+					// Check identifier
+					if(remote != Identifier::Null && verifier.remote != remote)
+						throw Exception("Invalid identifier: " + verifier.remote.toString());
+				}
 				
 				// Handshake succeeded, add peer
-				core->addPeer(transport, verifier.identifier);
+				LogDebug("Core::Backend::doHandshake", "Handshake succeeded");
+				if(transport->hasCertificate()) 
+				{
+					Assert(verifier.user);
+					core->addPeer(transport, verifier.user->identifier(), verifier.remote);
+				}
+				else if(transport->hasPrivateSharedKey())
+				{
+					core->addPeer(transport, verifier.remote, verifier.remote);
+				}
+				else {
+					core->addPeer(transport, Identifier::Null, Identifier::Null);
+				}
 			}
 			catch(const std::exception &e)
 			{
@@ -1376,9 +1395,11 @@ bool Core::TunnelBackend::TunnelWrapper::incoming(Message &message)
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Stream *stream) :
+Core::Handler::Handler(Core *core, Stream *stream, const Identifier &local, const Identifier &remote) :
 	mCore(core),
 	mStream(stream),
+	mLocal(local),
+	mRemote(remote),
 	mIsIncoming(true),
 	mStopping(false)
 {
@@ -1687,11 +1708,10 @@ void Core::Handler::process(void)
   
 	Synchronize(this);
 	LogDebug("Core::Handler", "Starting...");
+
+	// TODO: send hello notification
 	
 	Message message;
-	message.prepare(mLocal, mRemote);
-	// TODO
-	
 	while(recv(message))
 	{
 		try {

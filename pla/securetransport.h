@@ -86,6 +86,7 @@ public:
 	void handshake(void);
 	void close(void);
 	
+	virtual bool isClient(void);
 	bool isHandshakeDone(void);
 	bool isAnonymous(void);
 	bool hasPrivateSharedKey(void);
@@ -192,6 +193,8 @@ public:
 	
 	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will be deleted
 	~SecureTransportServer(void);
+	
+	bool isClient(void);
 	
 protected:
 	static int PostClientHelloCallback(gnutls_session_t session);

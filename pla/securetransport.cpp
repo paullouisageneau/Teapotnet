@@ -140,6 +140,11 @@ void SecureTransport::close(void)
 	gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
 }
 
+bool SecureTransport::isClient(void)
+{
+	return true; 
+}
+
 bool SecureTransport::isHandshakeDone(void)
 {
 	return mIsHandshakeDone; 
@@ -578,6 +583,11 @@ SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds,
 SecureTransportServer::~SecureTransportServer(void)
 {
 	
+}
+
+bool SecureTransportServer::isClient(void)
+{
+	return false; 
 }
 
 int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)

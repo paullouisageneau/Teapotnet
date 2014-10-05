@@ -222,8 +222,8 @@ public:
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
-	bool addPeer(Stream *bs, const Identifier &id);
-	bool hasPeer(const Identifier &id);
+	bool addPeer(Stream *bs, const Identifier &local, const Identifier &remote);
+	bool hasPeer(const Identifier &remote);
 	
 private:
 	class Backend : public Thread
@@ -327,7 +327,7 @@ private:
 	class Handler : public Task, protected Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *stream);
+		Handler(Core *core, Stream *stream, const Identifier &local, const Identifier &remote);
 		~Handler(void);
 		
 		Identifier local(void) const;
@@ -393,12 +393,12 @@ private:
 		void process(void);
 		void run(void);
 
-		Identifier mLocal, mRemote;
-		
 		Core	*mCore;
 		Stream  *mStream;
 		Mutex	mStreamReadMutex, mStreamWriteMutex;
 
+		Identifier mLocal, mRemote;
+		
 		Map<String, Set<Subscriber*> > mSubscribers;
 		Map<BinaryString, Sender*> mSenders;
 		
