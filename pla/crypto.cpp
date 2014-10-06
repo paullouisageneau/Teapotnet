@@ -430,16 +430,17 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 		BinarySerializer serializer(&bs);
 		AssertIO(deserialize(serializer));
 	}
-	catch(const InvalidData &e)
-	{
-		throw;
-	}
 	catch(const Exception &e)
 	{
 		throw InvalidData(String("Invalid RSA public key: ") + e.what());
 	}
 	
 	return true;
+}
+
+bool Rsa::PublicKey::isInlineSerializable(void) const
+{
+	return true; 
 }
 
 Rsa::PrivateKey::PrivateKey(void)
@@ -578,6 +579,11 @@ bool Rsa::PrivateKey::deserialize(Stream &s)
 	}
 	
 	return true;
+}
+
+bool Rsa::PrivateKey::isInlineSerializable(void) const
+{
+	return true; 
 }
 
 Rsa::Rsa(unsigned bits) :

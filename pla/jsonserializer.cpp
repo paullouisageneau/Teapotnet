@@ -242,7 +242,14 @@ void JsonSerializer::output(const String &str)
 
 bool JsonSerializer::inputArrayBegin(void)
 {
-	return mStream->assertChar('[');
+	char chr;
+	do if(!mStream->get(chr)) return false;
+	while(Stream::BlankCharacters.contains(chr));
+	
+	if(chr == '[') return true;
+	if(chr == '}' || chr == ']') return false;
+	
+	throw IOException();
 }
 
 bool JsonSerializer::inputArrayCheck(void)
@@ -253,7 +260,7 @@ bool JsonSerializer::inputArrayCheck(void)
 			return false;
 
 	if(chr == '[' || chr == ',') return true;
-	if(chr == ']') 
+	if(chr == '}' || chr == ']')
 	{
 		mStream->ignore(1);
 		return false;
@@ -264,7 +271,14 @@ bool JsonSerializer::inputArrayCheck(void)
 
 bool JsonSerializer::inputMapBegin(void)
 {
-	return mStream->assertChar('{');
+	char chr;
+	do if(!mStream->get(chr)) return false;
+	while(Stream::BlankCharacters.contains(chr));
+	VAR(chr);
+	if(chr == '{') return true;
+	if(chr == '}' || chr == ']') return false;
+	
+	throw IOException();
 }
 
 bool JsonSerializer::inputMapCheck(void)
@@ -275,7 +289,7 @@ bool JsonSerializer::inputMapCheck(void)
 			return false;
 		
 	if(chr == '{' || chr == ',') return true;
-	if(chr == '}')
+	if(chr == '}' || chr == ']')
 	{
 		mStream->ignore(1);  
 		return false;

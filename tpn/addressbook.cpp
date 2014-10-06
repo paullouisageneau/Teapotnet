@@ -143,6 +143,12 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(this);
 	
+	if(name.empty())
+		throw Exception("Contact name is empty");
+	
+	if(!name.isAlphanumeric())
+		throw Exception("Contact name is invalid: " + name);
+	
 	String uname = name;
 	unsigned i = 1;
 	while((mContacts.contains(uname))
@@ -810,7 +816,8 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 
 AddressBook::Invitation::~Invitation(void)
 {
-
+	if(mAddressBook)
+		mAddressBook->mScheduler.cancel(this);
 }
 
 void AddressBook::Invitation::generate(const String &salt, const String &secret)
@@ -914,6 +921,7 @@ void AddressBook::Invitation::connected(const Identifier &peer)
   
 	Notification notification;
 	notification["type"] << "hello";
+	notification["name"] << mAddressBook->user()->name();
 	notification["publickey"] << mAddressBook->user()->publicKey();
 	
 	// TODO: force direct
@@ -925,10 +933,30 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 {
 	Synchronize(mAddressBook);
 	
-	// TODO
-	VAR(notification);
+	String name;
+	if(!notification.get("name", name))
+		throw Exception("Missing contact name");
 	
-	return false;
+	if(!notification.contains("publickey"))
+		throw Exception("Missing contact public key");
+	
+	Rsa::PublicKey pubKey;
+	notification.get("publickey").extract(pubKey);
+	
+	for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
+	{
+		if(mAddressBook->mInvitations[i].peering() == peering())
+		{
+			mAddressBook->mInvitations.erase(i);
+			break;
+		}
+	}
+	
+	// WARNING: Invitation is deleted here
+	
+	// Add contact
+	mAddressBook->addContact(name, pubKey);	// calls save()
+	return true;
 }
 
 bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
@@ -1017,7 +1045,6 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	setAddressBook(contact.mAddressBook);
 	//createProfile();
 	listen(identifier());
-	Interface::Instance->add(urlPrefix(), this);
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
@@ -1036,12 +1063,15 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	setAddressBook(addressBook);
 	//createProfile();
 	listen(identifier());
-	Interface::Instance->add(urlPrefix(), this);
 }
 
 AddressBook::Contact::~Contact(void)
 {
-	Interface::Instance->remove(urlPrefix(), this);
+	if(mAddressBook)
+	{
+		Interface::Instance->remove(urlPrefix(), this);
+		mAddressBook->mScheduler.cancel(this);
+	}
 	
 	delete mProfile;
 }
@@ -1066,11 +1096,20 @@ void AddressBook::Contact::run(void)
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
-	if(mAddressBook) mAddressBook->mScheduler.cancel(this);
+	if(mAddressBook) 
+	{
+		mAddressBook->mScheduler.cancel(this);
+		
+		Interface::Instance->remove(urlPrefix(), this);
+	}
+	
 	mAddressBook = addressBook;
-	if(mAddressBook) {
+	if(mAddressBook) 
+	{
 		mAddressBook->mScheduler.schedule(this, 1.);
 		mAddressBook->mScheduler.repeat(this, 300.);
+		
+		Interface::Instance->add(urlPrefix(), this);
 	}
 }
 
@@ -1763,13 +1802,12 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
 	
-	if(!s.inputObject(mapping));
+	if(!s.inputObject(mapping))
 		return false;
 	
 	// TODO: sanity checks
 	
 	listen(identifier());
-	Interface::Instance->add(urlPrefix(), this);
 	return true;
 }
 

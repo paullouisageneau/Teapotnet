@@ -150,6 +150,7 @@ public:
                 bool deserialize(Serializer &s);
                 void serialize(Stream &s) const;
                 bool deserialize(Stream &s);
+		bool isInlineSerializable(void) const;
 
         private:
 		struct rsa_public_key mKey;
@@ -172,6 +173,7 @@ public:
         	bool deserialize(Serializer &s);
         	void serialize(Stream &s) const;
         	bool deserialize(Stream &s);
+		bool isInlineSerializable(void) const;
 
 	private:
 		struct rsa_private_key mKey;
