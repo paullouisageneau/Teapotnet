@@ -274,7 +274,7 @@ bool JsonSerializer::inputMapBegin(void)
 	char chr;
 	do if(!mStream->get(chr)) return false;
 	while(Stream::BlankCharacters.contains(chr));
-	VAR(chr);
+	
 	if(chr == '{') return true;
 	if(chr == '}' || chr == ']') return false;
 	
