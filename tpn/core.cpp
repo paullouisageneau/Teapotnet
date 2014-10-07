@@ -266,6 +266,25 @@ void Core::registerListener(const Identifier &id, Listener *listener)
 	mListeners[id].insert(listener);
 	
 	//LogDebug("Core::registerListener", "Registered listener: " + id.toString());
+	
+	List<Identifier> connectedIdentifiers;
+	Map<Identifier, Handler*>::iterator it = mHandlers.find(id);
+	while(it != mHandlers.end() && it->first == id)
+	{
+		connectedIdentifiers.push_back(it->first);
+		++it;
+	}
+	
+	if(!connectedIdentifiers.empty())
+	{
+		Desynchronize(this);
+		for(List<Identifier>::iterator it = connectedIdentifiers.begin();
+			it != connectedIdentifiers.end();
+			++it)
+		{
+			listener->connected(*it); 
+		}
+	}
 }
 
 void Core::unregisterListener(const Identifier &id, Listener *listener)

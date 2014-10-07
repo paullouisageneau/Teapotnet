@@ -599,7 +599,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Contacts");
 			page.close("h2");
-	
+		
+			// TODO
 			AddressBook::Contact *self = mAddressBook->getSelf();
 			Array<AddressBook::Contact*> contacts;
 			mAddressBook->getContacts(contacts);

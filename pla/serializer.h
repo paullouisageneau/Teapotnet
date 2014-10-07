@@ -136,6 +136,12 @@ public:
 	// Functions for simple object input/output
 	bool inputObject(ObjectMapping &mapping);
 	void outputObject(ConstObjectMapping &mapping);
+	
+	bool optionalOutputMode(void) const;
+	void setOptionalOutputMode(bool enabled = true);
+	
+private:
+	bool mOptionalOutputMode;
 };
 
 template<typename T> 

@@ -30,7 +30,8 @@
 namespace pla
 {
 
-Serializer::Serializer(void)
+Serializer::Serializer(void) :
+	mOptionalOutputMode(false)
 {
   
 }
@@ -100,6 +101,16 @@ void Serializer::outputObject(ConstObjectMapping &mapping)
 	}
 	
 	outputMapEnd();
+}
+
+bool Serializer::optionalOutputMode(void) const
+{
+	return mOptionalOutputMode;  
+}
+
+void Serializer::setOptionalOutputMode(bool enabled)
+{
+	mOptionalOutputMode = enabled; 
 }
 
 void Serializer::Pair::serialize(Serializer &s) const

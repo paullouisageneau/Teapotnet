@@ -139,7 +139,8 @@ public:
 		Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
-				const Rsa::PublicKey &pubKey);
+				const Rsa::PublicKey &pubKey,
+				const String &tracker = "");
 		~Contact(void);
 		
 		void setAddressBook(AddressBook *addressBook);
@@ -148,6 +149,7 @@ public:
 		Identifier identifier(void) const;
 		String uniqueName(void) const;
 		String name(void) const;
+		String tracker(void) const;
 		String urlPrefix(void) const;
 		Profile *profile(void) const;
 		
@@ -179,6 +181,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void createProfile(void);
 		void run(void);
 	  
 		class Instance : public Serializable
@@ -216,7 +219,7 @@ public:
 		AddressBook *mAddressBook;
 		Profile *mProfile;
 		
-		String mUniqueName, mName;
+		String mUniqueName, mName, mTracker;
 		Rsa::PublicKey mPublicKey;
 
 		typedef SerializableMap<uint64_t, Instance> InstancesMap;
@@ -225,7 +228,7 @@ public:
 		friend class AddressBook;
 	};
 	
-	String addContact(const String &name, const Rsa::PublicKey &pubKey);	// returns uname
+	String addContact(const String &name, const Rsa::PublicKey &pubKey, const String &tracker = "");	// returns uname
 	bool removeContact(const String &uname);
 	Contact *getContact(const String &uname);
 	const Contact *getContact(const String &uname) const;

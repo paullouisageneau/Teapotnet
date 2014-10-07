@@ -291,59 +291,51 @@ function displayContacts(url, period, object) {
 	setCallback(url, period, function(data) {
 		$(object).find('p').remove();
 		if(data != null) {
-			var totalmessages = 0;
-			var play = false;
-			$.each(data, function(uname, info) {
+			$.each(data.contacts, function(uname, contact) {
 				
-				var isSelf = (info.prefix.substr(info.prefix.length-6) == 'myself');
+				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
 				
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
-					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+info.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>');
+					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactcontact_'+uname+'\" class=\"contactcontact\"></div></div>');
 				}
 
-				$('#contact_'+uname).attr('class', info.status);
-				transition($('#contact_'+uname+' .status'), info.status.capitalize());
+				$('#contact_'+uname).attr('class', contact.status);
+				transition($('#contact_'+uname+' .status'), contact.status.capitalize());
 				
-				if($('#contactinfo_'+uname).html() == '') {
+				if($('#contactcontact_'+uname).html() == '') {
 					$('#contact_'+uname).click(function(event) {
-						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
-						else $('#contactinfo_'+uname).slideToggle('fast');
+						if($(window).width() < 1024) $('#contactcontact_'+uname).toggle();
+						else $('#contactcontact_'+uname).slideToggle('fast');
 					});
 					$('#contact_'+uname+' a').click(function(event)
 					{
-						event.stopPropagation(); // So the div infosContact is not displayed when clicked on contact link
+						event.stopPropagation(); // So the div contactsContact is not displayed when clicked on contact link
 					});
 					$('#contact_'+uname).hover(function () {
 						$(this).css('cursor','pointer');
 					});
 				}
 				
-				$('#contactinfo_'+uname).html('<span class=\"name\">'+info.name+'@'+info.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+info.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+info.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
+				$('#contactcontact_'+uname).html('<span class=\"name\">'+contact.name+'@'+contact.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+contact.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
 				if(!isSelf) {
-					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+info.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
+					$('#contactcontact_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
 				
-					var count = parseInt(info.messages);
+					var count = parseInt(contact.messages);
 					var str = '';
-					if(count != 0) str = ' <a href=\"'+info.prefix+'/chat/\">('+count+')</a>';
+					if(count != 0) str = ' <a href=\"'+contact.prefix+'/chat/\">('+count+')</a>';
 					transition($('#contact_'+uname+' .messagescount'), str);
-					totalmessages+= count;
-					if(count > 0 && info.newmessages)
+					
+					/*if(count > 0 && contact.newmessages)
 					{
 						play = true;
 						
 						var notif = notify("New private message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
 						notif.onclick = function() {
-							window.location.href = info.prefix+'/chat/';
+							window.location.href = contact.prefix+'/chat/';
 						};
-					}
+					}*/
 				}
 			});
-			
-			if(totalmessages != 0) {
-				document.title = title+' ('+totalmessages+')';
-				if(play) playMessageSound();
-			}
-			else document.title = title;
 		}
 	});
 
