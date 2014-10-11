@@ -268,7 +268,7 @@ void Socket::close(void)
 		mSock = INVALID_SOCKET;
 	}
 
-	mProxifiedAddr.setNull();
+	mProxifiedAddr.clear();
 }
 
 size_t Socket::readData(char *buffer, size_t size)

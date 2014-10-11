@@ -30,6 +30,7 @@
 #include "tpn/profile.h"
 
 #include "pla/synchronizable.h"
+#include "pla/serializable.h"
 #include "pla/securetransport.h"
 #include "pla/crypto.h"
 #include "pla/thread.h"
@@ -42,7 +43,7 @@ namespace tpn
 
 class AddressBook;
   
-class User : protected Synchronizable, public HttpInterfaceable
+class User : protected Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
 	static unsigned Count(void);
@@ -54,6 +55,9 @@ public:
 	
 	User(const String &name, const String &password = "", const String &tracker = "");
 	~User(void);
+	
+	void load(void);
+	void save(void) const;
 	
 	String name(void) const;
 	String tracker(void) const;
@@ -73,8 +77,7 @@ public:
 	void sendStatus(const Identifier &identifier = Identifier::Null);
 	void sendSecret(const Identifier &identifier);
 	
-	void setSecret(const BinaryString &secret, const Time &time);
-	BinaryString getSecretKey(const String &action);
+	BinaryString getSecretKey(const String &action) const;
 	
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
@@ -84,9 +87,14 @@ public:
 	SecureTransport::Certificate *certificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);
+
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
 	
 private:
 	String mName;
+	String mFileName;
 	BinaryString mAuth;
 	AddressBook *mAddressBook;
 	MailQueue *mMailQueue;
@@ -95,12 +103,12 @@ private:
 	
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
+	BinaryString mSecret;
 	SecureTransport::Certificate *mCertificate;
 	
 	bool mOnline;
 	BinaryString mTokenSecret;
-	BinaryString mSecret;
-	Map<String, BinaryString> mSecretKeysCache;
+	mutable Map<String, BinaryString> mSecretKeysCache;
 	
 	class SetOfflineTask : public Task
 	{

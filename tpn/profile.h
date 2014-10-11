@@ -43,6 +43,11 @@ public:
 	Profile(User *user, const String &uname = "", const String &tracker = "");
 	~Profile(void);
 	
+	void load(void);
+	void save(void);
+	void clear(void);
+	void send(const Identifier &identifier);
+	
 	String name(void) const;
 	String realName(void) const;
 	String eMail(void) const;
@@ -54,11 +59,6 @@ public:
 	bool isSelf(void) const;
 	
 	void setTracker(const String &tracker);
-	
-	void load(void);
-	void save(void);
-	void clear(void);
-	void send(const Identifier &identifier);
 	
 	// Serializable
 	void serialize(Serializer &s) const;

@@ -278,11 +278,13 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 Rsa::PublicKey::PublicKey(void)
 {
 	rsa_public_key_init(&mKey);
+	mKey.size = 0;
 }
 
 Rsa::PublicKey::PublicKey(const Rsa::PublicKey &key)
 {
 	rsa_public_key_init(&mKey);
+	mKey.size = 0;
 	*this = key;
 }
 
@@ -292,6 +294,7 @@ Rsa::PublicKey::PublicKey(gnutls_x509_crt_t crt)
 		throw Exception("Certificate public key algorithm is not RSA");
 	
 	rsa_public_key_init(&mKey);
+	mKey.size = 0;
 	
 	try {
 		gnutls_datum_t n, e;
@@ -329,10 +332,17 @@ Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
 	return *this;
 }
 
+bool Rsa::PublicKey::isNull(void)
+{
+	return (mKey.size == 0);
+}
+
 void Rsa::PublicKey::clear(void)
 {
 	rsa_public_key_clear(&mKey);
 	rsa_public_key_init(&mKey);
+	mKey.size = 0;
+	
 	mDigest.clear();
 }
 
@@ -397,8 +407,10 @@ bool Rsa::PublicKey::deserialize(Serializer &s)
 	AssertIO(s.input(n));
 	
 	try {
+		mKey.size = 0;
 		mpz_import_binary(mKey.e, e);
 		mpz_import_binary(mKey.n, n);
+		
 		if(!rsa_public_key_prepare(&mKey))
 			throw Exception("Invalid parameters");
 	}
@@ -446,11 +458,13 @@ bool Rsa::PublicKey::isInlineSerializable(void) const
 Rsa::PrivateKey::PrivateKey(void)
 {
 	rsa_private_key_init(&mKey);
+	mKey.size = 0;
 }
 
 Rsa::PrivateKey::PrivateKey(const PrivateKey &key)
 {
 	rsa_private_key_init(&mKey);
+	mKey.size = 0;
 	*this = key;
 }
 
@@ -468,6 +482,19 @@ Rsa::PrivateKey &Rsa::PrivateKey::operator=(const Rsa::PrivateKey &key)
 	mpz_set(mKey.a, key.mKey.a);
 	mpz_set(mKey.b, key.mKey.b);
 	mpz_set(mKey.c, key.mKey.c);
+}
+
+bool Rsa::PrivateKey::isNull(void)
+{
+	return (mKey.size == 0);
+}
+
+
+void Rsa::PrivateKey::clear(void)
+{
+	rsa_private_key_clear(&mKey);
+	rsa_private_key_init(&mKey);
+	mKey.size = 0;
 }
 
 void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) const
@@ -531,6 +558,7 @@ bool Rsa::PrivateKey::deserialize(Serializer &s)
 	AssertIO(s.input(c));
 	
 	try {
+		mKey.size = 0;
 		mpz_import_binary(mKey.d, d);
 		mpz_import_binary(mKey.p, p);
 		mpz_import_binary(mKey.q, q);

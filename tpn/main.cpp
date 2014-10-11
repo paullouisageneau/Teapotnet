@@ -668,7 +668,7 @@ String plist = "\
 					}
 					catch(const std::exception &e)
 					{
-						LogError("main", "Unable to load user \"" + name + "\": " + e.what());
+						LogError("main", "Unable to load user " + name + ": " + e.what());
 						continue;
 					}
 					

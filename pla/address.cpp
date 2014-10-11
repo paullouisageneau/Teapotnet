@@ -116,7 +116,7 @@ bool Address::Reverse(const Address &a, String &result)
 	
 Address::Address(void)
 {
-	setNull();
+	clear();
 }
 
 Address::Address(const String &host, const String &service)
@@ -193,7 +193,7 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 	std::memcpy(&mAddr, addr, addrlen);
 }
 
-void Address::setNull(void)
+void Address::clear(void)
 {
 	const sockaddr *null = NULL;
 	set(null, 0);

@@ -28,7 +28,6 @@
 #include "pla/directory.h"
 #include "pla/crypto.h"
 #include "pla/random.h"
-#include "pla/yamlserializer.h"
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
 #include "pla/mime.h"
@@ -135,23 +134,30 @@ User::User(const String &name, const String &password, const String &tracker) :
 		file.write(mAuth);
 		file.close();
 	}
-		
-	// Token secret
-	Random rnd(Random::Key);
-	mTokenSecret.writeBinary(rnd, 16);
 	
-	// Secret
-	if(File::Exist(profilePath()+"secret"))
+	// User config file
+	mFileName = profilePath() + "user";
+	
+	// Load if config file exist
+	load();
+	
+	// Generate RSA key and secret if necessary
+	Random rnd(Random::Key);
+	if(mPublicKey.isNull())
 	{
-		File file(profilePath()+"secret", File::Read);
-		file.read(mSecret);
-		file.close();
+		Rsa rsa(4096);
+		rsa.generate(mPublicKey, mPrivateKey);
+		rnd.readBinary(mSecret, 32);
+		
+		save();
 	}
 	
-	// RSA key
-	// TODO
-	Rsa rsa(4096);
-	rsa.generate(mPublicKey, mPrivateKey);
+	// Generate token secret
+	rnd.readBinary(mTokenSecret, 16);
+	
+	Assert(!mPublicKey.isNull());
+	Assert(!mSecret.empty());
+	Assert(!mTokenSecret.empty());
 	
 	mCertificate = NULL;
 	mIndexer = NULL;
@@ -206,6 +212,29 @@ User::~User(void)
 	delete mAddressBook;
 	delete mMailQueue;
 	delete mIndexer;
+}
+
+void User::load()
+{
+	Synchronize(this);
+	
+	if(!File::Exist(mFileName)) return;
+	File profileFile(mFileName, File::Read);
+	JsonSerializer serializer(&profileFile);
+	deserialize(serializer);
+}
+
+void User::save() const
+{
+	Synchronize(this);
+	
+	String tmp;
+	JsonSerializer serializer(&tmp);
+	serialize(serializer);
+
+	SafeWriteFile file(mFileName);
+	file.write(tmp);
+	file.close();
 }
 
 String User::name(void) const
@@ -327,39 +356,8 @@ void User::sendSecret(const Identifier &identifier)
 	DesynchronizeStatement(this, notification.send(identifier));
 }
 
-void User::setSecret(const BinaryString &secret, const Time &time)
+BinaryString User::getSecretKey(const String &action) const
 {
-	Synchronize(this);
-	
-	if(secret.empty()) return;
-	
-	if(mSecret.empty() || !File::Exist(profilePath()+"secret") || time >  File::Time(profilePath()+"secret"))
-	{
-		mSecret = secret;
-		
-		File file(profilePath()+"secret", File::Truncate);
-		file.write(mSecret);
-		file.close();
-		
-		if(mSecret != secret)
-		{
-			AddressBook::Contact *self = addressBook()->getSelf();
-			if(self) sendSecret(self->identifier());
-		}
-	}
-}
-
-BinaryString User::getSecretKey(const String &action)
-{
-	// Create secret if it does not exist
-	if(mSecret.empty())
-	{
-		Random rnd(Random::Key);
-		BinaryString secret;
-		secret.writeBinary(rnd, 32);
-		setSecret(secret, Time::Now());
-	}
-	
 	// Cache for subkeys
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
@@ -1050,6 +1048,39 @@ void User::http(const String &prefix, Http::Request &request)
 	}
 			
 	throw 404;
+}
+
+void User::serialize(Serializer &s) const
+{
+        Synchronize(this);
+
+        Serializer::ConstObjectMapping mapping;
+        mapping["publickey"] = &mPublicKey;
+        mapping["privatekey"] = &mPrivateKey;
+	mapping["secret"] = &mSecret;
+
+        s.outputObject(mapping);
+}
+
+bool User::deserialize(Serializer &s)
+{
+        Synchronize(this);
+
+        //mPublicKey.clear();
+        //mPrivateKey.clear();
+	mSecret.clear();
+
+        Serializer::ObjectMapping mapping;
+        mapping["publickey"] = &mPublicKey;
+        mapping["privatekey"] = &mPrivateKey;
+	mapping["secret"] = &mSecret;
+
+        return s.inputObject(mapping);
+}
+
+bool User::isInlineSerializable(void) const
+{
+        return false;
 }
 
 }

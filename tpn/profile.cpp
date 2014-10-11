@@ -89,6 +89,58 @@ Profile::~Profile()
 	Interface::Instance->remove(urlPrefix());
 }
 
+void Profile::load()
+{
+	Synchronize(this);
+	
+	if(!File::Exist(mFileName)) return;
+	File profileFile(mFileName, File::Read);
+	YamlSerializer serializer(&profileFile);
+	deserialize(serializer);
+}
+
+void Profile::save()
+{
+	Synchronize(this);
+	
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serialize(serializer);
+
+	SafeWriteFile file(mFileName);
+	file.write(tmp);
+	file.close();
+}
+
+void Profile::send(const Identifier &identifier)
+{
+	// Not synchronized
+
+	String tmp;
+	YamlSerializer serializer(&tmp);
+	serialize(serializer);
+	
+	Notification notification(tmp);
+	//notification.setParameter("type", "profile");		// TODO
+	//notification.setParameter("time", time().toString());
+	if(identifier != Identifier::Null) notification.send(identifier);
+	else mUser->addressBook()->send(notification);
+}
+
+void Profile::clear()
+{
+	Synchronize(this);
+	
+	for(	Map<String, Field*>::iterator it = mFields.begin();
+		it != mFields.end();
+		++it)
+	{
+		it->second->clear();
+	}
+	
+	// Do not call save() here
+}
+
 String Profile::name(void) const
 {
 	Synchronize(this);
@@ -161,58 +213,6 @@ void Profile::setTracker(const String &tracker)
 	Synchronize(this);
 	mTracker = tracker;
 	save();
-}
-
-void Profile::load()
-{
-	Synchronize(this);
-	
-	if(!File::Exist(mFileName)) return;
-	File profileFile(mFileName, File::Read);
-	YamlSerializer serializer(&profileFile);
-	deserialize(serializer);
-}
-
-void Profile::save()
-{
-	Synchronize(this);
-	
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serialize(serializer);
-
-	SafeWriteFile file(mFileName);
-	file.write(tmp);
-	file.close();
-}
-
-void Profile::send(const Identifier &identifier)
-{
-	// Not synchronized
-
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serialize(serializer);
-	
-	Notification notification(tmp);
-	//notification.setParameter("type", "profile");		// TODO
-	//notification.setParameter("time", time().toString());
-	if(identifier != Identifier::Null) notification.send(identifier);
-	else mUser->addressBook()->send(notification);
-}
-
-void Profile::clear()
-{
-	Synchronize(this);
-	
-	for(	Map<String, Field*>::iterator it = mFields.begin();
-		it != mFields.end();
-		++it)
-	{
-		it->second->clear();
-	}
-	
-	// Do not call save() here
 }
 
 void Profile::serialize(Serializer &s) const

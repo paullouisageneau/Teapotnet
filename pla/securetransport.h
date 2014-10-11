@@ -74,8 +74,6 @@ public:
 		~RsaCertificate(void);
 
 	protected:
-		gnutls_pcert_st mPcert;
-                gnutls_privkey_t mPkey;
                 gnutls_x509_crt_t mCrt;
                 gnutls_x509_privkey_t mKey;
 	};

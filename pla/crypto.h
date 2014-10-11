@@ -141,15 +141,16 @@ public:
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 		
+		bool isNull(void);
 		void clear(void);
 		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 		
-                 // Serializable
-                void serialize(Serializer &s) const;
-                bool deserialize(Serializer &s);
-                void serialize(Stream &s) const;
-                bool deserialize(Stream &s);
+		// Serializable
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		void serialize(Stream &s) const;
+		bool deserialize(Stream &s);
 		bool isInlineSerializable(void) const;
 
         private:
@@ -166,6 +167,8 @@ public:
 		~PrivateKey(void);
 		PrivateKey &operator=(const PrivateKey &key);
 		
+		bool isNull(void);
+		void clear(void);
 		void sign(const BinaryString &digest, BinaryString &signature) const;
 		
 		// Serializable

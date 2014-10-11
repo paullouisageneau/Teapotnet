@@ -440,35 +440,19 @@ void SecureTransport::Certificate::install(gnutls_session_t session, String &pri
 SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
 	// Init certificate and key
-	Assert(gnutls_privkey_init(&mPkey) == GNUTLS_E_SUCCESS);
 	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
 	Assert(gnutls_x509_privkey_init(&mKey) == GNUTLS_E_SUCCESS);
 	
-	try {	
+	try {
 		Rsa::CreateCertificate(mCrt, mKey, pub, priv);
 		
-		int ret = gnutls_pcert_import_x509(&mPcert, mCrt, 0);
-		if(ret != GNUTLS_E_SUCCESS)
-			throw Exception(String("Unable to import X509 certificate: ") + gnutls_strerror(ret));
-		
-		try {
-			ret = gnutls_privkey_import_x509(mPkey, mKey, 0);
-			if(ret != GNUTLS_E_SUCCESS)
-				throw Exception(String("Unable to import X509 key pair: ") + gnutls_strerror(ret));
-			
-			ret = gnutls_certificate_set_key(mCreds, NULL, 0, &mPcert, 1, mPkey);
-			if(ret != GNUTLS_E_SUCCESS)
-				throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
-		}
-		catch(...)
-		{
-			gnutls_pcert_deinit(&mPcert);
-			throw;
-		}
+		int ret = gnutls_certificate_set_x509_key(mCreds, &mCrt, 1, mKey);
+		if(ret != GNUTLS_E_SUCCESS
+			&& ret != GNUTLS_E_CERTIFICATE_KEY_MISMATCH)	// TODO: impossible
+			throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
 	}
 	catch(...)
 	{
-		gnutls_privkey_deinit(mPkey);
 		gnutls_x509_crt_deinit(mCrt);
 		gnutls_x509_privkey_deinit(mKey);
 		throw;
