@@ -115,13 +115,13 @@ BinaryString BinaryString::base64Encode(bool safeMode) const
         int left = size()-i;
         if(left)
         {
-                out+= tab[at(i) >> 2];
-                if (left == 1)
+                out+= tab[uint8_t(at(i)) >> 2];
+                if(left == 1)
                 {
                         out+= tab[(uint8_t(at(i)) & 3) << 4];
                         if(!safeMode) out+= '=';
                 }
-                else {
+                else {	// left == 2
                         out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
                         out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
                 }

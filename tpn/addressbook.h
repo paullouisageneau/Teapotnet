@@ -84,6 +84,7 @@ public:
 		Invitation(const Invitation &invitation);
 		Invitation(	AddressBook *addressBook,
 				const Identifier &identifier,
+				const String &name,
 				const String &tracker = "");
 		Invitation(	AddressBook *addressBook,
 				const String &code,

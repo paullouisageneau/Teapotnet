@@ -111,11 +111,12 @@ public:
 		Locator(User *user, const Set<Address> &addrs);
 		~Locator(void);
 		
-		User *user;
-		Identifier	identifier;
-		Identifier	peering;
-		BinaryString	secret;
-		Set<Address>	addresses;
+		User *user;			// local user
+		Identifier	identifier;	// remote identifier
+		Identifier	peering;	// remote peering identifier for PSK
+		BinaryString	secret;		// secret for PSK
+		String		name;		// remote name
+		Set<Address>	addresses;	// adresses for direct connection
 	};
 
 	class Publisher
@@ -245,7 +246,7 @@ private:
 		Core *mCore;
 	
 	private:
-		void doHandshake(SecureTransport *transport, const Identifier &remote);
+		void doHandshake(SecureTransport *transport, const Identifier &local, const Identifier &remote);
 		void run(void);
 		
 		ThreadPool mThreadPool;

@@ -166,7 +166,8 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mProfile = NULL;
 
 	try {
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey);
+		// TODO: name should be mPublicKey.digest().toString()
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);

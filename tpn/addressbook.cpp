@@ -782,8 +782,9 @@ AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	listen(peering());
 }
 
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &tracker) :
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &name, const String &tracker) :
 	mAddressBook(NULL),
+	mName(name),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
@@ -795,10 +796,10 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
 	mAddressBook(NULL),
+	mName(code),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
-	mName = code;
 	generate(code, String::number64(pin, 10));
 	
 	setAddressBook(addressBook);
@@ -858,9 +859,17 @@ void AddressBook::Invitation::run(void)
 				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
 				
 				Core::Locator locator(mAddressBook->user(), it->second);
-				if(mSecret.empty()) locator.identifier = peering();	// If there is no secret, this is not a peering but a normal identifier.
-				else locator.peering = peering();
-				locator.secret = secret();
+				if(mSecret.empty()) 
+				{
+					// If there is no secret, this is not a peering but a normal identifier.
+					locator.identifier = peering();
+					locator.name = name();
+				}
+				else {
+					locator.peering = peering();
+					locator.secret = secret();
+				}
+				
 				Core::Instance->connect(locator);
 			}
 		}	
@@ -989,7 +998,7 @@ bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey 
 {
 	Synchronize(mAddressBook);
 	
-	if(mSecret.empty() && peer == mPeering)
+	if(mSecret.empty() && peer == mPeering && peer == pubKey.digest())
 	{
 		return true;
 	}
@@ -1130,6 +1139,7 @@ void AddressBook::Contact::run(void)
 			{
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
+				locator.name = name();
 				
 				if(Core::Instance->connect(locator))
 				{
@@ -1537,7 +1547,8 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 
 bool AddressBook::Contact::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
 {
-	return (peer == identifier());
+	// TODO: compare keys
+	return (peer == identifier() && peer == pubKey.digest());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

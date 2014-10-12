@@ -636,7 +636,7 @@ void Rsa::generate(PublicKey &pub, PrivateKey &priv)
 		throw Exception("RSA keypair generation failed (size=" + String::number(mBits) + ")");
 }
 
-void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv)
+void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv, const String &name)
 {
 	BinaryString bs_n; mpz_export_binary(pub.mKey.n,  bs_n);
 	BinaryString bs_e; mpz_export_binary(pub.mKey.e,  bs_e);
@@ -663,7 +663,8 @@ void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, co
 	gnutls_x509_crt_set_expiration_time(crt, expirationTime.toUnixTime());
 	gnutls_x509_crt_set_version(crt, 1);
 	gnutls_x509_crt_set_key(crt, key);
-	
+	gnutls_x509_crt_set_dn_by_oid(crt, GNUTLS_OID_X520_COMMON_NAME, 0, name.data(), name.size());
+
 	const size_t serialSize = 16;
 	char serial[serialSize];
 	Random(Random::Nonce).readData(serial, serialSize);

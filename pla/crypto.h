@@ -141,6 +141,8 @@ public:
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 		
+		// TODO: operator==
+		
 		bool isNull(void);
 		void clear(void);
 		const BinaryString &digest(void) const;
@@ -188,7 +190,7 @@ public:
 	
 	void generate(PublicKey &pub, PrivateKey &priv);
 
-	static void CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv);
+	static void CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv, const String &name);
 	
 private:
 	unsigned mBits;

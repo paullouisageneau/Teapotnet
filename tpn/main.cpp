@@ -54,6 +54,8 @@
 #include <CoreFoundation/CFUserNotification.h>
 #endif
 
+#include "pla/jsonserializer.h"
+
 using namespace tpn;
 
 #ifdef WINDOWS
@@ -664,7 +666,7 @@ String plist = "\
 					LogInfo("main", String("Loading user ") + name + "...");
 					
 					try {
-						user = new User(name);	
+						user = new User(name);
 					}
 					catch(const std::exception &e)
 					{

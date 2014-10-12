@@ -120,7 +120,15 @@ void SecureTransport::handshake(void)
 	const char *err_pos = NULL;
 	if(gnutls_priority_set_direct(mSession, mPriorities.c_str(), &err_pos))
 			throw Exception("Unable to set TLS priorities: " + mPriorities);
-		
+	
+	// TODO: virtual function
+	if(isClient())
+	{
+		 // Set server name
+		if(!mHostname.empty())
+			gnutls_server_name_set(mSession, GNUTLS_NAME_DNS, mHostname.data(), mHostname.size());
+	}
+	
 	// Perform the TLS handshake
 	int ret;
 	do {
@@ -138,6 +146,14 @@ void SecureTransport::handshake(void)
 void SecureTransport::close(void)
 {
 	gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+}
+
+void SecureTransport::setHostname(const String &hostname)
+{
+	if(isHandshakeDone())
+		throw Exception("Unable to set secure transport hostname: handshake is done");
+
+	mHostname = hostname;
 }
 
 bool SecureTransport::isClient(void)
@@ -314,11 +330,11 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 			int ret = gnutls_x509_crt_import(crt, array, GNUTLS_X509_FMT_DER);
 			if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
 			
-			if(!transport->mRemoteHostname.empty())
+			if(!transport->mHostname.empty())
 			{
-				if (!gnutls_x509_crt_check_hostname(crt, transport->mRemoteHostname.c_str()))
+				if(!gnutls_x509_crt_check_hostname(crt, transport->mHostname.c_str()))
 				{
-					LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the hostname");
+					LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + transport->mHostname);
       					return GNUTLS_E_CERTIFICATE_ERROR;
     				}
 			}
@@ -392,7 +408,7 @@ SecureTransport::Certificate::Certificate(void)
         //                                              | GNUTLS_VERIFY_ALLOW_ANY_X509_V1_CA_CRT);
 
 	gnutls_certificate_set_verify_function(mCreds, SecureTransport::CertificateCallback);
-
+	
 	// Set system CA
 	gnutls_certificate_set_x509_system_trust(mCreds);
 }
@@ -437,18 +453,17 @@ void SecureTransport::Certificate::install(gnutls_session_t session, String &pri
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
+SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name)
 {
 	// Init certificate and key
 	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
 	Assert(gnutls_x509_privkey_init(&mKey) == GNUTLS_E_SUCCESS);
 	
 	try {
-		Rsa::CreateCertificate(mCrt, mKey, pub, priv);
+		Rsa::CreateCertificate(mCrt, mKey, pub, priv, name);
 		
 		int ret = gnutls_certificate_set_x509_key(mCreds, &mCrt, 1, mKey);
-		if(ret != GNUTLS_E_SUCCESS
-			&& ret != GNUTLS_E_CERTIFICATE_KEY_MISMATCH)	// TODO: impossible
+		if(ret != GNUTLS_E_SUCCESS)
 			throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
 	}
 	catch(...)
@@ -486,14 +501,6 @@ SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds,
 SecureTransportClient::~SecureTransportClient(void)
 {
 	
-}
-
-void SecureTransportClient::setHostname(const String &hostname)
-{
-	if(isHandshakeDone())
-		throw Exception("Unable to set secure transport remote hostname: handshake is done");
-
-	mRemoteHostname = hostname;
 }
 
 SecureTransportClient::Anonymous::Anonymous(void)
@@ -544,12 +551,17 @@ void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session, 
 	priorities+= ":+PSK:+DHE-PSK";
 }
 
-SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool datagram) :
+SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool requestClientCertificate, bool datagram) :
 	SecureTransport(stream, true, datagram)
 {
 	try {
-		gnutls_certificate_server_set_request(mSession, GNUTLS_CERT_REQUEST);	// TODO
 		gnutls_handshake_set_post_client_hello_function(mSession, PostClientHelloCallback);
+		
+		if(requestClientCertificate)
+		{
+			gnutls_certificate_server_set_request(mSession, GNUTLS_CERT_REQUEST);
+			gnutls_certificate_send_x509_rdn_sequence(mSession, 1);	// do not advertise trusted CAs
+		}
 		
 		if(creds) 
 		{
@@ -585,19 +597,22 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 		return -1;
 	}
 
-	if(!transport->mVerifier) return 0;
-	
 	try {
-		String name;
-		
 		char buffer[BufferSize];
 		size_t size = BufferSize;
 		unsigned int type =  GNUTLS_NAME_DNS;
 		if(gnutls_server_name_get(session, buffer, &size, &type, 0) == GNUTLS_E_SUCCESS)
 		{
-			name.assign(buffer, size);
-			if(!transport->mVerifier->verifyName(name, transport)) 
+			String name(buffer, size);
+			
+			if(!transport->mHostname.empty() && transport->mHostname != name)
 				return GNUTLS_E_NO_CERTIFICATE_FOUND;
+			
+			if(transport->mVerifier)
+			{
+				if(!transport->mVerifier->verifyName(name, transport)) 
+					return GNUTLS_E_NO_CERTIFICATE_FOUND;
+			}
 		}
 	}
 	catch(const Exception &e)
@@ -609,7 +624,7 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 	return 0;
 }
 
-SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock)
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool requestClientCertificate)
 {
 	while(true)
 	{
@@ -627,7 +642,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock)
 		
 		SecureTransportServer *transport = NULL;
 		try {
-			transport = new SecureTransportServer(sock, NULL, false);	// stream mode
+			transport = new SecureTransportServer(sock, NULL, requestClientCertificate, false);	// stream mode
 		}
 		catch(const std::exception &e)
 		{
@@ -640,7 +655,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock)
 	}
 }
 
-SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock)
+SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool requestClientCertificate)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
@@ -668,7 +683,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock)
 			
 			try {
 				stream = new DatagramStream(&sock, sender);
-				transport = new SecureTransportServer(stream, NULL, true);	// datagramMode
+				transport = new SecureTransportServer(stream, NULL, requestClientCertificate, true);	// datagram mode
 			}
 			catch(...)
 			{

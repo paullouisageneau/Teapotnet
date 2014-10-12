@@ -70,7 +70,7 @@ public:
 	class RsaCertificate : public Certificate
 	{
 	public:
-		RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+		RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name);
 		~RsaCertificate(void);
 
 	protected:
@@ -83,6 +83,8 @@ public:
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
 	void handshake(void);
 	void close(void);
+	
+	void setHostname(const String &hostname);	// remote hostname for client
 	
 	virtual bool isClient(void);
 	bool isHandshakeDone(void);
@@ -123,7 +125,7 @@ protected:
 	Stream *mStream;
 	Verifier *mVerifier;
 	String mPriorities;
-	String mRemoteHostname;
+	String mHostname;
 	
 	List<Credentials*> mCredsToDelete;
 	bool mIsHandshakeDone;
@@ -156,8 +158,6 @@ public:
 
 	SecureTransportClient(Stream *stream, Credentials *creds = NULL, const String &hostname = "", bool datagram = false);	// creds will be deleted
 	~SecureTransportClient(void);
-
-	void setHostname(const String &hostname);
 };
 
 class SecureTransportServer : public SecureTransport
@@ -186,10 +186,10 @@ public:
 	};	
 	
 	// These functions are preferred, especially for datagrams (protection against DoS)
-	static SecureTransport *Listen(ServerSocket &sock);
-	static SecureTransport *Listen(DatagramSocket &sock);
+	static SecureTransport *Listen(ServerSocket &sock, bool requestClientCertificate = false);
+	static SecureTransport *Listen(DatagramSocket &sock, bool requestClientCertificate = false);
 	
-	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool datagram = false);	// creds will be deleted
+	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false, bool datagram = false);	// creds will be deleted
 	~SecureTransportServer(void);
 	
 	bool isClient(void);

@@ -120,7 +120,8 @@ Core::Core(int port) :
 	try {
 		// Create backends
 		mTunnelBackend = new TunnelBackend(this);
-		mBackends.push_back(mTunnelBackend);
+		// TODO
+		//mBackends.push_back(mTunnelBackend);
 		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
 	}
@@ -900,6 +901,9 @@ Core::Backend::~Backend(void)
 
 void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
+	if(!locator.name.empty())
+		transport->setHostname(locator.name);
+  
 	if(!locator.peering.empty())
 	{
 		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
@@ -908,48 +912,51 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
 		transport->addCredentials(creds, true);	// must delete
 		
-		doHandshake(transport, locator.peering);
+		doHandshake(transport, locator.peering, locator.peering);
 	}
 	else if(locator.user)
 	{
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
+		if(locator.name.empty())
+			LogWarn("Core::Backend::process", "Remote name is not set in locator for certificate authentication");
+		
 		// Add user certificate
 		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
 		
-		doHandshake(transport, locator.identifier);
+		doHandshake(transport, locator.user->identifier(), locator.identifier);
 	}
 	else {
 		LogDebug("Core::Backend::process", "Setting anonymous credentials");
-	  
+
 		// Add anonymous credentials
 		transport->addCredentials(&mAnonymousClientCreds);
 		
-		doHandshake(transport, Identifier::Null);
+		doHandshake(transport, Identifier::Null, Identifier::Null);
 	}
 }
 
-void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &remote)
+void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &local, const Identifier &remote)
 {
 	class MyVerifier : public SecureTransport::Verifier
 	{
 	public:
-		User *user;
-		Identifier remote;
+		Identifier local, remote;
 		Rsa::PublicKey publicKey;
 		
-		MyVerifier(Core *core) { this->core = core; this->user = NULL; }
+		MyVerifier(Core *core) { this->core = core; }
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verification for certificate mode, remote: ") + name);
+			LogDebug("Core::Backend::doHandshake", String("Verification for name: ") + name);
 			
-			user = User::Get(name);
+			User *user = User::Get(name);
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
 				if(creds) transport->addCredentials(creds);
+				local = user->identifier();
 			}
 			else {
 				 LogDebug("Core::Backend::doHandshake", String("User does not exist: ") + name);
@@ -960,10 +967,11 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 		
 		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verification for PSK mode, remote: ") + name);
+			LogDebug("Core::Backend::doHandshake", String("Verification for PSK: ") + name);
 			
 			try {
 				remote.fromString(name);
+				local = remote;
 			}
 			catch(...)
 			{
@@ -996,11 +1004,11 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 		
 		bool verifyCertificate(const Rsa::PublicKey &pub)
 		{
-			if(!user) return false;
-			
 			publicKey = pub;
 			remote = publicKey.digest();
 			
+			LogDebug("Core::Backend::doHandshake", String("Verification for certificate: ") + remote.toString());
+		
 			Synchronize(core);
 			
 			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
@@ -1017,6 +1025,8 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				++it;
 			}
 			
+			
+			LogDebug("Core::Backend::doHandshake", "Certificate verification failed");
 			return false;
 		}
 		
@@ -1027,10 +1037,11 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(Core *core, SecureTransport *transport, const Identifier &remote)
+		HandshakeTask(Core *core, SecureTransport *transport, const Identifier &local, const Identifier &remote)
 		{ 
 			this->core = core;
 			this->transport = transport;
+			this->local = local;
 			this->remote = remote;
 		}
 	  
@@ -1046,12 +1057,17 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				// Do handshake
 				transport->handshake();
 				
-				if(transport->isClient() && !transport->hasCertificate())
+				if(!transport->hasCertificate())
 				{
-					// Assign identifier
+					// Assign identifiers
+					verifier.local = local;
 					verifier.remote = remote;
 				}
 				else {
+					// Assign local if client
+					if(transport->isClient())
+						verifier.local = local;
+						
 					// Check identifier
 					if(remote != Identifier::Null && verifier.remote != remote)
 						throw Exception("Invalid identifier: " + verifier.remote.toString());
@@ -1059,18 +1075,23 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 				
 				// Handshake succeeded, add peer
 				LogDebug("Core::Backend::doHandshake", "Handshake succeeded");
+				
+				// Sanity checks
 				if(transport->hasCertificate()) 
 				{
-					Assert(verifier.user);
-					core->addPeer(transport, verifier.user->identifier(), verifier.remote);
+					Assert(verifier.local != Identifier::Null);
+					Assert(verifier.remote != Identifier::Null);
 				}
 				else if(transport->hasPrivateSharedKey())
 				{
-					core->addPeer(transport, verifier.remote, verifier.remote);
+					Assert(verifier.local == verifier.remote);
 				}
 				else {
-					core->addPeer(transport, Identifier::Null, Identifier::Null);
+					Assert(verifier.local == Identifier::Null);
+					Assert(verifier.remote == Identifier::Null);
 				}
+				
+				core->addPeer(transport, verifier.local, verifier.remote);
 			}
 			catch(const std::exception &e)
 			{
@@ -1084,12 +1105,12 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &re
 	private:
 		Core *core;
 		SecureTransport *transport;
-		Identifier remote;
+		Identifier local, remote;
 	};
 	
 	HandshakeTask *task = NULL;
 	try {
-		task = new HandshakeTask(mCore, transport, remote);
+		task = new HandshakeTask(mCore, transport, local, remote);
 		mThreadPool.launch(task);
 	}
 	catch(const std::exception &e)
@@ -1114,11 +1135,11 @@ void Core::Backend::run(void)
 			{
 				try {
 					// Add server credentials (certificate added on name verification)
-					//transport->addCredentials(&mAnonymousServerCreds, false);
+					transport->addCredentials(&mAnonymousServerCreds, false);
 					transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
 				
 					// No remote identifier specified, accept any identifier
-					doHandshake(transport, Identifier::Null);	// async
+					doHandshake(transport, Identifier::Null, Identifier::Null);	// async
 				}
 				catch(...)	// should not happen
 				{
@@ -1199,7 +1220,7 @@ SecureTransport *Core::StreamBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, true);	// ask for certificate
 		if(transport) return transport;
 	}
 	
@@ -1274,7 +1295,7 @@ SecureTransport *Core::DatagramBackend::listen(void)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock);
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, true);	// ask for certificate
 		if(transport) return transport;
 	}
 	
@@ -1313,7 +1334,7 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
+		transport = new SecureTransportServer(wrapper, NULL, true, true);	// ask for certificate, datagram mode
 	}
 	catch(...)
 	{
@@ -1346,7 +1367,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(mCore, message.destination, message.source);
-		transport = new SecureTransportServer(wrapper, NULL, true);	// datagram mode
+		transport = new SecureTransportServer(wrapper, NULL, true, true);	// ask for certificate, datagram mode
 	}
 	catch(...)
 	{
