@@ -262,7 +262,7 @@ String User::profilePath(void) const
 String User::urlPrefix(void) const
 {
 	Synchronize(this);
-	return String("/") + mName;
+	return String("/user/") + mName;
 }
 
 void User::setTracker(const String &tracker)
@@ -457,12 +457,12 @@ SecureTransport::Certificate *User::certificate(void) const
 
 void User::http(const String &prefix, Http::Request &request)
 {
+	Assert(!request.url.empty());
+	
 	try {
 		setOnline();
 		
 		String url = request.url;
-		if(url.empty() || url[0] != '/') throw 404;
-
 		if(url == "/")
 		{
 			if(request.method == "POST")

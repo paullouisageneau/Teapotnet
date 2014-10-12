@@ -49,9 +49,6 @@ AddressBook::AddressBook(User *user) :
 	Assert(mUser != NULL);
 	
 	mFileName = mUser->profilePath() + "contacts";
-	
-	Interface::Instance->add("/"+mUser->name()+"/contacts", this);
-	
 	if(File::Exist(mFileName))
 	{
 		try {
@@ -65,13 +62,15 @@ AddressBook::AddressBook(User *user) :
 		}
 	}
 	
+	Interface::Instance->add(urlPrefix(), this);
+	
 	mScheduler.schedule(this, 1.);
 	mScheduler.repeat(this, 300.);
 }
 
 AddressBook::~AddressBook(void)
 {
-  	Interface::Instance->remove("/"+mUser->name()+"/contacts");
+  	Interface::Instance->remove(urlPrefix());
 	NOEXCEPTION(clear());
 }
 
@@ -83,7 +82,13 @@ User *AddressBook::user(void) const
 String AddressBook::userName(void) const
 {
 	Synchronize(this);
- 	return mUser->name(); 
+	return mUser->name(); 
+}
+
+String AddressBook::urlPrefix(void) const
+{
+	Synchronize(this);
+	return mUser->urlPrefix() + "/contacts";
 }
 
 void AddressBook::clear(void)
@@ -1204,8 +1209,8 @@ String AddressBook::Contact::urlPrefix(void) const
 {
 	Synchronize(mAddressBook);
 	if(mUniqueName.empty()) return "";
-	if(isSelf()) return String("/")+mAddressBook->userName()+"/myself";
-	return String("/")+mAddressBook->userName()+"/contacts/"+mUniqueName;
+	if(isSelf()) return mAddressBook->user()->urlPrefix()+"/myself";
+	return mAddressBook->urlPrefix()+"/"+mUniqueName;
 }
 
 Profile *AddressBook::Contact::profile(void) const

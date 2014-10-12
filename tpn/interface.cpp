@@ -36,24 +36,22 @@ Interface *Interface::Instance = NULL;
 Interface::Interface(int port) :
 		Http::Server(port)
 {
-
+	add("", this);
+	add("/static", this);
+	add("/file", this);
 }
 
 Interface::~Interface(void)
 {
-
+	// calling remove() is unnecessary
 }
 
 void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 {
 	Assert(interfaceable != NULL);
 	
-	String cprefix(prefix);
-	if(cprefix.empty() || cprefix[0] != '/')
-		cprefix = "/" + cprefix;
-	
 	mMutex.lock();
-	mPrefixes.insert(cprefix, interfaceable);
+	mPrefixes.insert(prefix, interfaceable);
 	mMutex.unlock();
 }
 
@@ -66,254 +64,150 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 	mMutex.unlock();
 }
 
-void Interface::process(Http::Request &request)
+void Interface::http(const String &prefix, Http::Request &request)
 {
-	LogDebug("Interface", request.method + " " + request.fullUrl);
+	Assert(!request.url.empty());
 	
-	// URL must begin with /
-	if(request.url.empty() || request.url[0] != '/') throw 404;
-	
-	if(request.url == "/")
-	{
-		if(request.method == "POST")
+	try {
+		if(prefix == "")
 		{
-			String name, password, tracker;
-			request.post.get("name", name);
-			request.post.get("password", password);
-			request.post.get("tracker", tracker);
-			
-			if(name.contains('@'))
-				tracker = name.cut('@');
-			
-			User *user = NULL;
-			try {
-				if(request.post.contains("create") && !User::Exist(name))
-				{
-					user = new User(name, password, tracker);
-				}
-				else {
-					user = User::Authenticate(name, password);
-					if(user && !tracker.empty())
-						user->setTracker(tracker);
-				}
-			}
-			catch(const Exception &e)
+			if(request.method == "POST")
 			{
-				Http::Response response(request, 200);
-				response.send();
+				String name, password, tracker;
+				request.post.get("name", name);
+				request.post.get("password", password);
+				request.post.get("tracker", tracker);
 				
-				Html page(response.stream);
-				page.header("Error", false, "/");
-				page.text(e.what());
-				page.footer();
+				if(name.contains('@'))
+					tracker = name.cut('@');
+				
+				User *user = NULL;
+				try {
+					if(request.post.contains("create") && !User::Exist(name))
+					{
+						user = new User(name, password, tracker);
+					}
+					else {
+						user = User::Authenticate(name, password);
+						if(user && !tracker.empty())
+							user->setTracker(tracker);
+					}
+				}
+				catch(const Exception &e)
+				{
+					Http::Response response(request, 200);
+					response.send();
+					
+					Html page(response.stream);
+					page.header("Error", false, "/");
+					page.text(e.what());
+					page.footer();
+					return;
+				}
+				
+				if(!user) throw 401;	// TODO
+				
+				String token = user->generateToken("auth");
+					
+				Http::Response response(request, 303);
+				response.headers["Location"] = user->urlPrefix();
+				response.cookies["auth_"+user->name()] = token;
+				response.send();
 				return;
 			}
 			
-			if(!user) throw 401;	// TODO
-			
-			String token = user->generateToken("auth");
-				
-			Http::Response response(request, 303);
-			response.headers["Location"] = "/" + user->name();
-			response.cookies["auth_"+user->name()] = token;
+			Http::Response response(request, 200);
 			response.send();
-			return;
-		}
-		
-		Http::Response response(request, 200);
-		response.send();
-		
-		Html page(response.stream);
-		page.header("Login - Teapotnet", true);
-		page.open("div","login");
-		page.open("div","logo");
-		page.openLink("/");
-		page.image("/logo.png", "Teapotnet");
-		page.closeLink();
-		page.close("div");
-		
-		page.openForm("/", "post");
-		page.open("table");
-		page.open("tr");
-		page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");
-		page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
-		page.open("td", ".rightcolumn"); page.close("td");
-		page.close("tr");
-		page.open("tr");
-		page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
-		page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
-		page.open("td",".rightcolumn"); page.close("td");
-		page.close("tr");
-		page.open("tr");
-		page.open("td",".leftcolumn"); page.close("td");
-		page.open("td",".middlecolumn"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
-		page.open("td",".rightcolumn"); page.close("td");
-		page.close("tr");
-		page.close("table");
-		page.closeForm();
-		
-		for(StringMap::iterator it = request.cookies.begin();
-			it != request.cookies.end(); 
-			++it)
-		{
-			String cookieName = it->first;
-			String name = cookieName.cut('_');
-			if(cookieName != "auth" || name.empty()) 
-				continue;
 			
-			User *user = User::Get(name);
-			if(!user || !user->checkToken(it->second, "auth"))
-				continue;
-			
-			page.open("div",".user");
-			page.openLink("/" + name);
-			page.image(user->profile()->avatarUrl(), "", ".avatar");
-			page.open("span", ".username");
-			page.text(name);
-			page.close("span");
+			Html page(response.stream);
+			page.header("Login - Teapotnet", true);
+			page.open("div","login");
+			page.open("div","logo");
+			page.openLink("/");
+			page.image("/logo.png", "Teapotnet");
 			page.closeLink();
-			page.text(" - ");
-			page.link("#", "Logout", ".logoutlink");
 			page.close("div");
 			
-			page.javascript("$('.user a.logoutlink').click(function() {\n\
-				unsetCookie('auth_'+$(this).parent().find('.username').text());\n\
-				window.location.reload();\n\
-				return false;\n\
-			});");
-		}
-		
-		page.close("div");
-		page.footer();
-		return;
-	}
-	
-	List<String> list;
-	request.url.explode(list,'/');
-	list.pop_front();	// first element is empty because url begin with '/'
-	if(list.empty()) throw 500;
-	if(list.front().empty()) throw 404;
-	
-	if(list.size() == 1 && list.front().contains('.') && request.url[request.url.size()-1] != '/') 
-	{
-		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
-		if(File::Exist(fileName)) 
-		{
-			Http::RespondWithFile(request, fileName);
+			page.openForm("/", "post");
+			page.open("table");
+			page.open("tr");
+			page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");
+			page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
+			page.open("td", ".rightcolumn"); page.close("td");
+			page.close("tr");
+			page.open("tr");
+			page.open("td",".leftcolumn"); page.label("password", "Password"); page.close("td");
+			page.open("td",".middlecolumn"); page.input("password", "password"); page.close("td");
+			page.open("td",".rightcolumn"); page.close("td");
+			page.close("tr");
+			page.open("tr");
+			page.open("td",".leftcolumn"); page.close("td");
+			page.open("td",".middlecolumn"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
+			page.open("td",".rightcolumn"); page.close("td");
+			page.close("tr");
+			page.close("table");
+			page.closeForm();
+			
+			for(StringMap::iterator it = request.cookies.begin();
+				it != request.cookies.end(); 
+				++it)
+			{
+				String cookieName = it->first;
+				String name = cookieName.cut('_');
+				if(cookieName != "auth" || name.empty()) 
+					continue;
+				
+				User *user = User::Get(name);
+				if(!user || !user->checkToken(it->second, "auth"))
+					continue;
+				
+				page.open("div",".user");
+				page.openLink(user->urlPrefix());
+				page.image(user->profile()->avatarUrl(), "", ".avatar");
+				page.open("span", ".username");
+				page.text(name);
+				page.close("span");
+				page.closeLink();
+				page.text(" - ");
+				page.link("#", "Logout", ".logoutlink");
+				page.close("div");
+				
+				page.javascript("$('.user a.logoutlink').click(function() {\n\
+					unsetCookie('auth_'+$(this).parent().find('.username').text());\n\
+					window.location.reload();\n\
+					return false;\n\
+				});");
+			}
+			
+			page.close("div");
+			page.footer();
 			return;
 		}
-		
-		if(!User::Exist(list.front())) throw 404;
-	}
-	
-	if(list.front().size() < 64 || User::Exist(list.front()))
-	{
-		String name = list.front();
-		User *user = NULL;
-	
-		String auth;
-		if(request.headers.get("Authorization", auth))
+		else if(prefix == "/static")
 		{
-			String tmp = auth.cut(' ');
-			auth.trim();
-			tmp.trim();
-			if(auth != "Basic") throw 400;
-
-			String authName = tmp.base64Decode();
-			String authPassword = authName.cut(':');
+			String name = request.url;
+			if(!name.empty() && name[0] == '/') name.ignore();
+			if(!name.empty() && name[name.size()-1] == '/') name.resize(name.size()-1);
+			if(name.empty() 
+				|| name.contains('/') || name.contains(Directory::Separator)
+				|| name == "." || name == "..") 
+				throw 404;
 			
-			if(authName == name)
-				user = User::Authenticate(authName, authPassword);
-		}
-		else {
-			String token;
-			request.cookies.get("auth_"+name, token);
-			User *tmp = User::Get(list.front());
-			if(tmp && tmp->checkToken(token, "auth"))
-				user = tmp;
-		}
-		
-		if(!user)
-		{
-			if(request.get.contains("json"))
+			String path = Config::Get("static_dir") + Directory::Separator + name;
+			if(File::Exist(path)) 
 			{
-				Http::Response response(request, 401);
-				response.send();
+				Http::RespondWithFile(request, path);
 				return;
-			}
-		
-			String userAgent;
-			request.headers.get("User-Agent", userAgent);
-		
-			// If it is a browser
-			if(userAgent.substr(0,7) == "Mozilla")
-			{
-				Http::Response response(request, 303);
-				response.headers["Location"] = "/";
-				response.send();
-				return;
-			}
-			else {
-				Http::Response response(request, 401);
-				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
-				response.send();
-
-				Html page(response.stream);
-				page.header(response.message, true);
-				page.open("div", "error");
-				page.openLink("/");
-				page.image("/error.png", "Error");
-				page.closeLink();
-				page.br();
-				page.br();
-				page.open("h1",".huge");
-				page.text("Authentication required");
-				page.close("h1");
-				page.close("div");
-				page.footer();
-				return;
-			}
+			} 
 		}
-		
-		while(!list.empty())
+		else if(prefix == "/file")
 		{
-			String prefix;
-			prefix.implode(list,'/');
-			prefix = "/" + prefix;
-			list.pop_back();
+			String tmp = request.url;
+			if(!tmp.empty() && tmp[0] == '/') tmp.ignore();
+			if(!tmp.empty() && tmp[tmp.size()-1] == '/') tmp.resize(tmp.size()-1);
+			if(tmp.empty() || tmp.contains('/')) throw 404;
 			
-			mMutex.lock();
-			HttpInterfaceable *interfaceable;
-			if(mPrefixes.get(prefix,interfaceable)) 
-			{
-				mMutex.unlock();
-				
-				request.url.ignore(prefix.size());
-				
-				//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
-				
-				if(prefix != "/" && request.url.empty())
-				{
-					Http::Response response(request, 301);	// Moved Permanently
-					response.headers["Location"] = prefix+"/";
-					response.send();
-					return;  
-				}
-				
-				interfaceable->http(prefix, request);
-				return;
-			}
-			mMutex.unlock();
-		}
-	}
-	else {
-	  	if(list.size() != 1) throw 404; 
-	  
-		// TODO: Security: if remote address is not local, check if one user at least is authenticated
-		
-	 	try {
 			BinaryString digest;
-			String tmp = list.front();
 			try { tmp >> digest; }
 			catch(...) { throw 404; }
 		
@@ -322,7 +216,7 @@ void Interface::process(Http::Request &request)
 				String host;
 				if(!request.headers.get("Host", host))
 				host = String("localhost:") + Config::Get("interface_port");
-					 
+					  
 				Http::Response response(request, 200);
 				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
@@ -384,16 +278,144 @@ void Interface::process(Http::Request &request)
 			}
 				
 			return;
+			
 		}
-		catch(const NetException &e)
+	}
+	catch(const NetException &e)
+	{
+		 return;	// nothing to do
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Interface::http", e.what());
+		throw 500;
+	}
+	
+	throw 404;
+}
+
+void Interface::process(Http::Request &request)
+{
+	LogDebug("Interface", request.method + " " + request.fullUrl);
+	
+	// URL must begin with /
+	if(request.url.empty() || request.url[0] != '/') throw 404;
+	
+	List<String> list;
+	request.url.explode(list,'/');
+	list.pop_front();	// first element is empty because url begin with '/'
+	if(list.empty()) throw 500;
+	
+	// TODO: direct static access is deprecated
+	if(list.size() == 1 && list.front().contains('.') && request.url[request.url.size()-1] != '/') 
+	{
+		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
+		if(File::Exist(fileName)) 
 		{
-			 return;	// nothing to do
+			Http::RespondWithFile(request, fileName);
+			return;
 		}
-		catch(const std::exception &e)
+	}
+	//
+	
+	if(list.front() == "user" && list.size() >= 2)
+	{
+		User *user = NULL;
+		String name;
+		
+		if(list.size() >= 2)
+			name = *(++list.begin());
+		
+		String auth;
+		if(request.headers.get("Authorization", auth))
 		{
-			LogWarn("Interface::process", e.what());
-			throw 404;
+			String tmp = auth.cut(' ');
+			auth.trim();
+			tmp.trim();
+			if(auth != "Basic") throw 400;
+
+			String authName = tmp.base64Decode();
+			String authPassword = authName.cut(':');
+			
+			if(authName == name)
+				user = User::Authenticate(authName, authPassword);
 		}
+		else {
+			String token;
+			request.cookies.get("auth_"+name, token);
+			User *tmp = User::Get(name);
+			if(tmp && tmp->checkToken(token, "auth"))
+				user = tmp;
+		}
+		
+		if(!user)
+		{
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 401);
+				response.send();
+				return;
+			}
+		
+			String userAgent;
+			request.headers.get("User-Agent", userAgent);
+		
+			// If it is a browser
+			if(userAgent.substr(0,7) == "Mozilla")
+			{
+				Http::Response response(request, 303);
+				response.headers["Location"] = "/";
+				response.send();
+				return;
+			}
+			else {
+				Http::Response response(request, 401);
+				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
+				response.send();
+
+				Html page(response.stream);
+				page.header(response.message, true);
+				page.open("div", "error");
+				page.openLink("/");
+				page.image("/error.png", "Error");
+				page.closeLink();
+				page.br();
+				page.br();
+				page.open("h1",".huge");
+				page.text("Authentication required");
+				page.close("h1");
+				page.close("div");
+				page.footer();
+				return;
+			}
+		}
+	}
+	
+	while(!list.empty())
+	{
+		String prefix;
+		prefix.implode(list,'/');
+		if(!prefix.empty())
+			prefix = "/" + prefix;
+	
+		list.pop_back();
+		
+		mMutex.lock();
+		HttpInterfaceable *interfaceable;
+		if(mPrefixes.get(prefix,interfaceable)) 
+		{
+			mMutex.unlock();
+			
+			LogDebug("Interface", "Matched prefix \""+prefix+"\"");
+			
+			request.url.ignore(prefix.size());
+			if(request.url.empty())
+				request.url = "/";
+			
+			interfaceable->http(prefix, request);
+			return;
+		}
+		mMutex.unlock();
 	}
 	
 	throw 404;

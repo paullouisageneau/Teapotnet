@@ -37,7 +37,7 @@ public:
 	virtual void http(const String &prefix, Http::Request &request) = 0;
 };
 
-class Interface : public Http::Server
+class Interface : public Http::Server, public HttpInterfaceable
 {
 public:
 	static Interface *Instance;
@@ -47,7 +47,9 @@ public:
 	
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
 	void remove(const String &prefix, HttpInterfaceable *interfaceable = NULL);
-
+	
+	void http(const String &prefix, Http::Request &request);
+	
 private:
 	void process(Http::Request &request);
 

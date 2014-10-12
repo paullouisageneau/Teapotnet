@@ -29,8 +29,10 @@ namespace tpn
 {
 
 Request::Request(const Identifier &peer, const String &target) : Subscriber(peer)
-{  
-	mUrlPrefix = "/requests/" + String::random(32);
+{
+	mUrlPrefix = "/request/" + String::random(32);
+	LogDebug("Request", "Creating request: " + mUrlPrefix);
+	
 	Interface::Instance->add(mUrlPrefix, this);
 	
 	subscribe(target);
@@ -38,7 +40,9 @@ Request::Request(const Identifier &peer, const String &target) : Subscriber(peer
 
 Request::Request(const String &match)
 {
-	mUrlPrefix = "/requests/" + String::random(32);
+	mUrlPrefix = "/request/" + String::random(32);
+	LogDebug("Request", "Creating request: " + mUrlPrefix);
+	
 	Interface::Instance->add(mUrlPrefix, this);
 	
 	if(!match.empty())
@@ -51,6 +55,7 @@ Request::Request(const String &match)
 
 Request::~Request(void)
 {
+	//LogDebug("Request", "Deleting request: " + mUrlPrefix);
 	Interface::Instance->remove(mUrlPrefix, this);
 	
 	// TODO: wait for http requests to finish

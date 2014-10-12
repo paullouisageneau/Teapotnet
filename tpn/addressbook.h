@@ -56,6 +56,7 @@ public:
 	
 	User *user(void) const;
 	String userName(void) const;
+	String urlPrefix(void) const;
 	
 	void clear(void);
 	void load(Stream &stream);
