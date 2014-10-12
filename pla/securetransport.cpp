@@ -275,7 +275,7 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 
 int SecureTransport::CertificateCallback(gnutls_session_t session)
 {
-	LogDebug("SecureTransport::CertificateCallback", "Entering certificate callback");
+	//LogDebug("SecureTransport::CertificateCallback", "Entering certificate callback");
 	
 	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
 	if(!transport)
@@ -362,7 +362,7 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 
 int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
 {
-	LogDebug("SecureTransport", "Entering PSK callback");
+	//LogDebug("SecureTransport", "Entering PSK callback");
 	
 	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
 	if(!transport) 
@@ -588,7 +588,7 @@ bool SecureTransportServer::isClient(void)
 
 int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 {
-	LogDebug("SecureTransportServer", "Entering post client hello callback");
+	//LogDebug("SecureTransportServer", "Entering post client hello callback");
 	
 	SecureTransportServer *transport = reinterpret_cast<SecureTransportServer*>(gnutls_session_get_ptr(session));
 	if(!transport) 

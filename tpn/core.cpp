@@ -1007,7 +1007,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 			publicKey = pub;
 			remote = publicKey.digest();
 			
-			LogDebug("Core::Backend::doHandshake", String("Verification for certificate: ") + remote.toString());
+			LogDebug("Core::Backend::doHandshake", String("Verification for remote certificate: ") + remote.toString());
 		
 			Synchronize(core);
 			
@@ -1068,7 +1068,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 					if(transport->isClient())
 						verifier.local = local;
 						
-					// Check identifier
+					// Check remote identifier
 					if(remote != Identifier::Null && verifier.remote != remote)
 						throw Exception("Invalid identifier: " + verifier.remote.toString());
 				}
