@@ -290,7 +290,7 @@ void Interface::process(Http::Request &request)
 				
 				request.url.ignore(prefix.size());
 				
-				LogDebug("Interface", "Matched prefix \""+prefix+"\"");
+				//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
 				
 				if(prefix != "/" && request.url.empty())
 				{

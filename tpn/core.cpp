@@ -949,7 +949,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verification for name: ") + name);
+			LogDebug("Core::Backend::doHandshake", String("Verifying name: ") + name);
 			
 			User *user = User::Get(name);
 			if(user)
@@ -967,7 +967,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 		
 		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verification for PSK: ") + name);
+			LogDebug("Core::Backend::doHandshake", String("Verifying PSK: ") + name);
 			
 			try {
 				remote.fromString(name);
@@ -1007,8 +1007,8 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 			publicKey = pub;
 			remote = publicKey.digest();
 			
-			LogDebug("Core::Backend::doHandshake", String("Verification for remote certificate: ") + remote.toString());
-		
+			LogDebug("Core::Backend::doHandshake", String("Verifying remote certificate: ") + remote.toString());
+			
 			Synchronize(core);
 			
 			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
