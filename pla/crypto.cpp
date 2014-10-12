@@ -332,6 +332,11 @@ Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
 	return *this;
 }
 
+bool Rsa::PublicKey::operator==(const PublicKey &key) const
+{
+	return mpz_cmp(mKey.n, key.mKey.n) == 0 && mpz_cmp(mKey.e, key.mKey.e) == 0;
+}
+
 bool Rsa::PublicKey::isNull(void)
 {
 	return (mKey.size == 0);

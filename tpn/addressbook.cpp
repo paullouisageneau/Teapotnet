@@ -998,7 +998,7 @@ bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey 
 {
 	Synchronize(mAddressBook);
 	
-	if(mSecret.empty() && peer == mPeering && peer == pubKey.digest())
+	if(mSecret.empty() && pubKey.digest() == mPeering)
 	{
 		return true;
 	}
@@ -1547,8 +1547,7 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 
 bool AddressBook::Contact::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
 {
-	// TODO: compare keys
-	return (peer == identifier() && peer == pubKey.digest());
+	return (pubKey == publicKey());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

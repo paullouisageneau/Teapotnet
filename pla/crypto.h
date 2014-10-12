@@ -141,7 +141,7 @@ public:
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
 		
-		// TODO: operator==
+		bool operator==(const PublicKey &key) const;
 		
 		bool isNull(void);
 		void clear(void);
