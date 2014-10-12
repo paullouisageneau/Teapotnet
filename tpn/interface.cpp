@@ -406,8 +406,7 @@ void Interface::process(Http::Request &request)
 		{
 			mMutex.unlock();
 			
-			LogDebug("Interface", "Matched prefix \""+prefix+"\"");
-			
+			//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
 			request.url.ignore(prefix.size());
 			if(request.url.empty())
 				request.url = "/";

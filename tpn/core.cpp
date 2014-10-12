@@ -433,7 +433,7 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 	if(mHandlers.get(peer, handler))
 	{
 		Desynchronize(this);
- 
+		
 		String payload;
 		JsonSerializer serializer(&payload);
 		serializer.output(notification);
@@ -1480,6 +1480,11 @@ void Core::Handler::subscribe(String prefix, Subscriber *subscriber)
 		prefix.resize(prefix.size()-1);
 
 	mSubscribers[prefix].insert(subscriber);
+	
+	// Immediatly send subscribe message
+	BinaryString content;
+	content.writeBinary(prefix);
+	outgoing(mRemote, Message::Forward, Message::Subscribe, content);
 }
 
 void Core::Handler::unsubscribe(String prefix, Subscriber *subscriber)
@@ -1529,10 +1534,10 @@ bool Core::Handler::recv(Message &message)
 		
 		message.payload.clear();
 		if(size > message.payload.length())
-			throw IOException("Message payload too big");
+			throw Exception("Message payload too big");
 		
-		if(!mStream->readBinary(message.payload, size))
-			throw IOException("Incomplete message");
+		if(mStream->readBinary(message.payload, size) != size)
+			throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
 	}
 	
 	return true;
@@ -1670,18 +1675,22 @@ bool Core::Handler::incoming(Message &message)
 		}
 		
 		case Message::Publish:
-		case Message::Subscribe:
 		{
 			String path;
 			AssertIO(payload.readBinary(path));
-	
+			
 			List<String> list;
 			path.explode(list,'/');
 			if(list.empty()) return false;
-	
+			
 			// First item should be empty because path begins with /
 			if(list.front().empty()) 
 				list.pop_front();
+			
+			List<BinaryString> targets;
+			BinaryString tmp;
+			while(payload.readBinary(tmp))
+				targets.push_back(tmp);
 			
 			// Match prefixes, longest first
 			while(true)
@@ -1690,49 +1699,72 @@ bool Core::Handler::incoming(Message &message)
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
 				
-				if(message.content == Message::Publish)
+				// Pass to local subscribers
+				Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+				if(it != mSubscribers.end())
 				{
-					BinaryString target;
-					while(payload.readBinary(target))
+					for(Set<Subscriber*>::iterator jt = it->second.begin();
+						jt != it->second.end();
+						++jt)
 					{
-						// Pass to local subscribers
-						Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
-						if(it != mSubscribers.end())
+						for(List<BinaryString>::iterator kt = targets.begin();
+							kt != targets.end();
+							++kt)
 						{
-							for(Set<Subscriber*>::iterator jt = it->second.begin();
-								jt != it->second.end();
-								++jt)
-							{
-								(*jt)->incoming(path, target);
-							}
+							(*jt)->incoming(path, *kt);
 						}
 					}
 				}
-				else {	// message.content == Message::Subscribe
+			
+				if(list.empty()) break;
+				list.pop_back();
+			}
+			
+			break;
+		}
+		
+		case Message::Subscribe:
+		{
+			String path;
+			AssertIO(payload.readBinary(path));
+			
+			List<String> list;
+			path.explode(list,'/');
+			if(list.empty()) return false;
+			
+			// First item should be empty because path begins with /
+			if(list.front().empty()) 
+				list.pop_front();
+			
+			// Match prefixes, longest first
+			while(true)
+			{
+				Desynchronize(this);
+				
+				String prefix;
+				prefix.implode(list, '/');
+				prefix = "/" + prefix;
+				
+				BinaryString response;
+				response.writeBinary(path);
 					
-					Desynchronize(this);
-					
-					BinaryString response;
-					response.writeBinary(path);
-					
-					Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
-					if(it != mCore->mPublishers.end())
+				Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
+				if(it != mCore->mPublishers.end())
+				{
+					bool written = false;
+					for(Set<Publisher*>::iterator jt = it->second.begin();
+						jt != it->second.end();
+						++jt)
 					{
-						bool written = false;
-						for(Set<Publisher*>::iterator jt = it->second.begin();
-							jt != it->second.end();
-							++jt)
+						BinaryString target;
+						if((*jt)->anounce(source, path, target))
 						{
-							BinaryString target;
-							if((*jt)->anounce(source, path, target))
-							{
-								response.writeBinary(target);
-								written = true;
-							}
+							response.writeBinary(target);
+							written = true;
 						}
-						
-						if(written) outgoing(source, Message::Broadcast, Message::Publish, response);
 					}
+					
+					if(written) outgoing(source, Message::Broadcast, Message::Publish, response);
 				}
 				
 				if(list.empty()) break;
@@ -1788,7 +1820,7 @@ void Core::Handler::process(void)
 	while(recv(message))
 	{
 		try {
-			LogDebug("Core::Handler", "Incoming message (type=" + String::number(unsigned(message.type)) + ", content=" + String::number(unsigned(message.content)) + ")");
+			LogDebug("Core::Handler", "Incoming message (type=" + String::number(unsigned(message.type)) + ", content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 			
 			switch(message.type)
 			{
