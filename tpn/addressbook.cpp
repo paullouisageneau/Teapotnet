@@ -1716,7 +1716,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String target(url);
 			Assert(!target.empty());
 			
-			Request *req = new Request(identifier(), target);
+			Request *req = new Request(identifier(), "/files" + target);
 			String reqPrefix = req->urlPrefix();
 			req->setAutoDelete();
 			

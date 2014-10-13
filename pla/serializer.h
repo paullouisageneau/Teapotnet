@@ -56,6 +56,9 @@ public:
 		 bool deserialize(Serializer &s);
 	};
 	
+	template<class T> bool read(T &value);
+	template<class T> void write(const T &value);
+	
 	virtual bool    input(Serializable &s);
 	virtual bool	input(Element &element);
 	virtual bool	input(Pair &pair);
@@ -171,6 +174,19 @@ public:
 private:
 	T value;
 };
+
+	
+template<class T>
+bool Serializer::read(T &value)
+{
+	return this->input(value);
+}
+
+template<class T>
+void Serializer::write(const T &value)
+{
+	this->output(value);
+}
 
 template<class T>
 bool Serializer::input(T *ptr)

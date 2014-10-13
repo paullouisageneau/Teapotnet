@@ -45,29 +45,29 @@ public:
 	void	output(const Pair &pair);
 	void	output(const String &str);
 	
-	inline bool	input(int8_t &i)	{ return read(i); }
-	inline bool	input(int16_t &i)	{ return read(i); }
-	inline bool	input(int32_t &i)	{ return read(i); }
-	inline bool	input(int64_t &i)	{ return read(i); }
-	inline bool	input(uint8_t &i)	{ return read(i); }
-	inline bool	input(uint16_t &i)	{ return read(i); }
-	inline bool	input(uint32_t &i)	{ return read(i); }
-	inline bool	input(uint64_t &i)	{ return read(i); }
-	inline bool	input(bool &b)		{ return read(b); }
-	inline bool	input(float &f)		{ return read(f); }
-	inline bool	input(double &f)	{ return read(f); }
+	inline bool	input(int8_t &i)	{ return readValue(i); }
+	inline bool	input(int16_t &i)	{ return readValue(i); }
+	inline bool	input(int32_t &i)	{ return readValue(i); }
+	inline bool	input(int64_t &i)	{ return readValue(i); }
+	inline bool	input(uint8_t &i)	{ return readValue(i); }
+	inline bool	input(uint16_t &i)	{ return readValue(i); }
+	inline bool	input(uint32_t &i)	{ return readValue(i); }
+	inline bool	input(uint64_t &i)	{ return readValue(i); }
+	inline bool	input(bool &b)		{ return readValue(b); }
+	inline bool	input(float &f)		{ return readValue(f); }
+	inline bool	input(double &f)	{ return readValue(f); }
 
-	inline void	output(int8_t i)	{ write(i); }
-	inline void	output(int16_t i)	{ write(i); }
-	inline void	output(int32_t i)	{ write(i); }
-	inline void	output(int64_t i)	{ write(i); }
-	inline void	output(uint8_t i)	{ write(i); }
-	inline void	output(uint16_t i)	{ write(i); }
-	inline void	output(uint32_t i)	{ write(i); }
-	inline void	output(uint64_t i)	{ write(i); }
-	inline void	output(bool b)		{ write(b); }
-	inline void	output(float f)		{ write(f); }
-	inline void	output(double f)	{ write(f); }
+	inline void	output(int8_t i)	{ writeValue(i); }
+	inline void	output(int16_t i)	{ writeValue(i); }
+	inline void	output(int32_t i)	{ writeValue(i); }
+	inline void	output(int64_t i)	{ writeValue(i); }
+	inline void	output(uint8_t i)	{ writeValue(i); }
+	inline void	output(uint16_t i)	{ writeValue(i); }
+	inline void	output(uint32_t i)	{ writeValue(i); }
+	inline void	output(uint64_t i)	{ writeValue(i); }
+	inline void	output(bool b)		{ writeValue(b); }
+	inline void	output(float f)		{ writeValue(f); }
+	inline void	output(double f)	{ writeValue(f); }
 	
 	bool	inputArrayBegin(void);
 	bool	inputArrayCheck(void);
@@ -80,8 +80,8 @@ public:
 	void	outputMapEnd(void);
 	
 private:
-  	template<typename T> bool read(T &value);
-  	template<typename T> void write(const T &value);
+  	template<typename T> bool readValue(T &value);
+  	template<typename T> void writeValue(const T &value);
   
   	Stream *mStream;
 	int mLevel;
@@ -89,7 +89,7 @@ private:
 };
 
 template<typename T> 
-bool JsonSerializer::read(T &value)
+bool JsonSerializer::readValue(T &value)
 {
 	String tmp;
 	if(!input(tmp)) return false;
@@ -98,7 +98,7 @@ bool JsonSerializer::read(T &value)
 }
 
 template<typename T> 
-void JsonSerializer::write(const T &value)
+void JsonSerializer::writeValue(const T &value)
 {
 	mStream->space();
 	mStream->write(value);

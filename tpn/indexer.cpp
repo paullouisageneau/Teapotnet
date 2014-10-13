@@ -572,6 +572,7 @@ bool Indexer::anounce(const Identifier &peer, const String &path, BinaryString &
 {
 	Synchronize(this);
 	
+	// TODO: this should have a prefix system
 	// TODO: access rights, use peer
 	
 	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");

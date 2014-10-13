@@ -408,7 +408,7 @@ void Core::broadcast(const Notification &notification)
 	
 	String payload;
 	JsonSerializer serializer(&payload);
-	serializer.output(notification);
+	serializer.write(notification);
 	
 	Array<Identifier> identifiers;
 	mHandlers.getKeys(identifiers);
@@ -436,7 +436,7 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 		
 		String payload;
 		JsonSerializer serializer(&payload);
-		serializer.output(notification);
+		serializer.write(notification);
 		
 		handler->outgoing(peer, Message::Forward, Message::Notify, payload);
 		return true;
@@ -708,17 +708,17 @@ void Core::Message::clear(void)
 void Core::Message::serialize(Serializer &s) const
 {
 	// TODO
-	s.output(source);
-	s.output(destination);
-	s.output(payload);
+	s.write(source);
+	s.write(destination);
+	s.write(payload);
 }
 
 bool Core::Message::deserialize(Serializer &s)
 {
 	// TODO
-	if(!s.input(source)) return false;
-	AssertIO(s.input(destination));
-	AssertIO(s.input(payload));
+	if(!s.read(source)) return false;
+	AssertIO(s.read(destination));
+	AssertIO(s.read(payload));
 }
 
 Core::Locator::Locator(User *user, const Identifier &id)
@@ -783,8 +783,11 @@ void Core::Publisher::publish(const String &prefix, const BinaryString &target)
 	
 	// Broadcast
 	BinaryString payload;
-	payload.writeBinary(prefix);
-	payload.writeBinary(target);
+	BinarySerializer serializer(&payload);
+	serializer.write(prefix);
+	SerializableList<BinaryString> array;
+	array.push_back(prefix);
+	serializer.write(array);
 	Core::Instance->outgoing(Message::Broadcast, Message::Publish, payload);
 }
 
@@ -1476,22 +1479,23 @@ void Core::Handler::subscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
 	mSubscribers[prefix].insert(subscriber);
 	
 	// Immediatly send subscribe message
-	BinaryString content;
-	content.writeBinary(prefix);
-	outgoing(mRemote, Message::Forward, Message::Subscribe, content);
+	BinaryString payload;
+	BinarySerializer serializer(&payload);
+	serializer.write(prefix);
+	outgoing(mRemote, Message::Forward, Message::Subscribe, payload);
 }
 
 void Core::Handler::unsubscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
   
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
 	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
@@ -1583,7 +1587,7 @@ bool Core::Handler::incoming(Message &message)
 	const Identifier &source = message.source;
 	Stream &payload = message.payload;
 	
-	
+	LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	switch(message.content)
 	{
 		case Message::Tunnel:
@@ -1600,7 +1604,7 @@ bool Core::Handler::incoming(Message &message)
 			
 			Notification notification;
 			JsonSerializer json(&payload);
-			json.input(notification);
+			json.read(notification);
 			
 			Desynchronize(this);
 			Synchronize(mCore);
@@ -1676,8 +1680,10 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Publish:
 		{
+			BinarySerializer serializer(&payload);
+			
 			String path;
-			AssertIO(payload.readBinary(path));
+			AssertIO(serializer.read(path));
 			
 			List<String> list;
 			path.explode(list,'/');
@@ -1687,10 +1693,8 @@ bool Core::Handler::incoming(Message &message)
 			if(list.front().empty()) 
 				list.pop_front();
 			
-			List<BinaryString> targets;
-			BinaryString tmp;
-			while(payload.readBinary(tmp))
-				targets.push_back(tmp);
+			SerializableList<BinaryString> targets;
+			AssertIO(serializer.read(targets));
 			
 			// Match prefixes, longest first
 			while(true)
@@ -1725,8 +1729,10 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Subscribe:
 		{
+			BinarySerializer serializer(&payload);
+			
 			String path;
-			AssertIO(payload.readBinary(path));
+			AssertIO(serializer.read(path));
 			
 			List<String> list;
 			path.explode(list,'/');
@@ -1744,14 +1750,11 @@ bool Core::Handler::incoming(Message &message)
 				String prefix;
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
-				
-				BinaryString response;
-				response.writeBinary(path);
-					
+
+				SerializableList<BinaryString> targets;
 				Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
 				if(it != mCore->mPublishers.end())
 				{
-					bool written = false;
 					for(Set<Publisher*>::iterator jt = it->second.begin();
 						jt != it->second.end();
 						++jt)
@@ -1759,12 +1762,20 @@ bool Core::Handler::incoming(Message &message)
 						BinaryString target;
 						if((*jt)->anounce(source, path, target))
 						{
-							response.writeBinary(target);
-							written = true;
+							LogDebug("Core::Handler::incoming", "Annoucing " + target.toString() + " for " + path);
+							targets.push_back(target);
 						}
 					}
 					
-					if(written) outgoing(source, Message::Broadcast, Message::Publish, response);
+					if(!targets.empty()) 
+					{
+						// TODO: limit size
+						BinaryString response;
+						BinarySerializer serializer(&response);
+						serializer.write(path);
+						serializer.write(targets);
+						outgoing(source, Message::Broadcast, Message::Publish, response);
+					}
 				}
 				
 				if(list.empty()) break;
@@ -1820,7 +1831,7 @@ void Core::Handler::process(void)
 	while(recv(message))
 	{
 		try {
-			LogDebug("Core::Handler", "Incoming message (type=" + String::number(unsigned(message.type)) + ", content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+			LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 			
 			switch(message.type)
 			{
@@ -1938,7 +1949,6 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 	}
 	
 	// TODO
-	
 	Message message;
 	message.prepare(mHandler->mLocal, mDestination, Message::Forward, Message::Notify);
 	message.payload.writeBinary(uint32_t(sequence));
