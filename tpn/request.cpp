@@ -59,6 +59,7 @@ Request::~Request(void)
 	Interface::Instance->remove(mUrlPrefix, this);
 	
 	// TODO: wait for http requests to finish
+	// TODO: wait for threads
 	
 	// unsubscribe is automatic
 }
@@ -80,6 +81,8 @@ void Request::addResult(const Resource &resource)
 	Synchronize(this);
 	if(!mDigests.contains(resource.digest()))
 	{
+		LogDebug("Request", "Adding resource: " + resource.digest().toString());
+		
 		mResults.append(resource);
 		mDigests.insert(resource.digest());
 		notifyAll();
@@ -110,7 +113,7 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(request.get.contains("timeout"))
 		request.get["timeout"].extract(timeout);
 	
-	while(next <= int(mResults.size()))
+	while(next >= int(mResults.size()))
 		if(!wait(timeout))
 			break;
 	
@@ -142,13 +145,32 @@ void Request::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Request::incoming(const String &path, const BinaryString &target)
+bool Request::incoming(const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
   
-	// TODO: delegate to thread
-	Resource resource(target);
-	addResult(resource);
+	class ResourceThread : public Thread
+	{
+	public:
+		ResourceThread(Request *request, const BinaryString &target)
+		{
+			this->request = request;
+			this->target  = target;
+		}
+		
+		void run(void)
+		{
+			Resource resource(target);	// This can take some time
+			request->addResult(resource);
+		}
+		
+	private:
+		Request *request;
+		BinaryString target;
+	};
+	
+	Thread *thread = new ResourceThread(this, target);
+	thread->start();
 	return true;
 }
 

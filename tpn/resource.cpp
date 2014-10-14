@@ -61,10 +61,14 @@ void Resource::fetch(const BinaryString &digest)
 	mIndexRecord = NULL;
 	mIndexBlock = NULL;
 	
+	LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
+	
 	try {
 		mIndexBlock = new Block(digest);
 		mIndexRecord = new IndexRecord;
 	
+		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
+		
 		BinarySerializer serializer(mIndexBlock);
 		AssertIO(static_cast<Serializer*>(&serializer)->input(mIndexRecord));
 	}

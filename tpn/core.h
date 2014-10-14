@@ -126,10 +126,10 @@ public:
 		~Publisher(void);
 		
 		void publish(const String &prefix);
-		void publish(const String &prefix, const BinaryString &target);
+		void publish(const String &prefix, const String &path, const BinaryString &target);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const Identifier &peer, const String &path, BinaryString &target) = 0;
+		virtual bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
@@ -144,7 +144,7 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &path, const BinaryString &target) = 0;
+		virtual bool incoming(const String &prefix, const String &path, const BinaryString &target) = 0;
 		
 	private:
 		Identifier mPeer;
@@ -209,8 +209,8 @@ public:
 	void unregisterListener(const Identifier &id, Listener *listener);
 	
 	// Publish/Subscribe
-	void publish(String prefix, Publisher *publisher);
-	void unpublish(String prefix, Publisher *publisher);
+	void publish(const String &prefix, Publisher *publisher);
+	void unpublish(const String &prefix, Publisher *publisher);
 	bool subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	bool unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
 	

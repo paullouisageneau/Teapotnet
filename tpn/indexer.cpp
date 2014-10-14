@@ -367,7 +367,9 @@ bool Indexer::process(String path, Resource &resource)
 	LogDebug("Index::process", "Indexing: " + path);
 	
 	// Get name
-	String name = path.afterLast(Directory::Separator);
+	String name;
+	if(path != "/") name = path.afterLast(Directory::Separator);
+	else name = "/";
 	
 	// Don't process garbage files
 	if(name == ".directory" 
@@ -565,27 +567,32 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	
 	// Resource has changed, re-publish it
 	// TODO: access rights
-	publish(path, resource.digest());
+	publish("/files", path, resource.digest());
 }
 
-bool Indexer::anounce(const Identifier &peer, const String &path, BinaryString &target)
+bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
 {
 	Synchronize(this);
 	
-	// TODO: this should have a prefix system
 	// TODO: access rights, use peer
 	
-	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
-	statement.bind(1, path);
-	if(statement.step())
+	if(prefix == "/files")
 	{
-		BinaryString digest;
-		statement.value(0, digest);
+		Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
+		statement.bind(1, path);
+		if(statement.step())
+		{
+			statement.value(0, target);
+			statement.finalize();
+			return true;
+		}
+		
 		statement.finalize();
-		return true;
+		return false;
 	}
 	
-	statement.finalize();
+	// TODO: prefix "/search"
+	
 	return false;
 }
 

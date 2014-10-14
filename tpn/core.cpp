@@ -240,6 +240,15 @@ void Core::registerCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
 	mCallers[target].insert(caller);
+	
+	LogDebug("Core::registerCaller", "Calling " + target.toString());
+	
+	uint16_t tokens = 1024;	// TODO
+	BinaryString payload;
+	BinarySerializer serializer(&payload);
+	serializer.write(target);
+	serializer.write(tokens);
+	outgoing(Message::Lookup, Message::Call, payload);
 }
 
 void Core::unregisterCaller(const BinaryString &target, Caller *caller)
@@ -306,22 +315,16 @@ void Core::unregisterListener(const Identifier &id, Listener *listener)
 	}
 }
 
-void Core::publish(String prefix, Publisher *publisher)
+void Core::publish(const String &prefix, Publisher *publisher)
 {
 	Synchronize(this);
-	
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
 
 	mPublishers[prefix].insert(publisher);
 }
 
-void Core::unpublish(String prefix, Publisher *publisher)
+void Core::unpublish(const String &prefix, Publisher *publisher)
 {
 	Synchronize(this);
-	
-	if(!prefix.empty() && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
 	
 	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 	if(it != mPublishers.end())
@@ -769,11 +772,11 @@ void Core::Publisher::publish(const String &prefix)
 	
 	// Call announce and trigger broadcast if necessary
 	BinaryString target;
-	if(anounce(Identifier::Null, prefix, target))
-		publish(prefix, target);
+	if(anounce(Identifier::Null, prefix, "/", target))
+		publish(prefix, "/", target);
 }
 
-void Core::Publisher::publish(const String &prefix, const BinaryString &target)
+void Core::Publisher::publish(const String &prefix, const String &path, const BinaryString &target)
 {
 	if(!mPublishedPrefixes.contains(prefix))
 	{
@@ -784,9 +787,9 @@ void Core::Publisher::publish(const String &prefix, const BinaryString &target)
 	// Broadcast
 	BinaryString payload;
 	BinarySerializer serializer(&payload);
-	serializer.write(prefix);
+	serializer.write(prefix + path);
 	SerializableList<BinaryString> array;
-	array.push_back(prefix);
+	array.push_back(target);
 	serializer.write(array);
 	Core::Instance->outgoing(Message::Broadcast, Message::Publish, payload);
 }
@@ -1577,7 +1580,7 @@ void Core::Handler::send(const Message &message)
 void Core::Handler::route(const Message &message)
 {
 	Synchronize(this);	
-	DesynchronizeStatement(mCore, mCore->route(message, mLocal));
+	DesynchronizeStatement(this, mCore->route(message, mLocal));
 }
 
 bool Core::Handler::incoming(Message &message)
@@ -1587,15 +1590,16 @@ bool Core::Handler::incoming(Message &message)
 	const Identifier &source = message.source;
 	Stream &payload = message.payload;
 	
-	LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+	//LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	switch(message.content)
 	{
 		case Message::Tunnel:
 		{
+			Desynchronize(this);
 			if(mCore->mTunnelBackend) mCore->mTunnelBackend->incoming(message);
 			break; 
 		}
-		  
+		
 		case Message::Notify:
 		{
 			// TODO
@@ -1606,6 +1610,7 @@ bool Core::Handler::incoming(Message &message)
 			JsonSerializer json(&payload);
 			json.read(notification);
 			
+			// TODO: correct sync
 			Desynchronize(this);
 			Synchronize(mCore);
 			Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(source);
@@ -1634,20 +1639,26 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Call:
 		{
+			BinarySerializer serializer(&payload);
+			
 			BinaryString target;
 			uint16_t tokens;
-			AssertIO(payload.readBinary(target));
-			AssertIO(payload.readBinary(tokens));
+			AssertIO(serializer.read(target));
+			AssertIO(serializer.read(tokens));
 			
 			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
 			mSenders[source]->addTarget(target, tokens);
+			
+			// TODO: return false is content is not stored locally (for correct handling of lookups)
 			break;
 		}
 		
 		case Message::Cancel:
 		{
+			BinarySerializer serializer(&payload);
+			
 			BinaryString target;
-			AssertIO(payload.readBinary(target));
+			AssertIO(serializer.read(target));
 			
 			Map<BinaryString, Sender*>::iterator it = mSenders.find(source);
 			if(it != mSenders.end())
@@ -1666,12 +1677,15 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Data:
 		{
+			Desynchronize(this);
+			
+			BinarySerializer serializer(&payload);
+			
 			BinaryString target;
-			AssertIO(payload.readBinary(target));
+			AssertIO(serializer.read(target));
 			
 			if(Store::Instance->push(target, payload))
 			{
-				Desynchronize(this);
 				mCore->unregisterAllCallers(target);
 				outgoing(source, Message::Forward, Message::Cancel, target);
 			}
@@ -1680,6 +1694,8 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Publish:
 		{
+			Desynchronize(this);
+			
 			BinarySerializer serializer(&payload);
 			
 			String path;
@@ -1703,6 +1719,9 @@ bool Core::Handler::incoming(Message &message)
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
 				
+				String truncatedPath(path.substr(prefix.size()));
+				if(truncatedPath.empty()) truncatedPath = "/";
+				
 				// Pass to local subscribers
 				Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
 				if(it != mSubscribers.end())
@@ -1715,7 +1734,7 @@ bool Core::Handler::incoming(Message &message)
 							kt != targets.end();
 							++kt)
 						{
-							(*jt)->incoming(path, *kt);
+							(*jt)->incoming(prefix, truncatedPath, *kt);
 						}
 					}
 				}
@@ -1729,6 +1748,8 @@ bool Core::Handler::incoming(Message &message)
 		
 		case Message::Subscribe:
 		{
+			Desynchronize(this);
+			
 			BinarySerializer serializer(&payload);
 			
 			String path;
@@ -1745,12 +1766,13 @@ bool Core::Handler::incoming(Message &message)
 			// Match prefixes, longest first
 			while(true)
 			{
-				Desynchronize(this);
-				
 				String prefix;
 				prefix.implode(list, '/');
 				prefix = "/" + prefix;
 
+				String truncatedPath(path.substr(prefix.size()));
+				if(truncatedPath.empty()) truncatedPath = "/";
+				
 				SerializableList<BinaryString> targets;
 				Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
 				if(it != mCore->mPublishers.end())
@@ -1760,9 +1782,10 @@ bool Core::Handler::incoming(Message &message)
 						++jt)
 					{
 						BinaryString target;
-						if((*jt)->anounce(source, path, target))
+						if((*jt)->anounce(source, prefix, truncatedPath, target))
 						{
-							LogDebug("Core::Handler::incoming", "Annoucing " + target.toString() + " for " + path);
+							Assert(!target.empty());
+							LogDebug("Core::Handler::incoming", "Anouncing " + target.toString() + " for " + path);
 							targets.push_back(target);
 						}
 					}
@@ -1794,6 +1817,8 @@ bool Core::Handler::incoming(Message &message)
 
 void Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
+	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
+	
 	Message message;
 	message.prepare(mLocal, dest, type, content);
 	message.payload.write(payload);
@@ -1831,7 +1856,7 @@ void Core::Handler::process(void)
 	while(recv(message))
 	{
 		try {
-			LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
+			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 			
 			switch(message.type)
 			{
@@ -1849,6 +1874,7 @@ void Core::Handler::process(void)
 					if(message.destination == mLocal) incoming(message);
 					else if(!incoming(message))
 						route(message);
+					break;
 					
 				default:
 					LogDebug("Core::Handler", "Unknwon message type " + String::number(unsigned(message.type)) + ", dropping");
@@ -1858,7 +1884,6 @@ void Core::Handler::process(void)
 		catch(const std::exception &e)
 		{
 			LogWarn("Core::Handler", String("Unable to process message: ") + e.what()); 
-			return;
 		}
 	}
 }
@@ -1908,6 +1933,8 @@ Core::Handler::Sender::~Sender(void)
 void Core::Handler::Sender::addTarget(const BinaryString &target, unsigned tokens)
 {
 	Synchronize(this);
+	
+	LogDebug("Core::Handler::Sender", "Adding target " + target.toString() + " (" + String::number(tokens) + " tokens)");
 	mTargets.insert(target, tokens);
 	mHandler->mRunner.schedule(this);
 }
@@ -1948,7 +1975,7 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 		sequence = mCurrentSequence;
 	}
 	
-	// TODO
+	// TODO: this is deprecated
 	Message message;
 	message.prepare(mHandler->mLocal, mDestination, Message::Forward, Message::Notify);
 	message.payload.writeBinary(uint32_t(sequence));
@@ -1961,6 +1988,7 @@ void Core::Handler::Sender::notify(Stream &payload, bool ack)
 
 void Core::Handler::Sender::ack(Stream &payload)
 {
+	// TODO: this is deprecated
 	uint32_t sequence;
 	AssertIO(payload.readBinary(sequence));
 	
@@ -1986,14 +2014,29 @@ void Core::Handler::Sender::run(void)
 	if(/*!mTokens ||*/ mTargets.empty()) 
 		return;
 	
-	Map<BinaryString, unsigned>::iterator it = mTargets.find(mNextTarget);
-	if(it == mTargets.end()) it = mTargets.begin();
+	LogDebug("Core::Handler::Sender", "Running sender (" + String::number(unsigned(mTargets.size())) + " targets)");
+	
+	Map<BinaryString, unsigned>::iterator it;
+	if(!mNextTarget.empty()) 
+	{
+		it = mTargets.find(mNextTarget);
+		if(it == mTargets.end()) it = mTargets.begin();
+	}
+	else {
+		 it = mTargets.begin();
+	}
+	
 	mNextTarget.clear();
 	
 	if(it->second)
 	{
-		BinaryString data;
-		Store::Instance->pull(it->first, data);
+		LogDebug("Core::Handler::Sender", "Sending target " + it->first.toString() + " (" + String::number(it->second) + " tokens left)");
+		
+		BinaryString payload;
+		BinarySerializer serializer(&payload);
+		serializer.write(it->first);	// target
+		
+		Store::Instance->pull(it->first, payload);
 		
 		//--mTokens;
 		--it->second;
@@ -2003,7 +2046,7 @@ void Core::Handler::Sender::run(void)
 		if(it != mTargets.end()) mNextTarget = it->first;
 		
 		BinaryString dest(mDestination);
-		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, data));
+		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, payload));
 		
 		// Warning: iterator is not valid anymore here
 	}

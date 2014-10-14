@@ -68,8 +68,16 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	
 	BinaryString sinkDigest;
 	sink.hash(sinkDigest);
+	
+	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
+	
+	BinaryString tmp;
+	sink.dump(tmp);
+	VAR(tmp);
+	
 	if(sinkDigest != digest)
 	{
+		LogDebug("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
 		mSinks.erase(digest);
 		return false;
 	}
@@ -122,9 +130,13 @@ void Store::waitBlock(const BinaryString &digest)
 	if(!hasBlock(digest))
 	{
 		Core::Caller caller(digest);		// Block is missing locally, call it
-	  
+		
+		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
+		
 		do wait();
 		while(!hasBlock(digest));
+		
+		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
 	}
 }
 
@@ -163,6 +175,8 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 void Store::notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size)
 {
 	Synchronize(this);
+	
+	LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
 	
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
 	statement.bind(1, filename);

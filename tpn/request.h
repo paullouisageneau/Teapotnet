@@ -55,7 +55,7 @@ protected:
 	void createPlaylist(Stream *output, String host = "");
 	
 	// Core::Subscriber
-	bool incoming(const String &path, const BinaryString &target);
+	bool incoming(const String &prefix, const String &path, const BinaryString &target);
 	
 private:
 	String mUrlPrefix;

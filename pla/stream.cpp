@@ -462,7 +462,7 @@ bool Stream::readBinary(char *data, size_t size)
 
 bool Stream::readBinary(BinaryString &str)
 {
-	read(*static_cast<Stream*>(&str));
+	return read(*static_cast<Stream*>(&str)) != 0;
 }
 
 bool Stream::readBinary(int8_t &i)

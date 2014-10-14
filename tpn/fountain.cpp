@@ -43,7 +43,7 @@ uint8_t Fountain::Generator::next(void)
 	uint8_t value;
 	do {
 		// Knuth's 64-bit linear congruential generator
-		mSeed = uint(mSeed*6364136223846793005 + 1442695040888963407);		
+		mSeed = uint64_t(mSeed*6364136223846793005 + 1442695040888963407);		
 		value = uint8_t(mSeed >> 56);
 	}
 	while(!value);	// zero is not a valid output
@@ -69,7 +69,7 @@ Fountain::Combination::~Combination(void)
 
 void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 {
-	if(offset == 0) return;
+	if(coeff == 0) return;
 	
 	Map<int, uint8_t>::iterator it = mComponents.find(offset);
 	if(it != mComponents.end())
@@ -319,7 +319,7 @@ void Fountain::Source::generate(Stream &output)
 	uint32_t total = 0;
 	uint32_t left = (mSize >= 0 ? uint32_t(mSize) : std::numeric_limits<uint32_t>::max());
 
-	while((size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
+	while((size = mFile->readData(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
 	{
 		uint8_t coeff = gen.next();
 		c+= Combination(i, buffer, size)*coeff;
@@ -327,6 +327,8 @@ void Fountain::Source::generate(Stream &output)
 		left-= size;
 		++i;
 	}
+	
+	LogDebug("Fountain::Source::generate", "Generated combination (seed=" + String::number(unsigned(seed)) + ", count=" + String::number(unsigned(i)) + ")");
 	
 	output.writeBinary(uint32_t(total));
 	output.writeBinary(uint32_t(seed));
@@ -355,7 +357,9 @@ bool Fountain::Sink::solve(Stream &input)
 	AssertIO(input.readBinary(size));
 	AssertIO(input.readBinary(seed));
 	AssertIO(input.readBinary(count));
-	AssertIO(input.readBinary(data));
+	input.readBinary(data);
+	
+	LogDebug("Fountain::Sink::solve", "Incoming combination (seed=" + String::number(unsigned(seed)) + ", count=" + String::number(unsigned(count)) + ", size=" + String::number(unsigned(data.size())) + ")");
 	
 	mSize = std::max(mSize, size);
 	
@@ -427,6 +431,8 @@ bool Fountain::Sink::solve(Stream &input)
 		}
 	}
 	
+	LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
+	
 	mIsComplete = (decodedCount == int(count));
 	return mIsComplete;
 }
@@ -442,8 +448,8 @@ bool Fountain::Sink::isComplete(void) const
 }
 
 void Fountain::Sink::dump(Stream &stream) const
-{ 
-	List<Combination>::const_iterator it = mCombinations.begin();	
+{
+	List<Combination>::const_iterator it = mCombinations.begin();
 	uint32_t left = mSize;
 	while(left && it != mCombinations.end() && !it->isCoded())
 	{
@@ -451,6 +457,8 @@ void Fountain::Sink::dump(Stream &stream) const
 		stream.writeBinary(it->data(), size);
 		left-= size;
 	}
+	
+	//if(left) throw Exception("Dumping failed: " + String::number(unsigned(left)) + " bytes missing in fountain sink");
 }
 
 void Fountain::Sink::hash(BinaryString &digest) const
@@ -468,6 +476,8 @@ void Fountain::Sink::hash(BinaryString &digest) const
 	}
 	
 	hash.finalize(digest);
+	
+	//if(left) throw Exception("Hashing failed: " + String::number(unsigned(left)) + " bytes missing in fountain sink");
 }
 
 void Fountain::Sink::clear(void)

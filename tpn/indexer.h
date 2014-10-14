@@ -66,7 +66,7 @@ public:
 	void notify(String path, const Resource &resource, const Time &time);
 	
 	// Publisher
-	bool anounce(const Identifier &peer, const String &path, BinaryString &target);
+	bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target);
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
