@@ -43,8 +43,9 @@ public:
 
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
-	void addResult(const Resource &resource);
-	void getResult(int i, Resource &resource) const;
+	void addResult(Resource &resource);
+	void addResult(const Resource::DirectoryRecord &record);
+	void getResult(int i, Resource::DirectoryRecord &record) const;
 	
 	void setAutoDelete(double timeout = 10.);
 	
@@ -59,8 +60,9 @@ protected:
 	
 private:
 	String mUrlPrefix;
-	Array<Resource> mResults;
+	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
 	Set<BinaryString> mDigests;
+	bool mListDirectories;
 };
 
 }

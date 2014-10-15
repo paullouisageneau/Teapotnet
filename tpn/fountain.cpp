@@ -299,7 +299,7 @@ Fountain::Source::~Source(void)
 	delete mFile;
 }
 
-void Fountain::Source::generate(Stream &output)
+void Fountain::Source::generate(Stream &output, unsigned *chunks)
 {
 	mFile->seekRead(mOffset);
   
@@ -328,6 +328,8 @@ void Fountain::Source::generate(Stream &output)
 		++i;
 	}
 	
+	if(chunks) *chunks = i;
+	
 	LogDebug("Fountain::Source::generate", "Generated combination (seed=" + String::number(unsigned(seed)) + ", count=" + String::number(unsigned(i)) + ")");
 	
 	output.writeBinary(uint32_t(total));
@@ -354,7 +356,13 @@ bool Fountain::Sink::solve(Stream &input)
 	uint32_t seed;
 	uint16_t count;
 	BinaryString data;
-	AssertIO(input.readBinary(size));
+	
+	if(!input.readBinary(size))
+	{
+		LogWarn("Fountain::Sink::solve", "Unable to read a combination: input is empty");
+		return false;
+	}
+	
 	AssertIO(input.readBinary(seed));
 	AssertIO(input.readBinary(count));
 	input.readBinary(data);

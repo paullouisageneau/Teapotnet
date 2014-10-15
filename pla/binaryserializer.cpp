@@ -43,7 +43,7 @@ bool BinarySerializer::input(String &str)
 {
 	uint32_t size;
 	if(!input(size)) return false;	
-
+	
 	str.clear();
 	str.reserve(size);
 	
@@ -53,7 +53,7 @@ bool BinarySerializer::input(String &str)
 		AssertIO(input(c));
 		str+= char(c);
 	}
-
+	
 	return true;
 }
 

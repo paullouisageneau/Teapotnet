@@ -232,53 +232,61 @@ void Interface::http(const String &prefix, Http::Request &request)
 			Resource resource;
 			resource.fetch(digest);		// this can take some time
 			
-			// Get range
-			int64_t rangeBegin = 0;
-			int64_t rangeEnd = 0;
-			bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
-			int64_t rangeSize = rangeEnd - rangeBegin + 1;
-			
-			// Forge HTTP response header
-			Http::Response response(request, 200);
-			if(!hasRange) response.headers["Content-SHA256"] << resource.digest();
-			response.headers["Content-Length"] << rangeSize;
-			response.headers["Content-Name"] = resource.name();
-			//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
-			response.headers["Accept-Ranges"] = "bytes";
-			
-			String ext = resource.name().afterLast('.');
-			if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
+			if(resource.isDirectory())
 			{
-				response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
-				response.headers["Content-Type"] = "application/force-download";
+				// TODO
+				throw 405;
+				return;
 			}
-			else {
-				response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
-				response.headers["Content-Type"] = Mime::GetType(resource.name());
-			}
-			
-			response.send();
-			if(request.method == "HEAD") return;
-			
-			try {
-				// Launch transfer
-				Resource::Reader reader(&resource);
-				if(hasRange) reader.seekRead(rangeBegin);
-				int64_t size = reader.readBinary(*response.stream, rangeSize);	// let's go !
-				if(size != rangeSize)
-					throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
-			}
-			catch(const NetException &e)
-			{
-				return;	// nothing to do
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
-			}
+			else { // resource is a file
+			  
+				// Get range
+				int64_t rangeBegin = 0;
+				int64_t rangeEnd = 0;
+				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
+				int64_t rangeSize = rangeEnd - rangeBegin + 1;
 				
-			return;
-			
+				// Forge HTTP response header
+				Http::Response response(request, 200);
+				if(!hasRange) response.headers["Content-SHA256"] << resource.digest();
+				response.headers["Content-Length"] << rangeSize;
+				response.headers["Content-Name"] = resource.name();
+				//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
+				response.headers["Accept-Ranges"] = "bytes";
+				
+				String ext = resource.name().afterLast('.');
+				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
+				{
+					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = "application/force-download";
+				}
+				else {
+					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
+					response.headers["Content-Type"] = Mime::GetType(resource.name());
+				}
+				
+				response.send();
+				if(request.method == "HEAD") return;
+				
+				try {
+					// Launch transfer
+					Resource::Reader reader(&resource);
+					if(hasRange) reader.seekRead(rangeBegin);
+					int64_t size = reader.readBinary(*response.stream, rangeSize);	// let's go !
+					if(size != rangeSize)
+						throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
+				}
+				catch(const NetException &e)
+				{
+					return;	// nothing to do
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+				}
+				
+				return;
+			}
 		}
 	}
 	catch(const NetException &e)

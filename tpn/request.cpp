@@ -28,7 +28,9 @@
 namespace tpn
 {
 
-Request::Request(const Identifier &peer, const String &target) : Subscriber(peer)
+Request::Request(const Identifier &peer, const String &target) :
+	Subscriber(peer),
+	mListDirectories(true)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	LogDebug("Request", "Creating request: " + mUrlPrefix);
@@ -38,7 +40,8 @@ Request::Request(const Identifier &peer, const String &target) : Subscriber(peer
 	subscribe(target);
 }
 
-Request::Request(const String &match)
+Request::Request(const String &match) :
+	mListDirectories(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	LogDebug("Request", "Creating request: " + mUrlPrefix);
@@ -76,24 +79,46 @@ int Request::resultsCount(void) const
 	return int(mResults.size());
 }
 
-void Request::addResult(const Resource &resource)
+void Request::addResult(Resource &resource)
 {
 	Synchronize(this);
-	if(!mDigests.contains(resource.digest()))
+	
+	if(resource.isDirectory() && mListDirectories)
 	{
-		LogDebug("Request", "Adding resource: " + resource.digest().toString());
+		Desynchronize(this);
 		
-		mResults.append(resource);
-		mDigests.insert(resource.digest());
+		LogDebug("Request", "Listing directory: " + resource.digest().toString());
+		
+		// List directory and add records
+		Resource::Reader reader(&resource);
+		Resource::DirectoryRecord record;
+		while(reader.readDirectory(record))
+			addResult(record);
+	}
+	else {
+		// Do not list, just add corresponding record
+		 addResult(resource.getDirectoryRecord());
+	}
+}
+
+void Request::addResult(const Resource::DirectoryRecord &record)
+{
+	Synchronize(this);
+	if(!mDigests.contains(record.digest))
+	{
+		LogDebug("Request", "Adding result: " + record.digest.toString());
+		
+		mResults.append(record);
+		mDigests.insert(record.digest);
 		notifyAll();
 	}
 }
 
-void Request::getResult(int i, Resource &resource) const
+void Request::getResult(int i, Resource::DirectoryRecord &record) const
 {
 	Synchronize(this);
 	Assert(i < resultsCount());
-	resource = mResults.at(i);
+	record = mResults.at(i);
 }
 
 void Request::setAutoDelete(double timeout)
@@ -149,6 +174,9 @@ bool Request::incoming(const String &prefix, const String &path, const BinaryStr
 {
 	Synchronize(this);
   
+	if(mDigests.contains(target)) return true;
+	mDigests.insert(target);
+
 	class ResourceThread : public Thread
 	{
 	public:
@@ -161,7 +189,7 @@ bool Request::incoming(const String &prefix, const String &path, const BinaryStr
 		void run(void)
 		{
 			Resource resource(target);	// This can take some time
-			request->addResult(resource);
+			request->addResult(resource);	// This too
 		}
 		
 	private:
@@ -185,11 +213,11 @@ void Request::createPlaylist(Stream *output, String host)
 	output->writeLine("#EXTM3U");
 	for(int i = 0; i < int(mResults.size()); ++i)
 	{
-		const Resource &resource = mResults[i];
-		if(resource.isDirectory() || resource.digest().empty()) continue;
-		if(!Mime::IsAudio(resource.name()) && !Mime::IsVideo(resource.name())) continue;
-		String link = "http://" + host + "/" + resource.digest().toString();
-		output->writeLine("#EXTINF:-1," + resource.name().beforeLast('.'));
+		const Resource::DirectoryRecord &record = mResults[i];
+		if(record.type == "directory" || record.digest.empty()) continue;
+		if(!Mime::IsAudio(record.name) && !Mime::IsVideo(record.name)) continue;
+		String link = "http://" + host + "/" + record.digest.toString();
+		output->writeLine("#EXTINF:-1," + record.name.beforeLast('.'));
 		output->writeLine(link);
 	}
 }

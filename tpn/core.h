@@ -219,9 +219,9 @@ public:
 	bool send(const Identifier &peer, const Notification &notification);
 	
 	// Routing
-	void route(const Message &message, const Identifier &from = Identifier::Null);
-	void broadcast(const Message &message, const Identifier &from = Identifier::Null);
-	bool send(const Message &message, const Identifier &to);
+	void route(Message &message, const Identifier &from = Identifier::Null);
+	void broadcast(Message &message, const Identifier &from = Identifier::Null);
+	bool send(Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
@@ -388,8 +388,8 @@ private:
 		
 	private:
 		bool recv(Message &message);
-		void send(const Message &message);
-		void route(const Message &message);
+		void send(Message &message);
+		void route(Message &message);
 		bool incoming(Message &message);
 		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 

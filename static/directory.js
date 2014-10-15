@@ -19,6 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+// TODO: remove, deprecated
 function getResourceLink(resource, privateMode) {
 	
 	if(resource.digest) 
@@ -74,9 +75,8 @@ function listDirectory(url, object, showButtons, privateMode) {
 
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
-				if(!resource.url) continue;
 				
-				var link = getResourceLink(resource, privateMode);
+				var link = '/file/' + resource.digest;
 				var line = '<tr>';
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
@@ -223,7 +223,6 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		
 		for(var i=0; i<data.length; i++) {
 			var resource = data[i];
-			if(!resource.url) continue;
 
 			var line = '<tr>';
 			var func;

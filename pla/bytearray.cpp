@@ -91,7 +91,7 @@ size_t ByteArray::length(void) const
 
 const char *ByteArray::data(void) const
 {
-	return mArray+mReadPos;
+	return mArray + mReadPos;
 }
 
 const byte *ByteArray::bytes(void) const
@@ -109,6 +109,12 @@ void ByteArray::clear(void)
 	mReadPos = 0;
 	mWritePos = 0;
 	mLeft = 0;
+}
+
+void ByteArray::reset(void)
+{
+	mReadPos = 0;
+	mLeft = mLength;
 }
 
 void ByteArray::serialize(Serializer &s) const

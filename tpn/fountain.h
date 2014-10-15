@@ -99,7 +99,7 @@ public:
 		Source(File *file, int64_t offset = 0, int64_t size = -1);	// file will be deleted
 		~Source(void);
 		
-		void generate(Stream &output);	// Generate combination from seed
+		void generate(Stream &output, unsigned *chunk);	// Generate combination from seed
 		
 	private:
 		File *mFile;

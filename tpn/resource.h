@@ -39,39 +39,12 @@ class Resource : public Serializable
 public:
 	enum AccessLevel { Public, Private, Personal };
 	
-	class Reader : public Stream
-	{
-	public:
-		Reader(Resource *resource);
-		~Reader(void);
-	  
-		// Stream
-		size_t readData(char *buffer, size_t size);
-		void writeData(const char *data, size_t size);
-		void seekRead(int64_t position);
-		void seekWrite(int64_t position);
-		int64_t tellRead(void) const;
-		int64_t tellWrite(void) const;
-		
-	private:
-		Block *createBlock(int index); 
-	  
-		Resource *mResource;
-		int64_t mReadPosition;
-		
-		int mCurrentBlockIndex;
-		Block *mCurrentBlock;
-		Block *mNextBlock;
-	};
-	
-	// TODO: API to read directories
-	
 	Resource(void);
 	Resource(const Resource &resource);
 	Resource(const BinaryString &digest);
 	~Resource(void);
 	
-	void fetch(const BinaryString &digest);
+	void fetch(const BinaryString &digest, bool localOnly = false);
 	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
@@ -82,7 +55,6 @@ public:
 	String  type(void) const;
 	int64_t size(void) const;
 	bool isDirectory(void) const;
-	
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
@@ -132,6 +104,36 @@ public:
 		
 		BinaryString	digest;
 		Time 		time;
+	};
+	
+	IndexRecord getIndexRecord(void) const;
+	DirectoryRecord getDirectoryRecord(Time recordTime = 0) const;
+	
+	class Reader : public Stream
+	{
+	public:
+		Reader(Resource *resource);
+		~Reader(void);
+	  
+		// Stream
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *data, size_t size);
+		void seekRead(int64_t position);
+		void seekWrite(int64_t position);
+		int64_t tellRead(void) const;
+		int64_t tellWrite(void) const;
+		
+		bool readDirectory(DirectoryRecord &record);
+		
+	private:
+		Block *createBlock(int index); 
+	  
+		Resource *mResource;
+		int64_t mReadPosition;
+		
+		int mCurrentBlockIndex;
+		Block *mCurrentBlock;
+		Block *mNextBlock;
 	};
 	
 protected:

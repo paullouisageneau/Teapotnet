@@ -448,9 +448,13 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 	return false;
 }
 
-void Core::route(const Message &message, const Identifier &from)
+void Core::route(Message &message, const Identifier &from)
 {
 	Synchronize(this);
+	
+	// Drop if too many hops
+	if(message.hops >= 8)
+		return;
 	
 	// 1st case: neighbour
 	if(send(message, message.destination))
@@ -466,9 +470,11 @@ void Core::route(const Message &message, const Identifier &from)
 	broadcast(message, from);
 }
 
-void Core::broadcast(const Message &message, const Identifier &from)
+void Core::broadcast(Message &message, const Identifier &from)
 {
 	Synchronize(this);
+	
+	message.payload.reset();
 	
 	Array<Identifier> identifiers;
 	mHandlers.getKeys(identifiers);
@@ -486,9 +492,11 @@ void Core::broadcast(const Message &message, const Identifier &from)
 	}
 }
 
-bool Core::send(const Message &message, const Identifier &to)
+bool Core::send(Message &message, const Identifier &to)
 {
 	Synchronize(this);
+	
+	message.payload.reset();
 	
 	if(to == Identifier::Null)
 	{
@@ -1053,7 +1061,7 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 	  
 		void run(void)
 		{
-			//LogDebug("Core::Backend::doHandshake", "HandshakeTask starting...");
+			LogDebug("Core::Backend::doHandshake", "HandshakeTask starting...");
 			
 			try {
 				// Set verifier
@@ -1545,12 +1553,14 @@ bool Core::Handler::recv(Message &message)
 		
 		if(mStream->readBinary(message.payload, size) != size)
 			throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
+		
+		++message.hops;
 	}
 	
 	return true;
 }
 
-void Core::Handler::send(const Message &message)
+void Core::Handler::send(Message &message)
 {
 	Synchronize(this);
 	
@@ -1577,10 +1587,10 @@ void Core::Handler::send(const Message &message)
 	}
 }
 
-void Core::Handler::route(const Message &message)
+void Core::Handler::route(Message &message)
 {
 	Synchronize(this);	
-	DesynchronizeStatement(this, mCore->route(message, mLocal));
+	DesynchronizeStatement(this, mCore->route(message, mRemote));
 }
 
 bool Core::Handler::incoming(Message &message)
@@ -1590,7 +1600,7 @@ bool Core::Handler::incoming(Message &message)
 	const Identifier &source = message.source;
 	Stream &payload = message.payload;
 	
-	//LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+	LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	switch(message.content)
 	{
 		case Message::Tunnel:
@@ -1687,7 +1697,11 @@ bool Core::Handler::incoming(Message &message)
 			if(Store::Instance->push(target, payload))
 			{
 				mCore->unregisterAllCallers(target);
-				outgoing(source, Message::Forward, Message::Cancel, target);
+				
+				BinaryString response;
+				BinarySerializer serializer(&response);
+				serializer.write(target);
+				outgoing(source, Message::Forward, Message::Cancel, response);
 			}
 			break;
 		}
@@ -1817,7 +1831,7 @@ bool Core::Handler::incoming(Message &message)
 
 void Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
-	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
+	LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
 	
 	Message message;
 	message.prepare(mLocal, dest, type, content);
@@ -1856,7 +1870,7 @@ void Core::Handler::process(void)
 	while(recv(message))
 	{
 		try {
-			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
+			LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 			
 			switch(message.type)
 			{
@@ -2036,17 +2050,26 @@ void Core::Handler::Sender::run(void)
 		BinarySerializer serializer(&payload);
 		serializer.write(it->first);	// target
 		
-		Store::Instance->pull(it->first, payload);
-		
-		//--mTokens;
-		--it->second;
-		
-		if(it->second) ++it;
-		else mTargets.erase(it++);
-		if(it != mTargets.end()) mNextTarget = it->first;
-		
-		BinaryString dest(mDestination);
-		DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, payload));
+		unsigned chunks = 0;
+		if(Store::Instance->pull(it->first, payload, &chunks))
+		{
+			it->second = std::min(it->second, chunks);	// limit tokens
+			
+			//--mTokens;
+			if(it->second) --it->second;
+			if(it->second) ++it;
+			else mTargets.erase(it++);
+			if(it != mTargets.end()) mNextTarget = it->first;
+			
+			BinaryString dest(mDestination);
+			DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, payload));
+		}
+		else {
+			LogWarn("Core::Handler::Sender", "Unknown target: " + it->first.toString());
+			
+			mTargets.erase(it++);
+			if(it != mTargets.end()) mNextTarget = it->first;
+		}
 		
 		// Warning: iterator is not valid anymore here
 	}

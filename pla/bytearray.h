@@ -47,6 +47,7 @@ public:
 	size_t size(void) const;		// data left
 	
 	void clear(void);
+	void reset(void);
 
 	// Serializable
 	virtual void serialize(Serializer &s) const;

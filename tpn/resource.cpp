@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/resource.h"
+#include "tpn/store.h"
 #include "tpn/config.h"
 
 #include "pla/binaryserializer.h"
@@ -45,7 +46,7 @@ Resource::Resource(const BinaryString &digest) :
 	mIndexBlock(NULL),
 	mIndexRecord(NULL)
 {
-	fetch(digest);
+	fetch(digest, false);
 }
 
 Resource::~Resource(void)
@@ -54,19 +55,22 @@ Resource::~Resource(void)
 	delete mIndexRecord;
 }
 
-void Resource::fetch(const BinaryString &digest)
+void Resource::fetch(const BinaryString &digest, bool localOnly)
 {
 	delete mIndexBlock;
 	delete mIndexRecord;
 	mIndexRecord = NULL;
 	mIndexBlock = NULL;
 	
+	if(localOnly && !Store::Instance->hasBlock(digest))
+		throw Exception(String("Local resource not found: ") + digest.toString());
+	
 	LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
 	
 	try {
 		mIndexBlock = new Block(digest);
 		mIndexRecord = new IndexRecord;
-	
+		
 		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
 		
 		BinarySerializer serializer(mIndexBlock);
@@ -111,21 +115,21 @@ BinaryString Resource::blockDigest(int index) const
 	return mIndexRecord->blockDigests.at(index);  
 }
 
-String  Resource::name(void) const
+String Resource::name(void) const
 {
-	if(mIndexRecord) mIndexRecord->name;
+	if(mIndexRecord) return mIndexRecord->name;
 	else return "";
 }
 
-String  Resource::type(void) const
+String Resource::type(void) const
 {
-	if(mIndexRecord) mIndexRecord->type;
+	if(mIndexRecord) return mIndexRecord->type;
 	else return "";
 }
 
 int64_t Resource::size(void) const
 {
-	if(mIndexRecord) mIndexRecord->size;
+	if(mIndexRecord) return mIndexRecord->size;
 	else return 0;
 }
 
@@ -194,6 +198,23 @@ bool operator != (const Resource &r1, const Resource &r2)
 	return !(r1 == r2);
 }
 
+Resource::IndexRecord Resource::getIndexRecord(void) const
+{
+	if(!mIndexRecord) throw Exception("No index record for the resource");
+	return *mIndexRecord;
+}
+
+Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
+{
+	 if(!mIndexRecord) throw Exception("No index record for the resource");
+	 
+	Resource::DirectoryRecord record;
+	*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(mIndexRecord);
+	record.digest = digest();
+	record.time = recordTime;
+	return record;
+}
+
 Resource::Reader::Reader(Resource *resource) :
 	mResource(resource),
 	mReadPosition(0),
@@ -259,9 +280,17 @@ int64_t Resource::Reader::tellWrite(void) const
 	return 0;  
 }
 
+bool Resource::Reader::readDirectory(DirectoryRecord &record)
+{
+	BinarySerializer serializer(this);
+	return serializer.read(record);
+}
+
 Block *Resource::Reader::createBlock(int index)
 {
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
+	
+	LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
 	return new Block(mResource->blockDigest(index)); 
 }
 
@@ -329,7 +358,7 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 	mapping["type"] = &type;
 	mapping["size"] = &sizeWrapper;
 	mapping["digest"] = &digest;
-	mapping["time"] = &time;
+	if(time != 0) mapping["time"] = &time;
 	
 	s.outputObject(mapping);
 }

@@ -43,7 +43,7 @@ public:
 	~Store(void);
 	
 	bool push(const BinaryString &digest, Stream &input);
-	bool pull(const BinaryString &digest, Stream &output);
+	bool pull(const BinaryString &digest, Stream &output, unsigned *chunks = NULL);
 	
 	bool hasBlock(const BinaryString &digest);
 	void waitBlock(const BinaryString &digest);

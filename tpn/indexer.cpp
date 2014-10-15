@@ -288,7 +288,7 @@ void Indexer::save(void) const
   
 	File file(mFileName, File::Write);
 	LineSerializer serializer(&file);
-	serializer.output(mDirectories);
+	serializer.write(mDirectories);
 	file.close();
 }
 
@@ -409,14 +409,9 @@ bool Indexer::process(String path, Resource &resource)
 					continue;	// ignore this directory
 			
 			time = File::Time(realSubPath);
-			
-			Resource::DirectoryRecord record;
-			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
-			record.digest = subResource.digest();
-			record.time = time;
-			serializer.output(record);
-			
 			fileTime = std::max(fileTime, time);
+			
+			serializer.write(subResource.getDirectoryRecord(time));
 		}
 		catch(const Exception &e)
 		{
@@ -451,7 +446,7 @@ bool Indexer::process(String path, Resource &resource)
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
 			record.time = time;
-			serializer.output(record);
+			serializer.write(record);
 			
 			fileTime = std::max(fileTime, time);
 		}
@@ -493,7 +488,7 @@ bool Indexer::process(String path, Resource &resource)
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		BinarySerializer serializer(&tempFile);
-		static_cast<Serializer*>(&serializer)->output(resource.mIndexRecord);
+		serializer.write(resource.mIndexRecord);
 		tempFile.close();
 		String indexFilePath = Cache::Instance->move(tempFileName);
 		
@@ -530,7 +525,16 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 		if(time) statement.value(1, *time);
 		statement.finalize();
 		
-		resource.fetch(digest);
+		try {
+			resource.fetch(digest, true);	// local only
+		}
+		catch(const Exception &e)
+		{
+			// Should not happen, cache is bogus
+			LogWarn("Indexer::get", e.what());
+			return false;
+		}
+		
 		return true;
 	}
 	
@@ -550,7 +554,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	String name;
 	if(path == "/") name = "/";
 	else name = path.afterLast('/');
-
+	
 	//LogDebug("Indexer::notify", "Notified: " + path);
 	Assert(!name.empty());
 	

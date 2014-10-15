@@ -71,10 +71,6 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	
 	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
 	
-	BinaryString tmp;
-	sink.dump(tmp);
-	VAR(tmp);
-	
 	if(sinkDigest != digest)
 	{
 		LogDebug("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
@@ -94,7 +90,7 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Stream &output)
+bool Store::pull(const BinaryString &digest, Stream &output, unsigned *chunks)
 {
 	Synchronize(this);
   
@@ -103,7 +99,7 @@ bool Store::pull(const BinaryString &digest, Stream &output)
 	if(!file) return false;
 	
 	Fountain::Source source(file, file->tellRead(), size);
-	source.generate(output);
+	source.generate(output, chunks);
 	return true;
 }
 
