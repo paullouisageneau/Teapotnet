@@ -28,24 +28,32 @@
 namespace tpn
 {
 
-Request::Request(const Identifier &peer, const String &target) :
-	Subscriber(peer),
-	mListDirectories(true)
+Request::Request(Resource &resource) :
+	mListDirectories(true),
+	mFinished(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
-	LogDebug("Request", "Creating request: " + mUrlPrefix);
+	Interface::Instance->add(mUrlPrefix, this);
 	
+	addResult(resource);
+}
+  
+Request::Request(const Identifier &peer, const String &target) :
+	Subscriber(peer),
+	mListDirectories(true),
+	mFinished(false)
+{
+	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
 	
 	subscribe(target);
 }
 
 Request::Request(const String &match) :
-	mListDirectories(false)
+	mListDirectories(false),
+	mFinished(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
-	LogDebug("Request", "Creating request: " + mUrlPrefix);
-	
 	Interface::Instance->add(mUrlPrefix, this);
 	
 	if(!match.empty())
@@ -89,11 +97,19 @@ void Request::addResult(Resource &resource)
 		
 		LogDebug("Request", "Listing directory: " + resource.digest().toString());
 		
+		// TODO: thread
 		// List directory and add records
 		Resource::Reader reader(&resource);
 		Resource::DirectoryRecord record;
 		while(reader.readDirectory(record))
-			addResult(record);
+		{
+			Synchronize(this);
+			mResults.append(record);
+			mDigests.insert(record.digest);
+		}
+		
+		SynchronizeStatement(this, mFinished = true);
+		notifyAll();
 	}
 	else {
 		// Do not list, just add corresponding record
@@ -138,9 +154,11 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(request.get.contains("timeout"))
 		request.get["timeout"].extract(timeout);
 	
-	while(next >= int(mResults.size()))
+	while(next >= int(mResults.size()) && !mFinished)
+	{
 		if(!wait(timeout))
 			break;
+	}
 	
 	if(request.get.contains("playlist"))
 	{

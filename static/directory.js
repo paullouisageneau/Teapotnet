@@ -19,32 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-// TODO: remove, deprecated
-function getResourceLink(resource, privateMode) {
-	
-	if(resource.digest) 
-		return '/' + resource.digest.escape();
-	
-	var url = window.location.href;
-	var basePath = getBasePath(1);
-	var fromSelf = (resource.contact && basePath == '/'+resource.contact+'/');
-	
-	var subPath = 'browse';
-	if(privateMode) {
-		if(resource.hops == 0 || fromSelf) subPath = 'myself/files';
-		else if(resource.hops == 1 && resource.contact) subPath = 'contacts/' + resource.contact.escape() + '/files';
-	}
-	
-	return basePath + subPath
-		+ (resource.url[0] != '/' ? '/' : '') + resource.url.escape()
-		+ (resource.type == "directory" ? '/' : '');
-}
-
 function listDirectory(url, object, showButtons, privateMode) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
-	// Loop ajax call until 404
+	// Loop ajax call until empty or 404
 	
 	$.ajax({
 		url: url,
@@ -232,7 +211,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
 	
 					func = function() {
-						var link = getResourceLink(resource) + "?json";
+						var link = "/file/" + resource.digest + "?json";
 						parents.push(url);
 						listFileSelector(link, object, input, inputName, directoryToken, parents);
 						return false;

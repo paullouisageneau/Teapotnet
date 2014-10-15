@@ -101,7 +101,7 @@ int Resource::blocksCount(void) const
 
 int Resource::blockIndex(int64_t position) const
 {
-	if(!mIndexBlock || position < 0 || position >= mIndexRecord->size)
+	if(!mIndexBlock || position < 0 || (position > 0 && position >= mIndexRecord->size))
 		throw OutOfBounds("Resource position out of bounds");
   
 	// TODO: block size in record ?
@@ -112,6 +112,7 @@ BinaryString Resource::blockDigest(int index) const
 {
 	if(!mIndexBlock || index < 0 || index >= mIndexRecord->blockDigests.size())
 		throw OutOfBounds("Block index out of bounds");
+	
 	return mIndexRecord->blockDigests.at(index);  
 }
 

@@ -1713,10 +1713,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "files")
 		{
-			String target(url);
-			Assert(!target.empty());
-			
-			Request *req = new Request(identifier(), "/files" + target);
+			Request *req = new Request(identifier(), "/files" + url);
 			String reqPrefix = req->urlPrefix();
 			req->setAutoDelete();
 			
@@ -1725,8 +1722,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			Html page(response.stream);
 			
-			if(target == "/") page.header(name()+": Browse files");
-			else page.header(name()+": "+target.substr(1));
+			if(url == "/") page.header(name() + ": Browse files");
+			else page.header(name() + ": " + url.substr(1));
 			
 			page.open("div","topmenu");
 			if(!isSelf()) page.span("TODO", "status.button");	// TODO

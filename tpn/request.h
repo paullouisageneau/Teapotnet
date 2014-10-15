@@ -37,6 +37,7 @@ namespace tpn
 class Request :	protected Core::Subscriber, public Synchronizable, public HttpInterfaceable
 {
 public:
+	Request(Resource &resource);
 	Request(const Identifier &peer, const String &path);
 	Request(const String &match);
 	~Request(void);
@@ -63,6 +64,7 @@ private:
 	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
 	Set<BinaryString> mDigests;
 	bool mListDirectories;
+	bool mFinished;
 };
 
 }

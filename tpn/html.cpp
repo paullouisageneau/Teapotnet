@@ -100,7 +100,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 		else text(title);
 		close("div");
 		close("div");
-		javascript("$('#backlink').click(function(){ window.location.href = getBasePath(1); return false;});");
+		//javascript("$('#backlink').click(function(){ window.location.href = getBasePath(1); return false;});");
 		open("div","content");
 	}
 }

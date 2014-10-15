@@ -234,8 +234,23 @@ void Interface::http(const String &prefix, Http::Request &request)
 			
 			if(resource.isDirectory())
 			{
-				// TODO
-				throw 405;
+				Request *req = new Request(resource);
+				String reqPrefix = req->urlPrefix();
+				req->setAutoDelete();
+				
+				Http::Response response(request, 200);
+				response.send();
+				
+				Html page(response.stream);
+				page.header("Browse files");
+				page.open("div","topmenu");
+				page.link(prefix+"/search/", "Search", ".button");
+				page.link(reqPrefix+"?playlist", "Play all", "playall.button");
+				page.close("div");
+				
+				page.div("", "list.box");
+				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+				page.footer();
 				return;
 			}
 			else { // resource is a file
