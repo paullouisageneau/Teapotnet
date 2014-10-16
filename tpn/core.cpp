@@ -1073,9 +1073,12 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 				
 				if(!transport->hasCertificate())
 				{
-					// Assign identifiers
-					verifier.local = local;
-					verifier.remote = remote;
+					// Assign identifiers if client
+					if(transport->isClient())
+					{
+						verifier.local = local;
+						verifier.remote = remote;
+					}
 				}
 				else {
 					// Assign local if client
@@ -1871,7 +1874,7 @@ void Core::Handler::process(void)
 	{
 		try {
 			LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
-			
+		
 			switch(message.type)
 			{
 				case Message::Forward:

@@ -41,7 +41,7 @@ Tracker::~Tracker(void)
 
 void Tracker::process(Http::Request &request)
 {
-	LogDebug("Tracker", "URL " + request.url);	
+	//LogDebug("Tracker", "URL " + request.url);	
 
 	try {
 		if(request.url != "/tracker" && request.url != "/tracker/")
@@ -60,8 +60,9 @@ void Tracker::process(Http::Request &request)
 		}
 		
 		if(identifier.digest().size() != 32)
-			throw Exception("Invalid indentifier size");
-		
+			//throw Exception("Invalid indentifier size");
+			throw 404;		
+
 		if(request.method == "POST")
 		{
 			uint64_t instance = 0;
