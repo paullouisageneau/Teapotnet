@@ -32,6 +32,8 @@ Database::Database(const String &filename) :
 {
 	if(sqlite3_open(filename.c_str(), &mDb) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");	// TODO: close ?
+	
+	execute("PRAGMA synchronous = OFF");
 }
 
 Database::~Database(void)

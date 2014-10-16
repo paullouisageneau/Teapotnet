@@ -172,7 +172,7 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 {
 	Synchronize(this);
 	
-	LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
+	//LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
 	
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
 	statement.bind(1, filename);

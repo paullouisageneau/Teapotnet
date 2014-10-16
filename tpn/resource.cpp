@@ -65,7 +65,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 	if(localOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
 	
-	LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
+	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
 	
 	try {
 		mIndexBlock = new Block(digest);
