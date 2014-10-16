@@ -188,17 +188,17 @@ function isPageHidden() {
 	return !document.hasFocus();
 }
 
-var MessageSound = null;
+var MailSound = null;
 
 if(window.Audio)
 {
-	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MessageSound = new Audio('/message.ogg');
-	else MessageSound = new Audio('/message.m4a');
-	if(MessageSound != null) MessageSound.load();
+	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/message.ogg');
+	else MailSound = new Audio('/message.m4a');
+	if(MailSound != null) MailSound.load();
 }
 
-function playMessageSound() {
-	if(MessageSound != null) MessageSound.play();
+function playMailSound() {
+	if(MailSound != null) MailSound.play();
 }
 
 var Notification = window.Notification || window.mozNotification || window.webkitNotification;
@@ -250,33 +250,33 @@ function setCallback(url, period, callback) {
 	});
 }
 
-function setMessagesReceiver(url, object) {
+function setMailsReceiver(url, object) {
 
 	$(window).blur(function() {
 		$(object).find('.message').addClass('oldmessage');
 	});
-	setMessagesReceiverRec(url, object, 0);
+	setMailsReceiverRec(url, object, 0);
 }
 
-function updateMessagesReceiver(url, object) {
+function updateMailsReceiver(url, object) {
 	$(object).html("");
-	setMessagesReceiver(url, object);
+	setMailsReceiver(url, object);
 }
 
 var BaseDocumentTitle = document.title;
-var NbNewMessages = 0;
+var NbNewMails = 0;
 
-function clearNewMessages() {
-	if(NbNewMessages) {
+function clearNewMails() {
+	if(NbNewMails) {
 		document.title = BaseDocumentTitle;
-		NbNewMessages = 0;
+		NbNewMails = 0;
 	}
 }
 
-$(window).focus(clearNewMessages);
-$(window).blur(clearNewMessages);
-$(window).keydown(clearNewMessages);
-$(window).mousedown(clearNewMessages);
+$(window).focus(clearNewMails);
+$(window).blur(clearNewMails);
+$(window).keydown(clearNewMails);
+$(window).mousedown(clearNewMails);
 
 function submitReply(object, idParent) 
 {
@@ -287,7 +287,7 @@ function submitReply(object, idParent)
 var title = document.title;
 
 function displayContacts(url, period, object) {
-
+	
 	setCallback(url, period, function(data) {
 		$(object).find('p').remove();
 		if(data != null) {
@@ -341,7 +341,7 @@ function displayContacts(url, period, object) {
 
 }
 
-function setMessagesReceiverRec(url, object, next) {
+function setMailsReceiverRec(url, object, next) {
 
 	if(typeof this.messagesTimeout != 'undefined')
 		clearTimeout(this.messagesTimeout);
@@ -417,7 +417,7 @@ function setMessagesReceiverRec(url, object, next) {
 								(function(id, stamp) {
 									$('#'+id+' .passlink').click(function() {
 										if(confirm('Do you want to pass this message to your contacts ?')) {
-											$.post("messages/", { stamp: stamp, action: "pass", token: TokenMessage })
+											$.post("messages/", { stamp: stamp, action: "pass", token: TokenMail })
 											.done(function(data) {
 												$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
 											});
@@ -446,7 +446,7 @@ function setMessagesReceiverRec(url, object, next) {
 					}
 					
 					// Reply form
-					$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+message.stamp+'"><input type="hidden" name="public" value="1"><input type="hidden" name="token" value="'+TokenMessage+'"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+					$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+message.stamp+'"><input type="hidden" name="public" value="1"><input type="hidden" name="token" value="'+TokenMail+'"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
 					(function(idReply) {
 						$('#'+idReply+' .attachedfile').hide();
 						$('#'+idReply+' form').ajaxForm(function() {
@@ -480,7 +480,7 @@ function setMessagesReceiverRec(url, object, next) {
 					$(object).append(div);
 					if(!isLocalRead) 
 					{
-						NbNewMessages++;
+						NbNewMails++;
 						if(isPageHidden()) notify("New message from " + author, message.content, "message_"+author);
 					}
 					
@@ -539,9 +539,9 @@ function setMessagesReceiverRec(url, object, next) {
 				$('#'+id).append('<span class="footer"></span>');
 			}
 			
-			if(NbNewMessages) {
-				document.title = '(' + NbNewMessages + ') ' + BaseDocumentTitle;
-				if(isPageHidden()) playMessageSound();
+			if(NbNewMails) {
+				document.title = '(' + NbNewMails + ') ' + BaseDocumentTitle;
+				if(isPageHidden()) playMailSound();
 			}
 
 			// Hide replies if they're too many
@@ -586,13 +586,13 @@ function setMessagesReceiverRec(url, object, next) {
 		}
 
 		this.messagesTimeout = setTimeout(function() {
-			setMessagesReceiverRec(baseUrl, object, next);
+			setMailsReceiverRec(baseUrl, object, next);
 		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
 		this.messagesTimeout = setTimeout(function() {
-			setMessagesReceiverRec(baseUrl, object, next);
+			setMailsReceiverRec(baseUrl, object, next);
 		}, 1000);
 	});
 }

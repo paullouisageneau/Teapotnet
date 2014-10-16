@@ -70,130 +70,16 @@ MailQueue::MailQueue(User *user) :
 		time INTEGER(8) DEFAULT 0 NOT NULL)");
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON flags (stamp)");
-	
-	// TODO: backward compatibility, should be removed (09/02/2014)
-	// Populate flags table with read flags and remove isread column
-	bool updateNeeded = false;
-	Database::Statement statement = mDatabase->prepare("PRAGMA table_info(mails)");
-	while(statement.step())
-	{
-		String columnName;
-		statement.value(1, columnName);
-		if(columnName == "isread")
-		{
-			updateNeeded = true;
-			break;
-		}
-	}
-	statement.finalize();
-	
-	if(updateNeeded)
-	{
-		LogInfo("MailQueue", "Updating mails table to new format...");
-		
-		try {
-			mDatabase->execute("BEGIN TRANSACTION");
-			
-			mDatabase->execute("INSERT OR IGNORE INTO flags (stamp,read) SELECT stamp,isread FROM mails");
-			
-			mDatabase->execute("CREATE TEMPORARY TABLE mails_backup\
-					(id INTEGER PRIMARY KEY AUTOINCREMENT,\
-					stamp TEXT UNIQUE NOT NULL,\
-					parent TEXT,\
-					headers TEXT,\
-					content TEXT,\
-					author TEXT,\
-					signature TEXT,\
-					contact TEXT NOT NULL,\
-					time INTEGER(8) NOT NULL,\
-					public INTEGER(1) NOT NULL,\
-					incoming INTEGER(1) NOT NULL,\
-					relayed INTEGER(1) NOT NULL)");
-			
-			mDatabase->execute("INSERT INTO mails_backup SELECT id,stamp,parent,headers,content,author,signature,contact,time,public,incoming,relayed FROM mails");
-			mDatabase->execute("DROP TABLE mails");
-			
-			mDatabase->execute("CREATE TABLE mails\
-					(id INTEGER PRIMARY KEY AUTOINCREMENT,\
-					stamp TEXT UNIQUE NOT NULL,\
-					parent TEXT,\
-					headers TEXT,\
-					content TEXT,\
-					author TEXT,\
-					signature TEXT,\
-					contact TEXT NOT NULL,\
-					time INTEGER(8) NOT NULL,\
-					public INTEGER(1) NOT NULL,\
-					incoming INTEGER(1) NOT NULL,\
-					relayed INTEGER(1) NOT NULL)");
-					
-			mDatabase->execute("INSERT INTO mails SELECT * FROM mails_backup");
-			mDatabase->execute("DROP TABLE mails_backup");
-			mDatabase->execute("COMMIT");
-	
-			LogInfo("MailQueue", "Finished updating mails table");
-		}
-		catch(const Exception &e)
-		{
-			throw Exception(String("Database update failed: ") + e.what());
-		}
-	}
-	
-	// Add deleted column to flags if it doesn't exist
-	updateNeeded = true;
-	statement = mDatabase->prepare("PRAGMA table_info(flags)");
-	while(statement.step())
-	{
-		String columnName;
-		statement.value(1, columnName);
-		if(columnName == "deleted")
-		{
-			updateNeeded = false;
-			break;
-		}
-	}
-	statement.finalize();
-	
-	if(updateNeeded)
-		mDatabase->execute("ALTER TABLE flags ADD COLUMN deleted INTEGER(1) DEFAULT 0 NOT NULL");
-	
-	// Rebuild clean received table
-	updateNeeded = true;
-	statement = mDatabase->prepare("PRAGMA table_info(received)");
-	while(statement.step())
-	{
-		String columnName;
-		statement.value(1, columnName);
-		if(columnName == "time")
-		{
-			updateNeeded = false;
-			break;
-		}
-	}
-	statement.finalize();
-	
-	if(updateNeeded)
-	{
-		mDatabase->execute("DROP TABLE received");
-		mDatabase->execute("CREATE TABLE received\
-		(stamp TEXT NOT NULL,\
-		contact TEXT NOT NULL,\
-		time INTEGER(8) DEFAULT 0 NOT NULL)");
-		mDatabase->execute("CREATE UNIQUE INDEX contact_stamp ON received (contact,stamp)");
-	}
-	
-	// End of backward compatibility code
-	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON mails (stamp)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON mails (contact)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON mails (time)");
 	
-	Interface::Instance->add("/"+mUser->name()+"/mails", this);
+	Interface::Instance->add(mUser->urlPrefix()+"/mails", this);
 }
 
 MailQueue::~MailQueue(void)
 {
-	Interface::Instance->remove("/"+mUser->name()+"/mails", this);
+	Interface::Instance->remove(mUser->urlPrefix()+"/mails", this);
 
 	delete mDatabase;
 }

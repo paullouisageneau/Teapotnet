@@ -22,6 +22,7 @@
 #include "pla/jsonserializer.h"
 #include "pla/exception.h"
 #include "pla/serializable.h"
+#include "pla/lineserializer.h"
 
 namespace pla
 {
@@ -57,8 +58,11 @@ bool JsonSerializer::input(Element &element)
 
 bool JsonSerializer::input(Pair &pair)
 {
-	if(!pair.deserializeKey(*this)) return false;
+	String key;
+	if(!input(key)) return false;
 	AssertIO(mStream->last() == ':');
+	LineSerializer keySerializer(&key);
+	AssertIO(pair.deserializeKey(keySerializer));
 	AssertIO(pair.deserializeValue(*this));
 	return true;
 }
@@ -212,7 +216,11 @@ void JsonSerializer::output(const Pair &pair)
 	*mStream<<Stream::NewLine;
 	*mStream<<String(mLevel*2, ' ');
 	
-	pair.serializeKey(*this);
+	String key;
+	LineSerializer keySerializer(&key);
+	pair.serializeKey(keySerializer);
+	key.trim();
+	output(key);
 	*mStream<<": ";
 	pair.serializeValue(*this);
 }
