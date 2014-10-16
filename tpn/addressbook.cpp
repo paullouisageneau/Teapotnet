@@ -70,7 +70,7 @@ AddressBook::AddressBook(User *user) :
 
 AddressBook::~AddressBook(void)
 {
-  	Interface::Instance->remove(urlPrefix());
+  	Interface::Instance->remove(urlPrefix(), this);
 	NOEXCEPTION(clear());
 }
 
@@ -165,7 +165,8 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey,
 	
 	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey, tracker));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
-		
+	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
+	
 	save();
 	sendContacts();
 	
@@ -883,9 +884,11 @@ void AddressBook::Invitation::run(void)
 
 void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
 {
-	if(mAddressBook) mAddressBook->mScheduler.cancel(this);
+	Assert(!mAddressBook);
 	mAddressBook = addressBook;
-	if(mAddressBook) {
+	
+	if(mAddressBook)
+	{
 		mAddressBook->mScheduler.schedule(this, 1.);
 		mAddressBook->mScheduler.repeat(this, 300.);
 	}
@@ -1067,8 +1070,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mName(contact.mName),
 	mTracker(contact.mTracker),
 	mPublicKey(contact.mPublicKey),
-	mInstances(contact.mInstances)
-	
+	mInstances(contact.mInstances)	
 {
 	setAddressBook(contact.mAddressBook);
 	createProfile();

@@ -317,11 +317,8 @@ int main(int argc, char** argv)
 		Config::Default("port_mapping_enabled", "true");
 		Config::Default("http_timeout", "5000");
 		Config::Default("request_timeout", "10000");
-		Config::Default("meeting_timeout", "15000");
 		Config::Default("tpot_timeout", "5000");
-		Config::Default("tpot_read_timeout", "60000");
 		Config::Default("user_global_shares", "true");
-		Config::Default("relay_enabled", "true");
 		Config::Default("http_proxy", "auto");
 		Config::Default("prefetch_delay", "300000");
 		Config::Default("max_connections", "1024");
