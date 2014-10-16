@@ -49,7 +49,7 @@ bool Address::Resolve(const String &host, const String &service, List<Address> &
 	addrinfo *ai = aiList;
 	while(ai)
 	{
-		result.push_back(Address(aiList->ai_addr, aiList->ai_addrlen));
+		result.push_back(Address(ai->ai_addr, ai->ai_addrlen));
 		ai = ai->ai_next;
 	}
 	

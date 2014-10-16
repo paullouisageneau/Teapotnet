@@ -839,7 +839,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 			List<Address> addrs;
 			if(!Address::Resolve(host, addrs, request.protocol))
 				throw NetException("Unable to resolve: " + host);
-		
+	
 			for(List<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
 			{
 				try {

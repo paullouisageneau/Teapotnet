@@ -119,6 +119,8 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 	while(ifa)
 	{
 		sockaddr *sa = ifa->ifa_addr;
+		if(!sa) break;		
+
 		socklen_t len = 0;
 		switch(sa->sa_family) 
 		{
