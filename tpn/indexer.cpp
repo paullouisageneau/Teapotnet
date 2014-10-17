@@ -116,9 +116,9 @@ Indexer::Indexer(User *user) :
 	publish("/search");
 	
 	// Interface
-	Interface::Instance->add("/"+mUser->name()+"/files", this);
-	Interface::Instance->add("/"+mUser->name()+"/myself/files", this);	// overridden by self contact if it exists
-	Interface::Instance->add("/"+mUser->name()+"/explore", this);
+	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
+	Interface::Instance->add(mUser->urlPrefix()+"/myself/files", this);	// overridden by self contact if it exists
+	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
 	// Task
 	Scheduler::Global->schedule(this, 0 /*60.*/);		// 1 min
@@ -130,9 +130,9 @@ Indexer::~Indexer(void)
 	unpublish("/files");
 	unpublish("/search");
 	
-	Interface::Instance->remove("/"+mUser->name()+"/files");
-	Interface::Instance->remove("/"+mUser->name()+"/myself/files");
-	Interface::Instance->remove("/"+mUser->name()+"/explore");
+	Interface::Instance->remove(mUser->urlPrefix()+"/files");
+	Interface::Instance->remove(mUser->urlPrefix()+"/myself/files");
+	Interface::Instance->remove(mUser->urlPrefix()+"/explore");
 	
 	Scheduler::Global->cancel(this);
 }
@@ -712,7 +712,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					}
 					
 					Http::Response response(request,303);
-					response.headers["Location"] = "/"+mUser->name()+"/files/";
+					response.headers["Location"] = mUser->urlPrefix()+"/files/";
 					response.send();
 					return;
 				}
@@ -1014,7 +1014,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
 			page.label("add"); page.button("add","Create directory");
-			page.label(""); page.link("/"+mUser->name()+"/explore/", "Add existing directory", ".button"); 
+			page.label(""); page.link(mUser->urlPrefix()+"/explore/", "Add existing directory", ".button"); 
 			page.br();
 			page.closeFieldset();
 			page.closeForm();
