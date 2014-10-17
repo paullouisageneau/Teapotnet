@@ -101,7 +101,7 @@ public:
 		
 		Identifier source;		// 40 B
 		Identifier destination;		// 40 B
-		ByteArray payload;		// 32 B + 1024 B
+		ByteArray payload;		// 1300 B
 	};
 
 	struct Locator

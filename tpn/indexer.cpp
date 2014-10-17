@@ -55,8 +55,8 @@ Indexer::Indexer(User *user) :
 		digest BLOB,\
 		time INTEGER(8),\
 		seen INTEGER(1))");
+	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS path ON resources (path)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON resources (digest)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS path ON resources (path)");
 	mDatabase->execute("CREATE VIRTUAL TABLE IF NOT EXISTS names USING FTS3(name)");
 	
 	// Fix: "IF NOT EXISTS" is not available for virtual tables with old sqlite3 versions

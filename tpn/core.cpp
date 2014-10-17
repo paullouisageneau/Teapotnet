@@ -690,7 +690,7 @@ Core::Message::Message(void) :
 	type(Forward),
 	content(Empty),
 	hops(0),
-	payload(32 + 1024)
+	payload(1300)
 {
 	
 }

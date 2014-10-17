@@ -188,7 +188,7 @@ size_t ByteArray::readData(char *buffer, size_t size)
 
 void ByteArray::writeData(const char *data, size_t size)
 {
-	if(mWritePos+size > mLength) throw IOException();
+	if(mWritePos+size > mLength) throw Exception("ByteArray overflow");
 	std::copy(data, data+size, mArray+mWritePos);
 	mWritePos+= size;
 	mLeft+= size;
