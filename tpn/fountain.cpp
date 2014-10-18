@@ -464,6 +464,7 @@ void Fountain::Sink::dump(Stream &stream) const
 		size_t size = size_t(std::min(left, uint32_t(it->size())));
 		stream.writeBinary(it->data(), size);
 		left-= size;
+		++it;
 	}
 	
 	//if(left) throw Exception("Dumping failed: " + String::number(unsigned(left)) + " bytes missing in fountain sink");
@@ -481,6 +482,7 @@ void Fountain::Sink::hash(BinaryString &digest) const
 		size_t size = size_t(std::min(left, uint32_t(it->size())));
 		hash.process(it->data(), size);
 		left-= size;
+		++it;
 	}
 	
 	hash.finalize(digest);
