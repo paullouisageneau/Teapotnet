@@ -56,6 +56,7 @@ private:
 		~Combination(void);
 		
 		void addComponent(int offset, uint8_t coeff);
+		void addComponent(int offset, uint8_t coeff, const char *data, size_t size);
 		void setData(const char *data, size_t size);
 		void setData(const BinaryString &data);
 		
@@ -96,10 +97,10 @@ public:
 	class Source
 	{
 	public:
-		Source(File *file, int64_t offset = 0, int64_t size = -1);	// file will be deleted
+		Source(File *file, int64_t offset, int64_t size);	// file will be deleted
 		~Source(void);
 		
-		void generate(Stream &output, unsigned *chunk);	// Generate combination from seed
+		void generate(Stream &output, unsigned *token);	// Generate combination from seed
 		
 	private:
 		File *mFile;

@@ -2054,12 +2054,9 @@ void Core::Handler::Sender::run(void)
 		serializer.write(it->first);	// target
 		
 		unsigned chunks = 0;
-		if(Store::Instance->pull(it->first, payload, &chunks))
+		if(Store::Instance->pull(it->first, payload, &it->second))
 		{
-			it->second = std::min(it->second, chunks);	// limit tokens
-			
 			//--mTokens;
-			if(it->second) --it->second;
 			if(it->second) ++it;
 			else mTargets.erase(it++);
 			if(it != mTargets.end()) mNextTarget = it->first;

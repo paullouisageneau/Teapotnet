@@ -69,16 +69,36 @@ Fountain::Combination::~Combination(void)
 
 void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 {
-	if(coeff == 0) return;
-	
 	Map<int, uint8_t>::iterator it = mComponents.find(offset);
 	if(it != mComponents.end())
 	{
-		it->second = gAdd(it->second, coeff);
+		it->second^= coeff;	// it->second = gAdd(it->second, coeff);
 		if(it->second == 0) mComponents.erase(it);
 	}
 	else {
-		mComponents.insert(offset, coeff);
+		if(coeff != 0)
+			mComponents.insert(offset, coeff);
+	}
+}
+
+void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *data, size_t size)
+{
+	addComponent(offset, coeff);
+	
+	// Assure mData is the longest vector
+	if(mData.size() < size)
+		mData.writeZero(size - mData.size());
+	
+	if(coeff == 0) return;
+	
+	if(coeff == 1)
+	{
+		for(unsigned i = 0; i < size; ++i)
+			mData[i]^= gMul(data[i], coeff);	// mData[i] = gAdd(mData[i], gMul(data[i], coeff));
+	}
+	else {
+		for(unsigned i = 0; i < size; ++i)
+			mData[i]^= data[i];	 // mData[i] = gAdd(mData[i], data[i]);
 	}
 }
 
@@ -163,15 +183,13 @@ Fountain::Combination Fountain::Combination::operator/(uint8_t coeff) const
 	
 Fountain::Combination &Fountain::Combination::operator+=(const Combination &combination)
 {
-	BinaryString other(combination.mData);
-
-	// Assure mData is the longest vector
-	if(mData.size() < other.size())
-		mData.swap(other);
+	// Assure mData is long enough
+	if(mData.size() < combination.mData.size())
+		mData.writeZero(combination.mData.size() - mData.size());
 	
-	// Add values from the other (smallest) vector
-	for(unsigned i = 0; i < other.size(); ++i)
-		mData[i] = gAdd(mData[i], other[i]);
+	// Add values
+	for(int i = 0; i < combination.mData.size(); ++i)
+		mData[i]^= combination.mData[i]; // mData[i] = gAdd(mData[i], combination.mData[i]);
 
 	// Add components
 	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
@@ -190,7 +208,7 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 	Assert(coeff != 0);
 
 	// Multiply vector
-	for(unsigned i = 0; i < mData.size(); ++i)
+	for(int i = 0; i < mData.size(); ++i)
 		mData[i] = gMul(mData[i], coeff);
 
 	for(	Map<int, uint8_t>::iterator it = mComponents.begin();
@@ -245,19 +263,40 @@ uint8_t Fountain::Combination::gAdd(uint8_t a, uint8_t b)
 
 uint8_t Fountain::Combination::gMul(uint8_t a, uint8_t b) 
 {
-	uint8_t p = 0;
-	uint8_t i;
-	uint8_t carry;
-	for(i = 0; i < 8; ++i) 
+	static uint8_t *table = NULL;
+
+	if(!table) 
 	{
-		if (b & 1) p ^= a;
-		carry = (a & 0x80);
-		a <<= 1;
-		if (carry) a ^= 0x1b; // 0x1b is x^8 modulo x^8 + x^4 + x^3 + x + 1
-		b >>= 1;
+		table = new uint8_t[256*256];
+		
+		table[0] = 0;
+		for(uint8_t i = 1; i != 0; ++i) 
+		{
+			table[unsigned(i)] = 0;
+			table[unsigned(i)*256] = 0;
+			
+			for(uint8_t j = 1; j != 0; ++j)
+			{
+				uint8_t a = i;
+				uint8_t b = j;
+				uint8_t p = 0;
+				uint8_t k;
+				uint8_t carry;
+				for(k = 0; k < 8; ++k)
+				{
+					if (b & 1) p^= a;
+					carry = (a & 0x80);
+					a<<= 1;
+					if (carry) a^= 0x1b; // 0x1b is x^8 modulo x^8 + x^4 + x^3 + x + 1
+					b>>= 1;
+				}
+				
+				table[unsigned(i)*256+unsigned(j)] = p;
+			}
+		}
 	}
 	
-	return p;
+	return table[unsigned(a)*256+unsigned(b)];
 }
 
 uint8_t Fountain::Combination::gInv(uint8_t a) 
@@ -292,6 +331,7 @@ Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
 	mSize(size)
 {
 	Assert(mFile);
+	Assert(mSize >= 0);
 }
 
 Fountain::Source::~Source(void)
@@ -299,43 +339,60 @@ Fountain::Source::~Source(void)
 	delete mFile;
 }
 
-void Fountain::Source::generate(Stream &output, unsigned *chunks)
+void Fountain::Source::generate(Stream &output, unsigned *tokens)
 {
-	mFile->seekRead(mOffset);
-  
-	uint32_t seed = 0;
-	Random rnd;
-	rnd.readBinary(seed);
-	Generator gen(seed);
-
-	Combination c;
-	char buffer[ChunkSize];
-	size_t size;
-	int i = 0;
+	Assert(tokens);
 	
 	if(mSize > std::numeric_limits<uint32_t>::max())
 		throw Exception("File too big for Foutain::Source");
 	
-	uint32_t total = 0;
-	uint32_t left = (mSize >= 0 ? uint32_t(mSize) : std::numeric_limits<uint32_t>::max());
-
-	while((size = mFile->readData(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
+	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
+	
+	unsigned t = 0;
+	if(tokens) t = *tokens;
+	if(t > chunks) t = chunks;
+	
+	unsigned count = 32;
+	unsigned first = chunks - t;
+	uint32_t left = uint32_t(mSize);
+	
+	if(first == chunks) // tokens == 0
+		first = Random().uniform(unsigned(0), chunks - count);
+	  
+	// Seek
+	mFile->seekRead(mOffset + first*ChunkSize);
+	left-= first*ChunkSize;
+	
+	// Init generator
+	uint32_t seed = 0;
+	Random rnd;
+	rnd.readBinary(seed);
+	Generator gen(seed);
+	
+	// Generate
+	Combination c;
+	unsigned i = first;
+	char buffer[ChunkSize];
+	size_t size;
+	while(i < first+count && (size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
 	{
 		uint8_t coeff = gen.next();
-		c+= Combination(i, buffer, size)*coeff;
-		total+= size;
+		c.addComponent(i, 1, buffer, size);
 		left-= size;
 		++i;
 	}
+	count = i - first;	// Actual count
 	
-	if(chunks) *chunks = i;
+	LogDebug("Fountain::Source::generate", "Generated combination (seed=" + String::number(unsigned(seed)) + ", first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ")");
 	
-	LogDebug("Fountain::Source::generate", "Generated combination (seed=" + String::number(unsigned(seed)) + ", count=" + String::number(unsigned(i)) + ")");
-	
-	output.writeBinary(uint32_t(total));
+	// Write
+	output.writeBinary(uint32_t(mSize));
 	output.writeBinary(uint32_t(seed));
-	output.writeBinary(uint16_t(i));
+	output.writeBinary(uint16_t(first));
+	output.writeBinary(uint16_t(count));
 	output.writeBinary(c.data(), c.size());
+	
+	if(tokens && *tokens) --*tokens;
 }
 		
 Fountain::Sink::Sink(void) :
@@ -354,7 +411,7 @@ bool Fountain::Sink::solve(Stream &input)
 {
 	uint32_t size;
 	uint32_t seed;
-	uint16_t count;
+	uint16_t first, count;
 	BinaryString data;
 	
 	if(!input.readBinary(size))
@@ -364,10 +421,13 @@ bool Fountain::Sink::solve(Stream &input)
 	}
 	
 	AssertIO(input.readBinary(seed));
+	AssertIO(input.readBinary(first));
 	AssertIO(input.readBinary(count));
 	input.readBinary(data);
 	
-	LogDebug("Fountain::Sink::solve", "Incoming combination (seed=" + String::number(unsigned(seed)) + ", count=" + String::number(unsigned(count)) + ", size=" + String::number(unsigned(data.size())) + ")");
+	LogDebug("Fountain::Sink::solve", "Incoming combination (seed=" + String::number(unsigned(seed)) + ", first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ", size=" + String::number(unsigned(data.size())) + ")");
+	
+	// TODO: check data.size()
 	
 	mSize = std::max(mSize, size);
 	
@@ -375,74 +435,84 @@ bool Fountain::Sink::solve(Stream &input)
 	c.setData(data);
 	
 	Generator gen(seed);
-	for(int i=0; i<count; ++i)
+	for(unsigned i=first; i<first+count; ++i)
 	{
 	  	uint8_t coeff = gen.next();
-		c.addComponent(i, coeff);
+		c.addComponent(i, 1);
 	}
 	
 	mCombinations.push_back(c);
   
-	List<Combination>::iterator it;	// current equation
-	
-	// Gauss-Jordan elimination
-	it = mCombinations.begin();	// pivot equation
-	int i = 0;			// pivot equation index
-	while(it != mCombinations.end())
-	{
-		List<Combination>::iterator jt = it;
-		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
-		if(jt == mCombinations.end()) break;
-		if(jt != it) std::iter_swap(jt, it);
-		
-		// Normalize pivot
-		uint8_t c = it->coeff(i);
-		if(c != 1) (*it)/= c;
-		Assert(it->coeff(i) == 1);
-		
-		// Suppress coordinate i in each equation
-		int j = 0;			// secondary equation index
-		jt = mCombinations.begin();	// secondary equation
-		while(jt != mCombinations.end())
-		{
-			if(it == jt)
-			{
-				++jt; ++j;
-				continue;
-			}
-			
-			uint8_t c = jt->coeff(i);
-			if(c)	// if term not supressed
-			{
-				// it->coeff(i) == 1 here
-				(*jt)+= (*it)*c;
-				Assert(jt->coeff(i) == 0);
-			}
-			
-			++jt; ++j;
-		}
-		
-		++it; ++i;
-	}
-	
+	// Solve if we've got enough combinations
 	int decodedCount = 0;
-	it = mCombinations.begin();
-	while(it != mCombinations.end())
+	uint32_t decodedSize = 0;
+	if(mCombinations.size() >= mSize/ChunkSize)
 	{
-		if(it->componentsCount() == 0)	// Null vector, useless equation
+		LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
+		
+		List<Combination>::iterator it;	// current equation
+		
+		// Gauss-Jordan elimination
+		it = mCombinations.begin();	// pivot equation
+		int i = 0;			// pivot equation index
+		while(it != mCombinations.end())
 		{
-			mCombinations.erase(it++);
+			List<Combination>::iterator jt = it;
+			while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
+			if(jt == mCombinations.end()) break;
+			if(jt != it) std::iter_swap(jt, it);
+			
+			// Normalize pivot
+			uint8_t c = it->coeff(i);
+			if(c != 1) (*it)/= c;
+			//Assert(it->coeff(i) == 1);
+			
+			// Suppress coordinate i in each equation
+			int j = 0;			// secondary equation index
+			jt = mCombinations.begin();	// secondary equation
+			while(jt != mCombinations.end())
+			{
+				if(it == jt)
+				{
+					++jt; ++j;
+					continue;
+				}
+				
+				uint8_t c = jt->coeff(i);
+				if(c)	// if term not supressed
+				{
+					// it->coeff(i) == 1 here
+					if(c == 1) (*jt)+= *it;
+					else (*jt)+= (*it)*c;
+					//Assert(jt->coeff(i) == 0);
+				}
+				
+				++jt; ++j;
+			}
+			
+			++it; ++i;
 		}
-		else {
-		  	if(!it->isCoded()) ++decodedCount;
-			++it;
+		
+		it = mCombinations.begin();
+		while(it != mCombinations.end())
+		{
+			if(it->componentsCount() == 0)	// Null vector, useless equation
+			{
+				mCombinations.erase(it++);
+			}
+			else {
+				if(!it->isCoded()) 
+				{
+					++decodedCount;
+					decodedSize+= it->size();
+				}
+				++it;
+			}
 		}
 	}
 	
 	LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
-	
-	mIsComplete = (decodedCount == int(count));
-	return mIsComplete;
+	return decodedSize >= mSize;
 }
 
 size_t Fountain::Sink::size(void) const

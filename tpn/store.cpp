@@ -73,7 +73,7 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	
 	if(sinkDigest != digest)
 	{
-		LogDebug("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
+		LogWarn("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
 		mSinks.erase(digest);
 		return false;
 	}
@@ -90,7 +90,7 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Stream &output, unsigned *chunks)
+bool Store::pull(const BinaryString &digest, Stream &output, unsigned *tokens)
 {
 	Synchronize(this);
   
@@ -99,7 +99,7 @@ bool Store::pull(const BinaryString &digest, Stream &output, unsigned *chunks)
 	if(!file) return false;
 	
 	Fountain::Source source(file, file->tellRead(), size);
-	source.generate(output, chunks);
+	source.generate(output, tokens);
 	return true;
 }
 

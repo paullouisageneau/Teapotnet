@@ -159,7 +159,7 @@ public:
 	
 	// Binary reading
 	int64_t	readBinary(Stream &s, int64_t max)	{ return read(s, max); }
-	bool	readBinary(char *data, size_t size);	// blocks until size bytes are read
+	int64_t	readBinary(char *data, size_t size);	// blocks until size bytes are read
 	bool	readBinary(BinaryString &str);
 	bool	readBinary(int8_t &i);
 	bool	readBinary(int16_t &i);

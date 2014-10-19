@@ -443,21 +443,17 @@ void Stream::error(void)
 	throw IOException();
 }
 
-bool Stream::readBinary(char *data, size_t size)
+int64_t Stream::readBinary(char *data, size_t size)
 {
-	if(!size) return true;
-	
+	size_t left = size;
 	size_t r;
-	if(!(r = readData(data, size))) return false;
-	
-	do {
+	while(left && (r = readData(data, left)))
+	{
 		data+= r;
-		size-= r;
-		if(!size) return true;
+		left-= r;
 	}
-	while((r = readData(data, size)));
 	
-	throw IOException();
+	return size - left;
 }
 
 bool Stream::readBinary(BinaryString &str)
