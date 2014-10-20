@@ -57,7 +57,6 @@ public:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 	bool waitData(double &timeout);
-	bool waitData(const double &timeout);
 	void seekRead(int64_t position);
 	void seekWrite(int64_t position);
 	int64_t tellRead(void) const;
@@ -67,6 +66,7 @@ public:
 	
 private:
   	void waitContent(void) const;
+	bool waitContent(double &timeout) const;
 	void notifyStore(void) const;
   
 	BinaryString mDigest;

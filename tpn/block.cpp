@@ -126,13 +126,7 @@ void Block::writeData(const char *data, size_t size)
 
 bool Block::waitData(double &timeout)
 {
-	waitContent();
-	return mFile->waitData(timeout);
-}
-
-bool Block::waitData(const double &timeout)
-{
-	waitContent();
+	if(!waitContent(timeout)) return false;
 	return mFile->waitData(timeout);
 }
 
@@ -167,10 +161,10 @@ Block &Block::operator = (const Block &block)
 
 void Block::waitContent(void) const
 {
+	Store::Instance->waitBlock(mDigest);
+	
 	if(!mFile)
-	{
-		Store::Instance->waitBlock(mDigest);
-		
+	{	
 		mFile = Store::Instance->getBlock(mDigest, mSize);
 		if(!mFile) throw Exception("Unable to wait for block content");
 		
@@ -178,8 +172,6 @@ void Block::waitContent(void) const
 	}
 	else if(mFile->openMode() == File::Write)
 	{
-		Store::Instance->waitBlock(mDigest);
-		
 		File *source = Store::Instance->getBlock(mDigest, mSize);
 		if(!source) throw Exception("Unable to wait for block content");
 		
@@ -191,6 +183,15 @@ void Block::waitContent(void) const
 		
 		// TODO: remove block from cache
 	}
+}
+
+bool Block::waitContent(double &timeout) const
+{
+	if(!Store::Instance->waitBlock(mDigest, timeout))
+		return false;
+	
+	Store::Instance->waitBlock(mDigest);
+	return true;
 }
 
 void Block::notifyStore(void) const

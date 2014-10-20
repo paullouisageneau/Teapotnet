@@ -30,6 +30,7 @@
 #include "pla/string.h"
 #include "pla/binarystring.h"
 #include "pla/file.h"
+#include "pla/runner.h"
 
 namespace tpn
 {

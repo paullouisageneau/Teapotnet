@@ -136,6 +136,28 @@ void Store::waitBlock(const BinaryString &digest)
 	}
 }
 
+bool Store::waitBlock(const BinaryString &digest, double &timeout)
+{
+	Synchronize(this);
+	
+	if(!hasBlock(digest))
+	{
+		Core::Caller caller(digest);		// Block is missing locally, call it
+		
+		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
+		
+		do {
+			if(!wait(timeout))
+				return false;
+		}
+		while(!hasBlock(digest));
+		
+		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
+	}
+	
+	return true;
+}
+
 File *Store::getBlock(const BinaryString &digest, int64_t &size)
 {
 	Synchronize(this);

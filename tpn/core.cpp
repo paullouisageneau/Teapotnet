@@ -1603,7 +1603,9 @@ bool Core::Handler::incoming(Message &message)
 	const Identifier &source = message.source;
 	Stream &payload = message.payload;
 	
-	LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+	if(message.content != Message::Data)
+		LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+	
 	switch(message.content)
 	{
 		case Message::Tunnel:
@@ -1834,7 +1836,7 @@ bool Core::Handler::incoming(Message &message)
 
 void Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
-	LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
+	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
 	
 	Message message;
 	message.prepare(mLocal, dest, type, content);
@@ -1873,7 +1875,7 @@ void Core::Handler::process(void)
 	while(recv(message))
 	{
 		try {
-			LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
+			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 		
 			switch(message.type)
 			{
@@ -2031,7 +2033,7 @@ void Core::Handler::Sender::run(void)
 	if(/*!mTokens ||*/ mTargets.empty()) 
 		return;
 	
-	LogDebug("Core::Handler::Sender", "Running sender (" + String::number(unsigned(mTargets.size())) + " targets)");
+	//LogDebug("Core::Handler::Sender", "Running sender (" + String::number(unsigned(mTargets.size())) + " targets)");
 	
 	Map<BinaryString, unsigned>::iterator it;
 	if(!mNextTarget.empty()) 
@@ -2047,7 +2049,7 @@ void Core::Handler::Sender::run(void)
 	
 	if(it->second)
 	{
-		LogDebug("Core::Handler::Sender", "Sending target " + it->first.toString() + " (" + String::number(it->second) + " tokens left)");
+		//LogDebug("Core::Handler::Sender", "Sending target " + it->first.toString() + " (" + String::number(it->second) + " tokens left)");
 		
 		BinaryString payload;
 		BinarySerializer serializer(&payload);
