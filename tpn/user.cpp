@@ -672,7 +672,7 @@ void User::http(const String &prefix, Http::Request &request)
 			String broadcastUrl = "/mails";
 			
 			page.open("div", "statuspanel");
-			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
+			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
 			page.openForm("#", "post", "statusform");
 			page.input("hidden", "attachment");
 			page.input("hidden", "attachmentname");

@@ -35,10 +35,10 @@ function listDirectory(url, object, showButtons, privateMode) {
 		
 		if(showButtons) {
 			var location = url.split('?')[0];
-			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+			//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
 			$(object)
 				.append('<span class="button"> '+data.length+' files</span>')
-				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
 				.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
 				
 			$(object).find('a.refreshlink').click(function() {
@@ -92,10 +92,10 @@ function listDirectory(url, object, showButtons, privateMode) {
 		
 		if(showButtons) {
 			var location = url.split('?')[0];
-			var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+			//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
 			$(object)
 				.append('<span class="button">0 files</span>')
-				.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+				//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
 				.append('<a href="#" class="button refreshlink">Retry</a>');
 		}
 		
@@ -191,14 +191,6 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		
 		$(object).append('<br><div class="fileselectorwindow"><table class="files"></table></div>');
 		var table = $(object).find('table');
-		
-		if(parents.length == 0) {
-			data.unshift({
-				url: "/_upload",
-				name: "Recently sent files",
-				type: "directory"
-			});
-		}
 		
 		for(var i=0; i<data.length; i++) {
 			var resource = data[i];

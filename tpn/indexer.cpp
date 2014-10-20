@@ -23,6 +23,7 @@
 #include "tpn/user.h"
 #include "tpn/config.h"
 #include "tpn/html.h"
+#include "tpn/request.h"
 
 #include "pla/crypto.h"
 #include "pla/random.h"
@@ -136,7 +137,6 @@ Indexer::~Indexer(void)
 	
 	Scheduler::Global->cancel(this);
 }
-
 User *Indexer::user(void) const
 {
 	return mUser; 
@@ -806,36 +806,12 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 		if(request.method != "POST" && (request.get.contains("json")  || request.get.contains("playlist")))
 		{
-			// TODO
-			/*
-			// Query resources
-			Query query(url);
-			query.setFromSelf(true);
-
-			SerializableSet<Resource> resources;
-			if(!query.submitLocal(resources)) throw 404;
+			Query qry(url);
+			Resource resource;
+			if(!query(qry, resource)) throw 404;
 			
-			if(request.get.contains("json"))
-			{
-				Http::Response response(request, 200);
-				response.headers["Content-Type"] = "application/json";
-				response.send();
-				JsonSerializer json(response.stream);
-				json.output(resources);
-			}
-			else {
-				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-				response.headers["Content-Type"] = "audio/x-mpegurl";
-				response.send();
-				
-				String host;
-				request.headers.get("Host", host);
-				
-				// TODO
-				//Resource::CreatePlaylist(resources, response.stream, host);
-			}
-			*/
+			Request req(resource);
+			req.http(req.urlPrefix(), request);
 			return;
 		}
 		

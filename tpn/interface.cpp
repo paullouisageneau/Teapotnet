@@ -26,6 +26,7 @@
 #include "tpn/config.h"
 
 #include "pla/directory.h"
+#include "pla/jsonserializer.h"
 #include "pla/mime.h"
 
 namespace tpn
@@ -209,34 +210,34 @@ void Interface::http(const String &prefix, Http::Request &request)
 			
 			BinaryString digest;
 			try { tmp >> digest; }
-			catch(...) { throw 404; }
-		
-			if(request.get.contains("play") || request.get.contains("playlist"))
-			{			  	
-				String host;
-				if(!request.headers.get("Host", host))
-					host = String("localhost:") + Config::Get("interface_port");
-					
-				Http::Response response(request, 200);
-				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
-				response.headers["Content-Type"] = "audio/x-mpegurl";
-				response.send();
-				
-				response.stream->writeLine("#EXTM3U");
-				response.stream->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
-				response.stream->writeLine("http://" + host + "/file/" + digest.toString());
-				return;
-			}			
+			catch(...) { throw 404; }		
 		
 			// Query resource
 			Resource resource;
 			resource.fetch(digest);		// this can take some time
+			
+			// Playlist
+			if(request.get.contains("play") || request.get.contains("playlist"))
+			{	
+				Request req(resource);
+				req.http(req.urlPrefix(), request);
+				return;
+			}
 			
 			if(resource.isDirectory())
 			{
 				Request *req = new Request(resource);
 				String reqPrefix = req->urlPrefix();
 				req->setAutoDelete();
+				
+				// JSON
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 307);
+					response.headers["Location"] = reqPrefix;
+					response.send();
+					return;
+				}
 				
 				Http::Response response(request, 200);
 				response.send();
@@ -254,7 +255,19 @@ void Interface::http(const String &prefix, Http::Request &request)
 				return;
 			}
 			else { // resource is a file
-			  
+			
+				// JSON
+				if(request.get.contains("json"))
+				{
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+
+					JsonSerializer json(response.stream);
+					json.output(resource);
+					return;
+				}
+				
 				// Get range
 				int64_t rangeBegin = 0;
 				int64_t rangeEnd = 0;
