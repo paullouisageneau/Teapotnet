@@ -661,7 +661,7 @@ void User::http(const String &prefix, Http::Request &request)
 			const String instance = Core::Instance->getName().before('.');
 			page.openLink(profile()->urlPrefix());
 			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
-			page.text(name() + "@" + tracker());
+			page.text(name());
 #ifndef ANDROID
 			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
 #endif
