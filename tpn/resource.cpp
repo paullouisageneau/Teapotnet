@@ -267,7 +267,8 @@ void Resource::Reader::seekRead(int64_t position)
 	mNextBlock	= createBlock(mCurrentBlockIndex + 1);
 	mReadPosition	= position;
 	
-	mCurrentBlock->seekRead(offset);
+	if(mCurrentBlock) 
+		mCurrentBlock->seekRead(offset);
 }
 
 void Resource::Reader::seekWrite(int64_t position)
