@@ -234,7 +234,7 @@ void Request::createPlaylist(Stream *output, String host)
 		const Resource::DirectoryRecord &record = mResults[i];
 		if(record.type == "directory" || record.digest.empty()) continue;
 		if(!Mime::IsAudio(record.name) && !Mime::IsVideo(record.name)) continue;
-		String link = "http://" + host + "/" + record.digest.toString();
+		String link = "http://" + host + "/file/" + record.digest.toString();
 		output->writeLine("#EXTINF:-1," + record.name.beforeLast('.'));
 		output->writeLine(link);
 	}

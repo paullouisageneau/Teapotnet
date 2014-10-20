@@ -215,8 +215,8 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{			  	
 				String host;
 				if(!request.headers.get("Host", host))
-				host = String("localhost:") + Config::Get("interface_port");
-					  
+					host = String("localhost:") + Config::Get("interface_port");
+					
 				Http::Response response(request, 200);
 				response.headers["Content-Disposition"] = "attachment; filename=\"stream.m3u\"";
 				response.headers["Content-Type"] = "audio/x-mpegurl";
@@ -224,7 +224,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				response.stream->writeLine("#EXTM3U");
 				response.stream->writeLine(String("#EXTINF:-1, ") + APPNAME + " stream");
-				response.stream->writeLine("http://" + host + "/" + digest.toString());
+				response.stream->writeLine("http://" + host + "/file/" + digest.toString());
 				return;
 			}			
 		

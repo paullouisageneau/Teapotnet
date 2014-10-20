@@ -161,10 +161,10 @@ Block &Block::operator = (const Block &block)
 
 void Block::waitContent(void) const
 {
-	Store::Instance->waitBlock(mDigest);
-	
 	if(!mFile)
-	{	
+	{
+		Store::Instance->waitBlock(mDigest);
+		
 		mFile = Store::Instance->getBlock(mDigest, mSize);
 		if(!mFile) throw Exception("Unable to wait for block content");
 		
@@ -172,6 +172,8 @@ void Block::waitContent(void) const
 	}
 	else if(mFile->openMode() == File::Write)
 	{
+		Store::Instance->waitBlock(mDigest);
+		
 		File *source = Store::Instance->getBlock(mDigest, mSize);
 		if(!source) throw Exception("Unable to wait for block content");
 		
@@ -182,6 +184,9 @@ void Block::waitContent(void) const
 		delete source;
 		
 		// TODO: remove block from cache
+	}
+	else {
+		// Content is available, don't wait for Store ! 
 	}
 }
 

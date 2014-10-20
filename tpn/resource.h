@@ -49,7 +49,7 @@ public:
 	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
-	int blockIndex(int64_t position) const;
+	int blockIndex(int64_t position, size_t *offset = NULL) const;
 	BinaryString blockDigest(int index) const;
 	
 	String  name(void) const;

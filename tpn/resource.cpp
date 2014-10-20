@@ -99,12 +99,13 @@ int Resource::blocksCount(void) const
 	return int(mIndexRecord->blockDigests.size());
 }
 
-int Resource::blockIndex(int64_t position) const
+int Resource::blockIndex(int64_t position, size_t *offset) const
 {
 	if(!mIndexBlock || position < 0 || (position > 0 && position >= mIndexRecord->size))
 		throw OutOfBounds("Resource position out of bounds");
   
 	// TODO: block size in record ?
+	if(offset) *offset = size_t(position % Block::Size);
 	return int(position/Block::Size);
 }
 
@@ -235,7 +236,7 @@ Resource::Reader::~Reader(void)
 size_t Resource::Reader::readData(char *buffer, size_t size)
 {
 	if(!mCurrentBlock) return 0;	// EOF
-  
+	
 	size_t ret;
 	if((ret = mCurrentBlock->readData(buffer, size)))
 	{
@@ -260,10 +261,13 @@ void Resource::Reader::seekRead(int64_t position)
 	delete mCurrentBlock;
 	delete mNextBlock;
 	
-	mCurrentBlockIndex = mResource->blockIndex(position);
+	size_t offset = 0;
+	mCurrentBlockIndex = mResource->blockIndex(position, &offset);
 	mCurrentBlock	= createBlock(mCurrentBlockIndex);
 	mNextBlock	= createBlock(mCurrentBlockIndex + 1);
 	mReadPosition	= position;
+	
+	mCurrentBlock->seekRead(offset);
 }
 
 void Resource::Reader::seekWrite(int64_t position)
@@ -291,7 +295,7 @@ Block *Resource::Reader::createBlock(int index)
 {
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
 	
-	LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
+	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
 	return new Block(mResource->blockDigest(index)); 
 }
 
