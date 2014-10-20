@@ -581,7 +581,6 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div","search");
 			page.openForm(prefix + "/search", "post", "searchForm");
-			page.link(prefix+"/browse/", "Browse", ".button");
 			page.input("text","query", "Search for files...");
 			//page.button("search","Search");
 			page.closeForm();
@@ -826,134 +825,7 @@ void User::http(const String &prefix, Http::Request &request)
 		url = "/" + directory.cut('/');
 		if(directory.empty()) throw 404;
 		
-		if(directory == "browse")
-		{
-			/*String target(url);
-			Assert(!target.empty());
-			
-			if(request.get.contains("json") || request.get.contains("playlist"))
-			{
-				// Query resources
-				Indexer::Query query(indexer(), target);
-				query.setAccessLevel(Resource::Personal);
-				
-				SerializableSet<Resource> resources;
-				bool success = query.submitLocal(resources);
-				success|= query.submitRemote(resources, Identifier::Null);
-				if(!success) throw 404;
-				
-				if(request.get.contains("json"))
-				{
-					Http::Response response(request, 200);
-					response.headers["Content-Type"] = "application/json";
-					response.send();
-					JsonSerializer json(response.stream);
-					json.output(resources);
-				}
-				else {
-					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-					response.headers["Content-Type"] = "audio/x-mpegurl";
-					response.send();
-					
-					String host;
-					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.stream, host);
-				}
-				return;
-			}
-			
-			// if it seems to be a file
-			if(target[target.size()-1] != '/')
-			{
-				Resource resource(Identifier::Null, url, mAddressBook->user()->indexer());
-				try {
-					resource.fetch();	// we might find a better way to access it
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("AddressBook::Contact::http", String("Resource lookup failed: ") + e.what());
-					throw 404;
-				}
-				
-				// redirect if it's a directory
-				if(resource.isDirectory())
-				{
-					if(request.get.contains("download"))
-						throw 404;
-					
-					Http::Response response(request, 301);	// Moved permanently
-					response.headers["Location"] = prefix + request.url + '/';
-					response.send();
-					return;
-				}
-				
-				// Get range
-				int64_t rangeBegin = 0;
-				int64_t rangeEnd = 0;
-				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
-				int64_t rangeSize = rangeEnd - rangeBegin;
-				
-				// Get resource accessor
-				Resource::Accessor *accessor = resource.accessor();
-				if(!accessor) throw 404;
-				
-				// Forge HTTP response header
-				Http::Response response(request, 200);
-				if(!hasRange) response.headers["Content-SHA512"] << resource.digest();
-				response.headers["Content-Length"] << rangeSize;
-				response.headers["Content-Name"] = resource.name();
-				response.headers["Last-Modified"] = resource.time().toHttpDate();
-				response.headers["Accept-Ranges"] = "bytes";
-				
-				String ext = resource.name().afterLast('.');
-				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
-				{
-					response.headers["Content-Disposition"] = "attachment; filename=\"" + resource.name() + "\"";
-					response.headers["Content-Type"] = "application/force-download";
-				}
-				else {
-					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
-					response.headers["Content-Type"] = Mime::GetType(resource.name());
-				}
-				
-				response.send();
-				if(request.method == "HEAD") return;
-				
-				try {
-					// Launch transfer
-					if(hasRange) accessor->seekRead(rangeBegin);
-					accessor->readBinary(*response.stream, rangeSize);	// let's go !
-				}
-				catch(const NetException &e)
-				{
-					return;	// nothing to do
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
-				}
-			}
-			else {
-				Http::Response response(request, 200);
-				response.send();
-				
-				Html page(response.stream);
-				if(target == "/") page.header("Browse files");
-				else page.header("Browse files: "+target.substr(1));
-				page.open("div","topmenu");
-				page.link(prefix+"/search/","Search files",".button");
-				page.link(prefix+request.url+"?playlist","Play all","playall.button");
-				page.close("div");
-
-				page.div("","list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?json','#list',true,false);");
-				page.footer();
-			}
-			
-			return;*/
-		}
-		else if(directory == "search")
+		if(directory == "search")
 		{
 			/*if(url != "/") throw 404;
 			
