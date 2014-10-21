@@ -55,6 +55,10 @@ function listDirectory(url, object, showButtons, privateMode) {
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				
+				if(resource.name.length > 0 && resource.name[0] == '_')
+					if(resource.name == "_upload") resource.name = "Sent files";
+					else continue;
+				
 				var link = '/file/' + resource.digest;
 				var line = '<tr>';
 				if(resource.type == "directory") {
@@ -198,6 +202,11 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 			var line = '<tr>';
 			var func;
 			(function(resource) { // copy resource (only the reference is passed to callbacks)
+				
+			  	if(resource.name.length > 0 && resource.name[0] == '_')
+					if(resource.name == "_upload") resource.name = "Sent files";
+					else return;
+			  
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
