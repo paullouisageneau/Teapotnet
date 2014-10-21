@@ -219,6 +219,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			// Playlist
 			if(request.get.contains("play") || request.get.contains("playlist"))
 			{	
+				request.get.insert("playlist", "");
 				Request req(resource);
 				req.http(req.urlPrefix(), request);
 				return;
