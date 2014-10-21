@@ -1156,18 +1156,6 @@ img.preview
 
 }
 
-.contacts td.name
-{
-	text-align: right;
-	padding-right: 0;
-}
-
-.contacts td.tracker
-{
-	text-align: left;
-	padding-left: 0;
-}
-
 td.actions
 {
         width: 16px;
