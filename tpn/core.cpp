@@ -249,6 +249,8 @@ void Core::registerCaller(const BinaryString &target, Caller *caller)
 	serializer.write(target);
 	serializer.write(tokens);
 	outgoing(Message::Lookup, Message::Call, payload);
+	
+	// TODO: beacons
 }
 
 void Core::unregisterCaller(const BinaryString &target, Caller *caller)
@@ -456,16 +458,19 @@ void Core::route(Message &message, const Identifier &from)
 	if(message.hops >= 8)
 		return;
 	
-	// 1st case: neighbour
-	if(send(message, message.destination))
-		return;
-
-	// 2nd case: routing table entry exists
-	Identifier route;
-	if(mRoutes.get(message.destination, route))
-		if(send(message, route))
+	if(message.destination != Identifier::Null)
+	{
+		// 1st case: neighbour
+		if(send(message, message.destination))
 			return;
 
+		// 2nd case: routing table entry exists
+		Identifier route;
+		if(mRoutes.get(message.destination, route))
+			if(send(message, route))
+				return;
+	}
+	
 	// 3rd case: no routing table entry
 	broadcast(message, from);
 }
@@ -638,14 +643,17 @@ void Core::run(void)
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
-	Synchronize(this);
-	
-	Handler *h = NULL;
-	if(mHandlers.get(peer, h))
-		return (h == handler);
-
-	mHandlers.insert(peer, handler);
-	return true;
+	if(peer == Identifier::Null) return false;
+	else {
+		Synchronize(this);
+		
+		Handler *h = NULL;
+		if(mHandlers.get(peer, h))
+			return (h == handler);
+		
+		mHandlers.insert(peer, handler);
+		return true;
+	}
 }
 
 bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
@@ -1592,7 +1600,7 @@ void Core::Handler::send(Message &message)
 
 void Core::Handler::route(Message &message)
 {
-	Synchronize(this);	
+	Synchronize(this);
 	DesynchronizeStatement(this, mCore->route(message, mRemote));
 }
 
