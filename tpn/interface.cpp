@@ -199,7 +199,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{
 				Http::RespondWithFile(request, path);
 				return;
-			} 
+			}
 		}
 		else if(prefix == "/file")
 		{
@@ -277,7 +277,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				// Forge HTTP response header
 				Http::Response response(request, 200);
-				if(!hasRange) response.headers["Content-SHA256"] << resource.digest();
 				response.headers["Content-Length"] << rangeSize;
 				response.headers["Content-Name"] = resource.name();
 				//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO

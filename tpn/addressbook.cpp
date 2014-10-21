@@ -376,11 +376,22 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						mInvitations.append(Invitation(this, code, pin, tracker));
 						save();
 					}
-			  		else if(action == "delete")
+			  		else if(action == "deletecontact")
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
 						removeContact(uname);
+					}
+					else if(action == "deleteinvitation")
+					{
+						Synchronize(this);
+						String name = request.post["argument"];
+						for(int i=0; i<mInvitations.size(); ++i)
+							if(mInvitations[i].name() == name)
+							{
+								mInvitations.erase(i);
+								break;
+							}
 					}
 					else {
 						// TODO
@@ -445,7 +456,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("In this section, you can either add your friends or send invitations to them. These invitations contain a personalized code that enable them to reach you and ensure your communications are encrypted. You will have to confirm request by pasting a code in the 'Accept Request' section.");
 			page.close("div");
 
-			page.open("div","invitationmethods");
+			/*page.open("div","invitationmethods");
 
 			page.open("span",".invitationimg");
 			page.openLink(centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id, ".gmailimg", true);
@@ -469,7 +480,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.open("div","howtotext");
-			page.close("div");
+			page.close("div");*/
 
 			page.close("div");
 
@@ -483,7 +494,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var token = \""+token+"\" \n\
 					");
 
-
+			/*
 			page.openForm(prefix+"/","post","newcontact");
 			page.open("div","newcontactdiv.box");
 			page.open("h2");
@@ -522,6 +533,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			// Load rapture.js
 			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
+			*/
 			
 			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "createinvitation");
@@ -542,6 +554,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("accept"); page.button("accept", "Accept invitation");
 			page.closeForm();
 			page.close("div");
+			
+			page.openForm(prefix+"/", "post", "actionForm");
+			page.input("hidden", "action");
+			page.input("hidden", "argument");
+			page.input("hidden", "token", token);
+			page.closeForm();
 			
 			if(!contacts.empty())
 			{
@@ -574,24 +592,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				page.close("table");
 				page.close("div");
 				
-				page.openForm(prefix+"/", "post", "actionForm");
-				page.input("hidden", "action");
-				page.input("hidden", "argument");
-				page.input("hidden", "token", token);
-				page.closeForm();
-				
-				page.javascript("function deleteContact(uname) {\n\
-					if(confirm('Do you really want to delete '+uname+' ? The corresponding mails will be deleted too.')) {\n\
-						document.actionForm.action.value = 'delete';\n\
+				page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var uname = $(this).closest('tr').find('td.uname').text();\n\
+					if(confirm('Do you really want to delete '+uname+' ?')) {\n\
+						document.actionForm.action.value = 'deletecontact';\n\
 						document.actionForm.argument.value = uname;\n\
 						document.actionForm.submit();\n\
 					}\n\
-				}");
-				
-				page.javascript("$('.deletelink').css('cursor', 'pointer').click(function(event) {\n\
-					event.stopPropagation();\n\
-					var uname = $(this).closest('tr').find('td.uname').text();\n\
-					deleteContact(uname);\n\
 				});");
 			}
 			
@@ -621,6 +629,16 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				
 				page.close("table");
 				page.close("div");
+				
+				page.javascript("$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var name = $(this).closest('tr').find('td.name').text();\n\
+					if(confirm('Do you really want to delete this invitation ?')) {\n\
+						document.actionForm.action.value = 'deleteinvitation';\n\
+						document.actionForm.argument.value = name;\n\
+						document.actionForm.submit();\n\
+					}\n\
+				});");
 			}
 			
 			page.footer();
