@@ -29,7 +29,6 @@
 #include "pla/random.h"
 #include "pla/file.h"
 #include "pla/directory.h"
-#include "pla/lineserializer.h"
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
 #include "pla/time.h"
@@ -80,7 +79,7 @@ Indexer::Indexer(User *user) :
 	{
 		try {
 			File file(mFileName, File::Read);
-			LineSerializer serializer(&file);
+			JsonSerializer serializer(&file);
 			serializer.input(mDirectories);
 			file.close();
 			
@@ -122,7 +121,7 @@ Indexer::Indexer(User *user) :
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
 	// Task
-	Scheduler::Global->schedule(this, 0 /*60.*/);		// 1 min
+	Scheduler::Global->schedule(this, 60.);		// 1 min
 	Scheduler::Global->repeat(this, 6*60*60.);	// 6h
 }
 
@@ -287,7 +286,7 @@ void Indexer::save(void) const
   	Synchronize(this);
   
 	File file(mFileName, File::Write);
-	LineSerializer serializer(&file);
+	JsonSerializer serializer(&file);
 	serializer.write(mDirectories);
 	file.close();
 }
@@ -364,7 +363,7 @@ bool Indexer::process(String path, Resource &resource)
 		path.resize(path.size() - 1);
 	if(path.empty()) path = "/";
 	
-	LogDebug("Index::process", "Indexing: " + path);
+	//LogDebug("Index::process", "Indexing: " + path);
 	
 	// Get name
 	String name;
@@ -403,19 +402,17 @@ bool Indexer::process(String path, Resource &resource)
 				Directory::Create(realSubPath);
 			
 			Resource subResource;
-			Time time;
-			if(!get(subPath, subResource, &time) || time < File::Time(realSubPath))
-				if(!process(subPath, subResource))
-					continue;	// ignore this directory
+			if(!process(subPath, subResource))
+				continue;	// ignore this directory
 			
-			time = File::Time(realSubPath);
+			Time time = File::Time(realSubPath);
 			fileTime = std::max(fileTime, time);
 			
 			serializer.write(subResource.getDirectoryRecord(time));
 		}
 		catch(const Exception &e)
 		{
-			LogWarn("Indexer", String("Update failed for directory ") + names[i] + ": " + e.what());
+			LogWarn("Indexer::process", String("Update failed for directory ") + names[i] + ": " + e.what());
 		}
 		
 		tempFile.close();
@@ -435,13 +432,10 @@ bool Indexer::process(String path, Resource &resource)
 		{
 			String subPath = path + '/' + dir.fileName();
 			Resource subResource;
-			Time time;
-			if(!get(subPath, subResource, &time) || time < dir.fileTime())	// TODO: just getting the digest is sufficient
-				if(!process(subPath, subResource))
-					continue;	// ignore this file
+			if(!process(subPath, subResource))
+				continue;	// ignore this file
 			
-			time = dir.fileTime();
-			
+			Time time = dir.fileTime();
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
@@ -457,17 +451,18 @@ bool Indexer::process(String path, Resource &resource)
 	else {
 		if(!File::Exist(realPath))
 		{
-			LogWarn("Indexer", String("Update failed: File does not exist: ") + realPath);
+			LogWarn("Indexer::process", String("Update failed: File does not exist: ") + realPath);
 			return false;
 		}
 	}
 	
-	Time time;
+	Time time(0);
 	if(!get(path, resource, &time) || time < fileTime)
 	{
-		time = fileTime;
-		
+		//LogDebug("Indexer::process", "Changed: " + path + " (time was " + time.toString() + ", now " + fileTime.toString() + ")");
 		LogDebug("Index::process", "Processing: " + path);
+		
+		time = fileTime;
 		
 		// Fill index record
 		delete resource.mIndexRecord;
@@ -520,6 +515,8 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 	statement.bind(1, path);
 	if(statement.step())
 	{
+		//LogDebug("Indexer::get", "Found in index: " + path);
+		
 		BinaryString digest;
 		statement.value(0, digest);
 		if(time) statement.value(1, *time);
@@ -538,6 +535,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 		return true;
 	}
 	
+	//LogDebug("Indexer::get", "Not found in index: " + path);
 	statement.finalize();
 	return false;
 }
@@ -1056,7 +1054,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						}
 					}
 					else {
-						Set<Resource> resources;
+						SerializableSet<Resource> resources;
 						
 						for(Map<String,TempFile*>::iterator it = request.files.begin();
 						it != request.files.end();
@@ -1079,14 +1077,21 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							LogInfo("Indexer::Http", String("Uploaded: ") + fileName);
 							
 							try {
-								String fileUrl = url + fileName;
-								update(fileUrl);
+								String filePath = url + fileName;	// TODO
 								
-								Resource res; 
-								Query q;
-								q.setLocation(fileUrl);
-								q.setFromSelf(true);
-								if(!query(q, res)) throw Exception("Query failed for " + fileUrl);
+								// Recursively update directories
+								String path = filePath;
+								while(!path.empty())
+								{
+									update(path);
+									path = path.beforeLast('/');
+								}
+								update("/");
+								
+								Query qry(filePath);
+								qry.setFromSelf(true);
+								Resource res;
+								if(!query(qry, res)) throw Exception("Query failed for " + filePath);
 									
 								resources.insert(res);
 							}
@@ -1102,9 +1107,8 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							response.headers["Content-Type"] = "application/json";
 							response.send();
 							
-							// TODO
-							//JsonSerializer json(response.stream);
-							//json.output(resources);
+							JsonSerializer json(response.stream);
+							json.output(resources);
 							return;
 						}
 						

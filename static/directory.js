@@ -148,7 +148,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, parents
 		
 		if(directoryToken)
 		{
-			var uploadUrl = getBasePath(1) + 'files/_upload/?json';
+			var uploadUrl = getBasePath(2) + 'files/_upload/?json';
 			
 			$(object).append('<form id="uploadform" action="'+uploadUrl+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+directoryToken+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
 			$('#selector_file')
