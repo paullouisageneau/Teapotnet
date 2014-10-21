@@ -386,12 +386,15 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					{
 						Synchronize(this);
 						String name = request.post["argument"];
+						
+						// TODO: function removeInvitation
 						for(int i=0; i<mInvitations.size(); ++i)
 							if(mInvitations[i].name() == name)
 							{
 								mInvitations.erase(i);
 								break;
 							}
+						save();
 					}
 					else {
 						// TODO
