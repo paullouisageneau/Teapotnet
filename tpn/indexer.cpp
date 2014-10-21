@@ -1051,6 +1051,16 @@ void Indexer::http(const String &prefix, Http::Request &request)
 									statement.execute();
 								}
 							}
+							
+							// Recursively update parent directories
+							String path = filePath.beforeLast('/');
+							while(!path.empty())
+							{
+								update(path);
+								if(!path.contains('/')) break;
+								path = path.beforeLast('/');
+							}
+							update("/");
 						}
 					}
 					else {
@@ -1079,11 +1089,12 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							try {
 								String filePath = url + fileName;	// TODO
 								
-								// Recursively update directories
+								// Recursively update parent directories
 								String path = filePath;
 								while(!path.empty())
 								{
 									update(path);
+									if(!path.contains('/')) break;
 									path = path.beforeLast('/');
 								}
 								update("/");
