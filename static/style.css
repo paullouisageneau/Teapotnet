@@ -1151,9 +1151,14 @@ img.preview
 	background-color: #C0C0C0;
 }
 
-.contacts tr td
+.invitations tr
 {
+	min-height: 16px;
+}
 
+.invitations tr:hover
+{
+	background-color: #C0C0C0;
 }
 
 td.actions
