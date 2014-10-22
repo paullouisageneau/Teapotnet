@@ -87,8 +87,11 @@ private:
 		static uint8_t gMul(uint8_t a, uint8_t b); 
 		static uint8_t gInv(uint8_t a);
 		
+		void resize(size_t size, bool zerofill = false);
+		
 		Map<int, uint8_t> mComponents;
-		BinaryString mData;
+		char *mData;
+		size_t mSize;
 	};
 	
 public:

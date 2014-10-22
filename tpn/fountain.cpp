@@ -51,12 +51,16 @@ uint8_t Fountain::Generator::next(void)
 	return value;
 }
 
-Fountain::Combination::Combination(void)
+Fountain::Combination::Combination(void) :
+	mData(NULL),
+	mSize(0)
 {
 	
 }
 
-Fountain::Combination::Combination(int offset, const char *data, size_t size)
+Fountain::Combination::Combination(int offset, const char *data, size_t size) :
+	mData(NULL),
+	mSize(0)
 {
 	addComponent(offset, 1);
 	setData(data, size);
@@ -86,30 +90,46 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 	addComponent(offset, coeff);
 	
 	// Assure mData is the longest vector
-	if(mData.size() < size)
-		mData.writeZero(size - mData.size());
+	if(mSize < size)
+		resize(size, true);	// zerofill
 	
 	if(coeff == 0) return;
 	
 	if(coeff == 1)
 	{
-		for(unsigned i = 0; i < size; ++i)
-			mData[i]^= gMul(data[i], coeff);	// mData[i] = gAdd(mData[i], gMul(data[i], coeff));
+		// Add values
+		//for(unsigned i = 0; i < size; ++i)
+		//	mData[i] = gAdd(mData[i], data[i]);
+	  
+	  	// Faster
+		unsigned long *a = reinterpret_cast<unsigned long*>(mData);
+		const unsigned long *b = reinterpret_cast<const unsigned long*>(data);
+		const int n = size / sizeof(unsigned long);
+		for(int i = 0; i < n; ++i)
+			a[i]^= b[i];
+		for(int i = n*sizeof(unsigned long); i < size; ++i)
+			mData[i]^= data[i];
 	}
 	else {
+		// Add values
+		//for(unsigned i = 0; i < size; ++i)
+		//	mData[i] = gAdd(mData[i], gMul(data[i], coeff));
+		
+		// Faster
 		for(unsigned i = 0; i < size; ++i)
-			mData[i]^= data[i];	 // mData[i] = gAdd(mData[i], data[i]);
+			mData[i]^= gMul(data[i], coeff);
 	}
 }
 
 void Fountain::Combination::setData(const char *data, size_t size)
 {
-	mData.assign(data, size);
+	resize(size, false);
+	std::copy(data, data + size, mData);
 }
 
 void Fountain::Combination::setData(const BinaryString &data)
 {
-	mData = data;
+	setData(data.data(), data.size());
 }
 
 int Fountain::Combination::firstComponent(void) const
@@ -146,18 +166,20 @@ bool Fountain::Combination::isCoded(void) const
 
 const char *Fountain::Combination::data(void) const
 {
-	return mData.data();
+	return mData;
 }
 
 size_t Fountain::Combination::size(void) const
 {
-	return mData.size();
+	return mSize;
 }
 
 void Fountain::Combination::clear(void)
 {
 	mComponents.clear();
-	mData.clear();
+	delete[] mData;
+	mData = NULL;
+	mSize = 0;
 }
 
 Fountain::Combination Fountain::Combination::operator+(const Combination &combination) const
@@ -184,13 +206,23 @@ Fountain::Combination Fountain::Combination::operator/(uint8_t coeff) const
 Fountain::Combination &Fountain::Combination::operator+=(const Combination &combination)
 {
 	// Assure mData is long enough
-	if(mData.size() < combination.mData.size())
-		mData.writeZero(combination.mData.size() - mData.size());
+	if(mSize < combination.mSize)
+		resize(combination.mSize, true);	// zerofill
 	
 	// Add values
-	for(int i = 0; i < combination.mData.size(); ++i)
-		mData[i]^= combination.mData[i]; // mData[i] = gAdd(mData[i], combination.mData[i]);
+	//for(int i = 0; i < combination.mSize; ++i)
+	//	mData[i] = gAdd(mData[i], combination.mData[i]);
 
+	// Faster
+	unsigned long *a = reinterpret_cast<unsigned long*>(mData);
+	const unsigned long *b = reinterpret_cast<const unsigned long*>(combination.mData);
+	const int n = combination.mSize / sizeof(unsigned long);
+	for(int i = 0; i < n; ++i)
+		a[i]^= b[i];
+	for(int i = n*sizeof(unsigned long); i < combination.mSize; ++i)
+		mData[i]^= combination.mData[i];
+		
+	
 	// Add components
 	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
 		jt != combination.mComponents.end();
@@ -208,7 +240,7 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 	Assert(coeff != 0);
 
 	// Multiply vector
-	for(int i = 0; i < mData.size(); ++i)
+	for(int i = 0; i < mSize; ++i)
 		mData[i] = gMul(mData[i], coeff);
 
 	for(	Map<int, uint8_t>::iterator it = mComponents.begin();
@@ -324,7 +356,22 @@ uint8_t Fountain::Combination::gInv(uint8_t a)
 	Assert(a != 0);
 	return table[a];
 }
-  
+
+void Fountain::Combination::resize(size_t size, bool zerofill)
+{
+	if(mSize != size)
+	{
+		char *newData = new char[size];
+		std::copy(newData, newData + std::min(mSize, size), newData);
+		if(zerofill && size > mSize)
+			std::fill(newData + mSize, newData + size, 0);
+		
+		delete[] mData;
+		mData = newData;
+		mSize = size;
+	}
+}
+
 Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
 	mFile(file),
 	mOffset(offset),
@@ -341,8 +388,6 @@ Fountain::Source::~Source(void)
 
 void Fountain::Source::generate(Stream &output, unsigned *tokens)
 {
-	Assert(tokens);
-	
 	if(mSize > std::numeric_limits<uint32_t>::max())
 		throw Exception("File too big for Foutain::Source");
 	
@@ -352,7 +397,7 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	if(tokens) t = *tokens;
 	if(t > chunks) t = chunks;
 	
-	unsigned count = 32;
+	unsigned count = 16;	// TODO
 	unsigned first = chunks - t;
 	uint32_t left = uint32_t(mSize);
 	
