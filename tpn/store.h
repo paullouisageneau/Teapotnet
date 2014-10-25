@@ -46,7 +46,7 @@ public:
 	bool pull(const BinaryString &digest, Stream &output, unsigned *tokens = NULL);
 	
 	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest);
+	bool waitBlock(const BinaryString &digest, const double &timeout = -1);
 	bool waitBlock(const BinaryString &digest, double &timeout);
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);

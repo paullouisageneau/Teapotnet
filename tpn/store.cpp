@@ -119,21 +119,11 @@ bool Store::hasBlock(const BinaryString &digest)
 	return false;
 }
 
-void Store::waitBlock(const BinaryString &digest)
+bool Store::waitBlock(const BinaryString &digest, const double &timeout)
 {
-	Synchronize(this);
-	
-	if(!hasBlock(digest))
-	{
-		Core::Caller caller(digest);		// Block is missing locally, call it
-		
-		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
-		
-		do wait();
-		while(!hasBlock(digest));
-		
-		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
-	}
+	double dummy = timeout;
+	if(dummy < 0.) dummy = 60.;	// TODO
+	return waitBlock(digest, dummy);
 }
 
 bool Store::waitBlock(const BinaryString &digest, double &timeout)

@@ -77,7 +77,8 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 	if(it != mComponents.end())
 	{
 		it->second^= coeff;	// it->second = gAdd(it->second, coeff);
-		if(it->second == 0) mComponents.erase(it);
+		if(it->second == 0)
+			mComponents.erase(it);
 	}
 	else {
 		if(coeff != 0)
@@ -164,6 +165,11 @@ bool Fountain::Combination::isCoded(void) const
 	return (mComponents.size() != 1 || mComponents.begin()->second != 1);
 }
 
+bool Fountain::Combination::isNull(void) const
+{
+	return (mComponents.size() == 0);
+}
+
 const char *Fountain::Combination::data(void) const
 {
 	return mData;
@@ -221,7 +227,6 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 		a[i]^= b[i];
 	for(int i = n*sizeof(unsigned long); i < combination.mSize; ++i)
 		mData[i]^= combination.mData[i];
-		
 	
 	// Add components
 	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
@@ -230,7 +235,7 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 	{
 		addComponent(jt->first, jt->second);
 	}
-
+	
 	return *this;
 }
 
@@ -466,8 +471,9 @@ bool Fountain::Sink::solve(Stream &input)
 	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ", size=" + String::number(unsigned(data.size())) + ")");
 	
 	// TODO: check data.size()
-	
+	// TODO: check mSize
 	mSize = std::max(mSize, size);
+	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	
 	Combination c;
 	c.setData(data);
@@ -489,10 +495,10 @@ bool Fountain::Sink::solve(Stream &input)
 	mCombinations.push_back(c);
   
 	// Solve only if if we've got enough combinations
-	if(mCombinations.size() < mSize/ChunkSize)
+	if(mCombinations.size() < chunks)
 		return false;
 	
-	LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
+	//LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
 	
 	List<Combination>::iterator it;	// current equation
 	
@@ -516,7 +522,7 @@ bool Fountain::Sink::solve(Stream &input)
 		jt = mCombinations.begin();	// secondary equation
 		while(jt != mCombinations.end())
 		{
-			if(jt->componentsCount() && jt != it)
+			if(jt != it)
 			{
 				uint8_t c = jt->coeff(i);
 				if(c)	// if term not supressed
@@ -540,7 +546,7 @@ bool Fountain::Sink::solve(Stream &input)
 	it = mCombinations.begin();
 	while(it != mCombinations.end())
 	{
-		if(it->componentsCount() == 0)	// Null vector, useless equation
+		if(it->isNull())	// Null vector, useless equation
 		{
 			mCombinations.erase(it++);
 		}
@@ -554,7 +560,7 @@ bool Fountain::Sink::solve(Stream &input)
 		}
 	}
 	
-	LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
+	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
 	return decodedSize >= mSize;
 }
 

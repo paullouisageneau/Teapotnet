@@ -65,6 +65,7 @@ private:
 		int componentsCount(void) const;
 		uint8_t coeff(int offset) const;
 		bool isCoded(void) const;
+		bool isNull(void) const;
 		
 		const char *data(void) const;
 		size_t size(void) const;
