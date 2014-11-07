@@ -464,36 +464,8 @@ bool Indexer::process(String path, Resource &resource)
 		//LogDebug("Indexer::process", "Changed: " + path + " (time was " + time.toString() + ", now " + fileTime.toString() + ")");
 		LogDebug("Index::process", "Processing: " + path);
 		
-		time = fileTime;
-		
-		// Fill index record
-		delete resource.mIndexRecord;
-		int64_t size = File::Size(realPath);
-		resource.mIndexRecord = new Resource::IndexRecord;
-		resource.mIndexRecord->name = name;
-		resource.mIndexRecord->type = (isDirectory ? "directory" : "file");
-		resource.mIndexRecord->size = size;
-		resource.mIndexRecord->blockDigests.reserve(size/Block::Size);
-		
-		// Process blocks
-		File file(realPath, File::Read);
-		BinaryString blockDigest;
-		while(Block::ProcessFile(file, blockDigest))
-			resource.mIndexRecord->blockDigests.append(blockDigest);
-		
-		// Create index
-		String tempFileName = File::TempName();
-		File tempFile(tempFileName, File::Truncate);
-		BinarySerializer serializer(&tempFile);
-		serializer.write(resource.mIndexRecord);
-		tempFile.close();
-		String indexFilePath = Cache::Instance->move(tempFileName);
-		
-		// Create index block
-		delete resource.mIndexBlock;
-		resource.mIndexBlock = new Block(indexFilePath);
-		
-		notify(path, resource, time);
+		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
+		notify(path, resource, fileTime);
 	}
 	
 	// Mark as seen

@@ -58,9 +58,9 @@ public:
 	
 private:
 	String mName;
-	BinaryString mDigest;
 	Set<Mail> mMails;
 	
+	mutable BinaryString mDigest;
 	mutable bool mHasNew;
 };
 

@@ -61,11 +61,37 @@ bool Board::add(Mail &mail)
 {
 	Synchronize(this);
 	
-	// TODO
+	if(mMails.contains(mail))
+		return false;
+	
+	mMails.insert(mail);
+	mDigest.clear();
+	return true;
 }
 
 BinaryString Board::digest(void) const
 {
+	if(mDigest.empty())
+	{
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName, File::Truncate);
+		
+		BinarySerializer serializer(&tempFile);
+		for(Set<Mail>::const_iterator it = mMails.begin();
+			it != mMails.end();
+			++it)
+		{
+			serializer.write(*it);
+		}
+		
+		tempFile.close();
+		
+		Resource resource;
+		resource.process(Cache::Instance->move(tempFileName), mName, "mail");
+		
+		mDigest = resource.digest();
+	}
+  
 	return mDigest;
 }
 
@@ -73,7 +99,7 @@ bool Board::anounce(const Identifier &peer, const String &prefix, const String &
 {
 	Synchronize(this);
 	
-	target = mDigest;
+	target = digest();
 	return true;
 }
 	
@@ -87,6 +113,9 @@ bool Board::incoming(const String &prefix, const String &path, const BinaryStrin
 	if(fetch(prefix, path, target))
 	{
 		Resource resource(target, true);	// local only (already fetched)
+		if(resource.type() != "mail")
+			return false;
+		
 		Resource::Reader reader(&resource);
 		BinarySerializer serializer(&reader);
 		Mail mail;

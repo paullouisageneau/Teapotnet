@@ -87,6 +87,36 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 
 }
 
+void Resource::process(const String &filename, const String &name, const String &type)
+{
+	// Fill index record
+	delete mIndexRecord;
+	int64_t size = File::Size(filename);
+	mIndexRecord = new Resource::IndexRecord;
+	mIndexRecord->name = name;
+	mIndexRecord->type = type;
+	mIndexRecord->size = size;
+	mIndexRecord->blockDigests.reserve(size/Block::Size);
+	
+	// Process blocks
+	File file(filename, File::Read);
+	BinaryString blockDigest;
+	while(Block::ProcessFile(file, blockDigest))
+		mIndexRecord->blockDigests.append(blockDigest);
+	
+	// Create index
+	String tempFileName = File::TempName();
+	File tempFile(tempFileName, File::Truncate);
+	BinarySerializer serializer(&tempFile);
+	serializer.write(mIndexRecord);
+	tempFile.close();
+	String indexFilePath = Cache::Instance->move(tempFileName);
+	
+	// Create index block
+	delete mIndexBlock;
+	mIndexBlock = new Block(indexFilePath);
+}
+
 BinaryString Resource::digest(void) const
 {
 	if(!mIndexBlock) return BinaryString();

@@ -46,6 +46,7 @@ public:
 	~Resource(void);
 	
 	void fetch(const BinaryString &digest, bool localOnly = false);
+	void process(const String &filename, const String &name, const String &type);
 	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
