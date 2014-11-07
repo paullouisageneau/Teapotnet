@@ -20,7 +20,7 @@
  *************************************************************************/
 
 #include "tpn/mail.h"
-#include "tpn/mailqueue.h"
+#include "tpn/mailbase.h"
 #include "tpn/core.h"
 #include "tpn/user.h"
 
@@ -33,11 +33,7 @@ namespace tpn
 {
 
 Mail::Mail(const String &content) :
-	mTime(Time::Now()),
-	mIsPublic(false),
-	mIsIncoming(false),
-	mIsRelayed(false),
-	mNumber(0)
+	mTime(time_t(Time::Now()))
 {
 	if(!content.empty()) setContent(content);
 }
@@ -47,316 +43,120 @@ Mail::~Mail(void)
   
 }
 
-Time Mail::time(void) const
+const String &Mail::content(void) const
 {
-	return mTime; 
-}
-
-String Mail::stamp(void) const
-{
-	return mStamp;
-}
-
-String Mail::parent(void) const
-{
-	return mParent;
+	return mContent;  
 }
 
 String Mail::author(void) const
 {
-        return mAuthor;
+	  return mAuthor;
 }
 
-String Mail::contact(void) const
+String Mail::board(void) const
 {
-        return mContact;
+	  return mBoard;
 }
 
-bool Mail::isPublic(void) const
+Time Mail::time(void) const
 {
-	return mIsPublic;
+	return mTime;  
 }
 
-bool Mail::isIncoming(void) const
+BinaryString Mail::parent(void) const
 {
-        return mIsIncoming;
+	return mParent;  
 }
 
-bool Mail::isRelayed(void) const
+BinaryString Mail::digest(void) const
 {
-        return mIsRelayed;
-}
-
-const String &Mail::content(void) const
-{
-	return mContent;
-}
-
-const StringMap &Mail::headers(void) const
-{
-	return mHeaders;
-}
-
-bool Mail::header(const String &name, String &value) const
-{
-	return mHeaders.get(name, value);
-}
-
-String Mail::header(const String &name) const
-{
-	String value;
-	if(mHeaders.get(name, value)) return value;
-	else return "";
+	if(mDigest.empty()) mDigest = computeDigest();
+	return mDigest;
 }
 
 void Mail::setContent(const String &content)
 {
 	mContent = content;
-	mContent.trim();	// TODO: YamlSerializer don't support leading spaces
-}
-
-void Mail::setParent(const String &stamp)
-{
-	mParent = stamp;
-}
-
-void Mail::setPublic(bool ispublic)
-{
-	mIsPublic = ispublic;
+	mDigest.clear();
 }
 
 void Mail::setAuthor(const String &author)
 {
 	mAuthor = author;
+	mDigest.clear();
 }
 
-void Mail::setContact(const String &uname)
+void Mail::setBoard(const String &board)
 {
-	mContact = uname;
+	mBoard = board;
+	mBoard.clear();
 }
 
-void Mail::setHeaders(const StringMap &headers)
+void Mail::setParent(const BinaryString &parent)
 {
-	mHeaders = headers;
+	mParent = parent;
+	mDigest.clear();
 }
 
-void Mail::setHeader(const String &name, const String &value)
+bool Mail::isSigned(void) const
 {
-	mHeaders[name] = value; 
+	return !mSignature.empty();  
 }
 
-void Mail::setDefaultHeader(const String &name, const String &value)
+void Mail::sign(const Rsa::PrivateKey &privKey)
 {
-	if(!mHeaders.contains(name))
-		mHeaders[name] = value;
+	privKey.sign(digest(), mSignature);
 }
 
-void Mail::removeHeader(const String &name)
+bool Mail::check(const Rsa::PublicKey &pubKey) const
 {
-	mHeaders.erase(name);
-}
-
-void Mail::writeSignature(User *user)
-{
-	mAuthor = user->name();
-
-	// TODO: should be removed
-	// Backward compatibility for legacy stamps 
-	if(mStamp.empty() || mStamp.size() == 32)
-	//
-		mStamp = computeStamp();
-
-	mSignature = computeSignature(user);
-}
-
-bool Mail::checkStamp(void) const
-{
-	if(mStamp.empty())
-		return false;
-	
-	// TODO: should be removed
-	// Backward compatibility for legacy stamps 
-	if(mStamp.size() != 32) 
-		return true;
-	//
-
-	return (mStamp == computeStamp());
-}
-
-bool Mail::checkSignature(User *user) const
-{
-	return (mAuthor == user->name() && mSignature == computeSignature(user));
-}
-
-void Mail::setIncoming(bool incoming)
-{
-	mIsIncoming = incoming;
-}
-
-void Mail::setRelayed(bool relayed)
-{
-        mIsRelayed = relayed;
-}
-
-bool Mail::send(const Identifier &peering) const
-{
-	Assert(!mStamp.empty());
-	
-	String tmp;
-	YamlSerializer serializer(&tmp);
-	serializer.output(*this);
-
-	Notification notification(tmp);
-	//notification.setParameter("type", "mail");	// TODO
-	return notification.send(peering);
-}
-
-bool Mail::recv(const Notification &notification)
-{
-	String type;
-	//notification.parameter("type", type);	// TODO
-	//if(!type.empty() && type != "mail") return false;
-	
-	String tmp = notification.content();
-	YamlSerializer serializer(&tmp);
-	serializer.input(*this);
-	return true;
+	return pubKey.verify(digest(), mSignature);
 }
 
 void Mail::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<bool> isPublicWrapper(mIsPublic);
-	ConstSerializableWrapper<bool> isIncomingWrapper(mIsIncoming);
-	ConstSerializableWrapper<bool> isRelayedWrapper(mIsRelayed);
-	
 	Serializer::ConstObjectMapping mapping;
-	mapping["headers"] = &mHeaders;
-        mapping["content"] = &mContent;
+	mapping["content"] = &mContent;
 	mapping["author"] = &mAuthor;
-	mapping["signature"] = &mSignature;
-        mapping["stamp"] = &mStamp;
+	mapping["time"] = &mTime;
+	mapping["attachments"] = &mAttachments;
 	mapping["parent"] = &mParent;
-        mapping["time"] = &mTime;
-	mapping["public"] = &isPublicWrapper;
-
-	mapping["contact"] = &mContact;
-        mapping["incoming"] = &isIncomingWrapper;
-	mapping["relayed"] = &isRelayedWrapper;
-	
-	ConstSerializableWrapper<int64_t> numberWrapper(mNumber);
-	ConstSerializableWrapper<bool>    isReadWrapper(mIsRead);
-	ConstSerializableWrapper<bool>    isPassedWrapper(mIsPassed);
-	
-	if(mNumber) 
-	{
-		mapping["number"] = &numberWrapper;
-		mapping["read"] = &isReadWrapper;
-		mapping["passed"] = &isPassedWrapper;
-	}
+	mapping["signature"] = &mSignature;
 	
 	s.outputObject(mapping);
 }
 
 bool Mail::deserialize(Serializer &s)
 {
-	mStamp.clear();
-	
-	SerializableWrapper<bool> isPublicWrapper(&mIsPublic);
-	SerializableWrapper<bool> isIncomingWrapper(&mIsIncoming);
-	SerializableWrapper<bool> isRelayedWrapper(&mIsRelayed);
-
 	Serializer::ObjectMapping mapping;
-	mapping["headers"] = &mHeaders;
         mapping["content"] = &mContent;
 	mapping["author"] = &mAuthor;
-	mapping["signature"] = &mSignature;
-	mapping["stamp"] = &mStamp;
-	mapping["parent"] = &mParent;
 	mapping["time"] = &mTime;
-	mapping["public"] = &isPublicWrapper;
+	mapping["attachments"] = &mAttachments;
+	mapping["parent"] = &mParent;
+	mapping["signature"] = &mSignature;
 	
-	mapping["contact"] = &mContact;
-	mapping["incoming"] = &isIncomingWrapper;
-	mapping["relayed"] = &isRelayedWrapper;
-
-	SerializableWrapper<int64_t> numberWrapper(&mNumber);
-	SerializableWrapper<bool>    isReadWrapper(&mIsRead);
-	SerializableWrapper<bool>    isPassedWrapper(&mIsPassed);
+	if(!s.inputObject(mapping))
+		return false;
 	
-	bool dummy = false;
-	SerializableWrapper<bool>    dummyBoolWrapper(&dummy);
-	
-	mapping["number"] = &numberWrapper;
-	mapping["read"] = &isReadWrapper;
-	mapping["passed"] = &isPassedWrapper;
-	mapping["deleted"] = &dummyBoolWrapper;
-	
-	bool success = s.inputObject(mapping);
-	if(mStamp.empty()) throw InvalidData("Mail without stamp");
-	return success;
+	// TODO: checks
+	return true;
 }
 
-void Mail::computeAgregate(BinaryString &result) const
+BinaryString Mail::computeDigest(void) const
 {
-	result.clear();
-
-	// Note: contact, incoming, and relayed are NOT in the agregate
-        BinarySerializer serializer(&result); 
-        serializer.output(int64_t(mTime.toUnixTime()));
-	serializer.output(mIsPublic);
-	serializer.output(mAuthor);
-        serializer.output(mParent);
-	serializer.output(mHeaders);
-        serializer.output(mContent);
-}
-
-String Mail::computeStamp(void) const
-{
-	BinaryString agregate, digest;
-	computeAgregate(agregate);
-	Sha512().compute(agregate, digest);
-	digest.resize(24);
+	BinaryString signature = mSignature;
+	mSignature.clear();
 	
-	String stamp = digest.base64Encode(true);	// safe mode
-	Assert(stamp.size() == 32);	// 24 * 4/3 = 32
-	return stamp;
-}
-
-String Mail::computeSignature(User *user) const
-{
-	Assert(user);
-
-	// TODO: should be removed
-	// Backward compatibility for legacy stamps 
-	if(mStamp.size() != 32)
-	{
-		// Note: contact, incoming and relayed are NOT signed
-		BinaryString agregate;
-		BinarySerializer serializer(&agregate);
-		serializer.output(mHeaders);
-		serializer.output(mContent);
-		serializer.output(mAuthor);
-		serializer.output(mStamp);
-		serializer.output(mParent);
-		serializer.output(int64_t(mTime.toUnixTime()));
-		serializer.output(mIsPublic);
-
-		BinaryString signature;
-		Sha512().hmac(user->getSecretKey("mail"), agregate, signature);
-		signature.resize(16);
-
-		return signature.toString();
-	}
-	//
+	BinaryString tmp;
+	BinarySerializer serializer(&tmp);
+	serializer.write(*this);
 	
-	BinaryString agregate, hmac;
-	computeAgregate(agregate);
-	Sha512().hmac(user->getSecretKey("mail"), agregate, hmac);
-	hmac.resize(24);
+	BinaryString digest;
+	Sha256().compute(tmp, digest),
 	
-	String signature = hmac.base64Encode(true);	// safeMode
-	Assert(signature.size() == 32);	// 24 * 4/3 = 32
-	return signature;
+	mSignature = signature;
+	return digest;
 }
 
 bool Mail::isInlineSerializable(void) const
@@ -366,18 +166,17 @@ bool Mail::isInlineSerializable(void) const
 
 bool operator < (const Mail &m1, const Mail &m2)
 {
-	return m1.time() < m2.time();
+	return (m1.time() < m2.time()) || (m1.time() == m2.time() && m1.digest() < m2.digest());
 }
 
 bool operator > (const Mail &m1, const Mail &m2)
 {
-	return m1.time() > m2.time();
+	return (m1.time() > m2.time()) || (m1.time() == m2.time() && m1.digest() > m2.digest());
 }
 
 bool operator == (const Mail &m1, const Mail &m2)
 {
-	return ((m1.time() != m2.time())
-		&& (m1.content() != m2.content()));   
+	return (m1.time() != m2.time()) && (m1.digest() != m2.digest());   
 }
 
 bool operator != (const Mail &m1, const Mail &m2)

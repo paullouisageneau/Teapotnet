@@ -164,19 +164,15 @@ void Block::waitContent(void) const
 	if(!mFile)
 	{
 		Store::Instance->waitBlock(mDigest);
-		
 		mFile = Store::Instance->getBlock(mDigest, mSize);
-		if(!mFile) throw Exception("Unable to wait for block content");
-		
+		Assert(mFile);
 		mOffset = mFile->tellRead();
 	}
 	else if(mFile->openMode() == File::Write)
 	{
 		Store::Instance->waitBlock(mDigest);
-		
 		File *source = Store::Instance->getBlock(mDigest, mSize);
-		if(!source) throw Exception("Unable to wait for block content");
-		
+		Assert(mFile);
 		mFile->seekWrite(mOffset);
 		mFile->write(*source);
 		mFile->reopen(File::Read);
@@ -195,8 +191,14 @@ bool Block::waitContent(double &timeout) const
 	if(!Store::Instance->waitBlock(mDigest, timeout))
 		return false;
 	
-	Store::Instance->waitBlock(mDigest);
+	waitContent();
 	return true;
+}
+
+bool Block::waitContent(const double &timeout) const
+{
+	double dummy = timeout;
+	return waitContent(dummy);
 }
 
 void Block::notifyStore(void) const

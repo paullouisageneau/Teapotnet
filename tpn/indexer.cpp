@@ -112,8 +112,7 @@ Indexer::Indexer(User *user) :
 	save();
 	
 	// Publisher
-	publish("/files");
-	publish("/search");
+	publish(prefix());
 	
 	// Interface
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
@@ -127,8 +126,7 @@ Indexer::Indexer(User *user) :
 
 Indexer::~Indexer(void)
 {
-	unpublish("/files");
-	unpublish("/search");
+	unpublish(prefix());
 	
 	Interface::Instance->remove(mUser->urlPrefix()+"/files");
 	Interface::Instance->remove(mUser->urlPrefix()+"/myself/files");
@@ -143,8 +141,12 @@ User *Indexer::user(void) const
 
 String Indexer::userName(void) const
 {
-	if(mUser) return mUser->name();
-	else return "";
+	return mUser->name();
+}
+
+String Indexer::prefix(void) const
+{
+	return "/files/" + mUser->identifier().toString(); 
 }
 
 void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel level)
@@ -569,7 +571,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	
 	// Resource has changed, re-publish it
 	// TODO: access rights
-	publish("/files", path, resource.digest());
+	publish(prefix(), path, resource.digest());
 }
 
 bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
@@ -578,23 +580,16 @@ bool Indexer::anounce(const Identifier &peer, const String &prefix, const String
 	
 	// TODO: access rights, use peer
 	
-	if(prefix == "/files")
+	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
+	statement.bind(1, path);
+	if(statement.step())
 	{
-		Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
-		statement.bind(1, path);
-		if(statement.step())
-		{
-			statement.value(0, target);
-			statement.finalize();
-			return true;
-		}
-		
+		statement.value(0, target);
 		statement.finalize();
-		return false;
+		return true;
 	}
 	
-	// TODO: prefix "/search"
-	
+	statement.finalize();
 	return false;
 }
 

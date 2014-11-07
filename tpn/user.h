@@ -25,9 +25,9 @@
 #include "tpn/include.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
-#include "tpn/mailqueue.h"
 #include "tpn/indexer.h"
 #include "tpn/profile.h"
+#include "tpn/board.h"
 
 #include "pla/synchronizable.h"
 #include "pla/serializable.h"
@@ -67,7 +67,7 @@ public:
 	void setTracker(const String &tracker);
 	
 	AddressBook *addressBook(void) const;
-	MailQueue *mailQueue(void) const;
+	Board *board(void) const;
 	Indexer *indexer(void) const;
 	Profile *profile(void) const;
 	
@@ -97,7 +97,7 @@ private:
 	String mFileName;
 	BinaryString mAuth;
 	AddressBook *mAddressBook;
-	MailQueue *mMailQueue;
+	Board *mBoard;
 	Indexer *mIndexer;
 	Profile *mProfile;
 	

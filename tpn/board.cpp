@@ -19,46 +19,90 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_STORE_H
-#define TPN_STORE_H
+#include "tpn/board.h"
+#include "tpn/resource.h"
+#include "tpn/html.h"
 
-#include "tpn/include.h"
-#include "tpn/database.h"
-#include "tpn/fountain.h"
-
-#include "pla/synchronizable.h"
-#include "pla/binarystring.h"
-#include "pla/file.h"
-#include "pla/map.h"
+#include "pla/binaryserializer.h"
 
 namespace tpn
 {
-  
-class Store : protected Synchronizable
+
+Board::Board(const String &name) :
+	mName(name),
+	mHasNew(false)
 {
-public:
-	static Store *Instance;
+	Assert(!mName.empty() && mName[0] == '/');	// TODO
+  
+	Interface::Instance->add("/mail" + mName, this);
 	
-	Store(void);
-	~Store(void);
-	
-	bool push(const BinaryString &digest, Stream &input);
-	bool pull(const BinaryString &digest, Stream &output, unsigned *tokens = NULL);
-	
-	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest);
-	bool waitBlock(const BinaryString &digest, double &timeout);
-	bool waitBlock(const BinaryString &digest, const double &timeout);
-	File *getBlock(const BinaryString &digest, int64_t &size);
-	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
-	void notifyFileErasure(const String &filename);
-
-private:
-	Database *mDatabase;
-	String mCacheDirectory;
-	Map<BinaryString,Fountain::Sink> mSinks;
-};
-
+	publish("/mail" + mName);
+	subscribe("/mail" + mName);
 }
 
-#endif
+Board::~Board(void)
+{
+	Interface::Instance->remove("/mail" + mName, this);
+	
+	unpublish("/mail" + mName);
+	unsubscribe("/mail" + mName);
+}
+
+bool Board::hasNew(void) const
+{
+	Synchronize(this);
+
+	bool value = false;
+	std::swap(mHasNew, value);
+	return value;
+}
+
+bool Board::add(Mail &mail)
+{
+	Synchronize(this);
+	
+	// TODO
+}
+
+BinaryString Board::digest(void) const
+{
+	return mDigest;
+}
+
+bool Board::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
+{
+	Synchronize(this);
+	
+	target = mDigest;
+	return true;
+}
+	
+bool Board::incoming(const String &prefix, const String &path, const BinaryString &target)
+{
+	Synchronize(this);
+	
+	if(target == digest())
+		return false;
+	
+	if(fetch(prefix, path, target))
+	{
+		Resource resource(target, true);	// local only (already fetched)
+		Resource::Reader reader(&resource);
+		BinarySerializer serializer(&reader);
+		Mail mail;
+		while(serializer.read(mail))
+			add(mail);
+		
+		if(digest() != target)
+			publish("/mail" + mName);
+	}
+	
+	return true;
+}
+
+void Board::http(const String &prefix, Http::Request &request)
+{
+	throw 500;
+}
+
+}

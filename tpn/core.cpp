@@ -25,7 +25,6 @@
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
 
-#include "pla/scheduler.h"
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
 #include "pla/securetransport.h"
@@ -317,16 +316,39 @@ void Core::unregisterListener(const Identifier &id, Listener *listener)
 	}
 }
 
-void Core::publish(const String &prefix, Publisher *publisher)
+void Core::publish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
-
+	
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
 	mPublishers[prefix].insert(publisher);
+	
+	BinaryString target;
+        if(publisher->anounce(Identifier::Null, prefix, "/", target))
+	{
+		SerializableList<BinaryString> array;
+		array.push_back(target);
+		
+		// Local
+		matchSubscribers(prefix, array);
+		
+		// Broadcast
+		BinaryString payload;
+		BinarySerializer serializer(&payload);
+		serializer.write(prefix);
+		serializer.write(array);
+		outgoing(Message::Broadcast, Message::Publish, payload);
+	}
 }
 
-void Core::unpublish(const String &prefix, Publisher *publisher)
+void Core::unpublish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
+	
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
 	
 	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 	if(it != mPublishers.end())
@@ -337,74 +359,40 @@ void Core::unpublish(const String &prefix, Publisher *publisher)
 	}
 }
 
-bool Core::subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+void Core::subscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
-	if(peer == Identifier::Null)
-	{
-		Array<Identifier> identifiers;
-		mHandlers.getKeys(identifiers);
-		
-		for(int i=0; i<identifiers.size(); ++i)
-		{
-			Handler *handler;
-			if(mHandlers.get(identifiers[i], handler))
-			{
-				Desynchronize(this);
-				handler->subscribe(prefix, subscriber);
-			}
-		}
-		
-		return true;
-	}
-	else {
-		// TODO: connect if Handler doesn't exist
-		
-		Handler *handler;
-		if(mHandlers.get(peer, handler))
-		{
-			Desynchronize(this);
-			handler->subscribe(prefix, subscriber);
-			return true;
-		}
-	}
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+
+	mSubscribers[prefix].insert(subscriber);
 	
-	return false;
+	// Local publishers
+	// TODO
+	//matchPublishers(prefix);
+	
+	// Immediatly send subscribe message
+	BinaryString payload;
+	BinarySerializer serializer(&payload);
+	serializer.write(prefix);
+	outgoing(Message::Forward, Message::Subscribe, payload);
 }
 
-bool Core::unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber)
+void Core::unsubscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
-	if(peer == Identifier::Null)
-	{
-		Array<Identifier> identifiers;
-		mHandlers.getKeys(identifiers);
-		
-		for(int i=0; i<identifiers.size(); ++i)
-		{
-			Handler *handler;
-			if(mHandlers.get(identifiers[i], handler))
-			{
-				Desynchronize(this);
-				handler->unsubscribe(prefix, subscriber);
-			}
-		}
-		
-		return true;
-	}
-	else {
-		Handler *handler;
-		if(mHandlers.get(peer, handler))
-		{
-			Desynchronize(this);
-			handler->unsubscribe(prefix, subscriber);
-			return true;
-		}
-	}
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
 	
-	return false;
+	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+	if(it != mSubscribers.end())
+	{
+		it->second.erase(subscriber);
+		if(it->second.empty())
+			mSubscribers.erase(it);
+	}
 }
 
 void Core::broadcast(const Notification &notification)
@@ -671,25 +659,125 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 
 void Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
 {
+	outgoing(Identifier::Null, type, content, payload);
+}
+
+void Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
+{
+	Message message;
+	message.prepare(Identifier::Null, dest, type, content);
+	message.payload.write(payload);
+	route(message);
+}
+
+bool Core::matchPublishers(const String &path, const Identifier &source)
+{
 	Synchronize(this);
 	
-	BinaryString bs;
-	bs << payload;
+	List<String> list;
+	path.explode(list,'/');
+	if(list.empty()) return false;
 	
-	Array<Identifier> identifiers;
-	mHandlers.getKeys(identifiers);
-		
-	for(int i=0; i<identifiers.size(); ++i)
+	// First item should be empty because path begins with /
+	if(list.front().empty()) 
+		list.pop_front();
+	
+	// Match prefixes, longest first
+	while(true)
 	{
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
+		String prefix;
+		prefix.implode(list, '/');
+		prefix = "/" + prefix;
+
+		String truncatedPath(path.substr(prefix.size()));
+		if(truncatedPath.empty()) truncatedPath = "/";
+		
+		SerializableList<BinaryString> targets;
+		Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+		if(it != mPublishers.end())
 		{
+			Set<Publisher*> set = it->second;
 			Desynchronize(this);
 			
-			BinaryString tmp(bs);	// TODO
-			handler->outgoing(Identifier::Null, type, content, tmp);
+			for(Set<Publisher*>::iterator jt = set.begin();
+				jt != set.end();
+				++jt)
+			{
+				BinaryString target;
+				if((*jt)->anounce(source, prefix, truncatedPath, target))
+				{
+					Assert(!target.empty());
+					LogDebug("Core::Handler::incoming", "Anouncing " + target.toString() + " for " + path);
+					targets.push_back(target);
+				}
+			}
+			
+			if(!targets.empty()) 
+			{
+				// TODO: limit size
+				BinaryString response;
+				BinarySerializer serializer(&response);
+				serializer.write(path);
+				serializer.write(targets);
+				outgoing(source, Message::Broadcast, Message::Publish, response);
+			}
 		}
+		
+		if(list.empty()) break;
+		list.pop_back();
 	}
+	
+	return true;
+}
+
+bool Core::matchSubscribers(const String &path, const List<BinaryString> &targets)
+{
+	Synchronize(this);
+	
+	List<String> list;
+	path.explode(list,'/');
+	if(list.empty()) return false;
+	
+	// First item should be empty because path begins with /
+	if(list.front().empty()) 
+		list.pop_front();
+	
+	// Match prefixes, longest first
+	while(true)
+	{
+		String prefix;
+		prefix.implode(list, '/');
+		prefix = "/" + prefix;
+		
+		String truncatedPath(path.substr(prefix.size()));
+		if(truncatedPath.empty()) truncatedPath = "/";
+		
+		// Pass to local subscribers
+		Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+		if(it != mSubscribers.end())
+		{
+			Set<Subscriber*> set = it->second;
+			Desynchronize(this);
+			
+			for(Set<Subscriber*>::iterator jt = set.begin();
+				jt != set.end();
+				++jt)
+			{
+				for(List<BinaryString>::const_iterator kt = targets.begin();
+					kt != targets.end();
+					++kt)
+				{
+					// TODO: should prevent forwarding in case we want to republish another content
+					(*jt)->incoming(prefix, truncatedPath, *kt);
+				}
+			}
+		}
+	
+		if(list.empty()) break;
+		list.pop_back();
+	}
+	
+	return true;
 }
 
 Core::Message::Message(void) :
@@ -780,13 +868,10 @@ Core::Publisher::~Publisher(void)
 
 void Core::Publisher::publish(const String &prefix)
 {
-	if(!mPublishedPrefixes.contains(prefix))
-	{
-		Core::Instance->publish(prefix, this);
-		mPublishedPrefixes.insert(prefix);
-	}
+	Core::Instance->publish(prefix, this);
+	mPublishedPrefixes.insert(prefix);
 	
-	// Call announce and trigger broadcast if necessary
+	// Call anounce and trigger broadcast if necessary
 	BinaryString target;
 	if(anounce(Identifier::Null, prefix, "/", target))
 		publish(prefix, "/", target);
@@ -794,20 +879,8 @@ void Core::Publisher::publish(const String &prefix)
 
 void Core::Publisher::publish(const String &prefix, const String &path, const BinaryString &target)
 {
-	if(!mPublishedPrefixes.contains(prefix))
-	{
-		Core::Instance->publish(prefix, this);
-		mPublishedPrefixes.insert(prefix);
-	}
-	
-	// Broadcast
-	BinaryString payload;
-	BinarySerializer serializer(&payload);
-	serializer.write(prefix + path);
-	SerializableList<BinaryString> array;
-	array.push_back(target);
-	serializer.write(array);
-	Core::Instance->outgoing(Message::Broadcast, Message::Publish, payload);
+	Core::Instance->publish(prefix, this);
+	mPublishedPrefixes.insert(prefix);
 }
 
 void Core::Publisher::unpublish(const String &prefix)
@@ -820,7 +893,8 @@ void Core::Publisher::unpublish(const String &prefix)
 }
 
 Core::Subscriber::Subscriber(const Identifier &peer) :
-	mPeer(peer)
+	mPeer(peer),
+	mThreadPool(0, 1, 8)
 {
 	
 }
@@ -831,7 +905,7 @@ Core::Subscriber::~Subscriber(void)
 		it != mSubscribedPrefixes.end();
 		++it)
 	{
-		Core::Instance->unsubscribe(mPeer, *it, this);
+		Core::Instance->unsubscribe(*it, this);
 	}
 }
 
@@ -839,7 +913,7 @@ void Core::Subscriber::subscribe(const String &prefix)
 {
 	if(!mSubscribedPrefixes.contains(prefix))
 	{
-		Core::Instance->subscribe(mPeer, prefix, this);
+		Core::Instance->subscribe(prefix, this);
 		mSubscribedPrefixes.insert(prefix);
 	}
 }
@@ -848,9 +922,59 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 {
 	if(mSubscribedPrefixes.contains(prefix))
 	{
-		Core::Instance->unsubscribe(mPeer, prefix, this);
+		Core::Instance->unsubscribe(prefix, this);
 		mSubscribedPrefixes.erase(prefix);
 	}
+}
+
+bool Core::Subscriber::fetch(const String &prefix, const String &path, const BinaryString &target)
+{
+	// Test local availability
+	if(Store::Instance->hasBlock(target))
+	{
+		Resource resource(target, true);	// local only
+		if(resource.isLocallyAvailable())
+			return true;
+	}
+	
+	class PrefetchTask : public Task
+	{
+	public:
+		PrefetchTask(Core::Subscriber *subscriber, const String &prefix, const String &path, const BinaryString &target)
+		{
+			this->subscriber = subscriber;
+			this->target = target;
+			this->prefix = prefix;
+			this->path = path;
+		}
+		
+		void run(void)
+		{
+			try {
+				Resource resource(target);
+				Resource::Reader reader(&resource);
+				reader.discard();		// read everything
+				
+				subscriber->incoming(prefix, path, target);
+			}
+			catch(const Exception &e)
+			{
+				LogWarn("Core::Subscriber::fetch", "Fetching failed for " + target.toString());
+			}
+			
+			delete this;	// autodelete
+		}
+	
+	private:
+		Core::Subscriber *subscriber;
+		BinaryString target;
+		String prefix;
+		String path;
+	};
+	
+	PrefetchTask *task = new PrefetchTask(this, prefix, path, target);
+	mThreadPool.launch(task);
+	return false;
 }
 
 Core::Caller::Caller(void)
@@ -1497,38 +1621,6 @@ Identifier Core::Handler::remote(void) const
 	return mRemote;
 }
 
-void Core::Handler::subscribe(String prefix, Subscriber *subscriber)
-{
-	Synchronize(this);
-	
-	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	mSubscribers[prefix].insert(subscriber);
-	
-	// Immediatly send subscribe message
-	BinaryString payload;
-	BinarySerializer serializer(&payload);
-	serializer.write(prefix);
-	outgoing(mRemote, Message::Forward, Message::Subscribe, payload);
-}
-
-void Core::Handler::unsubscribe(String prefix, Subscriber *subscriber)
-{
-	Synchronize(this);
-  
-	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
-	if(it != mSubscribers.end())
-	{
-		it->second.erase(subscriber);
-		if(it->second.empty())
-			mSubscribers.erase(it);
-	}
-}
-
 void Core::Handler::notify(const Identifier &id, Stream &payload, bool ack)
 {
 	Synchronize(this);
@@ -1586,8 +1678,9 @@ void Core::Handler::send(Message &message)
 	buffer.writeBinary(size);
 	
 	BinarySerializer serializer(&buffer);
-	static_cast<Serializer*>(&serializer)->output(message.source);
-	static_cast<Serializer*>(&serializer)->output(message.destination);
+	if(message.source != Identifier::Null) serializer.write(message.source);
+	else serializer.write(mLocal);
+	serializer.write(message.destination);
 	
 	buffer.writeBinary(message.payload.data(), size);
 	
@@ -1728,49 +1821,10 @@ bool Core::Handler::incoming(Message &message)
 			String path;
 			AssertIO(serializer.read(path));
 			
-			List<String> list;
-			path.explode(list,'/');
-			if(list.empty()) return false;
-			
-			// First item should be empty because path begins with /
-			if(list.front().empty()) 
-				list.pop_front();
-			
 			SerializableList<BinaryString> targets;
 			AssertIO(serializer.read(targets));
 			
-			// Match prefixes, longest first
-			while(true)
-			{
-				String prefix;
-				prefix.implode(list, '/');
-				prefix = "/" + prefix;
-				
-				String truncatedPath(path.substr(prefix.size()));
-				if(truncatedPath.empty()) truncatedPath = "/";
-				
-				// Pass to local subscribers
-				Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
-				if(it != mSubscribers.end())
-				{
-					for(Set<Subscriber*>::iterator jt = it->second.begin();
-						jt != it->second.end();
-						++jt)
-					{
-						for(List<BinaryString>::iterator kt = targets.begin();
-							kt != targets.end();
-							++kt)
-						{
-							(*jt)->incoming(prefix, truncatedPath, *kt);
-						}
-					}
-				}
-			
-				if(list.empty()) break;
-				list.pop_back();
-			}
-			
-			break;
+			return mCore->matchSubscribers(path, targets);
 		}
 		
 		case Message::Subscribe:
@@ -1782,57 +1836,7 @@ bool Core::Handler::incoming(Message &message)
 			String path;
 			AssertIO(serializer.read(path));
 			
-			List<String> list;
-			path.explode(list,'/');
-			if(list.empty()) return false;
-			
-			// First item should be empty because path begins with /
-			if(list.front().empty()) 
-				list.pop_front();
-			
-			// Match prefixes, longest first
-			while(true)
-			{
-				String prefix;
-				prefix.implode(list, '/');
-				prefix = "/" + prefix;
-
-				String truncatedPath(path.substr(prefix.size()));
-				if(truncatedPath.empty()) truncatedPath = "/";
-				
-				SerializableList<BinaryString> targets;
-				Map<String, Set<Publisher*> >::iterator it = mCore->mPublishers.find(prefix);
-				if(it != mCore->mPublishers.end())
-				{
-					for(Set<Publisher*>::iterator jt = it->second.begin();
-						jt != it->second.end();
-						++jt)
-					{
-						BinaryString target;
-						if((*jt)->anounce(source, prefix, truncatedPath, target))
-						{
-							Assert(!target.empty());
-							LogDebug("Core::Handler::incoming", "Anouncing " + target.toString() + " for " + path);
-							targets.push_back(target);
-						}
-					}
-					
-					if(!targets.empty()) 
-					{
-						// TODO: limit size
-						BinaryString response;
-						BinarySerializer serializer(&response);
-						serializer.write(path);
-						serializer.write(targets);
-						outgoing(source, Message::Broadcast, Message::Publish, response);
-					}
-				}
-				
-				if(list.empty()) break;
-				list.pop_back();
-			}
-			
-			break;
+			return mCore->matchPublishers(path, source);
 		}
 		
 		default:

@@ -19,46 +19,52 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_STORE_H
-#define TPN_STORE_H
+#ifndef TPN_BOARD_H
+#define TPN_BOARD_H
 
 #include "tpn/include.h"
-#include "tpn/database.h"
-#include "tpn/fountain.h"
+#include "tpn/mail.h"
+#include "tpn/core.h"
+#include "tpn/interface.h"
 
 #include "pla/synchronizable.h"
 #include "pla/binarystring.h"
-#include "pla/file.h"
+#include "pla/string.h"
+#include "pla/set.h"
+#include "pla/array.h"
 #include "pla/map.h"
 
 namespace tpn
 {
-  
-class Store : protected Synchronizable
+	
+class Board : public Synchronizable, public Core::Publisher, public Core::Subscriber, public HttpInterfaceable
 {
 public:
-	static Store *Instance;
+	Board(const String &name);
+	~Board(void);
 	
-	Store(void);
-	~Store(void);
+	bool hasNew(void) const;
+	bool add(Mail &mail);
+	BinaryString digest(void) const;
 	
-	bool push(const BinaryString &digest, Stream &input);
-	bool pull(const BinaryString &digest, Stream &output, unsigned *tokens = NULL);
+	// Publisher
+	bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target);
 	
-	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest);
-	bool waitBlock(const BinaryString &digest, double &timeout);
-	bool waitBlock(const BinaryString &digest, const double &timeout);
-	File *getBlock(const BinaryString &digest, int64_t &size);
-	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
-	void notifyFileErasure(const String &filename);
-
+	// Subscriber
+	bool incoming(const String &prefix, const String &path, const BinaryString &target);
+	
+	// HttpInterfaceable
+	void http(const String &prefix, Http::Request &request);
+	
 private:
-	Database *mDatabase;
-	String mCacheDirectory;
-	Map<BinaryString,Fountain::Sink> mSinks;
+	String mName;
+	BinaryString mDigest;
+	Set<Mail> mMails;
+	
+	mutable bool mHasNew;
 };
 
 }
 
 #endif
+

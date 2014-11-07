@@ -19,46 +19,43 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_STORE_H
-#define TPN_STORE_H
+#ifndef TPN_MAILBASE_H
+#define TPN_MAILBASE_H
 
 #include "tpn/include.h"
+#include "tpn/mail.h"
 #include "tpn/database.h"
-#include "tpn/fountain.h"
 
 #include "pla/synchronizable.h"
 #include "pla/binarystring.h"
-#include "pla/file.h"
-#include "pla/map.h"
+#include "pla/string.h"
 
 namespace tpn
 {
-  
-class Store : protected Synchronizable
+	
+class MailBase : public Synchronizable
 {
 public:
-	static Store *Instance;
+	MailBase(void);
+	~MailBase(void);
 	
-	Store(void);
-	~Store(void);
+	void markReceived(const String &stamp, const String &uname);
+	void markRead(const String &stamp);
+	void markPassed(const String &stamp);
+	void markDeleted(const String &stamp);
 	
-	bool push(const BinaryString &digest, Stream &input);
-	bool pull(const BinaryString &digest, Stream &output, unsigned *tokens = NULL);
+	bool isRead(const String &stamp) const;
+	bool isPassed(const String &stamp) const;
+	bool isDeleted(const String &stamp) const;
 	
-	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest);
-	bool waitBlock(const BinaryString &digest, double &timeout);
-	bool waitBlock(const BinaryString &digest, const double &timeout);
-	File *getBlock(const BinaryString &digest, int64_t &size);
-	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
-	void notifyFileErasure(const String &filename);
-
 private:
+	void setFlag(const String &stamp, const String &name, bool value = true);	// Warning: name is not escaped
+	bool getFlag(const String &stamp, const String &name) const;
+	
 	Database *mDatabase;
-	String mCacheDirectory;
-	Map<BinaryString,Fountain::Sink> mSinks;
 };
 
 }
 
 #endif
+

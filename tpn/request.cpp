@@ -195,28 +195,12 @@ bool Request::incoming(const String &prefix, const String &path, const BinaryStr
 	if(mDigests.contains(target)) return true;
 	mDigests.insert(target);
 
-	class ResourceThread : public Thread
+	if(fetch(prefix, path, target))
 	{
-	public:
-		ResourceThread(Request *request, const BinaryString &target)
-		{
-			this->request = request;
-			this->target  = target;
-		}
-		
-		void run(void)
-		{
-			Resource resource(target);	// This can take some time
-			request->addResult(resource);	// This too
-		}
-		
-	private:
-		Request *request;
-		BinaryString target;
-	};
+		Resource resource(target, true);	// local only (already fetched)
+		addResult(resource);
+	}
 	
-	Thread *thread = new ResourceThread(this, target);
-	thread->start();
 	return true;
 }
 

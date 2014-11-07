@@ -19,28 +19,20 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/mailqueue.h"
-#include "tpn/user.h"
-#include "tpn/addressbook.h"
-#include "tpn/notification.h"
-#include "tpn/html.h"
-
-#include "pla/yamlserializer.h"
-#include "pla/jsonserializer.h"
-#include "pla/crypto.h"
+#include "tpn/mailbase.h"
 
 namespace tpn
 {
-
-MailQueue::MailQueue(User *user) :
+/*
+MailBase::MailBase(User *user) :
 	mUser(user),
 	mHasNew(false)
 {
-	if(mUser) mDatabase = new Database(mUser->profilePath() + "mails.db");
-	else mDatabase = new Database("mails.db");
+	if(mUser) mDatabase = new Database(mUser->profilePath() + "mail.db");
+	else mDatabase = new Database("mail.db");
 		
-	// WARNING: Additionnal fields in mails should be declared in erase()
-	mDatabase->execute("CREATE TABLE IF NOT EXISTS mails\
+	// WARNING: Additionnal fields in mail should be declared in erase()
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS mail\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		stamp TEXT UNIQUE NOT NULL,\
 		parent TEXT,\
@@ -70,275 +62,21 @@ MailQueue::MailQueue(User *user) :
 		time INTEGER(8) DEFAULT 0 NOT NULL)");
 	
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON flags (stamp)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON mails (stamp)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON mails (contact)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON mails (time)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS stamp ON mail (stamp)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS contact ON mail (contact)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS time ON mail (time)");
 	
-	Interface::Instance->add(mUser->urlPrefix()+"/mails", this);
+	Interface::Instance->add(mUser->urlPrefix()+"/mail", this);
 }
 
-MailQueue::~MailQueue(void)
+MailBase::~MailBase(void)
 {
-	Interface::Instance->remove(mUser->urlPrefix()+"/mails", this);
-
+	Interface::Instance->remove(mUser->urlPrefix()+"/mail", this);
+	
 	delete mDatabase;
 }
 
-User *MailQueue::user(void) const
-{
-	return mUser;
-}
-
-bool MailQueue::hasNew(void) const
-{
-	Synchronize(this);
-
-	bool old = mHasNew;
-	mHasNew = false;
-	return old;
-}
-
-bool MailQueue::add(Mail &mail)
-{
-	Synchronize(this);
-	
-	bool deleted = false;
-	if(mail.stamp().empty())
-	{
-		if(mail.isIncoming()) 
-		{
-			LogWarn("MailQueue::add", "Mail with empty stamp, dropping");
-			return false;
-		}
-		
-		mail.writeSignature(user());
-	}
-	else {
-		if(!mail.checkStamp())
-		{
-			LogWarn("MailQueue::add", "Mail with invalid stamp");
-			deleted = true;
-		}
-	}
-	
-	bool exist = false;
-	Mail oldMail;
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM mails WHERE stamp=?1");
-	statement.bind(1, mail.stamp());
-	if(statement.step())
-	{
-		exist = true;
-		statement.input(oldMail);
-	}
-	statement.finalize();
-	
-	LogDebug("MailQueue::add", "Adding mail '"+mail.stamp()+"'"+(exist ? " (already in queue)" : ""));
-
-	if(exist && (mail.isRelayed() || !oldMail.isRelayed()))
-	{
-		if(mail.isIncoming())
-		{
-			// Allow resetting time to prevent synchronization problems
-			Database::Statement statement = mDatabase->prepare("UPDATE mails SET time=?1 WHERE stamp=?2 and contact=?3");
-			statement.bind(1, mail.time());
-			statement.bind(2, mail.stamp());
-			statement.bind(3, mail.contact());
-			statement.execute();
-		}
-		
-		return false;
-	}
-	
-	mDatabase->insert("mails", mail);
-	
-	if(deleted) 
-	{
-		markDeleted(mail.stamp());
-	}
-	else if(!exist)
-	{
-		if(mail.isIncoming() && !mail.isPublic()) mHasNew = true;
-		notifyAll();
-		SyncYield(this);
-		
-		// Broadcast mails when parent is broadcasted or passed 
-		if(!mail.parent().empty())
-		{
-			Mail parent;
-			if(get(mail.parent(), parent)
-				&& (parent.contact().empty() || isPassed(parent.stamp())))
-			{
-				// TODO: we shouldn't resend it to the source
-				user()->addressBook()->send(mail);
-			}
-		}
-		
-		String attachment = mail.header("attachment");
-		if(!attachment.empty())
-		try {
-			BinaryString target;
-			target.fromString(attachment);
-			//TODO: prefetch target;
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("MailQueue::add", String("Attachment prefetching failed: ") + e.what());
-		}
-	}
-	
-	return true;
-}
-
-bool MailQueue::get(const String &stamp, Mail &result) const
-{
-	Synchronize(this);
- 
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM mails WHERE stamp=?1 LIMIT 1");
-        statement.bind(1, stamp);
-        if(statement.step())
-	{
-		result.deserialize(statement);
-        	statement.finalize(); 
-		return true;
-	}
-
-	statement.finalize();
-        return false;
-}
-
-bool MailQueue::getChilds(const String &stamp, List<Mail> &result) const
-{
-	Synchronize(this);
-
-	result.clear();
-	if(stamp.empty()) return false;
-
-	Database::Statement statement = mDatabase->prepare("SELECT * FROM mails WHERE parent=?1 LIMIT 1");
-	statement.bind(1, stamp);
-	statement.fetch(result);                
-        statement.finalize();
-        return !result.empty();
-}
-
-void MailQueue::ack(const List<Mail> &mails)
-{
-	Map<String, StringList> stamps;
-	for(List<Mail>::const_iterator it = mails.begin();
-		it != mails.end();
-		++it)
-	{
-		const Mail &mail = *it;
-		if(mail.isIncoming() && !isRead(mail.stamp()))
-		{
-			stamps[mail.contact()].push_back(mail.stamp());
-			markRead(mail.stamp());
-			Assert(isRead(mail.stamp()));
-		}
-	}
-	
-	if(!stamps.empty())
-	{
-		LogDebug("MailQueue::ack", "Sending Acknowledgements");
-		
-		for(Map<String, StringList>::iterator it = stamps.begin();
-			it != stamps.end();
-			++it)
-		{
-			// TODO: ACKs are sent but ignored at reception for public mails
-
-			String tmp;
-			YamlSerializer serializer(&tmp);
-			serializer.output(it->second);
-
-			Notification notification(tmp);
-			//notification.setParameter("type", "ack");	// TODO
-			
-			AddressBook::Contact *contact = mUser->addressBook()->getContact(it->first);
-			if(contact)
-				contact->send(notification);
-			
-			AddressBook::Contact *self = mUser->addressBook()->getSelf();
-			if(self && self != contact) 
-				self->send(notification);
-		}
-	}
-}
-
-void MailQueue::pass(const List<Mail> &mails)
-{
-	SerializableList<Mail> list;
-
-	for(List<Mail>::const_iterator it = mails.begin();
-		it != mails.end();
-		++it)
-	{
-		if(isPassed(it->stamp())) continue;
-
-		// Mark as passed
-		markPassed(it->stamp());
-
-		// Broadcast the mail
-		// TODO: we shouldn't resend it to the source
-		user()->addressBook()->send(*it);
-
-		// Broadcast its childs
-		List<Mail> childs;
-		if(getChilds(it->stamp(), childs))
-		{
-			for(List<Mail>::const_iterator jt = childs.begin();
-				jt != childs.end();
-				++jt)
-			{
-				// TODO: we shouldn't resend it to the source
-				user()->addressBook()->send(*jt);
-			}
-		}
-
-		list.push_back(*it);
-	}
-
-	if(!list.empty())
-	{
-		// Send notification
-		AddressBook::Contact *self = mUser->addressBook()->getSelf();
-		if(self)
-		{
-			String tmp;
-			YamlSerializer serializer(&tmp);
-			serializer.output(list);
-	
-			Notification notification(tmp);
-			//notification.setParameter("type", "pass");	// TODO
-			self->send(notification);
-		}
-	}
-}
-
-void MailQueue::erase(const String &uname)
-{
-	Synchronize(this);
-
-	// Additionnal fields in mails should be added here
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO mails \
-(id, stamp, parent, headers, content, author, signature, contact, time, public, incoming, relayed) \
-SELECT m.id, m.stamp, m.parent, m.headers, m.content, m.author, '', p.contact, m.time, m.public, m.incoming, 1 \
-FROM mails AS m LEFT JOIN mails AS p ON p.stamp=NULLIF(m.parent,'') WHERE m.contact=?1 AND p.contact IS NOT NULL");
-	statement.bind(1, uname);
-	statement.execute();
-
-        statement = mDatabase->prepare("DELETE FROM mails WHERE contact=?1");
-        statement.bind(1, uname);
-        statement.execute();
-	
-	statement = mDatabase->prepare("DELETE FROM received WHERE contact=?1");
-        statement.bind(1, uname);
-        statement.execute();
-	
-	statement = mDatabase->prepare("DELETE FROM flags WHERE NOT EXISTS(SELECT 1 FROM mails WHERE mails.stamp=flags.stamp)");
-        statement.execute();
-}
-
-void MailQueue::markReceived(const String &stamp, const String &uname)
+void MailBase::markReceived(const String &stamp, const String &uname)
 {
 	Synchronize(this);
 	
@@ -349,37 +87,37 @@ void MailQueue::markReceived(const String &stamp, const String &uname)
 	statement.execute();
 }
 
-void MailQueue::markRead(const String &stamp)
+void MailBase::markRead(const String &stamp)
 {
 	setFlag(stamp, "read", true);
 }
 
-void MailQueue::markPassed(const String &stamp)
+void MailBase::markPassed(const String &stamp)
 {
 	setFlag(stamp, "passed", true);
 }
 
-void MailQueue::markDeleted(const String &stamp)
+void MailBase::markDeleted(const String &stamp)
 {
 	setFlag(stamp, "deleted", true);
 }
 
-bool MailQueue::isRead(const String &stamp) const
+bool MailBase::isRead(const String &stamp) const
 {
 	return getFlag(stamp, "read");
 }
 
-bool MailQueue::isPassed(const String &stamp) const
+bool MailBase::isPassed(const String &stamp) const
 {
 	return getFlag(stamp, "passed");
 }
 
-bool MailQueue::isDeleted(const String &stamp) const
+bool MailBase::isDeleted(const String &stamp) const
 {
 	return getFlag(stamp, "deleted");
 }
 
-void MailQueue::setFlag(const String &stamp, const String &name, bool value)
+void MailBase::setFlag(const String &stamp, const String &name, bool value)
 {
 	Synchronize(this);
 	
@@ -407,7 +145,7 @@ void MailQueue::setFlag(const String &stamp, const String &name, bool value)
 	statement.execute();
 }
 
-bool MailQueue::getFlag(const String &stamp, const String &name) const
+bool MailBase::getFlag(const String &stamp, const String &name) const
 {
 	Synchronize(this);
 	
@@ -425,7 +163,7 @@ bool MailQueue::getFlag(const String &stamp, const String &name) const
 	return false;
 }
 
-void MailQueue::http(const String &prefix, Http::Request &request)
+void MailBase::http(const String &prefix, Http::Request &request)
 {
 	String url = request.url;
 	url.ignore();	// removes first '/'
@@ -532,7 +270,7 @@ void MailQueue::http(const String &prefix, Http::Request &request)
 		if(request.get["incoming"].toBool()) selection.includeOutgoing(false);
 		if(request.get.contains("parent")) selection.setParentStamp(request.get["parent"]);
 		
-		int count = 100; // TODO: 100 mails selected is max
+		int count = 100; // TODO: 100 mail selected is max
 		if(request.get.contains("count")) request.get.get("count").extract(count);
 		
 		SerializableList<Mail> list;
@@ -580,7 +318,7 @@ void MailQueue::http(const String &prefix, Http::Request &request)
 	if(isPopup) page.open("div", "chat");
 	else page.open("div", "chat.box");
 
-	page.open("div", "chatmails");
+	page.open("div", "chatmail");
 	page.close("div");
 
 	page.open("div", "chatpanel");
@@ -637,41 +375,41 @@ void MailQueue::http(const String &prefix, Http::Request &request)
 			}\n\
 		});\n\
 		$('#attachedfile').hide();\n\
-		setMailsReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmails');");
+		setMailsReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#chatmail');");
 
 	unsigned refreshPeriod = 5000;
 	page.javascript("setCallback(\""+contact->urlPrefix()+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 		transition($('#status'), info.status.capitalize());\n\
 		$('#status').removeClass().addClass('button').addClass(info.status);\n\
-		if(info.newmails) playMailSound();\n\
+		if(info.newmail) playMailSound();\n\
 	});");
 
 	page.footer();
 	return;
 }
 
-MailQueue::Selection MailQueue::select(const String &uname) const
+MailBase::Selection MailBase::select(const String &uname) const
 {
 	return Selection(this, uname, true, true, true);
 }
 
-MailQueue::Selection MailQueue::selectPrivate(const String &uname) const
+MailBase::Selection MailBase::selectPrivate(const String &uname) const
 {
 	return Selection(this, uname, true, false, true);
 }
 
-MailQueue::Selection MailQueue::selectPublic(const String &uname, bool includeOutgoing) const
+MailBase::Selection MailBase::selectPublic(const String &uname, bool includeOutgoing) const
 {
 	return Selection(this, uname, false, true, includeOutgoing);
 }
 
-MailQueue::Selection MailQueue::selectChilds(const String &parentStamp) const
+MailBase::Selection MailBase::selectChilds(const String &parentStamp) const
 {
 	return Selection(this, parentStamp);
 }
 
-MailQueue::Selection::Selection(void) :
-	mMailQueue(NULL),
+MailBase::Selection::Selection(void) :
+	mMailBase(NULL),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(true),
 	mIncludePublic(true),
@@ -680,9 +418,9 @@ MailQueue::Selection::Selection(void) :
 	
 }
 
-MailQueue::Selection::Selection(const MailQueue *mailQueue, const String &uname, 
+MailBase::Selection::Selection(const MailBase *board, const String &uname, 
 				   bool includePrivate, bool includePublic, bool includeOutgoing) :
-	mMailQueue(mailQueue),
+	mMailBase(board),
 	mContact(uname),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(includePrivate),
@@ -692,8 +430,8 @@ MailQueue::Selection::Selection(const MailQueue *mailQueue, const String &uname,
 	
 }
 
-MailQueue::Selection::Selection(const MailQueue *mailQueue, const String &parent) :
-	mMailQueue(mailQueue),
+MailBase::Selection::Selection(const MailBase *board, const String &parent) :
+	mMailBase(board),
 	mBaseTime(time_t(0)),
 	mIncludePrivate(true),
 	mIncludePublic(true),
@@ -703,22 +441,22 @@ MailQueue::Selection::Selection(const MailQueue *mailQueue, const String &parent
 	
 }
 
-MailQueue::Selection::~Selection(void)
+MailBase::Selection::~Selection(void)
 {
 	
 }
 
-void MailQueue::Selection::setParentStamp(const String &stamp)
+void MailBase::Selection::setParentStamp(const String &stamp)
 {
 	mParentStamp = stamp;
 }
 
-bool MailQueue::Selection::setBaseStamp(const String &stamp)
+bool MailBase::Selection::setBaseStamp(const String &stamp)
 {
 	if(!stamp.empty())
 	{
 		Mail base;
-		if(mMailQueue->get(stamp, base))
+		if(mMailBase->get(stamp, base))
 		{
 			mBaseStamp = base.stamp();
 			mBaseTime = base.time();
@@ -730,33 +468,33 @@ bool MailQueue::Selection::setBaseStamp(const String &stamp)
 	return false;
 }
 
-String MailQueue::Selection::baseStamp(void) const
+String MailBase::Selection::baseStamp(void) const
 {
 	return mBaseStamp;
 }
 
-void MailQueue::Selection::includePrivate(bool enabled)
+void MailBase::Selection::includePrivate(bool enabled)
 {
 	mIncludePrivate = enabled;
 }
 
-void MailQueue::Selection::includePublic(bool enabled)
+void MailBase::Selection::includePublic(bool enabled)
 {
 	mIncludePublic = enabled;
 }
 
-void MailQueue::Selection::includeOutgoing(bool enabled)
+void MailBase::Selection::includeOutgoing(bool enabled)
 {
 	mIncludeOutgoing = enabled;
 }
 
-int MailQueue::Selection::count(void) const
+int MailBase::Selection::count(void) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	
 	int count = 0;
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter());
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter());
 	filterBind(statement);
 	if(statement.step())
 		statement.input(count);
@@ -764,13 +502,13 @@ int MailQueue::Selection::count(void) const
 	return count;
 }
 
-int MailQueue::Selection::unreadCount(void) const
+int MailBase::Selection::unreadCount(void) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	
 	int count = 0;
-        Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
+        Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("COUNT(*) AS count")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
 	filterBind(statement);
 	if(statement.step())
 		statement.input(count);
@@ -778,9 +516,9 @@ int MailQueue::Selection::unreadCount(void) const
         return count;
 }
 
-bool MailQueue::Selection::contains(const String &stamp) const
+bool MailBase::Selection::contains(const String &stamp) const
 {
-        Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE mail.stamp=@stamp AND "+filter());
+        Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("id")+" WHERE mail.stamp=@stamp AND "+filter());
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("stamp"), stamp);
 	bool found = statement.step();
@@ -788,12 +526,12 @@ bool MailQueue::Selection::contains(const String &stamp) const
         return found;
 }
 
-bool MailQueue::Selection::getOffset(int offset, Mail &result) const
+bool MailBase::Selection::getOffset(int offset, Mail &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,1");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,1");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("offset"), offset);
 	if(!statement.step())
@@ -807,13 +545,13 @@ bool MailQueue::Selection::getOffset(int offset, Mail &result) const
         return true;
 }
 
-bool MailQueue::Selection::getRange(int offset, int count, List<Mail> &result) const
+bool MailBase::Selection::getRange(int offset, int count, List<Mail> &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 	
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,@count");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,@count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("offset"), offset);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -823,17 +561,17 @@ bool MailQueue::Selection::getRange(int offset, int count, List<Mail> &result) c
         return (!result.empty());
 }
 
-bool MailQueue::Selection::getLast(int count, List<Mail> &result) const
+bool MailBase::Selection::getLast(int count, List<Mail> &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 
 	if(count == 0) return false;
 
 	// Fetch the highest id
         int64_t maxId = 0;
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("MAX(mail.id) AS maxid")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("MAX(mail.id) AS maxid")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0");
         if(!statement.step())
         {
                 statement.finalize();
@@ -842,18 +580,18 @@ bool MailQueue::Selection::getLast(int count, List<Mail> &result) const
         statement.input(maxId);
         statement.finalize();
 
-	// Find the time of the last mail counting only mails without a parent
+	// Find the time of the last mail counting only mail without a parent
 	Time lastTime = Time(0);
-	statement = mMailQueue->mDatabase->prepare("SELECT "+target("time")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND NULLIF(mail.parent,'') IS NULL ORDER BY mail.time DESC,mail.id DESC LIMIT @count");
+	statement = mMailBase->mDatabase->prepare("SELECT "+target("time")+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND NULLIF(mail.parent,'') IS NULL ORDER BY mail.time DESC,mail.id DESC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
 	while(statement.step())
 		statement.input(lastTime);
 	statement.finalize();
 
-	// Fetch mails by time
+	// Fetch mail by time
 	const String fields = "mail.*, mail.id AS number, flags.read, flags.passed";
-	statement = mMailQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND (mail.id=@maxid OR mail.time>=@lasttime OR (mail.incoming=1 AND IFNULL(flags.read,0)=0)) ORDER BY mail.time,mail.id");
+	statement = mMailBase->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND (mail.id=@maxid OR mail.time>=@lasttime OR (mail.incoming=1 AND IFNULL(flags.read,0)=0)) ORDER BY mail.time,mail.id");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("maxid"), maxId);
 	statement.bind(statement.parameterIndex("lasttime"), lastTime);
@@ -862,23 +600,23 @@ bool MailQueue::Selection::getLast(int count, List<Mail> &result) const
 
 	if(!result.empty())
 	{
-		if(mIncludePrivate) mMailQueue->mHasNew = false;
+		if(mIncludePrivate) mMailBase->mHasNew = false;
 		return true;
 	}
         return false;
 }
 
-bool MailQueue::Selection::getLast(int64_t nextNumber, int count, List<Mail> &result) const
+bool MailBase::Selection::getLast(int64_t nextNumber, int count, List<Mail> &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 	
 	if(nextNumber <= 0) 
 		return getLast(count, result);
 	
 	const String fields = "mail.*, mail.id AS number, flags.read, flags.passed";
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND mail.id>=@id ORDER BY mail.id ASC LIMIT @count");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target(fields)+" WHERE "+filter()+" AND IFNULL(flags.deleted,0)=0 AND mail.id>=@id ORDER BY mail.id ASC LIMIT @count");
 	filterBind(statement);
 	statement.bind(statement.parameterIndex("id"), nextNumber);
 	statement.bind(statement.parameterIndex("count"), count);
@@ -887,45 +625,45 @@ bool MailQueue::Selection::getLast(int64_t nextNumber, int count, List<Mail> &re
 	
 	if(!result.empty())
 	{
-		if(mIncludePrivate) mMailQueue->mHasNew = false;
+		if(mIncludePrivate) mMailBase->mHasNew = false;
 		return true;
 	}
         return false;
 }
 
-bool MailQueue::Selection::getUnread(List<Mail> &result) const
+bool MailBase::Selection::getUnread(List<Mail> &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 	
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("*")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
         filterBind(statement);
 	statement.fetch(result);
 	statement.finalize();
         return (!result.empty());
 }
 
-bool MailQueue::Selection::getUnreadStamps(StringList &result) const
+bool MailBase::Selection::getUnreadStamps(StringList &result) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 	
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND mail.incoming=1 AND IFNULL(flags.read,0)=0");
         filterBind(statement);
 	statement.fetchColumn(0, result);
 	statement.finalize();
         return (!result.empty());
 }
 
-bool MailQueue::Selection::getPassedStamps(StringList &result, int count) const
+bool MailBase::Selection::getPassedStamps(StringList &result, int count) const
 {
-	Assert(mMailQueue);
-	Synchronize(mMailQueue);
+	Assert(mMailBase);
+	Synchronize(mMailBase);
 	result.clear();
 	
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND IFNULL(flags.passed,0)=1 ORDER by flags.time DESC LIMIT @count");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" AND IFNULL(flags.passed,0)=1 ORDER by flags.time DESC LIMIT @count");
         filterBind(statement);
 	statement.bind(statement.parameterIndex("count"), count);
 	statement.fetchColumn(0, result);
@@ -933,13 +671,13 @@ bool MailQueue::Selection::getPassedStamps(StringList &result, int count) const
         return (!result.empty());
 }
 
-void MailQueue::Selection::markRead(const String &stamp)
+void MailBase::Selection::markRead(const String &stamp)
 {
-        Assert(mMailQueue);
-        Synchronize(mMailQueue);
+        Assert(mMailBase);
+        Synchronize(mMailBase);
 
 	// Check the mail is in selection
-	Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("id")+" WHERE "+filter()+" AND mail.stamp=@stamp");
+	Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("id")+" WHERE "+filter()+" AND mail.stamp=@stamp");
         filterBind(statement);
 	statement.bind(statement.parameterIndex("stamp"), stamp);
 	bool found = statement.step();
@@ -947,11 +685,11 @@ void MailQueue::Selection::markRead(const String &stamp)
 	
 	if(found)
 	{
-		statement = mMailQueue->mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp) VALUES (?1)");
+		statement = mMailBase->mDatabase->prepare("INSERT OR IGNORE INTO flags (stamp) VALUES (?1)");
 		statement.bind(1, stamp);
 		statement.execute();
 		
-		statement = mMailQueue->mDatabase->prepare("UPDATE flags SET read=?2, time=?3 WHERE stamp=?1");
+		statement = mMailBase->mDatabase->prepare("UPDATE flags SET read=?2, time=?3 WHERE stamp=?1");
 		statement.bind(1, stamp);
 		statement.bind(2, true);
 		statement.bind(3, Time::Now());
@@ -959,16 +697,16 @@ void MailQueue::Selection::markRead(const String &stamp)
 	}
 }
 
-int MailQueue::Selection::checksum(int offset, int count, BinaryString &result) const
+int MailBase::Selection::checksum(int offset, int count, BinaryString &result) const
 {
 	StringList stamps;
 
 	{
-		Assert(mMailQueue);
-		Synchronize(mMailQueue);
+		Assert(mMailBase);
+		Synchronize(mMailBase);
 		result.clear();
 	
-		Database::Statement statement = mMailQueue->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,@count");
+		Database::Statement statement = mMailBase->mDatabase->prepare("SELECT "+target("stamp")+" WHERE "+filter()+" ORDER BY mail.time,mail.stamp LIMIT @offset,@count");
         	filterBind(statement);
         	statement.bind(statement.parameterIndex("offset"), offset);
 		statement.bind(statement.parameterIndex("count"), count);
@@ -995,7 +733,7 @@ int MailQueue::Selection::checksum(int offset, int count, BinaryString &result) 
 	return stamps.size();
 }
 
-String MailQueue::Selection::target(const String &columns) const
+String MailBase::Selection::target(const String &columns) const
 {
 	StringList columnsList;
 	columns.trimmed().explode(columnsList, ',');
@@ -1011,17 +749,17 @@ String MailQueue::Selection::target(const String &columns) const
         return target;
 }
 
-String MailQueue::Selection::table(void) const
+String MailBase::Selection::table(void) const
 {
-	String joining = "mails AS mail LEFT JOIN flags ON flags.stamp=mail.stamp";
+	String joining = "mail AS mail LEFT JOIN flags ON flags.stamp=mail.stamp";
 		
 	if(!mContact.empty())
-		joining+=" LEFT JOIN mails AS parent ON parent.stamp=NULLIF(mail.parent,'')";
+		joining+=" LEFT JOIN mail AS parent ON parent.stamp=NULLIF(mail.parent,'')";
 	
 	return joining;
 }
 
-String MailQueue::Selection::filter(void) const
+String MailBase::Selection::filter(void) const
 {
         String condition;
         if(mContact.empty()) condition = "1=1";
@@ -1043,13 +781,13 @@ String MailQueue::Selection::filter(void) const
         return condition;
 }
 
-void MailQueue::Selection::filterBind(Database::Statement &statement) const
+void MailBase::Selection::filterBind(Database::Statement &statement) const
 {
 	statement.bind(statement.parameterIndex("contact"), mContact);
 	statement.bind(statement.parameterIndex("parentstamp"), mParentStamp);
 	statement.bind(statement.parameterIndex("basestamp"), mBaseStamp);
 	statement.bind(statement.parameterIndex("basetime"), mBaseTime);
 }
-
+*/
 }
 

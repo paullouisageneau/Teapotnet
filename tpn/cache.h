@@ -25,8 +25,9 @@
 #include "tpn/include.h"
 #include "tpn/block.h"
 
-#include "pla/string.h"
 #include "pla/synchronizable.h"
+#include "pla/string.h"
+#include "pla/binarystring.h"
 
 namespace tpn
 {
@@ -35,11 +36,12 @@ class Cache : public Synchronizable
 {
 public:
 	static Cache *Instance;
-  
+
 	Cache(void);
 	~Cache(void);
 	
-	void prefetch(const BinaryString &target);
+	// Asynchronous resource prefetching
+	bool prefetch(const BinaryString &target);	// true is already available
 	
 	String move(const String &filename);
 	

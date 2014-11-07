@@ -42,7 +42,7 @@ public:
 	
 	Resource(void);
 	Resource(const Resource &resource);
-	Resource(const BinaryString &digest);
+	Resource(const BinaryString &digest, bool localOnly = false);
 	~Resource(void);
 	
 	void fetch(const BinaryString &digest, bool localOnly = false);
@@ -56,6 +56,7 @@ public:
 	String  type(void) const;
 	int64_t size(void) const;
 	bool isDirectory(void) const;
+	bool isLocallyAvailable(void) const;
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;

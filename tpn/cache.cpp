@@ -22,6 +22,7 @@
 #include "tpn/cache.h"
 #include "tpn/config.h"
 #include "tpn/resource.h"
+#include "tpn/store.h"
 
 #include "pla/file.h"
 #include "pla/directory.h"
@@ -44,8 +45,16 @@ Cache::~Cache(void)
 	
 }
 
-void Cache::prefetch(const BinaryString &target)
+bool Cache::prefetch(const BinaryString &target)
 {
+	// Test local availability
+	if(Store::Instance->hasBlock(target))
+	{
+		Resource resource(target, true);	// local only
+		if(resource.isLocallyAvailable())
+			return true;
+	}
+	
 	class PrefetchTask : public Task
 	{
 	public:
@@ -53,19 +62,26 @@ void Cache::prefetch(const BinaryString &target)
 		
 		void run(void)
 		{
-			Resource resource(target);
-			Resource::Reader reader(&resource);
-			reader.discard();		// read everything
+			try {
+				Resource resource(target);
+				Resource::Reader reader(&resource);
+				reader.discard();		// read everything
+			}
+			catch(const Exception &e)
+			{
+				LogWarn("Cache::prefetch", "Prefetching failed for " + target.toString());
+			}
 			
 			delete this;	// autodelete
 		}
-	  
+		
 	private:
 		BinaryString target;
 	};
 	
 	PrefetchTask *task = new PrefetchTask(target);
 	Scheduler::Global->schedule(task);
+	return false;
 }
 
 String Cache::move(const String &filename)

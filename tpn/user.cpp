@@ -162,7 +162,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mCertificate = NULL;
 	mIndexer = NULL;
 	mAddressBook = NULL;
-	mMailQueue = NULL;
+	mBoard = NULL;
 	mProfile = NULL;
 
 	try {
@@ -171,7 +171,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
-       	 	mMailQueue = new MailQueue(this);
+       	 	mBoard = new Board("/" + identifier().toString());
 	}
 	catch(...)
 	{
@@ -179,7 +179,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 		delete mIndexer;
 		delete mProfile;
 		delete mAddressBook;
-		delete mMailQueue;
+		delete mBoard;
 		throw;
 	}
 
@@ -211,7 +211,7 @@ User::~User(void)
 	
 	delete mCertificate;
 	delete mAddressBook;
-	delete mMailQueue;
+	delete mBoard;
 	delete mIndexer;
 }
 
@@ -276,9 +276,9 @@ AddressBook *User::addressBook(void) const
 	return mAddressBook;
 }
 
-MailQueue *User::mailQueue(void) const
+Board *User::board(void) const
 {
-	return mMailQueue;
+	return mBoard;
 }
 
 Indexer *User::indexer(void) const

@@ -67,6 +67,7 @@ public:
 private:
   	void waitContent(void) const;
 	bool waitContent(double &timeout) const;
+	bool waitContent(const double &timeout) const;
 	void notifyStore(void) const;
   
 	BinaryString mDigest;

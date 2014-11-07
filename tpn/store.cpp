@@ -119,11 +119,10 @@ bool Store::hasBlock(const BinaryString &digest)
 	return false;
 }
 
-bool Store::waitBlock(const BinaryString &digest, const double &timeout)
+void Store::waitBlock(const BinaryString &digest)
 {
-	double dummy = timeout;
-	if(dummy < 0.) dummy = 60.;	// TODO
-	return waitBlock(digest, dummy);
+	if(!waitBlock(digest, 60.))	// TODO
+		throw Timeout();
 }
 
 bool Store::waitBlock(const BinaryString &digest, double &timeout)
@@ -146,6 +145,12 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout)
 	}
 	
 	return true;
+}
+
+bool Store::waitBlock(const BinaryString &digest, const double &timeout)
+{
+	double dummy = timeout;
+	return waitBlock(digest, dummy);
 }
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)

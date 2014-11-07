@@ -42,11 +42,11 @@ Resource::Resource(const Resource &resource) :
 	*this = resource;
 }
 
-Resource::Resource(const BinaryString &digest) :
+Resource::Resource(const BinaryString &digest, bool localOnly) :
 	mIndexBlock(NULL),
 	mIndexRecord(NULL)
 {
-	fetch(digest, false);
+	fetch(digest, localOnly);
 }
 
 Resource::~Resource(void)
@@ -138,6 +138,17 @@ int64_t Resource::size(void) const
 bool Resource::isDirectory(void) const
 {
 	return (type() == "directory");
+}
+
+bool Resource::isLocallyAvailable(void) const
+{
+	if(!mIndexRecord) return false;
+	
+	for(int i=0; i<mIndexRecord->blockDigests.size(); ++i)
+		if(!Store::Instance->hasBlock(mIndexRecord->blockDigests[i]))
+			return false;
+	
+	return true;
 }
 
 void Resource::serialize(Serializer &s) const

@@ -28,7 +28,7 @@
 #include "tpn/core.h"
 #include "tpn/identifier.h"
 #include "tpn/profile.h"
-#include "tpn/mailqueue.h"
+#include "tpn/mail.h"
 
 #include "pla/synchronizable.h"
 #include "pla/serializable.h"

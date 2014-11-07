@@ -50,7 +50,8 @@ public:
 	
 	User *user(void) const;
 	String userName(void) const;
-
+	String prefix(void) const;
+	
 	void addDirectory(const String &name, String path, Resource::AccessLevel level = Resource::Public);
 	void removeDirectory(const String &name);
 	void getDirectories(Array<String> &array) const;

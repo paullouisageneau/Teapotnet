@@ -23,62 +23,38 @@
 #define TPN_MAIL_H
 
 #include "tpn/include.h"
-#include "tpn/notification.h"
-#include "tpn/identifier.h"
 
 #include "pla/serializable.h"
-#include "pla/string.h"
-#include "pla/map.h"
+#include "pla/binarystring.h"
+#include "pla/array.h"
+#include "pla/array.h"
 #include "pla/time.h"
+#include "pla/crypto.h"
 
 namespace tpn
 {
-
-class User;
-class MailQueue;
 	
 class Mail : public Serializable
 {
 public:
 	Mail(const String &content = "");
 	virtual ~Mail(void);
-
-	Time time(void) const;
-	String stamp(void) const;
-	String parent(void) const;
-	String author(void) const;
-	String contact(void) const;
-	bool isPublic(void) const;
-	bool isIncoming(void) const;
-	bool isRelayed(void) const;
-
-	const String &content(void) const;
-	const StringMap &headers(void) const;
-	bool header(const String &name, String &value) const;
-	String header(const String &name) const;
-
-	// Covered by signature	
-	void setContent(const String &content);
-	void setParent(const String &stamp);
-	void setPublic(bool ispublic);
-	void setAuthor(const String &author);
-	void setHeaders(const StringMap &headers);
-	void setHeader(const String &name, const String &value);
-	void setDefaultHeader(const String &name, const String &value);
-	void removeHeader(const String &name);
 	
-	// Stamp and signature
-	void writeSignature(User *user);
-	bool checkStamp(void) const;
-	bool checkSignature(User *user) const;
-
-	// NOT covered by signature
-	void setContact(const String &uname);	
-	void setIncoming(bool incoming);
-	void setRelayed(bool relayed);
-
-	bool send(const Identifier &peering = Identifier::Null) const;
-	bool recv(const Notification &notification);
+	const String &content(void) const;
+	String author(void) const;
+	String board(void) const;
+	Time time(void) const;
+	BinaryString parent(void) const;
+	BinaryString digest(void) const;
+	
+	void setContent(const String &content);
+	void setAuthor(const String &author);
+	void setBoard(const String &board);
+	void setParent(const BinaryString &parent);
+	
+	bool isSigned(void) const;
+	void sign(const Rsa::PrivateKey &privKey);
+	bool check(const Rsa::PublicKey &pubKey) const;
 	
 	// Serializable
 	virtual void serialize(Serializer &s) const;
@@ -86,31 +62,17 @@ public:
 	virtual bool isInlineSerializable(void) const;
 	
 private:
-	void computeAgregate(BinaryString &result) const;
-	String computeStamp(void) const;
-	String computeSignature(User *user) const;
+	BinaryString computeDigest(void) const;
 	
-	// Signed
-	StringMap mHeaders;
+	Time mTime;
         String mContent;
 	String mAuthor;
-	String mSignature;
-	String mStamp;
-        String mParent;
-	Time mTime;
-	bool mIsPublic;
-
-	// Not signed
-	String mContact;
-	bool mIsIncoming;
-	bool mIsRelayed;
-
-	// Only used when MailQueue outputs to interface
-	int64_t mNumber;
-	bool	mIsRead;
-	bool	mIsPassed;
+	String mBoard;
+	SerializableArray<BinaryString> mAttachments;
+	BinaryString mParent;
+	mutable BinaryString mSignature;
 	
-	friend class Core;
+	mutable BinaryString mDigest;
 };
 
 bool operator <  (const Mail &m1, const Mail &m2);

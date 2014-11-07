@@ -258,9 +258,6 @@ bool AddressBook::send(const Notification &notification)
 
 bool AddressBook::send(const Mail &mail)
 {
-	// TODO: could be more efficient
-	// should convert the mail and use send(notification)
-	
 	Array<Identifier> keys;
 	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
 
@@ -1539,7 +1536,8 @@ bool AddressBook::Contact::send(const Notification &notification)
 
 bool AddressBook::Contact::send(const Mail &mail)
 {
-	return mail.send(identifier());
+	// TODO
+	return false;
 }
 
 void AddressBook::Contact::seen(const Identifier &peer)

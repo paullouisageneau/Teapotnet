@@ -146,9 +146,13 @@ public:
 		
 		virtual bool incoming(const String &prefix, const String &path, const BinaryString &target) = 0;
 		
+	protected:
+		bool fetch(const String &prefix, const String &path, const BinaryString &target);
+		
 	private:
 		Identifier mPeer;
 		StringSet mSubscribedPrefixes;
+		ThreadPool mThreadPool;
 	};
 	
 	class Caller : protected Synchronizable
@@ -209,10 +213,10 @@ public:
 	void unregisterListener(const Identifier &id, Listener *listener);
 	
 	// Publish/Subscribe
-	void publish(const String &prefix, Publisher *publisher);
-	void unpublish(const String &prefix, Publisher *publisher);
-	bool subscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
-	bool unsubscribe(const Identifier &peer, const String &prefix, Subscriber *subscriber);
+	void publish(String prefix, Publisher *publisher);
+	void unpublish(String prefix, Publisher *publisher);
+	void subscribe(String prefix, Subscriber *subscriber);
+	void unsubscribe(String prefix, Subscriber *subscriber);
 	
 	// Notification
 	void broadcast(const Notification &notification);
@@ -336,10 +340,6 @@ private:
 		Identifier local(void) const;
 		Identifier remote(void) const;
 		
-		// Subscribe
-		void subscribe(String prefix, Subscriber *subscriber);
-		void unsubscribe(String prefix, Subscriber *subscriber);
-		
 		// Notify
 		void notify(const Identifier &id, Stream &payload, bool ack = true);
 		
@@ -402,7 +402,6 @@ private:
 
 		Identifier mLocal, mRemote;
 		
-		Map<String, Set<Subscriber*> > mSubscribers;
 		Map<BinaryString, Sender*> mSenders;
 		
 		Runner mRunner;
@@ -418,6 +417,10 @@ private:
 	bool removeHandler(const Identifier &peer, Handler *handler);
 	
 	void outgoing(uint8_t type, uint8_t content, Stream &payload);
+	void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
+	
+	bool matchPublishers(const String &path, const Identifier &source);
+	bool matchSubscribers(const String &path, const List<BinaryString> &targets);
 	
 	uint64_t mNumber;
 	String mName;
@@ -431,6 +434,7 @@ private:
 	Map<Identifier, Handler*> mHandlers;
 	
 	Map<String, Set<Publisher*> > mPublishers;
+	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<Identifier, Set<Listener*> > mListeners;
 	
