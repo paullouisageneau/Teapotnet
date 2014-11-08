@@ -117,21 +117,36 @@ void Mail::serialize(Serializer &s) const
 {
 	Serializer::ConstObjectMapping mapping;
 	mapping["content"] = &mContent;
-	mapping["author"] = &mAuthor;
 	mapping["time"] = &mTime;
-	mapping["attachments"] = &mAttachments;
-	mapping["parent"] = &mParent;
-	mapping["signature"] = &mSignature;
+	
+	if(!mAuthor.empty())
+		mapping["author"] = &mAuthor;
+	
+	if(!mAttachments.empty())
+		mapping["attachments"] = &mAttachments;
+	
+	if(!mParent.empty())
+		mapping["parent"] = &mParent;
+	
+	if(!mSignature.empty())
+		mapping["signature"] = &mSignature;
 	
 	s.outputObject(mapping);
 }
 
 bool Mail::deserialize(Serializer &s)
 {
+	mContent.clear();
+	mAuthor.clear();
+	mAttachments.clear();
+	mParent.clear();
+	mSignature.clear();
+	mTime = Time::Now();
+	
 	Serializer::ObjectMapping mapping;
         mapping["content"] = &mContent;
-	mapping["author"] = &mAuthor;
 	mapping["time"] = &mTime;
+	mapping["author"] = &mAuthor;
 	mapping["attachments"] = &mAttachments;
 	mapping["parent"] = &mParent;
 	mapping["signature"] = &mSignature;

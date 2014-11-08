@@ -182,7 +182,7 @@ void Board::http(const String &prefix, Http::Request &request)
 			}
 			
 			bool isPopup = request.get.contains("popup");
-
+			
 			Http::Response response(request, 200);
 			response.send();
 
