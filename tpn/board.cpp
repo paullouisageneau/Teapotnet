@@ -21,8 +21,10 @@
 
 #include "tpn/board.h"
 #include "tpn/resource.h"
+#include "tpn/cache.h"
 #include "tpn/html.h"
 
+#include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
 
 namespace tpn
@@ -33,7 +35,9 @@ Board::Board(const String &name) :
 	mHasNew(false)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
-  
+
+	Cache::Instance->retrieveMapping("/mail" + mName, mDigest);
+	
 	Interface::Instance->add("/mail" + mName, this);
 	
 	publish("/mail" + mName);
@@ -64,8 +68,12 @@ bool Board::add(Mail &mail)
 	if(mMails.contains(mail))
 		return false;
 	
-	mMails.insert(mail);
+	const Mail *p = &*mMails.insert(mail).first;
+	mUnorderedMails.append(p);
+	
 	mDigest.clear();
+	publish("/mail" + mName);
+	notifyAll();
 	return true;
 }
 
@@ -90,6 +98,8 @@ BinaryString Board::digest(void) const
 		resource.process(Cache::Instance->move(tempFileName), mName, "mail");
 		
 		mDigest = resource.digest();
+		
+		Cache::Instance->storeMapping("/mail" + mName, mDigest);
 	}
   
 	return mDigest;
@@ -120,10 +130,17 @@ bool Board::incoming(const String &prefix, const String &path, const BinaryStrin
 		BinarySerializer serializer(&reader);
 		Mail mail;
 		while(serializer.read(mail))
-			add(mail);
+			if(!mMails.contains(mail))
+			{
+				const Mail *p = &*mMails.insert(mail).first;
+				mUnorderedMails.append(p);
+			}
 		
+		mDigest.clear();	// so digest must be recomputed
 		if(digest() != target)
 			publish("/mail" + mName);
+		
+		notifyAll();
 	}
 	
 	return true;
@@ -131,7 +148,90 @@ bool Board::incoming(const String &prefix, const String &path, const BinaryStrin
 
 void Board::http(const String &prefix, Http::Request &request)
 {
-	throw 500;
+	Synchronize(this);
+	Assert(!request.url.empty());
+	
+	try {
+		if(request.url == "/")
+		{
+			if(request.get.contains("json"))
+			{
+				int next = 0;
+				if(request.get.contains("next"))
+					request.get["next"].extract(next);
+				
+				double timeout = 60.;
+				if(request.get.contains("timeout"))
+					request.get["timeout"].extract(timeout);
+				
+				while(next >= int(mUnorderedMails.size()))
+				{
+					if(!wait(timeout))
+						break;
+				}
+				
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/json";
+				response.send();
+				
+				JsonSerializer json(response.stream);
+				json.outputArrayBegin();
+				for(int i = next; i < int(mUnorderedMails.size()); ++i)
+					json.outputArrayElement(*mUnorderedMails[i]);
+				json.outputArrayEnd();
+			}
+			
+			bool isPopup = request.get.contains("popup");
+
+			Http::Response response(request, 200);
+			response.send();
+
+			Html page(response.stream);
+			page.header("Board " + mName, isPopup);
+			
+			page.open("div","topmenu");	
+			if(isPopup) page.span(mName, ".button");
+			//page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"'); return false;\">Send file</a>");
+			
+			// TODO: should be hidden in CSS
+#ifndef ANDROID
+			if(!isPopup)
+			{
+				String popupUrl = Http::AppendGet(request.fullUrl, "popup");
+				page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+			}
+#endif
+			page.close("div");
+			
+			page.div("", "fileSelector");	
+			
+			if(isPopup) page.open("div", "mail");
+			else page.open("div", "mail.box");
+			
+			page.open("div", "messages");
+			page.close("div");
+			
+			page.open("div", "panel");
+			page.div("","attachedfile");
+			page.openForm("#", "post", "mailform");
+			page.textarea("input");
+			page.input("hidden", "attachment");
+			page.input("hidden", "attachmentname");
+			page.closeForm();
+			page.close("div");
+
+			page.close("div");
+			page.footer();
+			return;
+		}
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("AddressBook::http", e.what());
+		throw 500;
+	}
+	
+	throw 404;
 }
 
 }

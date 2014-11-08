@@ -30,7 +30,6 @@
 #include "pla/synchronizable.h"
 #include "pla/binarystring.h"
 #include "pla/string.h"
-#include "pla/set.h"
 #include "pla/array.h"
 #include "pla/map.h"
 
@@ -59,6 +58,7 @@ public:
 private:
 	String mName;
 	Set<Mail> mMails;
+	Array<const Mail*> mUnorderedMails;
 	
 	mutable BinaryString mDigest;
 	mutable bool mHasNew;

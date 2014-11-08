@@ -647,8 +647,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("AddressBook::http",e.what());
-		throw 500;	// Httpd handles integer exceptions
+		LogWarn("AddressBook::http", e.what());
+		throw 500;
 	}
 	
 	throw 404;

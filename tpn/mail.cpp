@@ -176,7 +176,7 @@ bool operator > (const Mail &m1, const Mail &m2)
 
 bool operator == (const Mail &m1, const Mail &m2)
 {
-	return (m1.time() != m2.time()) && (m1.digest() != m2.digest());   
+	return m1.digest() == m2.digest();   
 }
 
 bool operator != (const Mail &m1, const Mail &m2)

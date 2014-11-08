@@ -96,4 +96,34 @@ String Cache::move(const String &filename)
 	return destination;
 }
 
+void Cache::storeMapping(const String &key, const BinaryString &value)
+{
+	String tmp(key);
+	BinaryString digest;
+	Sha256().compute(tmp, digest);
+	
+	String filename = mDirectory + Directory::Separator + digest.toString();
+	File file(filename, File::Truncate);
+	file.writeBinary(value);
+	file.close();
+}
+
+bool Cache::retrieveMapping(const String &key, BinaryString &value)
+{
+	value.clear();
+	
+	String tmp(key);
+	BinaryString digest;
+	Sha256().compute(tmp, digest);
+  
+	String filename = mDirectory + Directory::Separator + digest.toString();
+	if(!File::Exist(filename))
+		return false;
+	
+	File file(filename, File::Read);
+	file.readBinary(value);
+	file.close();
+	return true;
+}
+
 }
