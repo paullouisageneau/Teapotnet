@@ -198,6 +198,7 @@ void Board::http(const String &prefix, Http::Request &request)
 				for(int i = next; i < int(mUnorderedMails.size()); ++i)
 					json.outputArrayElement(*mUnorderedMails[i]);
 				json.outputArrayEnd();
+				return;
 			}
 			
 			bool isPopup = request.get.contains("popup");

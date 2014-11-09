@@ -324,6 +324,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			String url = request.url;
 			request.url = "/";
 			board->http(prefix+url, request);
+			return;
 		}
 	}
 	catch(const NetException &e)

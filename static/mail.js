@@ -30,28 +30,28 @@ function setMailReceiverRec(url, object, next) {
 		timeout: 60000
 	})
 	.done(function(array) {
-		$.each(array, function(mail) {
+		$.each(array, function(i, mail) {
 			next++;
 			
 			$(object).find('p').remove();
 			
-			var id = "message_" + message.digest;
-			var idReply = "reply_" + message.digest;
-			var idParent = ("parent" in mail ? "message_" + message.parent : "");
-			var idParentReply = ("parent" in mail ? "message_" + message.parent : "");
-			var author = ("author" in mail ? mail.author : "Anonymous");
+			var id = "message_" + mail.digest;
+			var idReply = "reply_" + mail.digest;
+			var idParent = (mail.parent ? "message_" + mail.parent : "");
+			var idParentReply = (mail.parent ? "message_" + mail.parent : "");
+			var author = (mail.author ? mail.author : "Anonymous");
 			
 			if(idParent && $('#'+idParent).length == 0) return;	// Parent not found
 			$('#'+id).remove();
 			
-			var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(message.time).escape()+'</span></span><span class="content"></span></div>';
+			var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(mail.time).escape()+'</span></span><span class="content"></span></div>';
 			
 			if(!idParent) {
 				$(object).prepend('<div class="conversation">'+div+'</div>');
 				$('#'+id).append('<div class="buttonsbar"></div>');
 					
 				/*
-				if(!message.passed)
+				if(!mail.passed)
 				{
 					$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img alt="Pass" src="/arrow_pass.png"></a>');
 					(function(id, stamp) {
@@ -64,7 +64,7 @@ function setMailReceiverRec(url, object, next) {
 							}
 							return false;
 						});
-					})(id, message.stamp);
+					})(id, mail.stamp);
 				}
 				else {
 					$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
@@ -85,9 +85,9 @@ function setMailReceiverRec(url, object, next) {
 				$('#'+idParentReply).before(div);	// insert before parent reply
 				$('#'+id).addClass('childmessage');
 			}
-				
+			
 			// Reply form
-			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+message.stamp+'"><input type="hidden" name="public" value="1"><input type="hidden" name="token" value="'+TokenMail+'"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
 			
 			(function(idReply) {
 				$('#'+idReply+' .attachedfile').hide();
@@ -118,14 +118,14 @@ function setMailReceiverRec(url, object, next) {
 				});
 			})(idReply);
 			
-			$('#'+id+' .content').html(message.content.escape().smileys().linkify().split("\n").join("<br>"));
+			$('#'+id+' .content').html(mail.content.escape().smileys().linkify().split("\n").join("<br>"));
 			
-			if('attachments' in message.headers) {
+			if(mail.attachments) {
 				
 				$('#'+id+' .header').after('<span class="attachment"></span>');
 				$('#'+id+' .attachment').html('<img class="icon" src="/smallpaperclip.png">Loading attachment...');
 				
-				var url = '/'+message.headers.attachments[0];	// TODO
+				var url = '/'+mail.attachments[0];	// TODO
 				
 				(function(id, url) {
 					var request = $.ajax({
@@ -216,13 +216,13 @@ function setMailReceiverRec(url, object, next) {
 		*/
 
 		this.messagesTimeout = setTimeout(function() {
-			setMailReceiverRec(baseUrl, object, next);
+			setMailReceiverRec(url, object, next);
 		}, 1000);
 
 	})
 	.fail(function(jqXHR, textStatus) {
 		this.messagesTimeout = setTimeout(function() {
-			setMailReceiverRec(baseUrl, object, next);
+			setMailReceiverRec(url, object, next);
 		}, 1000);
 	});
 }
