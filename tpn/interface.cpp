@@ -40,6 +40,7 @@ Interface::Interface(int port) :
 	add("", this);
 	add("/static", this);
 	add("/file", this);
+	add("/mail", this);
 }
 
 Interface::~Interface(void)
@@ -315,6 +316,14 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				return;
 			}
+		}
+		else if(prefix == "/mail")
+		{
+			Board *board = new Board(request.url);
+			
+			String url = request.url;
+			request.url = "/";
+			board->http(prefix+url, request);
 		}
 	}
 	catch(const NetException &e)

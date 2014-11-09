@@ -131,6 +131,12 @@ void Mail::serialize(Serializer &s) const
 	if(!mSignature.empty())
 		mapping["signature"] = &mSignature;
 	
+	if(s.optionalOutputMode())
+	{
+		digest();	// so mDigest is computed
+		mapping["digest"] = &mDigest;
+	}
+	
 	s.outputObject(mapping);
 }
 

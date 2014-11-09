@@ -154,6 +154,24 @@ void Board::http(const String &prefix, Http::Request &request)
 	try {
 		if(request.url == "/")
 		{
+			if(request.method == "POST")
+			{
+				if(request.post.contains("message") && !request.post["message"].empty())
+				{
+					// Anonymous
+					Mail mail;
+					mail.setContent(request.post["message"]);
+					mail.setAuthor(request.post["author"]);
+					
+					add(mail);
+					
+					Http::Response response(request, 200);
+					response.send();
+				}
+				
+				throw 400;
+			}
+		  
 			if(request.get.contains("json"))
 			{
 				int next = 0;
@@ -175,6 +193,7 @@ void Board::http(const String &prefix, Http::Request &request)
 				response.send();
 				
 				JsonSerializer json(response.stream);
+				json.setOptionalOutputMode(true);
 				json.outputArrayBegin();
 				for(int i = next; i < int(mUnorderedMails.size()); ++i)
 					json.outputArrayElement(*mUnorderedMails[i]);
@@ -221,6 +240,51 @@ void Board::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			page.close("div");
+			
+			page.javascript("function post() {\n\
+					var message = $(document.mailform.input).val();\n\
+					var attachment = $(document.mailform.attachment).val();\n\
+					if(!message) return false;\n\
+					var fields = {};\n\
+					fields['message'] = message;\n\
+					if(attachment) fields['attachment'] = attachment;\n\
+					$.post('"+prefix+request.url+"', fields)\n\
+						.fail(function(jqXHR, textStatus) {\n\
+							alert('The message could not be sent.');\n\
+						});\n\
+					$(document.mailform.input).val('');\n\
+					$(document.mailform.attachment).val('');\n\
+					$(document.mailform.attachmentname).val('');\n\
+					$('#attachedfile').hide();\n\
+				}\n\
+				$(document.mailform).submit(function() {\n\
+					post();\n\
+					return false;\n\
+				});\n\
+				$(document.mailform.attachment).change(function() {\n\
+					$('#attachedfile').html('');\n\
+					$('#attachedfile').hide();\n\
+					var filename = $(document.mailform.attachmentname).val();\n\
+					if(filename != '') {\n\
+						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
+						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
+						$('#attachedfile').show();\n\
+					}\n\
+					$(document.mailform.input).focus();\n\
+					if($(document.mailform.input).val() == '') {\n\
+						$(document.mailform.input).val(filename);\n\
+						$(document.mailform.input).select();\n\
+					}\n\
+				});\n\
+				$(document.mailform.input).keypress(function(e) {\n\
+					if (e.keyCode == 13 && !e.shiftKey) {\n\
+						e.preventDefault();\n\
+						post();\n\
+					}\n\
+				});\n\
+				$('#attachedfile').hide();\n\
+				setMailReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#messages');");
+			
 			page.footer();
 			return;
 		}
