@@ -23,13 +23,14 @@ function setMailReceiverRec(url, object, next) {
 
 	if(typeof this.messagesTimeout != 'undefined')
 		clearTimeout(this.messagesTimeout);
-
+	
 	$.ajax({
 		url: url + (url.contains('?') ? '&' : '?') + 'next=' + next,
 		dataType: 'json',
-		timeout: 60000
+		timeout: 300000
 	})
 	.done(function(array) {
+		var posturl = url;
 		$.each(array, function(i, mail) {
 			next++;
 			
@@ -38,7 +39,7 @@ function setMailReceiverRec(url, object, next) {
 			var id = "message_" + mail.digest;
 			var idReply = "reply_" + mail.digest;
 			var idParent = (mail.parent ? "message_" + mail.parent : "");
-			var idParentReply = (mail.parent ? "message_" + mail.parent : "");
+			var idParentReply = (mail.parent ? "reply_" + mail.parent : "");
 			var author = (mail.author ? mail.author : "Anonymous");
 			
 			if(idParent && $('#'+idParent).length == 0) return;	// Parent not found
@@ -57,7 +58,7 @@ function setMailReceiverRec(url, object, next) {
 					(function(id, stamp) {
 						$('#'+id+' .passlink').click(function() {
 							if(confirm('Do you want to pass this message to your contacts ?')) {
-								$.post("messages/", { stamp: stamp, action: "pass", token: TokenMail })
+								$.post(posturl, { stamp: stamp, action: "pass", token: TokenMail })
 								.done(function(data) {
 									$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
 								});
@@ -87,7 +88,9 @@ function setMailReceiverRec(url, object, next) {
 			}
 			
 			// Reply form
-			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="messages/" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+			
+			$('#'+idReply).hide();
 			
 			(function(idReply) {
 				$('#'+idReply+' .attachedfile').hide();

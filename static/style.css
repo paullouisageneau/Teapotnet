@@ -558,7 +558,7 @@ a.button:hover
 	margin-bottom: 0.5em;
 }
 
-#chat
+#board
 {
 	width: 100%;
 	height: 95%;
@@ -566,25 +566,13 @@ a.button:hover
 	background-color: #FFFFFF;
 }
 
-#chatmessages
+#board #mail
 {
+	width: 100%;
 	height: 80%;
-	overflow-y: scroll;
 }
 
-#chatmessages .message
-{
-	margin-right: 0.5em;
-	margin-left: 10%;
-}
-
-#chatmessages .me
-{
-	margin-right: 10%;
-	margin-left: 0.5em;
-}
-
-#chatpanel
+#board .panel
 {
 	display: table;
 	width: 100%;
@@ -594,7 +582,7 @@ a.button:hover
 	overflow: hidden;
 }
 
-#chatpanel form
+#board .panel form
 {
 	display: block;
 	width: 100%;
@@ -603,7 +591,7 @@ a.button:hover
 	padding: 0;
 }
 
-#chatpanel .chatinput
+#board .panel .input
 {
 	width: 100%;
 	height: 100%;
@@ -613,20 +601,9 @@ a.button:hover
 	background-color: #FFFFFF;
 }
 
-#status
-{
-	margin-top: 0.5em;
-	background-color: #FFFFFF;	
-}
-
 #newsfeed
 {
 	margin-top: 1em;
-}
-
-#newsfeed .conversation
-{
-	clear: both;
 }
 
 #newsfeed .message
@@ -659,69 +636,6 @@ a.button:hover
 {
 	margin-top: -2.6em;
 	margin-right: -4em;
-}
-
-#newsfeed .oldmessage
-{
-	
-}
-
-#newsfeed .childmessage
-{
-	width: 80%;
-	margin-left: 15%;
-	margin-bottom: 0.5em;
-}
-
-#newsfeed .morereplies
-{
-	width: 80%;
-	margin-left: 15%;
-	text-align: center;
-	margin-bottom: 0.5em;
-	cursor: pointer;
-	background-color: #FFFFD0;
-	border: 1px solid #FFF48D;
-	border-radius: 0.25em;
-}
-
-#newsfeed .reply
-{
-	display: none;
-	width: 80%;
-	margin-left: 15%;
-	margin-bottom: 0.5em;
-	padding: 0;
-}
-
-#newsfeed .replypanel form
-{
-	display: block;
-	overflow: hidden;
-}
-
-#newsfeed .replypanel textarea
-{
-        width: 100%;
-	height: 5em;
-	margin: 0;
-}
-
-#newsfeed .replypanel .button
-{
-	float: left;
-	width: 4em;
-	height: 5em;
-	margin: 0;
-	margin-right: 0.5em;
-	box-sizing: border-box;
-	-moz-box-sizing: border-box;
-}
-
-#newsfeed .replypanel .button img
-{
-	max-width: 4em;
-	max-height: 3.6em;
 }
 
 #optionsnewsfeed
@@ -844,7 +758,7 @@ img.avatar
 	border: 1px solid #B0B0B0;
         border-radius: 4px;
 	background-color: #F5F5F5;
-	box-shadow: 0px 0px 8px 4px #FFDC0A;
+	box-shadow: 1px 1px 3px #202020;
 	word-wrap: break-word;
 }
 
@@ -946,9 +860,67 @@ img.avatar
 	background-color: #000000;
 }
 
-.oldmessage
+.newmessage
 {
-	box-shadow: 1px 1px 3px #202020;
+	box-shadow: 0px 0px 8px 4px #FFDC0A;
+}
+
+.childmessage
+{
+	width: 80%;
+	margin-left: 15%;
+	margin-bottom: 0.5em;
+}
+
+.morereplies
+{
+	width: 80%;
+	margin-left: 15%;
+	text-align: center;
+	margin-bottom: 0.5em;
+	cursor: pointer;
+	background-color: #FFFFD0;
+	border: 1px solid #FFF48D;
+	border-radius: 0.25em;
+}
+
+.reply
+{
+	display: none;
+	width: 80%;
+	margin-left: 15%;
+	margin-bottom: 0.5em;
+	padding: 0;
+}
+
+.replypanel form
+{
+	display: block;
+	overflow: hidden;
+}
+
+.replypanel textarea
+{
+        width: 100%;
+	height: 5em;
+	margin: 0;
+}
+
+.replypanel .button
+{
+	float: left;
+	width: 4em;
+	height: 5em;
+	margin: 0;
+	margin-right: 0.5em;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+}
+
+.replypanel .button img
+{
+	max-width: 4em;
+	max-height: 3.6em;
 }
 
 .me
@@ -1332,7 +1304,8 @@ td.actions a
 
 .conversation
 {
-	margin-bottom: 2em;
+	margin-bottom: 1em;
+	clear: both;
 }
 
 .profileinfo

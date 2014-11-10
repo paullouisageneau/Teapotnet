@@ -30,26 +30,35 @@
 namespace tpn
 {
 
-Board::Board(const String &name) :
+Board::Board(const String &name, const String &displayName) :
 	mName(name),
+	mDisplayName(displayName),
 	mHasNew(false)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
 
-	Cache::Instance->retrieveMapping("/mail" + mName, mDigest);
-	
 	Interface::Instance->add("/mail" + mName, this);
 	
-	publish("/mail" + mName);
-	subscribe("/mail" + mName);
+	String prefix = "/mail" + mName;
+	
+	BinaryString digest;
+	Cache::Instance->retrieveMapping(prefix, digest);
+	
+	if(!digest.empty())
+		if(fetch(prefix, "/", digest))
+			incoming(prefix, "/", digest);
+	
+	publish(prefix);
+	subscribe(prefix);
 }
 
 Board::~Board(void)
 {
 	Interface::Instance->remove("/mail" + mName, this);
 	
-	unpublish("/mail" + mName);
-	unsubscribe("/mail" + mName);
+	String prefix = "/mail" + mName;
+	publish(prefix);
+	subscribe(prefix);
 }
 
 bool Board::hasNew(void) const
@@ -72,7 +81,7 @@ bool Board::add(Mail &mail)
 	mUnorderedMails.append(p);
 	
 	mDigest.clear();
-	publish("/mail" + mName);
+	publish("/mail" + mName);	// calls digest()
 	notifyAll();
 	return true;
 }
@@ -163,6 +172,13 @@ void Board::http(const String &prefix, Http::Request &request)
 					mail.setContent(request.post["message"]);
 					mail.setAuthor(request.post["author"]);
 					
+					BinaryString parent;
+					if(request.post.contains("parent"))
+					{
+						request.post["parent"].extract(parent);
+						mail.setParent(parent);
+					}
+					
 					add(mail);
 					
 					Http::Response response(request, 200);
@@ -207,10 +223,12 @@ void Board::http(const String &prefix, Http::Request &request)
 			response.send();
 
 			Html page(response.stream);
-			page.header("Board " + mName, isPopup);
+			
+			String title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
+			page.header(title, isPopup);
 			
 			page.open("div","topmenu");	
-			if(isPopup) page.span(mName, ".button");
+			if(isPopup) page.span(title, ".button");
 			//page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"'); return false;\">Send file</a>");
 			
 			// TODO: should be hidden in CSS
@@ -225,15 +243,15 @@ void Board::http(const String &prefix, Http::Request &request)
 			
 			page.div("", "fileSelector");	
 			
-			if(isPopup) page.open("div", "mail");
-			else page.open("div", "mail.box");
+			if(isPopup) page.open("div", "board");
+			else page.open("div", "board.box");
 			
-			page.open("div", "messages");
+			page.open("div", "mail");
 			page.close("div");
 			
-			page.open("div", "panel");
+			page.open("div", ".panel");
 			page.div("","attachedfile");
-			page.openForm("#", "post", "mailform");
+			page.openForm("#", "post", "boardform");
 			page.textarea("input");
 			page.input("hidden", "attachment");
 			page.input("hidden", "attachmentname");
@@ -243,8 +261,8 @@ void Board::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			page.javascript("function post() {\n\
-					var message = $(document.mailform.input).val();\n\
-					var attachment = $(document.mailform.attachment).val();\n\
+					var message = $(document.boardform.input).val();\n\
+					var attachment = $(document.boardform.attachment).val();\n\
 					if(!message) return false;\n\
 					var fields = {};\n\
 					fields['message'] = message;\n\
@@ -253,38 +271,32 @@ void Board::http(const String &prefix, Http::Request &request)
 						.fail(function(jqXHR, textStatus) {\n\
 							alert('The message could not be sent.');\n\
 						});\n\
-					$(document.mailform.input).val('');\n\
-					$(document.mailform.attachment).val('');\n\
-					$(document.mailform.attachmentname).val('');\n\
+					$(document.boardform.input).val('');\n\
+					$(document.boardform.attachment).val('');\n\
+					$(document.boardform.attachmentname).val('');\n\
 					$('#attachedfile').hide();\n\
 				}\n\
-				$(document.mailform).submit(function() {\n\
+				$(document.boardform).submit(function() {\n\
 					post();\n\
 					return false;\n\
 				});\n\
-				$(document.mailform.attachment).change(function() {\n\
+				$(document.boardform.attachment).change(function() {\n\
 					$('#attachedfile').html('');\n\
 					$('#attachedfile').hide();\n\
-					var filename = $(document.mailform.attachmentname).val();\n\
+					var filename = $(document.boardform.attachmentname).val();\n\
 					if(filename != '') {\n\
 						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
 						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
 						$('#attachedfile').show();\n\
 					}\n\
-					$(document.mailform.input).focus();\n\
-					if($(document.mailform.input).val() == '') {\n\
-						$(document.mailform.input).val(filename);\n\
-						$(document.mailform.input).select();\n\
-					}\n\
-				});\n\
-				$(document.mailform.input).keypress(function(e) {\n\
-					if (e.keyCode == 13 && !e.shiftKey) {\n\
-						e.preventDefault();\n\
-						post();\n\
+					$(document.boardform.input).focus();\n\
+					if($(document.boardform.input).val() == '') {\n\
+						$(document.boardform.input).val(filename);\n\
+						$(document.boardform.input).select();\n\
 					}\n\
 				});\n\
 				$('#attachedfile').hide();\n\
-				setMailReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#messages');");
+				setMailReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#mail');");
 			
 			page.footer();
 			return;

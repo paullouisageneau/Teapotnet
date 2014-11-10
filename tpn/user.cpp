@@ -776,12 +776,6 @@ void User::http(const String &prefix, Http::Request &request)
 					document.searchForm.query.style.color = 'grey';\n\
 					document.searchForm.query.value = 'Search for files...';\n\
 				}\n\
-				$('textarea.statusinput').keypress(function(e) {\n\
-					if (e.keyCode == 13 && !e.shiftKey) {\n\
-						e.preventDefault();\n\
-						postStatus();\n\
-					}\n\
-				});\n\
 				var listCount = document.getElementsByName(\"listCount\")[0];\n\
 				listCount.addEventListener('change', function() {\n\
 					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
@@ -792,12 +786,6 @@ void User::http(const String &prefix, Http::Request &request)
 					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
 				}, true);\n\
 				setMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmails');\n\
-				$('#newsfeed').on('keypress','textarea', function (e) {\n\
-					if (e.keyCode == 13 && !e.shiftKey) {\n\
-						$(this).closest('form').submit();\n\
-						return false; \n\
-					}\n\
-				});\n\
 				//$('#newsfeed').on('blur','.reply', function (e) {\n\
 				//	$(this).hide();\n\
 				//});\n\
