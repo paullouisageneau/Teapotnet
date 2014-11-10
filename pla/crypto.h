@@ -27,6 +27,7 @@
 #include "pla/string.h"
 #include "pla/stream.h"
 
+#include <nettle/sha1.h>
 #include <nettle/sha2.h>
 #include <nettle/rsa.h>
 #include <gnutls/gnutls.h>
