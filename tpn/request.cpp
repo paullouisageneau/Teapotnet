@@ -48,7 +48,7 @@ Request::Request(const String &target, bool listDirectories) :
 	subscribe(target);
 }
   
-Request::Request(const Identifier &peer, const String &target, bool listDirectories) :
+Request::Request(const String &target, const Identifier &peer, bool listDirectories) :
 	Subscriber(peer),
 	mListDirectories(listDirectories),
 	mFinished(false)

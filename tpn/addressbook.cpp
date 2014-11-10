@@ -1734,7 +1734,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "files")
 		{
-			Request *req = new Request(identifier(), "/files" + url);
+			Request *req = new Request("/files/" + identifier().toString() + url);
 			String reqPrefix = req->urlPrefix();
 			req->setAutoDelete();
 			
@@ -1776,7 +1776,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String reqPrefix;
 			if(!match.empty())
 			{
-				Request *req = new Request(match);
+				Request *req = new Request(match, identifier());
 				reqPrefix = req->urlPrefix();
 				req->setAutoDelete();
 			}

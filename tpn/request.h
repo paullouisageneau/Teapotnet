@@ -39,7 +39,7 @@ class Request :	protected Core::Subscriber, public Synchronizable, public HttpIn
 public:
 	Request(Resource &resource);
 	Request(const String &path, bool listDirectories = true);
-	Request(const Identifier &peer, const String &path, bool listDirectories = true);
+	Request(const String &path, const Identifier &peer, bool listDirectories = true);
 	~Request(void);
 	
 	String urlPrefix(void) const;
