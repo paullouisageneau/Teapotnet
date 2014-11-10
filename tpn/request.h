@@ -38,10 +38,10 @@ class Request :	protected Core::Subscriber, public Synchronizable, public HttpIn
 {
 public:
 	Request(Resource &resource);
-	Request(const Identifier &peer, const String &path);
-	Request(const String &match);
+	Request(const String &path, bool listDirectories = true);
+	Request(const Identifier &peer, const String &path, bool listDirectories = true);
 	~Request(void);
-
+	
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
 	void addResult(Resource &resource);
@@ -57,7 +57,7 @@ protected:
 	void createPlaylist(Stream *output, String host = "");
 	
 	// Core::Subscriber
-	bool incoming(const String &prefix, const String &path, const BinaryString &target);
+	bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
 	
 private:
 	String mUrlPrefix;

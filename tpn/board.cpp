@@ -45,8 +45,8 @@ Board::Board(const String &name, const String &displayName) :
 	Cache::Instance->retrieveMapping(prefix, digest);
 	
 	if(!digest.empty())
-		if(fetch(prefix, "/", digest))
-			incoming(prefix, "/", digest);
+		if(fetch(Identifier::Null, prefix, "/", digest))
+			incoming(Identifier::Null, prefix, "/", digest);
 	
 	publish(prefix);
 	subscribe(prefix);
@@ -122,14 +122,14 @@ bool Board::anounce(const Identifier &peer, const String &prefix, const String &
 	return true;
 }
 	
-bool Board::incoming(const String &prefix, const String &path, const BinaryString &target)
+bool Board::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
 	
 	if(target == digest())
 		return false;
 	
-	if(fetch(prefix, path, target))
+	if(fetch(peer, prefix, path, target))
 	{
 		Resource resource(target, true);	// local only (already fetched)
 		if(resource.type() != "mail")

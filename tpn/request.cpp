@@ -38,9 +38,8 @@ Request::Request(Resource &resource) :
 	addResult(resource);
 }
   
-Request::Request(const Identifier &peer, const String &target) :
-	Subscriber(peer),
-	mListDirectories(true),
+Request::Request(const String &target, bool listDirectories) :
+	mListDirectories(listDirectories),
 	mFinished(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -48,20 +47,16 @@ Request::Request(const Identifier &peer, const String &target) :
 	
 	subscribe(target);
 }
-
-Request::Request(const String &match) :
-	mListDirectories(false),
+  
+Request::Request(const Identifier &peer, const String &target, bool listDirectories) :
+	Subscriber(peer),
+	mListDirectories(listDirectories),
 	mFinished(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
 	
-	if(!match.empty())
-	{
-		String m(match);
-		m.replace('/', ' ');
-		subscribe("/$match/"+m);
-	}
+	subscribe(target);
 }
 
 Request::~Request(void)
@@ -188,14 +183,14 @@ void Request::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Request::incoming(const String &prefix, const String &path, const BinaryString &target)
+bool Request::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
   
 	if(mDigests.contains(target)) return true;
 	mDigests.insert(target);
 
-	if(fetch(prefix, path, target))
+	if(fetch(peer, prefix, path, target))
 	{
 		Resource resource(target, true);	// local only (already fetched)
 		addResult(resource);

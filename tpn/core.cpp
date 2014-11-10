@@ -332,7 +332,7 @@ void Core::publish(String prefix, Publisher *publisher)
 		array.push_back(target);
 		
 		// Local
-		matchSubscribers(prefix, array);
+		matchSubscribers(prefix, Identifier::Null, array);
 		
 		// Broadcast
 		BinaryString payload;
@@ -730,7 +730,7 @@ bool Core::matchPublishers(const String &path, const Identifier &source)
 	return true;
 }
 
-bool Core::matchSubscribers(const String &path, const List<BinaryString> &targets)
+bool Core::matchSubscribers(const String &path, const Identifier &source, const List<BinaryString> &targets)
 {
 	Synchronize(this);
 	
@@ -768,7 +768,7 @@ bool Core::matchSubscribers(const String &path, const List<BinaryString> &target
 					++kt)
 				{
 					// TODO: should prevent forwarding in case we want to republish another content
-					(*jt)->incoming(prefix, truncatedPath, *kt);
+					(*jt)->incoming(source, prefix, truncatedPath, *kt);
 				}
 			}
 		}
@@ -927,7 +927,7 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	}
 }
 
-bool Core::Subscriber::fetch(const String &prefix, const String &path, const BinaryString &target)
+bool Core::Subscriber::fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	// Test local availability
 	if(Store::Instance->hasBlock(target))
@@ -940,9 +940,10 @@ bool Core::Subscriber::fetch(const String &prefix, const String &path, const Bin
 	class PrefetchTask : public Task
 	{
 	public:
-		PrefetchTask(Core::Subscriber *subscriber, const String &prefix, const String &path, const BinaryString &target)
+		PrefetchTask(Core::Subscriber *subscriber, const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 		{
 			this->subscriber = subscriber;
+			this->peer = peer;
 			this->target = target;
 			this->prefix = prefix;
 			this->path = path;
@@ -955,7 +956,7 @@ bool Core::Subscriber::fetch(const String &prefix, const String &path, const Bin
 				Resource::Reader reader(&resource);
 				reader.discard();		// read everything
 				
-				subscriber->incoming(prefix, path, target);
+				subscriber->incoming(peer, prefix, path, target);
 			}
 			catch(const Exception &e)
 			{
@@ -967,12 +968,13 @@ bool Core::Subscriber::fetch(const String &prefix, const String &path, const Bin
 	
 	private:
 		Core::Subscriber *subscriber;
+		Identifier peer;
 		BinaryString target;
 		String prefix;
 		String path;
 	};
 	
-	PrefetchTask *task = new PrefetchTask(this, prefix, path, target);
+	PrefetchTask *task = new PrefetchTask(this, peer, prefix, path, target);
 	mThreadPool.launch(task);
 	return false;
 }
@@ -1824,7 +1826,7 @@ bool Core::Handler::incoming(Message &message)
 			SerializableList<BinaryString> targets;
 			AssertIO(serializer.read(targets));
 			
-			return mCore->matchSubscribers(path, targets);
+			return mCore->matchSubscribers(path, source, targets);
 		}
 		
 		case Message::Subscribe:

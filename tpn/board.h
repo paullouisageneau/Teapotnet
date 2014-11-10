@@ -50,7 +50,7 @@ public:
 	bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target);
 	
 	// Subscriber
-	bool incoming(const String &prefix, const String &path, const BinaryString &target);
+	bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);

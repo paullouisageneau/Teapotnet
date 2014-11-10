@@ -85,7 +85,7 @@ public:
 		~Message(void);
 		
 		void prepare(const Identifier &source, const Identifier &destination, 
-			uint8_t type = Forward, uint8_t content = Empty);
+				uint8_t type = Forward, uint8_t content = Empty);
 		void clear(void);
 		
 		// Serializable
@@ -144,10 +144,10 @@ public:
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		
-		virtual bool incoming(const String &prefix, const String &path, const BinaryString &target) = 0;
+		virtual bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target) = 0;
 		
 	protected:
-		bool fetch(const String &prefix, const String &path, const BinaryString &target);
+		bool fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
 		
 	private:
 		Identifier mPeer;
@@ -420,7 +420,7 @@ private:
 	void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 	
 	bool matchPublishers(const String &path, const Identifier &source);
-	bool matchSubscribers(const String &path, const List<BinaryString> &targets);
+	bool matchSubscribers(const String &path, const Identifier &source, const List<BinaryString> &targets);
 	
 	uint64_t mNumber;
 	String mName;
