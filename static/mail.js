@@ -71,7 +71,6 @@ function setMailReceiverRec(url, object, next) {
 					$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/arrow_passed.png"></span>');
 				}
 				*/
-					
 				
 				$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img alt="Reply" src="/arrow_reply.png"></a>');
 				(function(idReply) {
@@ -88,38 +87,42 @@ function setMailReceiverRec(url, object, next) {
 			}
 			
 			// Reply form
-			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><a class="button" href="#"><img alt="File" src="/paperclip.png"></img></a><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
+			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
 			
 			$('#'+idReply).hide();
+			$('#'+idReply+' .attachedfile').hide();
+			$('#'+idReply+' form').ajaxForm(function() {
+				$('#'+idReply+' form').resetForm();
+				$('#'+idReply+' .attachedfile').html('');
+				$('#'+idReply+' .fileselector').html('');
+				$('#'+idReply).hide();
+			});
 			
-			(function(idReply) {
-				$('#'+idReply+' .attachedfile').hide();
-				$('#'+idReply+' form').ajaxForm(function() {
-					$('#'+idReply+' form').resetForm();
-					$('#'+idReply+' .attachedfile').html('');
-					$('#'+idReply+' .fileselector').html('');
-					$('#'+idReply).hide();
-				});
-				$('#'+idReply+' .button').click(function() {
-					createFileSelector(getBasePath(1) + 'myself/files/?json', '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory); 
-					return false;
-				});
-				$('#'+idReply+' input[name="attachment"]').change(function() {
-					$('#'+idReply+' .attachedfile').html('').hide();
-					var filename = $('#'+idReply+' input[name="attachmentname"]').val();
-					if(filename != '') {
-						$('#'+idReply+' .attachedfile')
-							.append('<img class=\"icon\" src=\"/file.png\">')
-							.append('<span class=\"filename\">'+filename+'</span>')
-							.show();
-					}
-					var input = $('#'+idReply+' .replyinput');
-					input.focus();
-					if(input.val() == '') {
-						input.val(filename).select();
-					}
-				});
-			})(idReply);
+			if(typeof TokenDirectory != 'undefined') {
+				$('#'+idReply+' .replypanel').prepend('<a class="button" href="#"><img alt="File" src="/paperclip.png"></a>');
+				
+				(function(idReply) {
+					$('#'+idReply+' .button').click(function() {
+						createFileSelector(UrlSelector, '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory); 
+						return false;
+					});
+					$('#'+idReply+' input[name="attachment"]').change(function() {
+						$('#'+idReply+' .attachedfile').html('').hide();
+						var filename = $('#'+idReply+' input[name="attachmentname"]').val();
+						if(filename != '') {
+							$('#'+idReply+' .attachedfile')
+								.append('<img class=\"icon\" src=\"/file.png\">')
+								.append('<span class=\"filename\">'+filename+'</span>')
+								.show();
+						}
+						var input = $('#'+idReply+' .replyinput');
+						input.focus();
+						if(input.val() == '') {
+							input.val(filename).select();
+						}
+					});
+				})(idReply);
+			}
 			
 			$('#'+id+' .content').html(mail.content.escape().smileys().linkify().split("\n").join("<br>"));
 			

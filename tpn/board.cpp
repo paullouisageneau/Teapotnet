@@ -239,9 +239,15 @@ void Board::http(const String &prefix, Http::Request &request)
 			if(isPopup) page.span(title, ".button");
 			
 			// User-specific panel
-			if(User *user = getAuthenticatedUser(request))
+			User *user = getAuthenticatedUser(request);
+			if(user)
 			{
-				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+user->urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+user->generateToken("directory")+"', '"+user->urlPrefix()+"/myself/files/_upload/?json'); return false;\">Send file</a>");
+				//page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+user->urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname', '"+user->urlPrefix()+"/myself/files/_upload/?json'); return false;\">Send file</a>");
+				
+				page.javascript("var TokenMail = '"+user->generateToken("mail")+"';\n\
+						var TokenDirectory = '"+user->generateToken("directory")+"';\n\
+						var UrlSelector = '"+user->urlPrefix()+"/myself/files/?json';\n\
+						var UrlUpload = '"+user->urlPrefix()+"/files/_upload/?json';");
 			}
 			
 // TODO: should be hidden in CSS
@@ -254,7 +260,21 @@ void Board::http(const String &prefix, Http::Request &request)
 #endif
 			page.close("div");
 			
-			page.div("", "fileSelector");	
+			page.open("div", ".replypanel");
+			
+			if(user)
+			{
+				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector(UrlSelector, '#fileSelector', 'input.attachment', 'input.attachmentname', UrlUpload); return false;\"><img alt=\"File\" src=\"/paperclip.png\"></a>");
+			}
+			
+			page.openForm("#", "post", "boardform");
+			page.textarea("input");
+			page.input("hidden", "attachment");
+			page.input("hidden", "attachmentname");
+			page.closeForm();
+			page.close("div");
+			page.div("","#attachedfile.attachedfile");
+			page.div("", "#fileSelector.fileselector");
 			
 			if(isPopup) page.open("div", "board");
 			else page.open("div", "board.box");
@@ -262,15 +282,6 @@ void Board::http(const String &prefix, Http::Request &request)
 			page.open("div", "mail");
 			page.close("div");
 			
-			page.open("div", ".panel");
-			page.div("","attachedfile");
-			page.openForm("#", "post", "boardform");
-			page.textarea("input");
-			page.input("hidden", "attachment");
-			page.input("hidden", "attachmentname");
-			page.closeForm();
-			page.close("div");
-
 			page.close("div");
 			
 			page.javascript("function post() {\n\

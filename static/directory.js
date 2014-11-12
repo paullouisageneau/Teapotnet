@@ -116,7 +116,7 @@ function listDirectory(url, object, showButtons, privateMode) {
 	});
 }
 
-function listFileSelector(url, object, input, inputName, directoryToken, uploadUrl, parents) {
+function listFileSelector(url, object, input, inputName, parents) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
@@ -136,7 +136,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
 				.find('a.parentlink').click(function() {
 					var parentUrl = parents.pop();
-					listFileSelector(parentUrl, object, input, inputName, directoryToken, parents);
+					listFileSelector(parentUrl, object, input, inputName, parents);
 					return false;
 				});
 		}
@@ -144,15 +144,15 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 		$(object)
 			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
 			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, directoryToken, parents);
+				listFileSelector(url, object, input, inputName, parents);
 				return false;
 			});
 			
-		//$(object).append('<a class="button" href="'+uploadUrl+'">Choose another file</a>');
+		//$(object).append('<a class="button" href="'+UrlUpload+'">Choose another file</a>');
 		
-		if(directoryToken && uploadUrl)
+		if(UrlUpload)
 		{
-			$(object).append('<form id="uploadform" action="'+uploadUrl+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+directoryToken+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
+			$(object).append('<form id="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
 			$('#selector_file')
 				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
 				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">New file</a>')
@@ -212,7 +212,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 					func = function() {
 						var link = "/file/" + resource.digest + "?json";
 						parents.push(url);
-						listFileSelector(link, object, input, inputName, directoryToken, uploadUrl, parents);
+						listFileSelector(link, object, input, inputName, parents);
 						return false;
 					};
 				}
@@ -244,7 +244,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
 				.find('a.parentlink').click(function() {
 					var parentUrl = parents.pop();
-					listFileSelector(parentUrl, object, input, inputName, directoryToken, uploadUrl, parents);
+					listFileSelector(parentUrl, object, input, inputName, parents);
 					return false;
 				});
 		}
@@ -254,7 +254,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 			.append('<a href="#" class="button quitlink">Cancel</a>')
 			.append('<div class="files">Unable to access files</div>')
 			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, directoryToken, uploadUrl, parents);
+				listFileSelector(url, object, input, inputName, parents);
 				return false;
 			})
 			.find('a.quitlink').click(function() {
@@ -266,7 +266,7 @@ function listFileSelector(url, object, input, inputName, directoryToken, uploadU
 	});
 }
 
-function createFileSelector(url, object, input, inputName, directoryToken, uploadUrl) 
+function createFileSelector(url, object, input, inputName) 
 {
 	if($(object).html()) {
 		$(object).html("");
@@ -278,7 +278,7 @@ function createFileSelector(url, object, input, inputName, directoryToken, uploa
 	$(object).show();
 	$(object).html('<div class="box"></div>');
 	var div = $(object).find('div');
-	listFileSelector(url, div, input, inputName, directoryToken, uploadUrl, []);	
+	listFileSelector(url, div, input, inputName, []);	
 }
 
 function isPlayableResource(fileName)
