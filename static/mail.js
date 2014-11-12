@@ -128,7 +128,7 @@ function setMailReceiverRec(url, object, next) {
 				$('#'+id+' .header').after('<span class="attachment"></span>');
 				$('#'+id+' .attachment').html('<img class="icon" src="/smallpaperclip.png">Loading attachment...');
 				
-				var url = '/'+mail.attachments[0];	// TODO
+				var url = '/file/'+mail.attachments[0];	// TODO
 				
 				(function(id, url) {
 					var request = $.ajax({

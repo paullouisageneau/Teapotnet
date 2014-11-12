@@ -24,6 +24,7 @@
 #include "tpn/user.h"
 #include "tpn/resource.h"
 #include "tpn/config.h"
+#include "tpn/user.h"
 
 #include "pla/directory.h"
 #include "pla/jsonserializer.h"
@@ -418,7 +419,7 @@ void Interface::process(Http::Request &request)
 				Http::Response response(request, 401);
 				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
 				response.send();
-
+				
 				Html page(response.stream);
 				page.header(response.message, true);
 				page.open("div", "error");
@@ -464,6 +465,46 @@ void Interface::process(Http::Request &request)
 	}
 	
 	throw 404;
+}
+
+User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String name)
+{
+	if(name.empty())
+		request.cookies.get("name", name);
+	
+	if(!name.empty())
+	{
+		String token;
+		request.cookies.get("auth_"+name, token);
+		User *user = User::Get(name);
+		if(user && user->checkToken(token, "auth"))
+			return user;
+	}
+	
+	Array<User*> users;
+	if(getAuthenticatedUsers(request, users))
+		return users[0];
+	
+	return NULL;
+}
+
+int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*> &users)
+{
+	users.clear();
+	
+	for(	StringMap::iterator it = request.cookies.begin();
+		it != request.cookies.end();
+		++it)
+	{
+		String key = it->first;
+		String name = key.cut('_');
+		
+		User *user = User::Get(name);
+		if(user && user->checkToken(it->second, "auth"))
+			users.push_back(user);
+	}
+	
+	return int(users.size());
 }
 
 }

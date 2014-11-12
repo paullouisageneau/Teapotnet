@@ -23,6 +23,7 @@
 #include "tpn/resource.h"
 #include "tpn/cache.h"
 #include "tpn/html.h"
+#include "tpn/user.h"
 
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
@@ -172,11 +173,18 @@ void Board::http(const String &prefix, Http::Request &request)
 					mail.setContent(request.post["message"]);
 					mail.setAuthor(request.post["author"]);
 					
-					BinaryString parent;
 					if(request.post.contains("parent"))
 					{
+						BinaryString parent;
 						request.post["parent"].extract(parent);
 						mail.setParent(parent);
+					}
+					
+					if(request.post.contains("attachment"))
+					{
+						BinaryString attachment;
+						request.post["attachment"].extract(attachment);
+						mail.addAttachment(attachment);
 					}
 					
 					add(mail);
@@ -229,9 +237,14 @@ void Board::http(const String &prefix, Http::Request &request)
 			
 			page.open("div","topmenu");	
 			if(isPopup) page.span(title, ".button");
-			//page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('/"+mUser->name()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+mUser->generateToken("directory")+"'); return false;\">Send file</a>");
 			
-			// TODO: should be hidden in CSS
+			// User-specific panel
+			if(User *user = getAuthenticatedUser(request))
+			{
+				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+user->urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+user->generateToken("directory")+"', '"+user->urlPrefix()+"/myself/files/_upload/?json'); return false;\">Send file</a>");
+			}
+			
+// TODO: should be hidden in CSS
 #ifndef ANDROID
 			if(!isPopup)
 			{

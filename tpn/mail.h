@@ -51,6 +51,7 @@ public:
 	void setAuthor(const String &author);
 	void setBoard(const String &board);
 	void setParent(const BinaryString &parent);
+	void addAttachment(const BinaryString &attachment);
 	
 	bool isSigned(void) const;
 	void sign(const Rsa::PrivateKey &privKey);

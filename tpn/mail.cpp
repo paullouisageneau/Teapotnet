@@ -98,6 +98,12 @@ void Mail::setParent(const BinaryString &parent)
 	mDigest.clear();
 }
 
+void Mail::addAttachment(const BinaryString &attachment)
+{
+	mAttachments.append(attachment);
+	mDigest.clear();
+}
+
 bool Mail::isSigned(void) const
 {
 	return !mSignature.empty();  

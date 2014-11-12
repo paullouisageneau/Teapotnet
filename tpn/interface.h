@@ -30,11 +30,17 @@
 
 namespace tpn
 {
+
+class User;
   
 class HttpInterfaceable
 {
 public:
 	virtual void http(const String &prefix, Http::Request &request) = 0;
+
+protected:
+	User *getAuthenticatedUser(Http::Request &request, String name = "");
+	int getAuthenticatedUsers(Http::Request &request, Array<User*> &users);
 };
 
 class Interface : public Http::Server, public HttpInterfaceable
