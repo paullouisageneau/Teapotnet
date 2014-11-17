@@ -230,7 +230,7 @@ int Map<K,V>::getValues(Array<V> &array) const
 		it != this->end();
 		++it)
 	{
-		      array.push_back(it->second);
+		array.push_back(it->second);
 	}
 	
 	return array.size();

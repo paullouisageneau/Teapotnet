@@ -293,13 +293,14 @@ bool AddressBook::deserialize(Serializer &s)
 	
 	if(!s.inputObject(mapping)) return false;
 	
-	// Fill mContactsByIdentifier and set addressbook in contacts
+	// Fill mContactsByIdentifier and set up contacts
 	for(Map<String, Contact>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
 	{
 		Contact *contact = &it->second;
 		contact->setAddressBook(this);
+		contact->init();
 		mContactsByIdentifier[contact->uniqueName()] = contact;
 	}
 	
@@ -800,7 +801,7 @@ AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	mFound(false)
 {
 	setAddressBook(invitation.mAddressBook);
-	listen(peering());
+	// no init
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &name, const String &tracker) :
@@ -812,7 +813,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 	mPeering = identifier;	// In this case, peering is set to the identifier and secret is empty.
 	
 	setAddressBook(addressBook);
-	listen(peering());
+	init();
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
@@ -824,7 +825,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 	generate(code, String::number64(pin, 10));
 	
 	setAddressBook(addressBook);
-	listen(peering());
+	init();
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
@@ -837,7 +838,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	generate(salt, secret);
 	
 	setAddressBook(addressBook);
-	listen(peering());
+	init();
 }
 
 AddressBook::Invitation::~Invitation(void)
@@ -901,12 +902,16 @@ void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
 {
 	Assert(!mAddressBook);
 	mAddressBook = addressBook;
+}
+
+void AddressBook::Invitation::init(void)
+{
+	if(!mAddressBook) return;
 	
-	if(mAddressBook)
-	{
-		mAddressBook->mScheduler.schedule(this, 1.);
-		mAddressBook->mScheduler.repeat(this, 300.);
-	}
+	mAddressBook->mScheduler.schedule(this, 1.);
+	mAddressBook->mScheduler.repeat(this, 300.);
+	
+	listen(peering());
 }
 
 String AddressBook::Invitation::name(void) const
@@ -1090,8 +1095,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mInstances(contact.mInstances)	
 {
 	setAddressBook(contact.mAddressBook);
-	init();
-	listen(identifier());
+	// no init !
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
@@ -1112,7 +1116,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	
 	setAddressBook(addressBook);
 	init();
-	listen(identifier());
 }
 
 AddressBook::Contact::~Contact(void)
@@ -1124,11 +1127,17 @@ AddressBook::Contact::~Contact(void)
 	}
 	
 	delete mProfile;
+	delete mBoard;
 }
 
 void AddressBook::Contact::init(void)
 {
 	if(!mAddressBook) return;
+	
+	mAddressBook->mScheduler.schedule(this, 1.);
+	mAddressBook->mScheduler.repeat(this, 300.);
+		
+	Interface::Instance->add(urlPrefix(), this);
 	
 	if(!mBoard)
 	{
@@ -1148,6 +1157,8 @@ void AddressBook::Contact::init(void)
 			LogWarn("AddressBook::Contact", String("Unable to load profile for ") + uniqueName() + ": " + e.what());
 		}
 	}
+	
+	listen(identifier());
 }
 
 void AddressBook::Contact::run(void)
@@ -1187,16 +1198,6 @@ void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
 	Assert(!mAddressBook);
 	mAddressBook = addressBook;
-	
-	if(mAddressBook) 
-	{
-		mAddressBook->mScheduler.schedule(this, 1.);
-		mAddressBook->mScheduler.repeat(this, 300.);
-		
-		Interface::Instance->add(urlPrefix(), this);
-		
-		init();
-	}
 }
 
 const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const

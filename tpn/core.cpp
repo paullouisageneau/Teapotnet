@@ -323,7 +323,7 @@ void Core::publish(String prefix, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	LogDebug("Core::subscribe", "Publishing " + prefix);
+	LogDebug("Core::publish", "Publishing " + prefix);
 	
 	mPublishers[prefix].insert(publisher);
 	

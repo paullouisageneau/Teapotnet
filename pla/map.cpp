@@ -21,7 +21,7 @@
 
 #include "pla/map.h"
 #include "pla/lineserializer.h"
-#include "pla/yamlserializer.h"
+#include "pla/jsonserializer.h"
 
 namespace pla
 {
@@ -35,7 +35,7 @@ bool StringMap::input(Pair &pair)
 	LineSerializer keySerializer(&key);
 	AssertIO(pair.deserializeKey(keySerializer));
 	
-	YamlSerializer valueSerializer(&it->second, 1);
+	JsonSerializer valueSerializer(&it->second);
 	AssertIO(pair.deserializeValue(valueSerializer));
 	
 	this->erase(it);
@@ -59,7 +59,7 @@ void StringMap::output(const Pair &pair)
 	key.trim();
 	
 	String value;
-	YamlSerializer valueSerializer(&value, 1);
+	JsonSerializer valueSerializer(&value);
 	pair.serializeValue(valueSerializer);
 	
 	this->insert(key, value);

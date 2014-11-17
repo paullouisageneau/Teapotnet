@@ -38,6 +38,14 @@ Board::Board(const String &name, const String &displayName) :
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
 
+	static int c = 0;
+	++c;
+	if(c == 5)
+	{
+		char *p= 0;
+		*p = 0;
+	}
+	
 	Interface::Instance->add(urlPrefix(), this);
 	
 	String prefix = "/mail" + mName;
@@ -85,8 +93,7 @@ bool Board::add(Mail &mail)
 	
 	const Mail *p = &*mMails.insert(mail).first;
 	mUnorderedMails.append(p);
-	
-	mDigest.clear();
+
 	publish("/mail" + mName);	// calls digest()
 	notifyAll();
 	return true;
@@ -153,9 +160,10 @@ bool Board::incoming(const Identifier &peer, const String &prefix, const String 
 		
 		mDigest.clear();	// so digest must be recomputed
 		if(digest() != target)
+		{
 			publish("/mail" + mName);
-		
-		notifyAll();
+			notifyAll();
+		}
 	}
 	
 	return true;

@@ -99,6 +99,7 @@ public:
 		~Invitation(void);
 		
 		void setAddressBook(AddressBook *addressBook);
+		void init(void);
 		
 		String name(void) const;
 		BinaryString secret(void) const;
@@ -147,6 +148,7 @@ public:
 		~Contact(void);
 		
 		void setAddressBook(AddressBook *addressBook);
+		void init(void);
 		
 		const Rsa::PublicKey &publicKey(void) const;
 		Identifier identifier(void) const;
@@ -184,7 +186,6 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
-		void init(void);
 		void run(void);
 	  
 		class Instance : public Serializable
