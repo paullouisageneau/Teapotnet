@@ -94,6 +94,7 @@ bool Board::add(Mail &mail)
 	const Mail *p = &*mMails.insert(mail).first;
 	mUnorderedMails.append(p);
 
+	mDigest.clear();		// so digest is recomputed
 	publish("/mail" + mName);	// calls digest()
 	notifyAll();
 	return true;
