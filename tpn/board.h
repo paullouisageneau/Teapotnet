@@ -26,6 +26,7 @@
 #include "tpn/mail.h"
 #include "tpn/core.h"
 #include "tpn/interface.h"
+#include "tpn/identifier.h"
 
 #include "pla/synchronizable.h"
 #include "pla/binarystring.h"
@@ -42,6 +43,7 @@ public:
 	Board(const String &name, const String &displayName = "");
 	~Board(void);
 	
+	String urlPrefix(void) const;
 	bool hasNew(void) const;
 	bool add(Mail &mail);
 	BinaryString digest(void) const;
@@ -58,6 +60,7 @@ public:
 private:
 	String mName;
 	String mDisplayName;
+	Identifier mOwner;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
 	

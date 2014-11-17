@@ -275,6 +275,143 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
+Cipher::Cipher(Stream *stream, bool mustDelete) :
+	mStream(stream),
+	mMustDelete(mustDelete),
+	mReadBlock(NULL),
+	mWriteBlock(NULL),
+	mReadBlockSize(0),
+	mWriteBlockSize(0),
+	mReadPosition(0),
+	mWritePosition(0)
+{
+	Assert(mStream);
+}
+
+Cipher::~Cipher(void)
+{
+	close();
+	
+	delete mReadBlock;
+	delete mWriteBlock;
+	
+	if(mMustDelete)
+		delete mStream;
+}
+
+size_t Cipher::readData(char *buffer, size_t size)
+{
+	if(!mReadBlock)
+		mReadBlock = new char[blockSize()];
+	
+	if(!mReadBlockSize)
+	{
+		mReadBlockSize = mStream->readBinary(mReadBlock, blockSize());
+		decryptBlock(mReadBlock, mReadBlockSize);
+	}
+	
+	size = std::min(size, mReadBlockSize);
+	std::memcpy(buffer, mReadBlock, size);
+	mReadBlockSize-= size;
+	return size;
+}
+
+void Cipher::writeData(const char *data, size_t size)
+{
+	if(!mReadBlock)
+		mReadBlock = new char[blockSize()];
+	
+	while(size)
+	{
+		 size_t len = std::min(blockSize() - mWriteBlockSize, size);
+		 std::memcpy(mWriteBlock + mWriteBlockSize, data, len);
+		 mWriteBlockSize+= len;
+		 data+= len;
+		 size-= len;
+		 
+		 if(mWriteBlockSize == blockSize())
+		 {
+		 	encryptBlock(mWriteBlock, mWriteBlockSize);
+		 	mStream->writeBinary(mWriteBlock, mWriteBlockSize);
+			mWriteBlockSize = 0;
+		 }
+	}
+}
+
+void Cipher::seekRead(int64_t position)
+{
+	throw Unsupported("Seeking in block cipher");
+}
+
+void Cipher::seekWrite(int64_t position)
+{
+	throw Unsupported("Seeking in block cipher"); 
+}
+
+int64_t Cipher::tellRead(void) const
+{
+	return mReadPosition;
+}
+
+int64_t Cipher::tellWrite(void) const
+{
+	return mWritePosition;
+}
+
+void Cipher::close(void)
+{
+	// Finish encryption
+	encryptBlock(mWriteBlock, mWriteBlockSize);
+	mStream->writeBinary(mWriteBlock, mWriteBlockSize);
+  
+	mStream->close();
+}
+
+Aes::Aes(Stream *stream, bool mustDelete) :
+	Cipher(stream, mustDelete)
+{
+
+}
+
+Aes::~Aes(void)
+{
+  
+}
+
+void Aes::setEncryptKey(const BinaryString &key)
+{
+	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes());
+}
+
+void Aes::setDecryptKey(const BinaryString &key)
+{
+	aes_set_decrypt_key(&mCtx.ctx, key.size(), key.bytes()); 
+}
+
+void Aes::setInitializationVector(const BinaryString &iv)
+{
+	Assert(iv.size() == AES_BLOCK_SIZE);
+	CTR_SET_COUNTER(&mCtx, iv.bytes());
+}
+
+size_t Aes::blockSize(void) const
+{
+	return AES_BLOCK_SIZE;  
+}
+
+void Aes::encryptBlock(char *block, size_t size)
+{
+	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
+	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
+}
+
+void Aes::decryptBlock(char *block, size_t size)
+{
+	// Counter mode also uses encrypt function for decryption
+	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
+	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
+}
+
 Rsa::PublicKey::PublicKey(void)
 {
 	rsa_public_key_init(&mKey);

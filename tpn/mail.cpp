@@ -153,7 +153,9 @@ bool Mail::deserialize(Serializer &s)
 	mAttachments.clear();
 	mParent.clear();
 	mSignature.clear();
-	mTime = Time::Now();
+	mTime = time_t(Time::Now());
+	
+	mDigest.clear();
 	
 	Serializer::ObjectMapping mapping;
         mapping["content"] = &mContent;

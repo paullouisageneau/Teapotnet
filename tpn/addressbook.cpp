@@ -180,8 +180,6 @@ bool AddressBook::removeContact(const String &uname)
 	Map<String, Contact>::iterator it = mContacts.find(uname);
 	if(it != mContacts.end())
 	{
-		//TODO: erase mails
-		
 		mContactsByIdentifier.erase(it->second.identifier());
 		mContacts.erase(it);
 		return false;
@@ -485,7 +483,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("div");
 
 			// Js globals loaded from C++
-			page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
+			/*page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
 					var nameProfile = \""+nameProfile+"\";\n\
 					var mailProfile = \""+mailProfile+"\";\n\
 					var postUrl1 = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\";\n\
@@ -493,8 +491,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					var prefix = \""+prefix+"\" \n\
 					var token = \""+token+"\" \n\
 					");
-
-			/*
+			
 			page.openForm(prefix+"/","post","newcontact");
 			page.open("div","newcontactdiv.box");
 			page.open("h2");
@@ -1076,7 +1073,8 @@ bool AddressBook::Invitation::isInlineSerializable(void) const
 
 AddressBook::Contact::Contact(void) :
 	mAddressBook(NULL),
-	mProfile(NULL)
+	mProfile(NULL),
+	mBoard(NULL)
 {	
 
 }
@@ -1084,6 +1082,7 @@ AddressBook::Contact::Contact(void) :
 AddressBook::Contact::Contact(const Contact &contact) :
 	mAddressBook(NULL),
 	mProfile(NULL),
+	mBoard(NULL),
 	mUniqueName(contact.mUniqueName),
 	mName(contact.mName),
 	mTracker(contact.mTracker),
@@ -1091,7 +1090,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mInstances(contact.mInstances)	
 {
 	setAddressBook(contact.mAddressBook);
-	createProfile();
+	init();
 	listen(identifier());
 }
 
@@ -1105,13 +1104,14 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mName(name),
 	mTracker(tracker),
 	mPublicKey(pubKey),
-	mProfile(NULL)
+	mProfile(NULL),
+	mBoard(NULL)
 {
 	Assert(!uname.empty());
 	Assert(!name.empty());
 	
 	setAddressBook(addressBook);
-	createProfile();
+	init();
 	listen(identifier());
 }
 
@@ -1126,12 +1126,16 @@ AddressBook::Contact::~Contact(void)
 	delete mProfile;
 }
 
-void AddressBook::Contact::createProfile(void)
+void AddressBook::Contact::init(void)
 {
 	if(!mAddressBook) return;
-	if(isSelf()) return;
 	
-	if(!mProfile)
+	if(!mBoard)
+	{
+		mBoard = new Board("/" + identifier().toString(), name());	// Public board
+	}
+	
+	if(!mProfile && !isSelf())
 	{
 		Synchronize(mAddressBook);
 		mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
@@ -1191,7 +1195,7 @@ void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 		
 		Interface::Instance->add(urlPrefix(), this);
 		
-		createProfile();
+		init();
 	}
 }
 
@@ -1651,12 +1655,12 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.open("tr");
 				page.open("td");
 					page.openLink(prefix + "/chat/");
-					page.image("/icon_chat.png", "Chat", ".bigicon");
+					page.image("/icon_chat.png", "Messages", ".bigicon");
 					page.closeLink();
 				page.close("td");
 				page.open("td",".title");
-					page.text("Chat");
-					page.span("", "mailscount.mailscount");
+					page.text("Messages");
+					//page.span("", "mailscount.mailscount");
 				page.close("td");
 				page.close("tr");
 			}
@@ -1747,7 +1751,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			else page.header(name() + ": " + url.substr(1));
 			
 			page.open("div","topmenu");
-			if(!isSelf()) page.span("TODO", "status.button");	// TODO
+			if(!isSelf()) page.span("Unknown", "status.button");
 			page.link(prefix+"/search/", "Search files", ".button");
 			page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 			page.close("div");
@@ -1827,7 +1831,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(isSelf()) throw 404;
 			
 			Http::Response response(request, 301);	// Moved permanently
-			response.headers["Location"] = mAddressBook->user()->urlPrefix() + "/mails/" + uniqueName().urlEncode() + "/";
+			response.headers["Location"] = mBoard->urlPrefix();	// TODO: this is the public board
 			response.send();
 			return;
 		}

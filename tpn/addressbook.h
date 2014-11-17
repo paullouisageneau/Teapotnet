@@ -28,6 +28,7 @@
 #include "tpn/core.h"
 #include "tpn/identifier.h"
 #include "tpn/profile.h"
+#include "tpn/board.h"
 #include "tpn/mail.h"
 
 #include "pla/synchronizable.h"
@@ -183,7 +184,7 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
-		void createProfile(void);
+		void init(void);
 		void run(void);
 	  
 		class Instance : public Serializable
@@ -220,6 +221,7 @@ public:
 	  
 		AddressBook *mAddressBook;
 		Profile *mProfile;
+		Board *mBoard;
 		
 		String mUniqueName, mName, mTracker;
 		Rsa::PublicKey mPublicKey;

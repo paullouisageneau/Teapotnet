@@ -38,7 +38,7 @@ Board::Board(const String &name, const String &displayName) :
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
 
-	Interface::Instance->add("/mail" + mName, this);
+	Interface::Instance->add(urlPrefix(), this);
 	
 	String prefix = "/mail" + mName;
 	
@@ -55,11 +55,16 @@ Board::Board(const String &name, const String &displayName) :
 
 Board::~Board(void)
 {
-	Interface::Instance->remove("/mail" + mName, this);
+	Interface::Instance->remove(urlPrefix(), this);
 	
 	String prefix = "/mail" + mName;
 	publish(prefix);
 	subscribe(prefix);
+}
+
+String Board::urlPrefix(void) const
+{
+	return "/mail" + mName;
 }
 
 bool Board::hasNew(void) const
@@ -122,7 +127,7 @@ bool Board::anounce(const Identifier &peer, const String &prefix, const String &
 	target = digest();
 	return true;
 }
-	
+
 bool Board::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
@@ -168,10 +173,8 @@ void Board::http(const String &prefix, Http::Request &request)
 			{
 				if(request.post.contains("message") && !request.post["message"].empty())
 				{
-					// Anonymous
 					Mail mail;
 					mail.setContent(request.post["message"]);
-					mail.setAuthor(request.post["author"]);
 					
 					if(request.post.contains("parent"))
 					{
@@ -185,6 +188,18 @@ void Board::http(const String &prefix, Http::Request &request)
 						BinaryString attachment;
 						request.post["attachment"].extract(attachment);
 						mail.addAttachment(attachment);
+					}
+					
+					if(request.post.contains("author"))
+					{
+						mail.setAuthor(request.post["author"]);
+					}
+					else {
+						User *user = getAuthenticatedUser(request);
+						if(user) {
+							mail.setAuthor(user->name());
+							mail.sign(user->privateKey());
+						}
 					}
 					
 					add(mail);
@@ -226,6 +241,7 @@ void Board::http(const String &prefix, Http::Request &request)
 			}
 			
 			bool isPopup = request.get.contains("popup");
+			bool isFrame = request.get.contains("frame");
 			
 			Http::Response response(request, 200);
 			response.send();
@@ -233,37 +249,35 @@ void Board::http(const String &prefix, Http::Request &request)
 			Html page(response.stream);
 			
 			String title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
-			page.header(title, isPopup);
+			page.header(title, isPopup || isFrame);
 			
-			page.open("div","topmenu");	
-			if(isPopup) page.span(title, ".button");
+			if(!isFrame)
+			{
+				page.open("div","topmenu");	
+				if(isPopup) page.span(title, ".button");
 			
-			// User-specific panel
+// TODO: should be hidden in CSS
+#ifndef ANDROID
+				if(!isPopup)
+				{
+					String popupUrl = Http::AppendGet(request.fullUrl, "popup");
+					page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
+				}
+#endif
+				
+				page.close("div");
+			}
+			
+			page.open("div", ".replypanel");
+			
 			User *user = getAuthenticatedUser(request);
 			if(user)
 			{
-				//page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+user->urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname', '"+user->urlPrefix()+"/myself/files/_upload/?json'); return false;\">Send file</a>");
-				
 				page.javascript("var TokenMail = '"+user->generateToken("mail")+"';\n\
 						var TokenDirectory = '"+user->generateToken("directory")+"';\n\
 						var UrlSelector = '"+user->urlPrefix()+"/myself/files/?json';\n\
 						var UrlUpload = '"+user->urlPrefix()+"/files/_upload/?json';");
-			}
-			
-// TODO: should be hidden in CSS
-#ifndef ANDROID
-			if(!isPopup)
-			{
-				String popupUrl = Http::AppendGet(request.fullUrl, "popup");
-				page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
-			}
-#endif
-			page.close("div");
-			
-			page.open("div", ".replypanel");
-			
-			if(user)
-			{
+				
 				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector(UrlSelector, '#fileSelector', 'input.attachment', 'input.attachmentname', UrlUpload); return false;\"><img alt=\"File\" src=\"/paperclip.png\"></a>");
 			}
 			
@@ -280,6 +294,7 @@ void Board::http(const String &prefix, Http::Request &request)
 			else page.open("div", "board.box");
 			
 			page.open("div", "mail");
+			page.open("p"); page.text("No messages"); page.close("p");
 			page.close("div");
 			
 			page.close("div");

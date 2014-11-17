@@ -29,6 +29,8 @@
 
 #include <nettle/sha1.h>
 #include <nettle/sha2.h>
+#include <nettle/aes.h>
+#include <nettle/ctr.h>
 #include <nettle/rsa.h>
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
@@ -128,6 +130,59 @@ public:
 	
 private:
 	struct sha512_ctx mCtx;
+};
+
+class Cipher : public Stream
+{
+public:
+	Cipher(Stream *stream, bool mustDelete = false);
+	~Cipher(void);
+	
+	virtual void setEncryptKey(const BinaryString &key) = 0;
+	virtual void setDecryptKey(const BinaryString &key) = 0;
+	virtual void setInitializationVector(const BinaryString &iv) = 0;
+	
+	// Stream
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
+	void seekRead(int64_t position);	// Unavailable
+	void seekWrite(int64_t position);	// Unavailable
+	int64_t tellRead(void) const;
+	int64_t tellWrite(void) const;
+	void close(void);
+	
+protected:
+	virtual size_t blockSize(void) const = 0;
+	virtual void encryptBlock(char *block, size_t size) = 0;
+	virtual void decryptBlock(char *block, size_t size) = 0;
+	
+private:
+	Stream *mStream;
+	bool mMustDelete;
+	
+	char *mReadBlock, *mWriteBlock;
+	size_t mReadBlockSize, mWriteBlockSize;
+	uint64_t mReadPosition, mWritePosition;
+};
+
+// AES-CTR implementation
+class Aes : public Cipher
+{
+public:
+	Aes(Stream *stream, bool mustDelete = false);
+	~Aes(void);
+	
+	void setEncryptKey(const BinaryString &key);
+	void setDecryptKey(const BinaryString &key);
+	void setInitializationVector(const BinaryString &iv);
+	
+protected:
+	size_t blockSize(void) const;
+	void encryptBlock(char *block, size_t size);
+	void decryptBlock(char *block, size_t size);
+	
+private:
+	struct CTR_CTX(struct aes_ctx, AES_BLOCK_SIZE) mCtx;
 };
 
 class Rsa

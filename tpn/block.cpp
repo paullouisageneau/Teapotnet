@@ -182,7 +182,7 @@ void Block::waitContent(void) const
 		// TODO: remove block from cache
 	}
 	else {
-		// Content is available, don't wait for Store ! 
+		// Content is available, don't wait for Store !
 	}
 }
 

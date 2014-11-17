@@ -46,7 +46,7 @@ public:
 	~Resource(void);
 	
 	void fetch(const BinaryString &digest, bool localOnly = false);
-	void process(const String &filename, const String &name, const String &type);
+	void process(const String &filename, const String &name, const String &type, const String &secret = "");
 	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
@@ -93,6 +93,7 @@ public:
 		bool deserialize(Serializer &s);
 		
 		SerializableArray<BinaryString> blockDigests;
+		BinaryString salt;	// if not empty, content is crypted
 	};
 
 	class DirectoryRecord: public MetaRecord

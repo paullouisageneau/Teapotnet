@@ -323,6 +323,8 @@ void Core::publish(String prefix, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
+	LogDebug("Core::subscribe", "Publishing " + prefix);
+	
 	mPublishers[prefix].insert(publisher);
 	
 	BinaryString target;
@@ -366,17 +368,18 @@ void Core::subscribe(String prefix, Subscriber *subscriber)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 
+	LogDebug("Core::subscribe", "Subscribing " + prefix);
+	
 	mSubscribers[prefix].insert(subscriber);
 	
 	// Local publishers
-	// TODO
-	//matchPublishers(prefix);
+	matchPublishers(prefix, Identifier::Null);
 	
 	// Immediatly send subscribe message
 	BinaryString payload;
 	BinarySerializer serializer(&payload);
 	serializer.write(prefix);
-	outgoing(Message::Forward, Message::Subscribe, payload);
+	outgoing(Message::Lookup, Message::Subscribe, payload);
 }
 
 void Core::unsubscribe(String prefix, Subscriber *subscriber)
@@ -664,6 +667,8 @@ void Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
 
 void Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
+	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
+	
 	Message message;
 	message.prepare(Identifier::Null, dest, type, content);
 	message.payload.write(payload);
@@ -1322,8 +1327,8 @@ Core::StreamBackend::~StreamBackend(void)
 
 SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 {
-	for(Set<Address>::const_iterator it = locator.addresses.begin();
-		it != locator.addresses.end();
+	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
+		it != locator.addresses.rend();
 		++it)
 	{
 		try {
@@ -1346,7 +1351,12 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator
 	LogDebug("Core::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
 	try {
-		sock = new Socket(addr);
+		const double timeout = 5.;		// TODO
+		
+		sock = new Socket;
+		sock->setConnectTimeout(timeout);
+		sock->connect(addr);
+		
 		transport = new SecureTransportClient(sock, NULL, "", false);	// stream mode
 	}
 	catch(...)
@@ -1397,8 +1407,8 @@ Core::DatagramBackend::~DatagramBackend(void)
 
 SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 {
-	for(Set<Address>::const_iterator it = locator.addresses.begin();
-		it != locator.addresses.end();
+	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
+		it != locator.addresses.rend();
 		++it)
 	{
 		try {

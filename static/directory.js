@@ -155,7 +155,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 			$(object).append('<form id="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
 			$('#selector_file')
 				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
-				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">New file</a>')
+				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Other file</a>')
 				.change(function() {
 					$(object).children().hide();
 					$(object).append('<span>Please wait...</span>');

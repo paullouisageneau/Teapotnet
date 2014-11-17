@@ -444,8 +444,7 @@ SecureTransport::Certificate::Certificate(const String &certFilename, const Stri
 
 SecureTransport::Certificate::~Certificate(void)
 {
-	// TODO
-	//gnutls_certificate_free_credentials(mCreds);
+	gnutls_certificate_free_credentials(mCreds);
 }
 
 void SecureTransport::Certificate::install(gnutls_session_t session, String &priorities)

@@ -171,7 +171,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
-       	 	mBoard = new Board("/" + identifier().toString());
+       	 	mBoard = new Board("/" + identifier().toString(), mName);
 	}
 	catch(...)
 	{
@@ -450,6 +450,11 @@ const Rsa::PublicKey &User::publicKey(void) const
 	return mPublicKey; 
 }
 
+const Rsa::PrivateKey &User::privateKey(void) const
+{
+	return mPrivateKey; 
+}
+
 SecureTransport::Certificate *User::certificate(void) const
 {
 	return mCertificate;
@@ -589,6 +594,19 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.br();
 			page.close("div");
 
+			page.open("div", "header");
+			page.link("/?changeuser", "Change account", ".button");
+			page.open("h1");
+			const String instance = Core::Instance->getName().before('.');
+			page.openLink(profile()->urlPrefix());
+			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
+			page.text(name());
+#ifndef ANDROID
+			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
+#endif
+			page.closeLink();
+			page.close("h1");
+			page.close("div");
 			
 			page.open("div","contacts.box");
 			
@@ -649,149 +667,6 @@ void User::http(const String &prefix, Http::Request &request)
 			}
 			page.close("div");
 			
-			page.close("div");
-
-// End of leftcolumn
-
-			page.open("div", "rightcolumn");
-
-			page.open("div", "rightheader");
-			page.link("/?changeuser", "Change account", ".button");
-			page.open("h1");
-			const String instance = Core::Instance->getName().before('.');
-			page.openLink(profile()->urlPrefix());
-			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
-			page.text(name());
-#ifndef ANDROID
-			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
-#endif
-			page.closeLink();
-			page.close("h1");
-			page.close("div");
-			
-			String broadcastUrl = "/mails";
-			
-			page.open("div", "statuspanel");
-			page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector('"+urlPrefix()+"/myself/files/?json', '#fileSelector', 'input.attachment', 'input.attachmentname','"+generateToken("directory")+"'); return false;\"><img src=\"/paperclip.png\" alt=\"File\"></a>");
-			page.openForm("#", "post", "statusform");
-			page.input("hidden", "attachment");
-			page.input("hidden", "attachmentname");
-			page.textarea("statusinput");
-			//page.button("send","Send");
-			//page.br();
-			page.closeForm();
-			page.div("",".attachedfile");
-			page.close("div");
-
-			page.div("", "fileSelector");
-
-			page.open("div", "newsfeed.box");
-
-			page.open("div", "optionsnewsfeed");
-
-			StringMap optionsCount;
-			optionsCount["&count=20"] << "Last 20";
-			optionsCount["&count=50"] << "Last 50";
-			optionsCount[""] << "All";
-			page.select("listCount", optionsCount, "&count=20");
-
-			StringMap optionsIncoming;
-			optionsIncoming["0"] << "Mine & others";
-			optionsIncoming["1"] << "Others only";
-			page.select("listIncoming", optionsIncoming, "0");
-
-			page.close("div");
-
-			page.open("h2");
-			page.text("Public messages");
-			page.close("h2");
-			
-			page.open("div", "statusmails");
-			page.open("p"); page.text("No public mails yet !"); page.close("p");
-			page.close("div");
-
-			page.close("div");
-		 
-			page.javascript("var TokenMail = '"+generateToken("mail")+"';\n\
-					var TokenDirectory = '"+generateToken("directory")+"';\n\
-					function postStatus() {\n\
-					var mail = $(document.statusform.statusinput).val();\n\
-					var attachment = $(document.statusform.attachment).val();\n\
-					if(!mail) return false;\n\
-					var fields = {};\n\
-					fields['mail'] = mail;\n\
-					fields['public'] = 1;\n\
-					fields['token'] = '"+generateToken("mail")+"';\n\
-					if(attachment) fields['attachment'] = attachment;\n\
-					var request = $.post('"+prefix+broadcastUrl+"/"+"', fields);\n\
-					request.fail(function(jqXHR, textStatus) {\n\
-						alert('The mail could not be sent.');\n\
-					});\n\
-					$(document.statusform.statusinput).val('');\n\
-					$(document.statusform.attachment).val('');\n\
-					$(document.statusform.attachmentname).val('');\n\
-					$('#statuspanel .attachedfile').hide();\n\
-				}\n\
-				$(document.statusform.attachment).change(function() {\n\
-					$('#statuspanel .attachedfile').html('');\n\
-					$('#statuspanel .attachedfile').hide();\n\
-					var filename = $(document.statusform.attachmentname).val();\n\
-					if(filename != '') {\n\
-						$('#statuspanel .attachedfile')\n\
-							.append('<img class=\"icon\" src=\"/file.png\">')\n\
-							.append('<span class=\"filename\">'+filename+'</span>')\n\
-							.show();\n\
-					}\n\
-					var input = $(document.statusform.statusinput);\n\
-					input.focus();\n\
-					if(input.val() == '') {\n\
-						input.val(filename).select();\n\
-					}\n\
-				});\n\
-				document.statusform.onsubmit = function() {\n\
-					postStatus();\n\
-					return false;\n\
-				}\n\
-				$(document).ready(function() {\n\
-					document.statusform.statusinput.value = 'Click here to post a public mail for all your contacts';\n\
-					document.statusform.statusinput.style.color = 'grey';\n\
-				});\n\
-				document.statusform.statusinput.onblur = function() {\n\
-					if(document.statusform.statusinput.value == '') {\n\
-						document.statusform.statusinput.value = 'Click here to post a public mail for all your contacts';\n\
-						document.statusform.statusinput.style.color = 'grey';\n\
-					}\n\
-				}\n\
-				document.statusform.statusinput.onfocus = function() {\n\
-					if(document.statusform.statusinput.style.color != 'black') {\n\
-						document.statusform.statusinput.value = '';\n\
-						document.statusform.statusinput.style.color = 'black';\n\
-					}\n\
-				}\n\
-				document.searchForm.query.onfocus = function() {\n\
-					document.searchForm.query.value = '';\n\
-					document.searchForm.query.style.color = 'black';\n\
-				}\n\
-				document.searchForm.query.onblur = function() {\n\
-					document.searchForm.query.style.color = 'grey';\n\
-					document.searchForm.query.value = 'Search for files...';\n\
-				}\n\
-				var listCount = document.getElementsByName(\"listCount\")[0];\n\
-				listCount.addEventListener('change', function() {\n\
-					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
-				}, true);\n\
-				\n\
-				var listIncoming = document.getElementsByName(\"listIncoming\")[0];\n\
-				listIncoming.addEventListener('change', function() {\n\
-					updateMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming='+listIncoming.value.toString()+listCount.value.toString(),'#statusmails');\n\
-				}, true);\n\
-				setMailsReceiver('"+prefix+broadcastUrl+"/?json&public=1&incoming=0&count=20','#statusmails');\n\
-				//$('#newsfeed').on('blur','.reply', function (e) {\n\
-				//	$(this).hide();\n\
-				//});\n\
-				$('.attachedfile').hide();\n\
-			");
-			
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
 			page.link(HELPLINK, "Help", "", true);
@@ -800,6 +675,14 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text(" - ");
 			page.link(BUGSLINK, "Report a bug", "", true);
 			page.close("div");
+			
+			page.close("div"); // leftcolumn
+
+			page.open("div", "rightcolumn");
+			
+			page.raw("<iframe src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
+			
+			page.close("div");	// rightcolumn
 
 			page.close("div");
 			page.close("div");

@@ -87,7 +87,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 
 }
 
-void Resource::process(const String &filename, const String &name, const String &type)
+void Resource::process(const String &filename, const String &name, const String &type, const String &secret)
 {
 	// Fill index record
 	delete mIndexRecord;
@@ -379,6 +379,7 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 	mapping["type"] = &type;
 	mapping["size"] = &sizeWrapper;
 	mapping["digests"] = &blockDigests;
+	mapping["salt"] = &salt;
 	
 	s.outputObject(mapping);
 }
@@ -392,6 +393,7 @@ bool Resource::IndexRecord::deserialize(Serializer &s)
 	mapping["type"] = &type;
 	mapping["size"] = &sizeWrapper;
 	mapping["digests"] = &blockDigests;
+	mapping["salt"] = &salt;
 	
 	return s.inputObject(mapping);
 }
