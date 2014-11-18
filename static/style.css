@@ -334,7 +334,7 @@ a.button:hover
 {
 	width: 100%;
 	height: 100%;
-	max-width: 60em;
+	max-width: 70em;
 	margin-top: 0;
 	margin-bottom: 0.5em;
 	margin-left: auto;
@@ -386,9 +386,8 @@ a.button:hover
 {
 	display: table-cell;
 	vertical-align: top;
-	width: 28.2%;
+	width: 38%;
 	height: 100%;
-	min-width: 320px;
 	margin: 0;
 	padding: 1em;
 	background : transparent;
@@ -400,10 +399,29 @@ a.button:hover
 {
 	display: table-cell;
 	vertical-align: top;
-	width: 61.8%;
+	width: 62%;
 	height: 100%;
 	margin: 0;
 	padding: 1em;
+	padding-right: 2em;
+}
+
+#leftpage
+{
+	width: 80%;
+	height: 100%;
+	min-width: 400px;
+	margin-top: 0;
+	margin-bottom: 0.5em;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0;
+}
+
+#rightcolumn iframe
+{
+	display: inline-block;
+	max-width: 72em;
 }
 
 #header .button
@@ -427,13 +445,10 @@ a.button:hover
 
 #footer
 {
-	bottom: 0;
-	left: 0;
 	width: 100%;
 	margin-bottom: 1em;
 	font-size: 0.8em;
 	text-align: center;
-	padding-top: 1em;
 	background-color: rgba(24,24,24,0);
 }
 
@@ -1449,15 +1464,6 @@ form #trackerlink
 		padding: 0;
 	}
 	
-	h1
-	{
-		display: block;
-		width: 90%;
-		text-align: center;
-		box-sizing: border-box;
-		-moz-box-sizing: border-box;
-	}
-	
 	#page
 	{
 		width: 100%;
@@ -1474,34 +1480,35 @@ form #trackerlink
 
 	#wrapper 
 	{
+		display: block;
 		width: 100%;
+		height: 100%;
+		max-width: 1024px;
 		margin: 0;
 		padding: 0;
 	}
 
 	#leftcolumn
 	{
-		float: none;
-		clear: both;
+		display: block;
 		width: 100%;
-		max-width: 100%;
-		margin-left: auto;
-		margin-right: auto;
+		height: auto;
+		margin: 0;
 		padding: 0;
 	}
 
 	#rightcolumn 
 	{
-		float: none;
-		display: block;
-		clear: both;
 		display: block;
 		width: 100%;
-		max-width: 100%;
-		margin-top: 0.5em;
-		margin-left: auto;
-		margin-right: auto;
+		height: auto;
+		margin: 0;
 		padding: 0;
+	}
+	
+	#leftpage
+	{
+		width: 100%; 
 	}
 
 	#logo
@@ -1638,31 +1645,31 @@ form #trackerlink
 {
 	#wrapper 
 	{
+		display: block;
+		width: 100%;
+		height: auto;
 		max-width: 1024px;
-		margin: 0 auto;
+		margin: 0;
 	}
 
 	#leftcolumn
 	{
-		float: none;
-		width: 768px;
-		max-width: 768px;
-		margin-left: auto;
-		margin-right: auto;
-		padding: 0;
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	#rightcolumn 
 	{
-		float: none;
-		width: 768px;
-		max-width: 768px;
-		margin-top: 0.5em;
-		margin-left: auto;
-		margin-right: auto;
-		padding: 0;
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 	
+	#leftpage
+	{
+		width: 100%; 
+	}
 }
 
 /* End of Tablet version */

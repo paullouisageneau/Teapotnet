@@ -577,8 +577,8 @@ void User::http(const String &prefix, Http::Request &request)
 #endif
 		
 			page.open("div", "wrapper");
-			
 			page.open("div","leftcolumn");
+			page.open("div","leftpage");
 
 			page.open("div", "logo");
 			page.openLink("/"); page.image("/logo.png", APPNAME); page.closeLink();
@@ -676,6 +676,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.link(BUGSLINK, "Report a bug", "", true);
 			page.close("div");
 			
+			page.close("div"); // leftpage
 			page.close("div"); // leftcolumn
 
 			page.open("div", "rightcolumn");
