@@ -102,6 +102,8 @@ bool Board::add(Mail &mail)
 
 BinaryString Board::digest(void) const
 {
+	Synchronize(this);
+	
 	if(mDigest.empty())
 	{
 		String tempFileName = File::TempName();
@@ -196,7 +198,8 @@ void Board::http(const String &prefix, Http::Request &request)
 					{
 						BinaryString attachment;
 						request.post["attachment"].extract(attachment);
-						mail.addAttachment(attachment);
+						if(!attachment.empty())
+							mail.addAttachment(attachment);
 					}
 					
 					if(request.post.contains("author"))

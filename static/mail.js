@@ -126,7 +126,7 @@ function setMailReceiverRec(url, object, next) {
 			
 			$('#'+id+' .content').html(mail.content.escape().smileys().linkify().split("\n").join("<br>"));
 			
-			if(mail.attachments) {
+			if(mail.attachments && mail.attachments[0]) {
 				
 				$('#'+id+' .header').after('<span class="attachment"></span>');
 				$('#'+id+' .attachment').html('<img class="icon" src="/smallpaperclip.png">Loading attachment...');

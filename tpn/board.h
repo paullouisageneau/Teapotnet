@@ -36,7 +36,7 @@
 
 namespace tpn
 {
-	
+
 class Board : public Synchronizable, public Core::Publisher, public Core::Subscriber, public HttpInterfaceable
 {
 public:

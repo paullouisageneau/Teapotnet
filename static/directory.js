@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function listDirectory(url, object, showButtons, privateMode) {
+function listDirectory(url, object, showButtons) {
 
 	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
-	// Loop ajax call until empty or 404
+	// TODO: Loop ajax call until empty or 404
 	
 	$.ajax({
 		url: url,
@@ -42,7 +42,7 @@ function listDirectory(url, object, showButtons, privateMode) {
 				.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
 				
 			$(object).find('a.refreshlink').click(function() {
-				listDirectory(url, object, showButtons, privateMode);
+				listDirectory(url, object, showButtons);
 				return false;
 			});
 		}
@@ -55,9 +55,8 @@ function listDirectory(url, object, showButtons, privateMode) {
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				
-				if(resource.name.length > 0 && resource.name[0] == '_')
-					if(resource.name == "_upload") resource.name = "Sent files";
-					else continue;
+				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
+					continue;
 				
 				var link = '/file/' + resource.digest;
 				var line = '<tr>';
@@ -110,7 +109,7 @@ function listDirectory(url, object, showButtons, privateMode) {
 		}
 		
 		$(object).find('a.refreshlink').click(function() {
-			listDirectory(url, object, showButtons, privateMode);
+			listDirectory(url, object, showButtons);
 			return false;
 		});
 	});
@@ -201,7 +200,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 			var func;
 			(function(resource) { // copy resource (only the reference is passed to callbacks)
 				
-			  	if(resource.name.length > 0 && resource.name[0] == '_')
+			  	if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
 					if(resource.name == "_upload") resource.name = "Sent files";
 					else return;
 			  

@@ -253,7 +253,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				page.close("div");
 				
 				page.div("", "list.box");
-				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+				page.javascript("listDirectory('"+reqPrefix+"','#list',true);");
 				page.footer();
 				return;
 			}
