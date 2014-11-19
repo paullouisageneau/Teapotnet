@@ -674,7 +674,7 @@ bool AddressBook::publish(const Identifier &identifier, const String &tracker)
 		post["addresses"] = addresses;
 	
 		const String externalPort = Config::Get("external_port");
-		if(!externalPort.empty() && externalPort != "auto") 
+		if(!externalPort.empty() && externalPort != "auto")
 		{
 			post["port"] = externalPort;
 		}

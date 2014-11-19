@@ -245,6 +245,7 @@ bool Address::isPrivate(void) const
 		if(b[0] == 10) return true;
 		if(b[0] == 172 && b[1] >= 16 && b[1] < 32) return true;
 		if(b[0] == 192 && b[1] == 168) return true;
+		if(b[0] == 169 && b[1] == 254) return true;	// link-local
 		break;
 	}
 

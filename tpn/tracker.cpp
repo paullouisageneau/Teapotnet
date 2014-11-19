@@ -87,9 +87,12 @@ void Tracker::process(Http::Request &request)
 				}
 				
 				Address addr(host, port);
-				insert(identifier, addr);
-				++count;
-				LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				if(!addr.isLocal())
+				{
+					insert(identifier, addr);
+					++count;
+					LogDebug("Tracker", "POST " + identifier.toString() + " -> " + addr.toString());
+				}
 			}
 			
 			String addresses;
