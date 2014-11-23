@@ -1680,6 +1680,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			response.send();
 			return;
 		}
+		else if(directory == "board")
+		{
+			if(isSelf()) throw 404;
+			
+			Http::Response response(request, 301);	// Moved permanently
+			response.headers["Location"] = mBoard->urlPrefix();
+			response.send();
+			return;
+		}
 		else if(directory == "chat")
 		{
 			if(isSelf()) throw 404;
