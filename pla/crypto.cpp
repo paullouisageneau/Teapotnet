@@ -378,19 +378,19 @@ Aes::~Aes(void)
   
 }
 
-void Aes::setEncryptKey(const BinaryString &key)
+void Aes::setEncryptionKey(const BinaryString &key)
 {
 	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes());
 }
 
-void Aes::setDecryptKey(const BinaryString &key)
+void Aes::setDecryptionKey(const BinaryString &key)
 {
 	aes_set_decrypt_key(&mCtx.ctx, key.size(), key.bytes()); 
 }
 
 void Aes::setInitializationVector(const BinaryString &iv)
 {
-	Assert(iv.size() == AES_BLOCK_SIZE);
+	Assert(iv.size() >= AES_BLOCK_SIZE);
 	CTR_SET_COUNTER(&mCtx, iv.bytes());
 }
 

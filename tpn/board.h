@@ -60,6 +60,7 @@ public:
 private:
 	String mName;
 	String mDisplayName;
+	BinaryString mSecret;
 	Identifier mOwner;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;

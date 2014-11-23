@@ -47,6 +47,7 @@ public:
 	
 	void fetch(const BinaryString &digest, bool localOnly = false);
 	void process(const String &filename, const String &name, const String &type, const String &secret = "");
+	void cache(const String &filename, const String &name, const String &type, const String &secret = "");
 	BinaryString digest(void) const;
 	
 	int blocksCount(void) const;
@@ -56,6 +57,7 @@ public:
 	String  name(void) const;
 	String  type(void) const;
 	int64_t size(void) const;
+	BinaryString salt(void) const;
 	bool isDirectory(void) const;
 	bool isLocallyAvailable(void) const;
 	
@@ -93,7 +95,7 @@ public:
 		bool deserialize(Serializer &s);
 		
 		SerializableArray<BinaryString> blockDigests;
-		BinaryString salt;	// if not empty, content is crypted
+		BinaryString salt;
 	};
 
 	class DirectoryRecord: public MetaRecord
@@ -116,7 +118,7 @@ public:
 	class Reader : public Stream
 	{
 	public:
-		Reader(Resource *resource);
+		Reader(Resource *resource, const String &secret = "");
 		~Reader(void);
 	  
 		// Stream
@@ -138,6 +140,8 @@ public:
 		int mCurrentBlockIndex;
 		Block *mCurrentBlock;
 		Block *mNextBlock;
+		
+		BinaryString mKey;
 	};
 	
 protected:

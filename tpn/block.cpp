@@ -22,6 +22,8 @@
 #include "tpn/block.h"
 #include "tpn/store.h"
 
+#include "pla/crypto.h"
+
 namespace tpn
 {
 
@@ -48,13 +50,42 @@ bool Block::ProcessFile(File &file, Block &block)
 	
 	block.mFile = new File(file.name(), File::Read);
 	block.mOffset = offset;
-	block.mSize = Size;
+	block.mSize = file.tellRead() - offset;
 	block.mFile->seekRead(offset);
-	
-	// store is already notified
+	return true;
 }
- 
-Block::Block(const Block &block)
+
+bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, BinaryString &digest, String *newFileName)
+{
+	String tempFileName = File::TempName();
+	File tempFile(tempFileName, File::Truncate);
+	
+	Aes cipher(&tempFile);
+	cipher.setEncryptionKey(key);
+	cipher.setInitializationVector(iv);
+	cipher.write(stream);
+	
+	String fileName = Cache::Instance->move(tempFileName);
+	if(newFileName) *newFileName = fileName;
+	
+	File file(fileName, File::Read);
+	return Block::ProcessFile(file, digest);
+}
+
+bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block)
+{
+	String fileName;
+	if(!EncryptFile(stream, key, iv, block.mDigest, &fileName))
+		return false;
+	
+	block.mFile = new File(fileName, File::Read);
+	block.mOffset = 0;
+	block.mSize = block.mFile->size();
+	return true;
+}
+
+Block::Block(const Block &block) :
+	mCipher(NULL)
 {
 	mFile = NULL;
 	mOffset = 0;
@@ -63,7 +94,8 @@ Block::Block(const Block &block)
 }
  
 Block::Block(const BinaryString &digest) :
-	mDigest(digest)
+	mDigest(digest),
+	mCipher(NULL)
 {
 	mFile = Store::Instance->getBlock(digest, mSize);
 	if(mFile)
@@ -77,7 +109,8 @@ Block::Block(const BinaryString &digest) :
 }
 
 Block::Block(const BinaryString &digest, const String &filename, int64_t offset, int64_t size) :
-	mDigest(digest)
+	mDigest(digest),
+	mCipher(NULL)
 {
 	mFile = new File(filename, File::Write);
 	mOffset = offset;
@@ -86,7 +119,8 @@ Block::Block(const BinaryString &digest, const String &filename, int64_t offset,
 	notifyStore();
 }
 
-Block::Block(const String &filename, int64_t offset, int64_t size)
+Block::Block(const String &filename, int64_t offset, int64_t size) :
+	mCipher(NULL)
 {
 	mFile = new File(filename, File::Read);
 	mOffset = offset;
@@ -101,12 +135,26 @@ Block::Block(const String &filename, int64_t offset, int64_t size)
 
 Block::~Block(void)
 {
+	delete mCipher;
 	delete mFile;
 }
 
 BinaryString Block::digest(void) const
 {
 	return mDigest; 
+}
+
+void Block::setDecryption(const BinaryString &key, const BinaryString &iv)
+{
+	delete mCipher;
+	mCipher = new Aes(mFile, false);	// don't delete file
+	mCipher->setDecryptionKey(key);
+	mCipher->setInitializationVector(iv);
+}
+
+bool Block::hasDecryption(void) const
+{
+	return (mCipher != NULL);
 }
 
 size_t Block::readData(char *buffer, size_t size)
@@ -116,7 +164,8 @@ size_t Block::readData(char *buffer, size_t size)
 	if(left <= 0) return 0;
 	size = size_t(std::min(left, int64_t(size)));
 	
-	return mFile->readData(buffer, size);
+	if(mCipher) return mCipher->readData(buffer, size);
+	else return mFile->readData(buffer, size);
 }
 
 void Block::writeData(const char *data, size_t size)
@@ -133,7 +182,17 @@ bool Block::waitData(double &timeout)
 void Block::seekRead(int64_t position)
 {
 	waitContent();
-	mFile->seekRead(mOffset + position);
+	
+	if(mCipher)
+	{
+		if(position < mCipher->tellRead())
+			throw Unsupported("Seeking backward in crypted block");
+		
+		mCipher->ignore(position - mCipher->tellRead());
+	}
+	else {
+		mFile->seekRead(mOffset + position);
+	}
 }
 
 void Block::seekWrite(int64_t position)
@@ -143,7 +202,8 @@ void Block::seekWrite(int64_t position)
 
 int64_t Block::tellRead(void) const
 {
-	return mFile->tellRead() - mOffset;
+	if(mCipher) return mCipher->tellRead() - mOffset;
+	else return mFile->tellRead() - mOffset;
 }
 
 int64_t Block::tellWrite(void) const

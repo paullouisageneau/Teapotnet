@@ -218,6 +218,21 @@ template<typename T> T sqr(T x)
 	return x*x;
 }
 
+// Optimized Hamming weight computation
+template<typename T> unsigned int bitcount(T n)
+{
+	static T m1  = (~T(0)) / 3;
+	static T m2  = (~T(0)) / 5;
+	static T m4  = (~T(0)) / 17;
+	static T h01 = (~T(0)) / 255;
+	
+	n-= (n >> 1) & m1;			// Put count of each 2 bits into those 2 bits
+	n = (n & m2) + ((n >> 2) & m2);		// Put count of each 4 bits into those 4 bits 
+	n = (n + (n >> 4)) & m4;		// Put count of each 8 bits into those 8 bits 
+	
+	return (n * h01) >> (sizeof(T)*8 - 8);  // Returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ... 
+}
+
 inline void sleep(double secs)
 {
 #ifdef WINDOWS

@@ -138,8 +138,8 @@ public:
 	Cipher(Stream *stream, bool mustDelete = false);
 	~Cipher(void);
 	
-	virtual void setEncryptKey(const BinaryString &key) = 0;
-	virtual void setDecryptKey(const BinaryString &key) = 0;
+	virtual void setEncryptionKey(const BinaryString &key) = 0;
+	virtual void setDecryptionKey(const BinaryString &key) = 0;
 	virtual void setInitializationVector(const BinaryString &iv) = 0;
 	
 	// Stream
@@ -172,8 +172,8 @@ public:
 	Aes(Stream *stream, bool mustDelete = false);
 	~Aes(void);
 	
-	void setEncryptKey(const BinaryString &key);
-	void setDecryptKey(const BinaryString &key);
+	void setEncryptionKey(const BinaryString &key);
+	void setDecryptionKey(const BinaryString &key);
 	void setInitializationVector(const BinaryString &iv);
 	
 protected:

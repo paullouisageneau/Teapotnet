@@ -28,7 +28,7 @@ namespace tpn
 {
 
 Fountain::Generator::Generator(uint32_t seed) :
-	mSeed(uint(seed))
+	mSeed(uint64_t(seed))
 {
 
 }
@@ -367,7 +367,7 @@ void Fountain::Combination::resize(size_t size, bool zerofill)
 	if(mSize != size)
 	{
 		char *newData = new char[size];
-		std::copy(newData, newData + std::min(mSize, size), newData);
+		std::copy(mData, mData + std::min(mSize, size), newData);
 		if(zerofill && size > mSize)
 			std::fill(newData + mSize, newData + size, 0);
 		

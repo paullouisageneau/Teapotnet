@@ -89,6 +89,15 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 
 void Resource::process(const String &filename, const String &name, const String &type, const String &secret)
 {
+	BinaryString salt;
+	
+	// If secret not empty then this is an encrypted resource
+	if(!secret.empty())
+	{
+		Random rnd;
+		rnd.read(salt, 32);	// 256 bits
+	}
+	
 	// Fill index record
 	delete mIndexRecord;
 	int64_t size = File::Size(filename);
@@ -96,13 +105,43 @@ void Resource::process(const String &filename, const String &name, const String 
 	mIndexRecord->name = name;
 	mIndexRecord->type = type;
 	mIndexRecord->size = size;
+	mIndexRecord->salt = salt;
 	mIndexRecord->blockDigests.reserve(size/Block::Size);
 	
 	// Process blocks
 	File file(filename, File::Read);
 	BinaryString blockDigest;
-	while(Block::ProcessFile(file, blockDigest))
-		mIndexRecord->blockDigests.append(blockDigest);
+	
+	if(!secret.empty())
+	{
+		BinaryString key;
+		Sha256().pbkdf2_hmac(secret, salt, key, 32, 100000);
+		
+		uint64_t i = 0;
+		while(true)
+		{
+			BinaryString subsalt;
+			subsalt.writeBinary(i);
+			
+			// Generate subkey
+			BinaryString subkey;
+			Sha256().pbkdf2_hmac(key, subsalt, subkey, 32, 100);
+			
+			// Generate iv
+			BinaryString iv;
+			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
+			
+			if(!Block::EncryptFile(file, key, iv, blockDigest))
+				break;
+			
+			mIndexRecord->blockDigests.append(blockDigest);
+			++i;
+		}
+	} 
+	else {
+		while(Block::ProcessFile(file, blockDigest))
+			mIndexRecord->blockDigests.append(blockDigest);
+	}
 	
 	// Create index
 	String tempFileName = File::TempName();
@@ -115,6 +154,20 @@ void Resource::process(const String &filename, const String &name, const String 
 	// Create index block
 	delete mIndexBlock;
 	mIndexBlock = new Block(indexFilePath);
+}
+
+void Resource::cache(const String &filename, const String &name, const String &type, const String &secret)
+{
+	if(!secret.empty())
+	{
+		// Blocks will be copied to cache since resource is encrypted
+		process(filename, name, type, secret);
+		File::Remove(filename);
+	}
+	else {
+		// Move to cache and process
+		process(Cache::Instance->move(filename), name, type, "");
+	}
 }
 
 BinaryString Resource::digest(void) const
@@ -165,6 +218,12 @@ int64_t Resource::size(void) const
 	else return 0;
 }
 
+BinaryString Resource::salt(void) const
+{
+	if(mIndexRecord) return mIndexRecord->salt;
+	else return "";
+}
+
 bool Resource::isDirectory(void) const
 {
 	return (type() == "directory");
@@ -184,16 +243,16 @@ bool Resource::isLocallyAvailable(void) const
 void Resource::serialize(Serializer &s) const
 {
 	if(!mIndexRecord) throw Unsupported("Serializing empty resource");
-  
+	
 	ConstSerializableWrapper<int64_t> sizeWrapper(mIndexRecord->size);
 	BinaryString digest(mIndexBlock->digest());
 	
 	Serializer::ConstObjectMapping mapping;
 	mapping["name"] = &mIndexRecord->name;
-        mapping["type"] = &mIndexRecord->type;
+	mapping["type"] = &mIndexRecord->type;
 	mapping["size"] = &sizeWrapper;
 	mapping["digest"] = &digest;
-
+	
 	s.outputObject(mapping);
 }
 
@@ -258,13 +317,22 @@ Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
 	return record;
 }
 
-Resource::Reader::Reader(Resource *resource) :
+Resource::Reader::Reader(Resource *resource, const String &secret) :
 	mResource(resource),
 	mReadPosition(0),
 	mCurrentBlock(NULL),
 	mNextBlock(NULL)
 {
 	Assert(mResource);
+	
+	if(!secret.empty())
+	{
+		if(mResource->salt().empty())
+			throw Exception("Expected encrypted resource");
+		
+		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000); 
+	}
+	
 	seekRead(0);	// Initialize positions
 }
 
@@ -277,6 +345,23 @@ Resource::Reader::~Reader(void)
 size_t Resource::Reader::readData(char *buffer, size_t size)
 {
 	if(!mCurrentBlock) return 0;	// EOF
+	
+	if(!mKey.empty() && mCurrentBlock->hasDecryption())
+	{
+		BinaryString subsalt;
+		subsalt.writeBinary(mCurrentBlockIndex);
+		
+		// Generate subkey
+		BinaryString subkey;
+		Sha256().pbkdf2_hmac(mKey, subsalt, subkey, 32, 100);
+			
+		// Generate iv
+		BinaryString iv;
+		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
+		
+		// Initialize decryption process
+		mCurrentBlock->setDecryption(subkey, iv);
+	}
 	
 	size_t ret;
 	if((ret = mCurrentBlock->readData(buffer, size)))

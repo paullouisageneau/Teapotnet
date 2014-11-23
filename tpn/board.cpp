@@ -106,9 +106,9 @@ BinaryString Board::digest(void) const
 	
 	if(mDigest.empty())
 	{
+		// Write messages to temporary file
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
-		
 		BinarySerializer serializer(&tempFile);
 		for(Set<Mail>::const_iterator it = mMails.begin();
 			it != mMails.end();
@@ -116,14 +116,14 @@ BinaryString Board::digest(void) const
 		{
 			serializer.write(*it);
 		}
-		
 		tempFile.close();
 		
+		// Move to cache and process
 		Resource resource;
-		resource.process(Cache::Instance->move(tempFileName), mName, "mail");
+		resource.cache(tempFileName, mName, "mail", mSecret);
 		
+		// Retrieve digest and store it
 		mDigest = resource.digest();
-		
 		Cache::Instance->storeMapping("/mail" + mName, mDigest);
 	}
   

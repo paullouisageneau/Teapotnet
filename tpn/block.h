@@ -44,6 +44,8 @@ public:
 	
 	static bool ProcessFile(File &file, Block &block);
 	static bool ProcessFile(File &file, BinaryString &digest);
+	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, BinaryString &digest, String *newFileName = NULL);
+	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block);
 	
 	Block(const Block &block);
 	Block(const BinaryString &digest);
@@ -52,6 +54,9 @@ public:
 	virtual ~Block(void);
 	
 	BinaryString digest(void) const;
+	
+	void setDecryption(const BinaryString &key, const BinaryString &iv); 
+	bool hasDecryption(void) const;
 	
 	// Stream
 	size_t readData(char *buffer, size_t size);
@@ -73,6 +78,7 @@ private:
 	BinaryString mDigest;
 	
 	mutable File *mFile;
+	mutable Cipher *mCipher;
 	mutable int64_t mOffset;
 	mutable int64_t mSize;
 };
