@@ -31,9 +31,10 @@
 namespace tpn
 {
 
-Board::Board(const String &name, const String &displayName) :
+Board::Board(const String &name, const String &secret, const String &displayName) :
 	mName(name),
 	mDisplayName(displayName),
+	mSecret(secret),
 	mHasNew(false)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO

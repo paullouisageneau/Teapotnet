@@ -1141,7 +1141,7 @@ void AddressBook::Contact::init(void)
 	
 	if(!mBoard)
 	{
-		mBoard = new Board("/" + identifier().toString(), name());	// Public board
+		mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
 	}
 	
 	if(!mProfile && !isSelf())

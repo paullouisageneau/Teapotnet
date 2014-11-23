@@ -40,7 +40,7 @@ namespace tpn
 class Board : public Synchronizable, public Core::Publisher, public Core::Subscriber, public HttpInterfaceable
 {
 public:
-	Board(const String &name, const String &displayName = "");
+	Board(const String &name, const String &secret = "", const String &displayName = "");
 	~Board(void);
 	
 	String urlPrefix(void) const;
@@ -60,7 +60,7 @@ public:
 private:
 	String mName;
 	String mDisplayName;
-	BinaryString mSecret;
+	String mSecret;
 	Identifier mOwner;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
