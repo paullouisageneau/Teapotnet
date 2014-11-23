@@ -38,14 +38,6 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	mHasNew(false)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
-
-	static int c = 0;
-	++c;
-	if(c == 5)
-	{
-		char *p= 0;
-		*p = 0;
-	}
 	
 	Interface::Instance->add(urlPrefix(), this);
 	

@@ -156,6 +156,7 @@ public:
 		String name(void) const;
 		String tracker(void) const;
 		String urlPrefix(void) const;
+		BinaryString secret(void) const;
 		Profile *profile(void) const;
 		
 		bool isSelf(void) const;
@@ -222,11 +223,12 @@ public:
 	  
 		AddressBook *mAddressBook;
 		Profile *mProfile;
-		Board *mBoard;
+		Board *mBoard, *mPrivateBoard;
 		
 		String mUniqueName, mName, mTracker;
 		Rsa::PublicKey mPublicKey;
-
+		BinaryString mHalfSecret, mSecret;
+		
 		typedef SerializableMap<uint64_t, Instance> InstancesMap;
 		InstancesMap mInstances;
 		

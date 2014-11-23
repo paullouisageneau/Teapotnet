@@ -1079,7 +1079,8 @@ bool AddressBook::Invitation::isInlineSerializable(void) const
 AddressBook::Contact::Contact(void) :
 	mAddressBook(NULL),
 	mProfile(NULL),
-	mBoard(NULL)
+	mBoard(NULL),
+	mPrivateBoard(NULL)
 {	
 
 }
@@ -1088,11 +1089,14 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mAddressBook(NULL),
 	mProfile(NULL),
 	mBoard(NULL),
+	mPrivateBoard(NULL),
 	mUniqueName(contact.mUniqueName),
 	mName(contact.mName),
 	mTracker(contact.mTracker),
 	mPublicKey(contact.mPublicKey),
-	mInstances(contact.mInstances)	
+	mHalfSecret(contact.mHalfSecret),
+	mSecret(contact.mSecret),
+	mInstances(contact.mInstances)
 {
 	setAddressBook(contact.mAddressBook);
 	// no init !
@@ -1109,7 +1113,8 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mTracker(tracker),
 	mPublicKey(pubKey),
 	mProfile(NULL),
-	mBoard(NULL)
+	mBoard(NULL),
+	mPrivateBoard(NULL)
 {
 	Assert(!uname.empty());
 	Assert(!name.empty());
@@ -1138,6 +1143,12 @@ void AddressBook::Contact::init(void)
 	mAddressBook->mScheduler.repeat(this, 300.);
 		
 	Interface::Instance->add(urlPrefix(), this);
+	
+	if(mHalfSecret.empty())
+	{
+		Random rnd(Random::Key);
+		rnd.readBinary(mHalfSecret, 32);
+	}
 	
 	if(!mBoard)
 	{
@@ -1238,6 +1249,14 @@ String AddressBook::Contact::urlPrefix(void) const
 	return mAddressBook->urlPrefix()+"/"+mUniqueName;
 }
 
+BinaryString AddressBook::Contact::secret(void) const
+{
+	Synchronize(mAddressBook);
+	if(mSecret.empty())
+		throw Exception("No secret for contact: " + mUniqueName);
+	return mSecret;
+}
+
 Profile *AddressBook::Contact::profile(void) const
 {
 	Synchronize(mAddressBook);
@@ -1265,198 +1284,6 @@ bool AddressBook::Contact::isConnected(uint64_t number) const
 	if(!getInstanceIdentifier(number, id)) return false;
 	return Core::Instance->hasPeer(id); 
 }
-
-/*
-bool AddressBook::Contact::connectAddress(const Address &addr, const String &instance, bool save)
-{
-	// Warning: NOT synchronized !
-	
-	if(addr.isNull()) return false;
-	if(instance == Core::Instance->getNumber()) return false;
-	
-	LogDebug("AddressBook::Contact", "Connecting " + instance + " on " + addr.toString() + "...");
-
-	const double timeout = 4.;	// TODO
-        const bool forceNoTunnel = (!addr.isPublic() || addr.port() == 443);	
-	const Identifier peer(this->peering(), instance);
-	
-	Socket *sock = NULL;
-	if(!Config::Get("force_http_tunnel").toBool() || forceNoTunnel)
-	{
-		try {
-			sock = new Socket(addr, timeout);
-		}
-		catch(const Exception &e)
-		{
-			LogDebug("AddressBook::Contact::connectAddress", String("Connection failed: ") + e.what());
-			sock = NULL;
-		}
-
-		if(sock) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=false)");
-	}
-
-	if(!sock || !Core::Instance->addPeer(sock, peer))
-	{
-		// Unable to connect, no direct connection or failure using direct connection
-		Stream *bs = NULL;
-		if(!forceNoTunnel)
-		{
-			try {
-				bs = new HttpTunnel::Client(addr, timeout);
-			}
-			catch(const Exception &e)
-			{
-				LogDebug("AddressBook::Contact::connectAddress", String("HTTP tunnel failed: ") + e.what());
-				bs = NULL;
-			}
-		
-			if(bs) LogInfo("AddressBook::Contact", "Reached peer " + addr.toString() + " for " + instance + " (tunnel=true)");
-		}
-
-		if(!bs || !Core::Instance->addPeer(bs, peer))
-		{
-			// HTTP tunnel unable to connect, no HTTP tunnel or failure using HTTP tunnel
-			return false;
-		}
-	}
-
-	// Success
-	if(save)
-	{
-		Synchronize(mAddressBook);
-		mAddrs[instance][addr] = Time::Now();
-	}
-	
-	return true;
-}
-
-bool AddressBook::Contact::connectAddresses(const AddressMap &map, bool save, bool shuffle)
-{
-	// Warning: NOT synchronized !
-	
-	bool success = false;
-	for(AddressMap::const_iterator it = map.begin();
-		it != map.end();
-		++it)
-	{
-		const String &instance = it->first;
-		const AddressBlock &block = it->second;
-	  
-		if(instance == Core::Instance->getNumber() 
-			|| mExcludedInstances.contains(instance)) continue;
-		
-	  	// TODO: look for a better address than the already connected one
-		if(isConnected(instance)) 
-		{
-			// TODO: update time for currenly connected address
-			continue;
-		}
-		
-		Array<Address> addrs;
-		block.getKeys(addrs);
-		if(shuffle) std::random_shuffle(addrs.begin(), addrs.end());
-		
-		LogDebug("AddressBook::Contact", "Connecting instance " + instance + " for " + name() + " (" + String::number(addrs.size()) + " address(es))...");
-		
-		for(Array<Address>::const_reverse_iterator jt = addrs.rbegin();
-			jt != addrs.rend();
-			++jt)
-		{
-			if(connectAddress(*jt, instance, save))
-			{
-				success = true;
-				break;
-			}
-		}
-	}
-	
-	return success;
-}
-
-void AddressBook::Contact::update(bool alternate)
-{
-	// Warning: NOT synchronized !
-	
-	if(isDeleted()) return;
-	Core::Instance->registerPeering(peer(), remotePeering(), secret());
-	
-	LogDebug("AddressBook::Contact", "Looking for " + uniqueName());
-	
-	if(peer() != remotePeering() && Core::Instance->hasRegisteredPeering(remotePeering()))	// the user is local
-	{
-		Identifier identifier(peer(), Core::Instance->getNumber());
-		if(!Core::Instance->hasPeer(identifier))
-		{
-			LogDebug("AddressBook::Contact", uniqueName() + " found locally");
-			  
-			Address addr("127.0.0.1", Config::Get("port"));
-			try {
-				Socket *sock = new Socket(addr);
-				Core::Instance->addPeer(sock, identifier);
-			}
-			catch(...)
-			{
-				LogDebug("AddressBook::Contact", "Warning: Unable to connect the local core");	 
-			}
-		}
-	}
-
-	if(!alternate) 
-	{
-		if(mAddressBook->publish(remotePeering()))
-			LogDebug("AddressBook::Contact", "Published to tracker " + mAddressBook->user()->tracker() + " for " + uniqueName());
-	}
-	
-	AddressMap newAddrs;
-	if(mAddressBook->query(peer(), tracker(), newAddrs, alternate))
-		LogDebug("AddressBook::Contact", "Queried tracker " + tracker() + " for " + uniqueName());	
-	
-	bool save = !alternate;
-	bool shuffle = alternate;
-	bool success = false;
-	
-	if(!newAddrs.empty())
-	{
-		mFound = true;
-		if(!alternate) LogDebug("AddressBook::Contact", "Contact " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
-		else LogDebug("AddressBook::Contact", "Alternative addresses for " + name() + " found (" + String::number(newAddrs.size()) + " instance(s))");
-	}
-	else {
-		if(!alternate)
-		{
-			mFound = false;
-			newAddrs = addresses();
-		}
-	}
-	
-	if(!newAddrs.empty())
-		success = connectAddresses(newAddrs, save, shuffle);
-	
-	{
-		Synchronize(mAddressBook);
-
-		AddressMap::iterator it = mAddrs.begin();
-		while(it != mAddrs.end())
-		{
-			const String &instance = it->first;
-			AddressBlock &block = it->second;
-			AddressBlock::iterator jt = block.begin();
-			while(jt != block.end())
-			{
-				if(Time::Now() - jt->second >= 3600*24*8)	// 8 days
-					block.erase(jt++);
-				else jt++;
-			}
-			
-			if(block.empty())
-				mAddrs.erase(it++);
-			else it++;
-		}
-	}
-	
-	if(success && save) mAddressBook->save();
-}
-*/
 
 int AddressBook::Contact::getInstanceNumbers(Array<uint64_t> &result) const
 {
@@ -1548,7 +1375,7 @@ bool AddressBook::Contact::send(const Mail &mail)
 void AddressBook::Contact::seen(const Identifier &peer)
 {
 	Synchronize(mAddressBook);
-	if(peer != identifier()) return;
+	Assert(peer == identifier());
   
 	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
 	mInstances[peer.number()].setSeen();
@@ -1557,21 +1384,47 @@ void AddressBook::Contact::seen(const Identifier &peer)
 void AddressBook::Contact::connected(const Identifier &peer)
 {
 	Synchronize(mAddressBook);
-	if(peer != identifier()) return;
+	Assert(peer == identifier());
 	
-	// TODO
+	LogDebug("AddressBook::Invitation", "Connected");
+  
+	Notification notification;
+	notification["type"] << "hello";
+	notification["secret"] << mHalfSecret;
+	
+	// TODO: force direct
+	if(!Core::Instance->send(peer, notification))
+		throw Exception("Unable to send hello");
 }
 
 bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
 {
 	// Not synchronized
-	if(peer != identifier()) return false;
+  
+	Assert(peer == identifier());
 	
 	String type;
 	notification.get("type", type);
 	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
 	
-	// TODO
+	if(type == "hello")
+	{
+		Synchronize(mAddressBook);
+		
+		if(!notification.contains("secret"))
+			throw Exception("Missing contact secret");
+		
+		BinaryString secret;
+		notification.get("secret").extract(secret);
+		
+		mSecret = mHalfSecret;
+		if(secret.size() > mSecret.size())
+			std::swap(secret, mSecret);
+		
+		// XOR
+		for(int i=0; i<secret.size(); ++i)
+			mSecret[i]^=secret[i];
+	}
 	
 	return true;
 }
@@ -1831,8 +1684,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		{
 			if(isSelf()) throw 404;
 			
+			if(!mPrivateBoard)
+			{
+				BinaryString id = mAddressBook->user()->identifier().digest() ^ identifier().digest();
+				mPrivateBoard = new Board("/" + id.toString(), secret(), name());
+			}
+			
 			Http::Response response(request, 301);	// Moved permanently
-			response.headers["Location"] = mBoard->urlPrefix();	// TODO: this is the public board
+			response.headers["Location"] = mPrivateBoard->urlPrefix();
 			response.send();
 			return;
 		}

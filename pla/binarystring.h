@@ -72,6 +72,8 @@ protected:
 	template<typename T> T checksum(T &result) const;
 };
 
+BinaryString operator ^ (const BinaryString &a, const BinaryString &b);
+
 template<typename T>
 T BinaryString::checksum(T &result) const
 {

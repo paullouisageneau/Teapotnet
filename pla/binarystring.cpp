@@ -264,5 +264,21 @@ void BinaryString::clear(void)
 	std::string::clear();
 }
 
+BinaryString operator ^ (const BinaryString &a, const BinaryString &b)
+{
+	BinaryString result;
+	if(a.size() > b.size())
+	{
+		result = a;
+		memxor(result.ptr(), b.ptr(), b.size());
+	}
+	else {
+		result = b;
+		memxor(result.ptr(), a.ptr(), a.size());
+	}
+	return result;
+	  
+}
+
 }
 

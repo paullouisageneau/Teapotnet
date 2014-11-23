@@ -233,6 +233,18 @@ template<typename T> unsigned int bitcount(T n)
 	return (n * h01) >> (sizeof(T)*8 - 8);  // Returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ... 
 }
 
+// Optimized data XOR
+inline void memxor(char *a, const char *b, size_t size)
+{
+	unsigned long *la = reinterpret_cast<unsigned long*>(a);
+	const unsigned long *lb = reinterpret_cast<const unsigned long*>(b);
+	const int n = size / sizeof(unsigned long);
+	for(int i = 0; i < n; ++i)
+		la[i]^= lb[i];
+	for(int i = n*sizeof(unsigned long); i < size; ++i)
+		a[i]^= b[i];
+}
+
 inline void sleep(double secs)
 {
 #ifdef WINDOWS
