@@ -64,6 +64,7 @@ bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryStr
 	cipher.setEncryptionKey(key);
 	cipher.setInitializationVector(iv);
 	cipher.write(stream);
+	cipher.close();
 	
 	String fileName = Cache::Instance->move(tempFileName);
 	if(newFileName) *newFileName = fileName;

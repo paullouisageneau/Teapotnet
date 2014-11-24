@@ -199,7 +199,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			String path = Config::Get("static_dir") + Directory::Separator + name;
 			if(File::Exist(path)) 
 			{
-				Http::RespondWithFile(request, path);
+				respondWithFile(request, path);
 				return;
 			}
 		}
@@ -361,7 +361,7 @@ void Interface::process(Http::Request &request)
 		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
 		if(File::Exist(fileName)) 
 		{
-			Http::RespondWithFile(request, fileName);
+			respondWithFile(request, fileName);
 			return;
 		}
 	}
@@ -467,6 +467,25 @@ void Interface::process(Http::Request &request)
 	}
 	
 	throw 404;
+}
+
+void Interface::generate(Stream &out, int code, const String &message)
+{
+	Html page(&out);
+	page.header(message, true);
+	page.open("div", "error");
+	page.openLink("/");
+	page.image("/error.png", "Error");
+	page.closeLink();
+	page.br();
+	page.br();
+	page.open("h1",".huge");
+	page.text(String::number(code));
+	page.br();
+	page.text(message);
+	page.close("h1");
+	page.close("div");
+	page.footer();
 }
 
 User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String name)

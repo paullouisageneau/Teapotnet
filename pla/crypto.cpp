@@ -290,8 +290,6 @@ Cipher::Cipher(Stream *stream, bool mustDelete) :
 
 Cipher::~Cipher(void)
 {
-	close();
-	
 	delete mReadBlock;
 	delete mWriteBlock;
 	
@@ -361,9 +359,12 @@ int64_t Cipher::tellWrite(void) const
 void Cipher::close(void)
 {
 	// Finish encryption
-	encryptBlock(mWriteBlock, mWriteBlockSize);
-	mStream->writeBinary(mWriteBlock, mWriteBlockSize);
-  
+	if(mWriteBlockSize)
+	{
+		encryptBlock(mWriteBlock, mWriteBlockSize);
+		mStream->writeBinary(mWriteBlock, mWriteBlockSize);
+	}
+	
 	mStream->close();
 }
 
@@ -375,7 +376,7 @@ Aes::Aes(Stream *stream, bool mustDelete) :
 
 Aes::~Aes(void)
 {
-  
+	close();	// must be called here and not in Cipher
 }
 
 void Aes::setEncryptionKey(const BinaryString &key)

@@ -44,14 +44,14 @@ public:
 	{
 		Request(void);
 		Request(const String &url, const String &method = "GET");
-		~Request(void);
+		virtual ~Request(void);
 		
 		void send(Stream *stream);
 		void recv(Stream *stream, bool parsePost = true);
 		void clear(void);
 		bool extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t contentLength = -1) const;
-
-		String protocol;	// HTTP or HTTPS		
+		
+		String protocol;	// HTTP or HTTPS
 		String method;          // GET, POST, HEAD...
 		String version;         // 1.0 or 1.1
 		String url;             // URL without host and parameters
@@ -84,7 +84,7 @@ public:
 		
 		Stream *stream;		// Stream where to send/receive data
 	};
-
+	
 	class Server : public Thread
 	{
 	public:
@@ -92,9 +92,11 @@ public:
 		virtual ~Server(void);
 
 		virtual void process(Http::Request &request) = 0;
-
+		virtual void generate(Stream &out, int code, const String &message);
+		
 	protected:
 		virtual void handle(Stream *stream, const Address &remote);
+		virtual void respondWithFile(const Request &request, const String &fileName);
 		void run(void);
 
 		class Handler : public Task
@@ -131,7 +133,6 @@ public:
 	static int Get(const String &url, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const StringMap &post, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const String &data, const String &type, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
-	static void RespondWithFile(const Request &request, const String &fileName);
 	static String AppendGet(const String &url, const String &name, const String &value = "1");
 	
 private:

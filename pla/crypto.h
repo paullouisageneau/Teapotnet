@@ -136,7 +136,7 @@ class Cipher : public Stream
 {
 public:
 	Cipher(Stream *stream, bool mustDelete = false);
-	~Cipher(void);
+	virtual ~Cipher(void);
 	
 	virtual void setEncryptionKey(const BinaryString &key) = 0;
 	virtual void setDecryptionKey(const BinaryString &key) = 0;

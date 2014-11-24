@@ -58,6 +58,7 @@ public:
 	
 private:
 	void process(Http::Request &request);
+	void generate(Stream &out, int code, const String &message);
 
 	Map<String,HttpInterfaceable*>	mPrefixes;
 	Mutex mMutex;

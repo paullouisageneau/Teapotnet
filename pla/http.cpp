@@ -641,6 +641,15 @@ Http::Server::~Server(void)
 	mSock.close();	// useless
 }
 
+void Http::Server::generate(Stream &out, int code, const String &message)
+{
+	out<<"<!DOCTYPE html>\n";
+	out<<"<html>\n";
+	out<<"<head><title>"<<message<<"</title></head>\n";
+	out<<"<body><h1>"<<code<<" "<<message<<"</h1></body>\n";
+	out<<"</html>\n";
+}
+
 void Http::Server::handle(Stream *stream, const Address &remote)
 {
 	Request request;
@@ -666,39 +675,107 @@ void Http::Server::handle(Stream *stream, const Address &remote)
 	}
 	catch(int code)
 	{
-                try {
-                        Response response(request, code);
-                        response.headers["Content-Type"] = "text/html; charset=UTF-8";
-                        response.send();
+		try {
+			Response response(request, code);
+			response.headers["Content-Type"] = "text/html; charset=UTF-8";
+			response.send();
 
-                        if(request.method != "HEAD")
-                        {
-				*response.stream<<"<!DOCTYPE html>\n";
-				*response.stream<<"<html>\n";
-				*response.stream<<"<head><title>"<<response.message<<"</title></head>\n";
-				*response.stream<<"<body><h1>"<<response.code<<" "<<response.message<<"</h1></body>\n";
-				*response.stream<<"</html>\n";
-				
-				/*Html page(response.stream);
-				page.header(response.message, true);
-				page.open("div", "error");
-				page.openLink("/");
-				page.image("/error.png", "Error");
-				page.closeLink();
-				page.br();
-				page.open("h1",".huge");
-				page.text(String::number(response.code));
-				page.br();
-				page.text(response.message);
-				page.close("h1");
-				page.close("div");
-				page.footer();*/
-                        }
-                }
-                catch(...)
-                {
+			if(request.method != "HEAD")
+				generate(*response.stream, response.code, response.message);
+		}
+		catch(...)
+		{
 
-                }
+		}
+	}
+}
+
+void Http::Server::respondWithFile(const Request &request, const String &fileName)
+{
+	int code = 200;
+	File file;
+	
+	if(!File::Exist(fileName)) code = 404;
+	else {
+		if(request.method != "GET" && request.method != "HEAD") code = 405;
+		else {
+			String ifModifiedSince;
+			if(request.headers.get("If-Modified-Since", ifModifiedSince))
+			{
+				try {
+					Time time(ifModifiedSince);
+					if(time >= File::Time(fileName))
+					{
+						Response response(request, 304);
+						response.send();
+						return;
+					}
+				}
+				catch(const Exception &e)
+				{
+					LogWarn("Http::RespondWithFile", e.what()); 
+				}
+			}
+		  
+			try {
+				file.open(fileName, File::Read);
+			}
+			catch(...)
+			{
+				code = 403;
+			}
+		}
+	}
+	
+	int64_t rangeBegin;
+	int64_t rangeEnd;
+	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
+	if(hasRange) code = 206;
+	
+	if(code != 200 && code != 206)
+	{
+		Response response(request, code);
+		response.headers["Content-Type"] = "text/html; charset=UTF-8";
+		response.send();
+		
+		if(request.method != "HEAD")
+			generate(*response.stream, response.code, response.message);
+		
+		return;
+	}
+	
+	Response response(request, code);
+	
+	String name = fileName.afterLast(Directory::Separator);
+	if(name != request.url.afterLast('/')) 
+		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
+	
+	if(hasRange)
+	{
+		 response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << file.size();
+		 response.headers["Content-Length"]  << rangeEnd - rangeBegin + 1;
+	}
+	else {
+		response.headers["Content-Length"] << file.size();
+	}
+	
+	response.headers["Accept-Ranges"] = "bytes";
+	response.headers["Content-Type"] = Mime::GetType(fileName);
+	response.headers["Last-Modified"] = File::Time(fileName).toHttpDate();
+
+	response.send();
+
+	if(request.method != "HEAD")
+	{
+		if(hasRange)
+		{
+			file.seekRead(rangeBegin);
+			file.read(*response.stream, rangeEnd - rangeBegin + 1);
+		}
+		else {
+			file.read(*response.stream);
+		}
+		file.close();
 	}
 }
 
@@ -924,117 +1001,6 @@ int Http::Post(const String &url, const String &data, const String &type, Stream
 	headers["Content-Type"] = type;
 	
 	return Action("POST", url, data, headers, output, maxRedirections, noproxy);
-}
-
-void Http::RespondWithFile(const Request &request, const String &fileName)
-{
-	int code = 200;
-	File file;
-	
-	if(!File::Exist(fileName)) code = 404;
-	else {
-		if(request.method != "GET" && request.method != "HEAD") code = 405;
-		else {
-			String ifModifiedSince;
-			if(request.headers.get("If-Modified-Since", ifModifiedSince))
-			{
-				try {
-					Time time(ifModifiedSince);
-					if(time >= File::Time(fileName))
-					{
-						Response response(request, 304);
-						response.send();
-						return;
-					}
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Http::RespondWithFile", e.what()); 
-				}
-			}
-		  
-			try {
-				file.open(fileName, File::Read);
-			}
-			catch(...)
-			{
-				code = 403;
-			}
-		}
-	}
-	
-	int64_t rangeBegin;
-	int64_t rangeEnd;
-	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
-	if(hasRange) code = 206;
-	
-	if(code != 200 && code != 206)
-	{
-		Response response(request, code);
-		response.headers["Content-Type"] = "text/html; charset=UTF-8";
-		response.send();
-		
-		if(request.method != "HEAD")
-		{
-			*response.stream<<"<!DOCTYPE html>\n";
-			*response.stream<<"<html>\n";
-			*response.stream<<"<head><title>"<<response.message<<"</title></head>\n";
-			*response.stream<<"<body><h1>"<<response.code<<" "<<response.message<<"</h1></body>\n";
-			*response.stream<<"</html>\n";
-			
-			/*Html page(response.sock);
-			page.header(response.message, true);
-			page.open("div", "error");
-			page.openLink("/");
-			page.image("/error.png", "Error");
-			page.closeLink();
-			page.br();
-			page.br();
-			page.open("h1",".huge");
-			page.text(String::number(response.code));
-			page.br();
-			page.text(response.message);
-			page.close("h1");
-			page.close("div");
-			page.footer();*/
-		}
-		
-		return;
-	}
-	
-	Response response(request, code);
-	
-	String name = fileName.afterLast(Directory::Separator);
-	if(name != request.url.afterLast('/')) 
-		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
-	
-	if(hasRange)
-	{
-		 response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << file.size();
-		 response.headers["Content-Length"]  << rangeEnd - rangeBegin + 1;
-	}
-	else {
-		response.headers["Content-Length"] << file.size();
-	}
-	
-	response.headers["Accept-Ranges"] = "bytes";
-	response.headers["Content-Type"] = Mime::GetType(fileName);
-	response.headers["Last-Modified"] = File::Time(fileName).toHttpDate();
-
-	response.send();
-
-	if(request.method != "HEAD")
-	{
-		if(hasRange)
-		{
-			file.seekRead(rangeBegin);
-			file.read(*response.stream, rangeEnd - rangeBegin + 1);
-		}
-		else {
-			file.read(*response.stream);
-		}
-		file.close();
-	}
 }
 
 String Http::AppendGet(const String &url, const String &name, const String &value)
