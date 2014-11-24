@@ -49,7 +49,7 @@ bool File::Remove(const String &filename)
 
 void File::Rename(const String &source, const String &destination)
 {
-	if(!Exist(source)) throw IOException(String("Rename: source file does not exist: ") + source);
+	if(!Exist(source)) throw Exception(String("Rename: source file does not exist: ") + source);
 	if(Exist(destination)) Remove(destination);
 	
 	if(std::rename(source.pathEncode().c_str(), destination.pathEncode().c_str()) == 0) return;
@@ -66,14 +66,14 @@ void File::Rename(const String &source, const String &destination)
 uint64_t File::Size(const String &filename)
 {
 	stat_t st;
-	if(pla::stat(filename.pathEncode().c_str(), &st)) throw IOException("File does not exist: "+filename);
+	if(pla::stat(filename.pathEncode().c_str(), &st)) throw Exception("File does not exist: "+filename);
 	return uint64_t(st.st_size);
 }
 
 pla::Time File::Time(const String &filename)
 {
 	stat_t st;
-	if(pla::stat(filename.pathEncode().c_str(), &st)) throw IOException("File does not exist: "+filename);
+	if(pla::stat(filename.pathEncode().c_str(), &st)) throw Exception("File does not exist: "+filename);
 	return pla::Time(st.st_mtime);
 }
 
@@ -256,7 +256,7 @@ size_t File::readData(char *buffer, size_t size)
 	if(!std::fstream::gcount() && std::fstream::good())
 		std::fstream::read(buffer, size);
 	
-	if(std::fstream::bad()) throw IOException(String("Unable to read from file: ") + mName);
+	if(std::fstream::bad()) throw Exception(String("Unable to read from file: ") + mName);
 	
 	mReadPosition+= std::fstream::gcount();
 	return std::fstream::gcount();
@@ -266,7 +266,7 @@ void File::writeData(const char *data, size_t size)
 {
 	std::fstream::clear();	// clear state
 	std::fstream::write(data,size);
-	if(std::fstream::bad()) throw IOException(String("Unable to write to file: ") + mName);
+	if(std::fstream::bad()) throw Exception(String("Unable to write to file: ") + mName);
 	
 	mWritePosition+= std::fstream::gcount();
 }
@@ -330,7 +330,7 @@ SafeWriteFile::~SafeWriteFile(void)
 void SafeWriteFile::open(const String &filename, OpenMode mode)
 {
 	close();
-	if(filename.empty()) throw IOException("Empty file name");
+	if(filename.empty()) throw Exception("Empty file name");
 	Assert(mode == Truncate);
 	File::open(filename+".tmp", Truncate);
 	mTarget = filename;

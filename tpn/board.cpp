@@ -99,25 +99,31 @@ BinaryString Board::digest(void) const
 	
 	if(mDigest.empty())
 	{
-		// Write messages to temporary file
-		String tempFileName = File::TempName();
-		File tempFile(tempFileName, File::Truncate);
-		BinarySerializer serializer(&tempFile);
-		for(Set<Mail>::const_iterator it = mMails.begin();
-			it != mMails.end();
-			++it)
-		{
-			serializer.write(*it);
+		try {
+			// Write messages to temporary file
+			String tempFileName = File::TempName();
+			File tempFile(tempFileName, File::Truncate);
+			BinarySerializer serializer(&tempFile);
+			for(Set<Mail>::const_iterator it = mMails.begin();
+				it != mMails.end();
+				++it)
+			{
+				serializer.write(*it);
+			}
+			tempFile.close();
+			
+			// Move to cache and process
+			Resource resource;
+			resource.cache(tempFileName, mName, "mail", mSecret);
+			
+			// Retrieve digest and store it
+			mDigest = resource.digest();
+			Cache::Instance->storeMapping("/mail" + mName, mDigest);
 		}
-		tempFile.close();
-		
-		// Move to cache and process
-		Resource resource;
-		resource.cache(tempFileName, mName, "mail", mSecret);
-		
-		// Retrieve digest and store it
-		mDigest = resource.digest();
-		Cache::Instance->storeMapping("/mail" + mName, mDigest);
+		catch(const Exception &e)
+		{
+			LogWarn("Board::digest", String("Board processing failed: ") + e.what());
+		}
 	}
   
 	return mDigest;
@@ -140,25 +146,31 @@ bool Board::incoming(const Identifier &peer, const String &prefix, const String 
 	
 	if(fetch(peer, prefix, path, target))
 	{
-		Resource resource(target, true);	// local only (already fetched)
-		if(resource.type() != "mail")
-			return false;
-		
-		Resource::Reader reader(&resource);
-		BinarySerializer serializer(&reader);
-		Mail mail;
-		while(serializer.read(mail))
-			if(!mMails.contains(mail))
+		try {
+			Resource resource(target, true);	// local only (already fetched)
+			if(resource.type() != "mail")
+				return false;
+			
+			Resource::Reader reader(&resource, mSecret);
+			BinarySerializer serializer(&reader);
+			Mail mail;
+			while(serializer.read(mail))
+				if(!mMails.contains(mail))
+				{
+					const Mail *p = &*mMails.insert(mail).first;
+					mUnorderedMails.append(p);
+				}
+			
+			mDigest.clear();	// so digest must be recomputed
+			if(digest() != target)
 			{
-				const Mail *p = &*mMails.insert(mail).first;
-				mUnorderedMails.append(p);
+				publish("/mail" + mName);
+				notifyAll();
 			}
-		
-		mDigest.clear();	// so digest must be recomputed
-		if(digest() != target)
+		}
+		catch(const Exception &e)
 		{
-			publish("/mail" + mName);
-			notifyAll();
+			LogWarn("Board::incoming", e.what());
 		}
 	}
 	

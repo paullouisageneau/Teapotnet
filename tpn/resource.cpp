@@ -332,6 +332,11 @@ Resource::Reader::Reader(Resource *resource, const String &secret) :
 		
 		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000); 
 	}
+	else {
+		if(!mResource->salt().empty())
+			throw Exception("Expected non-encrypted resource");
+	}
+	
 	
 	seekRead(0);	// Initialize positions
 }
@@ -346,7 +351,7 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 {
 	if(!mCurrentBlock) return 0;	// EOF
 	
-	if(!mKey.empty() && mCurrentBlock->hasDecryption())
+	if(!mKey.empty() && !mCurrentBlock->hasDecryption())
 	{
 		BinaryString subsalt;
 		subsalt.writeBinary(mCurrentBlockIndex);

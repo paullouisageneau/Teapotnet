@@ -311,13 +311,14 @@ size_t Cipher::readData(char *buffer, size_t size)
 	size = std::min(size, mReadBlockSize);
 	std::memcpy(buffer, mReadBlock, size);
 	mReadBlockSize-= size;
+	std::memmove(mReadBlock, mReadBlock+size, mReadBlockSize);
 	return size;
 }
 
 void Cipher::writeData(const char *data, size_t size)
 {
-	if(!mReadBlock)
-		mReadBlock = new char[blockSize()];
+	if(!mWriteBlock)
+		mWriteBlock = new char[blockSize()];
 	
 	while(size)
 	{
@@ -363,6 +364,7 @@ void Cipher::close(void)
 	{
 		encryptBlock(mWriteBlock, mWriteBlockSize);
 		mStream->writeBinary(mWriteBlock, mWriteBlockSize);
+		mWriteBlockSize = 0;
 	}
 	
 	mStream->close();
@@ -386,7 +388,8 @@ void Aes::setEncryptionKey(const BinaryString &key)
 
 void Aes::setDecryptionKey(const BinaryString &key)
 {
-	aes_set_decrypt_key(&mCtx.ctx, key.size(), key.bytes()); 
+	// Counter mode also uses encrypt function for decryption
+	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes()); 
 }
 
 void Aes::setInitializationVector(const BinaryString &iv)

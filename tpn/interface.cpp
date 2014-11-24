@@ -320,6 +320,9 @@ void Interface::http(const String &prefix, Http::Request &request)
 		}
 		else if(prefix == "/mail")
 		{
+			if(request.url.size() >= Identifier::DigestSize*2 + 1)
+				throw 500;
+			
 			LogWarn("Interface::process", "Creating board: " + request.url);
 			
 			Board *board = new Board(request.url);

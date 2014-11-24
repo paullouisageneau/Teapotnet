@@ -1417,13 +1417,19 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 		BinaryString secret;
 		notification.get("secret").extract(secret);
 		
-		mSecret = mHalfSecret;
-		if(secret.size() > mSecret.size())
-			std::swap(secret, mSecret);
+		BinaryString commonSecret = mHalfSecret;
+		if(secret.size() > commonSecret.size())
+			std::swap(secret, commonSecret);
 		
 		// XOR
 		for(int i=0; i<secret.size(); ++i)
-			mSecret[i]^=secret[i];
+			commonSecret[i]^=secret[i];
+		
+		if(mSecret != commonSecret)
+		{
+			mSecret = commonSecret;
+			mAddressBook->save();
+		}
 	}
 	
 	return true;
@@ -1696,7 +1702,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!mPrivateBoard)
 			{
 				BinaryString id = mAddressBook->user()->identifier().digest() ^ identifier().digest();
-				mPrivateBoard = new Board("/" + id.toString(), secret(), name());
+				mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name());
 			}
 			
 			Http::Response response(request, 301);	// Moved permanently
@@ -1740,6 +1746,10 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		mapping["status"] = &status;
 		mapping["messages"] = &messages;
 	}
+	else {
+		mapping["halfsecret"] = &mHalfSecret;
+		mapping["secret"] = &mSecret;
+	}
 	
 	s.outputObject(mapping);
 }
@@ -1759,6 +1769,8 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["name"] = &mName;
 	mapping["tracker"] = &mTracker;
 	mapping["instances"] = &mInstances;
+	mapping["halfsecret"] = &mHalfSecret;
+	mapping["secret"] = &mSecret;
 	
 	if(!s.inputObject(mapping))
 		return false;
