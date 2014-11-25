@@ -65,6 +65,8 @@ Board::~Board(void)
 
 String Board::urlPrefix(void) const
 {
+	Synchronize(this);
+	
 	return "/mail" + mName;
 }
 
@@ -87,8 +89,8 @@ bool Board::add(Mail &mail)
 	const Mail *p = &*mMails.insert(mail).first;
 	mUnorderedMails.append(p);
 
-	mDigest.clear();		// so digest is recomputed
-	publish("/mail" + mName);	// calls digest()
+	process();
+	publish("/mail" + mName);
 	notifyAll();
 	return true;
 }
@@ -97,43 +99,48 @@ BinaryString Board::digest(void) const
 {
 	Synchronize(this);
 	
-	if(mDigest.empty())
-	{
-		try {
-			// Write messages to temporary file
-			String tempFileName = File::TempName();
-			File tempFile(tempFileName, File::Truncate);
-			BinarySerializer serializer(&tempFile);
-			for(Set<Mail>::const_iterator it = mMails.begin();
-				it != mMails.end();
-				++it)
-			{
-				serializer.write(*it);
-			}
-			tempFile.close();
-			
-			// Move to cache and process
-			Resource resource;
-			resource.cache(tempFileName, mName, "mail", mSecret);
-			
-			// Retrieve digest and store it
-			mDigest = resource.digest();
-			Cache::Instance->storeMapping("/mail" + mName, mDigest);
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Board::digest", String("Board processing failed: ") + e.what());
-		}
-	}
-  
 	return mDigest;
+}
+
+void Board::process(void)
+{
+	try {
+		// Write messages to temporary file
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName, File::Truncate);
+		BinarySerializer serializer(&tempFile);
+		for(Set<Mail>::const_iterator it = mMails.begin();
+			it != mMails.end();
+			++it)
+		{
+			serializer.write(*it);
+		}
+		tempFile.close();
+		
+		// Move to cache and process
+		Resource resource;
+		resource.cache(tempFileName, mName, "mail", mSecret);
+		
+		// Retrieve digest and store it
+		mDigest = resource.digest();
+		Cache::Instance->storeMapping("/mail" + mName, mDigest);
+		
+		VAR(mDigest);
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("Board::process", String("Board processing failed: ") + e.what());
+	}
 }
 
 bool Board::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
 {
 	Synchronize(this);
 	
-	target = digest();
+	if(mDigest.empty())
+		return false;
+	
+	target = mDigest;
 	return true;
 }
 
@@ -141,12 +148,14 @@ bool Board::incoming(const Identifier &peer, const String &prefix, const String 
 {
 	Synchronize(this);
 	
-	if(target == digest())
+	if(target == mDigest)
 		return false;
 	
 	if(fetch(peer, prefix, path, target))
 	{
 		try {
+			VAR(target);
+			
 			Resource resource(target, true);	// local only (already fetched)
 			if(resource.type() != "mail")
 				return false;
@@ -154,19 +163,29 @@ bool Board::incoming(const Identifier &peer, const String &prefix, const String 
 			Resource::Reader reader(&resource, mSecret);
 			BinarySerializer serializer(&reader);
 			Mail mail;
+			unsigned count = 0;
 			while(serializer.read(mail))
+			{
 				if(!mMails.contains(mail))
 				{
 					const Mail *p = &*mMails.insert(mail).first;
 					mUnorderedMails.append(p);
 				}
-			
-			mDigest.clear();	// so digest must be recomputed
-			if(digest() != target)
-			{
-				publish("/mail" + mName);
-				notifyAll();
+				
+				++count;
 			}
+			
+			if(count == mMails.size())
+			{
+				mDigest = target;
+			}
+			else {
+				process();
+				if(mDigest != target)
+					publish("/mail" + mName);
+			}
+			
+			notifyAll();
 		}
 		catch(const Exception &e)
 		{

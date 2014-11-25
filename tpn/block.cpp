@@ -142,11 +142,13 @@ Block::~Block(void)
 
 BinaryString Block::digest(void) const
 {
-	return mDigest; 
+	return mDigest;
 }
 
 void Block::setDecryption(const BinaryString &key, const BinaryString &iv)
 {
+	waitContent();
+	
 	delete mCipher;
 	mCipher = new Aes(mFile, false);	// don't delete file
 	mCipher->setDecryptionKey(key);
@@ -161,6 +163,7 @@ bool Block::hasDecryption(void) const
 size_t Block::readData(char *buffer, size_t size)
 {
 	waitContent();
+	
 	int64_t left = mSize - tellRead();
 	if(left <= 0) return 0;
 	size = size_t(std::min(left, int64_t(size)));

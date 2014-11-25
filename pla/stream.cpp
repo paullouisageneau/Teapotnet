@@ -113,7 +113,7 @@ void Stream::flush(void)
 
 void Stream::close(void)
 {
-	clear();
+
 }
 
 bool Stream::ignore(size_t size)

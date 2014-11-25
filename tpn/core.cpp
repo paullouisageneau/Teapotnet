@@ -958,14 +958,14 @@ bool Core::Subscriber::fetch(const Identifier &peer, const String &prefix, const
 		{
 			try {
 				Resource resource(target);
-				Resource::Reader reader(&resource);
-				reader.discard();		// read everything
+				Resource::Reader reader(&resource, "", true);	// empty password + no check
+				reader.discard();				// read everything
 				
 				subscriber->incoming(peer, prefix, path, target);
 			}
 			catch(const Exception &e)
 			{
-				LogWarn("Core::Subscriber::fetch", "Fetching failed for " + target.toString());
+				LogWarn("Core::Subscriber::fetch", "Fetching failed for " + target.toString() + ": " + e.what());
 			}
 			
 			delete this;	// autodelete

@@ -58,14 +58,15 @@ public:
 	void http(const String &prefix, Http::Request &request);
 	
 private:
+	void process(void);
+  
 	String mName;
 	String mDisplayName;
 	String mSecret;
-	Identifier mOwner;
+	BinaryString mDigest;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
 	
-	mutable BinaryString mDigest;
 	mutable bool mHasNew;
 };
 

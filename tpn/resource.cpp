@@ -117,6 +117,11 @@ void Resource::process(const String &filename, const String &name, const String 
 		BinaryString key;
 		Sha256().pbkdf2_hmac(secret, salt, key, 32, 100000);
 		
+		VAR(name);
+		VAR(type);
+		VAR(key);
+		VAR(salt);
+		
 		uint64_t i = 0;
 		while(true)
 		{
@@ -131,7 +136,11 @@ void Resource::process(const String &filename, const String &name, const String 
 			BinaryString iv;
 			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
 			
-			if(!Block::EncryptFile(file, key, iv, blockDigest))
+			VAR(i);
+			VAR(subkey);
+			VAR(iv);
+			
+			if(!Block::EncryptFile(file, subkey, iv, blockDigest))
 				break;
 			
 			mIndexRecord->blockDigests.append(blockDigest);
@@ -317,7 +326,7 @@ Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
 	return record;
 }
 
-Resource::Reader::Reader(Resource *resource, const String &secret) :
+Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck) :
 	mResource(resource),
 	mReadPosition(0),
 	mCurrentBlock(NULL),
@@ -327,16 +336,15 @@ Resource::Reader::Reader(Resource *resource, const String &secret) :
 	
 	if(!secret.empty())
 	{
-		if(mResource->salt().empty())
+		if(!nocheck && mResource->salt().empty())
 			throw Exception("Expected encrypted resource");
 		
 		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000); 
 	}
 	else {
-		if(!mResource->salt().empty())
+		if(!nocheck && !mResource->salt().empty())
 			throw Exception("Expected non-encrypted resource");
 	}
-	
 	
 	seekRead(0);	// Initialize positions
 }
@@ -346,7 +354,7 @@ Resource::Reader::~Reader(void)
 	delete mCurrentBlock;
 	delete mNextBlock;
 }
-	  
+
 size_t Resource::Reader::readData(char *buffer, size_t size)
 {
 	if(!mCurrentBlock) return 0;	// EOF
@@ -354,15 +362,21 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 	if(!mKey.empty() && !mCurrentBlock->hasDecryption())
 	{
 		BinaryString subsalt;
-		subsalt.writeBinary(mCurrentBlockIndex);
+		subsalt.writeBinary(uint64_t(mCurrentBlockIndex));
 		
 		// Generate subkey
 		BinaryString subkey;
 		Sha256().pbkdf2_hmac(mKey, subsalt, subkey, 32, 100);
-			
+		
 		// Generate iv
 		BinaryString iv;
 		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
+		
+		VAR(mKey);
+		VAR(mResource->salt());
+		VAR(mCurrentBlockIndex);
+		VAR(subkey);
+		VAR(iv);
 		
 		// Initialize decryption process
 		mCurrentBlock->setDecryption(subkey, iv);

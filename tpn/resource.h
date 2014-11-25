@@ -118,7 +118,7 @@ public:
 	class Reader : public Stream
 	{
 	public:
-		Reader(Resource *resource, const String &secret = "");
+		Reader(Resource *resource, const String &secret = "", bool nocheck = false);
 		~Reader(void);
 	  
 		// Stream
