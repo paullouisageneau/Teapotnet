@@ -1315,6 +1315,13 @@ td.actions a
 	margin: 2px;
 }
 
+.linkboard img
+{
+	width: 36px;
+	height: 36px;
+	margin: 2px;
+}
+
 .linkchat img
 {
 	width: 36px;

@@ -1514,6 +1514,18 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				page.open("tr");
 				page.open("td");
+					page.openLink(prefix + "/board/");
+					page.image("/icon_board.png", "Board", ".bigicon");
+					page.closeLink();
+				page.close("td");
+				page.open("td",".title");
+					page.text("Board");
+					//page.span("", "mailscount.mailscount");
+				page.close("td");
+				page.close("tr");
+				
+				page.open("tr");
+				page.open("td");
 					page.openLink(prefix + "/chat/");
 					page.image("/icon_chat.png", "Messages", ".bigicon");
 					page.closeLink();

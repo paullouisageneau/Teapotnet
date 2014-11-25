@@ -305,16 +305,16 @@ function displayContacts(url, period, object) {
 				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
 				
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
-					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactcontact_'+uname+'\" class=\"contactcontact\"></div></div>');
+					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>');
 				}
 
 				$('#contact_'+uname).attr('class', contact.status);
 				transition($('#contact_'+uname+' .status'), contact.status.capitalize());
 				
-				if($('#contactcontact_'+uname).html() == '') {
+				if($('#contactinfo_'+uname).html() == '') {
 					$('#contact_'+uname).click(function(event) {
-						if($(window).width() < 1024) $('#contactcontact_'+uname).toggle();
-						else $('#contactcontact_'+uname).slideToggle('fast');
+						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
+						else $('#contactinfo_'+uname).slideToggle('fast');
 					});
 					$('#contact_'+uname+' a').click(function(event)
 					{
@@ -325,9 +325,10 @@ function displayContacts(url, period, object) {
 					});
 				}
 				
-				$('#contactcontact_'+uname).html('<span class=\"name\">'+contact.name+'@'+contact.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+contact.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
+				$('#contactinfo_'+uname).html('<span class=\"name\">'+contact.name+'@'+contact.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+contact.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
 				if(!isSelf) {
-					$('#contactcontact_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/icon_chat.png" alt="Chat"/></a></span>');
+					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/icon_board.png" alt="Board"/></a></span>');
+					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/icon_chat.png" alt="Messages"/></a></span>');
 				
 					var count = parseInt(contact.messages);
 					var str = '';
