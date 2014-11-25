@@ -124,8 +124,6 @@ void Board::process(void)
 		// Retrieve digest and store it
 		mDigest = resource.digest();
 		Cache::Instance->storeMapping("/mail" + mName, mDigest);
-		
-		VAR(mDigest);
 	}
 	catch(const Exception &e)
 	{
@@ -154,8 +152,6 @@ bool Board::incoming(const Identifier &peer, const String &prefix, const String 
 	if(fetch(peer, prefix, path, target))
 	{
 		try {
-			VAR(target);
-			
 			Resource resource(target, true);	// local only (already fetched)
 			if(resource.type() != "mail")
 				return false;
