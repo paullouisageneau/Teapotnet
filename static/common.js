@@ -318,7 +318,7 @@ function displayContacts(url, period, object) {
 					});
 					$('#contact_'+uname+' a').click(function(event)
 					{
-						event.stopPropagation(); // So the div contactsContact is not displayed when clicked on contact link
+						event.stopPropagation(); // So the div contactinfo is not displayed when clicked on contact link
 					});
 					$('#contact_'+uname).hover(function () {
 						$(this).css('cursor','pointer');
