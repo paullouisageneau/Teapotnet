@@ -87,6 +87,8 @@ public:
 	const Rsa::PrivateKey &privateKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
 	
+	void setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey);
+	
 	void http(const String &prefix, Http::Request &request);
 
 	void serialize(Serializer &s) const;

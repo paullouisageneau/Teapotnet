@@ -107,8 +107,9 @@ public:
 		String tracker(void) const;
 		uint32_t checksum(void) const;
 		
+		bool isSelf(void) const;
 		bool isFound(void) const;
-
+		
 		// Listener
 		void seen(const Identifier &peer);
 		void connected(const Identifier &peer);

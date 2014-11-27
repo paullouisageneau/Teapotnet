@@ -944,6 +944,12 @@ uint32_t AddressBook::Invitation::checksum(void) const
 	return mPeering.digest().checksum32() + uint32_t(mPeering.number());
 }
 
+bool AddressBook::Invitation::isSelf(void) const
+{
+	// TODO
+	return false;
+}
+
 bool AddressBook::Invitation::isFound(void) const
 {
 	Synchronize(mAddressBook);
@@ -960,12 +966,15 @@ void AddressBook::Invitation::seen(const Identifier &peer)
 void AddressBook::Invitation::connected(const Identifier &peer)
 {
 	LogDebug("AddressBook::Invitation", "Connected");
-  
+	
 	Notification notification;
 	notification["type"] << "hello";
 	notification["name"] << mAddressBook->user()->name();
 	notification["tracker"] << mAddressBook->user()->tracker();
 	notification["publickey"] << mAddressBook->user()->publicKey();
+	
+	if(isSelf())
+		notification["contacts"] << mAddressBook->mContacts.size();
 	
 	// TODO: force direct
 	if(!Core::Instance->send(peer, notification))
@@ -976,23 +985,81 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 {
 	Synchronize(mAddressBook);
 	
-	String name;
-	if(!notification.get("name", name))
-		throw Exception("Missing contact name");
+	String type;
+	notification.get("type", type);
+	LogDebug("AddressBook::Invitation", "Incoming notification (type='" + type + "')");
 	
-	String tracker;
-	if(!notification.get("tracker", tracker))
-		throw Exception("Missing tracker");
+	if(type == "hello")
+	{
+		String name;
+		if(!notification.get("name", name))
+			throw Exception("Missing contact name");
+		
+		String tracker;
+		if(!notification.get("tracker", tracker))
+			throw Exception("Missing tracker");
+		
+		if(!notification.contains("publickey"))
+			throw Exception("Missing contact public key");
+		
+		Rsa::PublicKey pubKey;
+		notification.get("publickey").extract(pubKey);
+		
+		if(mSecret.empty() && pubKey.digest() != peering())
+			throw Exception("Wrong public key received from invited contact " + name);
+		
+		if(isSelf())
+		{
+			Assert(name == mAddressBook->userName());
+			
+			unsigned localContacts  = mAddressBook->mContacts.size();
+			unsigned remoteContacts = 0;
+			notification.get("contacts").extract(remoteContacts);
+			
+			if(remoteContacts >= localContacts
+				&& (remoteContacts != localContacts || mAddressBook->user()->identifier() > peer))
+			{
+				mAddressBook->setSelf(pubKey);	// calls save()
+				return true;			// so invitation is not deleted
+			}
+			
+			Notification notification;
+			notification["type"] << "self";
+			notification["publickey"] << mAddressBook->user()->publicKey();
+			notification["privatekey"] << mAddressBook->user()->privateKey();
+				
+			// TODO: force direct
+			if(!Core::Instance->send(peer, notification))
+				throw Exception("Unable to send self message");
+			
+			// TODO: tracker
+			
+			// Add self
+			mAddressBook->setSelf(mAddressBook->user()->publicKey());	// calls save()
+		}
+		else {
+			// Add contact
+			mAddressBook->addContact(name, pubKey, tracker);		// calls save()
+		}
+	}
+	else if(type == "self")
+	{
+		if(!notification.contains("publickey"))
+			throw Exception("Missing self public key");
+		
+		if(!notification.contains("privatekey"))
+			throw Exception("Missing self private key");
+		
+		Rsa::PublicKey pubKey;
+		notification.get("publickey").extract(pubKey);
+		
+		Rsa::PrivateKey privKey;
+		notification.get("privatekey").extract(privKey);
+		
+		mAddressBook->user()->setKeyPair(pubKey, privKey);
+	}
 	
-	if(!notification.contains("publickey"))
-		throw Exception("Missing contact public key");
-	
-	Rsa::PublicKey pubKey;
-	notification.get("publickey").extract(pubKey);
-	
-	if(mSecret.empty() && pubKey.digest() != peering())
-		throw Exception("Wrong public key received from invited contact " + name);
-	
+	// Erase invitation
 	for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
 	{
 		if(mAddressBook->mInvitations[i].peering() == peering())
@@ -1003,9 +1070,6 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	}
 	
 	// WARNING: Invitation is deleted here
-	
-	// Add contact
-	mAddressBook->addContact(name, pubKey, tracker);	// calls save()
 	return true;
 }
 

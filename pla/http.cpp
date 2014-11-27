@@ -791,11 +791,14 @@ void Http::Server::run(void)
 			sock->setTimeout(RequestTimeout);
 
 			Handler *client = new Handler(this, sock);
+			sock = NULL;
+			
 			mPool.launch(client);
 		}
 	}
 	catch(const NetException &e)
 	{
+		delete sock;
 		return;
 	}
 	catch(...)

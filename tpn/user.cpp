@@ -460,6 +460,13 @@ SecureTransport::Certificate *User::certificate(void) const
 	return mCertificate;
 }
 
+void User::setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey)
+{
+	// TODO: check key pair
+	mPublicKey = publicKey;
+	mPrivateKey = privateKey;
+}
+
 void User::http(const String &prefix, Http::Request &request)
 {
 	Assert(!request.url.empty());
