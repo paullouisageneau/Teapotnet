@@ -330,6 +330,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(request.method == "POST")
 			{
 				try {
+					Synchronize(this);
+					
 					if(!user()->checkToken(request.post["token"], "contact")) 
 						throw 403;
 					
@@ -364,7 +366,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						tracker = request.post["tracker"];
 						if(tracker.empty()) tracker = user()->tracker(); 
 
-						code = code.trimmed();
+						code.trim();
 						if(code.size() != 32) throw Exception("Invalid invitation code");
 						if(!PinIsValid(pin)) throw Exception("Invalid invitation PIN");
 
@@ -372,7 +374,46 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						mInvitations.append(Invitation(this, code, pin, tracker));
 						save();
 					}
-			  		else if(action == "deletecontact")
+					if(action == "createsynchronization")
+					{
+						String secret = String::random(32, Random::Crypto);
+						
+						LogDebug("AddressBook::http", "Generating new synchronization secret");
+						Invitation invitation(this, user()->name(), secret, user()->tracker());
+						invitation.setSelf(true);
+						mInvitations.append(invitation);
+						save();
+						
+						Http::Response response(request, 200);
+						response.send();
+						
+						Html page(response.stream);
+						page.header("New synchronization");
+						page.text("Secret: " + secret + "\n");
+						page.footer();
+						return;
+					}
+					else if(action == "acceptsynchronization")
+					{
+						String secret;
+						request.post["secret"] >> secret;
+						
+						secret.trim();
+						if(!secret.empty())
+						{
+							LogDebug("AddressBook::http", "Accepting synchronization");
+							Invitation invitation(this, user()->name(), secret, user()->tracker());
+							invitation.setSelf(true);
+							mInvitations.append(invitation);
+							save();
+						}
+						
+						Http::Response response(request, 303);
+						response.headers["Location"] = user()->urlPrefix();
+						response.send();
+						return;
+					}
+					else if(action == "deletecontact")
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
@@ -550,6 +591,15 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("code", "Code"); page.input("text", "code"); page.br();
 			page.label("pin", "PIN"); page.input("text", "pin", "", true); page.br();
 			page.label("accept"); page.button("accept", "Accept invitation");
+			page.closeForm();
+			page.close("div");
+			
+			page.open("div",".box");
+			page.openForm(prefix + "/", "post", "createsynchronization");
+			page.open("h2"); page.text("Synchronize device"); page.close("h2");
+			page.input("hidden", "token", token);
+			page.input("hidden", "action", "createsynchronization");
+			page.label("generate"); page.button("generate", "Generate synchronization secret");
 			page.closeForm();
 			page.close("div");
 			
@@ -834,7 +884,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
 	mFound(false)
 {
-	String salt = "Teapotnet/" + std::min(mAddressBook->userName(), name) + "/" + std::max(mAddressBook->userName(), name);
+	String salt = "Teapotnet/" + std::min(addressBook->userName(), name) + "/" + std::max(addressBook->userName(), name);
 	generate(salt, secret);
 	
 	setAddressBook(addressBook);
@@ -944,10 +994,16 @@ uint32_t AddressBook::Invitation::checksum(void) const
 	return mPeering.digest().checksum32() + uint32_t(mPeering.number());
 }
 
+void AddressBook::Invitation::setSelf(bool self)
+{
+	Synchronize(mAddressBook);
+	mIsSelf = self;
+}
+
 bool AddressBook::Invitation::isSelf(void) const
 {
-	// TODO
-	return false;
+	Synchronize(mAddressBook);
+	return mIsSelf;
 }
 
 bool AddressBook::Invitation::isFound(void) const

@@ -89,12 +89,39 @@ void Interface::http(const String &prefix, Http::Request &request)
 					if(request.post.contains("create") && !User::Exist(name))
 					{
 						user = new User(name, password, tracker);
+						
+						Http::Response response(request, 200);
+						response.send();
+						
+						Html page(response.stream);
+						page.header("Synchronize device", true);
+						page.open("div","login");
+						page.open("div","logo");
+						page.openLink("/");
+						page.image("/logo.png", "Teapotnet");
+						page.closeLink();
+						page.close("div");
+						
+						page.openForm("/", "post");
+						page.open("p");
+						page.text("If you have Teapotnet installed on another device, generate a synchronization secret and enter it here.");
+						page.br();
+						page.text("If you don't, and this is your first Teapotnet installation, just let the field empty.");
+						page.br();
+						page.close("p");
+						page.input("hidden", "action", "acceptsynchronization");
+						page.input("text", "secret");
+						page.button("validate", "Validate");
+						page.closeForm();
+						
+						page.close("div");
+						page.footer();
+						return;
 					}
-					else {
-						user = User::Authenticate(name, password);
-						if(user && !tracker.empty())
-							user->setTracker(tracker);
-					}
+					
+					user = User::Authenticate(name, password);
+					if(user && !tracker.empty())
+						user->setTracker(tracker);
 				}
 				catch(const Exception &e)
 				{

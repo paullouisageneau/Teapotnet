@@ -202,6 +202,8 @@ input
 	border-radius: 4px;
 	font-family: inherit;
 	font-size: inherit;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
 }
 
 input[type="submit"]
@@ -499,24 +501,28 @@ a.button:hover
 	text-overflow: ellipsis;
 }
 
-#login label
+#login form
 {
-	float: none;
+	text-align: center;
 }
 
-#login input[type="text"]
+#login input
 {
-	width: 90%;
-}
-
-#login input[type="password"]
-{
-	width: 90%;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 0em;
+	margin-bottom: 0.25em;
 }
 
 #login input[type="submit"]
 {
-	width: 45%;
+	width: 10em;
+}
+
+#login label
+{
+	float: none;
 }
 
 #login table
@@ -528,6 +534,16 @@ a.button:hover
 	margin-bottom: 2em;
 }
 
+#login table input
+{
+	width: 100%;
+}
+
+#login table input[type="submit"]
+{
+	width: 10em;
+}
+
 #login table td.leftcolumn
 {
 	width: 25%;
@@ -537,6 +553,7 @@ a.button:hover
 #login table td.rightcolumn
 {
 	width: 25%;
+	text-align: right;
 }
 
 #login table td.middlecolumn
@@ -575,8 +592,6 @@ a.button:hover
 	display: block;
 	width: 100%;
 	margin: 0;
-	box-sizing: border-box;
-	-moz-box-sizing: border-box;
 }
 
 #chat

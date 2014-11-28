@@ -107,7 +107,9 @@ public:
 		String tracker(void) const;
 		uint32_t checksum(void) const;
 		
+		void setSelf(bool self = true);
 		bool isSelf(void) const;
+		
 		bool isFound(void) const;
 		
 		// Listener
@@ -131,6 +133,7 @@ public:
 		BinaryString mSecret;
 		Identifier mPeering;
 		String mTracker;
+		bool mIsSelf;
 		bool mFound;
 		
 		friend class AddressBook;
