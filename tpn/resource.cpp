@@ -135,10 +135,6 @@ void Resource::process(const String &filename, const String &name, const String 
 			BinaryString iv;
 			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
 			
-			VAR(i);
-			VAR(subkey);
-			VAR(iv);
-			
 			if(!Block::EncryptFile(file, subkey, iv, blockDigest))
 				break;
 			
@@ -370,12 +366,6 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 		// Generate iv
 		BinaryString iv;
 		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
-		
-		VAR(mKey);
-		VAR(mResource->salt());
-		VAR(mCurrentBlockIndex);
-		VAR(subkey);
-		VAR(iv);
 		
 		// Initialize decryption process
 		mCurrentBlock->setDecryption(subkey, iv);
