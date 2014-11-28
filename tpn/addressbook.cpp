@@ -53,7 +53,8 @@ AddressBook::AddressBook(User *user) :
 	{
 		try {
 			File file(mFileName, File::Read);
-			load(file);
+			JsonSerializer serializer(&file);
+			serializer.input(*this);
 			file.close();
 		}
 		catch(const Exception &e)
@@ -98,50 +99,28 @@ void AddressBook::clear(void)
 	mContacts.clear();
 }
 
-void AddressBook::load(Stream &stream)
-{
-	Synchronize(this);
-
-	JsonSerializer serializer(&stream);
-	serializer.input(*this);
-	
-	LogDebug("AddressBook::load", "Loaded " + String::number(mContacts.size()) + " contacts and " + String::number(mInvitations.size()) + " invitations");
-}
-
-void AddressBook::save(Stream &stream) const
-{
-	Synchronize(this);
-  
-	JsonSerializer serializer(&stream);
-	serializer.output(*this);
-}
-
 void AddressBook::save(void) const
 {
 	Synchronize(this);
 
 	SafeWriteFile file(mFileName);
-	save(file);
+	JsonSerializer serializer(&file);
+	serializer.output(*this);
 	file.close();
-}
-
-void AddressBook::sendContacts(const Identifier &peer) const
-{
-	Synchronize(this);
-	
-	if(peer == Identifier::Null)
-		throw Exception("Prevented AddressBook::send() to broadcast");
-	
-	// TODO: send file hash
-}
-
-void AddressBook::sendContacts(void) const
-{
-	Synchronize(this);
 	
 	const Contact *self = getSelf();
-	if(self && self->isConnected())
-		sendContacts(self->identifier());
+	if(self)
+	{
+		Resource resource;
+		resource.cache(mFileName, "contacts", "contacts", self->secret());
+		
+		Notification notification;
+		notification["type"] << "contacts";
+		notification["digest"] << resource.digest();
+	
+		if(!Core::Instance->send(self->identifier(), notification))
+			throw Exception("Unable to send contacts");
+	}
 }
 
 String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey, const String &tracker)
@@ -168,7 +147,6 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey,
 	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
 	
 	save();
-	sendContacts();
 	
 	return uname;
 }
@@ -224,7 +202,6 @@ void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	
 	save();
-	sendContacts();
 }
 
 AddressBook::Contact *AddressBook::getSelf(void)
@@ -1555,6 +1532,12 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 			mSecret = commonSecret;
 			mAddressBook->save();
 		}
+	}
+	if(type == "contacts")
+	{
+		if(!isSelf()) throw Exception("Received contacts notification from other than self");
+		
+		// TODO
 	}
 	
 	return true;

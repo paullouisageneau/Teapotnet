@@ -60,12 +60,7 @@ public:
 	String urlPrefix(void) const;
 	
 	void clear(void);
-	void load(Stream &stream);
-	void save(Stream &stream) const;
 	void save(void) const;
-	
-	void sendContacts(const Identifier &peer) const;
-	void sendContacts(void) const;
 	
 	void update(void);
 	bool send(const Notification &notification);
