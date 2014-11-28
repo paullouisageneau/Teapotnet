@@ -422,11 +422,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else if(action == "deleteinvitation")
 					{
 						Synchronize(this);
-						String name = request.post["argument"];
+						BinaryString peering;
+						request.post["argument"].extract(peering);
 						
 						// TODO: function removeInvitation
 						for(int i=0; i<mInvitations.size(); ++i)
-							if(mInvitations[i].name() == name)
+							if(mInvitations[i].peering() == peering)
 							{
 								mInvitations.erase(i);
 								break;
@@ -665,7 +666,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 					page.open("tr");
 					page.open("td",".name");
-					page.text(invitation->name());
+					if(invitation->isSelf()) page.text("(synchronization)");
+					else page.text(invitation->name());
+					page.close("td");
+					page.open("td",".peering");
+					page.text(invitation->peering());
 					page.close("td");
 					page.open("td",".actions");
 					page.openLink('#', ".deletelink");
@@ -680,10 +685,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				
 				page.javascript("$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
 					event.stopPropagation();\n\
-					var name = $(this).closest('tr').find('td.name').text();\n\
+					var peering = $(this).closest('tr').find('td.peering').text();\n\
 					if(confirm('Do you really want to delete this invitation ?')) {\n\
 						document.actionForm.action.value = 'deleteinvitation';\n\
-						document.actionForm.argument.value = name;\n\
+						document.actionForm.argument.value = peering;\n\
 						document.actionForm.submit();\n\
 					}\n\
 				});");
