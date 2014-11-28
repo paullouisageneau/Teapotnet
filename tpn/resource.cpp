@@ -91,11 +91,15 @@ void Resource::process(const String &filename, const String &name, const String 
 {
 	BinaryString salt;
 	
-	// If secret not empty then this is an encrypted resource
+	// If secret is not empty then this is an encrypted resource
 	if(!secret.empty())
 	{
-		Random rnd;
-		rnd.read(salt, 32);	// 256 bits
+		// Generate salt from plaintext
+		// Because we need to be able to recognize data is identical even when encrypted
+		BinaryString digest;
+		File file(filename, File::Read);
+		Sha256().compute(file, digest);
+		Sha256().pbkdf2_hmac(salt, type, digest, 32, 100000);
 	}
 	
 	// Fill index record
@@ -116,11 +120,6 @@ void Resource::process(const String &filename, const String &name, const String 
 	{
 		BinaryString key;
 		Sha256().pbkdf2_hmac(secret, salt, key, 32, 100000);
-		
-		VAR(name);
-		VAR(type);
-		VAR(key);
-		VAR(salt);
 		
 		uint64_t i = 0;
 		while(true)
