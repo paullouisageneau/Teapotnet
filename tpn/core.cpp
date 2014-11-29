@@ -552,7 +552,7 @@ bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &re
 	Assert(stream);
 
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, stream, local, remote);
+	Handler *handler = new Handler(this, stream, Identifier(local, getNumber()), remote);
 	mThreadPool.launch(handler);
 	return true;
 }
@@ -1659,8 +1659,8 @@ bool Core::Handler::recv(Message &message)
 		AssertIO(mStream->readBinary(size));
 		
 		BinarySerializer serializer(mStream);
-		AssertIO(static_cast<Serializer*>(&serializer)->input(message.source));
-		AssertIO(static_cast<Serializer*>(&serializer)->input(message.destination));
+		AssertIO(serializer.read(message.source));
+		AssertIO(serializer.read(message.destination));
 		
 		message.payload.clear();
 		if(size > message.payload.length())
