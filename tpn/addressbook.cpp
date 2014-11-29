@@ -1072,8 +1072,6 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			if(!Core::Instance->send(peer, notification))
 				throw Exception("Unable to send self message");
 			
-			// TODO: tracker
-			
 			// Add self
 			mAddressBook->setSelf(mAddressBook->user()->publicKey());	// calls save()
 		}
@@ -1890,22 +1888,25 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["tracker"] = &mTracker;
 	mapping["instances"] = &mInstances;
-
-	String prefix, status;
+	mapping["tracker"] = &mTracker;
+	
+	String prefix, status, tracker;
 	ConstSerializableWrapper<uint32_t> messages(uint32_t(0));	// TODO
 	if(s.optionalOutputMode())
 	{
 		prefix = urlPrefix();
 		status = (isConnected() ? "connected" : "disconnected");
+		tracker = this->tracker();
 		
+		mapping["tracker"] = &tracker;
 		mapping["prefix"] = &prefix;
 		mapping["status"] = &status;
 		mapping["messages"] = &messages;
 	}
 	else {
 		mapping["secret"] = &mRemoteSecret;
+		
 	}
 	
 	s.outputObject(mapping);
