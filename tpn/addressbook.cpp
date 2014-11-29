@@ -1058,16 +1058,20 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			if(remoteContacts >= localContacts
 				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
 			{
+				LogDebug("AddressBook::Invitation", "Synchronization mode is slave, key pair will be replaced");
+				
 				mAddressBook->setSelf(pubKey);	// calls save()
 				return true;			// so invitation is not deleted
 			}
+			
+			LogDebug("AddressBook::Invitation", "Synchronization mode is master, sending key pair");
 			
 			Notification notification;
 			notification["type"] << "self";
 			notification["publickey"] << mAddressBook->user()->publicKey();
 			notification["privatekey"] << mAddressBook->user()->privateKey();
 			notification["secret"] << mAddressBook->user()->secret();
-				
+			
 			// TODO: force direct
 			if(!Core::Instance->send(peer, notification))
 				throw Exception("Unable to send self message");
@@ -1082,6 +1086,9 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	}
 	else if(type == "self")
 	{
+		if(!isSelf())
+			throw Exception("Got self notification from other than self");
+		  
 		if(!notification.contains("publickey"))
 			throw Exception("Missing self public key");
 		
@@ -1100,6 +1107,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		Rsa::PrivateKey secret;
 		notification.get("secret").extract(secret);
 		
+		LogDebug("AddressBook::Invitation", "Replacing key pair");
 		mAddressBook->user()->setKeyPair(pubKey, privKey);
 		mAddressBook->user()->setSecret(secret);
 	}
