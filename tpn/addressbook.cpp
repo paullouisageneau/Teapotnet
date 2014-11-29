@@ -286,6 +286,7 @@ bool AddressBook::deserialize(Serializer &s)
 	{
 		Invitation *invitation = &mInvitations[i];
 		invitation->setAddressBook(this);
+		invitation->init();
 	}
 	
 	return true;
@@ -830,6 +831,7 @@ AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	mSecret(invitation.mSecret),
 	mPeering(invitation.mPeering),
 	mTracker(invitation.mTracker),
+	mIsSelf(invitation.mIsSelf),
 	mFound(false)
 {
 	setAddressBook(invitation.mAddressBook);
@@ -1208,7 +1210,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mInstances(contact.mInstances)
 {
 	setAddressBook(contact.mAddressBook);
-	// no init !
+	// no init
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 

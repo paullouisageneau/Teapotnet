@@ -91,7 +91,9 @@ void Interface::http(const String &prefix, Http::Request &request)
 					{
 						user = new User(name, password, tracker);
 						
+						String token = user->generateToken("auth");
 						Http::Response response(request, 200);
+						response.cookies["auth_"+user->name()] = token;
 						response.send();
 						
 						Html page(response.stream);
@@ -110,6 +112,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 						page.text("If you don't, and this is your first Teapotnet installation, just let the field empty.");
 						page.br();
 						page.close("p");
+						page.input("hidden", "token", user->generateToken("contact"));
 						page.input("hidden", "action", "acceptsynchronization");
 						page.input("text", "secret");
 						page.button("validate", "Validate");
@@ -139,7 +142,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 				if(!user) throw 401;	// TODO
 				
 				String token = user->generateToken("auth");
-					
 				Http::Response response(request, 303);
 				response.headers["Location"] = user->urlPrefix();
 				response.cookies["auth_"+user->name()] = token;
