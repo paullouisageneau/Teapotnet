@@ -25,6 +25,7 @@
 #include "tpn/resource.h"
 #include "tpn/config.h"
 #include "tpn/user.h"
+#include "tpn/addressbook.h"
 
 #include "pla/directory.h"
 #include "pla/jsonserializer.h"
@@ -102,7 +103,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 						page.closeLink();
 						page.close("div");
 						
-						page.openForm("/", "post");
+						page.openForm(user->addressBook()->urlPrefix(), "post");
 						page.open("p");
 						page.text("If you have Teapotnet installed on another device, generate a synchronization secret and enter it here.");
 						page.br();
