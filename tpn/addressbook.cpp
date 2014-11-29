@@ -1053,6 +1053,8 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			unsigned remoteContacts = 0;
 			notification.get("contacts").extract(remoteContacts);
 			
+			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Core::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + ")");
+			
 			if(remoteContacts >= localContacts
 				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
 			{
