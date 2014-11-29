@@ -118,8 +118,7 @@ void AddressBook::save(void) const
 		notification["type"] << "contacts";
 		notification["digest"] << resource.digest();
 	
-		if(!Core::Instance->send(self->identifier(), notification))
-			throw Exception("Unable to send contacts");
+		Core::Instance->send(self->identifier(), notification);
 	}
 }
 
@@ -1057,7 +1056,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			notification.get("contacts").extract(remoteContacts);
 			
 			if(remoteContacts >= localContacts
-				&& (remoteContacts != localContacts || mAddressBook->user()->identifier() > peer))
+				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
 			{
 				mAddressBook->setSelf(pubKey);	// calls save()
 				return true;			// so invitation is not deleted
