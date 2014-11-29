@@ -63,6 +63,7 @@ public:
 	String tracker(void) const;
 	String profilePath(void) const;
 	String urlPrefix(void) const;
+	BinaryString secret(void) const;
 	
 	void setTracker(const String &tracker);
 	
@@ -74,8 +75,6 @@ public:
 	bool isOnline(void) const;
 	void setOnline(void);
 	void setOffline(void);
-	void sendStatus(const Identifier &identifier = Identifier::Null);
-	void sendSecret(const Identifier &identifier);
 	
 	BinaryString getSecretKey(const String &action) const;
 	
@@ -88,6 +87,7 @@ public:
 	SecureTransport::Certificate *certificate(void) const;
 	
 	void setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey);
+	void setSecret(const BinaryString &secret);
 	
 	void http(const String &prefix, Http::Request &request);
 

@@ -265,6 +265,12 @@ String User::urlPrefix(void) const
 	return String("/user/") + mName;
 }
 
+BinaryString User::secret(void) const
+{
+	Synchronize(this);
+	return mSecret;
+}
+
 void User::setTracker(const String &tracker)
 {
 	Synchronize(this);
@@ -303,7 +309,7 @@ void User::setOnline(void)
 	if(!mOnline) 
 	{
 		mOnline = true;
-		sendStatus();
+		//sendStatus();
 	
 		// TODO	
 		//DesynchronizeStatement(this, mAddressBook->update());
@@ -319,51 +325,19 @@ void User::setOffline(void)
 	if(mOnline) 
 	{
 		mOnline = false;
-		sendStatus();
+		//sendStatus();
 	}
-}
-
-void User::sendStatus(const Identifier &identifier)
-{
-	Synchronize(this);
-	
-	String status = (mOnline ? "online" : "offline");
-	
-	Notification notification(status);
-	//notification.setParameter("type", "status");	// TODO
-	
-	if(identifier != Identifier::Null)
-	{
-		DesynchronizeStatement(this, notification.send(identifier));
-	}
-	else {
-		DesynchronizeStatement(this, addressBook()->send(notification));
-	}
-}
-
-void User::sendSecret(const Identifier &identifier)
-{
-	Synchronize(this);
-	
-	if(mSecret.empty()) return;
-	
-	if(identifier == Identifier::Null)
-		throw Exception("Prevented sendSecret() to broadcast");
-	
-	Notification notification(mSecret.toString());
-	//notification.setParameter("type", "secret");	// TODO
-	//notification.setParameter("time", File::Time(profilePath()+"secret").toString());
-	
-	DesynchronizeStatement(this, notification.send(identifier));
 }
 
 BinaryString User::getSecretKey(const String &action) const
 {
+	Synchronize(this);
+	
 	// Cache for subkeys
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
-		Sha256().pbkdf2_hmac(mSecret, action, key, 32, 10000);
+		Sha256().pbkdf2_hmac(mSecret, action, key, 32, 100000);
 		mSecretKeysCache.insert(action, key);
 	}
 
@@ -442,29 +416,41 @@ bool User::checkToken(const String &token, const String &action) const
 
 Identifier User::identifier(void) const
 {
+	Synchronize(this);
 	return Identifier(mPublicKey.digest()); 
 }
 
 const Rsa::PublicKey &User::publicKey(void) const
 {
+	Synchronize(this);
 	return mPublicKey; 
 }
 
 const Rsa::PrivateKey &User::privateKey(void) const
 {
+	Synchronize(this);
 	return mPrivateKey; 
 }
 
 SecureTransport::Certificate *User::certificate(void) const
 {
+	Synchronize(this);
 	return mCertificate;
 }
 
 void User::setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey)
 {
+	Synchronize(this);
+	
 	// TODO: check key pair
 	mPublicKey = publicKey;
 	mPrivateKey = privateKey;
+}
+
+void User::setSecret(const BinaryString &secret)
+{
+	Synchronize(this);
+	mSecret = secret;
 }
 
 void User::http(const String &prefix, Http::Request &request)

@@ -186,6 +186,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		BinaryString localSecret(void) const;
+		BinaryString remoteSecret(void) const;
 		void run(void);
 	  
 		class Instance : public Serializable
@@ -226,7 +228,7 @@ public:
 		
 		String mUniqueName, mName, mTracker;
 		Rsa::PublicKey mPublicKey;
-		BinaryString mHalfSecret, mSecret;
+		BinaryString mRemoteSecret;
 		
 		typedef SerializableMap<uint64_t, Instance> InstancesMap;
 		InstancesMap mInstances;

@@ -1065,6 +1065,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			notification["type"] << "self";
 			notification["publickey"] << mAddressBook->user()->publicKey();
 			notification["privatekey"] << mAddressBook->user()->privateKey();
+			notification["secret"] << mAddressBook->user()->secret();
 				
 			// TODO: force direct
 			if(!Core::Instance->send(peer, notification))
@@ -1088,13 +1089,20 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		if(!notification.contains("privatekey"))
 			throw Exception("Missing self private key");
 		
+		if(!notification.contains("secret"))
+			throw Exception("Missing self secret");
+		
 		Rsa::PublicKey pubKey;
 		notification.get("publickey").extract(pubKey);
 		
 		Rsa::PrivateKey privKey;
 		notification.get("privatekey").extract(privKey);
 		
+		Rsa::PrivateKey secret;
+		notification.get("secret").extract(secret);
+		
 		mAddressBook->user()->setKeyPair(pubKey, privKey);
+		mAddressBook->user()->setSecret(secret);
 	}
 	
 	// Erase invitation
@@ -1196,8 +1204,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mName(contact.mName),
 	mTracker(contact.mTracker),
 	mPublicKey(contact.mPublicKey),
-	mHalfSecret(contact.mHalfSecret),
-	mSecret(contact.mSecret),
+	mRemoteSecret(contact.mRemoteSecret),
 	mInstances(contact.mInstances)
 {
 	setAddressBook(contact.mAddressBook);
@@ -1245,12 +1252,6 @@ void AddressBook::Contact::init(void)
 	mAddressBook->mScheduler.repeat(this, 300.);
 		
 	Interface::Instance->add(urlPrefix(), this);
-	
-	if(mHalfSecret.empty())
-	{
-		Random rnd(Random::Key);
-		rnd.readBinary(mHalfSecret, 32);
-	}
 	
 	if(!mBoard)
 	{
@@ -1354,9 +1355,25 @@ String AddressBook::Contact::urlPrefix(void) const
 BinaryString AddressBook::Contact::secret(void) const
 {
 	Synchronize(mAddressBook);
-	if(mSecret.empty())
-		throw Exception("No secret for contact: " + mUniqueName);
-	return mSecret;
+	
+	if(isSelf())
+	{
+		return mAddressBook->user()->secret();
+	}
+	else {
+		return localSecret() ^ remoteSecret();
+	}
+}
+
+BinaryString AddressBook::Contact::localSecret(void) const
+{
+	Synchronize(mAddressBook);
+	return mAddressBook->user()->getSecretKey(identifier().toString());
+}
+
+BinaryString AddressBook::Contact::remoteSecret(void) const
+{
+	return mRemoteSecret;
 }
 
 Profile *AddressBook::Contact::profile(void) const
@@ -1492,7 +1509,7 @@ void AddressBook::Contact::connected(const Identifier &peer)
   
 	Notification notification;
 	notification["type"] << "hello";
-	notification["secret"] << mHalfSecret;
+	notification["secret"] << localSecret();
 	
 	// TODO: force direct
 	if(!Core::Instance->send(peer, notification))
@@ -1518,18 +1535,10 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 		
 		BinaryString secret;
 		notification.get("secret").extract(secret);
-		
-		BinaryString commonSecret = mHalfSecret;
-		if(secret.size() > commonSecret.size())
-			std::swap(secret, commonSecret);
-		
-		// XOR
-		for(int i=0; i<secret.size(); ++i)
-			commonSecret[i]^=secret[i];
-		
-		if(mSecret != commonSecret)
+
+		if(secret != mRemoteSecret)
 		{
-			mSecret = commonSecret;
+			mRemoteSecret = secret;
 			mAddressBook->save();
 		}
 	}
@@ -1537,7 +1546,35 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 	{
 		if(!isSelf()) throw Exception("Received contacts notification from other than self");
 		
-		// TODO
+		BinaryString digest;
+		notification.get("digest").extract(digest);
+		
+		class ImportTask : public Task
+		{
+		public:
+			ImportTask(AddressBook *addressBook, const BinaryString &digest)
+			{
+				this->digest = digest;
+				this->addressBook = addressBook;
+			}
+			
+			void run(void)
+			{
+				Resource resource(digest);
+				Resource::Reader reader(&resource, addressBook->user()->secret());
+				
+				JsonSerializer serializer(&reader);
+				serializer.input(*addressBook);
+				
+				delete this;	// autodelete
+			}
+			
+		private:
+			AddressBook *addressBook;
+			BinaryString digest;
+		};
+		
+		Scheduler::Global->schedule(new ImportTask(mAddressBook, digest));
 	}
 	
 	return true;
@@ -1867,8 +1904,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		mapping["messages"] = &messages;
 	}
 	else {
-		mapping["halfsecret"] = &mHalfSecret;
-		mapping["secret"] = &mSecret;
+		mapping["secret"] = &mRemoteSecret;
 	}
 	
 	s.outputObject(mapping);
@@ -1889,8 +1925,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["name"] = &mName;
 	mapping["tracker"] = &mTracker;
 	mapping["instances"] = &mInstances;
-	mapping["halfsecret"] = &mHalfSecret;
-	mapping["secret"] = &mSecret;
+	mapping["secret"] = &mRemoteSecret;
 	
 	if(!s.inputObject(mapping))
 		return false;
