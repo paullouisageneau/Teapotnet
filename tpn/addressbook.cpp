@@ -372,10 +372,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}
 					else if(action == "acceptsynchronization")
 					{
-						String secret;
-						if(!request.post["secret"].empty())
-							request.post["secret"] >> secret;
-						
+						String secret = request.post["secret"];
 						secret.trim();
 						if(!secret.empty())
 						{
