@@ -152,6 +152,8 @@ User::User(const String &name, const String &password, const String &tracker) :
 		save();
 	}
 	
+	Assert(File::Exist(mFileName));
+	
 	// Generate token secret
 	rnd.readBinary(mTokenSecret, 16);
 	
@@ -220,21 +222,19 @@ void User::load()
 	Synchronize(this);
 	
 	if(!File::Exist(mFileName)) return;
-	File profileFile(mFileName, File::Read);
-	JsonSerializer serializer(&profileFile);
-	deserialize(serializer);
+	File file(mFileName, File::Read);
+	JsonSerializer serializer(&file);
+	serializer.read(*this);
+	file.close();
 }
 
 void User::save() const
 {
 	Synchronize(this);
 	
-	String tmp;
-	JsonSerializer serializer(&tmp);
-	serialize(serializer);
-
 	SafeWriteFile file(mFileName);
-	file.write(tmp);
+	JsonSerializer serializer(&file);
+	serializer.write(*this);
 	file.close();
 }
 
