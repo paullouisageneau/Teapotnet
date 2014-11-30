@@ -99,7 +99,8 @@ void Resource::process(const String &filename, const String &name, const String 
 		BinaryString digest;
 		File file(filename, File::Read);
 		Sha256().compute(file, digest);
-		Sha256().pbkdf2_hmac(salt, type, digest, 32, 100000);
+		Sha256().pbkdf2_hmac(digest, type, salt, 32, 100000);
+		Assert(!salt.empty());
 	}
 	
 	// Fill index record
