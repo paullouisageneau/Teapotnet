@@ -1053,7 +1053,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			unsigned remoteContacts = 0;
 			notification.get("contacts").extract(remoteContacts);
 			
-			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Core::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + ")");
+			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Core::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + " contacts)");
 			
 			if(remoteContacts >= localContacts
 				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
@@ -1122,6 +1122,8 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 				Resource::Reader reader(&resource, secret);
 				JsonSerializer serializer(&reader);
 				serializer.read(*user);
+				
+				LogDebug("AddressBook::Invitation", "Synchronization: user loaded");
 				user->save();
 				delete this;	// autodelete
 			}
