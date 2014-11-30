@@ -1105,7 +1105,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	{
 		if(!isSelf())
 			throw Exception("Received user from other than self");
-	
+		
 		if(!notification.contains("digest"))
 			throw Exception("Missing user digest");
 		
@@ -1272,7 +1272,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	Assert(!name.empty());
 	
 	setAddressBook(addressBook);
-	init();
 }
 
 AddressBook::Contact::~Contact(void)
