@@ -1975,8 +1975,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 		return false;
 	
 	// TODO: sanity checks
-	
-	listen(identifier());
 	return true;
 }
 
