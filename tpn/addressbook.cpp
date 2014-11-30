@@ -1106,12 +1106,33 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		
 		LogDebug("AddressBook::Invitation", "Synchronization: receiving user");
 		
-		Resource resource(digest);
-		Resource::Reader reader(&resource, secret);
-		JsonSerializer serializer(&reader);
-		serializer.read(*mAddressBook->user());
+		class ImportTask : public Task
+		{
+		public:
+			ImportTask(User *user, const BinaryString &digest, const String &secret)
+			{
+				this->user = user;
+				this->digest = digest;
+				this->secret = secret;
+			}
+			
+			void run(void)
+			{
+				Resource resource(digest);
+				Resource::Reader reader(&resource, secret);
+				JsonSerializer serializer(&reader);
+				serializer.read(*user);
+				user->save();
+				delete this;	// autodelete
+			}
+			
+		private:
+			User *user;
+			BinaryString digest;
+			String secret;
+		};
 		
-		mAddressBook->user()->save();
+		Scheduler::Global->schedule(new ImportTask(mAddressBook->user(), digest, secret));
 	}
 	
 	// Erase invitation
@@ -1563,18 +1584,17 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 		public:
 			ImportTask(AddressBook *addressBook, const BinaryString &digest)
 			{
-				this->digest = digest;
 				this->addressBook = addressBook;
+				this->digest = digest;
 			}
 			
 			void run(void)
 			{
 				Resource resource(digest);
 				Resource::Reader reader(&resource, addressBook->user()->secret());
-				
 				JsonSerializer serializer(&reader);
 				serializer.input(*addressBook);
-				
+				addressBook->save();
 				delete this;	// autodelete
 			}
 			
