@@ -112,7 +112,7 @@ void AddressBook::save(void) const
 	if(self)
 	{
 		Resource resource;
-		resource.cache(mFileName, "contacts", "contacts", self->secret());
+		resource.process(mFileName, "contacts", "contacts", self->secret());
 		
 		Notification notification;
 		notification["type"] << "contacts";
@@ -144,6 +144,7 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey,
 	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey, tracker));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
+	it->second.init();
 	
 	save();
 	
@@ -199,6 +200,7 @@ void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
 	String uname = userName();
 	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, uname, pubKey));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
+	it->second.init();
 	
 	save();
 }
@@ -320,6 +322,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						LogDebug("AddressBook::http", "Generating new invitation with code: " + code);
 						mInvitations.push_back(Invitation(this, code, pin, user()->tracker()));
+						(--mInvitations.end())->init();
 						save();
 
 						Http::Response response(request, 200);
@@ -348,7 +351,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(!PinIsValid(pin)) throw Exception("Invalid invitation PIN");
 
 						LogDebug("AddressBook::http", "Accepting invitation with code: " + code);
-						mInvitations.append(Invitation(this, code, pin, tracker));
+						mInvitations.push_back(Invitation(this, code, pin, tracker));
+						(--mInvitations.end())->init();
 						save();
 					}
 					if(action == "createsynchronization")
@@ -358,7 +362,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						LogDebug("AddressBook::http", "Generating new synchronization secret");
 						Invitation invitation(this, user()->name(), secret, user()->tracker());
 						invitation.setSelf(true);
-						mInvitations.append(invitation);
+						mInvitations.push_back(invitation);
+						(--mInvitations.end())->init();
 						save();
 						
 						Http::Response response(request, 200);
@@ -684,6 +689,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 bool AddressBook::publish(const Identifier &identifier, const String &tracker)
 {
+	LogDebug("AddressBook::publish", "Publishing to tracker " + tracker + " for " + identifier.toString());
+	
 	try {
 		String url("http://" + tracker + "/tracker/?id=" + identifier.toString());
 		
@@ -730,22 +737,24 @@ bool AddressBook::publish(const Identifier &identifier, const String &tracker)
 			}
 		}*/
 		
-		if(Http::Post(url, post) == 200)
-			return true;
+		int code = Http::Post(url, post);
+		if(code == 200) return true;
+		
+		LogWarn("AddressBook::publish", "Tracker HTTP error: " + String::number(code)); 
 	}
 	catch(const Timeout &e)
 	{
-		LogDebug("AddressBook::publish", e.what()); 
+		LogWarn("AddressBook::publish", e.what()); 
 	}
 	catch(const NetException &e)
 	{
-		LogDebug("AddressBook::publish", e.what()); 
+		LogWarn("AddressBook::publish", e.what()); 
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("AddressBook::publish", e.what()); 
 	}
-
+	
 	return false;
 }
 
@@ -754,23 +763,28 @@ bool AddressBook::query(const Identifier &identifier, const String &tracker, Ser
 	String host(tracker);
 	if(host.empty()) host = user()->tracker();
 	
+	LogDebug("AddressBook::query", "Querying tracker " + host + " for " + identifier.toString());
+	
 	try {
 		String url = "http://" + host + "/tracker/?id=" + identifier.toString();
 		  
 		String json;
-		if(Http::Get(url, &json) == 200) 
+		int code = Http::Get(url, &json);
+		if(code == 200) 
 		{
 			JsonSerializer serializer(&json);
 			return serializer.input(result);
 		}
+		
+		LogWarn("AddressBook::publish", "Tracker HTTP error: " + String::number(code)); 
 	}
 	catch(const Timeout &e)
 	{
-		LogDebug("AddressBook::query", e.what()); 
+		LogWarn("AddressBook::query", e.what()); 
 	}
 	catch(const NetException &e)
 	{
-		LogDebug("AddressBook::query", e.what()); 
+		LogWarn("AddressBook::query", e.what()); 
 	}
 	catch(const std::exception &e)
 	{
@@ -832,7 +846,6 @@ AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	mFound(false)
 {
 	setAddressBook(invitation.mAddressBook);
-	init();	// TODO
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &name, const String &tracker) :
@@ -844,7 +857,6 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 	mPeering = identifier;	// In this case, peering is set to the identifier and secret is empty.
 	
 	setAddressBook(addressBook);
-	init();
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
@@ -856,7 +868,6 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 	generate(code, String::number64(pin, 10));
 	
 	setAddressBook(addressBook);
-	init();
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
@@ -1071,7 +1082,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			rnd.read(randomSecret, 32);
 			
 			Resource resource;
-			resource.cache(mAddressBook->user()->fileName(), mAddressBook->user()->name(), "user", randomSecret.toString());
+			resource.process(mAddressBook->user()->fileName(), mAddressBook->user()->name(), "user", randomSecret.toString());
 			
 			Notification notification;
 			notification["type"] << "user";

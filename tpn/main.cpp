@@ -348,7 +348,7 @@ int main(int argc, char** argv)
 		Config::Default("external_port", "auto");
 		Config::Default("port_mapping_enabled", "true");
 		Config::Default("http_timeout", "5000");
-		Config::Default("request_timeout", "10000");
+		Config::Default("request_timeout", "5000");
 		Config::Default("tpot_timeout", "5000");
 		Config::Default("user_global_shares", "true");
 		Config::Default("http_proxy", "auto");
