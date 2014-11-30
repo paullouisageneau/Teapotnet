@@ -33,10 +33,10 @@ bool StringMap::input(Pair &pair)
 	
 	String key = it->first;
 	LineSerializer keySerializer(&key);
-	AssertIO(pair.deserializeKey(keySerializer));
+	pair.deserializeKey(keySerializer);
 	
 	JsonSerializer valueSerializer(&it->second);
-	AssertIO(pair.deserializeValue(valueSerializer));
+	pair.deserializeValue(valueSerializer);
 	
 	this->erase(it);
 	return true;

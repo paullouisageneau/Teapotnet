@@ -384,7 +384,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							LogDebug("AddressBook::http", "Accepting synchronization");
 							Invitation invitation(this, user()->name(), secret, user()->tracker());
 							invitation.setSelf(true);
-							mInvitations.append(invitation);
+							mInvitations.push_back(invitation);
+							(--mInvitations.end())->init();
 							save();
 						}
 						
@@ -880,7 +881,6 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	generate(salt, secret);
 	
 	setAddressBook(addressBook);
-	init();
 }
 
 AddressBook::Invitation::~Invitation(void)

@@ -195,7 +195,7 @@ bool YamlSerializer::input(Pair &pair)
 	}
 
 	LineSerializer keySerializer(&key);
-	AssertIO(pair.deserializeKey(keySerializer));
+	pair.deserializeKey(keySerializer);
 	mIndent.push(-1);
 	AssertIO(pair.deserializeValue(*this));
 	if(!mIndent.empty()) mIndent.pop();

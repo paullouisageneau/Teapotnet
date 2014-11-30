@@ -81,7 +81,7 @@ String Serializable::toString(void) const
 
 void Serializable::fromString(String str)
 {
-	AssertIO(deserialize(str));  
+	deserialize(str);  
 }
 
 Serializable::operator String(void) const

@@ -55,7 +55,7 @@ bool LineSerializer::input(Element &element)
 	if(!mStream->readLine(line)) return false;
 	if(line.empty()) return false;
 	LineSerializer serializer(&line);
-	AssertIO(element.deserialize(serializer));
+	element.deserialize(serializer);
 	return true;
 }
 
@@ -71,8 +71,8 @@ bool LineSerializer::input(Pair &pair)
 	
 	LineSerializer keySerializer(&line);
 	LineSerializer valueSerializer(&value);
-	AssertIO(pair.deserializeKey(keySerializer));
-	pair.deserializeValue(valueSerializer);
+	pair.deserializeKey(keySerializer);
+	AssertIO(pair.deserializeValue(valueSerializer));
 	return true;
 }
 

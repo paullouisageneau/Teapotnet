@@ -62,7 +62,7 @@ bool JsonSerializer::input(Pair &pair)
 	if(!input(key)) return false;
 	AssertIO(mStream->last() == ':');
 	LineSerializer keySerializer(&key);
-	AssertIO(pair.deserializeKey(keySerializer));
+	pair.deserializeKey(keySerializer);
 	AssertIO(pair.deserializeValue(*this));
 	return true;
 }
