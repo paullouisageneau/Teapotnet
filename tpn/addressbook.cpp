@@ -319,7 +319,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						String code = String::random(32, Random::Crypto);
 						
 						LogDebug("AddressBook::http", "Generating new invitation with code: " + code);
-						mInvitations.append(Invitation(this, code, pin, user()->tracker()));
+						mInvitations.push_back(Invitation(this, code, pin, user()->tracker()));
 						save();
 
 						Http::Response response(request, 200);
@@ -832,7 +832,7 @@ AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	mFound(false)
 {
 	setAddressBook(invitation.mAddressBook);
-	// no init
+	init();	// TODO
 }
 
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &name, const String &tracker) :
