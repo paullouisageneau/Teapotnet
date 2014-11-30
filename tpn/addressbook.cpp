@@ -118,7 +118,7 @@ void AddressBook::save(void) const
 		notification["type"] << "contacts";
 		notification["digest"] << resource.digest();
 	
-		Core::Instance->send(self->identifier(), notification);
+		DesynchronizeStatement(this, Core::Instance->send(self->identifier(), notification));
 	}
 }
 

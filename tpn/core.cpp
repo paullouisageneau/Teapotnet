@@ -1739,6 +1739,7 @@ bool Core::Handler::incoming(Message &message)
 			json.read(notification);
 			
 			// TODO: correct sync
+			// TODO: getListeners function in Core
 			Desynchronize(this);
 			Synchronize(mCore);
 			Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(source);
@@ -1881,6 +1882,7 @@ void Core::Handler::process(void)
 		Desynchronize(this);
 		Synchronize(mCore);
 		
+		// TODO: correct sync
 		Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(mRemote);
 		while(it != mCore->mListeners.end() && it->first == mRemote)
 		{
