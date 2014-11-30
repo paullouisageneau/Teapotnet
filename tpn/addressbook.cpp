@@ -1058,23 +1058,29 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			if(remoteContacts >= localContacts
 				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
 			{
-				LogDebug("AddressBook::Invitation", "Synchronization mode is slave, key pair will be replaced");
+				LogDebug("AddressBook::Invitation", "Synchronization: mode is slave");
 				
 				mAddressBook->setSelf(pubKey);	// calls save()
 				return true;			// so invitation is not deleted
 			}
 			
-			LogDebug("AddressBook::Invitation", "Synchronization mode is master, sending key pair");
+			LogDebug("AddressBook::Invitation", "Synchronization: mode is master, sending user");
+			
+			BinaryString randomSecret;
+			Random rnd;
+			rnd.read(randomSecret, 32);
+			
+			Resource resource;
+			resource.cache(mAddressBook->user()->fileName(), mAddressBook->user()->name(), "user", randomSecret.toString());
 			
 			Notification notification;
-			notification["type"] << "self";
-			notification["publickey"] << mAddressBook->user()->publicKey();
-			notification["privatekey"] << mAddressBook->user()->privateKey();
-			notification["secret"] << mAddressBook->user()->secret();
+			notification["type"] << "user";
+			notification["digest"] << resource.digest();
+			notification["secret"] << randomSecret.toString();
 			
 			// TODO: force direct
 			if(!Core::Instance->send(peer, notification))
-				throw Exception("Unable to send self message");
+				throw Exception("Unable to send user");
 			
 			// Add self
 			mAddressBook->setSelf(mAddressBook->user()->publicKey());	// calls save()
@@ -1084,32 +1090,28 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			mAddressBook->addContact(name, pubKey, tracker);		// calls save()
 		}
 	}
-	else if(type == "self")
+	else if(type == "user")
 	{
 		if(!isSelf())
-			throw Exception("Got self notification from other than self");
-		  
-		if(!notification.contains("publickey"))
-			throw Exception("Missing self public key");
+			throw Exception("Received user from other than self");
+	
+		if(!notification.contains("digest"))
+			throw Exception("Missing user digest");
 		
-		if(!notification.contains("privatekey"))
-			throw Exception("Missing self private key");
+		BinaryString digest;
+		notification.get("digest").extract(digest);
 		
-		if(!notification.contains("secret"))
-			throw Exception("Missing self secret");
+		String secret;
+		notification.get("secret", secret);
 		
-		Rsa::PublicKey pubKey;
-		notification.get("publickey").extract(pubKey);
+		LogDebug("AddressBook::Invitation", "Synchronization: receiving user");
 		
-		Rsa::PrivateKey privKey;
-		notification.get("privatekey").extract(privKey);
+		Resource resource(digest);
+		Resource::Reader reader(&resource, secret);
+		JsonSerializer serializer(&reader);
+		serializer.read(*mAddressBook->user());
 		
-		Rsa::PrivateKey secret;
-		notification.get("secret").extract(secret);
-		
-		LogDebug("AddressBook::Invitation", "Replacing key pair");
-		mAddressBook->user()->setKeyPair(pubKey, privKey);
-		mAddressBook->user()->setSecret(secret);
+		mAddressBook->user()->save();
 	}
 	
 	// Erase invitation

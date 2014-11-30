@@ -259,6 +259,12 @@ String User::profilePath(void) const
 	return path + Directory::Separator;
 }
 
+String User::fileName(void) const
+{
+	Synchronize(this);
+	return mFileName;
+}
+
 String User::urlPrefix(void) const
 {
 	Synchronize(this);

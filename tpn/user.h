@@ -62,6 +62,7 @@ public:
 	String name(void) const;
 	String tracker(void) const;
 	String profilePath(void) const;
+	String fileName(void) const;
 	String urlPrefix(void) const;
 	BinaryString secret(void) const;
 	
@@ -86,8 +87,8 @@ public:
 	const Rsa::PrivateKey &privateKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
 	
-	void setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey);
-	void setSecret(const BinaryString &secret);
+	void setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey);	// useless
+	void setSecret(const BinaryString &secret);						// useless
 	
 	void http(const String &prefix, Http::Request &request);
 
