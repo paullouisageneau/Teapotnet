@@ -1745,14 +1745,10 @@ bool Core::Handler::incoming(Message &message)
 			Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(source);
 			while(it != mCore->mListeners.end() && it->first == source)
 			{
-				for(Set<Listener*>::iterator jt = it->second.begin();
-					jt != it->second.end();
-					++jt)
-				{
-					(*jt)->recv(source, notification);
-				}
-				
-				++it;
+				Set<Listener*> set = (it++)->second;
+				Set<Listener*>::iterator jt = set.begin();
+				while(jt != set.end())
+					(*jt++)->recv(source, notification);
 			}
 			
 			break;
