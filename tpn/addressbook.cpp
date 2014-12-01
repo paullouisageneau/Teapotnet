@@ -264,9 +264,6 @@ bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	// TODO: should load in a temporary map to trigger unregister and delete messages
-	clear();
-	
 	Serializer::ObjectMapping mapping;
 	mapping["contacts"] = &mContacts;
 	mapping["invitations"] = &mInvitations;
@@ -1205,11 +1202,6 @@ void AddressBook::Invitation::serialize(Serializer &s) const
 bool AddressBook::Invitation::deserialize(Serializer &s)
 {
 	Synchronize(mAddressBook);
-	
-	mName.clear();
-	mSecret.clear();
-	mPeering.clear();
-	mTracker.clear();
 
 	Serializer::ObjectMapping mapping;
 	mapping["name"] = &mName;
@@ -1974,11 +1966,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 {
 	Synchronize(mAddressBook);
 	
-	mPublicKey.clear();
-	mUniqueName.clear();
-	mName.clear();
-	mInstances.clear();
-	
 	Serializer::ObjectMapping mapping;
 	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
@@ -2072,11 +2059,7 @@ void AddressBook::Contact::Instance::serialize(Serializer &s) const
 }
 
 bool AddressBook::Contact::Instance::deserialize(Serializer &s)
-{  
-	mNumber = 0;
-	mName.clear();
-	mAddrs.clear();
-	
+{
 	SerializableWrapper<uint64_t> numberWrapper(&mNumber);
 	
 	Serializer::ObjectMapping mapping;
