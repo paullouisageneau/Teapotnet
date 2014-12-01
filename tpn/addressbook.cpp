@@ -65,7 +65,7 @@ AddressBook::AddressBook(User *user) :
 	
 	Interface::Instance->add(urlPrefix(), this);
 	
-	mScheduler.schedule(this, 1.);
+	mScheduler.schedule(this, 5.);
 	mScheduler.repeat(this, 300.);
 }
 
@@ -951,7 +951,7 @@ void AddressBook::Invitation::init(void)
 {
 	if(!mAddressBook) return;
 	
-	mAddressBook->mScheduler.schedule(this, 1.);
+	mAddressBook->mScheduler.schedule(this, 5.);
 	mAddressBook->mScheduler.repeat(this, 300.);
 	
 	listen(peering());
@@ -1291,7 +1291,7 @@ void AddressBook::Contact::init(void)
 {
 	if(!mAddressBook) return;
 	
-	mAddressBook->mScheduler.schedule(this, 1.);
+	mAddressBook->mScheduler.schedule(this, 5.);
 	mAddressBook->mScheduler.repeat(this, 300.);
 		
 	Interface::Instance->add(urlPrefix(), this);
@@ -1341,8 +1341,6 @@ void AddressBook::Contact::run(void)
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
 				locator.name = name();
-				
-				VAR(locator.peering);
 				
 				if(Core::Instance->connect(locator))
 				{
@@ -1560,7 +1558,7 @@ void AddressBook::Contact::connected(const Identifier &peer)
 	Synchronize(mAddressBook);
 	Assert(peer == identifier());
 	
-	LogDebug("AddressBook::Invitation", "Connected");
+	LogDebug("AddressBook::Contact", "Connected");
   
 	Notification notification;
 	notification["type"] << "hello";
