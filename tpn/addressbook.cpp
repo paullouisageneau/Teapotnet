@@ -1149,12 +1149,20 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		Scheduler::Global->schedule(new ImportTask(mAddressBook->user(), digest, secret));
 	}
 	
-	// Erase invitation
-	LogDebug("AddressBook::Invitation", "Deleting invitation: " + peering().toString());
-	for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
-		if(mAddressBook->mInvitations[i].peering() == peering())
-			mAddressBook->mInvitations.erase(i);
-	mAddressBook->save();
+	// Erase invitation and save
+	{
+		Synchronize(mAddressBook);
+		
+		LogDebug("AddressBook::Invitation", "Deleting invitation: " + peering().toString());
+		for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
+			if(mAddressBook->mInvitations[i].peering() == peering())
+				mAddressBook->mInvitations.erase(i);
+		
+		SafeWriteFile file(mFileName);
+		JsonSerializer serializer(&file);
+		serializer.output(*this);
+		file.close();
+	}
 	
 	// WARNING: Invitation is deleted here
 	return true;
