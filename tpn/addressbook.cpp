@@ -1155,8 +1155,13 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		
 		LogDebug("AddressBook::Invitation", "Deleting invitation: " + peering().toString());
 		for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
+		{
 			if(mAddressBook->mInvitations[i].peering() == peering())
+			{
 				mAddressBook->mInvitations.erase(i);
+				break;
+			}
+		}
 		
 		SafeWriteFile file(mAddressBook->mFileName);
 		JsonSerializer serializer(&file);
