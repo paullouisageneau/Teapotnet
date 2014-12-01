@@ -162,6 +162,7 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(uint64_t number) const;
 		
+		bool hasInstance(uint64_t number) const;
 		int  getInstanceNumbers(Array<uint64_t> &result) const;
 		int  getInstanceIdentifiers(Array<Identifier> &result) const;
 		bool getInstanceIdentifier(uint64_t number, Identifier &result) const;

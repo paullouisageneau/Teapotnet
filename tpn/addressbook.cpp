@@ -1323,6 +1323,10 @@ void AddressBook::Contact::run(void)
 {
 	if(!mAddressBook) return;
 	
+	LogDebug("AddressBook::Contact::run", "Looking for contact: " + uniqueName());
+	
+	const Identifier localIdentifier(mAddressBook->user()->identifier(), Core::Instance->getNumber());
+	
 	bool changed = false;
 	SerializableMap<uint64_t, SerializableSet<Address> > result;
 	if(mAddressBook->query(identifier(), tracker(), result))
@@ -1332,13 +1336,13 @@ void AddressBook::Contact::run(void)
 			++it)
 		{
 			Identifier id(identifier(), it->first);
-			
-			if(!Core::Instance->hasPeer(id))
+			if(id != localIdentifier			// if it's not the local user
+				&& !Core::Instance->hasPeer(id))	// and if it's not already connected
 			{
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
 				locator.name = name();
-				
+					
 				if(Core::Instance->connect(locator))
 				{
 					mInstances[it->first].addAddresses(it->second);
@@ -1446,6 +1450,12 @@ bool AddressBook::Contact::isConnected(uint64_t number) const
 	Identifier id;
 	if(!getInstanceIdentifier(number, id)) return false;
 	return Core::Instance->hasPeer(id); 
+}
+
+bool AddressBook::Contact::hasInstance(uint64_t number) const
+{
+	Synchronize(mAddressBook);
+	return mInstances.contains(number);
 }
 
 int AddressBook::Contact::getInstanceNumbers(Array<uint64_t> &result) const

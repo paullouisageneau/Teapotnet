@@ -53,7 +53,9 @@ void ThreadPool::launch(Task *task)
 	try
 	{
 		Synchronize(this);
-		Assert(!mTask);
+		
+		while(mTask)
+			mSignal.wait(*this);
 		
 		//String status;
 		//status << mAvailableWorkers.size() << "/" << mWorkers.size() << " workers available (min=" << mMin << ", max=" << mMax << ", limit=" << mLimit << ")";
@@ -74,9 +76,6 @@ void ThreadPool::launch(Task *task)
 		
 		mTask = task;
 		notify();
-
-		while(mTask)
-                        mSignal.wait(*this);
 	}
 	catch(const Exception &e)
 	{
