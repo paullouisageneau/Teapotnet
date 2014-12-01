@@ -114,10 +114,12 @@ void AddressBook::save(void) const
 		Resource resource;
 		resource.process(mFileName, "contacts", "contacts", self->secret());
 		
+		mDigest = resource.digest();
+		
 		Notification notification;
 		notification["type"] << "contacts";
-		notification["digest"] << resource.digest();
-	
+		notification["digest"] << mDigest;
+		
 		DesynchronizeStatement(this, Core::Instance->send(self->identifier(), notification));
 	}
 }
@@ -1615,7 +1617,11 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 			BinaryString digest;
 		};
 		
-		Scheduler::Global->schedule(new ImportTask(mAddressBook, digest));
+		if(digest != mAddressBook->mDigest)
+		{
+			Scheduler::Global->schedule(new ImportTask(mAddressBook, digest));
+			mAddressBook->mDigest = digest;
+		}
 	}
 	
 	return true;

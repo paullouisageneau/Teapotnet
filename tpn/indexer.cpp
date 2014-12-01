@@ -116,7 +116,6 @@ Indexer::Indexer(User *user) :
 	
 	// Interface
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
-	Interface::Instance->add(mUser->urlPrefix()+"/myself/files", this);	// overridden by self contact if it exists
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
 	// Task
@@ -129,7 +128,6 @@ Indexer::~Indexer(void)
 	unpublish(prefix());
 	
 	Interface::Instance->remove(mUser->urlPrefix()+"/files");
-	Interface::Instance->remove(mUser->urlPrefix()+"/myself/files");
 	Interface::Instance->remove(mUser->urlPrefix()+"/explore");
 	
 	Scheduler::Global->cancel(this);

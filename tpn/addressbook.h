@@ -262,6 +262,8 @@ private:
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
 	SerializableArray<Invitation> mInvitations;
 	Scheduler mScheduler;
+	
+	mutable BinaryString mDigest;
 };
 
 }
