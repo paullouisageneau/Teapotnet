@@ -131,11 +131,13 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout)
 	
 	if(!hasBlock(digest))
 	{
+		Desynchronize(this);
 		Core::Caller caller(digest);		// Block is missing locally, call it
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		
 		do {
+			Synchronize(this);
 			if(!wait(timeout))
 				return false;
 		}
