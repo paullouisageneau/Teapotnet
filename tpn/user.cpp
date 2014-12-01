@@ -810,8 +810,8 @@ bool User::deserialize(Serializer &s)
 {
         Synchronize(this);
 
-        //mPublicKey.clear();
-        //mPrivateKey.clear();
+        mPublicKey.clear();
+        mPrivateKey.clear();
 	mSecret.clear();
 
         Serializer::ObjectMapping mapping;

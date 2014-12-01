@@ -908,6 +908,8 @@ void AddressBook::Invitation::run(void)
 {
 	if(!mAddressBook) return;
 	
+	LogDebug("AddressBook::Contact::run", "Looking for invitation: " + peering().toString());
+	
 	mAddressBook->publish(peering(), tracker());
 	
 	SerializableMap<uint64_t, SerializableSet<Address> > result;
@@ -1133,7 +1135,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 				JsonSerializer serializer(&reader);
 				serializer.read(*user);
 				
-				LogDebug("AddressBook::Invitation", "Synchronization: user loaded");
+				LogDebug("AddressBook::Invitation", "Synchronization: user loaded: " + user->identifier().toString());
 				user->save();
 				delete this;	// autodelete
 			}
@@ -1148,14 +1150,11 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	}
 	
 	// Erase invitation
+	LogDebug("AddressBook::Invitation", "Deleting invitation: " + peering().toString());
 	for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
-	{
 		if(mAddressBook->mInvitations[i].peering() == peering())
-		{
 			mAddressBook->mInvitations.erase(i);
-			break;
-		}
-	}
+	mAddressBook->save();
 	
 	// WARNING: Invitation is deleted here
 	return true;
@@ -1334,7 +1333,9 @@ void AddressBook::Contact::run(void)
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
 				locator.name = name();
-					
+				
+				VAR(locator.peering);
+				
 				if(Core::Instance->connect(locator))
 				{
 					mInstances[it->first].addAddresses(it->second);

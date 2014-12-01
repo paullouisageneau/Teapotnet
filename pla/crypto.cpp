@@ -580,6 +580,8 @@ void Rsa::PublicKey::serialize(Stream &s) const
 
 bool Rsa::PublicKey::deserialize(Stream &s)
 {
+	clear();  
+	
 	String str;
 	if(!s.read(str)) return false;
 	
@@ -694,6 +696,8 @@ void Rsa::PrivateKey::serialize(Serializer &s) const
 
 bool Rsa::PrivateKey::deserialize(Serializer &s)
 {
+	clear();
+	
 	BinaryString d, p, q, a, b, c;
 	
 	if(!s.input(d)) return false;
