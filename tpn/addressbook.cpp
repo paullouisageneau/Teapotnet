@@ -1158,9 +1158,9 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			if(mAddressBook->mInvitations[i].peering() == peering())
 				mAddressBook->mInvitations.erase(i);
 		
-		SafeWriteFile file(mFileName);
+		SafeWriteFile file(mAddressBook->mFileName);
 		JsonSerializer serializer(&file);
-		serializer.output(*this);
+		serializer.output(*mAddressBook);
 		file.close();
 	}
 	
