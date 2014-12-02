@@ -1381,10 +1381,10 @@ void Indexer::update(String path)
 					update(subpath);
 				}
 			}
-			
-			Resource dummy;
-			process(path, dummy);
 		}
+		
+		Resource dummy;
+		process(path, dummy);
 	}
 	catch(const Exception &e)
 	{

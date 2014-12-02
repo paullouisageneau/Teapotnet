@@ -217,6 +217,7 @@ public:
 	void unpublish(String prefix, Publisher *publisher);
 	void subscribe(String prefix, Subscriber *subscriber);
 	void unsubscribe(String prefix, Subscriber *subscriber);
+	void advertise(String prefix, const String &path, const BinaryString &target);
 	
 	// Notification
 	void broadcast(const Notification &notification);
@@ -419,7 +420,7 @@ private:
 	void outgoing(uint8_t type, uint8_t content, Stream &payload);
 	void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 	
-	bool matchPublishers(const String &path, const Identifier &source);
+	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, const List<BinaryString> &targets);
 	
 	uint64_t mNumber;

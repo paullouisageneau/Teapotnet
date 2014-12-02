@@ -88,22 +88,17 @@ void Request::addResult(Resource &resource)
 	
 	if(resource.isDirectory() && mListDirectories)
 	{
-		Desynchronize(this);
-		
-		LogDebug("Request", "Listing directory: " + resource.digest().toString());
-		
-		// TODO: thread
 		// List directory and add records
 		Resource::Reader reader(&resource);
 		Resource::DirectoryRecord record;
 		while(reader.readDirectory(record))
-		{
-			Synchronize(this);
-			mResults.append(record);
-			mDigests.insert(record.digest);
-		}
+			if(!mDigests.contains(record.digest))
+			{
+				mResults.append(record);
+				mDigests.insert(record.digest);
+			}
 		
-		SynchronizeStatement(this, mFinished = true);
+		mFinished = true;
 		notifyAll();
 	}
 	else {
@@ -186,10 +181,7 @@ void Request::http(const String &prefix, Http::Request &request)
 bool Request::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
-  
-	if(mDigests.contains(target)) return true;
-	mDigests.insert(target);
-
+	
 	if(fetch(peer, prefix, path, target))
 	{
 		Resource resource(target, true);	// local only (already fetched)

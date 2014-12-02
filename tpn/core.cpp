@@ -326,23 +326,6 @@ void Core::publish(String prefix, Publisher *publisher)
 	LogDebug("Core::publish", "Publishing " + prefix);
 	
 	mPublishers[prefix].insert(publisher);
-	
-	BinaryString target;
-        if(publisher->anounce(Identifier::Null, prefix, "/", target))
-	{
-		SerializableList<BinaryString> array;
-		array.push_back(target);
-		
-		// Local
-		matchSubscribers(prefix, Identifier::Null, array);
-		
-		// Broadcast
-		BinaryString payload;
-		BinarySerializer serializer(&payload);
-		serializer.write(prefix);
-		serializer.write(array);
-		outgoing(Message::Broadcast, Message::Publish, payload);
-	}
 }
 
 void Core::unpublish(String prefix, Publisher *publisher)
@@ -373,13 +356,36 @@ void Core::subscribe(String prefix, Subscriber *subscriber)
 	mSubscribers[prefix].insert(subscriber);
 	
 	// Local publishers
-	matchPublishers(prefix, Identifier::Null);
+	matchPublishers(prefix, Identifier::Null, subscriber);
 	
 	// Immediatly send subscribe message
 	BinaryString payload;
 	BinarySerializer serializer(&payload);
 	serializer.write(prefix);
 	outgoing(Message::Lookup, Message::Subscribe, payload);
+}
+
+void Core::advertise(String prefix, const String &path, const BinaryString &target)
+{
+	Synchronize(this);
+	
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
+	LogDebug("Core::publish", "Advertising " + prefix + path);
+	
+	SerializableList<BinaryString> array;
+	array.push_back(target);
+		
+	// Local
+	matchSubscribers(prefix, Identifier::Null, array);
+		
+	// Broadcast
+	BinaryString payload;
+	BinarySerializer serializer(&payload);
+	serializer.write(prefix);
+	serializer.write(array);
+	outgoing(Message::Broadcast, Message::Publish, payload); 
 }
 
 void Core::unsubscribe(String prefix, Subscriber *subscriber)
@@ -675,7 +681,7 @@ void Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Strea
 	route(message);
 }
 
-bool Core::matchPublishers(const String &path, const Identifier &source)
+bool Core::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
@@ -712,8 +718,10 @@ bool Core::matchPublishers(const String &path, const Identifier &source)
 				if((*jt)->anounce(source, prefix, truncatedPath, target))
 				{
 					Assert(!target.empty());
-					LogDebug("Core::Handler::incoming", "Anouncing " + target.toString() + " for " + path);
-					targets.push_back(target);
+					LogDebug("Core::Handler::incoming", "Anouncing " + path);
+					
+					if(subscriber) subscriber->incoming(Identifier::Null, prefix, truncatedPath, target);	// local
+					else targets.push_back(target);								// remote
 				}
 			}
 			
@@ -876,16 +884,17 @@ void Core::Publisher::publish(const String &prefix)
 	Core::Instance->publish(prefix, this);
 	mPublishedPrefixes.insert(prefix);
 	
-	// Call anounce and trigger broadcast if necessary
 	BinaryString target;
-	if(anounce(Identifier::Null, prefix, "/", target))
-		publish(prefix, "/", target);
+        if(anounce(Identifier::Null, prefix, "/", target))
+		Core::Instance->advertise(prefix, "/", target);
 }
 
 void Core::Publisher::publish(const String &prefix, const String &path, const BinaryString &target)
 {
-	Core::Instance->publish(prefix, this);
-	mPublishedPrefixes.insert(prefix);
+	if(!mPublishedPrefixes.contains(prefix))
+		publish(prefix);
+	
+	Core::Instance->advertise(prefix, path, target);
 }
 
 void Core::Publisher::unpublish(const String &prefix)
