@@ -720,8 +720,8 @@ bool Core::matchPublishers(const String &path, const Identifier &source, Subscri
 					Assert(!target.empty());
 					LogDebug("Core::Handler::incoming", "Anouncing " + path);
 					
-					if(subscriber) subscriber->incoming(Identifier::Null, prefix, truncatedPath, target);	// local
-					else targets.push_back(target);								// remote
+					if(subscriber) subscriber->incoming(Identifier::Null, path, "/", target);	// local
+					else targets.push_back(target);							// remote
 				}
 			}
 			
