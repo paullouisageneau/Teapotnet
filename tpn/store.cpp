@@ -136,12 +136,13 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout)
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		
-		do {
+		{
 			Synchronize(this);
-			if(!wait(timeout))
-				return false;
+			
+			while(!hasBlock(digest))
+				if(!wait(timeout))
+					return false;
 		}
-		while(!hasBlock(digest));
 		
 		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
 	}
