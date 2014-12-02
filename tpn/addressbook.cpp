@@ -354,7 +354,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						(--mInvitations.end())->init();
 						save();
 					}
-					if(action == "createsynchronization")
+					else if(action == "createsynchronization")
 					{
 						String secret = String::random(32, Random::Crypto);
 						
@@ -417,7 +417,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else {
 						// TODO
 						throw 500;
-						return;
 					}
 				}
 				catch(const Exception &e)
