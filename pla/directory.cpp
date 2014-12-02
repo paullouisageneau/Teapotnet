@@ -69,7 +69,7 @@ bool Directory::Remove(const String &path)
 void Directory::Create(const String &path)
 {
 	if(mkdirmod(fixPath(path).pathEncode().c_str(), 0770) != 0)
-		throw IOException("Cannot create directory \""+path+"\"");
+		throw Exception("Cannot create directory \""+path+"\"");
 }
 
 uint64_t Directory::GetAvailableSpace(const String &path)
@@ -78,11 +78,11 @@ uint64_t Directory::GetAvailableSpace(const String &path)
 	ULARGE_INTEGER freeBytesAvailable;
 	std::memset(&freeBytesAvailable, 0, sizeof(freeBytesAvailable));
 	if(!GetDiskFreeSpaceEx(path.c_str(), &freeBytesAvailable, NULL, NULL))
-		throw IOException("Unable to get free space for " + path);
+		throw Exception("Unable to get free space for " + path);
 	return uint64_t(freeBytesAvailable.QuadPart);
 #else
 	struct statvfs f; 
-	if(statvfs(path, &f)) throw IOException("Unable to get free space for " + path);
+	if(statvfs(path, &f)) throw Exception("Unable to get free space for " + path);
 	return uint64_t(f.f_bavail) * uint64_t(f.f_bsize);
 #endif
 }
@@ -113,7 +113,7 @@ String Directory::GetHomeDirectory(void)
 void Directory::ChangeCurrent(const String &path)
 {
 	if(chdir(fixPath(path).pathEncode().c_str()) != 0)
-		throw IOException("Cannot change current directory to \""+path+"\"");
+		throw Exception("Cannot change current directory to \""+path+"\"");
 }
 
 Directory::Directory(void) :
@@ -140,7 +140,7 @@ void Directory::open(const String &path)
 	close();
 
 	mDir = opendir(fixPath(path).pathEncode().c_str());
-	if(!mDir) throw IOException(String("Unable to open directory: ")+path);
+	if(!mDir) throw Exception(String("Unable to open directory: ")+path);
 
 	mPath = path;
 	if(mPath[mPath.size()-1] != Separator)
@@ -176,19 +176,19 @@ bool Directory::nextFile(void)
 
 String Directory::filePath(void) const
 {
-	if(!mDirent) throw IOException("No more files in directory");
+	if(!mDirent) throw Exception("No more files in directory");
 	return mPath + String(mDirent->d_name).pathDecode();
 }
 
 String Directory::fileName(void) const
 {
-	if(!mDirent) throw IOException("No more files in directory");
+	if(!mDirent) throw Exception("No more files in directory");
 	return String(mDirent->d_name).pathDecode();
 }
 
 Time Directory::fileTime(void) const
 {
-	if(!mDirent) throw IOException("No more files in directory");
+	if(!mDirent) throw Exception("No more files in directory");
 	stat_t st;
 	if(pla::stat(filePath().pathEncode().c_str(), &st)) return 0;
 	return Time(st.st_mtime);
@@ -196,7 +196,7 @@ Time Directory::fileTime(void) const
 
 uint64_t Directory::fileSize(void) const
 {
-	if(!mDirent) throw IOException("No more files in directory");
+	if(!mDirent) throw Exception("No more files in directory");
 	if(fileIsDir()) return 0;
 	stat_t st;
 	if(pla::stat(filePath().pathEncode().c_str(), &st)) return 0;
@@ -205,7 +205,7 @@ uint64_t Directory::fileSize(void) const
 
 bool Directory::fileIsDir(void) const
 {
-	if(!mDirent) throw IOException("No more files in directory");
+	if(!mDirent) throw Exception("No more files in directory");
 	//return (mDirent->d_type == DT_DIR);
 	return Exist(filePath());
 }
@@ -227,7 +227,7 @@ void Directory::getFileInfo(StringMap &map) const
 
 String Directory::fixPath(String path)
 {
-	if(path.empty()) throw IOException("Empty path");	
+	if(path.empty()) throw Exception("Empty path");	
   	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
 #ifdef WINDOWS
 	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;

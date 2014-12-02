@@ -363,8 +363,6 @@ bool Indexer::process(String path, Resource &resource)
 		path.resize(path.size() - 1);
 	if(path.empty()) path = "/";
 	
-	//LogDebug("Index::process", "Indexing: " + path);
-	
 	// Get name
 	String name;
 	if(path != "/") name = path.afterLast(Directory::Separator);
@@ -1355,28 +1353,38 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 void Indexer::update(String path)
 {
 	Synchronize(this);
-
-	Assert(!path.empty());
-	if(path[path.size() - 1] == '/')
+	
+	if(!path.empty() && path[path.size() - 1] == '/')
 		path.resize(path.size() - 1);
+	if(path.empty()) path = "/";
 	
 	try {
-		Unprioritize(this);
-	  
-		String realPath = this->realPath(path);
-		
-		if(Directory::Exist(realPath))
+		if(path == "/")	// Top-level: Indexer directories
 		{
-			Directory dir(realPath);
-			while(dir.nextFile())
+			// Iterate on directories
+			Array<String> names;
+			mDirectories.getKeys(names);
+			for(int i=0; i<names.size(); ++i)
 			{
-				String subpath = path + '/' + dir.fileName();
+				String subpath = "/" + names[i];
 				update(subpath);
 			}
 		}
-		
-		Resource dummy;
-		process(path, dummy);
+		else {
+			String realPath = this->realPath(path);
+			if(Directory::Exist(realPath))
+			{
+				Directory dir(realPath);
+				while(dir.nextFile())
+				{
+					String subpath = path + '/' + dir.fileName();
+					update(subpath);
+				}
+			}
+			
+			Resource dummy;
+			process(path, dummy);
+		}
 	}
 	catch(const Exception &e)
 	{
