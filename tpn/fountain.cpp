@@ -94,8 +94,6 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 	if(mSize < size)
 		resize(size, true);	// zerofill
 	
-	if(coeff == 0) return;
-	
 	if(coeff == 1)
 	{
 		// Add values
@@ -103,15 +101,11 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 		//	mData[i] = gAdd(mData[i], data[i]);
 	  
 	  	// Faster
-		unsigned long *a = reinterpret_cast<unsigned long*>(mData);
-		const unsigned long *b = reinterpret_cast<const unsigned long*>(data);
-		const int n = size / sizeof(unsigned long);
-		for(int i = 0; i < n; ++i)
-			a[i]^= b[i];
-		for(int i = n*sizeof(unsigned long); i < size; ++i)
-			mData[i]^= data[i];
+		memxor(mData, data, size);
 	}
 	else {
+		if(coeff == 0) return;
+		
 		// Add values
 		//for(unsigned i = 0; i < size; ++i)
 		//	mData[i] = gAdd(mData[i], gMul(data[i], coeff));
@@ -220,13 +214,7 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 	//	mData[i] = gAdd(mData[i], combination.mData[i]);
 
 	// Faster
-	unsigned long *a = reinterpret_cast<unsigned long*>(mData);
-	const unsigned long *b = reinterpret_cast<const unsigned long*>(combination.mData);
-	const int n = combination.mSize / sizeof(unsigned long);
-	for(int i = 0; i < n; ++i)
-		a[i]^= b[i];
-	for(int i = n*sizeof(unsigned long); i < combination.mSize; ++i)
-		mData[i]^= combination.mData[i];
+	memxor(mData, combination.mData, combination.mSize);
 	
 	// Add components
 	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
@@ -241,20 +229,27 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 
 Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 {
-	// TODO: coeff == 0
-	Assert(coeff != 0);
-
-	// Multiply vector
-	for(int i = 0; i < mSize; ++i)
-		mData[i] = gMul(mData[i], coeff);
-
-	for(	Map<int, uint8_t>::iterator it = mComponents.begin();
-		it != mComponents.end();
-		++it)
+	if(coeff != 1)
 	{
-		it->second = gMul(it->second, coeff);
-	}
+		if(coeff != 0)
+		{
+			// Multiply vector
+			for(int i = 0; i < mSize; ++i)
+				mData[i] = gMul(mData[i], coeff);
 
+			for(	Map<int, uint8_t>::iterator it = mComponents.begin();
+				it != mComponents.end();
+				++it)
+			{
+				it->second = gMul(it->second, coeff);
+			}
+		}
+		else {
+			std::fill(mData, mData + mSize, 0);
+			mComponents.clear();
+		}
+	}
+	
 	return *this;
 }
 
@@ -408,7 +403,7 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	
 	if(first == chunks) // tokens == 0
 		first = Random().uniform(unsigned(0), chunks - count);
-	  
+	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
 	left-= first*ChunkSize;
@@ -561,7 +556,8 @@ bool Fountain::Sink::solve(Stream &input)
 	}
 	
 	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
-	return decodedSize >= mSize;
+	mIsComplete = (decodedSize >= mSize);
+	return mIsComplete;
 }
 
 size_t Fountain::Sink::size(void) const

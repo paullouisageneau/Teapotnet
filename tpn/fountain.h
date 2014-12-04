@@ -117,7 +117,7 @@ public:
 		Sink(void);
 		~Sink(void);
 		
-		bool solve(Stream &input);	// Add combination described by seed and try to solve
+		bool solve(Stream &input);	// Add combination and try to solve
 						// returns true if solved
 		
 		size_t size(void) const;

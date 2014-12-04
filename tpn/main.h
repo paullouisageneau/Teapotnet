@@ -24,6 +24,10 @@
 
 #include "tpn/include.h"
 
+#include "pla/map.h"
+
 int main(int argc, char** argv);
+int run(StringMap &args);
+int benchmark(StringMap &args);
 
 #endif
