@@ -509,48 +509,39 @@ bool Fountain::Sink::solve(Stream &input)
 
 	mCombinations.push_back(c);
 	
+	// Attempt to solve only if we have enough equations
+	if(mCombinations.size() < count)
+		return false;
+	
 	//LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
 	
-	List<Combination>::iterator last = mCombinations.end(); --last;
-	List<Combination>::iterator it;
+	List<Combination>::iterator it, jt;
 	
 	// Gauss-Jordan elimination
 	it = mCombinations.begin();	// pivot equation
 	int i = 0;			// pivot equation index
 	while(it != mCombinations.end())
 	{
-		List<Combination>::iterator jt = it;
+		jt = it;
 		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
 		if(jt == mCombinations.end()) break;
-		if(jt != it) 
-		{
-			if(jt == last) last = it;
-			std::iter_swap(jt, it);
-		}
+		if(jt != it) std::iter_swap(jt, it);
 		
 		// Normalize pivot
 		uint8_t c = it->coeff(i);
 		if(c != 1) (*it)/= c;
 		
-		if(it != last)
+		// Suppress component
+		jt = mCombinations.begin();
+		while(jt != mCombinations.end())
 		{
-			// it is not the last equation, only suppress coordinate in the last equation
-			c = last->coeff(i);
-			if(c) (*last)+= (*it)*c;
-		}
-		else {
-			// it is the last equation
-			jt = mCombinations.begin();
-			while(jt != mCombinations.end())
+			if(jt != it)
 			{
-				if(jt != it)
-				{
-					c = jt->coeff(i);
-					if(c) (*jt)+= (*it)*c;
-				}
-				
-				++jt;
+				c = jt->coeff(i);
+				if(c) (*jt)+= (*it)*c;
 			}
+			
+			++jt;
 		}
 		
 		++it; ++i;
