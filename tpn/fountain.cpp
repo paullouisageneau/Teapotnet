@@ -58,6 +58,13 @@ Fountain::Combination::Combination(void) :
 	
 }
 
+Fountain::Combination::Combination(const Combination &combination) :
+	mData(NULL),
+	mSize(0)
+{
+	*this = combination;
+}
+
 Fountain::Combination::Combination(int offset, const char *data, size_t size) :
 	mData(NULL),
 	mSize(0)
@@ -68,7 +75,7 @@ Fountain::Combination::Combination(int offset, const char *data, size_t size) :
 
 Fountain::Combination::~Combination(void)
 {
-	
+	delete[] mData;
 }
 
 void Fountain::Combination::addComponent(int offset, uint8_t coeff)
@@ -180,6 +187,14 @@ void Fountain::Combination::clear(void)
 	delete[] mData;
 	mData = NULL;
 	mSize = 0;
+}
+
+Fountain::Combination &Fountain::Combination::operator=(const Combination &combination)
+{
+	mComponents = combination.mComponents;
+	resize(combination.mSize);
+	std::copy(combination.mData, combination.mData + combination.mSize, mData);
+	return *this;
 }
 
 Fountain::Combination Fountain::Combination::operator+(const Combination &combination) const
@@ -389,7 +404,7 @@ Fountain::Source::~Source(void)
 void Fountain::Source::generate(Stream &output, unsigned *tokens)
 {
 	if(mSize > std::numeric_limits<uint32_t>::max())
-		throw Exception("File too big for Foutain::Source");
+		throw Exception("File too big for Fountain::Source");
 	
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	
@@ -404,18 +419,23 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	if(first == chunks) // tokens == 0
 		first = Random().uniform(unsigned(0), chunks - count);
 	
+	uint32_t seed;
+	Random().readBinary(seed);
+	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
 	left-= first*ChunkSize;
 	
 	// Generate
+	Generator gen(seed);
 	Combination c;
 	unsigned i = first;
 	char buffer[ChunkSize];
 	size_t size;
 	while(i < first+count && (size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
 	{
-		c.addComponent(i, 1, buffer, size);
+		uint8_t coeff = gen.next();
+		c.addComponent(i, coeff, buffer, size);
 		left-= size;
 		++i;
 	}
@@ -425,7 +445,7 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	
 	// Write
 	output.writeBinary(uint32_t(mSize));
-	output.writeBinary(uint32_t(0));	// seed
+	output.writeBinary(uint32_t(seed));	// seed
 	output.writeBinary(uint16_t(first));
 	output.writeBinary(uint16_t(count));
 	output.writeBinary(c.data(), c.size());
@@ -486,16 +506,13 @@ bool Fountain::Sink::solve(Stream &input)
 			c.addComponent(i, coeff);
 		}
 	}
-	
+
 	mCombinations.push_back(c);
-  
-	// Solve only if if we've got enough combinations
-	if(mCombinations.size() < chunks)
-		return false;
 	
 	//LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
 	
-	List<Combination>::iterator it;	// current equation
+	List<Combination>::iterator last = mCombinations.end(); --last;
+	List<Combination>::iterator it;
 	
 	// Gauss-Jordan elimination
 	it = mCombinations.begin();	// pivot equation
@@ -505,31 +522,35 @@ bool Fountain::Sink::solve(Stream &input)
 		List<Combination>::iterator jt = it;
 		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
 		if(jt == mCombinations.end()) break;
-		if(jt != it) std::iter_swap(jt, it);
+		if(jt != it) 
+		{
+			if(jt == last) last = it;
+			std::iter_swap(jt, it);
+		}
 		
 		// Normalize pivot
 		uint8_t c = it->coeff(i);
 		if(c != 1) (*it)/= c;
-		//Assert(it->coeff(i) == 1);
 		
-		// Suppress coordinate i in each equation
-		int j = 0;			// secondary equation index
-		jt = mCombinations.begin();	// secondary equation
-		while(jt != mCombinations.end())
+		if(it != last)
 		{
-			if(jt != it)
+			// it is not the last equation, only suppress coordinate in the last equation
+			c = last->coeff(i);
+			if(c) (*last)+= (*it)*c;
+		}
+		else {
+			// it is the last equation
+			jt = mCombinations.begin();
+			while(jt != mCombinations.end())
 			{
-				uint8_t c = jt->coeff(i);
-				if(c)	// if term not supressed
+				if(jt != it)
 				{
-					// it->coeff(i) == 1 here
-					if(c == 1) (*jt)+= *it;
-					else (*jt)+= (*it)*c;
-					//Assert(jt->coeff(i) == 0);
+					c = jt->coeff(i);
+					if(c) (*jt)+= (*it)*c;
 				}
+				
+				++jt;
 			}
-			
-			++jt; ++j;
 		}
 		
 		++it; ++i;

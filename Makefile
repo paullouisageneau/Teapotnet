@@ -6,8 +6,8 @@ TPROOT=/var/lib/teapotnet
 CC=gcc
 CXX=g++
 RM=rm -f
-CPPFLAGS=-g -DDEBUG
-LDFLAGS=-g
+CPPFLAGS=-O3 -DDEBUG
+LDFLAGS=-O3
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 
 UNAME_S := $(shell uname -s)

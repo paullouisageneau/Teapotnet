@@ -52,6 +52,7 @@ private:
 	{
 	public:
 		Combination(void);
+		Combination(const Combination &combination);
 		Combination(int offset, const char *data, size_t size);
 		~Combination(void);
 		
@@ -71,6 +72,7 @@ private:
 		size_t size(void) const;
 		void clear(void);
 		
+		Combination &operator=(const Combination &combination);
 		Combination operator+(const Combination &combination) const;
 		Combination operator*(uint8_t coeff) const;
 		Combination operator/(uint8_t coeff) const;	

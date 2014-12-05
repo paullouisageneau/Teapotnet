@@ -832,7 +832,7 @@ int benchmark(StringMap &args)
 	TempFile *file = new TempFile;
 	file->writeZero(1024*1024);
 	
-	unsigned n = 1024 + 16;
+	unsigned n = 1024;
 	
 	Array<BinaryString> tmp;
 	tmp.resize(n);
@@ -847,7 +847,8 @@ int benchmark(StringMap &args)
 	Time t2;
 	Fountain::Sink sink;
 	for(unsigned i=0; i<n; ++i)
-		sink.solve(tmp[i]);
+		if(sink.solve(tmp[i]))
+			break;
 	
 	Time t3;
 	Assert(sink.isComplete());
