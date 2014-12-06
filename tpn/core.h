@@ -202,6 +202,7 @@ public:
 	
 	// Connections
 	bool connect(const Locator &locator);
+	int connectionsCount(void) const;
 	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);

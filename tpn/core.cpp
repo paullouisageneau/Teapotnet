@@ -119,8 +119,7 @@ Core::Core(int port) :
 	try {
 		// Create backends
 		mTunnelBackend = new TunnelBackend(this);
-		// TODO
-		//mBackends.push_back(mTunnelBackend);
+		mBackends.push_back(mTunnelBackend);
 		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
 	}
@@ -233,6 +232,12 @@ bool Core::connect(const Locator &locator)
 	}
 	
 	return false;
+}
+
+int Core::connectionsCount(void) const
+{
+	Synchronize(this);
+	return mHandlers.size();
 }
 
 void Core::registerCaller(const BinaryString &target, Caller *caller)
@@ -1493,6 +1498,9 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 	Assert(locator.user);
 	
 	if(locator.identifier.empty())
+		return NULL;
+	
+	if(mCore->connectionsCount() == 0)
 		return NULL;
 	
 	LogDebug("Core::TunnelBackend::connect", "Trying tunnel for " + locator.identifier.toString());
