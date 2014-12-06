@@ -425,21 +425,28 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	
 	// First
 	unsigned first;
-	if(!tokens)
-	{
-		first = Random().uniform(unsigned(0), chunks + count);
-		first = bounds(first, count, chunks);
-		first-= count;
-	}
-	else if(*tokens == 0)
+	if(count >= chunks)
 	{
 		first = 0;
 		count = chunks;
 	}
 	else {
-		first = (chunks - *tokens)*count % (chunks - 1);
+		if(!tokens)
+		{
+			first = Random().uniform(unsigned(0), chunks + count);
+			first = bounds(first, count, chunks);
+			first-= count;
+		}
+		else if(*tokens == 0)
+		{
+			first = 0;
+			count = chunks;
+		}
+		else {
+			first = (chunks - *tokens)*count % (chunks - 1);
+		}
 	}
-
+	
 	// Seed
 	uint32_t seed;
 	Random().readBinary(seed);
