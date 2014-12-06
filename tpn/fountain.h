@@ -37,6 +37,15 @@ namespace tpn
 class Fountain
 {
 private:
+	// GF(256) operations
+	static uint8_t gAdd(uint8_t a, uint8_t b);
+	static uint8_t gMul(uint8_t a, uint8_t b); 
+	static uint8_t gInv(uint8_t a);
+	
+	// GF(256) operations tables
+	static uint8_t *MulTable;
+	static uint8_t *InvTable;
+	
 	class Generator
 	{
 	public:
@@ -68,6 +77,8 @@ private:
 		bool isCoded(void) const;
 		bool isNull(void) const;
 		
+		const Map<int, uint8_t> &components(void) const;
+		
 		const char *data(void) const;
 		size_t size(void) const;
 		void clear(void);
@@ -85,11 +96,6 @@ private:
 		bool deserialize(Serializer &s);
 		
 	private:
-		// GF(256) operations
-		static uint8_t gAdd(uint8_t a, uint8_t b);
-		static uint8_t gMul(uint8_t a, uint8_t b); 
-		static uint8_t gInv(uint8_t a);
-		
 		void resize(size_t size, bool zerofill = false);
 		
 		Map<int, uint8_t> mComponents;
@@ -98,8 +104,11 @@ private:
 	};
 	
 public:
+	static void Init(void);
+	static void Cleanup(void);
+	
 	static const size_t ChunkSize = 1024;	// bytes
-  
+	
 	class Source
 	{
 	public:
@@ -129,7 +138,8 @@ public:
 		void clear(void);
 		
 	private:
-		List<Combination> mCombinations;
+		//List<Combination> mCombinations;
+		Map<int, Combination> mCombinations;	// sorted by pivot component
 		uint32_t mSize;
 		bool mIsComplete;
 	};

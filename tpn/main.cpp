@@ -222,8 +222,8 @@ int main(int argc, char** argv)
 	pthread_win32_process_attach_np();
 #endif
 
-	// This is necessary for Random
-	SecureTransport::Init();
+	SecureTransport::Init();	// This is necessary for Random
+	Fountain::Init();
 	
 	// ---------- AES auto-test ----------
 	try {
@@ -367,7 +367,9 @@ int main(int argc, char** argv)
 		exitCode = 1;	  
 	}
 	
+	// Cleanup
 	SecureTransport::Cleanup();
+	Fountain::Cleanup();
 	
 #ifdef PTW32_STATIC_LIB
 	pthread_win32_process_detach_np();

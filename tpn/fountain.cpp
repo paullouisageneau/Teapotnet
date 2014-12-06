@@ -27,6 +27,84 @@
 namespace tpn
 {
 
+uint8_t *Fountain::MulTable = NULL;
+uint8_t *Fountain::InvTable = NULL;
+  
+void Fountain::Init(void)
+{
+	if(!MulTable) 
+	{
+		MulTable = new uint8_t[256*256];
+		
+		MulTable[0] = 0;
+		for(uint8_t i = 1; i != 0; ++i) 
+		{
+			MulTable[unsigned(i)] = 0;
+			MulTable[unsigned(i)*256] = 0;
+			
+			for(uint8_t j = 1; j != 0; ++j)
+			{
+				uint8_t a = i;
+				uint8_t b = j;
+				uint8_t p = 0;
+				uint8_t k;
+				uint8_t carry;
+				for(k = 0; k < 8; ++k)
+				{
+					if (b & 1) p^= a;
+					carry = (a & 0x80);
+					a<<= 1;
+					if (carry) a^= 0x1b; // 0x1b is x^8 modulo x^8 + x^4 + x^3 + x + 1
+					b>>= 1;
+				}
+				
+				MulTable[unsigned(i)*256+unsigned(j)] = p;
+			}
+		}
+	}
+	
+	if(!InvTable)
+	{
+		InvTable = new uint8_t[256];
+		
+		InvTable[0] = 0;
+		for(uint8_t i = 1; i != 0; ++i)
+		{
+			for(uint8_t j = i; j != 0; ++j)
+			{
+				if(Fountain::gMul(i,j) == 1)	// then Fountain::gMul(j,i) == 1
+				{
+					InvTable[i] = j;
+					InvTable[j] = i;
+				}
+			}
+		}
+	}
+}
+
+void Fountain::Cleanup(void)
+{
+	delete[] MulTable;
+	delete[] InvTable;
+	MulTable = NULL;
+	InvTable = NULL;
+}
+
+uint8_t Fountain::gAdd(uint8_t a, uint8_t b)
+{
+	return a ^ b;
+}
+
+uint8_t Fountain::gMul(uint8_t a, uint8_t b) 
+{
+	return MulTable[unsigned(a)*256+unsigned(b)];
+}
+
+uint8_t Fountain::gInv(uint8_t a) 
+{
+	return InvTable[a];
+}
+
 Fountain::Generator::Generator(uint32_t seed) :
 	mSeed(uint64_t(seed))
 {
@@ -83,7 +161,7 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 	Map<int, uint8_t>::iterator it = mComponents.find(offset);
 	if(it != mComponents.end())
 	{
-		it->second^= coeff;	// it->second = gAdd(it->second, coeff);
+		it->second^= coeff;	// it->second = Fountain::gAdd(it->second, coeff);
 		if(it->second == 0)
 			mComponents.erase(it);
 	}
@@ -105,7 +183,7 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 	{
 		// Add values
 		//for(unsigned i = 0; i < size; ++i)
-		//	mData[i] = gAdd(mData[i], data[i]);
+		//	mData[i] = Fountain::gAdd(mData[i], data[i]);
 	  
 	  	// Faster
 		memxor(mData, data, size);
@@ -115,11 +193,11 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 		
 		// Add values
 		//for(unsigned i = 0; i < size; ++i)
-		//	mData[i] = gAdd(mData[i], gMul(data[i], coeff));
+		//	mData[i] = Fountain::gAdd(mData[i], Fountain::gMul(data[i], coeff));
 		
 		// Faster
 		for(unsigned i = 0; i < size; ++i)
-			mData[i]^= gMul(data[i], coeff);
+			mData[i]^= Fountain::gMul(data[i], coeff);
 	}
 }
 
@@ -156,8 +234,6 @@ uint8_t Fountain::Combination::coeff(int offset) const
 {
 	Map<int, uint8_t>::const_iterator it = mComponents.find(offset);
 	if(it == mComponents.end()) return 0; 
-	
-	Assert(it->second != 0);
 	return it->second;
 }
 
@@ -169,6 +245,11 @@ bool Fountain::Combination::isCoded(void) const
 bool Fountain::Combination::isNull(void) const
 {
 	return (mComponents.size() == 0);
+}
+
+const Map<int, uint8_t> &Fountain::Combination::components(void) const
+{
+	return mComponents;
 }
 
 const char *Fountain::Combination::data(void) const
@@ -226,7 +307,7 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 	
 	// Add values
 	//for(int i = 0; i < combination.mSize; ++i)
-	//	mData[i] = gAdd(mData[i], combination.mData[i]);
+	//	mData[i] = Fountain::gAdd(mData[i], combination.mData[i]);
 
 	// Faster
 	memxor(mData, combination.mData, combination.mSize);
@@ -250,13 +331,13 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 		{
 			// Multiply vector
 			for(int i = 0; i < mSize; ++i)
-				mData[i] = gMul(mData[i], coeff);
+				mData[i] = Fountain::gMul(mData[i], coeff);
 
 			for(	Map<int, uint8_t>::iterator it = mComponents.begin();
 				it != mComponents.end();
 				++it)
 			{
-				it->second = gMul(it->second, coeff);
+				it->second = Fountain::gMul(it->second, coeff);
 			}
 		}
 		else {
@@ -272,7 +353,7 @@ Fountain::Combination &Fountain::Combination::operator/=(uint8_t coeff)
 {
 	Assert(coeff != 0);
 
-	(*this)*= gInv(coeff);
+	(*this)*= Fountain::gInv(coeff);
 	return *this;
 }
 
@@ -285,7 +366,7 @@ void Fountain::Combination::serialize(Serializer &s) const
 	s.output(uint(firstComponent()));
 	s.output(uint16_t(componentsCount()));
 	for(int i=firstComponent(); i<=lastComponent(); ++i)
-		s.output(uint8_t(coeff(i)));
+		s.output(uint16_t(uint8_t(coeff(i))));
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
@@ -301,75 +382,6 @@ bool Fountain::Combination::deserialize(Serializer &s)
 		AssertIO(s.input(coeff));
 		addComponent(i, coeff);
 	}
-}
-
-uint8_t Fountain::Combination::gAdd(uint8_t a, uint8_t b)
-{
-	return a ^ b;
-}
-
-uint8_t Fountain::Combination::gMul(uint8_t a, uint8_t b) 
-{
-	static uint8_t *table = NULL;
-
-	if(!table) 
-	{
-		table = new uint8_t[256*256];
-		
-		table[0] = 0;
-		for(uint8_t i = 1; i != 0; ++i) 
-		{
-			table[unsigned(i)] = 0;
-			table[unsigned(i)*256] = 0;
-			
-			for(uint8_t j = 1; j != 0; ++j)
-			{
-				uint8_t a = i;
-				uint8_t b = j;
-				uint8_t p = 0;
-				uint8_t k;
-				uint8_t carry;
-				for(k = 0; k < 8; ++k)
-				{
-					if (b & 1) p^= a;
-					carry = (a & 0x80);
-					a<<= 1;
-					if (carry) a^= 0x1b; // 0x1b is x^8 modulo x^8 + x^4 + x^3 + x + 1
-					b>>= 1;
-				}
-				
-				table[unsigned(i)*256+unsigned(j)] = p;
-			}
-		}
-	}
-	
-	return table[unsigned(a)*256+unsigned(b)];
-}
-
-uint8_t Fountain::Combination::gInv(uint8_t a) 
-{
-	static uint8_t *table = NULL;
-	
-	if(!table)
-	{
-		table = new uint8_t[256];
-		
-		table[0] = 0;
-		for(uint8_t i = 1; i != 0; ++i)
-		{
-			for(uint8_t j = i; j != 0; ++j)
-			{
-				if(gMul(i,j) == 1)	// then gMul(j,i) == 1
-				{
-					  table[i] = j;
-					  table[j] = i;
-				}
-			}
-		}
-	}
-	
-	Assert(a != 0);
-	return table[a];
 }
 
 void Fountain::Combination::resize(size_t size, bool zerofill)
@@ -507,7 +519,13 @@ bool Fountain::Sink::solve(Stream &input)
 		}
 	}
 
-	mCombinations.push_back(c);
+	for(Map<int, uint8_t>::const_iterator ct = c.components().begin();
+		ct != c.components().end();
+		++ct)
+	{
+		if(!mCombinations.contains(ct->first))
+			mCombinations.insert(ct->first, c);
+	}
 	
 	// Attempt to solve only if we have enough equations
 	if(mCombinations.size() < count)
@@ -515,53 +533,92 @@ bool Fountain::Sink::solve(Stream &input)
 	
 	//LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
 	
-	List<Combination>::iterator it, jt;
+	Map<int, Combination>::iterator it, jt;
+	Map<int, Combination>::reverse_iterator rit;
 	
 	// Gauss-Jordan elimination
-	it = mCombinations.begin();	// pivot equation
-	int i = 0;			// pivot equation index
+	
+	// Normalize pivots
+	it = mCombinations.begin();
 	while(it != mCombinations.end())
 	{
-		jt = it;
-		while(jt != mCombinations.end() && jt->coeff(i) == 0) ++jt;
-		if(jt == mCombinations.end()) break;
-		if(jt != it) std::iter_swap(jt, it);
-		
-		// Normalize pivot
-		uint8_t c = it->coeff(i);
-		if(c != 1) (*it)/= c;
-		
-		// Suppress component
-		jt = mCombinations.begin();
-		while(jt != mCombinations.end())
+		uint8_t c = it->second.coeff(it->first);
+		if(c != 1) it->second/= c;
+		++it;
+	}
+	
+	// Make the system triangular
+	it = mCombinations.begin();
+	while(it != mCombinations.end())
+	{
+		int last = std::min(it->second.lastComponent(), it->first);
+		for(int i = it->second.firstComponent(); i < last; ++i)
 		{
-			if(jt != it)
-			{
-				c = jt->coeff(i);
-				if(c) (*jt)+= (*it)*c;
-			}
-			
-			++jt;
+			jt = mCombinations.find(i);
+			if(jt != mCombinations.end())
+				it->second+= jt->second*it->second.coeff(i);
 		}
 		
-		++it; ++i;
+		if(it->second.firstComponent() != it->first)
+			break;
+		
+		++it;
+	}
+	
+	// Substitute to solve
+	rit = mCombinations.rbegin();
+	while(rit != mCombinations.rend())
+	{
+		int first = std::max(rit->second.firstComponent(), rit->first);
+		for(int i = rit->second.lastComponent(); i > first; --i)
+		{
+			jt = mCombinations.find(i);
+			if(jt != mCombinations.end())
+			{
+				if(jt->second.isCoded()) break;
+				rit->second+= jt->second*rit->second.coeff(i);
+			}
+		}
+
+		if(rit->second.lastComponent() != rit->first)
+			break;
+		
+		++rit;
+	}
+	
+	it = mCombinations.begin();
+	while(it != mCombinations.end())
+	{
+		int last = std::min(it->second.lastComponent(), it->first);
+		for(int i = it->second.firstComponent(); i < last; ++i)
+		{
+			jt = mCombinations.find(i);
+			if(jt != mCombinations.end())
+				it->second+= jt->second*it->second.coeff(i);
+		}
+		
+		if(it->second.firstComponent() != it->first)
+			break;
+		
+		++it;
 	}
 	
 	int decodedCount = 0;
 	uint32_t decodedSize = 0;
 	
+	// Remove null components
 	it = mCombinations.begin();
 	while(it != mCombinations.end())
 	{
-		if(it->isNull())	// Null vector, useless equation
+		if(it->second.isNull())	// Null vector, useless equation
 		{
 			mCombinations.erase(it++);
 		}
 		else {
-			if(!it->isCoded()) 
+			if(!it->second.isCoded()) 
 			{
 				++decodedCount;
-				decodedSize+= it->size();
+				decodedSize+= it->second.size();
 			}
 			++it;
 		}
@@ -584,12 +641,12 @@ bool Fountain::Sink::isComplete(void) const
 
 void Fountain::Sink::dump(Stream &stream) const
 {
-	List<Combination>::const_iterator it = mCombinations.begin();
+	Map<int,Combination>::const_iterator it = mCombinations.begin();
 	uint32_t left = mSize;
-	while(left && it != mCombinations.end() && !it->isCoded())
+	while(left && it != mCombinations.end() && !it->second.isCoded())
 	{
-		size_t size = size_t(std::min(left, uint32_t(it->size())));
-		stream.writeBinary(it->data(), size);
+		size_t size = size_t(std::min(left, uint32_t(it->second.size())));
+		stream.writeBinary(it->second.data(), size);
 		left-= size;
 		++it;
 	}
@@ -602,12 +659,12 @@ void Fountain::Sink::hash(BinaryString &digest) const
 	Sha256 hash;
 	hash.init();
 	
-	List<Combination>::const_iterator it = mCombinations.begin();
+	Map<int,Combination>::const_iterator it = mCombinations.begin();
 	uint32_t left = mSize;
-	while(left && it != mCombinations.end() && !it->isCoded())
+	while(left && it != mCombinations.end() && !it->second.isCoded())
 	{
-		size_t size = size_t(std::min(left, uint32_t(it->size())));
-		hash.process(it->data(), size);
+		size_t size = size_t(std::min(left, uint32_t(it->second.size())));
+		hash.process(it->second.data(), size);
 		left-= size;
 		++it;
 	}
