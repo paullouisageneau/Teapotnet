@@ -542,7 +542,6 @@ bool Fountain::Sink::solve(Stream &input)
 	Map<int, Combination>::reverse_iterator rit;
 	
 	// Eliminate coordinates, so the system is triangular
-	bool inserted = false;
 	for(int i = incoming.firstComponent(); i <= incoming.lastComponent(); ++i)
 	{
 		uint8_t c = incoming.coeff(i);
