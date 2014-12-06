@@ -420,23 +420,33 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	
-	unsigned t = 0;
-	if(tokens) t = *tokens;
-	if(t > chunks) t = chunks;
+	// Count (i.e. degree)
+	unsigned count = 16;
 	
-	unsigned count = 16;	// TODO
-	unsigned first = chunks - t;
-	uint32_t left = uint32_t(mSize);
-	
-	if(first == chunks) // tokens == 0
-		first = Random().uniform(unsigned(0), chunks - count);
-	
+	// First
+	unsigned first;
+	if(!tokens)
+	{
+		first = Random().uniform(unsigned(0), chunks + count);
+		first = bounds(first, count, chunks);
+		first-= count;
+	}
+	else if(*tokens == 0)
+	{
+		first = 0;
+		count = chunks;
+	}
+	else {
+		first = (chunks - *tokens)*count % (chunks - 1);
+	}
+
+	// Seed
 	uint32_t seed;
 	Random().readBinary(seed);
 	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
-	left-= first*ChunkSize;
+	uint32_t left = uint32_t(mSize) - first*ChunkSize;
 	
 	// Generate
 	Generator gen(seed);
@@ -502,70 +512,52 @@ bool Fountain::Sink::solve(Stream &input)
 	mSize = std::max(mSize, size);
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	
-	Combination c;
-	c.setData(data);
+	Combination incoming;
+	incoming.setData(data);
 	
 	if(!seed)
 	{
 		for(unsigned i=first; i<first+count; ++i)
-			c.addComponent(i, 1);
+			incoming.addComponent(i, 1);
 	}
 	else {
 		Generator gen(seed);
 		for(unsigned i=first; i<first+count; ++i)
 		{
 			uint8_t coeff = gen.next();
-			c.addComponent(i, coeff);
+			incoming.addComponent(i, coeff);
 		}
 	}
-
-	for(Map<int, uint8_t>::const_iterator ct = c.components().begin();
-		ct != c.components().end();
-		++ct)
-	{
-		if(!mCombinations.contains(ct->first))
-			mCombinations.insert(ct->first, c);
-	}
 	
-	// Attempt to solve only if we have enough equations
-	if(mCombinations.size() < count)
-		return false;
-	
-	//LogDebug("Fountain::Sink::solve", "Solving with " + String::number(int(mCombinations.size())) + " combinations");
+	// ==== Gauss-Jordan elimination ====
 	
 	Map<int, Combination>::iterator it, jt;
 	Map<int, Combination>::reverse_iterator rit;
 	
-	// Gauss-Jordan elimination
-	
-	// Normalize pivots
-	it = mCombinations.begin();
-	while(it != mCombinations.end())
+	// Eliminate coordinates, so the system is triangular
+	bool inserted = false;
+	for(int i = incoming.firstComponent(); i <= incoming.lastComponent(); ++i)
 	{
-		uint8_t c = it->second.coeff(it->first);
-		if(c != 1) it->second/= c;
-		++it;
-	}
-	
-	// Make the system triangular
-	it = mCombinations.begin();
-	while(it != mCombinations.end())
-	{
-		int last = std::min(it->second.lastComponent(), it->first);
-		for(int i = it->second.firstComponent(); i < last; ++i)
+		uint8_t c = incoming.coeff(i);
+		if(c != 0)
 		{
 			jt = mCombinations.find(i);
-			if(jt != mCombinations.end())
-				it->second+= jt->second*it->second.coeff(i);
+			if(jt == mCombinations.end()) break;
+			incoming+= jt->second*c;
 		}
-		
-		if(it->second.firstComponent() != it->first)
-			break;
-		
-		++it;
 	}
 	
-	// Substitute to solve
+	if(incoming.isNull())
+	{
+		LogDebug("Fountain::Sink::solve", "Incoming combination is redundant");
+		return false;
+	}
+	
+	// Insert incoming combination
+	incoming/= incoming.coeff(incoming.firstComponent());
+	mCombinations.insert(incoming.firstComponent(), incoming);
+	
+	// Attempt to substitute to solve
 	rit = mCombinations.rbegin();
 	while(rit != mCombinations.rend())
 	{
@@ -586,27 +578,9 @@ bool Fountain::Sink::solve(Stream &input)
 		++rit;
 	}
 	
-	it = mCombinations.begin();
-	while(it != mCombinations.end())
-	{
-		int last = std::min(it->second.lastComponent(), it->first);
-		for(int i = it->second.firstComponent(); i < last; ++i)
-		{
-			jt = mCombinations.find(i);
-			if(jt != mCombinations.end())
-				it->second+= jt->second*it->second.coeff(i);
-		}
-		
-		if(it->second.firstComponent() != it->first)
-			break;
-		
-		++it;
-	}
-	
+	// Remove null components and count decoded
 	int decodedCount = 0;
 	uint32_t decodedSize = 0;
-	
-	// Remove null components
 	it = mCombinations.begin();
 	while(it != mCombinations.end())
 	{
@@ -623,6 +597,8 @@ bool Fountain::Sink::solve(Stream &input)
 			++it;
 		}
 	}
+	
+	// ==================================
 	
 	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
 	mIsComplete = (decodedSize >= mSize);
