@@ -168,7 +168,6 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mProfile = NULL;
 
 	try {
-		// TODO: name should be mPublicKey.digest().toString()
 		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
@@ -796,30 +795,37 @@ void User::http(const String &prefix, Http::Request &request)
 
 void User::serialize(Serializer &s) const
 {
-        Synchronize(this);
+	Synchronize(this);
 
-        Serializer::ConstObjectMapping mapping;
-        mapping["publickey"] = &mPublicKey;
-        mapping["privatekey"] = &mPrivateKey;
+	Serializer::ConstObjectMapping mapping;
+	mapping["publickey"] = &mPublicKey;
+	mapping["privatekey"] = &mPrivateKey;
 	mapping["secret"] = &mSecret;
-
-        s.outputObject(mapping);
+	
+	s.outputObject(mapping);
 }
 
 bool User::deserialize(Serializer &s)
 {
-        Synchronize(this);
-
-        mPublicKey.clear();
-        mPrivateKey.clear();
+	Synchronize(this);
+	
+	mPublicKey.clear();
+	mPrivateKey.clear();
 	mSecret.clear();
-
-        Serializer::ObjectMapping mapping;
-        mapping["publickey"] = &mPublicKey;
-        mapping["privatekey"] = &mPrivateKey;
+	
+	Serializer::ObjectMapping mapping;
+	mapping["publickey"] = &mPublicKey;
+	mapping["privatekey"] = &mPrivateKey;
 	mapping["secret"] = &mSecret;
-
-        return s.inputObject(mapping);
+	
+	if(!s.inputObject(mapping))
+		return false;
+	
+	// Reload certificate
+	delete mCertificate;
+	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
+	
+	return true;
 }
 
 bool User::isInlineSerializable(void) const
