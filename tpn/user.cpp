@@ -450,6 +450,10 @@ void User::setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &pr
 	// TODO: check key pair
 	mPublicKey = publicKey;
 	mPrivateKey = privateKey;
+	
+	// Reload certificate
+	delete mCertificate;
+	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
 }
 
 void User::setSecret(const BinaryString &secret)
