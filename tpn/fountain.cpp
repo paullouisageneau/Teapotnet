@@ -556,7 +556,7 @@ bool Fountain::Sink::solve(Stream &input)
 	
 	if(incoming.isNull())
 	{
-		LogDebug("Fountain::Sink::solve", "Incoming combination is redundant");
+		//LogDebug("Fountain::Sink::solve", "Incoming combination is redundant");
 		return false;
 	}
 	
