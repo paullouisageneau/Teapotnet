@@ -115,7 +115,6 @@ public:
 		Identifier	identifier;	// remote identifier
 		Identifier	peering;	// remote peering identifier for PSK
 		BinaryString	secret;		// secret for PSK
-		String		name;		// remote name
 		Set<Address>	addresses;	// adresses for direct connection
 	};
 

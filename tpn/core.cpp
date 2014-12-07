@@ -1079,9 +1079,6 @@ Core::Backend::~Backend(void)
 
 bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
-	if(!locator.name.empty())
-		transport->setHostname(locator.name);
-  
 	if(!locator.peering.empty())
 	{
 		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
@@ -1098,8 +1095,8 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	{
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
-		if(locator.name.empty())
-			LogWarn("Core::Backend::process", "Remote name is not set in locator for certificate authentication");
+		String name = Identifier(locator.identifier, mCore->getNumber()).toString();	// remote identifier with local instance
+		transport->setHostname(name);
 		
 		Identifier local(locator.user->identifier(), mCore->getNumber());
 		
@@ -1125,22 +1122,26 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 	{
 	public:
 		Identifier local, remote;
+		uint64_t remoteInstance;
 		Rsa::PublicKey publicKey;
 		
-		MyVerifier(Core *core) { this->core = core; }
+		MyVerifier(Core *core) { this->core = core; this->remoteInstance = 0; }
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
 			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + name);
 			
+			Identifier id;
 			try {
-				remote.fromString(name);
+				id.fromString(name);
 			}
 			catch(...)
 			{
 				LogDebug("Core::Backend::doHandshake", String("Invalid identifier: ") + name);
 				return false;
 			}
+			
+			remoteInstance = id.number();
 			
 			User *user = User::GetByIdentifier(remote);
 			if(user)
@@ -1195,15 +1196,11 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		
 		bool verifyCertificate(const Rsa::PublicKey &pub)
 		{
+			publicKey = pub;
+			remote = publicKey.digest();
+			
 			LogDebug("Core::Backend::doHandshake", String("Verifying remote certificate: ") + remote.toString());
 			
-			publicKey = pub;
-			if(remote.empty() || publicKey.digest() != remote)
-			{
-				LogDebug("Core::Backend::doHandshake", "Certificate does not match user");
-				return false;
-			}
-			  
 			Synchronize(core);
 			
 			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);

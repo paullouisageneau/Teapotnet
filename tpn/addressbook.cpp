@@ -927,7 +927,6 @@ void AddressBook::Invitation::run(void)
 				{
 					// If there is no secret, this is not a peering but a normal identifier.
 					locator.identifier = peering();
-					locator.name = name();
 				}
 				else {
 					locator.peering = peering();
@@ -1346,7 +1345,6 @@ void AddressBook::Contact::run(void)
 				
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
-				locator.name = name();
 				
 				if(Core::Instance->connect(locator))
 				{
