@@ -1143,7 +1143,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 			
 			remoteInstance = id.number();
 			
-			User *user = User::GetByIdentifier(remote);
+			User *user = User::GetByIdentifier(Identifier(id.digest()));
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
