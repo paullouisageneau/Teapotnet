@@ -1524,7 +1524,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	while(mQueue.empty()) mQueueSync.wait();
 	
 	Message &message = mQueue.front();
-	Assert(message.type == Message::Tunnel);
+	Assert(message.content == Message::Tunnel);
 	
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
@@ -1546,10 +1546,10 @@ SecureTransport *Core::TunnelBackend::listen(void)
 
 bool Core::TunnelBackend::incoming(Message &message)
 {
-	if(message.type != Message::Tunnel)
+	if(message.content != Message::Tunnel)
 		return false;
 	
-	//LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
+	LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
 	
 	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(message.destination, message.source));	
 	if(it != mWrappers.end())
