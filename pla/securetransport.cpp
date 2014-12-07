@@ -82,7 +82,17 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
 		gnutls_transport_set_pull_timeout_function(mSession, TimeoutCallback);
 		
-		if(datagram) gnutls_dtls_set_mtu(mSession, 1024);	// TODO
+		const double handshakeTimeout = 10.;
+		gnutls_handshake_set_timeout(mSession, unsigned(handshakeTimeout*1000));
+		
+		if(datagram)
+		{
+			const double retransTimeout = 1.;
+			const double totalTimeout   = 10.;
+			
+			gnutls_dtls_set_mtu(mSession, 1300);	// TODO
+			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
+		}
 	}
 	catch(...)
 	{
@@ -130,15 +140,18 @@ void SecureTransport::handshake(void)
 	}
 	
 	// Perform the TLS handshake
+	LogDebug("SecureTransport::handshake", "Performing handshake...");
 	int ret;
 	do {
-		LogDebug("SecureTransport::handshake", "Performing handshake...");
                 ret = gnutls_handshake(mSession);
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
         if(ret < 0)
-		throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
+	{
+		if(ret == GNUTLS_E_PUSH_ERROR || ret == GNUTLS_E_PULL_ERROR) throw Exception("TLS handshake failed");
+		else throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
+	}
 	
 	mIsHandshakeDone = true;
 }
@@ -183,12 +196,11 @@ bool SecureTransport::hasCertificate(void)
 
 size_t SecureTransport::readData(char *buffer, size_t size)
 {
-	ssize_t ret = gnutls_record_recv(mSession, buffer, size);
-
-	if(ret < 0)
+	ssize_t ret;
+	while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
 	{
-		if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::readData", gnutls_strerror(ret));
-		else throw Exception(gnutls_strerror(ret));
+		if(gnutls_error_is_fatal(ret))
+			throw Exception(gnutls_strerror(ret));
 	}
 	
 	return size_t(ret);
@@ -201,7 +213,7 @@ void SecureTransport::writeData(const char *data, size_t size)
 	do {
 		ssize_t ret = gnutls_record_send(mSession, data, size);
 		
-		if(ret < 0) 
+		if(ret < 0)
 		{
 			if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::writeData", gnutls_strerror(ret));
 			else throw Exception(gnutls_strerror(ret));
@@ -234,43 +246,58 @@ ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const v
 
 ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)
 {
+	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
-		SecureTransport *st = static_cast<SecureTransport*>(ptr);
 		st->mStream->writeData(static_cast<const char*>(data), len);
 		return ssize_t(len);
+	}
+	catch(const Timeout &timeout)
+	{
+		LogDebug("SecureTransport::ReadCallback", "Timeout");
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("SecureTransport::WriteCallback", e.what());
-		return -1;
 	}
+	
+	gnutls_transport_set_errno(st->mSession, ECONNRESET);
+	return -1;
 }
 
 ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen)
 {
+	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
-		SecureTransport *st = static_cast<SecureTransport*>(ptr);
 		return ssize_t(st->mStream->readData(static_cast<char*>(data), maxlen));
+	}
+	catch(const Timeout &timeout)
+	{
+		LogDebug("SecureTransport::ReadCallback", "Timeout");
+		
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("SecureTransport::ReadCallback", e.what());
-		return -1;
 	}
+	
+	gnutls_transport_set_errno(st->mSession, ECONNRESET);
+	return -1;
 }
 
 int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms)
 {
+	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
-		SecureTransport *st = static_cast<SecureTransport*>(ptr);
 		if(st->mStream->waitData(milliseconds(ms))) return 1;
 		else return 0;
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("SecureTransport::TimeoutCallback", e.what());
-		return -1;
 	}
+	
+	gnutls_transport_set_errno(st->mSession, ECONNRESET);
+	return -1;
 }
 
 int SecureTransport::CertificateCallback(gnutls_session_t session)

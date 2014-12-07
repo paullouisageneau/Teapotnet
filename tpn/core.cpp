@@ -1066,7 +1066,7 @@ Core::Backend::~Backend(void)
 	
 }
 
-void Core::Backend::process(SecureTransport *transport, const Locator &locator)
+bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
 	if(!locator.name.empty())
 		transport->setHostname(locator.name);
@@ -1074,12 +1074,12 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	if(!locator.peering.empty())
 	{
 		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
-	  
+		
 		// Add contact private shared key
 		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
 		transport->addCredentials(creds, true);	// must delete
 		
-		doHandshake(transport, locator.peering, locator.peering);
+		return handshake(transport, locator.peering, locator.peering, false);
 	}
 	else if(locator.user)
 	{
@@ -1092,19 +1092,19 @@ void Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
 		
-		doHandshake(transport, locator.user->identifier(), locator.identifier);
+		return handshake(transport, locator.user->identifier(), locator.identifier, false);
 	}
 	else {
 		LogDebug("Core::Backend::process", "Setting anonymous credentials");
-
+		
 		// Add anonymous credentials
 		transport->addCredentials(&mAnonymousClientCreds);
 		
-		doHandshake(transport, Identifier::Null, Identifier::Null);
+		return handshake(transport, Identifier::Null, Identifier::Null, false);
 	}
 }
 
-void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &local, const Identifier &remote)
+bool Core::Backend::handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async)
 {
 	class MyVerifier : public SecureTransport::Verifier
 	{
@@ -1211,8 +1211,8 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 			this->local = local;
 			this->remote = remote;
 		}
-	  
-		void run(void)
+		
+		bool handshake(void)
 		{
 			LogDebug("Core::Backend::doHandshake", "HandshakeTask starting...");
 			
@@ -1261,14 +1261,19 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 					Assert(verifier.remote == Identifier::Null);
 				}
 				
-				core->addPeer(transport, verifier.local, verifier.remote);
+				return core->addPeer(transport, verifier.local, verifier.remote);
 			}
 			catch(const std::exception &e)
 			{
 				LogInfo("Core::Backend::doHandshake", String("Handshake failed: ") + e.what());
 				delete transport;
+				return false;
 			}
-
+		}
+		
+		void run(void)
+		{
+			handshake();
 			delete this;	// autodelete
 		}
 		
@@ -1280,14 +1285,23 @@ void Core::Backend::doHandshake(SecureTransport *transport, const Identifier &lo
 	
 	HandshakeTask *task = NULL;
 	try {
-		task = new HandshakeTask(mCore, transport, local, remote);
-		mThreadPool.launch(task);
+		if(async)
+		{
+			task = new HandshakeTask(mCore, transport, local, remote);
+			mThreadPool.launch(task);
+			return true;
+		}
+		else {
+			HandshakeTask task(mCore, transport, local, remote);
+			return task.handshake();
+		}
 	}
 	catch(const std::exception &e)
 	{
 		LogError("Core::Backend::doHandshake", e.what());
 		delete task;
 		delete transport;
+		return false;
 	}
 }
 
@@ -1303,19 +1317,12 @@ void Core::Backend::run(void)
 			
 			if(!transport->isHandshakeDone())
 			{
-				try {
-					// Add server credentials (certificate added on name verification)
-					transport->addCredentials(&mAnonymousServerCreds, false);
-					transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
+				// Add server credentials (certificate added on name verification)
+				transport->addCredentials(&mAnonymousServerCreds, false);
+				transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
 				
-					// No remote identifier specified, accept any identifier
-					doHandshake(transport, Identifier::Null, Identifier::Null);	// async
-				}
-				catch(...)	// should not happen
-				{
-					delete transport;
-					throw;
-				}
+				// No remote identifier specified, accept any identifier
+				handshake(transport, Identifier::Null, Identifier::Null, true); // async
 			}
 		}
 	}
@@ -1339,14 +1346,15 @@ Core::StreamBackend::~StreamBackend(void)
 	
 }
 
-SecureTransport *Core::StreamBackend::connect(const Locator &locator)
+bool Core::StreamBackend::connect(const Locator &locator)
 {
 	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
 		it != locator.addresses.rend();
 		++it)
 	{
 		try {
-			return connect(*it, locator);
+			if(connect(*it, locator))
+				return true;
 		}
 		catch(const NetException &e)
 		{
@@ -1354,10 +1362,10 @@ SecureTransport *Core::StreamBackend::connect(const Locator &locator)
 		}
 	}
 	
-	return NULL;
+	return false;
 }
 
-SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator &locator)
+bool Core::StreamBackend::connect(const Address &addr, const Locator &locator)
 {
 	Socket *sock = NULL;
 	SecureTransport *transport = NULL;
@@ -1379,16 +1387,7 @@ SecureTransport *Core::StreamBackend::connect(const Address &addr, const Locator
 		throw;
 	}
 	
-	try {
-		process(transport, locator);
-	}
-	catch(...)
-	{
-		delete transport;
-		throw;
-	}
-	
-	return transport;
+	return process(transport, locator);
 }
 
 SecureTransport *Core::StreamBackend::listen(void)
@@ -1419,14 +1418,15 @@ Core::DatagramBackend::~DatagramBackend(void)
 	
 }
 
-SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
+bool Core::DatagramBackend::connect(const Locator &locator)
 {
 	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
 		it != locator.addresses.rend();
 		++it)
 	{
 		try {
-			return connect(*it, locator);
+			if(connect(*it, locator))
+				return true;
 		}
 		catch(const NetException &e)
 		{
@@ -1434,10 +1434,10 @@ SecureTransport *Core::DatagramBackend::connect(const Locator &locator)
 		}
 	}
 	
-	return NULL;
+	return false;
 }
 
-SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
+bool Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
 {
 	DatagramStream *stream = NULL;
 	SecureTransport *transport = NULL;
@@ -1454,16 +1454,7 @@ SecureTransport *Core::DatagramBackend::connect(const Address &addr, const Locat
 		throw;
 	}
 	
-	try {
-		process(transport, locator);
-	}
-	catch(...)
-	{
-		delete transport;
-		throw;
-	}
-	
-	return transport;
+	return process(transport, locator);
 }
 
 SecureTransport *Core::DatagramBackend::listen(void)
@@ -1493,7 +1484,7 @@ Core::TunnelBackend::~TunnelBackend(void)
 	
 }
 
-SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
+bool Core::TunnelBackend::connect(const Locator &locator)
 {
 	Assert(locator.user);
 	
@@ -1512,7 +1503,7 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportServer(wrapper, NULL, true, true);	// ask for certificate, datagram mode
+		transport = new SecureTransportClient(wrapper, NULL, "", true);	// datagram mode
 	}
 	catch(...)
 	{
@@ -1520,17 +1511,11 @@ SecureTransport *Core::TunnelBackend::connect(const Locator &locator)
 		throw;
 	}
 	
-	try {
-		process(transport, locator);
-	}
-	catch(...)
-	{
-		delete transport;
-		throw;
-	}
+	if(!process(transport, locator))
+		return false;
 	
 	mWrappers.insert(IdentifierPair(local, remote), wrapper);
-	return transport;
+	return true;
 }
 
 SecureTransport *Core::TunnelBackend::listen(void)
@@ -1564,6 +1549,8 @@ bool Core::TunnelBackend::incoming(Message &message)
 	if(message.type != Message::Tunnel)
 		return false;
 	
+	//LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
+	
 	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(message.destination, message.source));	
 	if(it != mWrappers.end())
 	{
@@ -1581,7 +1568,8 @@ bool Core::TunnelBackend::incoming(Message &message)
 Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote) :
 	mCore(core),
 	mLocal(local),
-	mRemote(remote)
+	mRemote(remote),
+	mTimeout(DefaultTimeout)
 {
 
 }
@@ -1589,14 +1577,21 @@ Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &
 Core::TunnelBackend::TunnelWrapper::~TunnelWrapper(void)
 {
 
-}                        
+}
+
+void Core::TunnelBackend::TunnelWrapper::setTimeout(double timeout)
+{
+	mTimeout = timeout;
+}
 
 size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 {
-	// TODO: timeout
-
 	Synchronize(&mQueueSync);
-        while(mQueue.empty()) mQueueSync.wait();
+	
+	double timeout = mTimeout;
+        while(mQueue.empty())
+		if(!mQueueSync.wait(timeout))
+			throw Timeout();
 
         Message &message = mQueue.front();
 	size = std::min(size, size_t(message.payload.size()));
@@ -1608,9 +1603,31 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
 {
 	Message message;
-	message.prepare(mLocal, mRemote);
+	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
 	message.payload.writeBinary(data, size);
 	mCore->route(message);
+}
+
+bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
+{
+	Synchronize(&mQueueSync);
+	
+        while(mQueue.empty())
+	{
+		if(timeout == 0.)
+			return false;
+		
+		if(!mQueueSync.wait(timeout))
+			return false;
+	}
+		
+	return true;
+}
+
+bool Core::TunnelBackend::TunnelWrapper::waitData(const double &timeout)
+{
+	double dummy = timeout;
+	return waitData(dummy);
 }
 
 bool Core::TunnelBackend::TunnelWrapper::incoming(Message &message)

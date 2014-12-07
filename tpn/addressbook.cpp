@@ -918,7 +918,7 @@ void AddressBook::Invitation::run(void)
 			it != result.end();
 			++it)
 		{
-			if(it->first != Core::Instance->getNumber())
+			if(it->first != Core::Instance->getNumber())	// TODO
 			{
 				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
 				
@@ -1342,6 +1342,8 @@ void AddressBook::Contact::run(void)
 			if(id != localIdentifier			// if it's not the local user
 				&& !Core::Instance->hasPeer(id))	// and if it's not already connected
 			{
+				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
+				
 				Core::Locator locator(mAddressBook->user(), it->second);
 				locator.identifier = id;
 				locator.name = name();

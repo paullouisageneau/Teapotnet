@@ -241,18 +241,18 @@ private:
 		Backend(Core *core);
 		virtual ~Backend(void);
 		
-		virtual SecureTransport *connect(const Locator &locator) = 0;
+		virtual bool connect(const Locator &locator) = 0;
 		virtual SecureTransport *listen(void) = 0;
 		
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
-		void process(SecureTransport *transport, const Locator &locator);	// do the client handshake
+		bool process(SecureTransport *transport, const Locator &locator);	// do the client handshake
 	
 		Core *mCore;
 	
 	private:
-		void doHandshake(SecureTransport *transport, const Identifier &local, const Identifier &remote);
+		bool handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async = false);
 		void run(void);
 		
 		ThreadPool mThreadPool;
@@ -268,8 +268,8 @@ private:
 		StreamBackend(Core *core, int port);
 		~StreamBackend(void);
 		
-		SecureTransport *connect(const Locator &locator);
-		SecureTransport *connect(const Address &addr, const Locator &locator);
+		bool connect(const Locator &locator);
+		bool connect(const Address &addr, const Locator &locator);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -284,8 +284,8 @@ private:
 		DatagramBackend(Core *core, int port);
 		~DatagramBackend(void);
 		
-		SecureTransport *connect(const Locator &locator);
-		SecureTransport *connect(const Address &addr, const Locator &locator);
+		bool connect(const Locator &locator);
+		bool connect(const Address &addr, const Locator &locator);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -297,30 +297,36 @@ private:
 	class TunnelBackend : public Backend
 	{
 	public:
+		static const double DefaultTimeout = 10.;
+
 		TunnelBackend(Core *core);
 		~TunnelBackend(void);
 		
 		// Backend
-		SecureTransport *connect(const Locator &locator);
+		bool connect(const Locator &locator);
 		SecureTransport *listen(void);
 		
 		bool incoming(Message &message);
 		
 	private:
-		// Queue for listen ()
+		// Queue for listen
 		Queue<Message> mQueue;
 		Synchronizable mQueueSync;
-
+		
 		class TunnelWrapper : public Stream
 		{
 		public:
 			TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote);
 			~TunnelWrapper(void);
 			
+			void setTimeout(double timeout);
+			
 			// Stream
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
-		
+			bool waitData(double &timeout);
+			bool waitData(const double &timeout);
+	
 			bool incoming(Message &message);
 	
 		private:
@@ -328,6 +334,7 @@ private:
 			Identifier mLocal, mRemote;
 			Queue<Message> mQueue;
                 	Synchronizable mQueueSync;
+			double mTimeout;
 		};
 
 		Map<IdentifierPair, TunnelWrapper*> mWrappers;
