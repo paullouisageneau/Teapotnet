@@ -1158,7 +1158,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 			{
 				SecureTransport::Credentials *creds = user->certificate();
 				if(creds) transport->addCredentials(creds);
-				local = user->identifier();
+				local = Identifier(user->identifier(), core->getNumber());
 			}
 			else {
 				 LogDebug("Core::Backend::doHandshake", String("User does not exist: ") + name);
@@ -1173,7 +1173,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 			
 			try {
 				remote.fromString(name);
-				local = remote;
+				local = Identifier(remote, core->getNumber());
 			}
 			catch(...)
 			{
@@ -1270,7 +1270,10 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				else {
 					// Assign local if client
 					if(transport->isClient())
+					{
 						verifier.local = local;
+						verifier.remote.setNumber(remote.number());	// pass instance number
+					}
 						
 					// Check remote identifier
 					if(remote != Identifier::Null && verifier.remote != remote)
