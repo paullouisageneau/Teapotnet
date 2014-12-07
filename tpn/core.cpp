@@ -1096,7 +1096,7 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
 		// Set remote name
-		transport->setHostname(locator.identifier.toString());
+		transport->setHostname(locator.identifier.digest().toString());
 		
 		Identifier local(locator.user->identifier(), mCore->getNumber());
 		
