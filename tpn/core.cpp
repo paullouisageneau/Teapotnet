@@ -1521,15 +1521,21 @@ bool Core::TunnelBackend::connect(const Locator &locator)
 SecureTransport *Core::TunnelBackend::listen(void)
 {
 	Synchronize(&mQueueSync);
+
 	while(mQueue.empty()) mQueueSync.wait();
 	
 	Message &message = mQueue.front();
 	Assert(message.content == Message::Tunnel);
 	
+	LogDebug("Core::TunnelBackend::incoming", "Incoming tunnel from " + message.source.toString());
+
+	Identifier local(message.destination, mCore->getNumber());
+	Identifier remote(message.source);
+
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(mCore, message.destination, message.source);
+		wrapper = new TunnelWrapper(mCore, local, remote);
 		transport = new SecureTransportServer(wrapper, NULL, true, true);	// ask for certificate, datagram mode
 	}
 	catch(...)
@@ -1539,7 +1545,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 		throw;
 	}
 	
-	mWrappers.insert(IdentifierPair(message.destination, message.source), wrapper);
+	mWrappers.insert(IdentifierPair(local, remote), wrapper);
 	
 	mQueue.pop();
 	return transport;
@@ -1550,9 +1556,10 @@ bool Core::TunnelBackend::incoming(Message &message)
 	if(message.content != Message::Tunnel)
 		return false;
 	
-	LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
-	
-	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(message.destination, message.source));	
+	Identifier local(message.destination, mCore->getNumber());
+        Identifier remote(message.source);
+
+	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(local, remote));	
 	if(it != mWrappers.end())
 	{
 		return it->second->incoming(message);
@@ -1577,7 +1584,7 @@ Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &
 
 Core::TunnelBackend::TunnelWrapper::~TunnelWrapper(void)
 {
-
+	mCore->mTunnelBackend->mWrappers.erase(IdentifierPair(mLocal, mRemote));
 }
 
 void Core::TunnelBackend::TunnelWrapper::setTimeout(double timeout)
@@ -1603,6 +1610,8 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 
 void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
 {
+	VAR(mLocal);
+	VAR(mRemote);
 	Message message;
 	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
 	message.payload.writeBinary(data, size);
