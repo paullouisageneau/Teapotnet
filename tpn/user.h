@@ -48,8 +48,9 @@ class User : protected Synchronizable, public Serializable, public HttpInterface
 public:
 	static unsigned Count(void);
 	static void GetNames(Array<String> &array);
-  	static bool Exist(const String &name);
+	static bool Exist(const String &name);
 	static User *Get(const String &name);
+	static User *GetByIdentifier(const Identifier &id);
 	static User *Authenticate(const String &name, const String &password);
 	static void UpdateAll(void);
 	
@@ -86,9 +87,6 @@ public:
 	const Rsa::PublicKey &publicKey(void) const;
 	const Rsa::PrivateKey &privateKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
-	
-	void setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey);	// useless
-	void setSecret(const BinaryString &secret);						// useless
 	
 	void http(const String &prefix, Http::Request &request);
 
@@ -127,6 +125,7 @@ private:
 	
 	static Map<String, User*>	UsersByName;
 	static Map<BinaryString, User*>	UsersByAuth;
+	static Map<Identifier, User*>	UsersByIdentifier;
 	static Mutex			UsersMutex;
 };
 

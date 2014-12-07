@@ -838,7 +838,8 @@ void mpz_export_binary(const mpz_t n, BinaryString &bs)
 	size_t len = 0;
 	mpz_export(bs.ptr(), &len, 1, 1, 1, 0, n);	// big endian
 	
-	Assert(len == size);
+	if(len == 0) bs.clear();
+	Assert(len == bs.size());
 }
 
 void mpz_import_string(mpz_t n, const String &str)

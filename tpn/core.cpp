@@ -561,9 +561,10 @@ bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &re
 {
 	// Not synchronized
 	Assert(stream);
-
+	Assert(local.number());
+	
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, stream, Identifier(local, getNumber()), remote);
+	Handler *handler = new Handler(this, stream, local, remote);
 	mThreadPool.launch(handler);
 	return true;
 }
@@ -645,7 +646,17 @@ void Core::run(void)
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
 	Assert(handler != NULL);
-	if(peer == Identifier::Null) return false;
+
+	if(peer == Identifier::Null) 
+	{
+		LogWarn("Core::addHandler", "Remote identifier is null");
+		return false;
+	}
+	else if(!peer.number())
+	{
+		LogWarn("Core::addHandler", "Remote identifier has no instance number");
+		return false;
+	}
 	else {
 		Synchronize(this);
 		
@@ -1075,11 +1086,13 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	{
 		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
 		
+		Identifier local(locator.peering, mCore->getNumber());
+
 		// Add contact private shared key
-		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(locator.peering.toString(), locator.secret);
+		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(local.toString(), locator.secret);
 		transport->addCredentials(creds, true);	// must delete
 		
-		return handshake(transport, locator.peering, locator.peering, false);
+		return handshake(transport, local, locator.peering, false);
 	}
 	else if(locator.user)
 	{
@@ -1088,11 +1101,13 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		if(locator.name.empty())
 			LogWarn("Core::Backend::process", "Remote name is not set in locator for certificate authentication");
 		
+		Identifier local(locator.user->identifier(), mCore->getNumber());
+		
 		// Add user certificate
 		SecureTransportClient::Certificate *cert = locator.user->certificate();
 		if(cert) transport->addCredentials(cert, false);
 		
-		return handshake(transport, locator.user->identifier(), locator.identifier, false);
+		return handshake(transport, local, locator.identifier, false);
 	}
 	else {
 		LogDebug("Core::Backend::process", "Setting anonymous credentials");
@@ -1116,9 +1131,18 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verifying name: ") + name);
+			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + name);
 			
-			User *user = User::Get(name);
+			try {
+				remote.fromString(name);
+			}
+			catch(...)
+			{
+				LogDebug("Core::Backend::doHandshake", String("Invalid identifier: ") + name);
+				return false;
+			}
+			
+			User *user = User::GetByIdentifier(remote);
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
@@ -1171,11 +1195,15 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		
 		bool verifyCertificate(const Rsa::PublicKey &pub)
 		{
-			publicKey = pub;
-			remote = publicKey.digest();
-			
 			LogDebug("Core::Backend::doHandshake", String("Verifying remote certificate: ") + remote.toString());
 			
+			publicKey = pub;
+			if(remote.empty() || publicKey.digest() != remote)
+			{
+				LogDebug("Core::Backend::doHandshake", "Certificate does not match user");
+				return false;
+			}
+			  
 			Synchronize(core);
 			
 			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
@@ -1261,7 +1289,9 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 					Assert(verifier.remote == Identifier::Null);
 				}
 				
-				return core->addPeer(transport, verifier.local, verifier.remote);
+				// TODO: we need remote instance number here !
+				core->addPeer(transport, verifier.local, verifier.remote);
+				return true;
 			}
 			catch(const std::exception &e)
 			{

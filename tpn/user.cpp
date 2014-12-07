@@ -38,6 +38,7 @@ namespace tpn
 
 Map<String, User*>		User::UsersByName;
 Map<BinaryString, User*>	User::UsersByAuth;
+Map<Identifier, User*>		User::UsersByIdentifier;
 Mutex				User::UsersMutex;
 
 unsigned User::Count(void)
@@ -65,6 +66,19 @@ User *User::Get(const String &name)
 	User *user = NULL;
 	UsersMutex.lock();
 	if(UsersByName.get(name, user)) 
+	{
+	  	UsersMutex.unlock();
+		return user;
+	}
+	UsersMutex.unlock();
+	return NULL; 
+}
+
+User *User::GetByIdentifier(const Identifier &id)
+{
+	User *user = NULL;
+	UsersMutex.lock();
+	if(UsersByIdentifier.get(id, user)) 
 	{
 	  	UsersMutex.unlock();
 		return user;
@@ -195,6 +209,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mAuth, this);
+	UsersByIdentifier.insert(identifier(), this);
 	UsersMutex.unlock();
 
 	Interface::Instance->add(urlPrefix(), this);
@@ -441,25 +456,6 @@ SecureTransport::Certificate *User::certificate(void) const
 {
 	Synchronize(this);
 	return mCertificate;
-}
-
-void User::setKeyPair(const Rsa::PublicKey &publicKey, const Rsa::PrivateKey &privateKey)
-{
-	Synchronize(this);
-	
-	// TODO: check key pair
-	mPublicKey = publicKey;
-	mPrivateKey = privateKey;
-	
-	// Reload certificate
-	delete mCertificate;
-	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
-}
-
-void User::setSecret(const BinaryString &secret)
-{
-	Synchronize(this);
-	mSecret = secret;
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -813,6 +809,8 @@ bool User::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
+	Identifier oldIdentifier = identifier();
+	
 	mPublicKey.clear();
 	mPrivateKey.clear();
 	mSecret.clear();
@@ -825,9 +823,21 @@ bool User::deserialize(Serializer &s)
 	if(!s.inputObject(mapping))
 		return false;
 	
-	// Reload certificate
-	delete mCertificate;
-	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
+	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
+	{
+		// Register
+		if(oldIdentifier != identifier())
+		{
+			UsersMutex.lock();
+			UsersByIdentifier.erase(oldIdentifier);
+			UsersByIdentifier.insert(identifier(), this);
+			UsersMutex.unlock();
+		}
+		
+		// Reload certificate
+		delete mCertificate;
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
+	}
 	
 	return true;
 }
