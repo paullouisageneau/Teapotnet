@@ -1612,8 +1612,6 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 
 void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
 {
-	VAR(mLocal);
-	VAR(mRemote);
 	Message message;
 	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
 	message.payload.writeBinary(data, size);
