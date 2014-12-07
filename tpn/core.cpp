@@ -1496,8 +1496,8 @@ bool Core::TunnelBackend::connect(const Locator &locator)
 	
 	LogDebug("Core::TunnelBackend::connect", "Trying tunnel for " + locator.identifier.toString());
 	
-	Identifier remote = locator.identifier;
-	Identifier local = locator.user->identifier();
+	Identifier remote(locator.identifier);
+	Identifier local(locator.user->identifier(), mCore->getNumber());
 
 	TunnelWrapper *wrapper = NULL;
 	SecureTransport *transport = NULL;
@@ -1521,6 +1521,7 @@ bool Core::TunnelBackend::connect(const Locator &locator)
 SecureTransport *Core::TunnelBackend::listen(void)
 {
 	Synchronize(&mQueueSync);
+	
 	while(mQueue.empty()) mQueueSync.wait();
 	
 	Message &message = mQueue.front();
@@ -1550,7 +1551,7 @@ bool Core::TunnelBackend::incoming(Message &message)
 	if(message.content != Message::Tunnel)
 		return false;
 	
-	LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
+	//LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
 	
 	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(message.destination, message.source));	
 	if(it != mWrappers.end())
