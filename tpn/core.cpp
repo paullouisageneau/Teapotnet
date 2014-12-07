@@ -1539,8 +1539,9 @@ SecureTransport *Core::TunnelBackend::listen(void)
 		throw;
 	}
 	
-	mQueue.pop();
 	mWrappers.insert(IdentifierPair(message.destination, message.source), wrapper);
+	
+	mQueue.pop();
 	return transport;
 }
 
