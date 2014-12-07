@@ -561,10 +561,9 @@ bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &re
 {
 	// Not synchronized
 	Assert(stream);
-	Assert(local.number());
 	
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, stream, local, remote);
+	Handler *handler = new Handler(this, stream, Identifier(local, getNumber()), remote);
 	mThreadPool.launch(handler);
 	return true;
 }
@@ -645,7 +644,7 @@ void Core::run(void)
 
 bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 {
-	Assert(handler != NULL);
+	Assert(handler);
 
 	if(peer == Identifier::Null) 
 	{
@@ -671,15 +670,19 @@ bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
 
 bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 {
-	Assert(handler != NULL);
-	Synchronize(this);
-  
-	Handler *h = NULL;
-	if(!mHandlers.get(peer, h) || h != handler)
-		return false;
+	Assert(handler);
 	
-	mHandlers.erase(peer);
-	return true;
+	if(peer != Identifier::Null && peer.number()) 
+	{
+		Synchronize(this);
+	
+		Handler *h = NULL;
+		if(!mHandlers.get(peer, h) || h != handler)
+			return false;
+		
+		mHandlers.erase(peer);
+		return true;
+	}
 }
 
 void Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
@@ -1096,7 +1099,8 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
 		// Set remote name
-		transport->setHostname(locator.identifier.digest().toString());
+		String name = locator.identifier.digest().toString() + "#" + String::hexa(mCore->getNumber());
+		transport->setHostname(name);
 		
 		Identifier local(locator.user->identifier(), mCore->getNumber());
 		
@@ -1123,20 +1127,29 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 	public:
 		Identifier local, remote;
 		Rsa::PublicKey publicKey;
+		uint64_t instance;
 		
-		MyVerifier(Core *core) { this->core = core;}
+		MyVerifier(Core *core) { this->core = core; this->instance = 0; }
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
 			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + name);
 			
+			String digest = name;
+			String number = digest.cut('#');
+			if(!number.empty())
+			{
+				number.hexaMode(true);
+				number.read(instance);
+			}
+			
 			Identifier id;
 			try {
-				id.fromString(name);
+				id.fromString(digest);
 			}
 			catch(...)
 			{
-				LogDebug("Core::Backend::doHandshake", String("Invalid identifier: ") + name);
+				LogDebug("Core::Backend::doHandshake", String("Invalid identifier: ") + digest);
 				return false;
 			}
 			
@@ -1194,7 +1207,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		bool verifyCertificate(const Rsa::PublicKey &pub)
 		{
 			publicKey = pub;
-			remote = publicKey.digest();
+			remote = Identifier(publicKey.digest(), instance);
 			
 			LogDebug("Core::Backend::doHandshake", String("Verifying remote certificate: ") + remote.toString());
 			
@@ -2011,13 +2024,8 @@ void Core::Handler::run(void)
 		LogDebug("Core::Handler", String("Closing link handler: ") + e.what());
 	}
 	
-	try {
+	if(mRemote.number())
 		mCore->removeHandler(mRemote, this);
-	}
-	catch(...)
-	{
-	  
-	}
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO

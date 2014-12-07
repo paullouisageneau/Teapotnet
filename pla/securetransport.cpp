@@ -359,9 +359,10 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 			
 			if(!transport->mHostname.empty())
 			{
-				if(!gnutls_x509_crt_check_hostname(crt, transport->mHostname.c_str()))
+				String hostname = transport->mHostname.before('#');
+				if(!gnutls_x509_crt_check_hostname(crt, hostname.c_str()))
 				{
-					LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + transport->mHostname);
+					LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + hostname);
       					return GNUTLS_E_CERTIFICATE_ERROR;
     				}
 			}
