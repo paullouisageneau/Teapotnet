@@ -182,7 +182,7 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mProfile = NULL;
 
 	try {
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 		mIndexer = new Indexer(this); 
 		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
         	mAddressBook = new AddressBook(this);
@@ -836,7 +836,7 @@ bool User::deserialize(Serializer &s)
 		
 		// Reload certificate
 		delete mCertificate;
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, mName);
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 	}
 	
 	return true;

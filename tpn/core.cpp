@@ -1095,8 +1095,8 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	{
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
-		String name = Identifier(locator.identifier, mCore->getNumber()).toString();	// remote identifier with local instance
-		transport->setHostname(name);
+		// Set remote name
+		transport->setHostname(locator.identifier.toString());
 		
 		Identifier local(locator.user->identifier(), mCore->getNumber());
 		
@@ -1122,10 +1122,9 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 	{
 	public:
 		Identifier local, remote;
-		uint64_t remoteInstance;
 		Rsa::PublicKey publicKey;
 		
-		MyVerifier(Core *core) { this->core = core; this->remoteInstance = 0; }
+		MyVerifier(Core *core) { this->core = core;}
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
@@ -1141,9 +1140,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				return false;
 			}
 			
-			remoteInstance = id.number();
-			
-			User *user = User::GetByIdentifier(Identifier(id.digest()));
+			User *user = User::GetByIdentifier(id);
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
@@ -1217,7 +1214,6 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				++it;
 			}
 			
-			
 			LogDebug("Core::Backend::doHandshake", "Certificate verification failed");
 			return false;
 		}
@@ -1279,14 +1275,13 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				}
 				else if(transport->hasPrivateSharedKey())
 				{
-					Assert(verifier.local == verifier.remote);
+					Assert(verifier.local.digest() == verifier.remote.digest());
 				}
 				else {
 					Assert(verifier.local == Identifier::Null);
 					Assert(verifier.remote == Identifier::Null);
 				}
 				
-				// TODO: we need remote instance number here !
 				core->addPeer(transport, verifier.local, verifier.remote);
 				return true;
 			}
