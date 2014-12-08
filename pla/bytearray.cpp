@@ -113,8 +113,8 @@ void ByteArray::clear(void)
 
 void ByteArray::reset(void)
 {
+	mLeft+= mReadPos;
 	mReadPos = 0;
-	mLeft = mLength;
 }
 
 void ByteArray::serialize(Serializer &s) const
