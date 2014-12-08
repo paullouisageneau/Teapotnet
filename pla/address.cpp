@@ -438,7 +438,7 @@ bool Address::deserialize(Serializer &s)
 	}
 
 	default:
-		throw InvalidData("Invalid network Address");
+		throw InvalidData("Invalid network address");
 	}
 	
 	return true;
@@ -451,7 +451,7 @@ void Address::serialize(Stream &s) const
 	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
 	if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
-		throw InvalidData("Invalid stored network Address");
+		throw InvalidData("Invalid stored network address");
 	
 	if(a.addrFamily() == AF_INET6) s<<'['<<host<<']'<<':'<<service;
 	else s<<host<<':'<<service;
@@ -515,6 +515,8 @@ socklen_t Address::addrLen(void) const
 bool operator < (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() < a2.addrLen();
+	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() < a2.addrFamily();
+	
 	if(!a1.isLocal())
 	{
 		if(a2.isLocal()) return true;
@@ -525,12 +527,34 @@ bool operator < (const Address &a1, const Address &a2)
 		if(a1.isLocal()) return false;
 		if(a1.isPrivate() && !a2.isPrivate()) return false;
 	}
-	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) < 0;
+	
+	switch(a1.addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
+		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
+		return (sa1->sin_addr.s_addr < sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port < sa2->sin_port));
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
+		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
+		int cmp = std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16);
+		return (cmp < 0 || (cmp == 0 && sa1->sin6_port < sa2->sin6_port));
+	}
+
+	default:
+		return false;
+	}
 }
 
 bool operator > (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() > a2.addrLen();
+	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() > a2.addrFamily();
+	
 	if(!a2.isLocal())
 	{
 		if(a1.isLocal()) return true;
@@ -541,13 +565,53 @@ bool operator > (const Address &a1, const Address &a2)
 		if(a2.isLocal()) return false;
 		if(a2.isPrivate() && !a1.isPrivate()) return false;
 	}
-	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) > 0;
+	
+	switch(a1.addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
+		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
+		return (sa1->sin_addr.s_addr > sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port > sa2->sin_port));
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
+		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
+		int cmp = std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16);
+		return (cmp > 0 || (cmp == 0 && sa1->sin6_port > sa2->sin6_port));
+	}
+
+	default:
+		return false;
+	}
 }
 
 bool operator == (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return false;
-	return std::memcmp(a1.addr(),a2.addr(),a1.addrLen()) == 0;
+	if(a1.addrFamily() != a2.addrFamily()) return false;
+	  
+	switch(a1.addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
+		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
+		return (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port == sa2->sin_port);
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
+		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
+		return (std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16) == 0 && sa1->sin6_port == sa2->sin6_port);
+	}
+
+	default:
+		return false;
+	}
 }
 
 bool operator != (const Address &a1, const Address &a2)
