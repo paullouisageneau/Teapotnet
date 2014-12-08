@@ -440,7 +440,7 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		char datagramBuffer[MaxDatagramSize];
 		sockaddr_storage sa;
 		socklen_t sl = sizeof(sa);
-		result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
+		result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags | MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 		if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
 		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 		
@@ -450,6 +450,9 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		{
 			result = std::min(result, int(size));
 			std::memcpy(buffer, datagramBuffer, result);
+			
+			if(!(flags & MSG_PEEK))
+				::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
 			break;
 		}
 		
@@ -467,6 +470,8 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			stream->mBuffer.assign(datagramBuffer, result);
 			stream->mBufferSync.notifyAll();
 		}
+		
+		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 	}
 	
 	return result;
