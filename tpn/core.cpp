@@ -120,7 +120,7 @@ Core::Core(int port) :
 		// Create backends
 		mTunnelBackend = new TunnelBackend(this);
 		mBackends.push_back(mTunnelBackend);
-		//mBackends.push_back(new StreamBackend(this, port));
+		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
 	}
 	catch(...)
