@@ -450,7 +450,7 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 
 			MutexLocker lock(&mStreamsMutex);
-			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender);
+			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender.unmap());
 			if(it == mStreams.end())
 			{
 				result = std::min(result, int(size));
@@ -501,16 +501,16 @@ void DatagramSocket::registerStream(const Address &addr, DatagramStream *stream)
 {
 	Assert(stream);
 	MutexLocker lock(&mStreamsMutex);
-	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr);
+	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr.unmap());
 	if(it != mStreams.end() && it->second != stream) it->second->mSock = NULL;
-	mStreams.insert(addr, stream);
+	mStreams.insert(addr.unmap(), stream);
 }
 
 bool DatagramSocket::unregisterStream(DatagramStream *stream)
 {
 	Assert(stream);
 	MutexLocker lock(&mStreamsMutex);
-	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr);
+	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr.unmap());
 	if(it == mStreams.end() || it->second != stream) return false;
 	mStreams.erase(it);
 	return true;

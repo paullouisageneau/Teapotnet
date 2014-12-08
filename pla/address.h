@@ -60,7 +60,8 @@ public:
 	String service(bool numeric = true) const;
 	uint16_t port(void) const;
 	String reverse(void) const;
-
+	Address unmap(void) const;
+	
 	const sockaddr *addr(void) const;
 	int addrFamily(void) const;
 	socklen_t addrLen(void) const;

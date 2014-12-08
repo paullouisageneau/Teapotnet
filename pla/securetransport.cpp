@@ -82,13 +82,13 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
 		gnutls_transport_set_pull_timeout_function(mSession, TimeoutCallback);
 		
-		const double handshakeTimeout = 20.;
+		const double handshakeTimeout = 10.;
 		gnutls_handshake_set_timeout(mSession, unsigned(handshakeTimeout*1000));
 		
 		if(datagram)
 		{
 			const double retransTimeout = 1.;
-			const double totalTimeout   = 20.;
+			const double totalTimeout   = 10.;
 			
 			gnutls_dtls_set_mtu(mSession, 1300);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));

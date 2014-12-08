@@ -221,7 +221,7 @@ bool Address::isLocal(void) const
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
 		for(int i=0; i<9; ++i) if(b[i] != 0) break;
-		if(b[10] == 0xFF && b[11] == 0xFF)
+		if(b[10] == 0xFF && b[11] == 0xFF)		// mapped
 		{
 			if(b[12] == 127) return true;
 		}
@@ -255,7 +255,7 @@ bool Address::isPrivate(void) const
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
 		if(b[0] == 0xFC && b[1] == 0) return true; 
 		for(int i=0; i<9; ++i) if(b[i] != 0) break;
-		if(b[10] == 0xFF && b[11] == 0xFF)
+		if(b[10] == 0xFF && b[11] == 0xFF)		// mapped
 		{
 			if(b[12] == 10) return true;
 			if(b[12] == 172 && b[13] >= 16 && b[13] < 32) return true;
@@ -331,6 +331,31 @@ String Address::reverse(void) const
 
 	str << ':' << service;
 	return str;
+}
+
+Address Address::unmap(void) const
+{
+	if(addrFamily() == AF_INET6)
+	{
+		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
+		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
+		
+		for(int i=0; i<9; ++i) 
+			if(b[i] != 0) 
+				return *this;
+		
+		if(b[10] != 0xFF || b[11] != 0xFF)
+			return *this;
+		
+		struct sockaddr_in sin;
+		sin.sin_family = AF_INET;
+		sin.sin_port = sa6->sin6_port;
+		std::memcpy(reinterpret_cast<uint8_t*>(&sin.sin_addr.s_addr), b + 12, 4);
+		
+		return Address(reinterpret_cast<sockaddr*>(&sin), sizeof(sin));
+	}
+	
+	return *this;
 }
 
 void Address::serialize(Serializer &s) const

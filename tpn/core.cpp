@@ -120,7 +120,7 @@ Core::Core(int port) :
 		// Create backends
 		mTunnelBackend = new TunnelBackend(this);
 		mBackends.push_back(mTunnelBackend);
-		mBackends.push_back(new StreamBackend(this, port));
+		//mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
 	}
 	catch(...)
@@ -1133,8 +1133,6 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
-			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + name);
-			
 			String digest = name;
 			String number = digest.cut('#');
 			if(!number.empty())
@@ -1142,6 +1140,8 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				number.hexaMode(true);
 				number.read(instance);
 			}
+			
+			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + digest);
 			
 			Identifier id;
 			try {
@@ -1622,6 +1622,7 @@ Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &
 
 Core::TunnelBackend::TunnelWrapper::~TunnelWrapper(void)
 {
+	// TODO: synchro
 	mCore->mTunnelBackend->mWrappers.erase(IdentifierPair(mLocal, mRemote));
 }
 
