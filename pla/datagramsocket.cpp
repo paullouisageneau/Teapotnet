@@ -253,8 +253,13 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 		if(ai->ai_family == AF_INET6) 
 			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
 		
-		// TODO: Seems necessary for DTLS
-                //setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+		// Necessary for DTLS
+#ifdef LINUX
+		int val = IP_PMTUDISC_DO;
+		setsockopt(mSock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val));
+#else
+		setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
+#endif
 		
 		// Bind it
 		if(::bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)

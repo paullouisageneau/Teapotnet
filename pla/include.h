@@ -46,6 +46,10 @@
 #define MACOSX
 #endif
 
+#ifdef __linux__
+#define LINUX
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -97,6 +101,7 @@ typedef u_long ctl_t;
 #define SEWOULDBLOCK	WSAEWOULDBLOCK
 #define SEAGAIN		WSAEWOULDBLOCK
 #define SEADDRINUSE	WSAEADDRINUSE
+#define IP_DONTFRAG	IP_DONTFRAGMENT
 #define SOCK_TO_INT(x) 0
 
 #define mkdirmod(d,m) mkdir(d)

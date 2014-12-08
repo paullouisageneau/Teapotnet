@@ -90,7 +90,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 			const double retransTimeout = 1.;
 			const double totalTimeout   = 10.;
 			
-			gnutls_dtls_set_mtu(mSession, 1300);	// TODO
+			gnutls_dtls_set_mtu(mSession, 1200);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
 		}
 	}
