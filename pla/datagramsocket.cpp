@@ -453,7 +453,6 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender);
 			if(it == mStreams.end())
 			{
-				mStreamsMutex.unlock();
 				result = std::min(result, int(size));
 				std::memcpy(buffer, datagramBuffer, result);
 				break;
@@ -557,7 +556,8 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	while(mBuffer.empty())
 	{
 		if(!mSock) return 0;
-		if(!mBufferSync.wait(timeout)) return false;
+		if(!mBufferSync.wait(timeout))
+			throw Timeout();
 	}
 
 	size = std::min(size, size_t(mBuffer.size()));
