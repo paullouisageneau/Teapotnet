@@ -722,8 +722,9 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool reques
 			return transport;
 		}
 		
-		DatagramStream stream(&sock, sender);
-		
+		NOEXCEPTION(sock.read(buffer, DatagramSocket::MaxDatagramSize, sender));
+	
+		DatagramStream stream(&sock, sender);	
 		gnutls_dtls_cookie_send(&cookieKey,
 					const_cast<sockaddr*>(sender.addr()),	// WTF ?
 					sender.addrLen(),
@@ -732,7 +733,6 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool reques
 					DirectWriteCallback);
 		
 		// discard peeked data
-		NOEXCEPTION(sock.read(buffer, DatagramSocket::MaxDatagramSize, sender));
 		Thread::Sleep(milliseconds(1));
 	}
 }
