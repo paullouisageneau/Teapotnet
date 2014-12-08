@@ -1565,7 +1565,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	Message &message = mQueue.front();
 	Assert(message.content == Message::Tunnel);
 	
-	LogDebug("Core::TunnelBackend::incoming", "Incoming tunnel from " + message.source.toString());
+	LogDebug("Core::TunnelBackend::listen", "Incoming tunnel from " + message.source.toString());
 
 	Identifier local(message.destination, mCore->getNumber());
 	Identifier remote(message.source);
@@ -1584,6 +1584,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	}
 	
 	mWrappers.insert(IdentifierPair(local, remote), wrapper);
+	wrapper->incoming(message);
 	
 	mQueue.pop();
 	return transport;
