@@ -446,12 +446,14 @@ bool Address::deserialize(Serializer &s)
 
 void Address::serialize(Stream &s) const
 {
+	Address a(unmap());
+	
 	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
-	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
+	if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network Address");
 	
-	if(addrFamily() == AF_INET6) s<<'['<<host<<']'<<':'<<service;
+	if(a.addrFamily() == AF_INET6) s<<'['<<host<<']'<<':'<<service;
 	else s<<host<<':'<<service;
 }
 
