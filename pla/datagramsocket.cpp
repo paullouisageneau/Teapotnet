@@ -519,10 +519,6 @@ DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 {
 	Assert(mSock);
 	mSock->registerStream(addr, this);
-	
-	static int i = 0;
-	if(i == 1) *((char*)(0)) = 0;
-	++i;
 }
 
 DatagramStream::~DatagramStream(void)
