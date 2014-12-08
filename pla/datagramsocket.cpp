@@ -431,47 +431,36 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			if(!wait(timeout))
 				return -1;
 		}
-  
-		if(mStreams.empty())
+		
+		char datagramBuffer[MaxDatagramSize];
+		sockaddr_storage sa;
+		socklen_t sl = sizeof(sa);
+		result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
+		if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
+		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
+		
+		MutexLocker lock(&mStreamsMutex);
+		Map<Address, DatagramStream*>::iterator it = mStreams.find(sender.unmap());
+		if(it == mStreams.end())
 		{
-			sockaddr_storage sa;
-			socklen_t sl = sizeof(sa);
-			result = ::recvfrom(mSock, buffer, size, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
-			if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
-			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
+			result = std::min(result, int(size));
+			std::memcpy(buffer, datagramBuffer, result);
 			break;
 		}
-		else {
-			char datagramBuffer[MaxDatagramSize];
-			sockaddr_storage sa;
-			socklen_t sl = sizeof(sa);
-			result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
-			if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
-			sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-
-			MutexLocker lock(&mStreamsMutex);
-			Map<Address, DatagramStream*>::iterator it = mStreams.find(sender.unmap());
-			if(it == mStreams.end())
-			{
-				result = std::min(result, int(size));
-				std::memcpy(buffer, datagramBuffer, result);
-				break;
-			}
-
-			DatagramStream *stream = it->second;
-			Assert(stream);
-
-			if(result > 0)
-			{
-				Synchronize(&stream->mBufferSync);
-				
-				// Wait for last datagram to be processed
-				while(!stream->mBuffer.empty())
-					stream->mBufferSync.wait();
-				
-				stream->mBuffer.assign(datagramBuffer, result);
-				stream->mBufferSync.notifyAll();
-			}		
+		
+		DatagramStream *stream = it->second;
+		Assert(stream);
+		
+		if(result > 0)
+		{
+			Synchronize(&stream->mBufferSync);
+			
+			// Wait for last datagram to be processed
+			while(!stream->mBuffer.empty())
+				stream->mBufferSync.wait();
+			
+			stream->mBuffer.assign(datagramBuffer, result);
+			stream->mBufferSync.notifyAll();
 		}
 	}
 	
@@ -530,6 +519,10 @@ DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 {
 	Assert(mSock);
 	mSock->registerStream(addr, this);
+	
+	static int i = 0;
+	if(i == 1) *((char*)(0)) = 0;
+	++i;
 }
 
 DatagramStream::~DatagramStream(void)
@@ -540,7 +533,8 @@ DatagramStream::~DatagramStream(void)
 Address DatagramStream::getLocalAddress(void) const
 {
 	// TODO: this is actually different from local address
-	return mSock->getBindAddress();
+	if(!mSock) return Address();
+	else return mSock->getBindAddress();
 }
 
 Address DatagramStream::getRemoteAddress(void) const
@@ -559,7 +553,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 		if(!mBufferSync.wait(timeout))
 			throw Timeout();
 	}
-
+	
 	size = std::min(size, size_t(mBuffer.size()));
 	std::memcpy(buffer, mBuffer.data(), size);
 	mBuffer.clear();
