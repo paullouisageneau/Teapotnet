@@ -1549,11 +1549,8 @@ bool Core::TunnelBackend::connect(const Locator &locator)
 		throw;
 	}
 	
-	if(!process(transport, locator))
-		return false;
-	
 	mWrappers.insert(IdentifierPair(local, remote), wrapper);
-	return true;
+	return process(transport, locator);
 }
 
 SecureTransport *Core::TunnelBackend::listen(void)

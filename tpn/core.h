@@ -296,7 +296,7 @@ private:
 	class TunnelBackend : public Backend
 	{
 	public:
-		static const double DefaultTimeout = 10.;
+		static const double DefaultTimeout = 20.;
 
 		TunnelBackend(Core *core);
 		~TunnelBackend(void);
