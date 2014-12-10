@@ -268,7 +268,8 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 {
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
-		return ssize_t(st->mStream->readData(static_cast<char*>(data), maxlen));
+		ssize_t ret = st->mStream->readData(static_cast<char*>(data), maxlen);
+		return ret;
 	}
 	catch(const Timeout &timeout)
 	{

@@ -360,18 +360,19 @@ Fountain::Combination &Fountain::Combination::operator/=(uint8_t coeff)
 
 void Fountain::Combination::serialize(Serializer &s) const
 {
+	Assert(firstComponent() <= std::numeric_limits<uint16_t>::max());
 	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
 	Assert(firstComponent() >= 0);	// for sanity
 	
-	s.output(uint(firstComponent()));
+	s.output(uint16_t(firstComponent()));
 	s.output(uint16_t(componentsCount()));
 	for(int i=firstComponent(); i<=lastComponent(); ++i)
-		s.output(uint16_t(uint8_t(coeff(i))));
+		s.output(uint8_t(coeff(i)));
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
 {
-	uint first = 0;
+	uint16_t first = 0;
 	uint16_t count = 0;
 	if(!s.input(first)) return false;
 	AssertIO(s.input(count));
@@ -522,18 +523,11 @@ bool Fountain::Sink::solve(Stream &input)
 	Combination incoming;
 	incoming.setData(data);
 	
-	if(!seed)
+	Generator gen(seed);
+	for(unsigned i=first; i<first+count; ++i)
 	{
-		for(unsigned i=first; i<first+count; ++i)
-			incoming.addComponent(i, 1);
-	}
-	else {
-		Generator gen(seed);
-		for(unsigned i=first; i<first+count; ++i)
-		{
-			uint8_t coeff = gen.next();
-			incoming.addComponent(i, coeff);
-		}
+		uint8_t coeff = gen.next();
+		incoming.addComponent(i, coeff);
 	}
 	
 	// ==== Gauss-Jordan elimination ====

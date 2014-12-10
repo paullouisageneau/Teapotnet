@@ -1639,16 +1639,17 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
         while(mQueue.empty())
 		if(!mQueueSync.wait(timeout))
 			throw Timeout();
-
+	
         Message &message = mQueue.front();
 	size = std::min(size, size_t(message.payload.size()));
-        std::copy(message.payload.data(), message.payload.data() + size, buffer);
+	std::copy(message.payload.data(), message.payload.data() + size, buffer);
         mQueue.pop();
         return size;
 }
 
 void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
 {
+	VAR(size);
 	Message message;
 	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
 	message.payload.writeBinary(data, size);
@@ -1659,6 +1660,7 @@ bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
 {
 	Synchronize(&mQueueSync);
 	
+	VAR(timeout);
         while(mQueue.empty())
 	{
 		if(timeout == 0.)
@@ -1667,7 +1669,7 @@ bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
 		if(!mQueueSync.wait(timeout))
 			return false;
 	}
-		
+	
 	return true;
 }
 
@@ -1732,6 +1734,7 @@ bool Core::Handler::recv(Message &message)
 		
 		uint16_t size = 0;
 		
+		// TODO: this is wrong for datagram streams
 		if(!mStream->readBinary(message.version)) return false;
 		AssertIO(mStream->readBinary(message.flags));
 		AssertIO(mStream->readBinary(message.type));

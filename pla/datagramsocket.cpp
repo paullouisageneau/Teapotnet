@@ -563,7 +563,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	size = std::min(size, size_t(mBuffer.size()));
 	std::memcpy(buffer, mBuffer.data(), size);
 	mBuffer.clear();
-	mBufferSync.notifyAll();	
+	mBufferSync.notifyAll();
 	return size;
 }
 
