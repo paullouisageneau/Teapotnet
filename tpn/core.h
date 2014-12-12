@@ -401,10 +401,10 @@ private:
 		void route(const Message &message);
 		bool incoming(const Message &message);
 		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
-
+		
 		void process(void);
 		void run(void);
-
+		
 		Core	*mCore;
 		Stream  *mStream;
 		Mutex	mStreamReadMutex, mStreamWriteMutex;

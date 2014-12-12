@@ -462,10 +462,14 @@ void Core::route(const Message &message, const Identifier &from)
 	
 	if(message.destination != Identifier::Null)
 	{
-		// 1st case: neighbour
-		if(send(message, message.destination))
-			return;
-
+		// Tunnel messages must not be routed through the same tunnel
+		if(message.content != Message::Tunnel || from != Identifier::Null)
+		{
+			// 1st case: neighbour
+			if(send(message, message.destination))
+				return;
+		}
+		
 		// 2nd case: routing table entry exists
 		Identifier route;
 		if(mRoutes.get(message.destination, route))
@@ -488,11 +492,15 @@ void Core::broadcast(const Message &message, const Identifier &from)
 	{
 		if(identifiers[i] == from) continue;
 		
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
+		// Tunnel messages must not be routed through the same tunnel
+		if(message.content != Message::Tunnel || from != Identifier::Null || identifiers[i] != message.destination)
 		{
-			Desynchronize(this);
-			handler->send(message);
+			Handler *handler;
+			if(mHandlers.get(identifiers[i], handler))
+			{
+				Desynchronize(this);
+				handler->send(message);
+			}
 		}
 	}
 }
@@ -521,6 +529,12 @@ bool Core::send(const Message &message, const Identifier &to)
 void Core::addRoute(const Identifier &id, const Identifier &route)
 {
 	Synchronize(this);
+	
+	if(id == Identifier::Null || route == Identifier::Null)
+		return;
+	
+	if(id == route)
+		return;
 	
 	bool isNew = !mRoutes.contains(id);
 	mRoutes.insert(id, route);
@@ -1813,7 +1827,7 @@ bool Core::Handler::incoming(const Message &message)
 {
 	Synchronize(this);
 	
-	if(message.content != Message::Data)
+	if(message.content != Message::Tunnel && message.content != Message::Data)
 		LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	
 	const Identifier &source = message.source;
@@ -1998,7 +2012,13 @@ void Core::Handler::process(void)
 	{
 		try {
 			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
-		
+			
+			if(mRemote != Identifier::Null && message.source != mRemote)
+			{
+				Desynchronize(this);
+				mCore->addRoute(message.source, mRemote);
+			}
+			
 			switch(message.type)
 			{
 				case Message::Forward:
