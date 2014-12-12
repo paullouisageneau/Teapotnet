@@ -452,7 +452,7 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 	return false;
 }
 
-void Core::route(Message &message, const Identifier &from)
+void Core::route(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
@@ -477,11 +477,9 @@ void Core::route(Message &message, const Identifier &from)
 	broadcast(message, from);
 }
 
-void Core::broadcast(Message &message, const Identifier &from)
+void Core::broadcast(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
-	
-	message.payload.reset();
 	
 	Array<Identifier> identifiers;
 	mHandlers.getKeys(identifiers);
@@ -499,11 +497,9 @@ void Core::broadcast(Message &message, const Identifier &from)
 	}
 }
 
-bool Core::send(Message &message, const Identifier &to)
+bool Core::send(const Message &message, const Identifier &to)
 {
 	Synchronize(this);
-	
-	message.payload.reset();
 	
 	if(to == Identifier::Null)
 	{
@@ -817,8 +813,7 @@ Core::Message::Message(void) :
 	flags(0),
 	type(Forward),
 	content(Empty),
-	hops(0),
-	payload(1300)
+	hops(0)
 {
 	
 }
@@ -1559,7 +1554,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 
 	while(mQueue.empty()) mQueueSync.wait();
 	
-	Message &message = mQueue.front();
+	const Message &message = mQueue.front();
 	Assert(message.content == Message::Tunnel);
 	
 	LogDebug("Core::TunnelBackend::listen", "Incoming tunnel from " + message.source.toString());
@@ -1587,7 +1582,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	return transport;
 }
 
-bool Core::TunnelBackend::incoming(Message &message)
+bool Core::TunnelBackend::incoming(const Message &message)
 {
 	if(message.content != Message::Tunnel)
 		return false;
@@ -1640,7 +1635,7 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 		if(!mQueueSync.wait(timeout))
 			throw Timeout();
 	
-        Message &message = mQueue.front();
+	const Message &message = mQueue.front();
 	size = std::min(size, size_t(message.payload.size()));
 	std::copy(message.payload.data(), message.payload.data() + size, buffer);
         mQueue.pop();
@@ -1649,7 +1644,6 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
 
 void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
 {
-	VAR(size);
 	Message message;
 	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
 	message.payload.writeBinary(data, size);
@@ -1660,8 +1654,7 @@ bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
 {
 	Synchronize(&mQueueSync);
 	
-	VAR(timeout);
-        while(mQueue.empty())
+	while(mQueue.empty())
 	{
 		if(timeout == 0.)
 			return false;
@@ -1684,7 +1677,7 @@ bool Core::TunnelBackend::TunnelWrapper::isDatagram(void) const
 	return true; 
 }
 
-bool Core::TunnelBackend::TunnelWrapper::incoming(Message &message)
+bool Core::TunnelBackend::TunnelWrapper::incoming(const Message &message)
 {
 	Synchronize(&mQueueSync);
 	mQueue.push(message);
@@ -1756,9 +1749,6 @@ bool Core::Handler::recv(Message &message)
 			AssertIO(buffer.read(message.destination));
 			
 			message.payload.clear();
-			if(size > message.payload.length())
-				throw Exception("Message payload too big");
-			
 			if(buffer.readBinary(message.payload, size) != size)
 				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
 		}
@@ -1775,9 +1765,6 @@ bool Core::Handler::recv(Message &message)
 			AssertIO(serializer.read(message.destination));
 			
 			message.payload.clear();
-			if(size > message.payload.length())
-				throw Exception("Message payload too big");
-			
 			if(mStream->readBinary(message.payload, size) != size)
 				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
 		}
@@ -1788,7 +1775,7 @@ bool Core::Handler::recv(Message &message)
 	return true;
 }
 
-void Core::Handler::send(Message &message)
+void Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
@@ -1816,21 +1803,21 @@ void Core::Handler::send(Message &message)
 	}
 }
 
-void Core::Handler::route(Message &message)
+void Core::Handler::route(const Message &message)
 {
 	Synchronize(this);
 	DesynchronizeStatement(this, mCore->route(message, mRemote));
 }
 
-bool Core::Handler::incoming(Message &message)
+bool Core::Handler::incoming(const Message &message)
 {
 	Synchronize(this);
 	
-	const Identifier &source = message.source;
-	Stream &payload = message.payload;
-	
 	if(message.content != Message::Data)
 		LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
+	
+	const Identifier &source = message.source;
+	BinaryString payload = message.payload;		// copy
 	
 	switch(message.content)
 	{

@@ -357,7 +357,6 @@ Fountain::Combination &Fountain::Combination::operator/=(uint8_t coeff)
 	return *this;
 }
 
-
 void Fountain::Combination::serialize(Serializer &s) const
 {
 	Assert(firstComponent() <= std::numeric_limits<uint16_t>::max());

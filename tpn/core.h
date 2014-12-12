@@ -101,7 +101,7 @@ public:
 		
 		Identifier source;		// 40 B
 		Identifier destination;		// 40 B
-		ByteArray payload;		// 1300 B
+		BinaryString payload;
 	};
 
 	struct Locator
@@ -224,9 +224,9 @@ public:
 	bool send(const Identifier &peer, const Notification &notification);
 	
 	// Routing
-	void route(Message &message, const Identifier &from = Identifier::Null);
-	void broadcast(Message &message, const Identifier &from = Identifier::Null);
-	bool send(Message &message, const Identifier &to);
+	void route(const Message &message, const Identifier &from = Identifier::Null);
+	void broadcast(const Message &message, const Identifier &from = Identifier::Null);
+	bool send(const Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
 	
@@ -305,7 +305,7 @@ private:
 		bool connect(const Locator &locator);
 		SecureTransport *listen(void);
 		
-		bool incoming(Message &message);
+		bool incoming(const Message &message);
 		
 	private:
 		// Queue for listen
@@ -327,7 +327,7 @@ private:
 			bool waitData(const double &timeout);
 			bool isDatagram(void) const;
 			
-			bool incoming(Message &message);
+			bool incoming(const Message &message);
 	
 		private:
 			Core *mCore;
@@ -397,9 +397,9 @@ private:
 		
 	private:
 		bool recv(Message &message);
-		void send(Message &message);
-		void route(Message &message);
-		bool incoming(Message &message);
+		void send(const Message &message);
+		void route(const Message &message);
+		bool incoming(const Message &message);
 		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 
 		void process(void);
