@@ -1417,7 +1417,7 @@ bool Core::StreamBackend::connect(const Address &addr, const Locator &locator)
 		sock->setConnectTimeout(timeout);
 		sock->connect(addr);
 		
-		transport = new SecureTransportClient(sock, NULL, "", false);	// stream mode
+		transport = new SecureTransportClient(sock, NULL, "");
 	}
 	catch(...)
 	{
@@ -1484,7 +1484,7 @@ bool Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
 	
 	try {
 		stream = new DatagramStream(&mSock, addr);
-		transport = new SecureTransportClient(stream, NULL, "", true);	// datagram mode
+		transport = new SecureTransportClient(stream, NULL);
 	}
 	catch(...)
 	{
@@ -1541,7 +1541,7 @@ bool Core::TunnelBackend::connect(const Locator &locator)
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportClient(wrapper, NULL, "", true);	// datagram mode
+		transport = new SecureTransportClient(wrapper, NULL);
 	}
 	catch(...)
 	{
@@ -1571,7 +1571,7 @@ SecureTransport *Core::TunnelBackend::listen(void)
 	SecureTransport *transport = NULL;
 	try {
 		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportServer(wrapper, NULL, true, true);	// ask for certificate, datagram mode
+		transport = new SecureTransportServer(wrapper, NULL, true);	// ask for certificate
 	}
 	catch(...)
 	{
@@ -1679,6 +1679,11 @@ bool Core::TunnelBackend::TunnelWrapper::waitData(const double &timeout)
 	return waitData(dummy);
 }
 
+bool Core::TunnelBackend::TunnelWrapper::isDatagram(void) const
+{
+	return true; 
+}
+
 bool Core::TunnelBackend::TunnelWrapper::incoming(Message &message)
 {
 	Synchronize(&mQueueSync);
@@ -1734,24 +1739,48 @@ bool Core::Handler::recv(Message &message)
 		
 		uint16_t size = 0;
 		
-		// TODO: this is wrong for datagram streams
-		if(!mStream->readBinary(message.version)) return false;
-		AssertIO(mStream->readBinary(message.flags));
-		AssertIO(mStream->readBinary(message.type));
-		AssertIO(mStream->readBinary(message.content));
-		AssertIO(mStream->readBinary(message.hops));
-		AssertIO(mStream->readBinary(size));
-		
-		BinarySerializer serializer(mStream);
-		AssertIO(serializer.read(message.source));
-		AssertIO(serializer.read(message.destination));
-		
-		message.payload.clear();
-		if(size > message.payload.length())
-			throw Exception("Message payload too big");
-		
-		if(mStream->readBinary(message.payload, size) != size)
-			throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
+		if(mStream->isDatagram())
+		{
+			ByteArray buffer(1500);
+			if(!mStream->read(buffer, 1500)) return false;
+			
+			AssertIO(buffer.readBinary(message.version));
+			AssertIO(buffer.readBinary(message.flags));
+			AssertIO(buffer.readBinary(message.type));
+			AssertIO(buffer.readBinary(message.content));
+			AssertIO(buffer.readBinary(message.hops));
+			AssertIO(buffer.readBinary(size));
+			
+			BinarySerializer serializer(mStream);
+			AssertIO(buffer.read(message.source));
+			AssertIO(buffer.read(message.destination));
+			
+			message.payload.clear();
+			if(size > message.payload.length())
+				throw Exception("Message payload too big");
+			
+			if(buffer.readBinary(message.payload, size) != size)
+				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
+		}
+		else {
+			if(!mStream->readBinary(message.version)) return false;
+			AssertIO(mStream->readBinary(message.flags));
+			AssertIO(mStream->readBinary(message.type));
+			AssertIO(mStream->readBinary(message.content));
+			AssertIO(mStream->readBinary(message.hops));
+			AssertIO(mStream->readBinary(size));
+			
+			BinarySerializer serializer(mStream);
+			AssertIO(serializer.read(message.source));
+			AssertIO(serializer.read(message.destination));
+			
+			message.payload.clear();
+			if(size > message.payload.length())
+				throw Exception("Message payload too big");
+			
+			if(mStream->readBinary(message.payload, size) != size)
+				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
+		}
 		
 		++message.hops;
 	}
@@ -1765,7 +1794,7 @@ void Core::Handler::send(Message &message)
 	
 	uint16_t size = message.payload.size();
 	
-	ByteArray buffer(1400);
+	ByteArray buffer(1500);
 	buffer.writeBinary(message.version);
 	buffer.writeBinary(message.flags);
 	buffer.writeBinary(message.type);

@@ -586,4 +586,9 @@ bool DatagramStream::waitData(double &timeout)
 	return true;
 }
 
+bool DatagramStream::isDatagram(void) const
+{
+	return true; 
+}
+
 }

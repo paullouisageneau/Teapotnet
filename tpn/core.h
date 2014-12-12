@@ -325,7 +325,8 @@ private:
 			void writeData(const char *data, size_t size);
 			bool waitData(double &timeout);
 			bool waitData(const double &timeout);
-	
+			bool isDatagram(void) const;
+			
 			bool incoming(Message &message);
 	
 		private:

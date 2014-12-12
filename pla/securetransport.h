@@ -95,6 +95,7 @@ public:
 	size_t readData(char *buffer, size_t size); 
 	void writeData(const char *data, size_t size);
 	// TODO: waitData
+	bool isDatagram(void) const;
 	
 	struct Verifier
         {
@@ -119,7 +120,7 @@ protected:
 	static gnutls_dh_params_t Params;
 	static Mutex ParamsMutex;
 	
-	SecureTransport(Stream *stream, bool server, bool datagram);	// stream will be deleted on success
+	SecureTransport(Stream *stream, bool server);	// stream will be deleted on success
 	
 	gnutls_session_t mSession;
 	Stream *mStream;
@@ -156,7 +157,7 @@ public:
                 gnutls_psk_client_credentials_t mCreds;
         };
 
-	SecureTransportClient(Stream *stream, Credentials *creds = NULL, const String &hostname = "", bool datagram = false);	// creds will be deleted
+	SecureTransportClient(Stream *stream, Credentials *creds = NULL, const String &hostname = "");	// creds will be deleted
 	~SecureTransportClient(void);
 };
 
@@ -189,7 +190,7 @@ public:
 	static SecureTransport *Listen(ServerSocket &sock, bool requestClientCertificate = false);
 	static SecureTransport *Listen(DatagramSocket &sock, bool requestClientCertificate = false);
 	
-	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false, bool datagram = false);	// creds will be deleted
+	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false);	// creds will be deleted
 	~SecureTransportServer(void);
 	
 	bool isClient(void);

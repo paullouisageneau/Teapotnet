@@ -66,6 +66,7 @@ public:
 	virtual void close(void);
 	virtual bool ignore(size_t size = 1);
 	virtual bool skipMark(void);
+	virtual bool isDatagram(void) const;
 	
 	size_t readData(Stream &s, size_t max);
 	size_t writeData(Stream &s, size_t max);

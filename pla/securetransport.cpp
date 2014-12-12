@@ -56,7 +56,7 @@ void SecureTransport::GenerateParams(void)
 	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + gnutls_strerror(ret));
 }
 
-SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
+SecureTransport::SecureTransport(Stream *stream, bool server) :
 	mStream(stream),
 	mVerifier(NULL),
 	mPriorities(DefaultPriorities),
@@ -70,7 +70,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 		
 		// Init session
 		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
-		if(datagram) flags|= GNUTLS_DATAGRAM;
+		if(stream->isDatagram()) flags|= GNUTLS_DATAGRAM;
 		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
 		
 		// Set session pointer
@@ -85,7 +85,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server, bool datagram) :
 		const double handshakeTimeout = 10.;
 		gnutls_handshake_set_timeout(mSession, unsigned(handshakeTimeout*1000));
 		
-		if(datagram)
+		if(stream->isDatagram())
 		{
 			const double retransTimeout = 1.;
 			const double totalTimeout   = 10.;
@@ -223,6 +223,11 @@ void SecureTransport::writeData(const char *data, size_t size)
 		size-= ret;
 	}
 	while(size);
+}
+
+bool SecureTransport::isDatagram(void) const
+{
+	return mStream->isDatagram();
 }
 
 void SecureTransport::setVerifier(Verifier *verifier)
@@ -507,8 +512,8 @@ SecureTransport::RsaCertificate::~RsaCertificate(void)
 	// Keys are freed by gnutls_certificate_free_credentials
 }
 
-SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, const String &hostname, bool datagram) :
-	SecureTransport(stream, false, datagram)
+SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, const String &hostname) :
+	SecureTransport(stream, false)
 {
 	try {
 		setHostname(hostname);
@@ -579,8 +584,8 @@ void SecureTransportClient::PrivateSharedKey::install(gnutls_session_t session, 
 	priorities+= ":+PSK:+DHE-PSK";
 }
 
-SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool requestClientCertificate, bool datagram) :
-	SecureTransport(stream, true, datagram)
+SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds, bool requestClientCertificate) :
+	SecureTransport(stream, true)
 {
 	try {
 		gnutls_handshake_set_post_client_hello_function(mSession, PostClientHelloCallback);
@@ -670,7 +675,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool request
 		
 		SecureTransportServer *transport = NULL;
 		try {
-			transport = new SecureTransportServer(sock, NULL, requestClientCertificate, false);	// stream mode
+			transport = new SecureTransportServer(sock, NULL, requestClientCertificate);
 		}
 		catch(const std::exception &e)
 		{
@@ -711,7 +716,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool reques
 			
 			try {
 				stream = new DatagramStream(&sock, sender);
-				transport = new SecureTransportServer(stream, NULL, requestClientCertificate, true);	// datagram mode
+				transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
 			}
 			catch(...)
 			{

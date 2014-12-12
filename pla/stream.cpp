@@ -136,6 +136,11 @@ bool Stream::skipMark(void)
 	return false;
 }
 
+bool Stream::isDatagram(void) const
+{
+	return false; 
+}
+
 size_t Stream::readData(Stream &s, size_t max)
 {
 	char buffer[BufferSize];
