@@ -1748,22 +1748,25 @@ bool Core::Handler::recv(Message &message)
 		
 		if(mStream->isDatagram())
 		{
-			ByteArray buffer(1500);
-			if(!mStream->read(buffer, 1500)) return false;
+			char buffer[1500];
+			size_t size = mStream->readBinary(buffer, 1500);
+			if(!size) return false;
 			
-			AssertIO(buffer.readBinary(message.version));
-			AssertIO(buffer.readBinary(message.flags));
-			AssertIO(buffer.readBinary(message.type));
-			AssertIO(buffer.readBinary(message.content));
-			AssertIO(buffer.readBinary(message.hops));
-			AssertIO(buffer.readBinary(size));
+			ByteArray s(buffer, size);
+			
+			AssertIO(s.readBinary(message.version));
+			AssertIO(s.readBinary(message.flags));
+			AssertIO(s.readBinary(message.type));
+			AssertIO(s.readBinary(message.content));
+			AssertIO(s.readBinary(message.hops));
+			AssertIO(s.readBinary(size));
 			
 			BinarySerializer serializer(mStream);
-			AssertIO(buffer.read(message.source));
-			AssertIO(buffer.read(message.destination));
+			AssertIO(s.read(message.source));
+			AssertIO(s.read(message.destination));
 			
 			message.payload.clear();
-			if(buffer.readBinary(message.payload, size) != size)
+			if(s.readBinary(message.payload, size) != size)
 				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
 		}
 		else {
