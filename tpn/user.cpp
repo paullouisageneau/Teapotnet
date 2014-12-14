@@ -702,6 +702,7 @@ void User::http(const String &prefix, Http::Request &request)
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
+			match.replace('/', ' ');
 			match.trim();
 			
 			String reqPrefix;

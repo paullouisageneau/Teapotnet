@@ -78,18 +78,14 @@ public:
 		Query(const String &path = "");
 		~Query(void);
 		
-		void setLocation(const String &path);
+		void setPath(const String &path);
 		void setDigest(const BinaryString &digest);
-		void setMinAge(int seconds);
-		void setMaxAge(int seconds);
 		void setRange(int first, int last);
 		void setLimit(int count);
 		void setMatch(const String &match);
 		
 		void setAccessLevel(Resource::AccessLevel level);
 		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
-		
-		void createRequest(Request &request) const;
 		
 		// Serializable
 		virtual void serialize(Serializer &s) const;
@@ -99,7 +95,6 @@ public:
 	private:
 		String mPath, mMatch;
 		BinaryString mDigest;
-		int mMinAge, mMaxAge;	// seconds
 		int mOffset, mCount;
 		Resource::AccessLevel mAccessLevel;
 
@@ -113,7 +108,7 @@ private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
 	
-	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly = false);
+	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void update(String path = "/");
 	String realPath(String path) const;
 	bool isHiddenPath(const String &path) const;

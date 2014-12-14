@@ -1771,7 +1771,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			});");
 			
 			// Recent files
-			page.open("div",".box");
+			/*page.open("div",".box");
 			page.open("h2");
 			page.text("Recent files");
 			page.close("h2");
@@ -1781,7 +1781,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			int maxAge = 60*60*24*7;	// 7 days
 			int count = 20;
 			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false,true);");
-			
+			*/
 			page.footer();
 			return;
 		}
@@ -1852,6 +1852,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
+			match.replace('/', ' ');
 			match.trim();
 			
 			String reqPrefix;

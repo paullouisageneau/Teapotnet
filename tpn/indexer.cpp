@@ -303,7 +303,7 @@ bool Indexer::query(const Query &query, Resource &resource)
 	Synchronize(this);
 	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, "path, digest", true))
+	if(prepareQuery(statement, query, "path, digest"))
 	{
 		while(statement.step())
 		{
@@ -332,7 +332,7 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 	Synchronize(this);
 	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, "path, digest", false))
+	if(prepareQuery(statement, query, "path, digest"))
 	{
 		while(statement.step())
 		{
@@ -550,12 +550,19 @@ bool Indexer::anounce(const Identifier &peer, const String &prefix, const String
 	
 	// TODO: access rights, use peer
 	
-	// TODO: search
+	String cpath(path);
+	String match = cpath.cut('?');
 	
-	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
-	statement.bind(1, path);
-	statement.fetchColumn(0, targets);
-	statement.finalize();
+	Query query;
+	query.setPath(cpath);
+	query.setMatch(match);
+	
+	Database::Statement statement;
+	if(prepareQuery(statement, query, "digest"))
+	{
+		statement.fetchColumn(0, targets);
+		statement.finalize();
+	}
 	
 	return !targets.empty();
 }
@@ -1269,59 +1276,35 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, const String &fields, bool oneRowOnly)
+bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, const String &fields)
 {
+	// Retrive and prepare parameters
 	String path = query.mPath;
-	int count = query.mCount;
-	if(oneRowOnly) count = 1;
+	path.replace("%", "\\%");
+	path.replace("*", "%");
+	
+	String match = query.mMatch;
+	match.replace("%", "\\%");
+	match.replace("*", "%");
+	
+	BinaryString digest = query.mDigest;
 	
 	bool isFromSelf = (query.mAccessLevel == Resource::Personal);
+	int count = query.mCount;
+	if(!match.empty() && (count <= 0 || count > 200)) count = 200;	// Limit for security purposes
 	
-	// Limit for security purposes
-	if(!query.mMatch.empty() && (count <= 0 || count > 200)) count = 200;	// TODO: variable
-	
-	// If multiple rows are expected and path finishes with '/', this is a directory listing
-	int64_t parentId = -1;
-	if(!oneRowOnly && !path.empty() && path[path.size()-1] == '/')
-	{
-		path.resize(path.size()-1);
-		
-		// Do not allow listing hidden directories for others
-		// TODO
-		//if(!isFromSelf && isHiddenUrl(path)) return false;
-		
-		if(path.empty()) parentId = 0;
-		else {
-			statement = mDatabase->prepare("SELECT id, type FROM files WHERE path = ?1");
-			statement.bind(1, path);
-			
-			if(!statement.step())
-			{
-				statement.finalize();
-				return false;
-			}
-			
-			int type;
-			statement.value(0, parentId);
-			statement.value(1, type);
-			statement.finalize();
-
-			if(type != 0) return false;
-		}
-	}
-	
+	// Build SQL request
 	String sql;
 	sql<<"SELECT "<<fields<<" FROM resources ";
-	if(!query.mMatch.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
-	sql<<"WHERE path NOT NULL ";
-	if(parentId >= 0)				sql<<"AND parent_id = ? ";
-	else if(!path.empty())				sql<<"AND path = ? ";
-	if(!query.mDigest.empty())			sql<<"AND digest = ? ";
-	else if(path.empty() || !isFromSelf)		sql<<"AND path NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
-	if(!query.mMatch.empty())			sql<<"AND names.name MATCH ? ";
+	sql<<"JOIN names ON names.rowid = name_rowid ";
 	
-	if(query.mMinAge > 0) sql<<"AND time <= ? "; 
-	if(query.mMaxAge > 0) sql<<"AND time >= ? ";
+	if(!path.empty())			sql<<"AND path LIKE ? ESCAPE '\\' ";
+	if(!match.empty())			sql<<"AND names.name MATCH ? ";
+	if(!digest.empty())			sql<<"AND digest = ? ";
+	else if(path.empty() || !isFromSelf)	sql<<"AND path NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
+	
+	//if(query.mMinAge > 0) sql<<"AND time <= ? "; 
+	//if(query.mMaxAge > 0) sql<<"AND time >= ? ";
 	
 	sql<<"ORDER BY time DESC "; // Newer files first
 	
@@ -1333,18 +1316,12 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 
 	statement = mDatabase->prepare(sql);
 	int parameter = 0;
-	if(parentId >= 0)		statement.bind(++parameter, parentId);
-	else if(!path.empty())		statement.bind(++parameter, path);
-	if(!query.mDigest.empty())	statement.bind(++parameter, query.mDigest);
-	if(!query.mMatch.empty())	
-	{
-		String match = query.mMatch;
-		match.replace('*', '%');
-		statement.bind(++parameter, match);
-	}
+	if(!path.empty())		statement.bind(++parameter, path);
+	if(!match.empty())	statement.bind(++parameter, match);
+	if(!digest.empty())	statement.bind(++parameter, query.mDigest);
 	
-	if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMinAge)));
-	if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMaxAge)));
+	//if(query.mMinAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMinAge)));
+	//if(query.mMaxAge > 0)	statement.bind(++parameter, int64_t(Time::Now()-double(query.mMaxAge)));
 	
 	return true;
 }
@@ -1519,7 +1496,6 @@ void Indexer::run(void)
 
 Indexer::Query::Query(const String &path) :
 	mPath(path),
-	mMinAge(0), mMaxAge(0),
 	mOffset(0), mCount(-1),
 	mAccessLevel(Resource::Private)
 {
@@ -1531,7 +1507,7 @@ Indexer::Query::~Query(void)
 	
 }
 
-void Indexer::Query::setLocation(const String &path)
+void Indexer::Query::setPath(const String &path)
 {
 	mPath = path;
 }
@@ -1539,16 +1515,6 @@ void Indexer::Query::setLocation(const String &path)
 void Indexer::Query::setDigest(const BinaryString &digest)
 {
 	mDigest = digest;
-}
-
-void Indexer::Query::setMinAge(int seconds)
-{
-	mMinAge = seconds;
-}
-
-void Indexer::Query::setMaxAge(int seconds)
-{
-	mMaxAge = seconds;
 }
 
 void Indexer::Query::setRange(int first, int last)
@@ -1585,15 +1551,8 @@ void Indexer::Query::setFromSelf(bool isFromSelf)
 	}
 }
 
-void Indexer::Query::createRequest(Request &request) const
-{
-	// TODO
-}
-
 void Indexer::Query::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<int> minAgeWrapper(mMinAge);
-	ConstSerializableWrapper<int> maxAgeWrapper(mMaxAge);
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
 	ConstSerializableWrapper<int> countWrapper(mCount);
 	String strAccessLevel = (mAccessLevel == Resource::Private || mAccessLevel == Resource::Personal ? "private" : "public");
@@ -1602,8 +1561,6 @@ void Indexer::Query::serialize(Serializer &s) const
 	if(!mPath.empty())	mapping["path"] = &mPath;
 	if(!mMatch.empty())	mapping["match"] = &mMatch;
 	if(!mDigest.empty())	mapping["digest"] = &mDigest;
-	if(mMinAge > 0)		mapping["minage"] = &minAgeWrapper;
-	if(mMaxAge > 0)		mapping["maxage"] = &maxAgeWrapper;
 	if(mOffset > 0)		mapping["offset"] = &offsetWrapper;
 	if(mCount > 0)		mapping["count"] = &countWrapper;
 	mapping["access"] = &strAccessLevel;
@@ -1613,8 +1570,6 @@ void Indexer::Query::serialize(Serializer &s) const
 
 bool Indexer::Query::deserialize(Serializer &s)
 {
-	SerializableWrapper<int> minAgeWrapper(&mMinAge);
-	SerializableWrapper<int> maxAgeWrapper(&mMaxAge);
 	SerializableWrapper<int> offsetWrapper(&mOffset);
 	SerializableWrapper<int> countWrapper(&mCount);
 	String strAccessLevel;
@@ -1623,8 +1578,6 @@ bool Indexer::Query::deserialize(Serializer &s)
 	mapping["path"] = &mPath;
 	mapping["match"] = &mMatch;
 	mapping["digest"] = &mDigest;
-	mapping["minage"] = &minAgeWrapper;
-	mapping["maxage"] = &maxAgeWrapper;
 	mapping["offset"] = &offsetWrapper;
 	mapping["count"] = &countWrapper;
 	mapping["access"] = &strAccessLevel;
