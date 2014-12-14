@@ -715,7 +715,7 @@ bool Core::matchPublishers(const String &path, const Identifier &source, Subscri
 	Synchronize(this);
 	
 	List<String> list;
-	path.explode(list,'/');
+	path.before('?').explode(list,'/');
 	if(list.empty()) return false;
 	
 	// First item should be empty because path begins with /
@@ -728,7 +728,7 @@ bool Core::matchPublishers(const String &path, const Identifier &source, Subscri
 		String prefix;
 		prefix.implode(list, '/');
 		prefix = "/" + prefix;
-
+		
 		String truncatedPath(path.substr(prefix.size()));
 		if(truncatedPath.empty()) truncatedPath = "/";
 		
@@ -743,19 +743,23 @@ bool Core::matchPublishers(const String &path, const Identifier &source, Subscri
 				jt != set.end();
 				++jt)
 			{
-				BinaryString target;
-				if((*jt)->anounce(source, prefix, truncatedPath, target))
+				List<BinaryString> result;
+				if((*jt)->anounce(source, prefix, truncatedPath, result))
 				{
-					Assert(!target.empty());
-					LogDebug("Core::Handler::incoming", "Anouncing " + path);
-					
-					if(subscriber) subscriber->incoming(Identifier::Null, path, "/", target);	// local
-					else targets.push_back(target);							// remote
+					Assert(!result.empty());
+					if(subscriber) 	// local
+					{
+						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
+							subscriber->incoming(Identifier::Null, path, "/", *it);
+					}
+					else targets.splice(targets.end(), result);	// remote
 				}
 			}
 			
 			if(!targets.empty()) 
 			{
+				LogDebug("Core::Handler::incoming", "Anouncing " + path);
+				
 				// TODO: limit size
 				BinaryString response;
 				BinarySerializer serializer(&response);
@@ -777,7 +781,7 @@ bool Core::matchSubscribers(const String &path, const Identifier &source, const 
 	Synchronize(this);
 	
 	List<String> list;
-	path.explode(list,'/');
+	path.before('?').explode(list,'/');
 	if(list.empty()) return false;
 	
 	// First item should be empty because path begins with /
@@ -912,9 +916,10 @@ void Core::Publisher::publish(const String &prefix)
 	Core::Instance->publish(prefix, this);
 	mPublishedPrefixes.insert(prefix);
 	
-	BinaryString target;
-        if(anounce(Identifier::Null, prefix, "/", target))
-		Core::Instance->advertise(prefix, "/", target);
+	List<BinaryString> targets;
+        if(anounce(Identifier::Null, prefix, "/", targets))
+		for(List<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
+			Core::Instance->advertise(prefix, "/", *it);
 }
 
 void Core::Publisher::publish(const String &prefix, const String &path, const BinaryString &target)

@@ -113,6 +113,7 @@ Indexer::Indexer(User *user) :
 	
 	// Publisher
 	publish(prefix());
+	publish("/files");
 	
 	// Interface
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
@@ -542,23 +543,21 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	publish(prefix(), path, resource.digest());
 }
 
-bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
+bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
+	targets.clear();
 	
 	// TODO: access rights, use peer
 	
+	// TODO: search
+	
 	Database::Statement statement = mDatabase->prepare("SELECT digest FROM resources WHERE path = ?1 LIMIT 1");
 	statement.bind(1, path);
-	if(statement.step())
-	{
-		statement.value(0, target);
-		statement.finalize();
-		return true;
-	}
-	
+	statement.fetchColumn(0, targets);
 	statement.finalize();
-	return false;
+	
+	return !targets.empty();
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)
@@ -566,7 +565,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	const String &url = request.url;
 	if(mUser) mUser->setOnline();
 
- 	StringMap accessSelectMap;
+	StringMap accessSelectMap;
 	accessSelectMap["public"] = "Everyone";
 	accessSelectMap["private"] = "Only contacts";
 	accessSelectMap["personal"] = "Only me";

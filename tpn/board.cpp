@@ -131,14 +131,15 @@ void Board::process(void)
 	}
 }
 
-bool Board::anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target)
+bool Board::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
+	targets.clear();
 	
 	if(mDigest.empty())
 		return false;
 	
-	target = mDigest;
+	targets.push_back(mDigest);
 	return true;
 }
 

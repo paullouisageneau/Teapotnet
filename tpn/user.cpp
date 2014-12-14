@@ -697,44 +697,19 @@ void User::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "search")
 		{
-			/*if(url != "/") throw 404;
+			if(url != "/") throw 404;
 			
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
 			match.trim();
 			
-			if(request.get.contains("json") || request.get.contains("playlist"))
+			String reqPrefix;
+			if(!match.empty())
 			{
-				if(match.empty()) throw 400;
-				
-				Resource::Query query(indexer());
-				query.setMatch(match);
-				query.setAccessLevel(Resource::Personal);
-				
-				SerializableSet<Resource> resources;
-				if(!query.submit(resources))
-					throw 404;
-
-				if(request.get.contains("json"))
-				{
-					Http::Response response(request, 200);
-					response.headers["Content-Type"] = "application/json";
-					response.send();
-					JsonSerializer json(response.stream);
-					json.output(resources);
-				}
-				else {
-					Http::Response response(request, 200);
-					response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-					response.headers["Content-Type"] = "audio/x-mpegurl";
-					response.send();
-					
-					String host;
-					request.headers.get("Host", host);
-					Resource::CreatePlaylist(resources, response.stream, host);
-				}
-				return;
+				Request *req = new Request("/files?" + match);
+				reqPrefix = req->urlPrefix();
+				req->setAutoDelete();
 			}
 			
 			Http::Response response(request, 200);
@@ -742,32 +717,26 @@ void User::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.stream);
 			
-			if(match.empty()) page.header("Search");
-			else page.header(String("Searching ") + match);
+			if(match.empty()) page.header(name() + ": Search");
+			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
-			page.openForm(prefix + "/search", "post", "searchform");
-			page.input("text","query", match);
+			page.openForm(prefix + "/search", "post", "searchForm");
+			page.input("text", "query", match);
 			page.button("search","Search");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
-			if(!match.empty()) page.link(prefix+request.url+"?query="+match.urlEncode()+"&playlist","Play all",".button");
+			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");
 			page.close("div");
-			
-			unsigned refreshPeriod = 5000;
-			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
-				transition($('#status'), info.status.capitalize());\n\
-				$('#status').removeClass().addClass('button').addClass(info.status);\n\
-				if(info.newmails) playMailSound();\n\
-			});");
 			
 			if(!match.empty())
 			{
-				page.div("", "#list.box");
-				page.javascript("listDirectory('"+prefix+request.url+"?query="+match.urlEncode()+"&json','#list',true,false);");
-				page.footer();
+				page.div("", "list.box");
+				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
 			}
-			return;*/
+			
+			page.footer();
+			return;
 		}
 		else if(directory == "avatar" || request.url == "/myself/avatar")
 		{

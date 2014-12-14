@@ -49,7 +49,7 @@ public:
 	BinaryString digest(void) const;
 	
 	// Publisher
-	bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target);
+	bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets);
 	
 	// Subscriber
 	bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);

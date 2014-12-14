@@ -128,7 +128,7 @@ public:
 		void publish(const String &prefix, const String &path, const BinaryString &target);
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const Identifier &peer, const String &prefix, const String &path, BinaryString &target) = 0;
+		virtual bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
 		
 	private:
 		StringSet mPublishedPrefixes;
