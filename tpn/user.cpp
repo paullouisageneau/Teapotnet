@@ -588,7 +588,17 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.button("search","Search");
 			page.closeForm();
 			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
-			page.javascript("$(document).ready(function() { document.searchForm.query.style.color = 'grey'; });");
+			page.javascript("$(document).ready(function() {\n\
+					document.searchForm.query.style.color = 'grey';\n\
+				});\n\
+				$(document.searchForm.query).focus(function() {\n\
+					document.searchForm.query.value = '';\n\
+					document.searchForm.query.style.color = 'black';\n\
+				})\n\
+				$(document.searchForm.query).blur(function() {\n\
+					document.searchForm.query.style.color = 'grey';\n\
+					document.searchForm.query.value = 'Search for files...';\n\
+				})\n");
 			//page.br();
 			page.close("div");
 
@@ -708,7 +718,7 @@ void User::http(const String &prefix, Http::Request &request)
 			String reqPrefix;
 			if(!match.empty())
 			{
-				Request *req = new Request("/files?" + match);
+				Request *req = new Request("/files?" + match, false);
 				reqPrefix = req->urlPrefix();
 				req->setAutoDelete();
 			}
