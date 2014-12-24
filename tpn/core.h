@@ -142,6 +142,7 @@ public:
 		
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
+		void unsubscribeAll(void);
 		
 		virtual bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target) = 0;
 		

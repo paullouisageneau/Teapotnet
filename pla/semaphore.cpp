@@ -71,7 +71,7 @@ void Semaphore::release(void)
 	mMutex.lock();
 	mValue++;
 	mMutex.unlock();
-	mSignal.launch();
+	mSignal.launchAll();
 }
 
 }

@@ -261,7 +261,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{
 				Request *req = new Request(resource);
 				String reqPrefix = req->urlPrefix();
-				req->setAutoDelete();
+				req->autoDelete();
 				
 				// JSON
 				if(request.get.contains("json"))

@@ -1195,13 +1195,13 @@ void Indexer::http(const String &prefix, Http::Request &request)
                                                 
 						if(info.get("type") != "directory")
 						{
-							page.openLink(Http::AppendGet(link,"download"), ".downloadlink");
+							page.openLink(Http::AppendParam(link,"download"), ".downloadlink");
 							page.image("/down.png", "Download");
 							page.closeLink();
 							
 							if(Mime::IsAudio(name) || Mime::IsVideo(name))
 							{
-								page.openLink(Http::AppendGet(link,"play"), ".playlink");
+								page.openLink(Http::AppendParam(link,"play"), ".playlink");
 								page.image("/play.png", "Play");
 								page.closeLink();
 							}

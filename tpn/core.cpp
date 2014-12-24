@@ -948,12 +948,7 @@ Core::Subscriber::Subscriber(const Identifier &peer) :
 
 Core::Subscriber::~Subscriber(void)
 {
-	for(StringSet::iterator it = mSubscribedPrefixes.begin();
-		it != mSubscribedPrefixes.end();
-		++it)
-	{
-		Core::Instance->unsubscribe(*it, this);
-	}
+	unsubscribeAll();
 }
 
 void Core::Subscriber::subscribe(const String &prefix)
@@ -971,6 +966,16 @@ void Core::Subscriber::unsubscribe(const String &prefix)
 	{
 		Core::Instance->unsubscribe(prefix, this);
 		mSubscribedPrefixes.erase(prefix);
+	}
+}
+
+void Core::Subscriber::unsubscribeAll(void)
+{
+	for(StringSet::iterator it = mSubscribedPrefixes.begin();
+		it != mSubscribedPrefixes.end();
+		++it)
+	{
+		Core::Instance->unsubscribe(*it, this);
 	}
 }
 

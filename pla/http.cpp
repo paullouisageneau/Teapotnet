@@ -1006,7 +1006,7 @@ int Http::Post(const String &url, const String &data, const String &type, Stream
 	return Action("POST", url, data, headers, output, maxRedirections, noproxy);
 }
 
-String Http::AppendGet(const String &url, const String &name, const String &value)
+String Http::AppendParam(const String &url, const String &name, const String &value)
 {
 	char separator = '?';
 	if(url.contains(separator)) separator = '&';

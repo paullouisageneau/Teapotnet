@@ -36,6 +36,37 @@ public:
 	virtual void run(void) = 0;
 };
 
+template<class T> class DeleteTask : public Task
+{
+public:
+	DeleteTask(T *target) : mTarget(target) {}
+	virtual ~DeleteTask(void) {}
+	
+	void run(void)
+	{
+		delete mTarget;
+	}
+
+private:
+	T *mTarget;
+};
+
+template<class T> class AutoDeleteTask : public Task
+{
+public:
+	AutoDeleteTask(T *target = NULL) : mTarget(target) {}
+	virtual ~AutoDeleteTask(void) {}
+	
+	void run(void)
+	{
+		delete mTarget;
+		delete this;
+	}
+
+private:
+	T *mTarget;
+};
+
 }
 
 #endif

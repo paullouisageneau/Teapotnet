@@ -720,7 +720,7 @@ void User::http(const String &prefix, Http::Request &request)
 			{
 				Request *req = new Request("/files?" + match, false);
 				reqPrefix = req->urlPrefix();
-				req->setAutoDelete();
+				req->autoDelete();
 			}
 			
 			Http::Response response(request, 200);

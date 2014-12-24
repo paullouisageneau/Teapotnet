@@ -133,7 +133,7 @@ public:
 	static int Get(const String &url, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const StringMap &post, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const String &data, const String &type, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
-	static String AppendGet(const String &url, const String &name, const String &value = "1");
+	static String AppendParam(const String &url, const String &name, const String &value = "1");
 	
 private:
 	Http(void);

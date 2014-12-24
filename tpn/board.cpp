@@ -293,7 +293,7 @@ void Board::http(const String &prefix, Http::Request &request)
 #ifndef ANDROID
 				if(!isPopup)
 				{
-					String popupUrl = Http::AppendGet(request.fullUrl, "popup");
+					String popupUrl = Http::AppendParam(request.fullUrl, "popup");
 					page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 				}
 #endif
@@ -368,7 +368,7 @@ void Board::http(const String &prefix, Http::Request &request)
 					}\n\
 				});\n\
 				$('#attachedfile').hide();\n\
-				setMailReceiver('"+Http::AppendGet(request.fullUrl, "json")+"','#mail');");
+				setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail');");
 			
 			page.footer();
 			return;

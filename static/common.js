@@ -26,29 +26,11 @@ if(!String.escape) {
 	}
 }
 
-String.prototype.smileys = function() {
-	var smileys = {
-		':)' : 'smile.png\" height=15 width=24',
-		':-)' : 'smile.png\" height=15 width=24',
-		':-('  : 'sad.png\" height=15 width=24',
-		':('  : 'sad.png\" height=15 width=24',
-		':\'-('  : 'sad.png\" height=15 width=24',
-		':S'  : 'embarrassed.png\" height=15 width=24',
-		':@'  : 'angry.png\" height=20 width=30'
-	}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
-
-	for (var i in smileys) {
-		if (smileys.hasOwnProperty(i)) {
-			patterns.push('('+i.replace(metachars, "\\$&")+')');
-		}
+if(!String.appendParam) {
+	String.prototype.appendParam = function(key, value) {
+	    var sep = (this.indexOf('?') > -1) ? '&' : '?';
+	    return this + sep + encodeURIComponent(key) + '=' + encodeURIComponent(value);
 	}
-
-  	return this.replace(new RegExp(patterns.join('|'),'g'), function (match) {
-		return (typeof smileys[match] != 'undefined' ?
-			'<img src='+url+smileys[match]+'/>' :
-			match);
- 	});
-
 }
 
 if(!String.linkify) {
@@ -89,6 +71,33 @@ if(!String.contains) {
 	String.prototype.contains = function(it) { 
 		return this.indexOf(it) != -1;
 	};
+}
+
+if(!String.smileys) {
+	String.prototype.smileys = function() {
+		var smileys = {
+			':)' : 'smile.png\" height=15 width=24',
+			':-)' : 'smile.png\" height=15 width=24',
+			':-('  : 'sad.png\" height=15 width=24',
+			':('  : 'sad.png\" height=15 width=24',
+			':\'-('  : 'sad.png\" height=15 width=24',
+			':S'  : 'embarrassed.png\" height=15 width=24',
+			':@'  : 'angry.png\" height=20 width=30'
+		}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
+
+		for (var i in smileys) {
+			if (smileys.hasOwnProperty(i)) {
+				patterns.push('('+i.replace(metachars, "\\$&")+')');
+			}
+		}
+
+		return this.replace(new RegExp(patterns.join('|'),'g'), function (match) {
+			return (typeof smileys[match] != 'undefined' ?
+				'<img src='+url+smileys[match]+'/>' :
+				match);
+		});
+
+	}
 }
 
 function formatTime(timestamp) {

@@ -61,13 +61,16 @@ Request::Request(const String &target, const Identifier &peer, bool listDirector
 
 Request::~Request(void)
 {
-	//LogDebug("Request", "Deleting request: " + mUrlPrefix);
-	Interface::Instance->remove(mUrlPrefix, this);
+	{
+		Synchronize(this);
+		
+		Interface::Instance->remove(mUrlPrefix, this);
+		unsubscribeAll();
+		mFinished = true;
+		notifyAll();
+	}
 	
-	// TODO: wait for http requests to finish
-	// TODO: wait for threads
-	
-	// unsubscribe is automatic
+	Thread::Sleep(10.);	// TODO
 }
 
 String Request::urlPrefix(void) const
@@ -127,9 +130,9 @@ void Request::getResult(int i, Resource::DirectoryRecord &record) const
 	record = mResults.at(i);
 }
 
-void Request::setAutoDelete(double timeout)
+void Request::autoDelete(double timeout)
 {
-	// TODO
+	Scheduler::Global->schedule(new AutoDeleteTask<Request>(this), timeout);
 }
 
 void Request::http(const String &prefix, Http::Request &request)

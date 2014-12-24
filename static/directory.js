@@ -21,37 +21,45 @@
 
 function listDirectory(url, object, showButtons) {
 
-	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
+	$(object).empty();
 	
-	// TODO: Loop ajax call until empty or 404
+	if(showButtons) {
+		var location = url.split('?')[0];
+		//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+		$(object)
+			//.append('<span class="button"> '+data.length+' files</span>')
+			//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+			
+		$(object).find('a.refreshlink').click(function() {
+			listDirectory(url, object, showButtons);
+			return false;
+		});
+	}
+	
+	$(object).append('<div class="gifloading"><img src="/loading.gif" alt="Loading..."></div>');
+	
+	listDirectoryRec(url, object);
+}
+
+function listDirectoryRec(url, object) {
+	var table = $(object).find('table.files');
+	var next = table.find('tr').length;
 	
 	$.ajax({
-		url: url,
+		url: url.appendParam("next", next),
 		dataType: 'json',
 		timeout: 300000
 	})
 	.done(function(data) {
-		$(object).html('');
+		$(object).find('.gifloading').remove();
 		
-		if(showButtons) {
-			var location = url.split('?')[0];
-			//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-			$(object)
-				.append('<span class="button"> '+data.length+' files</span>')
-				//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-				.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
-				
-			$(object).find('a.refreshlink').click(function() {
-				listDirectory(url, object, showButtons);
-				return false;
-			});
-		}
-		
-		if(data && data.length > 0) {
-
+		if(table.length == 0) {
 			$(object).append('<table class="files"></table>');
-                	var table = $(object).find('table');
-
+			table = $(object).find('table.files');
+		}
+	  
+		if(data && data.length > 0) {
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				
@@ -84,34 +92,20 @@ function listDirectory(url, object, showButtons) {
 				window.location.href = $(this).find('a').attr('href');
 			});
 			
+			listDirectoryRec(url, object);
 		}
 		else {
-			$(object).append('<div class="files">No files</div>');
+			if(table.length == 0) {
+				$(object).append('<div class="files">No files</div>');
+			}
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
+		$(object).find('.gifloading').remove();
 		
-		$(object).html('');
-		
-		if(showButtons) {
-			var location = url.split('?')[0];
-			//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-			$(object)
-				.append('<span class="button">0 files</span>')
-				//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-				.append('<a href="#" class="button refreshlink">Retry</a>');
+		if(table.length == 0) {
+			$(object).append('<div class="files">Unable to access files</div>');
 		}
-		
-		$(object).append('<div class="files">Unable to access files</div>');
-		
-		if(!showButtons) {
-			$(object).append('<a href="#" class="button refreshlink">Retry</a>');
-		}
-		
-		$(object).find('a.refreshlink').click(function() {
-			listDirectory(url, object, showButtons);
-			return false;
-		});
 	});
 }
 

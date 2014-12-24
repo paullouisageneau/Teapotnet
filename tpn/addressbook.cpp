@@ -1817,7 +1817,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		{
 			Request *req = new Request("/files/" + identifier().toString() + url);
 			String reqPrefix = req->urlPrefix();
-			req->setAutoDelete();
+			req->autoDelete();
 			
 			Http::Response response(request, 200);
 			response.send();
@@ -1860,7 +1860,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			{
 				Request *req = new Request("/files/" + identifier().toString() + "?" + match, identifier(), false);
 				reqPrefix = req->urlPrefix();
-				req->setAutoDelete();
+				req->autoDelete();
 			}
 			
 			Http::Response response(request, 200);
