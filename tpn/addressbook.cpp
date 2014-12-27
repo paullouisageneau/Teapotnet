@@ -1753,6 +1753,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("table");
 			page.close("div");
 			
+			// TODO: display instances names
 			unsigned refreshPeriod = 5000;
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
@@ -1762,11 +1763,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				transition($('#mailscount'), msg);\n\
 				$('#instances').empty();\n\
 				if($.isEmptyObject(info.instances)) $('#instances').text('No connected instance');\n\
-				else $.each(info.instances, function(instance, status) {\n\
+				else $.each(info.instances, function(number, data) {\n\
 					$('#instances').append($('<tr>')\n\
-						.addClass(status)\n\
-						.append($('<td>').addClass('name').text(instance))\n\
-						.append($('<td>').addClass('status').text(status.capitalize())));\n\
+						.append($('<td>').addClass('name').text(number)));\n\
 				});\n\
 			});");
 			

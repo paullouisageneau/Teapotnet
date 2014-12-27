@@ -53,18 +53,16 @@ function listDirectoryRec(url, object) {
 	})
 	.done(function(data) {
 		$(object).find('.gifloading').remove();
-		
-		if(table.length == 0) {
-			$(object).append('<table class="files"></table>');
-			table = $(object).find('table.files');
-		}
-	  
+	
 		if(data && data.length > 0) {
+			
+			if(table.length == 0) {
+				$(object).append('<table class="files"></table>');
+				table = $(object).find('table.files');
+			}
+			
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
-				
-				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
-					continue;
 				
 				var link = '/file/' + resource.digest;
 				var line = '<tr>';
@@ -86,6 +84,9 @@ function listDirectoryRec(url, object) {
 				}
 				line+= '</tr>';
 				table.append(line);
+				
+				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
+					table.find('tr:last').hide();
 			}
 	
 			table.find('tr').css('cursor', 'pointer').click(function() {
@@ -95,7 +96,7 @@ function listDirectoryRec(url, object) {
 			listDirectoryRec(url, object);
 		}
 		else {
-			if(table.length == 0) {
+			if(table.find('tr:visible').length == 0) {
 				$(object).append('<div class="files">No files</div>');
 			}
 		}
@@ -103,7 +104,7 @@ function listDirectoryRec(url, object) {
 	.fail(function(jqXHR, textStatus) {
 		$(object).find('.gifloading').remove();
 		
-		if(table.length == 0) {
+		if(table.find('tr:visible').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
 	});

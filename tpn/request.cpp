@@ -106,7 +106,7 @@ void Request::addResult(Resource &resource)
 	}
 	else {
 		// Do not list, just add corresponding record
-		 addResult(resource.getDirectoryRecord());
+		addResult(resource.getDirectoryRecord());
 	}
 }
 
@@ -132,6 +132,7 @@ void Request::getResult(int i, Resource::DirectoryRecord &record) const
 
 void Request::autoDelete(double timeout)
 {
+	// TODO: reschedule on HTTP request
 	Scheduler::Global->schedule(new AutoDeleteTask<Request>(this), timeout);
 }
 
@@ -147,7 +148,7 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(request.get.contains("timeout"))
 		request.get["timeout"].extract(timeout);
 	
-	while(next >= int(mResults.size()) && !mFinished)
+	while(int(mResults.size()) <= next && !mFinished)
 	{
 		if(!wait(timeout))
 			break;
@@ -175,8 +176,9 @@ void Request::http(const String &prefix, Http::Request &request)
 		
 		JsonSerializer json(response.stream);
 		json.outputArrayBegin();
-		for(int i = next; i < int(mResults.size()); ++i)
-			json.outputArrayElement(mResults[i]);
+		if(mResults.size() > next)
+			for(int i = next; i < int(mResults.size()); ++i)
+				json.outputArrayElement(mResults[i]);
 		json.outputArrayEnd();
 	}
 }
