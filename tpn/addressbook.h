@@ -242,10 +242,14 @@ public:
 	Contact *getContact(const String &uname);
 	const Contact *getContact(const String &uname) const;
 	void getContacts(Array<AddressBook::Contact*> &result);
+	void getContactsIdentifiers(Array<Identifier> &result) const;
 	
 	void setSelf(const Rsa::PublicKey &pubKey);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
+	Identifier getSelfIdentifier(void) const;
+	
+	bool hasIdentifier(const Identifier &identifier) const;
 	
 private:
 	bool publish(const Identifier &identifier, const String &tracker);

@@ -189,10 +189,13 @@ const AddressBook::Contact *AddressBook::getContact(const String &uname) const
 void AddressBook::getContacts(Array<AddressBook::Contact*> &result)
 {
 	Synchronize(this);
-  
 	mContactsByIdentifier.getValues(result);
-	Contact *self = getSelf();
-	if(self) result.remove(self);
+}
+
+void AddressBook::getContactsIdentifiers(Array<Identifier> &result) const
+{
+	Synchronize(this);
+	mContactsByIdentifier.getKeys(result);
 }
 
 void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
@@ -217,6 +220,20 @@ const AddressBook::Contact *AddressBook::getSelf(void) const
 {
 	Synchronize(this);
 	return getContact(userName());
+}
+
+Identifier AddressBook::getSelfIdentifier(void) const
+{
+	Synchronize(this);
+	const Contact *self = getSelf();
+	if(self) return self->identifier();
+	else return Identifier::Null;
+}
+
+bool AddressBook::hasIdentifier(const Identifier &identifier) const
+{
+	Synchronize(this);
+	return mContactsByIdentifier.contains(identifier);
 }
 
 bool AddressBook::send(const Notification &notification)
@@ -601,7 +618,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				for(int i=0; i<contacts.size(); ++i)
 				{
 					Contact *contact = contacts[i];
-
+					if(contact->isSelf()) continue;
+					
 					page.open("tr");
 					page.open("td",".name");
 					page.text(contact->name());

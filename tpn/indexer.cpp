@@ -24,6 +24,7 @@
 #include "tpn/config.h"
 #include "tpn/html.h"
 #include "tpn/request.h"
+#include "tpn/addressbook.h"
 
 #include "pla/crypto.h"
 #include "pla/random.h"
@@ -526,23 +527,25 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.execute();
 	
 	// Resource has changed, re-publish it
-	// TODO: access rights
-	publish(prefix(), path, resource.digest());
+	if(pathAccessLevel(path) == Resource::Public)
+		publish(prefix(), path, resource.digest());
+	
+	// TODO: advertise for Resource::Private and Resource::Protected
 }
 
 bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	targets.clear();
-	
-	// TODO: access rights, use peer
-	
+
 	String cpath(path);
 	String match = cpath.cut('?');
-	
+
 	Query query;
 	query.setPath(cpath);
 	query.setMatch(match);
+	query.setAccessLevel((mUser->addressBook()->hasIdentifier(peer) ? Resource::Private : Resource::Public));
+	query.setFromSelf(peer == mUser->addressBook()->getSelfIdentifier());
 	
 	Database::Statement statement;
 	if(prepareQuery(statement, query, "digest"))
