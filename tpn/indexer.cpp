@@ -545,7 +545,7 @@ bool Indexer::anounce(const Identifier &peer, const String &prefix, const String
 	query.setPath(cpath);
 	query.setMatch(match);
 	query.setAccessLevel((mUser->addressBook()->hasIdentifier(peer) ? Resource::Private : Resource::Public));
-	query.setFromSelf(peer == mUser->addressBook()->getSelfIdentifier());
+	query.setFromSelf(peer != Identifier::Null && peer == mUser->addressBook()->getSelfIdentifier());
 	
 	Database::Statement statement;
 	if(prepareQuery(statement, query, "digest"))
