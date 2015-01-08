@@ -52,10 +52,9 @@ public:
 	String userName(void) const;
 	String prefix(void) const;
 	
-	void addDirectory(const String &name, String path, Resource::AccessLevel level = Resource::Public);
+	void addDirectory(const String &name, String path, Resource::AccessLevel access = Resource::Public);
 	void removeDirectory(const String &name);
 	void getDirectories(Array<String> &array) const;
-	void setDirectoryAccessLevel(const String &name, Resource::AccessLevel level);
 	Resource::AccessLevel directoryAccessLevel(const String &name) const; 
 	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
 	
@@ -84,7 +83,7 @@ public:
 		void setLimit(int count);
 		void setMatch(const String &match);
 		
-		void setAccessLevel(Resource::AccessLevel level);
+		void setAccessLevel(Resource::AccessLevel access);
 		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
 		
 		// Serializable
@@ -96,7 +95,7 @@ public:
 		String mPath, mMatch;
 		BinaryString mDigest;
 		int mOffset, mCount;
-		Resource::AccessLevel mAccessLevel;
+		Resource::AccessLevel mAccess;
 
 		friend class Indexer;
 	};
@@ -111,19 +110,34 @@ private:
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void update(String path = "/");
 	String realPath(String path) const;
-	bool isHiddenPath(const String &path) const;
-	Resource::AccessLevel pathAccessLevel(const String &path) const;
+	bool isHiddenPath(String path) const;
+	Resource::AccessLevel pathAccessLevel(String path) const;
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
 	
 	// Task
 	void run(void);
 	
+	struct Entry : public Serializable
+	{
+	public:
+		Entry(void);
+		Entry(const String &path, Resource::AccessLevel access = Resource::Public);
+		~Entry(void);
+		
+		// Serializable
+		virtual void serialize(Serializer &s) const;
+		virtual bool deserialize(Serializer &s);
+		virtual bool isInlineSerializable(void) const;
+		
+		String path;
+		Resource::AccessLevel access;
+	};
+	
 	User *mUser;
 	Database *mDatabase;
 	String mFileName;
 	String mBaseDirectory;
-	StringMap mDirectories;
-	Map<String, Resource::AccessLevel> mDirectoriesAccessLevel;
+	SerializableMap<String, Entry> mDirectories;
 	bool mRunning;
 };
 

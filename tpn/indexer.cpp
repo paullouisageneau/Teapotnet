@@ -83,10 +83,10 @@ Indexer::Indexer(User *user) :
 			serializer.input(mDirectories);
 			file.close();
 			
-			StringMap::iterator it = mDirectories.begin();
+			Map<String,Entry>::iterator it = mDirectories.begin();
 			while(it != mDirectories.end())
 			{
-				String &path = it->second;
+				String &path = it->second.path;
 				if(path.empty() || path == "/")
 				{
 					mDirectories.erase(it++);
@@ -107,7 +107,7 @@ Indexer::Indexer(User *user) :
 	
 	// Special upload directory
 	if(!mDirectories.contains(UploadDirectoryName)) 
-		addDirectory(UploadDirectoryName, "", Resource::Public);
+		addDirectory(UploadDirectoryName, "", Resource::Personal);
 	
 	save();
 	
@@ -148,18 +148,15 @@ String Indexer::prefix(void) const
 	return "/files/" + mUser->identifier().toString(); 
 }
 
-void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel level)
+void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access)
 {
 	Synchronize(this);
 
 	Assert(!name.empty());
 	Assert(!name.contains('/') && !name.contains('\\'));
 
-	if(path.empty())
-		path = mBaseDirectory + Directory::Separator + name;
-  
-	if(path[path.size()-1] == Directory::Separator)
-		path.ignore(1);
+	if(path.empty()) path = mBaseDirectory + Directory::Separator + name;
+	if(path[path.size()-1] == Directory::Separator) path.ignore(1);
 	
 	if(!Directory::Exist(path))
 		Directory::Create(path);
@@ -167,15 +164,18 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 	Directory test(path);
 	test.close();
 	
-	String oldPath;
-	if(!mDirectories.get(name, oldPath) || oldPath != path)
+	Map<String, Entry>::iterator it = mDirectories.find(name);
+	if(it != mDirectories.end())
 	{
-		mDirectories.insert(name, path);
-		save();
-		start();
+		it->second.path = path;
+		it->second.access = access;
 	}
-
-	setDirectoryAccessLevel(name, level);
+	else {
+		mDirectories.insert(name, Entry(path, access));
+	}
+	
+	save();
+	start();
 }
 
 void Indexer::removeDirectory(const String &name)
@@ -184,8 +184,7 @@ void Indexer::removeDirectory(const String &name)
   
 	if(mDirectories.contains(name))
 	{
-  		mDirectories.erase(name);
-		mDirectoriesAccessLevel.erase(name);
+		mDirectories.erase(name);
 		save();
 		start();
 	}
@@ -199,16 +198,11 @@ void Indexer::getDirectories(Array<String> &array) const
 	array.remove(UploadDirectoryName);
 }
 
-void Indexer::setDirectoryAccessLevel(const String &name, Resource::AccessLevel level)
-{
-	mDirectoriesAccessLevel[name] = level;
-}
-
 Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 {
-	Resource::AccessLevel level;
-	if(mDirectoriesAccessLevel.get(name, level)) return level;
-	else return Resource::Public;	// Global directories default to public too
+	Map<String, Entry>::const_iterator it = mDirectories.find(name);
+	if(it == mDirectories.end()) throw Exception("Unknown directory: " + name);
+	return it->second.access;
 }
 
 bool Indexer::moveFileToCache(String &fileName, String name)
@@ -225,20 +219,13 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 		return false;
 	}
 	
+	// Create cache directory
 	if(!mDirectories.contains(CacheDirectoryName))
-	{
-		// Create cache directory
-        	if(mUser) addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Public);
-        	else {
-			String cacheDir = Config::Get("cache_dir");
-			if(!Directory::Exist(cacheDir))
-				Directory::Create(cacheDir);
-			addDirectory(CacheDirectoryName, cacheDir, Resource::Public);
-		}
-	}
+        	addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Personal);
 
-	String cachePath;
-	Assert(mDirectories.get(CacheDirectoryName, cachePath));
+	Entry cacheEntry;
+	Assert(mDirectories.get(CacheDirectoryName, cacheEntry));
+	String cachePath = cacheEntry.path;
 	
 	// Free some space
 	int64_t maxCacheSize = 0;
@@ -313,7 +300,7 @@ bool Indexer::query(const Query &query, Resource &resource)
 			BinaryString digest;
 			statement.input(digest);
 			
-			if(pathAccessLevel(path) > query.mAccessLevel) 
+			if(pathAccessLevel(path) > query.mAccess) 
 				continue; 
 			
 			statement.finalize();
@@ -342,7 +329,7 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 			BinaryString digest;
 			statement.input(digest);
 			
-			if(pathAccessLevel(path) > query.mAccessLevel)
+			if(pathAccessLevel(path) > query.mAccess)
 				continue; 
 			
 			resources.insert(Resource(digest));
@@ -725,10 +712,13 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.open("div",".box");
 			if(folders.empty()) page.text("No subdirectories");
 			else {
-			  	Array<String> existingPaths;
-			  	mDirectories.getValues(existingPaths);
 				Set<String> existingPathsSet;
-				existingPathsSet.insert(existingPaths.begin(), existingPaths.end());
+				for(Map<String, Entry>::const_iterator it = mDirectories.begin();
+					it != mDirectories.end();
+					++it)
+				{
+					existingPathsSet.insert(it->second.path);
+				}
 				
 				page.open("table",".files");
 				for(Set<String>::iterator it = folders.begin();
@@ -1289,7 +1279,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	
 	BinaryString digest = query.mDigest;
 	
-	bool isFromSelf = (query.mAccessLevel == Resource::Personal);
+	bool isFromSelf = (query.mAccess == Resource::Personal);
 	int count = query.mCount;
 	if(!match.empty() && (count <= 0 || count > 200)) count = 200;	// Limit for security purposes
 	
@@ -1372,30 +1362,26 @@ String Indexer::realPath(String path) const
 {
 	Synchronize(this);
 	
-	if(path.empty() || path == "/")
-		return mBaseDirectory;
+	if(path.empty() || path == "/") return mBaseDirectory;
+	if(path[0] == '/') path.ignore(1);
 	
 	// Do not accept the parent directory symbol as a security protection
-	if(path.find("..") != String::NotFound)
-		throw Exception("Invalid path: " + path);
-	
-	if(!path.empty() && path[0] == '/')
-		path.ignore(1);
+	if(path.find("..") != String::NotFound) throw Exception("Invalid path: " + path);
 	
 	String directory = path;
 	path = directory.cut('/');
-	String prefix;
-	if(!mDirectories.get(directory, prefix))
+	Entry entry;
+	if(!mDirectories.get(directory, entry))
 		throw Exception("Invalid path: unknown directory: " + directory);
 
 	if(path.empty()) 
-		return prefix;
+		return entry.path;
 
 	if(Directory::Separator != '/') path.replace('/', Directory::Separator);
-	return prefix + Directory::Separator + path;
+	return entry.path + Directory::Separator + path;
 }
 
-bool Indexer::isHiddenPath(const String &path) const
+bool Indexer::isHiddenPath(String path) const
 {
 	if(path.empty()) return false;
 	if(path[0] == '_') return true;
@@ -1403,11 +1389,20 @@ bool Indexer::isHiddenPath(const String &path) const
 	return false;
 }
 
-Resource::AccessLevel Indexer::pathAccessLevel(const String &path) const
+Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 {
-  	// TODO
-	//return directoryAccessLevel(urlToDirectory(url));
-	return Resource::Public;
+	Synchronize(this);
+	
+	if(path.empty() || path == "/") return Resource::Public;
+	if(path[0] == '/') path.ignore(1);
+	
+	String directory = path;
+	path = directory.cut('/');
+	Entry entry;
+	if(!mDirectories.get(directory, entry))
+		throw Exception("Invalid path: unknown directory: " + directory);
+	
+	return entry.access;
 }
 
 int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
@@ -1497,7 +1492,7 @@ void Indexer::run(void)
 Indexer::Query::Query(const String &path) :
 	mPath(path),
 	mOffset(0), mCount(-1),
-	mAccessLevel(Resource::Private)
+	mAccess(Resource::Private)
 {
 
 }
@@ -1533,21 +1528,22 @@ void Indexer::Query::setMatch(const String &match)
 	mMatch = match;
 }
 
-void Indexer::Query::setAccessLevel(Resource::AccessLevel level)
+void Indexer::Query::setAccessLevel(Resource::AccessLevel access)
 {
-	mAccessLevel = level;
+	mAccess = access;
 }
 
 void Indexer::Query::setFromSelf(bool isFromSelf)
 {
 	if(isFromSelf)
 	{
-		if(mAccessLevel == Resource::Private)
-			mAccessLevel = Resource::Personal;
+		if(mAccess == Resource::Private)
+			mAccess = Resource::Personal;
 	}
 	else {
-		if(mAccessLevel == Resource::Personal) 
-			mAccessLevel = Resource::Private;
+		// Other than self, may not access personal folders
+		if(mAccess == Resource::Personal) 
+			mAccess = Resource::Private;
 	}
 }
 
@@ -1555,7 +1551,7 @@ void Indexer::Query::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int> offsetWrapper(mOffset);
 	ConstSerializableWrapper<int> countWrapper(mCount);
-	String strAccessLevel = (mAccessLevel == Resource::Private || mAccessLevel == Resource::Personal ? "private" : "public");
+	String strAccessLevel = (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public"));
 	
 	Serializer::ConstObjectMapping mapping;
 	if(!mPath.empty())	mapping["path"] = &mPath;
@@ -1582,13 +1578,61 @@ bool Indexer::Query::deserialize(Serializer &s)
 	mapping["count"] = &countWrapper;
 	mapping["access"] = &strAccessLevel;
 	
-	if(strAccessLevel == "private") mAccessLevel = Resource::Private;
-	else mAccessLevel = Resource::Public;
+	if(strAccessLevel == "personal") mAccess = Resource::Personal;
+	else if(strAccessLevel == "private") mAccess = Resource::Private;
+	else mAccess = Resource::Public;
 	
 	return s.inputObject(mapping);
 }
 
 bool Indexer::Query::isInlineSerializable(void) const
+{
+	return false;
+}
+
+Indexer::Entry::Entry(void)
+{
+	this->access = Resource::Public;
+}
+
+Indexer::Entry::Entry(const String &path, Resource::AccessLevel access)
+{
+	this->path = path;
+	this->access = access;
+}
+
+Indexer::Entry::~Entry(void)
+{
+
+}
+
+void Indexer::Entry::serialize(Serializer &s) const
+{
+	String strAccessLevel = (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public"));
+	
+	Serializer::ConstObjectMapping mapping;
+	mapping["path"] = &path;
+	mapping["access"] = &strAccessLevel;
+
+	s.outputObject(mapping);
+}
+
+bool Indexer::Entry::deserialize(Serializer &s)
+{
+	String strAccessLevel;
+	
+	Serializer::ObjectMapping mapping;
+	mapping["path"] = &path;
+	mapping["access"] = &strAccessLevel;
+	
+	if(strAccessLevel == "personal") access = Resource::Personal;
+	else if(strAccessLevel == "private") access = Resource::Private;
+	else access = Resource::Public;
+	
+	return s.inputObject(mapping);
+}
+
+bool Indexer::Entry::isInlineSerializable(void) const
 {
 	return false;
 }
