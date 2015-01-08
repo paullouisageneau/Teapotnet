@@ -1281,7 +1281,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	
 	bool isFromSelf = (query.mAccess == Resource::Personal);
 	int count = query.mCount;
-	if(!match.empty() && (count <= 0 || count > 200)) count = 200;	// Limit for security purposes
+	if(!match.empty() && (count <= 0 || count > 1000)) count = 1000;	// Limit for security purposes
 	
 	// Build SQL request
 	String sql;
@@ -1303,10 +1303,10 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 		sql<<"LIMIT "<<String::number(count)<<" ";
 		if(query.mOffset > 0) sql<<"OFFSET "<<String::number(query.mOffset)<<" ";
 	}
-
+	
 	statement = mDatabase->prepare(sql);
 	int parameter = 0;
-	if(!path.empty())		statement.bind(++parameter, path);
+	if(!path.empty())	statement.bind(++parameter, path);
 	if(!match.empty())	statement.bind(++parameter, match);
 	if(!digest.empty())	statement.bind(++parameter, query.mDigest);
 	
