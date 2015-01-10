@@ -121,23 +121,23 @@ public:
 	class Publisher
 	{
 	public:
-		Publisher(void);
+		Publisher(const Identifier &peer = Identifier::Null);	// local peer
 		~Publisher(void);
 		
-		void publish(const String &prefix);
-		void publish(const String &prefix, const String &path, const BinaryString &target);
+		void publish(const String &prefix, const String &path = "/");
 		void unpublish(const String &prefix);
 		
 		virtual bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
 		
 	private:
+		Identifier mPeer;
 		StringSet mPublishedPrefixes;
 	};
 	
 	class Subscriber
 	{
 	public:
-		Subscriber(const Identifier &peer = Identifier::Null);
+		Subscriber(const Identifier &peer = Identifier::Null);	// remote peer
 		~Subscriber(void);
 		
 		void subscribe(const String &prefix);
@@ -145,6 +145,7 @@ public:
 		void unsubscribeAll(void);
 		
 		virtual bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target) = 0;
+		virtual Identifier remote(void) const;
 		
 	protected:
 		bool fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
@@ -218,7 +219,7 @@ public:
 	void unpublish(String prefix, Publisher *publisher);
 	void subscribe(String prefix, Subscriber *subscriber);
 	void unsubscribe(String prefix, Subscriber *subscriber);
-	void advertise(String prefix, const String &path, const BinaryString &target);
+	void advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher);
 	
 	// Notification
 	void broadcast(const Notification &notification);
@@ -235,6 +236,31 @@ public:
 	bool hasPeer(const Identifier &remote);
 	
 private:
+	class RemotePublisher : public Publisher
+	{
+	public:
+		RemotePublisher(const List<BinaryString> targets);
+		~RemotePublisher(void);
+		
+		bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets);
+		
+	private:
+		List<BinaryString> mTargets;
+	};
+	
+	class RemoteSubscriber : public Subscriber
+	{
+	public:
+		RemoteSubscriber(const Identifier &remote = Identifier::Null);
+		~RemoteSubscriber(void);
+		
+		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
+		Identifier remote(void) const;
+		
+	private:
+		Identifier mRemote;
+	};
+	
 	class Backend : public Thread
 	{
 	public:
@@ -430,7 +456,7 @@ private:
 	void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 	
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
-	bool matchSubscribers(const String &path, const Identifier &source, const List<BinaryString> &targets);
+	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
 	uint64_t mNumber;
 	String mName;
@@ -447,6 +473,7 @@ private:
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<Identifier, Set<Listener*> > mListeners;
+	List<RemoteSubscriber> mRemoteSubscribers;
 	
 	Time mLastPublicIncomingTime;
 	Map<Address, Time> mKnownPublicAddresses;

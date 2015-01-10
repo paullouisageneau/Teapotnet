@@ -370,29 +370,6 @@ void Core::subscribe(String prefix, Subscriber *subscriber)
 	outgoing(Message::Lookup, Message::Subscribe, payload);
 }
 
-void Core::advertise(String prefix, const String &path, const BinaryString &target)
-{
-	Synchronize(this);
-	
-	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-	
-	LogDebug("Core::publish", "Advertising " + prefix + path);
-	
-	SerializableList<BinaryString> array;
-	array.push_back(target);
-		
-	// Local
-	matchSubscribers(prefix, Identifier::Null, array);
-		
-	// Broadcast
-	BinaryString payload;
-	BinarySerializer serializer(&payload);
-	serializer.write(prefix);
-	serializer.write(array);
-	outgoing(Message::Broadcast, Message::Publish, payload); 
-}
-
 void Core::unsubscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
@@ -407,6 +384,18 @@ void Core::unsubscribe(String prefix, Subscriber *subscriber)
 		if(it->second.empty())
 			mSubscribers.erase(it);
 	}
+}
+
+void Core::advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher)
+{
+	Synchronize(this);
+	
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
+	LogDebug("Core::publish", "Advertising " + prefix + path);
+	
+	matchSubscribers(prefix, source, publisher); 
 }
 
 void Core::broadcast(const Notification &notification)
@@ -776,7 +765,7 @@ bool Core::matchPublishers(const String &path, const Identifier &source, Subscri
 	return true;
 }
 
-bool Core::matchSubscribers(const String &path, const Identifier &source, const List<BinaryString> &targets)
+bool Core::matchSubscribers(const String &path, const Identifier &source, Publisher *publisher)
 {
 	Synchronize(this);
 	
@@ -798,7 +787,7 @@ bool Core::matchSubscribers(const String &path, const Identifier &source, const 
 		String truncatedPath(path.substr(prefix.size()));
 		if(truncatedPath.empty()) truncatedPath = "/";
 		
-		// Pass to local subscribers
+		// Pass to subscribers
 		Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
 		{
@@ -809,12 +798,17 @@ bool Core::matchSubscribers(const String &path, const Identifier &source, const 
 				jt != set.end();
 				++jt)
 			{
-				for(List<BinaryString>::const_iterator kt = targets.begin();
-					kt != targets.end();
-					++kt)
+				Subscriber *subscriber = *jt;
+				List<BinaryString> targets;
+				if(publisher->anounce(subscriber->remote(), prefix, truncatedPath, targets))
 				{
-					// TODO: should prevent forwarding in case we want to republish another content
-					(*jt)->incoming(source, prefix, truncatedPath, *kt);
+					for(List<BinaryString>::const_iterator kt = targets.begin();
+						kt != targets.end();
+						++kt)
+					{
+						// TODO: should prevent forwarding in case we want to republish another content
+						subscriber->incoming(source, prefix, truncatedPath, *kt);
+					}
 				}
 			}
 		}
@@ -896,7 +890,8 @@ Core::Locator::~Locator(void)
 
 }
 
-Core::Publisher::Publisher(void)
+Core::Publisher::Publisher(const Identifier &peer) :
+	mPeer(peer)
 {
 
 }
@@ -911,23 +906,15 @@ Core::Publisher::~Publisher(void)
 	}
 }
 
-void Core::Publisher::publish(const String &prefix)
-{
-	Core::Instance->publish(prefix, this);
-	mPublishedPrefixes.insert(prefix);
-	
-	List<BinaryString> targets;
-        if(anounce(Identifier::Null, prefix, "/", targets))
-		for(List<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
-			Core::Instance->advertise(prefix, "/", *it);
-}
-
-void Core::Publisher::publish(const String &prefix, const String &path, const BinaryString &target)
+void Core::Publisher::publish(const String &prefix, const String &path)
 {
 	if(!mPublishedPrefixes.contains(prefix))
-		publish(prefix);
+	{
+		Core::Instance->publish(prefix, this);
+		mPublishedPrefixes.insert(prefix);
+	}
 	
-	Core::Instance->advertise(prefix, path, target);
+	Core::Instance->advertise(prefix, path, mPeer, this);
 }
 
 void Core::Publisher::unpublish(const String &prefix)
@@ -977,6 +964,11 @@ void Core::Subscriber::unsubscribeAll(void)
 	{
 		Core::Instance->unsubscribe(*it, this);
 	}
+}
+
+Identifier Core::Subscriber::remote(void) const
+{
+	return Identifier::Null;
 }
 
 bool Core::Subscriber::fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
@@ -1029,6 +1021,54 @@ bool Core::Subscriber::fetch(const Identifier &peer, const String &prefix, const
 	PrefetchTask *task = new PrefetchTask(this, peer, prefix, path, target);
 	mThreadPool.launch(task);
 	return false;
+}
+
+Core::RemotePublisher::RemotePublisher(const List<BinaryString> targets):
+	mTargets(targets)
+{
+  
+}
+
+Core::RemotePublisher::~RemotePublisher(void)
+{
+  
+}
+
+bool Core::RemotePublisher::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
+{
+	targets = mTargets;
+	return !targets.empty();
+}
+
+Core::RemoteSubscriber::RemoteSubscriber(const Identifier &remote) :
+	mRemote(remote)
+{
+
+}
+
+Core::RemoteSubscriber::~RemoteSubscriber(void)
+{
+
+}
+
+bool Core::RemoteSubscriber::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+{
+	if(mRemote != Identifier::Null)
+	{
+		SerializableArray<BinaryString> array;
+		array.append(target);
+		
+		BinaryString payload;
+		BinarySerializer serializer(&payload);
+		serializer.write(prefix);
+		serializer.write(array);
+		Core::Instance->outgoing(mRemote, Message::Forward, Message::Publish, payload); 
+	}
+}
+
+Identifier Core::RemoteSubscriber::remote(void) const
+{
+	return mRemote; 
 }
 
 Core::Caller::Caller(void)
@@ -1960,7 +2000,8 @@ bool Core::Handler::incoming(const Message &message)
 			SerializableList<BinaryString> targets;
 			AssertIO(serializer.read(targets));
 			
-			return mCore->matchSubscribers(path, source, targets);
+			RemotePublisher publisher(targets);
+			return mCore->matchSubscribers(path, source, &publisher);
 		}
 		
 		case Message::Subscribe:
@@ -1972,7 +2013,15 @@ bool Core::Handler::incoming(const Message &message)
 			String path;
 			AssertIO(serializer.read(path));
 			
-			return mCore->matchPublishers(path, source);
+			//return mCore->matchPublishers(path, source);
+			
+			// TODO: function in Core
+			{
+				Synchronize(mCore);
+				mCore->mRemoteSubscribers.push_front(RemoteSubscriber(source));
+				mCore->mRemoteSubscribers.begin()->subscribe(path);
+				return true;
+			}
 		}
 		
 		default:
@@ -2026,6 +2075,9 @@ void Core::Handler::process(void)
 		try {
 			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 			
+			if(message.source == Identifier::Null)
+				continue;
+		  
 			if(mRemote != Identifier::Null && message.source != mRemote)
 			{
 				Desynchronize(this);

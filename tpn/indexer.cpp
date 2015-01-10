@@ -42,6 +42,7 @@ const String Indexer::CacheDirectoryName = "_cache";
 const String Indexer::UploadDirectoryName = "_upload";
 
 Indexer::Indexer(User *user) :
+	Publisher(user->identifier()),
 	mUser(user),
 	mRunning(false)
 {
@@ -527,10 +528,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.execute();
 	
 	// Resource has changed, re-publish it
-	if(pathAccessLevel(path) == Resource::Public)
-		publish(prefix(), path, resource.digest());
-	
-	// TODO: advertise for Resource::Private and Resource::Protected
+	publish(prefix(), path);
 }
 
 bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
