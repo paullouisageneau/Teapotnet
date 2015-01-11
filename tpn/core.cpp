@@ -1856,6 +1856,8 @@ void Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
+	// TODO: Handler should use Sender and an outgoing queue
+	
 	uint16_t size = message.payload.size();
 	
 	ByteArray buffer(1500);
@@ -1875,8 +1877,22 @@ void Core::Handler::send(const Message &message)
 	
 	{
 		Desynchronize(this);
-		MutexLocker lock(&mStreamWriteMutex);
-		mStream->writeBinary(buffer.data(), buffer.size());
+		if(mStreamWriteMutex.tryLock())
+		{
+			try {
+				mStream->writeBinary(buffer.data(), buffer.size());
+			}
+			catch(...)
+			{
+				mStreamWriteMutex.unlock();
+				throw; 
+			}
+			
+			mStreamWriteMutex.unlock();
+		}
+		else {
+			LogDebug("Core::Handler::send", "Dropped message"); 
+		}
 	}
 }
 
@@ -2080,7 +2096,7 @@ void Core::Handler::process(void)
 			
 			if(message.source == Identifier::Null || message.source == mLocal)
 				continue;
-		  
+			
 			if(mRemote != Identifier::Null && message.source != mRemote)
 			{
 				Desynchronize(this);
