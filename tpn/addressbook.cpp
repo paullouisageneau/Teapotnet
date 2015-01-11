@@ -1585,6 +1585,7 @@ void AddressBook::Contact::connected(const Identifier &peer)
 	Notification notification;
 	notification["type"] << "hello";
 	notification["secret"] << localSecret();
+	notification["instance"] << Core::Instance->getName();
 	
 	// TODO: force direct
 	if(!Core::Instance->send(peer, notification))
@@ -1610,12 +1611,17 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 		
 		BinaryString secret;
 		notification.get("secret").extract(secret);
-
+		
+		String instance;
+		if(!notification.get("instance", instance))
+			throw Exception("Missing instance name");
+		
+		mInstances[peer.number()].setName(instance);
+		
 		if(secret != mRemoteSecret)
-		{
 			mRemoteSecret = secret;
-			mAddressBook->save();
-		}
+		
+		mAddressBook->save();
 	}
 	if(type == "contacts")
 	{
@@ -1783,7 +1789,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				if($.isEmptyObject(info.instances)) $('#instances').text('No connected instance');\n\
 				else $.each(info.instances, function(number, data) {\n\
 					$('#instances').append($('<tr>')\n\
-						.append($('<td>').addClass('name').text(number)));\n\
+						.append($('<td>').addClass('name').text(data.name)));\n\
 				});\n\
 			});");
 			
