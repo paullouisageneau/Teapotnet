@@ -398,6 +398,14 @@ void Core::advertise(String prefix, const String &path, const Identifier &source
 	matchSubscribers(prefix, source, publisher); 
 }
 
+void Core::addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly)
+{
+	Synchronize(this);
+	
+	mRemoteSubscribers.push_front(RemoteSubscriber(peer, publicOnly));
+	mRemoteSubscribers.begin()->subscribe(path);
+}
+
 void Core::broadcast(const Notification &notification)
 {
 	Synchronize(this);
@@ -1040,8 +1048,9 @@ bool Core::RemotePublisher::anounce(const Identifier &peer, const String &prefix
 	return !targets.empty();
 }
 
-Core::RemoteSubscriber::RemoteSubscriber(const Identifier &remote) :
-	mRemote(remote)
+Core::RemoteSubscriber::RemoteSubscriber(const Identifier &remote, bool publicOnly) :
+	mRemote(remote),
+	mPublicOnly(publicOnly)
 {
 
 }
@@ -1068,7 +1077,8 @@ bool Core::RemoteSubscriber::incoming(const Identifier &peer, const String &pref
 
 Identifier Core::RemoteSubscriber::remote(void) const
 {
-	return mRemote; 
+	if(!mPublicOnly) return mRemote;
+	else return Identifier::Null;
 }
 
 Core::Caller::Caller(void)
@@ -2001,7 +2011,7 @@ bool Core::Handler::incoming(const Message &message)
 			AssertIO(serializer.read(targets));
 			
 			RemotePublisher publisher(targets);
-			return mCore->matchSubscribers(path, source, &publisher);
+			return mCore->matchSubscribers(path, (source == mRemote ? source : Identifier::Null), &publisher);
 		}
 		
 		case Message::Subscribe:
@@ -2012,16 +2022,9 @@ bool Core::Handler::incoming(const Message &message)
 			
 			String path;
 			AssertIO(serializer.read(path));
-			
-			//return mCore->matchPublishers(path, source);
-			
-			// TODO: function in Core
-			{
-				Synchronize(mCore);
-				mCore->mRemoteSubscribers.push_front(RemoteSubscriber(source));
-				mCore->mRemoteSubscribers.begin()->subscribe(path);
-				return true;
-			}
+		
+			mCore->addRemoteSubscriber(source, path, (source != mRemote));
+			return true;
 		}
 		
 		default:

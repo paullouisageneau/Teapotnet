@@ -220,6 +220,7 @@ public:
 	void subscribe(String prefix, Subscriber *subscriber);
 	void unsubscribe(String prefix, Subscriber *subscriber);
 	void advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher);
+	void addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly);
 	
 	// Notification
 	void broadcast(const Notification &notification);
@@ -251,7 +252,7 @@ private:
 	class RemoteSubscriber : public Subscriber
 	{
 	public:
-		RemoteSubscriber(const Identifier &remote = Identifier::Null);
+		RemoteSubscriber(const Identifier &remote = Identifier::Null, bool publicOnly = false);
 		~RemoteSubscriber(void);
 		
 		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
@@ -259,6 +260,7 @@ private:
 		
 	private:
 		Identifier mRemote;
+		bool mPublicOnly;
 	};
 	
 	class Backend : public Thread
