@@ -59,8 +59,8 @@ Board::~Board(void)
 	Interface::Instance->remove(urlPrefix(), this);
 	
 	String prefix = "/mail" + mName;
-	publish(prefix);
-	subscribe(prefix);
+	unpublish(prefix);
+	unsubscribe(prefix);
 }
 
 String Board::urlPrefix(void) const
