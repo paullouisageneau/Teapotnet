@@ -2078,7 +2078,7 @@ void Core::Handler::process(void)
 		try {
 			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
 			
-			if(message.source == Identifier::Null)
+			if(message.source == Identifier::Null || message.source == mLocal)
 				continue;
 		  
 			if(mRemote != Identifier::Null && message.source != mRemote)
