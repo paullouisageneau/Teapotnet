@@ -325,7 +325,7 @@ private:
 	class TunnelBackend : public Backend
 	{
 	public:
-		static const double DefaultTimeout = 10.;
+		static const double DefaultTimeout = 60.;
 
 		TunnelBackend(Core *core);
 		~TunnelBackend(void);
@@ -426,7 +426,7 @@ private:
 		
 	private:
 		bool recv(Message &message);
-		void send(const Message &message);
+		bool send(const Message &message);
 		void route(const Message &message);
 		bool incoming(const Message &message);
 		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);

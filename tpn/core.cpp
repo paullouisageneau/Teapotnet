@@ -1852,7 +1852,7 @@ bool Core::Handler::recv(Message &message)
 	return true;
 }
 
-void Core::Handler::send(const Message &message)
+bool Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
@@ -1889,9 +1889,11 @@ void Core::Handler::send(const Message &message)
 			}
 			
 			mStreamWriteMutex.unlock();
+			return true;
 		}
 		else {
 			LogDebug("Core::Handler::send", "Dropped message"); 
+			return false;
 		}
 	}
 }
