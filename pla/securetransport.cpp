@@ -169,29 +169,36 @@ void SecureTransport::setHostname(const String &hostname)
 	mHostname = hostname;
 }
 
-bool SecureTransport::isClient(void)
+bool SecureTransport::isClient(void) const
 {
 	return true; 
 }
 
-bool SecureTransport::isHandshakeDone(void)
+bool SecureTransport::isHandshakeDone(void) const
 {
 	return mIsHandshakeDone; 
 }
 
-bool SecureTransport::isAnonymous(void)
+bool SecureTransport::isAnonymous(void) const
 {
 	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_ANON;
 }
 
-bool SecureTransport::hasPrivateSharedKey(void)
+bool SecureTransport::hasPrivateSharedKey(void) const
 {
 	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_PSK;
 }
 
-bool SecureTransport::hasCertificate(void)
+bool SecureTransport::hasCertificate(void) const
 {
 	return gnutls_auth_get_type(mSession) == GNUTLS_CRD_CERTIFICATE;
+}
+
+String SecureTransport::getPrivateSharedKeyHint(void) const
+{
+	const char *serverHint = gnutls_psk_client_get_hint(mSession);
+	if(serverHint) return String(serverHint);
+	else return "";
 }
 
 size_t SecureTransport::readData(char *buffer, size_t size)
@@ -411,15 +418,60 @@ int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const ch
 		return -1;
 	}
 	
+	String name(username);
 	BinaryString key;
 	try {
-		if(!transport->mVerifier->verifyPrivateSharedKey(String(username), key)) return -1;
+		
+		if(!transport->mVerifier->verifyPrivateSharedKey(name, key, "")) return -1;
+		if(name != username) return -1;
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("SecureTransport::PrivateSharedKeyCallback", String("TLS PSK verification failed: ") + e.what());
 		return -1;
 	}
+	
+	datum->size = key.size();
+	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
+	std::memcpy(datum->data, key.data(), datum->size);
+	return 0;
+}
+
+int SecureTransport::PrivateSharedKeyClientCallback(gnutls_session_t session, char** username, gnutls_datum_t* datum)
+{
+	//LogDebug("SecureTransport", "Entering PSK client callback");
+	
+	SecureTransport *transport = reinterpret_cast<SecureTransport*>(gnutls_session_get_ptr(session));
+	if(!transport) 
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", "TLS PSK client callback called with unknown session");
+		return -1;
+	}
+	
+	if(!transport->mVerifier) 
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", "No PSK verifier specified");
+		return -1;
+	}
+	
+	String name, hint;
+	BinaryString key;
+	
+	const char *serverHint = gnutls_psk_client_get_hint(session);
+	if(serverHint) hint = serverHint;
+	
+	try {
+		
+		if(!transport->mVerifier->verifyPrivateSharedKey(name, key, hint)) return -1;
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("SecureTransport::PrivateSharedKeyCallback", String("TLS PSK verification failed: ") + e.what());
+		return -1;
+	}
+	
+	*username = static_cast<char *>(gnutls_malloc(name.size()+1));
+	std::strcpy(*username, name.c_str());
 	
 	datum->size = key.size();
 	datum->data = static_cast<unsigned char *>(gnutls_malloc(datum->size));
@@ -553,6 +605,15 @@ void SecureTransportClient::Anonymous::install(gnutls_session_t session, String 
 	priorities+= ":+ANON-DH:+ANON-ECDH";
 }
 
+SecureTransportClient::PrivateSharedKey::PrivateSharedKey(void)
+{
+	// Allocate PSK credentials
+	Assert(gnutls_psk_allocate_client_credentials(&mCreds) == GNUTLS_E_SUCCESS);
+	
+	// Set PSK credentials client-side callback
+	gnutls_psk_set_client_credentials_function(mCreds, PrivateSharedKeyClientCallback);
+}
+
 SecureTransportClient::PrivateSharedKey::PrivateSharedKey(const String &username, const BinaryString &key)
 {
 	// Allocate PSK credentials
@@ -614,7 +675,7 @@ SecureTransportServer::~SecureTransportServer(void)
 	
 }
 
-bool SecureTransportServer::isClient(void)
+bool SecureTransportServer::isClient(void) const
 {
 	return false; 
 }
@@ -765,10 +826,14 @@ void SecureTransportServer::Anonymous::install(gnutls_session_t session, String 
 	priorities+= ":+ANON-DH:+ANON-ECDH";
 }
 
-SecureTransportServer::PrivateSharedKey::PrivateSharedKey(void)
+SecureTransportServer::PrivateSharedKey::PrivateSharedKey(const String &hint)
 {
 	// Allocate PSK credentials
 	Assert(gnutls_psk_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
+	
+	// Set hint if supplied
+	if(!hint.empty())
+		Assert(gnutls_psk_set_server_credentials_hint(mCreds, hint.c_str()) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
 	ParamsMutex.lock();

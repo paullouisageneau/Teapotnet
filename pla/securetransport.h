@@ -86,11 +86,12 @@ public:
 	
 	void setHostname(const String &hostname);	// remote hostname for client
 	
-	virtual bool isClient(void);
-	bool isHandshakeDone(void);
-	bool isAnonymous(void);
-	bool hasPrivateSharedKey(void);
-	bool hasCertificate(void);
+	virtual bool isClient(void) const;
+	bool isHandshakeDone(void) const;
+	bool isAnonymous(void) const;
+	bool hasPrivateSharedKey(void) const;
+	bool hasCertificate(void) const;
+	String getPrivateSharedKeyHint(void) const;	// only valid on client-side
 	
 	size_t readData(char *buffer, size_t size); 
 	void writeData(const char *data, size_t size);
@@ -102,6 +103,7 @@ public:
 		virtual bool verifyCertificate(const Rsa::PublicKey &pub) { return false; }
 		virtual bool verifyPublicKey(const Rsa::PublicKey &pub) { return false; }
 		virtual bool verifyPrivateSharedKey(const String &username, BinaryString &key) { return false; }
+		virtual bool verifyPrivateSharedKey(String &username, BinaryString &key, const String &hint) { return verifyPrivateSharedKey(username, key); }
 		virtual bool verifyName(const String &name, SecureTransport *transport) { return true; }	// default is true
         };
 	
@@ -115,6 +117,7 @@ protected:
 	
 	static int CertificateCallback(gnutls_session_t session);
 	static int PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
+	static int PrivateSharedKeyClientCallback(gnutls_session_t session, char** username, gnutls_datum_t* datum); 
 	
 	static const String DefaultPriorities;
 	static gnutls_dh_params_t Params;
@@ -149,6 +152,7 @@ public:
 	class PrivateSharedKey : public Credentials
         {
         public:
+		PrivateSharedKey(void);
                 PrivateSharedKey(const String &name, const BinaryString &key);
                 ~PrivateSharedKey(void);
 	
@@ -178,7 +182,7 @@ public:
 	class PrivateSharedKey : public Credentials
 	{
 	public:
-		PrivateSharedKey(void);
+		PrivateSharedKey(const String &hint = "");
 		~PrivateSharedKey(void);
 		
 	protected:
@@ -193,7 +197,7 @@ public:
 	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false);	// creds will be deleted
 	~SecureTransportServer(void);
 	
-	bool isClient(void);
+	bool isClient(void) const;
 	
 protected:
 	static int PostClientHelloCallback(gnutls_session_t session);
