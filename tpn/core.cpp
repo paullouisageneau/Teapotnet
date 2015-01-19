@@ -1139,7 +1139,9 @@ void Core::Listener::listen(const Identifier &peer)
 }
 
 Core::Backend::Backend(Core *core) :
-	mCore(core)
+	mCore(core),
+	mAnonymousClientCreds(),
+	mPrivateSharedKeyServerCreds(String::hexa(core->getNumber()))
 {
 	Assert(mCore);
 }
@@ -1153,10 +1155,9 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 {
 	if(!locator.peering.empty())
 	{
-		LogDebug("Core::Backend::process", "Setting PSK credentials: " + locator.peering.toString());
-		
 		Identifier local(locator.peering, mCore->getNumber());
-
+		LogDebug("Core::Backend::process", "Setting PSK credentials: " + local.toString());
+		
 		// Add contact private shared key
 		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(local.toString(), locator.secret);
 		transport->addCredentials(creds, true);	// must delete
@@ -1167,7 +1168,7 @@ bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
 	{
 		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
 		
-		// Set remote name
+		// Set remote name and local instance hint
 		String name = locator.identifier.digest().toString() + "#" + String::hexa(mCore->getNumber());
 		transport->setHostname(name);
 		
@@ -1202,8 +1203,8 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		
 		bool verifyName(const String &name, SecureTransport *transport)
 		{
-			String digest = name;
-			String number = digest.cut('#');
+			String digest = name;			// local digest
+			String number = digest.cut('#');	// remote instance
 			if(!number.empty())
 			{
 				number.hexaMode(true);
@@ -1326,17 +1327,9 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 				
 				// Do handshake
 				transport->handshake();
-				
-				if(!transport->hasCertificate())
+
+				if(transport->hasCertificate())
 				{
-					// Assign identifiers if client
-					if(transport->isClient())
-					{
-						verifier.local = local;
-						verifier.remote = remote;
-					}
-				}
-				else {
 					// Assign local if client
 					if(transport->isClient())
 					{
@@ -1347,26 +1340,40 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 					// Check remote identifier
 					if(remote != Identifier::Null && verifier.remote != remote)
 						throw Exception("Invalid identifier: " + verifier.remote.toString());
-				}
-				
-				// Handshake succeeded, add peer
-				LogDebug("Core::Backend::doHandshake", "Handshake succeeded");
-				
-				// Sanity checks
-				if(transport->hasCertificate()) 
-				{
+					
+					// Sanity checks
 					Assert(verifier.local != Identifier::Null);
 					Assert(verifier.remote != Identifier::Null);
 				}
 				else if(transport->hasPrivateSharedKey())
 				{
+					// Assign identifiers if client
+					if(transport->isClient())
+					{
+						verifier.local = local;
+						verifier.remote = remote;
+						
+						// Remote instance is transmitted in PSK hint
+						String hint = transport->getPrivateSharedKeyHint();
+						if(hint.empty())
+							throw Exception("Missing PSK hint");
+						
+						uint64_t number = 0;
+						hint.hexaMode(true);
+						hint.read(number);
+					}
+					
+					// Sanity checks
 					Assert(verifier.local.digest() == verifier.remote.digest());
 				}
 				else {
+					// Sanity checks
 					Assert(verifier.local == Identifier::Null);
 					Assert(verifier.remote == Identifier::Null);
 				}
 				
+				// Handshake succeeded, add peer
+				LogDebug("Core::Backend::doHandshake", "Handshake succeeded");
 				core->addPeer(transport, verifier.local, verifier.remote);
 				return true;
 			}
