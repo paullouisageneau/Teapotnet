@@ -1361,6 +1361,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 						uint64_t number = 0;
 						hint.hexaMode(true);
 						hint.read(number);
+						verifier.remote.setNumber(number);
 					}
 					
 					// Sanity checks
