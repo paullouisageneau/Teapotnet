@@ -848,6 +848,7 @@ bool AddressBook::PinIsValid(uint64_t pin)
 
 AddressBook::Invitation::Invitation(void) :
 	mAddressBook(NULL),
+	mIsSelf(false),
 	mFound(false)
 {
 
@@ -869,6 +870,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 	mAddressBook(NULL),
 	mName(name),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
+	mIsSelf(false),
 	mFound(false)
 {
 	mPeering = identifier;	// In this case, peering is set to the identifier and secret is empty.
@@ -880,6 +882,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code
 	mAddressBook(NULL),
 	mName(code),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
+	mIsSelf(false),
 	mFound(false)
 {
 	generate(code, String::number64(pin, 10));
@@ -891,6 +894,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	mAddressBook(NULL),
 	mName(name),
 	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
+	mIsSelf(false),
 	mFound(false)
 {
 	String salt = "Teapotnet/" + std::min(addressBook->userName(), name) + "/" + std::max(addressBook->userName(), name);
@@ -1218,11 +1222,14 @@ void AddressBook::Invitation::serialize(Serializer &s) const
 {
 	Synchronize(mAddressBook);  
 	
+	ConstSerializableWrapper<bool> isSelfWrapper(mIsSelf);
+	
 	Serializer::ConstObjectMapping mapping;
 	mapping["name"] = &mName;
 	mapping["secret"] = &mSecret;
 	mapping["peering"] = &mPeering;
 	mapping["tracker"] = &mTracker;
+	mapping["isself"] = &isSelfWrapper;
 	
 	s.outputObject(mapping); 
 }
@@ -1231,11 +1238,14 @@ bool AddressBook::Invitation::deserialize(Serializer &s)
 {
 	Synchronize(mAddressBook);
 
+	SerializableWrapper<bool> isSelfWrapper(&mIsSelf);
+	
 	Serializer::ObjectMapping mapping;
 	mapping["name"] = &mName;
 	mapping["secret"] = &mSecret;
 	mapping["peering"] = &mPeering;
 	mapping["tracker"] = &mTracker;
+	mapping["isself"] = &isSelfWrapper;
 	
 	if(!s.inputObject(mapping))
 		return false;
