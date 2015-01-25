@@ -330,7 +330,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					if(!user()->checkToken(request.post["token"], "contact")) 
 						throw 403;
 					
-			  		String action = request.post["action"];
+					String action = request.post["action"];
 					if(action == "createinvitation")
 					{
 						String salt   = String::random(8,  Random::Key);
@@ -338,7 +338,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						String code   = salt + secret;
 						String check  = Sha256().compute(code).toString();
 						code+= check.toLower().substr(0, 8);
-	
+						
 						LogDebug("AddressBook::http", "Generating new invitation: " + salt);
 						Assert(code.size() == 32);
 						
@@ -347,11 +347,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						save();
 						
 						Http::Response response(request, 200);
-                        			response.send();
-
-                        			Html page(response.stream);
-                        			page.header("New invitation");
-						page.text("Code: " + code + "\n");
+						response.send();
+						
+						Html page(response.stream);
+						page.header("New invitation");
+						page.open("div", "invitation");
+						page.div(code, ".code");
+						page.link(prefix + '/', "OK", ".button");
+						page.close("div");
 						page.footer();
 						return;
 					}
@@ -370,7 +373,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						String salt   = code.substr(0, 8);
 						String secret = code.substr(8, 16);
-						String check  = Sha256().compute(secret + salt).toString();
+						String check  = Sha256().compute(salt + secret).toString();
 						if(check != code.substr(24, 8))
 							throw Exception("Invalid invitation code");
 
@@ -381,7 +384,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}
 					else if(action == "createsynchronization")
 					{
-						String secret = String::random(32, Random::Crypto);
+						String secret = String::random(24, Random::Key);
 						
 						LogDebug("AddressBook::http", "Generating new synchronization secret");
 						Invitation invitation(this, user()->name(), secret, user()->tracker());
@@ -395,14 +398,19 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						Html page(response.stream);
 						page.header("New synchronization");
-						page.text("Secret: " + secret + "\n");
+						page.div(secret, "invitationcode");
+						page.link(prefix + '/', "OK", ".button");
 						page.footer();
 						return;
 					}
 					else if(action == "acceptsynchronization")
 					{
 						String secret = request.post["secret"];
+						
 						secret.trim();
+						if(secret.size() != 24)
+							throw Exception("Invalid synchronization secret");
+						
 						if(!secret.empty())
 						{
 							LogDebug("AddressBook::http", "Accepting synchronization");
@@ -660,7 +668,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			{
 				page.open("div",".box");
                                 page.open("h2");
-                                page.text("Invitations");
+                                page.text("Pending invitations");
                                 page.close("h2");
 				page.open("table",".invitations");
 				

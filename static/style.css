@@ -1463,6 +1463,19 @@ form #trackerlink
 	background-color: #FF8080 !important;
 }
 
+#invitation
+{
+	text-align: center;
+}
+
+#invitation .code
+{
+	margin-top: 1em;
+	margin-bottom: 1em;
+	font-family: monospace;
+	font-size: 4em;
+}
+
 #howtotext
 {
 	margin-top: 1em;
