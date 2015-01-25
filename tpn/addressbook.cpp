@@ -333,41 +333,49 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			  		String action = request.post["action"];
 					if(action == "createinvitation")
 					{
-						uint64_t pin = PinGenerate();
-						String code = String::random(32, Random::Crypto);
+						String salt   = String::random(8,  Random::Key);
+						String secret = String::random(16, Random::Key);
+						String code   = salt + secret;
+						String check  = Sha256().compute(code).toString();
+						code+= check.toLower().substr(0, 8);
+	
+						LogDebug("AddressBook::http", "Generating new invitation: " + salt);
+						Assert(code.size() == 32);
 						
-						LogDebug("AddressBook::http", "Generating new invitation with code: " + code);
-						mInvitations.push_back(Invitation(this, code, pin, user()->tracker()));
+						mInvitations.push_back(Invitation(this, salt, secret, user()->tracker()));
 						(--mInvitations.end())->init();
 						save();
-
+						
 						Http::Response response(request, 200);
                         			response.send();
 
                         			Html page(response.stream);
                         			page.header("New invitation");
 						page.text("Code: " + code + "\n");
-						page.text("PIN: " + String::number64(pin, 10) + "\n");
 						page.footer();
 						return;
 					}
 					else if(action == "acceptinvitation")
 					{
-						uint64_t pin;
 						String code;
 						String tracker;
-						request.post["pin"] >> pin;
 						request.post["code"] >> code;
 
 						tracker = request.post["tracker"];
 						if(tracker.empty()) tracker = user()->tracker(); 
 
 						code.trim();
-						if(code.size() != 32) throw Exception("Invalid invitation code");
-						if(!PinIsValid(pin)) throw Exception("Invalid invitation PIN");
+						if(code.size() != 32)
+							throw Exception("Invalid invitation code");
+						
+						String salt   = code.substr(0, 8);
+						String secret = code.substr(8, 16);
+						String check  = Sha256().compute(secret + salt).toString();
+						if(check != code.substr(24, 8))
+							throw Exception("Invalid invitation code");
 
-						LogDebug("AddressBook::http", "Accepting invitation with code: " + code);
-						mInvitations.push_back(Invitation(this, code, pin, tracker));
+						LogDebug("AddressBook::http", "Accepting invitation: " + salt);
+						mInvitations.push_back(Invitation(this, salt, secret, tracker));
 						(--mInvitations.end())->init();
 						save();
 					}
@@ -586,7 +594,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", token);
 			page.input("hidden", "action", "acceptinvitation");
 			page.label("code", "Code"); page.input("text", "code"); page.br();
-			page.label("pin", "PIN"); page.input("text", "pin", "", true); page.br();
 			page.label("accept"); page.button("accept", "Accept invitation");
 			page.closeForm();
 			page.close("div");
@@ -816,36 +823,6 @@ void AddressBook::run(void)
 	publish(user()->identifier(), user()->tracker()); 
 }
 
-uint64_t AddressBook::PinGenerate(void)
-{
-	const unsigned digits = 10;
-
-	Random rnd(Random::Crypto);
-	uint64_t max = 1;
-	for(int i=0; i<digits-1; ++i) max*= 10;
-	uint64_t val = rnd.uniform(uint64_t(1), max);
-	return val * 10 + PinChecksum(val);
-}
-
-uint64_t AddressBook::PinChecksum(uint64_t pin)
-{
-	uint64_t accum = 0;
-	while (pin)
-	{
-		accum += 3 * (pin % 10);
-		pin /= 10;
-		accum += pin % 10;
-		pin /= 10;
-	}
-
-	return (10 - accum % 10) % 10;
-}
-
-bool AddressBook::PinIsValid(uint64_t pin)
-{
-	return PinChecksum(pin / 10) == (pin % 10);
-}
-
 AddressBook::Invitation::Invitation(void) :
 	mAddressBook(NULL),
 	mIsSelf(false),
@@ -878,18 +855,6 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &
 	setAddressBook(addressBook);
 }
 
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &code, uint64_t pin, const String &tracker) :
-	mAddressBook(NULL),
-	mName(code),
-	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
-	mIsSelf(false),
-	mFound(false)
-{
-	generate(code, String::number64(pin, 10));
-	
-	setAddressBook(addressBook);
-}
-
 AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
 	mAddressBook(NULL),
 	mName(name),
@@ -897,8 +862,7 @@ AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name
 	mIsSelf(false),
 	mFound(false)
 {
-	String salt = "Teapotnet/" + std::min(addressBook->userName(), name) + "/" + std::max(addressBook->userName(), name);
-	generate(salt, secret);
+	generate(name, secret);
 	
 	setAddressBook(addressBook);
 }

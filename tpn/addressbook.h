@@ -84,10 +84,6 @@ public:
 				const String &name,
 				const String &tracker = "");
 		Invitation(	AddressBook *addressBook,
-				const String &code,
-				uint64_t pin,
-				const String &tracker = "");
-		Invitation(	AddressBook *addressBook,
 				const String &name,
 				const String &secret,
 				const String &tracker = "");
@@ -255,11 +251,6 @@ private:
 	bool publish(const Identifier &identifier, const String &tracker);
 	bool query(const Identifier &identifier, const String &tracker, Serializable &result);	
 	void run(void);
-	
-	// Pin
-	static uint64_t PinGenerate(void);
-	static uint64_t PinChecksum(uint64_t pin);
-	static bool PinIsValid(uint64_t pin);
 	
 	User *mUser;
 	String mFileName;

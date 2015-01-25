@@ -60,7 +60,8 @@ public:
 	int64_t compute(Stream &stream, BinaryString &digest);
 	int64_t compute(Stream &stream, int64_t max, char *digest);
         int64_t compute(Stream &stream, int64_t max, BinaryString &digest);
-
+	BinaryString compute(const BinaryString &str);
+	
 	// HMAC
 	virtual void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest) = 0;
 	virtual void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest) = 0;

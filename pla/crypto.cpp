@@ -92,6 +92,13 @@ int64_t Hash::compute(Stream &stream, int64_t max, BinaryString &digest)
         return compute(stream, max, digest.ptr());
 }
 
+BinaryString Hash::compute(const BinaryString &str)
+{
+	BinaryString result;
+	compute(str.data(), str.size(), result);
+	return result;
+}
+
 size_t Sha1::length(void) const
 {
 	return size_t(SHA1_DIGEST_SIZE);
