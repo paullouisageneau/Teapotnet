@@ -146,6 +146,7 @@ public:
 		
 		virtual bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target) = 0;
 		virtual Identifier remote(void) const;
+		virtual bool localOnly(void) const;
 		
 	protected:
 		bool fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
@@ -257,6 +258,7 @@ private:
 		
 		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
 		Identifier remote(void) const;
+		bool localOnly(void) const;
 		
 	private:
 		Identifier mRemote;

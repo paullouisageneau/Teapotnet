@@ -363,11 +363,14 @@ void Core::subscribe(String prefix, Subscriber *subscriber)
 	// Local publishers
 	matchPublishers(prefix, Identifier::Null, subscriber);
 	
-	// Immediatly send subscribe message
-	BinaryString payload;
-	BinarySerializer serializer(&payload);
-	serializer.write(prefix);
-	outgoing(Message::Lookup, Message::Subscribe, payload);
+	if(!subscriber->localOnly())
+	{
+		// Immediatly send subscribe message
+		BinaryString payload;
+		BinarySerializer serializer(&payload);
+		serializer.write(prefix);
+		outgoing(Message::Lookup, Message::Subscribe, payload);
+	}
 }
 
 void Core::unsubscribe(String prefix, Subscriber *subscriber)
@@ -979,6 +982,11 @@ Identifier Core::Subscriber::remote(void) const
 	return Identifier::Null;
 }
 
+bool Core::Subscriber::localOnly(void) const
+{
+	return false;
+}
+
 bool Core::Subscriber::fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
 	// Test local availability
@@ -1079,6 +1087,11 @@ Identifier Core::RemoteSubscriber::remote(void) const
 {
 	if(!mPublicOnly) return mRemote;
 	else return Identifier::Null;
+}
+
+bool Core::RemoteSubscriber::localOnly(void) const
+{
+	return true;
 }
 
 Core::Caller::Caller(void)
