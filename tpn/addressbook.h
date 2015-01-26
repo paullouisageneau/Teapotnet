@@ -237,8 +237,8 @@ public:
 	bool removeContact(const String &uname);
 	Contact *getContact(const String &uname);
 	const Contact *getContact(const String &uname) const;
-	void getContacts(Array<AddressBook::Contact*> &result);
-	void getContactsIdentifiers(Array<Identifier> &result) const;
+	int getContacts(Array<AddressBook::Contact*> &result);
+	int getContactsIdentifiers(Array<Identifier> &result) const;
 	
 	void setSelf(const Rsa::PublicKey &pubKey);
 	Contact *getSelf(void);

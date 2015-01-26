@@ -158,13 +158,11 @@ bool AddressBook::removeContact(const String &uname)
 	Synchronize(this);
 	
 	Map<String, Contact>::iterator it = mContacts.find(uname);
-	if(it != mContacts.end())
-	{
-		mContactsByIdentifier.erase(it->second.identifier());
-		mContacts.erase(it);
-		return false;
-	}
+	if(it == mContacts.end()) return false;
 	
+	mContactsByIdentifier.erase(it->second.identifier());
+	mContacts.erase(it);
+	save();
 	return true;
 }
 
@@ -186,16 +184,18 @@ const AddressBook::Contact *AddressBook::getContact(const String &uname) const
 	return NULL;
 }
 
-void AddressBook::getContacts(Array<AddressBook::Contact*> &result)
+int AddressBook::getContacts(Array<AddressBook::Contact*> &result)
 {
 	Synchronize(this);
 	mContactsByIdentifier.getValues(result);
+	return result.size();
 }
 
-void AddressBook::getContactsIdentifiers(Array<Identifier> &result) const
+int AddressBook::getContactsIdentifiers(Array<Identifier> &result) const
 {
 	Synchronize(this);
 	mContactsByIdentifier.getKeys(result);
+	return result.size();
 }
 
 void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
@@ -295,7 +295,7 @@ bool AddressBook::deserialize(Serializer &s)
 		Contact *contact = &it->second;
 		contact->setAddressBook(this);
 		contact->init();
-		mContactsByIdentifier[contact->uniqueName()] = contact;
+		mContactsByIdentifier.insert(contact->identifier(), contact);
 	}
 	
 	// Set addressbook in invitations
@@ -335,9 +335,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					{
 						String salt   = String::random(8,  Random::Key);
 						String secret = String::random(16, Random::Key);
-						String code   = salt + secret;
-						String check  = Sha256().compute(code).toString();
-						code+= check.toLower().substr(0, 8);
+						String check  = Sha256().compute(salt + secret).toString().toLower().substr(0, 8);
+						String code   = salt + secret + check;
 						
 						LogDebug("AddressBook::http", "Generating new invitation: " + salt);
 						Assert(code.size() == 32);
@@ -352,6 +351,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						Html page(response.stream);
 						page.header("New invitation");
 						page.open("div", "invitation");
+						page.text("Here is a new invitation secret code. Your contact must enter this code in his teapotnet instance to accept the invitation.");
 						page.div(code, ".code");
 						page.link(prefix + '/', "OK", ".button");
 						page.close("div");
@@ -373,7 +373,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						String salt   = code.substr(0, 8);
 						String secret = code.substr(8, 16);
-						String check  = Sha256().compute(salt + secret).toString();
+						String check  = Sha256().compute(salt + secret).toString().toLower().substr(0, 8);
 						if(check != code.substr(24, 8))
 							throw Exception("Invalid invitation code");
 
@@ -384,7 +384,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}
 					else if(action == "createsynchronization")
 					{
-						String secret = String::random(24, Random::Key);
+						String secret = String::random(16, Random::Key);
+						String check  = Sha256().compute(secret).toString().toLower().substr(0, 8);
+						String code = secret + check;
 						
 						LogDebug("AddressBook::http", "Generating new synchronization secret");
 						Invitation invitation(this, user()->name(), secret, user()->tracker());
@@ -398,28 +400,32 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						Html page(response.stream);
 						page.header("New synchronization");
-						page.div(secret, "invitationcode");
+						page.open("div", "invitation");
+						page.div(code, ".code");
 						page.link(prefix + '/', "OK", ".button");
+						page.close("div");
 						page.footer();
 						return;
 					}
 					else if(action == "acceptsynchronization")
 					{
-						String secret = request.post["secret"];
+						String code = request.post["code"];
 						
-						secret.trim();
-						if(secret.size() != 24)
-							throw Exception("Invalid synchronization secret");
+						code.trim();
+						if(code.size() != 24)
+							throw Exception("Invalid synchronization code");
 						
-						if(!secret.empty())
-						{
-							LogDebug("AddressBook::http", "Accepting synchronization");
-							Invitation invitation(this, user()->name(), secret, user()->tracker());
-							invitation.setSelf(true);
-							mInvitations.push_back(invitation);
-							(--mInvitations.end())->init();
-							save();
-						}
+						String secret = code.substr(0, 16);
+						String check  = Sha256().compute(secret).toString().toLower().substr(0, 8);
+						if(check != code.substr(16, 8))
+							throw Exception("Invalid synchronization code");
+						
+						LogDebug("AddressBook::http", "Accepting synchronization");
+						Invitation invitation(this, user()->name(), secret, user()->tracker());
+						invitation.setSelf(true);
+						mInvitations.push_back(invitation);
+						(--mInvitations.end())->init();
+						save();
 						
 						Http::Response response(request, 303);
 						response.headers["Location"] = user()->urlPrefix();
@@ -481,11 +487,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			Html page(response.stream);
 			page.header("Contacts");
-			
-			// Loading will block here if a contact is added at the same time
-			Array<Contact*> contacts;
-			getContacts(contacts);
-			
+
 			String token = user()->generateToken("contact");
 
 			// Parameters that are to be sent in friend request
@@ -506,7 +508,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 
 			page.open("div", ".howtorequests");
-			page.text("In this section, you can either add your friends or send invitations to them. These invitations contain a personalized code that enable them to reach you and ensure your communications are encrypted. You will have to confirm request by pasting a code in the 'Accept Request' section.");
+			page.text("Here you can either send or accept invitations. Inviting someone is as easy as getting a new invitation secret code here and sending it to your contact. To accept an invitation, simply enter the secret code in the appropriate section.");
 			page.close("div");
 
 			/*page.open("div","invitationmethods");
@@ -621,89 +623,97 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", token);
 			page.closeForm();
 			
-			if(!contacts.empty())
+			// Synchronized block
 			{
-				page.open("div",".box");
-				page.open("h2");
-				page.text("Contacts");
-				page.close("h2");
-				
-				page.open("table",".contacts");
-				
-				for(int i=0; i<contacts.size(); ++i)
-				{
-					Contact *contact = contacts[i];
-					if(contact->isSelf()) continue;
-					
-					page.open("tr");
-					page.open("td",".name");
-					page.text(contact->name());
-					page.close("td");
-					page.open("td",".uname");
-					page.link(contact->urlPrefix(), contact->uniqueName());
-					page.close("td");
-					page.open("td",".actions");
-					page.openLink('#', ".deletelink");
-					page.image("/delete.png", "Delete");
-					page.closeLink();
-					page.close("td");
-					page.close("tr");
-				}
-				
-				page.close("table");
-				page.close("div");
-				
-				page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
-					event.stopPropagation();\n\
-					var uname = $(this).closest('tr').find('td.uname').text();\n\
-					if(confirm('Do you really want to delete '+uname+' ?')) {\n\
-						document.actionForm.action.value = 'deletecontact';\n\
-						document.actionForm.argument.value = uname;\n\
-						document.actionForm.submit();\n\
-					}\n\
-				});");
-			}
+				Synchronize(this);
 			
-			if(!mInvitations.empty())
-			{
-				page.open("div",".box");
-                                page.open("h2");
-                                page.text("Pending invitations");
-                                page.close("h2");
-				page.open("table",".invitations");
+				Array<Contact*> contacts;
+				getContacts(contacts);
 				
-				for(int i=0; i<mInvitations.size(); ++i)
+				if(!contacts.empty())
 				{
-					Invitation *invitation = &mInvitations[i];
-
-					page.open("tr");
-					page.open("td",".name");
-					if(invitation->isSelf()) page.text("(synchronization)");
-					else page.text(invitation->name());
-					page.close("td");
-					page.open("td",".peering");
-					page.text(invitation->peering());
-					page.close("td");
-					page.open("td",".actions");
-					page.openLink('#', ".deletelink");
-					page.image("/delete.png", "Delete");
-					page.closeLink();
-					page.close("td");
-					page.close("tr");
+					page.open("div",".box");
+					page.open("h2");
+					page.text("Contacts");
+					page.close("h2");
+					
+					page.open("table",".contacts");
+					
+					for(int i=0; i<contacts.size(); ++i)
+					{
+						Contact *contact = contacts[i];
+						if(contact->isSelf()) continue;
+						
+						page.open("tr");
+						page.open("td",".name");
+						page.text(contact->name());
+						page.close("td");
+						page.open("td",".uname");
+						page.link(contact->urlPrefix(), contact->uniqueName());
+						page.close("td");
+						page.open("td",".actions");
+						page.openLink('#', ".deletelink");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
+						page.close("td");
+						page.close("tr");
+					}
+					
+					page.close("table");
+					page.close("div");
+					
+					page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+						event.stopPropagation();\n\
+						var uname = $(this).closest('tr').find('td.uname').text();\n\
+						if(confirm('Do you really want to delete '+uname+' ?')) {\n\
+							document.actionForm.action.value = 'deletecontact';\n\
+							document.actionForm.argument.value = uname;\n\
+							document.actionForm.submit();\n\
+						}\n\
+					});");
 				}
 				
-				page.close("table");
-				page.close("div");
-				
-				page.javascript("$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
-					event.stopPropagation();\n\
-					var peering = $(this).closest('tr').find('td.peering').text();\n\
-					if(confirm('Do you really want to delete this invitation ?')) {\n\
-						document.actionForm.action.value = 'deleteinvitation';\n\
-						document.actionForm.argument.value = peering;\n\
-						document.actionForm.submit();\n\
-					}\n\
-				});");
+				if(!mInvitations.empty())
+				{
+					page.open("div",".box");
+					page.open("h2");
+					page.text("Pending invitations");
+					page.close("h2");
+					page.open("table",".invitations");
+					
+					for(int i=0; i<mInvitations.size(); ++i)
+					{
+						Invitation *invitation = &mInvitations[i];
+						
+						page.open("tr");
+						page.open("td",".name");
+						if(invitation->isSelf()) page.text("(synchronization)");
+						else page.text(invitation->name());
+						page.close("td");
+						page.open("td",".peering");
+						page.text(invitation->peering());
+						page.close("td");
+						page.open("td",".actions");
+						page.openLink('#', ".deletelink");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
+						page.close("td");
+						page.close("tr");
+					}
+					
+					page.close("table");
+					page.close("div");
+					
+					page.javascript("$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+						event.stopPropagation();\n\
+						var peering = $(this).closest('tr').find('td.peering').text();\n\
+						if(confirm('Do you really want to delete this invitation ?')) {\n\
+							document.actionForm.action.value = 'deleteinvitation';\n\
+							document.actionForm.argument.value = peering;\n\
+							document.actionForm.submit();\n\
+						}\n\
+					});");
+				}
 			}
 			
 			page.footer();

@@ -107,14 +107,14 @@ void Interface::http(const String &prefix, Http::Request &request)
 						
 						page.openForm(user->addressBook()->urlPrefix(), "post");
 						page.open("p");
-						page.text("If you have Teapotnet installed on another device, generate a synchronization secret and enter it here.");
+						page.text("If you have Teapotnet installed on another device, generate a synchronization secret code and enter it here.");
 						page.br();
 						page.text("If you don't, and this is your first Teapotnet installation, just let the field empty.");
 						page.br();
 						page.close("p");
 						page.input("hidden", "token", user->generateToken("contact"));
 						page.input("hidden", "action", "acceptsynchronization");
-						page.input("text", "secret");
+						page.input("text", "code");
 						page.button("validate", "Validate");
 						page.closeForm();
 						
