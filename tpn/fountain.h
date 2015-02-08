@@ -115,7 +115,7 @@ public:
 		Source(File *file, int64_t offset, int64_t size);	// file will be deleted
 		~Source(void);
 		
-		void generate(Stream &output, unsigned *token);	// Generate combination from seed
+		void generate(Stream &output, unsigned *token);		// Generate combination
 		
 	private:
 		File *mFile;

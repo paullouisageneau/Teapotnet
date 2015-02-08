@@ -374,56 +374,24 @@ private:
 	class Handler : public Task, protected Synchronizable
 	{
 	public:
-		Handler(Core *core, Stream *stream, const Identifier &local, const Identifier &remote);
+		Handler(Core *core, Stream *stream, ThreadPool *pool, const Identifier &local, const Identifier &remote);
 		~Handler(void);
 		
 		Identifier local(void) const;
 		Identifier remote(void) const;
 		
-		// Notify
-		void notify(const Identifier &id, Stream &payload, bool ack = true);
-		
 		class Sender : public Task, protected Synchronizable
 		{
 		public:
-			Sender(Handler *handler, const BinaryString &destination);
+			Sender(Stream *stream);
 			~Sender(void);
 			
-			void addTarget(const BinaryString &target, unsigned tokens = 1);
-			void removeTarget(const BinaryString &target);
-			void addTokens(unsigned tokens);
-			void removeTokens(unsigned tokens);
-			bool empty(void) const;
+			bool push(const Message &message);
 			void run(void);
 			
-			void notify(Stream &payload, bool ack = true);
-			void ack(Stream &payload);
-			void acked(Stream &payload);
-			
 		private:
-			Handler *mHandler;
-			BinaryString mDestination;
-			Map<BinaryString, unsigned> mTargets;
-			BinaryString mNextTarget;
-			unsigned mTokens;
-			
-			class SendTask : public Task
-			{
-			public:
-				SendTask(Sender *sender, uint32_t sequence, const Message &message, double delay, int count);
-				~SendTask(void);
-				void run(void);
-				
-			private:
-				Sender *mSender;
-				Message mMessage;
-				int mLeft;
-				uint32_t mSequence;
-			};
-			
-			Scheduler mScheduler;
-			Map<uint32_t, SendTask> mUnacked;
-			uint32_t mCurrentSequence;
+			Stream  *mStream;
+			Queue<Message> mQueue, mSecondaryQueue;
 		};
 		
 	private:
@@ -431,20 +399,16 @@ private:
 		bool send(const Message &message);
 		void route(const Message &message);
 		bool incoming(const Message &message);
-		void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
+		bool outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 		
 		void process(void);
 		void run(void);
 		
 		Core	*mCore;
 		Stream  *mStream;
-		Mutex	mStreamReadMutex, mStreamWriteMutex;
+		Sender	*mSender;
 
 		Identifier mLocal, mRemote;
-		
-		Map<BinaryString, Sender*> mSenders;
-		
-		Runner mRunner;
 		
 		bool mIsIncoming;
 		bool mIsAnonymous;

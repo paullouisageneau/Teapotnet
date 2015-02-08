@@ -718,7 +718,7 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 	return 0;
 }
 
-SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool requestClientCertificate)
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool requestClientCertificate, double connexionTimeout)
 {
 	while(true)
 	{
@@ -727,6 +727,8 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool request
 		try {
 			sock = new Socket;
 			lsock.accept(*sock);
+			if(connexionTimeout > 0.)
+				sock->setReadTimeout(connexionTimeout);
 		}
 		catch(...)
 		{

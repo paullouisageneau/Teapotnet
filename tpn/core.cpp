@@ -573,8 +573,7 @@ bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &re
 	Assert(stream);
 	
 	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, stream, Identifier(local, getNumber()), remote);
-	mThreadPool.launch(handler);
+	Handler *handler = new Handler(this, stream,  &mThreadPool, Identifier(local, getNumber()), remote);
 	return true;
 }
 
@@ -1780,7 +1779,7 @@ bool Core::TunnelBackend::TunnelWrapper::incoming(const Message &message)
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Stream *stream, const Identifier &local, const Identifier &remote) :
+Core::Handler::Handler(Core *core, Stream *stream, ThreadPool *pool, const Identifier &local, const Identifier &remote) :
 	mCore(core),
 	mStream(stream),
 	mLocal(local),
@@ -1788,12 +1787,14 @@ Core::Handler::Handler(Core *core, Stream *stream, const Identifier &local, cons
 	mIsIncoming(true),
 	mStopping(false)
 {
-
+	mSender = new Sender(stream);
+	pool->launch(this);
+	pool->launch(mSender);
 }
 
 Core::Handler::~Handler(void)
 {
-	mRunner.clear();
+	delete mSender;
 	delete mStream;
 }
 
@@ -1809,21 +1810,12 @@ Identifier Core::Handler::remote(void) const
 	return mRemote;
 }
 
-void Core::Handler::notify(const Identifier &id, Stream &payload, bool ack)
-{
-	Synchronize(this);
-  
-	if(!mSenders.contains(id)) mSenders[id] = new Sender(this, id);
-	mSenders[id]->notify(payload, ack); 
-}
-
 bool Core::Handler::recv(Message &message)
 {
 	Synchronize(this);
 	
 	{
 		Desynchronize(this);
-		MutexLocker lock(&mStreamReadMutex);
 		
 		uint16_t size = 0;
 		
@@ -1876,47 +1868,7 @@ bool Core::Handler::recv(Message &message)
 bool Core::Handler::send(const Message &message)
 {
 	Synchronize(this);
-	
-	// TODO: Handler should use Sender and an outgoing queue
-	
-	uint16_t size = message.payload.size();
-	
-	ByteArray buffer(1500);
-	buffer.writeBinary(message.version);
-	buffer.writeBinary(message.flags);
-	buffer.writeBinary(message.type);
-	buffer.writeBinary(message.content);
-	buffer.writeBinary(message.hops);
-	buffer.writeBinary(size);
-	
-	BinarySerializer serializer(&buffer);
-	if(message.source != Identifier::Null) serializer.write(message.source);
-	else serializer.write(mLocal);
-	serializer.write(message.destination);
-	
-	buffer.writeBinary(message.payload.data(), size);
-	
-	{
-		Desynchronize(this);
-		if(mStreamWriteMutex.tryLock())
-		{
-			try {
-				mStream->writeBinary(buffer.data(), buffer.size());
-			}
-			catch(...)
-			{
-				mStreamWriteMutex.unlock();
-				throw; 
-			}
-			
-			mStreamWriteMutex.unlock();
-			return true;
-		}
-		else {
-			LogDebug("Core::Handler::send", "Dropped message"); 
-			return false;
-		}
-	}
+	return mSender->push(message);
 }
 
 void Core::Handler::route(const Message &message)
@@ -1972,9 +1924,7 @@ bool Core::Handler::incoming(const Message &message)
 		
 		case Message::Ack:
 		{
-			Sender *sender;
-			if(mSenders.get(source, sender))
-				sender->acked(payload);
+			// TODO
 			break;
 		}
 		
@@ -1987,10 +1937,23 @@ bool Core::Handler::incoming(const Message &message)
 			AssertIO(serializer.read(target));
 			AssertIO(serializer.read(tokens));
 			
-			if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
-			mSenders[source]->addTarget(target, tokens);
+			// TODO: function
+			unsigned left = tokens;
+			while(left)
+			{
+				BinaryString payload;
+				BinarySerializer serializer(&payload);
+				serializer.write(target);
+				
+				if(!Store::Instance->pull(target, payload, &left))
+					break;
+				
+				if(!outgoing(source, Message::Forward, Message::Data, payload))
+					break;
+			}
 			
-			// TODO: return false is content is not stored locally (for correct handling of lookups)
+			if(left == tokens)
+				return false;
 			break;
 		}
 		
@@ -2001,18 +1964,19 @@ bool Core::Handler::incoming(const Message &message)
 			BinaryString target;
 			AssertIO(serializer.read(target));
 			
-			Map<BinaryString, Sender*>::iterator it = mSenders.find(source);
+			// TODO
+			/*Map<BinaryString, Sender*>::iterator it = mSenders.find(source);
 			if(it != mSenders.end())
 			{
 				it->second->removeTarget(target);
 				
-				// TODO
-				/*if(it->second->empty())
+				if(it->second->empty())
 				{
 					delete it->second;
 					mSenders.erase(it);
-				}*/
+				}
 			}
+			*/
 			break;
 		}
 		
@@ -2073,14 +2037,14 @@ bool Core::Handler::incoming(const Message &message)
 	return true;
 }
 
-void Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
+bool Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
 	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
 	
 	Message message;
 	message.prepare(mLocal, dest, type, content);
 	message.payload.write(payload);
-	send(message);
+	return send(message);
 }
 
 void Core::Handler::process(void)
@@ -2180,183 +2144,73 @@ void Core::Handler::run(void)
 	delete this;		// autodelete
 }
 
-Core::Handler::Sender::Sender(Handler *handler, const BinaryString &destination) :
-	mHandler(handler),
-	mDestination(destination),
-	mCurrentSequence(0)
+Core::Handler::Sender::Sender(Stream *stream) :
+	mStream(stream)
 {
 	
 }
 
 Core::Handler::Sender::~Sender(void)
 {
-	mHandler->mRunner.cancel(this);
+
 }
 
-void Core::Handler::Sender::addTarget(const BinaryString &target, unsigned tokens)
+bool Core::Handler::Sender::push(const Message &message)
 {
 	Synchronize(this);
 	
-	LogDebug("Core::Handler::Sender", "Adding target " + target.toString() + " (" + String::number(tokens) + " tokens)");
-	mTargets.insert(target, tokens);
-	mHandler->mRunner.schedule(this);
-}
-
-void Core::Handler::Sender::removeTarget(const BinaryString &target)
-{
-	Synchronize(this);
-	mTargets.erase(target);
-}
-
-void Core::Handler::Sender::addTokens(unsigned tokens)
-{
-	Synchronize(this);
-	mTokens+= tokens;
-	mHandler->mRunner.schedule(this);
-}
-
-void Core::Handler::Sender::removeTokens(unsigned tokens)
-{
-	Synchronize(this);
-	if(mTokens > tokens) mTokens-= tokens;
-	else mTokens = 0;
-}
-
-bool Core::Handler::Sender::empty(void) const
-{
-	Synchronize(this);
-	return mTargets.empty() && mUnacked.empty();
-}
-
-void Core::Handler::Sender::notify(Stream &payload, bool ack)
-{
-	uint32_t sequence = 0;
-	if(ack)
+	if(mQueue.size() + mSecondaryQueue.size() > 1024)
 	{
-		++mCurrentSequence;
-		if(!mCurrentSequence) ++mCurrentSequence;
-		sequence = mCurrentSequence;
+		if(!mSecondaryQueue.empty()) mSecondaryQueue.pop();
+		else mQueue.pop();
 	}
 	
-	// TODO: this is deprecated
-	Message message;
-	message.prepare(mHandler->mLocal, mDestination, Message::Forward, Message::Notify);
-	message.payload.writeBinary(uint32_t(sequence));
-	message.payload.write(payload);
+	if(message.content == Message::Data || message.content == Message::Ack) mSecondaryQueue.push(message);
+	else mQueue.push(message);
 	
-	const double delay = 0.5;	// TODO
-	const int count = 5;		// TODO
-	mUnacked.insert(sequence, SendTask(this, sequence, message, delay, count + 1));
-}
-
-void Core::Handler::Sender::ack(Stream &payload)
-{
-	// TODO: this is deprecated
-	uint32_t sequence;
-	AssertIO(payload.readBinary(sequence));
-	
-	BinaryString ack;
-	ack.writeBinary(sequence);
-	
-	mHandler->outgoing(mDestination, Message::Forward, Message::Ack, payload);
-}
-
-void Core::Handler::Sender::acked(Stream &payload)
-{
-	uint32_t sequence;
-	AssertIO(payload.readBinary(sequence));
-	mUnacked.erase(sequence);
+	notifyAll();
+	return true;
 }
 
 void Core::Handler::Sender::run(void)
 {
-	Synchronize(this);
-	
-	// TODO: tokens
-	
-	if(/*!mTokens ||*/ mTargets.empty()) 
-		return;
-	
-	//LogDebug("Core::Handler::Sender", "Running sender (" + String::number(unsigned(mTargets.size())) + " targets)");
-	
-	Map<BinaryString, unsigned>::iterator it;
-	if(!mNextTarget.empty()) 
+	while(true)
 	{
-		it = mTargets.find(mNextTarget);
-		if(it == mTargets.end()) it = mTargets.begin();
-	}
-	else {
-		 it = mTargets.begin();
-	}
-	
-	mNextTarget.clear();
-	
-	if(it->second)
-	{
-		//LogDebug("Core::Handler::Sender", "Sending target " + it->first.toString() + " (" + String::number(it->second) + " tokens left)");
+		Message message;
 		
-		BinaryString payload;
-		BinarySerializer serializer(&payload);
-		serializer.write(it->first);	// target
-		
-		unsigned chunks = 0;
-		if(Store::Instance->pull(it->first, payload, &it->second))
 		{
-			//--mTokens;
-			if(it->second) ++it;
-			else mTargets.erase(it++);
-			if(it != mTargets.end()) mNextTarget = it->first;
+			Synchronize(this);
 			
-			BinaryString dest(mDestination);
-			DesynchronizeStatement(this, mHandler->outgoing(dest, Message::Forward, Message::Data, payload));
-		}
-		else {
-			LogWarn("Core::Handler::Sender", "Unknown target: " + it->first.toString());
+			while(mQueue.empty() && mSecondaryQueue.empty())
+				wait();
 			
-			mTargets.erase(it++);
-			if(it != mTargets.end()) mNextTarget = it->first;
+			if(!mQueue.empty()) 
+			{
+				message = mQueue.front();
+				mQueue.pop();
+			}
+			else {
+				message = mSecondaryQueue.front();
+				mSecondaryQueue.pop();
+			}
 		}
 		
-		// Warning: iterator is not valid anymore here
-	}
-	else {
-		mTargets.erase(it++);
-		if(it != mTargets.end()) mNextTarget = it->first;
-	}
-	
-	mHandler->mRunner.schedule(this);
-}
-
-Core::Handler::Sender::SendTask::SendTask(Sender *sender, uint32_t sequence, const Message &message, double delay, int count) :
-	mSender(sender),
-	mMessage(message),
-	mLeft(count),
-	mSequence(sequence)
-{
-	if(mLeft > 0)
-	{
-		Synchronize(mSender);
-		mSender->mScheduler.schedule(this);
-		mSender->mScheduler.repeat(this, delay);
-	}
-}
-
-Core::Handler::Sender::SendTask::~SendTask(void)
-{
-	Synchronize(mSender);
-	mSender->mScheduler.cancel(this);
-}
-
-void Core::Handler::Sender::SendTask::run(void)
-{  
-	mSender->mHandler->send(mMessage);
-	
-	--mLeft;
-	if(mLeft <= 0)
-	{
-		Synchronize(mSender);
-		mSender->mScheduler.cancel(this);
-		mSender->mUnacked.erase(mSequence);
+		uint16_t size = message.payload.size();
+		
+		ByteArray buffer(1500);
+		buffer.writeBinary(message.version);
+		buffer.writeBinary(message.flags);
+		buffer.writeBinary(message.type);
+		buffer.writeBinary(message.content);
+		buffer.writeBinary(message.hops);
+		buffer.writeBinary(size);
+		
+		BinarySerializer serializer(&buffer);
+		serializer.write(message.source);
+		serializer.write(message.destination);
+		
+		buffer.writeBinary(message.payload.data(), size);
+		mStream->writeBinary(buffer.data(), buffer.size());
 	}
 }
 
