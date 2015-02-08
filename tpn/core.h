@@ -77,9 +77,8 @@ public:
 		static const uint8_t Ack       = 3;
 		static const uint8_t Call      = 4;
 		static const uint8_t Data      = 5;
-		static const uint8_t Cancel    = 6;
-		static const uint8_t Publish   = 7;
-		static const uint8_t Subscribe = 8;
+		static const uint8_t Publish   = 6;
+		static const uint8_t Subscribe = 7;
 		
 		Message(void);
 		~Message(void);
@@ -224,12 +223,12 @@ public:
 	void addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly);
 	
 	// Notification
-	void broadcast(const Notification &notification);
+	bool broadcast(const Notification &notification);
 	bool send(const Identifier &peer, const Notification &notification);
 	
 	// Routing
-	void route(const Message &message, const Identifier &from = Identifier::Null);
-	void broadcast(const Message &message, const Identifier &from = Identifier::Null);
+	bool route(const Message &message, const Identifier &from = Identifier::Null);
+	bool broadcast(const Message &message, const Identifier &from = Identifier::Null);
 	bool send(const Message &message, const Identifier &to);
 	void addRoute(const Identifier &id, const Identifier &route);
 	bool getRoute(const Identifier &id, Identifier &route);
@@ -420,8 +419,8 @@ private:
 	bool addHandler(const Identifier &peer, Handler *Handler);
 	bool removeHandler(const Identifier &peer, Handler *handler);
 	
-	void outgoing(uint8_t type, uint8_t content, Stream &payload);
-	void outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
+	bool outgoing(uint8_t type, uint8_t content, Stream &payload);
+	bool outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
 	
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);

@@ -409,7 +409,7 @@ void Core::addRemoteSubscriber(const Identifier &peer, const String &path, bool 
 	mRemoteSubscribers.begin()->subscribe(path);
 }
 
-void Core::broadcast(const Notification &notification)
+bool Core::broadcast(const Notification &notification)
 {
 	Synchronize(this);
 	
@@ -420,6 +420,7 @@ void Core::broadcast(const Notification &notification)
 	Array<Identifier> identifiers;
 	mHandlers.getKeys(identifiers);
 	
+	bool success = false;
 	for(int i=0; i<identifiers.size(); ++i)
 	{
 		Handler *handler;
@@ -427,9 +428,11 @@ void Core::broadcast(const Notification &notification)
 		{
 			Desynchronize(this);
 			String tmp(payload);
-			handler->outgoing(handler->remote(), Message::Broadcast, Message::Notify, tmp);
+			success|= handler->outgoing(handler->remote(), Message::Broadcast, Message::Notify, tmp);
 		}
 	}
+	
+	return success;
 }
 
 bool Core::send(const Identifier &peer, const Notification &notification)
@@ -445,20 +448,19 @@ bool Core::send(const Identifier &peer, const Notification &notification)
 		JsonSerializer serializer(&payload);
 		serializer.write(notification);
 		
-		handler->outgoing(peer, Message::Forward, Message::Notify, payload);
-		return true;
+		return handler->outgoing(peer, Message::Forward, Message::Notify, payload);
 	}
 	
 	return false;
 }
 
-void Core::route(const Message &message, const Identifier &from)
+bool Core::route(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
 	// Drop if too many hops
 	if(message.hops >= 8)
-		return;
+		return false;
 	
 	if(message.destination != Identifier::Null)
 	{
@@ -466,28 +468,28 @@ void Core::route(const Message &message, const Identifier &from)
 		if(message.content != Message::Tunnel || from != Identifier::Null)
 		{
 			// 1st case: neighbour
-			if(send(message, message.destination))
-				return;
+			if(mHandlers.contains(message.destination))
+				return send(message, message.destination);
 		}
 		
 		// 2nd case: routing table entry exists
 		Identifier route;
 		if(mRoutes.get(message.destination, route))
-			if(send(message, route))
-				return;
+			return send(message, route);
 	}
 	
 	// 3rd case: no routing table entry
-	broadcast(message, from);
+	return broadcast(message, from);
 }
 
-void Core::broadcast(const Message &message, const Identifier &from)
+bool Core::broadcast(const Message &message, const Identifier &from)
 {
 	Synchronize(this);
 	
 	Array<Identifier> identifiers;
 	mHandlers.getKeys(identifiers);
 	
+	bool success = false;
 	for(int i=0; i<identifiers.size(); ++i)
 	{
 		if(identifiers[i] == from) continue;
@@ -499,10 +501,12 @@ void Core::broadcast(const Message &message, const Identifier &from)
 			if(mHandlers.get(identifiers[i], handler))
 			{
 				Desynchronize(this);
-				handler->send(message);
+				success|= handler->send(message);
 			}
 		}
 	}
+	
+	return success;
 }
 
 bool Core::send(const Message &message, const Identifier &to)
@@ -694,19 +698,19 @@ bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
 	}
 }
 
-void Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
+bool Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
 {
-	outgoing(Identifier::Null, type, content, payload);
+	return outgoing(Identifier::Null, type, content, payload);
 }
 
-void Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
+bool Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
 {
 	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
 	
 	Message message;
 	message.prepare(Identifier::Null, dest, type, content);
 	message.payload.write(payload);
-	route(message);
+	return route(message);
 }
 
 bool Core::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
@@ -1898,10 +1902,6 @@ bool Core::Handler::incoming(const Message &message)
 		
 		case Message::Notify:
 		{
-			// TODO
-			//if(!mSenders.contains(source)) mSenders[source] = new Sender(this, source);
-			//mSenders[source]->ack(payload);
-			
 			Notification notification;
 			JsonSerializer json(&payload);
 			json.read(notification);
@@ -1930,6 +1930,7 @@ bool Core::Handler::incoming(const Message &message)
 		
 		case Message::Call:
 		{
+			Desynchronize(this);
 			BinarySerializer serializer(&payload);
 			
 			BinaryString target;
@@ -1948,35 +1949,12 @@ bool Core::Handler::incoming(const Message &message)
 				if(!Store::Instance->pull(target, payload, &left))
 					break;
 				
-				if(!outgoing(source, Message::Forward, Message::Data, payload))
+				if(!mCore->outgoing(source, Message::Forward, Message::Data, payload))
 					break;
 			}
 			
 			if(left == tokens)
 				return false;
-			break;
-		}
-		
-		case Message::Cancel:
-		{
-			BinarySerializer serializer(&payload);
-			
-			BinaryString target;
-			AssertIO(serializer.read(target));
-			
-			// TODO
-			/*Map<BinaryString, Sender*>::iterator it = mSenders.find(source);
-			if(it != mSenders.end())
-			{
-				it->second->removeTarget(target);
-				
-				if(it->second->empty())
-				{
-					delete it->second;
-					mSenders.erase(it);
-				}
-			}
-			*/
 			break;
 		}
 		
@@ -1990,14 +1968,7 @@ bool Core::Handler::incoming(const Message &message)
 			AssertIO(serializer.read(target));
 			
 			if(Store::Instance->push(target, payload))
-			{
 				mCore->unregisterAllCallers(target);
-				
-				BinaryString response;
-				BinarySerializer serializer(&response);
-				serializer.write(target);
-				outgoing(source, Message::Forward, Message::Cancel, response);
-			}
 			break;
 		}
 		
