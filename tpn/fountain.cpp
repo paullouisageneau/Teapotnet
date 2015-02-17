@@ -399,7 +399,7 @@ void Fountain::Combination::resize(size_t size, bool zerofill)
 	}
 }
 
-Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
+Fountain::FileSource::FileSource(File *file, int64_t offset, int64_t size) :
 	mFile(file),
 	mOffset(offset),
 	mSize(size)
@@ -408,15 +408,15 @@ Fountain::Source::Source(File *file, int64_t offset, int64_t size) :
 	Assert(mSize >= 0);
 }
 
-Fountain::Source::~Source(void)
+Fountain::FileSource::~FileSource(void)
 {
 	delete mFile;
 }
 
-void Fountain::Source::generate(Stream &output, unsigned *tokens)
+void Fountain::FileSource::generate(Stream &output, unsigned *tokens)
 {
 	if(mSize > std::numeric_limits<uint32_t>::max())
-		throw Exception("File too big for Fountain::Source");
+		throw Exception("File too big for Fountain::FileSource");
 	
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	
@@ -470,7 +470,7 @@ void Fountain::Source::generate(Stream &output, unsigned *tokens)
 	}
 	count = i - first;	// Actual count
 	
-	//LogDebug("Fountain::Source::generate", "Generated combination (first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ")");
+	//LogDebug("Fountain::FileSource::generate", "Generated combination (first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ")");
 	
 	// Write
 	output.writeBinary(uint32_t(mSize));

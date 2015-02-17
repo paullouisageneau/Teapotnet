@@ -98,7 +98,7 @@ bool Store::pull(const BinaryString &digest, Stream &output, unsigned *tokens)
 	File *file = getBlock(digest, size);
 	if(!file) return false;
 	
-	Fountain::Source source(file, file->tellRead(), size);
+	Fountain::FileSource source(file, file->tellRead(), size);
 	source.generate(output, tokens);
 	return true;
 }

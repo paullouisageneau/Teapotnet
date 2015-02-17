@@ -112,8 +112,14 @@ public:
 	class Source
 	{
 	public:
-		Source(File *file, int64_t offset, int64_t size);	// file will be deleted
-		~Source(void);
+		virtual void generate(Stream &output, unsigned *token) = 0;		// Generate combination
+        };
+	
+	class FileSource : public Source
+	{
+	public:
+		FileSource(File *file, int64_t offset, int64_t size);	// file will be deleted
+		~FileSource(void);
 		
 		void generate(Stream &output, unsigned *token);		// Generate combination
 		
@@ -121,7 +127,7 @@ public:
 		File *mFile;
 		int64_t mOffset, mSize;
 	};
-	
+        
 	class Sink
 	{
 	public:
@@ -130,7 +136,7 @@ public:
 		
 		bool solve(Stream &input);	// Add combination and try to solve
 						// returns true if solved
-		
+                
 		size_t size(void) const;
 		bool isComplete(void) const;
 		void dump(Stream &stream) const;

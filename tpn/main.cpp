@@ -838,7 +838,7 @@ int benchmark(StringMap &args)
 	Array<BinaryString> tmp;
 	tmp.resize(n);
 	
-	Fountain::Source source(file, 0, 1024*1024);
+	Fountain::FileSource source(file, 0, 1024*1024);
 	
 	Time t1;
 	unsigned tokens = 1024;
