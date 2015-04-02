@@ -517,15 +517,15 @@ bool operator < (const Address &a1, const Address &a2)
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() < a2.addrLen();
 	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() < a2.addrFamily();
 	
-	if(!a1.isLocal())
-	{
-		if(a2.isLocal()) return true;
-		if(a2.isPrivate() && !a1.isPrivate()) return true;
-	}
 	if(!a2.isLocal())
 	{
-		if(a1.isLocal()) return false;
-		if(a1.isPrivate() && !a2.isPrivate()) return false;
+		if(a1.isLocal()) return true;
+		if(a1.isPrivate() && !a2.isPrivate()) return true;
+	}
+	if(!a1.isLocal())
+	{
+		if(a2.isLocal()) return false;
+		if(a2.isPrivate() && !a1.isPrivate()) return false;
 	}
 	
 	switch(a1.addrFamily())
@@ -555,15 +555,15 @@ bool operator > (const Address &a1, const Address &a2)
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() > a2.addrLen();
 	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() > a2.addrFamily();
 	
-	if(!a2.isLocal())
-	{
-		if(a1.isLocal()) return true;
-		if(a1.isPrivate() && !a2.isPrivate()) return true;
-	}
 	if(!a1.isLocal())
 	{
-		if(a2.isLocal()) return false;
-		if(a2.isPrivate() && !a1.isPrivate()) return false;
+		if(a2.isLocal()) return true;
+		if(a2.isPrivate() && !a1.isPrivate()) return true;
+	}
+	if(!a2.isLocal())
+	{
+		if(a1.isLocal()) return false;
+		if(a1.isPrivate() && !a2.isPrivate()) return false;
 	}
 	
 	switch(a1.addrFamily())

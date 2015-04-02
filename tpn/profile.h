@@ -40,7 +40,7 @@ class User;
 class Profile : public Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
-	Profile(User *user, const String &uname = "", const String &tracker = "");
+	Profile(User *user, const String &uname = "");
 	~Profile(void);
 	
 	void load(void);
@@ -51,14 +51,11 @@ public:
 	String name(void) const;
 	String realName(void) const;
 	String eMail(void) const;
-	String tracker(void) const;
 	String urlPrefix(void) const;
 	String avatarUrl(void) const;
 	BinaryString avatar(void) const;	
 	Time time(void) const;
 	bool isSelf(void) const;
-	
-	void setTracker(const String &tracker);
 	
 	// Serializable
 	void serialize(Serializer &s) const;
@@ -143,9 +140,6 @@ private:
 	String mLocation;
 	String mEmail;
 	String mPhone;
-	
-	// Settings
-	String mTracker;
 	
 	// TODO
 	/*String mDescription;

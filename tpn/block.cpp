@@ -21,6 +21,7 @@
 
 #include "tpn/block.h"
 #include "tpn/store.h"
+#include "tpn/cache.h"
 
 #include "pla/crypto.h"
 

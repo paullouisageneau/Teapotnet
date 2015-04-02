@@ -49,7 +49,7 @@ private:
 	class Generator
 	{
 	public:
-		Generator(uint32_t seed);
+		Generator(uint64_t seed);
 		~Generator(void);
 		uint8_t next(void);
 	
@@ -57,27 +57,33 @@ private:
 		uint64_t mSeed;
 	};
 	
+public:
+	static void Init(void);
+	static void Cleanup(void);
+	static const size_t ChunkSize = 1024;	// bytes
+	
 	class Combination : public Serializable
 	{
 	public:
 		Combination(void);
 		Combination(const Combination &combination);
-		Combination(int offset, const char *data, size_t size);
+		Combination(unsigned offset, const char *data, size_t size, bool last = false);
 		~Combination(void);
 		
-		void addComponent(int offset, uint8_t coeff);
-		void addComponent(int offset, uint8_t coeff, const char *data, size_t size);
-		void setData(const char *data, size_t size);
-		void setData(const BinaryString &data);
+		void addComponent(unsigned offset, uint8_t coeff);
+		void addComponent(unsigned offset, uint8_t coeff, const char *data, size_t size, bool last = false);
+		void setData(const char *data, size_t size, bool last = false);
+		void setData(const BinaryString &data, bool last = false);
 		
-		int firstComponent(void) const;
-		int lastComponent(void) const;
-		int componentsCount(void) const;
-		uint8_t coeff(int offset) const;
+		uint64_t seed(unsigned first, unsigned count);
+		
+		unsigned firstComponent(void) const;
+		unsigned lastComponent(void) const;
+		unsigned componentsCount(void) const;
+		uint8_t coeff(unsigned offset) const;
 		bool isCoded(void) const;
 		bool isNull(void) const;
-		
-		const Map<int, uint8_t> &components(void) const;
+		bool isLast(void) const;
 		
 		const char *data(void) const;
 		size_t size(void) const;
@@ -98,22 +104,34 @@ private:
 	private:
 		void resize(size_t size, bool zerofill = false);
 		
-		Map<int, uint8_t> mComponents;
+		Map<unsigned, uint8_t> mComponents;
 		char *mData;
 		size_t mSize;
+		uint16_t mNonce;
 	};
-	
-public:
-	static void Init(void);
-	static void Cleanup(void);
-	
-	static const size_t ChunkSize = 1024;	// bytes
 	
 	class Source
 	{
 	public:
-		virtual void generate(Stream &output, unsigned *token) = 0;		// Generate combination
+		virtual bool generate(Combination &output, unsigned *counter = NULL) = 0;	// Generate combination
         };
+	
+	class DataSource : public Source, public Stream
+	{
+	public:
+		DataSource(void);
+		~DataSource(void);
+		
+		unsigned write(const char *data, size_t size);
+		
+		bool generate(Combination &result, unsigned *counter = NULL);
+		void drop(unsigned nextSeen);
+		
+	private:
+		List<BinaryString> mComponents;
+		unsigned mFirstComponent;
+		unsigned mCurrentComponent;
+	};
 	
 	class FileSource : public Source
 	{
@@ -121,33 +139,37 @@ public:
 		FileSource(File *file, int64_t offset, int64_t size);	// file will be deleted
 		~FileSource(void);
 		
-		void generate(Stream &output, unsigned *token);		// Generate combination
+		bool generate(Combination &result, unsigned *counter = NULL);
 		
 	private:
 		File *mFile;
 		int64_t mOffset, mSize;
 	};
         
-	class Sink
+	class Sink : public Stream
 	{
 	public:
 		Sink(void);
 		~Sink(void);
 		
-		bool solve(Stream &input);	// Add combination and try to solve
-						// returns true if solved
-                
-		size_t size(void) const;
-		bool isComplete(void) const;
-		void dump(Stream &stream) const;
-		void hash(BinaryString &digest) const;
+		int64_t solve(Combination &incoming);			// Add combination and try to solve, return decoded bytes
 		void clear(void);
 		
+		unsigned nextSeen(void) const;
+		unsigned nextRead(void) const;
+		bool isComplete(void) const;
+		
+		size_t read(char *buffer, size_t size);		// Non-const, read some new data
+		
+		int64_t dump(Stream &stream) const;		// Read all decoded data in buffer
+		int64_t hash(BinaryString &digest) const;	// Hash all decoded data in buffer
+		
 	private:
-		//List<Combination> mCombinations;
-		Map<int, Combination> mCombinations;	// sorted by pivot component
-		uint32_t mSize;
-		bool mIsComplete;
+		Map<unsigned, Combination> mCombinations;	// combinations sorted by pivot component
+		
+		unsigned mNextSeen, mNextDecoded, mNextRead;	// decoding status counters
+		unsigned mEnd;
+		size_t mAlreadyRead;
 	};
 	
 private:

@@ -23,7 +23,6 @@
 #define TPN_TRACKER_H
 
 #include "tpn/include.h"
-#include "tpn/identifier.h"
 
 #include "pla/http.h"
 #include "pla/synchronizable.h"
@@ -44,15 +43,13 @@ public:
 	~Tracker(void);
 
 private:
-	typedef Map<Identifier, Map<Address, Time> > map_t;
-	map_t mMap;
-	map_t::iterator mCleaner;
+	Map<Address, Time> mMap;
+	Map<Address, Time>::iterator mCleaner;
 	
 	void process(Http::Request &request);
-	void clean(int nbr = -1);
-	void insert(const Identifier &identifier, const Address &addr);
-	void retrieve(const Identifier &identifier, Stream &output) const;
-	bool contains(const Identifier &identifier);
+	void clean(int count = -1);
+	void insert(const Address &addr);
+	void retrieve(const Address &hint, int count, Array<Address> &result) const;
 };
 
 }

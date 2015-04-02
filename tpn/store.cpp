@@ -57,7 +57,7 @@ Store::~Store(void)
 
 }
 
-bool Store::push(const BinaryString &digest, Stream &input)
+bool Store::push(const BinaryString &digest, const Fountain::combination &input)
 {
 	Synchronize(this);
   
@@ -90,7 +90,7 @@ bool Store::push(const BinaryString &digest, Stream &input)
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Stream &output, unsigned *tokens)
+bool Store::pull(const BinaryString &digest, Fountain::combination &output, unsigned *tokens)
 {
 	Synchronize(this);
   

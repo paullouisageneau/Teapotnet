@@ -74,29 +74,18 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class Invitation : private Task, public Serializable, public Core::Listener
+	class Invitation : public Serializable, public Core::Listener
 	{
 	public:
 		Invitation(void);
 		Invitation(const Invitation &invitation);
-		Invitation(	AddressBook *addressBook,
-				const Identifier &identifier,
-				const String &name,
-				const String &tracker = "");
-		Invitation(	AddressBook *addressBook,
-				const String &name,
-				const String &secret,
-				const String &tracker = "");
+		Invitation(AddressBook *addressBook, const Identifier &identifier);
 		~Invitation(void);
 		
 		void setAddressBook(AddressBook *addressBook);
 		void init(void);
 		
-		String name(void) const;
-		BinaryString secret(void) const;
-		Identifier peering(void) const;
-		String tracker(void) const;
-		uint32_t checksum(void) const;
+		Identifier identifier(void) const;
 		
 		void setSelf(bool self = true);
 		bool isSelf(void) const;
@@ -107,7 +96,6 @@ public:
 		void seen(const Identifier &peer);
 		void connected(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);
-		bool auth(const Identifier &peer, BinaryString &secret);
 		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
 		
 		// Serializable
@@ -116,14 +104,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	protected:
-		void generate(const String &salt, const String &secret);
-		void run(void);
-		
 		AddressBook *mAddressBook;
-		String mName;
-		BinaryString mSecret;
-		Identifier mPeering;
-		String mTracker;
+		Identifier mIdentifier;
 		bool mIsSelf;
 		bool mFound;
 		
@@ -138,8 +120,7 @@ public:
 		Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
-				const Rsa::PublicKey &pubKey,
-				const String &tracker = "");
+				const Rsa::PublicKey &pubKey);
 		~Contact(void);
 		
 		void setAddressBook(AddressBook *addressBook);
@@ -149,7 +130,6 @@ public:
 		Identifier identifier(void) const;
 		String uniqueName(void) const;
 		String name(void) const;
-		String tracker(void) const;
 		String urlPrefix(void) const;
 		BinaryString secret(void) const;
 		Profile *profile(void) const;
@@ -223,7 +203,7 @@ public:
 		Profile *mProfile;
 		Board *mBoard, *mPrivateBoard;
 		
-		String mUniqueName, mName, mTracker;
+		String mUniqueName, mName;
 		Rsa::PublicKey mPublicKey;
 		BinaryString mRemoteSecret;
 		
@@ -233,7 +213,7 @@ public:
 		friend class AddressBook;
 	};
 	
-	String addContact(const String &name, const Rsa::PublicKey &pubKey, const String &tracker = "");	// returns uname
+	String addContact(const String &name, const Rsa::PublicKey &pubKey);	// returns uname
 	bool removeContact(const String &uname);
 	Contact *getContact(const String &uname);
 	const Contact *getContact(const String &uname) const;
@@ -248,8 +228,6 @@ public:
 	bool hasIdentifier(const Identifier &identifier) const;
 	
 private:
-	bool publish(const Identifier &identifier, const String &tracker);
-	bool query(const Identifier &identifier, const String &tracker, Serializable &result);	
 	void run(void);
 	
 	User *mUser;

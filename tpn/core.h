@@ -23,10 +23,9 @@
 #define TPN_CORE_H
 
 #include "tpn/include.h"
-#include "tpn/notification.h"
-#include "tpn/interface.h"
-#include "tpn/cache.h"
 #include "tpn/identifier.h"
+#include "tpn/fountain.h"
+#include "tpn/notification.h"
 
 #include "pla/address.h"
 #include "pla/stream.h"
@@ -62,29 +61,12 @@ class Core : protected Synchronizable
 public:
 	static Core *Instance;
 	
-	// Routing-level message structure
 	struct Message : public Serializable
 	{
-		// type
-		static const uint8_t Forward   = 0;
-		static const uint8_t Broadcast = 1;
-		static const uint8_t Lookup    = 2;
-		
-		// content
-		static const uint8_t Empty     = 0;
-		static const uint8_t Tunnel    = 1;
-		static const uint8_t Notify    = 2;
-		static const uint8_t Ack       = 3;
-		static const uint8_t Call      = 4;
-		static const uint8_t Data      = 5;
-		static const uint8_t Publish   = 6;
-		static const uint8_t Subscribe = 7;
-		
 		Message(void);
 		~Message(void);
 		
-		void prepare(const Identifier &source, const Identifier &destination, 
-				uint8_t type = Forward, uint8_t content = Empty);
+		void prepare(const Identifier &source, const Identifier &destination);
 		void clear(void);
 		
 		// Serializable
@@ -102,21 +84,7 @@ public:
 		Identifier destination;		// 40 B
 		BinaryString payload;
 	};
-
-	struct Locator
-	{
-		Locator(User *user, const Identifier &id);
-		Locator(User *user, const Address &addr);
-		Locator(User *user, const Set<Address> &addrs);
-		~Locator(void);
-		
-		User *user;			// local user
-		Identifier	identifier;	// remote identifier
-		Identifier	peering;	// remote peering identifier for PSK
-		BinaryString	secret;		// secret for PSK
-		Set<Address>	addresses;	// adresses for direct connection
-	};
-
+	
 	class Publisher
 	{
 	public:
@@ -181,7 +149,6 @@ public:
 		virtual void seen(const Identifier &peer) {}
 		virtual void connected(const Identifier &peer) {}
 		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
-		virtual bool auth(const Identifier &peer, BinaryString &secret)         { return false; }
 		virtual bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey) { return false; }
 		
 	private:
@@ -202,7 +169,7 @@ public:
 	bool isPublicConnectable(void) const;
 	
 	// Connections
-	bool connect(const Locator &locator);
+	bool connect(const Set<Address> &addrs);
 	int connectionsCount(void) const;
 	
 	// Caller
@@ -223,18 +190,18 @@ public:
 	void addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly);
 	
 	// Notification
-	bool broadcast(const Notification &notification);
-	bool send(const Identifier &peer, const Notification &notification);
+	bool broadcast(const Identifier &local, const Notification &notification);
+	bool send(const Identifier &local, const Identifier &remote, const Notification &notification);
 	
 	// Routing
 	bool route(const Message &message, const Identifier &from = Identifier::Null);
 	bool broadcast(const Message &message, const Identifier &from = Identifier::Null);
 	bool send(const Message &message, const Identifier &to);
-	void addRoute(const Identifier &id, const Identifier &route);
-	bool getRoute(const Identifier &id, Identifier &route);
+	void addRoute(const Identifier &id, const Address &route);
+	bool getRoute(const Identifier &id, const Address &route);
 	
-	bool addPeer(Stream *bs, const Identifier &local, const Identifier &remote);
-	bool hasPeer(const Identifier &remote);
+	bool addLink(Stream *stream, const Identifier &local, const Identifier &remote);
+	bool hasLink(const Identifier &local, const Identifier &remote);
 	
 private:
 	class RemotePublisher : public Publisher
@@ -270,25 +237,22 @@ private:
 		Backend(Core *core);
 		virtual ~Backend(void);
 		
-		virtual bool connect(const Locator &locator) = 0;
+		virtual bool connect(const Set<Address> &addrs) = 0;
 		virtual SecureTransport *listen(void) = 0;
 		
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
-		bool process(SecureTransport *transport, const Locator &locator);	// do the client handshake
-	
-		Core *mCore;
+		bool process(SecureTransport *transport, const Set<Address> &addrs);	// do the client handshake
 	
 	private:
-		bool handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async = false);
+		bool handshake(SecureTransport *transport, bool async = false);
 		void run(void);
 		
 		ThreadPool mThreadPool;
 		
 		SecureTransportClient::Anonymous	mAnonymousClientCreds;
 		SecureTransportServer::Anonymous	mAnonymousServerCreds;
-		SecureTransportServer::PrivateSharedKey	mPrivateSharedKeyServerCreds;
 	};
 	
 	class StreamBackend : public Backend
@@ -297,8 +261,8 @@ private:
 		StreamBackend(Core *core, int port);
 		~StreamBackend(void);
 		
-		bool connect(const Locator &locator);
-		bool connect(const Address &addr, const Locator &locator);
+		bool connect(const Set<Address> &addrs);
+		bool connect(const Address &addr);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -313,8 +277,8 @@ private:
 		DatagramBackend(Core *core, int port);
 		~DatagramBackend(void);
 		
-		bool connect(const Locator &locator);
-		bool connect(const Address &addr, const Locator &locator);
+		bool connect(const Set<Address> &addrs);
+		bool connect(const Address &addr);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -323,30 +287,43 @@ private:
 		DatagramSocket mSock;
 	};
 	
-	class TunnelBackend : public Backend
+	class Handler : public Task, protected Synchronizable
+	{
+	public:
+		Handler(Core *core, Stream *stream, ThreadPool *pool, const Address &addr);
+		~Handler(void);
+		
+		bool recv(Message &message);
+		bool send(const Message &message);
+		
+	private:
+		void process(void);
+		void run(void);
+		
+		Stream  *mStream;
+		Address mAddress;
+	};
+	
+	class Tunneler : public Thread
 	{
 	public:
 		static const double DefaultTimeout = 60.;
-
-		TunnelBackend(Core *core);
-		~TunnelBackend(void);
+	
+		Tunneler(void);
+		~Tunneler(void);
 		
-		// Backend
-		bool connect(const Locator &locator);
-		SecureTransport *listen(void);
-		
+		bool open(const Identifier &identifier, User *user);
 		bool incoming(const Message &message);
 		
 	private:
-		// Queue for listen
-		Queue<Message> mQueue;
-		Synchronizable mQueueSync;
-		
-		class TunnelWrapper : public Stream
+		class Tunnel : public Stream
 		{
 		public:
-			TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote);
-			~TunnelWrapper(void);
+			Tunnel(Tunneler *tunneler, const Identifier &local, const Identifier &remote);
+			~Tunnel(void);
+			
+			Identifier local(void) const;
+			Identifier remote(void) const;
 			
 			void setTimeout(double timeout);
 			
@@ -358,83 +335,73 @@ private:
 			bool isDatagram(void) const;
 			
 			bool incoming(const Message &message);
-	
+			
 		private:
-			Core *mCore;
+			Tunneler *tunneler;
 			Identifier mLocal, mRemote;
 			Queue<Message> mQueue;
-                	Synchronizable mQueueSync;
+			Synchronizable mQueueSync;
 			double mTimeout;
 		};
-
-		Map<IdentifierPair, TunnelWrapper*> mWrappers;
+		
+		bool registerTunnel(Tunnel *tunnel);
+		bool unregisterTunnel(Tunnel *tunnel);
+		
+		SecureTransport *listen(void);
+		bool handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async = false);
+		void run(void);
+		
+		Map<IdentifierPair, Tunnel*> mTunnels;
+		ThreadPool mThreadPool;
+		
+		// Queue for listen
+		Queue<Message> mQueue;
+		Synchronizable mQueueSync;
 	};
 	
-	class Handler : public Task, protected Synchronizable
+	class Link : protected Synchronizable, public Task
 	{
 	public:
-		Handler(Core *core, Stream *stream, ThreadPool *pool, const Identifier &local, const Identifier &remote);
-		~Handler(void);
+		Link(Stream *stream);
+		~Link(void);
 		
-		Identifier local(void) const;
-		Identifier remote(void) const;
-		
-		class Sender : public Task, protected Synchronizable
-		{
-		public:
-			Sender(Stream *stream);
-			~Sender(void);
-			
-			bool push(const Message &message);
-			void run(void);
-			
-		private:
-			Stream  *mStream;
-			Queue<Message> mQueue, mSecondaryQueue;
-		};
+		bool read(String &type, String &content);
+		void wirte(const String &type, const String &content);
 		
 	private:
-		bool recv(Message &message);
-		bool send(const Message &message);
-		void route(const Message &message);
-		bool incoming(const Message &message);
-		bool outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
-		
 		void process(void);
 		void run(void);
 		
-		Core	*mCore;
-		Stream  *mStream;
-		Sender	*mSender;
-
-		Identifier mLocal, mRemote;
-		
-		bool mIsIncoming;
-		bool mIsAnonymous;
-		bool mStopping;
-		
-		friend class Core;
+		Stream *mStream;
+		Fountain::DataSource 	mSource;
+		Fountain::Sink 		mSink;
+		double mTokens;
+		double mRedundancy;
 	};
 
-	bool addHandler(const Identifier &peer, Handler *Handler);
-	bool removeHandler(const Identifier &peer, Handler *handler);
+	bool registerHandler(const Address &addr, Handler *Handler);
+	bool unregisterHandler(const Address &addr, Handler *handler);
+	bool registerLink(const Identifier &local, const Identifier &remote, Link *link);
+	bool unregisterLink(const Identifier &local, const Identifier &remote, Link *link);
 	
-	bool outgoing(uint8_t type, uint8_t content, Stream &payload);
-	bool outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload);
+	bool outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content);
+	bool incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer);
 	
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
+	bool track(const String &tracker, Set<Address> &result);
+	
 	uint64_t mNumber;
 	String mName;
 	ThreadPool mThreadPool;
-	Scheduler mScheduler;
 	
+	Tunneler *mTunneler;
 	List<Backend*> mBackends;
-	TunnelBackend *mTunnelBackend;
-	Map<Identifier, Identifier> mRoutes;
+	Map<Identifier, Address> mRoutes;
 	
-	Map<Identifier, Handler*> mHandlers;
+	Map<Address, Handler*> mHandlers;
+	Map<IdentifierPair, Link*> mLinks;
 	
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;

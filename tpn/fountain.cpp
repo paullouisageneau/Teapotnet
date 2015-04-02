@@ -105,8 +105,8 @@ uint8_t Fountain::gInv(uint8_t a)
 	return InvTable[a];
 }
 
-Fountain::Generator::Generator(uint32_t seed) :
-	mSeed(uint64_t(seed))
+Fountain::Generator::Generator(uint64_t seed) :
+	mSeed(seed)
 {
 
 }
@@ -118,37 +118,41 @@ Fountain::Generator::~Generator(void)
 
 uint8_t Fountain::Generator::next(void)
 {
+	if(!mSeed) return 1;
+	
 	uint8_t value;
 	do {
 		// Knuth's 64-bit linear congruential generator
-		mSeed = uint64_t(mSeed*6364136223846793005 + 1442695040888963407);		
+		mSeed = uint64_t(mSeed*6364136223846793005 + 1442695040888963407);
 		value = uint8_t(mSeed >> 56);
 	}
-	while(!value);	// zero is not a valid output
+	while(!mSeed || !value);	// zero is not a valid output
 
 	return value;
 }
 
 Fountain::Combination::Combination(void) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mSeed(0)
 {
 	
 }
 
 Fountain::Combination::Combination(const Combination &combination) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mSeed(0)
 {
 	*this = combination;
 }
 
-Fountain::Combination::Combination(int offset, const char *data, size_t size) :
+Fountain::Combination::Combination(unsigned offset, const char *data, size_t size, bool last) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mSeed(0)
 {
-	addComponent(offset, 1);
-	setData(data, size);
+	addComponent(offset, 1, data, size, last);
 }
 
 Fountain::Combination::~Combination(void)
@@ -156,9 +160,9 @@ Fountain::Combination::~Combination(void)
 	delete[] mData;
 }
 
-void Fountain::Combination::addComponent(int offset, uint8_t coeff)
+void Fountain::Combination::addComponent(unsigned offset, uint8_t coeff)
 {
-	Map<int, uint8_t>::iterator it = mComponents.find(offset);
+	Map<unsigned, uint8_t>::iterator it = mComponents.find(offset);
 	if(it != mComponents.end())
 	{
 		it->second^= coeff;	// it->second = Fountain::gAdd(it->second, coeff);
@@ -171,13 +175,19 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff)
 	}
 }
 
-void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *data, size_t size)
+void Fountain::Combination::addComponent(unsigned offset, uint8_t coeff, const char *data, size_t size, bool last)
 {
 	addComponent(offset, coeff);
 	
+	if(!mSize && coeff == 1)
+	{
+		setData(data, size, last);
+		return;
+	}
+	
 	// Assure mData is the longest vector
-	if(mSize < size)
-		resize(size, true);	// zerofill
+	if(mSize < size+1) // +1 for padding
+		resize(size+1, true);	// zerofill
 	
 	if(coeff == 1)
 	{
@@ -187,6 +197,7 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 	  
 	  	// Faster
 		memxor(mData, data, size);
+		mData[size]^= (last ? 0x81 : 0x80); // 1-byte padding
 	}
 	else {
 		if(coeff == 0) return;
@@ -198,41 +209,54 @@ void Fountain::Combination::addComponent(int offset, uint8_t coeff, const char *
 		// Faster
 		for(unsigned i = 0; i < size; ++i)
 			mData[i]^= Fountain::gMul(data[i], coeff);
+		
+		mData[size]^= Fountain::gMul((last ? 0x81 : 0x80), coeff); // 1-byte padding
 	}
 }
 
-void Fountain::Combination::setData(const char *data, size_t size)
+void Fountain::Combination::setData(const char *data, size_t size, bool last)
 {
-	resize(size, false);
+	resize(size+1, false);	// +1 for padding
 	std::copy(data, data + size, mData);
+	mData[size] = (last ? 0x81 : 0x80);	// 1-byte ISO/IEC 7816-4 padding with fin flag
 }
 
-void Fountain::Combination::setData(const BinaryString &data)
+void Fountain::Combination::setData(const BinaryString &data, bool last)
 {
-	setData(data.data(), data.size());
+	setData(data.data(), data.size(), last);
 }
 
-int Fountain::Combination::firstComponent(void) const
+uint64_t seed(unsigned first, unsigned count) const
+{
+	Assert(first <= std::numeric_limits<uint32_t>::max());
+	Assert(count <= std::numeric_limits<uint16_t>::max());
+	
+	if(count <= 1) return 0;
+	while(!mNonce) Random().readBinary(mNonce);
+	return uint64_t(mNonce) << 48 + uint64_t(count) << 32 + uint64_t(first);
+}
+
+unsigned Fountain::Combination::firstComponent(void) const
 {
 	if(!mComponents.empty()) return mComponents.begin()->first;
 	else return 0;
 }
 
-int Fountain::Combination::lastComponent(void) const
+unsigned Fountain::Combination::lastComponent(void) const
 {
 	if(!mComponents.empty()) return (--mComponents.end())->first;
 	else return 0;
 }
 
-int Fountain::Combination::componentsCount(void) const
+unsigned Fountain::Combination::componentsCount(void) const
 {
 	if(!mComponents.empty()) return (lastComponent() - firstComponent()) + 1;
 	else return 0;
 }
 
-uint8_t Fountain::Combination::coeff(int offset) const
+uint8_t Fountain::Combination::coeff(unsigned offset) const
 {
-	Map<int, uint8_t>::const_iterator it = mComponents.find(offset);
+	Map<unsigned, uint8_t>::const_iterator it = mComponents.find(offset);
 	if(it == mComponents.end()) return 0; 
 	return it->second;
 }
@@ -247,9 +271,18 @@ bool Fountain::Combination::isNull(void) const
 	return (mComponents.size() == 0);
 }
 
-const Map<int, uint8_t> &Fountain::Combination::components(void) const
+bool Fountain::Combination::isLast(void) const
 {
-	return mComponents;
+	if(isCoded())
+		return false;
+	
+	size_t size = mSize;
+	while(size && mData[size] == 0x00)
+		--size;
+	
+	if(mData[size] == 0x80) return false;
+	else if(mData[size] == 0x81) return true;
+	else throw Exception("Data corruption in fountain: invalid padding");
 }
 
 const char *Fountain::Combination::data(void) const
@@ -259,7 +292,17 @@ const char *Fountain::Combination::data(void) const
 
 size_t Fountain::Combination::size(void) const
 {
-	return mSize;
+	if(isCoded())
+		return mSize;
+	
+	size_t size = mSize;
+	while(size && mData[size] == 0x00)
+		--size;
+	
+	if(mData[size] != 0x80 && mData[size] != 0x81)
+		throw Exception("Data corruption in fountain: invalid padding");
+	
+	return size;
 }
 
 void Fountain::Combination::clear(void)
@@ -268,6 +311,7 @@ void Fountain::Combination::clear(void)
 	delete[] mData;
 	mData = NULL;
 	mSize = 0;
+	mNonce = 0;
 }
 
 Fountain::Combination &Fountain::Combination::operator=(const Combination &combination)
@@ -306,14 +350,14 @@ Fountain::Combination &Fountain::Combination::operator+=(const Combination &comb
 		resize(combination.mSize, true);	// zerofill
 	
 	// Add values
-	//for(int i = 0; i < combination.mSize; ++i)
+	//for(size_t i = 0; i < combination.mSize; ++i)
 	//	mData[i] = Fountain::gAdd(mData[i], combination.mData[i]);
 
 	// Faster
 	memxor(mData, combination.mData, combination.mSize);
 	
 	// Add components
-	for(	Map<int, uint8_t>::const_iterator jt = combination.mComponents.begin();
+	for(	Map<unsigned, uint8_t>::const_iterator jt = combination.mComponents.begin();
 		jt != combination.mComponents.end();
 		++jt)
 	{
@@ -330,10 +374,10 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 		if(coeff != 0)
 		{
 			// Multiply vector
-			for(int i = 0; i < mSize; ++i)
+			for(size_t i = 0; i < mSize; ++i)
 				mData[i] = Fountain::gMul(mData[i], coeff);
 
-			for(	Map<int, uint8_t>::iterator it = mComponents.begin();
+			for(	Map<unsigned, uint8_t>::iterator it = mComponents.begin();
 				it != mComponents.end();
 				++it)
 			{
@@ -359,29 +403,36 @@ Fountain::Combination &Fountain::Combination::operator/=(uint8_t coeff)
 
 void Fountain::Combination::serialize(Serializer &s) const
 {
-	Assert(firstComponent() <= std::numeric_limits<uint16_t>::max());
+	Assert(firstComponent() <= std::numeric_limits<uint32_t>::max());
 	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
-	Assert(firstComponent() >= 0);	// for sanity
+	Assert(mNonce);
 	
-	s.output(uint16_t(firstComponent()));
-	s.output(uint16_t(componentsCount()));
-	for(int i=firstComponent(); i<=lastComponent(); ++i)
-		s.output(uint8_t(coeff(i)));
+	// 64-bit combination descriptor
+	s.output(uint32_t(firstComponent()));	// 32-bit first
+	s.output(uint16_t(componentsCount()));	// 16-bit count
+	s.output(mNonce);			// 16-bit nonce
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
 {
-	uint16_t first = 0;
-	uint16_t count = 0;
-	if(!s.input(first)) return false;
-	AssertIO(s.input(count));
+	clear();
 	
-	for(int i=first; i<first+count; ++i)
+	uint32_t first = 0;
+	uint16_t count = 0;
+	
+	// 64-bit combination descriptor
+	if(!s.input(first)) return false;	// 32-bit first
+	AssertIO(s.input(count));		// 16-bit count
+	AssertIO(s.input(mNonce);		// 16-bit nonce
+	
+	Generator gen(seed(first, count));
+	for(unsigned i=0; i<count; ++i)
 	{
-		uint8_t coeff = 0;
-		AssertIO(s.input(coeff));
-		addComponent(i, coeff);
+		uint8_t coeff = gen.next();
+		addComponent(first + i, coeff);
 	}
+	
+	return true;
 }
 
 void Fountain::Combination::resize(size_t size, bool zerofill)
@@ -399,6 +450,78 @@ void Fountain::Combination::resize(size_t size, bool zerofill)
 	}
 }
 
+Fountain::DataSource::DataSource(void) :
+	mCurrentComponent(0)
+{
+	
+}
+
+Fountain::DataSource::~DataSource(void)
+{
+	
+}
+
+unsigned Fountain::DataSource::write(const char *data, size_t size)
+{
+	// size should be a multiple of ChuckSize
+	
+	unsigned count = 0;
+	while(size)
+	{
+		size_t len = std::min(size, ChunkSize);
+		mCombinations[mCurrentComponent].addComponent(mCurrentComponent, 1, data, len);
+		++mCurrentComponent;
+		++count;
+		data+= len;
+		size-= len;
+	}
+	
+	return count;
+}
+
+bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
+{
+	if(mComponents.empty())
+		return false;
+	
+	unsigned first = mComponents.begin()->firstComponent();
+	unsigned count = mComponents.size();
+	
+	if(*counter)
+	{
+		*counter = std::max(*counter, first);
+		if(*counter < first+count)
+		{	
+			first = *counter;
+			count = 1;
+			++*counter;
+		}
+	}
+	
+	result.clear();
+	Generator gen(result.seed(first, count));
+	
+	for(List<Combination>::iterator it = mComponents.begin();
+		it != mComponents.end() && result.componentsCount() < count;
+		++it)
+	{
+		if(it->firstComponent() >= first)
+		{
+			uint8_t coeff = gen.next();
+			result+= (*it)*coeff;
+		}
+	}
+	
+	Assert(result.componentsCount() == mComponents.size());
+	//LogDebug("Fountain::Dataource::generate", "Generated combination (first=" + String::number(result.firstComponent()) + ", count=" + String::number((result.componentsCount()) + ")");
+	return true;
+}
+
+void Fountain::DataSource::drop(unsigned nextSeen)
+{
+	mCombinations.erase(mCombinations.begin(), mCombinations.lower_bound(nextSeen));
+}
+
 Fountain::FileSource::FileSource(File *file, int64_t offset, int64_t size) :
 	mFile(file),
 	mOffset(offset),
@@ -413,78 +536,55 @@ Fountain::FileSource::~FileSource(void)
 	delete mFile;
 }
 
-void Fountain::FileSource::generate(Stream &output, unsigned *tokens)
+bool Fountain::FileSource::generate(Combination &result, unsigned *counter)
 {
-	if(mSize > std::numeric_limits<uint32_t>::max())
-		throw Exception("File too big for Fountain::FileSource");
-	
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
+	unsigned first = 0;
+	unsigned count = chunks;
 	
-	// Count (i.e. degree)
-	unsigned count = 16;
-	
-	// First
-	unsigned first;
-	if(count >= chunks)
+	if(*counter)
 	{
-		first = 0;
-		count = chunks;
-	}
-	else {
-		if(!tokens)
-		{
-			first = Random().uniform(unsigned(0), chunks + count);
-			first = bounds(first, count, chunks);
-			first-= count;
-		}
-		else if(*tokens == 0)
-		{
-			first = 0;
-			count = chunks;
-		}
-		else {
-			first = (chunks - *tokens)*count % (chunks - 1);
+		*counter = std::max(*counter, first);
+		if(*counter < first+count)
+		{	
+			first = *counter;
+			count = 1;
+			++*counter;
 		}
 	}
 	
-	// Seed
-	uint32_t seed;
-	Random().readBinary(seed);
 	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
 	uint32_t left = uint32_t(mSize) - first*ChunkSize;
 	
 	// Generate
-	Generator gen(seed);
-	Combination c;
+	result.clear();
+	Generator gen(result.seed(first, count));
 	unsigned i = first;
 	char buffer[ChunkSize];
 	size_t size;
-	while(i < first+count && (size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)))))
+	for(unsigned i=0; i<count, ++i)
 	{
+		size = mFile->readBinary(buffer, size_t(std::min(uint32_t(ChunkSize), left)));
+		Assert(size > 0);
+		
 		uint8_t coeff = gen.next();
-		c.addComponent(i, coeff, buffer, size);
+		result.addComponent(first+i, coeff, buffer, size, (first+i == chunks-1));
 		left-= size;
-		++i;
 	}
-	count = i - first;	// Actual count
 	
-	//LogDebug("Fountain::FileSource::generate", "Generated combination (first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ")");
-	
-	// Write
-	output.writeBinary(uint32_t(mSize));
-	output.writeBinary(uint32_t(seed));	// seed
-	output.writeBinary(uint16_t(first));
-	output.writeBinary(uint16_t(count));
-	output.writeBinary(c.data(), c.size());
-	
-	if(tokens && *tokens) --*tokens;
+	//LogDebug("Fountain::FileSource::generate", "Generated combination (first=" + String::number(result.firstComponent()) + ", count=" + String::number(result.componentsCount()) + ")");
+	return true;
 }
 		
 Fountain::Sink::Sink(void) :
-	mSize(0),
-	mIsComplete(false)
+	mChunks(0),
+	mNextSeen(0),
+	mNextDecoded(0),
+	mNextRead(0),
+	mEnd(0),
+	mAlreadyRead(0)
 {
 
 }
@@ -494,48 +594,20 @@ Fountain::Sink::~Sink(void)
   
 }
 
-bool Fountain::Sink::solve(Stream &input)
+int64_t Fountain::Sink::solve(Combination &incoming)
 {
-	uint32_t size;
-	uint32_t seed;
-	uint16_t first, count;
-	BinaryString data;
+	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(output.firstComponent()) + ", count=" + String::number(output.componentsCount()) + ")");
 	
-	if(!input.readBinary(size))
-	{
-		LogWarn("Fountain::Sink::solve", "Unable to read a combination: input is empty");
+	if(incoming.isNull())
 		return false;
-	}
-	
-	AssertIO(input.readBinary(seed));
-	AssertIO(input.readBinary(first));
-	AssertIO(input.readBinary(count));
-	input.readBinary(data);
-	
-	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(unsigned(first)) + ", count=" + String::number(unsigned(count)) + ", size=" + String::number(unsigned(data.size())) + ")");
-	
-	// TODO: check data.size()
-	// TODO: check mSize
-	mSize = std::max(mSize, size);
-	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
-	
-	Combination incoming;
-	incoming.setData(data);
-	
-	Generator gen(seed);
-	for(unsigned i=first; i<first+count; ++i)
-	{
-		uint8_t coeff = gen.next();
-		incoming.addComponent(i, coeff);
-	}
 	
 	// ==== Gauss-Jordan elimination ====
 	
-	Map<int, Combination>::iterator it, jt;
-	Map<int, Combination>::reverse_iterator rit;
+	Map<unsigned, Combination>::iterator it, jt;
+	Map<unsigned, Combination>::reverse_iterator rit;
 	
 	// Eliminate coordinates, so the system is triangular
-	for(int i = incoming.firstComponent(); i <= incoming.lastComponent(); ++i)
+	for(unsigned i = incoming.firstComponent(); i <= incoming.lastComponent(); ++i)
 	{
 		uint8_t c = incoming.coeff(i);
 		if(c != 0)
@@ -560,8 +632,8 @@ bool Fountain::Sink::solve(Stream &input)
 	rit = mCombinations.rbegin();
 	while(rit != mCombinations.rend())
 	{
-		int first = std::max(rit->second.firstComponent(), rit->first);
-		for(int i = rit->second.lastComponent(); i > first; --i)
+		unsigned first = std::max(rit->second.firstComponent(), rit->first);
+		for(unsigned i = rit->second.lastComponent(); i > first; --i)
 		{
 			jt = mCombinations.find(i);
 			if(jt != mCombinations.end())
@@ -578,8 +650,7 @@ bool Fountain::Sink::solve(Stream &input)
 	}
 	
 	// Remove null components and count decoded
-	int decodedCount = 0;
-	uint32_t decodedSize = 0;
+	int64_t total = 0;
 	it = mCombinations.begin();
 	while(it != mCombinations.end())
 	{
@@ -588,10 +659,15 @@ bool Fountain::Sink::solve(Stream &input)
 			mCombinations.erase(it++);
 		}
 		else {
-			if(!it->second.isCoded()) 
+			Assert(it->second.firstComponent() == it->first);
+			mNextSeen = std::max(mNextSeen, it->first);
+			if(mNextDecoded == it->first && !it->second.isCoded()) 
 			{
-				++decodedCount;
-				decodedSize+= it->second.size();
+				total+= it->second.size();
+				++mNextDecoded;
+				
+				if(it->second->isLast())
+					mEnd = mNextDecoded;
 			}
 			++it;
 		}
@@ -599,60 +675,88 @@ bool Fountain::Sink::solve(Stream &input)
 	
 	// ==================================
 	
-	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, " + String::number(decodedCount) + " decoded");
-	mIsComplete = (decodedSize >= mSize);
-	return mIsComplete;
-}
-
-size_t Fountain::Sink::size(void) const
-{
-	return size_t(mSize);
-}
-
-bool Fountain::Sink::isComplete(void) const
-{
-	return mIsComplete; 
-}
-
-void Fountain::Sink::dump(Stream &stream) const
-{
-	Map<int,Combination>::const_iterator it = mCombinations.begin();
-	uint32_t left = mSize;
-	while(left && it != mCombinations.end() && !it->second.isCoded())
-	{
-		size_t size = size_t(std::min(left, uint32_t(it->second.size())));
-		stream.writeBinary(it->second.data(), size);
-		left-= size;
-		++it;
-	}
-	
-	//if(left) throw Exception("Dumping failed: " + String::number(unsigned(left)) + " bytes missing in fountain sink");
-}
-
-void Fountain::Sink::hash(BinaryString &digest) const
-{
-	Sha256 hash;
-	hash.init();
-	
-	Map<int,Combination>::const_iterator it = mCombinations.begin();
-	uint32_t left = mSize;
-	while(left && it != mCombinations.end() && !it->second.isCoded())
-	{
-		size_t size = size_t(std::min(left, uint32_t(it->second.size())));
-		hash.process(it->second.data(), size);
-		left-= size;
-		++it;
-	}
-	
-	hash.finalize(digest);
-	
-	//if(left) throw Exception("Hashing failed: " + String::number(unsigned(left)) + " bytes missing in fountain sink");
+	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, next seen " + String::number(mNextSeen) + ", next decoded " + String::number(mNextDecoded));
+	return total;
 }
 
 void Fountain::Sink::clear(void)
 {
 	mCombinations.clear();
-	mIsComplete = false;
+	mChunks = 0;
+	mNextSeen = 0;
+	mNextDecoded = 0;
+	mNextRead = 0;
+	mEnd = 0;
+	mAlreadyRead = 0;
+}
+
+unsigned nextSeen(void) const
+{
+	return mNextSeen;
+}
+
+unsigned nextDecoded(void) const
+{
+	return mNextDecoded;
+}
+
+bool Fountain::Sink::isDecoded(void) const
+{
+	return (mNextDecoded >= mEnd);
+}
+
+size_t Fountain::Sink::read(char *buffer, size_t size); const
+{
+	int64_t total = 0;
+	Map<int,Combination>::const_iterator it = mCombinations.lower_bound(mNextRead);
+	if(it != mCombinations.end() && it->first == mNextRead && !it->second.isCoded())
+	{
+		size = std::min(size, it->second.size() - mAlreadyRead);
+		std::memcpy(buffer, it->second.data() + mAlreadyRead, size);
+		mAlreadyRead+= size;
+		
+		if(mAlreadyRead == it->second.size())
+		{
+			mAlreadyRead = 0;
+			++mNextRead;
+		}
+		
+		return size;
+	}
+	
+	return 0;
+}
+
+int64_t Fountain::Sink::dump(Stream &stream) const
+{
+	int64_t total = 0;
+	Map<int,Combination>::const_iterator it = mCombinations.begin();
+	while(it != mCombinations.end() && it->second.isCoded())
+	{
+		stream.writeData(it->second.data(), it->second.size());
+		total+= it->second.size();
+		++it;
+	}
+	
+	return total;
+}
+
+int64_t Fountain::Sink::hash(BinaryString &digest) const
+{
+	Sha256 hash;
+	hash.init();
+	
+	int64_t total = 0;
+	Map<int,Combination>::const_iterator it = mCombinations.begin();
+	while(it != mCombinations.end() && it->second.isCoded())
+	{
+		hash.process(it->second.data(), it->second.size());
+		total+= it->second.size();
+		++it;
+	}
+	
+	hash.finalize(digest);
+	return total;
 }
 
 }

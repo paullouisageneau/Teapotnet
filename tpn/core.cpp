@@ -30,7 +30,7 @@
 #include "pla/securetransport.h"
 #include "pla/crypto.h"
 #include "pla/random.h"
-
+#include "pla/http.h"
 
 namespace tpn
 {
@@ -114,17 +114,21 @@ Core::Core(int port) :
 		Config::Save(configFileName);
 	}
 	
-	mTunnelBackend = NULL;
-
+	mTunneler = NULL;
+	
 	try {
+		// Create tunneller 
+		mTunneler = new Tunneler;
+	
 		// Create backends
-		mTunnelBackend = new TunnelBackend(this);
-		mBackends.push_back(mTunnelBackend);
 		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
 	}
 	catch(...)
 	{
+		// Delete tunneller
+		delete mTunneler;
+		
 		// Delete created backends
 		for(List<Backend*>::iterator it = mBackends.begin();
 			it != mBackends.end();
@@ -142,6 +146,9 @@ Core::~Core(void)
 {
 	join();
 	
+	// Delete tunneller
+	delete mTunneler;
+	
 	// Delete backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
@@ -154,7 +161,10 @@ Core::~Core(void)
 
 void Core::start(void)
 {
-	// Join backends
+	// Start tunneller
+	mTunneler->join();
+	
+	// Start backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
 		++it)
@@ -166,6 +176,9 @@ void Core::start(void)
 
 void Core::join(void)
 {
+	// Join tunneller
+	mTunneler->join();
+	
 	// Join backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
@@ -217,7 +230,7 @@ bool Core::isPublicConnectable(void) const
 	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
 }
 
-bool Core::connect(const Locator &locator)
+bool Core::connect(const Set<Address> &addrs)
 {
 	List<Backend*> backends;
 	SynchronizeStatement(this, backends = mBackends);
@@ -227,7 +240,7 @@ bool Core::connect(const Locator &locator)
 		++it)
 	{
 		Backend *backend = *it;
-		if(backend->connect(locator))
+		if(backend->connect(addrs))
 			return true;
 	}
 	
@@ -247,12 +260,9 @@ void Core::registerCaller(const BinaryString &target, Caller *caller)
 	
 	LogDebug("Core::registerCaller", "Calling " + target.toString());
 	
-	uint16_t tokens = 1024;	// TODO
-	BinaryString payload;
-	BinarySerializer serializer(&payload);
-	serializer.write(target);
-	serializer.write(tokens);
-	outgoing(Message::Lookup, Message::Call, payload);
+	StringMap content;
+	content["target"] = target.toString();
+	outgoing("call", content);
 	
 	// TODO: beacons
 }
@@ -283,8 +293,10 @@ void Core::registerListener(const Identifier &id, Listener *listener)
 	
 	//LogDebug("Core::registerListener", "Registered listener: " + id.toString());
 	
-	List<Identifier> connectedIdentifiers;
-	Map<Identifier, Handler*>::iterator it = mHandlers.find(id);
+	// TODO: tunnels
+	
+	/*List<Identifier> connectedIdentifiers;
+	Map<Address, Handler*>::iterator it = mHandlers.find(id);
 	while(it != mHandlers.end() && it->first == id)
 	{
 		connectedIdentifiers.push_back(it->first);
@@ -300,7 +312,7 @@ void Core::registerListener(const Identifier &id, Listener *listener)
 		{
 			listener->connected(*it); 
 		}
-	}
+	}*/
 }
 
 void Core::unregisterListener(const Identifier &id, Listener *listener)
@@ -369,7 +381,10 @@ void Core::subscribe(String prefix, Subscriber *subscriber)
 		BinaryString payload;
 		BinarySerializer serializer(&payload);
 		serializer.write(prefix);
-		outgoing(Message::Lookup, Message::Subscribe, payload);
+		
+		StringMap content;
+		content["prefix"] = prefix;
+		outgoing("subscribe", content);
 	}
 }
 
@@ -409,49 +424,18 @@ void Core::addRemoteSubscriber(const Identifier &peer, const String &path, bool 
 	mRemoteSubscribers.begin()->subscribe(path);
 }
 
-bool Core::broadcast(const Notification &notification)
+bool Core::broadcast(const Identifier &local, const Notification &notification)
 {
 	Synchronize(this);
 	
-	String payload;
-	JsonSerializer serializer(&payload);
-	serializer.write(notification);
-	
-	Array<Identifier> identifiers;
-	mHandlers.getKeys(identifiers);
-	
-	bool success = false;
-	for(int i=0; i<identifiers.size(); ++i)
-	{
-		Handler *handler;
-		if(mHandlers.get(identifiers[i], handler))
-		{
-			Desynchronize(this);
-			String tmp(payload);
-			success|= handler->outgoing(handler->remote(), Message::Broadcast, Message::Notify, tmp);
-		}
-	}
-	
-	return success;
+	return outgoing(local, Identifier::Null, "notif", notification);
 }
 
-bool Core::send(const Identifier &peer, const Notification &notification)
+bool Core::send(const Identifier &local, const Identifier &remote, const Notification &notification)
 {
 	Synchronize(this);
 	
-	Handler *handler;
-	if(mHandlers.get(peer, handler))
-	{
-		Desynchronize(this);
-		
-		String payload;
-		JsonSerializer serializer(&payload);
-		serializer.write(notification);
-		
-		return handler->outgoing(peer, Message::Forward, Message::Notify, payload);
-	}
-	
-	return false;
+	return outgoing(local, remote, "notif", notification);
 }
 
 bool Core::route(const Message &message, const Identifier &from)
@@ -464,8 +448,8 @@ bool Core::route(const Message &message, const Identifier &from)
 	
 	if(message.destination != Identifier::Null)
 	{
-		// Tunnel messages must not be routed through the same tunnel
-		if(message.content != Message::Tunnel || from != Identifier::Null)
+		// Tunneler::Tunnel messages must not be routed through the same tunnel
+		if(message.content != Message::Tunneler::Tunnel || from != Identifier::Null)
 		{
 			// 1st case: neighbour
 			if(mHandlers.contains(message.destination))
@@ -494,8 +478,8 @@ bool Core::broadcast(const Message &message, const Identifier &from)
 	{
 		if(identifiers[i] == from) continue;
 		
-		// Tunnel messages must not be routed through the same tunnel
-		if(message.content != Message::Tunnel || from != Identifier::Null || identifiers[i] != message.destination)
+		// Tunneler::Tunnel messages must not be routed through the same tunnel
+		if(message.content != Message::Tunneler::Tunnel || from != Identifier::Null || identifiers[i] != message.destination)
 		{
 			Handler *handler;
 			if(mHandlers.get(identifiers[i], handler))
@@ -571,146 +555,131 @@ bool Core::getRoute(const Identifier &id, Identifier &route)
 	return true;
 }
 
-bool Core::addPeer(Stream *stream, const Identifier &local, const Identifier &remote)
+bool Core::addLink(Stream *stream, const Identifier &local, const Identifier &remote)
 {
 	// Not synchronized
 	Assert(stream);
 	
-	LogDebug("Core", "Spawning new handler");
-	Handler *handler = new Handler(this, stream,  &mThreadPool, Identifier(local, getNumber()), remote);
+	LogDebug("Core", "New link");
+	Link *link = new Link(stream, local, remote);
+	mThreadPool.launch(link);
 	return true;
 }
 
-bool Core::hasPeer(const Identifier &remote)
+bool Core::hasLink(const Identifier &local, const Identifier &remote)
 {
 	Synchronize(this);
-	return mHandlers.contains(remote);
+	return mLinks.contains(IdentifierPair(local, remote));
 }
 
-/*
-void Core::run(void)
+bool Core::registerHandler(const Address &addr, Core::Handler *handler)
 {
-	LogDebug("Core", "Starting...");
+	Synchronize(this);
 	
-	try {
-		while(true)
-		{
-			Thread::Sleep(0.01);
-
-			Socket *sock = new Socket;
-			mSock.accept(*sock);
-			
-			try {
-				Address addr;
-				const size_t peekSize = 5;	
-				char peekData[peekSize];
-				std::memset(peekData, 0, peekSize);
-				
-				try {
-					addr = sock->getRemoteAddress();
-					LogDebug("Core::run", "Incoming connection from " + addr.toString());
-					
-					if(addr.isPublic() && addr.isIpv4()) // TODO: isPublicConnectable() currently reports state for ipv4 only
-						mLastPublicIncomingTime = Time::Now();
-					
-					sock->setTimeout(milliseconds(Config::Get("tpot_timeout").toInt()));
-					sock->peekData(peekData, peekSize);
-					
-					sock->setTimeout(milliseconds(Config::Get("tpot_read_timeout").toInt()));
-				}
-				catch(const std::exception &e)
-				{
-					delete sock;
-					throw;
-				}
-			
-				Stream *bs = NULL;
-				
-				if(std::memcmp(peekData, "GET ", 4) == 0
-					|| std::memcmp(peekData, "POST ", 5) == 0)
-				{
-					// This is HTTP, forward connection to HttpTunnel
-					bs = HttpTunnel::Incoming(sock);
-					if(!bs) continue;
-				}
-				else {
-					bs = sock;
-				}
-				
-				LogInfo("Core", "Incoming peer from " + addr.toString() + " (tunnel=" + (bs != sock ? "true" : "false") + ")");
-				addPeer(bs, addr, Identifier::Null, true);	// async
-			}
-			catch(const std::exception &e)
-			{
-				LogDebug("Core::run", String("Processing failed: ") + e.what());
-			}
-		}
-	}
-	catch(const NetException &e)
-	{
-		LogDebug("Core::run", e.what());
-	}
-	
-	LogDebug("Core", "Finished");
-}
-*/
-
-bool Core::addHandler(const Identifier &peer, Core::Handler *handler)
-{
-	Assert(handler);
-
-	if(peer == Identifier::Null) 
-	{
-		LogWarn("Core::addHandler", "Remote identifier is null");
+	if(!handler)
 		return false;
-	}
-	else if(!peer.number())
+	
+	Handler *h = NULL;
+	if(mHandlers.get(addr, h))
+		return (h == handler);
+	
+	mHandlers.insert(host, handler);
+	return true;
+}
+
+bool Core::unregisterHandler(const String &host, Core::Handler *handler)
+{
+	Synchronize(this);
+	
+	if(!handler)
+		return false;
+	
+	Handler *h = NULL;
+	if(!mHandlers.get(addr, h) || h != handler)
+		return false;
+		
+	mHandlers.erase();
+		return true;
+}
+
+bool Core::registerLink(const Identifier &local, const Identifier &remote, Link *link)
+{
+	Synchronize(this);
+	
+	if(!link)
+		return false;
+	
+	IdentifierPair pair(local, remote);
+	
+	Linker::Link *l = NULL;
+	if(mLinker::Links.get(pair, l))
+		return (l == link);
+	
+	mLinker::Links.insert(pair, link);
+	return true;
+}
+
+bool Core::unregisterLink(const Identifier &local, const Identifier &remote, Link *link)
+{
+	Synchronize(this);
+	
+	if(!handler)
+		return false;
+	
+	IdentifierPair pair(local, remote);
+	
+	Linker::Link *l = NULL;
+	if(!mLinker::Links.get(pair, l) || l != link)
+		return false;
+		
+	mLinker::Links.erase();
+		return true;	
+}
+
+bool Core::outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content)
+{
+	Synchronize(this);
+	
+	local.setNumber(getNumber());
+	
+	if(remote != Identifier::Null)
 	{
-		LogWarn("Core::addHandler", "Remote identifier has no instance number");
+		Map<IdentifierPair, Link*>::iterator it = mLinks.find(IdentifierPair(local, remote));
+		if(it != mLinks.end())
+		{
+			return it->second->outgoing(type, content);
+		}
+		
 		return false;
 	}
 	else {
-		Synchronize(this);
+		bool success = false;
+		for(Map<IdentifierPair, Link*>::iterator it = mLinks.lower_bound(IdentifierPair(local, Identifier::Null));
+			it->first == local;
+			++it)
+		{
+			success|= it->second->outgoing(type, content);
+		}
 		
-		Handler *h = NULL;
-		if(mHandlers.get(peer, h))
-			return (h == handler);
-		
-		mHandlers.insert(peer, handler);
-		return true;
+		return success;
 	}
 }
 
-bool Core::removeHandler(const Identifier &peer, Core::Handler *handler)
+bool incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer)
 {
-	Assert(handler);
 	
-	if(peer != Identifier::Null && peer.number()) 
-	{
-		Synchronize(this);
-	
-		Handler *h = NULL;
-		if(!mHandlers.get(peer, h) || h != handler)
-			return false;
-		
-		mHandlers.erase(peer);
-		return true;
-	}
 }
 
-bool Core::outgoing(uint8_t type, uint8_t content, Stream &payload)
+bool incoming(const Message &message)
 {
-	return outgoing(Identifier::Null, type, content, payload);
-}
-
-bool Core::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
-{
-	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
+	Synchronize(this);
 	
-	Message message;
-	message.prepare(Identifier::Null, dest, type, content);
-	message.payload.write(payload);
-	return route(message);
+	if(message.destination.getNumber() != getNumber())
+		return false;
+	
+	Map<IdentifierPair, Tunneler::Tunnel*>::iterator it = mTunneler::Tunnels.find(IdentifierPair(message.destination, message.source));	
+	if(it != mTunneler::Tunnels.end()) return it->second->incoming(message);
+	else return Core::Instance->mTunneler->incoming(message);
 }
 
 bool Core::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
@@ -832,6 +801,79 @@ bool Core::matchSubscribers(const String &path, const Identifier &source, Publis
 	}
 	
 	return true;
+}
+
+bool Core::track(const String &tracker, Set<Address> &result)
+{
+	LogDebug("Core::track", "Contacting tracker " + tracker);
+	
+	try {
+		String url("http://" + tracker + "/teapotnet/");
+		
+		// Dirty hack to test if tracker is private or public
+		bool trackerIsPrivate = false;
+		List<Address> trackerAddresses;
+		Resolve(tracker, trackerAddresses);
+		for(	List<Address>::iterator it = trackerAddresses.begin();
+			it != trackerAddresses.end();
+			++it)
+		{
+			if(it->isPrivate())
+			{
+				trackerIsPrivate = true;
+				break;
+			}
+		}
+		
+		Set<Address> addresses, tmp;
+		Config::GetExternalAddresses(addresses); 
+		
+		getKnownPublicAdresses(tmp);	// Our own addresses are mixed with known public addresses
+		addresses.insertAll(tmp);
+		
+		String strAddresses;
+		for(	Set<Address>::iterator it = addresses.begin();
+			it != addresses.end();
+			++it)
+		{
+			if(!it->isLocal() && (trackerIsPrivate || it->isPublic()))	// We publish only public addresses if tracker is not private
+			{
+				if(!strAddresses.empty()) strAddresses+= ',';
+				strAddresses+= it->toString();
+			}
+		}
+		
+		StringMap post;
+		if(!strAddresses.empty())
+			post["addresses"] = strAddresses;
+		
+		const String externalPort = Config::Get("external_port");
+		if(!externalPort.empty() && externalPort != "auto")
+		{
+			post["port"] = externalPort;
+		}
+                else if(!PortMapping::Instance->isAvailable()
+			|| !PortMapping::Instance->getExternalAddress(PortMapping::TCP, Config::Get("port").toInt()).isPublic())	// Cascading NATs
+		{
+			post["port"] = Config::Get("port");
+		}
+		
+		String json;
+		int code = Http::Post(url, post, &json);
+		if(code == 200)
+		{
+			JsonSerializer serializer(&json);
+			return serializer.input(result);
+		}
+		
+		LogWarn("Core::track", "Tracker HTTP error: " + String::number(code)); 
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Core::track", e.what()); 
+	}
+	
+	return false;
 }
 
 Core::Message::Message(void) :
@@ -1167,236 +1209,40 @@ Core::Backend::~Backend(void)
 	
 }
 
-bool Core::Backend::process(SecureTransport *transport, const Locator &locator)
+bool Core::Backend::process(SecureTransport *transport, const Set<Address> &addrs)
 {
-	if(!locator.peering.empty())
-	{
-		Identifier local(locator.peering, mCore->getNumber());
-		LogDebug("Core::Backend::process", "Setting PSK credentials: " + local.toString());
-		
-		// Add contact private shared key
-		SecureTransportClient::Credentials *creds = new SecureTransportClient::PrivateSharedKey(local.toString(), locator.secret);
-		transport->addCredentials(creds, true);	// must delete
-		
-		return handshake(transport, local, locator.peering, false);
-	}
-	else if(locator.user)
-	{
-		LogDebug("Core::Backend::process", "Setting certificate credentials: " + locator.user->name());
-		
-		// Set remote name and local instance hint
-		String name = locator.identifier.digest().toString() + "#" + String::hexa(mCore->getNumber());
-		transport->setHostname(name);
-		
-		Identifier local(locator.user->identifier(), mCore->getNumber());
-		
-		// Add user certificate
-		SecureTransportClient::Certificate *cert = locator.user->certificate();
-		if(cert) transport->addCredentials(cert, false);
-		
-		return handshake(transport, local, locator.identifier, false);
-	}
-	else {
-		LogDebug("Core::Backend::process", "Setting anonymous credentials");
-		
-		// Add anonymous credentials
-		transport->addCredentials(&mAnonymousClientCreds);
-		
-		return handshake(transport, Identifier::Null, Identifier::Null, false);
-	}
+	LogDebug("Core::Backend::process", "Setting anonymous credentials");
+	
+	// Add anonymous credentials
+	transport->addCredentials(&mAnonymousClientCreds);
+	
+	return handshake(transport, Identifier::Null, Identifier::Null, false);
 }
 
-bool Core::Backend::handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async)
+bool Core::Backend::handshake(SecureTransport *transport, bool async)
 {
-	class MyVerifier : public SecureTransport::Verifier
-	{
-	public:
-		Identifier local, remote;
-		Rsa::PublicKey publicKey;
-		uint64_t instance;
-		
-		MyVerifier(Core *core) { this->core = core; this->instance = 0; }
-		
-		bool verifyName(const String &name, SecureTransport *transport)
-		{
-			String digest = name;			// local digest
-			String number = digest.cut('#');	// remote instance
-			if(!number.empty())
-			{
-				number.hexaMode(true);
-				number.read(instance);
-			}
-			
-			LogDebug("Core::Backend::doHandshake", String("Verifying user: ") + digest);
-			
-			Identifier id;
-			try {
-				id.fromString(digest);
-			}
-			catch(...)
-			{
-				LogDebug("Core::Backend::doHandshake", String("Invalid identifier: ") + digest);
-				return false;
-			}
-			
-			User *user = User::GetByIdentifier(id);
-			if(user)
-			{
-				SecureTransport::Credentials *creds = user->certificate();
-				if(creds) transport->addCredentials(creds);
-				local = Identifier(user->identifier(), core->getNumber());
-			}
-			else {
-				 LogDebug("Core::Backend::doHandshake", String("User does not exist: ") + name);
-			}
-			
-			return true;	// continue handshake anyway
-		}
-		
-		bool verifyPrivateSharedKey(const String &name, BinaryString &key)
-		{
-			LogDebug("Core::Backend::doHandshake", String("Verifying PSK: ") + name);
-			
-			try {
-				remote.fromString(name);
-				local = Identifier(remote, core->getNumber());
-			}
-			catch(...)
-			{
-				LogDebug("Core::Backend::doHandshake", String("Invalid peering: ") + name);
-				return false;
-			}
-			
-			if(!remote.empty())
-			{
-				Synchronize(core);
-				
-				Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
-				while(it != core->mListeners.end() && it->first == remote)
-				{
-					for(Set<Listener*>::iterator jt = it->second.begin();
-						jt != it->second.end();
-						++jt)
-					{
-						if((*jt)->auth(remote, key))
-							return true;
-					}
-					
-					++it;
-				}
-			}
-
-			LogDebug("Core::Backend::doHandshake", String("Peering not found: ") + remote.toString());
-			return false;
-		}
-		
-		bool verifyCertificate(const Rsa::PublicKey &pub)
-		{
-			publicKey = pub;
-			remote = Identifier(publicKey.digest(), instance);
-			
-			LogDebug("Core::Backend::doHandshake", String("Verifying remote certificate: ") + remote.toString());
-			
-			Synchronize(core);
-			
-			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
-			while(it != core->mListeners.end() && it->first == remote)
-			{
-				for(Set<Listener*>::iterator jt = it->second.begin();
-					jt != it->second.end();
-					++jt)
-				{
-					if((*jt)->auth(remote, publicKey))
-						return true;
-				}
-				
-				++it;
-			}
-			
-			LogDebug("Core::Backend::doHandshake", "Certificate verification failed");
-			return false;
-		}
-		
-	private:
-		Core *core;
-	};
-	
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(Core *core, SecureTransport *transport, const Identifier &local, const Identifier &remote)
-		{ 
-			this->core = core;
-			this->transport = transport;
-			this->local = local;
-			this->remote = remote;
-		}
+		HandshakeTask(SecureTransport *transport) { this->transport = transport; }
 		
 		bool handshake(void)
 		{
-			LogDebug("Core::Backend::doHandshake", "HandshakeTask starting...");
+			LogDebug("Core::Backend::handshake", "HandshakeTask starting...");
 			
 			try {
-				// Set verifier
-				MyVerifier verifier(core);
-				transport->setVerifier(&verifier);
-				
 				// Do handshake
 				transport->handshake();
-
-				if(transport->hasCertificate())
-				{
-					// Assign local if client
-					if(transport->isClient())
-					{
-						verifier.local = local;
-						verifier.remote.setNumber(remote.number());	// pass instance number
-					}
-						
-					// Check remote identifier
-					if(remote != Identifier::Null && verifier.remote != remote)
-						throw Exception("Invalid identifier: " + verifier.remote.toString());
-					
-					// Sanity checks
-					Assert(verifier.local != Identifier::Null);
-					Assert(verifier.remote != Identifier::Null);
-				}
-				else if(transport->hasPrivateSharedKey())
-				{
-					// Assign identifiers if client
-					if(transport->isClient())
-					{
-						verifier.local = local;
-						verifier.remote = remote;
-						
-						// Remote instance is transmitted in PSK hint
-						String hint = transport->getPrivateSharedKeyHint();
-						if(hint.empty())
-							throw Exception("Missing PSK hint");
-						
-						uint64_t number = 0;
-						hint.hexaMode(true);
-						hint.read(number);
-						verifier.remote.setNumber(number);
-					}
-					
-					// Sanity checks
-					Assert(verifier.local.digest() == verifier.remote.digest());
-				}
-				else {
-					// Sanity checks
-					Assert(verifier.local == Identifier::Null);
-					Assert(verifier.remote == Identifier::Null);
-				}
 				
 				// Handshake succeeded, add peer
-				LogDebug("Core::Backend::doHandshake", "Handshake succeeded");
-				core->addPeer(transport, verifier.local, verifier.remote);
+				LogDebug("Core::Backend::handshake", "Success, spawning new handler");
+				
+				Handler *handler = new Handler(this, stream,  &mThreadPool, Identifier(local, Instance::Core->getNumber()), remote);
 				return true;
 			}
 			catch(const std::exception &e)
 			{
-				LogInfo("Core::Backend::doHandshake", String("Handshake failed: ") + e.what());
+				LogInfo("Core::Backend::handshake", String("Handshake failed: ") + e.what());
 				delete transport;
 				return false;
 			}
@@ -1409,9 +1255,7 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 		}
 		
 	private:
-		Core *core;
 		SecureTransport *transport;
-		Identifier local, remote;
 	};
 	
 	HandshakeTask *task = NULL;
@@ -1423,13 +1267,13 @@ bool Core::Backend::handshake(SecureTransport *transport, const Identifier &loca
 			return true;
 		}
 		else {
-			HandshakeTask task(mCore, transport, local, remote);
-			return task.handshake();
+			HandshakeTask stask(mCore, transport, local, remote);
+			return stask.handshake();
 		}
 	}
 	catch(const std::exception &e)
 	{
-		LogError("Core::Backend::doHandshake", e.what());
+		LogError("Core::Backend::handshake", e.what());
 		delete task;
 		delete transport;
 		return false;
@@ -1446,15 +1290,11 @@ void Core::Backend::run(void)
 			
 			LogDebug("Core::Backend::run", "Incoming connection");
 			
-			if(!transport->isHandshakeDone())
-			{
-				// Add server credentials (certificate added on name verification)
-				transport->addCredentials(&mAnonymousServerCreds, false);
-				transport->addCredentials(&mPrivateSharedKeyServerCreds, false);
-				
-				// No remote identifier specified, accept any identifier
-				handshake(transport, Identifier::Null, Identifier::Null, true); // async
-			}
+			// Add server credentials
+			transport->addCredentials(&mAnonymousServerCreds, false);
+			
+			// No remote identifier specified, accept any identifier
+			handshake(transport, true);	// async
 		}
 	}
 	catch(const std::exception &e)
@@ -1477,14 +1317,14 @@ Core::StreamBackend::~StreamBackend(void)
 	
 }
 
-bool Core::StreamBackend::connect(const Locator &locator)
+bool Core::StreamBackend::connect(const Set<Address> &addrs)
 {
-	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
-		it != locator.addresses.rend();
+	for(Set<Address>::const_reverse_iterator it = addrs.rbegin();
+		it != addrs.rend();
 		++it)
 	{
 		try {
-			if(connect(*it, locator))
+			if(connect(*it))
 				return true;
 		}
 		catch(const NetException &e)
@@ -1496,7 +1336,7 @@ bool Core::StreamBackend::connect(const Locator &locator)
 	return false;
 }
 
-bool Core::StreamBackend::connect(const Address &addr, const Locator &locator)
+bool Core::StreamBackend::connect(const Address &addr)
 {
 	Socket *sock = NULL;
 	SecureTransport *transport = NULL;
@@ -1549,14 +1389,14 @@ Core::DatagramBackend::~DatagramBackend(void)
 	
 }
 
-bool Core::DatagramBackend::connect(const Locator &locator)
+bool Core::DatagramBackend::connect(const Set<Address> &addrs)
 {
-	for(Set<Address>::const_reverse_iterator it = locator.addresses.rbegin();
-		it != locator.addresses.rend();
+	for(Set<Address>::const_reverse_iterator it = addrs.rbegin();
+		it != addrs.rend();
 		++it)
 	{
 		try {
-			if(connect(*it, locator))
+			if(connect(*it))
 				return true;
 		}
 		catch(const NetException &e)
@@ -1568,7 +1408,7 @@ bool Core::DatagramBackend::connect(const Locator &locator)
 	return false;
 }
 
-bool Core::DatagramBackend::connect(const Address &addr, const Locator &locator)
+bool Core::DatagramBackend::connect(const Address &addr)
 {
 	DatagramStream *stream = NULL;
 	SecureTransport *transport = NULL;
@@ -1604,127 +1444,346 @@ void Core::DatagramBackend::getAddresses(Set<Address> &set) const
 	mSock.getLocalAddresses(set);
 }
 
-Core::TunnelBackend::TunnelBackend(Core *core) :
+Core::Tunneler(Core *core) :
 	Backend(core)
 {
 
 }
 
-Core::TunnelBackend::~TunnelBackend(void)
+Core::Tunneler::~Tunneler(void)
 {
 	
 }
 
-bool Core::TunnelBackend::connect(const Locator &locator)
+bool Core::Tunneler::open(const Identifier &identifier, User *user)
 {
 	Assert(locator.user);
 	
-	if(locator.identifier.empty())
-		return NULL;
+	if(identifier.empty())
+		return false;
 	
 	if(mCore->connectionsCount() == 0)
-		return NULL;
+		return false;
 	
-	LogDebug("Core::TunnelBackend::connect", "Trying tunnel for " + locator.identifier.toString());
+	LogDebug("Core::Tunneler::open", "Trying tunnel for " + locator.identifier.toString());
 	
 	Identifier remote(locator.identifier);
 	Identifier local(locator.user->identifier(), mCore->getNumber());
-
-	TunnelWrapper *wrapper = NULL;
+	
+	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportClient(wrapper, NULL);
+		tunnel = new Tunneler::Tunnel(local, remote);
+		transport = new SecureTransportClient(tunnel, NULL);
 	}
 	catch(...)
 	{
-		delete wrapper;
+		delete tunnel;
 		throw;
 	}
 	
-	mWrappers.insert(IdentifierPair(local, remote), wrapper);
-	return process(transport, locator);
+	LogDebug("Core::Tunneler::open", "Setting certificate credentials: " + user->name());
+		
+	// Set remote name and local instance hint
+	String name = identifier.digest().toString() + "#" + String::hexa(Core::Instance->getNumber());
+	transport->setHostname(name);
+	
+	Identifier local(user->identifier(), Core::Instance->getNumber());
+	
+	// Add user certificate
+	SecureTransportClient::Certificate *cert = user->certificate();
+	if(cert) transport->addCredentials(cert, false);
+	
+	mThreadPool.run(tunnel);
+	
+	return handshake(transport, local, identifier, false);	// sync
 }
 
-SecureTransport *Core::TunnelBackend::listen(void)
+SecureTransport *Core::Tunneler::listen(void)
 {
 	Synchronize(&mQueueSync);
-
+	
 	while(mQueue.empty()) mQueueSync.wait();
 	
-	const Message &message = mQueue.front();
-	Assert(message.content == Message::Tunnel);
+	const Message &datagram = mQueue.front();
 	
-	LogDebug("Core::TunnelBackend::listen", "Incoming tunnel from " + message.source.toString());
+	LogDebug("Core::Tunneler::listen", "Incoming tunnel from " + datagram.source.toString());
 
-	Identifier local(message.destination, mCore->getNumber());
-	Identifier remote(message.source);
+	Identifier local(datagram.destination, mCore->getNumber());
+	Identifier remote(datagram.source);
 
-	TunnelWrapper *wrapper = NULL;
+	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		wrapper = new TunnelWrapper(mCore, local, remote);
-		transport = new SecureTransportServer(wrapper, NULL, true);	// ask for certificate
+		tunnel = new Tunneler::Tunnel(mCore, local, remote);
+		transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
 	}
 	catch(...)
 	{
-		delete wrapper;
+		delete tunnel;
 		mQueue.pop();
 		throw;
 	}
 	
-	mWrappers.insert(IdentifierPair(local, remote), wrapper);
-	wrapper->incoming(message);
+	mTunneler::Tunnels.insert(IdentifierPair(local, remote), tunnel);
+	tunnel->incoming(datagram);
+	
+	mThreadPool.run(tunnel);
 	
 	mQueue.pop();
 	return transport;
 }
 
-bool Core::TunnelBackend::incoming(const Message &message)
+bool Core::Tunneler::incoming(const Message &datagram)
 {
-	if(message.content != Message::Tunnel)
-		return false;
-	
-	//LogDebug("Core::TunnelBackend::incoming", "Received tunnel message");
-	
-	Identifier local(message.destination, mCore->getNumber());
-	Identifier remote(message.source);
-	
-	Map<IdentifierPair, TunnelWrapper*>::iterator it = mWrappers.find(IdentifierPair(local, remote));	
-	if(it != mWrappers.end())
-	{
-		return it->second->incoming(message);
-	}
-	else {
-		Synchronize(&mQueueSync);
-		mQueue.push(message);
-		mQueueSync.notifyAll();
-	}
-	
+	Synchronize(&mQueueSync);
+	mQueue.push(datagram);
+	mQueueSync.notifyAll();
 	return true;
 }
 
-Core::TunnelBackend::TunnelWrapper::TunnelWrapper(Core *core, const Identifier &local, const Identifier &remote) :
-	mCore(core),
+bool registerTunnel(Tunnel *tunnel)
+{
+	Synchronize(this);
+	
+	if(!tunnel)
+		return false;
+	
+	IdentifierPair pair(tunnel->local(), tunnel->remote());
+	
+	Tunneler::Tunnel *t = NULL;
+	if(mTunneler::Tunnels.get(pair, t))
+		return (t == tunnel);
+	
+	mTunneler::Tunnels.insert(pair, tunnel);
+	return true;
+}
+
+bool unregisterTunnel(Tunnel *tunnel)
+{
+	Synchronize(this);
+	
+	if(!handler)
+		return false;
+	
+	IdentifierPair pair(tunnel->local(), tunnel->remote());
+	
+	Tunneler::Tunnel *t = NULL;
+	if(!mTunneler::Tunnels.get(pair, t) || t != tunnel)
+		return false;
+		
+	mTunneler::Tunnels.erase();
+		return true;	
+}
+
+bool Core::Tunneler::handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async)
+{
+	class MyVerifier : public SecureTransport::Verifier
+	{
+	public:
+		Identifier local, remote;
+		Rsa::PublicKey publicKey;
+		uint64_t instance;
+		
+		MyVerifier(void) { this->instance = 0; }
+		
+		bool verifyName(const String &name, SecureTransport *transport)
+		{
+			String digest = name;			// local digest
+			String number = digest.cut('#');	// remote instance
+			if(!number.empty())
+			{
+				number.hexaMode(true);
+				number.read(instance);
+			}
+			
+			LogDebug("Core::Tunneler::handshake", String("Verifying user: ") + digest);
+			
+			Identifier id;
+			try {
+				id.fromString(digest);
+			}
+			catch(...)
+			{
+				LogDebug("Core::Tunneler::handshake", String("Invalid identifier: ") + digest);
+				return false;
+			}
+			
+			User *user = User::GetByIdentifier(id);
+			if(user)
+			{
+				SecureTransport::Credentials *creds = user->certificate();
+				if(creds) transport->addCredentials(creds);
+				local = Identifier(user->identifier(), core->getNumber());
+			}
+			else {
+				 LogDebug("Core::Tunneler::handshake", String("User does not exist: ") + name);
+			}
+			
+			return true;	// continue handshake anyway
+		}
+		
+		bool verifyCertificate(const Rsa::PublicKey &pub)
+		{
+			publicKey = pub;
+			remote = Identifier(publicKey.digest(), instance);
+			
+			LogDebug("Core::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
+			
+			Synchronize(core);
+			
+			Map<Identifier, Set<Listener*> >::iterator it = core->mListeners.find(remote);
+			while(it != core->mListeners.end() && it->first == remote)
+			{
+				for(Set<Listener*>::iterator jt = it->second.begin();
+					jt != it->second.end();
+					++jt)
+				{
+					if((*jt)->auth(remote, publicKey))
+						return true;
+				}
+				
+				++it;
+			}
+			
+			LogDebug("Core::Tunneler::handshake", "Certificate verification failed");
+			return false;
+		}
+	};
+	
+	class HandshakeTask : public Task
+	{
+	public:
+		HandshakeTask(SecureTransport *transport, const Identifier &local, const Identifier &remote)
+		{ 
+			this->transport = transport;
+			this->local = local;
+			this->remote = remote;
+		}
+		
+		bool handshake(void)
+		{
+			LogDebug("Core::Tunneler::handshake", "HandshakeTask starting...");
+			
+			try {
+				// Set verifier
+				MyVerifier verifier;
+				transport->setVerifier(&verifier);
+				
+				// Do handshake
+				transport->handshake();
+				Assert(transport->hasCertificate());
+				
+				// Assign local if client
+				if(transport->isClient())
+				{
+					verifier.local = local;
+					verifier.remote.setNumber(remote.number());	// pass instance number
+				}
+						
+				// Check remote identifier
+				if(remote != Identifier::Null && verifier.remote != remote)
+					throw Exception("Invalid identifier: " + verifier.remote.toString());
+				
+				// Handshake succeeded
+				LogDebug("Core::Tunneler::handshake", "Success");
+				
+				// TODO: addLink in Core
+				
+				return true;
+			}
+			catch(const std::exception &e)
+			{
+				LogInfo("Core::Tunneler::handshake", String("Handshake failed: ") + e.what());
+				delete transport;
+				return false;
+			}
+		}
+		
+		void run(void)
+		{
+			handshake();
+			delete this;	// autodelete
+		}
+		
+	private:
+		SecureTransport *transport;
+		Identifier local, remote;
+	};
+	
+	HandshakeTask *task = NULL;
+	try {
+		if(async)
+		{
+			task = new HandshakeTask(mCore, transport, local, remote);
+			mThreadPool.launch(task);
+			return true;
+		}
+		else {
+			HandshakeTask stask(mCore, transport, local, remote);
+			return stask.handshake();
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Tunneler::handshake", e.what());
+		delete task;
+		delete transport;
+		return false;
+	}
+}
+
+void Core::Tunneler::run(void)
+{
+	try {
+		while(true)
+		{
+			SecureTransport *transport = listen();
+			if(!transport) break;
+			
+			LogDebug("Core::Backend::run", "Incoming tunnel");
+			
+			handshake(transport, Identifier::Null, Identifier::Null, true); // async
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Core::Tunneler::run", e.what());
+	}
+	
+	LogWarn("Core::Backend::run", "Closing tunneler");
+}
+
+Core::Tunneler::Tunnel::Tunneler::Tunnel(Tunneler *tunneler, const Identifier &local, const Identifier &remote) :
+	mTunneler(tunneler),
 	mLocal(local),
 	mRemote(remote),
 	mTimeout(DefaultTimeout)
 {
-
+	mTunneler->registerTunnel(this);
 }
 
-Core::TunnelBackend::TunnelWrapper::~TunnelWrapper(void)
+Core::Tunneler::Tunnel::~Tunneler::Tunnel(void)
 {
-	// TODO: synchro
-	mCore->mTunnelBackend->mWrappers.erase(IdentifierPair(mLocal, mRemote));
+	mTunneler->unregisterTunnel(this);
 }
 
-void Core::TunnelBackend::TunnelWrapper::setTimeout(double timeout)
+Identifier Core::Tunneler::Tunnel::local(void) const
+{
+	return mLocal;
+}
+
+Identifier Core::Tunneler::Tunnel::remote(void) const
+{
+	return mRemote;
+}
+
+void Core::Tunneler::Tunnel::setTimeout(double timeout)
 {
 	mTimeout = timeout;
 }
 
-size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
+size_t Core::Tunneler::Tunnel::readData(char *buffer, size_t size)
 {
 	Synchronize(&mQueueSync);
 	
@@ -1740,15 +1799,15 @@ size_t Core::TunnelBackend::TunnelWrapper::readData(char *buffer, size_t size)
         return size;
 }
 
-void Core::TunnelBackend::TunnelWrapper::writeData(const char *data, size_t size)
+void Core::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
 	Message message;
-	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
+	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunneler::Tunnel);
 	message.payload.writeBinary(data, size);
 	mCore->route(message);
 }
 
-bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
+bool Core::Tunneler::Tunnel::waitData(double &timeout)
 {
 	Synchronize(&mQueueSync);
 	
@@ -1764,128 +1823,105 @@ bool Core::TunnelBackend::TunnelWrapper::waitData(double &timeout)
 	return true;
 }
 
-bool Core::TunnelBackend::TunnelWrapper::waitData(const double &timeout)
+bool Core::Tunneler::Tunnel::waitData(const double &timeout)
 {
 	double dummy = timeout;
 	return waitData(dummy);
 }
 
-bool Core::TunnelBackend::TunnelWrapper::isDatagram(void) const
+bool Core::Tunneler::Tunnel::isDatagram(void) const
 {
 	return true; 
 }
 
-bool Core::TunnelBackend::TunnelWrapper::incoming(const Message &message)
+bool Core::Tunneler::Tunnel::incoming(const Message &datagram)
 {
 	Synchronize(&mQueueSync);
-	mQueue.push(message);
+	mQueue.push(datagram);
 	mQueueSync.notifyAll();
 	return true;
 }
 
-Core::Handler::Handler(Core *core, Stream *stream, ThreadPool *pool, const Identifier &local, const Identifier &remote) :
+Core::Handler::Handler(Core *core, Stream *stream, ThreadPool *pool, const Address &addr) :
 	mCore(core),
 	mStream(stream),
-	mLocal(local),
-	mRemote(remote),
-	mIsIncoming(true),
-	mStopping(false)
+	mAddress(addr)
 {
-	mSender = new Sender(stream);
-	pool->launch(this);
-	pool->launch(mSender);
+	Core::Instance->registerHandler(mAddress, this);
 }
 
 Core::Handler::~Handler(void)
 {
+	Core::Instance->unregisterHandler(mAddress, this);	// should be done already
+	
 	delete mSender;
 	delete mStream;
 }
 
-Identifier Core::Handler::local(void) const
-{
-	Synchronize(this);
-	return mLocal;
-}
-
-Identifier Core::Handler::remote(void) const
-{
-	Synchronize(this);
-	return mRemote;
-}
-
-bool Core::Handler::recv(Message &message)
+bool Core::Handler::recv(Message &datagram)
 {
 	Synchronize(this);
 	
+	const size_t MaxSize = 1500;	// TODO
+	char buffer[MaxSize];
+	size_t size = 0;
+	
+	if(mStream->isDatagram())
 	{
 		Desynchronize(this);
 		
-		uint16_t size = 0;
+		size = mStream->readBinary(buffer, MaxSize);
+	}
+	else {
+		Desynchronize(this);
 		
-		if(mStream->isDatagram())
-		{
-			char buffer[1500];
-			size_t size = mStream->readBinary(buffer, 1500);
-			if(!size) return false;
-			
-			ByteArray s(buffer, size);
-			
-			AssertIO(s.readBinary(message.version));
-			AssertIO(s.readBinary(message.flags));
-			AssertIO(s.readBinary(message.type));
-			AssertIO(s.readBinary(message.content));
-			AssertIO(s.readBinary(message.hops));
-			AssertIO(s.readBinary(size));
-			
-			BinarySerializer serializer(mStream);
-			AssertIO(s.read(message.source));
-			AssertIO(s.read(message.destination));
-			
-			message.payload.clear();
-			if(s.readBinary(message.payload, size) != size)
-				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
-		}
-		else {
-			if(!mStream->readBinary(message.version)) return false;
-			AssertIO(mStream->readBinary(message.flags));
-			AssertIO(mStream->readBinary(message.type));
-			AssertIO(mStream->readBinary(message.content));
-			AssertIO(mStream->readBinary(message.hops));
-			AssertIO(mStream->readBinary(size));
-			
-			BinarySerializer serializer(mStream);
-			AssertIO(serializer.read(message.source));
-			AssertIO(serializer.read(message.destination));
-			
-			message.payload.clear();
-			if(mStream->readBinary(message.payload, size) != size)
-				throw Exception("Incomplete message (size should be " + String::number(unsigned(size))+")");
-		}
+		uint16_t datagramSize = 0;
+		if(!mStream->readBinary(datagramSize))
+			return false;
 		
-		++message.hops;
+		size = datagramSize;
+		if(mStream->readBinary(buffer, size) != size)
+			throw Exception("Connection unexpectedly closed (size should be " + String::number(unsigned(size))+")");
 	}
 	
-	return true;
+	if(size)
+	{
+		ByteArray s(buffer, size);
+		BinarySerializer serializer(&s);
+		AssertIO(serializer.read(datagram.source));
+		AssertIO(serializer.read(datagram.destination));
+		
+		datagram.payload.clear();
+		s.readBinary(datagram.payload);
+		return true;
+	}
+	
+	return false;
 }
 
-bool Core::Handler::send(const Message &message)
-{
-	Synchronize(this);
-	return mSender->push(message);
-}
-
-void Core::Handler::route(const Message &message)
-{
-	Synchronize(this);
-	DesynchronizeStatement(this, mCore->route(message, mRemote));
-}
-
-bool Core::Handler::incoming(const Message &message)
+bool Core::Handler::send(const Message &datagram)
 {
 	Synchronize(this);
 	
-	if(message.content != Message::Tunnel && message.content != Message::Data)
+	ByteArray buffer(1500);
+	
+	BinarySerializer serializer(&buffer);
+	serializer.write(datagram.source);
+	serializer.write(datagram.destination);
+	
+	buffer.writeBinary(datagram.payload);
+	
+	if(!mStream->isDatagram())
+		mStream->writeBinary(uint16_t(buffer.size()));
+	
+	DesynchronizeStatement(this, mStream->writeBinary(buffer.data(), buffer.size()));
+}
+
+/*bool Core::Handler::incoming(const Message &message)
+{
+	Synchronize(this);
+	
+	if(message.content != Message::Tunneler::Tunnel && message.content != Message::Data)
 		LogDebug("Core::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	
 	const Identifier &source = message.source;
@@ -1893,10 +1929,9 @@ bool Core::Handler::incoming(const Message &message)
 	
 	switch(message.content)
 	{
-		case Message::Tunnel:
+		case Message::Tunneler::Tunnel:
 		{
-			Desynchronize(this);
-			if(mCore->mTunnelBackend) mCore->mTunnelBackend->incoming(message);
+			Core::instance->dispatchTunneler::Tunnel(message);
 			break; 
 		}
 		
@@ -1909,7 +1944,7 @@ bool Core::Handler::incoming(const Message &message)
 			// TODO: correct sync
 			// TODO: getListeners function in Core
 			Desynchronize(this);
-			Synchronize(mCore);
+			Synchronize(Core::Instance);
 			Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(source);
 			while(it != mCore->mListeners.end() && it->first == source)
 			{
@@ -2006,183 +2041,139 @@ bool Core::Handler::incoming(const Message &message)
 	}
 	
 	return true;
-}
-
-bool Core::Handler::outgoing(const Identifier &dest, uint8_t type, uint8_t content, Stream &payload)
-{
-	//LogDebug("Core::Handler::outgoing", "Outgoing message (type=" + String::number(unsigned(type)) + ", content=" + String::number(unsigned(content)) + ")");
-	
-	Message message;
-	message.prepare(mLocal, dest, type, content);
-	message.payload.write(payload);
-	return send(message);
-}
+}*/
 
 void Core::Handler::process(void)
 {
 	Synchronize(this);
-
-	String command, args;
-	StringMap parameters;
 	
-	// New node is connected
-	if(mRemote != Identifier::Null)
+	Message datagram;
+	while(recv(datagram))
 	{
 		Desynchronize(this);
-		Synchronize(mCore);
-		
-		// TODO: correct sync
-		Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(mRemote);
-		while(it != mCore->mListeners.end() && it->first == mRemote)
-		{
-			for(Set<Listener*>::iterator jt = it->second.begin();
-				jt != it->second.end();
-				++jt)
-			{
-				(*jt)->connected(mRemote); 
-			}
-			
-			++it;
-		}
-	}
-	
-	Message message;
-	while(recv(message))
-	{
-		try {
-			//LogDebug("Core::Handler", "Received message (type=" + String::number(unsigned(message.type)) + ")");
-			
-			if(message.source == Identifier::Null || message.source == mLocal)
-				continue;
-			
-			if(mRemote != Identifier::Null && message.source != mRemote)
-			{
-				Desynchronize(this);
-				mCore->addRoute(message.source, mRemote);
-			}
-			
-			switch(message.type)
-			{
-				case Message::Forward:
-					if(message.destination == mLocal) incoming(message);
-					else route(message);
-					break;
-					
-				case Message::Broadcast:
-					incoming(message);
-					route(message);
-					break;
-					
-				case Message::Lookup:
-					if(message.destination == mLocal) incoming(message);
-					else if(!incoming(message))
-						route(message);
-					break;
-					
-				default:
-					LogDebug("Core::Handler", "Unknwon message type " + String::number(unsigned(message.type)) + ", dropping");
-					break;
-			}
-		}
-		catch(const std::exception &e)
-		{
-			LogWarn("Core::Handler", String("Unable to process message: ") + e.what()); 
-		}
+		//LogDebug("Core::Handler", "Received datagram");
+		Core::Instance->incoming(datagram);
 	}
 }
 
 void Core::Handler::run(void)
 {
-	mCore->addHandler(mRemote, this);
-	
 	try {
-		LogDebug("Core::Handler", "Starting link handler");
+		LogDebug("Core::Handler", "Starting handler");
 	
 		process();
 		
-		LogDebug("Core::Handler", "Closing link handler");
+		LogDebug("Core::Handler", "Closing handler");
 	}
 	catch(const std::exception &e)
 	{
-		LogDebug("Core::Handler", String("Closing link handler: ") + e.what());
+		LogDebug("Core::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	if(mRemote.number())
-		mCore->removeHandler(mRemote, this);
+	mCore->unregisterHandler(mAddress, this);
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
 	delete this;		// autodelete
 }
 
-Core::Handler::Sender::Sender(Stream *stream) :
-	mStream(stream)
+Core::Link::Link(Stream *stream) :
+	mStream(stream),
+	mTokens(0.),
+	mRedundancy(1.1)	// TODO
 {
+	Core::Instance->registerLink(this);
+}
+
+Core::Link::~Link(void)
+{
+	Core::Instance->unregisterLink(this);	// should be done already
 	
+	delete mStream;
 }
 
-Core::Handler::Sender::~Sender(void)
-{
-
-}
-
-bool Core::Handler::Sender::push(const Message &message)
+bool read(String &type, String &content)
 {
 	Synchronize(this);
 	
-	if(mQueue.size() + mSecondaryQueue.size() > 1024)
-	{
-		if(!mSecondaryQueue.empty()) mSecondaryQueue.pop();
-		else mQueue.pop();
-	}
-	
-	if(message.content == Message::Data || message.content == Message::Ack) mSecondaryQueue.push(message);
-	else mQueue.push(message);
-	
-	notifyAll();
-	return true;
-}
-
-void Core::Handler::Sender::run(void)
-{
+	content.clear();
 	while(true)
 	{
-		Message message;
-		
+		// Try to read some content
+		char chr;
+		while(mSink.read(&chr, 1))
 		{
-			Synchronize(this);
-			
-			while(mQueue.empty() && mSecondaryQueue.empty())
-				wait();
-			
-			if(!mQueue.empty()) 
+			if(chr == '\0')
 			{
-				message = mQueue.front();
-				mQueue.pop();
+				// Finished
+				// TODO: type
+				return true;
 			}
-			else {
-				message = mSecondaryQueue.front();
-				mSecondaryQueue.pop();
-			}
+			
+			content+= chr;
 		}
 		
-		uint16_t size = message.payload.size();
+		// We need more combinations to get more content
+		BinaryString temp;
+		DesynchronizeStatement(this, if(!mStream->readBinary(temp)) return false);
 		
-		ByteArray buffer(1500);
-		buffer.writeBinary(message.version);
-		buffer.writeBinary(message.flags);
-		buffer.writeBinary(message.type);
-		buffer.writeBinary(message.content);
-		buffer.writeBinary(message.hops);
-		buffer.writeBinary(size);
-		
-		BinarySerializer serializer(&buffer);
-		serializer.write(message.source);
-		serializer.write(message.destination);
-		
-		buffer.writeBinary(message.payload.data(), size);
-		mStream->writeBinary(buffer.data(), buffer.size());
+		Fountain::Combination combination;
+		BinarySerializer serializer(&temp);
+		serializer.input(combination);
+		combination.setData(temp);
+		mSink.solve(combination);
 	}
 }
+
+void wirte(const String &type, const String &content)
+{
+	Synchronize(this);
+	mSource.write(data, size);
+	
+	// TODO: tokens
+}
+
+void Core::Link::process(void)
+{
+	Synchronize(this);
+/*
+	// TODO: correct sync
+	Map<Identifier, Set<Listener*> >::iterator it = mCore->mListeners.find(mRemote);
+	while(it != mCore->mListeners.end() && it->first == mRemote)
+	{
+		for(Set<Listener*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			(*jt)->connected(mRemote); 
+		}
+		
+		++it;
+	}
+*/	
+
+}
+
+void Core::Link::run(void)
+{
+	try {
+		LogDebug("Core::Link", "Starting link");
+	
+		process();
+		
+		LogDebug("Core::Link", "Closing link");
+	}
+	catch(const std::exception &e)
+	{
+		LogDebug("Core::Link", String("Closing link: ") + e.what());
+	}
+	
+	mCore->unregisterLink(mAddress, this);
+	
+	notifyAll();
+	Thread::Sleep(5.);	// TODO
+	delete this;		// autodelete
+}
+
 
 }

@@ -120,11 +120,11 @@ void AddressBook::save(void) const
 		notification["type"] << "contacts";
 		notification["digest"] << mDigest;
 		
-		DesynchronizeStatement(this, Core::Instance->send(self->identifier(), notification));
+		DesynchronizeStatement(this, Core::Instance->send(user()->identifier(), self->identifier(), notification));
 	}
 }
 
-String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey, const String &tracker)
+String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(this);
 	
@@ -143,7 +143,7 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey,
 		uname << ++i;
 	}
 	
-	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey, tracker));
+	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
 	it->second.init();
@@ -331,7 +331,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						throw 403;
 					
 					String action = request.post["action"];
-					if(action == "createinvitation")
+					/*if(action == "createinvitation")
 					{
 						String salt   = String::random(8,  Random::Key);
 						String secret = String::random(16, Random::Key);
@@ -341,7 +341,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						LogDebug("AddressBook::http", "Generating new invitation: " + salt);
 						Assert(code.size() == 32);
 						
-						mInvitations.push_back(Invitation(this, salt, secret, user()->tracker()));
+						mInvitations.push_back(Invitation(this, salt, secret));
 						(--mInvitations.end())->init();
 						save();
 						
@@ -361,12 +361,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else if(action == "acceptinvitation")
 					{
 						String code;
-						String tracker;
 						request.post["code"] >> code;
-
-						tracker = request.post["tracker"];
-						if(tracker.empty()) tracker = user()->tracker(); 
-
+						
 						code.trim();
 						if(code.size() != 32)
 							throw Exception("Invalid invitation code");
@@ -378,7 +374,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							throw Exception("Invalid invitation code");
 
 						LogDebug("AddressBook::http", "Accepting invitation: " + salt);
-						mInvitations.push_back(Invitation(this, salt, secret, tracker));
+						mInvitations.push_back(Invitation(this, salt, secret));
 						(--mInvitations.end())->init();
 						save();
 					}
@@ -389,7 +385,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						String code = secret + check;
 						
 						LogDebug("AddressBook::http", "Generating new synchronization secret");
-						Invitation invitation(this, user()->name(), secret, user()->tracker());
+						Invitation invitation(this, user()->name(), secret);
 						invitation.setSelf(true);
 						mInvitations.push_back(invitation);
 						(--mInvitations.end())->init();
@@ -421,7 +417,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							throw Exception("Invalid synchronization code");
 						
 						LogDebug("AddressBook::http", "Accepting synchronization");
-						Invitation invitation(this, user()->name(), secret, user()->tracker());
+						Invitation invitation(this, user()->name(), secret);
 						invitation.setSelf(true);
 						mInvitations.push_back(invitation);
 						(--mInvitations.end())->init();
@@ -432,7 +428,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						response.send();
 						return;
 					}
-					else if(action == "deletecontact")
+					else */if(action == "deletecontact")
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
@@ -441,12 +437,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else if(action == "deleteinvitation")
 					{
 						Synchronize(this);
-						BinaryString peering;
-						request.post["argument"].extract(peering);
+						BinaryString id;
+						request.post["argument"].extract(id);
 						
 						// TODO: function removeInvitation
 						for(int i=0; i<mInvitations.size(); ++i)
-							if(mInvitations[i].peering() == peering)
+							if(mInvitations[i].identifier() == id)
 							{
 								mInvitations.erase(i);
 								break;
@@ -489,18 +485,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.header("Contacts");
 
 			String token = user()->generateToken("contact");
-
-			// Parameters that are to be sent in friend request
-			const String centralizedFriendSystemUrl = RAPTUREURL;
-			int lengthUrl = centralizedFriendSystemUrl.length();
-			String postrequest = "postrequest.php";
-			String secretgen = "secretgen.php";
-			String laststep = "laststep.php";
-			String finalize = "finalize.php";
-			String gcontacts = "gcontacts.php";
-			String tpn_id = user()->name()+"@"+user()->tracker();
-			String nameProfile = user()->profile()->realName();
-			String mailProfile = user()->profile()->eMail();
 			
 			page.open("div",".box");
 			page.open("h2");
@@ -511,83 +495,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Here you can either send or accept invitations. Inviting someone is as easy as getting a new invitation secret code here and sending it to your contact. To accept an invitation, simply enter the secret code in the appropriate section.");
 			page.close("div");
 
-			/*page.open("div","invitationmethods");
-
-			page.open("span",".invitationimg");
-			page.openLink(centralizedFriendSystemUrl+gcontacts+"?tpn_id="+tpn_id, ".gmailimg", true);
-			page.image("/gmail.png","GMail","gmailimg");
-			page.closeLink();
-			page.closeForm();
-			page.close("span");
-
-			page.open("span",".invitationimg");
-			page.image("/mail.png","Mail","mailimg");
-			page.close("span");
-
-			page.open("span",".invitationimg");
-			page.image("/facebook_by_benstein.png","Facebook","fbimg");
-			page.close("span");
-
-			page.open("span",".invitationimg");
-			page.image("/spy.png","Classic way","spyimg");
-			page.close("span");
-
 			page.close("div");
 
-			page.open("div","howtotext");
-			page.close("div");*/
-
-			page.close("div");
-
-			// Js globals loaded from C++
-			/*page.javascript("var centralizedFriendSystemUrl = \""+centralizedFriendSystemUrl+"\"; \n\
-					var nameProfile = \""+nameProfile+"\";\n\
-					var mailProfile = \""+mailProfile+"\";\n\
-					var postUrl1 = \""+centralizedFriendSystemUrl+"\"+\""+postrequest+"\";\n\
-					var tpn_id = \""+tpn_id+"\" \n\
-					var prefix = \""+prefix+"\" \n\
-					var token = \""+token+"\" \n\
-					");
-			
-			page.openForm(prefix+"/","post","newcontact");
-			page.open("div","newcontactdiv.box");
-			page.open("h2");
-			page.text("Add contact");
-			page.close("h2");
-			page.input("hidden", "token", token);
-			page.label("name","Teapotnet ID"); page.input("text","name"); page.br();
-			page.label("secret","Secret"); page.input("text","secret","",true); page.br();
-			page.label("add"); page.button("add","Add contact");
-			page.close("div");
-			page.closeForm();
-
-			//page.openForm(prefix+"/","post","sendrequestform");
-			page.open("div","sendrequest.box");
-			page.open("h2");
-			page.text("Send friend request");
-			page.close("h2");
-			page.label("mail_sender","Your Mail"); page.input("text","mail_sender"); page.br();
-			page.label("mail_receiver","Your friend's Mail"); page.input("text","mail_receiver"); page.br();
-			page.label("sendinvitation"); page.button("sendinvitation","Send invitation");
-			page.close("div");
-			//page.closeForm();
-			
-			//page.openForm(prefix+"/","post","acceptrequestform");
-			page.open("div","acceptrequest.box");
-			page.open("h2");
-			page.text("Accept request");
-			page.close("h2");
-			page.open("p");
-			page.text("If you've received from a friend a Teapotnet code, paste it here. Your friend will automatically be added to your contacts list.");
-			page.close("p");
-			page.input("text","posturl");
-			page.button("postfriendrequest","Go !"); 
-			page.close("div");
-			//page.closeForm();
-			
-			// Load rapture.js
-			page.raw("<script type=\"text/javascript\" src=\"/rapture.js\"></script>");
-			*/
+			// TODO: deprecated
 			
 			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "createinvitation");
@@ -688,10 +598,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						page.open("tr");
 						page.open("td",".name");
 						if(invitation->isSelf()) page.text("(synchronization)");
-						else page.text(invitation->name());
-						page.close("td");
-						page.open("td",".peering");
-						page.text(invitation->peering());
+						else page.text(invitation->identifier().toString());
 						page.close("td");
 						page.open("td",".actions");
 						page.openLink('#', ".deletelink");
@@ -729,118 +636,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	throw 404;
 }
 
-bool AddressBook::publish(const Identifier &identifier, const String &tracker)
-{
-	LogDebug("AddressBook::publish", "Publishing to tracker " + tracker + " for " + identifier.toString());
-	
-	try {
-		String url("http://" + tracker + "/tracker/?id=" + identifier.toString());
-		
-		Set<Address> set;
-		Config::GetExternalAddresses(set);
-		
-		String addresses;
-		for(	Set<Address>::iterator it = set.begin();
-			it != set.end();
-			++it)
-		{
-			if(!addresses.empty()) addresses+= ',';
-			addresses+= it->toString();
-		}
-		
-		StringMap post;
-		post["instance"] << Core::Instance->getNumber();
-		post["addresses"] = addresses;
-	
-		const String externalPort = Config::Get("external_port");
-		if(!externalPort.empty() && externalPort != "auto")
-		{
-			post["port"] = externalPort;
-		}
-                else if(!PortMapping::Instance->isAvailable()
-			|| !PortMapping::Instance->getExternalAddress(PortMapping::TCP, Config::Get("port").toInt()).isPublic())	// Cascading NATs
-		{
-			post["port"] = Config::Get("port");
-		}
-		
-		// TODO: separately report known public addresses to tracker
-		/*if(!Core::Instance->isPublicConnectable())
-		{
-			list.clear();
-			Core::Instance->getKnownPublicAdresses(list);
-			
-			String altAddresses;
-			for(	List<Address>::iterator it = list.begin();
-				it != list.end();
-				++it)
-			{
-				if(!altAddresses.empty()) altAddresses+= ',';
-				altAddresses+= it->toString();
-			}
-		}*/
-		
-		int code = Http::Post(url, post);
-		if(code == 200) return true;
-		
-		LogWarn("AddressBook::publish", "Tracker HTTP error: " + String::number(code)); 
-	}
-	catch(const Timeout &e)
-	{
-		LogWarn("AddressBook::publish", e.what()); 
-	}
-	catch(const NetException &e)
-	{
-		LogWarn("AddressBook::publish", e.what()); 
-	}
-	catch(const std::exception &e)
-	{
-		LogWarn("AddressBook::publish", e.what()); 
-	}
-	
-	return false;
-}
-
-bool AddressBook::query(const Identifier &identifier, const String &tracker, Serializable &result)
-{
-	String host(tracker);
-	if(host.empty()) host = user()->tracker();
-	
-	LogDebug("AddressBook::query", "Querying tracker " + host + " for " + identifier.toString());
-	
-	try {
-		String url = "http://" + host + "/tracker/?id=" + identifier.toString();
-		  
-		String json;
-		int code = Http::Get(url, &json);
-		if(code == 200) 
-		{
-			JsonSerializer serializer(&json);
-			return serializer.input(result);
-		}
-		
-		LogWarn("AddressBook::publish", "Tracker HTTP error: " + String::number(code)); 
-	}
-	catch(const Timeout &e)
-	{
-		LogWarn("AddressBook::query", e.what()); 
-	}
-	catch(const NetException &e)
-	{
-		LogWarn("AddressBook::query", e.what()); 
-	}
-	catch(const std::exception &e)
-	{
-		LogWarn("AddressBook::query", e.what()); 
-	}
-	
-	return false;
-}
-
-void AddressBook::run(void)
-{
-	publish(user()->identifier(), user()->tracker()); 
-}
-
 AddressBook::Invitation::Invitation(void) :
 	mAddressBook(NULL),
 	mIsSelf(false),
@@ -851,96 +646,25 @@ AddressBook::Invitation::Invitation(void) :
 
 AddressBook::Invitation::Invitation(const Invitation &invitation) :
 	mAddressBook(NULL),
-	mName(invitation.mName),
-	mSecret(invitation.mSecret),
-	mPeering(invitation.mPeering),
-	mTracker(invitation.mTracker),
+	mIdentifier(invitation.mIdentifier),
 	mIsSelf(invitation.mIsSelf),
 	mFound(false)
 {
 	setAddressBook(invitation.mAddressBook);
 }
 
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier, const String &name, const String &tracker) :
+AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier) :
 	mAddressBook(NULL),
-	mName(name),
-	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
+	mIdentifier(identifier),
 	mIsSelf(false),
 	mFound(false)
 {
-	mPeering = identifier;	// In this case, peering is set to the identifier and secret is empty.
-	
-	setAddressBook(addressBook);
-}
-
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const String &name, const String &secret, const String &tracker) :
-	mAddressBook(NULL),
-	mName(name),
-	mTracker((!tracker.empty() ? tracker : addressBook->user()->tracker())),
-	mIsSelf(false),
-	mFound(false)
-{
-	generate(name, secret);
-	
 	setAddressBook(addressBook);
 }
 
 AddressBook::Invitation::~Invitation(void)
 {
-	if(mAddressBook)
-		mAddressBook->mScheduler.cancel(this);
-}
 
-void AddressBook::Invitation::generate(const String &salt, const String &secret)
-{
-	const unsigned iterations = 10000;
-	BinaryString bsalt;
-	
-	// Compute salt
-	String tmp(salt);
-	Sha256().compute(tmp, bsalt);
-	
-	// Compute secret
-	Sha256().pbkdf2_hmac(secret, bsalt, mSecret, 32, iterations);
-	
-	// Compute peering
-	Sha256().pbkdf2_hmac(mSecret, bsalt, mPeering, 32, iterations);
-}
-
-void AddressBook::Invitation::run(void)
-{
-	if(!mAddressBook) return;
-	
-	LogDebug("AddressBook::Contact::run", "Looking for invitation: " + peering().toString());
-	
-	mAddressBook->publish(peering(), tracker());
-	
-	SerializableMap<uint64_t, SerializableSet<Address> > result;
-	if(mAddressBook->query(peering(), tracker(), result))
-	{
-		for(SerializableMap<uint64_t, SerializableSet<Address> >::iterator it = result.begin();
-			it != result.end();
-			++it)
-		{
-			if(it->first != Core::Instance->getNumber())	// TODO
-			{
-				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
-				
-				Core::Locator locator(mAddressBook->user(), it->second);
-				if(mSecret.empty()) 
-				{
-					// If there is no secret, this is not a peering but a normal identifier.
-					locator.identifier = peering();
-				}
-				else {
-					locator.peering = peering();
-					locator.secret = secret();
-				}
-				
-				Core::Instance->connect(locator);
-			}
-		}	
-	}
 }
 
 void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
@@ -953,40 +677,13 @@ void AddressBook::Invitation::init(void)
 {
 	if(!mAddressBook) return;
 	
-	mAddressBook->mScheduler.schedule(this, 5.);
-	mAddressBook->mScheduler.repeat(this, 300.);
-	
-	listen(peering());
+	listen(identifier());
 }
 
-String AddressBook::Invitation::name(void) const
+Identifier AddressBook::Invitation::identifier(void) const
 {
 	Synchronize(mAddressBook);
-	return mName;
-}
-
-BinaryString AddressBook::Invitation::secret(void) const
-{
-	Synchronize(mAddressBook);
-	return mSecret;
-}
-
-Identifier AddressBook::Invitation::peering(void) const
-{
-	Synchronize(mAddressBook);
-	return mPeering;
-}
-
-String AddressBook::Invitation::tracker(void) const
-{
-	Synchronize(mAddressBook);
-	return mTracker;
-}
-
-uint32_t AddressBook::Invitation::checksum(void) const
-{
-	Synchronize(mAddressBook);
-	return mPeering.digest().checksum32() + uint32_t(mPeering.number());
+	return mIdentifier;
 }
 
 void AddressBook::Invitation::setSelf(bool self)
@@ -1021,14 +718,12 @@ void AddressBook::Invitation::connected(const Identifier &peer)
 	Notification notification;
 	notification["type"] << "hello";
 	notification["name"] << mAddressBook->user()->name();
-	notification["tracker"] << mAddressBook->user()->tracker();
 	notification["publickey"] << mAddressBook->user()->publicKey();
 	
 	if(isSelf())
 		notification["contacts"] << mAddressBook->mContacts.size();
 	
-	// TODO: force direct
-	if(!Core::Instance->send(peer, notification))
+	if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 		throw Exception("Unable to send hello");
 }
 
@@ -1046,17 +741,13 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		if(!notification.get("name", name))
 			throw Exception("Missing contact name");
 		
-		String tracker;
-		if(!notification.get("tracker", tracker))
-			throw Exception("Missing tracker");
-		
 		if(!notification.contains("publickey"))
 			throw Exception("Missing contact public key");
 		
 		Rsa::PublicKey pubKey;
 		notification.get("publickey").extract(pubKey);
 		
-		if(mSecret.empty() && pubKey.digest() != peering())
+		if(pubKey.digest() != identifier())
 			throw Exception("Wrong public key received from invited contact " + name);
 		
 		if(isSelf())
@@ -1092,8 +783,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			notification["digest"] << resource.digest();
 			notification["secret"] << randomSecret.toString();
 			
-			// TODO: force direct
-			if(!Core::Instance->send(peer, notification))
+			if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 				throw Exception("Unable to send user");
 			
 			// Add self
@@ -1101,7 +791,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		}
 		else {
 			// Add contact
-			mAddressBook->addContact(name, pubKey, tracker);		// calls save()
+			mAddressBook->addContact(name, pubKey);				// calls save()
 		}
 	}
 	else if(type == "user")
@@ -1155,7 +845,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	{
 		Synchronize(mAddressBook);
 		
-		LogDebug("AddressBook::Invitation", "Deleting invitation: " + peering().toString());
+		LogDebug("AddressBook::Invitation", "Deleting invitation: " + identifier().toString());
 		for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
 		{
 			if(&mAddressBook->mInvitations[i] == this)
@@ -1175,24 +865,11 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 	return true;
 }
 
-bool AddressBook::Invitation::auth(const Identifier &peer, BinaryString &secret)
-{
-	Synchronize(mAddressBook);
-	
-	if(!mSecret.empty() && peer == mPeering)
-	{
-		secret = mSecret;
-		return true;
-	}
-	
-	return false;
-}
-
 bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(mAddressBook);
 	
-	if(mSecret.empty() && pubKey.digest() == mPeering)
+	if(pubKey.digest() == mIdentifier)
 	{
 		return true;
 	}
@@ -1207,10 +884,7 @@ void AddressBook::Invitation::serialize(Serializer &s) const
 	ConstSerializableWrapper<bool> isSelfWrapper(mIsSelf);
 	
 	Serializer::ConstObjectMapping mapping;
-	mapping["name"] = &mName;
-	mapping["secret"] = &mSecret;
-	mapping["peering"] = &mPeering;
-	mapping["tracker"] = &mTracker;
+	mapping["identifier"] = &mIdentifier;
 	mapping["isself"] = &isSelfWrapper;
 	
 	s.outputObject(mapping); 
@@ -1223,18 +897,13 @@ bool AddressBook::Invitation::deserialize(Serializer &s)
 	SerializableWrapper<bool> isSelfWrapper(&mIsSelf);
 	
 	Serializer::ObjectMapping mapping;
-	mapping["name"] = &mName;
-	mapping["secret"] = &mSecret;
-	mapping["peering"] = &mPeering;
-	mapping["tracker"] = &mTracker;
+	mapping["identifier"] = &mIdentifier;
 	mapping["isself"] = &isSelfWrapper;
 	
 	if(!s.inputObject(mapping))
 		return false;
 	
-	// TODO: sanity checks
-	
-	listen(peering());
+	listen(identifier());
 	return true;
 }
 
@@ -1259,7 +928,6 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mPrivateBoard(NULL),
 	mUniqueName(contact.mUniqueName),
 	mName(contact.mName),
-	mTracker(contact.mTracker),
 	mPublicKey(contact.mPublicKey),
 	mRemoteSecret(contact.mRemoteSecret),
 	mInstances(contact.mInstances)
@@ -1271,12 +939,10 @@ AddressBook::Contact::Contact(const Contact &contact) :
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
 				const String &uname,
 				const String &name,
-			        const Rsa::PublicKey &pubKey,
-				const String &tracker) :
+			        const Rsa::PublicKey &pubKey) :
 	mAddressBook(NULL),
 	mUniqueName(uname),
 	mName(name),
-	mTracker(tracker),
 	mPublicKey(pubKey),
 	mProfile(NULL),
 	mBoard(NULL),
@@ -1317,7 +983,7 @@ void AddressBook::Contact::init(void)
 	if(!mProfile && !isSelf())
 	{
 		Synchronize(mAddressBook);
-		mProfile = new Profile(mAddressBook->user(), mUniqueName, mTracker);
+		mProfile = new Profile(mAddressBook->user(), mUniqueName);
 		
 		try {
 			mProfile->load();
@@ -1335,38 +1001,7 @@ void AddressBook::Contact::run(void)
 {
 	if(!mAddressBook) return;
 	
-	LogDebug("AddressBook::Contact::run", "Looking for contact: " + uniqueName());
-	
-	const Identifier localIdentifier(mAddressBook->user()->identifier(), Core::Instance->getNumber());
-	
-	bool changed = false;
-	SerializableMap<uint64_t, SerializableSet<Address> > result;
-	if(mAddressBook->query(identifier(), tracker(), result))
-	{
-		for(SerializableMap<uint64_t, SerializableSet<Address> >::iterator it = result.begin();
-			it != result.end();
-			++it)
-		{
-			Identifier id(identifier(), it->first);
-			if(id != localIdentifier			// if it's not the local user
-				&& !Core::Instance->hasPeer(id))	// and if it's not already connected
-			{
-				LogDebug("AddressBook::Invitation::run", "Found " + String::number(it->second.size()) + " addresses (instance " + String::hexa(it->first) + ")");
-				
-				Core::Locator locator(mAddressBook->user(), it->second);
-				locator.identifier = id;
-				
-				if(Core::Instance->connect(locator))
-				{
-					mInstances[it->first].addAddresses(it->second);
-					changed = true;
-				}
-			}
-		}	
-	}
-	
-	if(changed)
-		mAddressBook->save();
+	// TODO: hint core with new instance addresses
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
@@ -1397,12 +1032,6 @@ String AddressBook::Contact::name(void) const
 {
 	Synchronize(mAddressBook);
 	return mName;
-}
-
-String AddressBook::Contact::tracker(void) const
-{
-	Synchronize(mAddressBook);
-	return (!mTracker.empty() ? mTracker : mAddressBook->user()->tracker());
 }
 
 String AddressBook::Contact::urlPrefix(void) const
@@ -1455,14 +1084,14 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
-	return Core::Instance->hasPeer(identifier()); 
+	return Core::Instance->hasLink(mAddressBook->user()->identifier(), identifier()); 
 }
 
 bool AddressBook::Contact::isConnected(uint64_t number) const
 {
 	Identifier id;
 	if(!getInstanceIdentifier(number, id)) return false;
-	return Core::Instance->hasPeer(id); 
+	return Core::Instance->hasLink(mAddressBook->user()->identifier(), id);
 }
 
 bool AddressBook::Contact::hasInstance(uint64_t number) const
@@ -1579,8 +1208,7 @@ void AddressBook::Contact::connected(const Identifier &peer)
 	notification["secret"] << localSecret();
 	notification["instance"] << Core::Instance->getName();
 	
-	// TODO: force direct
-	if(!Core::Instance->send(peer, notification))
+	if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 		throw Exception("Unable to send hello");
 }
 
@@ -1966,17 +1594,14 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
 	mapping["instances"] = &mInstances;
-	mapping["tracker"] = &mTracker;
 	
-	String prefix, status, tracker;
+	String prefix, status;
 	ConstSerializableWrapper<uint32_t> messages(uint32_t(0));	// TODO
 	if(s.optionalOutputMode())
 	{
 		prefix = urlPrefix();
 		status = (isConnected() ? "connected" : "disconnected");
-		tracker = this->tracker();
 		
-		mapping["tracker"] = &tracker;
 		mapping["prefix"] = &prefix;
 		mapping["status"] = &status;
 		mapping["messages"] = &messages;
@@ -1997,7 +1622,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	mapping["publickey"] = &mPublicKey;
 	mapping["uname"] = &mUniqueName;
 	mapping["name"] = &mName;
-	mapping["tracker"] = &mTracker;
 	mapping["instances"] = &mInstances;
 	mapping["secret"] = &mRemoteSecret;
 	

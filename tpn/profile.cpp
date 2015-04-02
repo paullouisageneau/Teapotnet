@@ -35,16 +35,13 @@ namespace tpn
 Profile::Profile(User *user, const String &uname, const String &tracker):
 	mUser(user),
 	mName(uname),
-	mTracker(tracker),
 	mTime(0)
 {
 	Assert(mUser);
 	if(mName.empty()) mName = mUser->name();
-	if(mTracker.empty()) mTracker = Config::Get("tracker");
 	
 	Assert(!mName.empty());
-	Assert(!mTracker.empty());
-
+	
 	// Time
 	mFields["time"]		= new TypedField<Time>("time", &mTime, "Modification time", "", Time(0));	// internal
 
@@ -65,9 +62,6 @@ Profile::Profile(User *user, const String &uname, const String &tracker):
 	mFields["email"]	= new TypedField<String>("email", &mEmail, "E-mail", "What's your email address ?");
 	mFields["phone"]	= new TypedField<String>("phone", &mPhone, "Phone", "What's your phone number ?");
 
-	// Settings
-	mFields["tracker"]	= new TypedField<String>("tracker", &mTracker, "Tracker", "The Teapotnet tracker you use", mTracker);
-	
 	// Date format
 	mBirthday.setSerializationFormat(Time::IsoDate);
 	
@@ -159,13 +153,6 @@ String Profile::eMail(void) const
 	return mEmail;
 }
 
-String Profile::tracker(void) const
-{
-	Synchronize(this);
-	if(!mTracker.empty()) return mTracker;
-	else return Config::Get("tracker");
-}
-
 String Profile::urlPrefix(void) const
 {
 	Synchronize(this);
@@ -206,13 +193,6 @@ String Profile::infoPath(void) const
         String path = mUser->profilePath() + "infos";
         if(!Directory::Exist(path)) Directory::Create(path);
         return path + Directory::Separator;
-}
-
-void Profile::setTracker(const String &tracker)
-{
-	Synchronize(this);
-	mTracker = tracker;
-	save();
 }
 
 void Profile::serialize(Serializer &s) const
