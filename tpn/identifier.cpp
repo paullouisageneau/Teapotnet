@@ -28,8 +28,8 @@ namespace tpn
 {
 
 // Hardcoded identifier size, do not change
-const size_t Identifier::DigestSize = 32;            // digest: 32 B
-const size_t Identifier::Size = DigestSize + 8;      // total:  40 B
+const size_t Identifier::DigestSize = 16;
+const size_t Identifier::Size = 2*DigestSize;      // total:  32 B
 const Identifier Identifier::Null;
 
 Identifier::Identifier(void)
@@ -38,13 +38,15 @@ Identifier::Identifier(void)
 	mNumber = 0;
 }
 
-Identifier::Identifier(const BinaryString &digest, uint64_t number)
+Identifier::Identifier(const BinaryString &user, const BinaryString &instance)
 {
-	mDigest.writeData(digest.data(), std::min(digest.size(), DigestSize));
-	if(DigestSize > digest.size())
-		mDigest.writeZero(DigestSize - digest.size());
-	
-	mNumber = number;
+	mUser = user;
+	if(user.size() < DigestSize) mUser.writeZero(DigestSize - user.size());
+	else mUser.resize(DigestSize);
+
+	mInstance = instance;
+	if(instance.size() < DigestSize) mInstance.writeZero(DigestSize - instance.size());
+	else mInstance.resize(DigestSize);
 }
 
 Identifier::~Identifier(void)
@@ -52,77 +54,104 @@ Identifier::~Identifier(void)
 
 }
 
-const BinaryString &Identifier::digest(void) const
+const BinaryString &Identifier::user(void) const
 {
-	return mDigest;  
+	return mUser;  
 }
 
-uint64_t Identifier::number(void) const
+const BinaryString &Identifier::instance(void) const
 {
-	return mNumber; 
+	return mInstance;  
 }
 	
-void Identifier::setDigest(const BinaryString &digest)
+void Identifier::setUser(const BinaryString &user)
 {
-	mDigest = digest;  
+	mUser = user;  
 }
 
-void Identifier::setNumber(uint64_t number)
+void Identifier::setInstance(const BinaryString &instance)
 {
-	mNumber = number; 
+	mInstance = instance; 
+}
+
+bool Identifier::hasUser(void) const
+{
+	for(int i=0; i<mUser.size(); ++i)
+		if(mUser.at(i))
+			return true;
+	
+	return false;
+}
+
+bool Identifier::hasInstance(void) const
+{
+	for(int i=0; i<mInstance.size(); ++i)
+		if(mInstance.at(i))
+			return true;
+	
+	return false;
 }
 
 bool Identifier::empty(void) const
 {
-	for(int i=0; i<mDigest.size(); ++i)
-		if(mDigest.at(i))
-			return false;
-	
-	return true;
+	return !hasUser();
 }
 
 void Identifier::clear(void)
 {
-	mDigest.clear();
-	mDigest.writeZero(DigestSize);
-	mNumber = 0;
+	mUser.clear();
+	mUser.writeZero(DigestSize);
+	
+	mInstance.clear();
+	mInstance.writeZero(DigestSize);
 }
 
 Identifier::operator BinaryString &(void)
 {
-	return mDigest; 
+	return mUser; 
 }
 
 Identifier::operator const BinaryString &(void) const
 {
-	return mDigest;
+	return mUser;
 }
 
 void Identifier::serialize(Serializer &s) const
 {
-	Assert(mDigest.size() == DigestSize);
+	Assert(mUser.size() == DigestSize);
+	Assert(mInstance.size() == DigestSize);
+
 	for(int i=0; i<DigestSize; ++i)
-		s.output(uint8_t(mDigest.at(i)));
+		s.output(uint8_t(mUser.at(i)));
 	
-	s.output(mNumber);
+	for(int i=0; i<DigestSize; ++i)
+		s.output(uint8_t(mInstance.at(i)));
 }
 
 bool Identifier::deserialize(Serializer &s)
 {
-	mDigest.clear();
-	mNumber = 0;
-	
 	uint8_t b;
-	if(!s.input(b)) return false;
-	mDigest.push_back(b);
-	
+	if(!s.input(b)) 
+	{
+		clear();
+		return false;
+	}
+
+	mUser.clear();
+	mUser.push_back(b);
 	for(size_t i=1; i<DigestSize; ++i)
 	{
 		AssertIO(s.input(b));
-		mDigest.push_back(b);
+		mUser.push_back(b);
 	}
 
-	s.input(mNumber);
+	mInstance.clear();
+	for(size_t i=0; i<DigestSize; ++i)
+	{
+		AssertIO(s.input(b));
+		mInstance.push_back(b);
+	}
+
 	return true;
 }
 
@@ -134,17 +163,16 @@ void Identifier::serialize(Stream &s) const
 
 bool Identifier::deserialize(Stream &s)
 {
-	mDigest.clear();
-	mNumber = 0;
+	clear();
 	
 	String str;
 	if(!s.read(str)) return false;
 	if(str.empty()) return true;
 	
-	String tmp = str.cut('.');
+	String tmp = str.cut('/');
 	tmp.hexaMode(true);
-	tmp.read(mNumber);
-	AssertIO(str.read(mDigest));
+	tmp.read(mInstance);
+	AssertIO(str.read(mUser));
 	return true;
 }
 

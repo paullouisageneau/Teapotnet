@@ -116,7 +116,7 @@ public:
 		virtual bool generate(Combination &output, unsigned *counter = NULL) = 0;	// Generate combination
         };
 	
-	class DataSource : public Source, public Stream
+	class DataSource : public Source
 	{
 	public:
 		DataSource(void);
@@ -126,7 +126,7 @@ public:
 		
 		bool generate(Combination &result, unsigned *counter = NULL);
 		void drop(unsigned nextSeen);
-		
+
 	private:
 		List<BinaryString> mComponents;
 		unsigned mFirstComponent;
@@ -146,7 +146,7 @@ public:
 		int64_t mOffset, mSize;
 	};
         
-	class Sink : public Stream
+	class Sink
 	{
 	public:
 		Sink(void);

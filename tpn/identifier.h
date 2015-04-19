@@ -38,15 +38,17 @@ public:
 	static const Identifier Null;
 	
 	Identifier(void);
-	Identifier(const BinaryString &digest, uint64_t number = 0);
+	Identifier(const BinaryString &user,const BinaryString &instance = Identifier::Null);
 	~Identifier(void);
 	
-	const BinaryString &digest(void) const;
-	uint64_t number(void) const;
+	const BinaryString &user(void) const;
+	const BinaryString &instance(void) const;
 	
-	void setDigest(const BinaryString &digest);
-	void setNumber(uint64_t number);
-	
+	void setUser(const BinaryString &user);
+	void setInstance(const BinaryString &instance);
+	bool hasUser(void) const;
+	bool hasInstance(void) const;
+
 	bool empty(void) const;
 	void clear(void);
 	
@@ -62,11 +64,10 @@ public:
 	bool isInlineSerializable(void) const;
 
 private:
-	BinaryString mDigest;
-	uint64_t mNumber;
+	BinaryString mUser, mInstance;
 };
 
-// The principle is that a null number is equal to ANY other number
+// The principle is that a null instance is equal to ANY other instance
 bool operator < (const Identifier &i1, const Identifier &i2);
 bool operator > (const Identifier &i1, const Identifier &i2);
 bool operator == (const Identifier &i1, const Identifier &i2);
