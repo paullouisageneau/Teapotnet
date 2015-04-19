@@ -19,7 +19,7 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/tunneler.h"
+#include "tpn/network.h"
 #include "tpn/user.h"
 #include "tpn/store.h"
 #include "tpn/httptunnel.h"
