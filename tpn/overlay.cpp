@@ -47,8 +47,8 @@ Overlay::Overlay(int port) :
 	Rsa rsa(4096);
 	rsa.generate(mPublicKey, mPrivateKey);
 
-	// Define instance name
-	mName = Config::Get("instance_name");
+	// Define node name
+	mName = Config::Get("node_name");
 	if(mName.empty())
 	{
 		char hostname[HOST_NAME_MAX];
@@ -56,10 +56,10 @@ Overlay::Overlay(int port) :
 			mName = hostname;
 
 		if(mName.empty() || mName == "localhost")
-			mName = instance.toString();
+			mName = node.toString();
 	}
 	
-	LogInfo("Overlay", "Instance name is \"" + name() + "\", identifier is " + instance().toString());
+	LogInfo("Overlay", "Instance name is \"" + name() + "\", node is " + node().toString());
 	
 	// Launch
 	try {
@@ -127,7 +127,7 @@ String Overlay::name(void) const
 	return mName;
 }
 
-BinaryString Overlay::instance(void) const
+BinaryString Overlay::node(void) const
 {
 	Synchronize(this);
 	return mPublicKey.digest();
@@ -201,40 +201,22 @@ int Overlay::connectionsCount(void) const
 	return mHandlers.size();
 }
 
-bool Overlay::broadcast(const Identifier &local, const Notification &notification)
+bool Overlay::route(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 	
-	return outgoing(local, Identifier::Null, "notif", notification);
-}
-
-bool Overlay::send(const Identifier &local, const Identifier &remote, const Notification &notification)
-{
-	Synchronize(this);
-	
-	return outgoing(local, remote, "notif", notification);
-}
-
-bool Overlay::route(const Message &message, const Identifier &from)
-{
-	Synchronize(this);
-	
-	// Drop if too many hops
-	if(message.hops >= 8)
+	// Drop if TTL is zero
+	if(message.ttl == 0)
 		return false;
 	
-	if(message.destination != Identifier::Null)
+	if(!message.destination.empty())
 	{
-		// Tunneler::Tunnel messages must not be routed through the same tunnel
-		if(message.content != Message::Tunnel || from != Identifier::Null)
-		{
-			// 1st case: neighbour
-			if(mHandlers.contains(message.destination))
-				return send(message, message.destination);
-		}
+		// 1st case: neighbour
+		if(mHandlers.contains(message.destination))
+			return send(message, message.destination);
 		
 		// 2nd case: routing table entry exists
-		Identifier route;
+		BinaryString route;
 		if(mRoutes.get(message.destination, route))
 			return send(message, route);
 	}
@@ -243,38 +225,34 @@ bool Overlay::route(const Message &message, const Identifier &from)
 	return broadcast(message, from);
 }
 
-bool Overlay::broadcast(const Message &message, const Identifier &from)
+bool Overlay::broadcast(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 	
-	Array<Identifier> identifiers;
-	mHandlers.getKeys(identifiers);
+	Array<BinaryString> neighbors;
+	mHandlers.getKeys(neighbors);
 	
 	bool success = false;
-	for(int i=0; i<identifiers.size(); ++i)
+	for(int i=0; i<neighbors.size(); ++i)
 	{
-		if(identifiers[i] == from) continue;
+		if(neighbors[i] == from) continue;
 		
-		// Tunneler::Tunnel messages must not be routed through the same tunnel
-		if(message.content != Message::Tunnel || from != Identifier::Null || identifiers[i] != message.destination)
+		Handler *handler;
+		if(mHandlers.get(neighbors[i], handler))
 		{
-			Handler *handler;
-			if(mHandlers.get(identifiers[i], handler))
-			{
-				Desynchronize(this);
-				success|= handler->send(message);
-			}
+			Desynchronize(this);
+			success|= handler->send(message);
 		}
 	}
 	
 	return success;
 }
 
-bool Overlay::send(const Message &message, const Identifier &to)
+bool Overlay::send(const Message &message, const BinaryString &to)
 {
 	Synchronize(this);
 	
-	if(to == Identifier::Null)
+	if(to.empty())
 	{
 		broadcast(message);
 		return true;
@@ -291,48 +269,30 @@ bool Overlay::send(const Message &message, const Identifier &to)
 	return false;
 }
 
-void Overlay::addRoute(const Identifier &id, const Identifier &route)
+void Overlay::addRoute(const BinaryString &node, const BinaryString &route)
 {
 	Synchronize(this);
 	
-	if(id == Identifier::Null || route == Identifier::Null)
+	if(node.empty() || route.empty())
 		return;
 	
-	if(id == route)
+	if(node == route)
 		return;
 	
-	bool isNew = !mRoutes.contains(id);
-	mRoutes.insert(id, route);
-	
-	if(isNew)
-	{
-		// New node is seen
-		Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
-		while(it != mListeners.end() && it->first == id)
-		{
-			for(Set<Listener*>::iterator jt = it->second.begin();
-				jt != it->second.end();
-				++jt)
-			{
-				(*jt)->seen(id); 
-			}
-			
-			++it;
-		}
-	}
+	mRoutes.insert(node, route);
 }
 
-bool Overlay::getRoute(const Identifier &id, Identifier &route)
+bool Overlay::getRoute(const BinaryString &node, BinaryString &route)
 {
 	Synchronize(this);
 	
-	Map<Identifier, Identifier>::iterator it = mRoutes.find(id);
+	Map<BinaryString, BinaryString>::iterator it = mRoutes.find(node);
 	if(it == mRoutes.end()) return false;
 	route = it->second;
 	return true;
 }
 
-bool Overlay::registerHandler(const BinaryString &instance, Overlay::Handler *handler)
+bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handler)
 {
 	Synchronize(this);
 	
@@ -340,14 +300,14 @@ bool Overlay::registerHandler(const BinaryString &instance, Overlay::Handler *ha
 		return false;
 	
 	Handler *h = NULL;
-	if(mHandlers.get(instance, h))
+	if(mHandlers.get(node, h))
 		return (h == handler);
 	
-	mHandlers.insert(instance, handler);
+	mHandlers.insert(node, handler);
 	return true;
 }
 
-bool Overlay::unregisterHandler(const BinaryString &instance, Overlay::Handler *handler)
+bool Overlay::unregisterHandler(const BinaryString &node, Overlay::Handler *handler)
 {
 	Synchronize(this);
 	
@@ -355,10 +315,10 @@ bool Overlay::unregisterHandler(const BinaryString &instance, Overlay::Handler *
 		return false;
 	
 	Handler *h = NULL;
-	if(!mHandlers.get(instance, h) || h != handler)
+	if(!mHandlers.get(node, h) || h != handler)
 		return false;
 		
-	mHandlers.erase(instance);
+	mHandlers.erase(node);
 	return true;
 }
 
@@ -450,7 +410,7 @@ Overlay::Message::~Message(void)
 	
 }
 
-void Overlay::Message::prepare(const Identifier &source, const Identifier &destination, uint8_t type, uint8_t content)
+void Overlay::Message::prepare(const BinaryString &source, const BinaryString &destination, uint8_t type, uint8_t content)
 {
 	this->source = source;
 	this->destination = destination;
@@ -596,7 +556,7 @@ void Overlay::Backend::run(void)
 			// Add server credentials
 			transport->addCredentials(mOverlay->certificate(), false);
 			
-			// No remote identifier specified, accept any identifier
+			// No remote node specified, accept any node
 			handshake(transport, true);	// async
 		}
 	}
@@ -747,10 +707,10 @@ void Overlay::DatagramBackend::getAddresses(Set<Address> &set) const
 	mSock.getLocalAddresses(set);
 }
 
-Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &instance) :
+Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node) :
 	mOverlay(overlay),
 	mStream(stream),
-	mInstance(instance)
+	mInstance(node)
 {
 	Overlay::Instance->registerHandler(mInstance, this);
 }
@@ -829,14 +789,14 @@ bool Overlay::Handler::send(const Message &datagram)
 	if(message.content != Message::Tunnel && message.content != Message::Data)
 		LogDebug("Overlay::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
 	
-	const Identifier &source = message.source;
+	const BinaryString &source = message.source;
 	BinaryString payload = message.payload;		// copy
 	
 	switch(message.content)
 	{
 		case Message::Tunnel:
 		{
-			Overlay::instance->dispatchTunneler::Tunnel(message);
+			Overlay::node->dispatchTunneler::Tunnel(message);
 			break; 
 		}
 		
@@ -850,7 +810,7 @@ bool Overlay::Handler::send(const Message &datagram)
 			// TODO: getListeners function in Overlay
 			Desynchronize(this);
 			Synchronize(Overlay::Instance);
-			Map<Identifier, Set<Listener*> >::iterator it = mOverlay->mListeners.find(source);
+			Map<BinaryString, Set<Listener*> >::iterator it = mOverlay->mListeners.find(source);
 			while(it != mOverlay->mListeners.end() && it->first == source)
 			{
 				Set<Listener*> set = (it++)->second;
@@ -925,7 +885,7 @@ bool Overlay::Handler::send(const Message &datagram)
 			AssertIO(serializer.read(targets));
 			
 			RemotePublisher publisher(targets);
-			return mOverlay->matchSubscribers(path, (source == mRemote ? source : Identifier::Null), &publisher);
+			return mOverlay->matchSubscribers(path, (source == mRemote ? source : BinaryString::Null), &publisher);
 		}
 		
 		case Message::Subscribe:

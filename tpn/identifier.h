@@ -38,16 +38,16 @@ public:
 	static const Identifier Null;
 	
 	Identifier(void);
-	Identifier(const BinaryString &user,const BinaryString &instance = Identifier::Null);
+	Identifier(const BinaryString &user,const BinaryString &node = BinaryString::Null);
 	~Identifier(void);
 	
 	const BinaryString &user(void) const;
-	const BinaryString &instance(void) const;
+	const BinaryString &node(void) const;
 	
 	void setUser(const BinaryString &user);
-	void setInstance(const BinaryString &instance);
+	void setNode(const BinaryString &node);
 	bool hasUser(void) const;
-	bool hasInstance(void) const;
+	bool hasNode(void) const;
 
 	bool empty(void) const;
 	void clear(void);
@@ -64,10 +64,10 @@ public:
 	bool isInlineSerializable(void) const;
 
 private:
-	BinaryString mUser, mInstance;
+	BinaryString mUser, mNode;
 };
 
-// The principle is that a null instance is equal to ANY other instance
+// The principle is that a null node is equal to ANY other node
 bool operator < (const Identifier &i1, const Identifier &i2);
 bool operator > (const Identifier &i1, const Identifier &i2);
 bool operator == (const Identifier &i1, const Identifier &i2);

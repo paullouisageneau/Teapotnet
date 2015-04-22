@@ -751,7 +751,7 @@ bool Network::Tunneler::open(const Identifier &identifier, User *user)
 	LogDebug("Network::Tunneler::open", "Trying tunnel for " + identifier.toString());
 	
 	Identifier remote(identifier);
-	Identifier local(user->identifier(), mOverlay.instance());
+	Identifier local(user->identifier(), mOverlay.localNode());
 	
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
@@ -771,7 +771,7 @@ bool Network::Tunneler::open(const Identifier &identifier, User *user)
 	String name = identifier.digest().toString();
 	transport->setHostname(name);
 	
-	Identifier local(user->identifier(), mOverlay.instance());
+	Identifier local(user->identifier(), mOverlay.localNode());
 	
 	// Add user certificate
 	SecureTransportClient::Certificate *cert = user->certificate();
@@ -951,7 +951,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 					verifier.local = local;
 
 				// Pass remote instance number
-				verifier.remote.setInstance(remote.instance());
+				verifier.remote.setInstance(remote.node());
 						
 				// Check remote identifier
 				if(remote != Identifier::Null && verifier.remote != remote)

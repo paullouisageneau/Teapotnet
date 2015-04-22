@@ -38,15 +38,15 @@ Identifier::Identifier(void)
 	mNumber = 0;
 }
 
-Identifier::Identifier(const BinaryString &user, const BinaryString &instance)
+Identifier::Identifier(const BinaryString &user, const BinaryString &node)
 {
 	mUser = user;
 	if(user.size() < DigestSize) mUser.writeZero(DigestSize - user.size());
 	else mUser.resize(DigestSize);
 
-	mInstance = instance;
-	if(instance.size() < DigestSize) mInstance.writeZero(DigestSize - instance.size());
-	else mInstance.resize(DigestSize);
+	mNode = node;
+	if(node.size() < DigestSize) mNode.writeZero(DigestSize - node.size());
+	else mNode.resize(DigestSize);
 }
 
 Identifier::~Identifier(void)
@@ -59,9 +59,9 @@ const BinaryString &Identifier::user(void) const
 	return mUser;  
 }
 
-const BinaryString &Identifier::instance(void) const
+const BinaryString &Identifier::node(void) const
 {
-	return mInstance;  
+	return mNode;  
 }
 	
 void Identifier::setUser(const BinaryString &user)
@@ -69,9 +69,9 @@ void Identifier::setUser(const BinaryString &user)
 	mUser = user;  
 }
 
-void Identifier::setInstance(const BinaryString &instance)
+void Identifier::setNode(const BinaryString &node)
 {
-	mInstance = instance; 
+	mNode = node; 
 }
 
 bool Identifier::hasUser(void) const
@@ -83,10 +83,10 @@ bool Identifier::hasUser(void) const
 	return false;
 }
 
-bool Identifier::hasInstance(void) const
+bool Identifier::hasNode(void) const
 {
-	for(int i=0; i<mInstance.size(); ++i)
-		if(mInstance.at(i))
+	for(int i=0; i<mNode.size(); ++i)
+		if(mNode.at(i))
 			return true;
 	
 	return false;
@@ -102,8 +102,8 @@ void Identifier::clear(void)
 	mUser.clear();
 	mUser.writeZero(DigestSize);
 	
-	mInstance.clear();
-	mInstance.writeZero(DigestSize);
+	mNode.clear();
+	mNode.writeZero(DigestSize);
 }
 
 Identifier::operator BinaryString &(void)
@@ -119,13 +119,13 @@ Identifier::operator const BinaryString &(void) const
 void Identifier::serialize(Serializer &s) const
 {
 	Assert(mUser.size() == DigestSize);
-	Assert(mInstance.size() == DigestSize);
+	Assert(mNode.size() == DigestSize);
 
 	for(int i=0; i<DigestSize; ++i)
 		s.output(uint8_t(mUser.at(i)));
 	
 	for(int i=0; i<DigestSize; ++i)
-		s.output(uint8_t(mInstance.at(i)));
+		s.output(uint8_t(mNode.at(i)));
 }
 
 bool Identifier::deserialize(Serializer &s)
@@ -145,11 +145,11 @@ bool Identifier::deserialize(Serializer &s)
 		mUser.push_back(b);
 	}
 
-	mInstance.clear();
+	mNode.clear();
 	for(size_t i=0; i<DigestSize; ++i)
 	{
 		AssertIO(s.input(b));
-		mInstance.push_back(b);
+		mNode.push_back(b);
 	}
 
 	return true;
@@ -171,7 +171,7 @@ bool Identifier::deserialize(Stream &s)
 	
 	String tmp = str.cut('/');
 	tmp.hexaMode(true);
-	tmp.read(mInstance);
+	tmp.read(mNode);
 	AssertIO(str.read(mUser));
 	return true;
 }

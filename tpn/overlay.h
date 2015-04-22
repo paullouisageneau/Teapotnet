@@ -73,10 +73,10 @@ public:
 		uint8_t version;
 		uint8_t flags;
 		uint8_t type;
-		uint8_t hops;
+		uint8_t ttl;
 		
-		Identifier source;
-		Identifier destination;
+		BinaryString source;
+		BinaryString destination;
 		BinaryString payload;
 	};
 	
@@ -87,8 +87,8 @@ public:
 	void join(void);
 	
 	// Global
-	String name(void) const;
-	BinaryString instance(void) const;
+	String localName(void) const;
+	BinaryString localNode(void) const;
 	const Rsa::PublicKey &publicKey(void) const;
 	const Rsa::PrivateKey &privateKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
@@ -168,7 +168,7 @@ private:
 	class Handler : public Task, protected Synchronizable
 	{
 	public:
-		Handler(Overlay *overlay, Stream *stream, const BinaryString &instance);
+		Handler(Overlay *overlay, Stream *stream, const BinaryString &node);
 		~Handler(void);
 		
 		bool recv(Message &message);
@@ -182,12 +182,8 @@ private:
 		BinaryString mInstance;
 	};
 	
-	bool registerHandler(const BinaryString &instance, Handler *handler);
-	bool unregisterHandler(const BinaryString &instance, Handler *handler);
-	
-	bool outgoing(const String &type, const Serializable &content);
-	bool outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content);
-	bool incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer);
+	bool registerHandler(const BinaryString &node, Handler *handler);
+	bool unregisterHandler(const BinaryString &node, Handler *handler);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
