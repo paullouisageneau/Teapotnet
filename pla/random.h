@@ -51,9 +51,9 @@ public:
 	void writeData(const char *data, size_t size);
 	
 	// Wrappers for internal use, used in crypto.cpp
-	static void wrapperNonce (void *dummy, unsigned int size, uint8_t *buffer) { Random(Nonce).generate (reinterpret_cast<char*>(buffer), size_t(size)); }
-	static void wrapperCrypto(void *dummy, unsigned int size, uint8_t *buffer) { Random(Crypto).generate(reinterpret_cast<char*>(buffer), size_t(size)); }
-	static void wrapperKey   (void *dummy, unsigned int size, uint8_t *buffer) { Random(Key).generate   (reinterpret_cast<char*>(buffer), size_t(size)); }
+	static void wrapperNonce (void *dummy, size_t size, uint8_t *buffer) { Random(Nonce).generate (reinterpret_cast<char*>(buffer), size); }
+	static void wrapperCrypto(void *dummy, size_t size, uint8_t *buffer) { Random(Crypto).generate(reinterpret_cast<char*>(buffer), size); }
+	static void wrapperKey   (void *dummy, size_t size, uint8_t *buffer) { Random(Key).generate   (reinterpret_cast<char*>(buffer), size); }
 	
 private:
 	QualityLevel mLevel;
