@@ -33,11 +33,6 @@
 #include "pla/bytearray.h"
 #include "pla/binarystring.h"
 #include "pla/string.h"
-#include "pla/socket.h"
-#include "pla/serversocket.h"
-#include "pla/datagramsocket.h"
-#include "pla/securetransport.h"
-#include "pla/pipe.h"
 #include "pla/thread.h"
 #include "pla/mutex.h"
 #include "pla/signal.h"
@@ -47,7 +42,6 @@
 #include "pla/synchronizable.h"
 #include "pla/map.h"
 #include "pla/array.h"
-#include "pla/http.h"
 
 namespace tpn
 {

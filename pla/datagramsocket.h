@@ -95,6 +95,8 @@ public:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 	bool waitData(double &timeout);			
+	bool nextRead(void);
+	bool nextWrite(void);	
 	bool isDatagram(void) const;
 	
 	static double ReadTimeout;
@@ -102,7 +104,8 @@ public:
 private:
 	DatagramSocket *mSock;
 	Address mAddr;
-	BinaryString mBuffer;
+	BinaryString mBuffer, mWriteBuffer;
+	size_t mBufferOffset;
 	Synchronizable mBufferSync;
 	
 	friend class DatagramSocket;

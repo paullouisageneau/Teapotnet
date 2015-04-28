@@ -98,6 +98,16 @@ int64_t Stream::tellWrite(void) const
 	return 0;
 }
 
+bool Stream::nextRead(void)
+{
+	return false;	// no sub-streams
+}
+
+bool Stream::nextWrite(void)
+{
+	return false;	// no sub-streams
+}
+
 void Stream::clear(void)
 {
 	char buffer[BufferSize];
@@ -113,7 +123,7 @@ void Stream::flush(void)
 
 void Stream::close(void)
 {
-
+	// do nothing
 }
 
 bool Stream::ignore(size_t size)

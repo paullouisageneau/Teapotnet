@@ -36,7 +36,6 @@
 #include "pla/serversocket.h"
 #include "pla/datagramsocket.h"
 #include "pla/securetransport.h"
-#include "pla/pipe.h"
 #include "pla/thread.h"
 #include "pla/mutex.h"
 #include "pla/signal.h"
@@ -50,8 +49,6 @@
 
 namespace tpn
 {
-
-class User;
   
 // Overlay network implementation
 class Overlay : protected Synchronizable
@@ -72,9 +69,9 @@ public:
 		// Fields
 		uint8_t version;
 		uint8_t flags;
-		uint8_t type;
 		uint8_t ttl;
-		
+		uint8_t type;
+
 		BinaryString source;
 		BinaryString destination;
 		BinaryString payload;
@@ -128,9 +125,6 @@ private:
 		void run(void);
 		
 		ThreadPool mThreadPool;
-		
-		SecureTransportClient::Anonymous	mAnonymousClientCreds;
-		SecureTransportServer::Anonymous	mAnonymousServerCreds;
 	};
 	
 	class StreamBackend : public Backend
@@ -168,7 +162,7 @@ private:
 	class Handler : public Task, protected Synchronizable
 	{
 	public:
-		Handler(Overlay *overlay, Stream *stream, const BinaryString &node);
+		Handler(Overlay *overlay, Stream *stream, const BinaryString &node);	// stream will be deleted
 		~Handler(void);
 		
 		bool recv(Message &message);
@@ -179,7 +173,7 @@ private:
 		void run(void);
 		
 		Stream  *mStream;
-		BinaryString mInstance;
+		BinaryString mNode;
 	};
 	
 	bool registerHandler(const BinaryString &node, Handler *handler);

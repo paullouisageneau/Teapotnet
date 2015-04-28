@@ -61,13 +61,15 @@ public:
 	virtual void seekWrite(int64_t position);
 	virtual int64_t tellRead(void) const;
 	virtual int64_t tellWrite(void) const;
+	virtual bool nextRead(void);	// next sub-stream (next datagram if isDatagram, false in normal case)
+	virtual bool nextWrite(void);
 	virtual void clear(void);
 	virtual void flush(void);
 	virtual void close(void);
 	virtual bool ignore(size_t size = 1);
 	virtual bool skipMark(void);
 	virtual bool isDatagram(void) const;
-	
+
 	size_t readData(Stream &s, size_t max);
 	size_t writeData(Stream &s, size_t max);
 	inline void discard(void) { clear(); }

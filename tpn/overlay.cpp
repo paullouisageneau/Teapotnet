@@ -443,9 +443,7 @@ bool Overlay::Message::deserialize(Serializer &s)
 }
 
 Overlay::Backend::Backend(Overlay *overlay) :
-	mOverlay(overlay),
-	mAnonymousClientCreds(),
-	mPrivateSharedKeyServerCreds(String::hexa(overlay->getNumber()))
+	mOverlay(overlay)
 {
 	Assert(mOverlay);
 }
@@ -710,76 +708,73 @@ void Overlay::DatagramBackend::getAddresses(Set<Address> &set) const
 Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node) :
 	mOverlay(overlay),
 	mStream(stream),
-	mInstance(node)
+	mNode(node)
 {
-	Overlay::Instance->registerHandler(mInstance, this);
+	Overlay::Instance->registerHandler(mNode, this);
 }
 
 Overlay::Handler::~Handler(void)
 {
-	Overlay::Instance->unregisterHandler(mInstance, this);	// should be done already
+	Overlay::Instance->unregisterHandler(mNode, this);	// should be done already
 	
-	delete mSender;
 	delete mStream;
 }
 
-bool Overlay::Handler::recv(Message &datagram)
+bool Overlay::Handler::recv(Message &message)
 {
 	Synchronize(this);
 	
-	const size_t MaxSize = 1500;	// TODO
-	char buffer[MaxSize];
-	size_t size = 0;
+	BinarySerializer s(mStream);
+
+	// 32-bit control block
+	if(!s.read(message.version)) return false;
+	AssertIO(s.read(message.flags));
+	AssertIO(s.read(message.ttl));
+	AssertIO(s.read(message.type));
+
+	// 32-bit size block
+	uint8_t sourceSize, destinationSize;
+	uint16_t payloadSize;
+	AssertIO(s.read(sourceSize));
+	AssertIO(s.read(destinationSize));
+	AssertIO(s.read(payloadSize));
 	
-	if(mStream->isDatagram())
-	{
-		Desynchronize(this);
+	// data
+	message.source.clear();
+	message.destination.clear();
+	message.payload.clear();
+	AssertIO(mStream->readBinary(datagram.source, sourceSize));
+	AssertIO(mStream->readBinary(datagram.destination, destinationSize));
+	AssertIO(mStream->readBinary(datagram.payload, payloadSize));
 		
-		size = mStream->readBinary(buffer, MaxSize);
-	}
-	else {
-		Desynchronize(this);
-		
-		uint16_t datagramSize = 0;
-		if(!mStream->readBinary(datagramSize))
-			return false;
-		
-		size = datagramSize;
-		if(mStream->readBinary(buffer, size) != size)
-			throw Exception("Connection unexpectedly closed (size should be " + String::number(unsigned(size))+")");
-	}
-	
-	if(size)
-	{
-		ByteArray s(buffer, size);
-		BinarySerializer serializer(&s);
-		AssertIO(serializer.read(datagram.source));
-		AssertIO(serializer.read(datagram.destination));
-		
-		datagram.payload.clear();
-		s.readBinary(datagram.payload);
-		return true;
-	}
-	
-	return false;
+	mStream->nextRead();	// switch to next datagram if this is a datagram stream
+	return true;
 }
 
 bool Overlay::Handler::send(const Message &datagram)
 {
 	Synchronize(this);
 	
-	ByteArray buffer(1500);
+	BinarySerializer s(mStream);
+
+	// 32-bit control block
+	s.write(message.version);
+	s.write(message.flags);
+	s.write(message.ttl);
+	s.write(message.type);
+
+	// 32-bit size block
+	s.write(uint8_t(message.source.size()));
+	s.write(uint8_t(message.destination.size()));
+	s.write(uint16_t(message.payload.size()));
 	
-	BinarySerializer serializer(&buffer);
-	serializer.write(datagram.source);
-	serializer.write(datagram.destination);
-	
-	buffer.writeBinary(datagram.payload);
-	
-	if(!mStream->isDatagram())
-		mStream->writeBinary(uint16_t(buffer.size()));
-	
-	DesynchronizeStatement(this, mStream->writeBinary(buffer.data(), buffer.size()));
+	// data
+	mStream->writeBinary(datagram.source);
+	mStream->writeBinary(datagram.destination);
+	mStream->writeBinary(datagram.payload);
+
+	mStream->nextWrite();	// switch to next datagram if this is a datagram stream
+	return true;
 }
 
 /*bool Overlay::Handler::incoming(const Message &message)
@@ -935,7 +930,7 @@ void Overlay::Handler::run(void)
 		LogDebug("Overlay::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	mOverlay->unregisterHandler(mInstance, this);
+	mOverlay->unregisterHandler(mNode, this);
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
