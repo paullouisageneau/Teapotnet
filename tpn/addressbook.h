@@ -25,7 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/user.h"
 #include "tpn/interface.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/identifier.h"
 #include "tpn/profile.h"
 #include "tpn/board.h"
@@ -74,7 +74,7 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class Invitation : public Serializable, public Core::Listener
+	class Invitation : public Serializable, public Network::Listener
 	{
 	public:
 		Invitation(void);
@@ -112,7 +112,7 @@ public:
 		friend class AddressBook;
 	};
 	
-	class Contact : private Task, public Serializable, public Core::Listener, public HttpInterfaceable
+	class Contact : private Task, public Serializable, public Network::Listener, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
@@ -148,7 +148,7 @@ public:
 		bool send(const Notification &notification);
 		bool send(const Mail &mail);
 		
-		// Core::Listener
+		// Network::Listener
 		void seen(const Identifier &peer);
 		void connected(const Identifier &peer);
 		bool recv(const Identifier &peer, const Notification &notification);

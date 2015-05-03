@@ -20,7 +20,7 @@
  *************************************************************************/
 
 #include "tpn/config.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/portmapping.h"
 #include "tpn/httptunnel.h"	// for user agent
 
@@ -112,7 +112,7 @@ void Config::GetExternalAddresses(Set<Address> &set)
 	}
 
 	Set<Address> tmp;
-	Core::Instance->getAddresses(tmp);
+	Network::Instance->getAddresses(tmp);
 	
 	uint16_t port = 0;
 	for(Set<Address>::const_iterator it = tmp.begin();

@@ -24,7 +24,7 @@
 #include "tpn/tracker.h"
 #include "tpn/cache.h"
 #include "tpn/store.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/user.h"
 #include "tpn/config.h"
 #include "tpn/portmapping.h"
@@ -702,7 +702,7 @@ int run(StringMap &args)
 	while(true)
 	{
 		try {
-			Core::Instance = new Core(port);
+			Network::Instance = new Core(port);
 		}
 		catch(const NetException &e)
 		{
@@ -718,7 +718,7 @@ int run(StringMap &args)
 		break;
 	}
 	
-	Core::Instance->start();
+	Network::Instance->start();
 	
 	if(portChanged || args.contains("port") || args.contains("ifport"))
 	{
@@ -809,7 +809,7 @@ int run(StringMap &args)
 		Scheduler::Global->repeat(&checkUpdateTask, 86400.);	// 1 day
 #endif
 
-		Core::Instance->join();
+		Network::Instance->join();
 		
 #if defined(WINDOWS) || defined(MACOSX)
 		Scheduler::Global->remove(&checkUpdateTask);

@@ -21,7 +21,7 @@
 
 #include "tpn/store.h"
 #include "tpn/config.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 
 #include "pla/directory.h"
 #include "pla/crypto.h"
@@ -132,7 +132,7 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout)
 	if(!hasBlock(digest))
 	{
 		Desynchronize(this);
-		Core::Caller caller(digest);		// Block is missing locally, call it
+		Network::Caller caller(digest);		// Block is missing locally, call it
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		

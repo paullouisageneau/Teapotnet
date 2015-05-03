@@ -38,7 +38,7 @@ public:
 	static const Identifier Null;
 	
 	Identifier(void);
-	Identifier(const BinaryString &user,const BinaryString &node = BinaryString::Null);
+	Identifier(const BinaryString &user,const BinaryString &node = "");
 	~Identifier(void);
 	
 	const BinaryString &user(void) const;

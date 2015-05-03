@@ -23,7 +23,6 @@
 #define TPN_OVERLAY_H
 
 #include "tpn/include.h"
-#include "tpn/identifier.h"
 #include "tpn/fountain.h"
 #include "tpn/notification.h"
 
@@ -56,10 +55,16 @@ class Overlay : protected Synchronizable
 public:
 	struct Message : public Serializable
 	{
+		static const uint8_t Invalid	= 0x00;
+		static const uint8_t Hello	= 0X01;
+		static const uint8_t Links	= 0X02;
+		static const uint8_t Ping	= 0X03;
+		static const uint8_t Pong	= 0X04;
+
 		Message(void);
+		Message(uint8_t type, const BinaryString &destination = "", const BinaryString &content = "");
 		~Message(void);
 		
-		void prepare(const Identifier &source, const Identifier &destination);
 		void clear(void);
 		
 		// Serializable
@@ -71,10 +76,9 @@ public:
 		uint8_t flags;
 		uint8_t ttl;
 		uint8_t type;
-
 		BinaryString source;
 		BinaryString destination;
-		BinaryString payload;
+		BinaryString content;
 	};
 	
 	Overlay(int port);
@@ -99,11 +103,11 @@ public:
 	int connectionsCount(void) const;
 	
 	// Routing
-	bool route(const Message &message, const Identifier &from = Identifier::Null);
-	bool broadcast(const Message &message, const Identifier &from = Identifier::Null);
-	bool send(const Message &message, const Identifier &to);
-	void addRoute(const Identifier &id, const Address &route);
-	bool getRoute(const Identifier &id, const Address &route);
+	bool incoming(const Message &message, const BinaryString &from);
+	bool route(const Message &message, const BinaryString &from = "");
+	bool broadcast(const Message &message, const BinaryString &from = "");
+	bool send(const Message &message, const BinaryString &to);
+	bool getRoutes(const BinaryString &node, Set<BinaryString> &routes);
 	
 private:
 	class Backend : public Thread
@@ -123,7 +127,8 @@ private:
 	private:
 		bool handshake(SecureTransport *transport, bool async = false);
 		void run(void);
-		
+	
+		Overlay *mOverlay;	
 		ThreadPool mThreadPool;
 	};
 	
@@ -172,10 +177,23 @@ private:
 		void process(void);
 		void run(void);
 		
+		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
 	};
 	
+	class RouteUpdater : public Task
+	{
+	public:
+		RouteUpdater(Overlay *overlay) { mOverlay = overlay; }
+		~RouteUpdater(void);
+		
+		void run(void);
+
+	private:
+		Overlay *mOverlay;
+	};
+
 	bool registerHandler(const BinaryString &node, Handler *handler);
 	bool unregisterHandler(const BinaryString &node, Handler *handler);
 	
@@ -189,11 +207,23 @@ private:
 	SecureTransport::Certificate *mCertificate;
 
 	List<Backend*> mBackends;
-	Map<Identifier, BinaryString> mRoutes;
 	Map<BinaryString, Handler*> mHandlers;
 	
 	Time mLastPublicIncomingTime;
 	Map<Address, Time> mKnownPublicAddresses;
+
+	struct Node
+	{
+		Node(void) { distance = unsigned(-1); }
+
+		Set<BinaryString>	links;
+		unsigned		distance;
+		Set<BinaryString>	previous;
+		Set<BinaryString>	routes;
+	};
+
+	Map<BinaryString, Node> mNodes;
+	RouteUpdater mRouteUpdater;
 };
 
 }

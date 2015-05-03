@@ -27,7 +27,7 @@
 #include "tpn/resource.h"
 #include "tpn/database.h"
 #include "tpn/request.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 
 #include "pla/synchronizable.h"
 #include "pla/serializable.h"
@@ -42,7 +42,7 @@ namespace tpn
 
 class User;
   
-class Indexer : protected Synchronizable, public Task, public Core::Publisher, public HttpInterfaceable
+class Indexer : protected Synchronizable, public Task, public Network::Publisher, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);

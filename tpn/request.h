@@ -23,7 +23,7 @@
 #define TPN_REQUEST_H
 
 #include "tpn/include.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/interface.h"
 #include "tpn/resource.h"
 #include "tpn/identifier.h"
@@ -34,7 +34,7 @@
 namespace tpn
 {
 
-class Request :	protected Core::Subscriber, public Synchronizable, public HttpInterfaceable
+class Request :	protected Network::Subscriber, public Synchronizable, public HttpInterfaceable
 {
 public:
 	Request(Resource &resource);
@@ -56,7 +56,7 @@ public:
 protected:
 	void createPlaylist(Stream *output, String host = "");
 	
-	// Core::Subscriber
+	// Network::Subscriber
 	bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
 	
 private:

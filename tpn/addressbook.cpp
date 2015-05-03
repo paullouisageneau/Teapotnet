@@ -21,7 +21,7 @@
 
 #include "tpn/addressbook.h"
 #include "tpn/user.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/config.h"
 #include "tpn/cache.h"
 #include "tpn/request.h"
@@ -120,7 +120,7 @@ void AddressBook::save(void) const
 		notification["type"] << "contacts";
 		notification["digest"] << mDigest;
 		
-		DesynchronizeStatement(this, Core::Instance->send(user()->identifier(), self->identifier(), notification));
+		DesynchronizeStatement(this, Network::Instance->send(user()->identifier(), self->identifier(), notification));
 	}
 }
 
@@ -723,7 +723,7 @@ void AddressBook::Invitation::connected(const Identifier &peer)
 	if(isSelf())
 		notification["contacts"] << mAddressBook->mContacts.size();
 	
-	if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
+	if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 		throw Exception("Unable to send hello");
 }
 
@@ -758,10 +758,10 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			unsigned remoteContacts = 0;
 			notification.get("contacts").extract(remoteContacts);
 			
-			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Core::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + " contacts)");
+			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Network::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + " contacts)");
 			
 			if(remoteContacts >= localContacts
-				&& (remoteContacts != localContacts || Core::Instance->getNumber() > peer.number()))
+				&& (remoteContacts != localContacts || Network::Instance->getNumber() > peer.number()))
 			{
 				LogDebug("AddressBook::Invitation", "Synchronization: mode is slave");
 				
@@ -783,7 +783,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 			notification["digest"] << resource.digest();
 			notification["secret"] << randomSecret.toString();
 			
-			if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
+			if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 				throw Exception("Unable to send user");
 			
 			// Add self
@@ -1084,14 +1084,14 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
-	return Core::Instance->hasLink(mAddressBook->user()->identifier(), identifier()); 
+	return Network::Instance->hasLink(mAddressBook->user()->identifier(), identifier()); 
 }
 
 bool AddressBook::Contact::isConnected(uint64_t number) const
 {
 	Identifier id;
 	if(!getInstanceIdentifier(number, id)) return false;
-	return Core::Instance->hasLink(mAddressBook->user()->identifier(), id);
+	return Network::Instance->hasLink(mAddressBook->user()->identifier(), id);
 }
 
 bool AddressBook::Contact::hasInstance(uint64_t number) const
@@ -1206,9 +1206,9 @@ void AddressBook::Contact::connected(const Identifier &peer)
 	Notification notification;
 	notification["type"] << "hello";
 	notification["secret"] << localSecret();
-	notification["instance"] << Core::Instance->getName();
+	notification["instance"] << Network::Instance->getName();
 	
-	if(!Core::Instance->send(mAddressBook->user()->identifier(), peer, notification))
+	if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
 		throw Exception("Unable to send hello");
 }
 

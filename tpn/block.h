@@ -23,7 +23,7 @@
 #define TPN_BLOCK_H
 
 #include "tpn/include.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/fountain.h"
 
 #include "pla/serializable.h"

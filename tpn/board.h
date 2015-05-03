@@ -24,7 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/mail.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/interface.h"
 #include "tpn/identifier.h"
 
@@ -37,7 +37,7 @@
 namespace tpn
 {
 
-class Board : public Synchronizable, public Core::Publisher, public Core::Subscriber, public HttpInterfaceable
+class Board : public Synchronizable, public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
 {
 public:
 	Board(const String &name, const String &secret = "", const String &displayName = "");

@@ -605,7 +605,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div", "header");
 			page.link("/?changeuser", "Change account", ".button");
 			page.open("h1");
-			const String instance = Core::Instance->getName().before('.');
+			const String instance = Network::Instance->getName().before('.');
 			page.openLink(profile()->urlPrefix());
 			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name());

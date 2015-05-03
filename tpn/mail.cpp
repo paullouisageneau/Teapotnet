@@ -21,7 +21,7 @@
 
 #include "tpn/mail.h"
 #include "tpn/mailbase.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 #include "tpn/user.h"
 
 #include "pla/binarystring.h"

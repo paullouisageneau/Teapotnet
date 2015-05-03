@@ -20,7 +20,7 @@
  *************************************************************************/
 
 #include "tpn/notification.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 
 namespace tpn
 {
@@ -54,7 +54,7 @@ String Notification::content(void) const
 
 bool Notification::send(const Identifier &destination) const
 {
-	return Core::Instance->send(destination, *this);
+	return Network::Instance->send(destination, *this);
 }
 
 }

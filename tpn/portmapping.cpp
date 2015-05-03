@@ -21,7 +21,7 @@
 
 #include "tpn/portmapping.h"
 #include "tpn/html.h"
-#include "tpn/core.h"
+#include "tpn/network.h"
 
 #include "pla/scheduler.h"
 #include "pla/http.h"
@@ -149,7 +149,7 @@ void PortMapping::run(void)
 	if(!mEnabled) return;
 	
 	Set<Address> addresses;
-	Core::Instance->getAddresses(addresses);
+	Network::Instance->getAddresses(addresses);
 
 	bool hasIpv4 = false;
 	bool hasPublicIpv4 = false;

@@ -20,9 +20,8 @@
  *************************************************************************/
 
 #include "tpn/overlay.h"
-#include "tpn/user.h"
-#include "tpn/store.h"
 #include "tpn/httptunnel.h"
+#include "tpn/portmapping.h"
 #include "tpn/config.h"
 
 #include "pla/binaryserializer.h"
@@ -35,12 +34,10 @@
 namespace tpn
 {
 
-Overlay *Overlay::Instance = NULL;
-
-
 Overlay::Overlay(int port) :
 		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
-		mLastPublicIncomingTime(0)
+		mLastPublicIncomingTime(0),
+		mRouteUpdater(this)
 {
 	// Generate RSA key
 	Random rnd(Random::Key);
@@ -56,10 +53,10 @@ Overlay::Overlay(int port) :
 			mName = hostname;
 
 		if(mName.empty() || mName == "localhost")
-			mName = node.toString();
+			mName = localNode().toString();
 	}
 	
-	LogInfo("Overlay", "Instance name is \"" + name() + "\", node is " + node().toString());
+	LogInfo("Overlay", "Instance name is \"" + localName() + "\", node is " + localNode().toString());
 	
 	// Launch
 	try {
@@ -120,32 +117,32 @@ void Overlay::join(void)
 	}
 }
 
-String Overlay::name(void) const
+String Overlay::localName(void) const
 {
 	Synchronize(this);
 	Assert(!mName.empty());
 	return mName;
 }
 
-BinaryString Overlay::node(void) const
+BinaryString Overlay::localNode(void) const
 {
 	Synchronize(this);
 	return mPublicKey.digest();
 }
 
-const Rsa::PublicKey &User::publicKey(void) const
+const Rsa::PublicKey &Overlay::publicKey(void) const
 {
 	Synchronize(this);
 	return mPublicKey; 
 }
 
-const Rsa::PrivateKey &User::privateKey(void) const
+const Rsa::PrivateKey &Overlay::privateKey(void) const
 {
 	Synchronize(this);
 	return mPrivateKey; 
 }
 
-SecureTransport::Certificate *User::certificate(void) const
+SecureTransport::Certificate *Overlay::certificate(void) const
 {
 	Synchronize(this);
 	return mCertificate;
@@ -201,14 +198,39 @@ int Overlay::connectionsCount(void) const
 	return mHandlers.size();
 }
 
+bool Overlay::incoming(const Message &message, const BinaryString &from)
+{
+	Synchronize(this);
+
+	if(message.destination != localNode())
+		return route(message, from);
+	
+	// Message is for us
+	switch(message.type)
+	{
+	case Message::Invalid:
+		// Ignored
+		break;
+
+	case Message::Ping:
+		route(Message(Message::Pong, message.source, message.content));
+		break;
+
+	default:
+		LogWarn("Overlay::incoming", "Unknown message type: " + String::hexa(message.type, 2));
+		return false;
+	}
+
+	return true;
+}
+
 bool Overlay::route(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 	
 	// Drop if TTL is zero
-	if(message.ttl == 0)
-		return false;
-	
+	if(message.ttl == 0) return false;
+
 	if(!message.destination.empty())
 	{
 		// 1st case: neighbour
@@ -216,26 +238,47 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 			return send(message, message.destination);
 		
 		// 2nd case: routing table entry exists
-		BinaryString route;
-		if(mRoutes.get(message.destination, route))
-			return send(message, route);
+		Set<BinaryString> routes;
+		if(getRoutes(message.destination, routes))
+		{
+			Set<BinaryString>::iterator it = routes.begin();
+			int nbr = Random().uniform(0, int(routes.size()));		
+			while(nbr--) ++it;
+			return send(message, *it);
+		}
+	}
+	else {
+		// Broadcast
+		return broadcast(message, from);
 	}
 	
 	// 3rd case: no routing table entry
-	return broadcast(message, from);
+	//return broadcast(message, from);
+	return false;
 }
 
 bool Overlay::broadcast(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 	
+	if(!message.source.empty() && message.source != localNode())
+	{
+		Set<BinaryString> routes;
+		if(!getRoutes(message.source, routes))
+			return false;
+
+		// Only forward if from shortest path
+		if(*routes.begin() != from)
+			return false;
+	}
+
 	Array<BinaryString> neighbors;
 	mHandlers.getKeys(neighbors);
 	
 	bool success = false;
 	for(int i=0; i<neighbors.size(); ++i)
 	{
-		if(neighbors[i] == from) continue;
+		if(!from.empty() && neighbors[i] == from) continue;
 		
 		Handler *handler;
 		if(mHandlers.get(neighbors[i], handler))
@@ -251,7 +294,7 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 bool Overlay::send(const Message &message, const BinaryString &to)
 {
 	Synchronize(this);
-	
+
 	if(to.empty())
 	{
 		broadcast(message);
@@ -269,27 +312,14 @@ bool Overlay::send(const Message &message, const BinaryString &to)
 	return false;
 }
 
-void Overlay::addRoute(const BinaryString &node, const BinaryString &route)
+bool Overlay::getRoutes(const BinaryString &node, Set<BinaryString> &routes)
 {
 	Synchronize(this);
 	
-	if(node.empty() || route.empty())
-		return;
-	
-	if(node == route)
-		return;
-	
-	mRoutes.insert(node, route);
-}
-
-bool Overlay::getRoute(const BinaryString &node, BinaryString &route)
-{
-	Synchronize(this);
-	
-	Map<BinaryString, BinaryString>::iterator it = mRoutes.find(node);
-	if(it == mRoutes.end()) return false;
-	route = it->second;
-	return true;
+	Map<BinaryString, Node>::iterator it = mNodes.find(node);
+	if(it == mNodes.end()) return false;
+	routes = it->second.routes;
+	return !routes.empty();
 }
 
 bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handler)
@@ -332,7 +362,7 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 		// Dirty hack to test if tracker is private or public
 		bool trackerIsPrivate = false;
 		List<Address> trackerAddresses;
-		Resolve(tracker, trackerAddresses);
+		Address::Resolve(tracker, trackerAddresses);
 		for(	List<Address>::iterator it = trackerAddresses.begin();
 			it != trackerAddresses.end();
 			++it)
@@ -381,8 +411,13 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 		int code = Http::Post(url, post, &json);
 		if(code == 200)
 		{
+			SerializableSet<Address> addrs;
 			JsonSerializer serializer(&json);
-			return serializer.input(result);
+			if(!serializer.input(addrs)) return false;
+			
+			// TODO: Sanitize addrs
+			result = addrs;
+			return !result.empty();
 		}
 		
 		LogWarn("Overlay::track", "Tracker HTTP error: " + String::number(code)); 
@@ -395,14 +430,18 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 	return false;
 }
 
-Overlay::Message::Message(void) :
-	version(0),
-	flags(0),
-	type(Forward),
-	content(Empty),
-	hops(0)
+Overlay::Message::Message(void)
 {
+	clear();
+}
+
+Overlay::Message::Message(uint8_t type, const BinaryString &destination, const BinaryString &content)
+{
+	clear();
 	
+	this->type = type;
+	this->destination = destination;
+	this->content = content;
 }
 
 Overlay::Message::~Message(void)
@@ -410,20 +449,16 @@ Overlay::Message::~Message(void)
 	
 }
 
-void Overlay::Message::prepare(const BinaryString &source, const BinaryString &destination, uint8_t type, uint8_t content)
-{
-	this->source = source;
-	this->destination = destination;
-	this->type = type;
-	this->content = content;
-	payload.clear();
-}
-
 void Overlay::Message::clear(void)
 {
+	version = 0;
+	flags = 0x00;
+	ttl = 10;	// TODO
+	type = Message::Invalid;
+
 	source.clear();
 	destination.clear();
-	payload.clear();
+	content.clear();
 }
 
 void Overlay::Message::serialize(Serializer &s) const
@@ -431,7 +466,7 @@ void Overlay::Message::serialize(Serializer &s) const
 	// TODO
 	s.write(source);
 	s.write(destination);
-	s.write(payload);
+	s.write(content);
 }
 
 bool Overlay::Message::deserialize(Serializer &s)
@@ -439,7 +474,7 @@ bool Overlay::Message::deserialize(Serializer &s)
 	// TODO
 	if(!s.read(source)) return false;
 	AssertIO(s.read(destination));
-	AssertIO(s.read(payload));
+	AssertIO(s.read(content));
 }
 
 Overlay::Backend::Backend(Overlay *overlay) :
@@ -481,7 +516,11 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(SecureTransport *transport) { this->transport = transport; }
+		HandshakeTask(Overlay *overlay, SecureTransport *transport)
+		{
+			this->overlay = overlay; 
+			this->transport = transport;
+		}
 		
 		bool handshake(void)
 		{
@@ -498,7 +537,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 				
 				// Handshake succeeded
 				LogDebug("Overlay::Backend::handshake", "Success, spawning new handler");
-				Handler *handler = new Handler(this, stream, verifier.publicKey.digest());
+				Handler *handler = new Handler(overlay, transport, verifier.publicKey.digest());
 				return true;
 			}
 			catch(const std::exception &e)
@@ -516,6 +555,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 		}
 		
 	private:
+		Overlay *overlay;
 		SecureTransport *transport;
 	};
 	
@@ -523,12 +563,12 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 	try {
 		if(async)
 		{
-			task = new HandshakeTask(mOverlay, transport, local, remote);
+			task = new HandshakeTask(mOverlay, transport);
 			mThreadPool.launch(task);
 			return true;
 		}
 		else {
-			HandshakeTask stask(mOverlay, transport, local, remote);
+			HandshakeTask stask(mOverlay, transport);
 			return stask.handshake();
 		}
 	}
@@ -710,12 +750,12 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mStream(stream),
 	mNode(node)
 {
-	Overlay::Instance->registerHandler(mNode, this);
+	mOverlay->registerHandler(mNode, this);
 }
 
 Overlay::Handler::~Handler(void)
 {
-	Overlay::Instance->unregisterHandler(mNode, this);	// should be done already
+	mOverlay->unregisterHandler(mNode, this);	// should be done already
 	
 	delete mStream;
 }
@@ -726,32 +766,55 @@ bool Overlay::Handler::recv(Message &message)
 	
 	BinarySerializer s(mStream);
 
-	// 32-bit control block
-	if(!s.read(message.version)) return false;
-	AssertIO(s.read(message.flags));
-	AssertIO(s.read(message.ttl));
-	AssertIO(s.read(message.type));
+	while(true)
+	{
+		try {
+			// 32-bit control block
+			if(!s.read(message.version))
+			{
+				if(!mStream->nextRead()) return false;
+				continue;
+			}
+			AssertIO(s.read(message.flags));
+			AssertIO(s.read(message.ttl));
+			AssertIO(s.read(message.type));
 
-	// 32-bit size block
-	uint8_t sourceSize, destinationSize;
-	uint16_t payloadSize;
-	AssertIO(s.read(sourceSize));
-	AssertIO(s.read(destinationSize));
-	AssertIO(s.read(payloadSize));
-	
-	// data
-	message.source.clear();
-	message.destination.clear();
-	message.payload.clear();
-	AssertIO(mStream->readBinary(datagram.source, sourceSize));
-	AssertIO(mStream->readBinary(datagram.destination, destinationSize));
-	AssertIO(mStream->readBinary(datagram.payload, payloadSize));
-		
-	mStream->nextRead();	// switch to next datagram if this is a datagram stream
-	return true;
+			// 32-bit size block
+			uint8_t sourceSize, destinationSize;
+			uint16_t contentSize;
+			AssertIO(s.read(sourceSize));
+			AssertIO(s.read(destinationSize));
+			AssertIO(s.read(contentSize));
+			
+			// data
+			message.source.clear();
+			message.destination.clear();
+			message.content.clear();
+			AssertIO(mStream->readBinary(message.source, sourceSize));
+			AssertIO(mStream->readBinary(message.destination, destinationSize));
+			AssertIO(mStream->readBinary(message.content, contentSize));
+
+			mStream->nextRead();	// switch to next datagram if this is a datagram stream
+
+			if(message.source.empty())	continue;
+			if(message.ttl == 0)		continue;
+			--message.ttl;
+			return true;
+		}
+		catch(...)
+		{
+			if(!mStream->nextRead())
+			{
+				LogWarn("Overlay::Handler", "Unexpected end of stream while reading");
+				return false;
+			}
+			
+			LogWarn("Overlay::Handler", "Truncated message");
+		}
+	}
 }
 
-bool Overlay::Handler::send(const Message &datagram)
+bool Overlay::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
@@ -766,153 +829,27 @@ bool Overlay::Handler::send(const Message &datagram)
 	// 32-bit size block
 	s.write(uint8_t(message.source.size()));
 	s.write(uint8_t(message.destination.size()));
-	s.write(uint16_t(message.payload.size()));
+	s.write(uint16_t(message.content.size()));
 	
 	// data
-	mStream->writeBinary(datagram.source);
-	mStream->writeBinary(datagram.destination);
-	mStream->writeBinary(datagram.payload);
+	mStream->writeBinary((message.source.empty() ? message.source : mOverlay->localNode()));
+	mStream->writeBinary(message.destination);
+	mStream->writeBinary(message.content);
 
 	mStream->nextWrite();	// switch to next datagram if this is a datagram stream
 	return true;
 }
 
-/*bool Overlay::Handler::incoming(const Message &message)
-{
-	Synchronize(this);
-	
-	if(message.content != Message::Tunnel && message.content != Message::Data)
-		LogDebug("Overlay::Handler", "Incoming message (content=" + String::number(unsigned(message.content)) + ", size=" + String::number(unsigned(message.payload.size())) + ")");
-	
-	const BinaryString &source = message.source;
-	BinaryString payload = message.payload;		// copy
-	
-	switch(message.content)
-	{
-		case Message::Tunnel:
-		{
-			Overlay::node->dispatchTunneler::Tunnel(message);
-			break; 
-		}
-		
-		case Message::Notify:
-		{
-			Notification notification;
-			JsonSerializer json(&payload);
-			json.read(notification);
-			
-			// TODO: correct sync
-			// TODO: getListeners function in Overlay
-			Desynchronize(this);
-			Synchronize(Overlay::Instance);
-			Map<BinaryString, Set<Listener*> >::iterator it = mOverlay->mListeners.find(source);
-			while(it != mOverlay->mListeners.end() && it->first == source)
-			{
-				Set<Listener*> set = (it++)->second;
-				Set<Listener*>::iterator jt = set.begin();
-				while(jt != set.end())
-					(*jt++)->recv(source, notification);
-			}
-			
-			break;
-		}
-		
-		case Message::Ack:
-		{
-			// TODO
-			break;
-		}
-		
-		case Message::Call:
-		{
-			Desynchronize(this);
-			BinarySerializer serializer(&payload);
-			
-			BinaryString target;
-			uint16_t tokens;
-			AssertIO(serializer.read(target));
-			AssertIO(serializer.read(tokens));
-			
-			// TODO: function
-			unsigned left = tokens;
-			while(left)
-			{
-				BinaryString payload;
-				BinarySerializer serializer(&payload);
-				serializer.write(target);
-				
-				if(!Store::Instance->pull(target, payload, &left))
-					break;
-				
-				if(!mOverlay->outgoing(source, Message::Forward, Message::Data, payload))
-					break;
-			}
-			
-			if(left == tokens)
-				return false;
-			break;
-		}
-		
-		case Message::Data:
-		{
-			Desynchronize(this);
-			
-			BinarySerializer serializer(&payload);
-			
-			BinaryString target;
-			AssertIO(serializer.read(target));
-			
-			if(Store::Instance->push(target, payload))
-				mOverlay->unregisterAllCallers(target);
-			break;
-		}
-		
-		case Message::Publish:
-		{
-			Desynchronize(this);
-			
-			BinarySerializer serializer(&payload);
-			
-			String path;
-			AssertIO(serializer.read(path));
-			
-			SerializableList<BinaryString> targets;
-			AssertIO(serializer.read(targets));
-			
-			RemotePublisher publisher(targets);
-			return mOverlay->matchSubscribers(path, (source == mRemote ? source : BinaryString::Null), &publisher);
-		}
-		
-		case Message::Subscribe:
-		{
-			Desynchronize(this);
-			
-			BinarySerializer serializer(&payload);
-			
-			String path;
-			AssertIO(serializer.read(path));
-		
-			mOverlay->addRemoteSubscriber(source, path, (source != mRemote));
-			return true;
-		}
-		
-		default:
-			return false;
-	}
-	
-	return true;
-}*/
-
 void Overlay::Handler::process(void)
 {
 	Synchronize(this);
 	
-	Message datagram;
-	while(recv(datagram))
+	Message message;
+	while(recv(message))
 	{
 		Desynchronize(this);
 		//LogDebug("Overlay::Handler", "Received datagram");
-		Overlay::Instance->incoming(datagram);
+		mOverlay->incoming(message, mNode);
 	}
 }
 
@@ -935,6 +872,136 @@ void Overlay::Handler::run(void)
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
 	delete this;		// autodelete
+}
+
+void Overlay::RouteUpdater::run(void)
+{
+	// ---------- Multipath Dijkstra's algorithm ----------
+
+	BinaryString source;
+	Map<BinaryString, Node> nodes;	// working copy
+	Set<BinaryString> unvisited;	
+
+	SynchronizeStatement(mOverlay, source = mOverlay->localNode());
+	SynchronizeStatement(mOverlay, nodes = mOverlay->mNodes);
+
+	nodes[source].distance = 0;
+	nodes[source].previous.clear();
+
+	// Initialization
+	for(Map<BinaryString, Node>::iterator it = nodes.begin();
+		it != nodes.end();
+		++it)
+	{
+		if(it->first != source)
+		{
+			Node &node = it->second;
+			node.distance = unsigned(-1);
+			node.previous.clear();
+		}
+	}
+
+	nodes.getKeys(unvisited);
+
+	// Visit nodes
+	while(!unvisited.empty())
+	{
+		// TODO: min search is linear here, far from optimal
+		BinaryString current;
+		unsigned min = unsigned(-1);
+		for(Set<BinaryString>::iterator it = unvisited.begin();
+			it != unvisited.end();
+			++it)
+		{
+			unsigned distance = nodes[*it].distance;
+			if(distance < min)
+			{
+				current = *it;
+				min = distance;
+			}
+		}
+
+		if(current.empty()) break;
+		unvisited.erase(current);
+		
+		Node &node = nodes[current];
+		for(Set<BinaryString>::iterator it = node.links.begin();
+			it != node.links.end();
+			++it)
+		{
+            		if(unvisited.contains(*it))
+			{
+				Node &neighbor = nodes[*it];
+				unsigned distance = neighbor.distance;
+				unsigned alternate = node.distance + 1;
+				if(alternate < distance)
+				{
+					neighbor.distance = alternate;
+					neighbor.previous.clear();
+					neighbor.previous.insert(current);
+				}
+				else if(alternate == distance)
+				{
+					neighbor.previous.insert(current);
+				}
+			}
+		}
+	}
+
+	// Fill routes and delete unreachable nodes
+	Map<BinaryString, Node>::iterator it = nodes.begin();
+	while(it != nodes.end())
+	{
+		Node &node = it->second;
+
+		if(it->first == source)
+		{
+			node.routes.clear();
+			continue;
+		}
+
+		Set<BinaryString> currents, previous;
+		currents.insert(it->first);
+		previous = node.previous;
+		while(!previous.empty() && *previous.begin() != source)
+		{
+			std::swap(previous, currents);
+			previous.clear();
+			for(Set<BinaryString>::iterator jt = currents.begin();
+				jt != currents.end();
+				++jt)
+			{
+				previous.insertAll(nodes[*jt].previous);
+			}
+		}
+		
+		if(!previous.empty())
+		{
+			std::swap(currents, node.routes);
+			++it;
+		}
+		else {
+			// unreachable
+			nodes.erase(it++);
+		}
+	}
+
+	// Update nodes in overlay
+	{
+		Synchronize(mOverlay);
+
+		// Links might have changed, copy them first
+		for(Map<BinaryString, Node>::iterator it = nodes.begin();
+			it != nodes.end();
+			++it)
+		{
+			Map<BinaryString, Node>::iterator jt = mOverlay->mNodes.find(it->first);
+			if(jt != mOverlay->mNodes.end())
+				std::swap(it->second.links, jt->second.links);
+		}
+			
+		std::swap(nodes, mOverlay->mNodes);
+	}
 }
 
 }
