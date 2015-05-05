@@ -182,11 +182,11 @@ private:
 		BinaryString mNode;
 	};
 	
-	class RouteUpdater : public Task
+	class NodesUpdater : public Thread
 	{
 	public:
-		RouteUpdater(Overlay *overlay) { mOverlay = overlay; }
-		~RouteUpdater(void);
+		NodesUpdater(Overlay *overlay) { mOverlay = overlay; }
+		~NodesUpdater(void);
 		
 		void run(void);
 
@@ -221,9 +221,10 @@ private:
 		Set<BinaryString>	previous;
 		Set<BinaryString>	routes;
 	};
-
+	
 	Map<BinaryString, Node> mNodes;
-	RouteUpdater mRouteUpdater;
+	Synchronizable mNodesSync;
+	NodesUpdater mNodesUpdater;	// Update distances and routes in nodes
 };
 
 }

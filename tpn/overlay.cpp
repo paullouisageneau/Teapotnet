@@ -37,7 +37,7 @@ namespace tpn
 Overlay::Overlay(int port) :
 		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
 		mLastPublicIncomingTime(0),
-		mRouteUpdater(this)
+		mNodesUpdater(this)
 {
 	// Generate RSA key
 	Random rnd(Random::Key);
@@ -115,6 +115,8 @@ void Overlay::join(void)
 		Backend *backend = *it;
 		backend->join();
 	}
+
+	mNodesUpdater.join();
 }
 
 String Overlay::localName(void) const
@@ -230,9 +232,16 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	
 	// Drop if TTL is zero
 	if(message.ttl == 0) return false;
+	
+	// Drop if not connected
+	if(mHandlers.empty()) return false;
 
 	if(!message.destination.empty())
 	{
+		// Special case: only one route
+		if(mHandlers.size() == 1)
+			return send(message, mHandlers.begin()->first);
+		
 		// 1st case: neighbour
 		if(mHandlers.contains(message.destination))
 			return send(message, message.destination);
@@ -334,6 +343,10 @@ bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handle
 		return (h == handler);
 	
 	mHandlers.insert(node, handler);
+
+	if(mHandlers.size() >= 2 && !mNodesUpdater.isRunning())	
+		mNodesUpdater.start();
+
 	return true;
 }
 
@@ -874,133 +887,153 @@ void Overlay::Handler::run(void)
 	delete this;		// autodelete
 }
 
-void Overlay::RouteUpdater::run(void)
+void Overlay::NodesUpdater::run(void)
 {
-	// ---------- Multipath Dijkstra's algorithm ----------
+	Synchronize(&mOverlay->mNodesSync);
 
-	BinaryString source;
-	Map<BinaryString, Node> nodes;	// working copy
-	Set<BinaryString> unvisited;	
-
-	SynchronizeStatement(mOverlay, source = mOverlay->localNode());
-	SynchronizeStatement(mOverlay, nodes = mOverlay->mNodes);
-
-	nodes[source].distance = 0;
-	nodes[source].previous.clear();
-
-	// Initialization
-	for(Map<BinaryString, Node>::iterator it = nodes.begin();
-		it != nodes.end();
-		++it)
+	while(mOverlay->connectionsCount() >= 2)
 	{
-		if(it->first != source)
-		{
-			Node &node = it->second;
-			node.distance = unsigned(-1);
-			node.previous.clear();
-		}
-	}
+		mOverlay->mNodesSync.wait();
 
-	nodes.getKeys(unvisited);
+		BinaryString source = mOverlay->localNode();
+		Map<BinaryString, Node> nodes = mOverlay->mNodes;	// working copy
+		Set<BinaryString> unvisited;
 
-	// Visit nodes
-	while(!unvisited.empty())
-	{
-		// TODO: min search is linear here, far from optimal
-		BinaryString current;
-		unsigned min = unsigned(-1);
-		for(Set<BinaryString>::iterator it = unvisited.begin();
-			it != unvisited.end();
-			++it)
-		{
-			unsigned distance = nodes[*it].distance;
-			if(distance < min)
-			{
-				current = *it;
-				min = distance;
-			}
-		}
+		// ---------- Multipath Dijkstra's algorithm ----------
+		Desynchronize(&mOverlay->mNodesSync);
 
-		if(current.empty()) break;
-		unvisited.erase(current);
-		
-		Node &node = nodes[current];
-		for(Set<BinaryString>::iterator it = node.links.begin();
-			it != node.links.end();
-			++it)
-		{
-            		if(unvisited.contains(*it))
-			{
-				Node &neighbor = nodes[*it];
-				unsigned distance = neighbor.distance;
-				unsigned alternate = node.distance + 1;
-				if(alternate < distance)
-				{
-					neighbor.distance = alternate;
-					neighbor.previous.clear();
-					neighbor.previous.insert(current);
-				}
-				else if(alternate == distance)
-				{
-					neighbor.previous.insert(current);
-				}
-			}
-		}
-	}
+		nodes[source].distance = 0;
+		nodes[source].previous.clear();
 
-	// Fill routes and delete unreachable nodes
-	Map<BinaryString, Node>::iterator it = nodes.begin();
-	while(it != nodes.end())
-	{
-		Node &node = it->second;
-
-		if(it->first == source)
-		{
-			node.routes.clear();
-			continue;
-		}
-
-		Set<BinaryString> currents, previous;
-		currents.insert(it->first);
-		previous = node.previous;
-		while(!previous.empty() && *previous.begin() != source)
-		{
-			std::swap(previous, currents);
-			previous.clear();
-			for(Set<BinaryString>::iterator jt = currents.begin();
-				jt != currents.end();
-				++jt)
-			{
-				previous.insertAll(nodes[*jt].previous);
-			}
-		}
-		
-		if(!previous.empty())
-		{
-			std::swap(currents, node.routes);
-			++it;
-		}
-		else {
-			// unreachable
-			nodes.erase(it++);
-		}
-	}
-
-	// Update nodes in overlay
-	{
-		Synchronize(mOverlay);
-
-		// Links might have changed, copy them first
+		// Initialization
 		for(Map<BinaryString, Node>::iterator it = nodes.begin();
 			it != nodes.end();
 			++it)
 		{
-			Map<BinaryString, Node>::iterator jt = mOverlay->mNodes.find(it->first);
-			if(jt != mOverlay->mNodes.end())
-				std::swap(it->second.links, jt->second.links);
+			if(it->first != source)
+			{
+				Node &node = it->second;
+				node.distance = unsigned(-1);
+				node.previous.clear();
+			}
+
+			for(Set<BinaryString>::iterator jt = node.links.begin();
+				jt != node.links.end();
+				++jt)
+			{
+				if(!nodes.contains(*jt))
+					leafs.insert(*jt);
+			}
 		}
+
+		for(Set<BinaryString>::iterator it = leafs.begin();
+			it != leafs.end();
+			++it)
+		{
+			nodes.insert(*it, Node());
+		}
+
+		nodes.getKeys(unvisited);
+
+		// Visit nodes
+		while(!unvisited.empty())
+		{
+			// TODO: min search is linear here, far from optimal
+			BinaryString current;
+			unsigned min = unsigned(-1);
+			for(Set<BinaryString>::iterator it = unvisited.begin();
+				it != unvisited.end();
+				++it)
+			{
+				unsigned distance = nodes[*it].distance;
+				if(distance < min)
+				{
+					current = *it;
+					min = distance;
+				}
+			}
 			
-		std::swap(nodes, mOverlay->mNodes);
+			if(current.empty()) break;
+			unvisited.erase(current);
+				
+			Node &node = nodes[current];
+			for(Set<BinaryString>::iterator it = node.links.begin();
+				it != node.links.end();
+				++it)
+			{
+            			if(unvisited.contains(*it))
+				{
+					Node &neighbor = nodes[*it];
+					unsigned distance = neighbor.distance;
+					unsigned alternate = node.distance + 1;
+					if(alternate < distance)
+					{
+						neighbor.distance = alternate;
+						neighbor.previous.clear();
+						neighbor.previous.insert(current);
+					}
+					else if(alternate == distance)
+					{
+						neighbor.previous.insert(current);
+					}
+				}
+			}
+		}
+
+		// Fill routes and delete unreachable nodes
+		Map<BinaryString, Node>::iterator it = nodes.begin();
+		while(it != nodes.end())
+		{
+			Node &node = it->second;
+
+			if(it->first == source)
+			{
+				node.routes.clear();
+				continue;
+			}
+
+			Set<BinaryString> currents, previous;
+			currents.insert(it->first);
+			previous = node.previous;
+			while(!previous.empty() && *previous.begin() != source)
+			{
+				std::swap(previous, currents);
+				previous.clear();
+				for(Set<BinaryString>::iterator jt = currents.begin();
+					jt != currents.end();
+					++jt)
+				{
+					previous.insertAll(nodes[*jt].previous);
+				}
+			}
+		
+			if(!previous.empty())
+			{
+				std::swap(currents, node.routes);
+				++it;
+			}
+			else {
+				// unreachable
+				nodes.erase(it++);
+			}
+		}
+
+		// Update nodes in overlay
+		{
+			Synchronize(&mOverlay->mNodesSync);
+
+			// Links might have changed, copy them first
+			for(Map<BinaryString, Node>::iterator it = nodes.begin();
+				it != nodes.end();
+				++it)
+			{
+				Map<BinaryString, Node>::iterator jt = mOverlay->mNodes.find(it->first);
+				if(jt != mOverlay->mNodes.end())
+					std::swap(it->second.links, jt->second.links);
+			}
+				
+			std::swap(nodes, mOverlay->mNodes);
+		}
 	}
 }
 
