@@ -56,10 +56,10 @@ public:
 	struct Message : public Serializable
 	{
 		static const uint8_t Invalid	= 0x00;
-		static const uint8_t Hello	= 0X01;
-		static const uint8_t Links	= 0X02;
-		static const uint8_t Ping	= 0X03;
-		static const uint8_t Pong	= 0X04;
+		static const uint8_t Hello	= 0x01;
+		static const uint8_t Links	= 0x02;
+		static const uint8_t Ping	= 0x03;
+		static const uint8_t Pong	= 0x04;
 
 		Message(void);
 		Message(uint8_t type, const BinaryString &destination = "", const BinaryString &content = "");
@@ -182,6 +182,16 @@ private:
 		BinaryString mNode;
 	};
 	
+	struct Node
+	{
+		Node(void) { distance = unsigned(-1); }
+
+		Set<BinaryString>	links;
+		unsigned		distance;
+		Set<BinaryString>	previous;
+		Set<BinaryString>	routes;
+	};
+	
 	class NodesUpdater : public Thread
 	{
 	public:
@@ -191,11 +201,14 @@ private:
 		void run(void);
 
 	private:
+		void update(Map<BinaryString, Node> &nodes, const BinaryString &source);
+		
 		Overlay *mOverlay;
 	};
 
 	bool registerHandler(const BinaryString &node, Handler *handler);
 	bool unregisterHandler(const BinaryString &node, Handler *handler);
+	void updateLinks(const BinaryString &node, const Set<BinaryString> &links);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
@@ -212,16 +225,6 @@ private:
 	Time mLastPublicIncomingTime;
 	Map<Address, Time> mKnownPublicAddresses;
 
-	struct Node
-	{
-		Node(void) { distance = unsigned(-1); }
-
-		Set<BinaryString>	links;
-		unsigned		distance;
-		Set<BinaryString>	previous;
-		Set<BinaryString>	routes;
-	};
-	
 	Map<BinaryString, Node> mNodes;
 	Synchronizable mNodesSync;
 	NodesUpdater mNodesUpdater;	// Update distances and routes in nodes

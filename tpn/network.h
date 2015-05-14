@@ -53,30 +53,6 @@ class Network : protected Synchronizable
 public:
 	static Network *Instance;
 	
-	struct Message : public Serializable
-	{
-		Message(void);
-		~Message(void);
-		
-		void prepare(const Identifier &source, const Identifier &destination);
-		void clear(void);
-		
-		// Serializable
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-		
-		// Fields
-		uint8_t version;
-		uint8_t flags;
-		uint8_t type;
-		uint8_t content;
-		uint16_t hops;
-		
-		Identifier source;		// 40 B
-		Identifier destination;		// 40 B
-		BinaryString payload;
-	};
-	
 	class Publisher
 	{
 	public:

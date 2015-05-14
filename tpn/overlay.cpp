@@ -214,10 +214,25 @@ bool Overlay::incoming(const Message &message, const BinaryString &from)
 		// Ignored
 		break;
 
+	case Message::Hello:
+		// TODO
+		break:
+		
+	case Message::Links:
+		BinarySerializer serializer(&message.content);
+		Set<BinaryString> links;
+		serializer.input(links);
+		updateLinks(message.source, links);
+		break:
+		
 	case Message::Ping:
 		route(Message(Message::Pong, message.source, message.content));
 		break;
-
+		
+	case Message::Pong:
+		// TODO
+		break;
+		
 	default:
 		LogWarn("Overlay::incoming", "Unknown message type: " + String::hexa(message.type, 2));
 		return false;
@@ -251,7 +266,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 		if(getRoutes(message.destination, routes))
 		{
 			Set<BinaryString>::iterator it = routes.begin();
-			int nbr = Random().uniform(0, int(routes.size()));		
+			int nbr = Random().uniform(0, int(routes.size()));
 			while(nbr--) ++it;
 			return send(message, *it);
 		}
@@ -323,7 +338,7 @@ bool Overlay::send(const Message &message, const BinaryString &to)
 
 bool Overlay::getRoutes(const BinaryString &node, Set<BinaryString> &routes)
 {
-	Synchronize(this);
+	Synchronize(&mNodesSync);
 	
 	Map<BinaryString, Node>::iterator it = mNodes.find(node);
 	if(it == mNodes.end()) return false;
@@ -363,6 +378,13 @@ bool Overlay::unregisterHandler(const BinaryString &node, Overlay::Handler *hand
 		
 	mHandlers.erase(node);
 	return true;
+}
+
+void Overlay::updateLinks(const BinaryString &node, const Set<BinaryString> &links)
+{
+	Synchronize(&mNodesSync);
+	mNodes[node].links = links;
+	mNodesSync.notifyAll();
 }
 
 bool Overlay::track(const String &tracker, Set<Address> &result)
@@ -891,148 +913,154 @@ void Overlay::NodesUpdater::run(void)
 {
 	Synchronize(&mOverlay->mNodesSync);
 
+	bool modified = false;
 	while(mOverlay->connectionsCount() >= 2)
 	{
-		mOverlay->mNodesSync.wait();
+		if(!modified) mOverlay->mNodesSync.wait();
 
-		BinaryString source = mOverlay->localNode();
 		Map<BinaryString, Node> nodes = mOverlay->mNodes;	// working copy
-		Set<BinaryString> unvisited;
-
-		// ---------- Multipath Dijkstra's algorithm ----------
-		Desynchronize(&mOverlay->mNodesSync);
-
-		nodes[source].distance = 0;
-		nodes[source].previous.clear();
-
-		// Initialization
+		DesynchronizeStatement(&mOverlay->mNodesSync, update(nodes, mOverlay->localNode()));
+		
+		// Links might have changed, copy them first
+		modified = false;
 		for(Map<BinaryString, Node>::iterator it = nodes.begin();
 			it != nodes.end();
 			++it)
 		{
-			if(it->first != source)
+			Map<BinaryString, Node>::iterator jt = mOverlay->mNodes.find(it->first);
+			if(jt != mOverlay->mNodes.end())
 			{
-				Node &node = it->second;
-				node.distance = unsigned(-1);
-				node.previous.clear();
-			}
-
-			for(Set<BinaryString>::iterator jt = node.links.begin();
-				jt != node.links.end();
-				++jt)
-			{
-				if(!nodes.contains(*jt))
-					leafs.insert(*jt);
+				modified = modified || (it->second.links != jt->second.links);
+				std::swap(it->second.links, jt->second.links);
 			}
 		}
+		
+		std::swap(nodes, mOverlay->mNodes);
+	}
+}
 
-		for(Set<BinaryString>::iterator it = leafs.begin();
-			it != leafs.end();
+void Overlay::NodesUpdater::update(Map<BinaryString, Node> &nodes, const BinaryString &source)
+{
+	Assert(!source.empty());
+	
+	Set<BinaryString> unvisited, leafs;
+	
+	nodes[source].distance = 0;
+	nodes[source].previous.clear();
+	
+	// ---------- Multipath Dijkstra's algorithm ----------
+	
+	// Initialization
+	for(Map<BinaryString, Node>::iterator it = nodes.begin();
+		it != nodes.end();
+		++it)
+	{
+		Node &node = it->second;
+		
+		if(it->first != source)
+		{
+			node.distance = unsigned(-1);
+			node.previous.clear();
+		}
+
+		for(Set<BinaryString>::iterator jt = node.links.begin();
+			jt != node.links.end();
+			++jt)
+		{
+			if(!nodes.contains(*jt))
+				leafs.insert(*jt);
+		}
+	}
+
+	for(Set<BinaryString>::iterator it = leafs.begin();
+		it != leafs.end();
+		++it)
+	{
+		nodes.insert(*it, Node());
+	}
+
+	nodes.getKeys(unvisited);
+
+	// Visit nodes
+	while(!unvisited.empty())
+	{
+		// TODO: min search is linear here, far from optimal
+		BinaryString current;
+		unsigned min = unsigned(-1);
+		for(Set<BinaryString>::iterator it = unvisited.begin();
+			it != unvisited.end();
 			++it)
 		{
-			nodes.insert(*it, Node());
-		}
-
-		nodes.getKeys(unvisited);
-
-		// Visit nodes
-		while(!unvisited.empty())
-		{
-			// TODO: min search is linear here, far from optimal
-			BinaryString current;
-			unsigned min = unsigned(-1);
-			for(Set<BinaryString>::iterator it = unvisited.begin();
-				it != unvisited.end();
-				++it)
+			unsigned distance = nodes[*it].distance;
+			if(distance < min)
 			{
-				unsigned distance = nodes[*it].distance;
-				if(distance < min)
-				{
-					current = *it;
-					min = distance;
-				}
-			}
-			
-			if(current.empty()) break;
-			unvisited.erase(current);
-				
-			Node &node = nodes[current];
-			for(Set<BinaryString>::iterator it = node.links.begin();
-				it != node.links.end();
-				++it)
-			{
-            			if(unvisited.contains(*it))
-				{
-					Node &neighbor = nodes[*it];
-					unsigned distance = neighbor.distance;
-					unsigned alternate = node.distance + 1;
-					if(alternate < distance)
-					{
-						neighbor.distance = alternate;
-						neighbor.previous.clear();
-						neighbor.previous.insert(current);
-					}
-					else if(alternate == distance)
-					{
-						neighbor.previous.insert(current);
-					}
-				}
+				current = *it;
+				min = distance;
 			}
 		}
-
-		// Fill routes and delete unreachable nodes
-		Map<BinaryString, Node>::iterator it = nodes.begin();
-		while(it != nodes.end())
-		{
-			Node &node = it->second;
-
-			if(it->first == source)
-			{
-				node.routes.clear();
-				continue;
-			}
-
-			Set<BinaryString> currents, previous;
-			currents.insert(it->first);
-			previous = node.previous;
-			while(!previous.empty() && *previous.begin() != source)
-			{
-				std::swap(previous, currents);
-				previous.clear();
-				for(Set<BinaryString>::iterator jt = currents.begin();
-					jt != currents.end();
-					++jt)
-				{
-					previous.insertAll(nodes[*jt].previous);
-				}
-			}
 		
-			if(!previous.empty())
+		if(current.empty()) break;
+		unvisited.erase(current);
+			
+		Node &node = nodes[current];
+		for(Set<BinaryString>::iterator it = node.links.begin();
+			it != node.links.end();
+			++it)
+		{
+			if(unvisited.contains(*it))
 			{
-				std::swap(currents, node.routes);
-				++it;
-			}
-			else {
-				// unreachable
-				nodes.erase(it++);
+				Node &neighbor = nodes[*it];
+				unsigned distance = neighbor.distance;
+				unsigned alternate = node.distance + 1;
+				if(alternate < distance)
+				{
+					neighbor.distance = alternate;
+					neighbor.previous.clear();
+					neighbor.previous.insert(current);
+				}
+				else if(alternate == distance)
+				{
+					neighbor.previous.insert(current);
+				}
 			}
 		}
+	}
 
-		// Update nodes in overlay
+	// Fill routes and delete unreachable nodes
+	Map<BinaryString, Node>::iterator it = nodes.begin();
+	while(it != nodes.end())
+	{
+		Node &node = it->second;
+
+		if(it->first == source)
 		{
-			Synchronize(&mOverlay->mNodesSync);
+			node.routes.clear();
+			continue;
+		}
 
-			// Links might have changed, copy them first
-			for(Map<BinaryString, Node>::iterator it = nodes.begin();
-				it != nodes.end();
-				++it)
+		Set<BinaryString> currents, previous;
+		currents.insert(it->first);
+		previous = node.previous;
+		while(!previous.empty() && *previous.begin() != source)
+		{
+			std::swap(previous, currents);
+			previous.clear();
+			for(Set<BinaryString>::iterator jt = currents.begin();
+				jt != currents.end();
+				++jt)
 			{
-				Map<BinaryString, Node>::iterator jt = mOverlay->mNodes.find(it->first);
-				if(jt != mOverlay->mNodes.end())
-					std::swap(it->second.links, jt->second.links);
+				previous.insertAll(nodes[*jt].previous);
 			}
-				
-			std::swap(nodes, mOverlay->mNodes);
+		}
+	
+		if(!previous.empty())
+		{
+			std::swap(currents, node.routes);
+			++it;
+		}
+		else {
+			// unreachable
+			nodes.erase(it++);
 		}
 	}
 }
