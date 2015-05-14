@@ -589,7 +589,7 @@ bool DatagramStream::waitData(double &timeout)
 	return true;
 }
 
-bool DatagramStream::nextRead(void) const
+bool DatagramStream::nextRead(void)
 {
 	Synchronize(&mBufferSync);
 	mBuffer.clear();
@@ -598,14 +598,13 @@ bool DatagramStream::nextRead(void) const
 	return true;
 }
 
-bool DatagramStream::nextWrite(void) const
+bool DatagramStream::nextWrite(void)
 {
 	Synchronize(&mBufferSync);
 	mSock->write(mWriteBuffer.data(), mWriteBuffer.size(), mAddr);
 	mWriteBuffer.clear();
 	return true;
 }
-mSock->write(data, size, mAddr);
 
 bool DatagramStream::isDatagram(void) const
 {
