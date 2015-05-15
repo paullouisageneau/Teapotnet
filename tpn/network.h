@@ -24,7 +24,6 @@
 
 #include "tpn/include.h"
 #include "tpn/overlay.h"
-#include "tpn/identifier.h"
 #include "tpn/fountain.h"
 #include "tpn/notification.h"
 
@@ -190,7 +189,7 @@ private:
 		~Tunneler(void);
 		
 		bool open(const Identifier &identifier, User *user);
-		bool incoming(const Message &message);
+		bool incoming(const Overlay::Message &message);
 		
 	private:
 		class Tunnel : public Stream
@@ -211,12 +210,12 @@ private:
 			bool waitData(const double &timeout);
 			bool isDatagram(void) const;
 			
-			bool incoming(const Message &message);
+			bool incoming(const Overlay::Message &message);
 			
 		private:
 			Tunneler *tunneler;
 			Identifier mLocal, mRemote;
-			Queue<Message> mQueue;
+			Queue<Overlay::Message> mQueue;
 			Synchronizable mQueueSync;
 			double mTimeout;
 		};
@@ -233,7 +232,7 @@ private:
 		ThreadPool mThreadPool;
 		
 		// Queue for listen
-		Queue<Message> mQueue;
+		Queue<Overlay::Message> mQueue;
 		Synchronizable mQueueSync;
 	};
 	
