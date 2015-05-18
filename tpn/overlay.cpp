@@ -200,13 +200,42 @@ int Overlay::connectionsCount(void) const
 	return mHandlers.size();
 }
 
+bool Overlay::recv(Message &message)
+{
+	Synchonize(&mIncomingSync);
+
+	while(mIncoming.empty())
+		mIncomingSync.wait();
+
+	message = mIncoming.front();
+	mIncoming.pop();
+	return true;
+}
+
+bool Overlay::send(const Message &message)
+{
+	return route(message);
+}
+
+void registerEndpoint(const BinaryString &id)
+{
+	Synchronize(this);
+	mEndpoints.insert(id);
+}
+
+void unregisterEndpoint(const BinaryString &id)
+{
+	Synchronize(this);
+	mEndpoints.remove(id);
+}
+
 bool Overlay::incoming(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 
 	if(message.destination != localNode())
 		return route(message, from);
-	
+
 	// Message is for us
 	switch(message.type)
 	{
@@ -226,11 +255,12 @@ bool Overlay::incoming(const Message &message, const BinaryString &from)
 		break:
 		
 	case Message::Ping:
+		LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
 		route(Message(Message::Pong, message.source, message.content));
 		break;
 		
 	case Message::Pong:
-		// TODO
+		LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
 		break;
 		
 	default:
@@ -255,11 +285,11 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	{
 		// Special case: only one route
 		if(mHandlers.size() == 1)
-			return send(message, mHandlers.begin()->first);
+			return sendTo(message, mHandlers.begin()->first);
 		
 		// 1st case: neighbour
 		if(mHandlers.contains(message.destination))
-			return send(message, message.destination);
+			return sendTo(message, message.destination);
 		
 		// 2nd case: routing table entry exists
 		Set<BinaryString> routes;
@@ -268,7 +298,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 			Set<BinaryString>::iterator it = routes.begin();
 			int nbr = Random().uniform(0, int(routes.size()));
 			while(nbr--) ++it;
-			return send(message, *it);
+			return sendTo(message, *it);
 		}
 	}
 	else {
@@ -308,14 +338,14 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 		if(mHandlers.get(neighbors[i], handler))
 		{
 			Desynchronize(this);
-			success|= handler->send(message);
+			success|= handler->sendTo(message);
 		}
 	}
 	
 	return success;
 }
 
-bool Overlay::send(const Message &message, const BinaryString &to)
+bool Overlay::sendTo(const Message &message, const BinaryString &to)
 {
 	Synchronize(this);
 

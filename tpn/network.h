@@ -188,18 +188,17 @@ private:
 		Tunneler(Network *network);
 		~Tunneler(void);
 		
-		bool open(const Identifier &identifier, User *user);
+		bool open(const BinaryString &remote, User *user);
 		bool incoming(const Overlay::Message &message);
 		
 	private:
 		class Tunnel : public Stream
 		{
 		public:
-			Tunnel(Tunneler *tunneler, const Identifier &local, const Identifier &remote);
+			Tunnel(Tunneler *tunneler, uint64_t id);
 			~Tunnel(void);
 			
-			Identifier local(void) const;
-			Identifier remote(void) const;
+			uint64_t id(void) const;
 			
 			void setTimeout(double timeout);
 			
@@ -214,7 +213,7 @@ private:
 			
 		private:
 			Tunneler *tunneler;
-			Identifier mLocal, mRemote;
+			uint64_t mId;
 			Queue<Overlay::Message> mQueue;
 			Synchronizable mQueueSync;
 			double mTimeout;
@@ -224,11 +223,12 @@ private:
 		bool unregisterTunnel(Tunnel *tunnel);
 		
 		SecureTransport *listen(void);
-		bool handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async = false);
+
+		bool handshake(SecureTransport *transport, const BinaryString &local = "", const BinaryString &remote = "", bool async = false);
 		void run(void);
 		
 		Network *mNetwork;
-		Map<IdentifierPair, Tunnel*> mTunnels;
+		Map<uint64_t, Tunnel*> mTunnels;
 		ThreadPool mThreadPool;
 		
 		// Queue for listen

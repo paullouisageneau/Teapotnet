@@ -738,25 +738,26 @@ Network::Tunneler::~Tunneler(void)
 	
 }
 
-bool Network::Tunneler::open(const Identifier &identifier, User *user)
+bool Network::Tunneler::open(const BinaryString &remote, User *user)
 {
-	Assert(locator.user);
+	Assert(user);
 	
-	if(identifier.empty())
+	if(local.empty() || remote.empty())
 		return false;
 	
 	if(mOverlay->connectionsCount() == 0)
 		return false;
 	
-	LogDebug("Network::Tunneler::open", "Trying tunnel for " + identifier.toString());
+	LogDebug("Network::Tunneler::open", "Trying tunnel for " + remote.toString());
 	
-	Identifier remote(identifier);
-	Identifier local(user->identifier(), mOverlay.localNode());
-	
+	uint64_t tunnelId;
+	Random().read(tunnelId);	// Generate random tunnel ID
+	BinaryString local = user->identifier();
+
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		tunnel = new Tunneler::Tunnel(local, remote);
+		tunnel = new Tunneler::Tunnel(this, tunnelId);
 		transport = new SecureTransportClient(tunnel, NULL);
 	}
 	catch(...)
@@ -768,10 +769,7 @@ bool Network::Tunneler::open(const Identifier &identifier, User *user)
 	LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
 		
 	// Set remote name
-	String name = identifier.digest().toString();
-	transport->setHostname(name);
-	
-	Identifier local(user->identifier(), mOverlay.localNode());
+	transport->setHostname(remote.toString());
 	
 	// Add user certificate
 	SecureTransportClient::Certificate *cert = user->certificate();
@@ -779,7 +777,7 @@ bool Network::Tunneler::open(const Identifier &identifier, User *user)
 	
 	mThreadPool.run(tunnel);
 	
-	return handshake(transport, local, identifier, false);	// sync
+	return handshake(transport, local, remote, false);	// sync
 }
 
 SecureTransport *Network::Tunneler::listen(void)
@@ -788,17 +786,20 @@ SecureTransport *Network::Tunneler::listen(void)
 	
 	while(mQueue.empty()) mQueueSync.wait();
 	
-	const Message &datagram = mQueue.front();
+	Message &datagram = mQueue.front();
 	
 	LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + datagram.source.toString());
 
-	Identifier local(datagram.destination, mNetwork->getNumber());
-	Identifier remote(datagram.source);
+	// Read tunnel ID
+	uint8_t len = 0;
+	Identifier tunnelId;
+	datagram.readBinary(len);
+	datagram.readBinary(tunnelId, len);
 
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		tunnel = new Tunneler::Tunnel(mNetwork, local, remote);
+		tunnel = new Tunneler::Tunnel(mNetwork, tunnelId);
 		transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
 	}
 	catch(...)
@@ -808,13 +809,12 @@ SecureTransport *Network::Tunneler::listen(void)
 		throw;
 	}
 	
-	mTunneler::Tunnels.insert(IdentifierPair(local, remote), tunnel);
+	mTunneler::Tunnels.insert(tunnelId, tunnel);
+	mThreadPool.run(tunnel);
 	tunnel->incoming(datagram);
 	
-	mThreadPool.run(tunnel);
-	
 	mQueue.pop();
-	return transport;
+	return transport;	// handshake done in run()
 }
 
 bool Network::Tunneler::incoming(const Message &datagram)
@@ -825,37 +825,33 @@ bool Network::Tunneler::incoming(const Message &datagram)
 	return true;
 }
 
-bool registerTunnel(Tunnel *tunnel)
+bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 {
 	Synchronize(this);
 	
 	if(!tunnel)
 		return false;
 	
-	IdentifierPair pair(tunnel->local(), tunnel->remote());
-	
 	Tunneler::Tunnel *t = NULL;
-	if(mTunneler::Tunnels.get(pair, t))
+	if(mTunneler::Tunnels.get(tunnel->id(), t))
 		return (t == tunnel);
 	
-	mTunneler::Tunnels.insert(pair, tunnel);
+	mTunneler::Tunnels.insert(tunnel->id(), tunnel);
 	return true;
 }
 
-bool unregisterTunnel(Tunnel *tunnel)
+bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 {
 	Synchronize(this);
 	
 	if(!handler)
 		return false;
 	
-	IdentifierPair pair(tunnel->local(), tunnel->remote());
-	
 	Tunneler::Tunnel *t = NULL;
-	if(!mTunneler::Tunnels.get(pair, t) || t != tunnel)
+	if(!mTunneler::Tunnels.get(tunnel->id(), t) || t != tunnel)
 		return false;
-		
-	mTunneler::Tunnels.erase();
+	
+	mTunneler::Tunnels.erase(tunnel->id());
 		return true;	
 }
 
@@ -871,22 +867,20 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 		{
 			LogDebug("Network::Tunneler::handshake", String("Verifying user: ") + name);
 			
-			Identifier id;
 			try {
-				id.fromString(name);
+				local.fromString(name);
 			}
 			catch(...)
 			{
-				LogDebug("Network::Tunneler::handshake", String("Invalid identifier: ") + digest);
+				LogDebug("Network::Tunneler::handshake", String("Invalid identifier: ") + name);
 				return false;
 			}
 			
-			User *user = User::GetByIdentifier(id);
+			User *user = User::GetByIdentifier(local);
 			if(user)
 			{
 				SecureTransport::Credentials *creds = user->certificate();
 				if(creds) transport->addCredentials(creds);
-				local = Identifier(user->identifier(), network->getNumber());
 			}
 			else {
 				 LogDebug("Network::Tunneler::handshake", String("User does not exist: ") + name);
@@ -946,22 +940,16 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 				transport->handshake();
 				Assert(transport->hasCertificate());
 				
-				// Assign local if client
-				if(transport->isClient())
-					verifier.local = local;
+				if(!local.empty() && local != verifier.local)
+					return false;
 
-				// Pass remote instance number
-				verifier.remote.setInstance(remote.node());
-						
-				// Check remote identifier
-				if(remote != Identifier::Null && verifier.remote != remote)
-					throw Exception("Invalid identifier: " + verifier.remote.toString());
-				
+				if(!remote.empty() && remote != verifier.remote)
+					return false;
+
 				// Handshake succeeded
 				LogDebug("Network::Tunneler::handshake", "Success");
 				
 				// TODO: addHandler in Network
-				
 				return true;
 			}
 			catch(const std::exception &e)
@@ -1015,7 +1003,6 @@ void Network::Tunneler::run(void)
 			
 			LogDebug("Network::Backend::run", "Incoming tunnel");
 			
-			// TODO: remote instance
 			handshake(transport, Identifier::Null, Identifier::Null, true); // async
 		}
 	}
@@ -1027,10 +1014,9 @@ void Network::Tunneler::run(void)
 	LogWarn("Network::Backend::run", "Closing tunneler");
 }
 
-Network::Tunneler::Tunnel::Tunneler::Tunnel(Tunneler *tunneler, const Identifier &local, const Identifier &remote) :
+Network::Tunneler::Tunnel::Tunneler::Tunnel(Tunneler *tunneler, uint64_t id) :
 	mTunneler(tunneler),
-	mLocal(local),
-	mRemote(remote),
+	mId(id),
 	mTimeout(DefaultTimeout)
 {
 	mTunneler->registerTunnel(this);
@@ -1041,14 +1027,9 @@ Network::Tunneler::Tunnel::~Tunneler::Tunnel(void)
 	mTunneler->unregisterTunnel(this);
 }
 
-Identifier Network::Tunneler::Tunnel::local(void) const
+uint64_t Network::Tunneler::Tunnel::id(void) const
 {
-	return mLocal;
-}
-
-Identifier Network::Tunneler::Tunnel::remote(void) const
-{
-	return mRemote;
+	return mId;
 }
 
 void Network::Tunneler::Tunnel::setTimeout(double timeout)

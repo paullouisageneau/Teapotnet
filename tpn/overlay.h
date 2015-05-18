@@ -96,6 +96,7 @@ public:
 	const Rsa::PrivateKey &privateKey(void) const;
 	SecureTransport::Certificate *certificate(void) const;
 
+	// Addresses
 	void getAddresses(Set<Address> &set) const;
 	void getKnownPublicAdresses(Set<Address> &set) const;
 	bool isPublicConnectable(void) const;
@@ -104,14 +105,20 @@ public:
 	bool connect(const Set<Address> &addrs);
 	int connectionsCount(void) const;
 	
+	// Message interface
+	bool recv(Message &message);
+	bool send(const Message &message);
+	void registerEndpoint(const BinaryString &id);
+	void unregisterEndpoint(const BinaryString &id);
+
+private:
 	// Routing
 	bool incoming(const Message &message, const BinaryString &from);
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
-	bool send(const Message &message, const BinaryString &to);
+	bool sendTo(const Message &message, const BinaryString &to);
 	bool getRoutes(const BinaryString &node, Set<BinaryString> &routes);
-	
-private:
+
 	class Backend : public Thread
 	{
 	public:
@@ -223,9 +230,13 @@ private:
 
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
-	
+	Set<BinaryString> mEndpoints;
+
 	Time mLastPublicIncomingTime;
 	Map<Address, Time> mKnownPublicAddresses;
+
+	Queue<Message> mIncoming;
+	Synchronizable mIncomingSync;
 
 	Map<BinaryString, Node> mNodes;
 	Synchronizable mNodesSync;
