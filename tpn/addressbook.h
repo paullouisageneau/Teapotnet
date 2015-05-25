@@ -26,8 +26,6 @@
 #include "tpn/user.h"
 #include "tpn/interface.h"
 #include "tpn/network.h"
-#include "tpn/identifier.h"
-#include "tpn/profile.h"
 #include "tpn/board.h"
 #include "tpn/mail.h"
 
@@ -47,8 +45,7 @@ namespace tpn
 {
 
 class User;
-class Profile;
-  
+
 class AddressBook : private Task, private Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
@@ -132,7 +129,6 @@ public:
 		String name(void) const;
 		String urlPrefix(void) const;
 		BinaryString secret(void) const;
-		Profile *profile(void) const;
 		
 		bool isSelf(void) const;
 		bool isConnected(void) const;
@@ -200,7 +196,6 @@ public:
 		};
 	  
 		AddressBook *mAddressBook;
-		Profile *mProfile;
 		Board *mBoard, *mPrivateBoard;
 		
 		String mUniqueName, mName;

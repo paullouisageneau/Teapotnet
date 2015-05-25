@@ -26,7 +26,6 @@
 #include "tpn/network.h"
 #include "tpn/interface.h"
 #include "tpn/resource.h"
-#include "tpn/identifier.h"
 
 #include "pla/synchronizable.h"
 #include "pla/binarystring.h"

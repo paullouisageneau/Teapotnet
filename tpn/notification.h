@@ -23,7 +23,6 @@
 #define TPN_NOTIFICATION_H
 
 #include "tpn/include.h"
-#include "tpn/identifier.h"
 
 #include "pla/string.h"
 #include "pla/map.h"

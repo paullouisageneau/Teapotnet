@@ -123,7 +123,7 @@ void User::UpdateAll(void)
 	}
 }
 
-User::User(const String &name, const String &password, const String &tracker) :
+User::User(const String &name, const String &password) :
 	mName(name),
 	mOnline(false),
 	mSetOfflineTask(this)
@@ -179,12 +179,10 @@ User::User(const String &name, const String &password, const String &tracker) :
 	mIndexer = NULL;
 	mAddressBook = NULL;
 	mBoard = NULL;
-	mProfile = NULL;
 
 	try {
 		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
-		mIndexer = new Indexer(this); 
-		mProfile = new Profile(this, mName, tracker); 	// must be created before AddressBook
+		mIndexer = new Indexer(this);
         	mAddressBook = new AddressBook(this);
        	 	mBoard = new Board("/" + identifier().toString(), mName);
 	}
@@ -192,20 +190,11 @@ User::User(const String &name, const String &password, const String &tracker) :
 	{
 		delete mCertificate;
 		delete mIndexer;
-		delete mProfile;
 		delete mAddressBook;
 		delete mBoard;
 		throw;
 	}
 
-	try {
-		mProfile->load();
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("User", String("Unable to load profile: ") + e.what());
-	}
-	
 	UsersMutex.lock();
 	UsersByName.insert(mName, this);
 	UsersByAuth.insert(mAuth, this);
@@ -258,12 +247,6 @@ String User::name(void) const
 	return mName; 
 }
 
-String User::tracker(void) const
-{
-	Synchronize(this);
-        return mProfile->tracker();
-}
-
 String User::profilePath(void) const
 {
 	Synchronize(this);
@@ -289,12 +272,6 @@ BinaryString User::secret(void) const
 {
 	Synchronize(this);
 	return mSecret;
-}
-
-void User::setTracker(const String &tracker)
-{
-	Synchronize(this);
-	mProfile->setTracker(tracker);
 }
 
 AddressBook *User::addressBook(void) const

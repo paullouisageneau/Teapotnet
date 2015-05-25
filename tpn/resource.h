@@ -23,7 +23,6 @@
 #define TPN_RESOURCE_H
 
 #include "tpn/include.h"
-#include "tpn/identifier.h"
 #include "tpn/block.h"
 
 #include "pla/serializable.h"

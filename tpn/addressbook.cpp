@@ -914,7 +914,6 @@ bool AddressBook::Invitation::isInlineSerializable(void) const
 
 AddressBook::Contact::Contact(void) :
 	mAddressBook(NULL),
-	mProfile(NULL),
 	mBoard(NULL),
 	mPrivateBoard(NULL)
 {	
@@ -923,7 +922,6 @@ AddressBook::Contact::Contact(void) :
 
 AddressBook::Contact::Contact(const Contact &contact) :
 	mAddressBook(NULL),
-	mProfile(NULL),
 	mBoard(NULL),
 	mPrivateBoard(NULL),
 	mUniqueName(contact.mUniqueName),
@@ -944,7 +942,6 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 	mUniqueName(uname),
 	mName(name),
 	mPublicKey(pubKey),
-	mProfile(NULL),
 	mBoard(NULL),
 	mPrivateBoard(NULL)
 {
@@ -962,7 +959,6 @@ AddressBook::Contact::~Contact(void)
 		mAddressBook->mScheduler.cancel(this);
 	}
 	
-	delete mProfile;
 	delete mBoard;
 }
 
@@ -978,20 +974,6 @@ void AddressBook::Contact::init(void)
 	if(!mBoard)
 	{
 		mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
-	}
-	
-	if(!mProfile && !isSelf())
-	{
-		Synchronize(mAddressBook);
-		mProfile = new Profile(mAddressBook->user(), mUniqueName);
-		
-		try {
-			mProfile->load();
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("AddressBook::Contact", String("Unable to load profile for ") + uniqueName() + ": " + e.what());
-		}
 	}
 	
 	listen(identifier());
@@ -1064,17 +1046,6 @@ BinaryString AddressBook::Contact::localSecret(void) const
 BinaryString AddressBook::Contact::remoteSecret(void) const
 {
 	return mRemoteSecret;
-}
-
-Profile *AddressBook::Contact::profile(void) const
-{
-	Synchronize(mAddressBook);
-
-	if(isSelf()) return mAddressBook->user()->profile();
-	else {
-		Assert(mProfile);
-		return mProfile;
-	}
 }
 
 bool AddressBook::Contact::Contact::isSelf(void) const
@@ -1323,8 +1294,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.close("div");
 			}
 			
-			// TODO: insert here profile infos
-			
 			page.open("div",".box");
 			
 			page.open("table", ".menu");
@@ -1346,16 +1315,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("td");
 			page.open("td", ".title");
 				page.text("Search");
-			page.close("td");
-			page.close("tr");
-			page.open("tr");
-			page.open("td");
-				page.openLink(profile()->urlPrefix());
-				page.image("/icon_profile.png", "Profile", ".bigicon");
-				page.closeLink();
-			page.close("td");
-			page.open("td", ".title");
-				page.text("Profile");
 			page.close("td");
 			page.close("tr");
 			
@@ -1542,10 +1501,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		}
 		else if(directory == "avatar")
 		{
-			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = profile()->avatarUrl(); 
-			response.send();
-			return;
+			// TODO
+			throw 404;
 		}
 		else if(directory == "board")
 		{

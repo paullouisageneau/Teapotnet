@@ -24,9 +24,7 @@
 
 #include "tpn/include.h"
 #include "tpn/interface.h"
-#include "tpn/identifier.h"
 #include "tpn/indexer.h"
-#include "tpn/profile.h"
 #include "tpn/board.h"
 
 #include "pla/synchronizable.h"
@@ -54,25 +52,21 @@ public:
 	static User *Authenticate(const String &name, const String &password);
 	static void UpdateAll(void);
 	
-	User(const String &name, const String &password = "", const String &tracker = "");
+	User(const String &name, const String &password = "");
 	~User(void);
 	
 	void load(void);
 	void save(void) const;
 	
 	String name(void) const;
-	String tracker(void) const;
 	String profilePath(void) const;
 	String fileName(void) const;
 	String urlPrefix(void) const;
 	BinaryString secret(void) const;
 	
-	void setTracker(const String &tracker);
-	
 	AddressBook *addressBook(void) const;
 	Board *board(void) const;
 	Indexer *indexer(void) const;
-	Profile *profile(void) const;
 	
 	bool isOnline(void) const;
 	void setOnline(void);
@@ -101,7 +95,6 @@ private:
 	AddressBook *mAddressBook;
 	Board *mBoard;
 	Indexer *mIndexer;
-	Profile *mProfile;
 	
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
