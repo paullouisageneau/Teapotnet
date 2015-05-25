@@ -132,14 +132,11 @@ public:
 		
 		bool isSelf(void) const;
 		bool isConnected(void) const;
-		bool isConnected(uint64_t number) const;
+		bool isConnected(const Identifier &instance) const;
 		
-		bool hasInstance(uint64_t number) const;
-		int  getInstanceNumbers(Array<uint64_t> &result) const;
-		int  getInstanceIdentifiers(Array<Identifier> &result) const;
-		bool getInstanceIdentifier(uint64_t number, Identifier &result) const;
-		bool getInstanceName(uint64_t number, String &result) const;
-		bool getInstanceAddresses(uint64_t number, Set<Address> &result) const;
+		bool hasInstance(const Identifier &instance) const;
+		int  getInstances(Set<Identifier> &result) const;
+		bool getInstanceAddresses(const Identifier &instance, Set<Address> &result) const;
 		
 		bool send(const Notification &notification);
 		bool send(const Mail &mail);
@@ -167,10 +164,10 @@ public:
 		{
 		public:
 			Instance(void);
-			Instance(uint64_t number);
+			Instance(const Identifier &id);
 			~Instance();
 			
-			uint64_t number(void) const;
+			Identifier &identifier(void) const;
 			String name(void) const;
 			void setName(const String &name);
 			Time lastSeen(void) const;
@@ -186,6 +183,7 @@ public:
 			bool isInlineSerializable(void) const;
 			
 		private:
+			Identifier mIdentifier;
 			uint64_t mNumber;
 			String mName;
 			
@@ -202,7 +200,7 @@ public:
 		Rsa::PublicKey mPublicKey;
 		BinaryString mRemoteSecret;
 		
-		typedef SerializableMap<uint64_t, Instance> InstancesMap;
+		typedef SerializableMap<Identifier, Instance> InstancesMap;
 		InstancesMap mInstances;
 		
 		friend class AddressBook;

@@ -1058,86 +1058,28 @@ bool AddressBook::Contact::isConnected(void) const
 	return Network::Instance->hasLink(mAddressBook->user()->identifier(), identifier()); 
 }
 
-bool AddressBook::Contact::isConnected(uint64_t number) const
+bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
-	Identifier id;
-	if(!getInstanceIdentifier(number, id)) return false;
-	return Network::Instance->hasLink(mAddressBook->user()->identifier(), id);
+	return Network::Instance->hasLink(mAddressBook->user()->identifier(), instance);
 }
 
-bool AddressBook::Contact::hasInstance(uint64_t number) const
+bool AddressBook::Contact::hasInstance(const Identifier &instance) const
 {
 	Synchronize(mAddressBook);
-	return mInstances.contains(number);
+	return mInstances.contains(instance);
 }
 
-int AddressBook::Contact::getInstanceNumbers(Array<uint64_t> &result) const
+int AddressBook::Contact::getInstances(Set<Identifier> &result) const
 {
 	Synchronize(mAddressBook);
-	
-	result.clear();
-	result.reserve(mInstances.size());
-	 
-	for(InstancesMap::const_iterator it = mInstances.begin();
-		it != mInstances.end();
-		++it)
-	{
-		result.append(it->first); 
-	}
-	
-	return result.size();
+	return mInstance.getKeys(result);
 }
 
-int AddressBook::Contact::getInstanceIdentifiers(Array<Identifier> &result) const
+bool AddressBook::Contact::getInstanceAddresses(const Identifier &instance, Set<Address> &result) const
 {
 	Synchronize(mAddressBook);
 	
-	result.clear();
-	result.reserve(mInstances.size());
-	 
-	for(InstancesMap::const_iterator it = mInstances.begin();
-		it != mInstances.end();
-		++it)
-	{
-		result.append(Identifier(identifier(), it->first)); 
-	}
-	
-	return result.size();
-}
-
-bool AddressBook::Contact::getInstanceIdentifier(uint64_t number, Identifier &result) const
-{
-	Synchronize(mAddressBook);
-	
-	InstancesMap::const_iterator it = mInstances.find(number);
-	if(it != mInstances.end())
-	{
-		result = Identifier(identifier(), number);
-		return true;
-	}
-	
-	return false;
-}
-
-bool AddressBook::Contact::getInstanceName(uint64_t number, String &result) const
-{
-	Synchronize(mAddressBook);
-	
-	InstancesMap::const_iterator it = mInstances.find(number);
-	if(it != mInstances.end())
-	{
-		result = it->second.name();
-		return true;
-	}
-	
-	return false;
-}
-
-bool AddressBook::Contact::getInstanceAddresses(uint64_t number, Set<Address> &result) const
-{
-	Synchronize(mAddressBook);
-	
-	InstancesMap::const_iterator it = mInstances.find(number);
+	InstancesMap::const_iterator it = mInstances.find(instance);
 	if(it != mInstances.end())
 	{
 		it->second.getAddresses(result);
@@ -1601,8 +1543,8 @@ AddressBook::Contact::Instance::Instance(void) :
   
 }
 
-AddressBook::Contact::Instance::Instance(uint64_t number) :
-	mNumber(number),
+AddressBook::Contact::Instance::Instance(const Identifier &id) :
+	mIdentifier(id),
 	mLastSeen(0)
 {
 	Assert(mNumber != 0);
@@ -1611,6 +1553,11 @@ AddressBook::Contact::Instance::Instance(uint64_t number) :
 AddressBook::Contact::Instance::~Instance()
 {
   
+}
+
+Identifier &AddressBook::Contact::Instance::identifier(void) const
+{
+	return mIdentifier;
 }
 
 String AddressBook::Contact::Instance::name(void) const
