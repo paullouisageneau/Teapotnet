@@ -51,7 +51,12 @@ public:
 	void writeData(const char *data, size_t size);
 	
 	// Wrappers for internal use, used in crypto.cpp
-	typedef unsigned int wrappersize_t;
+	// The size argument type changed from unsigned to size_t in nettle 3.1 (?!)
+#if NETTLE_VERSION_MAJOR >= 3 && NETTLE_VERSION_MINOR >= 1
+	typedef unsigned wrappersize_t;
+#else
+	typedef size_t wrappersize_t;
+#endif
 	static void wrapperNonce (void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Nonce).generate (reinterpret_cast<char*>(buffer), size_t(size)); }
 	static void wrapperCrypto(void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Crypto).generate(reinterpret_cast<char*>(buffer), size_t(size)); }
 	static void wrapperKey   (void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Key).generate   (reinterpret_cast<char*>(buffer), size_t(size)); }
