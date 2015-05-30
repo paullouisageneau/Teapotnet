@@ -52,7 +52,7 @@ public:
 	
 	// Wrappers for internal use, used in crypto.cpp
 	// The size argument type changed from unsigned to size_t in nettle 3.1 (?!)
-#if NETTLE_VERSION_MAJOR >= 3 && NETTLE_VERSION_MINOR >= 1
+#if NETTLE_VERSION_MAJOR >= 3
 	typedef unsigned wrappersize_t;
 #else
 	typedef size_t wrappersize_t;
