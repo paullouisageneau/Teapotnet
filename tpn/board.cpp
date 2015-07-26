@@ -47,8 +47,8 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	Cache::Instance->retrieveMapping(prefix, digest);
 	
 	if(!digest.empty())
-		if(fetch(Identifier::Null, prefix, "/", digest))
-			incoming(Identifier::Null, prefix, "/", digest);
+		if(fetch(Identifier::Empty, prefix, "/", digest))
+			incoming(Identifier::Empty, prefix, "/", digest);
 	
 	publish(prefix);
 	subscribe(prefix);

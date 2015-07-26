@@ -55,7 +55,7 @@ public:
 	class Publisher
 	{
 	public:
-		Publisher(const Identifier &peer = Identifier::Null);	// local peer
+		Publisher(const Identifier &peer = Identifier::Empty);	// local peer
 		~Publisher(void);
 		
 		void publish(const String &prefix, const String &path = "/");
@@ -71,7 +71,7 @@ public:
 	class Subscriber
 	{
 	public:
-		Subscriber(const Identifier &peer = Identifier::Null);	// remote peer
+		Subscriber(const Identifier &peer = Identifier::Empty);	// remote peer
 		~Subscriber(void);
 		
 		void subscribe(const String &prefix);
@@ -151,6 +151,7 @@ public:
 	
 	bool addHandler(Stream *stream, const Identifier &local, const Identifier &remote);
 	bool hasHandler(const Identifier &local, const Identifier &remote);
+	bool hasLink(const Identifier &local, const Identifier &remote) { return hasHandler(local, remote); }
 	
 private:
 	class RemotePublisher : public Publisher
@@ -168,7 +169,7 @@ private:
 	class RemoteSubscriber : public Subscriber
 	{
 	public:
-		RemoteSubscriber(const Identifier &remote = Identifier::Null, bool publicOnly = false);
+		RemoteSubscriber(const Identifier &remote = Identifier::Empty, bool publicOnly = false);
 		~RemoteSubscriber(void);
 		
 		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);

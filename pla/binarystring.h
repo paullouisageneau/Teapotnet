@@ -32,6 +32,9 @@ namespace pla
 class BinaryString : public std::string, public Stream, public Serializable
 {
 public:
+	static const BinaryString Empty;
+	static const size_type NotFound = npos;
+	
 	BinaryString(void);
 	BinaryString(const char *str);
 	BinaryString(const char *data, size_t size);
