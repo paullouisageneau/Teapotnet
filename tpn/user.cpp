@@ -175,20 +175,24 @@ User::User(const String &name, const String &password) :
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
 	
-	mCertificate = NULL;
+	mMasterCertificate = NULL;
+	mLocalCertificate = NULL;
 	mIndexer = NULL;
 	mAddressBook = NULL;
 	mBoard = NULL;
 
 	try {
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
+		mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
+		mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
+		
 		mIndexer = new Indexer(this);
         	mAddressBook = new AddressBook(this);
        	 	mBoard = new Board("/" + identifier().toString(), mName);
 	}
 	catch(...)
 	{
-		delete mCertificate;
+		delete mMasterCertificate;
+		delete mLocalCertificate;
 		delete mIndexer;
 		delete mAddressBook;
 		delete mBoard;
@@ -214,7 +218,8 @@ User::~User(void)
 	Interface::Instance->remove(urlPrefix());
 	Scheduler::Global->cancel(&mSetOfflineTask);
 	
-	delete mCertificate;
+	delete mMasterCertificate;
+	delete mLocalCertificate;
 	delete mAddressBook;
 	delete mBoard;
 	delete mIndexer;
@@ -414,25 +419,41 @@ bool User::checkToken(const String &token, const String &action) const
 Identifier User::identifier(void) const
 {
 	Synchronize(this);
-	return Identifier(mPublicKey.digest()); 
+	return Identifier(mMasterPublicKey.digest());
 }
 
-const Rsa::PublicKey &User::publicKey(void) const
+Identifier User::instance(void) const
 {
 	Synchronize(this);
-	return mPublicKey; 
+	return Identifier(mLocalPublicKey.digest());
 }
 
-const Rsa::PrivateKey &User::privateKey(void) const
+const Rsa::PublicKey &User::masterPublicKey(void) const
 {
 	Synchronize(this);
-	return mPrivateKey; 
+	return mMasterPublicKey.digest();
 }
 
-SecureTransport::Certificate *User::certificate(void) const
+const Rsa::PrivateKey &User::masterPrivateKey(void) const
 {
 	Synchronize(this);
-	return mCertificate;
+	return mMasterPrivateKey.digest();
+}
+
+const Rsa::PublicKey &User::localPublicKey(void) const
+{
+	Synchronize(this);
+	return mLocalPublicKey.digest();
+}
+
+SecureTransport::Certificate *User::masterCertificate(void) const
+{
+	return mMasterCertificate;
+}
+
+SecureTransport::Certificate *User::localCertificate(void) const
+{
+	return mLocalCertificate;
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -754,6 +775,7 @@ void User::serialize(Serializer &s) const
 {
 	Synchronize(this);
 
+	// TODO
 	Serializer::ConstObjectMapping mapping;
 	mapping["publickey"] = &mPublicKey;
 	mapping["privatekey"] = &mPrivateKey;
@@ -791,9 +813,11 @@ bool User::deserialize(Serializer &s)
 			UsersMutex.unlock();
 		}
 		
-		// Reload certificate
-		delete mCertificate;
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
+		// Reload certificates
+		delete mMasterCertificate;
+		delete mLocalCertificate;
+		mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
+		mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
 	}
 	
 	return true;

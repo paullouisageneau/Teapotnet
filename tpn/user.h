@@ -78,9 +78,13 @@ public:
 	bool checkToken(const String &token, const String &action = "") const;
 	
 	Identifier identifier(void) const;
-	const Rsa::PublicKey &publicKey(void) const;
-	const Rsa::PrivateKey &privateKey(void) const;
-	SecureTransport::Certificate *certificate(void) const;
+	Identifier instance(void) const;
+	
+	const Rsa::PublicKey  &masterPublicKey(void) const;
+	const Rsa::PrivateKey &masterPrivateKey(void) const;
+	const Rsa::PublicKey  &localPublicKey(void) const;
+	SecureTransport::Certificate *masterCertificate(void) const;
+	SecureTransport::Certificate *localCertificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);
 
@@ -96,10 +100,15 @@ private:
 	Board *mBoard;
 	Indexer *mIndexer;
 	
-	Rsa::PublicKey	mPublicKey;
-	Rsa::PrivateKey	mPrivateKey;
+	Rsa::PublicKey	mMasterPublicKey;
+	Rsa::PrivateKey	mMasterPrivateKey;
+	Rsa::PublicKey	mLocalPublicKey;
+	Rsa::PrivateKey	mLocalPrivateKey;
+	
+	SecureTransport::Certificate *mMasterCertificate;
+	SecureTransport::Certificate *mLocalCertificate;
+	
 	BinaryString mSecret;
-	SecureTransport::Certificate *mCertificate;
 	
 	bool mOnline;
 	BinaryString mTokenSecret;

@@ -358,50 +358,57 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 		// Get peer's certificate
 		unsigned count = 0;
 		const gnutls_datum_t *array = gnutls_certificate_get_peers(session, &count);
-		if(!array || !count)
+		if(!array || count == 0)
 		{
 			LogWarn("SecureTransport::CertificateCallback", "No peer certificate");
                         return GNUTLS_E_CERTIFICATE_ERROR;
 		}
 		
-		gnutls_x509_crt_t crt;
-		Assert(gnutls_x509_crt_init(&crt) == GNUTLS_E_SUCCESS);
-		
-		bool valid = false;
-		try {
-			// Reimport certificate
-			int ret = gnutls_x509_crt_import(crt, array, GNUTLS_X509_FMT_DER);
-			if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
+		Array<Rsa::PublicKey> chain;
+		chain.reserve(count);
+		for(int i=0; i<count; ++i)
+		{
+			gnutls_x509_crt_t crt;
+			Assert(gnutls_x509_crt_init(&crt) == GNUTLS_E_SUCCESS);
 			
-			if(!transport->mHostname.empty())
-			{
-				String hostname = transport->mHostname.before('#');
-				if(!gnutls_x509_crt_check_hostname(crt, hostname.c_str()))
+			try {
+				// Reimport certificate
+				int ret = gnutls_x509_crt_import(crt, array+i, GNUTLS_X509_FMT_DER);
+				if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
+				
+				if(i==0 && !transport->mHostname.empty())
 				{
-					LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + hostname);
-      					return GNUTLS_E_CERTIFICATE_ERROR;
-    				}
+					String hostname = transport->mHostname.before('#');
+					if(!gnutls_x509_crt_check_hostname(crt, hostname.c_str()))
+					{
+						LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + hostname);
+						return GNUTLS_E_CERTIFICATE_ERROR;
+					}
+				}
+				
+				chain.append(Rsa::PublicKey(crt));
+			}
+			catch(...)
+			{
+				gnutls_x509_crt_deinit(crt);
+				throw;
 			}
 			
-			if(transport->mVerifier) valid = transport->mVerifier->verifyCertificate(Rsa::PublicKey(crt));
-			else valid = true;
-		}
-		catch(...)
-		{
 			gnutls_x509_crt_deinit(crt);
-			throw;
 		}
 		
-		gnutls_x509_crt_deinit(crt);
+		if(!transport->mVerifier)
+			return 0;
 		
-		if(valid) return 0;
-		else return GNUTLS_E_CERTIFICATE_ERROR;
+		if(transport->mVerifier->verifyPublicKey(chain))
+			return 0;
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("SecureTransport::CertificateCallback", String("TLS certificate verification failed: ") + e.what());
-		return GNUTLS_E_CERTIFICATE_ERROR;
 	}
+	
+	return GNUTLS_E_CERTIFICATE_ERROR;
 }
 
 int SecureTransport::PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum)
@@ -541,7 +548,7 @@ void SecureTransport::Certificate::install(gnutls_session_t session, String &pri
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name)
+SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name, const SecureTransport::RsaCertificate *issuer = NULL)
 {
 	// Init certificate and key
 	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
@@ -549,6 +556,8 @@ SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const
 	
 	try {
 		Rsa::CreateCertificate(mCrt, mKey, pub, priv, name);
+		if(issuer) Rsa::SignCertificate(mCrt, issuer->mCrt, issuer->mKey);
+		else Rsa::SignCertificate(mCrt, mCrt, mKey);	// self-signed
 		
 		int ret = gnutls_certificate_set_x509_key(mCreds, &mCrt, 1, mKey);
 		if(ret != GNUTLS_E_SUCCESS)

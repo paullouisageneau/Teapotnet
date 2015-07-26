@@ -36,8 +36,15 @@
 #define RAPTUREURL		"https://teapotnet.org/rapture/"	// Rapture must use HTTPS 
 
 #include "pla/include.h"
+#include "pla/binarystring.h"
 
 using namespace pla;
+
+namespace tpn
+{
+	typedef BinaryString Identifier;
+	typedef std::pair<Identifier, Identifier> IdentifierPair;
+}
 
 #endif
 

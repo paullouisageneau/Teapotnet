@@ -227,7 +227,7 @@ Identifier AddressBook::getSelfIdentifier(void) const
 	Synchronize(this);
 	const Contact *self = getSelf();
 	if(self) return self->identifier();
-	else return Identifier::Null;
+	else return "";
 }
 
 bool AddressBook::hasIdentifier(const Identifier &identifier) const
@@ -729,7 +729,7 @@ void AddressBook::Invitation::connected(const Identifier &peer)
 
 bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
-	Synchronize(mAddressBook);
+	/*Synchronize(mAddressBook);
 	
 	String type;
 	notification.get("type", type);
@@ -861,7 +861,7 @@ bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &n
 		file.close();
 	}
 	
-	// WARNING: Invitation is deleted here
+	// WARNING: Invitation is deleted here*/
 	return true;
 }
 
@@ -1055,12 +1055,12 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
-	return Network::Instance->hasLink(mAddressBook->user()->identifier(), identifier()); 
+	return Network::Instance->hasHandler(mAddressBook->user()->identifier(), identifier()); 
 }
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
-	return Network::Instance->hasLink(mAddressBook->user()->identifier(), instance);
+	return Network::Instance->hasHandler(mAddressBook->user()->identifier(), instance);
 }
 
 bool AddressBook::Contact::hasInstance(const Identifier &instance) const

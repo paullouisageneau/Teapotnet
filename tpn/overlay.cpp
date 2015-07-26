@@ -571,9 +571,10 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 	public:
 		Rsa::PublicKey publicKey;
 		
-		bool verifyCertificate(const Rsa::PublicKey &pub)
+		bool verifyPublicKey(const Array<Rsa::PublicKey> &chain)
 		{
-			publicKey = pub;
+			if(chain.empty()) return false;
+			publicKey = chain[0];
 			return true;		// Accept
 		}
 	};

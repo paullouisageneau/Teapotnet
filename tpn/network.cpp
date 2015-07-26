@@ -771,9 +771,9 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 	// Set remote name
 	transport->setHostname(remote.toString());
 	
-	// Add user certificate
-	SecureTransportClient::Certificate *cert = user->certificate();
-	if(cert) transport->addCredentials(cert, false);
+	// Add certificates
+	transport->addCredentials(user->localCertificate(), false);
+	transport->addCredentials(user->certificate(), false);
 	
 	mThreadPool.run(tunnel);
 	
@@ -889,9 +889,10 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			return true;	// continue handshake anyway
 		}
 		
-		bool verifyCertificate(const Rsa::PublicKey &pub)
+		bool verifyPublicKey(const Array<Rsa::PublicKey> &chain)
 		{
-			publicKey = pub;
+			if(chain.empty()) return false;
+			publicKey = chain[0];
 			remote = Identifier(publicKey.digest());
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());

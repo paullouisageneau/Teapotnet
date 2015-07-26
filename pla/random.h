@@ -51,7 +51,7 @@ public:
 	void writeData(const char *data, size_t size);
 	
 	// Wrappers for internal use, used in crypto.cpp
-	// The size argument type changed from unsigned to size_t in nettle 3.1 (?!)
+	// The size argument type changed from unsigned to size_t in nettle 3.0 (?!)
 #if NETTLE_VERSION_MAJOR >= 3
 	typedef unsigned wrappersize_t;
 #else

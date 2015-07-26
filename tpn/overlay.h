@@ -49,8 +49,6 @@
 namespace tpn
 {
 
-typedef BinaryString Identifier;
-
 // Overlay network implementation
 class Overlay : protected Synchronizable
 {

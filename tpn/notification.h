@@ -31,7 +31,6 @@
 namespace tpn
 {
 
-
 class Notification : public StringMap
 {
 public:
