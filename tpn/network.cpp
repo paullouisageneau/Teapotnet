@@ -183,7 +183,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	mSubscribers[prefix].insert(subscriber);
 	
 	// Local publishers
-	matchPublishers(prefix, Identifier::Null, subscriber);
+	matchPublishers(prefix, Identifier::Empty, subscriber);
 	
 	if(!subscriber->localOnly())
 	{
@@ -237,7 +237,7 @@ void Network::addRemoteSubscriber(const Identifier &peer, const String &path, bo
 bool Network::broadcast(const Identifier &local, const Notification &notification)
 {
 	Synchronize(this);	
-	return outgoing(local, Identifier::Null, "notif", notification);
+	return outgoing(local, Identifier::Empty, "notif", notification);
 }
 
 bool Network::send(const Identifier &local, const Identifier &remote, const Notification &notification)
@@ -316,7 +316,7 @@ bool Network::outgoing(const Identifier &local, const Identifier &remote, const 
 	
 	local.setNumber(getNumber());
 	
-	if(remote != Identifier::Null)
+	if(remote != Identifier::Empty)
 	{
 		Map<IdentifierPair, Handler*>::iterator it = mHandlers.find(IdentifierPair(local, remote));
 		if(it != mHandlers.end())
@@ -328,7 +328,7 @@ bool Network::outgoing(const Identifier &local, const Identifier &remote, const 
 	}
 	else {
 		bool success = false;
-		for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.lower_bound(IdentifierPair(local, Identifier::Null));
+		for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.lower_bound(IdentifierPair(local, Identifier::Empty));
 			it->first == local;
 			++it)
 		{
@@ -396,7 +396,7 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 					if(subscriber) 	// local
 					{
 						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming(Identifier::Null, path, "/", *it);
+							subscriber->incoming(Identifier::Empty, path, "/", *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -555,7 +555,7 @@ void Network::Subscriber::unsubscribeAll(void)
 
 Identifier Network::Subscriber::remote(void) const
 {
-	return Identifier::Null;
+	return Identifier::Empty;
 }
 
 bool Network::Subscriber::localOnly(void) const
@@ -646,7 +646,7 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(mRemote != Identifier::Null)
+	if(mRemote != Identifier::Empty)
 	{
 		SerializableArray<BinaryString> array;
 		array.append(target);
@@ -662,7 +662,7 @@ bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &p
 Identifier Network::RemoteSubscriber::remote(void) const
 {
 	if(!mPublicOnly) return mRemote;
-	else return Identifier::Null;
+	else return Identifier::Empty;
 }
 
 bool Network::RemoteSubscriber::localOnly(void) const
@@ -1004,7 +1004,7 @@ void Network::Tunneler::run(void)
 			
 			LogDebug("Network::Backend::run", "Incoming tunnel");
 			
-			handshake(transport, Identifier::Null, Identifier::Null, true); // async
+			handshake(transport, Identifier::Empty, Identifier::Empty, true); // async
 		}
 	}
 	catch(const std::exception &e)

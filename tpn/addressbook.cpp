@@ -227,7 +227,7 @@ Identifier AddressBook::getSelfIdentifier(void) const
 	Synchronize(this);
 	const Contact *self = getSelf();
 	if(self) return self->identifier();
-	else return "";
+	else return Identifier::Empty;
 }
 
 bool AddressBook::hasIdentifier(const Identifier &identifier) const
@@ -729,140 +729,14 @@ void AddressBook::Invitation::connected(const Identifier &peer)
 
 bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
 {
-	/*Synchronize(mAddressBook);
+	Synchronize(mAddressBook);
 	
 	String type;
 	notification.get("type", type);
 	LogDebug("AddressBook::Invitation", "Incoming notification (type='" + type + "')");
 	
-	if(type == "hello")
-	{
-		String name;
-		if(!notification.get("name", name))
-			throw Exception("Missing contact name");
-		
-		if(!notification.contains("publickey"))
-			throw Exception("Missing contact public key");
-		
-		Rsa::PublicKey pubKey;
-		notification.get("publickey").extract(pubKey);
-		
-		if(pubKey.digest() != identifier())
-			throw Exception("Wrong public key received from invited contact " + name);
-		
-		if(isSelf())
-		{
-			Assert(name == mAddressBook->userName());
-			
-			unsigned localContacts  = mAddressBook->mContacts.size();
-			unsigned remoteContacts = 0;
-			notification.get("contacts").extract(remoteContacts);
-			
-			LogDebug("AddressBook::Invitation", "Synchronization: local is " + String::hexa(Network::Instance->getNumber()) + " (" + String::number(localContacts) + " contacts), remote is " + String::hexa(peer.number()) + " (" + String::number(remoteContacts) + " contacts)");
-			
-			if(remoteContacts >= localContacts
-				&& (remoteContacts != localContacts || Network::Instance->getNumber() > peer.number()))
-			{
-				LogDebug("AddressBook::Invitation", "Synchronization: mode is slave");
-				
-				mAddressBook->setSelf(pubKey);	// calls save()
-				return true;			// so invitation is not deleted
-			}
-			
-			LogDebug("AddressBook::Invitation", "Synchronization: mode is master, sending user");
-			
-			BinaryString randomSecret;
-			Random rnd;
-			rnd.read(randomSecret, 32);
-			
-			Resource resource;
-			resource.process(mAddressBook->user()->fileName(), mAddressBook->user()->name(), "user", randomSecret.toString());
-			
-			Notification notification;
-			notification["type"] << "user";
-			notification["digest"] << resource.digest();
-			notification["secret"] << randomSecret.toString();
-			
-			if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
-				throw Exception("Unable to send user");
-			
-			// Add self
-			mAddressBook->setSelf(mAddressBook->user()->publicKey());	// calls save()
-		}
-		else {
-			// Add contact
-			mAddressBook->addContact(name, pubKey);				// calls save()
-		}
-	}
-	else if(type == "user")
-	{
-		if(!isSelf())
-			throw Exception("Received user from other than self");
-		
-		if(!notification.contains("digest"))
-			throw Exception("Missing user digest");
-		
-		BinaryString digest;
-		notification.get("digest").extract(digest);
-		
-		String secret;
-		notification.get("secret", secret);
-		
-		LogDebug("AddressBook::Invitation", "Synchronization: receiving user");
-		
-		class ImportTask : public Task
-		{
-		public:
-			ImportTask(User *user, const BinaryString &digest, const String &secret)
-			{
-				this->user = user;
-				this->digest = digest;
-				this->secret = secret;
-			}
-			
-			void run(void)
-			{
-				Resource resource(digest);
-				Resource::Reader reader(&resource, secret);
-				JsonSerializer serializer(&reader);
-				serializer.read(*user);
-				
-				LogDebug("AddressBook::Invitation", "Synchronization: user loaded: " + user->identifier().toString());
-				user->save();
-				delete this;	// autodelete
-			}
-			
-		private:
-			User *user;
-			BinaryString digest;
-			String secret;
-		};
-		
-		Scheduler::Global->schedule(new ImportTask(mAddressBook->user(), digest, secret));
-	}
-	
-	// Erase invitation and save
-	{
-		Synchronize(mAddressBook);
-		
-		LogDebug("AddressBook::Invitation", "Deleting invitation: " + identifier().toString());
-		for(int i=0; i<mAddressBook->mInvitations.size(); ++i)
-		{
-			if(&mAddressBook->mInvitations[i] == this)
-			{
-				mAddressBook->mInvitations.erase(i);
-				break;
-			}
-		}
-		
-		SafeWriteFile file(mAddressBook->mFileName);
-		JsonSerializer serializer(&file);
-		serializer.output(*mAddressBook);
-		file.close();
-	}
-	
-	// WARNING: Invitation is deleted here*/
-	return true;
+	// TODO
+	return false;
 }
 
 bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
@@ -1072,7 +946,7 @@ bool AddressBook::Contact::hasInstance(const Identifier &instance) const
 int AddressBook::Contact::getInstances(Set<Identifier> &result) const
 {
 	Synchronize(mAddressBook);
-	return mInstance.getKeys(result);
+	return mInstances.getKeys(result);
 }
 
 bool AddressBook::Contact::getInstanceAddresses(const Identifier &instance, Set<Address> &result) const
@@ -1106,7 +980,7 @@ void AddressBook::Contact::seen(const Identifier &peer)
 	Assert(peer == identifier());
   
 	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
-	mInstances[peer.number()].setSeen();
+	mInstances[peer].setSeen();
 }
 
 void AddressBook::Contact::connected(const Identifier &peer)
