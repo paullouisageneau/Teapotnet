@@ -548,7 +548,7 @@ void SecureTransport::Certificate::install(gnutls_session_t session, String &pri
 	Assert(gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mCreds) == GNUTLS_E_SUCCESS);
 }
 
-SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name, const SecureTransport::RsaCertificate *issuer = NULL)
+SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv, const String &name, const SecureTransport::RsaCertificate *issuer)
 {
 	// Init certificate and key
 	Assert(gnutls_x509_crt_init(&mCrt) == GNUTLS_E_SUCCESS);
