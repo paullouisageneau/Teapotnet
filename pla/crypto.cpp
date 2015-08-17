@@ -830,7 +830,7 @@ void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, co
 
 void Rsa::SignCertificate(gnutls_x509_crt_t crt, gnutls_x509_crt_t issuer, gnutls_x509_privkey_t issuerKey)
 {
-	ret = gnutls_x509_crt_sign2(crt, issuer, issuerKey, GNUTLS_DIG_SHA256, 0);
+	int ret = gnutls_x509_crt_sign2(crt, issuer, issuerKey, GNUTLS_DIG_SHA256, 0);
 	if(ret != GNUTLS_E_SUCCESS)
 		throw Exception(String("Unable to sign X509 certificate: ") + gnutls_strerror(ret));
 }
