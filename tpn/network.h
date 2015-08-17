@@ -55,11 +55,7 @@ public:
 	class Publisher
 	{
 	public:
-<<<<<<< HEAD
 		Publisher(const Identifier &peer = "");	// local peer
-=======
-		Publisher(const Identifier &peer = Identifier::Empty);	// local peer
->>>>>>> 4a8a42363b695cdfb1a5d30becd92e0791ceee20
 		~Publisher(void);
 		
 		void publish(const String &prefix, const String &path = "/");
@@ -75,11 +71,7 @@ public:
 	class Subscriber
 	{
 	public:
-<<<<<<< HEAD
 		Subscriber(const Identifier &peer = "");	// remote peer
-=======
-		Subscriber(const Identifier &peer = Identifier::Empty);	// remote peer
->>>>>>> 4a8a42363b695cdfb1a5d30becd92e0791ceee20
 		~Subscriber(void);
 		
 		void subscribe(const String &prefix);
@@ -177,11 +169,7 @@ private:
 	class RemoteSubscriber : public Subscriber
 	{
 	public:
-<<<<<<< HEAD
 		RemoteSubscriber(const Identifier &remote = "", bool publicOnly = false);
-=======
-		RemoteSubscriber(const Identifier &remote = Identifier::Empty, bool publicOnly = false);
->>>>>>> 4a8a42363b695cdfb1a5d30becd92e0791ceee20
 		~RemoteSubscriber(void);
 		
 		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
