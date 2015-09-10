@@ -348,29 +348,29 @@ bool Stream::read(String &str)
 double Stream::readDouble(void)
 {
 	double value;
-	if(!read(value)) throw Exception("No value to read");
-	return value;
+	if(read(value)) return value;
+	else return 0.;
 }
 
 float Stream::readFloat(void)
 {
 	float value;
-	if(!read(value)) throw Exception("No value to read");
-	return value;
+	if(read(value)) return value;
+	else return 0.f;
 }
 
 int Stream::readInt(void)
 {
 	int value;
-	if(!read(value)) throw Exception("No value to read");
-	return value;
+	if(read(value)) return value;
+	else return 0;
 }
 
 bool Stream::readBool(void)
 {
 	bool value;
-	if(!read(value)) throw Exception("No value to read");
-	return value;
+	if(read(value)) return value;
+	else return false;
 }
 
 int64_t Stream::write(Stream &s)
