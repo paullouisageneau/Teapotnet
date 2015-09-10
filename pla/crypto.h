@@ -200,7 +200,7 @@ public:
 		
 		bool operator==(const PublicKey &key) const;
 		
-		bool isNull(void);
+		bool isNull(void) const;
 		void clear(void);
 		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
@@ -226,7 +226,7 @@ public:
 		~PrivateKey(void);
 		PrivateKey &operator=(const PrivateKey &key);
 		
-		bool isNull(void);
+		bool isNull(void) const;
 		void clear(void);
 		void sign(const BinaryString &digest, BinaryString &signature) const;
 		

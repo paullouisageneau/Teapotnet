@@ -485,7 +485,7 @@ bool Rsa::PublicKey::operator==(const PublicKey &key) const
 	return mpz_cmp(mKey.n, key.mKey.n) == 0 && mpz_cmp(mKey.e, key.mKey.e) == 0;
 }
 
-bool Rsa::PublicKey::isNull(void)
+bool Rsa::PublicKey::isNull(void) const
 {
 	return (mKey.size == 0);
 }
@@ -639,7 +639,7 @@ Rsa::PrivateKey &Rsa::PrivateKey::operator=(const Rsa::PrivateKey &key)
 	mpz_set(mKey.c, key.mKey.c);
 }
 
-bool Rsa::PrivateKey::isNull(void)
+bool Rsa::PrivateKey::isNull(void) const
 {
 	return (mKey.size == 0);
 }
@@ -795,6 +795,9 @@ void Rsa::generate(PublicKey &pub, PrivateKey &priv)
 
 void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv, const String &name)
 {
+	if(pub.isNull() || priv.isNull())
+		throw Exception("Creating certificate from null key pair");
+	
 	BinaryString bs_n; mpz_export_binary(pub.mKey.n,  bs_n);
 	BinaryString bs_e; mpz_export_binary(pub.mKey.e,  bs_e);
 	BinaryString bs_d; mpz_export_binary(priv.mKey.d, bs_d);
