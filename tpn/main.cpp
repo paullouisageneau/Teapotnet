@@ -652,7 +652,6 @@ int run(StringMap &args)
 #endif
 
 	LogInfo("main", "Starting...");
-	
 	File::CleanTemp();
 	Http::UserAgent = String(APPNAME) + '/' + APPVERSION;
 	Http::RequestTimeout = milliseconds(Config::Get("http_timeout").toInt());

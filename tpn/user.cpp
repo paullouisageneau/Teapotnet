@@ -157,12 +157,12 @@ User::User(const String &name, const String &password) :
 	
 	// Generate RSA key and secret if necessary
 	Random rnd(Random::Key);
-	if(mLocalPublicKey.isNull())
+	if(mMasterPublicKey.isNull())
 	{
 		Rsa rsa(4096);
+		rsa.generate(mMasterPublicKey, mMasterPrivateKey);
 		rsa.generate(mLocalPublicKey, mLocalPrivateKey);
 		rnd.readBinary(mSecret, 32);
-		
 		save();
 	}
 	
@@ -182,6 +182,7 @@ User::User(const String &name, const String &password) :
 	mBoard = NULL;
 
 	try {
+		
 		mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
 		mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
 		

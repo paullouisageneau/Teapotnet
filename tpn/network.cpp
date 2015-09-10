@@ -40,7 +40,7 @@ Network *Network::Instance = NULL;
 
 Network::Network(int port) :
 		mOverlay(port),
-		mThreadPool(4, 16, Config::Get("max_tunnels").toInt())
+		mThreadPool(4, 16, 1024)	// TODO: max
 {
 
 }
