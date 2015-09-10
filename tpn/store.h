@@ -42,7 +42,7 @@ public:
 	Store(void);
 	~Store(void);
 	
-	bool push(const BinaryString &digest, const Fountain::Combination &input);
+	bool push(const BinaryString &digest, Fountain::Combination &input);
 	bool pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens = NULL);
 	
 	bool hasBlock(const BinaryString &digest);

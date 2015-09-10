@@ -77,23 +77,23 @@ bool Serializer::skip(void)
 	return input(dummy);
 }
 
-bool Serializer::inputObject(ObjectMapping &mapping)
+bool Serializer::inputObject(Object &object)
 {
 	if(!inputMapBegin()) return false;
 
 	while(inputMapCheck())
-		if(!input(mapping))
+		if(!input(object))
 			break;
 
 	return true;
 }
 
-void Serializer::outputObject(ConstObjectMapping &mapping)
+void Serializer::outputObject(ConstObject &object)
 {
-	outputMapBegin(uint32_t(mapping.size()));
+	outputMapBegin(uint32_t(object.size()));
 
-	for(ConstObjectMapping::const_iterator it = mapping.begin();
-		it != mapping.end();
+	for(ConstObject::const_iterator it = object.begin();
+		it != object.end();
 		++it)
 	{
 		SerializableMap<String, Serializable*>::SerializablePair pair(it->first, const_cast<Serializable*>(it->second));
@@ -125,37 +125,53 @@ bool Serializer::Pair::deserialize(Serializer &s)
 	return deserializeValue(s);  
 }
 
-Serializer::ObjectMapping::ObjectMapping(void) :
+Serializer::Object::Object(void) :
 	mLastKey(new String)
 {
 	
 }
 
-Serializer::ObjectMapping::~ObjectMapping(void)
+Serializer::Object::~Object(void)
 {
 	delete mLastKey;
 }
 
-void Serializer::ObjectMapping::serializeKey(Serializer &s) const
+Serializer::ConstObject::ConstObject(void)
 {
-	// This should not happen
-	throw Exception("ObjectMapping should not be used for serializing");
+	
 }
 
-void Serializer::ObjectMapping::serializeValue(Serializer &s) const
+Serializer::ConstObject::~ConstObject(void)
 {
-	// This should not happen
-	throw Exception("ObjectMapping should not be used for serializing");
+	
 }
 
-bool Serializer::ObjectMapping::deserializeKey(Serializer &s)
+Serializer::ConstObject &Serializer::ConstObject::insert(const String &key, const Serializable *value)
+{
+	(*this)[key] = value;
+	return *this;
+}
+
+void Serializer::Object::serializeKey(Serializer &s) const
+{
+	// This should not happen
+	throw Exception("Object should not be used for serializing");
+}
+
+void Serializer::Object::serializeValue(Serializer &s) const
+{
+	// This should not happen
+	throw Exception("Object should not be used for serializing");
+}
+
+bool Serializer::Object::deserializeKey(Serializer &s)
 {
 	return s.input(*mLastKey);
 }
 
-bool Serializer::ObjectMapping::deserializeValue(Serializer &s)
+bool Serializer::Object::deserializeValue(Serializer &s)
 {
-	ObjectMapping::iterator it = this->find(*mLastKey);
+	Object::iterator it = this->find(*mLastKey);
 	if(it != this->end()) return s.input(*it->second);
 
 	// Special case for id field (used by Database)
@@ -165,7 +181,7 @@ bool Serializer::ObjectMapping::deserializeValue(Serializer &s)
 		return s.input(dummy);
 	}
 	else {
-		//LogDebug("Serializer::ObjectMapping", String("Warning: Ignoring unknown entry: ") + *mLastKey);
+		//LogDebug("Serializer::Object", String("Warning: Ignoring unknown entry: ") + *mLastKey);
 		return s.skip();
 	}
 }

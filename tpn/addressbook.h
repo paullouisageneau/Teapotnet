@@ -46,7 +46,7 @@ namespace tpn
 
 class User;
 
-class AddressBook : private Task, private Synchronizable, public Serializable, public HttpInterfaceable
+class AddressBook : protected Synchronizable, public Serializable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -71,45 +71,7 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class Invitation : public Serializable, public Network::Listener
-	{
-	public:
-		Invitation(void);
-		Invitation(const Invitation &invitation);
-		Invitation(AddressBook *addressBook, const Identifier &identifier);
-		~Invitation(void);
-		
-		void setAddressBook(AddressBook *addressBook);
-		void init(void);
-		
-		Identifier identifier(void) const;
-		
-		void setSelf(bool self = true);
-		bool isSelf(void) const;
-		
-		bool isFound(void) const;
-		
-		// Listener
-		void seen(const Identifier &peer);
-		void connected(const Identifier &peer);
-		bool recv(const Identifier &peer, const Notification &notification);
-		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
-		
-		// Serializable
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
-		bool isInlineSerializable(void) const;
-		
-	protected:
-		AddressBook *mAddressBook;
-		Identifier mIdentifier;
-		bool mIsSelf;
-		bool mFound;
-		
-		friend class AddressBook;
-	};
-	
-	class Contact : private Task, public Serializable, public Network::Listener, public HttpInterfaceable
+	class Contact : public Task, public Serializable, public Network::Listener, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
@@ -167,7 +129,7 @@ public:
 			Instance(const Identifier &id);
 			~Instance();
 			
-			Identifier &identifier(void) const;
+			Identifier identifier(void) const;
 			String name(void) const;
 			void setName(const String &name);
 			Time lastSeen(void) const;
@@ -221,13 +183,10 @@ public:
 	bool hasIdentifier(const Identifier &identifier) const;
 	
 private:
-	void run(void);
-	
 	User *mUser;
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
-	SerializableArray<Invitation> mInvitations;
 	Scheduler mScheduler;
 	
 	mutable BinaryString mDigest;

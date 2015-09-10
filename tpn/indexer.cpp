@@ -24,6 +24,7 @@
 #include "tpn/config.h"
 #include "tpn/html.h"
 #include "tpn/request.h"
+#include "tpn/cache.h"
 #include "tpn/addressbook.h"
 
 #include "pla/crypto.h"
@@ -543,7 +544,7 @@ bool Indexer::anounce(const Identifier &peer, const String &prefix, const String
 	query.setPath(cpath);
 	query.setMatch(match);
 	query.setAccessLevel((mUser->addressBook()->hasIdentifier(peer) ? Resource::Private : Resource::Public));
-	query.setFromSelf(peer != Identifier::Empty && peer == mUser->addressBook()->getSelfIdentifier());
+	query.setFromSelf(!peer.empty() && peer == mUser->addressBook()->getSelfIdentifier());
 	
 	Database::Statement statement;
 	if(prepareQuery(statement, query, "digest"))
@@ -1554,15 +1555,15 @@ void Indexer::Query::serialize(Serializer &s) const
 	ConstSerializableWrapper<int> countWrapper(mCount);
 	String strAccessLevel = (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public"));
 	
-	Serializer::ConstObjectMapping mapping;
-	if(!mPath.empty())	mapping["path"] = &mPath;
-	if(!mMatch.empty())	mapping["match"] = &mMatch;
-	if(!mDigest.empty())	mapping["digest"] = &mDigest;
-	if(mOffset > 0)		mapping["offset"] = &offsetWrapper;
-	if(mCount > 0)		mapping["count"] = &countWrapper;
-	mapping["access"] = &strAccessLevel;
+	Serializer::ConstObject object;
+	if(!mPath.empty())	object["path"] = &mPath;
+	if(!mMatch.empty())	object["match"] = &mMatch;
+	if(!mDigest.empty())	object["digest"] = &mDigest;
+	if(mOffset > 0)		object["offset"] = &offsetWrapper;
+	if(mCount > 0)		object["count"] = &countWrapper;
+	object["access"] = &strAccessLevel;
 
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Indexer::Query::deserialize(Serializer &s)
@@ -1571,19 +1572,19 @@ bool Indexer::Query::deserialize(Serializer &s)
 	SerializableWrapper<int> countWrapper(&mCount);
 	String strAccessLevel;
 	
-	Serializer::ObjectMapping mapping;
-	mapping["path"] = &mPath;
-	mapping["match"] = &mMatch;
-	mapping["digest"] = &mDigest;
-	mapping["offset"] = &offsetWrapper;
-	mapping["count"] = &countWrapper;
-	mapping["access"] = &strAccessLevel;
+	Serializer::Object object;
+	object["path"] = &mPath;
+	object["match"] = &mMatch;
+	object["digest"] = &mDigest;
+	object["offset"] = &offsetWrapper;
+	object["count"] = &countWrapper;
+	object["access"] = &strAccessLevel;
 	
 	if(strAccessLevel == "personal") mAccess = Resource::Personal;
 	else if(strAccessLevel == "private") mAccess = Resource::Private;
 	else mAccess = Resource::Public;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 bool Indexer::Query::isInlineSerializable(void) const
@@ -1611,26 +1612,26 @@ void Indexer::Entry::serialize(Serializer &s) const
 {
 	String strAccessLevel = (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public"));
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["path"] = &path;
-	mapping["access"] = &strAccessLevel;
+	Serializer::ConstObject object;
+	object["path"] = &path;
+	object["access"] = &strAccessLevel;
 
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Indexer::Entry::deserialize(Serializer &s)
 {
 	String strAccessLevel;
 	
-	Serializer::ObjectMapping mapping;
-	mapping["path"] = &path;
-	mapping["access"] = &strAccessLevel;
+	Serializer::Object object;
+	object["path"] = &path;
+	object["access"] = &strAccessLevel;
 	
 	if(strAccessLevel == "personal") access = Resource::Personal;
 	else if(strAccessLevel == "private") access = Resource::Private;
 	else access = Resource::Public;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 bool Indexer::Entry::isInlineSerializable(void) const

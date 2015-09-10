@@ -149,7 +149,7 @@ void PortMapping::run(void)
 	if(!mEnabled) return;
 	
 	Set<Address> addresses;
-	Network::Instance->getAddresses(addresses);
+	Network::Instance->overlay()->getAddresses(addresses);
 
 	bool hasIpv4 = false;
 	bool hasPublicIpv4 = false;
@@ -216,8 +216,8 @@ void PortMapping::run(void)
 			mProtocol = NULL;
 		}
 		
-		if(mProtocol) LogInfo("PortMapping", "Port mapping is available, external address is " + mExternalHost);
-		else LogInfo("PortMapping", "Port mapping is not available");
+		if(mProtocol) LogInfo("PortMapping", "Port object is available, external address is " + mExternalHost);
+		else LogInfo("PortMapping", "Port object is not available");
 	}
 	
 	if(mProtocol)
@@ -359,8 +359,8 @@ bool PortMapping::NatPMP::parse(BinaryString &dgram, uint8_t reqOp, uint16_t req
 			return true;	
 		}
 	
-		case 129:	// UDP mapping
-		case 130:	// TCP mapping
+		case 129:	// UDP object
+		case 130:	// TCP object
 		{
 			uint16_t internal;
 			uint16_t external;
@@ -507,11 +507,11 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 	
 		if(errorCode == 718)
 		{
-			// The port mapping entry specified conflicts with a mapping assigned previously to another client
+			// The port object entry specified conflicts with a object assigned previously to another client
 			
 			if(i == attempts-2)
 			{
-				// The device is probably bogus, and the mapping is actually assigned to us
+				// The device is probably bogus, and the object is actually assigned to us
 				remove(protocol, internal, external); 
 			}
 			else {
@@ -530,7 +530,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		
 		if(duration && errorCode == 725)
 		{
-			// The NAT implementation only supports permanent lease times on port mappings
+			// The NAT implementation only supports permanent lease times on port objects
 			duration = 0;
 			continue;
 		}
@@ -798,13 +798,13 @@ void PortMapping::FreeboxAPI::FreeboxResponse::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<bool> successWrapper(success);
 
-	Serializer::ConstObjectMapping mapping;
-	mapping["success"] = &successWrapper;
-        mapping["error_code"] = &errorCode;
-        mapping["message"] = &message;
-        mapping["result"] = &result;
+	Serializer::ConstObject object;
+	object["success"] = &successWrapper;
+        object["error_code"] = &errorCode;
+        object["message"] = &message;
+        object["result"] = &result;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
@@ -816,13 +816,13 @@ bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
 	
 	SerializableWrapper<bool> successWrapper(&success);
 
-	Serializer::ObjectMapping mapping;
-	mapping["success"] = &successWrapper;
-        mapping["error_code"] = &errorCode;
-        mapping["message"] = &message;
-        mapping["result"] = &result;
+	Serializer::Object object;
+	object["success"] = &successWrapper;
+        object["error_code"] = &errorCode;
+        object["message"] = &message;
+        object["result"] = &result;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::isInlineSerializable(void) const

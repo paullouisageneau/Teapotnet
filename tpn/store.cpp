@@ -57,7 +57,7 @@ Store::~Store(void)
 
 }
 
-bool Store::push(const BinaryString &digest, const Fountain::combination &input)
+bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 {
 	Synchronize(this);
   
@@ -80,17 +80,16 @@ bool Store::push(const BinaryString &digest, const Fountain::combination &input)
 	
 	const String filename = mCacheDirectory + Directory::Separator + digest.toString();
 	File file(filename, File::Write);
-	sink.dump(file);
+	int64_t size = sink.dump(file);
 	file.close();
 	
-	int64_t size = sink.size();
 	notifyBlock(digest, filename, 0, size);
 	
 	mSinks.erase(digest);
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Fountain::combination &output, unsigned *tokens)
+bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens)
 {
 	Synchronize(this);
   

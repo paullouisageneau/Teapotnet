@@ -20,6 +20,7 @@
  *************************************************************************/
 
 #include "tpn/resource.h"
+#include "tpn/cache.h"
 #include "tpn/store.h"
 #include "tpn/config.h"
 
@@ -252,13 +253,13 @@ void Resource::serialize(Serializer &s) const
 	ConstSerializableWrapper<int64_t> sizeWrapper(mIndexRecord->size);
 	BinaryString digest(mIndexBlock->digest());
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["name"] = &mIndexRecord->name;
-	mapping["type"] = &mIndexRecord->type;
-	mapping["size"] = &sizeWrapper;
-	mapping["digest"] = &digest;
+	Serializer::ConstObject object;
+	object["name"] = &mIndexRecord->name;
+	object["type"] = &mIndexRecord->type;
+	object["size"] = &sizeWrapper;
+	object["digest"] = &digest;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Resource::deserialize(Serializer &s)
@@ -439,24 +440,24 @@ void Resource::MetaRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
+	Serializer::ConstObject object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Resource::MetaRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
+	Serializer::Object object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 bool Resource::MetaRecord::isInlineSerializable(void) const
@@ -468,56 +469,56 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
-	mapping["digests"] = &blockDigests;
-	mapping["salt"] = &salt;
+	Serializer::ConstObject object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
+	object["digests"] = &blockDigests;
+	object["salt"] = &salt;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
-	mapping["digests"] = &blockDigests;
-	mapping["salt"] = &salt;
+	Serializer::Object object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
+	object["digests"] = &blockDigests;
+	object["salt"] = &salt;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 void Resource::DirectoryRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
-	mapping["digest"] = &digest;
-	if(time != 0) mapping["time"] = &time;
+	Serializer::ConstObject object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
+	object["digest"] = &digest;
+	if(time != 0) object["time"] = &time;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Resource::DirectoryRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["name"] = &name;
-	mapping["type"] = &type;
-	mapping["size"] = &sizeWrapper;
-	mapping["digest"] = &digest;
-	mapping["time"] = &time;
+	Serializer::Object object;
+	object["name"] = &name;
+	object["type"] = &type;
+	object["size"] = &sizeWrapper;
+	object["digest"] = &digest;
+	object["time"] = &time;
 	
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 }

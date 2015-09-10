@@ -406,7 +406,7 @@ int run(StringMap &args)
 	Config::Default("temp_dir", "temp");
 	Config::Default("external_address", "auto");
 	Config::Default("external_port", "auto");
-	Config::Default("port_mapping_enabled", "true");
+	Config::Default("port_object_enabled", "true");
 	Config::Default("http_timeout", "5000");
 	Config::Default("request_timeout", "5000");
 	Config::Default("tpot_timeout", "5000");
@@ -702,7 +702,7 @@ int run(StringMap &args)
 	while(true)
 	{
 		try {
-			Network::Instance = new Core(port);
+			Network::Instance = new Network(port);
 		}
 		catch(const NetException &e)
 		{
@@ -727,17 +727,17 @@ int run(StringMap &args)
 		Config::Save(configFileName);
 	}
 	
-	// Starting port mapping
+	// Starting port object
 	PortMapping::Instance = new PortMapping;
 	PortMapping::Instance->add(PortMapping::TCP, port, port);
 	
-	if(Config::Get("port_mapping_enabled").toBool())
+	if(Config::Get("port_object_enabled").toBool())
 	{
-		LogInfo("main", "NAT port mapping is enabled");
+		LogInfo("main", "NAT port object is enabled");
 		PortMapping::Instance->enable();
 	}
 	else {
-		LogInfo("main", "NAT port mapping is disabled");
+		LogInfo("main", "NAT port object is disabled");
 	}
 	
 	try {
@@ -835,7 +835,7 @@ int benchmark(StringMap &args)
 	
 	unsigned n = 1024 + 1;
 	
-	Array<BinaryString> tmp;
+	Array<Fountain::Combination> tmp;
 	tmp.resize(n);
 	
 	Fountain::FileSource source(file, 0, 1024*1024);
@@ -852,7 +852,7 @@ int benchmark(StringMap &args)
 			break;
 	
 	Time t3;
-	Assert(sink.isComplete());
+	Assert(sink.isDecoded());
 	
 	std::cout << "Coding:   " << 1./(t2-t1) << " MB/s" << std::endl;
 	std::cout << "Decoding: " << 1./(t3-t2) << " MB/s" << std::endl;

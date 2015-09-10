@@ -64,9 +64,6 @@ AddressBook::AddressBook(User *user) :
 	}
 	
 	Interface::Instance->add(urlPrefix(), this);
-	
-	mScheduler.schedule(this, 5.);
-	mScheduler.repeat(this, 300.);
 }
 
 AddressBook::~AddressBook(void)
@@ -270,22 +267,20 @@ void AddressBook::serialize(Serializer &s) const
 {
 	Synchronize(this);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["contacts"] = &mContacts;
-	mapping["invitations"] = &mInvitations;
+	Serializer::ConstObject object;
+	object["contacts"] = &mContacts;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["contacts"] = &mContacts;
-	mapping["invitations"] = &mInvitations;
+	Serializer::Object object;
+	object["contacts"] = &mContacts;
 	
-	if(!s.inputObject(mapping)) return false;
+	if(!s.inputObject(object)) return false;
 	
 	// Fill mContactsByIdentifier and set up contacts
 	for(Map<String, Contact>::iterator it = mContacts.begin();
@@ -296,14 +291,6 @@ bool AddressBook::deserialize(Serializer &s)
 		contact->setAddressBook(this);
 		contact->init();
 		mContactsByIdentifier.insert(contact->identifier(), contact);
-	}
-	
-	// Set addressbook in invitations
-	for(int i=0; i<mInvitations.size(); ++i)
-	{
-		Invitation *invitation = &mInvitations[i];
-		invitation->setAddressBook(this);
-		invitation->init();
 	}
 	
 	return true;
@@ -331,123 +318,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						throw 403;
 					
 					String action = request.post["action"];
-					/*if(action == "createinvitation")
-					{
-						String salt   = String::random(8,  Random::Key);
-						String secret = String::random(16, Random::Key);
-						String check  = Sha256().compute(salt + secret).toString().toLower().substr(0, 8);
-						String code   = salt + secret + check;
-						
-						LogDebug("AddressBook::http", "Generating new invitation: " + salt);
-						Assert(code.size() == 32);
-						
-						mInvitations.push_back(Invitation(this, salt, secret));
-						(--mInvitations.end())->init();
-						save();
-						
-						Http::Response response(request, 200);
-						response.send();
-						
-						Html page(response.stream);
-						page.header("New invitation");
-						page.open("div", "invitation");
-						page.text("Here is a new invitation secret code. Your contact must enter this code in his teapotnet instance to accept the invitation.");
-						page.div(code, ".code");
-						page.link(prefix + '/', "OK", ".button");
-						page.close("div");
-						page.footer();
-						return;
-					}
-					else if(action == "acceptinvitation")
-					{
-						String code;
-						request.post["code"] >> code;
-						
-						code.trim();
-						if(code.size() != 32)
-							throw Exception("Invalid invitation code");
-						
-						String salt   = code.substr(0, 8);
-						String secret = code.substr(8, 16);
-						String check  = Sha256().compute(salt + secret).toString().toLower().substr(0, 8);
-						if(check != code.substr(24, 8))
-							throw Exception("Invalid invitation code");
-
-						LogDebug("AddressBook::http", "Accepting invitation: " + salt);
-						mInvitations.push_back(Invitation(this, salt, secret));
-						(--mInvitations.end())->init();
-						save();
-					}
-					else if(action == "createsynchronization")
-					{
-						String secret = String::random(16, Random::Key);
-						String check  = Sha256().compute(secret).toString().toLower().substr(0, 8);
-						String code = secret + check;
-						
-						LogDebug("AddressBook::http", "Generating new synchronization secret");
-						Invitation invitation(this, user()->name(), secret);
-						invitation.setSelf(true);
-						mInvitations.push_back(invitation);
-						(--mInvitations.end())->init();
-						save();
-						
-						Http::Response response(request, 200);
-						response.send();
-						
-						Html page(response.stream);
-						page.header("New synchronization");
-						page.open("div", "invitation");
-						page.div(code, ".code");
-						page.link(prefix + '/', "OK", ".button");
-						page.close("div");
-						page.footer();
-						return;
-					}
-					else if(action == "acceptsynchronization")
-					{
-						String code = request.post["code"];
-						
-						code.trim();
-						if(code.size() != 24)
-							throw Exception("Invalid synchronization code");
-						
-						String secret = code.substr(0, 16);
-						String check  = Sha256().compute(secret).toString().toLower().substr(0, 8);
-						if(check != code.substr(16, 8))
-							throw Exception("Invalid synchronization code");
-						
-						LogDebug("AddressBook::http", "Accepting synchronization");
-						Invitation invitation(this, user()->name(), secret);
-						invitation.setSelf(true);
-						mInvitations.push_back(invitation);
-						(--mInvitations.end())->init();
-						save();
-						
-						Http::Response response(request, 303);
-						response.headers["Location"] = user()->urlPrefix();
-						response.send();
-						return;
-					}
-					else */if(action == "deletecontact")
+					
+					if(action == "deletecontact")
 					{
 						Synchronize(this);
 						String uname = request.post["argument"];
 						removeContact(uname);
-					}
-					else if(action == "deleteinvitation")
-					{
-						Synchronize(this);
-						BinaryString id;
-						request.post["argument"].extract(id);
-						
-						// TODO: function removeInvitation
-						for(int i=0; i<mInvitations.size(); ++i)
-							if(mInvitations[i].identifier() == id)
-							{
-								mInvitations.erase(i);
-								break;
-							}
-						save();
 					}
 					else {
 						// TODO
@@ -491,14 +367,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.text("Add Contacts / Send invitations");
 			page.close("h2");
 
-			page.open("div", ".howtorequests");
+			/*page.open("div", ".howtorequests");
 			page.text("Here you can either send or accept invitations. Inviting someone is as easy as getting a new invitation secret code here and sending it to your contact. To accept an invitation, simply enter the secret code in the appropriate section.");
-			page.close("div");
+			page.close("div");*/
 
 			page.close("div");
 
 			// TODO: deprecated
-			
+			/*
 			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "createinvitation");
 			page.open("h2"); page.text("Invitation"); page.close("h2");
@@ -526,6 +402,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("generate"); page.button("generate", "Generate synchronization secret");
 			page.closeForm();
 			page.close("div");
+			*/
 			
 			page.openForm(prefix+"/", "post", "actionForm");
 			page.input("hidden", "action");
@@ -582,45 +459,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						}\n\
 					});");
 				}
-				
-				if(!mInvitations.empty())
-				{
-					page.open("div",".box");
-					page.open("h2");
-					page.text("Pending invitations");
-					page.close("h2");
-					page.open("table",".invitations");
-					
-					for(int i=0; i<mInvitations.size(); ++i)
-					{
-						Invitation *invitation = &mInvitations[i];
-						
-						page.open("tr");
-						page.open("td",".name");
-						if(invitation->isSelf()) page.text("(synchronization)");
-						else page.text(invitation->identifier().toString());
-						page.close("td");
-						page.open("td",".actions");
-						page.openLink('#', ".deletelink");
-						page.image("/delete.png", "Delete");
-						page.closeLink();
-						page.close("td");
-						page.close("tr");
-					}
-					
-					page.close("table");
-					page.close("div");
-					
-					page.javascript("$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
-						event.stopPropagation();\n\
-						var peering = $(this).closest('tr').find('td.peering').text();\n\
-						if(confirm('Do you really want to delete this invitation ?')) {\n\
-							document.actionForm.action.value = 'deleteinvitation';\n\
-							document.actionForm.argument.value = peering;\n\
-							document.actionForm.submit();\n\
-						}\n\
-					});");
-				}
 			}
 			
 			page.footer();
@@ -634,156 +472,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 	}
 	
 	throw 404;
-}
-
-AddressBook::Invitation::Invitation(void) :
-	mAddressBook(NULL),
-	mIsSelf(false),
-	mFound(false)
-{
-
-}
-
-AddressBook::Invitation::Invitation(const Invitation &invitation) :
-	mAddressBook(NULL),
-	mIdentifier(invitation.mIdentifier),
-	mIsSelf(invitation.mIsSelf),
-	mFound(false)
-{
-	setAddressBook(invitation.mAddressBook);
-}
-
-AddressBook::Invitation::Invitation(AddressBook *addressBook, const Identifier &identifier) :
-	mAddressBook(NULL),
-	mIdentifier(identifier),
-	mIsSelf(false),
-	mFound(false)
-{
-	setAddressBook(addressBook);
-}
-
-AddressBook::Invitation::~Invitation(void)
-{
-
-}
-
-void AddressBook::Invitation::setAddressBook(AddressBook *addressBook)
-{
-	Assert(!mAddressBook);
-	mAddressBook = addressBook;
-}
-
-void AddressBook::Invitation::init(void)
-{
-	if(!mAddressBook) return;
-	
-	listen(identifier());
-}
-
-Identifier AddressBook::Invitation::identifier(void) const
-{
-	Synchronize(mAddressBook);
-	return mIdentifier;
-}
-
-void AddressBook::Invitation::setSelf(bool self)
-{
-	Synchronize(mAddressBook);
-	mIsSelf = self;
-}
-
-bool AddressBook::Invitation::isSelf(void) const
-{
-	Synchronize(mAddressBook);
-	return mIsSelf;
-}
-
-bool AddressBook::Invitation::isFound(void) const
-{
-	Synchronize(mAddressBook);
-	return mFound;
-}
-
-void AddressBook::Invitation::seen(const Identifier &peer)
-{
-	Synchronize(mAddressBook);
-	
-	// TODO
-}
-
-void AddressBook::Invitation::connected(const Identifier &peer)
-{
-	LogDebug("AddressBook::Invitation", "Connected");
-	
-	Notification notification;
-	notification["type"] << "hello";
-	notification["name"] << mAddressBook->user()->name();
-	notification["publickey"] << mAddressBook->user()->publicKey();
-	
-	if(isSelf())
-		notification["contacts"] << mAddressBook->mContacts.size();
-	
-	if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
-		throw Exception("Unable to send hello");
-}
-
-bool AddressBook::Invitation::recv(const Identifier &peer, const Notification &notification)
-{
-	Synchronize(mAddressBook);
-	
-	String type;
-	notification.get("type", type);
-	LogDebug("AddressBook::Invitation", "Incoming notification (type='" + type + "')");
-	
-	// TODO
-	return false;
-}
-
-bool AddressBook::Invitation::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
-{
-	Synchronize(mAddressBook);
-	
-	if(pubKey.digest() == mIdentifier)
-	{
-		return true;
-	}
-	
-	return false;
-}
-
-void AddressBook::Invitation::serialize(Serializer &s) const
-{
-	Synchronize(mAddressBook);  
-	
-	ConstSerializableWrapper<bool> isSelfWrapper(mIsSelf);
-	
-	Serializer::ConstObjectMapping mapping;
-	mapping["identifier"] = &mIdentifier;
-	mapping["isself"] = &isSelfWrapper;
-	
-	s.outputObject(mapping); 
-}
-
-bool AddressBook::Invitation::deserialize(Serializer &s)
-{
-	Synchronize(mAddressBook);
-
-	SerializableWrapper<bool> isSelfWrapper(&mIsSelf);
-	
-	Serializer::ObjectMapping mapping;
-	mapping["identifier"] = &mIdentifier;
-	mapping["isself"] = &isSelfWrapper;
-	
-	if(!s.inputObject(mapping))
-		return false;
-	
-	listen(identifier());
-	return true;
-}
-
-bool AddressBook::Invitation::isInlineSerializable(void) const
-{
-	return false;
 }
 
 AddressBook::Contact::Contact(void) :
@@ -965,7 +653,7 @@ bool AddressBook::Contact::getInstanceAddresses(const Identifier &instance, Set<
 
 bool AddressBook::Contact::send(const Notification &notification)
 {
-	return notification.send(identifier());
+	return notification.send(mAddressBook->user()->identifier(), identifier());
 }
 
 bool AddressBook::Contact::send(const Mail &mail)
@@ -989,47 +677,18 @@ void AddressBook::Contact::connected(const Identifier &peer)
 	Assert(peer == identifier());
 	
 	LogDebug("AddressBook::Contact", "Connected");
-  
-	Notification notification;
-	notification["type"] << "hello";
-	notification["secret"] << localSecret();
-	notification["instance"] << Network::Instance->getName();
-	
-	if(!Network::Instance->send(mAddressBook->user()->identifier(), peer, notification))
-		throw Exception("Unable to send hello");
 }
 
 bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
 {
 	// Not synchronized
-  
+	
 	Assert(peer == identifier());
 	
 	String type;
 	notification.get("type", type);
 	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
 	
-	if(type == "hello")
-	{
-		Synchronize(mAddressBook);
-		
-		if(!notification.contains("secret"))
-			throw Exception("Missing contact secret");
-		
-		BinaryString secret;
-		notification.get("secret").extract(secret);
-		
-		String instance;
-		if(!notification.get("instance", instance))
-			throw Exception("Missing instance name");
-		
-		mInstances[peer.number()].setName(instance);
-		
-		if(secret != mRemoteSecret)
-			mRemoteSecret = secret;
-		
-		mAddressBook->save();
-	}
 	if(type == "contacts")
 	{
 		if(!isSelf()) throw Exception("Received contacts notification from other than self");
@@ -1335,7 +994,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			if(!mPrivateBoard)
 			{
-				BinaryString id = mAddressBook->user()->identifier().digest() ^ identifier().digest();
+				BinaryString id = mAddressBook->user()->identifier() ^ identifier();
 				mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name());
 			}
 			
@@ -1362,11 +1021,11 @@ void AddressBook::Contact::serialize(Serializer &s) const
 {
 	Synchronize(mAddressBook);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
-	mapping["uname"] = &mUniqueName;
-	mapping["name"] = &mName;
-	mapping["instances"] = &mInstances;
+	Serializer::ConstObject object;
+	object["publickey"] = &mPublicKey;
+	object["uname"] = &mUniqueName;
+	object["name"] = &mName;
+	object["instances"] = &mInstances;
 	
 	String prefix, status;
 	ConstSerializableWrapper<uint32_t> messages(uint32_t(0));	// TODO
@@ -1375,30 +1034,30 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		prefix = urlPrefix();
 		status = (isConnected() ? "connected" : "disconnected");
 		
-		mapping["prefix"] = &prefix;
-		mapping["status"] = &status;
-		mapping["messages"] = &messages;
+		object["prefix"] = &prefix;
+		object["status"] = &status;
+		object["messages"] = &messages;
 	}
 	else {
-		mapping["secret"] = &mRemoteSecret;
+		object["secret"] = &mRemoteSecret;
 		
 	}
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
 {
 	Synchronize(mAddressBook);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
-	mapping["uname"] = &mUniqueName;
-	mapping["name"] = &mName;
-	mapping["instances"] = &mInstances;
-	mapping["secret"] = &mRemoteSecret;
+	Serializer::Object object;
+	object["publickey"] = &mPublicKey;
+	object["uname"] = &mUniqueName;
+	object["name"] = &mName;
+	object["instances"] = &mInstances;
+	object["secret"] = &mRemoteSecret;
 	
-	if(!s.inputObject(mapping))
+	if(!s.inputObject(object))
 		return false;
 	
 	// TODO: sanity checks
@@ -1429,7 +1088,7 @@ AddressBook::Contact::Instance::~Instance()
   
 }
 
-Identifier &AddressBook::Contact::Instance::identifier(void) const
+Identifier AddressBook::Contact::Instance::identifier(void) const
 {
 	return mIdentifier;
 }
@@ -1479,25 +1138,25 @@ void AddressBook::Contact::Instance::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<uint64_t> numberWrapper(mNumber);
 	
-	Serializer::ConstObjectMapping mapping;
-	mapping["number"] = &numberWrapper;
-	mapping["name"] = &mName;
-	mapping["addresses"] = &mAddrs;
+	Serializer::ConstObject object;
+	object["number"] = &numberWrapper;
+	object["name"] = &mName;
+	object["addresses"] = &mAddrs;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool AddressBook::Contact::Instance::deserialize(Serializer &s)
 {
 	SerializableWrapper<uint64_t> numberWrapper(&mNumber);
 	
-	Serializer::ObjectMapping mapping;
-	mapping["number"] = &numberWrapper;
-	mapping["name"] = &mName;
-	mapping["addresses"] = &mAddrs;
+	Serializer::Object object;
+	object["number"] = &numberWrapper;
+	object["name"] = &mName;
+	object["addresses"] = &mAddrs;
 	
 	// TODO: sanity checks
-	return s.inputObject(mapping);
+	return s.inputObject(object);
 }
 
 bool AddressBook::Contact::Instance::isInlineSerializable(void) const

@@ -202,7 +202,7 @@ int Overlay::connectionsCount(void) const
 
 bool Overlay::recv(Message &message)
 {
-	Synchonize(&mIncomingSync);
+	Synchronize(&mIncomingSync);
 
 	while(mIncoming.empty())
 		mIncomingSync.wait();
@@ -217,19 +217,19 @@ bool Overlay::send(const Message &message)
 	return route(message);
 }
 
-void registerEndpoint(const BinaryString &id)
+void Overlay::registerEndpoint(const BinaryString &id)
 {
 	Synchronize(this);
 	mEndpoints.insert(id);
 }
 
-void unregisterEndpoint(const BinaryString &id)
+void Overlay::unregisterEndpoint(const BinaryString &id)
 {
 	Synchronize(this);
 	mEndpoints.remove(id);
 }
 
-bool Overlay::incoming(const Message &message, const BinaryString &from)
+bool Overlay::incoming(Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 
@@ -244,28 +244,40 @@ bool Overlay::incoming(const Message &message, const BinaryString &from)
 		break;
 
 	case Message::Hello:
-		// TODO
-		break:
+		{
+			// TODO
+			break;
+		}
 		
 	case Message::Links:
-		BinarySerializer serializer(&message.content);
-		Set<BinaryString> links;
-		serializer.input(links);
-		updateLinks(message.source, links);
-		break:
+		{
+			BinarySerializer serializer(&message.content);
+			SerializableSet<BinaryString> links;
+			serializer.read(links);
+			updateLinks(message.source, links);
+			break;
+		}
 		
 	case Message::Ping:
-		LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
-		route(Message(Message::Pong, message.source, message.content));
-		break;
+		{
+			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
+			route(Message(Message::Pong, message.source, message.content));
+			break;
+		}
 		
 	case Message::Pong:
-		LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
-		break;
+		{
+			LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
+			break;
+		}
 		
 	default:
-		LogWarn("Overlay::incoming", "Unknown message type: " + String::hexa(message.type, 2));
-		return false;
+		{
+			Synchronize(&mIncomingSync);
+			mIncoming.push(message);
+			mIncomingSync.notifyAll();
+			return false;
+		}
 	}
 
 	return true;
@@ -338,7 +350,7 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 		if(mHandlers.get(neighbors[i], handler))
 		{
 			Desynchronize(this);
-			success|= handler->sendTo(message);
+			success|= handler->send(message);
 		}
 	}
 	

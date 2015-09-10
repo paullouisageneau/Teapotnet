@@ -52,9 +52,9 @@ String Notification::content(void) const
 	return getOrDefault("content", "");
 }
 
-bool Notification::send(const Identifier &destination) const
+bool Notification::send(const Identifier &local, const Identifier &remote) const
 {
-	return Network::Instance->send(destination, *this);
+	return Network::Instance->send(local, remote, *this);
 }
 
 }

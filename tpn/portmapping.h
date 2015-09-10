@@ -164,8 +164,8 @@ private:
 		Address mLocalAddr;
 	};
 
-	Map<Descriptor, Entry> mMap;	// Ports mapping
-	MappingProtocol *mProtocol;	// Current mapping protocol
+	Map<Descriptor, Entry> mMap;	// Ports object
+	MappingProtocol *mProtocol;	// Current object protocol
 	String mExternalHost;
 	bool mEnabled;
 };

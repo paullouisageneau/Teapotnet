@@ -157,10 +157,10 @@ User::User(const String &name, const String &password) :
 	
 	// Generate RSA key and secret if necessary
 	Random rnd(Random::Key);
-	if(mPublicKey.isNull())
+	if(mLocalPublicKey.isNull())
 	{
 		Rsa rsa(4096);
-		rsa.generate(mPublicKey, mPrivateKey);
+		rsa.generate(mLocalPublicKey, mLocalPrivateKey);
 		rnd.readBinary(mSecret, 32);
 		
 		save();
@@ -171,7 +171,7 @@ User::User(const String &name, const String &password) :
 	// Generate token secret
 	rnd.readBinary(mTokenSecret, 16);
 	
-	Assert(!mPublicKey.isNull());
+	Assert(!mLocalPublicKey.isNull());
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
 	
@@ -294,11 +294,6 @@ Indexer *User::indexer(void) const
 	return mIndexer;
 }
 
-Profile *User::profile(void) const
-{
-        return mProfile;
-}
-
 bool User::isOnline(void) const
 {
 	Synchronize(this);
@@ -419,31 +414,31 @@ bool User::checkToken(const String &token, const String &action) const
 Identifier User::identifier(void) const
 {
 	Synchronize(this);
-	return Identifier(mMasterPublicKey.digest());
+	return mMasterPublicKey.digest();
 }
 
 Identifier User::instance(void) const
 {
 	Synchronize(this);
-	return Identifier(mLocalPublicKey.digest());
+	return mLocalPublicKey.digest();
 }
 
 const Rsa::PublicKey &User::masterPublicKey(void) const
 {
 	Synchronize(this);
-	return mMasterPublicKey.digest();
+	return mMasterPublicKey;
 }
 
 const Rsa::PrivateKey &User::masterPrivateKey(void) const
 {
 	Synchronize(this);
-	return mMasterPrivateKey.digest();
+	return mMasterPrivateKey;
 }
 
 const Rsa::PublicKey &User::localPublicKey(void) const
 {
 	Synchronize(this);
-	return mLocalPublicKey.digest();
+	return mLocalPublicKey;
 }
 
 SecureTransport::Certificate *User::masterCertificate(void) const
@@ -603,14 +598,14 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div", "header");
 			page.link("/?changeuser", "Change account", ".button");
 			page.open("h1");
-			const String instance = Network::Instance->getName().before('.');
-			page.openLink(profile()->urlPrefix());
-			page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
+			const String instance = Network::Instance->overlay()->localName().before('.');
+			//page.openLink(profile()->urlPrefix());
+			//page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name());
 #ifndef ANDROID
 			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
 #endif
-			page.closeLink();
+			//page.closeLink();
 			page.close("h1");
 			page.close("div");
 			
@@ -747,13 +742,13 @@ void User::http(const String &prefix, Http::Request &request)
 			page.footer();
 			return;
 		}
-		else if(directory == "avatar" || request.url == "/myself/avatar")
+		/*else if(directory == "avatar" || request.url == "/myself/avatar")
 		{
 			Http::Response response(request, 303);	// See other
 			response.headers["Location"] = profile()->avatarUrl(); 
 			response.send();
 			return;
-		}
+		}*/
 		else if(directory == "myself")
 		{
 			Http::Response response(request, 303);	// See other
@@ -776,12 +771,14 @@ void User::serialize(Serializer &s) const
 	Synchronize(this);
 
 	// TODO
-	Serializer::ConstObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
-	mapping["privatekey"] = &mPrivateKey;
-	mapping["secret"] = &mSecret;
+	Serializer::ConstObject object;
+	object["publickey"] = &mLocalPublicKey;
+	object["privatekey"] = &mLocalPrivateKey;
+	object["masterpublickey"] = &mMasterPublicKey;
+	object["masterprivatekey"] = &mMasterPrivateKey;
+	object["secret"] = &mSecret;
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool User::deserialize(Serializer &s)
@@ -790,19 +787,23 @@ bool User::deserialize(Serializer &s)
 	
 	Identifier oldIdentifier = identifier();
 	
-	mPublicKey.clear();
-	mPrivateKey.clear();
+	mLocalPublicKey.clear();
+	mLocalPrivateKey.clear();
+	mMasterPublicKey.clear();
+	mMasterPrivateKey.clear();
 	mSecret.clear();
 	
-	Serializer::ObjectMapping mapping;
-	mapping["publickey"] = &mPublicKey;
-	mapping["privatekey"] = &mPrivateKey;
-	mapping["secret"] = &mSecret;
+	Serializer::Object object;
+	object["publickey"] = &mLocalPublicKey;
+	object["privatekey"] = &mLocalPrivateKey;
+	object["masterpublickey"] = &mMasterPublicKey;
+	object["masterprivatekey"] = &mMasterPrivateKey;
+	object["secret"] = &mSecret;
 	
-	if(!s.inputObject(mapping))
+	if(!s.inputObject(object))
 		return false;
 	
-	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
+	if(!mMasterPublicKey.isNull() && !mMasterPrivateKey.isNull())
 	{
 		// Register
 		if(oldIdentifier != identifier())

@@ -63,7 +63,7 @@ void Tracker::process(Http::Request &request)
 			Address addr(host, port);
 			if(!addr.isLocal())
 			{
-				insert(identifier, addr);
+				insert(addr);
 				++count;
 				LogDebug("Tracker", "POST " + addr.toString());
 			}
@@ -100,7 +100,7 @@ void Tracker::process(Http::Request &request)
 	
 	unsigned count = 10;	// TODO: parameter
 	
-	Array<Address> result;
+	SerializableArray<Address> result;
 	retrieve(request.remoteAddress, count, result);
 	
 	Http::Response response(request, 200);
@@ -108,7 +108,7 @@ void Tracker::process(Http::Request &request)
 	response.send();
 	
 	JsonSerializer serializer(response.stream);
-	serializer.output(result);
+	serializer.write(result);
 }
 
 void Tracker::clean(int count)
@@ -141,7 +141,7 @@ void Tracker::retrieve(const Address &hint, int count, Array<Address> &result) c
 	
 	// TODO: this quick and dirty selection algorithm should be replaced by something better
 	
-	Map<Address, Time>::iterator it, jt;
+	Map<Address, Time>::const_iterator it, jt;
 	it = jt = mMap.upper_bound(hint);
 	
 	int n;

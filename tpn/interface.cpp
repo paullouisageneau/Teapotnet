@@ -89,7 +89,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				try {
 					if(request.post.contains("create") && !User::Exist(name))
 					{
-						user = new User(name, password, tracker);
+						user = new User(name, password);
 						
 						String token = user->generateToken("auth");
 						Http::Response response(request, 200);
@@ -124,8 +124,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 					}
 					
 					user = User::Authenticate(name, password);
-					if(user && !tracker.empty())
-						user->setTracker(tracker);
 				}
 				catch(const Exception &e)
 				{
@@ -196,7 +194,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				page.open("div",".user");
 				page.openLink(user->urlPrefix());
-				page.image(user->profile()->avatarUrl(), "", ".avatar");
+				//page.image(user->profile()->avatarUrl(), "", ".avatar");
 				page.open("span", ".username");
 				page.text(name);
 				page.close("span");
@@ -350,9 +348,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 		}
 		else if(prefix == "/mail")
 		{
-			if(request.url.size() >= Identifier::DigestSize*2 + 1)
-				throw 500;
-			
 			LogWarn("Interface::process", "Creating board: " + request.url);
 			
 			Board *board = new Board(request.url);

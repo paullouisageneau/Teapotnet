@@ -60,7 +60,8 @@ public:
 		static const uint8_t Links	= 0x02;
 		static const uint8_t Ping	= 0x03;
 		static const uint8_t Pong	= 0x04;
-
+		static const uint8_t Tunnel	= 0x10;
+		
 		Message(void);
 		Message(uint8_t type, const BinaryString &destination = "", const BinaryString &content = "");
 		~Message(void);
@@ -111,7 +112,7 @@ public:
 
 private:
 	// Routing
-	bool incoming(const Message &message, const BinaryString &from);
+	bool incoming(Message &message, const BinaryString &from);
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
 	bool sendTo(const Message &message, const BinaryString &to);
@@ -203,7 +204,7 @@ private:
 	{
 	public:
 		NodesUpdater(Overlay *overlay) { mOverlay = overlay; }
-		~NodesUpdater(void);
+		~NodesUpdater(void) {}
 		
 		void run(void);
 

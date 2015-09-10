@@ -124,29 +124,29 @@ bool Mail::check(const Rsa::PublicKey &pubKey) const
 
 void Mail::serialize(Serializer &s) const
 {
-	Serializer::ConstObjectMapping mapping;
-	mapping["content"] = &mContent;
-	mapping["time"] = &mTime;
+	Serializer::ConstObject object;
+	object["content"] = &mContent;
+	object["time"] = &mTime;
 	
 	if(!mAuthor.empty())
-		mapping["author"] = &mAuthor;
+		object["author"] = &mAuthor;
 	
 	if(!mAttachments.empty())
-		mapping["attachments"] = &mAttachments;
+		object["attachments"] = &mAttachments;
 	
 	if(!mParent.empty())
-		mapping["parent"] = &mParent;
+		object["parent"] = &mParent;
 	
 	if(!mSignature.empty())
-		mapping["signature"] = &mSignature;
+		object["signature"] = &mSignature;
 	
 	if(s.optionalOutputMode())
 	{
 		digest();	// so mDigest is computed
-		mapping["digest"] = &mDigest;
+		object["digest"] = &mDigest;
 	}
 	
-	s.outputObject(mapping);
+	s.outputObject(object);
 }
 
 bool Mail::deserialize(Serializer &s)
@@ -160,15 +160,15 @@ bool Mail::deserialize(Serializer &s)
 	
 	mDigest.clear();
 	
-	Serializer::ObjectMapping mapping;
-        mapping["content"] = &mContent;
-	mapping["time"] = &mTime;
-	mapping["author"] = &mAuthor;
-	mapping["attachments"] = &mAttachments;
-	mapping["parent"] = &mParent;
-	mapping["signature"] = &mSignature;
+	Serializer::Object object;
+        object["content"] = &mContent;
+	object["time"] = &mTime;
+	object["author"] = &mAuthor;
+	object["attachments"] = &mAttachments;
+	object["parent"] = &mParent;
+	object["signature"] = &mSignature;
 	
-	if(!s.inputObject(mapping))
+	if(!s.inputObject(object))
 		return false;
 	
 	// TODO: checks

@@ -41,7 +41,7 @@ public:
 	Time time(void) const;
 	String content(void) const;
 	
-	bool send(const Identifier &destination) const;
+	bool send(const Identifier &local, const Identifier &remote) const;
 	
 private:
 	Time mTime;

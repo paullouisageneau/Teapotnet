@@ -128,6 +128,8 @@ public:
 	void start(void);
 	void join(void);
 	
+	Overlay *overlay(void);
+	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
 	void unregisterCaller(const BinaryString &target, Caller *caller);
@@ -181,12 +183,12 @@ private:
 		bool mPublicOnly;
 	};
 	
-	class Tunneler : public Thread
+	class Tunneler : protected Synchronizable, public Thread
 	{
 	public:
 		static const double DefaultTimeout = 60.;
 	
-		Tunneler(Network *network);
+		Tunneler(void);
 		~Tunneler(void);
 		
 		bool open(const BinaryString &remote, User *user);
@@ -196,7 +198,7 @@ private:
 		class Tunnel : public Stream
 		{
 		public:
-			Tunnel(Tunneler *tunneler, uint64_t id);
+			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &remote);
 			~Tunnel(void);
 			
 			uint64_t id(void) const;
@@ -213,8 +215,9 @@ private:
 			bool incoming(const Overlay::Message &message);
 			
 		private:
-			Tunneler *tunneler;
+			Tunneler *mTunneler;
 			uint64_t mId;
+			BinaryString mRemote;
 			Queue<Overlay::Message> mQueue;
 			Synchronizable mQueueSync;
 			double mTimeout;
@@ -228,7 +231,6 @@ private:
 		bool handshake(SecureTransport *transport, const BinaryString &local = "", const BinaryString &remote = "", bool async = false);
 		void run(void);
 		
-		Network *mNetwork;
 		Map<uint64_t, Tunnel*> mTunnels;
 		ThreadPool mThreadPool;
 		
@@ -240,17 +242,19 @@ private:
 	class Handler : protected Synchronizable, public Task
 	{
 	public:
-		Handler(Stream *stream);
+		Handler(Stream *stream, const Identifier &local, const Identifier &remote);
 		~Handler(void);
 		
 		bool read(String &type, String &content);
-		void wirte(const String &type, const String &content);
+		void write(const String &type, const String &content);
 		
 	private:
 		void process(void);
 		void run(void);
+		bool readString(String &str);
 		
 		Stream *mStream;
+		Identifier mLocal, mRemote;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		double mTokens;

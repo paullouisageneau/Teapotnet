@@ -39,8 +39,7 @@ Network *Network::Instance = NULL;
 
 
 Network::Network(int port) :
-		Overlay(port),
-		Tunneler(this),
+		mOverlay(port),
 		mThreadPool(4, 16, Config::Get("max_tunnels").toInt())
 {
 
@@ -61,6 +60,11 @@ void Network::join(void)
 {
 	mTunneler.join();
 	mOverlay.join();
+}
+
+Overlay *Network::overlay(void)
+{
+	return &mOverlay;
 }
 
 void Network::registerCaller(const BinaryString &target, Caller *caller)
@@ -272,11 +276,11 @@ bool Network::registerHandler(const Identifier &local, const Identifier &remote,
 	
 	IdentifierPair pair(local, remote);
 	
-	Handlerer::Handler *l = NULL;
-	if(mHandlerer::Handlers.get(pair, l))
+	Handler *l = NULL;
+	if(mHandlers.get(pair, l))
 		return (l == handler);
 	
-	mHandlerer::Handlers.insert(pair, handler);
+	mHandlers.insert(pair, handler);
 	return true;
 }
 
@@ -289,11 +293,11 @@ bool Network::unregisterHandler(const Identifier &local, const Identifier &remot
 	
 	IdentifierPair pair(local, remote);
 	
-	Handlerer::Handler *l = NULL;
-	if(!mHandlerer::Handlers.get(pair, l) || l != handler)
+	Handler *l = NULL;
+	if(!mHandlers.get(pair, l) || l != handler)
 		return false;
 		
-	mHandlerer::Handlers.erase();
+	mHandlers.erase(pair);
 		return true;	
 }
 
@@ -304,7 +308,8 @@ bool Network::outgoing(const String &type, const Serializable &content)
 		it != mHandlers.end();
 		++it)
 	{
-		success|= it->second->outgoing(type, content);
+		it->second->write(type, content);
+		success = true;
 	}
 	
 	return success;
@@ -314,14 +319,13 @@ bool Network::outgoing(const Identifier &local, const Identifier &remote, const 
 {
 	Synchronize(this);
 	
-	local.setNumber(getNumber());
-	
-	if(remote != Identifier::Empty)
+	if(!remote.empty())
 	{
 		Map<IdentifierPair, Handler*>::iterator it = mHandlers.find(IdentifierPair(local, remote));
 		if(it != mHandlers.end())
 		{
-			return it->second->outgoing(type, content);
+			it->second->write(type, content);
+			return true;
 		}
 		
 		return false;
@@ -329,31 +333,21 @@ bool Network::outgoing(const Identifier &local, const Identifier &remote, const 
 	else {
 		bool success = false;
 		for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.lower_bound(IdentifierPair(local, Identifier::Empty));
-			it->first == local;
+			it->first.first == local;
 			++it)
 		{
-			success|= it->second->outgoing(type, content);
+			it->second->write(type, content);
+			success = true;
 		}
 		
 		return success;
 	}
 }
 
-bool incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer)
+bool Network::incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer)
 {
-	// TODO	
-}
-
-bool incoming(const Message &message)
-{
-	Synchronize(this);
-	
-	if(message.destination.getNumber() != getNumber())
-		return false;
-	
-	Map<IdentifierPair, Tunneler::Tunnel*>::iterator it = mTunneler::Tunnels.find(IdentifierPair(message.destination, message.source));	
-	if(it != mTunneler::Tunnels.end()) return it->second->incoming(message);
-	else return Network::Instance->mTunneler->incoming(message);
+	// TODO
+	return false;
 }
 
 bool Network::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
@@ -406,12 +400,12 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 			{
 				LogDebug("Network::Handler::incoming", "Anouncing " + path);
 				
-				// TODO: limit size
-				BinaryString response;
-				BinarySerializer serializer(&response);
-				serializer.write(path);
-				serializer.write(targets);
-				outgoing(source, Message::Broadcast, Message::Publish, response);
+				String response;
+				JsonSerializer(&response).outputObject(Serializer::ConstObject()
+					.insert("path", &path)
+					.insert("targets", &targets));
+				
+				outgoing(overlay()->localNode(), source, "publish", response);
 			}
 		}
 		
@@ -648,14 +642,15 @@ bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &p
 {
 	if(mRemote != Identifier::Empty)
 	{
-		SerializableArray<BinaryString> array;
-		array.append(target);
+		SerializableArray<BinaryString> targets;
+		targets.append(target);
 		
-		BinaryString payload;
-		BinarySerializer serializer(&payload);
-		serializer.write(prefix);
-		serializer.write(array);
-		Network::Instance->outgoing(mRemote, Message::Forward, Message::Publish, payload); 
+		String payload;
+		JsonSerializer(&payload).outputObject(Serializer::ConstObject()
+			.insert("prefix", &prefix)
+			.insert("targets", &targets));
+				
+		Network::Instance->outgoing(Network::Instance->overlay()->localNode(), mRemote, "publish", payload);
 	}
 }
 
@@ -727,8 +722,7 @@ void Network::Listener::listen(const Identifier &peer)
 	Network::Instance->registerListener(peer, this);
 }
 
-Network::Tunneler(Network *network) :
-	Backend(network)
+Network::Tunneler::Tunneler(void)
 {
 
 }
@@ -742,22 +736,22 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 {
 	Assert(user);
 	
-	if(local.empty() || remote.empty())
+	if(remote.empty())
 		return false;
 	
-	if(mOverlay->connectionsCount() == 0)
+	if(Network::Instance->overlay()->connectionsCount() == 0)
 		return false;
 	
 	LogDebug("Network::Tunneler::open", "Trying tunnel for " + remote.toString());
 	
 	uint64_t tunnelId;
 	Random().read(tunnelId);	// Generate random tunnel ID
-	BinaryString local = user->identifier();
-
+	BinaryString local = user->instance();
+	
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		tunnel = new Tunneler::Tunnel(this, tunnelId);
+		tunnel = new Tunneler::Tunnel(this, tunnelId, remote);
 		transport = new SecureTransportClient(tunnel, NULL);
 	}
 	catch(...)
@@ -773,9 +767,7 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 	
 	// Add certificates
 	transport->addCredentials(user->localCertificate(), false);
-	transport->addCredentials(user->certificate(), false);
-	
-	mThreadPool.run(tunnel);
+	transport->addCredentials(user->masterCertificate(), false);
 	
 	return handshake(transport, local, remote, false);	// sync
 }
@@ -786,20 +778,18 @@ SecureTransport *Network::Tunneler::listen(void)
 	
 	while(mQueue.empty()) mQueueSync.wait();
 	
-	Message &datagram = mQueue.front();
+	Overlay::Message &datagram = mQueue.front();
 	
 	LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + datagram.source.toString());
 
 	// Read tunnel ID
-	uint8_t len = 0;
-	Identifier tunnelId;
-	datagram.readBinary(len);
-	datagram.readBinary(tunnelId, len);
+	uint64_t tunnelId;
+	datagram.content.readBinary(tunnelId);
 
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		tunnel = new Tunneler::Tunnel(mNetwork, tunnelId);
+		tunnel = new Tunneler::Tunnel(this, tunnelId, datagram.source);
 		transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
 	}
 	catch(...)
@@ -809,15 +799,14 @@ SecureTransport *Network::Tunneler::listen(void)
 		throw;
 	}
 	
-	mTunneler::Tunnels.insert(tunnelId, tunnel);
-	mThreadPool.run(tunnel);
+	mTunnels.insert(tunnelId, tunnel);
 	tunnel->incoming(datagram);
 	
 	mQueue.pop();
-	return transport;	// handshake done in run()
+	return transport;
 }
 
-bool Network::Tunneler::incoming(const Message &datagram)
+bool Network::Tunneler::incoming(const Overlay::Message &datagram)
 {
 	Synchronize(&mQueueSync);
 	mQueue.push(datagram);
@@ -833,10 +822,10 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 		return false;
 	
 	Tunneler::Tunnel *t = NULL;
-	if(mTunneler::Tunnels.get(tunnel->id(), t))
+	if(mTunnels.get(tunnel->id(), t))
 		return (t == tunnel);
 	
-	mTunneler::Tunnels.insert(tunnel->id(), tunnel);
+	mTunnels.insert(tunnel->id(), tunnel);
 	return true;
 }
 
@@ -844,14 +833,14 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 {
 	Synchronize(this);
 	
-	if(!handler)
+	if(!tunnel)
 		return false;
 	
 	Tunneler::Tunnel *t = NULL;
-	if(!mTunneler::Tunnels.get(tunnel->id(), t) || t != tunnel)
+	if(!mTunnels.get(tunnel->id(), t) || t != tunnel)
 		return false;
 	
-	mTunneler::Tunnels.erase(tunnel->id());
+	mTunnels.erase(tunnel->id());
 		return true;	
 }
 
@@ -879,8 +868,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			User *user = User::GetByIdentifier(local);
 			if(user)
 			{
-				SecureTransport::Credentials *creds = user->certificate();
-				if(creds) transport->addCredentials(creds);
+				transport->addCredentials(user->localCertificate(), false);
+				transport->addCredentials(user->masterCertificate(), false);
 			}
 			else {
 				 LogDebug("Network::Tunneler::handshake", String("User does not exist: ") + name);
@@ -897,10 +886,10 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
 			
-			Synchronize(network);
-			
-			Map<Identifier, Set<Listener*> >::iterator it = network->mListeners.find(remote);
-			while(it != network->mListeners.end() && it->first == remote)
+			// TODO: function in Network
+			Synchronize(Network::Instance);
+			Map<Identifier, Set<Listener*> >::iterator it = Network::Instance->mListeners.find(remote);
+			while(it != Network::Instance->mListeners.end() && it->first == remote)
 			{
 				for(Set<Listener*>::iterator jt = it->second.begin();
 					jt != it->second.end();
@@ -976,12 +965,12 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 	try {
 		if(async)
 		{
-			task = new HandshakeTask(mNetwork, transport, local, remote);
+			task = new HandshakeTask(transport, local, remote);
 			mThreadPool.launch(task);
 			return true;
 		}
 		else {
-			HandshakeTask stask(mNetwork, transport, local, remote);
+			HandshakeTask stask(transport, local, remote);
 			return stask.handshake();
 		}
 	}
@@ -1015,15 +1004,16 @@ void Network::Tunneler::run(void)
 	LogWarn("Network::Backend::run", "Closing tunneler");
 }
 
-Network::Tunneler::Tunnel::Tunneler::Tunnel(Tunneler *tunneler, uint64_t id) :
+Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &remote) :
 	mTunneler(tunneler),
 	mId(id),
+	mRemote(remote),
 	mTimeout(DefaultTimeout)
 {
 	mTunneler->registerTunnel(this);
 }
 
-Network::Tunneler::Tunnel::~Tunneler::Tunnel(void)
+Network::Tunneler::Tunnel::~Tunnel(void)
 {
 	mTunneler->unregisterTunnel(this);
 }
@@ -1047,19 +1037,17 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 		if(!mQueueSync.wait(timeout))
 			throw Timeout();
 	
-	const Message &message = mQueue.front();
-	size = std::min(size, size_t(message.payload.size()));
-	std::copy(message.payload.data(), message.payload.data() + size, buffer);
+	const Overlay::Message &message = mQueue.front();
+	size = std::min(size, size_t(message.content.size()));
+	std::copy(message.content.data(), message.content.data() + size, buffer);
         mQueue.pop();
         return size;
 }
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
-	Message message;
-	message.prepare(mLocal, mRemote, Message::Forward, Message::Tunnel);
-	message.payload.writeBinary(data, size);
-	mNetwork->route(message);
+	Overlay::Message message(Overlay::Message::Tunnel, mRemote, BinaryString(data, size));
+	Network::Instance->overlay()->send(message);
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)
@@ -1089,25 +1077,31 @@ bool Network::Tunneler::Tunnel::isDatagram(void) const
 	return true; 
 }
 
-bool Network::Tunneler::Tunnel::incoming(const Message &datagram)
+bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &datagram)
 {
 	Synchronize(&mQueueSync);
+	
+	if(datagram.type != Overlay::Message::Tunnel)
+		return false;
+	
 	mQueue.push(datagram);
 	mQueueSync.notifyAll();
 	return true;
 }
 
-Network::Handler::Handler(Stream *stream) :
+Network::Handler::Handler(Stream *stream, const Identifier &local, const Identifier &remote) :
 	mStream(stream),
+	mLocal(local),
+	mRemote(remote),
 	mTokens(0.),
 	mRedundancy(1.1)	// TODO
 {
-	Network::Instance->registerHandler(this);
+	Network::Instance->registerHandler(mLocal, mRemote, this);
 }
 
 Network::Handler::~Handler(void)
 {
-	Network::Instance->unregisterHandler(this);	// should be done already
+	Network::Instance->unregisterHandler(mLocal, mRemote, this);	// should be done already
 	
 	delete mStream;
 }
@@ -1116,39 +1110,18 @@ bool Network::Handler::read(String &type, String &content)
 {
 	Synchronize(this);
 	
-	content.clear();
-	while(true)
-	{
-		// Try to read some content
-		char chr;
-		while(mSink.read(&chr, 1))
-		{
-			if(chr == '\0')
-			{
-				// Finished
-				// TODO: type
-				return true;
-			}
-			
-			content+= chr;
-		}
-		
-		// We need more combinations to get more content
-		BinaryString temp;
-		DesynchronizeStatement(this, if(!mStream->readBinary(temp)) return false);
-		
-		Fountain::Combination combination;
-		BinarySerializer serializer(&temp);
-		serializer.input(combination);
-		combination.setData(temp);
-		mSink.solve(combination);
-	}
+	if(!readString(type)) return false;
+	if(!readString(content))
+		throw Exception("Unexpected end of stream");
+	
+	return true;
 }
 
-void Network::Handler::wirte(const String &type, const String &content)
+void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
-	mSource.write(data, size);
+	mSource.write(type.c_str(), type.size()+1);
+	mSource.write(content.c_str(), content.size()+1);
 	
 	// TODO: tokens
 }
@@ -1188,12 +1161,43 @@ void Network::Handler::run(void)
 		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	mNetwork->unregisterHandler(mAddress, this);
+	Network::Instance->unregisterHandler(mLocal, mRemote, this);
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO
 	delete this;		// autodelete
 }
 
+bool Network::Handler::readString(String &str)
+{
+	Synchronize(this);
+	
+	str.clear();
+	while(true)
+	{
+		// Try to read
+		char chr;
+		while(mSink.read(&chr, 1))
+		{
+			if(chr == '\0')
+			{
+				// Finished
+				return true;
+			}
+			
+			str+= chr;
+		}
+		
+		// We need more combinations
+		BinaryString temp;
+		DesynchronizeStatement(this, if(!mStream->readBinary(temp)) return false);
+		
+		Fountain::Combination combination;
+		BinarySerializer serializer(&temp);
+		serializer.read(combination);
+		combination.setData(temp);
+		mSink.solve(combination);
+	}
+}
 
 }

@@ -156,8 +156,8 @@ public:
 		void clear(void);
 		
 		unsigned nextSeen(void) const;
-		unsigned nextRead(void) const;
-		bool isComplete(void) const;
+		unsigned nextDecoded(void) const;
+		bool isDecoded(void) const;
 		
 		size_t read(char *buffer, size_t size);		// Non-const, read some new data
 		

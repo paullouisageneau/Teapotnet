@@ -26,6 +26,8 @@
 namespace pla
 {
 
+const BinaryString BinaryString::Empty;
+	
 BinaryString::BinaryString(void)
 {
 

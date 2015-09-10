@@ -231,7 +231,7 @@ void Board::http(const String &prefix, Http::Request &request)
 						User *user = getAuthenticatedUser(request);
 						if(user) {
 							mail.setAuthor(user->name());
-							mail.sign(user->privateKey());
+							mail.sign(user->masterPrivateKey());
 						}
 					}
 					
