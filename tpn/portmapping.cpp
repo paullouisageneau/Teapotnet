@@ -216,8 +216,8 @@ void PortMapping::run(void)
 			mProtocol = NULL;
 		}
 		
-		if(mProtocol) LogInfo("PortMapping", "Port object is available, external address is " + mExternalHost);
-		else LogInfo("PortMapping", "Port object is not available");
+		if(mProtocol) LogInfo("PortMapping", "Port mapping is available, external address is " + mExternalHost);
+		else LogInfo("PortMapping", "Port mapping is not available");
 	}
 	
 	if(mProtocol)
@@ -507,7 +507,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 	
 		if(errorCode == 718)
 		{
-			// The port object entry specified conflicts with a object assigned previously to another client
+			// The port mapping entry specified conflicts with a object assigned previously to another client
 			
 			if(i == attempts-2)
 			{
@@ -530,7 +530,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		
 		if(duration && errorCode == 725)
 		{
-			// The NAT implementation only supports permanent lease times on port objects
+			// The NAT implementation only supports permanent lease times on port mapping
 			duration = 0;
 			continue;
 		}
