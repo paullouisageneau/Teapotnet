@@ -128,6 +128,13 @@ User::User(const String &name, const String &password) :
 	mOnline(false),
 	mSetOfflineTask(this)
 {
+	mIndexer = NULL;
+	mAddressBook = NULL;
+	mBoard = NULL;
+	
+	mMasterCertificate = NULL;
+	mLocalCertificate = NULL;
+	
 	if(mName.empty()) 
 		throw Exception("Empty user name");
 	
@@ -163,6 +170,7 @@ User::User(const String &name, const String &password) :
 		rsa.generate(mMasterPublicKey, mMasterPrivateKey);
 		rsa.generate(mLocalPublicKey, mLocalPrivateKey);
 		rnd.readBinary(mSecret, 32);
+		
 		save();
 	}
 	
@@ -174,29 +182,24 @@ User::User(const String &name, const String &password) :
 	Assert(!mLocalPublicKey.isNull());
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
-	
-	mMasterCertificate = NULL;
-	mLocalCertificate = NULL;
-	mIndexer = NULL;
-	mAddressBook = NULL;
-	mBoard = NULL;
 
 	try {
-		
-		mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
-		mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
-		
 		mIndexer = new Indexer(this);
         	mAddressBook = new AddressBook(this);
        	 	mBoard = new Board("/" + identifier().toString(), mName);
+		
+		if(!mMasterCertificate) mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
+		if(!mLocalCertificate) mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
 	}
 	catch(...)
 	{
-		delete mMasterCertificate;
-		delete mLocalCertificate;
 		delete mIndexer;
 		delete mAddressBook;
 		delete mBoard;
+		
+		delete mMasterCertificate;
+		delete mLocalCertificate;
+		
 		throw;
 	}
 
@@ -219,11 +222,12 @@ User::~User(void)
 	Interface::Instance->remove(urlPrefix());
 	Scheduler::Global->cancel(&mSetOfflineTask);
 	
-	delete mMasterCertificate;
-	delete mLocalCertificate;
 	delete mAddressBook;
 	delete mBoard;
 	delete mIndexer;
+	
+	delete mMasterCertificate;
+	delete mLocalCertificate;
 }
 
 void User::load()

@@ -44,6 +44,8 @@ Overlay::Overlay(int port) :
 	Rsa rsa(4096);
 	rsa.generate(mPublicKey, mPrivateKey);
 
+	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, localNode().toString());
+	
 	// Define node name
 	mName = Config::Get("node_name");
 	if(mName.empty())
@@ -91,6 +93,8 @@ Overlay::~Overlay(void)
 		Backend *backend = *it;
 		delete backend;
 	}
+	
+	delete mCertificate;
 }
 
 void Overlay::start(void)
