@@ -473,8 +473,9 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 		Set<Address> addresses, tmp;
 		Config::GetExternalAddresses(addresses); 
 		
-		getKnownPublicAdresses(tmp);	// Our own addresses are mixed with known public addresses
-		addresses.insertAll(tmp);
+		// Mix our own addresses with known public addresses
+		//getKnownPublicAdresses(tmp);
+		//addresses.insertAll(tmp);
 		
 		String strAddresses;
 		for(	Set<Address>::iterator it = addresses.begin();
