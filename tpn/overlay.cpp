@@ -717,10 +717,16 @@ Overlay::StreamBackend::~StreamBackend(void)
 
 bool Overlay::StreamBackend::connect(const Set<Address> &addrs)
 {
+	Set<Address> localAddrs;
+	getAddresses(localAddrs);
+	
 	for(Set<Address>::const_reverse_iterator it = addrs.rbegin();
 		it != addrs.rend();
 		++it)
 	{
+		if(localAddrs.contains(*it))
+			continue;
+		
 		try {
 			if(connect(*it))
 				return true;
@@ -789,10 +795,16 @@ Overlay::DatagramBackend::~DatagramBackend(void)
 
 bool Overlay::DatagramBackend::connect(const Set<Address> &addrs)
 {
+	SerializableSet<Address> localAddrs;
+	getAddresses(localAddrs);
+	
 	for(Set<Address>::const_reverse_iterator it = addrs.rbegin();
 		it != addrs.rend();
 		++it)
 	{
+		if(localAddrs.contains(*it))
+			continue;
+		
 		try {
 			if(connect(*it))
 				return true;

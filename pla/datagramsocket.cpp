@@ -65,7 +65,10 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 	set.clear();
   
 	Address bindAddr = getBindAddress();
-  
+
+// getifaddrs() returns AF_PACKET addresses ?!
+#define NO_IFADDRS
+
 #ifdef NO_IFADDRS
 	// Retrieve hostname
 	char hostname[HOST_NAME_MAX];
@@ -95,16 +98,23 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 	addrinfo *ai = aiList;  
 	while(ai)
 	{
-		Address addr(ai->ai_addr,ai->ai_addrlen);
-		if(addr == bindAddr)
-		{
-			set.clear();
-			set.insert(addr);
-			break;
-		}
-		
 		if(ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
-			set.insert(addr);
+		{
+			Address addr(ai->ai_addr,ai->ai_addrlen);
+			String host = addr.host();
+			
+			if(ai->ai_addr->sa_family != AF_INET6 || host.substr(0,4) != "fe80")
+			{
+				if(addr == bindAddr)
+				{
+					set.clear();
+					set.insert(addr);
+					break;
+				}
+				
+				set.insert(addr);
+			}
+		}
 		
 		ai = ai->ai_next;
 	}
@@ -132,7 +142,7 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 		{
 			Address addr(sa, len);
 			String host = addr.host();
-			if(host.substr(0,4) != "fe80")
+			if(sa->sa_family != AF_INET6 || host.substr(0,4) != "fe80")
 			{
 				addr.set(host, mPort);
 				if(addr == bindAddr)
