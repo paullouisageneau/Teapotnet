@@ -110,8 +110,6 @@ void Overlay::start(void)
 
 void Overlay::join(void)
 {
-	Scheduler::Global->cancel(this);
-	
 	// Join backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
@@ -122,6 +120,8 @@ void Overlay::join(void)
 	}
 
 	mNodesUpdater.join();
+	
+	Scheduler::Global->cancel(this);
 }
 
 String Overlay::localName(void) const
