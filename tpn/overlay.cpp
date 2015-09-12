@@ -103,10 +103,15 @@ void Overlay::start(void)
 		Backend *backend = *it;
 		backend->start();
 	}
+	
+	Scheduler::Global->schedule(this);
+	Scheduler::Global->repeat(this, 60.);	// 1 min
 }
 
 void Overlay::join(void)
 {
+	Scheduler::Global->cancel(this);
+	
 	// Join backends
 	for(List<Backend*>::iterator it = mBackends.begin();
 		it != mBackends.end();
@@ -227,6 +232,16 @@ void Overlay::unregisterEndpoint(const BinaryString &id)
 {
 	Synchronize(this);
 	mEndpoints.remove(id);
+}
+
+void Overlay::run(void)
+{
+	if(connectionsCount() < 8)	// TODO
+	{
+		Set<Address> addrs;
+		if(track(Config::Get("tracker"), addrs))
+			connect(addrs);
+	}
 }
 
 bool Overlay::incoming(Message &message, const BinaryString &from)

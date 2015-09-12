@@ -50,7 +50,7 @@ namespace tpn
 {
 
 // Overlay network implementation
-class Overlay : protected Synchronizable
+class Overlay : protected Synchronizable, public Task
 {
 public:
 	struct Message : public Serializable
@@ -110,6 +110,8 @@ public:
 	void registerEndpoint(const BinaryString &id);
 	void unregisterEndpoint(const BinaryString &id);
 
+	void run(void);
+	
 private:
 	// Routing
 	bool incoming(Message &message, const BinaryString &from);

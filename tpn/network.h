@@ -32,6 +32,7 @@
 #include "pla/bytearray.h"
 #include "pla/binarystring.h"
 #include "pla/string.h"
+#include "pla/task.h"
 #include "pla/thread.h"
 #include "pla/mutex.h"
 #include "pla/signal.h"
