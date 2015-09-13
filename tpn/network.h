@@ -48,7 +48,7 @@ namespace tpn
 
 class User;
   
-class Network : protected Synchronizable
+class Network : protected Synchronizable, public Thread
 {
 public:
 	static Network *Instance;
@@ -156,6 +156,8 @@ public:
 	bool hasHandler(const Identifier &local, const Identifier &remote);
 	bool hasLink(const Identifier &local, const Identifier &remote) { return hasHandler(local, remote); }
 	
+	void run(void);
+	
 private:
 	class RemotePublisher : public Publisher
 	{
@@ -246,13 +248,14 @@ private:
 		Handler(Stream *stream, const Identifier &local, const Identifier &remote);
 		~Handler(void);
 		
-		bool read(String &type, String &content);
 		void write(const String &type, const String &content);
 		
 	private:
+		bool read(String &type, String &content);
+		bool readString(String &str);
+		
 		void process(void);
 		void run(void);
-		bool readString(String &str);
 		
 		Stream *mStream;
 		Identifier mLocal, mRemote;

@@ -267,6 +267,29 @@ bool Network::hasHandler(const Identifier &local, const Identifier &remote)
 	return mHandlers.contains(IdentifierPair(local, remote));
 }
 
+void Network::run(void)
+{
+	try {
+		Overlay::Message message;
+		while(mOverlay.recv(message))
+		{
+			switch(message.type)
+			{
+			case Overlay::Message::Tunnel:
+				mTunneler.incoming(message);
+				break;
+				
+			default:
+				LogDebug("Network::run", "Unknown message type: " + String::number(message.type));
+			}
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Network::run", e.what());
+	}
+}
+
 bool Network::registerHandler(const Identifier &local, const Identifier &remote, Handler *handler)
 {
 	Synchronize(this);
@@ -303,6 +326,9 @@ bool Network::unregisterHandler(const Identifier &local, const Identifier &remot
 
 bool Network::outgoing(const String &type, const Serializable &content)
 {
+	Synchronize(this);
+	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
+	
 	bool success = false;
 	for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.begin();
 		it != mHandlers.end();
@@ -318,6 +344,7 @@ bool Network::outgoing(const String &type, const Serializable &content)
 bool Network::outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content)
 {
 	Synchronize(this);
+	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
 	if(!remote.empty())
 	{
@@ -346,6 +373,8 @@ bool Network::outgoing(const Identifier &local, const Identifier &remote, const 
 
 bool Network::incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer)
 {
+	LogDebug("Network::incoming", "Incoming, type: "+type);
+	
 	// TODO
 	return false;
 }
@@ -1106,17 +1135,6 @@ Network::Handler::~Handler(void)
 	delete mStream;
 }
 
-bool Network::Handler::read(String &type, String &content)
-{
-	Synchronize(this);
-	
-	if(!readString(type)) return false;
-	if(!readString(content))
-		throw Exception("Unexpected end of stream");
-	
-	return true;
-}
-
 void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
@@ -1126,46 +1144,15 @@ void Network::Handler::write(const String &type, const String &content)
 	// TODO: tokens
 }
 
-void Network::Handler::process(void)
+bool Network::Handler::read(String &type, String &content)
 {
 	Synchronize(this);
-/*
-	// TODO: correct sync
-	Map<Identifier, Set<Listener*> >::iterator it = mNetwork->mListeners.find(mRemote);
-	while(it != mNetwork->mListeners.end() && it->first == mRemote)
-	{
-		for(Set<Listener*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
-		{
-			(*jt)->connected(mRemote); 
-		}
-		
-		++it;
-	}
-*/	
-
-}
-
-void Network::Handler::run(void)
-{
-	try {
-		LogDebug("Network::Handler", "Starting handler");
 	
-		process();
-		
-		LogDebug("Network::Handler", "Closing handler");
-	}
-	catch(const std::exception &e)
-	{
-		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
-	}
+	if(!readString(type)) return false;
+	if(!readString(content))
+		throw Exception("Unexpected end of stream");
 	
-	Network::Instance->unregisterHandler(mLocal, mRemote, this);
-	
-	notifyAll();
-	Thread::Sleep(5.);	// TODO
-	delete this;		// autodelete
+	return true;
 }
 
 bool Network::Handler::readString(String &str)
@@ -1198,6 +1185,54 @@ bool Network::Handler::readString(String &str)
 		combination.setData(temp);
 		mSink.solve(combination);
 	}
+}
+
+void Network::Handler::process(void)
+{
+	Synchronize(this);
+/*
+	// TODO: correct sync
+	Map<Identifier, Set<Listener*> >::iterator it = mNetwork->mListeners.find(mRemote);
+	while(it != mNetwork->mListeners.end() && it->first == mRemote)
+	{
+		for(Set<Listener*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			(*jt)->connected(mRemote); 
+		}
+		
+		++it;
+	}
+*/	
+
+	String type, content;
+	while(read(type, content))
+	{
+		JsonSerializer serializer(&content);
+		Network::Instance->incoming(mLocal, mRemote, type, serializer);
+	}
+}
+
+void Network::Handler::run(void)
+{
+	try {
+		LogDebug("Network::Handler", "Starting handler");
+	
+		process();
+		
+		LogDebug("Network::Handler", "Closing handler");
+	}
+	catch(const std::exception &e)
+	{
+		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
+	}
+	
+	Network::Instance->unregisterHandler(mLocal, mRemote, this);
+	
+	notifyAll();
+	Thread::Sleep(5.);	// TODO
+	delete this;		// autodelete
 }
 
 }
