@@ -44,6 +44,7 @@ Overlay::Overlay(int port) :
 	Rsa rsa(4096);
 	rsa.generate(mPublicKey, mPrivateKey);
 
+	// Create certificate
 	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, localNode().toString());
 	
 	// Define node name
@@ -57,8 +58,6 @@ Overlay::Overlay(int port) :
 		if(mName.empty() || mName == "localhost")
 			mName = localNode().toString();
 	}
-	
-	LogInfo("Overlay", "Instance name is \"" + localName() + "\", node is " + localNode().toString());
 	
 	// Launch
 	try {
@@ -77,8 +76,13 @@ Overlay::Overlay(int port) :
 			delete backend;
 		}
 		
+		// Delete certificate
+		delete mCertificate;
+		
 		throw;
 	}
+	
+	LogInfo("Overlay", "Instance name is \"" + localName() + "\", node is " + localNode().toString());
 }
 
 Overlay::~Overlay(void)
