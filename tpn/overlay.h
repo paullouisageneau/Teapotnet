@@ -56,10 +56,8 @@ public:
 	struct Message : public Serializable
 	{
 		static const uint8_t Invalid	= 0x00;
-		static const uint8_t Hello	= 0x01;
-		static const uint8_t Links	= 0x02;
-		static const uint8_t Ping	= 0x03;
-		static const uint8_t Pong	= 0x04;
+		static const uint8_t Ping	= 0x01;
+		static const uint8_t Pong	= 0x02;
 		static const uint8_t Tunnel	= 0x10;
 		
 		Message(void);
@@ -110,6 +108,10 @@ public:
 	void registerEndpoint(const BinaryString &id);
 	void unregisterEndpoint(const BinaryString &id);
 
+	// DHT
+	void storeValue(const BinaryString &key, const BinaryString &value);
+	bool retrieveValue(const BinaryString &key, BinaryString &value);
+	
 	void run(void);
 	
 private:
@@ -118,8 +120,7 @@ private:
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
 	bool sendTo(const Message &message, const BinaryString &to);
-	bool getRoutes(const BinaryString &node, Set<BinaryString> &routes);
-
+	
 	class Backend : public Thread
 	{
 	public:
@@ -191,34 +192,9 @@ private:
 		Stream  *mStream;
 		BinaryString mNode;
 	};
-	
-	struct Node
-	{
-		Node(void) { distance = unsigned(-1); }
-
-		Set<BinaryString>	links;
-		unsigned		distance;
-		Set<BinaryString>	previous;
-		Set<BinaryString>	routes;
-	};
-	
-	class NodesUpdater : public Thread
-	{
-	public:
-		NodesUpdater(Overlay *overlay) { mOverlay = overlay; }
-		~NodesUpdater(void) {}
-		
-		void run(void);
-
-	private:
-		void update(Map<BinaryString, Node> &nodes, const BinaryString &source);
-		
-		Overlay *mOverlay;
-	};
 
 	bool registerHandler(const BinaryString &node, Handler *handler);
 	bool unregisterHandler(const BinaryString &node, Handler *handler);
-	void updateLinks(const BinaryString &node, const Set<BinaryString> &links);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
@@ -239,9 +215,7 @@ private:
 	Queue<Message> mIncoming;
 	Synchronizable mIncomingSync;
 
-	Map<BinaryString, Node> mNodes;
-	Synchronizable mNodesSync;
-	NodesUpdater mNodesUpdater;	// Update distances and routes in nodes
+	Map<BinaryString, BinaryString> mRoutes;
 };
 
 }

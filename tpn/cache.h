@@ -47,8 +47,8 @@ public:
 	
 	// TODO: cleaning
 	
-	void storeMapping(const String &key, const BinaryString &value);
-	bool retrieveMapping(const String &key, BinaryString &value); 
+	void storeValue(const String &key, const BinaryString &value);
+	bool retrieveValue(const String &key, BinaryString &value); 
 	
 private:
 	String mDirectory;

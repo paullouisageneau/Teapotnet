@@ -44,7 +44,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	String prefix = "/mail" + mName;
 	
 	BinaryString digest;
-	Cache::Instance->retrieveMapping(prefix, digest);
+	Cache::Instance->retrieveValue(prefix, digest);
 	
 	if(!digest.empty())
 		if(fetch(Identifier::Empty, prefix, "/", digest))
@@ -123,7 +123,7 @@ void Board::process(void)
 		
 		// Retrieve digest and store it
 		mDigest = resource.digest();
-		Cache::Instance->storeMapping("/mail" + mName, mDigest);
+		Cache::Instance->storeValue("/mail" + mName, mDigest);
 	}
 	catch(const Exception &e)
 	{

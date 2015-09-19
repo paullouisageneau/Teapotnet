@@ -96,7 +96,7 @@ String Cache::move(const String &filename)
 	return destination;
 }
 
-void Cache::storeMapping(const String &key, const BinaryString &value)
+void Cache::storeValue(const String &key, const BinaryString &value)
 {
 	String tmp(key);
 	BinaryString digest;
@@ -108,7 +108,7 @@ void Cache::storeMapping(const String &key, const BinaryString &value)
 	file.close();
 }
 
-bool Cache::retrieveMapping(const String &key, BinaryString &value)
+bool Cache::retrieveValue(const String &key, BinaryString &value)
 {
 	value.clear();
 	
