@@ -58,6 +58,8 @@ public:
 		static const uint8_t Invalid	= 0x00;
 		static const uint8_t Ping	= 0x01;
 		static const uint8_t Pong	= 0x02;
+		static const uint8_t Offer	= 0x03;
+		static const uint8_t Suggest	= 0x04;
 		static const uint8_t Tunnel	= 0x10;
 		
 		Message(void);
@@ -99,7 +101,7 @@ public:
 	bool isPublicConnectable(void) const;
 	
 	// Connections
-	bool connect(const Set<Address> &addrs);
+	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
 	int connectionsCount(void) const;
 	
 	// Message interface
@@ -127,18 +129,16 @@ private:
 		Backend(Overlay *overlay);
 		virtual ~Backend(void);
 		
-		virtual bool connect(const Set<Address> &addrs) = 0;
+		virtual bool connect(const Set<Address> &addrs, const BinaryString &remote = "") = 0;
 		virtual SecureTransport *listen(void) = 0;
 		
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
-		bool process(SecureTransport *transport);	// do the client handshake
-	
-	private:
-		bool handshake(SecureTransport *transport, bool async = false);
+		bool handshake(SecureTransport *transport, const BinaryString &remote = "", bool async = false);
 		void run(void);
-	
+		
+	private:
 		Overlay *mOverlay;	
 		ThreadPool mThreadPool;
 	};
@@ -149,8 +149,8 @@ private:
 		StreamBackend(Overlay *overlay, int port);
 		~StreamBackend(void);
 		
-		bool connect(const Set<Address> &addrs);
-		bool connect(const Address &addr);
+		bool connect(const Set<Address> &addrs, const BinaryString &remote);
+		bool connect(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;
@@ -165,8 +165,8 @@ private:
 		DatagramBackend(Overlay *overlay, int port);
 		~DatagramBackend(void);
 		
-		bool connect(const Set<Address> &addrs);
-		bool connect(const Address &addr);
+		bool connect(const Set<Address> &addrs, const BinaryString &remote);
+		bool connect(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(void);
 		
 		void getAddresses(Set<Address> &set) const;

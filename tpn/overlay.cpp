@@ -187,18 +187,64 @@ bool Overlay::isPublicConnectable(void) const
 	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
 }
 
-bool Overlay::connect(const Set<Address> &addrs)
+bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
 {
-	List<Backend*> backends;
-	SynchronizeStatement(this, backends = mBackends);
-	
-	for(List<Backend*>::iterator it = backends.begin();
-		it != backends.end();
-		++it)
+	class ConnectTask : public Task
 	{
-		Backend *backend = *it;
-		if(backend->connect(addrs))
+	public:
+		ConnectTask(const List<Backend*> &backends, const Set<Address> &addrs, const BinaryString &remote)
+		{
+			this->backends = backends;
+			this->addrs = addrs;
+			this->remote = remote;
+		}
+		
+		bool connect(void)
+		{
+			for(List<Backend*>::iterator it = backends.begin();
+				it != backends.end();
+				++it)
+			{
+				Backend *backend = *it;
+				if(backend->connect(addrs, remote))
+					return true;
+			}
+			
+			return false;
+		}
+		
+		void run(void)
+		{
+			connect();
+			delete this;	// autodelete
+		}
+		
+	private:
+		List<Backend*> backends;
+		Set<Address> addrs;
+		BinaryString remote;
+	};
+	
+	ConnectTask *task = NULL;
+	try {
+		Synchronize(this);
+		
+		if(async)
+		{
+			task = new ConnectTask(mBackends, addrs, remote);
+			mThreadPool.launch(task);
 			return true;
+		}
+		else {
+			ConnectTask stask(mBackends, addrs, remote);
+			return stask.connect();
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Overlay::connect", e.what());
+		delete task;
+		return false;
 	}
 	
 	return false;
@@ -286,6 +332,35 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			break;
 		}
 		
+	// Path-folding offer
+	case Message::Offer:
+		{
+			BinaryString distance = message.source ^ localNode();
+			
+			Array<BinaryString> neighbors;
+			mHandlers.getKeys(neighbors);
+			for(int i=0; i<neighbors.size(); ++i)
+			{
+				if(message.source != neighbors[i] 
+					&& (message.source ^ neighbors[i]) <= distance)
+				{
+					route(Message(Message::Suggest, message.source, message.content));
+				}
+			}
+			
+			break;
+		}
+	
+	// Path-folding suggestion (relayed offer)
+	case Message::Suggest:
+		{
+			SerializableSet<Address> addrs;
+			BinarySerializer serializer(&message.content);
+			serializer.read(addrs);
+			connect(addrs);
+			break;
+		}
+		
 	default:
 		{
 			Synchronize(&mIncomingSync);
@@ -323,15 +398,16 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 		// If message encountered a dead end
 		if(route == from)
 		{
+			Array<BinaryString> neighbors;
+			mHandlers.getKeys(neighbors);
+			
 			BinaryString min;
-			for(Map<BinaryString, Handler*>::iterator it = mHandlers.upper_bound(from);
-				it != mHandlers.end();
-				++it)
+			for(int i=0; i<neighbors.size(); ++i)
 			{
-					BinaryString distance = message.destination ^ it->first;
+					BinaryString distance = message.destination ^ neighbors[i];
 					if(min.empty() || distance < min)
 					{
-						route = it->first;
+						route = neighbors[i];
 						min = distance;    
 					}
 			}
@@ -569,18 +645,7 @@ Overlay::Backend::~Backend(void)
 	
 }
 
-bool Overlay::Backend::process(SecureTransport *transport)
-{
-	LogDebug("Overlay::Backend::process", "Setting certificate");
-	
-	// Add certificate
-	transport->addCredentials(mOverlay->certificate());
-	
-	// Handshake
-	return handshake(transport, false);
-}
-
-bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
+bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString &remote, bool async)
 {
 	class MyVerifier : public SecureTransport::Verifier
 	{
@@ -598,10 +663,11 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(Overlay *overlay, SecureTransport *transport)
+		HandshakeTask(Overlay *overlay, SecureTransport *transport, const BinaryString &remote = "")
 		{
 			this->overlay = overlay; 
 			this->transport = transport;
+			this->remote = remote;
 		}
 		
 		bool handshake(void)
@@ -617,9 +683,13 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 				transport->handshake();
 				Assert(transport->hasCertificate());
 				
+				BinaryString identifier = verifier.publicKey.digest();
+				if(!remote.empty() && remote != identifier)
+					throw Exception("Unexpected identifier");
+				
 				// Handshake succeeded
 				LogDebug("Overlay::Backend::handshake", "Success, spawning new handler");
-				Handler *handler = new Handler(overlay, transport, verifier.publicKey.digest());
+				Handler *handler = new Handler(overlay, transport, identifier);
 				return true;
 			}
 			catch(const std::exception &e)
@@ -639,18 +709,24 @@ bool Overlay::Backend::handshake(SecureTransport *transport, bool async)
 	private:
 		Overlay *overlay;
 		SecureTransport *transport;
+		BinaryString remote;
 	};
 	
 	HandshakeTask *task = NULL;
 	try {
+		LogDebug("Overlay::Backend::handshake", "Setting certificate");
+	
+		// Add certificate
+		transport->addCredentials(mOverlay->certificate(), false);
+		
 		if(async)
 		{
-			task = new HandshakeTask(mOverlay, transport);
+			task = new HandshakeTask(mOverlay, transport, remote);
 			mThreadPool.launch(task);
 			return true;
 		}
 		else {
-			HandshakeTask stask(mOverlay, transport);
+			HandshakeTask stask(mOverlay, transport, remote);
 			return stask.handshake();
 		}
 	}
@@ -677,7 +753,7 @@ void Overlay::Backend::run(void)
 			transport->addCredentials(mOverlay->certificate(), false);
 			
 			// No remote node specified, accept any node
-			handshake(transport, true);	// async
+			handshake(transport, "", true);	// async
 		}
 	}
 	catch(const std::exception &e)
@@ -700,7 +776,7 @@ Overlay::StreamBackend::~StreamBackend(void)
 	
 }
 
-bool Overlay::StreamBackend::connect(const Set<Address> &addrs)
+bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryString &remote)
 {
 	Set<Address> localAddrs;
 	getAddresses(localAddrs);
@@ -713,7 +789,7 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs)
 			continue;
 		
 		try {
-			if(connect(*it))
+			if(connect(*it, remote))
 				return true;
 		}
 		catch(const NetException &e)
@@ -725,7 +801,7 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs)
 	return false;
 }
 
-bool Overlay::StreamBackend::connect(const Address &addr)
+bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	Socket *sock = NULL;
 	SecureTransport *transport = NULL;
@@ -747,7 +823,7 @@ bool Overlay::StreamBackend::connect(const Address &addr)
 		throw;
 	}
 	
-	return process(transport);
+	return handshake(transport, remote);
 }
 
 SecureTransport *Overlay::StreamBackend::listen(void)
@@ -778,7 +854,7 @@ Overlay::DatagramBackend::~DatagramBackend(void)
 	
 }
 
-bool Overlay::DatagramBackend::connect(const Set<Address> &addrs)
+bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinaryString &remote)
 {
 	SerializableSet<Address> localAddrs;
 	getAddresses(localAddrs);
@@ -791,7 +867,7 @@ bool Overlay::DatagramBackend::connect(const Set<Address> &addrs)
 			continue;
 		
 		try {
-			if(connect(*it))
+			if(connect(*it, remote))
 				return true;
 		}
 		catch(const NetException &e)
@@ -803,7 +879,7 @@ bool Overlay::DatagramBackend::connect(const Set<Address> &addrs)
 	return false;
 }
 
-bool Overlay::DatagramBackend::connect(const Address &addr)
+bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	DatagramStream *stream = NULL;
 	SecureTransport *transport = NULL;
@@ -820,7 +896,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr)
 		throw;
 	}
 	
-	return process(transport);
+	return handshake(transport, remote);
 }
 
 SecureTransport *Overlay::DatagramBackend::listen(void)
