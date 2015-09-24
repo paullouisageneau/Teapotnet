@@ -335,6 +335,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Path-folding offer
 	case Message::Offer:
 		{
+			message.type = Message::Suggest;	// message modified in place
+			
 			BinaryString distance = message.source ^ localNode();
 			
 			Array<BinaryString> neighbors;
@@ -344,7 +346,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				if(message.source != neighbors[i] 
 					&& (message.source ^ neighbors[i]) <= distance)
 				{
-					route(Message(Message::Suggest, message.source, message.content));
+					message.destination = neighbors[i];
+					route(message);
 				}
 			}
 			
@@ -357,7 +360,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			SerializableSet<Address> addrs;
 			BinarySerializer serializer(&message.content);
 			serializer.read(addrs);
-			connect(addrs);
+			connect(addrs, message.source);
 			break;
 		}
 		
