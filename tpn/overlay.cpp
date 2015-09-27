@@ -297,6 +297,15 @@ bool Overlay::retrieveValue(const BinaryString &key, BinaryString &value)
 
 void Overlay::run(void)
 {
+	SerializableSet<Address> addrs;
+	getAddresses(addrs);<		// TODO: add public addresses discovered by other nodes
+	if(!addrs.empty())
+	{
+		BinaryString content;
+		BinarySerializer(&content).write(addrs);
+		send(Message(Message::Offer, Identifier::Null, content));
+	}
+	
 	if(connectionsCount() < 8)	// TODO
 	{
 		Set<Address> addrs;
@@ -322,7 +331,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	case Message::Ping:
 		{
 			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
-			route(Message(Message::Pong, message.source, message.content));
+			send(Message(Message::Pong, message.source, message.content));
 			break;
 		}
 		
@@ -347,7 +356,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					&& (message.source ^ neighbors[i]) <= distance)
 				{
 					message.destination = neighbors[i];
-					route(message);
+					send(message);
 				}
 			}
 			
