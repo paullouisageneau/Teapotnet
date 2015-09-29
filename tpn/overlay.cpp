@@ -303,7 +303,7 @@ void Overlay::run(void)
 	{
 		BinaryString content;
 		BinarySerializer(&content).write(addrs);
-		send(Message(Message::Offer, Identifier::Null, content));
+		broadcast(Message(Message::Offer, content));
 	}
 	
 	if(connectionsCount() < 8)	// TODO
@@ -331,7 +331,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	case Message::Ping:
 		{
 			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
-			send(Message(Message::Pong, message.source, message.content));
+			send(Message(Message::Pong, message.content, message.source));
 			break;
 		}
 		
@@ -604,7 +604,7 @@ Overlay::Message::Message(void)
 	clear();
 }
 
-Overlay::Message::Message(uint8_t type, const BinaryString &destination, const BinaryString &content)
+Overlay::Message::Message(uint8_t type, const BinaryString &content, const BinaryString &destination)
 {
 	clear();
 	

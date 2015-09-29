@@ -1075,8 +1075,7 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
-	Overlay::Message message(Overlay::Message::Tunnel, mRemote, BinaryString(data, size));
-	Network::Instance->overlay()->send(message);
+	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, BinaryString(data, size), mRemote));
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)

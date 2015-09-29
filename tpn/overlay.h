@@ -63,7 +63,7 @@ public:
 		static const uint8_t Tunnel	= 0x10;
 		
 		Message(void);
-		Message(uint8_t type, const BinaryString &destination = "", const BinaryString &content = "");
+		Message(uint8_t type, const BinaryString &content = "", const BinaryString &destination = "");
 		~Message(void);
 		
 		void clear(void);
