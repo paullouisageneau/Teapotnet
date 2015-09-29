@@ -298,7 +298,7 @@ bool Overlay::retrieveValue(const BinaryString &key, BinaryString &value)
 void Overlay::run(void)
 {
 	SerializableSet<Address> addrs;
-	getAddresses(addrs);		// TODO: add public addresses discovered by other nodes
+	Config::GetExternalAddresses(addrs);	// TODO: add public addresses discovered by other nodes
 	if(!addrs.empty())
 	{
 		BinaryString content;
