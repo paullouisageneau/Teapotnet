@@ -56,10 +56,11 @@ public:
 	struct Message : public Serializable
 	{
 		static const uint8_t Invalid	= 0x00;
-		static const uint8_t Ping	= 0x01;
-		static const uint8_t Pong	= 0x02;
-		static const uint8_t Offer	= 0x03;
-		static const uint8_t Suggest	= 0x04;
+		static const uint8_t Hello	= 0x01;
+		static const uint8_t Ping	= 0x02;
+		static const uint8_t Pong	= 0x03;
+		static const uint8_t Offer	= 0x04;
+		static const uint8_t Suggest	= 0x05;
 		static const uint8_t Tunnel	= 0x10;
 		
 		Message(void);
@@ -97,8 +98,6 @@ public:
 
 	// Addresses
 	void getAddresses(Set<Address> &set) const;
-	void getKnownPublicAdresses(Set<Address> &set) const;
-	bool isPublicConnectable(void) const;
 	
 	// Connections
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
@@ -107,8 +106,6 @@ public:
 	// Message interface
 	bool recv(Message &message);
 	bool send(const Message &message);
-	void registerEndpoint(const BinaryString &id);
-	void unregisterEndpoint(const BinaryString &id);
 
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
@@ -135,11 +132,11 @@ private:
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
-		bool handshake(SecureTransport *transport, const BinaryString &remote = "", bool async = false);
+		bool handshake(SecureTransport *transport, const BinaryString &remote = "");
 		void run(void);
 		
 	private:
-		Overlay *mOverlay;	
+		Overlay *mOverlay;
 		ThreadPool mThreadPool;
 	};
 	
@@ -207,11 +204,7 @@ private:
 
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
-	Set<BinaryString> mEndpoints;
-
-	Time mLastPublicIncomingTime;
-	Map<Address, Time> mKnownPublicAddresses;
-
+	
 	Queue<Message> mIncoming;
 	Synchronizable mIncomingSync;
 

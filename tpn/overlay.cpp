@@ -35,8 +35,7 @@ namespace tpn
 {
 
 Overlay::Overlay(int port) :
-		mThreadPool(4, 16, Config::Get("max_connections").toInt()),
-		mLastPublicIncomingTime(0)
+		mThreadPool(4, 16, Config::Get("max_connections").toInt())
 {
 	// Generate RSA key
 	Random rnd(Random::Key);
@@ -176,17 +175,6 @@ void Overlay::getAddresses(Set<Address> &set) const
 	}
 }
 
-void Overlay::getKnownPublicAdresses(Set<Address> &set) const
-{
-	Synchronize(this);
-	mKnownPublicAddresses.getKeys(set);
-}
-
-bool Overlay::isPublicConnectable(void) const
-{
-	return (Time::Now()-mLastPublicIncomingTime <= 3600.); 
-}
-
 bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
 {
 	class ConnectTask : public Task
@@ -273,18 +261,6 @@ bool Overlay::send(const Message &message)
 	return route(message);
 }
 
-void Overlay::registerEndpoint(const BinaryString &id)
-{
-	Synchronize(this);
-	mEndpoints.insert(id);
-}
-
-void Overlay::unregisterEndpoint(const BinaryString &id)
-{
-	Synchronize(this);
-	mEndpoints.remove(id);
-}
-
 void Overlay::storeValue(const BinaryString &key, const BinaryString &value)
 {
 	// TODO
@@ -328,6 +304,12 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		// Ignored
 		break;
 		
+	case Message::Hello:
+		{
+			// TODO
+			break;
+		}
+
 	case Message::Ping:
 		{
 			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
@@ -657,7 +639,7 @@ Overlay::Backend::~Backend(void)
 	
 }
 
-bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString &remote, bool async)
+bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString &remote)
 {
 	class MyVerifier : public SecureTransport::Verifier
 	{
@@ -672,105 +654,81 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString 
 		}
 	};
 
-	class HandshakeTask : public Task
+	// Add certificate
+	transport->addCredentials(mOverlay->certificate(), false);
+
+	// Set verifier
+	MyVerifier verifier;
+	transport->setVerifier(&verifier);
+	
+	// Do handshake
+	transport->handshake();
+	Assert(transport->hasCertificate());
+	
+	BinaryString identifier = verifier.publicKey.digest();
+	if(remote.empty() || remote == identifier)
 	{
-	public:
-		HandshakeTask(Overlay *overlay, SecureTransport *transport, const BinaryString &remote = "")
-		{
-			this->overlay = overlay; 
-			this->transport = transport;
-			this->remote = remote;
-		}
-		
-		bool handshake(void)
-		{
-			LogDebug("Overlay::Backend::handshake", "HandshakeTask starting...");
-			
-			try {
-				// Set verifier
-				MyVerifier verifier;
-				transport->setVerifier(&verifier);
-				
-				// Do handshake
-				transport->handshake();
-				Assert(transport->hasCertificate());
-				
-				BinaryString identifier = verifier.publicKey.digest();
-				if(!remote.empty() && remote != identifier)
-					throw Exception("Unexpected identifier");
-				
-				// Handshake succeeded
-				LogDebug("Overlay::Backend::handshake", "Success, spawning new handler");
-				Handler *handler = new Handler(overlay, transport, identifier);
-				return true;
-			}
-			catch(const std::exception &e)
-			{
-				LogInfo("Overlay::Backend::handshake", String("Handshake failed: ") + e.what());
-				delete transport;
-				return false;
-			}
-		}
-		
-		void run(void)
-		{
-			handshake();
-			delete this;	// autodelete
-		}
-		
-	private:
-		Overlay *overlay;
-		SecureTransport *transport;
-		BinaryString remote;
-	};
-	
-	HandshakeTask *task = NULL;
-	try {
-		LogDebug("Overlay::Backend::handshake", "Setting certificate");
-	
-		// Add certificate
-		transport->addCredentials(mOverlay->certificate(), false);
-		
-		if(async)
-		{
-			task = new HandshakeTask(mOverlay, transport, remote);
-			mThreadPool.launch(task);
-			return true;
-		}
-		else {
-			HandshakeTask stask(mOverlay, transport, remote);
-			return stask.handshake();
-		}
+		// Handshake succeeded
+		LogDebug("Overlay::Backend::handshake", "Handshake succeeded, spawning new handler");
+		Handler *handler = new Handler(mOverlay, transport, identifier);
+		return true;
 	}
-	catch(const std::exception &e)
-	{
-		LogError("Overlay::Backend::handshake", e.what());
-		delete task;
-		delete transport;
+	else {
+		LogDebug("Overlay::Backend::handshake", "Handshake failed");
 		return false;
 	}
 }
 
 void Overlay::Backend::run(void)
 {
-	try {
-		while(true)
+	class HandshakeTask : public Task
+	{
+	public:
+		HandshakeTask(Backend *backend, SecureTransport *transport)
 		{
-			SecureTransport *transport = listen();
+			this->backend = backend; 
+			this->transport = transport;
+		}
+		
+		void run(void)
+		{
+			try {
+				backend->handshake(transport, "");
+			}
+			catch(const std::exception &e)
+			{
+				LogWarn("Overlay::Backend::HandshakeTask", e.what());
+			}
+	
+			delete this;	// autodelete
+		}
+		
+	private:
+		Backend *backend;
+		SecureTransport *transport;
+	};
+
+	while(true)
+	{
+		SecureTransport *transport = NULL;
+		HandshakeTask *task = NULL;
+		
+		try {
+			transport = listen();
 			if(!transport) break;
 			
 			LogDebug("Overlay::Backend::run", "Incoming connection");
 			
-			// Add server credentials
-			transport->addCredentials(mOverlay->certificate(), false);
-			
-			// No remote node specified, accept any node
-			handshake(transport, "", true);	// async
+			task = new HandshakeTask(this, transport);
+			mThreadPool.launch(task);
 		}
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Overlay::Backend::run", e.what());
+		catch(const std::exception &e)
+		{
+			LogError("Overlay::Backend::run", e.what());
+			delete transport;
+			delete task;
+			break;
+		}
 	}
 	
 	LogWarn("Overlay::Backend::run", "Closing backend");
