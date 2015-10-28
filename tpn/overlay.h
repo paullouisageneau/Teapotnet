@@ -86,6 +86,9 @@ public:
 	Overlay(int port);
 	~Overlay(void);
 	
+	void load(void);
+	void save(void) const;
+	
 	void start(void);
 	void join(void);
 	
@@ -112,6 +115,10 @@ public:
 	bool retrieveValue(const BinaryString &key, BinaryString &value);
 	
 	void run(void);
+	
+	void serialize(Serializer &s) const;
+	bool deserialize(Serializer &s);
+	bool isInlineSerializable(void) const;
 	
 private:
 	// Routing

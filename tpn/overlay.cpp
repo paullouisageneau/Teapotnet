@@ -99,6 +99,27 @@ Overlay::~Overlay(void)
 	delete mCertificate;
 }
 
+void Overlay::load()
+{
+	Synchronize(this);
+	
+	/*if(!File::Exist(mFileName)) return;
+	File file(mFileName, File::Read);
+	JsonSerializer serializer(&file);
+	serializer.read(*this);
+	file.close();*/
+}
+
+void Overlay::save() const
+{
+	Synchronize(this);
+	
+	/*SafeWriteFile file(mFileName);
+	JsonSerializer serializer(&file);
+	serializer.write(*this);
+	file.close();*/ 
+}
+
 void Overlay::start(void)
 {
 	// Start backends
@@ -579,6 +600,43 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 	}
 	
 	return false;
+}
+
+
+void Overlay::serialize(Serializer &s) const
+{
+	Synchronize(this);
+
+	Serializer::ConstObject object;
+	object["name"] = &mName;
+	object["publickey"] = &mPublicKey;
+	object["privatekey"] = &mPrivateKey;
+	s.outputObject(object);
+}
+
+bool Overlay::deserialize(Serializer &s)
+{
+	Synchronize(this);
+	
+	mName.clear();
+	mPublicKey.clear();
+	mPrivateKey.clear();
+	
+	Serializer::Object object;
+	object["name"] = &mName;
+	object["publickey"] = &mPublicKey;
+	object["privatekey"] = &mPrivateKey;
+	
+	if(!s.inputObject(object))
+		return false;
+	
+	// TODO: Sanitize
+	return true;
+}
+
+bool Overlay::isInlineSerializable(void) const
+{
+        return false;
 }
 
 Overlay::Message::Message(void)
