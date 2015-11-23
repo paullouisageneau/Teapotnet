@@ -56,7 +56,7 @@ public:
 	struct Message : public Serializable
 	{
 		static const uint8_t Invalid	= 0x00;
-		static const uint8_t Hello	= 0x01;
+		static const uint8_t Noop	= 0x01;
 		static const uint8_t Ping	= 0x02;
 		static const uint8_t Pong	= 0x03;
 		static const uint8_t Offer	= 0x04;

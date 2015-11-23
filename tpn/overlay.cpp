@@ -274,7 +274,7 @@ bool Overlay::retrieveValue(const BinaryString &key, BinaryString &value)
 void Overlay::run(void)
 {
 	SerializableSet<Address> addrs;
-	Config::GetExternalAddresses(addrs);	// TODO: add public addresses discovered by other nodes
+	Config::GetExternalAddresses(addrs);	// TODO: external address discovery by other nodes
 	if(!addrs.empty())
 	{
 		BinaryString content;
@@ -304,9 +304,9 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		// Ignored
 		break;
 		
-	case Message::Hello:
+	case Message::Noop:
 		{
-			// TODO
+			// Nothing to do
 			break;
 		}
 
@@ -604,7 +604,7 @@ void Overlay::Message::clear(void)
 {
 	version = 0;
 	flags = 0x00;
-	ttl = 10;	// TODO
+	ttl = 128;	// TODO
 	type = Message::Invalid;
 
 	source.clear();
