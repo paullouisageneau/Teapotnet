@@ -108,9 +108,9 @@ void Cache::storeValue(const String &key, const BinaryString &value)
 	file.close();
 }
 
-bool Cache::retrieveValue(const String &key, BinaryString &value)
+bool Cache::retrieveValue(const String &key, Set<BinaryString> &values)
 {
-	value.clear();
+	values.clear();
 	
 	String tmp(key);
 	BinaryString digest;
@@ -120,9 +120,12 @@ bool Cache::retrieveValue(const String &key, BinaryString &value)
 	if(!File::Exist(filename))
 		return false;
 	
+	BinaryString value;
 	File file(filename, File::Read);
 	file.readBinary(value);
 	file.close();
+	
+	values.insert(value);
 	return true;
 }
 

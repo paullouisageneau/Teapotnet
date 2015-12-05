@@ -28,6 +28,7 @@
 #include "pla/synchronizable.h"
 #include "pla/string.h"
 #include "pla/binarystring.h"
+#include "pla/set.h"
 
 namespace tpn
 {
@@ -48,7 +49,7 @@ public:
 	// TODO: cleaning
 	
 	void storeValue(const String &key, const BinaryString &value);
-	bool retrieveValue(const String &key, BinaryString &value); 
+	bool retrieveValue(const String &key, Set<BinaryString> &values); 
 	
 private:
 	String mDirectory;

@@ -23,6 +23,7 @@
 #include "tpn/httptunnel.h"
 #include "tpn/portmapping.h"
 #include "tpn/config.h"
+#include "tpn/cache.h"
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
@@ -37,11 +38,17 @@ namespace tpn
 Overlay::Overlay(int port) :
 		mThreadPool(4, 16, Config::Get("max_connections").toInt())
 {
-	// Generate RSA key
-	Random rnd(Random::Key);
-	Rsa rsa(4096);
-	rsa.generate(mPublicKey, mPrivateKey);
-
+	mFileName = "keys";
+	load();
+	
+	// Generate RSA key if necessary
+	if(mPublicKey.isNull())
+	{
+		Random rnd(Random::Key);
+		Rsa rsa(4096);
+		rsa.generate(mPublicKey, mPrivateKey);
+	}
+	
 	// Create certificate
 	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, localNode().toString());
 	
@@ -81,6 +88,7 @@ Overlay::Overlay(int port) :
 	}
 	
 	LogInfo("Overlay", "Instance name is \"" + localName() + "\", node is " + localNode().toString());
+	save();
 }
 
 Overlay::~Overlay(void)
@@ -103,21 +111,21 @@ void Overlay::load()
 {
 	Synchronize(this);
 	
-	/*if(!File::Exist(mFileName)) return;
+	if(!File::Exist(mFileName)) return;
 	File file(mFileName, File::Read);
 	JsonSerializer serializer(&file);
 	serializer.read(*this);
-	file.close();*/
+	file.close();
 }
 
 void Overlay::save() const
 {
 	Synchronize(this);
 	
-	/*SafeWriteFile file(mFileName);
+	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
 	serializer.write(*this);
-	file.close();*/ 
+	file.close();
 }
 
 void Overlay::start(void)
@@ -284,12 +292,39 @@ bool Overlay::send(const Message &message)
 
 void Overlay::storeValue(const BinaryString &key, const BinaryString &value)
 {
-	// TODO
+	Cache::Instance->storeValue(key, value);
+
+	BinaryString distance = key ^ localNode();
+	Array<BinaryString> neighbors;
+	mHandlers.getKeys(neighbors);
+	for(int i=0; i<neighbors.size(); ++i)
+		if((key ^ neighbors[i]) < distance)
+			sendTo(Message(Message::Store, key + value), neighbors[i]);
 }
 
-bool Overlay::retrieveValue(const BinaryString &key, BinaryString &value)
+bool Overlay::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
-	// TODO
+	Synchronize(&mRetrieveSync);
+	
+	bool sent = false;
+	BinaryString route = getRoute(key);
+	if(route != localNode() && !mRetrievePending.contains(key))
+	{
+		mRetrievePending.insert(key);
+		sent = sendTo(Message(Message::Retrieve, "", key), route);
+	}
+	
+	if(sent)
+	{
+		double timeout = milliseconds(Config::Get("request_timeout").toInt());
+		while(mRetrieveSync.wait(timeout))
+			if(!mRetrievePending.contains(key))
+				break;
+	}
+	
+	mRetrievePending.erase(key);
+	Cache::Instance->retrieveValue(key, values);
+	return !values.empty();
 }
 
 void Overlay::run(void)
@@ -315,32 +350,16 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 
-	if(message.destination != localNode())
+	// Route if necessary
+	if((message.type & 0x80) && message.destination != localNode())
 		return route(message, from);
 
 	// Message is for us
 	switch(message.type)
 	{
-	case Message::Invalid:
-		// Ignored
-		break;
-		
-	case Message::Noop:
+	case Message::Dummy:
 		{
 			// Nothing to do
-			break;
-		}
-
-	case Message::Ping:
-		{
-			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
-			send(Message(Message::Pong, message.content, message.source));
-			break;
-		}
-		
-	case Message::Pong:
-		{
-			LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
 			break;
 		}
 		
@@ -349,8 +368,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			message.type = Message::Suggest;	// message modified in place
 			
-			BinaryString distance = message.source ^ localNode();
-			
+			BinaryString distance = message.source ^ localNode();			
 			Array<BinaryString> neighbors;
 			mHandlers.getKeys(neighbors);
 			for(int i=0; i<neighbors.size(); ++i)
@@ -375,7 +393,64 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			connect(addrs, message.source);
 			break;
 		}
+
+	// Store value in DHT
+	case Message::Store:
+		{
+			storeValue(message.destination, message.content);
+			BinaryString route = getRoute(message.destination);
+			if(route != localNode()) sendTo(message, route);
+			break;
+		}
+
+	// Retrieve value from DHT
+	case Message::Retrieve:
+		{
+			BinaryString route = getRoute(message.destination);
+			if(route != localNode()) sendTo(message, route);
+			else {
+				Set<BinaryString> values;
+				Cache::Instance->retrieveValue(message.destination, values);
+				for(Set<BinaryString>::iterator it = values.begin();
+					it != values.end();
+					++it)
+				{
+					this->route(Message(Message::Response, *it, message.source, message.destination));
+				}
+			}
+			break;
+		}
+	
+	// Response to retrieve from DHT
+	case Message::Response:
+		{
+			storeValue(message.source, message.content);
+			route(message);
+			
+			Synchronize(&mRetrieveSync);
+			if(mRetrievePending.contains(message.content))
+			{
+				mRetrievePending.erase(message.content);
+				mRetrieveSync.notifyAll();
+			}
+			break;
+		}
 		
+	// Ping
+	case Message::Ping:
+		{
+			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
+			send(Message(Message::Pong, message.content, message.source));
+			break;
+		}
+	
+	// Pong
+	case Message::Pong:
+		{
+			LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
+			break;
+		}
+
 	default:
 		{
 			Synchronize(&mIncomingSync);
@@ -397,52 +472,45 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	
 	// Drop if not connected
 	if(mHandlers.empty()) return false;
-
-	// Special case: only one route
-	if(mHandlers.size() == 1)
-		return sendTo(message, mHandlers.begin()->first);
 	
-	// Special case: neighbour
-	if(mHandlers.contains(message.destination))
-		return sendTo(message, message.destination);
-		
+	// Drop if self
+	if(message.destination == localNode()) return false;
+	
+	// Best guess for source
+	if(!from.empty() && !mRoutes.contains(message.source))
+		mRoutes.insert(message.source, from);
+	
 	// Get route
 	BinaryString route;
-	if(mRoutes.get(message.destination, route))
+	mRoutes.get(message.destination, route);
+	
+	// If no route or dead end
+	if(route.empty() || route == from)
 	{
-		// If message encountered a dead end
-		if(route == from)
+		Array<BinaryString> routes;
+		getRoutes(message.destination, 0, routes);
+		
+		int index = 0;
+		if(route.empty())
 		{
-			Array<BinaryString> neighbors;
-			mHandlers.getKeys(neighbors);
-			
-			BinaryString min;
-			for(int i=0; i<neighbors.size(); ++i)
-			{
-					BinaryString distance = message.destination ^ neighbors[i];
-					if(min.empty() || distance < min)
-					{
-						route = neighbors[i];
-						min = distance;    
-					}
-			}
-			
-			if(min.empty())
-			{
-				mRoutes.erase(message.destination);
-				return false;
-			}
-			
-			mRoutes.insert(message.destination, route);
+			while(index < routes.size() && routes[index] == from)
+				++index;
+		}
+		else {	// route == from
+			while(index < routes.size() && routes[index] != from)
+				++index;
+			if(index < routes.size())
+				++index;
 		}
 		
-		// Best guess for source
-		if(!mRoutes.contains(message.source))
-			mRoutes.insert(message.source, from);
-	}
-	else {
+		if(index == routes.size())
+		{
+			mRoutes.erase(message.destination);
+			return false;
+		}
+		
+		route = routes[index];
 		mRoutes.insert(message.destination, route);
-		mRoutes.insert(message.source, from);
 	}
 	
 	return sendTo(message, route);
@@ -490,6 +558,33 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 	}
 	
 	return false;
+}
+
+BinaryString Overlay::getRoute(const BinaryString &destination, const BinaryString &from)
+{
+	Synchronize(this);
+	
+	Array<BinaryString> routes;
+	getRoutes(destination, 1, routes);
+	if(!routes.empty()) return routes[0];
+	else return localNode();
+}
+
+int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result)
+{
+	Synchronize(this);
+	
+	Map<BinaryString, BinaryString> sorted;
+	sorted.insert(destination ^ localNode(), localNode());
+	
+	Array<BinaryString> neighbors;
+	mHandlers.getKeys(neighbors);
+	for(int i=0; i<neighbors.size(); ++i)
+		sorted.insert(destination ^ neighbors[i], neighbors[i]);
+	
+	if(count > 0 && sorted.size() > count) sorted.erase(--sorted.end());
+	sorted.getValues(result);
+	return result.size();
 }
 
 bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handler)
@@ -608,7 +703,6 @@ void Overlay::serialize(Serializer &s) const
 	Synchronize(this);
 
 	Serializer::ConstObject object;
-	object["name"] = &mName;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	s.outputObject(object);
@@ -618,12 +712,10 @@ bool Overlay::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	mName.clear();
 	mPublicKey.clear();
 	mPrivateKey.clear();
 	
 	Serializer::Object object;
-	object["name"] = &mName;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	
@@ -644,11 +736,12 @@ Overlay::Message::Message(void)
 	clear();
 }
 
-Overlay::Message::Message(uint8_t type, const BinaryString &content, const BinaryString &destination)
+Overlay::Message::Message(uint8_t type, const BinaryString &content, const BinaryString &destination, const BinaryString &source)
 {
 	clear();
 	
 	this->type = type;
+	this->source = source;
 	this->destination = destination;
 	this->content = content;
 }
@@ -663,7 +756,7 @@ void Overlay::Message::clear(void)
 	version = 0;
 	flags = 0x00;
 	ttl = 128;	// TODO
-	type = Message::Invalid;
+	type = Message::Dummy;
 
 	source.clear();
 	destination.clear();

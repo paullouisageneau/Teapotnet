@@ -43,12 +43,16 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	
 	String prefix = "/mail" + mName;
 	
-	BinaryString digest;
-	Cache::Instance->retrieveValue(prefix, digest);
+	Set<BinaryString> digests;
+	Cache::Instance->retrieveValue(prefix, digests);
 	
-	if(!digest.empty())
-		if(fetch(Identifier::Empty, prefix, "/", digest))
-			incoming(Identifier::Empty, prefix, "/", digest);
+	for(Set<BinaryString>::iterator it = digests.begin();
+		it != digests.end();
+		++it)
+	{
+		if(fetch(Identifier::Empty, prefix, "/", *it))
+			incoming(Identifier::Empty, prefix, "/", *it);
+	}
 	
 	publish(prefix);
 	subscribe(prefix);

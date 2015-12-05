@@ -157,7 +157,7 @@ User::User(const String &name, const String &password) :
 	}
 	
 	// User config file
-	mFileName = profilePath() + "user";
+	mFileName = profilePath() + "keys";
 	
 	// Load if config file exist
 	load();

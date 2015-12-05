@@ -408,8 +408,8 @@ int run(StringMap &args)
 	Config::Default("external_port", "auto");
 	Config::Default("port_object_enabled", "true");
 	Config::Default("http_timeout", "5000");
-	Config::Default("request_timeout", "5000");
-	Config::Default("tpot_timeout", "5000");
+	Config::Default("request_timeout", "10000");
+	Config::Default("tpot_timeout", "10000");
 	Config::Default("user_global_shares", "true");
 	Config::Default("http_proxy", "auto");
 	Config::Default("prefetch_delay", "300000");
@@ -726,17 +726,17 @@ int run(StringMap &args)
 		Config::Save(configFileName);
 	}
 	
-	// Starting port object
+	// Starting port mapping
 	PortMapping::Instance = new PortMapping;
 	PortMapping::Instance->add(PortMapping::TCP, port, port);
 	
 	if(Config::Get("port_object_enabled").toBool())
 	{
-		LogInfo("main", "NAT port object is enabled");
+		LogInfo("main", "NAT port mapping is enabled");
 		PortMapping::Instance->enable();
 	}
 	else {
-		LogInfo("main", "NAT port object is disabled");
+		LogInfo("main", "NAT port mapping is disabled");
 	}
 	
 	try {

@@ -43,6 +43,7 @@
 #include "pla/runner.h"
 #include "pla/synchronizable.h"
 #include "pla/map.h"
+#include "pla/set.h"
 #include "pla/array.h"
 #include "pla/http.h"
 
@@ -50,21 +51,29 @@ namespace tpn
 {
 
 // Overlay network implementation
-class Overlay : protected Synchronizable, public Task
+class Overlay : protected Synchronizable, public Serializable, public Task
 {
 public:
 	struct Message : public Serializable
 	{
-		static const uint8_t Invalid	= 0x00;
-		static const uint8_t Noop	= 0x01;
-		static const uint8_t Ping	= 0x02;
-		static const uint8_t Pong	= 0x03;
-		static const uint8_t Offer	= 0x04;
-		static const uint8_t Suggest	= 0x05;
-		static const uint8_t Tunnel	= 0x10;
+		// Non-routable messages
+		static const uint8_t Dummy	= 0x00;
+		static const uint8_t Offer	= 0x01;
+		static const uint8_t Suggest	= 0x02;
+		static const uint8_t Store      = 0x03;
+		static const uint8_t Retrieve   = 0x04;
+		static const uint8_t Response	= 0x05;
+		
+		// Routable messages
+		static const uint8_t Tunnel	= 0x80|0x00;
+		static const uint8_t Ping	= 0x80|0x01;
+		static const uint8_t Pong	= 0x80|0x02;
 		
 		Message(void);
-		Message(uint8_t type, const BinaryString &content = "", const BinaryString &destination = "");
+		Message(uint8_t type, 
+			const BinaryString &content = "", 
+			const BinaryString &destination = "",
+			const BinaryString &source = "");
 		~Message(void);
 		
 		void clear(void);
@@ -112,7 +121,7 @@ public:
 
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
-	bool retrieveValue(const BinaryString &key, BinaryString &value);
+	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
 	void run(void);
 	
@@ -126,6 +135,8 @@ private:
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
 	bool sendTo(const Message &message, const BinaryString &to);
+	BinaryString getRoute(const BinaryString &destination, const BinaryString &from = "");
+	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	
 	class Backend : public Thread
 	{
@@ -205,6 +216,7 @@ private:
 	ThreadPool mThreadPool;
 	
 	String mName;
+	String mFileName;
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
 	SecureTransport::Certificate *mCertificate;
@@ -216,6 +228,9 @@ private:
 	Synchronizable mIncomingSync;
 
 	Map<BinaryString, BinaryString> mRoutes;
+	
+	Synchronizable mRetrieveSync;
+	Set<BinaryString> mRetrievePending;
 };
 
 }
