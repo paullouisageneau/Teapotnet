@@ -273,16 +273,30 @@ int Overlay::connectionsCount(void) const
 	return mHandlers.size();
 }
 
-bool Overlay::recv(Message &message)
+bool Overlay::recv(Message &message, double &timeout)
 {
 	Synchronize(&mIncomingSync);
 
-	while(mIncoming.empty())
-		mIncomingSync.wait();
-
+	if(timeout >= 0.)
+	{
+		while(mIncoming.empty())
+			mIncomingSync.wait();
+	}
+	else {
+		while(mIncoming.empty())
+			if(!mIncomingSync.wait(timeout))
+				return false;
+	}
+	
 	message = mIncoming.front();
 	mIncoming.pop();
 	return true;
+}
+
+bool Overlay::recv(Message &message, const double &timeout)
+{
+	double tmp = timeout;
+	return recv(message, tmp);
 }
 
 bool Overlay::send(const Message &message)
@@ -290,19 +304,18 @@ bool Overlay::send(const Message &message)
 	return route(message);
 }
 
-void Overlay::storeValue(const BinaryString &key, const BinaryString &value)
+void Overlay::store(const BinaryString &key, const BinaryString &value)
 {
 	Cache::Instance->storeValue(key, value);
 
-	BinaryString distance = key ^ localNode();
-	Array<BinaryString> neighbors;
-	mHandlers.getKeys(neighbors);
-	for(int i=0; i<neighbors.size(); ++i)
-		if((key ^ neighbors[i]) < distance)
-			sendTo(Message(Message::Store, key + value), neighbors[i]);
+	Message message(Message::Store, value, key);
+	Array<BinaryString> routes;
+	getRoutes(key, 0, routes);
+	for(int i=0; i<routes.size(); ++i)
+		sendTo(message, routes[i]);
 }
 
-bool Overlay::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
+bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
 	Synchronize(&mRetrieveSync);
 	
@@ -352,7 +365,10 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 
 	// Route if necessary
 	if((message.type & 0x80) && message.destination != localNode())
-		return route(message, from);
+	{
+		route(message, from);
+		return false;
+	}
 
 	// Message is for us
 	switch(message.type)
@@ -394,15 +410,6 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			break;
 		}
 
-	// Store value in DHT
-	case Message::Store:
-		{
-			storeValue(message.destination, message.content);
-			BinaryString route = getRoute(message.destination);
-			if(route != localNode()) sendTo(message, route);
-			break;
-		}
-
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
@@ -415,16 +422,35 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					it != values.end();
 					++it)
 				{
-					this->route(Message(Message::Response, *it, message.source, message.destination));
+					this->route(Message(Message::Value, *it, message.source, message.destination));
 				}
 			}
+			
+			//push(message);	// useless
+			break;
+		}
+		
+	// Store value in DHT
+	case Message::Store:
+		{
+			store(message.destination, message.content);	// routing is done in storeValue()
+			
+			Synchronize(&mRetrieveSync);
+			if(mRetrievePending.contains(message.content))
+			{
+				mRetrievePending.erase(message.content);
+				mRetrieveSync.notifyAll();
+			}
+			
+			//push(message);	// useless
 			break;
 		}
 	
 	// Response to retrieve from DHT
-	case Message::Response:
+	case Message::Value:
 		{
-			storeValue(message.source, message.content);
+			// Value messages differ from Store messages because key is in the source field
+			store(message.source, message.content);
 			route(message);
 			
 			Synchronize(&mRetrieveSync);
@@ -433,9 +459,11 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				mRetrievePending.erase(message.content);
 				mRetrieveSync.notifyAll();
 			}
+			
+			push(message);
 			break;
 		}
-		
+	
 	// Ping
 	case Message::Ping:
 		{
@@ -451,15 +479,30 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			break;
 		}
 
+	// Higher-level messages are pushed to queue
+	case Message::Call:
+	case Message::Data:
+	case Message::Tunnel:
+		{
+			push(message);
+			break;
+		}
+		
 	default:
 		{
-			Synchronize(&mIncomingSync);
-			mIncoming.push(message);
-			mIncomingSync.notifyAll();
+			LogDebug("Overlay::incoming", "Unknown message type: " + String::number(message.type));
 			return false;
 		}
 	}
+	
+	return true;
+}
 
+bool Overlay::push(Message &message)
+{
+	Synchronize(&mIncomingSync);
+	mIncoming.push(message);
+	mIncomingSync.notifyAll();
 	return true;
 }
 
@@ -582,8 +625,12 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
 	
-	if(count > 0 && sorted.size() > count) sorted.erase(--sorted.end());
 	sorted.getValues(result);
+	if(count > 0 && result.size() > count) result.resize(count);
+	for(int i=0; i<result.size(); ++i)
+		if(result[i] == localNode())
+			result.resize(i+1);
+	
 	return result.size();
 }
 

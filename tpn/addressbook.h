@@ -71,7 +71,7 @@ public:
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 	
-	class Contact : public Task, public Serializable, public Network::Listener, public HttpInterfaceable
+	class Contact : public Serializable, public Network::Listener, public HttpInterfaceable
 	{
 	public:
 		Contact(void);
@@ -104,10 +104,10 @@ public:
 		bool send(const Mail &mail);
 		
 		// Network::Listener
-		void seen(const Identifier &peer);
-		void connected(const Identifier &peer);
-		bool recv(const Identifier &peer, const Notification &notification);
-		bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey);
+		void seen(const Identifier &local, const Identifier &remote, const BinaryString &instance);
+		void connected(const Identifier &local, const Identifier &remote);
+		bool recv(const Identifier &local, const Identifier &remote, const Notification &notification);
+		bool auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey);
 		
 		// HttpInterfaceable
 		void http(const String &prefix, Http::Request &request);

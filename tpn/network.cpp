@@ -21,9 +21,9 @@
 
 #include "tpn/network.h"
 #include "tpn/user.h"
-#include "tpn/store.h"
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
+#include "tpn/store.h"
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
@@ -67,18 +67,17 @@ Overlay *Network::overlay(void)
 	return &mOverlay;
 }
 
+void Network::connect(const BinaryString &node, const Identifier &remote, User *user)
+{
+	if(!hasHandler(user->identifier(), remote))
+		mTunneler.open(node, remote, user, true);	// async
+}
+
 void Network::registerCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
+	
 	mCallers[target].insert(caller);
-	
-	LogDebug("Network::registerCaller", "Calling " + target.toString());
-	
-	StringMap content;
-	content["target"] = target.toString();
-	outgoing("call", content);
-	
-	// TODO: beacons
 }
 
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
@@ -100,50 +99,25 @@ void Network::unregisterAllCallers(const BinaryString &target)
 	mCallers.erase(target);
 }
 
-void Network::registerListener(const Identifier &id, Listener *listener)
+void Network::registerListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
 	Synchronize(this);
-	mListeners[id].insert(listener);
+	mListeners[IdentifierPair(remote, local)].insert(listener);
 	
-	//LogDebug("Network::registerListener", "Registered listener: " + id.toString());
-	
-	// TODO: tunnels
-	
-	/*List<Identifier> connectedIdentifiers;
-	Map<Address, Handler*>::iterator it = mHandlers.find(id);
-	while(it != mHandlers.end() && it->first == id)
-	{
-		connectedIdentifiers.push_back(it->first);
-		++it;
-	}
-	
-	if(!connectedIdentifiers.empty())
-	{
-		Desynchronize(this);
-		for(List<Identifier>::iterator it = connectedIdentifiers.begin();
-			it != connectedIdentifiers.end();
-			++it)
-		{
-			listener->connected(*it); 
-		}
-	}*/
+	if(hasHandler(local, remote))
+		listener->connected(local, remote);
 }
 
-void Network::unregisterListener(const Identifier &id, Listener *listener)
+void Network::unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
 	Synchronize(this);
 	
-	Map<Identifier, Set<Listener*> >::iterator it = mListeners.find(id);
-	while(it != mListeners.end() && it->first == id)
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
+	if(it != mListeners.end())
 	{
 		it->second.erase(listener);
-		//if(it->second.erase(listener))
-		//	LogDebug("Network::unregisterListener", "Unregistered listener: " + id.toString());
-		
 		if(it->second.empty())   
 			mListeners.erase(it);
-			
-		++it;
 	}
 }
 
@@ -250,6 +224,16 @@ bool Network::send(const Identifier &local, const Identifier &remote, const Noti
 	return outgoing(local, remote, "notif", notification);
 }
 
+void Network::storeValue(const BinaryString &key, const BinaryString &value)
+{
+	mOverlay.store(key, value);
+}
+
+bool Network::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
+{
+	return mOverlay.retrieve(key, values);
+}
+
 bool Network::addHandler(Stream *stream, const Identifier &local, const Identifier &remote)
 {
 	// Not synchronized
@@ -269,24 +253,104 @@ bool Network::hasHandler(const Identifier &local, const Identifier &remote)
 
 void Network::run(void)
 {
-	try {
-		Overlay::Message message;
-		while(mOverlay.recv(message))
-		{
-			switch(message.type)
+	unsigned loops = 0;
+	while(true)
+	{
+		try {
+			double timeout = 1.;	// TODO
+			
+			// Receive messages
+			Overlay::Message message;
+			while(mOverlay.recv(message, timeout))
 			{
-			case Overlay::Message::Tunnel:
-				mTunneler.incoming(message);
-				break;
+				switch(message.type)
+				{
+				// Value
+				case Overlay::Message::Value:
+					{
+						Synchronize(this);
+						
+						if(mCallers.contains(message.source))
+							mOverlay.send(Overlay::Message(Overlay::Message::Call, message.source, message.content));	// TODO: tokens
+						
+						Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
+						while(it != mListeners.end() && it->first.first == message.source)
+						{
+							for(Set<Listener*>::iterator jt = it->second.begin();
+								jt != it->second.end();
+								++jt)
+							{
+								(*jt)->seen(it->first.second, it->first.first, message.content);
+							}
+							++it;
+						}
+						
+						break;
+					}
+					
+				// Call
+				case Overlay::Message::Call:
+					{
+						Fountain::Combination combination;
+						Store::Instance->pull(message.source, combination);
+						
+						Overlay::Message data(Overlay::Message::Data, "", message.source);
+						BinarySerializer serializer(&data.content);
+						serializer.write(combination);
+						
+						mOverlay.send(data);
+						break;
+					}
+					
+				// Data
+				case Overlay::Message::Data:
+					{
+						BinarySerializer serializer(&message.content);
+						Fountain::Combination combination;
+						serializer.read(combination);
+						Store::Instance->push(message.source, combination);
+						break;
+					}
+					
+				// Tunnel
+				case Overlay::Message::Tunnel:
+					{
+						mTunneler.incoming(message);
+						break;
+					}
+				}
+			}
+			
+			// Send beacons
+			{
+				Synchronize(this);
 				
-			default:
-				LogDebug("Network::run", "Unknown message type: " + String::number(message.type));
+				for(Map<BinaryString, Set<Caller*> >::iterator it = mCallers.begin();
+					it != mCallers.end();
+					++it)
+				{
+					Desynchronize(this);
+					mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", it->first));
+				}
+				
+				if(loops % 10 == 0)
+				{
+					for(Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.begin();
+						it != mListeners.end();
+						++it)
+					{
+						Desynchronize(this);
+						mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", it->first.first));	// remote
+					}
+				}
 			}
 		}
-	}
-	catch(const std::exception &e)
-	{
-		LogWarn("Network::run", e.what());
+		catch(const std::exception &e)
+		{
+			LogWarn("Network::run", e.what());
+		}
+		
+		++loops;
 	}
 }
 
@@ -498,6 +562,57 @@ bool Network::matchSubscribers(const String &path, const Identifier &source, Pub
 	}
 	
 	return true;
+}
+
+void Network::onConnected(const Identifier &local, const Identifier &remote)
+{
+	Synchronize(this);
+	
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(local, remote));
+	if(it != mListeners.end())
+	{
+		for(Set<Listener*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			(*jt)->connected(local, remote); 
+		}
+	}
+}
+
+void Network::onRecv(const Identifier &local, const Identifier &remote, const Notification &notification)
+{
+	Synchronize(this);
+	
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(local, remote));
+	if(it != mListeners.end())
+	{
+		for(Set<Listener*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			(*jt)->recv(local, remote, notification); 
+		}
+	}
+}
+
+bool Network::onAuth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey)
+{
+	Synchronize(this);
+	
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(local, remote));
+	if(it != mListeners.end())
+	{
+		for(Set<Listener*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			if((*jt)->auth(local, remote, pubKey))
+				return true;
+		}
+	}
+	
+	return false;
 }
 
 Network::Publisher::Publisher(const Identifier &peer) :
@@ -737,18 +852,18 @@ Network::Listener::Listener(void)
 
 Network::Listener::~Listener(void)
 {
-	for(Set<Identifier>::iterator it = mPeers.begin();
-		it != mPeers.end();
+	for(Set<IdentifierPair>::iterator it = mPairs.begin();
+		it != mPairs.end();
 		++it)
 	{
-		Network::Instance->unregisterListener(*it, this);
+		Network::Instance->unregisterListener(it->first, it->second, this);
 	}
 }
 
-void Network::Listener::listen(const Identifier &peer)
+void Network::Listener::listen(const Identifier &local, const Identifier &remote)
 {
-	mPeers.insert(peer);
-	Network::Instance->registerListener(peer, this);
+	mPairs.insert(IdentifierPair(remote, local));
+	Network::Instance->registerListener(local, remote, this);
 }
 
 Network::Tunneler::Tunneler(void)
@@ -761,7 +876,7 @@ Network::Tunneler::~Tunneler(void)
 	
 }
 
-bool Network::Tunneler::open(const BinaryString &remote, User *user)
+bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
 	Assert(user);
 	
@@ -771,7 +886,7 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 	if(Network::Instance->overlay()->connectionsCount() == 0)
 		return false;
 	
-	LogDebug("Network::Tunneler::open", "Trying tunnel for " + remote.toString());
+	LogDebug("Network::Tunneler::open", "Trying tunnel for " + remote.toString() + " on " + node.toString());
 	
 	uint64_t tunnelId;
 	Random().read(tunnelId);	// Generate random tunnel ID
@@ -780,7 +895,7 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
 	try {
-		tunnel = new Tunneler::Tunnel(this, tunnelId, remote);
+		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 		transport = new SecureTransportClient(tunnel, NULL);
 	}
 	catch(...)
@@ -798,7 +913,7 @@ bool Network::Tunneler::open(const BinaryString &remote, User *user)
 	transport->addCredentials(user->localCertificate(), false);
 	transport->addCredentials(user->masterCertificate(), false);
 	
-	return handshake(transport, local, remote, false);	// sync
+	return handshake(transport, local, remote, async);
 }
 
 SecureTransport *Network::Tunneler::listen(void)
@@ -914,22 +1029,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			remote = Identifier(publicKey.digest());
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
-			
-			// TODO: function in Network
-			Synchronize(Network::Instance);
-			Map<Identifier, Set<Listener*> >::iterator it = Network::Instance->mListeners.find(remote);
-			while(it != Network::Instance->mListeners.end() && it->first == remote)
-			{
-				for(Set<Listener*>::iterator jt = it->second.begin();
-					jt != it->second.end();
-					++jt)
-				{
-					if((*jt)->auth(remote, publicKey))
-						return true;
-				}
-				
-				++it;
-			}
+			if(Network::Instance->onAuth(local, remote, publicKey))
+				return true;
 			
 			LogDebug("Network::Tunneler::handshake", "Certificate verification failed");
 			return false;
@@ -1033,10 +1134,10 @@ void Network::Tunneler::run(void)
 	LogWarn("Network::Backend::run", "Closing tunneler");
 }
 
-Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &remote) :
+Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node) :
 	mTunneler(tunneler),
 	mId(id),
-	mRemote(remote),
+	mNode(node),
 	mTimeout(DefaultTimeout)
 {
 	mTunneler->registerTunnel(this);
@@ -1075,7 +1176,7 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
-	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, BinaryString(data, size), mRemote));
+	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, BinaryString(data, size), mNode));
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)
@@ -1188,23 +1289,10 @@ bool Network::Handler::readString(String &str)
 
 void Network::Handler::process(void)
 {
+	Network::Instance->onConnected(mLocal, mRemote);
+	
 	Synchronize(this);
-/*
-	// TODO: correct sync
-	Map<Identifier, Set<Listener*> >::iterator it = mNetwork->mListeners.find(mRemote);
-	while(it != mNetwork->mListeners.end() && it->first == mRemote)
-	{
-		for(Set<Listener*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
-		{
-			(*jt)->connected(mRemote); 
-		}
-		
-		++it;
-	}
-*/	
-
+	
 	String type, content;
 	while(read(type, content))
 	{

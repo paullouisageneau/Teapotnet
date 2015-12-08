@@ -60,14 +60,16 @@ public:
 		static const uint8_t Dummy	= 0x00;
 		static const uint8_t Offer	= 0x01;
 		static const uint8_t Suggest	= 0x02;
-		static const uint8_t Store      = 0x03;
-		static const uint8_t Retrieve   = 0x04;
-		static const uint8_t Response	= 0x05;
+		static const uint8_t Retrieve   = 0x03;
+		static const uint8_t Store	= 0x04;
+		static const uint8_t Value	= 0x05;
 		
 		// Routable messages
-		static const uint8_t Tunnel	= 0x80|0x00;
-		static const uint8_t Ping	= 0x80|0x01;
-		static const uint8_t Pong	= 0x80|0x02;
+		static const uint8_t Call	= 0x80|0x01;
+		static const uint8_t Data	= 0x80|0x02;
+		static const uint8_t Tunnel	= 0x80|0x03;
+		static const uint8_t Ping	= 0x80|0x04;
+		static const uint8_t Pong	= 0x80|0x05;
 		
 		Message(void);
 		Message(uint8_t type, 
@@ -116,12 +118,13 @@ public:
 	int connectionsCount(void) const;
 	
 	// Message interface
-	bool recv(Message &message);
+	bool recv(Message &message, double &timeout);
+	bool recv(Message &message, const double &timeout = -1.);
 	bool send(const Message &message);
 
 	// DHT
-	void storeValue(const BinaryString &key, const BinaryString &value);
-	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
+	void store(const BinaryString &key, const BinaryString &value);
+	bool retrieve(const BinaryString &key, Set<BinaryString> &values);
 	
 	void run(void);
 	
@@ -132,6 +135,7 @@ public:
 private:
 	// Routing
 	bool incoming(Message &message, const BinaryString &from);
+	bool push(Message &message);
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
 	bool sendTo(const Message &message, const BinaryString &to);

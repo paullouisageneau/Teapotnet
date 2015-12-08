@@ -516,10 +516,7 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 AddressBook::Contact::~Contact(void)
 {
 	if(mAddressBook)
-	{
 		Interface::Instance->remove(urlPrefix(), this);
-		mAddressBook->mScheduler.cancel(this);
-	}
 	
 	delete mBoard;
 }
@@ -527,25 +524,13 @@ AddressBook::Contact::~Contact(void)
 void AddressBook::Contact::init(void)
 {
 	if(!mAddressBook) return;
-	
-	mAddressBook->mScheduler.schedule(this, 5.);
-	mAddressBook->mScheduler.repeat(this, 300.);
-		
+
 	Interface::Instance->add(urlPrefix(), this);
 	
 	if(!mBoard)
-	{
 		mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
-	}
 	
-	listen(identifier());
-}
-
-void AddressBook::Contact::run(void)
-{
-	if(!mAddressBook) return;
-	
-	// TODO: hint core with new instance addresses
+	listen(mAddressBook->user()->identifier(), identifier());
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
@@ -662,28 +647,28 @@ bool AddressBook::Contact::send(const Mail &mail)
 	return false;
 }
 
-void AddressBook::Contact::seen(const Identifier &peer)
+void AddressBook::Contact::seen(const Identifier &local, const Identifier &remote, const BinaryString &instance)
 {
 	Synchronize(mAddressBook);
-	Assert(peer == identifier());
   
 	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
-	mInstances[peer].setSeen();
+	
+	mInstances[instance].setSeen();
+	
+	if(!Network::Instance->hasHandler(local, remote))
+		Network::Instance->connect(local, remote, mAddressBook->user());
 }
 
-void AddressBook::Contact::connected(const Identifier &peer)
+void AddressBook::Contact::connected(const Identifier &local, const Identifier &remote)
 {
 	Synchronize(mAddressBook);
-	Assert(peer == identifier());
 	
 	LogDebug("AddressBook::Contact", "Connected");
 }
 
-bool AddressBook::Contact::recv(const Identifier &peer, const Notification &notification)
+bool AddressBook::Contact::recv(const Identifier &local, const Identifier &remote, const Notification &notification)
 {
 	// Not synchronized
-	
-	Assert(peer == identifier());
 	
 	String type;
 	notification.get("type", type);
@@ -730,7 +715,7 @@ bool AddressBook::Contact::recv(const Identifier &peer, const Notification &noti
 	return true;
 }
 
-bool AddressBook::Contact::auth(const Identifier &peer, const Rsa::PublicKey &pubKey)
+bool AddressBook::Contact::auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey)
 {
 	return (pubKey == publicKey());
 }

@@ -56,7 +56,7 @@ public:
 	class Publisher
 	{
 	public:
-		Publisher(const Identifier &peer = "");	// local peer
+		Publisher(const Identifier &peer = "");		// local peer
 		~Publisher(void);
 		
 		void publish(const String &prefix, const String &path = "/");
@@ -112,15 +112,15 @@ public:
 		Listener(void);
 		~Listener(void);
 		
-		void listen(const Identifier &peer);
+		void listen(const Identifier &local, const Identifier &remote);
 		
-		virtual void seen(const Identifier &peer) {}
-		virtual void connected(const Identifier &peer) {}
-		virtual bool recv(const Identifier &peer, const Notification &notification) = 0;
-		virtual bool auth(const Identifier &peer, const Rsa::PublicKey &pubKey) { return false; }
+		virtual void seen(const Identifier &local, const Identifier &remote, const BinaryString &instance) {}
+		virtual void connected(const Identifier &local, const Identifier &remote) {}
+		virtual bool recv(const Identifier &local, const Identifier &remote, const Notification &notification) = 0;
+		virtual bool auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey) { return false; }
 		
 	private:
-		Set<Identifier> mPeers;
+		Set<IdentifierPair> mPairs;
 	};
 	
 	Network(int port);
@@ -131,14 +131,16 @@ public:
 	
 	Overlay *overlay(void);
 	
+	void connect(const BinaryString &node, const Identifier &remote, User *user);
+	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
 	void unregisterCaller(const BinaryString &target, Caller *caller);
 	void unregisterAllCallers(const BinaryString &target);
 	
 	// Listener
-	void registerListener(const Identifier &id, Listener *listener);
-	void unregisterListener(const Identifier &id, Listener *listener);
+	void registerListener(const Identifier &local, const Identifier &remote, Listener *listener);
+	void unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener);
 	
 	// Publish/Subscribe
 	void publish(String prefix, Publisher *publisher);
@@ -151,6 +153,10 @@ public:
 	// Notification
 	bool broadcast(const Identifier &local, const Notification &notification);
 	bool send(const Identifier &local, const Identifier &remote, const Notification &notification);
+	
+	// DHT
+	void storeValue(const BinaryString &key, const BinaryString &value);
+	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
 	bool addHandler(Stream *stream, const Identifier &local, const Identifier &remote);
 	bool hasHandler(const Identifier &local, const Identifier &remote);
@@ -194,14 +200,14 @@ private:
 		Tunneler(void);
 		~Tunneler(void);
 		
-		bool open(const BinaryString &remote, User *user);
+		bool open(const BinaryString &node, const Identifier &remote, User *user, bool async = false);
 		bool incoming(const Overlay::Message &message);
 		
 	private:
 		class Tunnel : public Stream
 		{
 		public:
-			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &remote);
+			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node);
 			~Tunnel(void);
 			
 			uint64_t id(void) const;
@@ -220,7 +226,7 @@ private:
 		private:
 			Tunneler *mTunneler;
 			uint64_t mId;
-			BinaryString mRemote;
+			BinaryString mNode;
 			Queue<Overlay::Message> mQueue;
 			Synchronizable mQueueSync;
 			double mTimeout;
@@ -231,7 +237,7 @@ private:
 		
 		SecureTransport *listen(void);
 
-		bool handshake(SecureTransport *transport, const BinaryString &local = "", const BinaryString &remote = "", bool async = false);
+		bool handshake(SecureTransport *transport, const Identifier &local = "", const Identifier &remote = "", bool async = false);
 		void run(void);
 		
 		Map<uint64_t, Tunnel*> mTunnels;
@@ -264,7 +270,7 @@ private:
 		double mTokens;
 		double mRedundancy;
 	};
-
+	
 	bool registerHandler(const Identifier &local, const Identifier &remote, Handler *handler);
 	bool unregisterHandler(const Identifier &local, const Identifier &remote, Handler *handler);
 	
@@ -275,6 +281,10 @@ private:
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
+	void onConnected(const Identifier &local, const Identifier &remote);
+	void onRecv(const Identifier &local, const Identifier &remote, const Notification &notification);
+	bool onAuth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey);
+	
 	Overlay mOverlay;
 	Tunneler mTunneler;
 	ThreadPool mThreadPool;
@@ -283,7 +293,7 @@ private:
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
-	Map<Identifier, Set<Listener*> > mListeners;
+	Map<IdentifierPair, Set<Listener*> > mListeners;
 	List<RemoteSubscriber> mRemoteSubscribers;
 	
 	friend class Handler;
