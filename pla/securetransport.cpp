@@ -378,10 +378,9 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 				
 				if(i==0 && !transport->mHostname.empty())
 				{
-					String hostname = transport->mHostname.before('#');
-					if(!gnutls_x509_crt_check_hostname(crt, hostname.c_str()))
+					if(!gnutls_x509_crt_check_hostname(crt, transport->mHostname.c_str()))
 					{
-						LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + hostname);
+						LogWarn("SecureTransport::CertificateCallback", "The certificate's owner does not match the expected name: " + transport->mHostname);
 						return GNUTLS_E_CERTIFICATE_ERROR;
 					}
 				}
@@ -574,6 +573,25 @@ SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const
 SecureTransport::RsaCertificate::~RsaCertificate(void)
 {
 	// Keys are freed by gnutls_certificate_free_credentials
+}
+
+SecureTransport::RsaCertificateChain::RsaCertificateChain(const Array<SecureTransport::RsaCertificate*> &chain)
+{
+	if(chain.empty())
+		throw Exception("Empty certificate chain provided");
+	
+	gnutls_x509_crt_t *crts = new gnutls_x509_crt_t[chain.size()];
+	for(int i=0; i<chain.size(); ++i)
+		crts[i] = chain[i]->mCrt;
+	
+	int ret = gnutls_certificate_set_x509_key(mCreds, crts, chain.size(), chain[0]->mKey);
+	if(ret != GNUTLS_E_SUCCESS)
+		throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
+}
+
+SecureTransport::RsaCertificateChain::~RsaCertificateChain(void)
+{
+	// Nothing to do
 }
 
 SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds, const String &hostname) :

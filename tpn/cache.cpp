@@ -98,6 +98,9 @@ String Cache::move(const String &filename)
 
 void Cache::storeValue(const String &key, const BinaryString &value)
 {
+	//LogDebug("Cache::storeValue", "Cache write: " + key);
+	
+	// TODO: URGENT: multiple values
 	String tmp(key);
 	BinaryString digest;
 	Sha256().compute(tmp, digest);
@@ -110,8 +113,11 @@ void Cache::storeValue(const String &key, const BinaryString &value)
 
 bool Cache::retrieveValue(const String &key, Set<BinaryString> &values)
 {
+	//LogDebug("Cache::retrieveValue", "Cache read: " + key);
+	
 	values.clear();
 	
+	// TODO: URGENT: multiple values
 	String tmp(key);
 	BinaryString digest;
 	Sha256().compute(tmp, digest);

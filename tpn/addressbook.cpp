@@ -656,7 +656,7 @@ void AddressBook::Contact::seen(const Identifier &local, const Identifier &remot
 	mInstances[instance].setSeen();
 	
 	if(!Network::Instance->hasHandler(local, remote))
-		Network::Instance->connect(local, remote, mAddressBook->user());
+		Network::Instance->connect(instance, remote, mAddressBook->user());
 }
 
 void AddressBook::Contact::connected(const Identifier &local, const Identifier &remote)

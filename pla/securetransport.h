@@ -67,6 +67,14 @@ public:
                 gnutls_certificate_credentials_t mCreds;
         };
 
+	class RsaCertificate;
+	class RsaCertificateChain : public Certificate
+	{
+	public:
+		RsaCertificateChain(const Array<SecureTransport::RsaCertificate*> &chain);
+		~RsaCertificateChain(void);
+	};
+	
 	class RsaCertificate : public Certificate
 	{
 	public:
@@ -76,6 +84,8 @@ public:
 	protected:
                 gnutls_x509_crt_t mCrt;
                 gnutls_x509_privkey_t mKey;
+		
+		friend class RsaCertificateChain;
 	};
 	
 	virtual ~SecureTransport(void);

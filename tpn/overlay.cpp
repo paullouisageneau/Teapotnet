@@ -315,7 +315,27 @@ bool Overlay::recv(Message &message, const double &timeout)
 
 bool Overlay::send(const Message &message)
 {
-	return route(message);
+	Synchronize(this);
+	
+	//LogDebug("Overlay::send", "Sending message, type: " + String::hexa(unsigned(message.type)));
+	
+	if(mHandlers.empty())
+		return false;
+	
+	if(message.destination.empty())
+		return broadcast(message);
+	
+	if(mHandlers.contains(message.destination))
+		return sendTo(message, message.destination);
+	
+	// Don't use route since we want to force the message to be sent to the best route
+	Map<BinaryString, BinaryString> sorted;
+	Array<BinaryString> neighbors;
+	mHandlers.getKeys(neighbors);
+	for(int i=0; i<neighbors.size(); ++i)
+		sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
+	
+	return sendTo(message, sorted.begin()->second);
 }
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
@@ -376,14 +396,16 @@ void Overlay::run(void)
 bool Overlay::incoming(Message &message, const BinaryString &from)
 {
 	Synchronize(this);
-
+	
 	// Route if necessary
-	if((message.type & 0x80) && message.destination != localNode())
+	if((message.type & 0x80) && !message.destination.empty() && message.destination != localNode())
 	{
 		route(message, from);
 		return false;
 	}
 
+	//LogDebug("Overlay::incoming", "Incoming message, type: " + String::hexa(unsigned(message.type)));
+	
 	// Message is for us
 	switch(message.type)
 	{
@@ -436,7 +458,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					it != values.end();
 					++it)
 				{
-					this->route(Message(Message::Value, *it, message.source, message.destination));
+					send(Message(Message::Value, *it, message.source, message.destination));
 				}
 			}
 			
@@ -459,7 +481,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			//push(message);	// useless
 			break;
 		}
-	
+		
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
@@ -477,7 +499,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			push(message);
 			break;
 		}
-	
+		
 	// Ping
 	case Message::Ping:
 		{
@@ -492,7 +514,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
 			break;
 		}
-
+		
 	// Higher-level messages are pushed to queue
 	case Message::Call:
 	case Message::Data:
@@ -661,7 +683,7 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	
 	mHandlers.insert(node, handler);
 	mRemoteAddresses.insert(addr);
-	
+	mThreadPool.launch(handler);
 	return true;
 }
 
@@ -1126,6 +1148,8 @@ bool Overlay::Handler::recv(Message &message)
 
 	while(true)
 	{
+		Desynchronize(this);
+		
 		try {
 			// 32-bit control block
 			if(!s.read(message.version))
@@ -1133,10 +1157,11 @@ bool Overlay::Handler::recv(Message &message)
 				if(!mStream->nextRead()) return false;
 				continue;
 			}
+			
 			AssertIO(s.read(message.flags));
 			AssertIO(s.read(message.ttl));
 			AssertIO(s.read(message.type));
-
+			
 			// 32-bit size block
 			uint8_t sourceSize, destinationSize;
 			uint16_t contentSize;
@@ -1148,12 +1173,12 @@ bool Overlay::Handler::recv(Message &message)
 			message.source.clear();
 			message.destination.clear();
 			message.content.clear();
-			AssertIO(mStream->readBinary(message.source, sourceSize));
-			AssertIO(mStream->readBinary(message.destination, destinationSize));
-			AssertIO(mStream->readBinary(message.content, contentSize));
+			AssertIO(mStream->readBinary(message.source, sourceSize) == sourceSize);
+			AssertIO(mStream->readBinary(message.destination, destinationSize) == destinationSize);
+			AssertIO(mStream->readBinary(message.content, contentSize) == contentSize);
 
 			mStream->nextRead();	// switch to next datagram if this is a datagram stream
-
+			
 			if(message.source.empty())	continue;
 			if(message.ttl == 0)		continue;
 			--message.ttl;
@@ -1170,6 +1195,8 @@ bool Overlay::Handler::recv(Message &message)
 			LogWarn("Overlay::Handler", "Truncated message");
 		}
 	}
+	
+	return false;
 }
 
 bool Overlay::Handler::send(const Message &message)
@@ -1178,24 +1205,33 @@ bool Overlay::Handler::send(const Message &message)
 	
 	BinarySerializer s(mStream);
 
-	// 32-bit control block
-	s.write(message.version);
-	s.write(message.flags);
-	s.write(message.ttl);
-	s.write(message.type);
-
-	// 32-bit size block
-	s.write(uint8_t(message.source.size()));
-	s.write(uint8_t(message.destination.size()));
-	s.write(uint16_t(message.content.size()));
+	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
 	
-	// data
-	mStream->writeBinary((message.source.empty() ? message.source : mOverlay->localNode()));
-	mStream->writeBinary(message.destination);
-	mStream->writeBinary(message.content);
+	if(message.ttl > 0)
+	{
+		Desynchronize(this);
+		
+		// 32-bit control block
+		s.write(message.version);
+		s.write(message.flags);
+		s.write(message.ttl);
+		s.write(message.type);
 
-	mStream->nextWrite();	// switch to next datagram if this is a datagram stream
-	return true;
+		// 32-bit size block
+		s.write(uint8_t(source.size()));
+		s.write(uint8_t(message.destination.size()));
+		s.write(uint16_t(message.content.size()));
+		
+		// data
+		mStream->writeBinary(source);
+		mStream->writeBinary(message.destination);
+		mStream->writeBinary(message.content);
+
+		mStream->nextWrite();	// switch to next datagram if this is a datagram stream
+		return true;
+	}
+	
+	return false;
 }
 
 void Overlay::Handler::process(void)

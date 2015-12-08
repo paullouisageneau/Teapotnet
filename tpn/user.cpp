@@ -131,9 +131,7 @@ User::User(const String &name, const String &password) :
 	mIndexer = NULL;
 	mAddressBook = NULL;
 	mBoard = NULL;
-	
-	mMasterCertificate = NULL;
-	mLocalCertificate = NULL;
+	mCertificate = NULL;
 	
 	if(mName.empty()) 
 		throw Exception("Empty user name");
@@ -164,11 +162,10 @@ User::User(const String &name, const String &password) :
 	
 	// Generate RSA key and secret if necessary
 	Random rnd(Random::Key);
-	if(mMasterPublicKey.isNull())
+	if(mPublicKey.isNull())
 	{
 		Rsa rsa(4096);
-		rsa.generate(mMasterPublicKey, mMasterPrivateKey);
-		rsa.generate(mLocalPublicKey, mLocalPrivateKey);
+		rsa.generate(mPublicKey, mPrivateKey);
 		rnd.readBinary(mSecret, 32);
 		
 		save();
@@ -179,7 +176,7 @@ User::User(const String &name, const String &password) :
 	// Generate token secret
 	rnd.readBinary(mTokenSecret, 16);
 	
-	Assert(!mLocalPublicKey.isNull());
+	Assert(!mPublicKey.isNull());
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
 
@@ -188,17 +185,14 @@ User::User(const String &name, const String &password) :
         	mAddressBook = new AddressBook(this);
        	 	mBoard = new Board("/" + identifier().toString(), mName);
 		
-		if(!mMasterCertificate) mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
-		if(!mLocalCertificate) mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
+		if(!mCertificate) mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 	}
 	catch(...)
 	{
 		delete mIndexer;
 		delete mAddressBook;
 		delete mBoard;
-		
-		delete mMasterCertificate;
-		delete mLocalCertificate;
+		delete mCertificate;
 		
 		throw;
 	}
@@ -225,9 +219,7 @@ User::~User(void)
 	delete mAddressBook;
 	delete mBoard;
 	delete mIndexer;
-	
-	delete mMasterCertificate;
-	delete mLocalCertificate;
+	delete mCertificate;
 }
 
 void User::load()
@@ -239,6 +231,8 @@ void User::load()
 	JsonSerializer serializer(&file);
 	serializer.read(*this);
 	file.close();
+	
+	LogDebug("User::load", "User loaded: " + name() + ", " + identifier().toString());
 }
 
 void User::save() const
@@ -419,41 +413,24 @@ bool User::checkToken(const String &token, const String &action) const
 Identifier User::identifier(void) const
 {
 	Synchronize(this);
-	return mMasterPublicKey.digest();
+	return mPublicKey.digest();
 }
 
-Identifier User::instance(void) const
+const Rsa::PublicKey &User::publicKey(void) const
 {
 	Synchronize(this);
-	return mLocalPublicKey.digest();
+	return mPublicKey;
 }
 
-const Rsa::PublicKey &User::masterPublicKey(void) const
+const Rsa::PrivateKey &User::privateKey(void) const
 {
 	Synchronize(this);
-	return mMasterPublicKey;
+	return mPrivateKey;
 }
 
-const Rsa::PrivateKey &User::masterPrivateKey(void) const
+SecureTransport::Certificate *User::certificate(void) const
 {
-	Synchronize(this);
-	return mMasterPrivateKey;
-}
-
-const Rsa::PublicKey &User::localPublicKey(void) const
-{
-	Synchronize(this);
-	return mLocalPublicKey;
-}
-
-SecureTransport::Certificate *User::masterCertificate(void) const
-{
-	return mMasterCertificate;
-}
-
-SecureTransport::Certificate *User::localCertificate(void) const
-{
-	return mLocalCertificate;
+	return mCertificate;
 }
 
 void User::http(const String &prefix, Http::Request &request)
@@ -777,10 +754,8 @@ void User::serialize(Serializer &s) const
 
 	// TODO
 	Serializer::ConstObject object;
-	object["publickey"] = &mLocalPublicKey;
-	object["privatekey"] = &mLocalPrivateKey;
-	object["masterpublickey"] = &mMasterPublicKey;
-	object["masterprivatekey"] = &mMasterPrivateKey;
+	object["publickey"] = &mPublicKey;
+	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;
 	
 	s.outputObject(object);
@@ -792,23 +767,19 @@ bool User::deserialize(Serializer &s)
 	
 	Identifier oldIdentifier = identifier();
 	
-	mLocalPublicKey.clear();
-	mLocalPrivateKey.clear();
-	mMasterPublicKey.clear();
-	mMasterPrivateKey.clear();
+	mPublicKey.clear();
+	mPrivateKey.clear();
 	mSecret.clear();
 	
 	Serializer::Object object;
-	object["publickey"] = &mLocalPublicKey;
-	object["privatekey"] = &mLocalPrivateKey;
-	object["masterpublickey"] = &mMasterPublicKey;
-	object["masterprivatekey"] = &mMasterPrivateKey;
+	object["publickey"] = &mPublicKey;
+	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;
 	
 	if(!s.inputObject(object))
 		return false;
 	
-	if(!mMasterPublicKey.isNull() && !mMasterPrivateKey.isNull())
+	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
 	{
 		// Register
 		if(oldIdentifier != identifier())
@@ -819,11 +790,9 @@ bool User::deserialize(Serializer &s)
 			UsersMutex.unlock();
 		}
 		
-		// Reload certificates
-		delete mMasterCertificate;
-		delete mLocalCertificate;
-		mMasterCertificate = new SecureTransport::RsaCertificate(mMasterPublicKey, mMasterPrivateKey, identifier().toString());
-		mLocalCertificate = new SecureTransport::RsaCertificate(mLocalPublicKey, mLocalPrivateKey, instance().toString());
+		// Reload certificate
+		delete mCertificate;
+		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 	}
 	
 	return true;
