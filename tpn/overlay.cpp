@@ -294,12 +294,12 @@ bool Overlay::recv(Message &message, double &timeout)
 	if(timeout >= 0.)
 	{
 		while(mIncoming.empty())
-			mIncomingSync.wait();
+			if(!mIncomingSync.wait(timeout))
+				return false;
 	}
 	else {
 		while(mIncoming.empty())
-			if(!mIncomingSync.wait(timeout))
-				return false;
+			mIncomingSync.wait();
 	}
 	
 	message = mIncoming.front();
