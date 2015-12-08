@@ -730,7 +730,7 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 	return 0;
 }
 
-SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool requestClientCertificate, double connexionTimeout)
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *remote, bool requestClientCertificate, double connexionTimeout)
 {
 	while(true)
 	{
@@ -739,6 +739,8 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool request
 		try {
 			sock = new Socket;
 			lsock.accept(*sock);
+			if(remote)
+				*remote = sock->getRemoteAddress();
 			if(connexionTimeout > 0.)
 				sock->setReadTimeout(connexionTimeout);
 		}
@@ -763,7 +765,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, bool request
 	}
 }
 
-SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool requestClientCertificate)
+SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *remote, bool requestClientCertificate)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
@@ -786,9 +788,11 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, bool reques
 		
 		if(ret == GNUTLS_E_SUCCESS)	// valid cookie
 		{
+			if(remote)
+				*remote = sender;
+			
 			Stream *stream = NULL;
 			SecureTransportServer *transport = NULL;
-			
 			try {
 				stream = new DatagramStream(&sock, sender);
 				transport = new SecureTransportServer(stream, NULL, requestClientCertificate);

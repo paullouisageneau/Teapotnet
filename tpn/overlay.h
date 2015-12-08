@@ -149,12 +149,12 @@ private:
 		virtual ~Backend(void);
 		
 		virtual bool connect(const Set<Address> &addrs, const BinaryString &remote = "") = 0;
-		virtual SecureTransport *listen(void) = 0;
+		virtual SecureTransport *listen(Address *addr = NULL) = 0;
 		
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
 	protected:
-		bool handshake(SecureTransport *transport, const BinaryString &remote = "");
+		bool handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote = "");
 		void run(void);
 		
 	private:
@@ -170,7 +170,7 @@ private:
 		
 		bool connect(const Set<Address> &addrs, const BinaryString &remote);
 		bool connect(const Address &addr, const BinaryString &remote);
-		SecureTransport *listen(void);
+		SecureTransport *listen(Address *addr = NULL);
 		
 		void getAddresses(Set<Address> &set) const;
 		
@@ -186,7 +186,7 @@ private:
 		
 		bool connect(const Set<Address> &addrs, const BinaryString &remote);
 		bool connect(const Address &addr, const BinaryString &remote);
-		SecureTransport *listen(void);
+		SecureTransport *listen(Address *addr = NULL);
 		
 		void getAddresses(Set<Address> &set) const;
 		
@@ -197,7 +197,7 @@ private:
 	class Handler : public Task, protected Synchronizable
 	{
 	public:
-		Handler(Overlay *overlay, Stream *stream, const BinaryString &node);	// stream will be deleted
+		Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr);	// stream will be deleted
 		~Handler(void);
 		
 		bool recv(Message &message);
@@ -210,10 +210,11 @@ private:
 		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
+		Address mAddr;
 	};
 
-	bool registerHandler(const BinaryString &node, Handler *handler);
-	bool unregisterHandler(const BinaryString &node, Handler *handler);
+	bool registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
+	bool unregisterHandler(const BinaryString &node, const Address &addr, Handler *handler);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
@@ -227,6 +228,7 @@ private:
 
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
+	Set<Address> mRemoteAddresses;
 	
 	Queue<Message> mIncoming;
 	Synchronizable mIncomingSync;

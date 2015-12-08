@@ -193,6 +193,32 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 	std::memcpy(&mAddr, addr, addrlen);
 }
 
+void Address::setPort(uint16_t port)
+{
+	if(mAddrLen == 0)
+		return;
+	
+	switch(addrFamily())
+	{
+	case AF_INET:	// IP v4
+	{
+		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
+		sa->sin_port = port;
+		break;
+	}
+
+	case AF_INET6:	// IP v6
+	{
+		sockaddr_in6 *sa = reinterpret_cast<sockaddr_in6*>(&mAddr);
+		sa->sin6_port = port;
+		break;
+	}
+
+	default:
+		throw Unsupported("Unable to set the port for this address family");
+	}
+}
+
 void Address::clear(void)
 {
 	const sockaddr *null = NULL;
@@ -534,7 +560,7 @@ bool operator < (const Address &a1, const Address &a2)
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
-		return (sa1->sin_addr.s_addr < sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port < sa2->sin_port));
+		return (sa1->sin_addr.s_addr < sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port < sa2->sin_port && sa1->sin_port && sa2->sin_port));
 	}
 
 	case AF_INET6:	// IP v6
@@ -542,7 +568,7 @@ bool operator < (const Address &a1, const Address &a2)
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
 		int cmp = std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16);
-		return (cmp < 0 || (cmp == 0 && sa1->sin6_port < sa2->sin6_port));
+		return (cmp < 0 || (cmp == 0 && sa1->sin6_port < sa2->sin6_port && sa1->sin6_port && sa2->sin6_port));
 	}
 
 	default:
@@ -572,7 +598,7 @@ bool operator > (const Address &a1, const Address &a2)
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
-		return (sa1->sin_addr.s_addr > sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port > sa2->sin_port));
+		return (sa1->sin_addr.s_addr > sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port > sa2->sin_port && sa1->sin_port && sa2->sin_port));
 	}
 
 	case AF_INET6:	// IP v6
@@ -580,7 +606,7 @@ bool operator > (const Address &a1, const Address &a2)
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
 		int cmp = std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16);
-		return (cmp > 0 || (cmp == 0 && sa1->sin6_port > sa2->sin6_port));
+		return (cmp > 0 || (cmp == 0 && sa1->sin6_port > sa2->sin6_port && sa1->sin6_port && sa2->sin6_port));
 	}
 
 	default:
@@ -599,14 +625,14 @@ bool operator == (const Address &a1, const Address &a2)
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
-		return (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port == sa2->sin_port);
+		return (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && (sa1->sin_port == sa2->sin_port || !sa1->sin_port || !sa2->sin_port));
 	}
 
 	case AF_INET6:	// IP v6
 	{
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
-		return (std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16) == 0 && sa1->sin6_port == sa2->sin6_port);
+		return (std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16) == 0 && (sa1->sin6_port == sa2->sin6_port || !sa1->sin6_port || sa2->sin6_port));
 	}
 
 	default:

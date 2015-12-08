@@ -246,15 +246,29 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 	try {
 		Synchronize(this);
 		
-		if(async)
+		Set<Address> filteredAddrs;
+		for(Set<Address>::iterator it = addrs.begin();
+			it != addrs.end();
+			++it)
 		{
-			task = new ConnectTask(mBackends, addrs, remote);
-			mThreadPool.launch(task);
-			return true;
+			Address tmp(*it);
+			tmp.setPort(0);	// so it matches any port
+			if(!mRemoteAddresses.contains(tmp))
+				filteredAddrs.insert(*it);
 		}
-		else {
-			ConnectTask stask(mBackends, addrs, remote);
-			return stask.connect();
+		
+		if(!filteredAddrs.empty())
+		{
+			if(async)
+			{
+				task = new ConnectTask(mBackends, filteredAddrs, remote);
+				mThreadPool.launch(task);
+				return true;
+			}
+			else {
+				ConnectTask stask(mBackends, filteredAddrs, remote);
+				return stask.connect();
+			}
 		}
 	}
 	catch(const std::exception &e)
@@ -634,7 +648,7 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 	return result.size();
 }
 
-bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handler)
+bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
 {
 	Synchronize(this);
 	
@@ -646,11 +660,12 @@ bool Overlay::registerHandler(const BinaryString &node, Overlay::Handler *handle
 		return (h == handler);
 	
 	mHandlers.insert(node, handler);
+	mRemoteAddresses.insert(addr);
 	
 	return true;
 }
 
-bool Overlay::unregisterHandler(const BinaryString &node, Overlay::Handler *handler)
+bool Overlay::unregisterHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
 {
 	Synchronize(this);
 	
@@ -662,6 +677,7 @@ bool Overlay::unregisterHandler(const BinaryString &node, Overlay::Handler *hand
 		return false;
 		
 	mHandlers.erase(node);
+	mRemoteAddresses.erase(addr);
 	return true;
 }
 
@@ -837,7 +853,7 @@ Overlay::Backend::~Backend(void)
 	
 }
 
-bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString &remote)
+bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote)
 {
 	class MyVerifier : public SecureTransport::Verifier
 	{
@@ -868,7 +884,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const BinaryString 
 	{
 		// Handshake succeeded
 		LogDebug("Overlay::Backend::handshake", "Handshake succeeded, spawning new handler");
-		Handler *handler = new Handler(mOverlay, transport, identifier);
+		Handler *handler = new Handler(mOverlay, transport, identifier, addr);
 		return true;
 	}
 	else {
@@ -882,16 +898,17 @@ void Overlay::Backend::run(void)
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(Backend *backend, SecureTransport *transport)
+		HandshakeTask(Backend *backend, SecureTransport *transport, const Address &addr)
 		{
 			this->backend = backend; 
 			this->transport = transport;
+			this->addr = addr;
 		}
 		
 		void run(void)
 		{
 			try {
-				backend->handshake(transport, "");
+				backend->handshake(transport, addr, "");
 			}
 			catch(const std::exception &e)
 			{
@@ -904,6 +921,7 @@ void Overlay::Backend::run(void)
 	private:
 		Backend *backend;
 		SecureTransport *transport;
+		Address addr;
 	};
 
 	while(true)
@@ -912,12 +930,13 @@ void Overlay::Backend::run(void)
 		HandshakeTask *task = NULL;
 		
 		try {
-			transport = listen();
+			Address addr;
+			transport = listen(&addr);
 			if(!transport) break;
 			
-			LogDebug("Overlay::Backend::run", "Incoming connection");
+			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 			
-			task = new HandshakeTask(this, transport);
+			task = new HandshakeTask(this, transport, addr);
 			mThreadPool.launch(task);
 		}
 		catch(const std::exception &e)
@@ -991,14 +1010,14 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 		throw;
 	}
 	
-	return handshake(transport, remote);
+	return handshake(transport, addr, remote);
 }
 
-SecureTransport *Overlay::StreamBackend::listen(void)
+SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock, true);	// ask for certificate
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
 		if(transport) return transport;
 	}
 	
@@ -1064,14 +1083,14 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 		throw;
 	}
 	
-	return handshake(transport, remote);
+	return handshake(transport, addr, remote);
 }
 
-SecureTransport *Overlay::DatagramBackend::listen(void)
+SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock, true);	// ask for certificate
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
 		if(transport) return transport;
 	}
 	
@@ -1083,17 +1102,18 @@ void Overlay::DatagramBackend::getAddresses(Set<Address> &set) const
 	mSock.getLocalAddresses(set);
 }
 
-Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node) :
+Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr) :
 	mOverlay(overlay),
 	mStream(stream),
-	mNode(node)
+	mNode(node),
+	mAddr(addr)
 {
-	mOverlay->registerHandler(mNode, this);
+	mOverlay->registerHandler(mNode, mAddr, this);
 }
 
 Overlay::Handler::~Handler(void)
 {
-	mOverlay->unregisterHandler(mNode, this);	// should be done already
+	mOverlay->unregisterHandler(mNode, mAddr, this);	// should be done already
 	
 	delete mStream;
 }
@@ -1205,7 +1225,7 @@ void Overlay::Handler::run(void)
 		LogDebug("Overlay::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	mOverlay->unregisterHandler(mNode, this);
+	mOverlay->unregisterHandler(mNode, mAddr, this);
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO

@@ -48,6 +48,7 @@ public:
 	void set(const String &host, uint16_t port, int family = AF_UNSPEC, int socktype = 0);
 	void set(const String &str);
 	void set(const sockaddr *addr, socklen_t addrlen = 0);
+	void setPort(uint16_t port);
 	void clear(void);
 	bool isNull(void) const;
 	bool isLocal(void) const;

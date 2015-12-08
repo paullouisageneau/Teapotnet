@@ -190,8 +190,8 @@ public:
 	};	
 	
 	// These functions are preferred, especially for datagrams (protection against DoS)
-	static SecureTransport *Listen(ServerSocket &sock, bool requestClientCertificate = false, double connexionTimeout = -1.);
-	static SecureTransport *Listen(DatagramSocket &sock, bool requestClientCertificate = false);
+	static SecureTransport *Listen(ServerSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double connexionTimeout = -1.);
+	static SecureTransport *Listen(DatagramSocket &sock, Address *remote = NULL, bool requestClientCertificate = false);
 	
 	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false);	// creds will be deleted
 	~SecureTransportServer(void);
