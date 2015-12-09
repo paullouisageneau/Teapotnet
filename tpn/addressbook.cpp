@@ -38,6 +38,7 @@
 #include "pla/yamlserializer.h"
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 #include "pla/mime.h"
 
 namespace tpn
@@ -267,7 +268,7 @@ void AddressBook::serialize(Serializer &s) const
 {
 	Synchronize(this);
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["contacts"] = &mContacts;
 	
 	s.outputObject(object);
@@ -277,7 +278,7 @@ bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	Serializer::Object object;
+	Object object;
 	object["contacts"] = &mContacts;
 	
 	if(!s.inputObject(object)) return false;
@@ -987,7 +988,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 {
 	Synchronize(mAddressBook);
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["publickey"] = &mPublicKey;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;
@@ -1016,7 +1017,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 {
 	Synchronize(mAddressBook);
 	
-	Serializer::Object object;
+	Object object;
 	object["publickey"] = &mPublicKey;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;

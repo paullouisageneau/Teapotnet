@@ -33,6 +33,7 @@
 #include "pla/directory.h"
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 #include "pla/time.h"
 #include "pla/mime.h"
 
@@ -1555,7 +1556,7 @@ void Indexer::Query::serialize(Serializer &s) const
 	ConstSerializableWrapper<int> countWrapper(mCount);
 	String strAccessLevel = (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public"));
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	if(!mPath.empty())	object["path"] = &mPath;
 	if(!mMatch.empty())	object["match"] = &mMatch;
 	if(!mDigest.empty())	object["digest"] = &mDigest;
@@ -1572,7 +1573,7 @@ bool Indexer::Query::deserialize(Serializer &s)
 	SerializableWrapper<int> countWrapper(&mCount);
 	String strAccessLevel;
 	
-	Serializer::Object object;
+	Object object;
 	object["path"] = &mPath;
 	object["match"] = &mMatch;
 	object["digest"] = &mDigest;
@@ -1612,7 +1613,7 @@ void Indexer::Entry::serialize(Serializer &s) const
 {
 	String strAccessLevel = (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public"));
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["path"] = &path;
 	object["access"] = &strAccessLevel;
 
@@ -1623,7 +1624,7 @@ bool Indexer::Entry::deserialize(Serializer &s)
 {
 	String strAccessLevel;
 	
-	Serializer::Object object;
+	Object object;
 	object["path"] = &path;
 	object["access"] = &strAccessLevel;
 	

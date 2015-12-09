@@ -27,6 +27,7 @@
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
+#include "pla/object.h"
 #include "pla/securetransport.h"
 #include "pla/crypto.h"
 #include "pla/random.h"
@@ -787,7 +788,7 @@ void Overlay::serialize(Serializer &s) const
 {
 	Synchronize(this);
 
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	s.outputObject(object);
@@ -800,7 +801,7 @@ bool Overlay::deserialize(Serializer &s)
 	mPublicKey.clear();
 	mPrivateKey.clear();
 	
-	Serializer::Object object;
+	Object object;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	

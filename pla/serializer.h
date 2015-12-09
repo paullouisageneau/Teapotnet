@@ -24,12 +24,13 @@
 
 #include "pla/include.h"
 #include "pla/serializable.h"
-#include <map>
 
 namespace pla
 {
 
 class String;
+class Object;
+class ConstObject;
 
 class Serializer
 {
@@ -60,6 +61,7 @@ public:
 	template<class T> void write(const T &value);
 	
 	virtual bool    input(Serializable &s);
+	virtual bool    input(const Serializable &s);	// throws error
 	virtual bool	input(Element &element);
 	virtual bool	input(Pair &pair);
 	
@@ -116,38 +118,12 @@ public:
 	template<class K, class V>	bool inputMapElement(K &key, V &value);
 	template<class K, class V>	void outputMapElement(const K &key, const V &value);
 	
-	class Object : public Pair, public std::map<String, Serializable*>
-	{
-	public:
-		Object(void);
-		~Object(void);
-		
-		void serializeKey(Serializer &s) const;
-		void serializeValue(Serializer &s) const;
-		bool deserializeKey(Serializer &s);
-		bool deserializeValue(Serializer &s);
-		
-		Object &insert(const String &key, const Serializable *value);
-		
-	private:
-		String *mLastKey;	// String is an incomplete type here for includes coherence
-	};
-	
-	class ConstObject : public std::map<String, const Serializable*>
-	{
-	public:
-		ConstObject(void);
-		~ConstObject(void);
-		
-		ConstObject &insert(const String &key, const Serializable *value);
-	};
-	
-	// Functions for simple object input/output
-	bool inputObject(Object &object);
-	void outputObject(ConstObject &object);
-	
 	bool optionalOutputMode(void) const;
 	void setOptionalOutputMode(bool enabled = true);
+	
+	// Deprecated
+	bool inputObject(Object &object);
+	void outputObject(ConstObject &object);
 	
 private:
 	bool mOptionalOutputMode;

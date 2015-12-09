@@ -27,6 +27,7 @@
 
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 
 namespace tpn
 {

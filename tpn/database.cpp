@@ -22,7 +22,8 @@
 #include "tpn/database.h"
 
 #include "pla/lineserializer.h"
-#include "pla/yamlserializer.h"
+#include "pla/jsonserializer.h"
+#include "pla/object.h"
 
 namespace tpn
 {
@@ -348,7 +349,7 @@ bool Database::Statement::input(Serializable &s)
 	else {
 		String tmp;
 		if(!input(tmp)) return false;
-		YamlSerializer serializer(&tmp);
+		JsonSerializer serializer(&tmp);
 		s.deserialize(serializer);
 		return true;
 	}
@@ -486,7 +487,7 @@ void Database::Statement::output(const Serializable &s)
 	if(mOutputLevel == 0 || s.isInlineSerializable()) s.serialize(*this);
 	else {
 		String tmp;
-		YamlSerializer serializer(&tmp);
+		JsonSerializer serializer(&tmp);
 		s.serialize(serializer);
 		output(tmp);
 	}

@@ -26,6 +26,7 @@
 #include "pla/binarystring.h"
 #include "pla/map.h"
 #include "pla/array.h"
+#include "pla/object.h"
 
 namespace pla
 {
@@ -44,6 +45,12 @@ Serializer::~Serializer(void)
 bool Serializer::input(Serializable &s)
 {
 	return s.deserialize(*this);
+}
+
+bool Serializer::input(const Serializable &s)
+{
+	// Should not happen
+	throw Unsupported("Serializer input called with constant object");
 }
 
 bool Serializer::input(Element &element)
@@ -77,32 +84,6 @@ bool Serializer::skip(void)
 	return input(dummy);
 }
 
-bool Serializer::inputObject(Object &object)
-{
-	if(!inputMapBegin()) return false;
-
-	while(inputMapCheck())
-		if(!input(object))
-			break;
-
-	return true;
-}
-
-void Serializer::outputObject(ConstObject &object)
-{
-	outputMapBegin(uint32_t(object.size()));
-
-	for(ConstObject::const_iterator it = object.begin();
-		it != object.end();
-		++it)
-	{
-		SerializableMap<String, Serializable*>::SerializablePair pair(it->first, const_cast<Serializable*>(it->second));
-		output(pair);
-	}
-	
-	outputMapEnd();
-}
-
 bool Serializer::optionalOutputMode(void) const
 {
 	return mOptionalOutputMode;  
@@ -111,6 +92,16 @@ bool Serializer::optionalOutputMode(void) const
 void Serializer::setOptionalOutputMode(bool enabled)
 {
 	mOptionalOutputMode = enabled; 
+}
+
+bool Serializer::inputObject(Object &object)
+{
+	return input(object);
+}
+
+void Serializer::outputObject(ConstObject &object)
+{
+	output(object);
 }
 
 void Serializer::Pair::serialize(Serializer &s) const
@@ -123,67 +114,6 @@ bool Serializer::Pair::deserialize(Serializer &s)
 {
 	if(!deserializeKey(s)) return false;
 	return deserializeValue(s);  
-}
-
-Serializer::Object::Object(void) :
-	mLastKey(new String)
-{
-	
-}
-
-Serializer::Object::~Object(void)
-{
-	delete mLastKey;
-}
-
-Serializer::ConstObject::ConstObject(void)
-{
-	
-}
-
-Serializer::ConstObject::~ConstObject(void)
-{
-	
-}
-
-Serializer::ConstObject &Serializer::ConstObject::insert(const String &key, const Serializable *value)
-{
-	(*this)[key] = value;
-	return *this;
-}
-
-void Serializer::Object::serializeKey(Serializer &s) const
-{
-	// This should not happen
-	throw Exception("Object should not be used for serializing");
-}
-
-void Serializer::Object::serializeValue(Serializer &s) const
-{
-	// This should not happen
-	throw Exception("Object should not be used for serializing");
-}
-
-bool Serializer::Object::deserializeKey(Serializer &s)
-{
-	return s.input(*mLastKey);
-}
-
-bool Serializer::Object::deserializeValue(Serializer &s)
-{
-	Object::iterator it = this->find(*mLastKey);
-	if(it != this->end()) return s.input(*it->second);
-
-	// Special case for id field (used by Database)
-	if(*mLastKey == "id" || *mLastKey == "rowid")
-	{
-		int64_t dummy;
-		return s.input(dummy);
-	}
-	else {
-		//LogDebug("Serializer::Object", String("Warning: Ignoring unknown entry: ") + *mLastKey);
-		return s.skip();
-	}
 }
 
 }

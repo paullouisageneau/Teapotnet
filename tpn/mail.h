@@ -72,7 +72,6 @@ private:
 	SerializableArray<BinaryString> mAttachments;
 	BinaryString mParent;
 	mutable BinaryString mSignature;
-	
 	mutable BinaryString mDigest;
 };
 

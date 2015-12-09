@@ -30,6 +30,7 @@
 #include "pla/random.h"
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 #include "pla/mime.h"
 
 
@@ -753,7 +754,7 @@ void User::serialize(Serializer &s) const
 	Synchronize(this);
 
 	// TODO
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;
@@ -771,7 +772,7 @@ bool User::deserialize(Serializer &s)
 	mPrivateKey.clear();
 	mSecret.clear();
 	
-	Serializer::Object object;
+	Object object;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;

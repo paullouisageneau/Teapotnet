@@ -27,6 +27,7 @@
 #include "pla/binarystring.h"
 #include "pla/yamlserializer.h"
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 #include "pla/crypto.h"
 
 namespace tpn
@@ -124,7 +125,7 @@ bool Mail::check(const Rsa::PublicKey &pubKey) const
 
 void Mail::serialize(Serializer &s) const
 {
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["content"] = &mContent;
 	object["time"] = &mTime;
 	
@@ -160,7 +161,7 @@ bool Mail::deserialize(Serializer &s)
 	
 	mDigest.clear();
 	
-	Serializer::Object object;
+	Object object;
         object["content"] = &mContent;
 	object["time"] = &mTime;
 	object["author"] = &mAuthor;

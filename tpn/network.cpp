@@ -27,6 +27,7 @@
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
+#include "pla/object.h"
 #include "pla/securetransport.h"
 #include "pla/crypto.h"
 #include "pla/random.h"
@@ -179,9 +180,9 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		BinarySerializer serializer(&payload);
 		serializer.write(prefix);
 		
-		StringMap content;
-		content["prefix"] = prefix;
-		outgoing("subscribe", content);
+		outgoing("subscribe", 
+			 ConstObject()
+				.insert("path", &prefix));
 	}
 }
 
@@ -323,7 +324,8 @@ void Network::run(void)
 						BinarySerializer serializer(&message.content);
 						Fountain::Combination combination;
 						serializer.read(combination);
-						Store::Instance->push(message.source, combination);
+						if(Store::Instance->push(message.source, combination))
+							unregisterAllCallers(message.source);
 						break;
 					}
 					
@@ -457,9 +459,38 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	LogDebug("Network::incoming", "Incoming, type: "+type);
+	LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
 	
-	// TODO
+	if(type == "notif")
+	{
+	
+		Notification notification;
+		serializer.read(notification);
+		onRecv(link, notification);
+		return true;
+	}
+	else if(type == "publish")
+	{
+		String path;
+		SerializableList<BinaryString> targets;
+		serializer.read(Object()
+				.insert("path", &path)
+				.insert("targets", &targets));
+		
+		RemotePublisher publisher(targets);
+		matchSubscribers(path, link.remote, &publisher);
+		return true;
+	}
+	else if(type == "subscribe")
+	{
+		String path;
+		serializer.read(Object()
+				.insert("path", &path));
+		
+		addRemoteSubscriber(link.remote, path, false);
+		return true;
+	}
+	
 	return false;
 }
 
@@ -512,13 +543,10 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 			if(!targets.empty()) 
 			{
 				LogDebug("Network::Handler::incoming", "Anouncing " + path);
-				
-				String response;
-				JsonSerializer(&response).outputObject(Serializer::ConstObject()
-					.insert("path", &path)
-					.insert("targets", &targets));
-				
-				outgoing(Link(overlay()->localNode(), source), "publish", response);
+	
+				outgoing(Link(overlay()->localNode(), source), "publish", ConstObject()
+						.insert("path", &path)
+						.insert("targets", &targets));
 			}
 		}
 		
@@ -846,13 +874,11 @@ bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &p
 	{
 		SerializableArray<BinaryString> targets;
 		targets.append(target);
-		
-		String payload;
-		JsonSerializer(&payload).outputObject(Serializer::ConstObject()
-			.insert("prefix", &prefix)
-			.insert("targets", &targets));
 				
-		Network::Instance->outgoing(Link(Network::Instance->overlay()->localNode(), mRemote), "publish", payload);
+		Network::Instance->outgoing(Link(Network::Instance->overlay()->localNode(), mRemote), "publish",
+			ConstObject()
+				.insert("prefix", &prefix)
+				.insert("targets", &targets));
 	}
 }
 
@@ -1375,8 +1401,14 @@ void Network::Handler::process(void)
 	String type, content;
 	while(read(type, content))
 	{
-		JsonSerializer serializer(&content);
-		Network::Instance->incoming(mLink, type, serializer);
+		try {
+			JsonSerializer serializer(&content);
+			Network::Instance->incoming(mLink, type, serializer);
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("Network::Handler::process", "Unable to process command (type='" + type + "'): " + e.what());
+		}
 	}
 }
 

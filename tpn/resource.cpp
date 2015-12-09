@@ -25,6 +25,7 @@
 #include "tpn/config.h"
 
 #include "pla/binaryserializer.h"
+#include "pla/object.h"
 
 namespace tpn
 {
@@ -253,7 +254,7 @@ void Resource::serialize(Serializer &s) const
 	ConstSerializableWrapper<int64_t> sizeWrapper(mIndexRecord->size);
 	BinaryString digest(mIndexBlock->digest());
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["name"] = &mIndexRecord->name;
 	object["type"] = &mIndexRecord->type;
 	object["size"] = &sizeWrapper;
@@ -440,7 +441,7 @@ void Resource::MetaRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
@@ -452,7 +453,7 @@ bool Resource::MetaRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::Object object;
+	Object object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
@@ -469,7 +470,7 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
@@ -483,7 +484,7 @@ bool Resource::IndexRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::Object object;
+	Object object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
@@ -497,7 +498,7 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<int64_t> sizeWrapper(size);
 	
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
@@ -511,7 +512,7 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 {
 	SerializableWrapper<int64_t> sizeWrapper(&size);
 	
-	Serializer::Object object;
+	Object object;
 	object["name"] = &name;
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;

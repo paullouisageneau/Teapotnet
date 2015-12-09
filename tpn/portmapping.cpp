@@ -26,6 +26,7 @@
 #include "pla/scheduler.h"
 #include "pla/http.h"
 #include "pla/jsonserializer.h"
+#include "pla/object.h"
 #include "pla/random.h"
 
 namespace tpn
@@ -798,7 +799,7 @@ void PortMapping::FreeboxAPI::FreeboxResponse::serialize(Serializer &s) const
 {
 	ConstSerializableWrapper<bool> successWrapper(success);
 
-	Serializer::ConstObject object;
+	ConstObject object;
 	object["success"] = &successWrapper;
         object["error_code"] = &errorCode;
         object["message"] = &message;
@@ -816,7 +817,7 @@ bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
 	
 	SerializableWrapper<bool> successWrapper(&success);
 
-	Serializer::Object object;
+	Object object;
 	object["success"] = &successWrapper;
         object["error_code"] = &errorCode;
         object["message"] = &message;
