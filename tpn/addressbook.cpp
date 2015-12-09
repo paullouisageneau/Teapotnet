@@ -489,8 +489,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mUniqueName(contact.mUniqueName),
 	mName(contact.mName),
 	mPublicKey(contact.mPublicKey),
-	mRemoteSecret(contact.mRemoteSecret),
-	mInstances(contact.mInstances)
+	mRemoteSecret(contact.mRemoteSecret)
 {
 	setAddressBook(contact.mAddressBook);
 	// no init
@@ -610,32 +609,6 @@ bool AddressBook::Contact::isConnected(const Identifier &instance) const
 	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier(), instance));
 }
 
-bool AddressBook::Contact::hasInstance(const Identifier &instance) const
-{
-	Synchronize(mAddressBook);
-	return mInstances.contains(instance);
-}
-
-int AddressBook::Contact::getInstances(Set<Identifier> &result) const
-{
-	Synchronize(mAddressBook);
-	return mInstances.getKeys(result);
-}
-
-bool AddressBook::Contact::getInstanceAddresses(const Identifier &instance, Set<Address> &result) const
-{
-	Synchronize(mAddressBook);
-	
-	InstancesMap::const_iterator it = mInstances.find(instance);
-	if(it != mInstances.end())
-	{
-		it->second.getAddresses(result);
-		return true;
-	}
-	
-	return false;
-}
-
 bool AddressBook::Contact::send(const Notification &notification)
 {
 	return notification.send(mAddressBook->user()->identifier(), identifier());
@@ -651,20 +624,27 @@ void AddressBook::Contact::seen(const Network::Link &link)
 {
 	Synchronize(mAddressBook);
 	
-	mInstances[link.node].setSeen();
-	
 	if(!Network::Instance->hasLink(link))
 	{
-		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
+		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is seen");
 		Network::Instance->connect(link.node, link.remote, mAddressBook->user());
 	}
 }
 
-void AddressBook::Contact::connected(const Network::Link &link)
+void AddressBook::Contact::connected(const Network::Link &link, bool status)
 {
 	Synchronize(mAddressBook);
 	
-	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is connected");
+	if(status)
+	{
+		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
+		if(!mInstances.contains(link.node))
+			mInstances[link.node] = link.node.toString();	// default name
+	}
+	else {
+		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
+		mInstances.erase(link.node);
+	}
 }
 
 bool AddressBook::Contact::recv(const Network::Link &link, const Notification &notification)
@@ -673,7 +653,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const Notification &n
 	
 	String type;
 	notification.get("type", type);
-	LogDebug("AddressBook::Contact", "Incoming notification from " + uniqueName() + " (type='" + type + "')");
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": incoming notification, type='" + type + "'");
 	
 	if(type == "contacts")
 	{
@@ -827,9 +807,9 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				transition($('#mailscount'), msg);\n\
 				$('#instances').empty();\n\
 				if($.isEmptyObject(info.instances)) $('#instances').text('No connected instance');\n\
-				else $.each(info.instances, function(number, data) {\n\
+				else $.each(info.instances, function(id, name) {\n\
 					$('#instances').append($('<tr>')\n\
-						.append($('<td>').addClass('name').text(data.name)));\n\
+						.append($('<td>').addClass('name').text(name)));\n\
 				});\n\
 			});");
 			
@@ -1011,7 +991,6 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	object["publickey"] = &mPublicKey;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;
-	object["instances"] = &mInstances;
 	
 	String prefix, status;
 	ConstSerializableWrapper<uint32_t> messages(uint32_t(0));	// TODO
@@ -1020,6 +999,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		prefix = urlPrefix();
 		status = (isConnected() ? "connected" : "disconnected");
 		
+		object["instances"] = &mInstances;
 		object["prefix"] = &prefix;
 		object["status"] = &status;
 		object["messages"] = &messages;
@@ -1040,7 +1020,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	object["publickey"] = &mPublicKey;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;
-	object["instances"] = &mInstances;
 	object["secret"] = &mRemoteSecret;
 	
 	if(!s.inputObject(object))
@@ -1053,101 +1032,6 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 bool AddressBook::Contact::isInlineSerializable(void) const
 {
 	return false; 
-}
-
-AddressBook::Contact::Instance::Instance(void) :
-	mNumber(0),
-	mLastSeen(0)
-{
-  
-}
-
-AddressBook::Contact::Instance::Instance(const Identifier &id) :
-	mIdentifier(id),
-	mLastSeen(0)
-{
-	Assert(mNumber != 0);
-}
-
-AddressBook::Contact::Instance::~Instance()
-{
-  
-}
-
-Identifier AddressBook::Contact::Instance::identifier(void) const
-{
-	return mIdentifier;
-}
-
-String AddressBook::Contact::Instance::name(void) const
-{
-	return mName;
-}
-
-void AddressBook::Contact::Instance::setName(const String &name)
-{
-	mName = name;
-}
-
-Time AddressBook::Contact::Instance::lastSeen(void) const
-{
-	return mLastSeen;
-}
-
-void AddressBook::Contact::Instance::setSeen(void)
-{
-	mLastSeen = Time::Now(); 
-}
-
-void AddressBook::Contact::Instance::addAddress(const Address &addr)
-{
-	mAddrs.insert(addr, Time::Now());
-}
-
-void AddressBook::Contact::Instance::addAddresses(const Set<Address> &addrs)
-{
-	for(Set<Address>::iterator it = addrs.begin();
-		it != addrs.end();
-		++it)
-	{
-		addAddress(*it);
-	}
-}
-
-int AddressBook::Contact::Instance::getAddresses(Set<Address> &result) const
-{
-	mAddrs.getKeys(result);
-	return result.size();
-}
-
-void AddressBook::Contact::Instance::serialize(Serializer &s) const
-{
-	ConstSerializableWrapper<uint64_t> numberWrapper(mNumber);
-	
-	Serializer::ConstObject object;
-	object["number"] = &numberWrapper;
-	object["name"] = &mName;
-	object["addresses"] = &mAddrs;
-	
-	s.outputObject(object);
-}
-
-bool AddressBook::Contact::Instance::deserialize(Serializer &s)
-{
-	SerializableWrapper<uint64_t> numberWrapper(&mNumber);
-	
-	Serializer::Object object;
-	object["number"] = &numberWrapper;
-	object["name"] = &mName;
-	object["addresses"] = &mAddrs;
-	
-	// TODO: sanity checks
-	return s.inputObject(object);
-}
-
-bool AddressBook::Contact::Instance::isInlineSerializable(void) const
-{
-	return false;
 }
 
 }

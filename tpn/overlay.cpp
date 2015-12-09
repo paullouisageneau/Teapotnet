@@ -905,7 +905,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	if(remote.empty() || remote == identifier)
 	{
 		// Handshake succeeded
-		LogDebug("Overlay::Backend::handshake", "Handshake succeeded, spawning new handler");
+		LogDebug("Overlay::Backend::handshake", "Handshake succeeded");
 		Handler *handler = new Handler(mOverlay, transport, identifier, addr);
 		return true;
 	}
@@ -1130,7 +1130,8 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mNode(node),
 	mAddr(addr)
 {
-	mOverlay->registerHandler(mNode, mAddr, this);
+	if(!mOverlay->registerHandler(mNode, mAddr, this))
+		throw Exception("A handler already exists for the same flow");
 }
 
 Overlay::Handler::~Handler(void)
@@ -1249,9 +1250,9 @@ void Overlay::Handler::process(void)
 
 void Overlay::Handler::run(void)
 {
-	try {
-		LogDebug("Overlay::Handler", "Starting handler");
+	LogDebug("Overlay::Handler", "Starting handler");
 	
+	try {
 		process();
 		
 		LogDebug("Overlay::Handler", "Closing handler");
@@ -1264,7 +1265,7 @@ void Overlay::Handler::run(void)
 	mOverlay->unregisterHandler(mNode, mAddr, this);
 	
 	notifyAll();
-	Thread::Sleep(5.);	// TODO
+	Thread::Sleep(10.);	// TODO
 	delete this;		// autodelete
 }
 

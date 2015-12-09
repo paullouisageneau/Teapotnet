@@ -96,16 +96,12 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(const Identifier &instance) const;
 		
-		bool hasInstance(const Identifier &instance) const;
-		int  getInstances(Set<Identifier> &result) const;
-		bool getInstanceAddresses(const Identifier &instance, Set<Address> &result) const;
-		
 		bool send(const Notification &notification);
 		bool send(const Mail &mail);
 		
 		// Network::Listener
 		void seen(const Network::Link &link);
-		void connected(const Network::Link &link);
+		void connected(const Network::Link &link, bool status);
 		bool recv(const Network::Link &link, const Notification &notification);
 		bool auth(const Network::Link &link, const Rsa::PublicKey &pubKey);
 		
@@ -122,39 +118,6 @@ public:
 		BinaryString remoteSecret(void) const;
 		void run(void);
 	  
-		class Instance : public Serializable
-		{
-		public:
-			Instance(void);
-			Instance(const Identifier &id);
-			~Instance();
-			
-			Identifier identifier(void) const;
-			String name(void) const;
-			void setName(const String &name);
-			Time lastSeen(void) const;
-			void setSeen(void);
-			
-			void addAddress(const Address &addr);
-			void addAddresses(const Set<Address> &addrs);
-			int  getAddresses(Set<Address> &result) const;
-			
-			// Serializable
-			void serialize(Serializer &s) const;
-			bool deserialize(Serializer &s);
-			bool isInlineSerializable(void) const;
-			
-		private:
-			Identifier mIdentifier;
-			uint64_t mNumber;
-			String mName;
-			
-			typedef SerializableMap<Address, Time> AddressBlock;
-			AddressBlock mAddrs;
-			
-			Time mLastSeen;
-		};
-	  
 		AddressBook *mAddressBook;
 		Board *mBoard, *mPrivateBoard;
 		
@@ -162,8 +125,7 @@ public:
 		Rsa::PublicKey mPublicKey;
 		BinaryString mRemoteSecret;
 		
-		typedef SerializableMap<Identifier, Instance> InstancesMap;
-		InstancesMap mInstances;
+		SerializableMap<Identifier, String> mInstances;
 		
 		friend class AddressBook;
 	};

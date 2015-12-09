@@ -632,7 +632,7 @@ bool operator == (const Address &a1, const Address &a2)
 	{
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
-		return (std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16) == 0 && (sa1->sin6_port == sa2->sin6_port || !sa1->sin6_port || sa2->sin6_port));
+		return (std::memcmp(sa1->sin6_addr.s6_addr, sa2->sin6_addr.s6_addr, 16) == 0 && (sa1->sin6_port == sa2->sin6_port || !sa1->sin6_port || !sa2->sin6_port));
 	}
 
 	default:

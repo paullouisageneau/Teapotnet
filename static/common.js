@@ -334,7 +334,7 @@ function displayContacts(url, period, object) {
 					});
 				}
 				
-				$('#contactinfo_'+uname).html('<span class=\"name\">'+contact.name+'@'+contact.tracker+'</span><br><span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+contact.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
+				$('#contactinfo_'+uname).html('<span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span><span class=\"linkprofile\"><a href=\"'+contact.prefix+'/profile/\"><img src="/icon_profile.png" alt="Files"/></a></span>');
 				if(!isSelf) {
 					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/icon_board.png" alt="Board"/></a></span>');
 					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/icon_chat.png" alt="Messages"/></a></span>');

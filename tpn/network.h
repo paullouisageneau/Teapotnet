@@ -131,7 +131,7 @@ public:
 		void listen(const Identifier &local, const Identifier &remote);
 		
 		virtual void seen(const Link &link) {}
-		virtual void connected(const Link &link) {}
+		virtual void connected(const Link &link, bool status) {}
 		virtual bool recv(const Link &link, const Notification &notification) = 0;
 		virtual bool auth(const Link &link, const Rsa::PublicKey &pubKey) { return false; }
 		
@@ -175,6 +175,7 @@ public:
 	void storeValue(const BinaryString &key, const BinaryString &value);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
+	// Links
 	bool hasLink(const Identifier &local, const Identifier &remote);
 	bool hasLink(const Link &link);
 	
@@ -297,7 +298,7 @@ private:
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
-	void onConnected(const Link &link);
+	void onConnected(const Link &link, bool status = true);
 	void onRecv(const Link &link, const Notification &notification);
 	bool onAuth(const Link &link, const Rsa::PublicKey &pubKey);
 	

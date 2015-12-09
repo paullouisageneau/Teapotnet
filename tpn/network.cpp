@@ -112,7 +112,8 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
 		++it)
 	{
-		listener->connected(it->first);
+		listener->seen(it->first);	// so Listener::seen() is triggered even with incoming tunnels
+		listener->connected(it->first, true);
 	}
 }
 
@@ -583,7 +584,7 @@ bool Network::matchSubscribers(const String &path, const Identifier &source, Pub
 	return true;
 }
 
-void Network::onConnected(const Link &link)
+void Network::onConnected(const Link &link, bool status)
 {
 	Synchronize(this);
 	
@@ -594,8 +595,8 @@ void Network::onConnected(const Link &link)
 			jt != it->second.end();
 			++jt)
 		{
-			(*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
-			(*jt)->connected(link); 
+			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
+			(*jt)->connected(link, status);
 		}
 	}
 }
@@ -1139,8 +1140,14 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 					return false;
 				
 				// Handshake succeeded
-				LogDebug("Network::Tunneler::handshake", "Handshake succeeded, spawning new handler");
-				Handler *handler = new Handler(transport, Link(verifier.local, verifier.remote, link.node));
+				LogDebug("Network::Tunneler::handshake", "Handshake succeeded");
+				
+				Link link(verifier.local, verifier.remote, verifier.node);
+				if(!Network::Instance->hasLink(link))
+				{
+					Handler *handler = new Handler(transport, link);
+				}
+				
 				return true;
 			}
 			catch(const std::exception &e)
@@ -1298,7 +1305,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(0.),
 	mRedundancy(1.1)	// TODO
 {
-	Network::Instance->registerHandler(mLink, this);
+	if(!Network::Instance->registerHandler(mLink, this))
+		throw Exception("A handler already exists for the same link");
 }
 
 Network::Handler::~Handler(void)
@@ -1362,8 +1370,6 @@ bool Network::Handler::readString(String &str)
 
 void Network::Handler::process(void)
 {
-	Network::Instance->onConnected(mLink);
-	
 	Synchronize(this);
 	
 	String type, content;
@@ -1376,9 +1382,11 @@ void Network::Handler::process(void)
 
 void Network::Handler::run(void)
 {
-	try {
-		LogDebug("Network::Handler", "Starting handler");
+	LogDebug("Network::Handler", "Starting handler");
 	
+	Network::Instance->onConnected(mLink, true);
+	
+	try {
 		process();
 		
 		LogDebug("Network::Handler", "Closing handler");
@@ -1388,10 +1396,11 @@ void Network::Handler::run(void)
 		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
+	Network::Instance->onConnected(mLink, false);
 	Network::Instance->unregisterHandler(mLink, this);
 	
 	notifyAll();
-	Thread::Sleep(5.);	// TODO
+	Thread::Sleep(10.);	// TODO
 	delete this;		// autodelete
 }
 
