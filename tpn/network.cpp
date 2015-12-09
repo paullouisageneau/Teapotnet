@@ -71,9 +71,9 @@ Overlay *Network::overlay(void)
 	return &mOverlay;
 }
 
-void Network::connect(const BinaryString &node, const Identifier &remote, User *user)
+void Network::connect(const Identifier &node, const Identifier &remote, User *user)
 {
-	if(!hasHandler(user->identifier(), remote))
+	if(!hasLink(Link(user->identifier(), remote, node)))
 		mTunneler.open(node, remote, user, true);	// async
 }
 
@@ -108,8 +108,12 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	Synchronize(this);
 	mListeners[IdentifierPair(remote, local)].insert(listener);
 	
-	if(hasHandler(local, remote))
-		listener->connected(local, remote);
+	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(Link(local, remote));
+		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
+		++it)
+	{
+		listener->connected(it->first);
+	}
 }
 
 void Network::unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener)
@@ -217,15 +221,21 @@ void Network::addRemoteSubscriber(const Identifier &peer, const String &path, bo
 }
 
 bool Network::broadcast(const Identifier &local, const Notification &notification)
-{
-	Synchronize(this);	
-	return outgoing(local, Identifier::Empty, "notif", notification);
+{	
+	// Alias
+	return send(Link(local, Identifier::Empty), notification);
 }
 
 bool Network::send(const Identifier &local, const Identifier &remote, const Notification &notification)
 {
+	// Alias
+	return send(Link(local, remote), notification);
+}
+
+bool Network::send(const Link &link, const Notification &notification)
+{
 	Synchronize(this);
-	return outgoing(local, remote, "notif", notification);
+	return outgoing(link, "notif", notification);
 }
 
 void Network::storeValue(const BinaryString &key, const BinaryString &value)
@@ -238,21 +248,16 @@ bool Network::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	return mOverlay.retrieve(key, values);
 }
 
-bool Network::addHandler(Stream *stream, const Identifier &local, const Identifier &remote)
+bool Network::hasLink(const Identifier &local, const Identifier &remote)
 {
-	// Not synchronized
-	Assert(stream);
-	
-	LogDebug("Network", "New handler");
-	Handler *handler = new Handler(stream, local, remote);
-	mThreadPool.launch(handler);
-	return true;
+	// Alias
+	return hasLink(Link(local, remote));
 }
 
-bool Network::hasHandler(const Identifier &local, const Identifier &remote)
+bool Network::hasLink(const Link &link)
 {
 	Synchronize(this);
-	return mHandlers.contains(IdentifierPair(local, remote));
+	return mHandlers.contains(link);
 }
 
 void Network::run(void)
@@ -276,19 +281,22 @@ void Network::run(void)
 					{
 						Synchronize(this);
 						
-						if(mCallers.contains(message.source))
-							mOverlay.send(Overlay::Message(Overlay::Message::Call, message.source, message.content));	// TODO: tokens
-						
-						Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
-						while(it != mListeners.end() && it->first.first == message.source)
+						if(!message.content.empty())
 						{
-							for(Set<Listener*>::iterator jt = it->second.begin();
-								jt != it->second.end();
-								++jt)
+							if(mCallers.contains(message.source))
+								mOverlay.send(Overlay::Message(Overlay::Message::Call, message.source, message.content));	// TODO: tokens
+							
+							Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
+							while(it != mListeners.end() && it->first.first == message.source)
 							{
-								(*jt)->seen(it->first.second, it->first.first, message.content);
+								for(Set<Listener*>::iterator jt = it->second.begin();
+									jt != it->second.end();
+									++jt)
+								{
+									(*jt)->seen(Link(it->first.second, it->first.first, message.content));
+								}
+								++it;
 							}
-							++it;
 						}
 						
 						break;
@@ -352,7 +360,7 @@ void Network::run(void)
 						remoteIds.insert(it->first.first);
 					}
 					
-					BinaryString node(mOverlay.localNode());
+					Identifier node(mOverlay.localNode());
 					for(Set<Identifier>::iterator it = localIds.begin();
 						it != localIds.end();
 						++it)
@@ -364,6 +372,7 @@ void Network::run(void)
 						it != remoteIds.end();
 						++it)
 					{
+						Desynchronize(this);
 						mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", *it));
 					}
 				}
@@ -378,38 +387,36 @@ void Network::run(void)
 	}
 }
 
-bool Network::registerHandler(const Identifier &local, const Identifier &remote, Handler *handler)
+bool Network::registerHandler(const Link &link, Handler *handler)
 {
 	Synchronize(this);
+	Assert(!link.node.empty());
 	
 	if(!handler)
 		return false;
 	
-	IdentifierPair pair(local, remote);
-	
 	Handler *l = NULL;
-	if(mHandlers.get(pair, l))
+	if(mHandlers.get(link, l))
 		return (l == handler);
 	
-	mHandlers.insert(pair, handler);
+	mHandlers.insert(link, handler);
 	mThreadPool.launch(handler);
 	return true;
 }
 
-bool Network::unregisterHandler(const Identifier &local, const Identifier &remote, Handler *handler)
+bool Network::unregisterHandler(const Link &link, Handler *handler)
 {
 	Synchronize(this);
+	Assert(!link.node.empty());
 	
 	if(!handler)
 		return false;
 	
-	IdentifierPair pair(local, remote);
-	
 	Handler *l = NULL;
-	if(!mHandlers.get(pair, l) || l != handler)
+	if(!mHandlers.get(link, l) || l != handler)
 		return false;
 		
-	mHandlers.erase(pair);
+	mHandlers.erase(link);
 		return true;	
 }
 
@@ -419,7 +426,7 @@ bool Network::outgoing(const String &type, const Serializable &content)
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
 	bool success = false;
-	for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.begin();
+	for(Map<Link, Handler*>::iterator it = mHandlers.begin();
 		it != mHandlers.end();
 		++it)
 	{
@@ -430,37 +437,24 @@ bool Network::outgoing(const String &type, const Serializable &content)
 	return success;
 }
 
-bool Network::outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content)
+bool Network::outgoing(const Link &link, const String &type, const Serializable &content)
 {
 	Synchronize(this);
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
-	if(!remote.empty())
+	bool success = false;
+	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
+		it != mHandlers.end() && (link.local.empty() || it->first.local == link.local);
+		++it)
 	{
-		Map<IdentifierPair, Handler*>::iterator it = mHandlers.find(IdentifierPair(local, remote));
-		if(it != mHandlers.end())
-		{
-			it->second->write(type, content);
-			return true;
-		}
-		
-		return false;
+		it->second->write(type, content);
+		success = true;
 	}
-	else {
-		bool success = false;
-		for(Map<IdentifierPair, Handler*>::iterator it = mHandlers.lower_bound(IdentifierPair(local, Identifier::Empty));
-			it->first.first == local;
-			++it)
-		{
-			it->second->write(type, content);
-			success = true;
-		}
 		
-		return success;
-	}
+	return success;
 }
 
-bool Network::incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer)
+bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	LogDebug("Network::incoming", "Incoming, type: "+type);
 	
@@ -523,7 +517,7 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 					.insert("path", &path)
 					.insert("targets", &targets));
 				
-				outgoing(overlay()->localNode(), source, "publish", response);
+				outgoing(Link(overlay()->localNode(), source), "publish", response);
 			}
 		}
 		
@@ -589,55 +583,93 @@ bool Network::matchSubscribers(const String &path, const Identifier &source, Pub
 	return true;
 }
 
-void Network::onConnected(const Identifier &local, const Identifier &remote)
+void Network::onConnected(const Link &link)
 {
 	Synchronize(this);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
 		for(Set<Listener*>::iterator jt = it->second.begin();
 			jt != it->second.end();
 			++jt)
 		{
-			(*jt)->connected(local, remote); 
+			(*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
+			(*jt)->connected(link); 
 		}
 	}
 }
 
-void Network::onRecv(const Identifier &local, const Identifier &remote, const Notification &notification)
+void Network::onRecv(const Link &link, const Notification &notification)
 {
 	Synchronize(this);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
 		for(Set<Listener*>::iterator jt = it->second.begin();
 			jt != it->second.end();
 			++jt)
 		{
-			(*jt)->recv(local, remote, notification); 
+			(*jt)->recv(link, notification); 
 		}
 	}
 }
 
-bool Network::onAuth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey)
+bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(this);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
+	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
 		for(Set<Listener*>::iterator jt = it->second.begin();
 			jt != it->second.end();
 			++jt)
 		{
-			if((*jt)->auth(local, remote, pubKey))
+			if((*jt)->auth(link, pubKey))
 				return true;
 		}
 	}
 	
 	return false;
+}
+
+Network::Link::Link(void)
+{
+	
+}
+
+Network::Link::Link(const Identifier &local, const Identifier &remote, const Identifier &node)
+{
+	this->local = local;
+	this->remote = remote;
+	this->node = node;
+}
+
+Network::Link::~Link(void)
+{
+	
+}
+
+bool Network::Link::operator < (const Network::Link &l) const
+{
+	return (local < l.local || (local == l.local && (remote < l.remote || (remote == l.remote && node < l.node && !node.empty() && !l.node.empty()))));
+}
+
+bool Network::Link::operator > (const Network::Link &l) const
+{
+	return (local > l.local || (local == l.local && (remote > l.remote || (remote == l.remote && node > l.node && !node.empty() && !l.node.empty()))));	
+}
+
+bool Network::Link::operator == (const Network::Link &l) const
+{
+	return (local == l.local && remote == l.remote && (node == l.node || node.empty() || l.node.empty()));
+}
+
+bool Network::Link::operator != (const Network::Link &l) const
+{
+	return !(*this == l);
 }
 
 Network::Publisher::Publisher(const Identifier &peer) :
@@ -819,7 +851,7 @@ bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &p
 			.insert("prefix", &prefix)
 			.insert("targets", &targets));
 				
-		Network::Instance->outgoing(Network::Instance->overlay()->localNode(), mRemote, "publish", payload);
+		Network::Instance->outgoing(Link(Network::Instance->overlay()->localNode(), mRemote), "publish", payload);
 	}
 }
 
@@ -901,8 +933,10 @@ Network::Tunneler::~Tunneler(void)
 	
 }
 
-bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
+bool Network::Tunneler::open(const Identifier &node, const Identifier &remote, User *user, bool async)
 {
+	Assert(!node.empty());
+	Assert(!remote.empty());
 	Assert(user);
 	
 	if(remote.empty())
@@ -911,8 +945,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->overlay()->connectionsCount() == 0)
 		return false;
 	
-	// TODO: multi-instance
-	if(Network::Instance->hasHandler(user->identifier(), remote))
+	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
 	LogDebug("Network::Tunneler::open", "Opening tunnel to " + remote.toString());
@@ -941,10 +974,10 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	// Add certificates
 	transport->addCredentials(user->certificate(), false);
 	
-	return handshake(transport, local, remote, async);
+	return handshake(transport, Link(local, remote, node), async);
 }
 
-SecureTransport *Network::Tunneler::listen(void)
+SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
 	Synchronize(&mQueueSync);
 	
@@ -961,7 +994,7 @@ SecureTransport *Network::Tunneler::listen(void)
 		Map<uint64_t, Tunnel*>::iterator it = mTunnels.find(tunnelId);
 		if(it == mTunnels.end())
 		{
-			LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + datagram.source.toString());
+			if(source) *source = datagram.source;
 			
 			Tunneler::Tunnel *tunnel = NULL;
 			SecureTransport *transport = NULL;
@@ -1025,12 +1058,14 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 		return true;	
 }
 
-bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &local, const Identifier &remote, bool async)
+bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
 {
+	Assert(!link.node.empty());
+	
 	class MyVerifier : public SecureTransport::Verifier
 	{
 	public:
-		Identifier local, remote;
+		Identifier local, remote, node;
 		Rsa::PublicKey publicKey;
 		
 		bool verifyName(const String &name, SecureTransport *transport)
@@ -1065,7 +1100,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			remote = Identifier(publicKey.digest());
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
-			if(Network::Instance->onAuth(local, remote, publicKey))
+			if(Network::Instance->onAuth(Link(local, remote, node), publicKey))
 				return true;
 			
 			LogDebug("Network::Tunneler::handshake", "Certificate verification failed");
@@ -1076,11 +1111,10 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 	class HandshakeTask : public Task
 	{
 	public:
-		HandshakeTask(SecureTransport *transport, const Identifier &local, const Identifier &remote)
+		HandshakeTask(SecureTransport *transport, const Link &link)
 		{ 
 			this->transport = transport;
-			this->local = local;
-			this->remote = remote;
+			this->link = link;
 		}
 		
 		bool handshake(void)
@@ -1090,22 +1124,23 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 			try {
 				// Set verifier
 				MyVerifier verifier;
-				verifier.local = local;
+				verifier.local = link.local;
+				verifier.node  = link.node;
 				transport->setVerifier(&verifier);
 				
 				// Do handshake
 				transport->handshake();
 				Assert(transport->hasCertificate());
 				
-				if(!local.empty() && local != verifier.local)
+				if(!link.local.empty() && link.local != verifier.local)
 					return false;
 				
-				if(!remote.empty() && remote != verifier.remote)
+				if(!link.remote.empty() && link.remote != verifier.remote)
 					return false;
 				
 				// Handshake succeeded
 				LogDebug("Network::Tunneler::handshake", "Handshake succeeded, spawning new handler");
-				Handler *handler = new Handler(transport, verifier.local, verifier.remote);
+				Handler *handler = new Handler(transport, Link(verifier.local, verifier.remote, link.node));
 				return true;
 			}
 			catch(const std::exception &e)
@@ -1124,19 +1159,19 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Identifier &
 		
 	private:
 		SecureTransport *transport;
-		Identifier local, remote;
+		Link link;
 	};
 	
 	HandshakeTask *task = NULL;
 	try {
 		if(async)
 		{
-			task = new HandshakeTask(transport, local, remote);
+			task = new HandshakeTask(transport, link);
 			mThreadPool.launch(task);
 			return true;
 		}
 		else {
-			HandshakeTask stask(transport, local, remote);
+			HandshakeTask stask(transport, link);
 			return stask.handshake();
 		}
 	}
@@ -1154,12 +1189,12 @@ void Network::Tunneler::run(void)
 	try {
 		while(true)
 		{
-			SecureTransport *transport = listen();
+			Identifier node;
+			SecureTransport *transport = listen(&node);
 			if(!transport) break;
 			
-			LogDebug("Network::Backend::run", "Incoming tunnel");
-			
-			handshake(transport, Identifier::Empty, Identifier::Empty, true); // async
+			LogDebug("Network::Backend::run", "Incoming tunnel from " + node.toString());
+			handshake(transport, Link(Identifier::Empty, Identifier::Empty, node), true); // async
 		}
 	}
 	catch(const std::exception &e)
@@ -1257,19 +1292,18 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &datagram)
 	return true;
 }
 
-Network::Handler::Handler(Stream *stream, const Identifier &local, const Identifier &remote) :
+Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
-	mLocal(local),
-	mRemote(remote),
+	mLink(link),
 	mTokens(0.),
 	mRedundancy(1.1)	// TODO
 {
-	Network::Instance->registerHandler(mLocal, mRemote, this);
+	Network::Instance->registerHandler(mLink, this);
 }
 
 Network::Handler::~Handler(void)
 {
-	Network::Instance->unregisterHandler(mLocal, mRemote, this);	// should be done already
+	Network::Instance->unregisterHandler(mLink, this);	// should be done already
 	
 	delete mStream;
 }
@@ -1328,7 +1362,7 @@ bool Network::Handler::readString(String &str)
 
 void Network::Handler::process(void)
 {
-	Network::Instance->onConnected(mLocal, mRemote);
+	Network::Instance->onConnected(mLink);
 	
 	Synchronize(this);
 	
@@ -1336,7 +1370,7 @@ void Network::Handler::process(void)
 	while(read(type, content))
 	{
 		JsonSerializer serializer(&content);
-		Network::Instance->incoming(mLocal, mRemote, type, serializer);
+		Network::Instance->incoming(mLink, type, serializer);
 	}
 }
 
@@ -1354,7 +1388,7 @@ void Network::Handler::run(void)
 		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	Network::Instance->unregisterHandler(mLocal, mRemote, this);
+	Network::Instance->unregisterHandler(mLink, this);
 	
 	notifyAll();
 	Thread::Sleep(5.);	// TODO

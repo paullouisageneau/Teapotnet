@@ -602,12 +602,12 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
-	return Network::Instance->hasHandler(mAddressBook->user()->identifier(), identifier()); 
+	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier())); 
 }
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
-	return Network::Instance->hasHandler(mAddressBook->user()->identifier(), instance);
+	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier(), instance));
 }
 
 bool AddressBook::Contact::hasInstance(const Identifier &instance) const
@@ -647,26 +647,27 @@ bool AddressBook::Contact::send(const Mail &mail)
 	return false;
 }
 
-void AddressBook::Contact::seen(const Identifier &local, const Identifier &remote, const BinaryString &instance)
-{
-	Synchronize(mAddressBook);
-  
-	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
-	
-	mInstances[instance].setSeen();
-	
-	if(!Network::Instance->hasHandler(local, remote))
-		Network::Instance->connect(instance, remote, mAddressBook->user());
-}
-
-void AddressBook::Contact::connected(const Identifier &local, const Identifier &remote)
+void AddressBook::Contact::seen(const Network::Link &link)
 {
 	Synchronize(mAddressBook);
 	
-	LogDebug("AddressBook::Contact", "Connected");
+	mInstances[link.node].setSeen();
+	
+	if(!Network::Instance->hasLink(link))
+	{
+		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is seen");
+		Network::Instance->connect(link.node, link.remote, mAddressBook->user());
+	}
 }
 
-bool AddressBook::Contact::recv(const Identifier &local, const Identifier &remote, const Notification &notification)
+void AddressBook::Contact::connected(const Network::Link &link)
+{
+	Synchronize(mAddressBook);
+	
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " is connected");
+}
+
+bool AddressBook::Contact::recv(const Network::Link &link, const Notification &notification)
 {
 	// Not synchronized
 	
@@ -715,7 +716,7 @@ bool AddressBook::Contact::recv(const Identifier &local, const Identifier &remot
 	return true;
 }
 
-bool AddressBook::Contact::auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey)
+bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
 	return (pubKey == publicKey());
 }

@@ -53,6 +53,22 @@ class Network : protected Synchronizable, public Thread
 public:
 	static Network *Instance;
 	
+	struct Link
+	{
+		Link(void);
+		Link(const Identifier &local, const Identifier &remote, const Identifier &node = Identifier::Empty);
+		~Link(void);
+		
+		Identifier local;
+		Identifier remote;
+		Identifier node;
+		
+		bool operator < (const Network::Link &l) const;
+		bool operator > (const Network::Link &l) const;
+		bool operator == (const Network::Link &l) const;
+		bool operator != (const Network::Link &l) const;
+	};
+	
 	class Publisher
 	{
 	public:
@@ -114,10 +130,10 @@ public:
 		
 		void listen(const Identifier &local, const Identifier &remote);
 		
-		virtual void seen(const Identifier &local, const Identifier &remote, const BinaryString &instance) {}
-		virtual void connected(const Identifier &local, const Identifier &remote) {}
-		virtual bool recv(const Identifier &local, const Identifier &remote, const Notification &notification) = 0;
-		virtual bool auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey) { return false; }
+		virtual void seen(const Link &link) {}
+		virtual void connected(const Link &link) {}
+		virtual bool recv(const Link &link, const Notification &notification) = 0;
+		virtual bool auth(const Link &link, const Rsa::PublicKey &pubKey) { return false; }
 		
 	private:
 		Set<IdentifierPair> mPairs;
@@ -131,7 +147,7 @@ public:
 	
 	Overlay *overlay(void);
 	
-	void connect(const BinaryString &node, const Identifier &remote, User *user);
+	void connect(const Identifier &node, const Identifier &remote, User *user);
 	
 	// Caller
 	void registerCaller(const BinaryString &target, Caller *caller);
@@ -153,14 +169,14 @@ public:
 	// Notification
 	bool broadcast(const Identifier &local, const Notification &notification);
 	bool send(const Identifier &local, const Identifier &remote, const Notification &notification);
+	bool send(const Link &link, const Notification &notification);
 	
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
-	bool addHandler(Stream *stream, const Identifier &local, const Identifier &remote);
-	bool hasHandler(const Identifier &local, const Identifier &remote);
-	bool hasLink(const Identifier &local, const Identifier &remote) { return hasHandler(local, remote); }
+	bool hasLink(const Identifier &local, const Identifier &remote);
+	bool hasLink(const Link &link);
 	
 	void run(void);
 	
@@ -200,14 +216,14 @@ private:
 		Tunneler(void);
 		~Tunneler(void);
 		
-		bool open(const BinaryString &node, const Identifier &remote, User *user, bool async = false);
+		bool open(const Identifier &node, const Identifier &remote, User *user, bool async = false);
 		bool incoming(const Overlay::Message &message);
 		
 	private:
 		class Tunnel : public Stream
 		{
 		public:
-			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node);
+			Tunnel(Tunneler *tunneler, uint64_t id, const Identifier &node);
 			~Tunnel(void);
 			
 			uint64_t id(void) const;
@@ -235,9 +251,9 @@ private:
 		bool registerTunnel(Tunnel *tunnel);
 		bool unregisterTunnel(Tunnel *tunnel);
 		
-		SecureTransport *listen(void);
+		SecureTransport *listen(BinaryString *source);
 
-		bool handshake(SecureTransport *transport, const Identifier &local = "", const Identifier &remote = "", bool async = false);
+		bool handshake(SecureTransport *transport, const Link &link, bool async = false);
 		void run(void);
 		
 		Map<uint64_t, Tunnel*> mTunnels;
@@ -251,7 +267,7 @@ private:
 	class Handler : protected Synchronizable, public Task
 	{
 	public:
-		Handler(Stream *stream, const Identifier &local, const Identifier &remote);
+		Handler(Stream *stream, const Link &link);
 		~Handler(void);
 		
 		void write(const String &type, const String &content);
@@ -264,32 +280,32 @@ private:
 		void run(void);
 		
 		Stream *mStream;
-		Identifier mLocal, mRemote;
+		Link mLink;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		double mTokens;
 		double mRedundancy;
 	};
 	
-	bool registerHandler(const Identifier &local, const Identifier &remote, Handler *handler);
-	bool unregisterHandler(const Identifier &local, const Identifier &remote, Handler *handler);
+	bool registerHandler(const Link &link, Handler *handler);
+	bool unregisterHandler(const Link &link, Handler *handler);
 	
 	bool outgoing(const String &type, const Serializable &content);
-	bool outgoing(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content);
-	bool incoming(const Identifier &local, const Identifier &remote, const String &type, Serializer &serializer);
+	bool outgoing(const Link &link, const String &type, const Serializable &content);
+	bool incoming(const Link &link, const String &type, Serializer &serializer);
 	
 	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
-	void onConnected(const Identifier &local, const Identifier &remote);
-	void onRecv(const Identifier &local, const Identifier &remote, const Notification &notification);
-	bool onAuth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey);
+	void onConnected(const Link &link);
+	void onRecv(const Link &link, const Notification &notification);
+	bool onAuth(const Link &link, const Rsa::PublicKey &pubKey);
 	
 	Overlay mOverlay;
 	Tunneler mTunneler;
 	ThreadPool mThreadPool;
 
-	Map<IdentifierPair, Handler*> mHandlers;
+	Map<Link, Handler*> mHandlers;
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;

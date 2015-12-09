@@ -104,10 +104,10 @@ public:
 		bool send(const Mail &mail);
 		
 		// Network::Listener
-		void seen(const Identifier &local, const Identifier &remote, const BinaryString &instance);
-		void connected(const Identifier &local, const Identifier &remote);
-		bool recv(const Identifier &local, const Identifier &remote, const Notification &notification);
-		bool auth(const Identifier &local, const Identifier &remote, const Rsa::PublicKey &pubKey);
+		void seen(const Network::Link &link);
+		void connected(const Network::Link &link);
+		bool recv(const Network::Link &link, const Notification &notification);
+		bool auth(const Network::Link &link, const Rsa::PublicKey &pubKey);
 		
 		// HttpInterfaceable
 		void http(const String &prefix, Http::Request &request);
