@@ -23,8 +23,6 @@
 #define TPN_OVERLAY_H
 
 #include "tpn/include.h"
-#include "tpn/fountain.h"
-#include "tpn/notification.h"
 
 #include "pla/address.h"
 #include "pla/stream.h"
@@ -42,6 +40,8 @@
 #include "pla/scheduler.h"
 #include "pla/runner.h"
 #include "pla/synchronizable.h"
+#include "pla/serializable.h"
+#include "pla/object.h"
 #include "pla/map.h"
 #include "pla/set.h"
 #include "pla/array.h"

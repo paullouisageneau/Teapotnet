@@ -759,7 +759,7 @@ void User::serialize(Serializer &s) const
 	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool User::deserialize(Serializer &s)
@@ -777,7 +777,7 @@ bool User::deserialize(Serializer &s)
 	object["privatekey"] = &mPrivateKey;
 	object["secret"] = &mSecret;
 	
-	if(!s.inputObject(object))
+	if(!s.read(object))
 		return false;
 	
 	if(!mPublicKey.isNull() && !mPrivateKey.isNull())

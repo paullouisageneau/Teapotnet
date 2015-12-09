@@ -25,7 +25,6 @@
 #include "tpn/include.h"
 #include "tpn/overlay.h"
 #include "tpn/fountain.h"
-#include "tpn/notification.h"
 
 #include "pla/address.h"
 #include "pla/stream.h"
@@ -132,9 +131,9 @@ public:
 		
 		virtual void seen(const Link &link) {}
 		virtual void connected(const Link &link, bool status) {}
-		virtual bool recv(const Link &link, const Notification &notification) = 0;
+		virtual bool recv(const Link &link, const String &type, Serializer &serializer) = 0;
 		virtual bool auth(const Link &link, const Rsa::PublicKey &pubKey) { return false; }
-		
+	
 	private:
 		Set<IdentifierPair> mPairs;
 	};
@@ -166,10 +165,10 @@ public:
 	void advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher);
 	void addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly);
 	
-	// Notification
-	bool broadcast(const Identifier &local, const Notification &notification);
-	bool send(const Identifier &local, const Identifier &remote, const Notification &notification);
-	bool send(const Link &link, const Notification &notification);
+	// Serializable
+	bool broadcast(const Identifier &local, const String &type, const Serializable &object);
+	bool send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &object);
+	bool send(const Link &link, const String &type, const Serializable &object);
 	
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
@@ -299,7 +298,7 @@ private:
 	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
 	
 	void onConnected(const Link &link, bool status = true);
-	void onRecv(const Link &link, const Notification &notification);
+	bool onRecv(const Link &link, const String &type, Serializer &serializer);
 	bool onAuth(const Link &link, const Rsa::PublicKey &pubKey);
 	
 	Overlay mOverlay;

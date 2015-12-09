@@ -222,22 +222,22 @@ void Network::addRemoteSubscriber(const Identifier &peer, const String &path, bo
 	mRemoteSubscribers.begin()->subscribe(path);
 }
 
-bool Network::broadcast(const Identifier &local, const Notification &notification)
+bool Network::broadcast(const Identifier &local, const String &type, const Serializable &object)
 {	
 	// Alias
-	return send(Link(local, Identifier::Empty), notification);
+	return send(Link(local, Identifier::Empty), type, object);
 }
 
-bool Network::send(const Identifier &local, const Identifier &remote, const Notification &notification)
+bool Network::send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &object)
 {
 	// Alias
-	return send(Link(local, remote), notification);
+	return send(Link(local, remote), type, object);
 }
 
-bool Network::send(const Link &link, const Notification &notification)
+bool Network::send(const Link &link, const String &type, const Serializable &object)
 {
 	Synchronize(this);
-	return outgoing(link, "notif", notification);
+	return outgoing(link, type, object);
 }
 
 void Network::storeValue(const BinaryString &key, const BinaryString &value)
@@ -461,15 +461,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 {
 	LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
 	
-	if(type == "notif")
-	{
-	
-		Notification notification;
-		serializer.read(notification);
-		onRecv(link, notification);
-		return true;
-	}
-	else if(type == "publish")
+	if(type == "publish")
 	{
 		String path;
 		SerializableList<BinaryString> targets;
@@ -491,7 +483,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		return true;
 	}
 	
-	return false;
+	return onRecv(link, type, serializer);
 }
 
 bool Network::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
@@ -629,10 +621,11 @@ void Network::onConnected(const Link &link, bool status)
 	}
 }
 
-void Network::onRecv(const Link &link, const Notification &notification)
+bool Network::onRecv(const Link &link, const String &type, Serializer &serializer)
 {
 	Synchronize(this);
 	
+	bool ret = false;
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
@@ -640,9 +633,11 @@ void Network::onRecv(const Link &link, const Notification &notification)
 			jt != it->second.end();
 			++jt)
 		{
-			(*jt)->recv(link, notification); 
+			ret|= (*jt)->recv(link, type, serializer); 
 		}
 	}
+	
+	return ret;
 }
 
 bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
@@ -1146,7 +1141,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 		
 		bool handshake(void)
 		{
-			LogDebug("Network::Tunneler::handshake", "HandshakeTask starting...");
+			//LogDebug("Network::Tunneler::handshake", "HandshakeTask starting...");
 			
 			try {
 				// Set verifier
@@ -1348,7 +1343,7 @@ void Network::Handler::write(const String &type, const String &content)
 	mSource.write(type.c_str(), type.size()+1);
 	mSource.write(content.c_str(), content.size()+1);
 	
-	// TODO: tokens
+	// TODO
 }
 
 bool Network::Handler::read(String &type, String &content)

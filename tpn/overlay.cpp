@@ -88,7 +88,9 @@ Overlay::Overlay(int port) :
 		throw;
 	}
 	
-	LogInfo("Overlay", "Instance name is \"" + localName() + "\", node is " + localNode().toString());
+	LogDebug("Overlay", "Instance name is \"" + localName() + "\"");
+	LogDebug("Overlay", "Local node is " + localNode().toString());
+	
 	save();
 }
 
@@ -791,7 +793,7 @@ void Overlay::serialize(Serializer &s) const
 	ConstObject object;
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Overlay::deserialize(Serializer &s)
@@ -805,7 +807,7 @@ bool Overlay::deserialize(Serializer &s)
 	object["publickey"] = &mPublicKey;
 	object["privatekey"] = &mPrivateKey;
 	
-	if(!s.inputObject(object))
+	if(!s.read(object))
 		return false;
 	
 	// TODO: Sanitize

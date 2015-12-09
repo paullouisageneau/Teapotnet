@@ -50,7 +50,7 @@ bool Serializer::input(Serializable &s)
 bool Serializer::input(const Serializable &s)
 {
 	// Should not happen
-	throw Unsupported("Serializer input called with constant object");
+	throw Unsupported("Serializer input with const object");
 }
 
 bool Serializer::input(Element &element)

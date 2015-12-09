@@ -60,8 +60,7 @@ public:
 	void save(void) const;
 	
 	void update(void);
-	bool send(const Notification &notification);
-	bool send(const Mail &mail);
+	bool send(const String &type, const Serializable &object);
 	
 	// Serializable
 	void serialize(Serializer &s) const;
@@ -96,13 +95,13 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(const Identifier &instance) const;
 		
-		bool send(const Notification &notification);
-		bool send(const Mail &mail);
-		
+		bool send(const String &type, const Serializable &object);
+		bool send(const Identifier &instance, const String &type, const Serializable &object);
+	
 		// Network::Listener
 		void seen(const Network::Link &link);
 		void connected(const Network::Link &link, bool status);
-		bool recv(const Network::Link &link, const Notification &notification);
+		bool recv(const Network::Link &link, const String &type, Serializer &serializer);
 		bool auth(const Network::Link &link, const Rsa::PublicKey &pubKey);
 		
 		// HttpInterfaceable

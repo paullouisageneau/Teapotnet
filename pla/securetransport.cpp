@@ -88,7 +88,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 		if(stream->isDatagram())
 		{
 			const double retransTimeout = 1.;
-			const double totalTimeout   = 60.;
+			const double totalTimeout   = 120.;
 			
 			gnutls_dtls_set_mtu(mSession, 1200);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));

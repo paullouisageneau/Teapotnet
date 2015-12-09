@@ -147,7 +147,7 @@ void Mail::serialize(Serializer &s) const
 		object["digest"] = &mDigest;
 	}
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Mail::deserialize(Serializer &s)
@@ -169,7 +169,7 @@ bool Mail::deserialize(Serializer &s)
 	object["parent"] = &mParent;
 	object["signature"] = &mSignature;
 	
-	if(!s.inputObject(object))
+	if(!s.read(object))
 		return false;
 	
 	// TODO: checks

@@ -805,7 +805,7 @@ void PortMapping::FreeboxAPI::FreeboxResponse::serialize(Serializer &s) const
         object["message"] = &message;
         object["result"] = &result;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
@@ -823,7 +823,7 @@ bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
         object["message"] = &message;
         object["result"] = &result;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::isInlineSerializable(void) const

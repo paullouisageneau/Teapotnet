@@ -260,7 +260,7 @@ void Resource::serialize(Serializer &s) const
 	object["size"] = &sizeWrapper;
 	object["digest"] = &digest;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Resource::deserialize(Serializer &s)
@@ -446,7 +446,7 @@ void Resource::MetaRecord::serialize(Serializer &s) const
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Resource::MetaRecord::deserialize(Serializer &s)
@@ -458,7 +458,7 @@ bool Resource::MetaRecord::deserialize(Serializer &s)
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 bool Resource::MetaRecord::isInlineSerializable(void) const
@@ -477,7 +477,7 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 	object["digests"] = &blockDigests;
 	object["salt"] = &salt;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
@@ -491,7 +491,7 @@ bool Resource::IndexRecord::deserialize(Serializer &s)
 	object["digests"] = &blockDigests;
 	object["salt"] = &salt;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 void Resource::DirectoryRecord::serialize(Serializer &s) const
@@ -505,7 +505,7 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 	object["digest"] = &digest;
 	if(time != 0) object["time"] = &time;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Resource::DirectoryRecord::deserialize(Serializer &s)
@@ -519,7 +519,7 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 	object["digest"] = &digest;
 	object["time"] = &time;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 }

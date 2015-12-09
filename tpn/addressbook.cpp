@@ -113,12 +113,8 @@ void AddressBook::save(void) const
 		resource.process(mFileName, "contacts", "contacts", self->secret());
 		
 		mDigest = resource.digest();
-		
-		Notification notification;
-		notification["type"] << "contacts";
-		notification["digest"] << mDigest;
-		
-		DesynchronizeStatement(this, Network::Instance->send(user()->identifier(), self->identifier(), notification));
+
+		DesynchronizeStatement(this, Network::Instance->send(user()->identifier(), self->identifier(), "contacts", ConstObject().insert("digest", mDigest)));
 	}
 }
 
@@ -234,7 +230,7 @@ bool AddressBook::hasIdentifier(const Identifier &identifier) const
 	return mContactsByIdentifier.contains(identifier);
 }
 
-bool AddressBook::send(const Notification &notification)
+bool AddressBook::send(const String &type, const Serializable &object)
 {
 	Array<Identifier> keys;
 	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
@@ -243,22 +239,7 @@ bool AddressBook::send(const Notification &notification)
 	for(int i=0; i<keys.size(); ++i)
         {
                 Contact *contact = getContact(keys[i]);
-		if(contact) success|= contact->send(notification);
-	}
-	
-	return success;
-}
-
-bool AddressBook::send(const Mail &mail)
-{
-	Array<Identifier> keys;
-	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
-
-	bool success = false;
-	for(int i=0; i<keys.size(); ++i)
-        {
-                Contact *contact = getContact(keys[i]);
-		if(contact) success|= contact->send(mail);
+		if(contact) success|= contact->send(type, object);
 	}
 	
 	return success;
@@ -271,7 +252,7 @@ void AddressBook::serialize(Serializer &s) const
 	ConstObject object;
 	object["contacts"] = &mContacts;
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool AddressBook::deserialize(Serializer &s)
@@ -281,7 +262,7 @@ bool AddressBook::deserialize(Serializer &s)
 	Object object;
 	object["contacts"] = &mContacts;
 	
-	if(!s.inputObject(object)) return false;
+	if(!s.read(object)) return false;
 	
 	// Fill mContactsByIdentifier and set up contacts
 	for(Map<String, Contact>::iterator it = mContacts.begin();
@@ -610,15 +591,14 @@ bool AddressBook::Contact::isConnected(const Identifier &instance) const
 	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier(), instance));
 }
 
-bool AddressBook::Contact::send(const Notification &notification)
+bool AddressBook::Contact::send(const String &type, const Serializable &object)
 {
-	return notification.send(mAddressBook->user()->identifier(), identifier());
+	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier()), type, object);
 }
 
-bool AddressBook::Contact::send(const Mail &mail)
+bool AddressBook::Contact::send(const Identifier &instance, const String &type, const Serializable &object)
 {
-	// TODO
-	return false;
+	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier(), instance), type, object);
 }
 
 void AddressBook::Contact::seen(const Network::Link &link)
@@ -641,6 +621,8 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
 		if(!mInstances.contains(link.node))
 			mInstances[link.node] = link.node.toString();	// default name
+			
+		send(link.node, "info", ConstObject().insert("name", Network::Instance->overlay()->localName()));
 	}
 	else {
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
@@ -648,20 +630,24 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 	}
 }
 
-bool AddressBook::Contact::recv(const Network::Link &link, const Notification &notification)
+bool AddressBook::Contact::recv(const Network::Link &link, const String &type, Serializer &serializer)
 {
 	// Not synchronized
 	
-	String type;
-	notification.get("type", type);
-	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": incoming notification, type='" + type + "'");
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message, type='" + type + "'");
 	
-	if(type == "contacts")
+	if(type == "info")
 	{
-		if(!isSelf()) throw Exception("Received contacts notification from other than self");
+		String name;
+		serializer.read(Object().insert("name", &name));
+		mInstances[link.node] = name;
+	}
+	else if(type == "contacts")
+	{
+		if(!isSelf()) throw Exception("Received contacts from other than self");
 		
 		BinaryString digest;
-		notification.get("digest").extract(digest);
+		serializer.read(Object().insert("digest", &digest));
 		
 		class ImportTask : public Task
 		{
@@ -1010,7 +996,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		
 	}
 	
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool AddressBook::Contact::deserialize(Serializer &s)
@@ -1023,7 +1009,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	object["name"] = &mName;
 	object["secret"] = &mRemoteSecret;
 	
-	if(!s.inputObject(object))
+	if(!s.read(object))
 		return false;
 	
 	// TODO: sanity checks

@@ -1564,7 +1564,7 @@ void Indexer::Query::serialize(Serializer &s) const
 	if(mCount > 0)		object["count"] = &countWrapper;
 	object["access"] = &strAccessLevel;
 
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Indexer::Query::deserialize(Serializer &s)
@@ -1585,7 +1585,7 @@ bool Indexer::Query::deserialize(Serializer &s)
 	else if(strAccessLevel == "private") mAccess = Resource::Private;
 	else mAccess = Resource::Public;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 bool Indexer::Query::isInlineSerializable(void) const
@@ -1617,7 +1617,7 @@ void Indexer::Entry::serialize(Serializer &s) const
 	object["path"] = &path;
 	object["access"] = &strAccessLevel;
 
-	s.outputObject(object);
+	s.write(object);
 }
 
 bool Indexer::Entry::deserialize(Serializer &s)
@@ -1632,7 +1632,7 @@ bool Indexer::Entry::deserialize(Serializer &s)
 	else if(strAccessLevel == "private") access = Resource::Private;
 	else access = Resource::Public;
 	
-	return s.inputObject(object);
+	return s.read(object);
 }
 
 bool Indexer::Entry::isInlineSerializable(void) const

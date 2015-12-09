@@ -72,8 +72,8 @@ public:
 		bool deserializeValue(Serializer &s);
 	};
 	
-	void serialize(Serializer &s) const;
-	bool deserialize(Serializer &s);
+	virtual void serialize(Serializer &s) const;
+	virtual bool deserialize(Serializer &s);
 	bool isInlineSerializable(void) const;
 };
 
