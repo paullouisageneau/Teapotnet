@@ -279,6 +279,7 @@ bool SecureTransport::nextWrite(void)
 		return false;
 	
 	ssize_t ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
+	mWriteBuffer.clear();
 	if(ret < 0)
 	{
 		if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::nextWrite", gnutls_strerror(ret));

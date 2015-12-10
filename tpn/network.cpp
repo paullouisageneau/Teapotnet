@@ -1331,7 +1331,8 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &datagram)
 Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
-	mTokens(0.),
+	mTokens(10.),
+	mRank(0.),
 	mRedundancy(1.1)	// TODO
 {
 	if(!Network::Instance->registerHandler(mLink, this))
@@ -1353,22 +1354,44 @@ void Network::Handler::write(const String &type, const String &content)
 	buffer.writeBinary(type.c_str(), type.size()+1);
 	buffer.writeBinary(content.c_str(), content.size()+1);
 	mSource.write(buffer.data(), buffer.size());
+	mRank+= mRedundancy;
 	
-	// TODO: tokens and redundancy
-	Fountain::Combination combination;
-	mSource.generate(combination);
+	send();
+}
+
+void Network::Handler::send(bool force)
+{
+	Synchronize(this);
 	
-	BinarySerializer serializer(mStream);
-	serializer.write(combination);
-	mStream->writeBinary(combination.data(), combination.codedSize());
-	mStream->nextWrite();
+	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
+	{
+		Fountain::Combination combination;
+		mSource.generate(combination);
+		
+		BinarySerializer serializer(mStream);
+		serializer.write(combination);
+		serializer.write(uint32_t(mSink.nextSeen()));
+		
+		mStream->writeBinary(combination.data(), combination.codedSize());
+		mStream->nextWrite();
+		
+		if(!combination.isNull())
+		{
+			mTokens-= 1.;
+			mRank-= 1.;
+		}
+		
+		force = false;
+	}
 }
 
 bool Network::Handler::read(String &type, String &content)
 {
 	Synchronize(this);
 	
-	if(!readString(type)) return false;
+	if(!readString(type))
+		return false;
+	
 	if(!readString(content))
 		throw Exception("Unexpected end of stream");
 	
@@ -1399,12 +1422,20 @@ bool Network::Handler::readString(String &str)
 		Fountain::Combination combination;
 		BinarySerializer serializer(mStream);
 		DesynchronizeStatement(this, serializer.read(combination));
+		
+		uint32_t nextSeen = 0;
+		serializer.read(nextSeen);
+		
 		BinaryString data;
 		mStream->readBinary(data);
 		combination.setCodedData(data);
 		mStream->nextRead();
 		
-		mSink.solve(combination);
+		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
+		if(!combination.isNull())
+			mSink.solve(combination);
+		
+		send(true);	// force
 	}
 }
 

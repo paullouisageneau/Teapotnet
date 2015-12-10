@@ -273,6 +273,7 @@ private:
 		void write(const String &type, const String &content);
 		
 	private:
+		void send(bool force = false);
 		bool read(String &type, String &content);
 		bool readString(String &str);
 		
@@ -283,7 +284,7 @@ private:
 		Link mLink;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
-		double mTokens;
+		double mTokens, mRank;
 		double mRedundancy;
 	};
 	

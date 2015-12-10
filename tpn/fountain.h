@@ -127,8 +127,9 @@ public:
 		
 		unsigned write(const char *data, size_t size);
 		
+		unsigned count(void) const;
 		bool generate(Combination &result, unsigned *counter = NULL);
-		void drop(unsigned nextSeen);
+		unsigned drop(unsigned nextSeen);
 
 	private:
 		List<BinaryString> mComponents;

@@ -135,21 +135,24 @@ uint8_t Fountain::Generator::next(void)
 
 Fountain::Combination::Combination(void) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mNonce(0)
 {
 	
 }
 
 Fountain::Combination::Combination(const Combination &combination) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mNonce(0)
 {
 	*this = combination;
 }
 
 Fountain::Combination::Combination(unsigned offset, const char *data, size_t size, bool last) :
 	mData(NULL),
-	mSize(0)
+	mSize(0),
+	mNonce(0)
 {
 	addComponent(offset, 1, data, size, last);
 }
@@ -500,11 +503,13 @@ unsigned Fountain::DataSource::write(const char *data, size_t size)
 	return count;
 }
 
+unsigned Fountain::DataSource::count(void) const
+{
+	return unsigned(mComponents.size());
+}
+
 bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
 {
-	if(mComponents.empty())
-		return false;
-	
 	unsigned first = mFirstComponent;
 	unsigned count = mComponents.size();
 	
@@ -520,6 +525,10 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
 	}
 	
 	result.clear();
+	
+	if(mComponents.empty())
+		return false;
+	
 	Generator gen(result.seed(first, count));
 	
 	// TODO
@@ -538,15 +547,18 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
 	return true;
 }
 
-void Fountain::DataSource::drop(unsigned nextSeen)
+unsigned Fountain::DataSource::drop(unsigned nextSeen)
 {
+	unsigned dropped = 0;
 	while(!mComponents.empty() && nextSeen > mFirstComponent)
 	{
 		++mFirstComponent;
+		++dropped;
 		mComponents.pop_front();
 	}
 	
 	mCurrentComponent = std::max(mCurrentComponent, mFirstComponent);
+	return dropped;
 }
 
 Fountain::FileSource::FileSource(File *file, int64_t offset, int64_t size) :
