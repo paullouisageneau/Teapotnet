@@ -130,6 +130,8 @@ protected:
 	static int PrivateSharedKeyCallback(gnutls_session_t session, const char* username, gnutls_datum_t* datum); 
 	static int PrivateSharedKeyClientCallback(gnutls_session_t session, char** username, gnutls_datum_t* datum); 
 	
+	static String ErrorString(int code);
+	
 	static const String DefaultPriorities;
 	static gnutls_dh_params_t Params;
 	static Mutex ParamsMutex;

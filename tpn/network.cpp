@@ -1487,7 +1487,7 @@ void Network::Handler::run(void)
 	}
 	catch(const std::exception &e)
 	{
-		LogDebug("Network::Handler", String("Closing handler: ") + e.what());
+		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
 	Network::Instance->onConnected(mLink, false);

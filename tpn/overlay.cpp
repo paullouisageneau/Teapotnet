@@ -1262,7 +1262,7 @@ void Overlay::Handler::run(void)
 	}
 	catch(const std::exception &e)
 	{
-		LogDebug("Overlay::Handler", String("Closing handler: ") + e.what());
+		LogWarn("Overlay::Handler", String("Closing handler: ") + e.what());
 	}
 	
 	mOverlay->unregisterHandler(mNode, mAddr, this);

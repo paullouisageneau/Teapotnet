@@ -54,7 +54,7 @@ void SecureTransport::GenerateParams(void)
 	MutexLocker lock(&ParamsMutex);
 	LogDebug("SecureTransport::GenerateParams", "Generating DH parameters");
 	int ret = gnutls_dh_params_generate2(Params, bits);
-	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + gnutls_strerror(ret));
+	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + ErrorString(ret));
 }
 
 SecureTransport::SecureTransport(Stream *stream, bool server) :
@@ -154,11 +154,7 @@ void SecureTransport::handshake(void)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if(ret < 0)
-	{
-		if(ret == GNUTLS_E_PUSH_ERROR || ret == GNUTLS_E_PULL_ERROR) throw Exception("TLS handshake failed");
-		else throw Exception(String("TLS handshake failed: ") + gnutls_strerror(ret));
-	}
+        if(ret < 0) throw Exception(String("TLS handshake failed: ") + ErrorString(ret));
 	
 	mIsHandshakeDone = true;
 }
@@ -220,7 +216,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			ssize_t ret;
 			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
 				if(gnutls_error_is_fatal(ret))
-					throw Exception((ret == GNUTLS_E_PULL_ERROR ? "Reading failed" : gnutls_strerror(ret)));
+					throw Exception(ErrorString(ret));
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
@@ -235,7 +231,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 		ssize_t ret;
 		while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
 			if(gnutls_error_is_fatal(ret))
-				throw Exception((ret == GNUTLS_E_PULL_ERROR ? "Reading failed" : gnutls_strerror(ret)));
+				throw Exception(ErrorString(ret));
 		
 		return size_t(ret);
 	}
@@ -251,7 +247,7 @@ void SecureTransport::writeData(const char *data, size_t size)
 	}
 	else do {
 		ssize_t ret = gnutls_record_send(mSession, data, size);
-		if(ret < 0) throw Exception((ret == GNUTLS_E_PUSH_ERROR ? "Writing failed" : gnutls_strerror(ret)));
+		if(ret < 0) throw Exception(ErrorString(ret));
 		
 		data+= ret;
 		size-= ret;
@@ -276,7 +272,7 @@ bool SecureTransport::nextWrite(void)
 	
 	ssize_t ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
 	mWriteBuffer.clear();
-	if(ret < 0) throw Exception((ret == GNUTLS_E_PUSH_ERROR ? "Writing failed" : gnutls_strerror(ret)));
+	if(ret < 0) throw Exception(ErrorString(ret));
 	
 	return true;
 }
@@ -423,7 +419,7 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 			try {
 				// Reimport certificate
 				int ret = gnutls_x509_crt_import(crt, array+i, GNUTLS_X509_FMT_DER);
-				if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + gnutls_strerror(ret));
+				if(ret != GNUTLS_E_SUCCESS) throw Exception(String("Unable to retrieve X509 certificate: ") + ErrorString(ret));
 				
 				if(i==0 && !transport->mHostname.empty())
 				{
@@ -537,6 +533,16 @@ int SecureTransport::PrivateSharedKeyClientCallback(gnutls_session_t session, ch
 	return 0;
 }
 
+String SecureTransport::ErrorString(int code)
+{
+	switch(code)
+	{
+		case GNUTLS_E_PULL_ERROR: return "Reading failed";
+		case GNUTLS_E_PUSH_ERROR: return "Writing failed";
+		default: return gnutls_strerror(code);
+	}
+}
+
 void SecureTransport::Credentials::install(SecureTransport *st)
 {
 	install(st->mSession, st->mPriorities);
@@ -609,7 +615,7 @@ SecureTransport::RsaCertificate::RsaCertificate(const Rsa::PublicKey &pub, const
 		
 		int ret = gnutls_certificate_set_x509_key(mCreds, &mCrt, 1, mKey);
 		if(ret != GNUTLS_E_SUCCESS)
-			throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
+			throw Exception(String("Unable to set certificate and key pair in credentials: ") + ErrorString(ret));
 	}
 	catch(...)
 	{
@@ -635,7 +641,7 @@ SecureTransport::RsaCertificateChain::RsaCertificateChain(const Array<SecureTran
 	
 	int ret = gnutls_certificate_set_x509_key(mCreds, crts, chain.size(), chain[0]->mKey);
 	if(ret != GNUTLS_E_SUCCESS)
-		throw Exception(String("Unable to set certificate and key pair in credentials: ") + gnutls_strerror(ret));
+		throw Exception(String("Unable to set certificate and key pair in credentials: ") + ErrorString(ret));
 }
 
 SecureTransport::RsaCertificateChain::~RsaCertificateChain(void)
