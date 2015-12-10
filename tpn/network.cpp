@@ -1333,7 +1333,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mLink(link),
 	mTokens(10.),
 	mRank(0.),
-	mRedundancy(1.1)	// TODO
+	mRedundancy(1.1),	// TODO
+	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))
 		throw Exception("A handler already exists for the same link");
@@ -1342,6 +1343,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 Network::Handler::~Handler(void)
 {
 	Network::Instance->unregisterHandler(mLink, this);	// should be done already
+	Scheduler::Global->cancel(&mTimeoutTask);
 	
 	delete mStream;
 }
@@ -1363,6 +1365,8 @@ void Network::Handler::send(bool force)
 {
 	Synchronize(this);
 	
+	Scheduler::Global->cancel(&mTimeoutTask);
+	
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
 		Fountain::Combination combination;
@@ -1383,6 +1387,19 @@ void Network::Handler::send(bool force)
 		
 		force = false;
 	}
+	
+	Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
+}
+
+void Network::Handler::timeout(void)
+{
+	Synchronize(this);
+	
+	if(mSource.count() > 0)
+	{
+		if(mTokens < 1.) mTokens = 1.;
+		send(false);
+	}
 }
 
 bool Network::Handler::read(String &type, String &content)
@@ -1393,7 +1410,7 @@ bool Network::Handler::read(String &type, String &content)
 		return false;
 	
 	if(!readString(content))
-		throw Exception("Unexpected end of stream");
+		throw Exception("Connexion unexpectedly closed");
 	
 	return true;
 }
@@ -1475,6 +1492,7 @@ void Network::Handler::run(void)
 	
 	Network::Instance->onConnected(mLink, false);
 	Network::Instance->unregisterHandler(mLink, this);
+	Scheduler::Global->cancel(&mTimeoutTask);
 	
 	notifyAll();
 	Thread::Sleep(10.);	// TODO

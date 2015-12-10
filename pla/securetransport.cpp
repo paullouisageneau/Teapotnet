@@ -220,7 +220,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			ssize_t ret;
 			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
 				if(gnutls_error_is_fatal(ret))
-					throw Exception(gnutls_strerror(ret));
+					throw Exception((ret == GNUTLS_E_PULL_ERROR ? "Reading failed" : gnutls_strerror(ret)));
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
@@ -235,7 +235,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 		ssize_t ret;
 		while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
 			if(gnutls_error_is_fatal(ret))
-				throw Exception(gnutls_strerror(ret));
+				throw Exception((ret == GNUTLS_E_PULL_ERROR ? "Reading failed" : gnutls_strerror(ret)));
 		
 		return size_t(ret);
 	}
@@ -251,11 +251,7 @@ void SecureTransport::writeData(const char *data, size_t size)
 	}
 	else do {
 		ssize_t ret = gnutls_record_send(mSession, data, size);
-		if(ret < 0)
-		{
-			if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::writeData", gnutls_strerror(ret));
-			else throw Exception(gnutls_strerror(ret));
-		}
+		if(ret < 0) throw Exception((ret == GNUTLS_E_PUSH_ERROR ? "Writing failed" : gnutls_strerror(ret)));
 		
 		data+= ret;
 		size-= ret;
@@ -280,11 +276,7 @@ bool SecureTransport::nextWrite(void)
 	
 	ssize_t ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
 	mWriteBuffer.clear();
-	if(ret < 0)
-	{
-		if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::nextWrite", gnutls_strerror(ret));
-		else throw Exception(gnutls_strerror(ret));
-	}
+	if(ret < 0) throw Exception((ret == GNUTLS_E_PUSH_ERROR ? "Writing failed" : gnutls_strerror(ret)));
 	
 	return true;
 }

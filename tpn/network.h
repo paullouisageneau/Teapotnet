@@ -271,6 +271,7 @@ private:
 		~Handler(void);
 		
 		void write(const String &type, const String &content);
+		void timeout(void);
 		
 	private:
 		void send(bool force = false);
@@ -286,6 +287,18 @@ private:
 		Fountain::Sink 		mSink;
 		double mTokens, mRank;
 		double mRedundancy;
+		double mTimeout;
+		
+		class TimeoutTask : public Task
+		{
+		public:
+			TimeoutTask(Handler *handler) { this->handler = handler; }
+			void run(void) { handler->timeout(); }
+		private:
+			Handler *handler;
+		};
+		
+		TimeoutTask mTimeoutTask;
 	};
 	
 	bool registerHandler(const Link &link, Handler *handler);

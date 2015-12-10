@@ -1188,11 +1188,11 @@ bool Overlay::Handler::recv(Message &message)
 			--message.ttl;
 			return true;
 		}
-		catch(...)
+		catch(const IOException &e)
 		{
 			if(!mStream->nextRead())
 			{
-				LogWarn("Overlay::Handler", "Unexpected end of stream while reading");
+				LogWarn("Overlay::Handler", "Connexion unexpectedly closed");
 				return false;
 			}
 			
