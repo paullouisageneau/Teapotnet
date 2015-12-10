@@ -575,6 +575,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	Assert(mBufferOffset <= mBuffer.size());
 	size = std::min(size, size_t(mBuffer.size() - mBufferOffset));
 	std::memcpy(buffer, mBuffer.data() + mBufferOffset, size);
+	mBufferOffset+= size;
 	return size;
 }
 

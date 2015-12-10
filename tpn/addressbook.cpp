@@ -634,7 +634,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 {
 	// Not synchronized
 	
-	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message, type='" + type + "'");
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type='" + type + "')");
 	
 	if(type == "info")
 	{

@@ -23,6 +23,7 @@
 #include "pla/exception.h"
 #include "pla/random.h"
 #include "pla/thread.h"
+#include "pla/datagramsocket.h"
 
 #include <gnutls/dtls.h>
 
@@ -60,7 +61,10 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 	mStream(stream),
 	mVerifier(NULL),
 	mPriorities(DefaultPriorities),
-	mIsHandshakeDone(false)
+	mIsHandshakeDone(false),
+	mBuffer(NULL),
+	mBufferSize(0),
+	mBufferOffset(0)
 {
 	Assert(stream);
 
@@ -92,6 +96,8 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 			
 			gnutls_dtls_set_mtu(mSession, 1200);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
+			
+			mBuffer = new char[DatagramSocket::MaxDatagramSize];
 		}
 	}
 	catch(...)
@@ -105,6 +111,7 @@ SecureTransport::~SecureTransport(void)
 {
 	gnutls_deinit(mSession);	
 	delete mStream;
+	delete mBuffer;
 	
 	for(List<Credentials*>::iterator it = mCredsToDelete.begin();
 		it != mCredsToDelete.end();
@@ -203,23 +210,47 @@ String SecureTransport::getPrivateSharedKeyHint(void) const
 
 size_t SecureTransport::readData(char *buffer, size_t size)
 {
-	ssize_t ret;
-	while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
+	if(isDatagram())
 	{
-		if(gnutls_error_is_fatal(ret))
-			throw Exception(gnutls_strerror(ret));
+		Assert(mBuffer);
+		Assert(mBufferOffset <= mBufferSize);
+		
+		while(!mBufferSize)
+		{
+			ssize_t ret;
+			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
+				if(gnutls_error_is_fatal(ret))
+					throw Exception(gnutls_strerror(ret));
+			
+			mBufferSize = size_t(ret);
+			mBufferOffset = 0;
+		}
+		
+		size = std::min(size, mBufferSize - mBufferOffset);
+		std::memcpy(buffer, mBuffer + mBufferOffset, size);
+		mBufferOffset+= size;
+		return size;
 	}
-	
-	return size_t(ret);
+	else {
+		ssize_t ret;
+		while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
+			if(gnutls_error_is_fatal(ret))
+				throw Exception(gnutls_strerror(ret));
+		
+		return size_t(ret);
+	}
 }
 
 void SecureTransport::writeData(const char *data, size_t size)
 {
 	if(!size) return;
 	
-	do {
+	if(isDatagram())
+	{
+		mWriteBuffer.writeBinary(data, size);
+	}
+	else do {
 		ssize_t ret = gnutls_record_send(mSession, data, size);
-		
 		if(ret < 0)
 		{
 			if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::writeData", gnutls_strerror(ret));
@@ -230,6 +261,31 @@ void SecureTransport::writeData(const char *data, size_t size)
 		size-= ret;
 	}
 	while(size);
+}
+
+bool SecureTransport::nextRead(void)
+{
+	if(!isDatagram())
+		return false;
+	
+	mBufferOffset = 0;
+	mBufferSize = 0;
+	return true;
+}
+
+bool SecureTransport::nextWrite(void)
+{
+	if(!isDatagram())
+		return false;
+	
+	ssize_t ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
+	if(ret < 0)
+	{
+		if(!gnutls_error_is_fatal(ret)) LogWarn("SecureTransport::nextWrite", gnutls_strerror(ret));
+		else throw Exception(gnutls_strerror(ret));
+	}
+	
+	return true;
 }
 
 bool SecureTransport::isDatagram(void) const

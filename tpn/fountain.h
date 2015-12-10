@@ -74,6 +74,8 @@ public:
 		void addComponent(unsigned offset, uint8_t coeff, const char *data, size_t size, bool last = false);
 		void setData(const char *data, size_t size, bool last = false);
 		void setData(const BinaryString &data, bool last = false);
+		void setCodedData(const char *data, size_t size);
+		void setCodedData(const BinaryString &data);
 		
 		uint64_t seed(unsigned first, unsigned count);
 		
@@ -87,6 +89,7 @@ public:
 		
 		const char *data(void) const;
 		size_t size(void) const;
+		size_t codedSize(void) const;
 		void clear(void);
 		
 		Combination &operator=(const Combination &combination);

@@ -225,14 +225,30 @@ void Fountain::Combination::setData(const BinaryString &data, bool last)
 	setData(data.data(), data.size(), last);
 }
 
+void Fountain::Combination::setCodedData(const char *data, size_t size)
+{
+	resize(size, false);
+	std::copy(data, data + size, mData);
+}
+
+void Fountain::Combination::setCodedData(const BinaryString &data)
+{
+	setCodedData(data.data(), data.size());
+}
+
 uint64_t Fountain::Combination::seed(unsigned first, unsigned count)
 {
 	Assert(first <= std::numeric_limits<uint32_t>::max());
 	Assert(count <= std::numeric_limits<uint16_t>::max());
 	
-	if(count <= 1) return 0;
+	if(count <= 1) 
+	{
+		mNonce = 0;
+		return 0;
+	}
+	
 	while(!mNonce) Random().readBinary(mNonce);
-	return uint64_t(mNonce) << 48 + uint64_t(count) << 32 + uint64_t(first);
+	return (uint64_t(mNonce) << 48) | (uint64_t(count) << 32) | uint64_t(first);
 }
 
 unsigned Fountain::Combination::firstComponent(void) const
@@ -272,15 +288,15 @@ bool Fountain::Combination::isNull(void) const
 
 bool Fountain::Combination::isLast(void) const
 {
-	if(isCoded())
+	if(!mSize || isCoded())
 		return false;
 	
-	size_t size = mSize;
-	while(size && mData[size] == 0x00)
+	size_t size = mSize - 1;
+	while(size && !mData[size])
 		--size;
 	
-	if(mData[size] == 0x80) return false;
-	else if(mData[size] == 0x81) return true;
+	if(mData[size] == char(0x80)) return false;
+	else if(mData[size] == char(0x81)) return true;
 	else throw Exception("Data corruption in fountain: invalid padding");
 }
 
@@ -291,18 +307,24 @@ const char *Fountain::Combination::data(void) const
 
 size_t Fountain::Combination::size(void) const
 {
-	if(isCoded())
+	if(!mSize || isCoded())
 		return mSize;
 	
-	size_t size = mSize;
-	while(size && mData[size] == 0x00)
+	size_t size = mSize - 1;
+	while(size && !mData[size])
 		--size;
 	
-	if(mData[size] != 0x80 && mData[size] != 0x81)
+	if(mData[size] != char(0x80) && mData[size] != char(0x81))
 		throw Exception("Data corruption in fountain: invalid padding");
 	
 	return size;
 }
+
+size_t Fountain::Combination::codedSize(void) const
+{
+	return mSize;
+}
+
 
 void Fountain::Combination::clear(void)
 {
@@ -404,12 +426,11 @@ void Fountain::Combination::serialize(Serializer &s) const
 {
 	Assert(firstComponent() <= std::numeric_limits<uint32_t>::max());
 	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
-	Assert(mNonce);
 	
 	// 64-bit combination descriptor
-	s.output(uint32_t(firstComponent()));	// 32-bit first
-	s.output(uint16_t(componentsCount()));	// 16-bit count
-	s.output(mNonce);			// 16-bit nonce
+	s.write(uint32_t(firstComponent()));	// 32-bit first
+	s.write(uint16_t(componentsCount()));	// 16-bit count
+	s.write(mNonce);			// 16-bit nonce
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
@@ -420,15 +441,15 @@ bool Fountain::Combination::deserialize(Serializer &s)
 	uint16_t count = 0;
 	
 	// 64-bit combination descriptor
-	if(!s.input(first)) return false;	// 32-bit first
-	AssertIO(s.input(count));		// 16-bit count
-	AssertIO(s.input(mNonce));		// 16-bit nonce
+	if(!s.read(first)) return false;	// 32-bit first
+	AssertIO(s.read(count));		// 16-bit count
+	AssertIO(s.read(mNonce));		// 16-bit nonce
 	
 	Generator gen(seed(first, count));
 	for(unsigned i=0; i<count; ++i)
 	{
-		uint8_t coeff = gen.next();
-		addComponent(first + i, coeff);
+		uint8_t c = gen.next();
+		addComponent(first + i, c);
 	}
 	
 	return true;
@@ -450,6 +471,7 @@ void Fountain::Combination::resize(size_t size, bool zerofill)
 }
 
 Fountain::DataSource::DataSource(void) :
+	mFirstComponent(0),
 	mCurrentComponent(0)
 {
 	
@@ -486,7 +508,7 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
 	unsigned first = mFirstComponent;
 	unsigned count = mComponents.size();
 	
-	if(*counter)
+	if(counter)
 	{
 		*counter = std::max(*counter, first);
 		if(*counter < first+count)
@@ -512,7 +534,7 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
 	}
 	
 	Assert(result.componentsCount() == mComponents.size());
-	//LogDebug("Fountain::Dataource::generate", "Generated combination (first=" + String::number(result.firstComponent()) + ", count=" + String::number((result.componentsCount()) + ")");
+	//LogDebug("Fountain::Dataource::generate", "Generated combination (first=" + String::number(result.firstComponent()) + ", count=" + String::number((result.componentsCount())) + ")");
 	return true;
 }
 
@@ -600,7 +622,7 @@ Fountain::Sink::~Sink(void)
 
 int64_t Fountain::Sink::solve(Combination &incoming)
 {
-	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(output.firstComponent()) + ", count=" + String::number(output.componentsCount()) + ")");
+	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(incoming.firstComponent()) + ", count=" + String::number(incoming.componentsCount()) + ")");
 	
 	if(incoming.isNull())
 		return false;
@@ -714,11 +736,12 @@ size_t Fountain::Sink::read(char *buffer, size_t size)
 	Map<unsigned,Combination>::const_iterator it = mCombinations.lower_bound(mNextRead);
 	if(it != mCombinations.end() && it->first == mNextRead && !it->second.isCoded())
 	{
-		size = std::min(size, it->second.size() - mAlreadyRead);
+		size_t s = it->second.size();	// unpad
+		size = std::min(size, s - mAlreadyRead);
 		std::memcpy(buffer, it->second.data() + mAlreadyRead, size);
 		mAlreadyRead+= size;
 		
-		if(mAlreadyRead == it->second.size())
+		if(mAlreadyRead == s)
 		{
 			mAlreadyRead = 0;
 			++mNextRead;
@@ -736,8 +759,9 @@ int64_t Fountain::Sink::dump(Stream &stream) const
 	Map<unsigned,Combination>::const_iterator it = mCombinations.begin();
 	while(it != mCombinations.end() && it->second.isCoded())
 	{
-		stream.writeData(it->second.data(), it->second.size());
-		total+= it->second.size();
+		size_t s = it->second.size();	// unpad
+		stream.writeData(it->second.data(), s);
+		total+= s;
 		++it;
 	}
 	
@@ -753,8 +777,9 @@ int64_t Fountain::Sink::hash(BinaryString &digest) const
 	Map<unsigned,Combination>::const_iterator it = mCombinations.begin();
 	while(it != mCombinations.end() && it->second.isCoded())
 	{
-		hash.process(it->second.data(), it->second.size());
-		total+= it->second.size();
+		size_t s = it->second.size();	// unpad
+		hash.process(it->second.data(), s);
+		total+= s;
 		++it;
 	}
 	

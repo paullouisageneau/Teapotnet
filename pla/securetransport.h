@@ -106,6 +106,8 @@ public:
 	size_t readData(char *buffer, size_t size); 
 	void writeData(const char *data, size_t size);
 	// TODO: waitData
+	bool nextRead(void);
+	bool nextWrite(void);
 	bool isDatagram(void) const;
 	
 	struct Verifier
@@ -139,6 +141,11 @@ protected:
 	Verifier *mVerifier;
 	String mPriorities;
 	String mHostname;
+	
+	// For datagram mode
+	char *mBuffer;
+	size_t mBufferSize, mBufferOffset;
+	BinaryString mWriteBuffer;
 	
 	List<Credentials*> mCredsToDelete;
 	bool mIsHandshakeDone;

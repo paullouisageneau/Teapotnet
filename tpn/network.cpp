@@ -313,6 +313,7 @@ void Network::run(void)
 						Overlay::Message data(Overlay::Message::Data, "", message.source);
 						BinarySerializer serializer(&data.content);
 						serializer.write(combination);
+						data.content.writeBinary(combination.data(), combination.codedSize());
 						
 						mOverlay.send(data);
 						break;
@@ -324,6 +325,7 @@ void Network::run(void)
 						BinarySerializer serializer(&message.content);
 						Fountain::Combination combination;
 						serializer.read(combination);
+						combination.setCodedData(message.content);
 						if(Store::Instance->push(message.source, combination))
 							unregisterAllCallers(message.source);
 						break;
@@ -428,6 +430,9 @@ bool Network::outgoing(const String &type, const Serializable &content)
 	Synchronize(this);
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
+	String serialized;
+	JsonSerializer(&serialized).write(content);
+	
 	bool success = false;
 	for(Map<Link, Handler*>::iterator it = mHandlers.begin();
 		it != mHandlers.end();
@@ -445,12 +450,15 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	Synchronize(this);
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
+	String serialized;
+	JsonSerializer(&serialized).write(content);
+	
 	bool success = false;
 	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && (link.local.empty() || it->first.local == link.local);
 		++it)
 	{
-		it->second->write(type, content);
+		it->second->write(type, serialized);
 		success = true;
 	}
 		
@@ -1340,10 +1348,20 @@ Network::Handler::~Handler(void)
 void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
-	mSource.write(type.c_str(), type.size()+1);
-	mSource.write(content.c_str(), content.size()+1);
 	
-	// TODO
+	BinaryString buffer;
+	buffer.writeBinary(type.c_str(), type.size()+1);
+	buffer.writeBinary(content.c_str(), content.size()+1);
+	mSource.write(buffer.data(), buffer.size());
+	
+	// TODO: tokens and redundancy
+	Fountain::Combination combination;
+	mSource.generate(combination);
+	
+	BinarySerializer serializer(mStream);
+	serializer.write(combination);
+	mStream->writeBinary(combination.data(), combination.codedSize());
+	mStream->nextWrite();
 }
 
 bool Network::Handler::read(String &type, String &content)
@@ -1378,13 +1396,14 @@ bool Network::Handler::readString(String &str)
 		}
 		
 		// We need more combinations
-		BinaryString temp;
-		DesynchronizeStatement(this, if(!mStream->readBinary(temp)) return false);
-		
 		Fountain::Combination combination;
-		BinarySerializer serializer(&temp);
-		serializer.read(combination);
-		combination.setData(temp);
+		BinarySerializer serializer(mStream);
+		DesynchronizeStatement(this, serializer.read(combination));
+		BinaryString data;
+		mStream->readBinary(data);
+		combination.setCodedData(data);
+		mStream->nextRead();
+		
 		mSink.solve(combination);
 	}
 }

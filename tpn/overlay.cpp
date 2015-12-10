@@ -320,7 +320,7 @@ bool Overlay::send(const Message &message)
 {
 	Synchronize(this);
 	
-	//LogDebug("Overlay::send", "Sending message, type: " + String::hexa(unsigned(message.type)));
+	//LogDebug("Overlay::send", "Sending message (type=" + String::hexa(unsigned(message.type)) + ")");
 	
 	if(mHandlers.empty())
 		return false;
@@ -407,7 +407,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		return false;
 	}
 
-	//LogDebug("Overlay::incoming", "Incoming message, type: " + String::hexa(unsigned(message.type)));
+	//LogDebug("Overlay::incoming", "Incoming message (type=" + String::hexa(unsigned(message.type)) + ")");
 	
 	// Message is for us
 	switch(message.type)
