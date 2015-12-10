@@ -406,6 +406,16 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 	
 	mHandlers.insert(link, handler);
 	mThreadPool.launch(handler);
+	
+	for(Map<String, Set<Subscriber*> >::iterator it = mSubscribers.begin();
+		it != mSubscribers.end();
+		++it)
+	{
+		outgoing(link, "subscribe", 
+			 ConstObject()
+				.insert("path", &it->first));
+	}
+	
 	return true;
 }
 
@@ -1351,6 +1361,8 @@ Network::Handler::~Handler(void)
 void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
+	
+	//LogDebug("Network::Handler::write", "Sending command (type='" + type + "')");
 	
 	BinaryString buffer;
 	buffer.writeBinary(type.c_str(), type.size()+1);

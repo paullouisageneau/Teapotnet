@@ -205,6 +205,9 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 	statement.execute();
 	
 	notifyAll();
+	
+	// Publish into DHT
+	Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode());
 }
 
 void Store::notifyFileErasure(const String &filename)
