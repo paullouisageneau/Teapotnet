@@ -34,7 +34,7 @@ Cache *Cache::Instance = NULL;
   
 Cache::Cache(void)
 {
-	mDirectory = "cache";	// TODO
+	mDirectory = Config::Get("cache_dir");
 
 	if(!Directory::Exist(mDirectory))
 		Directory::Create(mDirectory);
@@ -91,48 +91,15 @@ String Cache::move(const String &filename)
 	Sha256().compute(file, digest);
 	file.close();
 	
-	String destination = mDirectory + Directory::Separator + digest.toString();
+	String destination = path(digest);
 	File::Rename(filename, destination);
 	return destination;
 }
 
-void Cache::storeValue(const String &key, const BinaryString &value)
+String Cache::path(const BinaryString &digest) const
 {
-	//LogDebug("Cache::storeValue", "Cache write: " + key);
-	
-	// TODO: URGENT: multiple values
-	String tmp(key);
-	BinaryString digest;
-	Sha256().compute(tmp, digest);
-	
-	String filename = mDirectory + Directory::Separator + digest.toString();
-	File file(filename, File::Truncate);
-	file.writeBinary(value);
-	file.close();
-}
-
-bool Cache::retrieveValue(const String &key, Set<BinaryString> &values)
-{
-	//LogDebug("Cache::retrieveValue", "Cache read: " + key);
-	
-	values.clear();
-	
-	// TODO: URGENT: multiple values
-	String tmp(key);
-	BinaryString digest;
-	Sha256().compute(tmp, digest);
-  
-	String filename = mDirectory + Directory::Separator + digest.toString();
-	if(!File::Exist(filename))
-		return false;
-	
-	BinaryString value;
-	File file(filename, File::Read);
-	file.readBinary(value);
-	file.close();
-	
-	values.insert(value);
-	return true;
+	Assert(!digest.empty());
+	return mDirectory + Directory::Separator + digest.toString();
 }
 
 }

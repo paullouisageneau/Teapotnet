@@ -24,6 +24,7 @@
 #include "tpn/cache.h"
 #include "tpn/html.h"
 #include "tpn/user.h"
+#include "tpn/store.h"
 
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
@@ -45,7 +46,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	String prefix = "/mail" + mName;
 	
 	Set<BinaryString> digests;
-	Cache::Instance->retrieveValue(prefix, digests);
+	Store::Instance->retrieveValue(prefix, digests);
 	
 	for(Set<BinaryString>::iterator it = digests.begin();
 		it != digests.end();
@@ -128,7 +129,7 @@ void Board::process(void)
 		
 		// Retrieve digest and store it
 		mDigest = resource.digest();
-		Cache::Instance->storeValue("/mail" + mName, mDigest);
+		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, true);
 	}
 	catch(const Exception &e)
 	{

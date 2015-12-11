@@ -344,7 +344,7 @@ bool Overlay::send(const Message &message)
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
 {
-	Cache::Instance->storeValue(key, value);
+	Store::Instance->storeValue(key, value, false);	// not permanent
 
 	Message message(Message::Store, value, key);
 	Array<BinaryString> routes;
@@ -374,7 +374,7 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 	}
 	
 	mRetrievePending.erase(key);
-	Cache::Instance->retrieveValue(key, values);
+	Store::Instance->retrieveValue(key, values);
 	return !values.empty();
 }
 
@@ -459,7 +459,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			if(route != localNode()) sendTo(message, route);
 			else {
 				Set<BinaryString> values;
-				Cache::Instance->retrieveValue(message.destination, values);
+				Store::Instance->retrieveValue(message.destination, values);
 				for(Set<BinaryString>::iterator it = values.begin();
 					it != values.end();
 					++it)

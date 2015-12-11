@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2015 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -23,7 +23,6 @@
 #define TPN_CACHE_H
 
 #include "tpn/include.h"
-#include "tpn/block.h"
 
 #include "pla/synchronizable.h"
 #include "pla/string.h"
@@ -41,15 +40,11 @@ public:
 	Cache(void);
 	~Cache(void);
 	
-	// Asynchronous resource prefetching
-	bool prefetch(const BinaryString &target);	// true is already available
-	
+	bool prefetch(const BinaryString &target);	// Asynchronous resource prefetching (true is already available)
 	String move(const String &filename);
-	
+	String path(const BinaryString &digest) const;
+
 	// TODO: cleaning
-	
-	void storeValue(const String &key, const BinaryString &value);
-	bool retrieveValue(const String &key, Set<BinaryString> &values); 
 	
 private:
 	String mDirectory;

@@ -30,6 +30,8 @@
 #include "pla/binarystring.h"
 #include "pla/file.h"
 #include "pla/map.h"
+#include "pla/string.h"
+#include "pla/binarystring.h"
 
 namespace tpn
 {
@@ -38,6 +40,7 @@ class Store : protected Synchronizable, public Task
 {
 public:
 	static Store *Instance;
+	static BinaryString Hash(const String &str);
 	
 	Store(void);
 	~Store(void);
@@ -53,11 +56,13 @@ public:
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
 
+	void storeValue(const String &key, const BinaryString &value, bool permanent = false);
+	bool retrieveValue(const String &key, Set<BinaryString> &values);
+	
 	void run(void);
 	
 private:
 	Database *mDatabase;
-	String mCacheDirectory;
 	Map<BinaryString,Fountain::Sink> mSinks;
 };
 

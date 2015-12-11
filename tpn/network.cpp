@@ -421,6 +421,7 @@ void Network::run(void)
 						it != localIds.end();
 						++it)
 					{
+						Desynchronize(this);
 						storeValue(*it, node);
 					}
 					

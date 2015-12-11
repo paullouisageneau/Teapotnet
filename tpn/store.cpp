@@ -22,6 +22,7 @@
 #include "tpn/store.h"
 #include "tpn/config.h"
 #include "tpn/network.h"
+#include "tpn/cache.h"
 
 #include "pla/directory.h"
 #include "pla/crypto.h"
@@ -30,6 +31,11 @@ namespace tpn
 {
 
 Store *Store::Instance = NULL;
+
+BinaryString Store::Hash(const String &str)
+{
+	return Sha256().compute(str);
+}
 
 Store::Store(void)
 {
@@ -49,7 +55,11 @@ Store::Store(void)
 		name TEXT UNIQUE)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS name ON files (name)");
 	
-	mCacheDirectory = Config::Get("cache_dir");
+	mDatabase->execute("CREATE TABLE IF NOT EXISTS map\
+		(key BLOB,\
+		value BLOB,\
+		time INTEGER(8))");
+	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
 	
 	// Store is scheduled by Overlay on first connection
 	Scheduler::Global->repeat(this, 600.);
@@ -82,13 +92,13 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 		return false;
 	}
 	
-	const String filename = mCacheDirectory + Directory::Separator + digest.toString();
-	File file(filename, File::Write);
+	String path = Cache::Instance->path(digest);
+	
+	File file(path, File::Write);
 	int64_t size = sink.dump(file);
 	file.close();
 	
-	notifyBlock(digest, filename, 0, size);
-	
+	notifyBlock(digest, path, 0, size);
 	mSinks.erase(digest);
 	return true;
 }
@@ -211,7 +221,7 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 	notifyAll();
 	
 	// Publish into DHT
-	Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode());
+	DesynchronizeStatement(this, Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode()));
 }
 
 void Store::notifyFileErasure(const String &filename)
@@ -227,21 +237,59 @@ void Store::notifyFileErasure(const String &filename)
 	statement.execute();
 }
 
+void Store::storeValue(const String &key, const BinaryString &value, bool permanent)
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time) VALUES (?1, ?2, ?3)");
+	statement.bind(1, key);
+	statement.bind(2, value);
+	statement.bind(3, (permanent ? Time(0) : Time::Now()));
+	statement.execute();
+}
+
+bool Store::retrieveValue(const String &key, Set<BinaryString> &values)
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("SELECT key, value FROM map WHERE key = ?1");
+	statement.bind(1, key);
+	while(statement.step())
+	{
+		BinaryString v;
+		statement.value(1, v);
+		values.insert(v);
+	}
+	
+	statement.finalize();
+	return !values.empty();
+}
+
 void Store::run(void)
 {	
 	Synchronize(this);
  
-	const int batch = 10;	// TODO
-	const BinaryString node = Network::Instance->overlay()->localNode();
+	const double maxAge = 2*3600.;	// TODO
+	const int batch = 10;		// TODO
+	
+	BinaryString node;
+	DesynchronizeStatement(this, node = Network::Instance->overlay()->localNode());
 	
 	LogDebug("Store::run", "Started");
 
+	// Delete old values
+	Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE time > 0 AND time < ?1");
+	statement.bind(1, Time::Now() - maxAge);
+	statement.execute();
+	
 	try {
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
 		{
-			if(Network::Instance->overlay()->connectionsCount() == 0)
+			int n;
+			DesynchronizeStatement(this, n = Network::Instance->overlay()->connectionsCount());
+			if(n == 0)
 			{
 				LogDebug("Store::run", "Interrupted");
 				return;

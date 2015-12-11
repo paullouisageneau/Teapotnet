@@ -105,7 +105,6 @@ Thread *MainThread = NULL;
 extern "C" 
 {
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir);
-	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setCacheDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env, jobject obj);
@@ -128,25 +127,8 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDir
 	}
 }
 
-String TempDirectory;
 String SharedDirectory;
 String CacheDirectory;
-
-JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir)
-{
-        String str = env->GetStringUTFChars(dir, NULL);
-	
-	try {
-		if(!Directory::Exist(str)) Directory::Create(str);
-		TempDirectory = str;
-		return JNI_TRUE;
-	}
-	catch(const Exception &e)
-	{
-		LogError("main", e.what());
-		return JNI_FALSE;
-	}
-}
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
@@ -403,7 +385,7 @@ int run(StringMap &args)
 	Config::Default("profiles_dir", "profiles");
 	Config::Default("static_dir", "static");
 	Config::Default("shared_dir", "shared");
-	Config::Default("temp_dir", "temp");
+	Config::Default("cache_dir",  "cache");
 	Config::Default("external_address", "auto");
 	Config::Default("external_port", "auto");
 	Config::Default("port_object_enabled", "true");
@@ -421,9 +403,8 @@ int run(StringMap &args)
 	Config::Default("cache_max_file_size", "10");		// MiB
 	Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
 	
-	if(!TempDirectory.empty()) Config::Put("temp_dir", TempDirectory);
 	if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
-	if(!CacheDirectory.empty()) Config::Put("cache_dir", CacheDirectory);
+	if(!CacheDirectory.empty())  Config::Put("cache_dir",  CacheDirectory);
 #else
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "10000");		// MiB
