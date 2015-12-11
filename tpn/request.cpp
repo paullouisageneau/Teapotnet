@@ -30,7 +30,9 @@ namespace tpn
 
 Request::Request(Resource &resource) :
 	mListDirectories(true),
-	mFinished(false)
+	mFinished(false),
+	mAutoDeleteTask(this),
+	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
@@ -39,7 +41,9 @@ Request::Request(Resource &resource) :
   
 Request::Request(const String &target, bool listDirectories) :
 	mListDirectories(listDirectories),
-	mFinished(false)
+	mFinished(false),
+	mAutoDeleteTask(this),
+	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
@@ -49,7 +53,9 @@ Request::Request(const String &target, bool listDirectories) :
 Request::Request(const String &target, const Identifier &local, const Identifier &remote, bool listDirectories) :
 	Subscriber(Network::Link(local, remote)),
 	mListDirectories(listDirectories),
-	mFinished(false)
+	mFinished(false),
+	mAutoDeleteTask(this),
+	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
@@ -59,7 +65,9 @@ Request::Request(const String &target, const Identifier &local, const Identifier
 Request::Request(const String &target, const Network::Link &link, bool listDirectories) :
 	Subscriber(link),
 	mListDirectories(listDirectories),
-	mFinished(false)
+	mFinished(false),
+	mAutoDeleteTask(this),
+	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
@@ -76,8 +84,6 @@ Request::~Request(void)
 		mFinished = true;
 		notifyAll();
 	}
-	
-	Thread::Sleep(10.);	// TODO
 }
 
 String Request::urlPrefix(void) const
@@ -139,8 +145,9 @@ void Request::getResult(int i, Resource::DirectoryRecord &record) const
 
 void Request::autoDelete(double timeout)
 {
-	// TODO: reschedule on HTTP request
-	Scheduler::Global->schedule(new AutoDeleteTask<Request>(this), timeout);
+	if(timeout >= 0.) Scheduler::Global->schedule(&mAutoDeleteTask, timeout);
+	else Scheduler::Global->cancel(&mAutoDeleteTask);
+	mAutoDeleteTimeout = timeout;
 }
 
 void Request::http(const String &prefix, Http::Request &request)
@@ -157,9 +164,13 @@ void Request::http(const String &prefix, Http::Request &request)
 	
 	while(int(mResults.size()) <= next && !mFinished)
 	{
+		Scheduler::Global->cancel(&mAutoDeleteTask);
 		if(!wait(timeout))
 			break;
 	}
+	
+	if(mAutoDeleteTimeout >= 0.)
+		Scheduler::Global->schedule(&mAutoDeleteTask, timeout);
 	
 	if(request.get.contains("playlist"))
 	{

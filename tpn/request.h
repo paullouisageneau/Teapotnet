@@ -65,6 +65,9 @@ private:
 	Set<BinaryString> mDigests;
 	bool mListDirectories;
 	bool mFinished;
+	
+	AutoDeleteTask<Request> mAutoDeleteTask;
+	double mAutoDeleteTimeout;
 };
 
 }

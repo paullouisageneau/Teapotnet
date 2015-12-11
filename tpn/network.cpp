@@ -1554,10 +1554,7 @@ bool Network::Handler::readString(String &str)
 			mSink.solve(combination);
 		
 		if(!send(false))
-		{
-			Scheduler::Global->cancel(&mTimeoutTask);
 			Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);	// TODO
-		}
 	}
 }
 
