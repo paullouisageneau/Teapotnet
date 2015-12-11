@@ -735,7 +735,7 @@ void User::http(const String &prefix, Http::Request &request)
 		else if(directory == "myself")
 		{
 			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = prefix + "/files/";
+			response.headers["Location"] = prefix + "/files" + (request.get.contains("json") ? "?json" : "");
 			response.send();
 			return;
 		}
