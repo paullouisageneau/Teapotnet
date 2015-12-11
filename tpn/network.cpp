@@ -1386,7 +1386,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(10.),
 	mRank(0.),
 	mRedundancy(1.1),	// TODO
-	mTimeout(1.),		// TODO
+	mTimeout(10.),		// TODO
 	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))
@@ -1421,7 +1421,7 @@ void Network::Handler::send(bool force)
 	Synchronize(this);
 	
 	Scheduler::Global->cancel(&mTimeoutTask);
-	
+
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
 		try {
@@ -1446,6 +1446,7 @@ void Network::Handler::send(bool force)
 		catch(std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
+			//mStream->close();
 			break;
 		}
 	}
@@ -1457,11 +1458,8 @@ void Network::Handler::timeout(void)
 {
 	Synchronize(this);
 	
-	if(mSource.count() > 0)
-	{
-		if(mTokens < 1.) mTokens = 1.;
-		send(false);
-	}
+	if(mTokens < 1.) mTokens = 1.;
+	send(true);
 }
 
 bool Network::Handler::read(String &type, String &content)
@@ -1512,9 +1510,13 @@ bool Network::Handler::readString(String &str)
 		
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
 		if(!combination.isNull())
+		{
 			mSink.solve(combination);
-		
-		send(true);	// force
+			send(true);	// force
+		}
+		else {
+			send(false);
+		}
 	}
 }
 

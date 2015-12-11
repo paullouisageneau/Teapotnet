@@ -64,7 +64,7 @@ Stream::Stream(void) :
 
 Stream::~Stream(void)
 {
-
+	
 }
 
 bool Stream::waitData(double &timeout)

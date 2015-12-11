@@ -109,6 +109,8 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 
 SecureTransport::~SecureTransport(void)
 {
+	close();
+	
 	gnutls_deinit(mSession);	
 	delete mStream;
 	delete mBuffer;
@@ -161,7 +163,12 @@ void SecureTransport::handshake(void)
 
 void SecureTransport::close(void)
 {
-	gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+	int ret;
+	do {
+                ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+        }
+        while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+	
 }
 
 void SecureTransport::setHostname(const String &hostname)
@@ -245,14 +252,17 @@ void SecureTransport::writeData(const char *data, size_t size)
 	{
 		mWriteBuffer.writeBinary(data, size);
 	}
-	else do {
-		ssize_t ret = gnutls_record_send(mSession, data, size);
-		if(ret < 0) throw Exception(ErrorString(ret));
-		
-		data+= ret;
-		size-= ret;
+	else {
+		do {
+			ssize_t ret = gnutls_record_send(mSession, data, size);
+			if(ret < 0) throw Exception(ErrorString(ret));
+			Assert(size_t(ret) <= size);
+			
+			data+= ret;
+			size-= ret;
+		}
+		while(size);
 	}
-	while(size);
 }
 
 bool SecureTransport::nextRead(void)

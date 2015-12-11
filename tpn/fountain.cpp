@@ -454,7 +454,7 @@ bool Fountain::Combination::deserialize(Serializer &s)
 		uint8_t c = gen.next();
 		addComponent(first + i, c);
 	}
-	
+
 	return true;
 }
 
@@ -592,7 +592,6 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *counter)
 		}
 	}
 	
-	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
 	uint32_t left = uint32_t(mSize) - first*ChunkSize;
@@ -698,7 +697,7 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 		}
 		else {
 			Assert(it->second.firstComponent() == it->first);
-			mNextSeen = std::max(mNextSeen, it->first);
+			mNextSeen = std::max(mNextSeen, it->first + 1);
 			if(mNextDecoded == it->first && !it->second.isCoded()) 
 			{
 				total+= it->second.size();
