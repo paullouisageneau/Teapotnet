@@ -167,7 +167,7 @@ template<typename T> bool Database::Statement::fetch(List<T> &result)
 	while(step())
 	{
 		T tmp;
-		tmp.deserialize(*this);
+		this->read(tmp);
 		result.push_back(tmp);
 	}
 
@@ -195,7 +195,7 @@ template<typename T> bool Database::Statement::fetch(Array<T> &result)
 	while(step())
 	{
 		T tmp;
-		tmp.deserialize(*this);
+		this->read(tmp);
 		result.push_back(tmp);
 	}
 

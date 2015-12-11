@@ -172,7 +172,7 @@ public:
 		Map<unsigned, Combination> mCombinations;	// combinations sorted by pivot component
 		
 		unsigned mNextSeen, mNextDecoded, mNextRead;	// decoding status counters
-		unsigned mEnd;
+		bool mFinished;
 		size_t mAlreadyRead;
 	};
 	

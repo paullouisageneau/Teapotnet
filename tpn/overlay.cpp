@@ -24,6 +24,7 @@
 #include "tpn/portmapping.h"
 #include "tpn/config.h"
 #include "tpn/cache.h"
+#include "tpn/store.h"
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
@@ -452,6 +453,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
+			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
+			
 			BinaryString route = getRoute(message.destination);
 			if(route != localNode()) sendTo(message, route);
 			else {
@@ -472,6 +475,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Store value in DHT
 	case Message::Store:
 		{
+			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
+			
 			store(message.destination, message.content);	// routing is done in storeValue()
 			
 			Synchronize(&mRetrieveSync);
@@ -488,6 +493,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
+			//LogDebug("Overlay::Incoming", "Value " + message.source.toString());
+			
 			// Value messages differ from Store messages because key is in the source field
 			store(message.source, message.content);
 			route(message);
@@ -506,7 +513,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Ping
 	case Message::Ping:
 		{
-			LogDebug("Overlay::incoming", "Ping to " + message.destination.toString());
+			LogDebug("Overlay::incoming", "Ping from " + message.source.toString());
 			send(Message(Message::Pong, message.content, message.source));
 			break;
 		}
@@ -687,6 +694,11 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	mHandlers.insert(node, handler);
 	mRemoteAddresses.insert(addr);
 	mThreadPool.launch(handler);
+	
+	// On first connection, schedule store to publish in DHT
+	if(mHandlers.size() == 1)
+		Scheduler::Global->schedule(Store::Instance); 
+	
 	return true;
 }
 

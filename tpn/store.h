@@ -34,7 +34,7 @@
 namespace tpn
 {
   
-class Store : protected Synchronizable
+class Store : protected Synchronizable, public Task
 {
 public:
 	static Store *Instance;
@@ -53,6 +53,8 @@ public:
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
 
+	void run(void);
+	
 private:
 	Database *mDatabase;
 	String mCacheDirectory;

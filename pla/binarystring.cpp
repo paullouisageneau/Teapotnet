@@ -272,11 +272,11 @@ BinaryString operator ^ (const BinaryString &a, const BinaryString &b)
 	if(a.size() > b.size())
 	{
 		result = a;
-		memxor(result.ptr(), b.ptr(), b.size());
+		if(!b.empty()) memxor(result.ptr(), b.ptr(), b.size());
 	}
 	else {
 		result = b;
-		memxor(result.ptr(), a.ptr(), a.size());
+		if(!a.empty()) memxor(result.ptr(), a.ptr(), a.size());
 	}
 	return result;
 	  

@@ -83,6 +83,7 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	Synchronize(this);
 	Assert(caller);
 	
+	LogDebug("Network::registerCaller", "Calling " + target.toString());
 	mCallers[target].insert(caller);
 }
 
@@ -184,11 +185,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	if(!subscriber->localOnly())
 	{
 		// Immediatly send subscribe message
-		BinaryString payload;
-		BinarySerializer serializer(&payload);
-		serializer.write(prefix);
-		
-		outgoing(subscriber->link(), "subscribe", 
+		send(subscriber->link(), "subscribe", 
 			 ConstObject()
 				.insert("path", &prefix));
 	}
@@ -295,9 +292,14 @@ void Network::run(void)
 						
 						if(!message.content.empty())
 						{
+							// It can be about a block
 							if(mCallers.contains(message.source))
+							{
+								LogDebug("Network::run", "Got candidate for " + message.source.toString());
 								mOverlay.send(Overlay::Message(Overlay::Message::Call, message.source, message.content));	// TODO: tokens
+							}
 							
+							// Or it can be about a contact
 							Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
 							while(it != mListeners.end() && it->first.first == message.source)
 							{
@@ -317,15 +319,54 @@ void Network::run(void)
 				// Call
 				case Overlay::Message::Call:
 					{
-						Fountain::Combination combination;
-						Store::Instance->pull(message.source, combination);
-						
-						Overlay::Message data(Overlay::Message::Data, "", message.source);
-						BinarySerializer serializer(&data.content);
-						serializer.write(combination);
-						data.content.writeBinary(combination.data(), combination.codedSize());
-						
-						mOverlay.send(data);
+						if(Store::Instance->hasBlock(message.content))
+						{
+							LogDebug("Network::run", "Called " + message.content.toString());
+
+							class PushTask : public Task
+							{
+							public:
+								PushTask(const BinaryString target, const Identifier &destination, unsigned count) 
+								{ 
+									this->target = target;
+									this->destination = destination;
+									this->count = count;
+								}
+								
+								void run(void)
+								{
+									Fountain::Combination combination;
+									for(unsigned i=0; i<count; ++i)
+									{
+										Store::Instance->pull(target, combination);
+										
+										Overlay::Message data(Overlay::Message::Data, "", destination, target);
+										BinarySerializer serializer(&data.content);
+										serializer.write(combination);
+										data.content.writeBinary(combination.data(), combination.codedSize());
+										
+										Network::Instance->overlay()->send(data);
+										
+										if(i >= combination.componentsCount())
+											break;
+									}
+									
+									delete this;	// autodelete
+								}
+								
+							private:
+								Overlay *overlay;
+								BinaryString target;
+								Identifier destination;
+								unsigned count;
+							};
+							
+							const unsigned count = 1024;	// TODO
+							mThreadPool.launch(new PushTask(message.content, message.source, count));
+						}
+						else {
+							LogDebug("Network::run", "Called (unknown) " + message.content.toString());
+						}
 						break;
 					}
 					
@@ -427,7 +468,7 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 		{
 			if((*jt)->link() == link)
 			{
-				outgoing(link, "subscribe", 
+				send(link, "subscribe", 
 					ConstObject()
 						.insert("path", &it->first));
 				break;
@@ -461,13 +502,13 @@ bool Network::outgoing(const String &type, const Serializable &content)
 	
 	String serialized;
 	JsonSerializer(&serialized).write(content);
-	
+
 	bool success = false;
 	for(Map<Link, Handler*>::iterator it = mHandlers.begin();
 		it != mHandlers.end();
 		++it)
 	{
-		it->second->write(type, content);
+		it->second->write(type, serialized);
 		success = true;
 	}
 	
@@ -484,7 +525,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	
 	String serialized;
 	JsonSerializer(&serialized).write(content);
-	
+
 	bool success = false;
 	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && (link.local.empty() || it->first.local == link.local);
@@ -499,7 +540,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
+	//LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
 	
 	if(type == "publish")
 	{
@@ -530,13 +571,12 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 {
 	Synchronize(this);
 	
+	if(path.empty() || path[0] != '/') return false;
+	
 	List<String> list;
 	path.before('?').explode(list,'/');
 	if(list.empty()) return false;
-	
-	// First item should be empty because path begins with /
-	if(list.front().empty()) 
-		list.pop_front();
+	list.pop_front();
 	
 	// Match prefixes, longest first
 	while(true)
@@ -579,7 +619,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			{
 				LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
-				outgoing(link, "publish", ConstObject()
+				send(link, "publish", ConstObject()
 						.insert("path", &path)
 						.insert("targets", &targets));
 			}
@@ -596,13 +636,12 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 {
 	Synchronize(this);
 	
+	if(path.empty() || path[0] != '/') return false;
+	
 	List<String> list;
 	path.before('?').explode(list,'/');
 	if(list.empty()) return false;
-	
-	// First item should be empty because path begins with /
-	if(list.front().empty()) 
-		list.pop_front();
+	list.pop_front();
 	
 	// Match prefixes, longest first
 	while(true)
@@ -936,9 +975,9 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 		SerializableArray<BinaryString> targets;
 		targets.append(target);
 				
-		Network::Instance->outgoing(link, "publish",
+		Network::Instance->send(link, "publish",
 			ConstObject()
-				.insert("prefix", &prefix)
+				.insert("path", &prefix)
 				.insert("targets", &targets));
 	}
 }

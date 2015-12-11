@@ -581,7 +581,7 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *counter)
 	unsigned first = 0;
 	unsigned count = chunks;
 	
-	if(*counter)
+	if(counter)
 	{
 		*counter = std::max(*counter, first);
 		if(*counter < first+count)
@@ -620,7 +620,7 @@ Fountain::Sink::Sink(void) :
 	mNextSeen(0),
 	mNextDecoded(0),
 	mNextRead(0),
-	mEnd(0),
+	mFinished(false),
 	mAlreadyRead(0)
 {
 
@@ -634,6 +634,9 @@ Fountain::Sink::~Sink(void)
 int64_t Fountain::Sink::solve(Combination &incoming)
 {
 	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(incoming.firstComponent()) + ", count=" + String::number(incoming.componentsCount()) + ")");
+	
+	if(mFinished)
+		return true;
 	
 	if(incoming.isNull())
 		return false;
@@ -704,7 +707,7 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 				++mNextDecoded;
 				
 				if(it->second.isLast())
-					mEnd = mNextDecoded;
+					mFinished = true;
 			}
 			++it;
 		}
@@ -722,7 +725,7 @@ void Fountain::Sink::clear(void)
 	mNextSeen = 0;
 	mNextDecoded = 0;
 	mNextRead = 0;
-	mEnd = 0;
+	mFinished = false;
 	mAlreadyRead = 0;
 }
 
@@ -738,7 +741,7 @@ unsigned Fountain::Sink::nextDecoded(void) const
 
 bool Fountain::Sink::isDecoded(void) const
 {
-	return (mNextDecoded >= mEnd);
+	return mFinished;
 }
 
 size_t Fountain::Sink::read(char *buffer, size_t size)
@@ -768,7 +771,7 @@ int64_t Fountain::Sink::dump(Stream &stream) const
 {
 	int64_t total = 0;
 	Map<unsigned,Combination>::const_iterator it = mCombinations.begin();
-	while(it != mCombinations.end() && it->second.isCoded())
+	while(it != mCombinations.end() && !it->second.isCoded())
 	{
 		size_t s = it->second.size();	// unpad
 		stream.writeData(it->second.data(), s);
@@ -786,7 +789,7 @@ int64_t Fountain::Sink::hash(BinaryString &digest) const
 	
 	int64_t total = 0;
 	Map<unsigned,Combination>::const_iterator it = mCombinations.begin();
-	while(it != mCombinations.end() && it->second.isCoded())
+	while(it != mCombinations.end() && !it->second.isCoded())
 	{
 		size_t s = it->second.size();	// unpad
 		hash.process(it->second.data(), s);

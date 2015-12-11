@@ -50,6 +50,9 @@ Store::Store(void)
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS name ON files (name)");
 	
 	mCacheDirectory = Config::Get("cache_dir");
+	
+	// Store is scheduled by Overlay on first connection
+	Scheduler::Global->repeat(this, 600.);
 }
 
 Store::~Store(void)
@@ -64,7 +67,8 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	if(hasBlock(digest)) return true;
   
 	Fountain::Sink &sink = mSinks[digest];
-	if(!sink.solve(input)) return false;
+	sink.solve(input);
+	if(!sink.isDecoded()) return false;
 	
 	BinaryString sinkDigest;
 	sink.hash(sinkDigest);
@@ -221,6 +225,54 @@ void Store::notifyFileErasure(const String &filename)
 	statement = mDatabase->prepare("DELETE FROM files WHERE name = ?1");
 	statement.bind(1, filename);
 	statement.execute();
+}
+
+void Store::run(void)
+{	
+	Synchronize(this);
+ 
+	const int batch = 10;	// TODO
+	const BinaryString node = Network::Instance->overlay()->localNode();
+	
+	LogDebug("Store::run", "Started");
+
+	try {
+		// Publish everything into DHT periodically
+		int offset = 0;
+		while(true)
+		{
+			if(Network::Instance->overlay()->connectionsCount() == 0)
+			{
+				LogDebug("Store::run", "Interrupted");
+				return;
+			}
+			
+			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY digest LIMIT ?1 OFFSET ?2");
+			statement.bind(1, batch);
+			statement.bind(2, offset);
+			
+			List<BinaryString> result;
+			statement.fetchColumn(0, result);
+			statement.finalize();
+			
+			if(result.empty()) break;
+			else {
+				Desynchronize(this);
+				
+				for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
+					Network::Instance->storeValue(*it, node);
+			}
+			
+			offset+= result.size();
+			Thread::Sleep(1.);
+		}
+		
+		LogDebug("Store::run", "Finished, " + String::number(offset) + " values published");
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Store::run", e.what());
+	}
 }
 
 }
