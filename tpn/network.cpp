@@ -1424,23 +1424,30 @@ void Network::Handler::send(bool force)
 	
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
-		Fountain::Combination combination;
-		mSource.generate(combination);
-		
-		BinarySerializer serializer(mStream);
-		serializer.write(combination);
-		serializer.write(uint32_t(mSink.nextSeen()));
-		
-		mStream->writeBinary(combination.data(), combination.codedSize());
-		mStream->nextWrite();
-		
-		if(!combination.isNull())
-		{
-			mTokens-= 1.;
-			mRank-= 1.;
+		try {
+			Fountain::Combination combination;
+			mSource.generate(combination);
+			
+			BinarySerializer serializer(mStream);
+			serializer.write(combination);
+			serializer.write(uint32_t(mSink.nextSeen()));
+			
+			mStream->writeBinary(combination.data(), combination.codedSize());
+			mStream->nextWrite();
+			
+			if(!combination.isNull())
+			{
+				mTokens-= 1.;
+				mRank-= 1.;
+			}
+			
+			force = false;
 		}
-		
-		force = false;
+		catch(std::exception &e)
+		{
+			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
+			break;
+		}
 	}
 	
 	Scheduler::Global->schedule(&mTimeoutTask, mTimeout);

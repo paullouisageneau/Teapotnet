@@ -1211,8 +1211,7 @@ bool Overlay::Handler::send(const Message &message)
 
 	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
 	
-	if(message.ttl > 0)
-	{
+	try {
 		Desynchronize(this);
 		
 		// 32-bit control block
@@ -1220,7 +1219,7 @@ bool Overlay::Handler::send(const Message &message)
 		s.write(message.flags);
 		s.write(message.ttl);
 		s.write(message.type);
-
+		
 		// 32-bit size block
 		s.write(uint8_t(source.size()));
 		s.write(uint8_t(message.destination.size()));
@@ -1232,10 +1231,14 @@ bool Overlay::Handler::send(const Message &message)
 		mStream->writeBinary(message.content);
 
 		mStream->nextWrite();	// switch to next datagram if this is a datagram stream
-		return true;
+	}
+	catch(std::exception &e)
+	{
+		LogWarn("Overlay::Handler::send", String("Sending failed: ") + e.what());
+		return false;
 	}
 	
-	return false;
+	return true;
 }
 
 void Overlay::Handler::process(void)
