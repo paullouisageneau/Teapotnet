@@ -277,7 +277,7 @@ private:
 		void timeout(void);
 		
 	private:
-		void send(bool force = false);
+		int send(bool force = false);
 		bool read(String &type, String &content);
 		bool readString(String &str);
 		

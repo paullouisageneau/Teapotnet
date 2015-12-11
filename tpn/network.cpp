@@ -1385,7 +1385,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mLink(link),
 	mTokens(10.),
 	mRank(0.),
-	mRedundancy(1.1),	// TODO
+	mRedundancy(1.25),	// TODO
 	mTimeout(10.),		// TODO
 	mTimeoutTask(this)
 {
@@ -1416,12 +1416,11 @@ void Network::Handler::write(const String &type, const String &content)
 	send();
 }
 
-void Network::Handler::send(bool force)
+int Network::Handler::send(bool force)
 {
 	Synchronize(this);
 	
-	Scheduler::Global->cancel(&mTimeoutTask);
-
+	int count = 0;
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
 		try {
@@ -1434,6 +1433,7 @@ void Network::Handler::send(bool force)
 			
 			mStream->writeBinary(combination.data(), combination.codedSize());
 			mStream->nextWrite();
+			++count;
 			
 			if(!combination.isNull())
 			{
@@ -1452,6 +1452,7 @@ void Network::Handler::send(bool force)
 	}
 	
 	Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
+	return count;
 }
 
 void Network::Handler::timeout(void)
@@ -1510,12 +1511,12 @@ bool Network::Handler::readString(String &str)
 		
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
 		if(!combination.isNull())
-		{
 			mSink.solve(combination);
-			send(true);	// force
-		}
-		else {
-			send(false);
+		
+		if(!send(false))
+		{
+			Scheduler::Global->cancel(&mTimeoutTask);
+			Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);	// TODO
 		}
 	}
 }
