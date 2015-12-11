@@ -37,7 +37,7 @@ namespace tpn
 {
 
 Network *Network::Instance = NULL;
-
+const Network::Link Network::Link::Null;
 
 Network::Network(int port) :
 		mOverlay(port),
@@ -81,6 +81,7 @@ void Network::connect(const Identifier &node, const Identifier &remote, User *us
 void Network::registerCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
+	Assert(caller);
 	
 	mCallers[target].insert(caller);
 }
@@ -88,6 +89,7 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
 {
 	Synchronize(this);
+	Assert(caller);
 	
 	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(target);
 	if(it != mCallers.end())
@@ -107,6 +109,8 @@ void Network::unregisterAllCallers(const BinaryString &target)
 void Network::registerListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
 	Synchronize(this);
+	Assert(listener);
+	
 	mListeners[IdentifierPair(remote, local)].insert(listener);
 	
 	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(Link(local, remote));
@@ -121,6 +125,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 void Network::unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
 	Synchronize(this);
+	Assert(listener);
 	
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
 	if(it != mListeners.end())
@@ -134,6 +139,7 @@ void Network::unregisterListener(const Identifier &local, const Identifier &remo
 void Network::publish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
+	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
@@ -146,6 +152,7 @@ void Network::publish(String prefix, Publisher *publisher)
 void Network::unpublish(String prefix, Publisher *publisher)
 {
 	Synchronize(this);
+	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
@@ -162,6 +169,7 @@ void Network::unpublish(String prefix, Publisher *publisher)
 void Network::subscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
+	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
@@ -171,7 +179,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	mSubscribers[prefix].insert(subscriber);
 	
 	// Local publishers
-	matchPublishers(prefix, Identifier::Empty, subscriber);
+	matchPublishers(prefix, subscriber->link(), subscriber);
 	
 	if(!subscriber->localOnly())
 	{
@@ -180,7 +188,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		BinarySerializer serializer(&payload);
 		serializer.write(prefix);
 		
-		outgoing("subscribe", 
+		outgoing(subscriber->link(), "subscribe", 
 			 ConstObject()
 				.insert("path", &prefix));
 	}
@@ -189,6 +197,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 void Network::unsubscribe(String prefix, Subscriber *subscriber)
 {
 	Synchronize(this);
+	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
@@ -202,23 +211,24 @@ void Network::unsubscribe(String prefix, Subscriber *subscriber)
 	}
 }
 
-void Network::advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher)
+void Network::advertise(String prefix, const String &path, Publisher *publisher)
 {
 	Synchronize(this);
+	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
 	LogDebug("Network::publish", "Advertising " + prefix + path);
 	
-	matchSubscribers(prefix, source, publisher); 
+	matchSubscribers(prefix, publisher->link(), publisher);
 }
 
-void Network::addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly)
+void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
 	Synchronize(this);
 	
-	mRemoteSubscribers.push_front(RemoteSubscriber(peer, publicOnly));
+	mRemoteSubscribers.push_front(RemoteSubscriber(link));
 	mRemoteSubscribers.begin()->subscribe(path);
 }
 
@@ -411,9 +421,18 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 		it != mSubscribers.end();
 		++it)
 	{
-		outgoing(link, "subscribe", 
-			 ConstObject()
-				.insert("path", &it->first));
+		for(Set<Subscriber*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			if((*jt)->link() == link)
+			{
+				outgoing(link, "subscribe", 
+					ConstObject()
+						.insert("path", &it->first));
+				break;
+			}
+		}
 	}
 	
 	return true;
@@ -460,6 +479,9 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	Synchronize(this);
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
+	if(link.isNull())
+		return outgoing(type, content);
+	
 	String serialized;
 	JsonSerializer(&serialized).write(content);
 	
@@ -488,7 +510,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("targets", &targets));
 		
 		RemotePublisher publisher(targets);
-		matchSubscribers(path, link.remote, &publisher);
+		matchSubscribers(path, link, &publisher);
 		return true;
 	}
 	else if(type == "subscribe")
@@ -497,14 +519,14 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		serializer.read(Object()
 				.insert("path", &path));
 		
-		addRemoteSubscriber(link.remote, path, false);
+		addRemoteSubscriber(link, path);
 		return true;
 	}
 	
 	return onRecv(link, type, serializer);
 }
 
-bool Network::matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber)
+bool Network::matchPublishers(const String &path, const Link &link, Subscriber *subscriber)
 {
 	Synchronize(this);
 	
@@ -537,14 +559,17 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 				jt != set.end();
 				++jt)
 			{
+				if((*jt)->link() != link)
+					continue;
+				
 				List<BinaryString> result;
-				if((*jt)->anounce(source, prefix, truncatedPath, result))
+				if((*jt)->anounce(link, prefix, truncatedPath, result))
 				{
 					Assert(!result.empty());
 					if(subscriber) 	// local
 					{
 						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming(Identifier::Empty, path, "/", *it);
+							subscriber->incoming((*jt)->link(), path, "/", *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -554,7 +579,7 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 			{
 				LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
-				outgoing(Link(overlay()->localNode(), source), "publish", ConstObject()
+				outgoing(link, "publish", ConstObject()
 						.insert("path", &path)
 						.insert("targets", &targets));
 			}
@@ -567,7 +592,7 @@ bool Network::matchPublishers(const String &path, const Identifier &source, Subs
 	return true;
 }
 
-bool Network::matchSubscribers(const String &path, const Identifier &source, Publisher *publisher)
+bool Network::matchSubscribers(const String &path, const Link &link, Publisher *publisher)
 {
 	Synchronize(this);
 	
@@ -602,14 +627,15 @@ bool Network::matchSubscribers(const String &path, const Identifier &source, Pub
 			{
 				Subscriber *subscriber = *jt;
 				List<BinaryString> targets;
-				if(publisher->anounce(subscriber->remote(), prefix, truncatedPath, targets))
+				if(publisher->anounce(subscriber->link(), prefix, truncatedPath, targets))
 				{
 					for(List<BinaryString>::const_iterator kt = targets.begin();
 						kt != targets.end();
 						++kt)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						subscriber->incoming(source, prefix, truncatedPath, *kt);
+						if(subscriber->link() == link)
+							subscriber->incoming(link, prefix, truncatedPath, *kt);
 					}
 				}
 			}
@@ -694,19 +720,37 @@ Network::Link::~Link(void)
 	
 }
 
+void Network::Link::setNull(void)
+{
+	local.clear();
+	remote.clear();
+	node.clear();
+}
+
+bool Network::Link::isNull(void) const
+{
+	return (local.empty() && remote.empty() && node.empty());
+}
+
 bool Network::Link::operator < (const Network::Link &l) const
 {
-	return (local < l.local || (local == l.local && (remote < l.remote || (remote == l.remote && node < l.node && !node.empty() && !l.node.empty()))));
+	return ((local < l.local && !local.empty() && !l.local.empty())
+		|| (local == l.local && ((remote < l.remote && !remote.empty() && !l.remote.empty()) 
+		|| (remote == l.remote && node < l.node && !node.empty() && !l.node.empty()))));
 }
 
 bool Network::Link::operator > (const Network::Link &l) const
 {
-	return (local > l.local || (local == l.local && (remote > l.remote || (remote == l.remote && node > l.node && !node.empty() && !l.node.empty()))));	
+	return ((local > l.local && !local.empty() && !l.local.empty())
+		|| (local == l.local && ((remote > l.remote && !remote.empty() && !l.remote.empty())
+		|| (remote == l.remote && node > l.node && !node.empty() && !l.node.empty()))));	
 }
 
 bool Network::Link::operator == (const Network::Link &l) const
 {
-	return (local == l.local && remote == l.remote && (node == l.node || node.empty() || l.node.empty()));
+	return ((local == l.local || local.empty() || l.local.empty())
+		&& (remote == l.remote || remote.empty() || l.remote.empty())
+		&& (node == l.node || node.empty() || l.node.empty()));
 }
 
 bool Network::Link::operator != (const Network::Link &l) const
@@ -714,8 +758,8 @@ bool Network::Link::operator != (const Network::Link &l) const
 	return !(*this == l);
 }
 
-Network::Publisher::Publisher(const Identifier &peer) :
-	mPeer(peer)
+Network::Publisher::Publisher(const Link &link) :
+	mLink(link)
 {
 
 }
@@ -730,6 +774,11 @@ Network::Publisher::~Publisher(void)
 	}
 }
 
+const Network::Link &Network::Publisher::link(void) const
+{
+	return mLink;
+}
+
 void Network::Publisher::publish(const String &prefix, const String &path)
 {
 	if(!mPublishedPrefixes.contains(prefix))
@@ -738,7 +787,7 @@ void Network::Publisher::publish(const String &prefix, const String &path)
 		mPublishedPrefixes.insert(prefix);
 	}
 	
-	Network::Instance->advertise(prefix, path, mPeer, this);
+	Network::Instance->advertise(prefix, path, this);
 }
 
 void Network::Publisher::unpublish(const String &prefix)
@@ -750,8 +799,8 @@ void Network::Publisher::unpublish(const String &prefix)
 	}
 }
 
-Network::Subscriber::Subscriber(const Identifier &peer) :
-	mPeer(peer),
+Network::Subscriber::Subscriber(const Link &link) :
+	mLink(link),
 	mThreadPool(0, 1, 8)
 {
 	
@@ -760,6 +809,11 @@ Network::Subscriber::Subscriber(const Identifier &peer) :
 Network::Subscriber::~Subscriber(void)
 {
 	unsubscribeAll();
+}
+
+const Network::Link &Network::Subscriber::link(void) const
+{
+	return mLink;
 }
 
 void Network::Subscriber::subscribe(const String &prefix)
@@ -790,17 +844,12 @@ void Network::Subscriber::unsubscribeAll(void)
 	}
 }
 
-Identifier Network::Subscriber::remote(void) const
-{
-	return Identifier::Empty;
-}
-
 bool Network::Subscriber::localOnly(void) const
 {
 	return false;
 }
 
-bool Network::Subscriber::fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+bool Network::Subscriber::fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
 	// Test local availability
 	if(Store::Instance->hasBlock(target))
@@ -813,10 +862,10 @@ bool Network::Subscriber::fetch(const Identifier &peer, const String &prefix, co
 	class PrefetchTask : public Task
 	{
 	public:
-		PrefetchTask(Network::Subscriber *subscriber, const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+		PrefetchTask(Network::Subscriber *subscriber, const Link &link, const String &prefix, const String &path, const BinaryString &target)
 		{
 			this->subscriber = subscriber;
-			this->peer = peer;
+			this->link = link;
 			this->target = target;
 			this->prefix = prefix;
 			this->path = path;
@@ -829,7 +878,7 @@ bool Network::Subscriber::fetch(const Identifier &peer, const String &prefix, co
 				Resource::Reader reader(&resource, "", true);	// empty password + no check
 				reader.discard();				// read everything
 				
-				subscriber->incoming(peer, prefix, path, target);
+				subscriber->incoming(link, prefix, path, target);
 			}
 			catch(const Exception &e)
 			{
@@ -841,13 +890,13 @@ bool Network::Subscriber::fetch(const Identifier &peer, const String &prefix, co
 	
 	private:
 		Network::Subscriber *subscriber;
-		Identifier peer;
+		Link link;
 		BinaryString target;
 		String prefix;
 		String path;
 	};
 	
-	PrefetchTask *task = new PrefetchTask(this, peer, prefix, path, target);
+	PrefetchTask *task = new PrefetchTask(this, link, prefix, path, target);
 	mThreadPool.launch(task);
 	return false;
 }
@@ -863,15 +912,14 @@ Network::RemotePublisher::~RemotePublisher(void)
   
 }
 
-bool Network::RemotePublisher::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Network::RemotePublisher::anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	targets = mTargets;
 	return !targets.empty();
 }
 
-Network::RemoteSubscriber::RemoteSubscriber(const Identifier &remote, bool publicOnly) :
-	mRemote(remote),
-	mPublicOnly(publicOnly)
+Network::RemoteSubscriber::RemoteSubscriber(const Link &link) :
+	Subscriber(link)
 {
 
 }
@@ -881,24 +929,18 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 }
 
-bool Network::RemoteSubscriber::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(mRemote != Identifier::Empty)
+	if(link == this->link())
 	{
 		SerializableArray<BinaryString> targets;
 		targets.append(target);
 				
-		Network::Instance->outgoing(Link(Network::Instance->overlay()->localNode(), mRemote), "publish",
+		Network::Instance->outgoing(link, "publish",
 			ConstObject()
 				.insert("prefix", &prefix)
 				.insert("targets", &targets));
 	}
-}
-
-Identifier Network::RemoteSubscriber::remote(void) const
-{
-	if(!mPublicOnly) return mRemote;
-	else return Identifier::Empty;
 }
 
 bool Network::RemoteSubscriber::localOnly(void) const
@@ -1344,6 +1386,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(10.),
 	mRank(0.),
 	mRedundancy(1.1),	// TODO
+	mTimeout(1.),		// TODO
 	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))

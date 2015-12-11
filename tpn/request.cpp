@@ -34,7 +34,6 @@ Request::Request(Resource &resource) :
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	
 	addResult(resource);
 }
   
@@ -44,18 +43,26 @@ Request::Request(const String &target, bool listDirectories) :
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	
 	subscribe(target);
 }
-  
-Request::Request(const String &target, const Identifier &peer, bool listDirectories) :
-	Subscriber(peer),
+
+Request::Request(const String &target, const Identifier &local, const Identifier &remote, bool listDirectories) :
+	Subscriber(Network::Link(local, remote)),
 	mListDirectories(listDirectories),
 	mFinished(false)
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	
+	subscribe(target);
+}
+  
+Request::Request(const String &target, const Network::Link &link, bool listDirectories) :
+	Subscriber(link),
+	mListDirectories(listDirectories),
+	mFinished(false)
+{
+	mUrlPrefix = "/request/" + String::random(32);
+	Interface::Instance->add(mUrlPrefix, this);
 	subscribe(target);
 }
 
@@ -183,11 +190,11 @@ void Request::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Request::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
 	
-	if(fetch(peer, prefix, path, target))
+	if(fetch(link, prefix, path, target))
 	{
 		Resource resource(target, true);	// local only (already fetched)
 		addResult(resource);

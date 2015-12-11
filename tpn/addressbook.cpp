@@ -888,7 +888,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String reqPrefix;
 			if(!match.empty())
 			{
-				Request *req = new Request("/files/" + identifier().toString() + "?" + match, identifier(), false);
+				Request *req = new Request("/files/" + identifier().toString() + "?" + match, mAddressBook->user()->identifier(), identifier(), false);
 				reqPrefix = req->urlPrefix();
 				req->autoDelete();
 			}

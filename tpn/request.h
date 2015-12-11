@@ -38,7 +38,8 @@ class Request :	protected Network::Subscriber, public Synchronizable, public Htt
 public:
 	Request(Resource &resource);
 	Request(const String &path, bool listDirectories = true);
-	Request(const String &path, const Identifier &peer, bool listDirectories = true);
+	Request(const String &path, const Identifier &local, const Identifier &remote, bool listDirectories = true);
+	Request(const String &path, const Network::Link &link, bool listDirectories = true);
 	~Request(void);
 	
 	String urlPrefix(void) const;
@@ -56,7 +57,7 @@ protected:
 	void createPlaylist(Stream *output, String host = "");
 	
 	// Network::Subscriber
-	bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
+	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
 	
 private:
 	String mUrlPrefix;

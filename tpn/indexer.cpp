@@ -44,7 +44,7 @@ const String Indexer::CacheDirectoryName = "_cache";
 const String Indexer::UploadDirectoryName = "_upload";
 
 Indexer::Indexer(User *user) :
-	Publisher(user->identifier()),
+	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
 	mUser(user),
 	mRunning(false)
 {
@@ -533,7 +533,7 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	publish(prefix(), path);
 }
 
-bool Indexer::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	targets.clear();
@@ -544,8 +544,8 @@ bool Indexer::anounce(const Identifier &peer, const String &prefix, const String
 	Query query;
 	query.setPath(cpath);
 	query.setMatch(match);
-	query.setAccessLevel((mUser->addressBook()->hasIdentifier(peer) ? Resource::Private : Resource::Public));
-	query.setFromSelf(!peer.empty() && peer == mUser->addressBook()->getSelfIdentifier());
+	query.setAccessLevel((mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
+	query.setFromSelf(!link.remote.empty() && link.remote == mUser->addressBook()->getSelfIdentifier());
 	
 	Database::Statement statement;
 	if(prepareQuery(statement, query, "digest"))

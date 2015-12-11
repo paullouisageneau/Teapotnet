@@ -51,8 +51,8 @@ Board::Board(const String &name, const String &secret, const String &displayName
 		it != digests.end();
 		++it)
 	{
-		if(fetch(Identifier::Empty, prefix, "/", *it))
-			incoming(Identifier::Empty, prefix, "/", *it);
+		if(fetch(Network::Link::Null, prefix, "/", *it))
+			incoming(Network::Link::Null, prefix, "/", *it);
 	}
 	
 	publish(prefix);
@@ -136,7 +136,7 @@ void Board::process(void)
 	}
 }
 
-bool Board::anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	targets.clear();
@@ -148,14 +148,14 @@ bool Board::anounce(const Identifier &peer, const String &prefix, const String &
 	return true;
 }
 
-bool Board::incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target)
+bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
 	
 	if(target == mDigest)
 		return false;
 	
-	if(fetch(peer, prefix, path, target))
+	if(fetch(link, prefix, path, target))
 	{
 		try {
 			Resource resource(target, true);	// local only (already fetched)

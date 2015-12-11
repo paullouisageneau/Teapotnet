@@ -54,6 +54,8 @@ public:
 	
 	struct Link
 	{
+		static const Link Null;
+		
 		Link(void);
 		Link(const Identifier &local, const Identifier &remote, const Identifier &node = Identifier::Empty);
 		~Link(void);
@@ -61,6 +63,9 @@ public:
 		Identifier local;
 		Identifier remote;
 		Identifier node;
+		
+		void setNull(void);
+		bool isNull(void) const;
 		
 		bool operator < (const Network::Link &l) const;
 		bool operator > (const Network::Link &l) const;
@@ -71,38 +76,41 @@ public:
 	class Publisher
 	{
 	public:
-		Publisher(const Identifier &peer = "");		// local peer
+		Publisher(const Link &link = Link::Null);
 		~Publisher(void);
+		
+		const Link &link(void) const;
 		
 		void publish(const String &prefix, const String &path = "/");
 		void unpublish(const String &prefix);
 		
-		virtual bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
+		virtual bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
 		
 	private:
-		Identifier mPeer;
+		Link mLink;
 		StringSet mPublishedPrefixes;
 	};
 	
 	class Subscriber
 	{
 	public:
-		Subscriber(const Identifier &peer = "");	// remote peer
+		Subscriber(const Link &link = Link::Null);
 		~Subscriber(void);
+		
+		const Link &link(void) const;
 		
 		void subscribe(const String &prefix);
 		void unsubscribe(const String &prefix);
 		void unsubscribeAll(void);
 		
-		virtual bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target) = 0;
-		virtual Identifier remote(void) const;
+		virtual bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target) = 0;
 		virtual bool localOnly(void) const;
 		
 	protected:
-		bool fetch(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
+		bool fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target);
 		
 	private:
-		Identifier mPeer;
+		Link mLink;
 		StringSet mSubscribedPrefixes;
 		ThreadPool mThreadPool;
 	};
@@ -162,8 +170,8 @@ public:
 	void unpublish(String prefix, Publisher *publisher);
 	void subscribe(String prefix, Subscriber *subscriber);
 	void unsubscribe(String prefix, Subscriber *subscriber);
-	void advertise(String prefix, const String &path, const Identifier &source, Publisher *publisher);
-	void addRemoteSubscriber(const Identifier &peer, const String &path, bool publicOnly);
+	void advertise(String prefix, const String &path, Publisher *publisher);
+	void addRemoteSubscriber(const Link &link, const String &path);
 	
 	// Serializable
 	bool broadcast(const Identifier &local, const String &type, const Serializable &object);
@@ -187,7 +195,7 @@ private:
 		RemotePublisher(const List<BinaryString> targets);
 		~RemotePublisher(void);
 		
-		bool anounce(const Identifier &peer, const String &prefix, const String &path, List<BinaryString> &targets);
+		bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
 		
 	private:
 		List<BinaryString> mTargets;
@@ -196,16 +204,11 @@ private:
 	class RemoteSubscriber : public Subscriber
 	{
 	public:
-		RemoteSubscriber(const Identifier &remote = "", bool publicOnly = false);
+		RemoteSubscriber(const Link &link = Link::Null);
 		~RemoteSubscriber(void);
 		
-		bool incoming(const Identifier &peer, const String &prefix, const String &path, const BinaryString &target);
-		Identifier remote(void) const;
+		bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target);
 		bool localOnly(void) const;
-		
-	private:
-		Identifier mRemote;
-		bool mPublicOnly;
 	};
 	
 	class Tunneler : protected Synchronizable, public Thread
@@ -308,8 +311,8 @@ private:
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
 	bool incoming(const Link &link, const String &type, Serializer &serializer);
 	
-	bool matchPublishers(const String &path, const Identifier &source, Subscriber *subscriber = NULL);
-	bool matchSubscribers(const String &path, const Identifier &source, Publisher *publisher);
+	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
+	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
 	
 	void onConnected(const Link &link, bool status = true);
 	bool onRecv(const Link &link, const String &type, Serializer &serializer);
