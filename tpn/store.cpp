@@ -241,6 +241,13 @@ void Store::storeValue(const String &key, const BinaryString &value, bool perman
 {
 	Synchronize(this);
 	
+	if(permanent)
+	{
+		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND time = 0");
+		statement.bind(1, key);
+		statement.execute();
+	}
+	
 	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time) VALUES (?1, ?2, ?3)");
 	statement.bind(1, key);
 	statement.bind(2, value);
