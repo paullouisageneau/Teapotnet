@@ -52,7 +52,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 		it != digests.end();
 		++it)
 	{
-		LogDebug("Board", "Retrieved digest: " + it->toString());
+		//LogDebug("Board", "Retrieved digest: " + it->toString());
 		if(fetch(Network::Link::Null, prefix, "/", *it))
 			incoming(Network::Link::Null, prefix, "/", *it);
 	}

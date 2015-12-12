@@ -621,8 +621,10 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
 		if(!mInstances.contains(link.node))
 			mInstances[link.node] = link.node.toString();	// default name
-			
-		send(link.node, "info", ConstObject().insert("name", Network::Instance->overlay()->localName()));
+		
+		send(link.node, "info", ConstObject()
+				.insert("name", Network::Instance->overlay()->localName())
+				.insert("secret", localSecret()));
 	}
 	else {
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
@@ -639,7 +641,10 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 	if(type == "info")
 	{
 		String name;
-		serializer.read(Object().insert("name", &name));
+		serializer.read(Object()
+			.insert("name", &name)
+			.insert("secret", &mRemoteSecret));
+		
 		mInstances[link.node] = name;
 	}
 	else if(type == "contacts")
@@ -647,7 +652,8 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		if(!isSelf()) throw Exception("Received contacts from other than self");
 		
 		BinaryString digest;
-		serializer.read(Object().insert("digest", &digest));
+		serializer.read(Object()
+			.insert("digest", &digest));
 		
 		class ImportTask : public Task
 		{
