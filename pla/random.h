@@ -25,6 +25,8 @@
 #include "pla/include.h"
 #include "pla/stream.h"
 
+#include <nettle/bignum.h>	// This will include nettle/version.h if it exists
+
 namespace pla
 {
 
@@ -53,9 +55,9 @@ public:
 	// Wrappers for internal use, used in crypto.cpp
 	// The size argument type changed from unsigned to size_t in nettle 3.0 (?!)
 #if NETTLE_VERSION_MAJOR >= 3
-	typedef unsigned wrappersize_t;
-#else
 	typedef size_t wrappersize_t;
+#else
+	typedef unsigned wrappersize_t;
 #endif
 	static void wrapperNonce (void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Nonce).generate (reinterpret_cast<char*>(buffer), size_t(size)); }
 	static void wrapperCrypto(void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Crypto).generate(reinterpret_cast<char*>(buffer), size_t(size)); }
