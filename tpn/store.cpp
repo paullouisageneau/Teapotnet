@@ -259,12 +259,12 @@ bool Store::retrieveValue(const String &key, Set<BinaryString> &values)
 {
 	Synchronize(this);
 	
-	Database::Statement statement = mDatabase->prepare("SELECT key, value FROM map WHERE key = ?1");
+	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
 	statement.bind(1, key);
 	while(statement.step())
 	{
 		BinaryString v;
-		statement.value(1, v);
+		statement.value(0, v);
 		values.insert(v);
 	}
 	

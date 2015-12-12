@@ -46,12 +46,13 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	String prefix = "/mail" + mName;
 	
 	Set<BinaryString> digests;
-	Store::Instance->retrieveValue(prefix, digests);
+	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
 	
 	for(Set<BinaryString>::iterator it = digests.begin();
 		it != digests.end();
 		++it)
 	{
+		LogDebug("Board", "Retrieved digest: " + it->toString());
 		if(fetch(Network::Link::Null, prefix, "/", *it))
 			incoming(Network::Link::Null, prefix, "/", *it);
 	}
@@ -130,6 +131,8 @@ void Board::process(void)
 		// Retrieve digest and store it
 		mDigest = resource.digest();
 		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, true);
+		
+		LogDebug("Board::process", "Board processed: " + mDigest.toString());
 	}
 	catch(const Exception &e)
 	{
