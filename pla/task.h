@@ -34,6 +34,8 @@ public:
 	virtual ~Task(void) {}
 	
 	virtual void run(void) = 0;
+	
+	// TODO: autodeletion flag should be defined here so scheduler can properly delete tasks on destruction
 };
 
 template<class T> class DeleteTask : public Task

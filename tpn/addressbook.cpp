@@ -55,7 +55,7 @@ AddressBook::AddressBook(User *user) :
 		try {
 			File file(mFileName, File::Read);
 			JsonSerializer serializer(&file);
-			serializer.input(*this);
+			serializer.read(*this);
 			file.close();
 		}
 		catch(const Exception &e)
@@ -103,7 +103,7 @@ void AddressBook::save(void) const
 
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
-	serializer.output(*this);
+	serializer.write(*this);
 	file.close();
 	
 	const Contact *self = getSelf();
@@ -111,10 +111,13 @@ void AddressBook::save(void) const
 	{
 		Resource resource;
 		resource.process(mFileName, "contacts", "contacts", self->secret());
-		
 		mDigest = resource.digest();
-
-		DesynchronizeStatement(this, Network::Instance->send(user()->identifier(), self->identifier(), "contacts", ConstObject().insert("digest", mDigest)));
+		
+		Desynchronize(this); 
+		
+		Network::Instance->send(Network::Link(user()->identifier(), self->identifier()), "contacts", 
+			ConstObject()
+				.insert("digest", mDigest));
 	}
 }
 
@@ -197,7 +200,18 @@ void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
 	Synchronize(this);
 	
 	String uname = userName();
-	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, uname, pubKey));
+
+	Map<String, Contact>::iterator it = mContacts.find(uname);
+	if(it != mContacts.end())
+	{
+		if(it->second.identifier() == pubKey.digest())
+			return;
+			
+		mContactsByIdentifier.erase(it->second.identifier());
+		mContacts.erase(it);
+	}
+	
+	it = mContacts.insert(uname, Contact(this, uname, uname, pubKey));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	it->second.init();
 	
@@ -216,18 +230,16 @@ const AddressBook::Contact *AddressBook::getSelf(void) const
 	return getContact(userName());
 }
 
-Identifier AddressBook::getSelfIdentifier(void) const
-{
-	Synchronize(this);
-	const Contact *self = getSelf();
-	if(self) return self->identifier();
-	else return Identifier::Empty;
-}
-
 bool AddressBook::hasIdentifier(const Identifier &identifier) const
 {
 	Synchronize(this);
 	return mContactsByIdentifier.contains(identifier);
+}
+
+BinaryString AddressBook::digest(void) const
+{
+	Synchronize(this);
+	return mDigest;
 }
 
 bool AddressBook::send(const String &type, const Serializable &object)
@@ -275,6 +287,7 @@ bool AddressBook::deserialize(Serializer &s)
 		mContactsByIdentifier.insert(contact->identifier(), contact);
 	}
 	
+	save();
 	return true;
 }
 
@@ -294,8 +307,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			if(request.method == "POST")
 			{
 				try {
-					Synchronize(this);
-					
 					if(!user()->checkToken(request.post["token"], "contact")) 
 						throw 403;
 					
@@ -303,12 +314,59 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					if(action == "deletecontact")
 					{
-						Synchronize(this);
 						String uname = request.post["argument"];
 						removeContact(uname);
 					}
+					else if(action == "createsynchronization")
+					{
+						BinaryString secret;
+						Random(Random::Key).readBinary(secret, 32);
+						
+						Resource resource;
+						resource.process(user()->fileName(), "user", "user", secret);
+						BinaryString digest = resource.digest();
+						
+						Assert(secret.size() == 32);
+						Assert(digest.size() == 32);
+						String code = String(BinaryString(secret + digest).base64Encode(true));	// safe mode
+						
+						setSelf(user()->publicKey());	// create self contact
+						
+						Http::Response response(request, 200);
+						response.send();
+						
+						Html page(response.stream);
+						page.header("Synchronization secret");
+
+						page.open("div",".box");
+						page.text(code);
+						page.close("div");
+
+						page.footer();
+						return;
+					}
+					else if (action == "acceptsynchronization")
+					{
+						String code = request.post["code"];
+						BinaryString digest;
+						try {
+							digest = code.base64Decode();
+						}
+						catch(...)
+						{
+							throw Exception("Invalid synchronization code");
+						}
+						
+						BinaryString secret;
+						digest.readBinary(secret, 32);
+						if(digest.size() != 32)
+							throw Exception("Invalid synchronization code");
+						
+						setSelf(user()->publicKey());	// create self contact
+						
+						mScheduler.schedule(new Resource::ImportTask(user(), digest, "user", secret, true));	// autodelete
+					}
 					else {
-						// TODO
 						throw 500;
 					}
 				}
@@ -332,7 +390,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json.output(*this);
+				json.write(*this);
 				return;
 			}
 			
@@ -355,36 +413,24 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			page.close("div");
 
-			// TODO: deprecated
-			/*
-			page.open("div",".box");
-			page.openForm(prefix + "/", "post", "createinvitation");
-			page.open("h2"); page.text("Invitation"); page.close("h2");
-			page.input("hidden", "token", token);
-			page.input("hidden", "action", "createinvitation");
-			page.label("generate"); page.button("generate", "Generate invitation");
-			page.closeForm();
-			page.close("div");
-			
-			page.open("div",".box");
-			page.openForm(prefix + "/", "post", "acceptinvitation");
-			page.open("h2"); page.text("Invitation reply"); page.close("h2");
-			page.input("hidden", "token", token);
-			page.input("hidden", "action", "acceptinvitation");
-			page.label("code", "Code"); page.input("text", "code"); page.br();
-			page.label("accept"); page.button("accept", "Accept invitation");
-			page.closeForm();
-			page.close("div");
-			
 			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "createsynchronization");
-			page.open("h2"); page.text("Synchronize device"); page.close("h2");
+			page.open("h2"); page.text("Synchronize new device"); page.close("h2");
 			page.input("hidden", "token", token);
 			page.input("hidden", "action", "createsynchronization");
 			page.label("generate"); page.button("generate", "Generate synchronization secret");
 			page.closeForm();
 			page.close("div");
-			*/
+			
+			page.open("div",".box");
+			page.openForm(prefix + "/", "post", "acceptsynchronization");
+			page.open("h2"); page.text("Accept device synchronization"); page.close("h2");
+			page.input("hidden", "token", token);
+			page.input("hidden", "action", "acceptsynchronization");
+			page.input("text", "code");
+			page.button("validate", "Validate");
+			page.closeForm();
+			page.close("div");
 			
 			page.openForm(prefix+"/", "post", "actionForm");
 			page.input("hidden", "action");
@@ -622,9 +668,17 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		if(!mInstances.contains(link.node))
 			mInstances[link.node] = link.node.toString();	// default name
 		
+		Desynchronize(mAddressBook);
+		
 		send(link.node, "info", ConstObject()
-				.insert("name", Network::Instance->overlay()->localName())
-				.insert("secret", localSecret()));
+			.insert("name", Network::Instance->overlay()->localName())
+			.insert("secret", localSecret()));
+		
+		if(isSelf())
+		{
+			send(link.node, "contacts", ConstObject()
+				.insert("digest", mAddressBook->digest()));
+		}
 	}
 	else {
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
@@ -655,33 +709,9 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		serializer.read(Object()
 			.insert("digest", &digest));
 		
-		class ImportTask : public Task
-		{
-		public:
-			ImportTask(AddressBook *addressBook, const BinaryString &digest)
-			{
-				this->addressBook = addressBook;
-				this->digest = digest;
-			}
-			
-			void run(void)
-			{
-				Resource resource(digest);
-				Resource::Reader reader(&resource, addressBook->user()->secret());
-				JsonSerializer serializer(&reader);
-				serializer.input(*addressBook);
-				addressBook->save();
-				delete this;	// autodelete
-			}
-			
-		private:
-			AddressBook *addressBook;
-			BinaryString digest;
-		};
-		
 		if(digest != mAddressBook->mDigest)
 		{
-			Scheduler::Global->schedule(new ImportTask(mAddressBook, digest));
+			mAddressBook->mScheduler.schedule(new Resource::ImportTask(mAddressBook, digest, "contacts", secret(), true));	// autodelete
 			mAddressBook->mDigest = digest;
 		}
 	}
@@ -716,7 +746,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json.output(*this);
+				json.write(*this);
 				return;
 			}
 			
@@ -1023,6 +1053,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 		return false;
 	
 	// TODO: sanity checks
+	
 	return true;
 }
 

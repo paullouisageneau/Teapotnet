@@ -794,8 +794,13 @@ bool User::deserialize(Serializer &s)
 		// Reload certificate
 		delete mCertificate;
 		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
+		
+		// Reload self contact is it exists
+		if(mAddressBook->getSelf())
+			mAddressBook->setSelf(mPublicKey);
 	}
 	
+	save();
 	return true;
 }
 

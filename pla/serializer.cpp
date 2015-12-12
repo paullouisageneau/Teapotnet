@@ -89,9 +89,10 @@ bool Serializer::optionalOutputMode(void) const
 	return mOptionalOutputMode;  
 }
 
-void Serializer::setOptionalOutputMode(bool enabled)
+Serializer &Serializer::setOptionalOutputMode(bool enabled)
 {
 	mOptionalOutputMode = enabled; 
+	return *this;
 }
 
 bool Serializer::inputObject(Object &object)

@@ -545,7 +545,7 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 	query.setPath(cpath);
 	query.setMatch(match);
 	query.setAccessLevel((mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
-	query.setFromSelf(!link.remote.empty() && link.remote == mUser->addressBook()->getSelfIdentifier());
+	query.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
 	
 	Database::Statement statement;
 	if(prepareQuery(statement, query, "digest"))

@@ -30,6 +30,7 @@
 #include "pla/binarystring.h"
 #include "pla/file.h"
 #include "pla/runner.h"
+#include "pla/task.h"
 
 namespace tpn
 {
@@ -141,6 +142,25 @@ public:
 		Block *mNextBlock;
 		
 		BinaryString mKey;
+	};
+	
+	// JSON resource importer
+	class ImportTask : public Task
+	{
+	public:
+		ImportTask(Serializable *object, 
+				const BinaryString &digest,
+				const String &type = "",
+				const BinaryString &secret = "",
+				bool autoDelete = false);
+		void run(void);
+		
+	private:
+		Serializable *mObject;
+		BinaryString  mDigest;
+		BinaryString  mSecret;
+		String        mType;
+		bool mAutoDelete;
 	};
 	
 protected:

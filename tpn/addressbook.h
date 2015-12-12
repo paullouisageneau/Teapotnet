@@ -59,7 +59,6 @@ public:
 	void clear(void);
 	void save(void) const;
 	
-	void update(void);
 	bool send(const String &type, const Serializable &object);
 	
 	// Serializable
@@ -139,11 +138,12 @@ public:
 	void setSelf(const Rsa::PublicKey &pubKey);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
-	Identifier getSelfIdentifier(void) const;
 	
 	bool hasIdentifier(const Identifier &identifier) const;
 	
 private:
+	BinaryString digest(void) const;
+	
 	User *mUser;
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name

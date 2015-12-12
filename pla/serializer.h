@@ -119,7 +119,7 @@ public:
 	template<class K, class V>	void outputMapElement(const K &key, const V &value);
 	
 	bool optionalOutputMode(void) const;
-	void setOptionalOutputMode(bool enabled = true);
+	Serializer &setOptionalOutputMode(bool enabled = true);
 	
 	// Deprecated
 	bool inputObject(Object &object);

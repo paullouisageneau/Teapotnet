@@ -26,6 +26,7 @@
 
 #include "pla/binaryserializer.h"
 #include "pla/object.h"
+#include "pla/jsonserializer.h"
 
 namespace tpn
 {
@@ -520,6 +521,40 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 	object["time"] = &time;
 	
 	return s.read(object);
+}
+
+Resource::ImportTask::ImportTask(Serializable *object, 
+	const BinaryString &digest,
+	const String &type,
+	const BinaryString &secret,
+	bool autoDelete)
+{
+	Assert(object);
+	
+	mObject = object;
+	mDigest = digest;
+	mSecret = secret;
+	mType   = type;
+	mAutoDelete = autoDelete;
+}
+		
+void Resource::ImportTask::run(void)
+{
+	try {
+		Resource resource(mDigest);
+		if(!mType.empty() && resource.type() != mType)
+			return;
+		
+		Reader reader(&resource, mSecret);
+		JsonSerializer serializer(&reader);
+		serializer.read(*mObject);
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Resource::ImportTask", e.what());
+	}
+	
+	if(mAutoDelete) delete this;
 }
 
 }
