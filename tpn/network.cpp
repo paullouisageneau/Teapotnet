@@ -114,12 +114,31 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	
 	mListeners[IdentifierPair(remote, local)].insert(listener);
 	
-	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(Link(local, remote));
+	Link link(local, remote);
+	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
 		++it)
 	{
 		listener->seen(it->first);	// so Listener::seen() is triggered even with incoming tunnels
 		listener->connected(it->first, true);
+	}
+	
+	for(Map<String, Set<Subscriber*> >::iterator it = mSubscribers.begin();
+		it != mSubscribers.end();
+		++it)
+	{
+		for(Set<Subscriber*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			if((*jt)->link() == link)
+			{
+				send(link, "subscribe", 
+					ConstObject()
+						.insert("path", &it->first));
+				break;
+			}
+		}
 	}
 }
 
@@ -498,31 +517,14 @@ bool Network::unregisterHandler(const Link &link, Handler *handler)
 
 bool Network::outgoing(const String &type, const Serializable &content)
 {
-	Synchronize(this);
-	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
-	
-	String serialized;
-	JsonSerializer(&serialized).write(content);
-
-	bool success = false;
-	for(Map<Link, Handler*>::iterator it = mHandlers.begin();
-		it != mHandlers.end();
-		++it)
-	{
-		it->second->write(type, serialized);
-		success = true;
-	}
-	
-	return success;
+	// Alias
+	return outgoing(Link::Null, type, content);
 }
 
 bool Network::outgoing(const Link &link, const String &type, const Serializable &content)
 {
 	Synchronize(this);
 	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
-	
-	if(link.isNull())
-		return outgoing(type, content);
 	
 	String serialized;
 	JsonSerializer(&serialized).write(content);
@@ -532,6 +534,13 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 		it != mHandlers.end() && (link.local.empty() || it->first.local == link.local);
 		++it)
 	{
+		if(type == "subscribe")
+		{
+			// If link is not trusted, do not send subscriptions
+			if(!mListeners.contains(IdentifierPair(it->first.remote, it->first.local)))
+				continue;
+		}
+		
 		it->second->write(type, serialized);
 		success = true;
 	}
@@ -541,10 +550,17 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
+	Synchronize(this);
 	//LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
+	
+	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
 	if(type == "publish")
 	{
+		// If link is not trusted, ignore publications
+		// Subscriptions are filtered in outgoing()
+		if(!hasListener) return false;
+		
 		String path;
 		SerializableList<BinaryString> targets;
 		serializer.read(Object()
@@ -553,7 +569,6 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		
 		RemotePublisher publisher(targets);
 		matchSubscribers(path, link, &publisher);
-		return true;
 	}
 	else if(type == "subscribe")
 	{
@@ -562,10 +577,16 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("path", &path));
 		
 		addRemoteSubscriber(link, path);
-		return true;
+	}
+	else if(type == "invite")
+	{
+		// TODO
+	}
+	else {
+		return onRecv(link, type, serializer);
 	}
 	
-	return onRecv(link, type, serializer);
+	return true;
 }
 
 bool Network::matchPublishers(const String &path, const Link &link, Subscriber *subscriber)
@@ -735,12 +756,12 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 			jt != it->second.end();
 			++jt)
 		{
-			if((*jt)->auth(link, pubKey))
-				return true;
+			if(!(*jt)->auth(link, pubKey))
+				return false;
 		}
 	}
 	
-	return false;
+	return true;
 }
 
 Network::Link::Link(void)

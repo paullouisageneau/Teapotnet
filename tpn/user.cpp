@@ -797,7 +797,7 @@ bool User::deserialize(Serializer &s)
 		
 		// Reload self contact is it exists
 		if(mAddressBook->getSelf())
-			mAddressBook->setSelf(mPublicKey);
+			mAddressBook->setSelf(identifier());
 	}
 	
 	save();

@@ -121,7 +121,7 @@ void AddressBook::save(void) const
 	}
 }
 
-String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey)
+String AddressBook::addContact(const String &name, const Identifier &identifier)
 {
 	Synchronize(this);
 	
@@ -140,7 +140,7 @@ String AddressBook::addContact(const String &name, const Rsa::PublicKey &pubKey)
 		uname << ++i;
 	}
 	
-	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, pubKey));
+	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, identifier));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
 	it->second.init();
@@ -195,7 +195,7 @@ int AddressBook::getContactsIdentifiers(Array<Identifier> &result) const
 	return result.size();
 }
 
-void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
+void AddressBook::setSelf(const Identifier &identifier)
 {
 	Synchronize(this);
 	
@@ -204,14 +204,14 @@ void AddressBook::setSelf(const Rsa::PublicKey &pubKey)
 	Map<String, Contact>::iterator it = mContacts.find(uname);
 	if(it != mContacts.end())
 	{
-		if(it->second.identifier() == pubKey.digest())
+		if(it->second.identifier() == identifier)
 			return;
 			
 		mContactsByIdentifier.erase(it->second.identifier());
 		mContacts.erase(it);
 	}
 	
-	it = mContacts.insert(uname, Contact(this, uname, uname, pubKey));
+	it = mContacts.insert(uname, Contact(this, uname, uname, identifier));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	it->second.init();
 	
@@ -314,8 +314,28 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					if(action == "deletecontact")
 					{
-						String uname = request.post["argument"];
+						String uname = request.post.getOrDefault("uname", request.post.get("argument"));
 						removeContact(uname);
+					}
+					else if(action == "createinvitation")
+					{
+						String id = request.post.getOrDefault("id", request.post.get("argument"));
+						String name = request.post["name"];
+						
+						Identifier identifier;
+						id.extract(identifier);
+						
+						// TODO
+					}
+					else if(action == "acceptinvitation")
+					{
+						String id = request.post.getOrDefault("id", request.post.get("argument"));
+						String name = request.post["name"];
+						
+						Identifier identifier;
+						id.extract(identifier);
+						
+						// TODO
 					}
 					else if(action == "createsynchronization")
 					{
@@ -330,7 +350,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						Assert(digest.size() == 32);
 						String code = String(BinaryString(secret + digest).base64Encode(true));	// safe mode
 						
-						setSelf(user()->publicKey());	// create self contact
+						setSelf(user()->identifier());	// create self contact
 						
 						Http::Response response(request, 200);
 						response.send();
@@ -362,7 +382,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(digest.size() != 32)
 							throw Exception("Invalid synchronization code");
 						
-						setSelf(user()->publicKey());	// create self contact
+						setSelf(user()->identifier());	// create self contact
 						
 						mScheduler.schedule(new Resource::ImportTask(user(), digest, "user", secret, true));	// autodelete
 					}
@@ -516,7 +536,7 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mPrivateBoard(NULL),
 	mUniqueName(contact.mUniqueName),
 	mName(contact.mName),
-	mPublicKey(contact.mPublicKey),
+	mIdentifier(contact.mIdentifier),
 	mRemoteSecret(contact.mRemoteSecret)
 {
 	setAddressBook(contact.mAddressBook);
@@ -526,16 +546,17 @@ AddressBook::Contact::Contact(const Contact &contact) :
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
 				const String &uname,
 				const String &name,
-			        const Rsa::PublicKey &pubKey) :
+			        const Identifier &identifier) :
 	mAddressBook(NULL),
 	mUniqueName(uname),
 	mName(name),
-	mPublicKey(pubKey),
+	mIdentifier(identifier),
 	mBoard(NULL),
 	mPrivateBoard(NULL)
 {
 	Assert(!uname.empty());
 	Assert(!name.empty());
+	Assert(!identifier.empty());
 	
 	setAddressBook(addressBook);
 }
@@ -566,16 +587,10 @@ void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 	mAddressBook = addressBook;
 }
 
-const Rsa::PublicKey &AddressBook::Contact::publicKey(void) const
-{
-	Synchronize(mAddressBook);
-	return mPublicKey; 
-}
-
 Identifier AddressBook::Contact::identifier(void) const
 {
 	Synchronize(mAddressBook);
-	return mPublicKey.digest();
+	return mIdentifier;
 }
 
 String AddressBook::Contact::uniqueName(void) const
@@ -725,7 +740,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
-	return (pubKey == publicKey());
+	return (pubKey.digest() == identifier());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
@@ -1015,7 +1030,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	Synchronize(mAddressBook);
 	
 	ConstObject object;
-	object["publickey"] = &mPublicKey;
+	object["identifier"] = &mIdentifier;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;
 	
@@ -1044,7 +1059,7 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 	Synchronize(mAddressBook);
 	
 	Object object;
-	object["publickey"] = &mPublicKey;
+	object["identifier"] = &mIdentifier;
 	object["uname"] = &mUniqueName;
 	object["name"] = &mName;
 	object["secret"] = &mRemoteSecret;

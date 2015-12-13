@@ -34,7 +34,6 @@
 #include "pla/http.h"
 #include "pla/address.h"
 #include "pla/socket.h"
-#include "pla/crypto.h"
 #include "pla/scheduler.h"
 #include "pla/task.h"
 #include "pla/array.h"
@@ -77,13 +76,12 @@ public:
 		Contact(	AddressBook *addressBook,
 				const String &uname,
 				const String &name,
-				const Rsa::PublicKey &pubKey);
+				const Identifier &identifier);
 		~Contact(void);
 		
 		void setAddressBook(AddressBook *addressBook);
 		void init(void);
 		
-		const Rsa::PublicKey &publicKey(void) const;
 		Identifier identifier(void) const;
 		String uniqueName(void) const;
 		String name(void) const;
@@ -114,13 +112,12 @@ public:
 	private:
 		BinaryString localSecret(void) const;
 		BinaryString remoteSecret(void) const;
-		void run(void);
 	  
 		AddressBook *mAddressBook;
 		Board *mBoard, *mPrivateBoard;
 		
 		String mUniqueName, mName;
-		Rsa::PublicKey mPublicKey;
+		Identifier mIdentifier;
 		BinaryString mRemoteSecret;
 		
 		SerializableMap<Identifier, String> mInstances;
@@ -128,14 +125,14 @@ public:
 		friend class AddressBook;
 	};
 	
-	String addContact(const String &name, const Rsa::PublicKey &pubKey);	// returns uname
+	String addContact(const String &name, const Identifier &identifier);	// returns uname
 	bool removeContact(const String &uname);
 	Contact *getContact(const String &uname);
 	const Contact *getContact(const String &uname) const;
 	int getContacts(Array<AddressBook::Contact*> &result);
 	int getContactsIdentifiers(Array<Identifier> &result) const;
 	
-	void setSelf(const Rsa::PublicKey &pubKey);
+	void setSelf(const Identifier &identifier);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
 	
@@ -148,6 +145,7 @@ private:
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
+	
 	Scheduler mScheduler;
 	
 	mutable BinaryString mDigest;
