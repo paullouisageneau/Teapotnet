@@ -92,7 +92,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 		if(stream->isDatagram())
 		{
 			const double retransTimeout = 1.;
-			const double totalTimeout   = 120.;
+			const double totalTimeout   = handshakeTimeout;
 			
 			gnutls_dtls_set_mtu(mSession, 1200);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
@@ -135,7 +135,7 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 void SecureTransport::handshake(void)
 {
 	// Set priorities
-	LogDebug("SecureTransport::handshake", "Setting priorities: " + mPriorities);
+	//LogDebug("SecureTransport::handshake", "Setting priorities: " + mPriorities);
 	const char *err_pos = NULL;
 	if(gnutls_priority_set_direct(mSession, mPriorities.c_str(), &err_pos))
 			throw Exception("Unable to set TLS priorities: " + mPriorities);
@@ -149,7 +149,7 @@ void SecureTransport::handshake(void)
 	}
 	
 	// Perform the TLS handshake
-	LogDebug("SecureTransport::handshake", "Performing handshake...");
+	//LogDebug("SecureTransport::handshake", "Performing handshake...");
 	int ret;
 	do {
                 ret = gnutls_handshake(mSession);

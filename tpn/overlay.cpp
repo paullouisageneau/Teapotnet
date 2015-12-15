@@ -69,8 +69,8 @@ Overlay::Overlay(int port) :
 	// Launch
 	try {
 		// Create backends
-		mBackends.push_back(new StreamBackend(this, port));
 		mBackends.push_back(new DatagramBackend(this, port));
+		mBackends.push_back(new StreamBackend(this, port));
 	}
 	catch(...)
 	{
@@ -226,9 +226,15 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 				it != backends.end();
 				++it)
 			{
-				Backend *backend = *it;
-				if(backend->connect(addrs, remote))
-					return true;
+				try {
+					Backend *backend = *it;
+					if(backend->connect(addrs, remote))
+						return true;
+				}
+				catch(const std::exception &e)
+				{
+					LogWarn("Overlay::connect", e.what());
+				}
 			}
 			
 			return false;
@@ -908,6 +914,8 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 		{
 			if(chain.empty()) return false;
 			publicKey = chain[0];
+			
+			LogDebug("Overlay::Backend::handshake", String("Remote node is ") + publicKey.digest().toString());
 			return true;		// Accept
 		}
 	};
@@ -1023,7 +1031,7 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryStri
 			if(connect(*it, remote))
 				return true;
 		}
-		catch(const NetException &e)
+		catch(const std::exception &e)
 		{
 			LogDebug("Overlay::StreamBackend::connect", e.what());
 		}
@@ -1101,7 +1109,7 @@ bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinarySt
 			if(connect(*it, remote))
 				return true;
 		}
-		catch(const NetException &e)
+		catch(const std::exception &e)
 		{
 			LogDebug("Overlay::DatagramBackend::connect", e.what());
 		}
