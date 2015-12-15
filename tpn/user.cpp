@@ -294,6 +294,11 @@ Indexer *User::indexer(void) const
 	return mIndexer;
 }
 
+void User::invite(const Identifier &remote, const String &name)
+{
+	mAddressBook->addInvitation(remote, name);
+}
+
 bool User::isOnline(void) const
 {
 	Synchronize(this);
@@ -796,7 +801,7 @@ bool User::deserialize(Serializer &s)
 		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 		
 		// Reload self contact is it exists
-		if(mAddressBook->getSelf())
+		if(mAddressBook && mAddressBook->getSelf())
 			mAddressBook->setSelf(identifier());
 	}
 	

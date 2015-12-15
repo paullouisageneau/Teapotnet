@@ -131,12 +131,13 @@ public:
 	const Contact *getContact(const String &uname) const;
 	int getContacts(Array<AddressBook::Contact*> &result);
 	int getContactsIdentifiers(Array<Identifier> &result) const;
+	bool hasIdentifier(const Identifier &identifier) const;
 	
 	void setSelf(const Identifier &identifier);
 	Contact *getSelf(void);
 	const Contact *getSelf(void) const;
 	
-	bool hasIdentifier(const Identifier &identifier) const;
+	void addInvitation(const Identifier &remote, const String &name);
 	
 private:
 	BinaryString digest(void) const;
@@ -145,6 +146,7 @@ private:
 	String mFileName;
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
+	Map<Identifier, String> mInvitations;
 	
 	Scheduler mScheduler;
 	

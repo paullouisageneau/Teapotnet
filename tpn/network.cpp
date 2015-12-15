@@ -580,7 +580,12 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	}
 	else if(type == "invite")
 	{
-		// TODO
+		String name;
+		serializer.read(Object()
+				.insert("name", &name));
+		
+		User *user = User::GetByIdentifier(link.local);
+		if(user && !name.empty()) user->invite(link.remote, name);
 	}
 	else {
 		return onRecv(link, type, serializer);

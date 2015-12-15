@@ -58,8 +58,6 @@ public:
 	void load(void);
 	void save(void) const;
 	
-	
-	
 	String name(void) const;
 	String profilePath(void) const;
 	String fileName(void) const;
@@ -69,6 +67,8 @@ public:
 	AddressBook *addressBook(void) const;
 	Board *board(void) const;
 	Indexer *indexer(void) const;
+	
+	void invite(const Identifier &remote, const String &name);
 	
 	bool isOnline(void) const;
 	void setOnline(void);

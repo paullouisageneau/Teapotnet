@@ -81,13 +81,15 @@ User *AddressBook::user(void) const
 String AddressBook::userName(void) const
 {
 	Synchronize(this);
-	return mUser->name(); 
+	if(mUser) return mUser->name(); 
+	else return "";
 }
 
 String AddressBook::urlPrefix(void) const
 {
 	Synchronize(this);
-	return mUser->urlPrefix() + "/contacts";
+	if(mUser) return mUser->urlPrefix() + "/contacts";
+	else return "";
 }
 
 void AddressBook::clear(void)
@@ -195,6 +197,12 @@ int AddressBook::getContactsIdentifiers(Array<Identifier> &result) const
 	return result.size();
 }
 
+bool AddressBook::hasIdentifier(const Identifier &identifier) const
+{
+	Synchronize(this);
+	return mContactsByIdentifier.contains(identifier);
+}
+
 void AddressBook::setSelf(const Identifier &identifier)
 {
 	Synchronize(this);
@@ -230,10 +238,10 @@ const AddressBook::Contact *AddressBook::getSelf(void) const
 	return getContact(userName());
 }
 
-bool AddressBook::hasIdentifier(const Identifier &identifier) const
+void AddressBook::addInvitation(const Identifier &remote, const String &name)
 {
 	Synchronize(this);
-	return mContactsByIdentifier.contains(identifier);
+	mInvitations.insert(remote, name);
 }
 
 BinaryString AddressBook::digest(void) const
@@ -312,30 +320,42 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					String action = request.post["action"];
 					
-					if(action == "deletecontact")
+					if(action == "create")
+					{
+						String id = request.post.getOrDefault("id", request.post.get("argument"));
+						String name = request.post["name"];
+						
+						Identifier identifier;
+						id.extract(identifier);
+						
+						Synchronize(this);
+						if(name.empty())
+						{
+							if(!mInvitations.contains(identifier))
+								throw Exception("No name for contact");
+							
+							name = mInvitations.get(identifier);
+						}
+						
+						addContact(identifier, name);
+						mInvitations.erase(identifier);
+					}
+					else if(action == "delete")
 					{
 						String uname = request.post.getOrDefault("uname", request.post.get("argument"));
+						
+						Synchronize(this);
 						removeContact(uname);
 					}
-					else if(action == "createinvitation")
+					else if(action == "deleteinvitation")
 					{
 						String id = request.post.getOrDefault("id", request.post.get("argument"));
-						String name = request.post["name"];
 						
 						Identifier identifier;
 						id.extract(identifier);
 						
-						// TODO
-					}
-					else if(action == "acceptinvitation")
-					{
-						String id = request.post.getOrDefault("id", request.post.get("argument"));
-						String name = request.post["name"];
-						
-						Identifier identifier;
-						id.extract(identifier);
-						
-						// TODO
+						Synchronize(this);
+						mInvitations.erase(identifier);
 					}
 					else if(action == "createsynchronization")
 					{
@@ -421,17 +441,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.header("Contacts");
 
 			String token = user()->generateToken("contact");
-			
-			page.open("div",".box");
-			page.open("h2");
-			page.text("Add Contacts / Send invitations");
-			page.close("h2");
-
-			/*page.open("div", ".howtorequests");
-			page.text("Here you can either send or accept invitations. Inviting someone is as easy as getting a new invitation secret code here and sending it to your contact. To accept an invitation, simply enter the secret code in the appropriate section.");
-			page.close("div");*/
-
-			page.close("div");
 
 			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "createsynchronization");
@@ -501,8 +510,65 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						event.stopPropagation();\n\
 						var uname = $(this).closest('tr').find('td.uname').text();\n\
 						if(confirm('Do you really want to delete '+uname+' ?')) {\n\
-							document.actionForm.action.value = 'deletecontact';\n\
+							document.actionForm.action.value = 'delete';\n\
 							document.actionForm.argument.value = uname;\n\
+							document.actionForm.submit();\n\
+						}\n\
+					});");
+				}
+				
+				if(!mInvitations.empty())
+				{
+					page.open("div",".box");
+					page.open("h2");
+					page.text("Invitations");
+					page.close("h2");
+					
+					page.open("table",".invitations");
+					
+					for(Map<Identifier, String>::iterator it = mInvitations.begin();
+						it != mInvitations.end();
+						++it)
+					{
+						page.open("tr");
+						page.open("td",".name");
+						page.text(it->second);
+						page.close("td");
+						page.open("td",".id");
+						page.text(it->first.toString());
+						page.close("td");
+						page.open("td",".actions");
+						page.openLink('#', ".acceptlink");
+						page.image("/add.png", "Accept");
+						page.closeLink();
+						page.openLink('#', ".deletelink");
+						page.image("/delete.png", "Delete");
+						page.closeLink();
+						page.close("td");
+						page.close("tr");
+					}
+					
+					page.close("table");
+					page.close("div");
+					
+					page.javascript("$('.contacts .acceptlink').css('cursor', 'pointer').click(function(event) {\n\
+						event.stopPropagation();\n\
+						var name = $(this).closest('tr').find('td.name').text();\n\
+						var id = $(this).closest('tr').find('td.id').text();\n\
+						if(confirm('Do you really want to add '+name+' ?')) {\n\
+							document.actionForm.action.value = 'create';\n\
+							document.actionForm.argument.value = id;\n\
+							document.actionForm.submit();\n\
+						}\n\
+					});");
+					
+					page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+						event.stopPropagation();\n\
+						var name = $(this).closest('tr').find('td.name').text();\n\
+						var id = $(this).closest('tr').find('td.id').text();\n\
+						if(confirm('Do you really want to delete invitation from '+name+' ?')) {\n\
+							document.actionForm.action.value = 'deleteinvitation';\n\
+							document.actionForm.argument.value = id;\n\
 							document.actionForm.submit();\n\
 						}\n\
 					});");
