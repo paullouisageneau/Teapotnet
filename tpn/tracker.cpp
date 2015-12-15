@@ -43,7 +43,7 @@ void Tracker::process(Http::Request &request)
 {
 	//LogDebug("Tracker", "URL " + request.url);	
 	
-	if(request.url != "/teapotnet" && request.url != "/teapotnet/")
+	if(request.url != "/teapotnet/tracker" && request.url != "/teapotnet/tracker/")
 		throw 404;
 	
 	if(request.method == "POST")

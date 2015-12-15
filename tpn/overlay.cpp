@@ -730,7 +730,7 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 	
 	try {
 		
-		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet";
+		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet/tracker";
 			
 		// Dirty hack to test if tracker is private or public
 		bool trackerIsPrivate = false;
