@@ -337,7 +337,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							name = mInvitations.get(identifier);
 						}
 						
-						addContact(identifier, name);
+						addContact(name, identifier);
 						mInvitations.erase(identifier);
 					}
 					else if(action == "delete")
