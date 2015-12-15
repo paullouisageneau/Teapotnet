@@ -656,7 +656,7 @@ int run(StringMap &args)
 		LogInfo("main", "Launching the tracker...");
 		tracker = new Tracker(port);
 		tracker->start();
-		Thread::Sleep(1.);
+		Thread::Sleep(0.100);
 	}
 	
 	String sport = Config::Get("port");
