@@ -45,7 +45,7 @@ if(!String.linkify) {
 		// Email addresses
 		var emailAddressPattern = /(^|\s)([a-zA-Z0-9_\-]+@[a-zA-Z0-9_\-]+?(?:\.[a-zA-Z]{2,6})+)([!?:,.;]*(?:$|\s))/gim;
 
-		// Youtube video pattern
+		// Youtube video
 		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*([!?:,.;]*(?:$|\s))/gim;
 		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
 	
@@ -314,7 +314,9 @@ function displayContacts(url, period, object) {
 				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
 				
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
-					$(object).append('<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+uname+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>');
+					var div = '<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+(isSelf ? "Myself" : uname)+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>';
+					if(isSelf) $(object).prepend(div);
+					else $(object).append(div);
 				}
 
 				$('#contact_'+uname).attr('class', contact.status);
