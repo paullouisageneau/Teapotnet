@@ -270,6 +270,11 @@ bool String::contains(char chr) const
 	return (find(chr) != NotFound);
 }
 
+bool String::contains(const String &str) const
+{
+	return (find(str) != NotFound);
+}
+
 bool String::containsDigits(void) const
 {
 	for(int i=0; i<size(); ++i)

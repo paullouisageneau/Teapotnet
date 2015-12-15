@@ -378,10 +378,10 @@ int run(StringMap &args)
 	const String configFileName = "config.txt";	// TODO: also defined in core.cpp
 	if(File::Exist(configFileName)) Config::Load(configFileName);
 
-	Config::Default("tracker", "teapotnet.org");
+	Config::Default("tracker", "https://teapotnet.org");
 	Config::Default("port", "8080");
-	Config::Default("tracker_port", "80");
 	Config::Default("interface_port", "8480");
+	Config::Default("tracker_port", "8488");
 	Config::Default("profiles_dir", "profiles");
 	Config::Default("static_dir", "static");
 	Config::Default("shared_dir", "shared");

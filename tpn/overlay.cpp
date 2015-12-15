@@ -720,11 +720,18 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Address &addr, O
 
 bool Overlay::track(const String &tracker, Set<Address> &result)
 {
-	LogDebug("Overlay::track", "Contacting tracker " + tracker);
+	if(tracker.empty()) return false;
+	
+	String url;
+	if(tracker.contains("://")) url = tracker;
+	else url = "http://" + tracker;
+	
+	LogDebug("Overlay::track", "Contacting tracker " + url);	
 	
 	try {
-		String url("http://" + tracker + "/teapotnet/");
 		
+		url+= String(tracker[tracker.size()-1] == '/' ? "" : "/") + "tracker";
+			
 		// Dirty hack to test if tracker is private or public
 		bool trackerIsPrivate = false;
 		List<Address> trackerAddresses;
