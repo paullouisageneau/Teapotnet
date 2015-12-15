@@ -222,8 +222,10 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 		{
 			ssize_t ret;
 			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
+			{
 				if(gnutls_error_is_fatal(ret))
 					throw Exception(ErrorString(ret));
+			}
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
@@ -237,8 +239,14 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 	else {
 		ssize_t ret;
 		while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
+		{
+			// Consider premature termination as proper termination
+			if(ret == GNUTLS_E_PREMATURE_TERMINATION)
+				return 0;
+			
 			if(gnutls_error_is_fatal(ret))
 				throw Exception(ErrorString(ret));
+		}
 		
 		return size_t(ret);
 	}
