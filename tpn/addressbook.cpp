@@ -442,24 +442,32 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 
 			String token = user()->generateToken("contact");
 
-			page.open("div",".box");
+			page.openForm(prefix + "/", "post", "create");
+			page.openFieldset("Follow new contact");
+			page.input("hidden", "token", token);
+			page.input("hidden", "action", "create");
+			page.label("id", "Identifier"); page.input("text", "id"); page.br();
+			page.label("name", "Name"); page.input("text", "name"); page.br();
+			page.label("generate"); page.button("generate", "Add contact"); page.br();
+			page.closeFieldset();
+			page.closeForm();
+			
 			page.openForm(prefix + "/", "post", "createsynchronization");
-			page.open("h2"); page.text("Synchronize new device"); page.close("h2");
+			page.openFieldset("Synchronize new device");
 			page.input("hidden", "token", token);
 			page.input("hidden", "action", "createsynchronization");
-			page.label("generate"); page.button("generate", "Generate synchronization secret");
+			page.button("generate", "Generate synchronization secret");
+			page.closeFieldset();
 			page.closeForm();
-			page.close("div");
 			
-			page.open("div",".box");
 			page.openForm(prefix + "/", "post", "acceptsynchronization");
-			page.open("h2"); page.text("Accept device synchronization"); page.close("h2");
+			page.openFieldset("Accept synchronization");
 			page.input("hidden", "token", token);
 			page.input("hidden", "action", "acceptsynchronization");
 			page.input("text", "code");
 			page.button("validate", "Validate");
+			page.closeFieldset();
 			page.closeForm();
-			page.close("div");
 			
 			page.openForm(prefix+"/", "post", "actionForm");
 			page.input("hidden", "action");
