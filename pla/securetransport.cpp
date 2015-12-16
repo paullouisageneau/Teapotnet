@@ -168,7 +168,6 @@ void SecureTransport::close(void)
                 ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
-	
 }
 
 void SecureTransport::setHostname(const String &hostname)
@@ -221,11 +220,12 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 		while(!mBufferSize)
 		{
 			ssize_t ret;
-			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
-			{
-				if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_REHANDSHAKE)
-					throw Exception(ErrorString(ret));
+			do {
+				ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize);
 			}
+			while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_REHANDSHAKE);
+	
+			if(ret < 0) throw Exception(ErrorString(ret));
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
@@ -238,15 +238,14 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 	}
 	else {
 		ssize_t ret;
-		while((ret = gnutls_record_recv(mSession, buffer, size)) < 0)
-		{
-			// Consider premature termination as proper termination
-			if(ret == GNUTLS_E_PREMATURE_TERMINATION)
-				return 0;
-			
-			if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_REHANDSHAKE)
-				throw Exception(ErrorString(ret));
+		do {
+			ret = gnutls_record_recv(mSession, buffer, size);
 		}
+		while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+		
+		// Consider premature termination as proper termination
+		if(ret == GNUTLS_E_PREMATURE_TERMINATION) return 0;
+		if(ret < 0) throw Exception(ErrorString(ret));
 		
 		return size_t(ret);
 	}
@@ -263,11 +262,12 @@ void SecureTransport::writeData(const char *data, size_t size)
 	else {
 		do {
 			ssize_t ret;
-			while((ret = gnutls_record_send(mSession, data, size)) < 0)
-			{
-				if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN)
-					throw Exception(ErrorString(ret));
+			do {
+				ret = gnutls_record_send(mSession, data, size);
 			}
+			while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+			
+			if(ret < 0) throw Exception(ErrorString(ret));
 			
 			Assert(size_t(ret) <= size);
 			data+= ret;
@@ -293,14 +293,12 @@ bool SecureTransport::nextWrite(void)
 		return false;
 	
 	ssize_t ret;
-	while((ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size())) < 0)
-	{
-		if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN)
-		{
-			mWriteBuffer.clear();
-			throw Exception(ErrorString(ret));
-		}
+	do {
+		ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
 	}
+        while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+	
+	if(ret < 0) throw Exception(ErrorString(ret));
 	
 	mWriteBuffer.clear();
 	return true;
