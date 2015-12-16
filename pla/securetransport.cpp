@@ -223,7 +223,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			ssize_t ret;
 			while((ret = gnutls_record_recv(mSession, mBuffer, DatagramSocket::MaxDatagramSize)) < 0)
 			{
-				if(gnutls_error_is_fatal(ret))
+				if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_REHANDSHAKE)
 					throw Exception(ErrorString(ret));
 			}
 			
@@ -244,7 +244,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			if(ret == GNUTLS_E_PREMATURE_TERMINATION)
 				return 0;
 			
-			if(gnutls_error_is_fatal(ret))
+			if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_REHANDSHAKE)
 				throw Exception(ErrorString(ret));
 		}
 		
@@ -262,10 +262,14 @@ void SecureTransport::writeData(const char *data, size_t size)
 	}
 	else {
 		do {
-			ssize_t ret = gnutls_record_send(mSession, data, size);
-			if(ret < 0) throw Exception(ErrorString(ret));
-			Assert(size_t(ret) <= size);
+			ssize_t ret;
+			while((ret = gnutls_record_send(mSession, data, size)) < 0)
+			{
+				if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN)
+					throw Exception(ErrorString(ret));
+			}
 			
+			Assert(size_t(ret) <= size);
 			data+= ret;
 			size-= ret;
 		}
@@ -288,10 +292,17 @@ bool SecureTransport::nextWrite(void)
 	if(!isDatagram())
 		return false;
 	
-	ssize_t ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size());
-	mWriteBuffer.clear();
-	if(ret < 0) throw Exception(ErrorString(ret));
+	ssize_t ret;
+	while((ret = gnutls_record_send(mSession, mWriteBuffer.data(), mWriteBuffer.size())) < 0)
+	{
+		if(ret != GNUTLS_E_INTERRUPTED && ret != GNUTLS_E_AGAIN)
+		{
+			mWriteBuffer.clear();
+			throw Exception(ErrorString(ret));
+		}
+	}
 	
+	mWriteBuffer.clear();
 	return true;
 }
 
