@@ -84,6 +84,9 @@ private:
 class DatagramStream : public Stream
 {
 public:
+	static double ReadTimeout;
+	static int MaxQueueSize;
+
 	DatagramStream(void);
 	DatagramStream(DatagramSocket *sock, const Address &addr);
 	~DatagramStream(void);
@@ -99,14 +102,13 @@ public:
 	bool nextWrite(void);	
 	bool isDatagram(void) const;
 	
-	static double ReadTimeout;
-	
 private:
 	DatagramSocket *mSock;
 	Address mAddr;
-	BinaryString mBuffer, mWriteBuffer;
-	size_t mBufferOffset;
-	Synchronizable mBufferSync;
+	BinaryString mBuffer;
+	Queue<BinaryString> mIncoming;
+	size_t mOffset;
+	Synchronizable mSync;
 	
 	friend class DatagramSocket;
 };

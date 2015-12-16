@@ -334,7 +334,7 @@ void DatagramSocket::close(void)
 		++it)
 	{
 		it->second->mSock = NULL;
-		it->second->mBufferSync.notifyAll();
+		it->second->mSync.notifyAll();
 	}
 
 	if(mSock != INVALID_SOCKET)
@@ -471,14 +471,10 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		
 		if(result > 0)
 		{
-			Synchronize(&stream->mBufferSync);
-			
-			// Wait for last datagram to be processed
-			while(!stream->mBuffer.empty())
-				stream->mBufferSync.wait();
-			
-			stream->mBuffer.assign(datagramBuffer, result);
-			stream->mBufferSync.notifyAll();
+			Synchronize(&stream->mSync);
+			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
+				stream->mIncoming.push(BinaryString(datagramBuffer, size_t(result)));
+			stream->mSync.notifyAll();
 		}
 		
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
@@ -526,10 +522,11 @@ bool DatagramSocket::unregisterStream(DatagramStream *stream)
 }
 
 double DatagramStream::ReadTimeout = 60.; // 1 min
+int DatagramStream::MaxQueueSize = 100;
 
 DatagramStream::DatagramStream(void) :
 	mSock(NULL),
-	mBufferOffset(0)
+	mOffset(0)
 {
 	
 }
@@ -537,7 +534,7 @@ DatagramStream::DatagramStream(void) :
 DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 	mSock(sock),
 	mAddr(addr),
-	mBufferOffset(0)
+	mOffset(0)
 {
 	Assert(mSock);
 	mSock->registerStream(addr, this);
@@ -562,39 +559,37 @@ Address DatagramStream::getRemoteAddress(void) const
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	Synchronize(&mBufferSync);
+	Synchronize(&mSync);
 	
 	double timeout = ReadTimeout;
-	while(mBuffer.empty())
+	while(mIncoming.empty())
 	{
 		if(!mSock) return 0;
-		if(!mBufferSync.wait(timeout))
+		if(!mSync.wait(timeout))
 			throw Timeout();
 	}
 
-	Assert(mBufferOffset <= mBuffer.size());
-	size = std::min(size, size_t(mBuffer.size() - mBufferOffset));
-	std::memcpy(buffer, mBuffer.data() + mBufferOffset, size);
-	mBufferOffset+= size;
+	Assert(mOffset <= mIncoming.front().size());
+	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
+	std::memcpy(buffer, mIncoming.front().data() + mOffset, size);
+	mOffset+= size;
 	return size;
 }
 
 void DatagramStream::writeData(const char *data, size_t size)
 {
-	Synchronize(&mBufferSync);
-
 	if(!mSock) throw NetException("Datagram socket closed");
-	mWriteBuffer.writeData(data, size);
+	mBuffer.writeData(data, size);
 }
 
 bool DatagramStream::waitData(double &timeout)
 {
-	Synchronize(&mBufferSync);
+	Synchronize(&mSync);
 	
-	while(mBuffer.empty())
+	while(mIncoming.empty())
 	{
 		if(!mSock) return true;	// readData will return 0
-		if(!mBufferSync.wait(timeout)) return false;
+		if(!mSync.wait(timeout)) return false;
 	}
 	
 	return true;
@@ -602,18 +597,18 @@ bool DatagramStream::waitData(double &timeout)
 
 bool DatagramStream::nextRead(void)
 {
-	Synchronize(&mBufferSync);
-	mBuffer.clear();
-	mBufferSync.notifyAll();
-	mBufferOffset = 0;
+	Synchronize(&mSync);
+	if(mIncoming.empty()) return false;
+	mIncoming.pop();
+	mOffset = 0;
 	return true;
 }
 
 bool DatagramStream::nextWrite(void)
 {
-	Synchronize(&mBufferSync);
-	mSock->write(mWriteBuffer.data(), mWriteBuffer.size(), mAddr);
-	mWriteBuffer.clear();
+	Synchronize(&mSync);
+	mSock->write(mBuffer.data(), mBuffer.size(), mAddr);
+	mBuffer.clear();
 	return true;
 }
 

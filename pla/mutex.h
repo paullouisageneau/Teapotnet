@@ -59,7 +59,8 @@ private:
 class MutexLocker
 {
 public:
-        inline MutexLocker(Mutex *_m) : m(_m) { m->lock(); }
+        inline MutexLocker(Mutex *_m) : m(_m)  { m->lock(); }
+	inline MutexLocker(Mutex &_m) : m(&_m) { m->lock(); }
         inline ~MutexLocker(void) { m->unlock(); }
 
 private:
