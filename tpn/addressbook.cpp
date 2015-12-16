@@ -241,7 +241,8 @@ const AddressBook::Contact *AddressBook::getSelf(void) const
 void AddressBook::addInvitation(const Identifier &remote, const String &name)
 {
 	Synchronize(this);
-	mInvitations.insert(remote, name);
+	if(!hasIdentifier(remote))
+		mInvitations.insert(remote, name);
 }
 
 BinaryString AddressBook::digest(void) const
@@ -766,6 +767,10 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		send(link.node, "info", ConstObject()
 			.insert("name", Network::Instance->overlay()->localName())
 			.insert("secret", localSecret()));
+		
+		// TODO: should be sent once to each instance
+		send(link.node, "invite", ConstObject()
+			.insert("name", name()));
 		
 		if(isSelf())
 		{
