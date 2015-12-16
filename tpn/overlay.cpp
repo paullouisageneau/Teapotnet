@@ -1128,6 +1128,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 	try {
 		stream = new DatagramStream(&mSock, addr);
 		transport = new SecureTransportClient(stream, NULL);
+		transport->setMtu(1452);	// UDP over IPv6 on ethernet
 	}
 	catch(...)
 	{
@@ -1143,6 +1144,7 @@ SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 	while(true)
 	{
 		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
+		transport->setMtu(1452);	// UDP over IPv6 on ethernet
 		if(transport) return transport;
 	}
 	

@@ -93,11 +93,11 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 		{
 			const double retransTimeout = 1.;
 			const double totalTimeout   = handshakeTimeout;
-			
-			gnutls_dtls_set_mtu(mSession, 1200);	// TODO
 			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
 			
 			mBuffer = new char[DatagramSocket::MaxDatagramSize];
+			
+			setMtu(1452);	// Defaults to UDP over IPv6 on ethernet
 		}
 	}
 	catch(...)
@@ -130,6 +130,12 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 	
 	if(mustDelete) 
 		mCredsToDelete.push_back(creds);
+}
+
+void SecureTransport::setMtu(unsigned int mtu)
+{
+	if(mStream->isDatagram())
+		gnutls_dtls_set_mtu(mSession, mtu);
 }
 
 void SecureTransport::handshake(void)

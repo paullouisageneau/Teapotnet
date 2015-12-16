@@ -1107,6 +1107,7 @@ bool Network::Tunneler::open(const Identifier &node, const Identifier &remote, U
 	try {
 		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 		transport = new SecureTransportClient(tunnel, NULL);
+		transport->setMtu(1200);	// TODO
 	}
 	catch(...)
 	{
@@ -1149,6 +1150,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			try {
 				tunnel = new Tunneler::Tunnel(this, tunnelId, datagram.source);
 				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
+				transport->setMtu(1200);	// TODO
 			}
 			catch(...)
 			{

@@ -91,6 +91,8 @@ public:
 	virtual ~SecureTransport(void);
 	
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
+	void setMtu(unsigned int mtu);							// ignored if not a datagram stream
+	
 	void handshake(void);
 	void close(void);
 	
