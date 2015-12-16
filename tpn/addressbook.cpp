@@ -388,6 +388,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else if (action == "acceptsynchronization")
 					{
 						String code = request.post["code"];
+						code.trim();
 						
 						if(!code.empty())	// code can be empty on account creation
 						{
@@ -498,11 +499,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					for(int i=0; i<contacts.size(); ++i)
 					{
 						Contact *contact = contacts[i];
-						if(contact->isSelf()) continue;
 						
 						page.open("tr");
 						page.open("td",".name");
-						page.text(contact->name());
+						page.text((contact->isSelf() ? "Myself" : contact->name()));
 						page.close("td");
 						page.open("td",".uname");
 						page.link(contact->urlPrefix(), contact->uniqueName());
