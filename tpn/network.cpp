@@ -424,6 +424,7 @@ void Network::run(void)
 				
 				if(loops % 10 == 0)
 				{
+					Identifier node(mOverlay.localNode());
 					Set<Identifier> localIds;
 					Set<Identifier> remoteIds;
 					
@@ -435,7 +436,6 @@ void Network::run(void)
 						remoteIds.insert(it->first.first);
 					}
 					
-					Identifier node(mOverlay.localNode());
 					for(Set<Identifier>::iterator it = localIds.begin();
 						it != localIds.end();
 						++it)

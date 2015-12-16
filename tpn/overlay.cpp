@@ -277,7 +277,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 			}
 			else {
 				ConnectTask stask(mBackends, filteredAddrs, remote);
-				return stask.connect();
+				DesynchronizeStatement(this, stask.connect());
 			}
 		}
 	}
