@@ -765,7 +765,7 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		Desynchronize(mAddressBook);
 		
 		send(link.node, "info", ConstObject()
-			.insert("name", Network::Instance->overlay()->localName())
+			.insert("instance", Network::Instance->overlay()->localName())
 			.insert("secret", localSecret()));
 		
 		// TODO: should be sent once to each instance
@@ -792,12 +792,12 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 	
 	if(type == "info")
 	{
-		String name;
+		String instance;
 		serializer.read(Object()
-			.insert("name", &name)
+			.insert("instance", &instance)
 			.insert("secret", &mRemoteSecret));
 		
-		mInstances[link.node] = name;
+		mInstances[link.node] = instance;
 		
 		mAddressBook->save();
 		
