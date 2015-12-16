@@ -68,15 +68,15 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 {
 	Assert(stream);
 
+	if(server && Random().uniform(0, 1000) == 0)
+		GenerateParams();
+		
+	// Init session
+	unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
+	if(stream->isDatagram()) flags|= GNUTLS_DATAGRAM;
+	Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
+	
 	try {
-		if(server && Random().uniform(0, 1000) == 0)
-			GenerateParams();
-		
-		// Init session
-		unsigned int flags = (server ? GNUTLS_SERVER : GNUTLS_CLIENT);
-		if(stream->isDatagram()) flags|= GNUTLS_DATAGRAM;
-		Assert(gnutls_init(&mSession, flags) == GNUTLS_E_SUCCESS);
-		
 		// Set session pointer
 		gnutls_session_set_ptr(mSession, reinterpret_cast<void*>(this));
 		
