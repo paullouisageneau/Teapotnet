@@ -798,6 +798,15 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("secret", &mRemoteSecret));
 		
 		mInstances[link.node] = name;
+		
+		mAddressBook->save();
+		
+		if(mPrivateBoard)
+		{
+			delete mPrivateBoard;
+			BinaryString id = mAddressBook->user()->identifier() ^ identifier();
+			mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name());
+		}
 	}
 	else if(type == "contacts")
 	{

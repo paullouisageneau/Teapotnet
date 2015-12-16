@@ -184,7 +184,7 @@ User::User(const String &name, const String &password) :
 	try {
 		mIndexer = new Indexer(this);
         	mAddressBook = new AddressBook(this);
-       	 	mBoard = new Board("/" + identifier().toString(), mName);
+       	 	mBoard = new Board("/" + identifier().toString(), "", mName);
 		
 		if(!mCertificate) mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 	}
