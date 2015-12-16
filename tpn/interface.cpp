@@ -114,6 +114,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 						page.close("p");
 						page.input("hidden", "token", user->generateToken("contact"));
 						page.input("hidden", "action", "acceptsynchronization");
+						page.input("hidden", "redirect", user->urlPrefix());
 						page.input("text", "code");
 						page.button("validate", "Validate");
 						page.closeForm();

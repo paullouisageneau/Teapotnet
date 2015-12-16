@@ -388,23 +388,27 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					else if (action == "acceptsynchronization")
 					{
 						String code = request.post["code"];
-						BinaryString digest;
-						try {
-							digest = code.base64Decode();
-						}
-						catch(...)
+						
+						if(!code.empty())	// code can be empty on account creation
 						{
-							throw Exception("Invalid synchronization code");
+							BinaryString digest;
+							try {
+								digest = code.base64Decode();
+							}
+							catch(...)
+							{
+								throw Exception("Invalid synchronization code");
+							}
+							
+							BinaryString secret;
+							digest.readBinary(secret, 32);
+							if(digest.size() != 32)
+								throw Exception("Invalid synchronization code");
+							
+							setSelf(user()->identifier());	// create self contact
+							
+							mScheduler.schedule(new Resource::ImportTask(user(), digest, "user", secret, true));	// autodelete
 						}
-						
-						BinaryString secret;
-						digest.readBinary(secret, 32);
-						if(digest.size() != 32)
-							throw Exception("Invalid synchronization code");
-						
-						setSelf(user()->identifier());	// create self contact
-						
-						mScheduler.schedule(new Resource::ImportTask(user(), digest, "user", secret, true));	// autodelete
 					}
 					else {
 						throw 500;
@@ -414,10 +418,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				{
 					LogWarn("AddressBook::http", e.what());
 					throw 400;
-				}				
+				}
 				
 				Http::Response response(request, 303);
-				response.headers["Location"] = prefix + "/";
+				response.headers["Location"] = request.post.getOrDefault("redirect", prefix + "/");
 				response.send();
 				return;
 			}
