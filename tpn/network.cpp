@@ -309,7 +309,7 @@ void Network::run(void)
 					{
 						Synchronize(this);
 						
-						if(!message.content.empty())
+						if(!message.content.empty() && message.content != mOverlay.localNode())
 						{
 							// It can be about a block
 							if(mCallers.contains(message.source))
@@ -1081,13 +1081,13 @@ Network::Tunneler::~Tunneler(void)
 	
 }
 
-bool Network::Tunneler::open(const Identifier &node, const Identifier &remote, User *user, bool async)
+bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
 	Assert(!node.empty());
 	Assert(!remote.empty());
 	Assert(user);
 	
-	if(remote.empty())
+	if(node == Network::Instance->overlay()->localNode())
 		return false;
 	
 	if(Network::Instance->overlay()->connectionsCount() == 0)
@@ -1514,7 +1514,7 @@ int Network::Handler::send(bool force)
 		catch(std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
-			//mStream->close();
+			mStream->close();
 			break;
 		}
 	}

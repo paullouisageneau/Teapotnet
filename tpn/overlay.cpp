@@ -1264,7 +1264,7 @@ bool Overlay::Handler::send(const Message &message)
 	catch(std::exception &e)
 	{
 		LogWarn("Overlay::Handler::send", String("Sending failed: ") + e.what());
-		//mStream->close();
+		mStream->close();
 		return false;
 	}
 	

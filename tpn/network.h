@@ -219,7 +219,7 @@ private:
 		Tunneler(void);
 		~Tunneler(void);
 		
-		bool open(const Identifier &node, const Identifier &remote, User *user, bool async = false);
+		bool open(const BinaryString &node, const Identifier &remote, User *user, bool async = false);
 		bool incoming(const Overlay::Message &message);
 		
 	private:
