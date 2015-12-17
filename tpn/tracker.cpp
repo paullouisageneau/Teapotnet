@@ -128,9 +128,8 @@ void Tracker::clean(int count)
 	{
 		if(mCleaner == mMap.end()) mCleaner = mMap.begin();
 		
-		for(Map<Address, Time>::iterator it = mCleaner->second.begin();
-			it != mCleaner->second.end();
-			++it)
+		Map<Address, Time>::iterator it = mCleaner->second.begin();
+		while(it != mCleaner->second.end())
 		{
 			if(Time::Now() - it->second >= EntryLife) mCleaner->second.erase(it++);
 			else it++;

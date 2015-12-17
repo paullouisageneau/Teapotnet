@@ -1172,6 +1172,9 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mStream(stream),
 	mNode(node)
 {
+	if(node == mOverlay->localNode())
+		throw Exception("Spawned a handler for local node");
+	
 	if(!mOverlay->registerHandler(mNode, addr, this))
 		throw Exception("A handler already exists for the same flow");
 	
