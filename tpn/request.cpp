@@ -36,7 +36,7 @@ Request::Request(Resource &resource) :
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	addResult(resource);
+	addResult(resource, true);	// finished
 }
   
 Request::Request(const String &target, bool listDirectories) :
@@ -76,14 +76,8 @@ Request::Request(const String &target, const Network::Link &link, bool listDirec
 
 Request::~Request(void)
 {
-	{
-		Synchronize(this);
-		
-		Interface::Instance->remove(mUrlPrefix, this);
-		unsubscribeAll();
-		mFinished = true;
-		notifyAll();
-	}
+	Interface::Instance->remove(mUrlPrefix, this);
+	unsubscribeAll();
 }
 
 String Request::urlPrefix(void) const
@@ -98,7 +92,7 @@ int Request::resultsCount(void) const
 	return int(mResults.size());
 }
 
-void Request::addResult(Resource &resource)
+void Request::addResult(Resource &resource, bool finish)
 {
 	Synchronize(this);
 	
@@ -108,19 +102,14 @@ void Request::addResult(Resource &resource)
 		Resource::Reader reader(&resource);
 		Resource::DirectoryRecord record;
 		while(reader.readDirectory(record))
-			if(!mDigests.contains(record.digest))
-			{
-				mResults.append(record);
-				mDigests.insert(record.digest);
-			}
-		
-		//mFinished = true;
-		notifyAll();
+			addResult(record);
 	}
 	else {
 		// Do not list, just add corresponding record
 		addResult(resource.getDirectoryRecord());
 	}
+	
+	if(finish) mFinished = true;
 }
 
 void Request::addResult(const Resource::DirectoryRecord &record)

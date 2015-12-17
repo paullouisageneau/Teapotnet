@@ -44,7 +44,7 @@ public:
 	
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
-	void addResult(Resource &resource);
+	void addResult(Resource &resource, bool finish = false);
 	void addResult(const Resource::DirectoryRecord &record);
 	void getResult(int i, Resource::DirectoryRecord &record) const;
 	
