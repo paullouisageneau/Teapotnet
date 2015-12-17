@@ -996,6 +996,15 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			String reqPrefix = req->urlPrefix();
 			req->autoDelete();
 			
+			// JSON
+			if(request.get.contains("json"))
+			{
+				Http::Response response(request, 307);
+				response.headers["Location"] = reqPrefix;
+				response.send();
+				return;
+			}
+			
 			Http::Response response(request, 200);
 			response.send();
 			

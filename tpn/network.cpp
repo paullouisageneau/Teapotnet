@@ -626,23 +626,24 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 				jt != set.end();
 				++jt)
 			{
-				if((*jt)->link() != link)
+				Publisher *publisher = *jt;
+				if(publisher->link() != link)
 					continue;
 				
 				List<BinaryString> result;
-				if((*jt)->anounce(link, prefix, truncatedPath, result))
+				if(publisher->anounce(link, prefix, truncatedPath, result))
 				{
 					Assert(!result.empty());
 					if(subscriber) 	// local
 					{
 						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming((*jt)->link(), path, "/", *it);
+							subscriber->incoming(publisher->link(), path, "/", *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
 			}
 			
-			if(!targets.empty()) 
+			if(!targets.empty())	// remote
 			{
 				LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
@@ -692,16 +693,18 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 				++jt)
 			{
 				Subscriber *subscriber = *jt;
+				if(subscriber->link() != link)
+					continue;
+				
 				List<BinaryString> targets;
-				if(publisher->anounce(subscriber->link(), prefix, truncatedPath, targets))
+				if(publisher->anounce(link, prefix, truncatedPath, targets))
 				{
 					for(List<BinaryString>::const_iterator kt = targets.begin();
 						kt != targets.end();
 						++kt)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						if(subscriber->link() == link)
-							subscriber->incoming(link, prefix, truncatedPath, *kt);
+						subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt);
 					}
 				}
 			}
@@ -997,7 +1000,7 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(link != this->link())	// do not forward publications from same link
+	if(link.remote.empty() || link != this->link())
 	{
 		SerializableArray<BinaryString> targets;
 		targets.append(target);

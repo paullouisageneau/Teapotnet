@@ -114,7 +114,7 @@ void Request::addResult(Resource &resource)
 				mDigests.insert(record.digest);
 			}
 		
-		mFinished = true;
+		//mFinished = true;
 		notifyAll();
 	}
 	else {

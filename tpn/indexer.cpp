@@ -540,7 +540,7 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 
 	String cpath(path);
 	String match = cpath.cut('?');
-
+	
 	Query query;
 	query.setPath(cpath);
 	query.setMatch(match);
@@ -1271,12 +1271,14 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, const String &fields)
 {
-	// Retrive and prepare parameters
+	// Retrieve and prepare parameters
 	String path = query.mPath;
+	path.replace("\\", "\\\\");
 	path.replace("%", "\\%");
 	path.replace("*", "%");
 	
 	String match = query.mMatch;
+	match.replace("\\", "\\\\");
 	match.replace("%", "\\%");
 	match.replace("*", "%");
 	
