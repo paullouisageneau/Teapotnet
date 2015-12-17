@@ -690,15 +690,25 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 {
 	Synchronize(this);
 	
-	if(!handler)
+	mRemoteAddresses.insert(addr);
+	
+	if(!handler) 
 		return false;
 	
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
-		return (h == handler);
+	{
+		if(h == handler) 
+		{
+			return true;
+		}
+		else {	// another handler already exists
+			h->addAddress(addr);
+			return false;
+		}
+	}
 	
 	mHandlers.insert(node, handler);
-	mRemoteAddresses.insert(addr);
 	mThreadPool.launch(handler);
 	
 	// On first connection, schedule store to publish in DHT
@@ -708,9 +718,11 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	return true;
 }
 
-bool Overlay::unregisterHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
+bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
 	Synchronize(this);
+	
+	mRemoteAddresses.erase(addrs.begin(), addrs.end());
 	
 	if(!handler)
 		return false;
@@ -718,9 +730,8 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Address &addr, O
 	Handler *h = NULL;
 	if(!mHandlers.get(node, h) || h != handler)
 		return false;
-		
+	
 	mHandlers.erase(node);
-	mRemoteAddresses.erase(addr);
 	return true;
 }
 
@@ -964,7 +975,7 @@ void Overlay::Backend::run(void)
 			}
 			catch(const std::exception &e)
 			{
-				LogWarn("Overlay::Backend::HandshakeTask", e.what());
+				LogDebug("Overlay::Backend::HandshakeTask", e.what());
 			}
 	
 			delete this;	// autodelete
@@ -1159,16 +1170,17 @@ void Overlay::DatagramBackend::getAddresses(Set<Address> &set) const
 Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr) :
 	mOverlay(overlay),
 	mStream(stream),
-	mNode(node),
-	mAddr(addr)
+	mNode(node)
 {
-	if(!mOverlay->registerHandler(mNode, mAddr, this))
+	if(!mOverlay->registerHandler(mNode, addr, this))
 		throw Exception("A handler already exists for the same flow");
+	
+	mAddrs.insert(addr);
 }
 
 Overlay::Handler::~Handler(void)
 {
-	mOverlay->unregisterHandler(mNode, mAddr, this);	// should be done already
+	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
 	
 	delete mStream;
 }
@@ -1271,6 +1283,12 @@ bool Overlay::Handler::send(const Message &message)
 	return true;
 }
 
+void Overlay::Handler::addAddress(const Address &addr)
+{
+	Synchronize(this);
+	mAddrs.insert(addr);
+}
+
 void Overlay::Handler::process(void)
 {
 	Synchronize(this);
@@ -1298,7 +1316,7 @@ void Overlay::Handler::run(void)
 		LogWarn("Overlay::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	mOverlay->unregisterHandler(mNode, mAddr, this);
+	mOverlay->unregisterHandler(mNode, mAddrs, this);
 	
 	notifyAll();
 	Thread::Sleep(10.);	// TODO

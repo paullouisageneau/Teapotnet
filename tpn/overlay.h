@@ -202,6 +202,7 @@ private:
 		
 		bool recv(Message &message);
 		bool send(const Message &message);
+		void addAddress(const Address &addr);
 		
 	private:
 		void process(void);
@@ -210,11 +211,11 @@ private:
 		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
-		Address mAddr;
+		Set<Address> mAddrs;
 	};
 
 	bool registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
-	bool unregisterHandler(const BinaryString &node, const Address &addr, Handler *handler);
+	bool unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
