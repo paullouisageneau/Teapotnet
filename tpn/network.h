@@ -192,7 +192,7 @@ private:
 	class RemotePublisher : public Publisher
 	{
 	public:
-		RemotePublisher(const List<BinaryString> targets);
+		RemotePublisher(const List<BinaryString> targets, const Link &link = Link::Null);
 		~RemotePublisher(void);
 		
 		bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets);

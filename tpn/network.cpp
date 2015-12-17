@@ -567,7 +567,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("path", &path)
 				.insert("targets", &targets));
 		
-		RemotePublisher publisher(targets);
+		RemotePublisher publisher(targets, link);
 		matchSubscribers(path, link, &publisher);
 	}
 	else if(type == "subscribe")
@@ -970,10 +970,11 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 	return false;
 }
 
-Network::RemotePublisher::RemotePublisher(const List<BinaryString> targets):
+Network::RemotePublisher::RemotePublisher(const List<BinaryString> targets, const Link &link) :
+	Publisher(link),
 	mTargets(targets)
 {
-  
+
 }
 
 Network::RemotePublisher::~RemotePublisher(void)
