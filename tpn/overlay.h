@@ -156,8 +156,7 @@ private:
 	protected:
 		bool handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote = "");
 		void run(void);
-		
-	private:
+
 		Overlay *mOverlay;
 		ThreadPool mThreadPool;
 	};

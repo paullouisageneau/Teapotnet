@@ -27,6 +27,7 @@
 #include "pla/http.h"
 #include "pla/synchronizable.h"
 #include "pla/address.h"
+#include "pla/binarystring.h"
 #include "pla/array.h"
 #include "pla/map.h"
 #include "pla/time.h"
@@ -43,13 +44,13 @@ public:
 	~Tracker(void);
 
 private:
-	Map<Address, Time> mMap;
-	Map<Address, Time>::iterator mCleaner;
+	Map<BinaryString, Map<Address, Time> > mMap;
+	Map<BinaryString, Map<Address, Time> >::iterator mCleaner;
 	
 	void process(Http::Request &request);
 	void clean(int count = -1);
-	void insert(const Address &addr);
-	void retrieve(const Address &hint, int count, Array<Address> &result) const;
+	void insert(const BinaryString &node, const Address &addr);
+	void retrieve(const BinaryString &node, int count, Array<Address> &result) const;
 };
 
 }

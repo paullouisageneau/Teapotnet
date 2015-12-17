@@ -46,6 +46,12 @@ void Tracker::process(Http::Request &request)
 	if(request.url != "/teapotnet/tracker" && request.url != "/teapotnet/tracker/")
 		throw 404;
 	
+	if(!request.get.contains("id"))
+		throw 400;
+	
+	BinaryString node;
+	request.get["id"].extract(node);
+	
 	if(request.method == "POST")
 	{
 		int count = 0;
@@ -63,9 +69,9 @@ void Tracker::process(Http::Request &request)
 			Address addr(host, port);
 			if(!addr.isLocal())
 			{
-				insert(addr);
+				insert(node, addr);
 				++count;
-				LogDebug("Tracker", "POST " + addr.toString());
+				LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
 			}
 		}
 			
@@ -81,8 +87,8 @@ void Tracker::process(Http::Request &request)
 			try {
 				Address addr(*it);
 				
-				LogDebug("Tracker", "POST " + addr.toString());
-				insert(addr);
+				LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
+				insert(node, addr);
 				++count;
 			}
 			catch(...)
@@ -94,14 +100,14 @@ void Tracker::process(Http::Request &request)
 		clean(2*count + 1);
 	}
 	else {
-		LogDebug("Tracker", "GET");
+		LogDebug("Tracker", "GET " + node.toString());
 		clean(1);
 	}
 	
 	unsigned count = 10;	// TODO: parameter
 	
 	SerializableArray<Address> result;
-	retrieve(request.remoteAddress, count, result);
+	retrieve(node, count, result);
 	
 	Http::Response response(request, 200);
 	response.headers["Content-Type"] = "application/json";
@@ -121,28 +127,37 @@ void Tracker::clean(int count)
 	for(int i=0; i<count; ++i)
 	{
 		if(mCleaner == mMap.end()) mCleaner = mMap.begin();
-		if(Time::Now() - mCleaner->second >= EntryLife) mMap.erase(mCleaner++);
+		
+		for(Map<Address, Time>::iterator it = mCleaner->second.begin();
+			it != mCleaner->second.end();
+			++it)
+		{
+			if(Time::Now() - it->second >= EntryLife) mCleaner->second.erase(it++);
+			else it++;
+		}
+		
+		if(mCleaner->second.empty()) mMap.erase(mCleaner++);
 		else mCleaner++;
-	} 
+			
+	}
 }
 
-void Tracker::insert(const Address &addr)
+void Tracker::insert(const BinaryString &node, const Address &addr)
 {
 	Synchronize(this);
 	
-	mMap[addr] = Time::Now();
+	mMap[node][addr] = Time::Now();
 }
 
-void Tracker::retrieve(const Address &hint, int count, Array<Address> &result) const
+void Tracker::retrieve(const BinaryString &node, int count, Array<Address> &result) const
 {
 	Synchronize(this);
+	Assert(!node.empty());
 	
 	result.clear();
 	
-	// TODO: this quick and dirty selection algorithm should be replaced by something better
-	
-	Map<Address, Time>::const_iterator it, jt;
-	it = jt = mMap.upper_bound(hint);
+	/*Map<BinaryString, Map<Address, Time> >::const_iterator it, jt;
+	it = jt = mMap.upper_bound(node);
 	
 	int n;
 	n = count;   while(it != mMap.begin() && n--) --it;
@@ -150,10 +165,38 @@ void Tracker::retrieve(const Address &hint, int count, Array<Address> &result) c
 	
 	while(it != jt)
 	{
-		if(it->first != hint)
-			result.append(it->first);
+		if(it->first != node)
+		{
+			Array<Address> addrs;
+			it->second.getKeys(addrs);
+			result.append(addrs);
+		}
+
 		++it;
+	}*/
+	
+	// Linear, but returns the correct potential neighbors
+	Map<BinaryString, BinaryString> sorted;
+	for(Map<BinaryString, Map<Address, Time> >::const_iterator it = mMap.begin();
+		it != mMap.end();
+		++it)
+	{
+		if(it->first != node)
+			sorted[it->first ^ node] = it->first;
 	}
+	
+	result.resize(count*2);
+	for(Map<BinaryString, BinaryString>::iterator it = sorted.begin();
+		it != sorted.end();
+		++it)
+	{
+		Array<Address> addrs;
+		mMap.get(it->second).getKeys(addrs);
+		result.append(addrs);
+		if(result.size() >= count*2)
+			break;
+	}
+	//
 	
 	std::random_shuffle(result.begin(), result.end());
 	if(result.size() > count)
