@@ -185,7 +185,7 @@ void Tracker::retrieve(const BinaryString &node, int count, Array<Address> &resu
 			sorted[it->first ^ node] = it->first;
 	}
 	
-	result.resize(count*2);
+	result.reserve(count*2);
 	for(Map<BinaryString, BinaryString>::iterator it = sorted.begin();
 		it != sorted.end();
 		++it)
