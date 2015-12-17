@@ -551,7 +551,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	Synchronize(this);
-	//LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
+	LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
@@ -997,7 +997,7 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(link == this->link())
+	if(link != this->link())	// do not forward publications from same link
 	{
 		SerializableArray<BinaryString> targets;
 		targets.append(target);

@@ -690,8 +690,6 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 {
 	Synchronize(this);
 	
-	mRemoteAddresses.insert(addr);
-	
 	if(!handler) 
 		return false;
 	
@@ -703,11 +701,13 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 			return true;
 		}
 		else {	// another handler already exists
+			mRemoteAddresses.insert(addr);
 			h->addAddress(addr);
 			return false;
 		}
 	}
 	
+	mRemoteAddresses.insert(addr);
 	mHandlers.insert(node, handler);
 	mThreadPool.launch(handler);
 	
@@ -722,8 +722,6 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 {
 	Synchronize(this);
 	
-	mRemoteAddresses.erase(addrs.begin(), addrs.end());
-	
 	if(!handler)
 		return false;
 	
@@ -731,6 +729,7 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 	if(!mHandlers.get(node, h) || h != handler)
 		return false;
 	
+	mRemoteAddresses.erase(addrs.begin(), addrs.end());
 	mHandlers.erase(node);
 	return true;
 }
