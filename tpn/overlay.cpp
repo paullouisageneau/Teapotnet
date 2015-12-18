@@ -1246,12 +1246,13 @@ bool Overlay::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
-	BinarySerializer s(mStream);
-
 	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
 	
 	try {
 		Desynchronize(this);
+		
+		BinaryString header;
+		BinarySerializer s(&header);
 		
 		// 32-bit control block
 		s.write(message.version);
@@ -1263,6 +1264,8 @@ bool Overlay::Handler::send(const Message &message)
 		s.write(uint8_t(source.size()));
 		s.write(uint8_t(message.destination.size()));
 		s.write(uint16_t(message.content.size()));
+		
+		mStream->writeBinary(header);
 		
 		// data
 		mStream->writeBinary(source);

@@ -232,6 +232,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_REHANDSHAKE);
 	
 			if(ret < 0) throw Exception(ErrorString(ret));
+			if(ret == 0) return 0;
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
