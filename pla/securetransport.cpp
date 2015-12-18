@@ -247,7 +247,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 		do {
 			ret = gnutls_record_recv(mSession, buffer, size);
 		}
-		while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+		while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_REHANDSHAKE);
 		
 		// Consider premature termination as proper termination
 		if(ret == GNUTLS_E_PREMATURE_TERMINATION) return 0;
