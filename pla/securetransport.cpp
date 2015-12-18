@@ -220,10 +220,10 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 {
 	if(isDatagram())
 	{
-		Assert(mBuffer);
+		if(!mBuffer) return 0;
 		Assert(mBufferOffset <= mBufferSize);
 		
-		while(!mBufferSize)
+		if(!mBufferSize)
 		{
 			ssize_t ret;
 			do {
@@ -232,7 +232,12 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_REHANDSHAKE);
 	
 			if(ret < 0) throw Exception(ErrorString(ret));
-			if(ret == 0) return 0;
+			if(ret == 0)
+			{
+				delete mBuffer;
+				mBuffer = NULL;
+				return 0;
+			}
 			
 			mBufferSize = size_t(ret);
 			mBufferOffset = 0;
@@ -286,7 +291,7 @@ void SecureTransport::writeData(const char *data, size_t size)
 
 bool SecureTransport::nextRead(void)
 {
-	if(!isDatagram())
+	if(!isDatagram() || !mBuffer)
 		return false;
 	
 	mBufferOffset = 0;
