@@ -341,6 +341,7 @@ ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* d
 	try {
 		st->mStream->writeData(static_cast<const char*>(data), len);
 		st->mStream->nextWrite();
+		gnutls_transport_set_errno(st->mSession, 0);
 		return ssize_t(len);
 	}
 	catch(const Timeout &timeout)
@@ -362,6 +363,7 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 	try {
 		ssize_t ret = st->mStream->readData(static_cast<char*>(data), maxlen);
 		st->mStream->nextRead();
+		gnutls_transport_set_errno(st->mSession, 0);
 		return ret;
 	}
 	catch(const Timeout &timeout)
@@ -382,6 +384,7 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 {
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
+		gnutls_transport_set_errno(st->mSession, 0);
 		if(st->mStream->waitData(milliseconds(ms))) return 1;
 		else return 0;
 	}
