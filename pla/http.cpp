@@ -29,7 +29,8 @@ namespace pla
 {
 
 String Http::UserAgent = "unknown";
-double Http::RequestTimeout = 5.;
+double Http::ConnectTimeout = 10.;
+double Http::RequestTimeout = 10.;
   
 Http::Request::Request(void)
 {
@@ -788,7 +789,7 @@ void Http::Server::run(void)
 		{
 			sock = new Socket;
 			mSock.accept(*sock);
-			sock->setTimeout(RequestTimeout);
+			sock->setReadTimeout(RequestTimeout);
 
 			Handler *client = new Handler(this, sock);
 			sock = NULL;
@@ -878,7 +879,8 @@ int Http::Action(const String &method, const String &url, const String &data, co
 	
 	Socket *sock = new Socket;
 	try {
-		sock->setTimeout(RequestTimeout);
+		sock->setConnectTimeout(ConnectTimeout);
+		sock->setReadTimeout(RequestTimeout);
 			
 		Address proxyAddr;
 		if(!noproxy && Proxy::GetProxyForUrl(url, proxyAddr))
