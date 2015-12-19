@@ -698,7 +698,7 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
-		h->addAddress(addr);
+		DesynchronizeStatement(this, h->addAddress(addr));
 		return (h == handler);
 	}
 	
