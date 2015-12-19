@@ -76,8 +76,10 @@ Request::Request(const String &target, const Network::Link &link, bool listDirec
 
 Request::~Request(void)
 {
+	Synchronize(this);
 	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
+	Scheduler::Global->cancel(&mAutoDeleteTask);
 }
 
 String Request::urlPrefix(void) const
@@ -115,6 +117,7 @@ void Request::addResult(Resource &resource, bool finish)
 void Request::addResult(const Resource::DirectoryRecord &record)
 {
 	Synchronize(this);
+	
 	if(!mDigests.contains(record.digest))
 	{
 		LogDebug("Request", "Adding result: " + record.digest.toString());
@@ -134,6 +137,7 @@ void Request::getResult(int i, Resource::DirectoryRecord &record) const
 
 void Request::autoDelete(double timeout)
 {
+	Synchronize(this);
 	if(timeout >= 0.) Scheduler::Global->schedule(&mAutoDeleteTask, timeout);
 	else Scheduler::Global->cancel(&mAutoDeleteTask);
 	mAutoDeleteTimeout = timeout;
@@ -199,7 +203,7 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 		Resource resource(target, true);	// local only (already fetched)
 		addResult(resource);
 	}
-	
+
 	return true;
 }
 
