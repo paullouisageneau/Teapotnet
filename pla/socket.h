@@ -51,7 +51,7 @@ public:
 	void setConnectTimeout(double timeout);
 	void setReadTimeout(double timeout);
 	void setWriteTimeout(double timeout);
-	void setTimeout(double timeout);	// connect + read
+	void setTimeout(double timeout);	// connect + read + write
 	
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);

@@ -174,6 +174,7 @@ void Socket::setTimeout(double timeout)
 {
 	setConnectTimeout(timeout);
 	setReadTimeout(timeout);
+	setWriteTimeout(timeout);
 }
 
 void Socket::connect(const Address &addr, bool noproxy)

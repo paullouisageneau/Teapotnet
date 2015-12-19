@@ -1054,10 +1054,12 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 	LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
 	try {
-		const double timeout = 5.;		// TODO
+		const double timeout = 60.;		// TODO
+		const double connectTimeout = 10.;	// TODO
 		
 		sock = new Socket;
-		sock->setConnectTimeout(timeout);
+		sock->setTimeout(timeout);
+		sock->setConnectTimeout(connectTimeout);
 		sock->connect(addr);
 		
 		transport = new SecureTransportClient(sock, NULL, "");
@@ -1075,7 +1077,9 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 {
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
+		const double timeout = 60.;		// TODO
+		
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true, timeout);	// ask for certificate
 		if(transport) return transport;
 	}
 	
