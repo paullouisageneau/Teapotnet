@@ -20,7 +20,6 @@
  *************************************************************************/
 
 #include "tpn/mail.h"
-#include "tpn/mailbase.h"
 #include "tpn/network.h"
 #include "tpn/user.h"
 
