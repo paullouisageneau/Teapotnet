@@ -159,7 +159,7 @@ void Request::http(const String &prefix, Http::Request &request)
 	}
 	
 	if(mAutoDeleteTimeout >= 0.)
-		Scheduler::Global->schedule(&mAutoDeleteTask, timeout);
+		Scheduler::Global->schedule(&mAutoDeleteTask, mAutoDeleteTimeout);
 	
 	if(request.get.contains("playlist"))
 	{
