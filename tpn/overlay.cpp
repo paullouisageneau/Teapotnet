@@ -1177,13 +1177,13 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	if(!mOverlay->registerHandler(mNode, addr, this))
 		throw Exception("A handler already exists for the same flow");
 	
-	mAddrs.insert(addr);
+	addAddress(addr);
 }
 
 Overlay::Handler::~Handler(void)
 {
+	Synchronize(this);
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-	
 	delete mStream;
 }
 
@@ -1302,7 +1302,7 @@ void Overlay::Handler::process(void)
 	while(recv(message))
 	{
 		Desynchronize(this);
-		//LogDebug("Overlay::Handler", "Received datagram");
+		//LogDebug("Overlay::Handler", "Received message");
 		mOverlay->incoming(message, mNode);
 	}
 }
