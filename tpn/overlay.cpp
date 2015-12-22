@@ -1253,8 +1253,6 @@ bool Overlay::Handler::send(const Message &message)
 	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
 	
 	try {
-		Desynchronize(this);
-		
 		BinaryString header;
 		BinarySerializer s(&header);
 		
