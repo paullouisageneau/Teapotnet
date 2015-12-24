@@ -857,7 +857,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *rem
 			if(remote)
 				*remote = sock->getRemoteAddress();
 			if(connexionTimeout > 0.)
-				sock->setReadTimeout(connexionTimeout);
+				sock->setTimeout(connexionTimeout);
 		}
 		catch(...)
 		{

@@ -169,6 +169,7 @@ private:
 		
 		bool connect(const Set<Address> &addrs, const BinaryString &remote);
 		bool connect(const Address &addr, const BinaryString &remote);
+		bool connectHttp(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(Address *addr = NULL);
 		
 		void getAddresses(Set<Address> &set) const;

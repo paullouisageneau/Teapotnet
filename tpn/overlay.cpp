@@ -25,10 +25,14 @@
 #include "tpn/config.h"
 #include "tpn/cache.h"
 #include "tpn/store.h"
+#include "tpn/httptunnel.h"
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
 #include "pla/object.h"
+#include "pla/socket.h"
+#include "pla/serversocket.h"
+#include "pla/datagramsocket.h"
 #include "pla/securetransport.h"
 #include "pla/crypto.h"
 #include "pla/random.h"
@@ -985,8 +989,7 @@ void Overlay::Backend::run(void)
 	while(true)
 	{
 		SecureTransport *transport = NULL;
-		HandshakeTask *task = NULL;
-		
+		HandshakeTask *task = NULL;		
 		try {
 			Address addr;
 			transport = listen(&addr);
@@ -1048,15 +1051,14 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryStri
 
 bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
-	Socket *sock = NULL;
-	SecureTransport *transport = NULL;
+	const double timeout = 60.;		// TODO
+	const double connectTimeout = 10.;	// TODO
 	
 	LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
+	Socket *sock = NULL;
+	SecureTransport *transport = NULL;
 	try {
-		const double timeout = 60.;		// TODO
-		const double connectTimeout = 10.;	// TODO
-		
 		sock = new Socket;
 		sock->setTimeout(timeout);
 		sock->setConnectTimeout(connectTimeout);
@@ -1070,17 +1072,89 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 		throw;
 	}
 	
-	return handshake(transport, addr, remote);
+	try {
+		return handshake(transport, addr, remote);
+	}
+	catch(...)
+	{
+		delete transport;
+		return connectHttp(addr, remote);	// Try HTTP tunnel
+	}
+}
+
+bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString &remote)
+{
+	const double connectTimeout = 10.;	// TODO
+	
+	LogDebug("Overlay::StreamBackend::connectHttp", "Trying address " + addr.toString() + " (HTTP)");
+	
+	Stream *stream = NULL;
+	SecureTransport *transport = NULL;
+	try {
+		stream = new HttpTunnel::Client(addr, connectTimeout);
+		transport = new SecureTransportClient(stream, NULL, "");
+	}
+	catch(...)
+	{
+		delete stream;
+		throw;
+	}
+	
+	try {
+		return handshake(transport, addr, remote);
+	}
+	catch(...)
+	{
+		delete transport;
+		throw;
+	}
 }
 
 SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 {
+	const double timeout = 60.;		// TODO
+	const double dataTimeout = 10.;		// TODO
+	
 	while(true)
 	{
-		const double timeout = 60.;		// TODO
+		Socket *sock = NULL;
+		try {
+			sock = new Socket;
+			mSock.accept(*sock);
+		}
+		catch(const std::exception &e)
+		{
+			delete sock;
+			throw;
+		}
 		
-		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true, timeout);	// ask for certificate
-		if(transport) return transport;
+		Stream *stream = sock;
+		try {
+			const size_t peekSize = 5;
+			char peekBuffer[peekSize];
+			
+			sock->setTimeout(dataTimeout);
+			if(sock->peekData(peekBuffer, peekSize) != peekSize)
+				throw NetException("Connection prematurely closed");
+			
+			sock->setTimeout(timeout);
+			if(addr) *addr = sock->getRemoteAddress();
+			
+			if(std::memcmp(peekBuffer, "GET ", 4) == 0
+				|| std::memcmp(peekBuffer, "POST ", 5) == 0)
+			{
+				// This is HTTP, forward connection to HttpTunnel
+				stream = HttpTunnel::Incoming(sock);
+				if(!stream) continue;	// eaten
+			}
+			
+			return new SecureTransportServer(stream, NULL, true);	// ask for certificate
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("Overlay::StreamBackend::listen", e.what());
+			delete stream;
+		}
 	}
 	
 	return NULL;
@@ -1130,15 +1204,15 @@ bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinarySt
 
 bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &remote)
 {
-	DatagramStream *stream = NULL;
-	SecureTransport *transport = NULL;
+	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
 	
 	LogDebug("Overlay::DatagramBackend::connect", "Trying address " + addr.toString() + " (UDP)");
 	
+	DatagramStream *stream = NULL;
+	SecureTransport *transport = NULL;
 	try {
 		stream = new DatagramStream(&mSock, addr);
 		transport = new SecureTransportClient(stream, NULL);
-		transport->setMtu(1452);	// UDP over IPv6 on ethernet
 	}
 	catch(...)
 	{
@@ -1146,16 +1220,27 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 		throw;
 	}
 	
-	return handshake(transport, addr, remote);
+	try {
+		transport->setMtu(mtu);
+		return handshake(transport, addr, remote);
+	}
+	catch(...)
+	{
+		delete transport;
+		throw;
+	}
 }
 
 SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 {
+	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
+	
 	while(true)
 	{
 		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
-		transport->setMtu(1452);	// UDP over IPv6 on ethernet
-		if(transport) return transport;
+		if(!transport) break;
+		transport->setMtu(mtu);
+		return transport;
 	}
 	
 	return NULL;
