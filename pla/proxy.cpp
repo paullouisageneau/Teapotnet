@@ -168,6 +168,12 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 #endif
 }
 
+bool Proxy::HasProxyForUrl(const String &url)
+{
+	Address dummy;
+	return GetProxyForUrl(url, dummy);
+}
+
 #ifdef WINDOWS
 
 bool Proxy::ParseWinHttpProxy(LPWSTR lpszProxy, Address &addr)

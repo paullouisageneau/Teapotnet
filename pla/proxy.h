@@ -33,6 +33,7 @@ class Proxy
 {
 public:
 	static bool GetProxyForUrl(const String &url, Address &addr);
+	static bool HasProxyForUrl(const String &url);
 	static String HttpProxy;
 	
 private:

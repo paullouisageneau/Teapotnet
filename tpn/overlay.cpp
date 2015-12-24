@@ -37,6 +37,7 @@
 #include "pla/crypto.h"
 #include "pla/random.h"
 #include "pla/http.h"
+#include "pla/proxy.h"
 
 namespace tpn
 {
@@ -1063,7 +1064,21 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 		sock->setTimeout(timeout);
 		sock->setConnectTimeout(connectTimeout);
 		sock->connect(addr);
+	}
+	catch(...)
+	{
+		delete sock;
 		
+		// Try HTTP tunnel if a proxy is available
+		String url = "http://" + addr.toString() + "/";
+		if(Proxy::HasProxyForUrl(url))
+			return connectHttp(addr, remote);
+		
+		// else throw
+		throw;
+	}
+	
+	try {
 		transport = new SecureTransportClient(sock, NULL, "");
 	}
 	catch(...)
