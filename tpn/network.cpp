@@ -1495,6 +1495,8 @@ int Network::Handler::send(bool force)
 	int count = 0;
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
+		//LogDebug("Network::Handler::send", "Triggered send (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
+		
 		try {
 			Fountain::Combination combination;
 			mSource.generate(combination);
@@ -1514,6 +1516,8 @@ int Network::Handler::send(bool force)
 			}
 			
 			force = false;
+			
+			yield();
 		}
 		catch(std::exception &e)
 		{
