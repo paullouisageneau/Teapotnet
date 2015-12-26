@@ -76,7 +76,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				
 				SessionsMutex.lock();
 				while(!session || Sessions.contains(session))
-					Random().read(session);
+					Random().readBinary(session);
 				Sessions.insert(session, NULL);
 				SessionsMutex.unlock();
 

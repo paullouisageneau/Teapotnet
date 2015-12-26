@@ -1058,7 +1058,6 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 	LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
 	Socket *sock = NULL;
-	SecureTransport *transport = NULL;
 	try {
 		sock = new Socket;
 		sock->setTimeout(timeout);
@@ -1078,6 +1077,7 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 		throw;
 	}
 	
+	SecureTransport *transport = NULL;
 	try {
 		transport = new SecureTransportClient(sock, NULL, "");
 	}

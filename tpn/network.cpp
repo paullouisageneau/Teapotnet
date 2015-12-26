@@ -1477,7 +1477,7 @@ void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
 	
-	//LogDebug("Network::Handler::write", "Sending command (type='" + type + "')");
+	LogDebug("Network::Handler::write", "Sending command (type='" + type + "')");
 	
 	BinaryString buffer;
 	buffer.writeBinary(type.c_str(), type.size()+1);
