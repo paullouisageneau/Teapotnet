@@ -89,67 +89,66 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				SessionsMutex.unlock();
 			}
 
-			if(server)
+			if(!server)
 			{
-				if(request.method == "GET") 
-				{
-					Synchronize(server);
-					if(server->mDownSock) throw 409;	// Conflict
-					if(server->mClosed) throw 400;	// Closed session
-					
-					Http::Response response(request, 200);
-					response.headers["Cache-Control"] = "no-cache";
-					response.cookies["session"] << session;
-
-					// First response should be forced down the potential proxy as soon as possible	
-					if(isNew)
-					{
-						response.headers["Content-Type"] = "text/html";
-						response.send(sock);
-						delete sock;
-						return server;
-					}
-	
-					response.headers["Content-Type"] = "application/octet-stream";
-					response.send(sock);
-					server->mDownSock = sock;
-					server->mDownloadLeft = MaxDownloadSize;
-					server->notifyAll();
-					Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.75);
-					return NULL;
-				}
-				else {
-					Assert(!isNew);
-					
-					uint8_t command;
-					if(!sock->readBinary(command))
-						throw NetException("Connection unexpectedly closed");
-					
-					if(command != TunnelOpen)
-					{
-						// Remote implementation is probably bogus
-						LogWarn("HttpTunnel::Incoming", "Invalid tunnel opening sequence");
-						throw 400;
-					}
-
-					uint16_t len;
-					if(!sock->readBinary(len) || !sock->ignore(len))	// auth data ignored
-						throw NetException("Connection unexpectedly closed");
-					
-					Synchronize(server);
-					if(server->mUpSock) throw 409;	// Conflict
-					if(server->mClosed) throw 400;	// Closed session
-					Assert(!server->mPostBlockLeft);
-					server->mUpSock = sock;
-					server->mUpRequest = request;
-					server->notifyAll();
-					return NULL;
-				}
-			}
-			else {
 				// Unknown or closed session
 				LogDebug("HttpTunnel::Incoming", "Unknown or closed session: " + String::number(session));
 				throw 400;
+			}
+			
+			if(request.method == "GET") 
+			{
+				Synchronize(server);
+				if(server->mDownSock) throw 409;	// Conflict
+				if(server->mClosed) throw 400;		// Closed session
+				
+				Http::Response response(request, 200);
+				response.headers["Cache-Control"] = "no-cache";
+				response.cookies["session"] << session;
+
+				// First response should be forced down the potential proxy as soon as possible	
+				if(isNew)
+				{
+					response.headers["Content-Type"] = "text/html";
+					response.send(sock);
+					delete sock;
+					return server;
+				}
+
+				response.headers["Content-Type"] = "application/octet-stream";
+				response.send(sock);
+				server->mDownSock = sock;
+				server->mDownloadLeft = MaxDownloadSize;
+				server->notifyAll();
+				Scheduler::Global->schedule(&server->mFlushTask, ReadTimeout*0.75);
+				return NULL;
+			}
+			else {
+				Assert(!isNew);
+				
+				uint8_t command;
+				if(!sock->readBinary(command))
+					throw NetException("Connection unexpectedly closed");
+				
+				if(command != TunnelOpen)
+				{
+					// Remote implementation is probably bogus
+					LogWarn("HttpTunnel::Incoming", "Invalid tunnel opening sequence");
+					throw 400;
+				}
+
+				uint16_t len;
+				if(!sock->readBinary(len) || !sock->ignore(len))	// auth data ignored
+					throw NetException("Connection unexpectedly closed");
+				
+				Synchronize(server);
+				if(server->mUpSock) throw 409;	// Conflict
+				if(server->mClosed) throw 400;	// Closed session
+				Assert(!server->mPostBlockLeft);
+				server->mUpSock = sock;
+				server->mUpRequest = request;
+				server->notifyAll();
+				return NULL;
 			}
 		}
 		catch(const Timeout &e)
