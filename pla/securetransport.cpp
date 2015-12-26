@@ -130,10 +130,12 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 void SecureTransport::setHandshakeTimeout(double timeout)
 {
 	if(!isHandshakeDone())
+	{
 		gnutls_handshake_set_timeout(mSession, unsigned(timeout*1000));
 	
-	if(mStream->isDatagram())
-		setDatagramTimeout(timeout);
+		if(mStream->isDatagram())
+			setDatagramTimeout(timeout, timeout/10);
+	}
 }
 
 void SecureTransport::setDatagramMtu(unsigned int mtu)
@@ -142,12 +144,10 @@ void SecureTransport::setDatagramMtu(unsigned int mtu)
 		gnutls_dtls_set_mtu(mSession, mtu);
 }
 
-void SecureTransport::setDatagramTimeout(double timeout)
+void SecureTransport::setDatagramTimeout(double timeout, double retransTimeout)
 {
-	const double factor = 10.;
-	
 	if(mStream->isDatagram())
-		gnutls_dtls_set_timeouts(mSession, unsigned((timeout/factor)*1000), unsigned(timeout*1000));
+		gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(timeout*1000));
 }
 
 void SecureTransport::handshake(void)
@@ -857,7 +857,7 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 	return 0;
 }
 
-SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *remote, bool requestClientCertificate, double connexionTimeout)
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *remote, bool requestClientCertificate, double connectionTimeout)
 {
 	while(true)
 	{
@@ -868,8 +868,8 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *rem
 			lsock.accept(*sock);
 			if(remote)
 				*remote = sock->getRemoteAddress();
-			if(connexionTimeout > 0.)
-				sock->setTimeout(connexionTimeout);
+			if(connectionTimeout > 0.)
+				sock->setTimeout(connectionTimeout);
 		}
 		catch(...)
 		{
@@ -892,7 +892,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *rem
 	}
 }
 
-SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *remote, bool requestClientCertificate)
+SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *remote, bool requestClientCertificate, double streamTimeout)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
@@ -918,10 +918,12 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *re
 			if(remote)
 				*remote = sender;
 			
-			Stream *stream = NULL;
+			DatagramStream *stream = NULL;
 			SecureTransportServer *transport = NULL;
 			try {
 				stream = new DatagramStream(&sock, sender);
+				if(streamTimeout > 0.)
+					stream->setTimeout(streamTimeout);
 				transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
 			}
 			catch(...)

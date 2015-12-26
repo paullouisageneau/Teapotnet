@@ -96,7 +96,7 @@ public:
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
 	void setHandshakeTimeout(double timeout);
 	void setDatagramMtu(unsigned int mtu);					// ignored if not a datagram stream
-	void setDatagramTimeout(double timeout);				// ignored if not a datagram stream
+	void setDatagramTimeout(double timeout, double retransTimeout);		// ignored if not a datagram stream
 	
 	void handshake(void);
 	void close(void);
@@ -215,8 +215,8 @@ public:
 	};	
 	
 	// These functions are preferred, especially for datagrams (protection against DoS)
-	static SecureTransport *Listen(ServerSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double connexionTimeout = -1.);
-	static SecureTransport *Listen(DatagramSocket &sock, Address *remote = NULL, bool requestClientCertificate = false);
+	static SecureTransport *Listen(ServerSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double connectionTimeout = -1.);
+	static SecureTransport *Listen(DatagramSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double streamTimeout = -1.);
 	
 	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false);	// creds will be deleted
 	~SecureTransportServer(void);

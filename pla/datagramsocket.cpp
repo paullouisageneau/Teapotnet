@@ -521,12 +521,13 @@ bool DatagramSocket::unregisterStream(DatagramStream *stream)
 	return true;
 }
 
-double DatagramStream::ReadTimeout = 60.; // 1 min
+double DatagramStream::DefaultTimeout = 60.; // 1 min
 int DatagramStream::MaxQueueSize = 100;
 
 DatagramStream::DatagramStream(void) :
 	mSock(NULL),
-	mOffset(0)
+	mOffset(0),
+	mTimeout(DefaultTimeout)
 {
 	
 }
@@ -534,7 +535,8 @@ DatagramStream::DatagramStream(void) :
 DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 	mSock(sock),
 	mAddr(addr),
-	mOffset(0)
+	mOffset(0),
+	mTimeout(DefaultTimeout)
 {
 	Assert(mSock);
 	mSock->registerStream(addr, this);
@@ -557,11 +559,16 @@ Address DatagramStream::getRemoteAddress(void) const
 	return mAddr;
 }
 
+void DatagramStream::setTimeout(double timeout)
+{
+	mTimeout = timeout;
+}
+
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
 	Synchronize(&mSync);
 	
-	double timeout = ReadTimeout;
+	double timeout = mTimeout;
 	while(mIncoming.empty())
 	{
 		if(!mSock) return 0;

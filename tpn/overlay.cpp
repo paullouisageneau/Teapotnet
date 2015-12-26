@@ -951,7 +951,6 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 		// Handshake succeeded
 		LogDebug("Overlay::Backend::handshake", "Handshake succeeded");
 		
-		transport->setDatagramTimeout(milliseconds(Config::Get("idle_timeout").toInt()));
 		Handler *handler = new Handler(mOverlay, transport, identifier, addr);
 		return true;
 	}
@@ -1256,11 +1255,12 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 
 SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 {
+	const double timeout = milliseconds(Config::Get("idle_timeout").toInt());
 	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
 	
 	while(true)
 	{
-		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
+		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true, timeout);	// ask for certificate
 		if(!transport) break;
 		transport->setDatagramMtu(mtu);
 		return transport;

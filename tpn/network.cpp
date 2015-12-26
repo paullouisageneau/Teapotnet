@@ -1303,7 +1303,6 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				Link link(verifier.local, verifier.remote, verifier.node);
 				if(!Network::Instance->hasLink(link))
 				{
-					transport->setDatagramTimeout(milliseconds(Config::Get("idle_timeout").toInt()));
 					Handler *handler = new Handler(transport, link);
 				}
 				
