@@ -290,11 +290,13 @@ bool Network::hasLink(const Link &link)
 
 void Network::run(void)
 {
+	const double period = 1.;	// 1 sec
+	
 	unsigned loops = 0;
 	while(true)
 	{
 		try {
-			double timeout = 1.;	// TODO
+			double timeout = period;
 			
 			// Receive messages
 			Overlay::Message message;

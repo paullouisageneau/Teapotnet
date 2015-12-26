@@ -395,7 +395,7 @@ int run(StringMap &args)
 	Config::Default("request_timeout", "30000");
 	Config::Default("user_global_shares", "true");
 	Config::Default("http_proxy", "auto");
-	Config::Default("max_connections", "8");
+	Config::Default("min_connections", "8");
 	Config::Default("max_connections", "256");
 	
 #ifdef ANDROID
