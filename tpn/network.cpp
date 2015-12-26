@@ -1113,7 +1113,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	try {
 		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 		transport = new SecureTransportClient(tunnel, NULL);
-		transport->setMtu(1200);	// TODO
+		transport->setDatagramMtu(1200);	// TODO
 	}
 	catch(...)
 	{
@@ -1156,7 +1156,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			try {
 				tunnel = new Tunneler::Tunnel(this, tunnelId, datagram.source);
 				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-				transport->setMtu(1200);	// TODO
+				transport->setDatagramMtu(1200);	// TODO
 			}
 			catch(...)
 			{
@@ -1284,6 +1284,9 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				verifier.node  = link.node;
 				transport->setVerifier(&verifier);
 				
+				// Set timeout
+				transport->setHandshakeTimeout(milliseconds(Config::Get("connect_timeout").toInt()));
+				
 				// Do handshake
 				transport->handshake();
 				Assert(transport->hasCertificate());
@@ -1300,6 +1303,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				Link link(verifier.local, verifier.remote, verifier.node);
 				if(!Network::Instance->hasLink(link))
 				{
+					transport->setDatagramTimeout(milliseconds(Config::Get("idle_timeout").toInt()));
 					Handler *handler = new Handler(transport, link);
 				}
 				

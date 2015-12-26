@@ -40,6 +40,9 @@ namespace pla
 class SecureTransport : public Stream
 {
 public:
+	static double DefaultTimeout;
+	static const String DefaultPriorities;
+	
 	static void Init(void);
 	static void Cleanup(void);
 	static void GenerateParams(void);
@@ -91,7 +94,9 @@ public:
 	virtual ~SecureTransport(void);
 	
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
-	void setMtu(unsigned int mtu);							// ignored if not a datagram stream
+	void setHandshakeTimeout(double timeout);
+	void setDatagramMtu(unsigned int mtu);					// ignored if not a datagram stream
+	void setDatagramTimeout(double timeout);				// ignored if not a datagram stream
 	
 	void handshake(void);
 	void close(void);
@@ -134,7 +139,6 @@ protected:
 	
 	static String ErrorString(int code);
 	
-	static const String DefaultPriorities;
 	static gnutls_dh_params_t Params;
 	static Mutex ParamsMutex;
 	

@@ -938,6 +938,9 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	MyVerifier verifier;
 	transport->setVerifier(&verifier);
 	
+	// Set timeout
+	transport->setHandshakeTimeout(milliseconds(Config::Get("connect_timeout").toInt()));
+	
 	// Do handshake
 	transport->handshake();
 	Assert(transport->hasCertificate());
@@ -947,6 +950,8 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	{
 		// Handshake succeeded
 		LogDebug("Overlay::Backend::handshake", "Handshake succeeded");
+		
+		transport->setDatagramTimeout(milliseconds(Config::Get("idle_timeout").toInt()));
 		Handler *handler = new Handler(mOverlay, transport, identifier, addr);
 		return true;
 	}
@@ -1239,7 +1244,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 	}
 	
 	try {
-		transport->setMtu(mtu);
+		transport->setDatagramMtu(mtu);
 		return handshake(transport, addr, remote);
 	}
 	catch(...)
@@ -1257,7 +1262,7 @@ SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 	{
 		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true);	// ask for certificate
 		if(!transport) break;
-		transport->setMtu(mtu);
+		transport->setDatagramMtu(mtu);
 		return transport;
 	}
 	

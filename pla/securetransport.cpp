@@ -30,6 +30,8 @@
 namespace pla
 {
 
+double SecureTransport::DefaultTimeout = 10.;	// Defaults to 10 secs
+
 // Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
 const String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
 gnutls_dh_params_t SecureTransport::Params;
@@ -86,18 +88,12 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 		gnutls_transport_set_pull_function(mSession, ReadCallback);
 		gnutls_transport_set_pull_timeout_function(mSession, TimeoutCallback);
 		
-		const double handshakeTimeout = 10.;
-		gnutls_handshake_set_timeout(mSession, unsigned(handshakeTimeout*1000));
+		setHandshakeTimeout(DefaultTimeout);
 		
 		if(stream->isDatagram())
 		{
-			const double retransTimeout = 1.;
-			const double totalTimeout   = handshakeTimeout;
-			gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(totalTimeout*1000));
-			
 			mBuffer = new char[DatagramSocket::MaxDatagramSize];
-			
-			setMtu(1452);	// Defaults to UDP over IPv6 on ethernet
+			setDatagramMtu(1452);	// Defaults to UDP over IPv6 on ethernet
 		}
 	}
 	catch(...)
@@ -131,11 +127,27 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 	if(mustDelete) 
 		mCredsToDelete.push_back(creds);
 }
+void SecureTransport::setHandshakeTimeout(double timeout)
+{
+	if(!isHandshakeDone())
+		gnutls_handshake_set_timeout(mSession, unsigned(timeout*1000));
+	
+	if(mStream->isDatagram())
+		setDatagramTimeout(timeout);
+}
 
-void SecureTransport::setMtu(unsigned int mtu)
+void SecureTransport::setDatagramMtu(unsigned int mtu)
 {
 	if(mStream->isDatagram())
 		gnutls_dtls_set_mtu(mSession, mtu);
+}
+
+void SecureTransport::setDatagramTimeout(double timeout)
+{
+	const double factor = 10.;
+	
+	if(mStream->isDatagram())
+		gnutls_dtls_set_timeouts(mSession, unsigned((timeout/factor)*1000), unsigned(timeout*1000));
 }
 
 void SecureTransport::handshake(void)
