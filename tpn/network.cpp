@@ -1581,7 +1581,7 @@ bool Network::Handler::readString(String &str)
 		// We need more combinations
 		Fountain::Combination combination;
 		BinarySerializer serializer(mStream);
-		DesynchronizeStatement(this, serializer.read(combination));
+		DesynchronizeStatement(this, if(!serializer.read(combination)) break);
 		
 		uint32_t nextSeen = 0;
 		serializer.read(nextSeen);
@@ -1598,6 +1598,8 @@ bool Network::Handler::readString(String &str)
 		if(!send(false))
 			Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);	// TODO
 	}
+	
+	return false;
 }
 
 void Network::Handler::process(void)
