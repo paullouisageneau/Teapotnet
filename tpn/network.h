@@ -214,8 +214,6 @@ private:
 	class Tunneler : protected Synchronizable, public Thread
 	{
 	public:
-		static const double DefaultTimeout = 60.;
-	
 		Tunneler(void);
 		~Tunneler(void);
 		

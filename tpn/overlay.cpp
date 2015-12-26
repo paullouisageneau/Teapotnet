@@ -43,7 +43,7 @@ namespace tpn
 {
 
 Overlay::Overlay(int port) :
-		mThreadPool(4, 16, Config::Get("max_connections").toInt())
+		mThreadPool(1, Config::Get("min_connections").toInt() + 1, Config::Get("max_connections").toInt())
 {
 	mFileName = "keys";
 	load();
@@ -400,7 +400,7 @@ void Overlay::run(void)
 		broadcast(Message(Message::Offer, content));
 	}
 	
-	if(connectionsCount() < 8)	// TODO
+	if(connectionsCount() < Config::Get("min_connections").toInt())
 	{
 		Set<Address> addrs;
 		if(track(Config::Get("tracker"), addrs))
@@ -1052,8 +1052,11 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryStri
 
 bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
-	const double timeout = 60.;		// TODO
-	const double connectTimeout = 10.;	// TODO
+	const double timeout = milliseconds(Config::Get("connect_timeout").toInt());
+	const double connectTimeout = milliseconds(Config::Get("connect_timeout").toInt());
+	
+	if(Config::Get("force_http_tunnel").toBool())
+		return connectHttp(addr, remote);
 	
 	LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
 	
@@ -1099,7 +1102,7 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 
 bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString &remote)
 {
-	const double connectTimeout = 10.;	// TODO
+	const double connectTimeout = milliseconds(Config::Get("connect_timeout").toInt());
 	
 	LogDebug("Overlay::StreamBackend::connectHttp", "Trying address " + addr.toString() + " (HTTP)");
 	
@@ -1127,8 +1130,8 @@ bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString
 
 SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 {
-	const double timeout = 60.;		// TODO
-	const double dataTimeout = 10.;		// TODO
+	const double timeout = 	milliseconds(Config::Get("idle_timeout").toInt());
+	const double dataTimeout = milliseconds(Config::Get("connect_timeout").toInt());
 	
 	while(true)
 	{

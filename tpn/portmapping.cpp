@@ -51,7 +51,7 @@ void PortMapping::enable(void)
 	Synchronize(this);
 	mEnabled = true;
 	
-	Scheduler::Global->repeat(this, 600.);
+	Scheduler::Global->repeat(this, 600.);	// 10 min
 	Scheduler::Global->schedule(this);
 }
 

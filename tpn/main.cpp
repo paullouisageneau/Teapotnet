@@ -388,20 +388,20 @@ int run(StringMap &args)
 	Config::Default("cache_dir",  "cache");
 	Config::Default("external_address", "auto");
 	Config::Default("external_port", "auto");
-	Config::Default("port_object_enabled", "true");
-	Config::Default("http_timeout", "5000");
-	Config::Default("request_timeout", "10000");
-	Config::Default("tpot_timeout", "10000");
+	Config::Default("port_mapping_enabled", "true");
+	Config::Default("http_timeout", "10000");
+	Config::Default("connect_timeout", "10000");
+	Config::Default("idle_timeout", "60000");
+	Config::Default("request_timeout", "30000");
 	Config::Default("user_global_shares", "true");
 	Config::Default("http_proxy", "auto");
-	Config::Default("prefetch_delay", "300000");
-	Config::Default("max_connections", "1024");
+	Config::Default("max_connections", "8");
+	Config::Default("max_connections", "256");
 	
 #ifdef ANDROID
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "100");		// MiB
 	Config::Default("cache_max_file_size", "10");		// MiB
-	Config::Default("prefetch_max_file_size", "0");		// MiB (0 means disabled)
 	
 	if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 	if(!CacheDirectory.empty())  Config::Put("cache_dir",  CacheDirectory);
@@ -409,7 +409,6 @@ int run(StringMap &args)
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "10000");		// MiB
 	Config::Default("cache_max_file_size", "2000");		// MiB
-	Config::Default("prefetch_max_file_size", "10");	// MiB
 #endif
 
 #if defined(WINDOWS) || defined(MACOSX)
@@ -712,7 +711,7 @@ int run(StringMap &args)
 	PortMapping::Instance = new PortMapping;
 	PortMapping::Instance->add(PortMapping::TCP, port, port);
 	
-	if(Config::Get("port_object_enabled").toBool())
+	if(Config::Get("port_mapping_enabled").toBool())
 	{
 		LogInfo("main", "NAT port mapping is enabled");
 		PortMapping::Instance->enable();

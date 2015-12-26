@@ -41,7 +41,7 @@ const Network::Link Network::Link::Null;
 
 Network::Network(int port) :
 		mOverlay(port),
-		mThreadPool(4, 16, 1024)	// TODO: max
+		mThreadPool(1, 8, Config::Get("max_connections").toInt())
 {
 
 }
@@ -1369,7 +1369,7 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mTunneler(tunneler),
 	mId(id),
 	mNode(node),
-	mTimeout(DefaultTimeout)
+	mTimeout(milliseconds(Config::Get("request_timeout").toInt()))
 {
 	mTunneler->registerTunnel(this);
 }
@@ -1419,7 +1419,7 @@ bool Network::Tunneler::Tunnel::waitData(double &timeout)
 	
 	while(mQueue.empty())
 	{
-		if(timeout == 0.)
+		if(timeout < 0.)
 			return false;
 		
 		if(!mQueueSync.wait(timeout))
@@ -1458,7 +1458,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(10.),
 	mRank(0.),
 	mRedundancy(1.25),	// TODO
-	mTimeout(10.),		// TODO
+	mTimeout(milliseconds(Config::Get("request_timeout").toInt())/10),
 	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))
@@ -1534,7 +1534,8 @@ int Network::Handler::send(bool force)
 void Network::Handler::timeout(void)
 {
 	Synchronize(this);
-	
+
+	// Inactivity timeout is handled by Tunnel
 	if(mTokens < 1.) mTokens = 1.;
 	send(true);
 }
