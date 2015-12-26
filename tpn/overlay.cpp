@@ -400,12 +400,9 @@ void Overlay::run(void)
 		broadcast(Message(Message::Offer, content));
 	}
 	
-	if(connectionsCount() < Config::Get("min_connections").toInt())
-	{
-		Set<Address> addrs;
-		if(track(Config::Get("tracker"), addrs))
+	if(track(Config::Get("tracker"), addrs))
+		if(connectionsCount() < Config::Get("min_connections").toInt())
 			connect(addrs);
-	}
 }
 
 bool Overlay::incoming(Message &message, const BinaryString &from)
@@ -737,6 +734,7 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 
 bool Overlay::track(const String &tracker, Set<Address> &result)
 {
+	result.clear();
 	if(tracker.empty()) return false;
 	
 	String url;
