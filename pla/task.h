@@ -56,17 +56,19 @@ private:
 template<class T> class AutoDeleteTask : public Task
 {
 public:
-	AutoDeleteTask(T *target = NULL) : mTarget(target) {}
+	AutoDeleteTask(T *target = NULL, bool autoDelete = false) : mTarget(target), mAutoDelete(autoDelete) {}
 	virtual ~AutoDeleteTask(void) {}
 	
 	void run(void)
 	{
 		delete mTarget;
-		delete this;
+		if(mAutoDelete)
+			delete this;
 	}
 
 private:
 	T *mTarget;
+	bool mAutoDelete;
 };
 
 }

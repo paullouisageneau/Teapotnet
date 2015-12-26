@@ -77,9 +77,9 @@ Request::Request(const String &target, const Network::Link &link, bool listDirec
 Request::~Request(void)
 {
 	Synchronize(this);
+	Scheduler::Global->cancel(&mAutoDeleteTask);
 	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
-	Scheduler::Global->cancel(&mAutoDeleteTask);
 }
 
 String Request::urlPrefix(void) const
