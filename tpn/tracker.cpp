@@ -71,7 +71,7 @@ void Tracker::process(Http::Request &request)
 			{
 				insert(node, addr);
 				++count;
-				LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
+				//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
 			}
 		}
 			
@@ -87,7 +87,7 @@ void Tracker::process(Http::Request &request)
 			try {
 				Address addr(*it);
 				
-				LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
+				//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
 				insert(node, addr);
 				++count;
 			}
@@ -100,7 +100,7 @@ void Tracker::process(Http::Request &request)
 		clean(2*count + 1);
 	}
 	else {
-		LogDebug("Tracker", "GET " + node.toString());
+		//LogDebug("Tracker", "GET " + node.toString());
 		clean(1);
 	}
 	
