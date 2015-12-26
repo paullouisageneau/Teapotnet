@@ -374,7 +374,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 
 void Interface::process(Http::Request &request)
 {
-	LogDebug("Interface", request.method + " " + request.fullUrl);
+	//LogDebug("Interface", request.method + " " + request.fullUrl);
 	
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;

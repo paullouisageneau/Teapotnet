@@ -788,7 +788,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 {
 	// Not synchronized
 	
-	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type='" + type + "')");
+	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
 	
 	if(type == "info")
 	{
@@ -797,6 +797,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("instance", &instance)
 			.insert("secret", &mRemoteSecret));
 		
+		LogDebug("AddressBook::Contact", "Remote instance name is \"" + instance + "\"");
 		mInstances[link.node] = instance;
 		
 		mAddressBook->save();
@@ -823,7 +824,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		}
 	}
 	else {
-		LogWarn("AddressBook::Contact::recv", "Unknown message type '" + type + "'");
+		LogWarn("AddressBook::Contact::recv", "Unknown message type \"" + type + "\"");
 		return false;
 	}
 	

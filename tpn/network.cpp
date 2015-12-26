@@ -553,7 +553,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	Synchronize(this);
-	LogDebug("Network::incoming", "Incoming command (type='" + type + "')");
+	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
@@ -1482,7 +1482,7 @@ void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
 	
-	LogDebug("Network::Handler::write", "Sending command (type='" + type + "')");
+	//LogDebug("Network::Handler::write", "Sending command (type=\"" + type + "\")");
 	
 	BinaryString buffer;
 	buffer.writeBinary(type.c_str(), type.size()+1);
@@ -1615,7 +1615,7 @@ void Network::Handler::process(void)
 		}
 		catch(const std::exception &e)
 		{
-			LogWarn("Network::Handler::process", "Unable to process command (type='" + type + "'): " + e.what());
+			LogWarn("Network::Handler::process", "Unable to process command (type=\"" + type + "\"): " + e.what());
 		}
 	}
 }
