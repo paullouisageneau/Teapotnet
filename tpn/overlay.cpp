@@ -355,7 +355,7 @@ bool Overlay::send(const Message &message)
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
 {
-	Store::Instance->storeValue(key, value, false);	// not permanent
+	Store::Instance->storeValue(key, value, Store::Distributed);	// not permanent
 
 	Message message(Message::Store, value, key);
 	Array<BinaryString> routes;

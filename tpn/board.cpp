@@ -130,7 +130,7 @@ void Board::process(void)
 		
 		// Retrieve digest and store it
 		mDigest = resource.digest();
-		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, true);
+		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, Store::Permanent);
 		
 		LogDebug("Board::process", "Board processed: " + mDigest.toString());
 	}

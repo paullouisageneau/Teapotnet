@@ -55,9 +55,16 @@ public:
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
-
-	void storeValue(const String &key, const BinaryString &value, bool permanent = false);
-	bool retrieveValue(const String &key, Set<BinaryString> &values);
+	
+	enum ValueType
+	{
+		Permanent   = 0,	// Local and permanent
+		Temporary   = 1,	// Local but temporary
+		Distributed = 2		// DHT
+	};
+	
+	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary);
+	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
 	void run(void);
 	

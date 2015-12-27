@@ -201,6 +201,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	// Local publishers
 	matchPublishers(prefix, subscriber->link(), subscriber);
 	
+	// Remote publishers
 	if(!subscriber->localOnly())
 	{
 		// Immediatly send subscribe message
@@ -208,6 +209,12 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 			 ConstObject()
 				.insert("path", &prefix));
 	}
+	
+	// Cache
+	Set<BinaryString> targets;
+	if(Store::Instance->retrieveValue(Store::Hash(prefix+"/"), targets))
+		for(Set<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
+			subscriber->incoming(Link::Null, prefix, "/", *it);
 }
 
 void Network::unsubscribe(String prefix, Subscriber *subscriber)
@@ -639,7 +646,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					if(subscriber) 	// local
 					{
 						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming(publisher->link(), path, "/", *it);
+							if(subscriber->incoming(publisher->link(), path, "/", *it))
+								Store::Instance->storeValue(Store::Hash(path + "/"), *it, Store::Temporary);	// cache
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -706,7 +714,8 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 						++kt)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt);
+						if(subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt))
+							Store::Instance->storeValue(Store::Hash(path + "/"), *kt, Store::Temporary);	// cache
 					}
 				}
 			}
@@ -949,7 +958,8 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 				Resource::Reader reader(&resource, "", true);	// empty password + no check
 				reader.discard();				// read everything
 				
-				subscriber->incoming(link, prefix, path, target);
+				if(subscriber->incoming(link, prefix, path, target))
+					Store::Instance->storeValue(Store::Hash(prefix+path), target, Store::Temporary);	// cache
 			}
 			catch(const Exception &e)
 			{
@@ -1465,7 +1475,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(10.),
 	mRank(0.),
 	mRedundancy(1.25),	// TODO
-	mTimeout(milliseconds(Config::Get("idle_timeout").toInt())/10),
+	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))

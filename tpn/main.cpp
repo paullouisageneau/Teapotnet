@@ -393,6 +393,7 @@ int run(StringMap &args)
 	Config::Default("connect_timeout", "10000");
 	Config::Default("idle_timeout", "60000");
 	Config::Default("request_timeout", "30000");
+	Config::Default("retransmit_timeout", "500");
 	Config::Default("user_global_shares", "true");
 	Config::Default("http_proxy", "auto");
 	Config::Default("min_connections", "8");

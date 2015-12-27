@@ -134,7 +134,10 @@ void SecureTransport::setHandshakeTimeout(double timeout)
 		gnutls_handshake_set_timeout(mSession, unsigned(timeout*1000));
 	
 		if(mStream->isDatagram())
-			setDatagramTimeout(timeout, timeout/10);
+		{
+			const int factor = 10;
+			setDatagramTimeout(timeout, timeout/factor);
+		}
 	}
 }
 

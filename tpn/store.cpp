@@ -58,7 +58,8 @@ Store::Store(void)
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS map\
 		(key BLOB,\
 		value BLOB,\
-		time INTEGER(8))");
+		time INTEGER(8),\
+		type INTEGER(1))");
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
 	
 	// Store is scheduled by Overlay on first connection
@@ -237,25 +238,27 @@ void Store::notifyFileErasure(const String &filename)
 	statement.execute();
 }
 
-void Store::storeValue(const String &key, const BinaryString &value, bool permanent)
+void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
 {
 	Synchronize(this);
 	
-	if(permanent)
+	if(type == Permanent)
 	{
-		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND time = 0");
+		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND type = ?2");
 		statement.bind(1, key);
+		statement.bind(2, static_cast<int>(Permanent));
 		statement.execute();
 	}
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time) VALUES (?1, ?2, ?3)");
+	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	statement.bind(3, (permanent ? Time(0) : Time::Now()));
+	statement.bind(3, Time::Now());
+	statement.bind(4, static_cast<int>(type));
 	statement.execute();
 }
 
-bool Store::retrieveValue(const String &key, Set<BinaryString> &values)
+bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
 	Synchronize(this);
 	
@@ -277,6 +280,7 @@ void Store::run(void)
 	Synchronize(this);
  
 	const double maxAge = 2*3600.;	// TODO
+	const double delay = 0.1;	// TODO
 	const int batch = 10;		// TODO
 	
 	BinaryString node;
@@ -284,9 +288,10 @@ void Store::run(void)
 	
 	LogDebug("Store::run", "Started");
 
-	// Delete old values
-	Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE time > 0 AND time < ?1");
-	statement.bind(1, Time::Now() - maxAge);
+	// Delete old non-permanent values
+	Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
+	statement.bind(1, static_cast<int>(Permanent));
+	statement.bind(2, Time::Now() - maxAge);
 	statement.execute();
 	
 	try {
@@ -302,9 +307,11 @@ void Store::run(void)
 				return;
 			}
 			
-			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY digest LIMIT ?1 OFFSET ?2");
-			statement.bind(1, batch);
-			statement.bind(2, offset);
+			// Select DHT values
+			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE type = ?1 AND digest IS NOT NULL ORDER BY digest LIMIT ?2 OFFSET ?3");
+			statement.bind(1, static_cast<int>(Distributed));
+			statement.bind(2, batch);
+			statement.bind(3, offset);
 			
 			List<BinaryString> result;
 			statement.fetchColumn(0, result);
@@ -319,7 +326,7 @@ void Store::run(void)
 			}
 			
 			offset+= result.size();
-			Thread::Sleep(1.);
+			Thread::Sleep(delay);
 		}
 		
 		LogDebug("Store::run", "Finished, " + String::number(offset) + " values published");
