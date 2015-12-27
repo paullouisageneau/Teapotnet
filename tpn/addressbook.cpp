@@ -328,6 +328,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						Identifier identifier;
 						id.extract(identifier);
+						if(identifier.size() != 32)
+							throw Exception("Invalid identifier");
 						
 						Synchronize(this);
 						if(name.empty())
@@ -354,6 +356,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						Identifier identifier;
 						id.extract(identifier);
+						if(identifier.size() != 32)
+							throw Exception("Invalid identifier");
 						
 						Synchronize(this);
 						mInvitations.erase(identifier);
