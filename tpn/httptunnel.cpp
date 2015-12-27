@@ -61,7 +61,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 			if(request.cookies.get("session", cookie))
 				cookie.extract(session);	
 
-			LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::number(session)+")");
+			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::number(session)+")");
 
 			Server *server = NULL;
 			bool isNew = false;
@@ -251,21 +251,21 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		if(!mDownSock->isConnected())
 		{
 			freshConnection = true;
-
+			
 			String url;
 			Assert(!mReverse.empty());
                         url<<"http://"<<mReverse<<"/"<<String::random(10);
-
-			LogDebug("HttpTunnel::Client::readData", "GET " + url);
-
+			
+			//LogDebug("HttpTunnel::Client::readData", "GET " + url);
+			
 			Http::Request request(url, "GET");
                         request.headers["User-Agent"] = UserAgent;
                         if(mSession) request.cookies["session"] << mSession;
-
+			
         		Address addr = mAddress;
         		bool hasProxy = Proxy::GetProxyForUrl(url, addr);
         		if(hasProxy) request.url = url;			// Full URL for proxy
-
+			
 			try {
 				mDownSock->setConnectTimeout(mConnTimeout);
                 		
@@ -274,8 +274,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
         		}
 			catch(const NetException &e)
         		{
-                		if(hasProxy) LogWarn("HttpTunnel::Client", String("HTTP proxy error: ") + e.what());
-                		throw;
+				if(hasProxy) LogWarn("HttpTunnel::Client", String("HTTP proxy error: ") + e.what());
+				throw;
         		}
 
 			mDownSock->setReadTimeout(SockTimeout);
@@ -361,7 +361,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			Assert(!mReverse.empty());
                         url<<"http://"<<mReverse<<"/"<<String::random(10);
 
-			LogDebug("HttpTunnel::Client::writeData", "POST " + url);
+			//LogDebug("HttpTunnel::Client::writeData", "POST " + url);
 
                         Http::Request request(url, "POST");
                         request.headers["User-Agent"] = UserAgent;
@@ -440,8 +440,8 @@ void HttpTunnel::Client::flush(void)
 	try {
 		if(mUpSock && mUpSock->isConnected() && mPostLeft)
 		{
-			LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
-		
+			//LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
+			
 			try {
 				updatePostSize(mPostLeft);
 				writePaddingUntil(1);
@@ -702,7 +702,7 @@ void HttpTunnel::Server::flush(void)
 
 	if(mDownSock && mDownSock->isConnected())
 	{
-		LogDebug("HttpTunnel::Server::flush", "Flushing...");
+		//LogDebug("HttpTunnel::Server::flush", "Flushing...");
 		mDownSock->close();
 	}
 
