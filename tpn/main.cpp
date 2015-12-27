@@ -389,15 +389,16 @@ int run(StringMap &args)
 	Config::Default("external_address", "auto");
 	Config::Default("external_port", "auto");
 	Config::Default("port_mapping_enabled", "true");
+	Config::Default("http_proxy", "auto");
 	Config::Default("http_timeout", "10000");
 	Config::Default("connect_timeout", "10000");
 	Config::Default("idle_timeout", "60000");
 	Config::Default("request_timeout", "30000");
 	Config::Default("retransmit_timeout", "500");
-	Config::Default("user_global_shares", "true");
-	Config::Default("http_proxy", "auto");
 	Config::Default("min_connections", "8");
 	Config::Default("max_connections", "256");
+	Config::Default("store_max_age", "3600");	// seconds
+	Config::Default("user_global_shares", "true");
 	
 #ifdef ANDROID
 	Config::Default("force_http_tunnel", "false");
