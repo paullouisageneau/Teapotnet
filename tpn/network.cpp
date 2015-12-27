@@ -1093,6 +1093,8 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	Assert(!remote.empty());
 	Assert(user);
 	
+	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
+	
 	if(node == Network::Instance->overlay()->localNode())
 		return false;
 	
@@ -1113,7 +1115,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	try {
 		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 		transport = new SecureTransportClient(tunnel, NULL);
-		transport->setDatagramMtu(1200);	// TODO
 	}
 	catch(...)
 	{
@@ -1121,12 +1122,14 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 		throw;
 	}
 	
-	LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
-		
+	transport->setHandshakeTimeout(timeout);
+	transport->setDatagramMtu(1200);	// TODO
+	
 	// Set remote name
 	transport->setHostname(remote.toString());
 	
 	// Add certificates
+	LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
 	transport->addCredentials(user->certificate(), false);
 	
 	return handshake(transport, Link(local, remote, node), async);
@@ -1135,6 +1138,8 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
 	Synchronize(&mQueueSync);
+
+	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
 	while(true)
 	{
@@ -1156,7 +1161,6 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			try {
 				tunnel = new Tunneler::Tunnel(this, tunnelId, datagram.source);
 				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-				transport->setDatagramMtu(1200);	// TODO
 			}
 			catch(...)
 			{
@@ -1164,8 +1168,12 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				mQueue.pop();
 				throw;
 			}
-		
+			
+			transport->setHandshakeTimeout(timeout);
+			transport->setDatagramMtu(1200);	// TODO
+			
 			mTunnels.insert(tunnelId, tunnel);
+			
 			tunnel->incoming(datagram);
 			mQueue.pop();
 			return transport;
@@ -1463,7 +1471,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(10.),
 	mRank(0.),
 	mRedundancy(1.25),	// TODO
-	mTimeout(milliseconds(Config::Get("request_timeout").toInt())/10),
+	mTimeout(milliseconds(Config::Get("idle_timeout").toInt())/10),
 	mTimeoutTask(this)
 {
 	if(!Network::Instance->registerHandler(mLink, this))
@@ -1521,8 +1529,6 @@ int Network::Handler::send(bool force)
 			}
 			
 			force = false;
-			
-			yield();
 		}
 		catch(std::exception &e)
 		{

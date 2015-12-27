@@ -1260,6 +1260,7 @@ SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 	{
 		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true, timeout);	// ask for certificate
 		if(!transport) break;
+		
 		transport->setDatagramMtu(mtu);
 		return transport;
 	}
