@@ -1093,8 +1093,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	Assert(!remote.empty());
 	Assert(user);
 	
-	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
-	
 	if(node == Network::Instance->overlay()->localNode())
 		return false;
 	
@@ -1122,9 +1120,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 		throw;
 	}
 	
-	transport->setHandshakeTimeout(timeout);
-	transport->setDatagramMtu(1200);	// TODO
-	
 	// Set remote name
 	transport->setHostname(remote.toString());
 	
@@ -1138,8 +1133,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
 	Synchronize(&mQueueSync);
-
-	const double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	
 	while(true)
 	{
@@ -1168,9 +1161,6 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				mQueue.pop();
 				throw;
 			}
-			
-			transport->setHandshakeTimeout(timeout);
-			transport->setDatagramMtu(1200);	// TODO
 			
 			mTunnels.insert(tunnelId, tunnel);
 			
@@ -1292,8 +1282,12 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				verifier.node  = link.node;
 				transport->setVerifier(&verifier);
 				
+				// Set MTU
+				transport->setDatagramMtu(1200);	// TODO
+				
 				// Set timeout
-				transport->setHandshakeTimeout(milliseconds(Config::Get("connect_timeout").toInt()));
+				const double timeout = milliseconds(Config::Get("request_timeout").toInt());
+				transport->setHandshakeTimeout(timeout);
 				
 				// Do handshake
 				transport->handshake();
@@ -1382,7 +1376,7 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mTunneler(tunneler),
 	mId(id),
 	mNode(node),
-	mTimeout(milliseconds(Config::Get("request_timeout").toInt()))
+	mTimeout(milliseconds(Config::Get("idle_timeout").toInt()))
 {
 	mTunneler->registerTunnel(this);
 }
