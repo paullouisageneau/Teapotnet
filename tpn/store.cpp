@@ -308,10 +308,9 @@ void Store::run(void)
 			}
 			
 			// Select DHT values
-			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE type = ?1 AND digest IS NOT NULL ORDER BY digest LIMIT ?2 OFFSET ?3");
-			statement.bind(1, static_cast<int>(Distributed));
-			statement.bind(2, batch);
-			statement.bind(3, offset);
+			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY digest LIMIT ?1 OFFSET ?2");
+			statement.bind(1, batch);
+			statement.bind(2, offset);
 			
 			List<BinaryString> result;
 			statement.fetchColumn(0, result);
