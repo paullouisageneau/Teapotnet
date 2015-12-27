@@ -31,7 +31,7 @@ namespace tpn
 {
 
 #ifdef ANDROID
-String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:32.0) Gecko/32.0 Firefox/32.0";	// mobile is important
+String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:40.0) Gecko/40.0 Firefox/40.0";	// mobile is important
 #else
 String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
 #endif
@@ -44,7 +44,7 @@ double HttpTunnel::SockTimeout = 10.;
 double HttpTunnel::FlushTimeout = 0.2;
 double HttpTunnel::ReadTimeout = 60.;
 
-Map<uint32_t,HttpTunnel::Server*> 	HttpTunnel::Sessions;
+Map<uint32_t, HttpTunnel::Server*> 	HttpTunnel::Sessions;
 Mutex					HttpTunnel::SessionsMutex;
 
 HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
@@ -74,19 +74,16 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					throw 400;
 				}
 				
-				SessionsMutex.lock();
-				while(!session || Sessions.contains(session))
+				MutexLocker(&HttpTunnel::SessionsMutex);
+				while(!session || HttpTunnel::Sessions.contains(session))
 					Random().readBinary(session);
-				Sessions.insert(session, NULL);
-				SessionsMutex.unlock();
-
+				
 				server = new Server(session);   // Server registers the session
 				isNew = true;
 			}
 			else {
-				SessionsMutex.lock();
-				Sessions.get(session, server);
-				SessionsMutex.unlock();
+				MutexLocker(&HttpTunnel::SessionsMutex);
+				HttpTunnel::Sessions.get(session, server);
 			}
 
 			if(!server)
@@ -195,7 +192,10 @@ HttpTunnel::Client::Client(const Address &addr, double timeout) :
 {
 	if(timeout > 0.) mConnTimeout = timeout;
 	readData(NULL, 0); 	// Connect mDownSock
+	
 	Assert(mSession);	// mSession should be set
+	LogDebug("HttpTunnel::Client", "Starting HTTP tunnel client session "+String::number(mSession));
+	
 	mConnTimeout = ConnTimeout;
 }
 	
@@ -207,7 +207,9 @@ HttpTunnel::Client::~Client(void)
 void HttpTunnel::Client::close(void)
 {
 	Synchronize(this);
-
+	
+	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session "+String::number(mSession));
+	
 	Scheduler::Global->cancel(&mFlushTask);
 	
 	try {
@@ -519,30 +521,31 @@ HttpTunnel::Server::Server(uint32_t session) :
 {
 	Assert(mSession);
 
-	SessionsMutex.lock();
-	Sessions.insert(mSession, this);
-	SessionsMutex.unlock();
+	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session "+String::number(mSession));
+	
+	MutexLocker(&HttpTunnel::SessionsMutex);
+	HttpTunnel::Sessions.insert(mSession, this);
 }
 
 HttpTunnel::Server::~Server(void)
 {
-	close();
+	NOEXCEPTION(close());
 }
 
 void HttpTunnel::Server::close(void)
 {
 	Synchronize(this);
 
-	Scheduler::Global->cancel(&mFlushTask);
+	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session "+String::number(mSession));
 	
-	SessionsMutex.lock();
-        Sessions.erase(mSession);
-        SessionsMutex.unlock();
+	Scheduler::Global->cancel(&mFlushTask);
 	
 	delete mDownSock; mDownSock = NULL;
 	delete mUpSock; mUpSock = NULL;
-	
 	mClosed = true;
+	
+	MutexLocker(&HttpTunnel::SessionsMutex);
+        HttpTunnel::Sessions.erase(mSession);
 }
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)

@@ -1199,6 +1199,9 @@ Overlay::DatagramBackend::~DatagramBackend(void)
 
 bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinaryString &remote)
 {
+	if(Config::Get("force_http_tunnel").toBool())
+		return false;
+	
 	SerializableSet<Address> localAddrs;
 	getAddresses(localAddrs);
 	
