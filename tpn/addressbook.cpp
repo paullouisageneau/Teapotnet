@@ -321,7 +321,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					String action = request.post["action"];
 					
-					if(action == "create")
+					VAR(action);
+					if(action == "add" || action == "create")
 					{
 						String id = request.post.getOrDefault("id", request.post.get("argument"));
 						String name = request.post["name"];
@@ -437,7 +438,23 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/json";
 				response.send();
-
+				
+				if(request.get.contains("id"))
+				{
+					Identifier identifier;
+					request.get["id"].extract(identifier);
+					
+					Synchronize(this);
+					Contact *contact = NULL;
+					if(!mContactsByIdentifier.get(identifier, contact))
+						throw 404;
+					
+					JsonSerializer json(response.stream);
+					json.setOptionalOutputMode(true);
+					json.write(*contact);
+					return;
+				}
+				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
 				json.write(*this);

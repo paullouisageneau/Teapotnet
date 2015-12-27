@@ -86,6 +86,29 @@ function setMailReceiverRec(url, object, next) {
 				$('#'+id).addClass('childmessage');
 			}
 			
+			user = getAuthenticatedUser();
+			if(user && 'identifier' in mail) {
+				(function(id, identifier) {
+					var url = '/user/'+user+'/contacts/';
+					$.ajax({
+						url: url+'?id='+identifier+'&json',
+						dataType: 'json',
+						timeout: 10000,
+						error: function (xhr) {
+							if(xhr.status == 404 && typeof TokenContact != 'undefined') {
+								$('#'+id+' .author').append('&nbsp;<form name="addform'+id+'" action="'+url+'" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="token" value="'+TokenContact+'"><input type="hidden" name="action" value="add"><input type="hidden" name="id" value="'+identifier+'"><input type="hidden" name="name" value="'+$('#'+id+' .author').text()+'"></form><a href="#" class="addlink"><img src="/add.png" alt="+"></a>');
+								$('#'+id+' .author .addlink').click(function() {
+									$('#'+id+' .author form').submit();
+								});
+							}
+						}
+					})
+					.done(function(contact) {
+						$('#'+id+' .author').html('<a href="'+contact.prefix+'/">'+contact.name+'</a>');
+					});
+				})(id, mail.identifier);
+			}
+			
 			// Reply form
 			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
 			
@@ -98,7 +121,7 @@ function setMailReceiverRec(url, object, next) {
 				$('#'+idReply).hide();
 			});
 			
-			if(typeof TokenDirectory != 'undefined') {
+			if(typeof UrlSelector != 'undefined' && typeof TokenDirectory != 'undefined') {
 				$('#'+idReply+' .replypanel').prepend('<a class="button" href="#"><img alt="File" src="/paperclip.png"></a>');
 				
 				(function(idReply) {

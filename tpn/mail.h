@@ -43,6 +43,7 @@ public:
 	const String &content(void) const;
 	String author(void) const;
 	String board(void) const;
+	Identifier identifier(void) const;
 	Time time(void) const;
 	BinaryString parent(void) const;
 	BinaryString digest(void) const;
@@ -54,7 +55,7 @@ public:
 	void addAttachment(const BinaryString &attachment);
 	
 	bool isSigned(void) const;
-	void sign(const Rsa::PrivateKey &privKey);
+	void sign(const Identifier &identifier, const Rsa::PrivateKey &privKey);
 	bool check(const Rsa::PublicKey &pubKey) const;
 	
 	// Serializable
@@ -69,6 +70,7 @@ private:
         String mContent;
 	String mAuthor;
 	String mBoard;
+	Identifier mIdentifier;
 	SerializableArray<BinaryString> mAttachments;
 	BinaryString mParent;
 	mutable BinaryString mSignature;

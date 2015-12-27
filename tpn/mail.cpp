@@ -58,6 +58,11 @@ String Mail::board(void) const
 	  return mBoard;
 }
 
+Identifier Mail::identifier(void) const
+{
+	return mIdentifier;
+}
+
 Time Mail::time(void) const
 {
 	return mTime;  
@@ -112,8 +117,10 @@ bool Mail::isSigned(void) const
 	return !mSignature.empty();  
 }
 
-void Mail::sign(const Rsa::PrivateKey &privKey)
+void Mail::sign(const Identifier &identifier, const Rsa::PrivateKey &privKey)
 {
+	Assert(!identifier.empty());
+	mIdentifier = identifier;
 	privKey.sign(digest(), mSignature);
 }
 
@@ -130,6 +137,9 @@ void Mail::serialize(Serializer &s) const
 	
 	if(!mAuthor.empty())
 		object["author"] = &mAuthor;
+	
+	if(!mIdentifier.empty())
+		object["identifier"] = &mIdentifier;
 	
 	if(!mAttachments.empty())
 		object["attachments"] = &mAttachments;
@@ -164,6 +174,7 @@ bool Mail::deserialize(Serializer &s)
         object["content"] = &mContent;
 	object["time"] = &mTime;
 	object["author"] = &mAuthor;
+	object["identifier"] = &mIdentifier;
 	object["attachments"] = &mAttachments;
 	object["parent"] = &mParent;
 	object["signature"] = &mSignature;

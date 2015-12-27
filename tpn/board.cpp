@@ -240,7 +240,7 @@ void Board::http(const String &prefix, Http::Request &request)
 						User *user = getAuthenticatedUser(request);
 						if(user) {
 							mail.setAuthor(user->name());
-							mail.sign(user->privateKey());
+							mail.sign(user->identifier(), user->privateKey());
 						}
 					}
 					
@@ -317,6 +317,7 @@ void Board::http(const String &prefix, Http::Request &request)
 			{
 				page.javascript("var TokenMail = '"+user->generateToken("mail")+"';\n\
 						var TokenDirectory = '"+user->generateToken("directory")+"';\n\
+						var TokenContact = '"+user->generateToken("contact")+"';\n\
 						var UrlSelector = '"+user->urlPrefix()+"/myself/files/?json';\n\
 						var UrlUpload = '"+user->urlPrefix()+"/files/_upload/?json';");
 				
