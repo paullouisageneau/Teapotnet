@@ -325,7 +325,7 @@ private:
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<IdentifierPair, Set<Listener*> > mListeners;
-	List<RemoteSubscriber> mRemoteSubscribers;
+	Map<Link, Map<String, RemoteSubscriber> > mRemoteSubscribers;
 	
 	friend class Handler;
 };

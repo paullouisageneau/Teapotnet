@@ -275,6 +275,19 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	return !values.empty();
 }
 
+bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
+{
+	Synchronize(this);
+	
+	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2");
+	statement.bind(1, key);
+	statement.bind(2, value);
+	
+	bool found = statement.step();
+	statement.finalize();
+	return found;
+}
+
 void Store::run(void)
 {	
 	Synchronize(this);

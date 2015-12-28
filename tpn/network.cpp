@@ -251,8 +251,10 @@ void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
 	Synchronize(this);
 	
-	mRemoteSubscribers.push_front(RemoteSubscriber(link));
-	mRemoteSubscribers.begin()->subscribe(path);
+	if(!mRemoteSubscribers[link].contains(path))
+		mRemoteSubscribers[link].insert(path, RemoteSubscriber(link));
+	
+	mRemoteSubscribers[link][path].subscribe(path);
 }
 
 bool Network::broadcast(const Identifier &local, const String &type, const Serializable &object)
@@ -519,9 +521,10 @@ bool Network::unregisterHandler(const Link &link, Handler *handler)
 	Handler *l = NULL;
 	if(!mHandlers.get(link, l) || l != handler)
 		return false;
-		
+	
+	mRemoteSubscribers.erase(link);
 	mHandlers.erase(link);
-		return true;	
+	return true;	
 }
 
 bool Network::outgoing(const String &type, const Serializable &content)
@@ -576,8 +579,21 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("path", &path)
 				.insert("targets", &targets));
 		
-		RemotePublisher publisher(targets, link);
-		matchSubscribers(path, link, &publisher);
+		bool hasNew = false;
+		BinaryString key = Store::Hash(path + "/");
+		for(SerializableList<BinaryString>::iterator it = targets.begin();
+			it != targets.end();
+			++it)
+		{
+			hasNew|= !Store::Instance->hasValue(key, *it);
+			Store::Instance->storeValue(key, *it, Store::Temporary);	// cache
+		}
+		
+		if(hasNew)	// prevents publishing loops
+		{
+			RemotePublisher publisher(targets, link);
+			matchSubscribers(path, link, &publisher);
+		}
 	}
 	else if(type == "subscribe")
 	{
@@ -646,8 +662,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					if(subscriber) 	// local
 					{
 						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-							if(subscriber->incoming(publisher->link(), path, "/", *it))
-								Store::Instance->storeValue(Store::Hash(path + "/"), *it, Store::Temporary);	// cache
+							subscriber->incoming(publisher->link(), path, "/", *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -714,8 +729,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 						++kt)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						if(subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt))
-							Store::Instance->storeValue(Store::Hash(path + "/"), *kt, Store::Temporary);	// cache
+						subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt);
 					}
 				}
 			}
@@ -958,8 +972,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 				Resource::Reader reader(&resource, "", true);	// empty password + no check
 				reader.discard();				// read everything
 				
-				if(subscriber->incoming(link, prefix, path, target))
-					Store::Instance->storeValue(Store::Hash(prefix+path), target, Store::Temporary);	// cache
+				subscriber->incoming(link, prefix, path, target);
 			}
 			catch(const Exception &e)
 			{
