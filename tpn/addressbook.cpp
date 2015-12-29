@@ -525,10 +525,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td",".name");
-						page.text((contact->isSelf() ? "Myself" : contact->name()));
+						page.link(contact->urlPrefix(), (contact->isSelf() ? "Myself" : contact->name()));
 						page.close("td");
-						page.open("td",".uname");
-						page.link(contact->urlPrefix(), contact->uniqueName());
+						//page.open("td",".uname");
+						//page.text(contact->uniqueName());
+						//page.close("td");
+						page.open("td",".id");
+						page.text(contact->identifier().toString());
 						page.close("td");
 						page.open("td",".actions");
 						page.openLink('#', ".deletelink");
@@ -944,6 +947,13 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			}
 			
 			page.close("table");
+			page.close("div");
+			
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Identifier");
+			page.close("h2");
+			page.text(identifier().toString());
 			page.close("div");
 			
 			page.open("div",".box");
