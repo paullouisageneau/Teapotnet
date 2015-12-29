@@ -490,7 +490,7 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 		if(l == handler)
 			return true;
 		
-		if(link.local > link.remote)
+		if(link.local > link.remote || (link.local == link.remote && mOverlay.localNode() > link.node))
 		{
 			return false;
 		}
