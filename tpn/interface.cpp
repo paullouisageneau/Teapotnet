@@ -349,6 +349,8 @@ void Interface::http(const String &prefix, Http::Request &request)
 		}
 		else if(prefix == "/mail")
 		{
+			if(!Network::Instance) throw 400;
+			
 			LogWarn("Interface::process", "Creating board: " + request.url);
 			
 			Board *board = new Board(request.url);
