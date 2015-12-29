@@ -235,17 +235,20 @@ private:
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
 			bool waitData(double &timeout);
-			bool waitData(const double &timeout);
+			bool nextRead(void);
+			bool nextWrite(void);
 			bool isDatagram(void) const;
 			
 			bool incoming(const Overlay::Message &message);
 			
 		private:
 			Tunneler *mTunneler;
-			uint64_t mId;
+			uint64_t mId;			// tunnel id
 			BinaryString mNode;
-			Queue<Overlay::Message> mQueue;
+			Queue<Overlay::Message> mQueue;	// recv queue
 			Synchronizable mQueueSync;
+			size_t mOffset;			// read offset
+			BinaryString mBuffer;		// write buffer
 			double mTimeout;
 		};
 		

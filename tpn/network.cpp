@@ -1399,9 +1399,12 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mTunneler(tunneler),
 	mId(id),
 	mNode(node),
+	mOffset(0),
 	mTimeout(milliseconds(Config::Get("idle_timeout").toInt()))
 {
 	mTunneler->registerTunnel(this);
+
+	mBuffer.writeBinary(mId);
 }
 
 Network::Tunneler::Tunnel::~Tunnel(void)
@@ -1429,18 +1432,15 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 			throw Timeout();
 	
 	const Overlay::Message &message = mQueue.front();
-	size = std::min(size, size_t(message.content.size()));
-	std::copy(message.content.data(), message.content.data() + size, buffer);
-        mQueue.pop();
+	Assert(mOffset <= message.content.size());
+	size = std::min(size, size_t(message.content.size() - mOffset));
+	std::copy(message.content.data() + mOffset, message.content.data() + mOffset + size, buffer);
         return size;
 }
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
-	BinaryString content;
-	content.writeBinary(mId);
-	content.writeBinary(data, size);
-	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, content, mNode));
+	mBuffer.writeBinary(data, size);
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)
@@ -1459,10 +1459,19 @@ bool Network::Tunneler::Tunnel::waitData(double &timeout)
 	return true;
 }
 
-bool Network::Tunneler::Tunnel::waitData(const double &timeout)
+bool Network::Tunneler::Tunnel::nextRead(void)
 {
-	double dummy = timeout;
-	return waitData(dummy);
+	if(!mQueue.empty())
+		mQueue.pop();
+	mOffset = 0;
+}
+
+bool Network::Tunneler::Tunnel::nextWrite(void)
+{
+	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, mBuffer, mNode));
+	mBuffer.clear();
+	mBuffer.writeBinary(mId);
+	return true;
 }
 
 bool Network::Tunneler::Tunnel::isDatagram(void) const
@@ -1523,7 +1532,7 @@ int Network::Handler::send(bool force)
 	int count = 0;
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
-		LogDebug("Network::Handler::send", "Triggered send (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
+		//LogDebug("Network::Handler::send", "Sending combination (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
 		
 		try {
 			Fountain::Combination combination;
@@ -1613,6 +1622,8 @@ bool Network::Handler::readString(String &str)
 		mStream->readBinary(data);
 		combination.setCodedData(data);
 		mStream->nextRead();
+		
+		//LogDebug("Network::Handler::readString", "Received combination (size=" + String::number(combination.size()) + ", nextSeen=" + String::number(nextSeen) + ")");
 		
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
 		if(!combination.isNull())

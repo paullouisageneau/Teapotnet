@@ -468,14 +468,11 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		
 		DatagramStream *stream = it->second;
 		Assert(stream);
-		
-		if(result > 0)
-		{
-			Synchronize(&stream->mSync);
-			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
-				stream->mIncoming.push(BinaryString(datagramBuffer, size_t(result)));
-			stream->mSync.notifyAll();
-		}
+
+		Synchronize(&stream->mSync);
+		if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
+			stream->mIncoming.push(BinaryString(datagramBuffer, size_t(result)));
+		stream->mSync.notifyAll();
 		
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 	}
