@@ -484,7 +484,18 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 	
 	Handler *l = NULL;
 	if(mHandlers.get(link, l))
-		return (l == handler);
+	{
+		if(l == handler)
+			return true;
+		
+		if(link.local < link.remote)
+		{
+			return false;
+		}
+		else {
+			LogDebug("Network::registerHandler", "Replacing current handler");
+		}
+	}
 	
 	mHandlers.insert(link, handler);
 	mThreadPool.launch(handler);
@@ -1185,8 +1196,6 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				throw;
 			}
 			
-			mTunnels.insert(tunnelId, tunnel);
-			
 			tunnel->incoming(datagram);
 			mQueue.pop();
 			return transport;
@@ -1326,11 +1335,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				LogDebug("Network::Tunneler::handshake", "Handshake succeeded");
 				
 				Link link(verifier.local, verifier.remote, verifier.node);
-				if(!Network::Instance->hasLink(link))
-				{
-					Handler *handler = new Handler(transport, link);
-				}
 				
+				Handler *handler = new Handler(transport, link);
 				return true;
 			}
 			catch(const std::exception &e)
@@ -1383,7 +1389,7 @@ void Network::Tunneler::run(void)
 			SecureTransport *transport = listen(&node);
 			if(!transport) break;
 			
-			LogDebug("Network::Backend::run", "Incoming tunnel from " + node.toString());
+			LogDebug("Network::Tunneler::run", "Incoming tunnel from " + node.toString());
 			handshake(transport, Link(Identifier::Empty, Identifier::Empty, node), true); // async
 		}
 	}
@@ -1402,13 +1408,16 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mOffset(0),
 	mTimeout(milliseconds(Config::Get("idle_timeout").toInt()))
 {
-	mTunneler->registerTunnel(this);
+	LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
+	if(!mTunneler->registerTunnel(this))
+		throw Exception("Tunnel " + String::hexa(mId) + " is already registered");
 
 	mBuffer.writeBinary(mId);
 }
 
 Network::Tunneler::Tunnel::~Tunnel(void)
 {
+	LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
 	mTunneler->unregisterTunnel(this);
 }
 
@@ -1461,8 +1470,7 @@ bool Network::Tunneler::Tunnel::waitData(double &timeout)
 
 bool Network::Tunneler::Tunnel::nextRead(void)
 {
-	if(!mQueue.empty())
-		mQueue.pop();
+	if(!mQueue.empty()) mQueue.pop();
 	mOffset = 0;
 	return true;
 }
