@@ -77,13 +77,9 @@ void Interface::http(const String &prefix, Http::Request &request)
 		{
 			if(request.method == "POST")
 			{
-				String name, password, tracker;
+				String name, password;
 				request.post.get("name", name);
 				request.post.get("password", password);
-				request.post.get("tracker", tracker);
-				
-				if(name.contains('@'))
-					tracker = name.cut('@');
 				
 				User *user = NULL;
 				try {
