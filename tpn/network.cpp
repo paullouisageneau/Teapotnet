@@ -1523,7 +1523,7 @@ int Network::Handler::send(bool force)
 	int count = 0;
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
-		//LogDebug("Network::Handler::send", "Triggered send (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
+		LogDebug("Network::Handler::send", "Triggered send (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
 		
 		try {
 			Fountain::Combination combination;
@@ -1539,13 +1539,11 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
-				mTokens-= 1.;
-				mRank-= 1.;
+				mTokens = std::max(0., mTokens - 1.);
+				mRank   = std::max(0., mRank - 1.);
 			}
 			
 			force = false;
-			
-			DesynchronizeStatement(this, Thread::Sleep(milliseconds(1)));	// TODO
 		}
 		catch(std::exception &e)
 		{
