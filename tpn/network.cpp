@@ -477,6 +477,8 @@ void Network::run(void)
 bool Network::registerHandler(const Link &link, Handler *handler)
 {
 	Synchronize(this);
+	Assert(!link.local.empty());
+	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
 	
 	if(!handler)
@@ -488,7 +490,7 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 		if(l == handler)
 			return true;
 		
-		if(link.local < link.remote)
+		if(link.local > link.remote)
 		{
 			return false;
 		}
