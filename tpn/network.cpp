@@ -208,13 +208,13 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		send(subscriber->link(), "subscribe", 
 			 ConstObject()
 				.insert("path", &prefix));
+		
+		// Retrieve from cache
+		Set<BinaryString> targets;
+		if(Store::Instance->retrieveValue(Store::Hash(prefix+"/"), targets))
+			for(Set<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
+				subscriber->incoming(Link::Null, prefix, "/", *it);
 	}
-	
-	// Cache
-	Set<BinaryString> targets;
-	if(Store::Instance->retrieveValue(Store::Hash(prefix+"/"), targets))
-		for(Set<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
-			subscriber->incoming(Link::Null, prefix, "/", *it);
 }
 
 void Network::unsubscribe(String prefix, Subscriber *subscriber)
