@@ -1464,6 +1464,7 @@ bool Network::Tunneler::Tunnel::nextRead(void)
 	if(!mQueue.empty())
 		mQueue.pop();
 	mOffset = 0;
+	return true;
 }
 
 bool Network::Tunneler::Tunnel::nextWrite(void)
