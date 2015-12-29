@@ -700,17 +700,8 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
-		if(h == handler)
-			return true;
-		
-		if(localNode() > node)
-		{
-			DesynchronizeStatement(this, h->addAddress(addr));
-			return false;
-		}
-		else {
-			LogDebug("Overlay::registerHandler", "Replacing current handler for " + node.toString());
-		}
+		DesynchronizeStatement(this, h->addAddress(addr));
+		return (h == handler);
 	}
 	
 	mHandlers.insert(node, handler);

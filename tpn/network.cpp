@@ -487,16 +487,13 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 	Handler *l = NULL;
 	if(mHandlers.get(link, l))
 	{
-		if(l == handler)
+		if(l == handler) 
 			return true;
 		
-		if(link.local > link.remote || (link.local == link.remote && mOverlay.localNode() > link.node))
-		{
+		if(Random().uniform(0, 1) == 0)
 			return false;
-		}
-		else {
-			LogDebug("Network::registerHandler", "Replacing current handler");
-		}
+		
+		LogDebug("Network::registerHandler", "Replacing current handler");
 	}
 	
 	mHandlers.insert(link, handler);
@@ -1337,7 +1334,6 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				LogDebug("Network::Tunneler::handshake", "Handshake succeeded");
 				
 				Link link(verifier.local, verifier.remote, verifier.node);
-				
 				Handler *handler = new Handler(transport, link);
 				return true;
 			}
