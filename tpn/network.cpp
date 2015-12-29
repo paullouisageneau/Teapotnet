@@ -536,7 +536,6 @@ bool Network::outgoing(const String &type, const Serializable &content)
 bool Network::outgoing(const Link &link, const String &type, const Serializable &content)
 {
 	Synchronize(this);
-	//LogDebug("Network::outgoing", "Outgoing, type: "+type);
 	
 	String serialized;
 	JsonSerializer(&serialized).write(content);
@@ -556,14 +555,15 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 		it->second->write(type, serialized);
 		success = true;
 	}
-		
+	
+	if(success) LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\")");
 	return success;
 }
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	Synchronize(this);
-	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
+	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
@@ -1507,8 +1507,6 @@ void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
 	
-	//LogDebug("Network::Handler::write", "Sending command (type=\"" + type + "\")");
-	
 	BinaryString buffer;
 	buffer.writeBinary(type.c_str(), type.size()+1);
 	buffer.writeBinary(content.c_str(), content.size()+1);
@@ -1546,6 +1544,8 @@ int Network::Handler::send(bool force)
 			}
 			
 			force = false;
+			
+			DesynchronizeStatement(this, Thread::Sleep(milliseconds(1)));	// TODO
 		}
 		catch(std::exception &e)
 		{
@@ -1555,7 +1555,9 @@ int Network::Handler::send(bool force)
 		}
 	}
 	
-	Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
+	double idleTimeout = milliseconds(Config::Get("idle_timeout").toInt())/2;	// so the tunnel should not time out
+	if(mSource.count() > 0) Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
+	else Scheduler::Global->schedule(&mTimeoutTask, idleTimeout);
 	return count;
 }
 
@@ -1616,10 +1618,12 @@ bool Network::Handler::readString(String &str)
 		
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
 		if(!combination.isNull())
+		{
 			mSink.solve(combination);
 		
-		if(!send(false))
-			Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);	// TODO
+			if(!send(false))
+				Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
+		}
 	}
 	
 	return false;
