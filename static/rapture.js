@@ -19,6 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
+// TODO: update to new architecture
+/*
 var currentObject;
 $('#howtotext').hide();
 
@@ -146,7 +148,7 @@ $('input.add').click(function(e) {
 	} 
 });
 
-/**** CONSTANTS FOR PHP ECHOES ****/
+//**** CONSTANTS FOR PHP ECHOES ****
 FIRST_REQUEST_PREFIX = '1005';
 REQUEST_ACCEPTED_PREFIX = '1921'; 
 REQUEST_ALREADY_EXISTS = 10; 
@@ -157,7 +159,7 @@ REQUEST_TOO_OLD = 14;
 INVALID_ADDRESS = 15; 
 SUCCESS = 16; 
 FAILURE = 17;
-/*********************************/
+//**********************************
 
 // Globals for mail form 
 var mailCookie = 'mailCookie';
@@ -307,3 +309,5 @@ function addContact(tpnid, secret, nStep) {
 		alert('Error: the contact could not be added');
 	});
 }
+
+*/
