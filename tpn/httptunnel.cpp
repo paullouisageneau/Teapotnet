@@ -74,16 +74,16 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					throw 400;
 				}
 				
-				MutexLocker(&HttpTunnel::SessionsMutex);
-				while(!session || HttpTunnel::Sessions.contains(session))
+				MutexLocker lock(&SessionsMutex);
+				while(!session || Sessions.contains(session))
 					Random().readBinary(session);
 				
 				server = new Server(session);   // Server registers the session
 				isNew = true;
 			}
 			else {
-				MutexLocker(&HttpTunnel::SessionsMutex);
-				HttpTunnel::Sessions.get(session, server);
+				MutexLocker lock(&SessionsMutex);
+				Sessions.get(session, server);
 			}
 
 			if(!server)
@@ -523,8 +523,8 @@ HttpTunnel::Server::Server(uint32_t session) :
 
 	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session "+String::number(mSession));
 	
-	MutexLocker(&HttpTunnel::SessionsMutex);
-	HttpTunnel::Sessions.insert(mSession, this);
+	MutexLocker lock(&SessionsMutex);
+	Sessions.insert(mSession, this);
 }
 
 HttpTunnel::Server::~Server(void)
@@ -544,8 +544,8 @@ void HttpTunnel::Server::close(void)
 	delete mUpSock; mUpSock = NULL;
 	mClosed = true;
 	
-	MutexLocker(&HttpTunnel::SessionsMutex);
-        HttpTunnel::Sessions.erase(mSession);
+	MutexLocker lock(&SessionsMutex);
+        Sessions.erase(mSession);
 }
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)
