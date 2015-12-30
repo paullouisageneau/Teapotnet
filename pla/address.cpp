@@ -41,10 +41,7 @@ bool Address::Resolve(const String &host, const String &service, List<Address> &
 
 	addrinfo *aiList = NULL;
 	if(getaddrinfo(host.c_str(), service.c_str(), &aiHints, &aiList) != 0)
-	{
-		freeaddrinfo(aiList);
 		return false;
-	}
 
 	addrinfo *ai = aiList;
 	while(ai)
