@@ -260,11 +260,11 @@ int main(int argc, char** argv)
 	// ----------
 	
 	StringMap args;
+	String commandLine;
 	try {
 		Assert(argc >= 1);
 
 		String last;
-		String commandLine;
 		for(int i=1; i<argc; ++i)
 		{
 			String str(argv[i]);
@@ -328,10 +328,10 @@ int main(int argc, char** argv)
 		
 		if(args.contains("benchmark") || args.contains("b"))
 		{
-			exitCode = benchmark(args);
+			exitCode = benchmark(commandLine, args);
 		}
 		else {
-			exitCode = run(args);
+			exitCode = run(commandLine, args);
 		}
 	}
 	catch(const std::exception &e)
@@ -384,7 +384,7 @@ int main(int argc, char** argv)
 	return exitCode;
 }
 
-int run(StringMap &args)
+int run(const String &commandLine, StringMap &args)
 {
 #ifndef WINDOWS
 #ifndef ANDROID
@@ -574,8 +574,14 @@ int run(StringMap &args)
 		{
 			LogInfo("main", "Trying to run as administrator..."); 
 			Sleep(100);
-			if(int(ShellExecute(NULL, "runas", argv[0], commandLine.c_str(), NULL, SW_SHOW)) <= 32)
+			
+			char szFileName[MAX_PATH];
+			HINSTANCE hInstance = GetModuleHandle(NULL);
+			GetModuleFileName(hInstance, szFileName, MAX_PATH);
+			
+			if(int(ShellExecute(NULL, "runas", szFileName, commandLine.c_str(), NULL, SW_SHOW)) <= 32)
 				throw Exception("Unable to run as administrator");
+			
 			return 0;
 		}
 	}
@@ -814,7 +820,7 @@ int run(StringMap &args)
 		Network::Instance->join();
 		
 #if defined(WINDOWS) || defined(MACOSX)
-		Scheduler::Global->remove(&checkUpdateTask);
+		Scheduler::Global->cancel(&checkUpdateTask);
 #endif		
 	}
 	catch(...)
@@ -828,7 +834,7 @@ int run(StringMap &args)
 	return 0;
 }
 
-int benchmark(StringMap &args)
+int benchmark(const String &commandLine, StringMap &args)
 {
 	std::cout << "Benchmarking fountain..." << std::endl;
 	

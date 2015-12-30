@@ -27,7 +27,7 @@
 #include "pla/map.h"
 
 int main(int argc, char** argv);
-int run(StringMap &args);
-int benchmark(StringMap &args);
+int run(const String &commandLine, StringMap &args);
+int benchmark(const String &commandLine, StringMap &args);
 
 #endif
