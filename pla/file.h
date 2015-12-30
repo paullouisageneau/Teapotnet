@@ -39,6 +39,9 @@ public:
 	using Stream::read;
 	using Stream::write;
 	
+	static String TempDirectory;
+	static String TempPrefix;
+	
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
 	static void Rename(const String &source, const String &destination);
@@ -76,7 +79,6 @@ public:
 	
 protected:
 	static String TempPath(void);
-  	static const String TempPrefix;
 	
 	Stream *pipeIn(void);
 	String mName;

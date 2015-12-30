@@ -26,7 +26,8 @@
 namespace pla
 {
 
-const String File::TempPrefix = "tpot_";
+String File::TempDirectory = "";	// empty = auto
+String File::TempPrefix    = "pla_";
   
 bool File::Exist(const String &filename)
 {
@@ -108,18 +109,23 @@ void File::CleanTemp(void)
 
 String File::TempPath(void)
 {
-	String tempPath;
+	if(!TempDirectory.empty())
+	{
+		return TempDirectory + "/";
+	}
+	else {
+		String tempPath;
 
-	#ifdef WINDOWS
+#ifdef WINDOWS
 		char buffer[MAX_PATH+1];
 		Assert(GetTempPath(MAX_PATH+1,buffer) != 0);
 		tempPath = buffer;
-	#else
-		// TODO
+#else
 		tempPath = "/tmp/";
-	#endif
-	
-	return tempPath;
+#endif
+		
+		return tempPath;
+	}
 }
 
 File::File(void) :

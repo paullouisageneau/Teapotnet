@@ -39,6 +39,7 @@
 #include "pla/random.h"
 #include "pla/securetransport.h"
 #include "pla/proxy.h"
+#include "pla/file.h"
 
 #include <signal.h>
 
@@ -106,6 +107,7 @@ extern "C"
 {
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir);
+	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setCacheDirectory(JNIEnv *env, jobject obj, jstring dir);
 	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env, jobject obj);
 	JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv *env, jobject obj);
@@ -137,6 +139,22 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDire
 	try {
 		if(!Directory::Exist(str)) Directory::Create(str);
 		SharedDirectory = str;
+		return JNI_TRUE;
+	}
+	catch(const Exception &e)
+	{
+		LogError("main", e.what());
+		return JNI_FALSE;
+	}
+}
+
+JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir)
+{
+        String str = env->GetStringUTFChars(dir, NULL);
+	
+	try {
+		if(!Directory::Exist(str)) Directory::Create(str);
+		File::TempDirectory = str;
 		return JNI_TRUE;
 	}
 	catch(const Exception &e)
@@ -206,6 +224,8 @@ int main(int argc, char** argv)
 
 	SecureTransport::Init();	// This is necessary for Random
 	Fountain::Init();
+	
+	File::TempPrefix = "tpn_";
 	
 	// ---------- AES auto-test ----------
 	try {
