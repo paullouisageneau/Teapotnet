@@ -476,7 +476,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.label("id", "Identifier"); page.input("text", "id"); page.br();
 			page.label("name", "Name"); page.input("text", "name"); page.br();
 			page.label("generate"); page.button("generate", "Add contact"); page.br(); page.br();
-			page.raw("Your identifier is <b>" + user()->identifier().toString() + "</b>"); page.br();
 			page.closeFieldset();
 			page.closeForm();
 			
@@ -496,6 +495,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.button("validate", "Validate");
 			page.closeFieldset();
 			page.closeForm();
+			
+			page.open("div",".box");
+			page.open("h2");
+			page.text("Identifier");
+			page.close("h2");
+			page.text(user()->identifier().toString());
+			page.close("div");
 			
 			page.openForm(prefix+"/", "post", "actionForm");
 			page.input("hidden", "action");

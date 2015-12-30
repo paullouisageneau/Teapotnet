@@ -65,6 +65,7 @@ iframe
 
 div
 {
+	display: block;
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
@@ -155,6 +156,7 @@ td
 
 fieldset 
 {
+	display: block;
 	margin: 0em;
 	margin-top: 2em;
 	margin-bottom: 0.5em;
@@ -166,6 +168,7 @@ fieldset
 	border: 2px solid #E0E0E0;
 	border-radius: 4px;
 	box-shadow: 0px 0px 8px 2px #404040;
+	overflow: hidden;
 }
 
 label 
@@ -1669,6 +1672,11 @@ form #trackerlink
 	{	
 		margin: 0;
 		padding: 0;
+	}
+	
+	td.id
+	{
+		display: none;
 	}
 }
 
