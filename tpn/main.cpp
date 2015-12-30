@@ -384,7 +384,7 @@ int main(int argc, char** argv)
 	return exitCode;
 }
 
-int run(const String &commandLine, StringMap &args)
+int run(String &commandLine, StringMap &args)
 {
 #ifndef WINDOWS
 #ifndef ANDROID
@@ -834,7 +834,7 @@ int run(const String &commandLine, StringMap &args)
 	return 0;
 }
 
-int benchmark(const String &commandLine, StringMap &args)
+int benchmark(String &commandLine, StringMap &args)
 {
 	std::cout << "Benchmarking fountain..." << std::endl;
 	
