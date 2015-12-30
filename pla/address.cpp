@@ -34,7 +34,7 @@ bool Address::Resolve(const String &host, const String &service, List<Address> &
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
-	aiHints.ai_socktype = 0;
+	aiHints.ai_socktype = SOCK_STREAM;
 	aiHints.ai_protocol = 0;
 	if(host.contains(':') || !host.containsLetters()) aiHints.ai_flags = 0;
 	else aiHints.ai_flags = AI_ADDRCONFIG;
