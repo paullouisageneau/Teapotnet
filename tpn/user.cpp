@@ -519,7 +519,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("$('#page').css('max-width','100%');");
 			
 #if defined(WINDOWS)
-                        if(request.sock->getRemoteAddress().isLocal() && Config::IsUpdateAvailable())
+                        if(/*request.sock->getRemoteAddress().isLocal() &&*/ Config::IsUpdateAvailable())	// TODO
                         {
                                 page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
@@ -537,7 +537,7 @@ void User::http(const String &prefix, Http::Request &request)
 #endif
 		
 #if defined(MACOSX)
-                        if(request.sock->getRemoteAddress().isLocal() && Config::IsUpdateAvailable())
+                        if(/*request.sock->getRemoteAddress().isLocal()*/ && Config::IsUpdateAvailable())	// TODO
                         {
                                 page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
