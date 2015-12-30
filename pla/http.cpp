@@ -919,7 +919,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 		}
 		else {
 			List<Address> addrs;
-			if(!Address::Resolve(host, addrs, request.protocol))
+			if(!Address::Resolve(host, addrs, request.protocol.toLower()))
 				throw NetException("Unable to resolve: " + host);
 	
 			for(List<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
