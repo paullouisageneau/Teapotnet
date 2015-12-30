@@ -2,10 +2,9 @@
 
 ** What is it ?
 
-Teapotnet is a simple friend-to-friend network. It allows you
+Teapotnet is a distributed private social network. It allows you
 to chat, and share, download or stream files. It features a clear
-HTTP interface and easy to use authentication and encryption
-based on shared secrets.
+HTTP interface and easy to use authentication and encryption.
 
 ** Installation
 
