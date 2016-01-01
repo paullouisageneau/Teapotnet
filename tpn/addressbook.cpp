@@ -324,7 +324,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					VAR(action);
 					if(action == "add" || action == "create")
 					{
-						String id = request.post.getOrDefault("id", request.post.get("argument"));
+						String id = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("id"));
 						String name = request.post["name"];
 						
 						Identifier identifier;
@@ -346,14 +346,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					}
 					else if(action == "delete")
 					{
-						String uname = request.post.getOrDefault("uname", request.post.get("argument"));
+						String uname = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("uname"));
 						
 						Synchronize(this);
 						removeContact(uname);
 					}
 					else if(action == "deleteinvitation")
 					{
-						String id = request.post.getOrDefault("id", request.post.get("argument"));
+						String id = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("id"));
 						
 						Identifier identifier;
 						id.extract(identifier);
