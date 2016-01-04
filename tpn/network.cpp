@@ -1653,6 +1653,7 @@ void Network::Handler::process(void)
 	while(read(type, content))
 	{
 		try {
+			Desynchronize(this);
 			JsonSerializer serializer(&content);
 			Network::Instance->incoming(mLink, type, serializer);
 		}
