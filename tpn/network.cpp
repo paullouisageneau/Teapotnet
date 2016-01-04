@@ -552,7 +552,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 	bool success = false;
 	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
-		it != mHandlers.end() && (link.local.empty() || it->first.local == link.local);
+		it != mHandlers.end() && it->first == link;
 		++it)
 	{
 		if(type == "subscribe")
