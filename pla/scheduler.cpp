@@ -124,12 +124,13 @@ void Scheduler::onTaskFinished(Task *task)
 
 void Scheduler::run(void)
 {
+	Synchronize(this);
+	
 	while(true)
 	{
 		try {
-			Synchronize(this);
 			if(mSchedule.empty()) break;
-
+			
 			Map<Time, Set<Task*> >::iterator it = mSchedule.begin();
 			double d =  it->first - Time::Now();
 			if(d > 0.)
@@ -138,7 +139,7 @@ void Scheduler::run(void)
 				wait(std::min(d, 60.));	// bound is necessary here in case of wall clock change
 				continue;
 			}
-	
+			
 			Set<Task*> set = it->second;
 			mSchedule.erase(it);
 			

@@ -590,7 +590,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 		int index = 0;
 		if(route.empty())
 		{
-			while(index < routes.size() && routes[index] == from)
+			if(index < routes.size() && routes[index] == from)
 				++index;
 		}
 		else {	// route == from
@@ -599,6 +599,9 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 			if(index < routes.size())
 				++index;
 		}
+		
+		if(index < routes.size() && routes[index] == localNode())
+			++index;
 		
 		if(index == routes.size())
 		{
