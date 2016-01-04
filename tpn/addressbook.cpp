@@ -320,8 +320,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						throw 403;
 					
 					String action = request.post["action"];
-					
-					VAR(action);
+
 					if(action == "add" || action == "create")
 					{
 						String id = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("id"));
@@ -533,9 +532,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						page.open("td",".name");
 						page.link(contact->urlPrefix(), (contact->isSelf() ? "Myself" : contact->name()));
 						page.close("td");
-						//page.open("td",".uname");
-						//page.text(contact->uniqueName());
-						//page.close("td");
+						page.open("td",".uname");
+						page.text(contact->uniqueName());
+						page.close("td");
 						page.open("td",".id");
 						page.text(contact->identifier().toString());
 						page.close("td");
