@@ -449,11 +449,15 @@ bool Indexer::process(String path, Resource &resource)
 	Time time(0);
 	if(!get(path, resource, &time) || time < fileTime)
 	{
+		Desynchronize(this);
+		
 		//LogDebug("Indexer::process", "Changed: " + path + " (time was " + time.toString() + ", now " + fileTime.toString() + ")");
-		LogDebug("Index::process", "Processing: " + path);
+		LogDebug("Indexer::process", "Processing: " + path);
 		
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
+		
+		yield();
 	}
 	
 	// Mark as seen
