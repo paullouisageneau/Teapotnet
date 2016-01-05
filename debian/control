@@ -2,14 +2,14 @@ Source: teapotnet
 Section: net
 Priority: extra
 Maintainer: Paul-Louis Ageneau <paul-louis@ageneau.org>
-Build-Depends: debhelper (>= 7.4.0)
+Build-Depends: debhelper (>= 7.4.0), libgnutls28-dev (>= 3.3.8), nettle-dev (>= 2.7.1)
 Standards-Version: 3.9.3
-Homepage: https://github.com/paullouisageneau/Teapotnet.git
-#Vcs-Git: git://git.debian.org/collab-maint/teapotnet.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/teapotnet.git;a=summary
+Homepage: https://teapotnet.org/
+Vcs-Git: https://github.com/paullouisageneau/Teapotnet.git
+Vcs-Browser: https://github.com/paullouisageneau/Teapotnet.git
 
 Package: teapotnet
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libgnutls28 (>= 3.3.8), nettle (>= 2.7.1)
 Description: Private and decentralized social network for file sharing and streaming
 
