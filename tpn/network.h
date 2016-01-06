@@ -221,13 +221,14 @@ private:
 		bool incoming(const Overlay::Message &message);
 		
 	private:
-		class Tunnel : public Stream
+		class Tunnel : protected Synchronizable, public Stream
 		{
 		public:
-			Tunnel(Tunneler *tunneler, uint64_t id, const Identifier &node);
+			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node);
 			~Tunnel(void);
 			
 			uint64_t id(void) const;
+			BinaryString node(void) const;
 			
 			void setTimeout(double timeout);
 			
@@ -246,7 +247,6 @@ private:
 			uint64_t mId;			// tunnel id
 			BinaryString mNode;
 			Queue<Overlay::Message> mQueue;	// recv queue
-			Synchronizable mQueueSync;
 			size_t mOffset;			// read offset
 			BinaryString mBuffer;		// write buffer
 			double mTimeout;
@@ -262,10 +262,8 @@ private:
 		
 		Map<uint64_t, Tunnel*> mTunnels;
 		ThreadPool mThreadPool;
-		
-		// Queue for listen
-		Queue<Overlay::Message> mQueue;
-		Synchronizable mQueueSync;
+		Queue<Overlay::Message> mQueue;		// Queue for listening
+		Set<BinaryString> mPending;		// Pending nodes
 	};
 	
 	class Handler : protected Synchronizable, public Task

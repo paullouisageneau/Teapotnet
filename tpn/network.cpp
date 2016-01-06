@@ -1133,9 +1133,14 @@ Network::Tunneler::~Tunneler(void)
 
 bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
+	Synchronize(this);
+	
 	Assert(!node.empty());
 	Assert(!remote.empty());
 	Assert(user);
+	
+	if(mPending.contains(node))
+		return false;
 	
 	if(node == Network::Instance->overlay()->localNode())
 		return false;
@@ -1176,11 +1181,11 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
-	Synchronize(&mQueueSync);
+	Synchronize(this);
 	
 	while(true)
 	{
-		while(mQueue.empty()) mQueueSync.wait();
+		while(mQueue.empty()) wait();
 		
 		Overlay::Message &datagram = mQueue.front();
 
@@ -1218,9 +1223,10 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 
 bool Network::Tunneler::incoming(const Overlay::Message &datagram)
 {
-	Synchronize(&mQueueSync);
+	Synchronize(this);
+	
 	mQueue.push(datagram);
-	mQueueSync.notifyAll();
+	notifyAll();
 	return true;
 }
 
@@ -1235,6 +1241,7 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 	if(mTunnels.get(tunnel->id(), t))
 		return (t == tunnel);
 	
+	mPending.insert(tunnel->node());
 	mTunnels.insert(tunnel->id(), tunnel);
 	return true;
 }
@@ -1250,12 +1257,14 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 	if(!mTunnels.get(tunnel->id(), t) || t != tunnel)
 		return false;
 	
+	mPending.erase(tunnel->node());
 	mTunnels.erase(tunnel->id());
 		return true;	
 }
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
 {
+	Synchronize(this);
 	Assert(!link.node.empty());
 	
 	class MyVerifier : public SecureTransport::Verifier
@@ -1376,6 +1385,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			return true;
 		}
 		else {
+			Desynchronize(this);
 			HandshakeTask stask(transport, link);
 			return stask.handshake();
 		}
@@ -1432,21 +1442,29 @@ Network::Tunneler::Tunnel::~Tunnel(void)
 
 uint64_t Network::Tunneler::Tunnel::id(void) const
 {
+	Synchronize(this);
 	return mId;
+}
+
+BinaryString Network::Tunneler::Tunnel::node(void) const
+{
+	Synchronize(this);
+	return mNode;
 }
 
 void Network::Tunneler::Tunnel::setTimeout(double timeout)
 {
+	Synchronize(this);
 	mTimeout = timeout;
 }
 
 size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 {
-	Synchronize(&mQueueSync);
+	Synchronize(this);
 	
 	double timeout = mTimeout;
         while(mQueue.empty())
-		if(!mQueueSync.wait(timeout))
+		if(!wait(timeout))
 			throw Timeout();
 	
 	const Overlay::Message &message = mQueue.front();
@@ -1458,19 +1476,21 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
+	Synchronize(this);
+	
 	mBuffer.writeBinary(data, size);
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)
 {
-	Synchronize(&mQueueSync);
+	Synchronize(this);
 	
 	while(mQueue.empty())
 	{
 		if(timeout < 0.)
 			return false;
 		
-		if(!mQueueSync.wait(timeout))
+		if(!wait(timeout))
 			return false;
 	}
 	
@@ -1479,6 +1499,7 @@ bool Network::Tunneler::Tunnel::waitData(double &timeout)
 
 bool Network::Tunneler::Tunnel::nextRead(void)
 {
+	Synchronize(this);
 	if(!mQueue.empty()) mQueue.pop();
 	mOffset = 0;
 	return true;
@@ -1487,6 +1508,8 @@ bool Network::Tunneler::Tunnel::nextRead(void)
 bool Network::Tunneler::Tunnel::nextWrite(void)
 {
 	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, mBuffer, mNode));
+	
+	Synchronize(this);
 	mBuffer.clear();
 	mBuffer.writeBinary(mId);
 	return true;
@@ -1499,13 +1522,13 @@ bool Network::Tunneler::Tunnel::isDatagram(void) const
 
 bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &datagram)
 {
-	Synchronize(&mQueueSync);
+	Synchronize(this);
 	
 	if(datagram.type != Overlay::Message::Tunnel)
 		return false;
 	
 	mQueue.push(datagram);
-	mQueueSync.notifyAll();
+	notifyAll();
 	return true;
 }
 
