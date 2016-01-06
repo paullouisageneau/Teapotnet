@@ -300,7 +300,7 @@ void Store::run(void)
 	Synchronize(this);
  
 	const double maxAge = Config::Get("store_max_age").toDouble();
-	const double delay = 0.1;	// TODO
+	const double delay = 1.;	// TODO
 	const int batch = 10;		// TODO
 	
 	BinaryString node;
