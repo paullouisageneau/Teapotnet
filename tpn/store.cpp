@@ -270,8 +270,15 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 		statement.value(0, v);
 		values.insert(v);
 	}
-	
 	statement.finalize();
+	
+	// Also look for digest in blocks in case map is not up-to-date
+	statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
+	statement.bind(1, key);
+	if(statement.step())
+		DesynchronizeStatement(this, values.insert(Network::Instance->overlay()->localNode()));
+	statement.finalize();
+	
 	return !values.empty();
 }
 
