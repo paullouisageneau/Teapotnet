@@ -993,35 +993,35 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						String fileName = request.post["argument"];
 						if(!fileName.empty())
 						{
-							String filePath = path + Directory::Separator + fileName;
+							String fileUrl = url + Directory::Separator + fileName;
 							
-							if(Directory::Exist(filePath))
+							if(Directory::Exist(path))
                                                         {
 								// TODO: recursively delete directories
-								if(Directory::Remove(filePath))
+								if(Directory::Remove(path))
 								{
 									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
-                                                                	statement.bind(1, path);
+                                                                	statement.bind(1, fileUrl);
                                                                 	statement.execute();
 								}
                                                         }
-							else if(File::Exist(filePath))
+							else if(File::Exist(path))
 							{
-								if(File::Remove(filePath))
+								if(File::Remove(path))
 								{
 									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
-									statement.bind(1, path);
+									statement.bind(1, fileUrl);
 									statement.execute();
 								}
 							}
 							
 							// Recursively update parent directories
-							String path = filePath.beforeLast('/');
-							while(!path.empty())
+							fileUrl = fileUrl.beforeLast('/');
+							while(!fileUrl.empty())
 							{
-								update(path);
-								if(!path.contains('/')) break;
-								path = path.beforeLast('/');
+								update(fileUrl);
+								if(!fileUrl.contains('/')) break;
+								fileUrl = fileUrl.beforeLast('/');
 							}
 							update("/");
 						}
@@ -1050,15 +1050,14 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							LogInfo("Indexer::Http", String("Uploaded: ") + fileName);
 							
 							try {
-								String filePath = url + fileName;	// TODO
+								String fileUrl = url + fileName;	// TODO
 								
 								// Recursively update parent directories
-								String path = filePath;
-								while(!path.empty())
+								while(!fileUrl.empty())
 								{
-									update(path);
-									if(!path.contains('/')) break;
-									path = path.beforeLast('/');
+									update(fileUrl);
+									if(!fileUrl.contains('/')) break;
+									fileUrl = fileUrl.beforeLast('/');
 								}
 								update("/");
 								
