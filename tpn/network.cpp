@@ -761,8 +761,11 @@ void Network::onConnected(const Link &link, bool status)
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
-		for(Set<Listener*>::iterator jt = it->second.begin();
-			jt != it->second.end();
+		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+		Desynchronize(this);
+		
+		for(Set<Listener*>::iterator jt = set.begin();
+			jt != set.end();
 			++jt)
 		{
 			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
@@ -779,8 +782,11 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
-		for(Set<Listener*>::iterator jt = it->second.begin();
-			jt != it->second.end();
+		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+		Desynchronize(this);
+		
+		for(Set<Listener*>::iterator jt = set.begin();
+			jt != set.end();
 			++jt)
 		{
 			ret|= (*jt)->recv(link, type, serializer); 
@@ -797,8 +803,11 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it != mListeners.end())
 	{
-		for(Set<Listener*>::iterator jt = it->second.begin();
-			jt != it->second.end();
+		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+		Desynchronize(this);
+		
+		for(Set<Listener*>::iterator jt = set.begin();
+			jt != set.end();
 			++jt)
 		{
 			if(!(*jt)->auth(link, pubKey))
