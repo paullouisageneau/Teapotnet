@@ -993,21 +993,22 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						String fileName = request.post["argument"];
 						if(!fileName.empty())
 						{
-							String fileUrl = url + Directory::Separator + fileName;
+							String filePath = path + Directory::Separator + fileName;
+							String fileUrl  = url + fileName;
 							
-							if(Directory::Exist(path))
+							if(Directory::Exist(filePath))
                                                         {
 								// TODO: recursively delete directories
-								if(Directory::Remove(path))
+								if(Directory::Remove(filePath))
 								{
 									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
                                                                 	statement.bind(1, fileUrl);
                                                                 	statement.execute();
 								}
                                                         }
-							else if(File::Exist(path))
+							else if(File::Exist(filePath))
 							{
-								if(File::Remove(path))
+								if(File::Remove(filePath))
 								{
 									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
 									statement.bind(1, fileUrl);
@@ -1045,13 +1046,13 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							tempFile->close();
 							
 							String filePath = path + Directory::Separator + fileName;
+							String fileUrl  = url + fileName;
+							
 							File::Rename(tempFile->name(), filePath);
 							
 							LogInfo("Indexer::Http", String("Uploaded: ") + fileName);
 							
 							try {
-								String fileUrl = url + fileName;	// TODO
-								
 								// Recursively update parent directories
 								while(!fileUrl.empty())
 								{
@@ -1061,7 +1062,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 								}
 								update("/");
 								
-								Query qry(filePath);
+								Query qry(fileUrl);
 								qry.setFromSelf(true);
 								Resource res;
 								if(!query(qry, res)) throw Exception("Query failed for " + filePath);
