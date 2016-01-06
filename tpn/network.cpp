@@ -84,6 +84,8 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	Assert(caller);
 	
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
+	
+	mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", target));	// immediately send
 	mCallers[target].insert(caller);
 }
 

@@ -465,15 +465,14 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			
 			BinaryString route = getRoute(message.destination);
 			if(route != localNode()) sendTo(message, route);
-			else {
-				Set<BinaryString> values;
-				Store::Instance->retrieveValue(message.destination, values);
-				for(Set<BinaryString>::iterator it = values.begin();
-					it != values.end();
-					++it)
-				{
-					send(Message(Message::Value, *it, message.source, message.destination));
-				}
+			
+			Set<BinaryString> values;
+			Store::Instance->retrieveValue(message.destination, values);
+			for(Set<BinaryString>::iterator it = values.begin();
+				it != values.end();
+				++it)
+			{
+				send(Message(Message::Value, *it, message.source, message.destination));
 			}
 			
 			//push(message);	// useless
