@@ -348,7 +348,7 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 
 bool Indexer::process(String path, Resource &resource)
 {
-	Synchronize(this);
+	// Not synchronized
 	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -449,22 +449,19 @@ bool Indexer::process(String path, Resource &resource)
 	Time time(0);
 	if(!get(path, resource, &time) || time < fileTime)
 	{
-		Desynchronize(this);
-		
 		//LogDebug("Indexer::process", "Changed: " + path + " (time was " + time.toString() + ", now " + fileTime.toString() + ")");
 		LogDebug("Indexer::process", "Processing: " + path);
 		
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
-		
-		yield();
 	}
 	
 	// Mark as seen
 	Database::Statement statement = mDatabase->prepare("UPDATE resources SET seen=1 WHERE path=?1");
 	statement.bind(1, path);
 	statement.execute();
-	
+
+	yield();
 	return true;
 }
 
@@ -1357,9 +1354,9 @@ void Indexer::update(String path)
 				}
 			}
 		}
-		
+	
 		Resource dummy;
-		process(path, dummy);
+		DesynchronizeStatement(this, process(path, dummy));
 	}
 	catch(const Exception &e)
 	{

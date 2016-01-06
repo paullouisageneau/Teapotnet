@@ -31,6 +31,8 @@ namespace tpn
 Database::Database(const String &filename) :
 	mDb(NULL)
 {
+	Assert(sqlite3_threadsafe());
+
 	if(sqlite3_open(filename.c_str(), &mDb) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");	// TODO: close ?
 	

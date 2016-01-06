@@ -120,8 +120,8 @@ void Request::addResult(const Resource::DirectoryRecord &record)
 	
 	if(!mDigests.contains(record.digest))
 	{
-		LogDebug("Request", "Adding result: " + record.digest.toString());
-		
+		LogDebug("Request", "Adding result: " + record.digest.toString() + "(" + record.name + ")");	
+
 		mResults.append(record);
 		mDigests.insert(record.digest);
 		notifyAll();

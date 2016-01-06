@@ -651,7 +651,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 		
 		String truncatedPath(path.substr(prefix.size()));
 		if(truncatedPath.empty()) truncatedPath = "/";
-		
+
 		SerializableList<BinaryString> targets;
 		Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
 		if(it != mPublishers.end())
