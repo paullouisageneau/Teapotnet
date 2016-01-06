@@ -800,7 +800,7 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		
 		// TODO: should be sent once to each instance
 		send(link.node, "invite", ConstObject()
-			.insert("name", name()));
+			.insert("name", mAddressBook->userName()));
 		
 		if(isSelf())
 		{
