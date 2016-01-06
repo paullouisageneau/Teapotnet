@@ -1375,7 +1375,7 @@ String Indexer::realPath(String path) const
 	if(path[0] == '/') path.ignore(1);
 	
 	// Do not accept the parent directory symbol as a security protection
-	if(path.find("..") != String::NotFound) throw Exception("Invalid path: " + path);
+	if(path.find("\\..") != String::NotFound || path.find("..\\") != String::NotFound) throw Exception("Invalid path: " + path);
 	
 	String directory = path;
 	path = directory.cut('/');
