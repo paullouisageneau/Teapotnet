@@ -1045,6 +1045,14 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryStri
 			if(connect(*it, remote))
 				return true;
 		}
+		catch(const Timeout &e)
+		{
+			//LogDebug("Overlay::StreamBackend::connect", e.what());
+		}
+		catch(const NetException &e)
+		{
+			//LogDebug("Overlay::StreamBackend::connect", e.what());
+		}
 		catch(const std::exception &e)
 		{
 			LogDebug("Overlay::StreamBackend::connect", e.what());
@@ -1172,11 +1180,16 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 			
 			return new SecureTransportServer(stream, NULL, true);	// ask for certificate
 		}
+		catch(const Timeout &e)
+		{
+			//LogDebug("Overlay::StreamBackend::listen", e.what());
+		}
 		catch(const std::exception &e)
 		{
 			LogWarn("Overlay::StreamBackend::listen", e.what());
-			delete stream;
 		}
+		
+		delete stream;
 	}
 	
 	return NULL;
@@ -1217,6 +1230,14 @@ bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinarySt
 		try {
 			if(connect(*it, remote))
 				return true;
+		}
+		catch(const Timeout &e)
+		{
+			//LogDebug("Overlay::DatagramBackend::connect", e.what());
+		}
+		catch(const NetException &e)
+		{
+			//LogDebug("Overlay::DatagramBackend::connect", e.what());
 		}
 		catch(const std::exception &e)
 		{

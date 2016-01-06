@@ -777,7 +777,7 @@ void AddressBook::Contact::seen(const Network::Link &link)
 	
 	if(!Network::Instance->hasLink(link))
 	{
-		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is seen");
+		//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is seen");
 		Network::Instance->connect(link.node, link.remote, mAddressBook->user());
 	}
 }

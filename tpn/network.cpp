@@ -1151,7 +1151,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
-	LogDebug("Network::Tunneler::open", "Opening tunnel to " + remote.toString());
+	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + remote.toString());
 	
 	uint64_t tunnelId;
 	Random().readBinary(tunnelId);	// Generate random tunnel ID
@@ -1173,7 +1173,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	transport->setHostname(remote.toString());
 	
 	// Add certificates
-	LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
+	//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
 	transport->addCredentials(user->certificate(), false);
 	
 	return handshake(transport, Link(local, remote, node), async);
@@ -1357,12 +1357,17 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				Handler *handler = new Handler(transport, link);
 				return true;
 			}
+			catch(const Timeout &e)
+			{
+				//LogDebug("Network::Tunneler::handshake", String("Handshake failed: ") + e.what());
+			}
 			catch(const std::exception &e)
 			{
 				LogInfo("Network::Tunneler::handshake", String("Handshake failed: ") + e.what());
-				delete transport;
-				return false;
 			}
+			
+			delete transport;
+			return false;
 		}
 		
 		void run(void)
@@ -1427,7 +1432,7 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mOffset(0),
 	mTimeout(milliseconds(Config::Get("idle_timeout").toInt()))
 {
-	LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
+	//LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
 	if(!mTunneler->registerTunnel(this))
 		throw Exception("Tunnel " + String::hexa(mId) + " is already registered");
 
@@ -1436,7 +1441,7 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 
 Network::Tunneler::Tunnel::~Tunnel(void)
 {
-	LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
+	//LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
 	mTunneler->unregisterTunnel(this);
 }
 

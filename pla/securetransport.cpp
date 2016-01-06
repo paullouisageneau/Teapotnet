@@ -177,7 +177,11 @@ void SecureTransport::handshake(void)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if(ret < 0) throw Exception(String("TLS handshake failed: ") + ErrorString(ret));
+        if(ret < 0) 
+	{
+		if(ret == GNUTLS_E_TIMEDOUT) throw Timeout();
+		else throw Exception(String("TLS handshake failed: ") + ErrorString(ret));
+	}
 	
 	mIsHandshakeDone = true;
 }
