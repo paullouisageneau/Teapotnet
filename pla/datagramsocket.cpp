@@ -505,7 +505,7 @@ void DatagramSocket::registerStream(const Address &addr, DatagramStream *stream)
 	MutexLocker lock(&mStreamsMutex);
 	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr.unmap());
 	if(it != mStreams.end() && it->second != stream) it->second->mSock = NULL;
-	mStreams.insert(addr.unmap(), stream);
+	else mStreams.insert(addr.unmap(), stream);
 }
 
 bool DatagramSocket::unregisterStream(DatagramStream *stream)
