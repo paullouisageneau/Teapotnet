@@ -1010,7 +1010,6 @@ void Overlay::Backend::run(void)
 			LogError("Overlay::Backend::run", e.what());
 			delete transport;
 			delete task;
-			break;
 		}
 	}
 	
