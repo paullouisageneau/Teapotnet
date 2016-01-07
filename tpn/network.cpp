@@ -358,19 +358,20 @@ void Network::run(void)
 							class PushTask : public Task
 							{
 							public:
-								PushTask(const BinaryString target, const Identifier &destination, unsigned count) 
+								PushTask(const BinaryString target, const Identifier &destination, unsigned tokens) 
 								{ 
 									this->target = target;
 									this->destination = destination;
-									this->count = count;
+									this->tokens = tokens;
 								}
 								
 								void run(void)
 								{
 									Fountain::Combination combination;
-									for(unsigned i=0; i<count; ++i)
+									unsigned count = 0;
+									while(count < tokens)
 									{
-										Store::Instance->pull(target, combination);
+										Store::Instance->pull(target, combination, &count);
 										
 										Overlay::Message data(Overlay::Message::Data, "", destination, target);
 										BinarySerializer serializer(&data.content);
@@ -379,7 +380,7 @@ void Network::run(void)
 										
 										Network::Instance->overlay()->send(data);
 										
-										if(i >= combination.componentsCount())
+										if(count >= combination.componentsCount())
 											break;
 									}
 									
@@ -390,11 +391,11 @@ void Network::run(void)
 								Overlay *overlay;
 								BinaryString target;
 								Identifier destination;
-								unsigned count;
+								unsigned tokens;
 							};
 							
-							const unsigned count = 1024;	// TODO
-							mThreadPool.launch(new PushTask(message.content, message.source, count));
+							const unsigned tokens = 1024;	// TODO
+							mThreadPool.launch(new PushTask(message.content, message.source, tokens));
 						}
 						else {
 							LogDebug("Network::run", "Called (unknown) " + message.content.toString());

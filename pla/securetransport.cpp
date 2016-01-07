@@ -386,8 +386,11 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 {
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
-		ssize_t ret = st->mStream->readData(static_cast<char*>(data), maxlen);
-		st->mStream->nextRead();
+		ssize_t ret;
+		do {
+			ret = st->mStream->readData(static_cast<char*>(data), maxlen);
+		}
+		while(st->mStream->nextRead() && ret == 0);
 		gnutls_transport_set_errno(st->mSession, 0);
 		return ret;
 	}
