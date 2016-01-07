@@ -66,7 +66,7 @@ public:
 	bool wait(double &timeout);
 	
 	void accept(DatagramStream &stream);
-	void registerStream(const Address &addr, DatagramStream *stream);
+	void registerStream(DatagramStream *stream);
 	bool unregisterStream(DatagramStream *stream);
 	
 private:
@@ -77,7 +77,7 @@ private:
 	int mPort;
 
 	// Mapped streams
-	Map<Address, DatagramStream*> mStreams;
+	Map<Address, Set<DatagramStream*> > mStreams;
 	Mutex mStreamsMutex;
 };
 

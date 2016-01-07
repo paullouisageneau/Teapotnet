@@ -329,14 +329,22 @@ void DatagramSocket::close(void)
 {
 	MutexLocker lock(&mStreamsMutex);
 	
-	for(Map<Address, DatagramStream*>::iterator it = mStreams.begin();
+	for(Map<Address, Set<DatagramStream*> >::iterator it = mStreams.begin();
 		it != mStreams.end();
 		++it)
 	{
-		it->second->mSock = NULL;
-		it->second->mSync.notifyAll();
+		for(Set<DatagramStream*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			Synchronize(&(*jt)->mSync);
+			(*jt)->mSock = NULL;
+			(*jt)->mSync.notifyAll();
+		}
 	}
 
+	mStreams.clear();
+	
 	if(mSock != INVALID_SOCKET)
 	{
 		::closesocket(mSock);
@@ -455,7 +463,7 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 		
 		MutexLocker lock(&mStreamsMutex);
-		Map<Address, DatagramStream*>::iterator it = mStreams.find(sender.unmap());
+		Map<Address, Set<DatagramStream*> >::iterator it = mStreams.find(sender.unmap());
 		if(it == mStreams.end())
 		{
 			result = std::min(result, int(size));
@@ -466,13 +474,19 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 			break;
 		}
 		
-		DatagramStream *stream = it->second;
-		Assert(stream);
-
-		Synchronize(&stream->mSync);
-		if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
-			stream->mIncoming.push(BinaryString(datagramBuffer, size_t(result)));
-		stream->mSync.notifyAll();
+		BinaryString tmp(datagramBuffer, size_t(result));
+		for(Set<DatagramStream*>::iterator jt = it->second.begin();
+			jt != it->second.end();
+			++jt)
+		{
+			DatagramStream *stream = *jt;
+			Assert(stream);
+			Synchronize(&stream->mSync);
+			
+			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
+				stream->mIncoming.push(tmp);
+			stream->mSync.notifyAll();
+		}
 		
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 	}
@@ -499,23 +513,24 @@ void DatagramSocket::accept(DatagramStream &stream)
 	std::swap(stream.mBuffer, buffer);
 }
 
-void DatagramSocket::registerStream(const Address &addr, DatagramStream *stream)
+void DatagramSocket::registerStream(DatagramStream *stream)
 {
 	Assert(stream);
+	Address addr(stream->mAddr.unmap());
+	
 	MutexLocker lock(&mStreamsMutex);
-	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr.unmap());
-	if(it != mStreams.end() && it->second != stream) it->second->mSock = NULL;
-	else mStreams.insert(addr.unmap(), stream);
+	mStreams[addr].insert(stream);
 }
 
 bool DatagramSocket::unregisterStream(DatagramStream *stream)
 {
 	Assert(stream);
+	Address addr(stream->mAddr.unmap());
+	
 	MutexLocker lock(&mStreamsMutex);
-	Map<Address, DatagramStream*>::iterator it = mStreams.find(stream->mAddr.unmap());
-	if(it == mStreams.end() || it->second != stream) return false;
-	mStreams.erase(it);
-	return true;
+	mStreams[addr].erase(stream);
+	if(mStreams[addr].empty())
+		mStreams.erase(addr);
 }
 
 double DatagramStream::DefaultTimeout = 60.; // 1 min
@@ -536,7 +551,7 @@ DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 	mTimeout(DefaultTimeout)
 {
 	Assert(mSock);
-	mSock->registerStream(addr, this);
+	mSock->registerStream(this);
 }
 
 DatagramStream::~DatagramStream(void)
@@ -610,7 +625,6 @@ bool DatagramStream::nextRead(void)
 
 bool DatagramStream::nextWrite(void)
 {
-	Synchronize(&mSync);
 	mSock->write(mBuffer.data(), mBuffer.size(), mAddr);
 	mBuffer.clear();
 	return true;
