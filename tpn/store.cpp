@@ -342,10 +342,11 @@ void Store::run(void)
 				
 				for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
 					Network::Instance->storeValue(*it, node);
+				
+				Thread::Sleep(delay);
 			}
 			
 			offset+= result.size();
-			Thread::Sleep(delay);
 		}
 		
 		LogDebug("Store::run", "Finished, " + String::number(offset) + " values published");
