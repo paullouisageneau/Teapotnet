@@ -350,7 +350,7 @@ ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const v
 	try {
 		Stream *s = static_cast<Stream*>(ptr);
 		s->writeData(static_cast<const char*>(data), len);
-		if(s->nextWrite()) yield();
+		s->nextWrite();
 		return ssize_t(len);
 	}
 	catch(const std::exception &e)
@@ -365,7 +365,7 @@ ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* d
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
 	try {
 		st->mStream->writeData(static_cast<const char*>(data), len);
-		if(st->mStream->nextWrite()) yield();
+		st->mStream->nextWrite();
 		gnutls_transport_set_errno(st->mSession, 0);
 		return ssize_t(len);
 	}
