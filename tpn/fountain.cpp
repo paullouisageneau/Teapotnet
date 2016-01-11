@@ -518,8 +518,8 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *tokens)
 		if(*tokens > count) 
 			*tokens = count;
 		
-		const unsigned max = 4;
-		first = first + count - *tokens;
+		const unsigned max = 8;
+		first = Random().uniform(unsigned(0), count);
 		count = std::min(count, max);
 		if(first > count) first-= count;
 		else first = 0;
@@ -589,8 +589,8 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
 		if(*tokens > count) 
 			*tokens = count;
 		
-		const unsigned max = 4;
-		first = first + count - *tokens;
+		const unsigned max = 8;
+		first = Random().uniform(unsigned(0), count);
 		count = std::min(count, max);
 		if(first > count) first-= count;
 		else first = 0;
