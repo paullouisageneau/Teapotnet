@@ -1722,15 +1722,13 @@ void Network::Pusher::run(void)
 			
 			while(mTargets.empty()) wait();
 			
-			for(Map<BinaryString, Map<Identifier, unsigned> >::iterator it = mTargets.begin();
-				it != mTargets.end();
-				++it)
+			Map<BinaryString, Map<Identifier, unsigned> >::iterator it = mTargets.begin();
+			while(it != mTargets.end())
 			{
 				const BinaryString &target = it->first;
 				
-				for(Map<Identifier, unsigned>::iterator jt = it->second.begin();
-					jt != it->second.end();
-					++jt)
+				Map<Identifier, unsigned>::iterator jt = it->second.begin();
+				while(jt != it->second.end())
 				{
 					const Identifier &destination = jt->first;
 					unsigned &tokens = jt->second;
@@ -1750,13 +1748,12 @@ void Network::Pusher::run(void)
 						tokens = std::min(tokens-1, combination.componentsCount());
 					}
 					
-					if(!tokens)
-					{
-						mTargets[target].erase(destination);
-						if(mTargets[target].empty())
-							mTargets.erase(target);
-					}
+					if(!tokens) it->second.erase(jt++);
+					else ++jt;
 				}
+				
+				if(it->second.empty()) mTargets.erase(it++);
+				else ++it;
 			}
 		}
 		catch(const std::exception &e)
