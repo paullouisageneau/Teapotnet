@@ -328,6 +328,21 @@ private:
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, RemoteSubscriber> > mRemoteSubscribers;
 	
+	class Pusher : protected Synchronizable, public Thread
+	{
+	public:
+		Pusher(void);
+		~Pusher(void);
+		
+		void push(const BinaryString &target, const Identifier &destination, unsigned tokens);
+		void run(void);
+		
+	private:
+		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
+	};
+	
+	Pusher mPusher;
+	
 	friend class Handler;
 };
 

@@ -55,14 +55,14 @@ void Network::start(void)
 {
 	mOverlay.start();
 	mTunneler.start();
-	
+	mPusher.start();
 	Thread::start();
 }
 
 void Network::join(void)
 {
 	Thread::join();
-	
+	mPusher.join();
 	mTunneler.join();
 	mOverlay.join();
 }
@@ -354,48 +354,9 @@ void Network::run(void)
 						if(Store::Instance->hasBlock(message.content))
 						{
 							LogDebug("Network::run", "Called " + message.content.toString());
-
-							class PushTask : public Task
-							{
-							public:
-								PushTask(const BinaryString target, const Identifier &destination, unsigned tokens) 
-								{ 
-									this->target = target;
-									this->destination = destination;
-									this->tokens = tokens;
-								}
-								
-								void run(void)
-								{
-									Fountain::Combination combination;
-									unsigned count = 0;
-									while(count < tokens)
-									{
-										Store::Instance->pull(target, combination, &count);
-										
-										Overlay::Message data(Overlay::Message::Data, "", destination, target);
-										BinarySerializer serializer(&data.content);
-										serializer.write(combination);
-										data.content.writeBinary(combination.data(), combination.codedSize());
-										
-										Network::Instance->overlay()->send(data);
-										
-										if(count >= combination.componentsCount())
-											break;
-									}
-									
-									delete this;	// autodelete
-								}
-								
-							private:
-								Overlay *overlay;
-								BinaryString target;
-								Identifier destination;
-								unsigned tokens;
-							};
 							
 							const unsigned tokens = 1024;	// TODO
-							mThreadPool.launch(new PushTask(message.content, message.source, tokens));
+							mPusher.push(message.content, message.source, tokens);
 						}
 						else {
 							LogDebug("Network::run", "Called (unknown) " + message.content.toString());
@@ -1727,6 +1688,82 @@ void Network::Handler::run(void)
 	notifyAll();
 	Thread::Sleep(10.);	// TODO
 	delete this;		// autodelete
+}
+
+Network::Pusher::Pusher(void)
+{
+	
+}
+
+Network::Pusher::~Pusher(void)
+{
+	
+}
+
+void Network::Pusher::push(const BinaryString &target, const Identifier &destination, unsigned tokens)
+{
+	Synchronize(this);
+	
+	if(tokens) mTargets[target][destination] = tokens;
+	else {
+		mTargets[target].erase(destination);
+		if(mTargets[target].empty())
+			mTargets.erase(target);
+	}
+	notifyAll();
+}
+
+void Network::Pusher::run(void)
+{
+	while(true)
+	{
+		try {
+			Synchronize(this);
+			
+			while(mTargets.empty()) wait();
+			
+			for(Map<BinaryString, Map<Identifier, unsigned> >::iterator it = mTargets.begin();
+				it != mTargets.end();
+				++it)
+			{
+				const BinaryString &target = it->first;
+				
+				for(Map<Identifier, unsigned>::iterator jt = it->second.begin();
+					jt != it->second.end();
+					++jt)
+				{
+					const Identifier &destination = jt->first;
+					unsigned &tokens = jt->second;
+					
+					if(tokens)
+					{
+						Fountain::Combination combination;
+						Store::Instance->pull(target, combination);
+						
+						Overlay::Message data(Overlay::Message::Data, "", destination, target);
+						BinarySerializer serializer(&data.content);
+						serializer.write(combination);
+						data.content.writeBinary(combination.data(), combination.codedSize());
+						
+						Network::Instance->overlay()->send(data);
+						
+						tokens = std::min(tokens-1, combination.componentsCount());
+					}
+					
+					if(!tokens)
+					{
+						mTargets[target].erase(destination);
+						if(mTargets[target].empty())
+							mTargets.erase(target);
+					}
+				}
+			}
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("Network::Pusher::run", e.what());
+		}
+	}
 }
 
 }
