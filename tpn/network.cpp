@@ -1736,7 +1736,7 @@ void Network::Pusher::run(void)
 					if(tokens)
 					{
 						Fountain::Combination combination;
-						Store::Instance->pull(target, combination);
+						Store::Instance->pull(target, combination, &tokens);
 						
 						Overlay::Message data(Overlay::Message::Data, "", destination, target);
 						BinarySerializer serializer(&data.content);
@@ -1744,8 +1744,6 @@ void Network::Pusher::run(void)
 						data.content.writeBinary(combination.data(), combination.codedSize());
 						
 						Network::Instance->overlay()->send(data);
-						
-						tokens = std::min(tokens-1, combination.componentsCount());
 					}
 					
 					if(!tokens) it->second.erase(jt++);

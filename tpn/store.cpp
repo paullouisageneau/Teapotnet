@@ -104,7 +104,7 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *counter)
+bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens)
 {
 	Synchronize(this);
   
@@ -113,7 +113,7 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 	if(!file) return false;
 	
 	Fountain::FileSource source(file, file->tellRead(), size);
-	source.generate(output, counter);
+	source.generate(output, tokens);
 	return true;
 }
 

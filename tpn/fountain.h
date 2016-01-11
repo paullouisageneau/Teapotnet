@@ -116,7 +116,7 @@ public:
 	class Source
 	{
 	public:
-		virtual bool generate(Combination &output, unsigned *counter = NULL) = 0;	// Generate combination
+		virtual bool generate(Combination &output, unsigned *tokens = NULL) = 0;	// Generate combination
         };
 	
 	class DataSource : public Source
@@ -128,7 +128,7 @@ public:
 		unsigned write(const char *data, size_t size);
 		
 		unsigned count(void) const;
-		bool generate(Combination &result, unsigned *counter = NULL);
+		bool generate(Combination &result, unsigned *tokens = NULL);
 		unsigned drop(unsigned nextSeen);
 
 	private:
@@ -143,7 +143,7 @@ public:
 		FileSource(File *file, int64_t offset, int64_t size);	// file will be deleted
 		~FileSource(void);
 		
-		bool generate(Combination &result, unsigned *counter = NULL);
+		bool generate(Combination &result, unsigned *tokens = NULL);
 		
 	private:
 		File *mFile;

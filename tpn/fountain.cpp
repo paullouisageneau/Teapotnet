@@ -508,20 +508,23 @@ unsigned Fountain::DataSource::count(void) const
 	return unsigned(mComponents.size());
 }
 
-bool Fountain::DataSource::generate(Combination &result, unsigned *counter)
+bool Fountain::DataSource::generate(Combination &result, unsigned *tokens)
 {
 	unsigned first = mFirstComponent;
 	unsigned count = mComponents.size();
 	
-	if(counter)
+	if(tokens && *tokens)
 	{
-		*counter = std::max(*counter, first);
-		if(*counter < first+count)
-		{	
-			first = *counter;
-			count = 1;
-			++*counter;
-		}
+		if(*tokens > count) 
+			*tokens = count;
+		
+		const unsigned max = 4;
+		first = first + count - *tokens;
+		count = std::min(count, max);
+		if(first > count) first-= count;
+		else first = 0;
+		
+		--*tokens;
 	}
 	
 	result.clear();
@@ -575,21 +578,24 @@ Fountain::FileSource::~FileSource(void)
 	delete mFile;
 }
 
-bool Fountain::FileSource::generate(Combination &result, unsigned *counter)
+bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
 {
 	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
 	unsigned first = 0;
 	unsigned count = chunks;
 	
-	if(counter)
+	if(tokens && *tokens)
 	{
-		*counter = std::max(*counter, first);
-		if(*counter < first+count)
-		{	
-			first = *counter;
-			count = 1;
-			++*counter;
-		}
+		if(*tokens > count) 
+			*tokens = count;
+		
+		const unsigned max = 4;
+		first = first + count - *tokens;
+		count = std::min(count, max);
+		if(first > count) first-= count;
+		else first = 0;
+		
+		--*tokens;
 	}
 	
 	// Seek
