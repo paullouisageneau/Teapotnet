@@ -329,7 +329,7 @@ void Store::run(void)
 			}
 			
 			// Select DHT values
-			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY digest LIMIT ?1 OFFSET ?2");
+			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY time DESC LIMIT ?1 OFFSET ?2");
 			statement.bind(1, batch);
 			statement.bind(2, offset);
 			
