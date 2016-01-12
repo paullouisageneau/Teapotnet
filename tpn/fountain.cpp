@@ -515,19 +515,16 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *tokens)
 	
 	if(tokens && *tokens)
 	{
-		if(*tokens > count) 
-			*tokens = count;
+		if(*tokens > count) *tokens = count;
+		--*tokens;
 		
 		const unsigned max = 16;	// TODO
-		first = Random().uniform(unsigned(0), count);
+		first = Random().uniform(unsigned(0), count + max);
 		count = std::min(count, max);
-		if(first > count) first-= count;
-		else first = 0;
-		
-		if(first + count > mFirstComponent + mComponents.size()) 
-			count-= first + count - (mFirstComponent + mComponents.size());
-		
-		--*tokens;
+		if(first < max) first = 0;
+		else first-= max;
+		if(first > mComponents.size() - count)
+			first = mComponents.size() - count;
 	}
 	
 	result.clear();
@@ -589,19 +586,16 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
 	
 	if(tokens && *tokens)
 	{
-		if(*tokens > count) 
-			*tokens = count;
+		if(*tokens > count) *tokens = count;
+		--*tokens;
 		
 		const unsigned max = 16;	// TODO
-		first = Random().uniform(unsigned(0), count);
+		first = Random().uniform(unsigned(0), count + max);
 		count = std::min(count, max);
-		if(first > count) first-= count;
-		else first = 0;
-		
-		if(first + count > chunks)
-			count-= first + count - chunks;
-		
-		--*tokens;
+		if(first < max) first = 0;
+		else first-= max;
+		if(first > chunks - count)
+			first = chunks - count;
 	}
 	
 	// Seek
