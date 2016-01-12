@@ -417,7 +417,7 @@ int run(String &commandLine, StringMap &args)
 	Config::Default("retransmit_timeout", "500");
 	Config::Default("min_connections", "8");
 	Config::Default("max_connections", "256");
-	Config::Default("store_max_age", "3600");	// seconds
+	Config::Default("store_max_age", "21600");	// 6h
 	Config::Default("user_global_shares", "true");
 	
 #ifdef ANDROID

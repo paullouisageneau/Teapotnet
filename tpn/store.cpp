@@ -63,7 +63,8 @@ Store::Store(void)
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
 	
 	// Store is scheduled by Overlay on first connection
-	Scheduler::Global->repeat(this, 600.);
+	const double period = 3600.;	// 1h
+	Scheduler::Global->repeat(this, period);
 }
 
 Store::~Store(void)
@@ -298,9 +299,9 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 void Store::run(void)
 {	
 	Synchronize(this);
- 
+	
 	const double maxAge = Config::Get("store_max_age").toDouble();
-	const double delay = 1.;	// TODO
+	const double delay = 0.1;	// TODO
 	const int batch = 10;		// TODO
 	
 	BinaryString node;
