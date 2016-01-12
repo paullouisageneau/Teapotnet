@@ -277,7 +277,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 			if(async)
 			{
 				task = new ConnectTask(mBackends, filteredAddrs, remote);
-				mThreadPool.launch(task);
+				launch(task);
 				return true;
 			}
 			else {
@@ -403,6 +403,11 @@ void Overlay::run(void)
 	if(track(Config::Get("tracker"), addrs))
 		if(connectionsCount() < Config::Get("min_connections").toInt())
 			connect(addrs);
+}
+
+void Overlay::launch(Task *task)
+{
+	mThreadPool.launch(task);
 }
 
 bool Overlay::incoming(Message &message, const BinaryString &from)
@@ -707,7 +712,7 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	}
 	
 	mHandlers.insert(node, handler);
-	mThreadPool.launch(handler);
+	launch(handler);
 	
 	// On first connection, schedule store to publish in DHT
 	if(mHandlers.size() == 1)
@@ -1003,7 +1008,7 @@ void Overlay::Backend::run(void)
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 			
 			task = new HandshakeTask(this, transport, addr);
-			mThreadPool.launch(task);
+			mOverlay->launch(task);
 		}
 		catch(const std::exception &e)
 		{
@@ -1301,7 +1306,8 @@ void Overlay::DatagramBackend::getAddresses(Set<Address> &set) const
 Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr) :
 	mOverlay(overlay),
 	mStream(stream),
-	mNode(node)
+	mNode(node),
+	mTimeoutTask(this)
 {
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
@@ -1310,11 +1316,16 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 		throw Exception("A handler already exists for the same flow");
 	
 	addAddress(addr);
+	
+	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
+	Scheduler::Global->schedule(&mTimeoutTask, timeout);
+	Scheduler::Global->repeat(&mTimeoutTask, timeout);
 }
 
 Overlay::Handler::~Handler(void)
 {
 	Synchronize(this);
+	Scheduler::Global->cancel(&mTimeoutTask);
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
 	delete mStream;
 }
@@ -1382,6 +1393,9 @@ bool Overlay::Handler::send(const Message &message)
 {
 	Synchronize(this);
 	
+	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
+	Scheduler::Global->schedule(&mTimeoutTask, timeout);
+	
 	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
 	
 	try {
@@ -1416,6 +1430,11 @@ bool Overlay::Handler::send(const Message &message)
 	}
 	
 	return true;
+}
+
+void Overlay::Handler::timeout(void)
+{
+	send(Message(Message::Dummy));
 }
 
 void Overlay::Handler::addAddress(const Address &addr)

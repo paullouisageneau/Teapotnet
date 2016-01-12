@@ -414,6 +414,7 @@ int run(String &commandLine, StringMap &args)
 	Config::Default("connect_timeout", "10000");
 	Config::Default("idle_timeout", "60000");
 	Config::Default("request_timeout", "30000");
+	Config::Default("keepalive_timeout", "10000");
 	Config::Default("retransmit_timeout", "500");
 	Config::Default("min_connections", "8");
 	Config::Default("max_connections", "256");

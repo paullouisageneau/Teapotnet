@@ -127,6 +127,7 @@ public:
 	bool retrieve(const BinaryString &key, Set<BinaryString> &values);
 	
 	void run(void);
+	void launch(Task *task);
 	
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
@@ -158,7 +159,6 @@ private:
 		void run(void);
 
 		Overlay *mOverlay;
-		ThreadPool mThreadPool;
 	};
 	
 	class StreamBackend : public Backend
@@ -202,6 +202,7 @@ private:
 		
 		bool recv(Message &message);
 		bool send(const Message &message);
+		void timeout(void);
 		void addAddress(const Address &addr);
 		
 	private:
@@ -212,6 +213,22 @@ private:
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
+		
+		class TimeoutTask : public Task
+		{
+		public:
+			TimeoutTask(Handler *h) : handler(h) {}
+			
+			void run(void)
+			{
+				handler->timeout();
+			}
+			
+		private:
+			Handler *handler;
+		};
+		
+		TimeoutTask mTimeoutTask;
 	};
 
 	bool registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
