@@ -142,6 +142,7 @@ private:
 	bool sendTo(const Message &message, const BinaryString &to);
 	BinaryString getRoute(const BinaryString &destination, const BinaryString &from = "");
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
+	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
 	
 	class Backend : public Thread
 	{

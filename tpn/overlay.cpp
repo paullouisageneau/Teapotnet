@@ -599,31 +599,31 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	// If no route or dead end
 	if(route.empty() || route == from)
 	{
-		Array<BinaryString> routes;
-		getRoutes(message.destination, 0, routes);
+		Array<BinaryString> neigh;
+		getRoutes(message.destination, 0, neigh);
 		
 		int index = 0;
 		if(route.empty())
 		{
-			if(index < routes.size() && (routes[index] == from || routes[index] == localNode()))
+			if(index < neigh.size() && (neigh[index] == from || neigh[index] == localNode()))
 				++index;
 		}
 		else {	// route == from
-			while(index < routes.size() && routes[index] != from)
+			while(index < neigh.size() && neigh[index] != from)
 				++index;
-			if(index < routes.size())
+			if(index < neigh.size())
 				++index;
-			if(index < routes.size() && routes[index] == localNode())
+			if(index < neigh.size() && neigh[index] == localNode())
 				++index;
 		}
 		
-		if(index == routes.size())
+		if(index == neigh.size())
 		{
 			mRoutes.erase(message.destination);
 			return false;
 		}
 		
-		route = routes[index];
+		route = neigh[index];
 		mRoutes.insert(message.destination, route);
 	}
 	
@@ -688,6 +688,23 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 {
 	Synchronize(this);
 	
+	getNeighbors(destination, result);
+	
+	if(count > 0 && result.size() > count)
+		result.resize(count);
+	
+	if(count > 1)
+		for(int i=0; i<result.size(); ++i)
+			if(result[i] == localNode())
+				result.resize(i+1);
+		
+	return result.size();
+}
+
+int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
+{
+	Synchronize(this);
+	
 	Map<BinaryString, BinaryString> sorted;
 	sorted.insert(destination ^ localNode(), localNode());
 	
@@ -697,11 +714,6 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
 	
 	sorted.getValues(result);
-	if(count > 0 && result.size() > count) result.resize(count);
-	for(int i=0; i<result.size(); ++i)
-		if(result[i] == localNode())
-			result.resize(i+1);
-	
 	return result.size();
 }
 
