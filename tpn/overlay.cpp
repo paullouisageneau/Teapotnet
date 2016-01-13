@@ -706,12 +706,10 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 	return result.size();
 }
 
-bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
+void Overlay::registerHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
 {
 	Synchronize(this);
-	
-	if(!handler) 
-		return false;
+	Assert(handler);
 	
 	mRemoteAddresses.insert(addr);
 	
@@ -730,16 +728,12 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	// On first connection, schedule store to publish in DHT
 	if(mHandlers.size() == 1)
 		Scheduler::Global->schedule(Store::Instance); 
-	
-	return true;
 }
 
-bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
+void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
 	Synchronize(this);
-	
-	if(!handler)
-		return false;
+	Assert(handler);
 	
 	mOtherHandlers.erase(handler);
 	
@@ -755,8 +749,6 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 	// If it was the last handler, try to reconnect now
 	if(mHandlers.empty())
 		Scheduler::Global->schedule(this);
-
-	return true;
 }
 
 bool Overlay::track(const String &tracker, Set<Address> &result)
@@ -1332,11 +1324,9 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
 	
-	if(!mOverlay->registerHandler(mNode, addr, this))
-		throw Exception("A handler already exists for the same flow");
-	
 	addAddress(addr);
-	
+	mOverlay->registerHandler(mNode, addr, this);
+
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
 	Scheduler::Global->schedule(&mTimeoutTask, timeout);
 	Scheduler::Global->repeat(&mTimeoutTask, timeout);

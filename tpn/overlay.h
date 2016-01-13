@@ -233,8 +233,8 @@ private:
 		TimeoutTask mTimeoutTask;
 	};
 
-	bool registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
-	bool unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
+	void registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
+	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 	
 	bool track(const String &tracker, Set<Address> &result);
 	
