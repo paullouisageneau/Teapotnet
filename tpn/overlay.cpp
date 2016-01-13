@@ -715,13 +715,15 @@ bool Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	
 	mRemoteAddresses.insert(addr);
 	
+	Set<Address> otherAddrs;
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
-		DesynchronizeStatement(this, h->addAddress(addr));
-		return (h == handler);
+		h->getAddresses(otherAddrs);
+		mOtherHandlers.insert(h);
 	}
 	
+	handler->addAddresses(otherAddrs);
 	mHandlers.insert(node, handler);
 	launch(handler);
 	
@@ -739,14 +741,16 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 	if(!handler)
 		return false;
 	
+	mOtherHandlers.erase(handler);
+	
 	Handler *h = NULL;
-	if(!mHandlers.get(node, h) || h != handler)
-		return false;
-	
-	for(Set<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
-		mRemoteAddresses.erase(*it);
-	
-	mHandlers.erase(node);
+	if(mHandlers.get(node, h) && h == handler)
+	{
+		for(Set<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
+			mRemoteAddresses.erase(*it);
+		
+		mHandlers.erase(node);
+	}
 
 	// If it was the last handler, try to reconnect now
 	if(mHandlers.empty())
@@ -1457,6 +1461,18 @@ void Overlay::Handler::addAddress(const Address &addr)
 {
 	Synchronize(this);
 	mAddrs.insert(addr);
+}
+
+void Overlay::Handler::addAddresses(const Set<Address> &addrs)
+{
+	Synchronize(this);
+	mAddrs.insertAll(addrs);
+}
+
+void Overlay::Handler::getAddresses(Set<Address> &set) const
+{
+	Synchronize(this);
+	set = mAddrs;
 }
 
 void Overlay::Handler::process(void)

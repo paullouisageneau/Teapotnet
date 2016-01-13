@@ -204,6 +204,8 @@ private:
 		bool send(const Message &message);
 		void timeout(void);
 		void addAddress(const Address &addr);
+		void addAddresses(const Set<Address> &addrs);
+		void getAddresses(Set<Address> &set) const;
 		
 	private:
 		void process(void);
@@ -246,6 +248,7 @@ private:
 
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
+	Set<Handler*> mOtherHandlers;
 	Set<Address> mRemoteAddresses;
 	
 	Queue<Message> mIncoming;
