@@ -1341,8 +1341,8 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 Overlay::Handler::~Handler(void)
 {
 	Synchronize(this);
-	Scheduler::Global->cancel(&mTimeoutTask);
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
+	Scheduler::Global->cancel(&mTimeoutTask);		// should be done too
 	delete mStream;
 }
 
@@ -1487,6 +1487,7 @@ void Overlay::Handler::run(void)
 	}
 	
 	mOverlay->unregisterHandler(mNode, mAddrs, this);
+	Scheduler::Global->cancel(&mTimeoutTask);
 	
 	notifyAll();
 	Thread::Sleep(10.);	// TODO
