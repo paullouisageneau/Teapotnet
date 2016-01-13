@@ -149,7 +149,6 @@ void Overlay::start(void)
 	}
 	
 	Scheduler::Global->schedule(this);
-	Scheduler::Global->repeat(this, 60.);	// 1 min
 }
 
 void Overlay::join(void)
@@ -391,18 +390,30 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 
 void Overlay::run(void)
 {
-	SerializableSet<Address> addrs;
-	Config::GetExternalAddresses(addrs);	// TODO: external address discovery by other nodes
-	if(!addrs.empty())
-	{
-		BinaryString content;
-		BinarySerializer(&content).write(addrs);
-		broadcast(Message(Message::Offer, content));
-	}
+	try {
+		const int minConnectionsCount = Config::Get("min_connections").toInt();
+
+		SerializableSet<Address> addrs;
+		Config::GetExternalAddresses(addrs);	// TODO: external address discovery by other nodes
+		if(!addrs.empty())
+		{
+			BinaryString content;
+			BinarySerializer(&content).write(addrs);
+			broadcast(Message(Message::Offer, content));
+		}
 	
-	if(track(Config::Get("tracker"), addrs))
-		if(connectionsCount() < Config::Get("min_connections").toInt())
-			connect(addrs);
+		if(track(Config::Get("tracker"), addrs))
+			if(connectionsCount() < minConnectionsCount)
+				connect(addrs);
+
+		if(connectionsCount() < minConnectionsCount) Scheduler::Global->schedule(this, Random().uniform(0.,120.));	// avg 1 min
+		else Scheduler::Global->schedule(this, 600.);   // 10 min
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Overlay::run", e.what());
+		Scheduler::Global->schedule(this, 60.);   // 1 min	
+	}
 }
 
 void Overlay::launch(Task *task)
@@ -736,6 +747,11 @@ bool Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 		mRemoteAddresses.erase(*it);
 	
 	mHandlers.erase(node);
+
+	// If it was the last handler, try to reconnect now
+	if(mHandlers.empty())
+		Scheduler::Global->schedule(this);
+
 	return true;
 }
 

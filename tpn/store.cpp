@@ -274,7 +274,7 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	statement.finalize();
 	
 	// Also look for digest in blocks in case map is not up-to-date
-	statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
+	statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
 	statement.bind(1, key);
 	if(statement.step())
 		DesynchronizeStatement(this, values.insert(Network::Instance->overlay()->localNode()));
@@ -287,7 +287,7 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 {
 	Synchronize(this);
 	
-	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2");
+	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
 	statement.bind(1, key);
 	statement.bind(2, value);
 	

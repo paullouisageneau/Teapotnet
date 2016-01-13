@@ -268,14 +268,16 @@ void Interface::http(const String &prefix, Http::Request &request)
 					response.send();
 					return;
 				}
-				
+			
+				User *user = getAuthenticatedUser(request);
+	
 				Http::Response response(request, 200);
 				response.send();
 				
 				Html page(response.stream);
 				page.header("Browse files");
 				page.open("div","topmenu");
-				page.link(prefix+"/search/", "Search", ".button");
+				if(user) page.link(user->urlPrefix()+"/search/", "Search", ".button");
 				page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 				page.close("div");
 				
