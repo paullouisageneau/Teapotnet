@@ -42,6 +42,7 @@ public:
 	static void Default(const String &key, const String &value);
 	static void Load(const String &filename);
 	static void Save(const String &filename);
+	static void Clear(void);
 
 	static bool IsUpdateAvailable(void);
 	static bool CheckUpdate(void);

@@ -398,6 +398,11 @@ int run(String &commandLine, StringMap &args)
 	const String configFileName = "config.txt";	// TODO: also defined in core.cpp
 	if(File::Exist(configFileName)) Config::Load(configFileName);
 
+	// --- Reset config from old version ---
+	if(Config::Get("tracker") == "teapotnet.org")
+		Config::Clear();
+	// ---
+
 	Config::Default("tracker", "https://teapotnet.org");
 	Config::Default("port", "8080");
 	Config::Default("interface_port", "8480");

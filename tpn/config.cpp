@@ -35,36 +35,34 @@ bool Config::UpdateAvailableFlag = false;
 
 String Config::Get(const String &key)
 {
-	ParamsMutex.lock();
+	MutexLocker lock(&ParamsMutex);
+
 	String value;
 	if(Params.get(key, value))
-	{
-	 	 ParamsMutex.unlock();
 		return value;
-	}
 	
-	ParamsMutex.unlock();
 	//throw Exception("Config: no entry for \""+key+"\"");
 	return "";
 }
 
 void Config::Put(const String &key, const String &value)
 {
-  	ParamsMutex.lock();
+	MutexLocker lock(&ParamsMutex);
+
 	Params.insert(key, value);
-	ParamsMutex.unlock();
 }
 
 void Config::Default(const String &key, const String &value)
 {
-	ParamsMutex.lock();
+	MutexLocker lock(&ParamsMutex);
+
 	if(!Params.contains(key)) Params.insert(key, value);
-	ParamsMutex.unlock();
 }
 
 void Config::Load(const String &filename)
 {
-	ParamsMutex.lock();
+	MutexLocker lock(&ParamsMutex);
+
 	try {
 		File file(filename, File::Read);
 		file.read(Params);
@@ -74,23 +72,22 @@ void Config::Load(const String &filename)
 	{
 		LogError("Config", String("Unable to load config: ") + e.what());
 	}
-	ParamsMutex.unlock();
 }
 
 void Config::Save(const String &filename)
 {
-	ParamsMutex.lock();
-	try {
-		File file(filename, File::Truncate);
-		file.write(Params);
-		file.close();
-	}
-	catch(...)
-	{
-		ParamsMutex.unlock();
-		throw;
-	}
-	ParamsMutex.unlock();
+	MutexLocker lock(&ParamsMutex);
+	
+	File file(filename, File::Truncate);
+	file.write(Params);
+	file.close();
+}
+
+void Config::Clear(void)
+{
+	MutexLocker lock(&ParamsMutex);
+
+	Params.clear();
 }
 
 void Config::GetExternalAddresses(Set<Address> &set)
