@@ -415,17 +415,27 @@ bool Indexer::process(String path, Resource &resource)
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		
-		// Iterate on
-		BinarySerializer serializer(&tempFile);
+		// Iterate on files and order them by name
+		StringMap sorted;
 		Directory dir(realPath);
 		while(dir.nextFile())
 		{
-			String subPath = path + '/' + dir.fileName();
+			String key = String(dir.fileIsDir() ? "0" : "1") + dir.fileName().toLower();
+			sorted.insert(key, dir.fileName());
+		}
+
+		// Process ordered files
+		BinarySerializer serializer(&tempFile);
+		for(StringMap::iterator it = sorted.begin();
+			it != sorted.end();
+			++it)
+		{
+			String subPath = path + '/' + it->second;
 			Resource subResource;
 			if(!process(subPath, subResource))
 				continue;	// ignore this file
 			
-			Time time = dir.fileTime();
+			Time time = File::Time(this->realPath(path));
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
