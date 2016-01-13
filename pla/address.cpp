@@ -276,7 +276,7 @@ bool Address::isPrivate(void) const
 	{
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
-		if(b[0] == 0xFC && b[1] == 0) return true; 
+		if(b[0] == 0xFC || b[0] == 0xFD) return true; 
 		for(int i=0; i<9; ++i) if(b[i] != 0) break;
 		if(b[10] == 0xFF && b[11] == 0xFF)		// mapped
 		{
