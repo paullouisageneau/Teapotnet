@@ -728,7 +728,7 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
-		h->getAddresses(otherAddrs);
+		DesynchronizeStatement(this, h->getAddresses(otherAddrs));
 		mOtherHandlers.insert(h);
 	}
 	
@@ -1091,7 +1091,7 @@ bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryStri
 
 bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
-	const double timeout = milliseconds(Config::Get("connect_timeout").toInt());
+	const double timeout = milliseconds(Config::Get("idle_timeout").toInt());
 	const double connectTimeout = milliseconds(Config::Get("connect_timeout").toInt());
 	
 	if(Config::Get("force_http_tunnel").toBool())
@@ -1345,7 +1345,6 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 
 Overlay::Handler::~Handler(void)
 {
-	Synchronize(this);
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
 	Scheduler::Global->cancel(&mTimeoutTask);		// should be done too
 	delete mStream;
@@ -1417,7 +1416,9 @@ bool Overlay::Handler::send(const Message &message)
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
 	Scheduler::Global->schedule(&mTimeoutTask, timeout);
 	
-	BinaryString source = (!message.source.empty() ? message.source : mOverlay->localNode());
+	BinaryString source = message.source;
+	if(message.source.empty())
+		DesynchronizeStatement(this, source = mOverlay->localNode());
 	
 	try {
 		BinaryString header;
