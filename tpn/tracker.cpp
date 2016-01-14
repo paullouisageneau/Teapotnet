@@ -110,7 +110,7 @@ void Tracker::process(Http::Request &request)
 	
 	unsigned count = 10;	// TODO: parameter
 	
-	SerializableArray<Address> result;
+	SerializableMap<BinaryString, SerializableSet<Address> > result;
 	retrieve(node, count, result);
 	
 	Http::Response response(request, 200);
@@ -152,7 +152,7 @@ void Tracker::insert(const BinaryString &node, const Address &addr)
 	mMap[node][addr] = Time::Now();
 }
 
-void Tracker::retrieve(const BinaryString &node, int count, Array<Address> &result) const
+void Tracker::retrieve(const BinaryString &node, int count, SerializableMap<BinaryString, SerializableSet<Address> > &result) const
 {
 	Synchronize(this);
 	Assert(!node.empty());
@@ -166,13 +166,13 @@ void Tracker::retrieve(const BinaryString &node, int count, Array<Address> &resu
 	n = count;   while(it != mMap.begin() && n--) --it;
 	n = count+1; while(jt != mMap.end()   && n--) ++jt;
 	
-	while(it != jt)
+	while(it != jt && result.size() < count)
 	{
 		if(it->first != node)
 		{
-			Array<Address> addrs;
+			SerializableSet<Address> addrs;
 			it->second.getKeys(addrs);
-			result.append(addrs);
+			result.insert(it->second, addrs);
 		}
 
 		++it;
@@ -188,22 +188,15 @@ void Tracker::retrieve(const BinaryString &node, int count, Array<Address> &resu
 			sorted[it->first ^ node] = it->first;
 	}
 	
-	result.reserve(count*2);
 	for(Map<BinaryString, BinaryString>::iterator it = sorted.begin();
-		it != sorted.end();
+		it != sorted.end() && result.size() < count;
 		++it)
 	{
-		Array<Address> addrs;
+		SerializableSet<Address> addrs;
 		mMap.get(it->second).getKeys(addrs);
-		result.append(addrs);
-		if(result.size() >= count*2)
-			break;
+		result.insert(it->second, addrs);
 	}
 	//
-	
-	std::random_shuffle(result.begin(), result.end());
-	if(result.size() > count)
-		result.resize(count);
 }
 
 }

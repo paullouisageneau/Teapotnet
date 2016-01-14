@@ -237,7 +237,7 @@ private:
 	void registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
 	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 	
-	bool track(const String &tracker, Set<Address> &result);
+	bool track(const String &tracker, SerializableMap<BinaryString, SerializableSet<Address> > &result);
 	
 	ThreadPool mThreadPool;
 	

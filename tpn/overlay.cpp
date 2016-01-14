@@ -401,10 +401,16 @@ void Overlay::run(void)
 			BinarySerializer(&content).write(addrs);
 			broadcast(Message(Message::Offer, content));
 		}
-	
-		if(track(Config::Get("tracker"), addrs))
+		
+		SerializableMap<BinaryString, SerializableSet<Address> > result;
+		if(track(Config::Get("tracker"), result))
 			if(connectionsCount() < minConnectionsCount)
-				connect(addrs);
+				for(SerializableMap<BinaryString, SerializableSet<Address> >::iterator it = result.begin();
+					it != result.end();
+					++it)
+				{
+					connect(it->second, it->first, false);	// sync
+				}
 
 		if(connectionsCount() < minConnectionsCount) Scheduler::Global->schedule(this, Random().uniform(0.,120.));	// avg 1 min
 		else Scheduler::Global->schedule(this, 600.);   // 10 min
@@ -762,7 +768,7 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 		Scheduler::Global->schedule(this);
 }
 
-bool Overlay::track(const String &tracker, Set<Address> &result)
+bool Overlay::track(const String &tracker, SerializableMap<BinaryString, SerializableSet<Address> > &result)
 {
 	result.clear();
 	if(tracker.empty()) return false;
@@ -830,12 +836,8 @@ bool Overlay::track(const String &tracker, Set<Address> &result)
 		int code = Http::Post(url, post, &json);
 		if(code == 200)
 		{
-			SerializableSet<Address> addrs;
 			JsonSerializer serializer(&json);
-			if(!serializer.input(addrs)) return false;
-			
-			// TODO: Sanitize addrs
-			result = addrs;
+			if(!serializer.input(result)) return false;
 			return !result.empty();
 		}
 		

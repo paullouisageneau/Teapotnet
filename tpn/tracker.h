@@ -50,7 +50,7 @@ private:
 	void process(Http::Request &request);
 	void clean(int count = -1);
 	void insert(const BinaryString &node, const Address &addr);
-	void retrieve(const BinaryString &node, int count, Array<Address> &result) const;
+	void retrieve(const BinaryString &node, int count, SerializableMap<BinaryString, SerializableSet<Address> > &result) const;
 };
 
 }
