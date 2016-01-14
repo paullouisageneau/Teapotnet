@@ -194,7 +194,7 @@ void SecureTransport::close(void)
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-	mStream->close();
+	if(mStream) mStream->close();
 }
 
 void SecureTransport::setHostname(const String &hostname)
