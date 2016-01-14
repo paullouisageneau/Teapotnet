@@ -1414,7 +1414,7 @@ bool Overlay::Handler::send(const Message &message)
 	Synchronize(this);
 	
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
-	Scheduler::Global->schedule(&mTimeoutTask, timeout);
+	Scheduler::Global->cancel(&mTimeoutTask);
 	
 	BinaryString source = message.source;
 	if(message.source.empty())
@@ -1451,6 +1451,7 @@ bool Overlay::Handler::send(const Message &message)
 		return false;
 	}
 	
+	Scheduler::Global->schedule(&mTimeoutTask, timeout);
 	return true;
 }
 

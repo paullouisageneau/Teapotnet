@@ -193,6 +193,8 @@ void SecureTransport::close(void)
                 ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
         }
         while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+	
+	mStream->close();
 }
 
 void SecureTransport::setHostname(const String &hostname)
