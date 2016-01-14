@@ -51,7 +51,7 @@ void Tracker::process(Http::Request &request)
 	
 	BinaryString node;
 	request.get["id"].extract(node);
-	
+
 	if(request.method == "POST")
 	{
 		int count = 0;
@@ -67,7 +67,7 @@ void Tracker::process(Http::Request &request)
 			}
 				
 			Address addr(host, port);
-			if(!addr.isLocal())
+			if(addr.isPublic())
 			{
 				insert(node, addr);
 				++count;
@@ -88,8 +88,12 @@ void Tracker::process(Http::Request &request)
 				Address addr(*it);
 				
 				//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
-				insert(node, addr);
-				++count;
+				
+				if(addr.isPublic() || (addr.isPrivate() && request.remoteAddress.isPrivate()))
+				{
+					insert(node, addr);
+					++count;
+				}
 			}
 			catch(...)
 			{
