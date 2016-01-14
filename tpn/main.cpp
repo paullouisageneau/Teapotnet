@@ -732,8 +732,6 @@ int run(String &commandLine, StringMap &args)
 		break;
 	}
 	
-	Network::Instance->start();
-	
 	if(portChanged || args.contains("port") || args.contains("ifport"))
 	{
 		Config::Put("port", String::number(port));
@@ -754,6 +752,9 @@ int run(String &commandLine, StringMap &args)
 		LogInfo("main", "NAT port mapping is disabled");
 	}
 	
+	// Starting network
+	Network::Instance->start();
+
 	try {
 		if(!Directory::Exist(Config::Get("profiles_dir")))
 			Directory::Create(Config::Get("profiles_dir"));
