@@ -360,7 +360,8 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 	Array<BinaryString> routes;
 	getRoutes(key, 0, routes);
 	for(int i=0; i<routes.size(); ++i)
-		sendTo(message, routes[i]);
+		if(routes[i] != localNode())
+			sendTo(message, routes[i]);
 }
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
@@ -699,26 +700,30 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 	if(count > 0 && result.size() > count)
 		result.resize(count);
 	
-	if(count > 1)
-		for(int i=0; i<result.size(); ++i)
-			if(result[i] == localNode())
-				result.resize(i+1);
-		
+	for(int i=0; i<result.size(); ++i)
+		if(result[i] == localNode())
+		{
+			result.resize(i+1);
+			break;
+		}
+
 	return result.size();
 }
 
 int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
 {
 	Synchronize(this);
+
+	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
 	sorted.insert(destination ^ localNode(), localNode());
-	
+
 	Array<BinaryString> neighbors;
 	mHandlers.getKeys(neighbors);
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
-	
+
 	sorted.getValues(result);
 	return result.size();
 }
@@ -909,7 +914,7 @@ void Overlay::Message::clear(void)
 {
 	version = 0;
 	flags = 0x00;
-	ttl = 128;	// TODO
+	ttl = 64;	// TODO
 	type = Message::Dummy;
 
 	source.clear();
