@@ -134,7 +134,7 @@ int Mutex::unlockAll(void)
 	int count;
 	try {
 		if(!mLockCount)
-			throw Exception("Mutex is not locked");
+			return 0;
 		
 		if(!pthread_equal(mLockedBy, pthread_self()))
 			throw Exception("Mutex is locked by another thread");

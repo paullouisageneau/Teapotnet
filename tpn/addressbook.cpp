@@ -753,21 +753,25 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
+	Desynchronize(mAddressBook);
 	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier())); 
 }
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
+	Desynchronize(mAddressBook);
 	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier(), instance));
 }
 
 bool AddressBook::Contact::send(const String &type, const Serializable &object)
 {
+	Desynchronize(mAddressBook);
 	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier()), type, object);
 }
 
 bool AddressBook::Contact::send(const Identifier &instance, const String &type, const Serializable &object)
 {
+	Desynchronize(mAddressBook);
 	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier(), instance), type, object);
 }
 
@@ -775,8 +779,9 @@ void AddressBook::Contact::seen(const Network::Link &link)
 {
 	Synchronize(mAddressBook);
 	
-	if(!Network::Instance->hasLink(link))
+	if(!isConnected(link.node))
 	{
+		Desynchronize(mAddressBook);
 		//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is seen");
 		Network::Instance->connect(link.node, link.remote, mAddressBook->user());
 	}
