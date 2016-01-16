@@ -1297,7 +1297,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	
 	bool isFromSelf = (query.mAccess == Resource::Personal);
 	int count = query.mCount;
-	if(!match.empty() && (count <= 0 || count > 1000)) count = 1000;	// Limit for security purposes
+	if(count <= 0 || count > 1000) count = 1000;	// Limit for security purposes
 	
 	// Build SQL request
 	String sql;

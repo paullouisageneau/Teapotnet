@@ -1085,7 +1085,6 @@ Network::Tunneler::~Tunneler(void)
 bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
 	Synchronize(this);
-	
 	Assert(!node.empty());
 	Assert(!remote.empty());
 	Assert(user);
