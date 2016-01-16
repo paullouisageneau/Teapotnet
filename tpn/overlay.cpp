@@ -717,13 +717,14 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
-	sorted.insert(destination ^ localNode(), localNode());
-
 	Array<BinaryString> neighbors;
 	mHandlers.getKeys(neighbors);
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
 
+	// Add local node afterwards, so equidistant values are routed to self
+	sorted.insert(destination ^ localNode(), localNode());
+	
 	sorted.getValues(result);
 	return result.size();
 }
