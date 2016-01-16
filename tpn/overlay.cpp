@@ -507,7 +507,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			
-			store(message.destination, message.content);	// routing is done in storeValue()
+			store(message.destination, message.content);	// routing is done in store()
 			
 			Synchronize(&mRetrieveSync);
 			if(mRetrievePending.contains(message.content))
@@ -915,7 +915,7 @@ void Overlay::Message::clear(void)
 {
 	version = 0;
 	flags = 0x00;
-	ttl = 64;	// TODO
+	ttl = 16;	// TODO
 	type = Message::Dummy;
 
 	source.clear();

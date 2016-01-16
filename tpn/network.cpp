@@ -1101,11 +1101,11 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
-	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + remote.toString());
-	
 	uint64_t tunnelId;
 	Random().readBinary(tunnelId);	// Generate random tunnel ID
 	BinaryString local = user->identifier();
+	
+	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString());
 	
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
@@ -1205,7 +1205,7 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 	
 	mPending.erase(tunnel->node());
 	mTunnels.erase(tunnel->id());
-		return true;	
+	return true;
 }
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
