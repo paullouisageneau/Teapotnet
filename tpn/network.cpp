@@ -444,9 +444,7 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
-	
-	if(!handler)
-		return false;
+	Assert(handler);
 	
 	Handler *l = NULL;
 	if(mHandlers.get(link, l))

@@ -61,10 +61,6 @@ Store::Store(void)
 		time INTEGER(8),\
 		type INTEGER(1))");
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
-	
-	// Store is scheduled by Overlay on first connection
-	const double period = 3600.;	// 1h
-	Scheduler::Global->repeat(this, period);
 }
 
 Store::~Store(void)
@@ -356,6 +352,9 @@ void Store::run(void)
 	{
 		LogWarn("Store::run", e.what());
 	}
+	
+	// Store is scheduled by Overlay on first connection
+	Scheduler::Global->schedule(this, maxAge/2);
 }
 
 }
