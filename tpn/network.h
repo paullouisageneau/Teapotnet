@@ -303,8 +303,8 @@ private:
 		TimeoutTask mTimeoutTask;
 	};
 	
-	bool registerHandler(const Link &link, Handler *handler);
-	bool unregisterHandler(const Link &link, Handler *handler);
+	void registerHandler(const Link &link, Handler *handler);
+	void unregisterHandler(const Link &link, Handler *handler);
 	
 	bool outgoing(const String &type, const Serializable &content);
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
@@ -322,6 +322,7 @@ private:
 	ThreadPool mThreadPool;
 
 	Map<Link, Handler*> mHandlers;
+	Set<Handler*> mOtherHandlers;
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;

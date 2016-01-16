@@ -438,7 +438,7 @@ void Network::run(void)
 	}
 }
 
-bool Network::registerHandler(const Link &link, Handler *handler)
+void Network::registerHandler(const Link &link, Handler *handler)
 {
 	Synchronize(this);
 	Assert(!link.local.empty());
@@ -446,17 +446,9 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 	Assert(!link.node.empty());
 	Assert(handler);
 	
-	Handler *l = NULL;
-	if(mHandlers.get(link, l))
-	{
-		if(l == handler) 
-			return true;
-		
-		if(Random().uniform(0, 1) == 0)
-			return false;
-		
-		LogDebug("Network::registerHandler", "Replacing current handler");
-	}
+	Handler *h = NULL;
+	if(mHandlers.get(link, h))
+		mOtherHandlers.insert(h);
 	
 	mHandlers.insert(link, handler);
 	mThreadPool.launch(handler);
@@ -478,25 +470,24 @@ bool Network::registerHandler(const Link &link, Handler *handler)
 			}
 		}
 	}
-	
-	return true;
 }
 
-bool Network::unregisterHandler(const Link &link, Handler *handler)
+void Network::unregisterHandler(const Link &link, Handler *handler)
 {
 	Synchronize(this);
+	Assert(!link.local.empty());
+	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
+	Assert(handler);
 	
-	if(!handler)
-		return false;
+	mOtherHandlers.erase(handler);
 	
-	Handler *l = NULL;
-	if(!mHandlers.get(link, l) || l != handler)
-		return false;
-	
-	mRemoteSubscribers.erase(link);
-	mHandlers.erase(link);
-	return true;	
+	Handler *h = NULL;
+	if(mHandlers.get(link, h) && h == handler)
+	{
+		mRemoteSubscribers.erase(link);
+		mHandlers.erase(link);
+	}
 }
 
 bool Network::outgoing(const String &type, const Serializable &content)
@@ -1193,9 +1184,7 @@ bool Network::Tunneler::incoming(const Overlay::Message &datagram)
 bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 {
 	Synchronize(this);
-	
-	if(!tunnel)
-		return false;
+	Assert(tunnel);
 	
 	Tunneler::Tunnel *t = NULL;
 	if(mTunnels.get(tunnel->id(), t))
@@ -1209,9 +1198,7 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 {
 	Synchronize(this);
-	
-	if(!tunnel)
-		return false;
+	Assert(tunnel);
 	
 	Tunneler::Tunnel *t = NULL;
 	if(!mTunnels.get(tunnel->id(), t) || t != tunnel)
@@ -1506,8 +1493,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mTimeoutTask(this)
 {
-	if(!Network::Instance->registerHandler(mLink, this))
-		throw Exception("A handler already exists for the same link");
+	Network::Instance->registerHandler(mLink, this);
 }
 
 Network::Handler::~Handler(void)
