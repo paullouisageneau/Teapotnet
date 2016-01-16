@@ -406,7 +406,6 @@ a.button:hover
 	vertical-align: top;
 	width: 62%;
 	height: 100%;
-	min-height: 50em;
 	margin: 0;
 	padding: 1em;
 	padding-right: 2em;
@@ -427,6 +426,8 @@ a.button:hover
 {
 	display: inline-block;
 	max-width: 72em;
+	height: 100%;
+	min-height: 100em;
 }
 
 #header .button
