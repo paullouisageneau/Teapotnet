@@ -427,7 +427,7 @@ a.button:hover
 	display: inline-block;
 	max-width: 72em;
 	height: 100%;
-	min-height: 100em;
+	min-height: 50em;
 }
 
 #header .button
