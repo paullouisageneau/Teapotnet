@@ -599,6 +599,10 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	if(!from.empty() && !mRoutes.contains(message.source))
 		mRoutes.insert(message.source, from);
 	
+	// Neighbor
+	if(mHandlers.contains(message.destination))
+		return sendTo(message, message.destination);
+	
 	// Get route
 	BinaryString route;
 	mRoutes.get(message.destination, route);
