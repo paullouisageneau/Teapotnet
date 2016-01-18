@@ -643,11 +643,9 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 {
 	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(incoming.firstComponent()) + ", count=" + String::number(incoming.componentsCount()) + ")");
 	
-	if(mFinished)
-		return true;
+	if(mFinished) return true;
 	
-	if(incoming.isNull())
-		return false;
+	if(incoming.isNull()) return false;
 	
 	mNextDiscovered = std::max(mNextDiscovered, incoming.lastComponent() + 1);
 	
@@ -742,7 +740,6 @@ unsigned Fountain::Sink::drop(unsigned firstIncoming)
 	
 	mDropped+= count;
 	return count;
-	
 }
 
 void Fountain::Sink::clear(void)

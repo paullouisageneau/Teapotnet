@@ -87,10 +87,16 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
 
 	// Immediately send to node providing hinted block
-	Set<BinaryString> nodes;
-	if(!caller->hint().empty() && Store::Instance->retrieveValue(caller->hint(), nodes))
-		for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
-			mOverlay.send(Overlay::Message(Overlay::Message::Call, target, *kt));
+	if(!caller->hint().empty())
+	{
+		Set<BinaryString> nodes;
+		if(Store::Instance->retrieveValue(caller->hint(), nodes))
+		{
+			for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+				mOverlay.send(Overlay::Message(Overlay::Message::Call, target, *kt));
+		}
+		else mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", caller->hint()));
+	}
 	
 	// Immediately send Retrieve query
 	mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", target));
@@ -417,10 +423,16 @@ void Network::run(void)
 						jt != it->second.end();
 						++jt)
 					{
-						Set<BinaryString> nodes;
-						if(!(*jt)->hint().empty() && Store::Instance->retrieveValue((*jt)->hint(), nodes))
-							for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
-								mOverlay.send(Overlay::Message(Overlay::Message::Call, it->first, *kt));
+						if(!(*jt)->hint().empty())
+						{
+							Set<BinaryString> nodes;
+							if(Store::Instance->retrieveValue((*jt)->hint(), nodes))
+							{
+								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+									mOverlay.send(Overlay::Message(Overlay::Message::Call, it->first, *kt));
+							}
+							else mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", (*jt)->hint()));
+						}
 					}
 
 					mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", it->first));
