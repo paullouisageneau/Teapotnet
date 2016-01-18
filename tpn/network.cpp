@@ -1601,7 +1601,7 @@ int Network::Handler::send(bool force)
 		}
 	}
 	
-	double idleTimeout = milliseconds(Config::Get("idle_timeout").toInt())/2;	// so the tunnel should not time out
+	double idleTimeout = milliseconds(Config::Get("idle_timeout").toInt())/5;	// so the tunnel should not time out
 	if(mSource.count() > 0) Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
 	else Scheduler::Global->schedule(&mTimeoutTask, idleTimeout);
 	return count;
