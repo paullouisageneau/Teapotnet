@@ -333,23 +333,7 @@ bool Overlay::send(const Message &message)
 	
 	//LogDebug("Overlay::send", "Sending message (type=" + String::hexa(unsigned(message.type)) + ")");
 	
-	if(mHandlers.empty())
-		return false;
-	
-	if(message.destination.empty())
-		return broadcast(message);
-	
-	if(mHandlers.contains(message.destination))
-		return sendTo(message, message.destination);
-	
-	// Don't use route since we want to force the message to be sent to the best route
-	Map<BinaryString, BinaryString> sorted;
-	Array<BinaryString> neighbors;
-	mHandlers.getKeys(neighbors);
-	for(int i=0; i<neighbors.size(); ++i)
-		sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
-	
-	return sendTo(message, sorted.begin()->second);
+	return route(message, "");
 }
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
@@ -667,7 +651,7 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 bool Overlay::sendTo(const Message &message, const BinaryString &to)
 {
 	Synchronize(this);
-
+	
 	if(to.empty())
 	{
 		broadcast(message);
