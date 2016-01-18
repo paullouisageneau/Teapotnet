@@ -38,7 +38,8 @@ BinaryString Store::Hash(const String &str)
 	return Sha256().compute(str);
 }
 
-Store::Store(void)
+Store::Store(void) :
+	mRunning(false)
 {
 	mDatabase = new Database("store.db");
 	
@@ -307,22 +308,25 @@ void Store::run(void)
 {	
 	Synchronize(this);
 	
+	if(mRunning) return;
+	mRunning = true;
+	
 	const double maxAge = Config::Get("store_max_age").toDouble();
 	const double delay = 0.1;	// TODO
 	const int batch = 10;		// TODO
 	
-	BinaryString node;
-	DesynchronizeStatement(this, node = Network::Instance->overlay()->localNode());
-	
 	LogDebug("Store::run", "Started");
 
-	// Delete old non-permanent values
-	Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
-	statement.bind(1, static_cast<int>(Permanent));
-	statement.bind(2, Time::Now() - maxAge);
-	statement.execute();
-	
 	try {
+		BinaryString node;
+		DesynchronizeStatement(this, node = Network::Instance->overlay()->localNode());
+		
+		// Delete old non-permanent values
+		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
+		statement.bind(1, static_cast<int>(Permanent));
+		statement.bind(2, Time::Now() - maxAge);
+		statement.execute();
+		
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
@@ -365,6 +369,7 @@ void Store::run(void)
 	}
 	
 	// Store is scheduled by Overlay on first connection
+	mRunning = false;
 	Scheduler::Global->schedule(this, maxAge/2);
 }
 

@@ -1485,9 +1485,9 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 void Indexer::run(void)
 {
 	Synchronize(this);
+	if(mRunning) return;
 	mRunning = true;
 	
-	// DO NOT return without switching mRunning to false
 	try {
 		LogDebug("Indexer::run", "Started");
 		

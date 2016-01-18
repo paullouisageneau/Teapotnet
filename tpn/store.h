@@ -73,6 +73,7 @@ public:
 private:
 	Database *mDatabase;
 	Map<BinaryString,Fountain::Sink> mSinks;
+	bool mRunning;
 };
 
 }
