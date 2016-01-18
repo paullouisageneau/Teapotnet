@@ -84,8 +84,16 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	Assert(caller);
 	
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
+
+	// Immediately send to node providing hinted block
+	Set<BinaryString> nodes;
+	if(!caller->hint().empty() && Store::Instance->retrieveValue(caller->hint(), nodes))
+		for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+			mOverlay.send(Overlay::Message(Overlay::Message::Call, target, *kt));
 	
-	mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", target));	// immediately send
+	// Immediately send Retrieve query
+	mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", target));
+	
 	mCallers[target].insert(caller);
 }
 
@@ -359,7 +367,7 @@ void Network::run(void)
 							mPusher.push(message.content, message.source, tokens);
 						}
 						else {
-							LogDebug("Network::run", "Called (unknown) " + message.content.toString());
+							//LogDebug("Network::run", "Called (unknown) " + message.content.toString());
 						}
 						break;
 					}
@@ -393,7 +401,16 @@ void Network::run(void)
 					it != mCallers.end();
 					++it)
 				{
-					Desynchronize(this);
+					for(Set<Caller*>::iterator jt = it->second.begin();
+						jt != it->second.end();
+						++jt)
+					{
+						Set<BinaryString> nodes;
+						if(!(*jt)->hint().empty() && Store::Instance->retrieveValue((*jt)->hint(), nodes))
+							for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+								mOverlay.send(Overlay::Message(Overlay::Message::Call, it->first, *kt));
+					}
+
 					mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", it->first));
 				}
 				
@@ -415,7 +432,6 @@ void Network::run(void)
 						it != localIds.end();
 						++it)
 					{
-						Desynchronize(this);
 						storeValue(*it, node);
 					}
 					
@@ -423,7 +439,6 @@ void Network::run(void)
 						it != remoteIds.end();
 						++it)
 					{
-						Desynchronize(this);
 						mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", *it));
 					}
 				}
@@ -719,8 +734,15 @@ void Network::onConnected(const Link &link, bool status)
 			jt != set.end();
 			++jt)
 		{
-			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
-			(*jt)->connected(link, status);
+			Synchronize(this);
+                        it = mListeners.find(IdentifierPair(link.remote, link.local));
+                        if(it == mListeners.end()) break;
+			if(it->second.contains(*jt))
+                        {
+                                Desynchronize(this);
+				if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
+				(*jt)->connected(link, status);
+			}
 		}
 	}
 }
@@ -740,7 +762,14 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 			jt != set.end();
 			++jt)
 		{
-			ret|= (*jt)->recv(link, type, serializer); 
+			Synchronize(this);
+			it = mListeners.find(IdentifierPair(link.remote, link.local));
+			if(it == mListeners.end()) break;
+			if(it->second.contains(*jt))
+			{
+				Desynchronize(this);
+				ret|= (*jt)->recv(link, type, serializer);
+			}
 		}
 	}
 	
@@ -761,8 +790,15 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 			jt != set.end();
 			++jt)
 		{
-			if(!(*jt)->auth(link, pubKey))
-				return false;
+			Synchronize(this);
+                        it = mListeners.find(IdentifierPair(link.remote, link.local));
+                        if(it == mListeners.end()) break;
+			if(it->second.contains(*jt))
+                        {
+                                Desynchronize(this);
+				if(!(*jt)->auth(link, pubKey))
+					return false;
+			}
 		}
 	}
 	
@@ -1020,10 +1056,10 @@ Network::Caller::Caller(void)
 	
 }
 
-Network::Caller::Caller(const BinaryString &target)
+Network::Caller::Caller(const BinaryString &target, const BinaryString &hint)
 {
 	Assert(!target.empty());
-	startCalling(target);
+	startCalling(target, hint);
 }
 
 Network::Caller::~Caller(void)
@@ -1031,13 +1067,14 @@ Network::Caller::~Caller(void)
 	stopCalling();
 }
 	
-void Network::Caller::startCalling(const BinaryString &target)
+void Network::Caller::startCalling(const BinaryString &target, const BinaryString &hint)
 {
 	if(target != mTarget)
 	{
 		stopCalling();
 		
 		mTarget = target;
+		mHint = hint;
 		if(!mTarget.empty()) Network::Instance->registerCaller(mTarget, this);
 	}
 }
@@ -1048,7 +1085,18 @@ void Network::Caller::stopCalling(void)
 	{
 		Network::Instance->unregisterCaller(mTarget, this);
 		mTarget.clear();
+		mHint.clear();
 	}
+}
+
+BinaryString Network::Caller::target(void) const
+{
+	return mTarget;
+}
+
+BinaryString Network::Caller::hint(void) const
+{
+	return mHint;
 }
 
 Network::Listener::Listener(void)

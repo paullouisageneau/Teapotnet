@@ -48,7 +48,7 @@ public:
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block);
 	
 	Block(const Block &block);
-	Block(const BinaryString &digest);
+	Block(const BinaryString &digest, const BinaryString &hint = "");	// hint corresponds to related block (e.g. resource block)
 	Block(const BinaryString &digest, const String &filename, int64_t offset = 0, int64_t size = -1);	// override file
 	Block(const String &filename, int64_t offset = 0, int64_t size = -1);					// digest computed from file
 	virtual ~Block(void);
@@ -75,7 +75,7 @@ private:
 	bool waitContent(const double &timeout) const;
 	void notifyStore(void) const;
   
-	BinaryString mDigest;
+	BinaryString mDigest, mHint;
 	
 	mutable File *mFile;
 	mutable Cipher *mCipher;

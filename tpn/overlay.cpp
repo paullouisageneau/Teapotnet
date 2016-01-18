@@ -611,7 +611,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	if(route.empty() || route == from)
 	{
 		Array<BinaryString> neigh;
-		getRoutes(message.destination, 0, neigh);
+		getNeighbors(message.destination, neigh);
 		
 		int index = 0;
 		if(route.empty())

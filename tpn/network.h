@@ -119,14 +119,17 @@ public:
 	{
 	public:
 		Caller(void);
-		Caller(const BinaryString &target);
+		Caller(const BinaryString &target, const BinaryString &hint = "");
 		~Caller(void);
 		
-		void startCalling(const BinaryString &target);
+		void startCalling(const BinaryString &target, const BinaryString &hint = "");
 		void stopCalling(void);
 		
+		BinaryString target(void) const;
+		BinaryString hint(void) const;
+
 	private:
-		BinaryString mTarget;
+		BinaryString mTarget, mHint;
 	};
 	
 	class Listener

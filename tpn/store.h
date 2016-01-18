@@ -49,9 +49,9 @@ public:
 	bool pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens = NULL);
 	
 	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest);
-	bool waitBlock(const BinaryString &digest, double &timeout);
-	bool waitBlock(const BinaryString &digest, const double &timeout);
+	void waitBlock(const BinaryString &digest, const BinaryString &hint = "");
+	bool waitBlock(const BinaryString &digest, double &timeout, const BinaryString &hint = "");
+	bool waitBlock(const BinaryString &digest, const double &timeout, const BinaryString &hint = "");
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);

@@ -465,6 +465,11 @@ bool Indexer::process(String path, Resource &resource)
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
 	}
+	else {
+		// Publish into DHT right now
+		// Store will publish the blocks anyway
+        	DesynchronizeStatement(this, Network::Instance->storeValue(resource.digest(), Network::Instance->overlay()->localNode()));
+	}
 	
 	// Mark as seen
 	Database::Statement statement = mDatabase->prepare("UPDATE resources SET seen=1 WHERE path=?1");

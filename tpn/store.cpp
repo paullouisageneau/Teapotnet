@@ -130,20 +130,21 @@ bool Store::hasBlock(const BinaryString &digest)
 	return false;
 }
 
-void Store::waitBlock(const BinaryString &digest)
+void Store::waitBlock(const BinaryString &digest, const BinaryString &hint)
 {
-	if(!waitBlock(digest, 60.))	// TODO
+	const double timeout = milliseconds(Config::Get("request_timeout").toInt())*2;
+	if(!waitBlock(digest, timeout, hint))
 		throw Timeout();
 }
 
-bool Store::waitBlock(const BinaryString &digest, double &timeout)
+bool Store::waitBlock(const BinaryString &digest, double &timeout, const BinaryString &hint)
 {
 	Synchronize(this);
 	
 	if(!hasBlock(digest))
 	{
 		Desynchronize(this);
-		Network::Caller caller(digest);		// Block is missing locally, call it
+		Network::Caller caller(digest, hint);		// Block is missing locally, call it
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		
@@ -161,10 +162,10 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout)
 	return true;
 }
 
-bool Store::waitBlock(const BinaryString &digest, const double &timeout)
+bool Store::waitBlock(const BinaryString &digest, const double &timeout, const BinaryString &hint)
 {
 	double dummy = timeout;
-	return waitBlock(digest, dummy);
+	return waitBlock(digest, dummy, hint);
 }
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)

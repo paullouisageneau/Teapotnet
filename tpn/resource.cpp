@@ -435,7 +435,7 @@ Block *Resource::Reader::createBlock(int index)
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
 	
 	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
-	return new Block(mResource->blockDigest(index)); 
+	return new Block(mResource->blockDigest(index), mResource->digest()); 
 }
 
 void Resource::MetaRecord::serialize(Serializer &s) const
