@@ -95,7 +95,9 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 			for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
 				mOverlay.send(Overlay::Message(Overlay::Message::Call, target, *kt));
 		}
-		else mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", caller->hint()));
+		
+		// Send retrieve for node
+		mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", caller->hint()));
 	}
 	
 	// Immediately send Retrieve query
