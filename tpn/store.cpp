@@ -23,6 +23,7 @@
 #include "tpn/config.h"
 #include "tpn/network.h"
 #include "tpn/cache.h"
+#include "tpn/block.h"
 
 #include "pla/directory.h"
 #include "pla/crypto.h"
@@ -112,6 +113,15 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 	Fountain::FileSource source(file, file->tellRead(), size);
 	source.generate(output, tokens);
 	return true;
+}
+
+unsigned Store::missing(const BinaryString &digest)
+{
+	Synchronize(this);
+	
+	Map<BinaryString,Fountain::Sink>::iterator it = mSinks.find(digest);
+	if(it != mSinks.end()) return it->second.missing();
+	else return Block::MaxChunks;
 }
 
 bool Store::hasBlock(const BinaryString &digest)

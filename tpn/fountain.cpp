@@ -623,9 +623,11 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
 }
 		
 Fountain::Sink::Sink(void) :
+	mNextDiscovered(0),
 	mNextSeen(0),
 	mNextDecoded(0),
 	mNextRead(0),
+	mDropped(0),
 	mFinished(false),
 	mAlreadyRead(0)
 {
@@ -646,6 +648,8 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 	
 	if(incoming.isNull())
 		return false;
+	
+	mNextDiscovered = std::max(mNextDiscovered, incoming.lastComponent() + 1);
 	
 	// ==== Gauss-Jordan elimination ====
 	
@@ -725,14 +729,42 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 	return total;
 }
 
+unsigned Fountain::Sink::drop(unsigned firstIncoming)
+{
+	// Remove old combinations
+	unsigned count = 0;
+	Map<unsigned, Combination>::iterator it = mCombinations.begin();
+	while(it != mCombinations.end() && it->first+1 < mNextRead && it->first < firstIncoming)
+	{
+		mCombinations.erase(it++);
+		++count;
+	}
+	
+	mDropped+= count;
+	return count;
+	
+}
+
 void Fountain::Sink::clear(void)
 {
 	mCombinations.clear();
+	mNextDiscovered = 0;
 	mNextSeen = 0;
 	mNextDecoded = 0;
 	mNextRead = 0;
+	mDropped = 0;
 	mFinished = false;
 	mAlreadyRead = 0;
+}
+
+unsigned Fountain::Sink::rank(void) const
+{
+	return mCombinations.size();
+}
+
+unsigned Fountain::Sink::missing(void) const
+{
+	return mNextDiscovered - (mCombinations.size() + mDropped);
 }
 
 unsigned Fountain::Sink::nextSeen(void) const

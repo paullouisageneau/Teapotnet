@@ -157,7 +157,11 @@ public:
 		~Sink(void);
 		
 		int64_t solve(Combination &incoming);			// Add combination and try to solve, return decoded bytes
+		unsigned drop(unsigned firstIncoming);
 		void clear(void);
+		
+		unsigned rank(void) const;
+		unsigned missing(void) const;
 		
 		unsigned nextSeen(void) const;
 		unsigned nextDecoded(void) const;
@@ -171,7 +175,8 @@ public:
 	private:
 		Map<unsigned, Combination> mCombinations;	// combinations sorted by pivot component
 		
-		unsigned mNextSeen, mNextDecoded, mNextRead;	// decoding status counters
+		unsigned mNextDiscovered, mNextSeen, mNextDecoded, mNextRead;	// decoding status counters
+		unsigned mDropped;				// dropped combinations counter
 		bool mFinished;
 		size_t mAlreadyRead;
 	};

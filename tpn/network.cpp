@@ -24,6 +24,7 @@
 #include "tpn/httptunnel.h"
 #include "tpn/config.h"
 #include "tpn/store.h"
+#include "tpn/block.h"
 
 #include "pla/binaryserializer.h"
 #include "pla/jsonserializer.h"
@@ -336,7 +337,13 @@ void Network::run(void)
 							if(mCallers.contains(message.source))
 							{
 								LogDebug("Network::run", "Got candidate for " + message.source.toString());
-								mOverlay.send(Overlay::Message(Overlay::Message::Call, message.source, message.content));	// TODO: tokens
+								
+								uint16_t tokens = uint16_t(Store::Instance->missing(message.source));
+								BinaryString call;
+								call.writeBinary(tokens);
+								call.writeBinary(message.source);
+								
+								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, message.content));
 							}
 							
 							// Or it can be about a contact
@@ -359,15 +366,20 @@ void Network::run(void)
 				// Call
 				case Overlay::Message::Call:
 					{
-						if(Store::Instance->hasBlock(message.content))
+						uint16_t tokens;
+						message.content.readBinary(tokens);
+						tokens = std::min(tokens, uint16_t(Block::MaxChunks*2));
+						
+						if(tokens)
 						{
-							LogDebug("Network::run", "Called " + message.content.toString());
-							
-							const unsigned tokens = 1024;	// TODO
-							mPusher.push(message.content, message.source, tokens);
-						}
-						else {
-							//LogDebug("Network::run", "Called (unknown) " + message.content.toString());
+							if(Store::Instance->hasBlock(message.content))
+							{
+								LogDebug("Network::run", "Called " + message.content.toString() + "(" + String::number(tokens) + " tokens)");
+								mPusher.push(message.content, message.source, tokens);
+							}
+							else {
+								//LogDebug("Network::run", "Called (unknown) " + message.content.toString());
+							}
 						}
 						break;
 					}
@@ -1667,6 +1679,7 @@ bool Network::Handler::readString(String &str)
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
 		if(!combination.isNull())
 		{
+			mSink.drop(combination.firstComponent());
 			mSink.solve(combination);
 		
 			if(!send(false))
