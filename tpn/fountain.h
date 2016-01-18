@@ -61,6 +61,7 @@ public:
 	static void Init(void);
 	static void Cleanup(void);
 	static const size_t ChunkSize = 1024;	// bytes
+	static const unsigned GenerateSize = 32;
 	
 	class Combination : public Serializable
 	{

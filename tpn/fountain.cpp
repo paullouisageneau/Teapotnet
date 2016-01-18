@@ -518,7 +518,7 @@ bool Fountain::DataSource::generate(Combination &result, unsigned *tokens)
 		if(*tokens > count) *tokens = count;
 		--*tokens;
 		
-		const unsigned max = 16;	// TODO
+		const unsigned max = GenerateSize;
 		first = Random().uniform(unsigned(0), count + max);
 		count = std::min(count, max);
 		if(first < max) first = 0;
@@ -589,7 +589,7 @@ bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
 		if(*tokens > count) *tokens = count;
 		--*tokens;
 		
-		const unsigned max = 16;	// TODO
+		const unsigned max = GenerateSize;
 		first = Random().uniform(unsigned(0), count + max);
 		count = std::min(count, max);
 		if(first < max) first = 0;

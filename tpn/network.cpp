@@ -40,6 +40,8 @@ namespace tpn
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
 
+const unsigned Network::RedundantChunks = 16;
+
 Network::Network(int port) :
 		mOverlay(port),
 		mThreadPool(1, 8, Config::Get("max_connections").toInt())
@@ -92,7 +94,7 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 		Set<BinaryString> nodes;
 		if(Store::Instance->retrieveValue(caller->hint(), nodes))
 		{
-			uint16_t tokens = uint16_t(Store::Instance->missing(target));
+			uint16_t tokens = uint16_t(Store::Instance->missing(target) + RedundantChunks);
 			BinaryString call;
 			call.writeBinary(tokens);
 			call.writeBinary(target);
@@ -351,7 +353,7 @@ void Network::run(void)
 							{
 								LogDebug("Network::run", "Got candidate for " + message.source.toString());
 								
-								uint16_t tokens = uint16_t(Store::Instance->missing(message.source));
+								uint16_t tokens = uint16_t(Store::Instance->missing(message.source) + RedundantChunks);
 								BinaryString call;
 								call.writeBinary(tokens);
 								call.writeBinary(message.source);
@@ -437,7 +439,7 @@ void Network::run(void)
 							Set<BinaryString> nodes;
 							if(Store::Instance->retrieveValue((*jt)->hint(), nodes))
 							{
-								uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
+								uint16_t tokens = uint16_t(Store::Instance->missing(it->first) + RedundantChunks);
 								BinaryString call;
 								call.writeBinary(tokens);
 								call.writeBinary(it->first);

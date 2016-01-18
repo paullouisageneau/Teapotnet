@@ -192,6 +192,8 @@ public:
 	void run(void);
 	
 private:
+	static const unsigned RedundantChunks;
+	
 	class RemotePublisher : public Publisher
 	{
 	public:
