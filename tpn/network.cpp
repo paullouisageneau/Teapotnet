@@ -92,8 +92,13 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 		Set<BinaryString> nodes;
 		if(Store::Instance->retrieveValue(caller->hint(), nodes))
 		{
+			uint16_t tokens = uint16_t(Store::Instance->missing(target));
+			BinaryString call;
+			call.writeBinary(tokens);
+			call.writeBinary(target);
+			
 			for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
-				mOverlay.send(Overlay::Message(Overlay::Message::Call, target, *kt));
+				mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 		}
 		
 		// Send retrieve for node
@@ -375,18 +380,20 @@ void Network::run(void)
 				case Overlay::Message::Call:
 					{
 						uint16_t tokens;
+						BinaryString target;
 						message.content.readBinary(tokens);
+						message.content.readBinary(target);
 						tokens = std::min(tokens, uint16_t(Block::MaxChunks*2));
 						
 						if(tokens)
 						{
-							if(Store::Instance->hasBlock(message.content))
+							if(Store::Instance->hasBlock(target))
 							{
-								LogDebug("Network::run", "Called " + message.content.toString() + "(" + String::number(tokens) + " tokens)");
-								mPusher.push(message.content, message.source, tokens);
+								LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+								mPusher.push(target, message.source, tokens);
 							}
 							else {
-								//LogDebug("Network::run", "Called (unknown) " + message.content.toString());
+								//LogDebug("Network::run", "Called (unknown) " + target.toString());
 							}
 						}
 						break;
@@ -430,8 +437,13 @@ void Network::run(void)
 							Set<BinaryString> nodes;
 							if(Store::Instance->retrieveValue((*jt)->hint(), nodes))
 							{
+								uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
+								BinaryString call;
+								call.writeBinary(tokens);
+								call.writeBinary(it->first);
+								
 								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
-									mOverlay.send(Overlay::Message(Overlay::Message::Call, it->first, *kt));
+									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 							}
 							else mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", (*jt)->hint()));
 						}
