@@ -556,9 +556,9 @@ void User::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
 				page.input("hidden", "token", generateToken("admin"));
                         	page.input("hidden", "command", "shutdown");
-                        	page.input("hidden", "redirect", String(SECUREDOWNLOADURL) + "?release=osx&update=1");
+                        	page.input("hidden", "redirect", String(DOWNLOADURL) + "?release=osx&update=1");
 				page.text("New version available - ");
-                                page.link(String(SECUREDOWNLOADURL) + "?release=osx&update=1", "Quit and download now", "shutdownAndUpdateLink");
+                                page.link(String(DOWNLOADURL) + "?release=osx&update=1", "Quit and download now", "shutdownAndUpdateLink");
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\

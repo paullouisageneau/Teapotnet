@@ -29,10 +29,9 @@
 #define APPAUTHOR		"Paul-Louis Ageneau"
 #define APPLINK			"http://teapotnet.org/"
 #define SOURCELINK		"http://teapotnet.org/source"
-#define HELPLINK		"http://teapotnet.org/faq"
+#define HELPLINK		"http://teapotnet.org/help"
 #define BUGSLINK		"mailto:bugs@teapotnet.org"
-#define DOWNLOADURL		"http://teapotnet.org/download"
-#define SECUREDOWNLOADURL	"https://teapotnet.org/download"	// HTTPS
+#define DOWNLOADURL		"https://teapotnet.org/download"
 #define RAPTUREURL		"https://teapotnet.org/rapture/"	// Rapture must use HTTPS 
 
 #include "pla/include.h"

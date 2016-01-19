@@ -195,6 +195,12 @@ $(document).ready( function() {
 			return false;
 		}
 	});
+	
+	var user = getAuthenticatedUser();
+	if(user) {
+		$('#logo a').attr('href', '/user/'+user);
+		$('#backlink').attr('href', '/user/'+user);
+	}
 });
 
 $(window).resize( function() {
@@ -219,16 +225,16 @@ function playMailSound() {
 	if(MailSound != null) MailSound.play();
 }
 
-var Notification = window.Notification || window.mozNotification || window.webkitNotification;
+/*var Notification = window.Notification || window.mozNotification || window.webkitNotification;
 if(Notification)
 {
 	Notification.requestPermission(function (permission) {
 		// console.log(permission);
 	});
-}
+}*/
 
 function notify(title, message, tag) {
-	if(Notification) {
+	/*if(Notification) {
 		return new Notification(
 			title, {
 				body: message,
@@ -238,7 +244,7 @@ function notify(title, message, tag) {
 		);
 	}
 	
-	return null;
+	return null;*/
 }
 
 function getAuthenticatedUser() {
