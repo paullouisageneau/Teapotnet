@@ -282,19 +282,6 @@ function setCallback(url, period, callback) {
 	});
 }
 
-function setMailsReceiver(url, object) {
-
-	$(window).blur(function() {
-		$(object).find('.message').addClass('oldmessage');
-	});
-	setMailsReceiverRec(url, object, 0);
-}
-
-function updateMailsReceiver(url, object) {
-	$(object).html("");
-	setMailsReceiver(url, object);
-}
-
 var BaseDocumentTitle = document.title;
 var NbNewMails = 0;
 

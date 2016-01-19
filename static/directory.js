@@ -93,6 +93,11 @@ function listDirectoryRec(url, object) {
 				window.location.href = $(this).find('a').attr('href');
 			});
 			
+			// Order files
+			table.html(table.find('tr').sort(function(a,b){
+				return $(a).find(".filename").text() > $(b).find(".filename").text();
+			}));
+		
 			listDirectoryRec(url, object);
 		}
 		else {
