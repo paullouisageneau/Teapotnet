@@ -584,6 +584,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	while(mIncoming.empty())
 	{
 		if(!mSock) return 0;
+		if(mTimeout <= 0.) return 0;
 		if(!mSync.wait(timeout))
 			throw Timeout();
 	}
@@ -608,6 +609,7 @@ bool DatagramStream::waitData(double &timeout)
 	while(mIncoming.empty())
 	{
 		if(!mSock) return true;	// readData will return 0
+		if(mTimeout <= 0.) return false;
 		if(!mSync.wait(timeout)) return false;
 	}
 	

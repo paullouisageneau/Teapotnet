@@ -386,17 +386,14 @@ void Network::run(void)
 						message.content.readBinary(tokens);
 						message.content.readBinary(target);
 						tokens = std::min(tokens, uint16_t(Block::MaxChunks*2));
-						
-						if(tokens)
+					
+						if(Store::Instance->hasBlock(target))
 						{
-							if(Store::Instance->hasBlock(target))
-							{
-								LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
-								mPusher.push(target, message.source, tokens);
-							}
-							else {
-								//LogDebug("Network::run", "Called (unknown) " + target.toString());
-							}
+							if(tokens) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+							mPusher.push(target, message.source, tokens);
+						}
+						else {
+							//LogDebug("Network::run", "Called (unknown) " + target.toString());
 						}
 						break;
 					}
@@ -1526,7 +1523,7 @@ bool Network::Tunneler::Tunnel::waitData(double &timeout)
 	
 	while(mQueue.empty())
 	{
-		if(timeout < 0.)
+		if(timeout <= 0.)
 			return false;
 		
 		if(!wait(timeout))
