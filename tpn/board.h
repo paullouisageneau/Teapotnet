@@ -32,6 +32,7 @@
 #include "pla/string.h"
 #include "pla/array.h"
 #include "pla/map.h"
+#include "pla/set.h"
 
 namespace tpn
 {
@@ -46,6 +47,9 @@ public:
 	bool hasNew(void) const;
 	bool add(Mail &mail);
 	BinaryString digest(void) const;
+	
+	void addMergeUrl(const String &url);
+	void removeMergeUrl(const String &url);
 	
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
@@ -65,6 +69,8 @@ private:
 	BinaryString mDigest;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
+	
+	StringSet mMergeUrls;
 	
 	mutable bool mHasNew;
 };

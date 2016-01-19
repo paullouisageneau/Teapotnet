@@ -182,17 +182,18 @@ User::User(const String &name, const String &password) :
 	Assert(!mTokenSecret.empty());
 
 	try {
+		// Order matters here
 		mIndexer = new Indexer(this);
+		mBoard = new Board("/" + identifier().toString(), "", mName);
         	mAddressBook = new AddressBook(this);
-       	 	mBoard = new Board("/" + identifier().toString(), "", mName);
 		
 		if(!mCertificate) mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
 	}
 	catch(...)
 	{
 		delete mIndexer;
-		delete mAddressBook;
 		delete mBoard;
+		delete mAddressBook;
 		delete mCertificate;
 		
 		throw;
@@ -297,6 +298,18 @@ Indexer *User::indexer(void) const
 void User::invite(const Identifier &remote, const String &name)
 {
 	mAddressBook->addInvitation(remote, name);
+}
+
+void User::mergeBoard(const Board *board)
+{
+	if(!board) return;
+	mBoard->addMergeUrl(board->urlPrefix());
+}
+
+void User::unmergeBoard(const Board *board)
+{
+	if(!board) return;
+	mBoard->removeMergeUrl(board->urlPrefix());
 }
 
 bool User::isOnline(void) const

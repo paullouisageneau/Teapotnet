@@ -673,7 +673,10 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 AddressBook::Contact::~Contact(void)
 {
 	if(mAddressBook)
+	{
 		Interface::Instance->remove(urlPrefix(), this);
+		if(mBoard) mAddressBook->user()->unmergeBoard(mBoard);
+	}
 	
 	delete mBoard;
 }
@@ -683,9 +686,15 @@ void AddressBook::Contact::init(void)
 	if(!mAddressBook) return;
 
 	Interface::Instance->add(urlPrefix(), this);
-	
-	if(!mBoard)
-		mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
+
+	if(!isSelf())
+	{
+		if(!mBoard) mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
+		mAddressBook->user()->mergeBoard(mBoard);
+	}
+	else {
+		mBoard = NULL;
+	}
 	
 	listen(mAddressBook->user()->identifier(), identifier());
 }
@@ -1136,7 +1145,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(isSelf()) throw 404;
 			
 			Http::Response response(request, 301);	// Moved permanently
-			response.headers["Location"] = mBoard->urlPrefix();
+			if(mBoard) response.headers["Location"] = mBoard->urlPrefix();
+			else response.headers["Location"] = mAddressBook->user()->board()->urlPrefix();
 			response.send();
 			return;
 		}

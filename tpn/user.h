@@ -69,6 +69,8 @@ public:
 	Indexer *indexer(void) const;
 	
 	void invite(const Identifier &remote, const String &name);
+	void mergeBoard(const Board *board);
+	void unmergeBoard(const Board *board);
 	
 	bool isOnline(void) const;
 	void setOnline(void);

@@ -105,8 +105,19 @@ bool Board::add(Mail &mail)
 BinaryString Board::digest(void) const
 {
 	Synchronize(this);
-	
 	return mDigest;
+}
+
+void Board::addMergeUrl(const String &url)
+{
+	Synchronize(this);
+	mMergeUrls.insert(url);
+}
+
+void Board::removeMergeUrl(const String &url)
+{
+	Synchronize(this);
+	mMergeUrls.erase(url);
 }
 
 void Board::process(void)
@@ -377,8 +388,12 @@ void Board::http(const String &prefix, Http::Request &request)
 						$(document.boardform.input).select();\n\
 					}\n\
 				});\n\
-				$('#attachedfile').hide();\n\
-				setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail');");
+				$('#attachedfile').hide();");
+			
+			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail');");
+			
+			for(StringSet::iterator it = mMergeUrls.begin(); it != mMergeUrls.end(); ++it)
+				page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail');");
 			
 			page.footer();
 			return;
