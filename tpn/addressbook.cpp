@@ -280,10 +280,23 @@ bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	Object object;
-	object["contacts"] = &mContacts;
+	SerializableMap<String, Contact> *temp = new SerializableMap<String, Contact>();
 	
+	Object object;
+	object["contacts"] = temp;
 	if(!s.read(object)) return false;
+	
+	// Clean up old contacts
+	for(Map<String, Contact>::iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		Contact *contact = &it->second;
+		contact->uninit();
+	}
+	
+	// Replace contacts
+	std::swap(*temp, mContacts);
 	
 	// Fill mContactsByIdentifier and set up contacts
 	for(Map<String, Contact>::iterator it = mContacts.begin();
@@ -295,6 +308,9 @@ bool AddressBook::deserialize(Serializer &s)
 		contact->init();
 		mContactsByIdentifier.insert(contact->identifier(), contact);
 	}
+	
+	// Schedule deletion of old contacts
+	Scheduler::Global->schedule(new AutoDeleteTask<SerializableMap<String, Contact> >(temp, true), 10.);
 	
 	save();
 	return true;
@@ -672,20 +688,12 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 
 AddressBook::Contact::~Contact(void)
 {
-	if(mAddressBook)
-	{
-		Interface::Instance->remove(urlPrefix(), this);
-		if(mBoard) mAddressBook->user()->unmergeBoard(mBoard);
-	}
-	
-	delete mBoard;
+	uninit();
 }
 
 void AddressBook::Contact::init(void)
 {
 	if(!mAddressBook) return;
-
-	Interface::Instance->add(urlPrefix(), this);
 
 	if(!isSelf())
 	{
@@ -696,7 +704,23 @@ void AddressBook::Contact::init(void)
 		mBoard = NULL;
 	}
 	
+	Interface::Instance->add(urlPrefix(), this);
 	listen(mAddressBook->user()->identifier(), identifier());
+}
+
+void AddressBook::Contact::uninit(void)
+{
+	if(!mAddressBook) return;
+	
+	if(mBoard) 
+	{
+		mAddressBook->user()->unmergeBoard(mBoard);
+		delete mBoard;
+		mBoard = NULL;
+	}
+	
+	Interface::Instance->remove(urlPrefix(), this);
+	ignore(mAddressBook->user()->identifier(), identifier());
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)

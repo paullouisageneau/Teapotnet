@@ -139,6 +139,7 @@ public:
 		~Listener(void);
 		
 		void listen(const Identifier &local, const Identifier &remote);
+		void ignore(const Identifier &local, const Identifier &remote);
 		
 		virtual void seen(const Link &link) {}
 		virtual void connected(const Link &link, bool status) {}

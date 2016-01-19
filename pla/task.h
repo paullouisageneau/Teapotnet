@@ -38,21 +38,6 @@ public:
 	// TODO: autodeletion flag should be defined here so scheduler can properly delete tasks on destruction
 };
 
-template<class T> class DeleteTask : public Task
-{
-public:
-	DeleteTask(T *target) : mTarget(target) {}
-	virtual ~DeleteTask(void) {}
-	
-	void run(void)
-	{
-		delete mTarget;
-	}
-
-private:
-	T *mTarget;
-};
-
 template<class T> class AutoDeleteTask : public Task
 {
 public:

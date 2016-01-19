@@ -1170,6 +1170,12 @@ void Network::Listener::listen(const Identifier &local, const Identifier &remote
 	Network::Instance->registerListener(local, remote, this);
 }
 
+void Network::Listener::ignore(const Identifier &local, const Identifier &remote)
+{
+	mPairs.erase(IdentifierPair(remote, local));
+	Network::Instance->unregisterListener(local, remote, this);
+}
+
 Network::Tunneler::Tunneler(void)
 {
 
