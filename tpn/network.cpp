@@ -406,7 +406,20 @@ void Network::run(void)
 						serializer.read(combination);
 						combination.setCodedData(message.content);
 						if(Store::Instance->push(message.source, combination))
+						{
 							unregisterAllCallers(message.source);
+							
+							Set<BinaryString> nodes;
+							if(Store::Instance->retrieveValue(message.source, nodes))
+							{
+								BinaryString call;
+								call.writeBinary(uint16_t(0));
+								call.writeBinary(message.source);
+								
+								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
+							}
+						}
 						break;
 					}
 					
