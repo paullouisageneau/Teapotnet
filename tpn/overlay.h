@@ -115,6 +115,7 @@ public:
 	
 	// Connections
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
+	bool isConnected(const BinaryString &remote) const;
 	int connectionsCount(void) const;
 	
 	// Message interface

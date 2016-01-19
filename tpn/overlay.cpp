@@ -260,6 +260,8 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 	try {
 		Synchronize(this);
 		
+		if(isConnected(remote)) return true;
+		
 		Set<Address> filteredAddrs;
 		for(Set<Address>::iterator it = addrs.begin();
 			it != addrs.end();
@@ -293,6 +295,12 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 	}
 	
 	return false;
+}
+
+bool Overlay::isConnected(const BinaryString &remote) const
+{
+	Synchronize(this);
+	return mHandlers.contains(remote);
 }
 
 int Overlay::connectionsCount(void) const
@@ -458,10 +466,15 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Path-folding suggestion (relayed offer)
 	case Message::Suggest:
 		{
-			SerializableSet<Address> addrs;
-			BinarySerializer serializer(&message.content);
-			serializer.read(addrs);
-			connect(addrs, message.source);
+			if(!isConnected(message.source))
+			{
+				LogDebug("Overlay::Incoming", "Suggest " + message.source.toString());
+				
+				SerializableSet<Address> addrs;
+				BinarySerializer serializer(&message.content);
+				serializer.read(addrs);
+				connect(addrs, message.source);
+			}
 			break;
 		}
 
