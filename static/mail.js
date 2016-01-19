@@ -45,12 +45,12 @@ function setMailReceiverRec(url, object, next) {
 			if(idParent && $('#'+idParent).length == 0) return;	// Parent not found
 			$('#'+id).remove();
 			
-			var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(mail.time).escape()+'</span></span><span class="content"></span></div>';
+			var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(mail.time).escape()+'</span><span class="time" style="display:none">'+mail.time+'</span></span><span class="content"></span></div>';
 			
 			if(!idParent) {
 				$(object).prepend('<div class="conversation">'+div+'</div>');
 				$('#'+id).append('<div class="buttonsbar"></div>');
-					
+				
 				/*
 				if(!mail.passed)
 				{
@@ -194,6 +194,11 @@ function setMailReceiverRec(url, object, next) {
 			
 			$('#'+id).append('<span class="footer"></span>');
 		});
+		
+		// Order messages
+		$(object).html($(object).find('div.message').sort(function(a,b){
+			return $(a).find(".time").text() < $(b).find(".time").text();
+		}));
 		
 		/*
 		if(NbNewMails) {

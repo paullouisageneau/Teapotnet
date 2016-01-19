@@ -1354,69 +1354,6 @@ td.actions a
 	clear: both;
 }
 
-.profileinfo
-{
-	font-size: 1.1em;
-	margin-top: 2px;
-	margin-bottom: 2px;
-}
-
-.profileinfo input
-{
-
-}
-
-.inputprofile
-{
-	width: 97%;
-}
-
-#profileheader
-{
-	height: 200px;
-}
-
-#personalstatus
-{
-	float: left;
-	font-size: 1.2em;
-	width: 70%;
-	height: 150px;
-	margin-top: 40px;
-	line-height: 40px;
-	text-align: center;
-}
-
-#personalstatus input
-{
-	float: none;
-	display: inline;
-	width: 25em;
-	max-width: 50%;
-	text-align: center;
-}
-
-#profileavatar
-{
-	float: right;
-	border: 1px solid black;
-	width: auto;
-	height: auto;
-	min-width: 128px;
-	min-height: 128px;
-	max-width: 20%;
-	max-height: 256px;
-	margin-right: 20px;
-}
-
-.statusquotemark
-{
-	font-family: serif;
-	font-style: bold;
-	font-size: 1.4em;
-	color: black;
-}
-
 .empty
 {
 	color: gray;
