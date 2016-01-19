@@ -299,6 +299,7 @@ bool AddressBook::deserialize(Serializer &s)
 	std::swap(*temp, mContacts);
 	
 	// Fill mContactsByIdentifier and set up contacts
+	mContactsByIdentifier.clear();
 	for(Map<String, Contact>::iterator it = mContacts.begin();
 		it != mContacts.end();
 		++it)
