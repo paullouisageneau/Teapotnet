@@ -82,6 +82,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/directory.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/mail.js\"></script>\n";
+	*mStream<<"<base target=\"_parent\">\n";
 	
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 		if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || deviceAgent.indexOf('iPad') >= 0)\n\
