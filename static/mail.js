@@ -196,7 +196,7 @@ function setMailReceiverRec(url, object, next) {
 		});
 		
 		// Order messages
-		$(object).html($(object).find('div.message').sort(function(a,b){
+		$(object).html($(object).children().detach().sort(function(a,b){
 			return $(a).find(".time").text() < $(b).find(".time").text();
 		}));
 		

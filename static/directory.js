@@ -94,7 +94,7 @@ function listDirectoryRec(url, object) {
 			});
 			
 			// Order files
-			table.html(table.find('tr').sort(function(a,b){
+			table.html(table.find('tr').detach().sort(function(a,b){
 				return $(a).find(".filename").text() > $(b).find(".filename").text();
 			}));
 		
