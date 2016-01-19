@@ -65,6 +65,8 @@ void Signal::wait(Mutex &mutex)
 
 bool Signal::wait(Mutex &mutex, double &timeout)
 {
+	if(timeout <= 0.) return false;
+	
 	Time t1;
 	t1+= timeout;
 	struct timespec ts;
