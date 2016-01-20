@@ -237,9 +237,9 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		
 		// Retrieve from cache
 		Set<BinaryString> targets;
-		if(Store::Instance->retrieveValue(Store::Hash(prefix+"/"), targets))
+		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
 			for(Set<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
-				subscriber->incoming(Link::Null, prefix, "/", *it);
+				subscriber->incoming(Link::Null, prefix, "", *it);
 	}
 }
 
@@ -606,9 +606,9 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		serializer.read(Object()
 				.insert("path", &path)
 				.insert("targets", &targets));
-		
+	
 		bool hasNew = false;
-		BinaryString key = Store::Hash(path + "/");
+		BinaryString key = Store::Hash(path);
 		for(SerializableList<BinaryString>::iterator it = targets.begin();
 			it != targets.end();
 			++it)
@@ -720,7 +720,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 	if(path.empty() || path[0] != '/') return false;
 	
 	List<String> list;
-	path.before('?').explode(list,'/');
+	path.explode(list,'/');
 	if(list.empty()) return false;
 	list.pop_front();
 	
@@ -1001,35 +1001,40 @@ bool Network::Subscriber::localOnly(void) const
 	return false;
 }
 
-bool Network::Subscriber::fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Network::Subscriber::fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent)
 {
 	// Test local availability
 	if(Store::Instance->hasBlock(target))
 	{
 		Resource resource(target, true);	// local only
-		if(resource.isLocallyAvailable())
+		if(!fetchContent || resource.isLocallyAvailable())
 			return true;
 	}
 	
 	class PrefetchTask : public Task
 	{
 	public:
-		PrefetchTask(Network::Subscriber *subscriber, const Link &link, const String &prefix, const String &path, const BinaryString &target)
+		PrefetchTask(Network::Subscriber *subscriber, const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent)
 		{
 			this->subscriber = subscriber;
 			this->link = link;
 			this->target = target;
 			this->prefix = prefix;
 			this->path = path;
+			this->fetchContent = fetchContent;
 		}
 		
 		void run(void)
 		{
 			try {
 				Resource resource(target);
-				Resource::Reader reader(&resource, "", true);	// empty password + no check
-				reader.discard();				// read everything
 				
+				if(fetchContent)
+				{
+					Resource::Reader reader(&resource, "", true);	// empty password + no check
+					reader.discard();				// read everything
+				}
+
 				subscriber->incoming(link, prefix, path, target);
 			}
 			catch(const Exception &e)
@@ -1046,9 +1051,10 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 		BinaryString target;
 		String prefix;
 		String path;
+		bool fetchContent;
 	};
 	
-	PrefetchTask *task = new PrefetchTask(this, link, prefix, path, target);
+	PrefetchTask *task = new PrefetchTask(this, link, prefix, path, target, fetchContent);
 	mThreadPool.launch(task);
 	return false;
 }

@@ -100,6 +100,8 @@ void Request::addResult(Resource &resource, bool finish)
 	
 	if(resource.isDirectory() && mListDirectories)
 	{
+		Desynchronize(this);
+
 		// List directory and add records
 		Resource::Reader reader(&resource);
 		Resource::DirectoryRecord record;
@@ -197,11 +199,12 @@ void Request::http(const String &prefix, Http::Request &request)
 bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
 	Synchronize(this);
-	
-	if(fetch(link, prefix, path, target))
-	{
-		Resource resource(target, true);	// local only (already fetched)
-		addResult(resource);
+
+	if(fetch(link, prefix, path, target, false))	// no content
+	{		
+		Resource resource(target, true);	// local only
+		if(!mListDirectories || !resource.isDirectory() || fetch(link, prefix, path, target, true))
+			addResult(resource);
 	}
 
 	return true;

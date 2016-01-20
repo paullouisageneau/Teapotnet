@@ -53,7 +53,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 		++it)
 	{
 		//LogDebug("Board", "Retrieved digest: " + it->toString());
-		if(fetch(Network::Link::Null, prefix, "/", *it))
+		if(fetch(Network::Link::Null, prefix, "/", *it, false))
 			incoming(Network::Link::Null, prefix, "/", *it);
 	}
 	
@@ -170,7 +170,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	if(target == mDigest)
 		return false;
 	
-	if(fetch(link, prefix, path, target))
+	if(fetch(link, prefix, path, target, true))
 	{
 		try {
 			Resource resource(target, true);	// local only (already fetched)
