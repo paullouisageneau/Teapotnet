@@ -107,7 +107,7 @@ public:
 		virtual bool localOnly(void) const;
 		
 	protected:
-		bool fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target);
+		bool fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent = false);
 		
 	private:
 		Link mLink;
