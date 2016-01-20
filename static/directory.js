@@ -95,7 +95,7 @@ function listDirectoryRec(url, object) {
 			
 			// Order files
 			table.html(table.find('tr').detach().sort(function(a,b){
-				return $(a).find(".filename").text() > $(b).find(".filename").text();
+				return $(a).find(".filename a").text() > $(b).find(".filename a").text();
 			}));
 		
 			listDirectoryRec(url, object);
