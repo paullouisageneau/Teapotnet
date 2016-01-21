@@ -341,7 +341,24 @@ bool Overlay::send(const Message &message)
 	
 	//LogDebug("Overlay::send", "Sending message (type=" + String::hexa(unsigned(message.type)) + ")");
 	
-	return route(message, "");
+	// Drop if not connected
+        if(mHandlers.empty()) return false;
+
+        // Drop if self
+        if(message.destination == localNode()) return false;
+
+        // Neighbor
+        if(mHandlers.contains(message.destination))
+                return sendTo(message, message.destination);
+
+	// Always send to best route
+	Map<BinaryString, BinaryString> sorted;
+        Array<BinaryString> neighbors;
+        mHandlers.getKeys(neighbors);
+        for(int i=0; i<neighbors.size(); ++i)
+                sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
+
+	return sendTo(message, sorted.begin()->second);
 }
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
