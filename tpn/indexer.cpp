@@ -1646,11 +1646,13 @@ bool Indexer::Entry::deserialize(Serializer &s)
 	object["path"] = &path;
 	object["access"] = &strAccessLevel;
 	
+	bool ret = s.read(object);
+	
 	if(strAccessLevel == "personal") access = Resource::Personal;
 	else if(strAccessLevel == "private") access = Resource::Private;
 	else access = Resource::Public;
 	
-	return s.read(object);
+	return ret;
 }
 
 bool Indexer::Entry::isInlineSerializable(void) const
