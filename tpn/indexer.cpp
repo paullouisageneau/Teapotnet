@@ -1599,11 +1599,13 @@ bool Indexer::Query::deserialize(Serializer &s)
 	object["count"] = &countWrapper;
 	object["access"] = &strAccessLevel;
 	
+	bool ret = s.read(object);
+	
 	if(strAccessLevel == "personal") mAccess = Resource::Personal;
 	else if(strAccessLevel == "private") mAccess = Resource::Private;
 	else mAccess = Resource::Public;
 	
-	return s.read(object);
+	return ret;
 }
 
 bool Indexer::Query::isInlineSerializable(void) const
