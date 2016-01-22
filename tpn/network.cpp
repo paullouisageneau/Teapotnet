@@ -365,11 +365,15 @@ void Network::run(void)
 							Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
 							while(it != mListeners.end() && it->first.first == message.source)
 							{
-								for(Set<Listener*>::iterator jt = it->second.begin();
-									jt != it->second.end();
+								IdentifierPair pair(it->first);
+								Set<Listener*> set(it->second);
+								Desynchronize(this);
+								
+								for(Set<Listener*>::iterator jt = set.begin();
+									jt != set.end();
 									++jt)
 								{
-									(*jt)->seen(Link(it->first.second, it->first.first, message.content));
+									(*jt)->seen(Link(pair.second, pair.first, message.content));
 								}
 								++it;
 							}
