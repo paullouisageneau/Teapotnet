@@ -451,10 +451,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			
 			if(request.get.contains("json"))
 			{
-				Http::Response response(request, 200);
-				response.headers["Content-Type"] = "application/json";
-				response.send();
-				
 				if(request.get.contains("id"))
 				{
 					Identifier identifier;
@@ -465,11 +461,19 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					if(!mContactsByIdentifier.get(identifier, contact))
 						throw 404;
 					
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+					
 					JsonSerializer json(response.stream);
 					json.setOptionalOutputMode(true);
 					json.write(*contact);
 					return;
 				}
+				
+				Http::Response response(request, 200);
+				response.headers["Content-Type"] = "application/json";
+				response.send();
 				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
