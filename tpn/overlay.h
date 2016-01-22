@@ -217,6 +217,7 @@ private:
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
+		bool mClosed;
 		
 		class TimeoutTask : public Task
 		{

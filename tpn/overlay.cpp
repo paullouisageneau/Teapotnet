@@ -339,25 +339,25 @@ bool Overlay::send(const Message &message)
 {
 	Synchronize(this);
 	
-	//LogDebug("Overlay::send", "Sending message (type=" + String::hexa(unsigned(message.type)) + ")");
-	
 	// Drop if not connected
-        if(mHandlers.empty()) return false;
-
-        // Drop if self
-        if(message.destination == localNode()) return false;
-
-        // Neighbor
-        if(mHandlers.contains(message.destination))
-                return sendTo(message, message.destination);
-
+	if(mHandlers.empty()) return false;
+	
+	// Drop if self
+	if(message.destination == localNode()) return false;
+	
+	//LogDebug("Overlay::send", "Sending message  (type=" + String::hexa(unsigned(message.type)) + ") to   " + message.destination.toString());
+	
+	// Neighbor
+	if(mHandlers.contains(message.destination))
+		return sendTo(message, message.destination);
+	
 	// Always send to best route
 	Map<BinaryString, BinaryString> sorted;
-        Array<BinaryString> neighbors;
-        mHandlers.getKeys(neighbors);
-        for(int i=0; i<neighbors.size(); ++i)
-                sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
-
+	Array<BinaryString> neighbors;
+	mHandlers.getKeys(neighbors);
+	for(int i=0; i<neighbors.size(); ++i)
+	sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
+	
 	return sendTo(message, sorted.begin()->second);
 }
 
@@ -367,10 +367,15 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 
 	Message message(Message::Store, value, key);
 	Array<BinaryString> routes;
-	getRoutes(key, 0, routes);
-	for(int i=0; i<routes.size(); ++i)
-		if(routes[i] != localNode())
+	if(!getRoutes(key, 0, routes))
+	{
+		// force send
+		send(message);
+	}
+	else {
+		for(int i=0; i<routes.size(); ++i)
 			sendTo(message, routes[i]);
+	}
 }
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
@@ -448,7 +453,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		return false;
 	}
 
-	//LogDebug("Overlay::incoming", "Incoming message (type=" + String::hexa(unsigned(message.type)) + ")");
+	//LogDebug("Overlay::incoming", "Incoming message (type=" + String::hexa(unsigned(message.type)) + ") from " + message.source.toString());
 	
 	// Message is for us
 	switch(message.type)
@@ -521,7 +526,14 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			
-			store(message.destination, message.content);	// routing is done in store()
+			Store::Instance->storeValue(message.destination, message.content, Store::Distributed);	// not permanent
+			message.source = localNode();
+			
+			Array<BinaryString> routes;
+			getRoutes(message.destination, 0, routes);
+			for(int i=0; i<routes.size(); ++i)
+				if(routes[i] != from)
+					sendTo(message, routes[i]);
 			
 			Synchronize(&mRetrieveSync);
 			if(mRetrievePending.contains(message.content))
@@ -659,6 +671,8 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 {
 	Synchronize(this);
 	
+	//LogDebug("Overlay::sendTo", "Broadcasting message");
+	
 	Array<BinaryString> neighbors;
 	mHandlers.getKeys(neighbors);
 	
@@ -692,6 +706,7 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 	if(mHandlers.get(to, handler))
 	{
 		Desynchronize(this);
+		//LogDebug("Overlay::sendTo", "Sending message via " + to.toString());
 		handler->send(message);
 		return true;
 	}
@@ -721,7 +736,7 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 	for(int i=0; i<result.size(); ++i)
 		if(result[i] == localNode())
 		{
-			result.resize(i+1);
+			result.resize(i);
 			break;
 		}
 
@@ -1356,6 +1371,7 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mOverlay(overlay),
 	mStream(stream),
 	mNode(node),
+	mClosed(false),
 	mTimeoutTask(this)
 {
 	if(node == mOverlay->localNode())
@@ -1379,18 +1395,18 @@ Overlay::Handler::~Handler(void)
 bool Overlay::Handler::recv(Message &message)
 {
 	Synchronize(this);
+	if(mClosed) return false;
 	
-	BinarySerializer s(mStream);
-
 	while(true)
 	{
 		Desynchronize(this);
+		BinarySerializer s(mStream);
 		
 		try {
 			// 32-bit control block
 			if(!s.read(message.version))
 			{
-				if(!mStream->nextRead()) return false;
+				if(!mStream->nextRead()) break;
 				continue;
 			}
 			
@@ -1425,19 +1441,21 @@ bool Overlay::Handler::recv(Message &message)
 			if(!mStream->nextRead())
 			{
 				LogWarn("Overlay::Handler", "Connexion unexpectedly closed");
-				return false;
+				break;
 			}
 			
 			LogWarn("Overlay::Handler", "Truncated message");
 		}
 	}
 	
+	mClosed = true;
 	return false;
 }
 
 bool Overlay::Handler::send(const Message &message)
 {
 	Synchronize(this);
+	if(mClosed) return false;
 	
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
 	Scheduler::Global->cancel(&mTimeoutTask);
@@ -1474,6 +1492,7 @@ bool Overlay::Handler::send(const Message &message)
 	{
 		LogWarn("Overlay::Handler::send", String("Sending failed: ") + e.what());
 		mStream->close();
+		mClosed = true;
 		return false;
 	}
 	
