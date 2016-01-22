@@ -1182,7 +1182,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!mPrivateBoard)
 			{
 				BinaryString id = mAddressBook->user()->identifier() ^ identifier();
-				mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name());
+				mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name() + " (Private)");
 			}
 			
 			Http::Response response(request, 301);	// Moved permanently
