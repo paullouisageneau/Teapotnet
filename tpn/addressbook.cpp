@@ -459,7 +459,34 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					Synchronize(this);
 					Contact *contact = NULL;
 					if(!mContactsByIdentifier.get(identifier, contact))
+					{
+						if(identifier == mUser->identifier())
+						{
+							String name = mUser->name();
+							String prefix = mUser->urlPrefix();
+							String status = "disconnected";
+							
+							Http::Response response(request, 200);
+							response.headers["Content-Type"] = "application/json";
+							response.send();
+							
+							JsonSerializer json(response.stream);
+							
+							ConstSerializableWrapper<uint32_t> messages(uint32_t(0));
+							ConstObject object;
+							object["identifier"] = &identifier;
+							object["uname"] = &name;
+							object["name"] = &name;
+							object["prefix"] = &prefix;
+							object["status"] = &status;
+							object["messages"] = &messages;
+							
+							json.write(object);
+							return;
+						}
+						
 						throw 404;
+					}
 					
 					Http::Response response(request, 200);
 					response.headers["Content-Type"] = "application/json";
