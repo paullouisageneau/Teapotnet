@@ -1604,6 +1604,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mRank(0.),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
+	mClosed(false),
 	mTimeoutTask(this)
 {
 	Network::Instance->registerHandler(mLink, this);
@@ -1620,6 +1621,7 @@ Network::Handler::~Handler(void)
 void Network::Handler::write(const String &type, const String &content)
 {
 	Synchronize(this);
+	if(mClosed) return;
 	
 	BinaryString buffer;
 	buffer.writeBinary(type.c_str(), type.size()+1);
@@ -1633,6 +1635,7 @@ void Network::Handler::write(const String &type, const String &content)
 int Network::Handler::send(bool force)
 {
 	Synchronize(this);
+	if(mClosed) return 0;
 	
 	int count = 0;
 	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
@@ -1663,6 +1666,7 @@ int Network::Handler::send(bool force)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
 			mStream->close();
+			mClosed = true;
 			break;
 		}
 	}
@@ -1685,14 +1689,25 @@ void Network::Handler::timeout(void)
 bool Network::Handler::read(String &type, String &content)
 {
 	Synchronize(this);
+	if(mClosed) return false;
 	
-	if(!readString(type))
-		return false;
+	try {
+		if(readString(type))
+		{
+			if(!readString(content))
+				throw Exception("Connection unexpectedly closed");
+			
+			return true;
+		}
+	}
+	catch(std::exception &e)
+	{
+		LogWarn("Network::Handler::read", String("Reading failed: ") + e.what());
+	}
 	
-	if(!readString(content))
-		throw Exception("Connexion unexpectedly closed");
-	
-	return true;
+	mStream->close();
+	mClosed = true;
+	return false;
 }
 
 bool Network::Handler::readString(String &str)
@@ -1717,6 +1732,7 @@ bool Network::Handler::readString(String &str)
 		
 		// We need more combinations
 		Fountain::Combination combination;
+		
 		BinarySerializer serializer(mStream);
 		DesynchronizeStatement(this, if(!serializer.read(combination)) break);
 		

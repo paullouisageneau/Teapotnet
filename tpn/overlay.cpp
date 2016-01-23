@@ -1440,14 +1440,15 @@ bool Overlay::Handler::recv(Message &message)
 		{
 			if(!mStream->nextRead())
 			{
-				LogWarn("Overlay::Handler", "Connexion unexpectedly closed");
+				LogWarn("Overlay::Handler::recv", "Connexion unexpectedly closed");
 				break;
 			}
 			
-			LogWarn("Overlay::Handler", "Truncated message");
+			LogWarn("Overlay::Handler::recv", "Truncated message");
 		}
 	}
 	
+	mStream->close();
 	mClosed = true;
 	return false;
 }

@@ -296,6 +296,7 @@ private:
 		double mTokens, mRank;
 		double mRedundancy;
 		double mTimeout;
+		bool mClosed;
 		
 		class TimeoutTask : public Task
 		{
