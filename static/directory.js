@@ -65,24 +65,27 @@ function listDirectoryRec(url, object) {
 				var resource = data[i];
 				
 				var link = '/file/' + resource.digest;
-				var line = '<tr>';
+				var line;
 				if(resource.type == "directory") {
+					line = '<tr class="directory">';
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
 					line+= '<td class="actions"></td>';
+					line+= '</tr>';
 				}
 				else {
 					var pos = resource.name.escape().lastIndexOf('.');
 					var extension = (pos > 0 ? resource.name.escape().substring(pos+1,resource.name.escape().length) : '');
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					
+					line = '<tr class="file">';
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>'; 
 					line+= '<td class="actions"><a class="downloadlink" href="'+link.escape()+'?download=1"><img src="/down.png" alt="(download)"></a>';
 					if(isPlayable) line+= '<a class="playlink" href="'+link.escape()+'?play=1"><img src="/play.png" alt="(play)"></a>';
 					line+= '</td>';
+					line+= '</tr>';
 				}
-				line+= '</tr>';
 				table.append(line);
 				
 				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
@@ -95,6 +98,8 @@ function listDirectoryRec(url, object) {
 			
 			// Order files
 			table.html(table.find('tr').detach().sort(function(a,b){
+				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
+				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;  
 				return $(a).find(".filename a").text() > $(b).find(".filename a").text();
 			}));
 		
