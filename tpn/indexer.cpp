@@ -348,7 +348,7 @@ bool Indexer::query(const Query &query, Set<Resource> &resources)
 
 bool Indexer::process(String path, Resource &resource)
 {
-	// Not synchronized
+	Desynchronize(this);
 	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -402,7 +402,7 @@ bool Indexer::process(String path, Resource &resource)
 		}
 		catch(const Exception &e)
 		{
-			LogWarn("Indexer::process", String("Update failed for directory ") + names[i] + ": " + e.what());
+			LogWarn("Indexer::process", String("Indexing failed for directory ") + names[i] + ": " + e.what());
 		}
 		
 		tempFile.close();
@@ -411,10 +411,10 @@ bool Indexer::process(String path, Resource &resource)
 	else if(Directory::Exist(realPath))
 	{
 		isDirectory = true;
-	  
+
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
-		
+	
 		// Iterate on files and order them by name
 		StringMap sorted;
 		Directory dir(realPath);
@@ -451,7 +451,7 @@ bool Indexer::process(String path, Resource &resource)
 	else {
 		if(!File::Exist(realPath))
 		{
-			LogWarn("Indexer::process", String("Update failed: File does not exist: ") + realPath);
+			LogWarn("Indexer::process", String("Indexing failed: File does not exist: ") + realPath);
 			return false;
 		}
 	}
@@ -468,7 +468,7 @@ bool Indexer::process(String path, Resource &resource)
 	else {
 		// Publish into DHT right now
 		// Store will publish the blocks anyway
-        	DesynchronizeStatement(this, Network::Instance->storeValue(resource.digest(), Network::Instance->overlay()->localNode()));
+        	Network::Instance->storeValue(resource.digest(), Network::Instance->overlay()->localNode());
 	}
 	
 	// Mark as seen
@@ -476,7 +476,7 @@ bool Indexer::process(String path, Resource &resource)
 	statement.bind(1, path);
 	statement.execute();
 
-	yield();
+	//yield();
 	return true;
 }
 
@@ -1344,6 +1344,8 @@ void Indexer::update(String path)
 	if(!path.empty() && path[path.size() - 1] == '/')
 		path.resize(path.size() - 1);
 	if(path.empty()) path = "/";
+
+	//LogDebug("Indexer::process", "Updating: " + path);
 	
 	try {
 		if(path == "/")	// Top-level: Indexer directories
@@ -1361,10 +1363,21 @@ void Indexer::update(String path)
 			String realPath = this->realPath(path);
 			if(Directory::Exist(realPath))
 			{
-				Directory dir(realPath);
-				while(dir.nextFile())
-				{
-					String subpath = path + '/' + dir.fileName();
+				// Iterate on files and order them by name
+                		StringMap sorted;
+                		Directory dir(realPath);
+                		while(dir.nextFile())
+                		{
+                        		String key = String(dir.fileIsDir() ? "0" : "1") + dir.fileName().toLower();
+                        		sorted.insert(key, dir.fileName());
+                		}
+
+               		 	// Update ordered files
+                		for(StringMap::iterator it = sorted.begin();
+                        		it != sorted.end();
+                        		++it)
+                		{
+					String subpath = path + '/' + it->second;
 					update(subpath);
 				}
 			}
