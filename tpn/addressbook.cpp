@@ -642,26 +642,27 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.close("table");
 					page.close("div");
 					
-					page.javascript("$('.contacts .acceptlink').css('cursor', 'pointer').click(function(event) {\n\
-						event.stopPropagation();\n\
-						var name = $(this).closest('tr').find('td.name').text();\n\
-						var id = $(this).closest('tr').find('td.id').text();\n\
-						if(confirm('Do you really want to add '+name+' ?')) {\n\
-							document.actionForm.action.value = 'create';\n\
-							document.actionForm.argument.value = id;\n\
-							document.actionForm.submit();\n\
-						}\n\
-					});");
-					
-					page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
-						event.stopPropagation();\n\
-						var name = $(this).closest('tr').find('td.name').text();\n\
-						var id = $(this).closest('tr').find('td.id').text();\n\
-						if(confirm('Do you really want to delete invitation from '+name+' ?')) {\n\
-							document.actionForm.action.value = 'deleteinvitation';\n\
-							document.actionForm.argument.value = id;\n\
-							document.actionForm.submit();\n\
-						}\n\
+					page.javascript("$(document).ready(function () {\n\
+						$('.contacts .acceptlink').css('cursor', 'pointer').click(function(event) {\n\
+							event.stopPropagation();\n\
+							var name = $(this).closest('tr').find('td.name').text();\n\
+							var id = $(this).closest('tr').find('td.id').text();\n\
+							if(confirm('Do you really want to add '+name+' ?')) {\n\
+								document.actionForm.action.value = 'create';\n\
+								document.actionForm.argument.value = id;\n\
+								document.actionForm.submit();\n\
+							}\n\
+						});\n\
+						$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+							event.stopPropagation();\n\
+							var name = $(this).closest('tr').find('td.name').text();\n\
+							var id = $(this).closest('tr').find('td.id').text();\n\
+							if(confirm('Do you really want to delete invitation from '+name+' ?')) {\n\
+								document.actionForm.action.value = 'deleteinvitation';\n\
+								document.actionForm.argument.value = id;\n\
+								document.actionForm.submit();\n\
+							}\n\
+						});\n\
 					});");
 				}
 			}
