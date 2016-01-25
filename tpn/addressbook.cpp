@@ -45,7 +45,8 @@ namespace tpn
 {
 
 AddressBook::AddressBook(User *user) :
-	mUser(user)
+	mUser(user),
+	mTime(0)
 {
 	Assert(mUser != NULL);
 	
@@ -146,7 +147,9 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
 	it->second.init();
-	
+
+	mTime = Time::Now();
+		
 	save();
 	
 	return uname;
@@ -161,6 +164,9 @@ bool AddressBook::removeContact(const String &uname)
 	
 	mContactsByIdentifier.erase(it->second.identifier());
 	mContacts.erase(it);
+
+	mTime = Time::Now();
+
 	save();
 	return true;
 }
@@ -222,6 +228,8 @@ void AddressBook::setSelf(const Identifier &identifier)
 	it = mContacts.insert(uname, Contact(this, uname, uname, identifier));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	it->second.init();
+
+	mTime = Time::Now();
 	
 	save();
 }
@@ -243,6 +251,12 @@ void AddressBook::addInvitation(const Identifier &remote, const String &name)
 	Synchronize(this);
 	if(!hasIdentifier(remote))
 		mInvitations.insert(remote, name);
+}
+
+Time AddressBook::time(void) const
+{
+        Synchronize(this);
+        return mTime;
 }
 
 BinaryString AddressBook::digest(void) const
@@ -272,6 +286,7 @@ void AddressBook::serialize(Serializer &s) const
 	
 	ConstObject object;
 	object["contacts"] = &mContacts;
+	object["time"] = &mTime;
 	
 	s.write(object);
 }
@@ -281,9 +296,12 @@ bool AddressBook::deserialize(Serializer &s)
 	Synchronize(this);
 	
 	SerializableMap<String, Contact> *temp = new SerializableMap<String, Contact>();
-	
+	Time time;	
+
 	Object object;
 	object["contacts"] = temp;
+	object["time"] = &time;
+
 	if(!s.read(object)) return false;
 	
 	// Clean up old contacts
@@ -312,6 +330,8 @@ bool AddressBook::deserialize(Serializer &s)
 	
 	// Schedule deletion of old contacts
 	Scheduler::Global->schedule(new AutoDeleteTask<SerializableMap<String, Contact> >(temp, true), 10.);
+
+	mTime = time;
 	
 	save();
 	return true;
@@ -873,7 +893,8 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		if(isSelf())
 		{
 			send(link.node, "contacts", ConstObject()
-				.insert("digest", mAddressBook->digest()));
+				.insert("digest", mAddressBook->digest())
+				.insert("time", mAddressBook->time()));
 		}
 	}
 	else {
@@ -916,10 +937,12 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		if(!isSelf()) throw Exception("Received contacts from other than self");
 		
 		BinaryString digest;
+		Time time;
 		serializer.read(Object()
-			.insert("digest", &digest));
+			.insert("digest", &digest)
+			.insert("time", &time));
 		
-		if(digest != mAddressBook->mDigest)
+		if(digest != mAddressBook->mDigest && time >= mAddressBook->time())
 		{
 			mAddressBook->mScheduler.schedule(new Resource::ImportTask(mAddressBook, digest, "contacts", secret(), true));	// autodelete
 			mAddressBook->mDigest = digest;
@@ -970,7 +993,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			else {
 				page.header("Contact: "+name());
 				page.open("div", "topmenu");
-				page.span("TODO", "status.button");	// TODO
+				page.span((isConnected() ? "Connected" : "Disconnected"), "status.button");
 				page.close("div");
 			}
 			

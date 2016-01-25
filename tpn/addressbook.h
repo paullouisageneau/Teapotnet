@@ -141,6 +141,7 @@ public:
 	void addInvitation(const Identifier &remote, const String &name);
 	
 private:
+	Time time(void) const;
 	BinaryString digest(void) const;
 	
 	User *mUser;
@@ -148,6 +149,7 @@ private:
 	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
 	Map<Identifier, String> mInvitations;
+	Time mTime;	// modification time
 	
 	Scheduler mScheduler;
 	
