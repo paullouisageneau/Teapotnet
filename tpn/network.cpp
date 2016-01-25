@@ -1303,8 +1303,8 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 	if(mTunnels.get(tunnel->id(), t))
 		return (t == tunnel);
 	
-	mPending.insert(tunnel->node());
 	mTunnels.insert(tunnel->id(), tunnel);
+	mPending.insert(tunnel->node());
 	return true;
 }
 
@@ -1313,11 +1313,12 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 	Synchronize(this);
 	Assert(tunnel);
 	
+	mPending.erase(tunnel->node());
+	
 	Tunneler::Tunnel *t = NULL;
 	if(!mTunnels.get(tunnel->id(), t) || t != tunnel)
 		return false;
 	
-	mPending.erase(tunnel->node());
 	mTunnels.erase(tunnel->id());
 	return true;
 }
