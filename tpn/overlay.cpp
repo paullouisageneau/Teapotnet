@@ -357,6 +357,21 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 	}
 }
 
+void Overlay::retrieve(const BinaryString &key)
+{
+	send(Message(Message::Retrieve, "", key));
+	
+	// Push Value messages in local queue
+	BinaryString node(localNode());
+	Set<BinaryString> values;
+	if(Store::Instance->retrieveValue(key, values))
+		for(Set<BinaryString>::iterator it = values.begin(); it != values.end(); ++it)
+		{
+			Message message(Message::Value, *it, node, key);
+			push(message);
+		}
+}
+
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
 	Synchronize(&mRetrieveSync);
@@ -608,12 +623,11 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 		
 	Array<BinaryString> neigh;
 	getNeighbors(message.destination, neigh);
+	neigh.remove(from);
 	if(neigh.empty()) return false;
 	
 	BinaryString route;
-	if(neigh[0] != from) route = neigh[0];
-	else if(neigh.size() == 1) route = from;
-	else for(int i=1; i<neigh.size(); ++i)
+	for(int i=0; i<neigh.size(); ++i)
 	{
 		route = neigh[i];
 		if(Random().uniformInt()%2 == 0) break;

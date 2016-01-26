@@ -104,11 +104,11 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 		}
 		
 		// Send retrieve for node
-		mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", caller->hint()));
+		mOverlay.retrieve(caller->hint());
 	}
 	
-	// Immediately send Retrieve query
-	mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", target));
+	// Immediately send retrieve for target
+	mOverlay.retrieve(target);
 	
 	mCallers[target].insert(caller);
 }
@@ -461,11 +461,11 @@ void Network::run(void)
 								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
 									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 							}
-							else mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", (*jt)->hint()));
+							else mOverlay.retrieve((*jt)->hint());
 						}
 					}
 
-					mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", it->first));
+					mOverlay.retrieve(it->first);
 				}
 				
 				if(loops % 10 == 0)
@@ -493,7 +493,7 @@ void Network::run(void)
 						it != remoteIds.end();
 						++it)
 					{
-						mOverlay.send(Overlay::Message(Overlay::Message::Retrieve, "", *it));
+						mOverlay.retrieve(*it);
 					}
 				}
 			}

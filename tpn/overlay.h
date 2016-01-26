@@ -125,7 +125,8 @@ public:
 
 	// DHT
 	void store(const BinaryString &key, const BinaryString &value);
-	bool retrieve(const BinaryString &key, Set<BinaryString> &values);
+	void retrieve(const BinaryString &key);					// async
+	bool retrieve(const BinaryString &key, Set<BinaryString> &values);	// sync
 	
 	void run(void);
 	void launch(Task *task);
