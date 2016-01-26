@@ -133,16 +133,13 @@ int Mutex::unlockAll(void)
 
 	int count;
 	try {
-		if(!mLockCount)
+		if(!pthread_equal(mLockedBy, pthread_self() || !mLockCount))
 		{
 			GlobalUnlock();
 			return 0;
 		}
-		
-		if(!pthread_equal(mLockedBy, pthread_self()))
-			throw Exception("Mutex is locked by another thread");
 	
- 		count = mLockCount;
+		count = mLockCount;
 		mLockCount = 0;
 
 		int ret = pthread_mutex_unlock(&mMutex);
