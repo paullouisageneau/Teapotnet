@@ -65,9 +65,9 @@ private:
 class Desynchronizer
 {
 public:
-	inline Desynchronizer(const Synchronizable *_s) : s(_s),  c(0) { if(s) c = s->unlockAll(); }
-	inline Desynchronizer(const Synchronizable &_s) : s(&_s), c(0) { c = s->unlockAll(); }
-	inline ~Desynchronizer(void) { if(s) s->lock(c); }
+	inline Desynchronizer(const Synchronizable *_s) : s(_s),  c(0) { if(s) {s->lock(); c = s->unlockAll();} }
+	inline Desynchronizer(const Synchronizable &_s) : s(&_s), c(0) { s->lock(); c = s->unlockAll(); }
+	inline ~Desynchronizer(void) { if(s) s->lock(c-1); }
 
 private:
 	const Synchronizable *s;
@@ -102,8 +102,7 @@ inline bool boolUnlock(Synchronizable &s, bool b)
 
 #define Synchronize(x)   Synchronizer	__sync(x); 
 #define Desynchronize(x) Desynchronizer	__desync(x)
-#define Unprioritize(x)  {int __c = (x)->unlockAll(); pla::sleep(0.01); (x)->lock(__c);}
-#define SyncYield(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
+#define Unprioritize(x)  {int __c = (x)->unlockAll(); yield(); (x)->lock(__c);}
 #define SynchronizeTest(x,test) (boolLock(x,true) && boolUnlock(x,(test)))
 #define SynchronizeStatement(x,stmt) { Synchronizer __sync(x); stmt; }
 #define DesynchronizeStatement(x,stmt) { Desynchronizer __desync(x); stmt; } 
