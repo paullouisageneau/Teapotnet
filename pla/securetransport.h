@@ -41,7 +41,7 @@ class SecureTransport : public Stream
 {
 public:
 	static double DefaultTimeout;
-	static const String DefaultPriorities;
+	static String DefaultPriorities;
 	
 	static void Init(void);
 	static void Cleanup(void);

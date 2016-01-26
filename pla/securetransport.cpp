@@ -33,7 +33,7 @@ namespace pla
 double SecureTransport::DefaultTimeout = 10.;	// Defaults to 10 secs
 
 // Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
-const String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
+String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
 gnutls_dh_params_t SecureTransport::Params;
 Mutex SecureTransport::ParamsMutex;
 
