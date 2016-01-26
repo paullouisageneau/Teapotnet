@@ -594,7 +594,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	Synchronize(this);
+	Desynchronize(this);
 	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
