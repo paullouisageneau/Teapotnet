@@ -311,6 +311,7 @@ bool AddressBook::deserialize(Serializer &s)
 	{
 		Contact *contact = &it->second;
 		contact->uninit();
+		contact->setAddressBook(NULL);
 	}
 	
 	// Replace contacts
