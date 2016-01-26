@@ -779,7 +779,6 @@ void AddressBook::Contact::uninit(void)
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
-	Assert(!mAddressBook);
 	mAddressBook = addressBook;
 }
 
