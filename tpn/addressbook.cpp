@@ -864,7 +864,8 @@ bool AddressBook::Contact::send(const Identifier &instance, const String &type, 
 void AddressBook::Contact::seen(const Network::Link &link)
 {
 	if(!mAddressBook) return;
-
+	Synchronize(mAddressBook);
+	
 	if(!isConnected(link.node))
 	{
 		Desynchronize(mAddressBook);
@@ -876,11 +877,13 @@ void AddressBook::Contact::seen(const Network::Link &link)
 void AddressBook::Contact::connected(const Network::Link &link, bool status)
 {
 	if(!mAddressBook) return;
+	Synchronize(mAddressBook);
 	
 	if(status)
 	{
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
-		SynchronizeStatement(mAddressBook, if(!mInstances.contains(link.node)) mInstances[link.node] = link.node.toString()); // default name
+		if(!mInstances.contains(link.node)) 
+			mInstances[link.node] = link.node.toString(); // default name
 		
 		send(link.node, "info", ConstObject()
 			.insert("instance", Network::Instance->overlay()->localName())
@@ -899,20 +902,19 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 	}
 	else {
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
-		SynchronizeStatement(mAddressBook, mInstances.erase(link.node));
+		mInstances.erase(link.node);
 	}
 }
 
 bool AddressBook::Contact::recv(const Network::Link &link, const String &type, Serializer &serializer)
 {
 	if(!mAddressBook) return false;
+	Synchronize(mAddressBook);
 	
 	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
 	
 	if(type == "info")
 	{
-		Synchronize(mAddressBook);
-		
 		String instance;
 		serializer.read(Object()
 			.insert("instance", &instance)
@@ -932,8 +934,6 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 	}
 	else if(type == "contacts")
 	{
-		Synchronize(mAddressBook);
-		
 		if(!isSelf()) throw Exception("Received contacts from other than self");
 		
 		BinaryString digest;
@@ -959,6 +959,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
 	if(!mAddressBook) return false;
+	Synchronize(mAddressBook);
 	
 	return (pubKey.digest() == identifier());
 }
