@@ -338,43 +338,22 @@ bool Overlay::recv(Message &message, const double &timeout)
 bool Overlay::send(const Message &message)
 {
 	Synchronize(this);
-	
-	// Drop if not connected
-	if(mHandlers.empty()) return false;
-	
-	// Drop if self
-	if(message.destination == localNode()) return false;
-	
-	//LogDebug("Overlay::send", "Sending message  (type=" + String::hexa(unsigned(message.type)) + ") to   " + message.destination.toString());
-	
-	// Neighbor
-	if(mHandlers.contains(message.destination))
-		return sendTo(message, message.destination);
-	
-	// Always send to best route
-	Map<BinaryString, BinaryString> sorted;
-	Array<BinaryString> neighbors;
-	mHandlers.getKeys(neighbors);
-	for(int i=0; i<neighbors.size(); ++i)
-	sorted.insert(message.destination ^ neighbors[i], neighbors[i]);
-	
-	return sendTo(message, sorted.begin()->second);
+	return route(message);	// Alias	
 }
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
 {
-	Store::Instance->storeValue(key, value, Store::Distributed);	// not permanent
+	Store::Instance->storeValue(key, value, Store::Distributed);
 
 	Message message(Message::Store, value, key);
-	Array<BinaryString> routes;
-	if(!getRoutes(key, 0, routes))
+	Array<BinaryString> nodes;
+	if(getRoutes(key, 4, nodes))	// TODO
 	{
-		// force send
-		send(message);
-	}
-	else {
-		for(int i=0; i<routes.size(); ++i)
-			sendTo(message, routes[i]);
+		for(int i=0; i<nodes.size(); ++i)
+		{
+			if(nodes[i] != localNode())
+				sendTo(message, nodes[i]);
+		}
 	}
 }
 
@@ -383,11 +362,10 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 	Synchronize(&mRetrieveSync);
 	
 	bool sent = false;
-	BinaryString route = getRoute(key);
-	if(route != localNode() && !mRetrievePending.contains(key))
+	if(!mRetrievePending.contains(key))
 	{
 		mRetrievePending.insert(key);
-		sent = sendTo(Message(Message::Retrieve, "", key), route);
+		sent = send(Message(Message::Retrieve, "", key));
 	}
 	
 	if(sent)
@@ -505,8 +483,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
 			
-			BinaryString route = getRoute(message.destination);
-			if(route != localNode()) sendTo(message, route);
+			route(message);
 			
 			Set<BinaryString> values;
 			Store::Instance->retrieveValue(message.destination, values);
@@ -526,15 +503,19 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			
-			Store::Instance->storeValue(message.destination, message.content, Store::Distributed);	// not permanent
-			message.source = localNode();
-			
-			Array<BinaryString> routes;
-			getRoutes(message.destination, 0, routes);
-			for(int i=0; i<routes.size(); ++i)
-				if(routes[i] != from)
-					sendTo(message, routes[i]);
-			
+			if(Time::Now() - Store::Instance->getValueTime(message.destination, message.content) >= 60.) // 1 min
+        		{
+				Array<BinaryString> nodes;
+				if(getRoutes(message.destination, 4, nodes))	// TODO
+                		{
+                        		for(int i=0; i<nodes.size(); ++i)
+                        		{
+						if(nodes[i] == localNode()) Store::Instance->storeValue(message.destination, message.content, Store::Distributed);
+						else if(nodes[i] != from) sendTo(message, nodes[i]);
+					}
+				}
+			}
+
 			Synchronize(&mRetrieveSync);
 			if(mRetrievePending.contains(message.content))
 			{
@@ -565,7 +546,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			push(message);
 			break;
 		}
-		
+	
 	// Ping
 	case Message::Ping:
 		{
@@ -621,47 +602,21 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	// Drop if self
 	if(message.destination == localNode()) return false;
 	
-	// Best guess for source
-	if(!from.empty() && !mRoutes.contains(message.source))
-		mRoutes.insert(message.source, from);
-	
 	// Neighbor
 	if(mHandlers.contains(message.destination))
 		return sendTo(message, message.destination);
+		
+	Array<BinaryString> neigh;
+	getNeighbors(message.destination, neigh);
+	if(neigh.empty()) return false;
 	
-	// Get route
 	BinaryString route;
-	mRoutes.get(message.destination, route);
-	
-	// If no route or dead end
-	if(route.empty() || route == from)
+	if(neigh[0] != from) route = neigh[0];
+	else if(neigh.size() == 1) route = from;
+	else for(int i=1; i<neigh.size(); ++i)
 	{
-		Array<BinaryString> neigh;
-		getNeighbors(message.destination, neigh);
-		
-		int index = 0;
-		if(route.empty())
-		{
-			if(index < neigh.size() && (neigh[index] == from || neigh[index] == localNode()))
-				++index;
-		}
-		else {	// route == from
-			while(index < neigh.size() && neigh[index] != from)
-				++index;
-			if(index < neigh.size())
-				++index;
-			if(index < neigh.size() && neigh[index] == localNode())
-				++index;
-		}
-		
-		if(index == neigh.size())
-		{
-			mRoutes.erase(message.destination);
-			return false;
-		}
-		
-		route = neigh[index];
-		mRoutes.insert(message.destination, route);
+		route = neigh[i];
+		if(Random().uniformInt()%2 == 0) break;
 	}
 	
 	return sendTo(message, route);
@@ -714,39 +669,28 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 	return false;
 }
 
-BinaryString Overlay::getRoute(const BinaryString &destination, const BinaryString &from)
-{
-	Synchronize(this);
-	
-	Array<BinaryString> routes;
-	getRoutes(destination, 1, routes);
-	if(!routes.empty()) return routes[0];
-	else return localNode();
-}
-
 int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result)
 {
 	Synchronize(this);
+	result.clear();
 	
-	getNeighbors(destination, result);
-	
-	if(count > 0 && result.size() > count)
-		result.resize(count);
-	
-	for(int i=0; i<result.size(); ++i)
-		if(result[i] == localNode())
-		{
-			result.resize(i);
-			break;
-		}
+	Map<BinaryString, BinaryString> sorted;
+        Array<BinaryString> neighbors;
+        mHandlers.getKeys(neighbors);
+        for(int i=0; i<neighbors.size(); ++i)
+                sorted.insert(destination ^ neighbors[i], neighbors[i]);
 
+	// local node
+        sorted.insert(destination ^ localNode(), localNode());
+
+        sorted.getValues(result);	
+	if(count > 0 && result.size() > count) result.resize(count);
 	return result.size();
 }
 
 int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
 {
 	Synchronize(this);
-
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
@@ -754,9 +698,6 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 	mHandlers.getKeys(neighbors);
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
-
-	// Add local node afterwards, so equidistant values are routed to self
-	sorted.insert(destination ^ localNode(), localNode());
 	
 	sorted.getValues(result);
 	return result.size();

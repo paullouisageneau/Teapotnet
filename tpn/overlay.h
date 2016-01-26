@@ -141,7 +141,6 @@ private:
 	bool route(const Message &message, const BinaryString &from = "");
 	bool broadcast(const Message &message, const BinaryString &from = "");
 	bool sendTo(const Message &message, const BinaryString &to);
-	BinaryString getRoute(const BinaryString &destination, const BinaryString &from = "");
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
 	
@@ -257,8 +256,6 @@ private:
 	Queue<Message> mIncoming;
 	Synchronizable mIncomingSync;
 
-	Map<BinaryString, BinaryString> mRoutes;
-	
 	Synchronizable mRetrieveSync;
 	Set<BinaryString> mRetrievePending;
 };

@@ -304,6 +304,22 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 	return found;
 }
 
+Time Store::getValueTime(const BinaryString &key, const BinaryString &value) const
+{
+	Synchronize(this);
+
+	Database::Statement statement = mDatabase->prepare("SELECT time FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
+        statement.bind(1, key);
+        statement.bind(2, value);
+
+	Time time(0);
+        if(statement.step())
+		statement.value(0, time);
+        statement.finalize();
+
+        return time;
+}
+
 void Store::run(void)
 {	
 	Synchronize(this);

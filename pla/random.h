@@ -47,6 +47,18 @@ public:
 		double t = double(i-1)/double(std::numeric_limits<uint32_t>::max());
 		return min + T((max-min)*t);
 	}
+
+	inline unsigned uniformInt(void)
+	{
+		unsigned i;
+		readBinary(i);
+		return i;
+	}
+
+	inline double uniformDouble(void)
+        {
+                return uniform(0., 1.);
+        }
 	
 	// Stream
 	size_t readData(char *buffer, size_t size);
