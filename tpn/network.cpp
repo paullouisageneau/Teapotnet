@@ -363,19 +363,26 @@ void Network::run(void)
 							
 							// Or it can be about a contact
 							Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
+							
+							// We have to copy the sets since we are going to desynchronize
+							Map<IdentifierPair, Set<Listener*> > temp;
 							while(it != mListeners.end() && it->first.first == message.source)
+								temp.insert(it->first, it->second);
+
+							for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
 							{
-								IdentifierPair pair(it->first);
-								Set<Listener*> set(it->second);
-								Desynchronize(this);
-								
-								for(Set<Listener*>::iterator jt = set.begin();
-									jt != set.end();
-									++jt)
-								{
-									(*jt)->seen(Link(pair.second, pair.first, message.content));
-								}
-								++it;
+                                                                for(Set<Listener*>::iterator jt = kt->second.begin();
+                                                                        jt != kt->second.end();
+                                                                        ++jt)
+                                                                {
+                							it = mListeners.find(kt->first);
+									if(it == mListeners.end()) break;
+                							if(it->second.contains(*jt))
+									{
+										Desynchronize(this);
+                                                                        	(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
+									}
+                                                                }
 							}
 						}
 						
@@ -782,24 +789,20 @@ void Network::onConnected(const Link &link, bool status)
 	Synchronize(this);
 	
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
-	if(it != mListeners.end())
+	if(it == mListeners.end()) return;
+	
+	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+	for(Set<Listener*>::iterator jt = set.begin();
+		jt != set.end();
+		++jt)
 	{
-		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-		Desynchronize(this);
-		
-		for(Set<Listener*>::iterator jt = set.begin();
-			jt != set.end();
-			++jt)
+                it = mListeners.find(IdentifierPair(link.remote, link.local));
+		if(it == mListeners.end()) break;
+		if(it->second.contains(*jt))
 		{
-			Synchronize(this);
-                        it = mListeners.find(IdentifierPair(link.remote, link.local));
-                        if(it == mListeners.end()) break;
-			if(it->second.contains(*jt))
-                        {
-                                Desynchronize(this);
-				if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
-				(*jt)->connected(link, status);
-			}
+ 			Desynchronize(this);
+			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
+			(*jt)->connected(link, status);
 		}
 	}
 }
@@ -808,25 +811,21 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 {
 	Synchronize(this);
 	
-	bool ret = false;
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
-	if(it != mListeners.end())
+	if(it == mListeners.end()) return false;
+
+	bool ret = false;
+	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+	for(Set<Listener*>::iterator jt = set.begin();
+		jt != set.end();
+		++jt)
 	{
-		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-		Desynchronize(this);
-		
-		for(Set<Listener*>::iterator jt = set.begin();
-			jt != set.end();
-			++jt)
+		it = mListeners.find(IdentifierPair(link.remote, link.local));
+		if(it == mListeners.end()) break;
+		if(it->second.contains(*jt))
 		{
-			Synchronize(this);
-			it = mListeners.find(IdentifierPair(link.remote, link.local));
-			if(it == mListeners.end()) break;
-			if(it->second.contains(*jt))
-			{
-				Desynchronize(this);
-				ret|= (*jt)->recv(link, type, serializer);
-			}
+			Desynchronize(this);
+			ret|= (*jt)->recv(link, type, serializer);
 		}
 	}
 	
@@ -838,24 +837,20 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 	Synchronize(this);
 	
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
-	if(it != mListeners.end())
+	if(it == mListeners.end()) return false;
+	
+	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
+	for(Set<Listener*>::iterator jt = set.begin();
+		jt != set.end();
+		++jt)
 	{
-		Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-		Desynchronize(this);
-		
-		for(Set<Listener*>::iterator jt = set.begin();
-			jt != set.end();
-			++jt)
+		it = mListeners.find(IdentifierPair(link.remote, link.local));
+		if(it == mListeners.end()) break;
+		if(it->second.contains(*jt))
 		{
-			Synchronize(this);
-                        it = mListeners.find(IdentifierPair(link.remote, link.local));
-                        if(it == mListeners.end()) break;
-			if(it->second.contains(*jt))
-                        {
-                                Desynchronize(this);
-				if(!(*jt)->auth(link, pubKey))
-					return false;
-			}
+			Desynchronize(this);
+			if(!(*jt)->auth(link, pubKey))
+				return false;
 		}
 	}
 	
