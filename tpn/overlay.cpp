@@ -320,6 +320,9 @@ bool Overlay::recv(Message &message, double &timeout)
 				return false;
 	}
 	
+	if(mIncoming.empty())
+		return false;
+	
 	message = mIncoming.front();
 	mIncoming.pop();
 	return true;
