@@ -42,6 +42,8 @@
 namespace tpn
 {
 
+const int Overlay::MaxQueueSize = 16;
+
 Overlay::Overlay(int port) :
 		mThreadPool(1, Config::Get("min_connections").toInt() + 1, Config::Get("max_connections").toInt())
 {
@@ -733,6 +735,7 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	handler->addAddresses(otherAddrs);
 	mHandlers.insert(node, handler);
 	launch(handler);
+	launch(handler->senderTask());
 	
 	// On first connection, schedule store to publish in DHT
 	if(mHandlers.size() == 1)
@@ -1324,8 +1327,7 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mOverlay(overlay),
 	mStream(stream),
 	mNode(node),
-	mClosed(false),
-	mTimeoutTask(this)
+	mSender(overlay, stream)
 {
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
@@ -1334,21 +1336,18 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mOverlay->registerHandler(mNode, addr, this);
 
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
-	Scheduler::Global->schedule(&mTimeoutTask, timeout);
-	Scheduler::Global->repeat(&mTimeoutTask, timeout);
 }
 
 Overlay::Handler::~Handler(void)
 {
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-	Scheduler::Global->cancel(&mTimeoutTask);		// should be done too
+
 	delete mStream;
 }
 
 bool Overlay::Handler::recv(Message &message)
 {
 	Synchronize(this);
-	if(mClosed) return false;
 	
 	while(true)
 	{
@@ -1402,63 +1401,13 @@ bool Overlay::Handler::recv(Message &message)
 	}
 	
 	mStream->close();
-	mClosed = true;
 	return false;
 }
 
 bool Overlay::Handler::send(const Message &message)
 {
 	Synchronize(this);
-	if(mClosed) return false;
-	
-	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
-	Scheduler::Global->cancel(&mTimeoutTask);
-
-	try {
-		Desynchronize(this);
-		MutexLocker lock(&mWriteMutex);
-
-		BinaryString source = message.source;
-        	if(message.source.empty())
-                	source = mOverlay->localNode();
-
-		BinaryString header;
-		BinarySerializer s(&header);
-		
-		// 32-bit control block
-		s.write(message.version);
-		s.write(message.flags);
-		s.write(message.ttl);
-		s.write(message.type);
-		
-		// 32-bit size block
-		s.write(uint8_t(source.size()));
-		s.write(uint8_t(message.destination.size()));
-		s.write(uint16_t(message.content.size()));
-		
-		mStream->writeBinary(header);
-		
-		// data
-		mStream->writeBinary(source);
-		mStream->writeBinary(message.destination);
-		mStream->writeBinary(message.content);
-
-		mStream->nextWrite();	// switch to next datagram if this is a datagram stream
-	}
-	catch(std::exception &e)
-	{
-		LogWarn("Overlay::Handler::send", String("Sending failed: ") + e.what());
-		mClosed = true;
-		return false;
-	}
-	
-	Scheduler::Global->schedule(&mTimeoutTask, timeout);
-	return true;
-}
-
-void Overlay::Handler::timeout(void)
-{
-	send(Message(Message::Dummy));
+	return mSender.push(message);
 }
 
 void Overlay::Handler::addAddress(const Address &addr)
@@ -1477,6 +1426,11 @@ void Overlay::Handler::getAddresses(Set<Address> &set) const
 {
 	Synchronize(this);
 	set = mAddrs;
+}
+
+Task *Overlay::Handler::senderTask(void)
+{
+	return &mSender;
 }
 
 void Overlay::Handler::process(void)
@@ -1507,11 +1461,113 @@ void Overlay::Handler::run(void)
 	}
 	
 	mOverlay->unregisterHandler(mNode, mAddrs, this);
-	Scheduler::Global->cancel(&mTimeoutTask);
+	
+	mSender.stop();
 	
 	notifyAll();
 	Thread::Sleep(10.);	// TODO
 	delete this;		// autodelete
+}
+
+Overlay::Handler::Sender::Sender(Overlay *overlay, Stream *stream) :
+	mOverlay(overlay),
+	mStream(stream),
+	mShouldStop(false)
+{
+	
+}
+
+Overlay::Handler::Sender::~Sender(void)
+{
+	
+}
+
+bool Overlay::Handler::Sender::push(const Message &message)
+{
+	Synchronize(this);
+	
+	if(mQueue.size() < Overlay::MaxQueueSize)
+	{
+		mQueue.push(message);
+		notifyAll();
+		return true;
+	}
+	
+	return false;
+}
+
+void Overlay::Handler::Sender::stop(void)
+{
+	Synchronize(this);
+	
+	mShouldStop = true;
+	notifyAll();
+}
+
+void Overlay::Handler::Sender::run(void)
+{
+	Synchronize(this);
+	
+	try {
+		while(!mShouldStop)
+		{
+			const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
+			
+			while(mQueue.empty())
+			{
+				if(!wait(timeout))
+					break;
+				
+				if(mShouldStop)
+					return;
+			}
+			
+			if(!mQueue.empty())
+			{
+				send(mQueue.front());
+				mQueue.pop();
+			}
+			else {
+				send(Message(Message::Dummy));
+			}
+		}
+	}
+	catch(std::exception &e)
+	{
+		LogWarn("Overlay::Handler::Sender", String("Sending failed: ") + e.what());
+	}
+}
+
+void Overlay::Handler::Sender::send(const Message &message)
+{
+	Desynchronize(this);
+	
+	BinaryString source = message.source;
+	if(message.source.empty())
+		source = mOverlay->localNode();
+
+	BinaryString header;
+	BinarySerializer s(&header);
+	
+	// 32-bit control block
+	s.write(message.version);
+	s.write(message.flags);
+	s.write(message.ttl);
+	s.write(message.type);
+	
+	// 32-bit size block
+	s.write(uint8_t(source.size()));
+	s.write(uint8_t(message.destination.size()));
+	s.write(uint16_t(message.content.size()));
+	
+	mStream->writeBinary(header);
+	
+	// data
+	mStream->writeBinary(source);
+	mStream->writeBinary(message.destination);
+	mStream->writeBinary(message.content);
+	
+	mStream->nextWrite();	// switch to next datagram if this is a datagram stream
 }
 
 }

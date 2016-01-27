@@ -1865,6 +1865,7 @@ void Network::Pusher::run(void)
 			
 			while(mTargets.empty()) wait();
 			
+			bool congestion = false;	// local congestion
 			Map<BinaryString, Map<Identifier, unsigned> >::iterator it = mTargets.begin();
 			while(it != mTargets.end())
 			{
@@ -1886,7 +1887,7 @@ void Network::Pusher::run(void)
 						serializer.write(combination);
 						data.content.writeBinary(combination.data(), combination.codedSize());
 						
-						Network::Instance->overlay()->send(data);
+						congestion|= Network::Instance->overlay()->send(data);
 					}
 					
 					if(!tokens) it->second.erase(jt++);
@@ -1895,6 +1896,12 @@ void Network::Pusher::run(void)
 				
 				if(it->second.empty()) mTargets.erase(it++);
 				else ++it;
+			}
+			
+			if(congestion)
+			{
+				Desynchronize(this);
+				Thread::Sleep(milliseconds(10));
 			}
 		}
 		catch(const std::exception &e)

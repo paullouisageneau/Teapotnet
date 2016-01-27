@@ -54,6 +54,8 @@ namespace tpn
 class Overlay : protected Synchronizable, public Serializable, public Task
 {
 public:
+	static const int MaxQueueSize;
+	
 	struct Message : public Serializable
 	{
 		// Non-routable messages
@@ -204,10 +206,12 @@ private:
 		
 		bool recv(Message &message);
 		bool send(const Message &message);
-		void timeout(void);
+		
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
 		void getAddresses(Set<Address> &set) const;
+
+		Task *senderTask(void);
 		
 	private:
 		void process(void);
@@ -217,24 +221,27 @@ private:
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
-		Mutex mWriteMutex;
-		bool mClosed;
 		
-		class TimeoutTask : public Task
+		class Sender : public Task, protected Synchronizable
 		{
 		public:
-			TimeoutTask(Handler *h) : handler(h) {}
+			Sender(Overlay *overlay, Stream *stream);
+			~Sender(void);
 			
-			void run(void)
-			{
-				handler->timeout();
-			}
+			bool push(const Message &message);
+			void stop(void);
 			
 		private:
-			Handler *handler;
+			void run(void);
+			void send(const Message &message);
+			
+			Overlay *mOverlay;
+			Stream *mStream;
+			Queue<Message> mQueue;
+			bool mShouldStop;
 		};
 		
-		TimeoutTask mTimeoutTask;
+		Sender mSender;
 	};
 
 	void registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
