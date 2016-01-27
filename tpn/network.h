@@ -140,7 +140,8 @@ public:
 		
 		void listen(const Identifier &local, const Identifier &remote);
 		void ignore(const Identifier &local, const Identifier &remote);
-		
+		void ignore(void);	
+	
 		virtual void seen(const Link &link) {}
 		virtual void connected(const Link &link, bool status) {}
 		virtual bool recv(const Link &link, const String &type, Serializer &serializer) = 0;

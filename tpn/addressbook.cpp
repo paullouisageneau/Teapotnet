@@ -311,7 +311,6 @@ bool AddressBook::deserialize(Serializer &s)
 	{
 		Contact *contact = &it->second;
 		contact->uninit();
-		contact->setAddressBook(NULL);
 	}
 	
 	// Replace contacts
@@ -863,7 +862,6 @@ bool AddressBook::Contact::send(const Identifier &instance, const String &type, 
 
 void AddressBook::Contact::seen(const Network::Link &link)
 {
-	if(!mAddressBook) return;
 	Synchronize(mAddressBook);
 	
 	if(!isConnected(link.node))
@@ -876,7 +874,6 @@ void AddressBook::Contact::seen(const Network::Link &link)
 
 void AddressBook::Contact::connected(const Network::Link &link, bool status)
 {
-	if(!mAddressBook) return;
 	Synchronize(mAddressBook);
 	
 	if(status)
@@ -908,7 +905,6 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 
 bool AddressBook::Contact::recv(const Network::Link &link, const String &type, Serializer &serializer)
 {
-	if(!mAddressBook) return false;
 	Synchronize(mAddressBook);
 	
 	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
@@ -958,7 +954,6 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
-	if(!mAddressBook) return false;
 	Synchronize(mAddressBook);
 	
 	return (pubKey.digest() == identifier());

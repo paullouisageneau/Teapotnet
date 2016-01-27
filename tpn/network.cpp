@@ -1169,12 +1169,7 @@ Network::Listener::Listener(void)
 
 Network::Listener::~Listener(void)
 {
-	for(Set<IdentifierPair>::iterator it = mPairs.begin();
-		it != mPairs.end();
-		++it)
-	{
-		Network::Instance->unregisterListener(it->second, it->first, this);
-	}
+	ignore();
 }
 
 void Network::Listener::listen(const Identifier &local, const Identifier &remote)
@@ -1187,6 +1182,18 @@ void Network::Listener::ignore(const Identifier &local, const Identifier &remote
 {
 	mPairs.erase(IdentifierPair(remote, local));
 	Network::Instance->unregisterListener(local, remote, this);
+}
+
+void Network::Listener::ignore(void)
+{
+	for(Set<IdentifierPair>::iterator it = mPairs.begin();
+                it != mPairs.end();
+                ++it)
+        {
+                Network::Instance->unregisterListener(it->second, it->first, this);
+        }
+
+	mPairs.clear();
 }
 
 Network::Tunneler::Tunneler(void)
