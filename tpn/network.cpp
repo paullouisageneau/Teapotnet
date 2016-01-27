@@ -539,6 +539,8 @@ void Network::registerHandler(const Link &link, Handler *handler)
 			}
 		}
 	}
+	
+	onConnected(link, true);
 }
 
 void Network::unregisterHandler(const Link &link, Handler *handler)
@@ -556,6 +558,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	{
 		mRemoteSubscribers.erase(link);
 		mHandlers.erase(link);
+		onConnected(link, false);
 	}
 }
 
@@ -1785,8 +1788,6 @@ void Network::Handler::run(void)
 {
 	LogDebug("Network::Handler", "Starting handler");
 	
-	Network::Instance->onConnected(mLink, true);
-	
 	try {
 		process();
 		
@@ -1797,7 +1798,6 @@ void Network::Handler::run(void)
 		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	Network::Instance->onConnected(mLink, false);
 	Network::Instance->unregisterHandler(mLink, this);
 	Scheduler::Global->cancel(&mTimeoutTask);
 	
