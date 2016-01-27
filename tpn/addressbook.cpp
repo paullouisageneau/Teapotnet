@@ -142,8 +142,7 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 	
 	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, identifier));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
-	Interface::Instance->add(it->second.urlPrefix(), &it->second);	
-	it->second.init();
+	Interface::Instance->add(it->second.urlPrefix(), &it->second);
 
 	mTime = Time::Now();
 		
@@ -224,7 +223,6 @@ void AddressBook::setSelf(const Identifier &identifier)
 	
 	it = mContacts.insert(uname, Contact(this, uname, uname, identifier));
 	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
-	it->second.init();
 
 	mTime = Time::Now();
 	
@@ -292,26 +290,13 @@ bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
-	SerializableMap<String, Contact> *temp = new SerializableMap<String, Contact>();
-	Time time;	
-
+	Time time;
+	
 	Object object;
-	object["contacts"] = temp;
+	object["contacts"] = &mContacts;
 	object["time"] = &time;
 
-	if(!s.read(object)) return false;
-	
-	// Clean up old contacts
-	for(Map<String, Contact>::iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		Contact *contact = &it->second;
-		contact->uninit();
-	}
-	
-	// Replace contacts
-	std::swap(*temp, mContacts);
+	bool ret = s.read(object);
 	
 	// Fill mContactsByIdentifier and set up contacts
 	mContactsByIdentifier.clear();
@@ -321,17 +306,13 @@ bool AddressBook::deserialize(Serializer &s)
 	{
 		Contact *contact = &it->second;
 		contact->setAddressBook(this);
-		contact->init();
 		mContactsByIdentifier.insert(contact->identifier(), contact);
 	}
 	
-	// Schedule deletion of old contacts
-	Scheduler::Global->schedule(new AutoDeleteTask<SerializableMap<String, Contact> >(temp, true), 10.);
-
-	mTime = time;
+	mTime = std::max(mTime, time);
 	
 	save();
-	return true;
+	return ret;
 }
 
 bool AddressBook::isInlineSerializable(void) const
@@ -715,7 +696,6 @@ AddressBook::Contact::Contact(const Contact &contact) :
 	mRemoteSecret(contact.mRemoteSecret)
 {
 	setAddressBook(contact.mAddressBook);
-	// no init
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook, 
@@ -775,7 +755,12 @@ void AddressBook::Contact::uninit(void)
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
-	mAddressBook = addressBook;
+	if(mAddressBook != addressBook)
+	{
+		if(mAddressBook) uninit();
+		mAddressBook = addressBook;
+		if(mAddressBook) init();
+	}
 }
 
 Identifier AddressBook::Contact::identifier(void) const
