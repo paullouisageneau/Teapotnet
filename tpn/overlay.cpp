@@ -1352,10 +1352,10 @@ bool Overlay::Handler::recv(Message &message)
 	
 	while(true)
 	{
-		Desynchronize(this);
-		BinarySerializer s(mStream);
-		
 		try {
+			Desynchronize(this);
+			BinarySerializer s(mStream);
+			
 			// 32-bit control block
 			if(!s.read(message.version))
 			{
@@ -1413,12 +1413,15 @@ bool Overlay::Handler::send(const Message &message)
 	
 	const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
 	Scheduler::Global->cancel(&mTimeoutTask);
-	
-	BinaryString source = message.source;
-	if(message.source.empty())
-		DesynchronizeStatement(this, source = mOverlay->localNode());
-	
+
 	try {
+		Desynchronize(this);
+		MutexLocker lock(&mWriteMutex);
+
+		BinaryString source = message.source;
+        	if(message.source.empty())
+                	source = mOverlay->localNode();
+
 		BinaryString header;
 		BinarySerializer s(&header);
 		
@@ -1445,7 +1448,6 @@ bool Overlay::Handler::send(const Message &message)
 	catch(std::exception &e)
 	{
 		LogWarn("Overlay::Handler::send", String("Sending failed: ") + e.what());
-		mStream->close();
 		mClosed = true;
 		return false;
 	}

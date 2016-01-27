@@ -1656,12 +1656,21 @@ int Network::Handler::send(bool force)
 			Fountain::Combination combination;
 			mSource.generate(combination);
 			
-			BinarySerializer serializer(mStream);
-			serializer.write(combination);
-			serializer.write(uint32_t(mSink.nextSeen()));
+			uint32_t nextSeen = mSink.nextSeen();
 			
-			mStream->writeBinary(combination.data(), combination.codedSize());
-			mStream->nextWrite();
+			// Send block
+			{
+				Desynchronize(this);
+				MutexLocker lock(&mWriteMutex);
+
+				BinarySerializer serializer(mStream);
+                        	serializer.write(combination);
+                        	serializer.write(nextSeen);
+
+				mStream->writeBinary(combination.data(), combination.codedSize());
+				mStream->nextWrite();
+			}
+
 			++count;
 			
 			if(!combination.isNull())
@@ -1672,10 +1681,9 @@ int Network::Handler::send(bool force)
 			
 			force = false;
 		}
-		catch(std::exception &e)
+		catch(const std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
-			mStream->close();
 			mClosed = true;
 			break;
 		}
@@ -1742,18 +1750,24 @@ bool Network::Handler::readString(String &str)
 		
 		// We need more combinations
 		Fountain::Combination combination;
-		
-		BinarySerializer serializer(mStream);
-		DesynchronizeStatement(this, if(!serializer.read(combination)) break);
-		
 		uint32_t nextSeen = 0;
-		serializer.read(nextSeen);
+
+		// Recv block
+		{
+			Desynchronize(this);
+	
+			BinarySerializer serializer(mStream);
+			if(!serializer.read(combination)) break;
 		
-		BinaryString data;
-		mStream->readBinary(data);
-		combination.setCodedData(data);
-		mStream->nextRead();
+			serializer.read(nextSeen);
 		
+			BinaryString data;
+			mStream->readBinary(data);
+			combination.setCodedData(data);
+			
+			mStream->nextRead();
+		}
+
 		//LogDebug("Network::Handler::readString", "Received combination (size=" + String::number(combination.size()) + ", nextSeen=" + String::number(nextSeen) + ")");
 		
 		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));

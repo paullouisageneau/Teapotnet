@@ -294,6 +294,7 @@ private:
 		Link mLink;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
+		Mutex mWriteMutex;
 		double mTokens, mRank;
 		double mRedundancy;
 		double mTimeout;
