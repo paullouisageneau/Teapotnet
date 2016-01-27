@@ -1240,6 +1240,8 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
 	transport->addCredentials(user->certificate(), false);
 	
+	mPending.insert(node);
+	
 	return handshake(transport, Link(local, remote, node), async);
 }
 
@@ -1304,7 +1306,6 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 		return (t == tunnel);
 	
 	mTunnels.insert(tunnel->id(), tunnel);
-	mPending.insert(tunnel->node());
 	return true;
 }
 
