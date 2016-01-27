@@ -770,7 +770,7 @@ void AddressBook::Contact::uninit(void)
 	}
 	
 	Interface::Instance->remove(urlPrefix(), this);
-	ignore(mAddressBook->user()->identifier(), identifier());
+	ignore();
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)

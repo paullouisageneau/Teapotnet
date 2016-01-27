@@ -141,14 +141,22 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	mListeners[IdentifierPair(remote, local)].insert(listener);
 	
 	Link link(local, remote);
+
+	Set<Link> temp;		// We need to copy the links since we are going to desynchronize
 	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
 		++it)
 	{
-		listener->seen(it->first);	// so Listener::seen() is triggered even with incoming tunnels
-		listener->connected(it->first, true);
+		temp.insert(it->first);
 	}
 	
+	for(Set<Link>::iterator it = temp.begin(); it != temp.end(); ++it)
+	{
+		Desynchronize(this);
+		listener->seen(*it);      // so Listener::seen() is triggered even with incoming tunnels
+                listener->connected(*it, true);
+	}
+
 	for(Map<String, Set<Subscriber*> >::iterator it = mSubscribers.begin();
 		it != mSubscribers.end();
 		++it)
