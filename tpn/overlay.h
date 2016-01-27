@@ -120,7 +120,7 @@ public:
 	
 	// Message interface
 	bool recv(Message &message, double &timeout);
-	bool recv(Message &message, const double &timeout = -1.);
+	bool recv(Message &message, const double &timeout);
 	bool send(const Message &message);
 
 	// DHT

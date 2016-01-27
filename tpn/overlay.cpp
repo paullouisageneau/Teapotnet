@@ -313,15 +313,11 @@ bool Overlay::recv(Message &message, double &timeout)
 {
 	Synchronize(&mIncomingSync);
 
-	if(timeout >= 0.)
+	if(timeout > 0.)
 	{
 		while(mIncoming.empty())
 			if(!mIncomingSync.wait(timeout))
 				return false;
-	}
-	else {
-		while(mIncoming.empty())
-			mIncomingSync.wait();
 	}
 	
 	message = mIncoming.front();
