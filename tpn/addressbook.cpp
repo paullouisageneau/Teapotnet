@@ -116,11 +116,8 @@ void AddressBook::save(void) const
 		resource.process(mFileName, "contacts", "contacts", self->secret());
 		mDigest = resource.digest();
 		
-		Desynchronize(this); 
-		
-		Network::Instance->send(Network::Link(user()->identifier(), self->identifier()), "contacts", 
-			ConstObject()
-				.insert("digest", mDigest));
+		self->send("contacts", ConstObject()
+				.insert("digest", digest()));
 	}
 }
 
@@ -265,7 +262,7 @@ BinaryString AddressBook::digest(void) const
 	return mDigest;
 }
 
-bool AddressBook::send(const String &type, const Serializable &object)
+bool AddressBook::send(const String &type, const Serializable &object) const
 {
 	Array<Identifier> keys;
 	SynchronizeStatement(this, mContactsByIdentifier.getKeys(keys));
@@ -273,7 +270,7 @@ bool AddressBook::send(const String &type, const Serializable &object)
 	bool success = false;
 	for(int i=0; i<keys.size(); ++i)
         {
-                Contact *contact = getContact(keys[i]);
+                const Contact *contact = getContact(keys[i]);
 		if(contact) success|= contact->send(type, object);
 	}
 	
@@ -838,26 +835,30 @@ bool AddressBook::Contact::Contact::isSelf(void) const
 
 bool AddressBook::Contact::isConnected(void) const
 {
+	Network::Link link(mAddressBook->user()->identifier(), identifier());
 	Desynchronize(mAddressBook);
-	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier())); 
+	return Network::Instance->hasLink(link); 
 }
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
+	Network::Link link(mAddressBook->user()->identifier(), identifier(), instance);
 	Desynchronize(mAddressBook);
-	return Network::Instance->hasLink(Network::Link(mAddressBook->user()->identifier(), identifier(), instance));
+	return Network::Instance->hasLink(link);
 }
 
-bool AddressBook::Contact::send(const String &type, const Serializable &object)
+bool AddressBook::Contact::send(const String &type, const Serializable &object) const
 {
+	Network::Link link(mAddressBook->user()->identifier(), identifier());
 	Desynchronize(mAddressBook);
-	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier()), type, object);
+	return Network::Instance->send(link, type, object);
 }
 
-bool AddressBook::Contact::send(const Identifier &instance, const String &type, const Serializable &object)
+bool AddressBook::Contact::send(const Identifier &instance, const String &type, const Serializable &object) const
 {
+	Network::Link link(mAddressBook->user()->identifier(), identifier(), instance);
 	Desynchronize(mAddressBook);
-	return Network::Instance->send(Network::Link(mAddressBook->user()->identifier(), identifier(), instance), type, object);
+	return Network::Instance->send(link, type, object);
 }
 
 void AddressBook::Contact::seen(const Network::Link &link)

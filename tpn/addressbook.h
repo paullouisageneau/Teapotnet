@@ -58,7 +58,7 @@ public:
 	void clear(void);
 	void save(void) const;
 	
-	bool send(const String &type, const Serializable &object);
+	bool send(const String &type, const Serializable &object) const;
 	
 	// Serializable
 	void serialize(Serializer &s) const;
@@ -93,8 +93,8 @@ public:
 		bool isConnected(void) const;
 		bool isConnected(const Identifier &instance) const;
 		
-		bool send(const String &type, const Serializable &object);
-		bool send(const Identifier &instance, const String &type, const Serializable &object);
+		bool send(const String &type, const Serializable &object) const;
+		bool send(const Identifier &instance, const String &type, const Serializable &object) const;
 	
 		// Network::Listener
 		void seen(const Network::Link &link);
