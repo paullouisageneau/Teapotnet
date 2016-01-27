@@ -290,13 +290,22 @@ bool AddressBook::deserialize(Serializer &s)
 {
 	Synchronize(this);
 	
+	SerializableMap<String, Contact> temp;
 	Time time;
 	
 	Object object;
-	object["contacts"] = &mContacts;
+	object["contacts"] = &temp;
 	object["time"] = &time;
 
-	bool ret = s.read(object);
+	if(!s.read(object)) return false;
+	
+	for(Map<String, Contact>::iterator it = temp.begin();
+		it != temp.end();
+		++it)
+	{
+		if(!mContacts.contains(it->first))
+			mContacts.insert(it->first, it->second);
+	}
 	
 	// Fill mContactsByIdentifier and set up contacts
 	mContactsByIdentifier.clear();
@@ -304,15 +313,14 @@ bool AddressBook::deserialize(Serializer &s)
 		it != mContacts.end();
 		++it)
 	{
-		Contact *contact = &it->second;
-		contact->setAddressBook(this);
-		mContactsByIdentifier.insert(contact->identifier(), contact);
+		it->second.setAddressBook(this);
+		mContactsByIdentifier.insert(it->second.identifier(), &it->second);
 	}
 	
 	mTime = std::max(mTime, time);
 	
 	save();
-	return ret;
+	return true;
 }
 
 bool AddressBook::isInlineSerializable(void) const
@@ -742,15 +750,18 @@ void AddressBook::Contact::uninit(void)
 {
 	if(!mAddressBook) return;
 	
-	if(mBoard) 
+	if(mBoard)
 	{
 		mAddressBook->user()->unmergeBoard(mBoard);
+		
 		delete mBoard;
+		delete mPrivateBoard;
 		mBoard = NULL;
+		mPrivateBoard = NULL;
 	}
 	
 	Interface::Instance->remove(urlPrefix(), this);
-	ignore();
+	ignore();	// stop listening
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
