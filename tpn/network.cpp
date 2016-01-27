@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -367,7 +367,10 @@ void Network::run(void)
 							// We have to copy the sets since we are going to desynchronize
 							Map<IdentifierPair, Set<Listener*> > temp;
 							while(it != mListeners.end() && it->first.first == message.source)
+							{
 								temp.insert(it->first, it->second);
+								++it;
+							}
 
 							for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
 							{
