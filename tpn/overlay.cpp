@@ -42,7 +42,7 @@
 namespace tpn
 {
 
-const int Overlay::MaxQueueSize = 16;
+const int Overlay::MaxQueueSize = 128;
 
 Overlay::Overlay(int port) :
 		mThreadPool(1, Config::Get("min_connections").toInt() + 1, Config::Get("max_connections").toInt())

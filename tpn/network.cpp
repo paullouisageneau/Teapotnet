@@ -1901,7 +1901,7 @@ void Network::Pusher::run(void)
 			if(congestion)
 			{
 				Desynchronize(this);
-				Thread::Sleep(milliseconds(10));
+				yield();
 			}
 		}
 		catch(const std::exception &e)
