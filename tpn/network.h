@@ -293,7 +293,7 @@ private:
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		Mutex mWriteMutex;
-		double mTokens, mRank;
+		double mTokens, mAccumulator;
 		double mRedundancy;
 		double mTimeout;
 		bool mClosed;

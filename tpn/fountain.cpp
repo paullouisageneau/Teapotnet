@@ -512,7 +512,7 @@ bool Fountain::DataSource::generate(Combination &result)
 {
 	result.clear();
 	if(mComponents.empty())
-		return false;
+		return true;
 	
 	unsigned first = Random().uniform(unsigned(0), unsigned(mComponents.size()) + GenerateSize);
 	unsigned count = std::min(unsigned(mComponents.size()), GenerateSize);
@@ -578,7 +578,7 @@ bool Fountain::FileSource::generate(Combination &result)
 	
 	result.clear();
 	if(!chunks)
-		return false;
+		return true;
 	
 	unsigned first = Random().uniform(unsigned(0), chunks + GenerateSize);
 	unsigned count = std::min(chunks, GenerateSize);

@@ -1617,7 +1617,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
 	mTokens(10.),
-	mRank(0.),
+	mAccumulator(0.),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mClosed(false),
@@ -1643,7 +1643,7 @@ void Network::Handler::write(const String &type, const String &content)
 	buffer.writeBinary(type.c_str(), type.size()+1);
 	buffer.writeBinary(content.c_str(), content.size()+1);
 	mSource.write(buffer.data(), buffer.size());
-	mRank+= mRedundancy;
+	mAccumulator+= mRedundancy;
 	
 	send();
 }
@@ -1654,9 +1654,9 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mSource.rank() > 0 && mRank >= 1. && mTokens >= 1.))
+	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mTokens >= 1.))
 	{
-		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
+		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
 		
 		try {
 			Fountain::Combination combination;
@@ -1682,7 +1682,7 @@ int Network::Handler::send(bool force)
 			if(!combination.isNull())
 			{
 				mTokens = std::max(0., mTokens - 1.);
-				mRank   = std::max(0., mRank - 1.);
+				mAccumulator   = std::max(0., mAccumulator - 1.);
 			}
 			
 			force = false;
