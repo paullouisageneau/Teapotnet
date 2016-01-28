@@ -973,7 +973,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("digest", &digest)
 			.insert("time", &time));
 		
-		if(!digest.empty() && digest != mAddressBook->mDigest && time >= mAddressBook->time())
+		if(!digest.empty() && time > mAddressBook->time() && digest != mAddressBook->mDigest)
 		{
 			mAddressBook->mScheduler.schedule(new Resource::ImportTask(mAddressBook, digest, "contacts", secret(), true));	// autodelete
 			mAddressBook->mDigest = digest;
