@@ -521,6 +521,8 @@ bool Fountain::DataSource::generate(Combination &result)
 	if(first > mComponents.size() - count)
 		first = mComponents.size() - count;
 	
+	first+= mFirstComponent;	// real offset
+	
 	Generator gen(result.seed(first, count));
 	
 	// TODO
