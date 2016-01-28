@@ -778,18 +778,14 @@ void AddressBook::Contact::uninit(void)
 {
 	Synchronize(mAddressBook);
 	
-	if(mBoard)
-	{
-		if(mAddressBook) mAddressBook->user()->unmergeBoard(mBoard);
-		
-		delete mBoard;
-		delete mPrivateBoard;
-		mBoard = NULL;
-		mPrivateBoard = NULL;
-	}
-	
+	if(mAddressBook && mBoard) mAddressBook->user()->unmergeBoard(mBoard);
 	if(mAddressBook) Interface::Instance->remove(urlPrefix(), this);
-	ignore();	// stop listening
+        ignore();       // stop listening
+
+	delete mBoard;
+	delete mPrivateBoard;
+	mBoard = NULL;
+	mPrivateBoard = NULL;
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
