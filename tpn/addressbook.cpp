@@ -342,7 +342,7 @@ bool AddressBook::deserialize(Serializer &s)
 	for(StringSet::iterator it = toDelete.begin(); it != toDelete.end(); ++it)
 		removeContact(*it);
 	
-	mTime = std::max(mTime, time);
+	mTime = time;
 	
 	save();
 	return true;
