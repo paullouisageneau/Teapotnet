@@ -125,7 +125,8 @@ void AddressBook::save(void) const
 		mDigest = resource.digest();
 		
 		self->send("contacts", ConstObject()
-				.insert("digest", digest()));
+				.insert("digest", digest())
+				.insert("time", time()));
 	}
 }
 
@@ -315,7 +316,8 @@ bool AddressBook::deserialize(Serializer &s)
 	object["contacts"] = &temp;
 	object["time"] = &time;
 
-	if(!s.read(object)) return false;
+	if(!s.read(object))
+		return false;
 	
 	StringSet toDelete;
 	mContacts.getKeys(toDelete);
@@ -968,7 +970,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		if(!isSelf()) throw Exception("Received contacts from other than self");
 		
 		BinaryString digest;
-		Time time;
+		Time time = 0;
 		serializer.read(Object()
 			.insert("digest", &digest)
 			.insert("time", &time));
