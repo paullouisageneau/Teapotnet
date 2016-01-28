@@ -304,17 +304,11 @@ bool AddressBook::deserialize(Serializer &s)
 		++it)
 	{
 		if(!mContacts.contains(it->first))
-			mContacts.insert(it->first, it->second);
-	}
-	
-	// Fill mContactsByIdentifier and set up contacts
-	mContactsByIdentifier.clear();
-	for(Map<String, Contact>::iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		it->second.setAddressBook(this);
-		mContactsByIdentifier.insert(it->second.identifier(), &it->second);
+		{
+			Map<String, Contact>::iterator jt = mContacts.insert(it->first, it->second);
+			it->second.setAddressBook(this);
+			mContactsByIdentifier.insert(jt->second.identifier(), &jt->second);
+		}
 	}
 	
 	mTime = std::max(mTime, time);
@@ -731,8 +725,9 @@ AddressBook::Contact::~Contact(void)
 
 void AddressBook::Contact::init(void)
 {
+	Synchronize(mAddressBook);
 	if(!mAddressBook) return;
-
+	
 	if(!isSelf())
 	{
 		if(!mBoard) mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
@@ -748,11 +743,11 @@ void AddressBook::Contact::init(void)
 
 void AddressBook::Contact::uninit(void)
 {
-	if(!mAddressBook) return;
+	Synchronize(mAddressBook);
 	
 	if(mBoard)
 	{
-		mAddressBook->user()->unmergeBoard(mBoard);
+		if(mAddressBook) mAddressBook->user()->unmergeBoard(mBoard);
 		
 		delete mBoard;
 		delete mPrivateBoard;
@@ -760,7 +755,7 @@ void AddressBook::Contact::uninit(void)
 		mPrivateBoard = NULL;
 	}
 	
-	Interface::Instance->remove(urlPrefix(), this);
+	if(mAddressBook) Interface::Instance->remove(urlPrefix(), this);
 	ignore();	// stop listening
 }
 
@@ -795,7 +790,7 @@ String AddressBook::Contact::name(void) const
 String AddressBook::Contact::urlPrefix(void) const
 {
 	Synchronize(mAddressBook);
-	if(mUniqueName.empty()) return "";
+	if(!mAddressBook || mUniqueName.empty()) return "";
 	if(isSelf()) return mAddressBook->user()->urlPrefix()+"/myself";
 	return mAddressBook->urlPrefix()+"/"+mUniqueName;
 }
@@ -806,6 +801,7 @@ BinaryString AddressBook::Contact::secret(void) const
 	
 	if(isSelf())
 	{
+		Assert(mAddressBook);
 		return mAddressBook->user()->secret();
 	}
 	else {
@@ -821,16 +817,20 @@ BinaryString AddressBook::Contact::localSecret(void) const
 
 BinaryString AddressBook::Contact::remoteSecret(void) const
 {
+	Synchronize(mAddressBook);
 	return mRemoteSecret;
 }
 
 bool AddressBook::Contact::Contact::isSelf(void) const
 {
+	Synchronize(mAddressBook);
+	if(!mAddressBook) return false;
 	return (mUniqueName == mAddressBook->userName());
 }
 
 bool AddressBook::Contact::isConnected(void) const
 {
+	if(!mAddressBook) return false;
 	Network::Link link(mAddressBook->user()->identifier(), identifier());
 	Desynchronize(mAddressBook);
 	return Network::Instance->hasLink(link); 
@@ -838,6 +838,7 @@ bool AddressBook::Contact::isConnected(void) const
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
+	if(!mAddressBook) return false;
 	Network::Link link(mAddressBook->user()->identifier(), identifier(), instance);
 	Desynchronize(mAddressBook);
 	return Network::Instance->hasLink(link);
@@ -845,6 +846,7 @@ bool AddressBook::Contact::isConnected(const Identifier &instance) const
 
 bool AddressBook::Contact::send(const String &type, const Serializable &object) const
 {
+	if(!mAddressBook) return false;
 	Network::Link link(mAddressBook->user()->identifier(), identifier());
 	Desynchronize(mAddressBook);
 	return Network::Instance->send(link, type, object);
@@ -852,6 +854,7 @@ bool AddressBook::Contact::send(const String &type, const Serializable &object) 
 
 bool AddressBook::Contact::send(const Identifier &instance, const String &type, const Serializable &object) const
 {
+	if(!mAddressBook) return false;
 	Network::Link link(mAddressBook->user()->identifier(), identifier(), instance);
 	Desynchronize(mAddressBook);
 	return Network::Instance->send(link, type, object);
@@ -860,6 +863,7 @@ bool AddressBook::Contact::send(const Identifier &instance, const String &type, 
 void AddressBook::Contact::seen(const Network::Link &link)
 {
 	Synchronize(mAddressBook);
+	if(!mAddressBook) return;
 	
 	if(!isConnected(link.node))
 	{
@@ -872,6 +876,7 @@ void AddressBook::Contact::seen(const Network::Link &link)
 void AddressBook::Contact::connected(const Network::Link &link, bool status)
 {
 	Synchronize(mAddressBook);
+	if(!mAddressBook) return;
 	
 	if(status)
 	{
@@ -887,7 +892,7 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 		send(link.node, "invite", ConstObject()
 			.insert("name", mAddressBook->userName()));
 		
-		if(isSelf())
+		if(isSelf() && !mAddressBook->digest().empty())
 		{
 			send(link.node, "contacts", ConstObject()
 				.insert("digest", mAddressBook->digest())
@@ -903,6 +908,7 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 bool AddressBook::Contact::recv(const Network::Link &link, const String &type, Serializer &serializer)
 {
 	Synchronize(mAddressBook);
+	if(!mAddressBook) return false;
 	
 	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
 	
@@ -935,7 +941,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("digest", &digest)
 			.insert("time", &time));
 		
-		if(digest != mAddressBook->mDigest && time >= mAddressBook->time())
+		if(!digest.empty() && digest != mAddressBook->mDigest && time >= mAddressBook->time())
 		{
 			mAddressBook->mScheduler.schedule(new Resource::ImportTask(mAddressBook, digest, "contacts", secret(), true));	// autodelete
 			mAddressBook->mDigest = digest;
@@ -952,12 +958,14 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
 	Synchronize(mAddressBook);
+	if(!mAddressBook) return false;
 	
 	return (pubKey.digest() == identifier());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 {
+	if(!mAddressBook) return;
 	mAddressBook->user()->setOnline();
 
 	try {
