@@ -973,11 +973,8 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("digest", &digest)
 			.insert("time", &time));
 		
-		if(!digest.empty() && time > mAddressBook->time() && digest != mAddressBook->mDigest)
-		{
+		if(!digest.empty() && digest != mAddressBook->digest() && time > mAddressBook->time())
 			mAddressBook->mScheduler.schedule(new Resource::ImportTask(mAddressBook, digest, "contacts", secret(), true));	// autodelete
-			mAddressBook->mDigest = digest;
-		}
 	}
 	else {
 		LogWarn("AddressBook::Contact::recv", "Unknown message type \"" + type + "\"");
