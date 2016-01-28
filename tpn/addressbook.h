@@ -146,7 +146,7 @@ private:
 	
 	User *mUser;
 	String mFileName;
-	SerializableMap<String, Contact> mContacts;	// Sorted by unique name
+	SerializableMap<String, Contact*> mContacts;	// Sorted by unique name
 	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
 	Map<Identifier, String> mInvitations;
 	Time mTime;	// modification time

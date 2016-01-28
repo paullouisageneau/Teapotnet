@@ -96,6 +96,14 @@ String AddressBook::urlPrefix(void) const
 void AddressBook::clear(void)
 {
 	Synchronize(this);
+	
+	for(Map<String, Contact*>::iterator it = mContacts.begin();
+		it != mContacts.end();
+		++it)
+	{
+		delete it->second;
+	}
+	
 	mContactsByIdentifier.clear();
 	mContacts.clear();
 }
@@ -140,12 +148,13 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 		uname << ++i;
 	}
 	
-	Map<String, Contact>::iterator it = mContacts.insert(uname, Contact(this, uname, name, identifier));
-	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
-	Interface::Instance->add(it->second.urlPrefix(), &it->second);
+	Contact *contact = new Contact(this, uname, name, identifier);
+	
+	mContacts.insert(uname, contact);
+	mContactsByIdentifier.insert(identifier, contact);
 
 	mTime = Time::Now();
-		
+	
 	save();
 	
 	return uname;
@@ -155,12 +164,15 @@ bool AddressBook::removeContact(const String &uname)
 {
 	Synchronize(this);
 	
-	Map<String, Contact>::iterator it = mContacts.find(uname);
+	Map<String, Contact*>::iterator it = mContacts.find(uname);
 	if(it == mContacts.end()) return false;
 	
-	mContactsByIdentifier.erase(it->second.identifier());
+	Contact *contact = it->second;
+	mContactsByIdentifier.erase(contact->identifier());
 	mContacts.erase(it);
-
+	
+	delete contact;
+	
 	mTime = Time::Now();
 
 	save();
@@ -171,18 +183,18 @@ AddressBook::Contact *AddressBook::getContact(const String &uname)
 {
 	Synchronize(this);
   
-	Map<String, Contact>::iterator it = mContacts.find(uname);
-	if(it != mContacts.end()) return &it->second;
-	return NULL;
+	Map<String, Contact*>::iterator it = mContacts.find(uname);
+	if(it != mContacts.end()) return it->second;
+	else return NULL;
 }
 
 const AddressBook::Contact *AddressBook::getContact(const String &uname) const
 {
 	Synchronize(this);
   
-	Map<String, Contact>::const_iterator it = mContacts.find(uname);
-	if(it != mContacts.end()) return &it->second;
-	return NULL;
+	Map<String, Contact*>::const_iterator it = mContacts.find(uname);
+	if(it != mContacts.end()) return it->second;
+	else return NULL;
 }
 
 int AddressBook::getContacts(Array<AddressBook::Contact*> &result)
@@ -211,18 +223,24 @@ void AddressBook::setSelf(const Identifier &identifier)
 	
 	String uname = userName();
 
-	Map<String, Contact>::iterator it = mContacts.find(uname);
+	Map<String, Contact*>::iterator it = mContacts.find(uname);
 	if(it != mContacts.end())
 	{
-		if(it->second.identifier() == identifier)
+		Contact *contact = it->second;
+		
+		if(contact->identifier() == identifier)
 			return;
 			
-		mContactsByIdentifier.erase(it->second.identifier());
+		mContactsByIdentifier.erase(contact->identifier());
 		mContacts.erase(it);
+		
+		delete contact;
 	}
 	
-	it = mContacts.insert(uname, Contact(this, uname, uname, identifier));
-	mContactsByIdentifier.insert(it->second.identifier(), &it->second);
+	Contact *contact = new Contact(this, uname, uname, identifier);
+	
+	mContacts.insert(uname, contact);
+	mContactsByIdentifier.insert(identifier, contact);
 
 	mTime = Time::Now();
 	
@@ -299,17 +317,30 @@ bool AddressBook::deserialize(Serializer &s)
 
 	if(!s.read(object)) return false;
 	
+	StringSet toDelete;
+	mContacts.getKeys(toDelete);
+	
 	for(Map<String, Contact>::iterator it = temp.begin();
 		it != temp.end();
 		++it)
 	{
+		toDelete.erase(it->first);
+		
 		if(!mContacts.contains(it->first))
 		{
-			Map<String, Contact>::iterator jt = mContacts.insert(it->first, it->second);
-			jt->second.setAddressBook(this);
-			mContactsByIdentifier.insert(jt->second.identifier(), &jt->second);
+			Assert(!it->second.uniqueName().empty());
+			Assert(!it->second.identifier().empty());
+			
+			Contact *contact = new Contact(it->second);
+			contact->setAddressBook(this);
+			
+			mContacts.insert(contact->uniqueName(), contact);
+			mContactsByIdentifier.insert(contact->identifier(), contact);
 		}
 	}
+	
+	for(StringSet::iterator it = toDelete.begin(); it != toDelete.end(); ++it)
+		removeContact(*it);
 	
 	mTime = std::max(mTime, time);
 	
