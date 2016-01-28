@@ -45,7 +45,7 @@ namespace tpn
 const int Overlay::MaxQueueSize = 128;
 
 Overlay::Overlay(int port) :
-		mThreadPool(1, Config::Get("min_connections").toInt() + 1, Config::Get("max_connections").toInt())
+		mThreadPool(1, Config::Get("min_connections").toInt()*2+1, Config::Get("max_connections").toInt()*2)
 {
 	mFileName = "keys";
 	load();
