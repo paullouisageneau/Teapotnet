@@ -405,8 +405,7 @@ void Network::run(void)
 						BinaryString target;
 						message.content.readBinary(tokens);
 						message.content.readBinary(target);
-						tokens = std::min(tokens, uint16_t(Block::MaxChunks*2));
-					
+						
 						if(Store::Instance->hasBlock(target))
 						{
 							if(tokens && tokens != uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
@@ -1832,7 +1831,7 @@ void Network::Handler::run(void)
 }
 
 Network::Pusher::Pusher(void) :
-	mRedundancy(1.02)	// TODO
+	mRedundant(16)	// TODO
 {
 	
 }
@@ -1882,7 +1881,7 @@ void Network::Pusher::run(void)
 						Fountain::Combination combination;
 						Store::Instance->pull(target, combination, &rank);
 						
-						tokens = std::min(tokens, unsigned(rank*mRedundancy) + 1);
+						tokens = std::min(tokens, rank + mRedundant);
 						--tokens;
 						
 						Overlay::Message data(Overlay::Message::Data, "", destination, target);

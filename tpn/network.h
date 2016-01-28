@@ -347,7 +347,7 @@ private:
 		
 	private:
 		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
-		double mRedundancy;
+		unsigned mRedundant;
 	};
 	
 	Pusher mPusher;
