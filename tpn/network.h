@@ -194,8 +194,6 @@ public:
 	void run(void);
 	
 private:
-	static const unsigned RedundantChunks;
-	
 	class RemotePublisher : public Publisher
 	{
 	public:
@@ -349,6 +347,7 @@ private:
 		
 	private:
 		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
+		double mRedundancy;
 	};
 	
 	Pusher mPusher;

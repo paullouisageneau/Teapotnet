@@ -40,8 +40,6 @@ namespace tpn
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
 
-const unsigned Network::RedundantChunks = 16;
-
 Network::Network(int port) :
 		mOverlay(port),
 		mThreadPool(1, 8, Config::Get("max_connections").toInt())
@@ -94,7 +92,7 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 		Set<BinaryString> nodes;
 		if(Store::Instance->retrieveValue(caller->hint(), nodes))
 		{
-			uint16_t tokens = uint16_t(Store::Instance->missing(target) + RedundantChunks);
+			uint16_t tokens = uint16_t(Store::Instance->missing(target));
 			BinaryString call;
 			call.writeBinary(tokens);
 			call.writeBinary(target);
@@ -361,7 +359,7 @@ void Network::run(void)
 							{
 								LogDebug("Network::run", "Got candidate for " + message.source.toString());
 								
-								uint16_t tokens = uint16_t(Store::Instance->missing(message.source) + RedundantChunks);
+								uint16_t tokens = uint16_t(Store::Instance->missing(message.source));
 								BinaryString call;
 								call.writeBinary(tokens);
 								call.writeBinary(message.source);
@@ -379,21 +377,21 @@ void Network::run(void)
 								temp.insert(it->first, it->second);
 								++it;
 							}
-
+							
 							for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
 							{
-                                                                for(Set<Listener*>::iterator jt = kt->second.begin();
-                                                                        jt != kt->second.end();
-                                                                        ++jt)
-                                                                {
+								for(Set<Listener*>::iterator jt = kt->second.begin();
+										jt != kt->second.end();
+										++jt)
+								{
                 							it = mListeners.find(kt->first);
 									if(it == mListeners.end()) break;
                 							if(it->second.contains(*jt))
 									{
 										Desynchronize(this);
-                                                                        	(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
+										(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
 									}
-                                                                }
+								}
 							}
 						}
 						
@@ -411,7 +409,7 @@ void Network::run(void)
 					
 						if(Store::Instance->hasBlock(target))
 						{
-							if(tokens) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+							if(tokens && tokens != uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
 							mPusher.push(target, message.source, tokens);
 						}
 						else {
@@ -471,7 +469,7 @@ void Network::run(void)
 							Set<BinaryString> nodes;
 							if(Store::Instance->retrieveValue((*jt)->hint(), nodes))
 							{
-								uint16_t tokens = uint16_t(Store::Instance->missing(it->first) + RedundantChunks);
+								uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
 								BinaryString call;
 								call.writeBinary(tokens);
 								call.writeBinary(it->first);
@@ -1656,9 +1654,9 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mSource.count() > 0 && mRank >= 1. && mTokens >= 1.))
+	while(force || (mSource.rank() > 0 && mRank >= 1. && mTokens >= 1.))
 	{
-		//LogDebug("Network::Handler::send", "Sending combination (count=" + String::number(mSource.count()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
+		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", rank=" + String::number(mRank)+", tokens=" + String::number(mTokens) + ")");
 		
 		try {
 			Fountain::Combination combination;
@@ -1698,7 +1696,7 @@ int Network::Handler::send(bool force)
 	}
 	
 	double idleTimeout = milliseconds(Config::Get("idle_timeout").toInt())/5;	// so the tunnel should not time out
-	if(mSource.count() > 0) Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
+	if(mSource.rank() > 0) Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
 	else Scheduler::Global->schedule(&mTimeoutTask, idleTimeout);
 	return count;
 }
@@ -1833,7 +1831,8 @@ void Network::Handler::run(void)
 	delete this;		// autodelete
 }
 
-Network::Pusher::Pusher(void)
+Network::Pusher::Pusher(void) :
+	mRedundancy(1.02)	// TODO
 {
 	
 }
@@ -1879,8 +1878,12 @@ void Network::Pusher::run(void)
 					
 					if(tokens)
 					{
+						unsigned rank = 0;
 						Fountain::Combination combination;
-						Store::Instance->pull(target, combination, &tokens);
+						Store::Instance->pull(target, combination, &rank);
+						
+						tokens = std::min(tokens, unsigned(rank*mRedundancy) + 1);
+						--tokens;
 						
 						Overlay::Message data(Overlay::Message::Data, "", destination, target);
 						BinarySerializer serializer(&data.content);

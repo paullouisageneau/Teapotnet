@@ -503,34 +503,23 @@ unsigned Fountain::DataSource::write(const char *data, size_t size)
 	return count;
 }
 
-unsigned Fountain::DataSource::count(void) const
+unsigned Fountain::DataSource::rank(void) const
 {
 	return unsigned(mComponents.size());
 }
 
-bool Fountain::DataSource::generate(Combination &result, unsigned *tokens)
+bool Fountain::DataSource::generate(Combination &result)
 {
-	unsigned first = mFirstComponent;
-	unsigned count = mComponents.size();
-	
-	if(tokens && *tokens)
-	{
-		if(*tokens > count) *tokens = count;
-		--*tokens;
-		
-		const unsigned max = GenerateSize;
-		first = Random().uniform(unsigned(0), count + max);
-		count = std::min(count, max);
-		if(first < max) first = 0;
-		else first-= max;
-		if(first > mComponents.size() - count)
-			first = mComponents.size() - count;
-	}
-	
 	result.clear();
-	
 	if(mComponents.empty())
 		return false;
+	
+	unsigned first = Random().uniform(unsigned(0), unsigned(mComponents.size()) + GenerateSize);
+	unsigned count = std::min(unsigned(mComponents.size()), GenerateSize);
+	if(first < GenerateSize) first = 0;
+	else first-= GenerateSize;
+	if(first > mComponents.size() - count)
+		first = mComponents.size() - count;
 	
 	Generator gen(result.seed(first, count));
 	
@@ -578,32 +567,31 @@ Fountain::FileSource::~FileSource(void)
 	delete mFile;
 }
 
-bool Fountain::FileSource::generate(Combination &result, unsigned *tokens)
+unsigned Fountain::FileSource::rank(void) const
 {
-	unsigned chunks = mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
-	unsigned first = 0;
-	unsigned count = chunks;
+	return mSize/ChunkSize + (mSize % ChunkSize ? 1 : 0);
+}
+
+bool Fountain::FileSource::generate(Combination &result)
+{
+	const unsigned chunks = rank();
 	
-	if(tokens && *tokens)
-	{
-		if(*tokens > count) *tokens = count;
-		--*tokens;
-		
-		const unsigned max = GenerateSize;
-		first = Random().uniform(unsigned(0), count + max);
-		count = std::min(count, max);
-		if(first < max) first = 0;
-		else first-= max;
-		if(first > chunks - count)
-			first = chunks - count;
-	}
+	result.clear();
+	if(!chunks)
+		return false;
+	
+	unsigned first = Random().uniform(unsigned(0), chunks + GenerateSize);
+	unsigned count = std::min(chunks, GenerateSize);
+	if(first < GenerateSize) first = 0;
+	else first-= GenerateSize;
+	if(first > chunks - count)
+		first = chunks - count;
 	
 	// Seek
 	mFile->seekRead(mOffset + first*ChunkSize);
 	uint32_t left = uint32_t(mSize) - first*ChunkSize;
 	
 	// Generate
-	result.clear();
 	Generator gen(result.seed(first, count));
 	unsigned i = first;
 	char buffer[ChunkSize];

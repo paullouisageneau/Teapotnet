@@ -46,7 +46,7 @@ public:
 	~Store(void);
 	
 	bool push(const BinaryString &digest, Fountain::Combination &input);
-	bool pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens = NULL);
+	bool pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank = NULL);
 	unsigned missing(const BinaryString &digest);
 	
 	bool hasBlock(const BinaryString &digest);

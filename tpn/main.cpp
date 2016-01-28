@@ -848,7 +848,7 @@ int benchmark(String &commandLine, StringMap &args)
 	TempFile *file = new TempFile;
 	file->writeZero(1024*1024);
 	
-	unsigned n = 1024 + 1;
+	unsigned n = 1024 + 16;
 	
 	Array<Fountain::Combination> tmp;
 	tmp.resize(n);
@@ -856,9 +856,8 @@ int benchmark(String &commandLine, StringMap &args)
 	Fountain::FileSource source(file, 0, 1024*1024);
 	
 	Time t1;
-	unsigned tokens = 1024;
 	for(unsigned i=0; i<n; ++i)
-		source.generate(tmp[i], &tokens);
+		source.generate(tmp[i]);
 	
 	Time t2;
 	Fountain::Sink sink;

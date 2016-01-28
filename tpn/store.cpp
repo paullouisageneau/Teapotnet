@@ -103,7 +103,7 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	return true;
 }
 
-bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *tokens)
+bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank)
 {
 	Synchronize(this);
   
@@ -112,7 +112,8 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 	if(!file) return false;
 	
 	Fountain::FileSource source(file, file->tellRead(), size);
-	source.generate(output, tokens);
+	source.generate(output);
+	if(rank) *rank = source.rank();
 	return true;
 }
 
@@ -122,7 +123,7 @@ unsigned Store::missing(const BinaryString &digest)
 	
 	Map<BinaryString,Fountain::Sink>::iterator it = mSinks.find(digest);
 	if(it != mSinks.end()) return it->second.missing();
-	else return Block::MaxChunks;
+	else return uint16_t(-1);
 }
 
 bool Store::hasBlock(const BinaryString &digest)
