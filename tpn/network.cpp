@@ -408,7 +408,12 @@ void Network::run(void)
 						
 						if(Store::Instance->hasBlock(target))
 						{
-							if(tokens && tokens != uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+							if(tokens)
+							{
+								if(tokens == uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString());
+								else LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+							}
+							
 							mPusher.push(target, message.source, tokens);
 						}
 						else {
