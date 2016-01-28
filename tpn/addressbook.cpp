@@ -306,7 +306,7 @@ bool AddressBook::deserialize(Serializer &s)
 		if(!mContacts.contains(it->first))
 		{
 			Map<String, Contact>::iterator jt = mContacts.insert(it->first, it->second);
-			it->second.setAddressBook(this);
+			jt->second.setAddressBook(this);
 			mContactsByIdentifier.insert(jt->second.identifier(), &jt->second);
 		}
 	}
@@ -812,6 +812,7 @@ BinaryString AddressBook::Contact::secret(void) const
 BinaryString AddressBook::Contact::localSecret(void) const
 {
 	Synchronize(mAddressBook);
+	if(!mAddressBook) return "";
 	return mAddressBook->user()->getSecretKey(identifier().toString());
 }
 
