@@ -1850,6 +1850,9 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 {
 	Synchronize(this);
 	
+	if(tokens < mRedundant) tokens*=2;
+	else tokens+= mRedundant;
+	
 	if(tokens) mTargets[target][destination] = tokens;
 	else {
 		mTargets[target].erase(destination);
