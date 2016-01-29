@@ -410,8 +410,8 @@ void Network::run(void)
 						{
 							if(tokens)
 							{
-								if(tokens == uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString());
-								else LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+								if(tokens < uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+								else LogDebug("Network::run", "Called " + target.toString());
 							}
 							
 							mPusher.push(target, message.source, tokens);
@@ -1850,8 +1850,11 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 {
 	Synchronize(this);
 	
-	if(tokens < mRedundant) tokens*=2;
-	else tokens+= mRedundant;
+	if(tokens < uint16_t(-1))
+	{
+		if(tokens < mRedundant) tokens*=2;
+		else tokens+= mRedundant;
+	}
 	
 	if(tokens) mTargets[target][destination] = tokens;
 	else {
