@@ -850,7 +850,7 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 	Synchronize(this);
 	
 	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
-	if(it == mListeners.end()) return false;
+	if(it == mListeners.end()) return true;
 	
 	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
 	for(Set<Listener*>::iterator jt = set.begin();
