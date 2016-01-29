@@ -178,7 +178,7 @@ void Request::http(const String &prefix, Http::Request &request)
 			start = timeParamToSeconds(startParam);
 	
 		String stopParam;
-                if(request.get.get("stop", startParam))
+                if(request.get.get("stop", stopParam))
                         stop = timeParamToSeconds(stopParam);
 
 		Http::Response response(request, 200);
