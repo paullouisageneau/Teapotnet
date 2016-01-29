@@ -638,7 +638,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							document.actionForm.argument.value = uname;\n\
 							document.actionForm.submit();\n\
 						}\n\
-						return false;
+						return false;\n\
 					});");
 				}
 				
@@ -686,7 +686,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								document.actionForm.argument.value = id;\n\
 								document.actionForm.submit();\n\
 							}\n\
-							return false;
+							return false;\n\
 						});\n\
 						$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
@@ -697,7 +697,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								document.actionForm.argument.value = id;\n\
 								document.actionForm.submit();\n\
 							}\n\
-							return false;
+							return false;\n\
 						});\n\
 					});");
 				}
