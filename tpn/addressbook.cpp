@@ -638,6 +638,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							document.actionForm.argument.value = uname;\n\
 							document.actionForm.submit();\n\
 						}\n\
+						return false;
 					});");
 				}
 				
@@ -676,7 +677,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.close("div");
 					
 					page.javascript("$(document).ready(function () {\n\
-						$('.contacts .acceptlink').css('cursor', 'pointer').click(function(event) {\n\
+						$('.invitations .acceptlink').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
 							var name = $(this).closest('tr').find('td.name').text();\n\
 							var id = $(this).closest('tr').find('td.id').text();\n\
@@ -685,8 +686,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								document.actionForm.argument.value = id;\n\
 								document.actionForm.submit();\n\
 							}\n\
+							return false;
 						});\n\
-						$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+						$('.invitations .deletelink').css('cursor', 'pointer').click(function(event) {\n\
 							event.stopPropagation();\n\
 							var name = $(this).closest('tr').find('td.name').text();\n\
 							var id = $(this).closest('tr').find('td.id').text();\n\
@@ -695,6 +697,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								document.actionForm.argument.value = id;\n\
 								document.actionForm.submit();\n\
 							}\n\
+							return false;
 						});\n\
 					});");
 				}
