@@ -54,12 +54,14 @@ public:
 	void http(const String &prefix, Http::Request &request);
 	
 protected:
-	void createPlaylist(Stream *output, String host = "");
+	void createPlaylist(Stream *output, String host = "", int start = -1, int stop = -1);
 	
 	// Network::Subscriber
 	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
 	
 private:
+	static int timeParamToSeconds(String param);
+
 	String mUrlPrefix;
 	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
 	Set<BinaryString> mDigests;

@@ -167,10 +167,20 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(mAutoDeleteTimeout >= 0.)
 		Scheduler::Global->schedule(&mAutoDeleteTask, mAutoDeleteTimeout);
 	
+	// Playlist
 	if(request.get.contains("playlist"))
 	{
-		// Playlist
-		
+		int start = -1;
+		int stop  = -1;
+
+		String startParam;
+		if(request.get.get("start", startParam) || request.get.get("t", startParam))
+			start = timeParamToSeconds(startParam);
+	
+		String stopParam;
+                if(request.get.get("stop", startParam))
+                        stop = timeParamToSeconds(stopParam);
+
 		Http::Response response(request, 200);
 		response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 		response.headers["Content-Type"] = "audio/x-mpegurl";
@@ -178,7 +188,7 @@ void Request::http(const String &prefix, Http::Request &request)
 					
 		String host;
 		request.headers.get("Host", host);
-		createPlaylist(response.stream, host);
+		createPlaylist(response.stream, host, start, stop);
 	}
 	else {
 		// JSON
@@ -210,7 +220,7 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 	return true;
 }
 
-void Request::createPlaylist(Stream *output, String host)
+void Request::createPlaylist(Stream *output, String host, int start, int stop)
 {
 	Synchronize(this);
 	Assert(output);
@@ -226,8 +236,44 @@ void Request::createPlaylist(Stream *output, String host)
 		if(!Mime::IsAudio(record.name) && !Mime::IsVideo(record.name)) continue;
 		String link = "http://" + host + "/file/" + record.digest.toString();
 		output->writeLine("#EXTINF:-1," + record.name.beforeLast('.'));
+		if(start >= 0) output->writeLine("#EXTVLCOPT:start-time=" + String::number(start));
+		if(stop >= 0)  output->writeLine("#EXTVLCOPT:stop-time="  + String::number(stop));
 		output->writeLine(link);
+		start = stop = -1;
+	}
+}
+
+int Request::timeParamToSeconds(String param)
+{
+	try {
+		int s = 0;
+	
+		if(param.contains("h"))
+		{
+			String hours = param;
+			param = hours.cut('h');
+			s+= hours.toInt()*3600;
+	
+			if(!param.contains("m") && !param.contains("s"))
+				param+= 'm';
+		}
+		
+		if(param.contains("m"))
+		{
+			String minutes = param;
+			param = minutes.cut('m');
+			s+= minutes.toInt()*60;
+		}
+		
+		param.cut('s');
+		s+= param.toInt();
+		return s;
+	}
+	catch(const std::exception &e)
+	{
+		return -1;
 	}
 }
 
 }
+
