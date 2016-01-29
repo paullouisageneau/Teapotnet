@@ -1733,7 +1733,7 @@ bool Network::Handler::read(String &type, String &content)
 		LogWarn("Network::Handler::read", String("Reading failed: ") + e.what());
 	}
 	
-	mStream->close();
+	//mStream->close();
 	mClosed = true;
 	return false;
 }

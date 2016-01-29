@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -1400,7 +1400,7 @@ bool Overlay::Handler::recv(Message &message)
 		}
 	}
 	
-	mStream->close();
+	//mStream->close();
 	return false;
 }
 
