@@ -329,7 +329,7 @@ void Store::run(void)
 	mRunning = true;
 	
 	const double maxAge = Config::Get("store_max_age").toDouble();
-	const double delay = 0.1;	// TODO
+	const double delay = 1.;	// TODO
 	const int batch = 10;		// TODO
 	
 	LogDebug("Store::run", "Started");
