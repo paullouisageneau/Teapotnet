@@ -462,8 +462,7 @@ bool Indexer::process(String path, Resource &resource)
 		LogDebug("Indexer::process", "Processing: " + path);
 		
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
-		if(time < fileTime) 
-			notify(path, resource, fileTime);
+		notify(path, resource, fileTime);
 	}
 	else {
 		// Publish into DHT right now
