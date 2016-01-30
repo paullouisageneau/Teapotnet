@@ -402,15 +402,6 @@ void Overlay::run(void)
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
 
-		SerializableSet<Address> addrs;
-		Config::GetExternalAddresses(addrs);	// TODO: external address discovery by other nodes
-		if(!addrs.empty())
-		{
-			BinaryString content;
-			BinarySerializer(&content).write(addrs);
-			broadcast(Message(Message::Offer, content));
-		}
-		
 		SerializableMap<BinaryString, SerializableSet<Address> > result;
 		if(track(Config::Get("tracker"), result))
 			if(connectionsCount() < minConnectionsCount)
@@ -418,9 +409,29 @@ void Overlay::run(void)
 					it != result.end();
 					++it)
 				{
-					connect(it->second, it->first, false);	// sync
+					if(it->first == localNode())
+					{
+						// Store external addresses for Offer messages
+						mLocalAddresses = it->second;
+					}
+					else {
+						connect(it->second, it->first, false);	// sync
+					}
 				}
-
+		
+		SerializableSet<Address> addrs;
+		Config::GetExternalAddresses(addrs);
+		addrs.insertAll(mLocalAddresses);
+		
+		// TODO: external address discovery by other nodes
+		
+		if(!addrs.empty())
+		{
+			BinaryString content;
+			BinarySerializer(&content).write(addrs);
+			broadcast(Message(Message::Offer, content));
+		}
+		
 		if(connectionsCount() < minConnectionsCount) Scheduler::Global->schedule(this, Random().uniform(0.,120.));	// avg 1 min
 		else Scheduler::Global->schedule(this, 600.);   // 10 min
 	}
@@ -775,7 +786,6 @@ bool Overlay::track(const String &tracker, SerializableMap<BinaryString, Seriali
 	LogDebug("Overlay::track", "Contacting tracker " + url);	
 	
 	try {
-		
 		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet/tracker?id=" + localNode().toString();
 		
 		// Dirty hack to test if tracker is private or public

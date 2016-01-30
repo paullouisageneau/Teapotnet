@@ -260,7 +260,7 @@ private:
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
 	Set<Handler*> mOtherHandlers;
-	Set<Address> mRemoteAddresses;
+	Set<Address> mRemoteAddresses, mLocalAddresses;
 	
 	Queue<Message> mIncoming;
 	Synchronizable mIncomingSync;

@@ -51,7 +51,15 @@ void Tracker::process(Http::Request &request)
 	
 	BinaryString node;
 	request.get["id"].extract(node);
-
+	if(node.empty())
+		throw 400;
+	
+	unsigned count = 10;
+	if(request.get.contains("count"))
+		request.get["count"].extract(count);
+	
+	SerializableMap<BinaryString, SerializableSet<Address> > result;
+	
 	if(request.method == "POST")
 	{
 		int count = 0;
@@ -65,14 +73,16 @@ void Tracker::process(Http::Request &request)
 					host = request.headers["X-Forwarded-For"].beforeLast(',').trimmed();
 				else host = request.remoteAddress.host();
 			}
-				
+			
 			Address addr(host, port);
-			if(addr.isPublic())
+			if(addr.isPublic() || (addr.isPrivate() && request.remoteAddress.isPrivate()))
 			{
 				insert(node, addr);
 				++count;
 				//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
 			}
+			
+			result[node].insert(addr);
 		}
 			
 		String addresses;
@@ -87,12 +97,11 @@ void Tracker::process(Http::Request &request)
 			try {
 				Address addr(*it);
 				
-				//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
-				
 				if(addr.isPublic() || (addr.isPrivate() && request.remoteAddress.isPrivate()))
 				{
 					insert(node, addr);
 					++count;
+					//LogDebug("Tracker", "POST " + node.toString() + " -> " + addr.toString());
 				}
 			}
 			catch(...)
@@ -108,9 +117,7 @@ void Tracker::process(Http::Request &request)
 		clean(1);
 	}
 	
-	unsigned count = 10;	// TODO: parameter
-	
-	SerializableMap<BinaryString, SerializableSet<Address> > result;
+	// result not cleared by retrieve()
 	retrieve(node, count, result);
 	
 	Http::Response response(request, 200);
@@ -157,7 +164,7 @@ void Tracker::retrieve(const BinaryString &node, int count, SerializableMap<Bina
 	Synchronize(this);
 	Assert(!node.empty());
 	
-	result.clear();
+	// Note: Do not clear result
 	
 	/*Map<BinaryString, Map<Address, Time> >::const_iterator it, jt;
 	it = jt = mMap.upper_bound(node);
