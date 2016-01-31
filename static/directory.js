@@ -67,7 +67,7 @@ function listDirectoryRec(url, object) {
 				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
 				if(existing.length > 0) {
 					if(parseInt(existing.find('td.time').text()) > resource.time) continue;
-					existing.remove();
+					existing.hide();
 				}
 				
 				var link = '/file/' + resource.digest;
