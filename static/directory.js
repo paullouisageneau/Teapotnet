@@ -26,15 +26,14 @@ function listDirectory(url, object, showButtons) {
 	if(showButtons) {
 		var location = url.split('?')[0];
 		//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-		$(object)
-			//.append('<span class="button"> '+data.length+' files</span>')
-			//.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
-			
-		$(object).find('a.refreshlink').click(function() {
-			listDirectory(url, object, showButtons);
-			return false;
-		});
+		//$(object)
+		//	.append('<span class="button"> '+data.length+' files</span>')
+		//	.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+		//	.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
+		//	.find('a.refreshlink').click(function() {
+		//		listDirectory(url, object, showButtons);
+		//		return false;
+		//	});
 	}
 	
 	$(object).append('<div class="gifloading"><img src="/loading.gif" alt="Loading..."></div>');
@@ -157,14 +156,12 @@ function listFileSelector(url, object, input, inputName, parents) {
 				});
 		}
 		
-		$(object)
-			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
-			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, parents);
-				return false;
-			});
-			
-		//$(object).append('<a class="button" href="'+UrlUpload+'">Choose another file</a>');
+		//$(object)
+		//	.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
+		//	.find('a.refreshlink').click(function() {
+		//		listFileSelector(url, object, input, inputName, parents);
+		//		return false;
+		//	});
 		
 		if(UrlUpload)
 		{
@@ -266,13 +263,13 @@ function listFileSelector(url, object, input, inputName, parents) {
 		}
 			
 		$(object)
-			.append('<a href="#" class="button refreshlink">Retry</a>')
+			//.append('<a href="#" class="button refreshlink">Retry</a>')
 			.append('<a href="#" class="button quitlink">Cancel</a>')
 			.append('<div class="files">Unable to access files</div>')
-			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, parents);
-				return false;
-			})
+			//.find('a.refreshlink').click(function() {
+			//	listFileSelector(url, object, input, inputName, parents);
+			//	return false;
+			//})
 			.find('a.quitlink').click(function() {
 				$(inputName).val("").change();
 				$(input).val("").change();
