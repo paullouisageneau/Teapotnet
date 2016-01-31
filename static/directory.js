@@ -24,7 +24,7 @@ function listDirectory(url, object, showButtons) {
 	$(object).empty();
 	
 	if(showButtons) {
-		var location = url.split('?')[0];
+		//var location = url.split('?')[0];
 		//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
 		//$(object)
 		//	.append('<span class="button"> '+data.length+' files</span>')
