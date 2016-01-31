@@ -459,7 +459,7 @@ bool Indexer::process(String path, Resource &resource)
 	}
 	
 	Time time(0);
-	if(!get(path, resource, &time) || time < fileTime /*|| isDirectory*/)
+	if(!get(path, resource, &time) || time < fileTime || path == "/")
 	{
 		LogDebug("Indexer::process", "Processing: " + path);
 		
