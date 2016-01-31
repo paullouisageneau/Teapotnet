@@ -739,8 +739,11 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
-		DesynchronizeStatement(this, h->getAddresses(otherAddrs));
-		mOtherHandlers.insert(h);
+		LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
+		
+		Desynchronize(this);
+		h->getAddresses(otherAddrs);
+		h->stop();
 	}
 	
 	handler->addAddresses(otherAddrs);
@@ -757,8 +760,6 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 {
 	Synchronize(this);
 	Assert(handler);
-	
-	mOtherHandlers.erase(handler);
 	
 	Handler *h = NULL;
 	if(mHandlers.get(node, h) && h == handler)
@@ -1337,7 +1338,8 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mOverlay(overlay),
 	mStream(stream),
 	mNode(node),
-	mSender(overlay, stream)
+	mSender(overlay, stream),
+	mShouldStop(false)
 {
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
@@ -1396,6 +1398,13 @@ bool Overlay::Handler::recv(Message &message)
 			if(message.source.empty())	continue;
 			if(message.ttl == 0)		continue;
 			--message.ttl;
+			
+			if(message.destination == node())
+			{
+				LogWarn("Overlay::Handler::recv", "Message destination is source node ?!");
+				continue;
+			}
+			
 			return true;
 		}
 		catch(const IOException &e)
@@ -1420,6 +1429,14 @@ bool Overlay::Handler::send(const Message &message)
 	return mSender.push(message);
 }
 
+void Overlay::Handler::stop(void)
+{
+	Synchronize(this);
+	mShouldStop = true;
+	mSender.stop();
+	//mStream->close();
+}
+
 void Overlay::Handler::addAddress(const Address &addr)
 {
 	Synchronize(this);
@@ -1438,6 +1455,12 @@ void Overlay::Handler::getAddresses(Set<Address> &set) const
 	set = mAddrs;
 }
 
+BinaryString Overlay::Handler::node(void) const
+{
+	Synchronize(this);
+	return mNode;
+}
+
 Task *Overlay::Handler::senderTask(void)
 {
 	return &mSender;
@@ -1448,7 +1471,7 @@ void Overlay::Handler::process(void)
 	Synchronize(this);
 	
 	Message message;
-	while(recv(message))
+	while(recv(message) && !mShouldStop)
 	{
 		Desynchronize(this);
 		//LogDebug("Overlay::Handler", "Received message");

@@ -207,10 +207,14 @@ private:
 		bool recv(Message &message);
 		bool send(const Message &message);
 		
+		void stop(void);
+		
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
 		void getAddresses(Set<Address> &set) const;
 
+		BinaryString node(void) const;
+		
 		Task *senderTask(void);
 		
 	private:
@@ -221,6 +225,7 @@ private:
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
+		bool mShouldStop;
 		
 		class Sender : public Task, protected Synchronizable
 		{
@@ -259,7 +264,6 @@ private:
 
 	List<Backend*> mBackends;
 	Map<BinaryString, Handler*> mHandlers;
-	Set<Handler*> mOtherHandlers;
 	Set<Address> mRemoteAddresses, mLocalAddresses;
 	
 	Queue<Message> mIncoming;
