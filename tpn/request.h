@@ -48,7 +48,7 @@ public:
 	void addResult(const Resource::DirectoryRecord &record);
 	void getResult(int i, Resource::DirectoryRecord &record) const;
 	
-	void autoDelete(double timeout = 60.);
+	void autoDelete(double timeout = 300.);
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
