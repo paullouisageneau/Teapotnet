@@ -632,7 +632,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 	// Neighbor
 	if(mHandlers.contains(message.destination))
 		return sendTo(message, message.destination);
-		
+	
 	Array<BinaryString> neigh;
 	getNeighbors(message.destination, neigh);
 	if(neigh.size() >= 2) neigh.remove(from);

@@ -357,7 +357,7 @@ void Network::run(void)
 							// It can be about a block
 							if(mCallers.contains(message.source))
 							{
-								LogDebug("Network::run", "Got candidate for " + message.source.toString());
+								//LogDebug("Network::run", "Got candidate for " + message.source.toString());
 								
 								uint16_t tokens = uint16_t(Store::Instance->missing(message.source));
 								BinaryString call;
@@ -378,18 +378,23 @@ void Network::run(void)
 								++it;
 							}
 							
-							for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
+							if(!temp.empty())
 							{
-								for(Set<Listener*>::iterator jt = kt->second.begin();
-										jt != kt->second.end();
-										++jt)
+								//LogDebug("Network::run", "Got instance for " + message.source.toString());
+								
+								for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
 								{
-                							it = mListeners.find(kt->first);
-									if(it == mListeners.end()) break;
-                							if(it->second.contains(*jt))
+									for(Set<Listener*>::iterator jt = kt->second.begin();
+											jt != kt->second.end();
+											++jt)
 									{
-										Desynchronize(this);
-										(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
+										it = mListeners.find(kt->first);
+										if(it == mListeners.end()) break;
+										if(it->second.contains(*jt))
+										{
+											Desynchronize(this);
+											(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
+										}
 									}
 								}
 							}
@@ -515,6 +520,8 @@ void Network::run(void)
 					{
 						mOverlay.retrieve(*it);
 					}
+					
+					//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
 				}
 			}
 		}
@@ -1233,11 +1240,11 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
-	uint64_t tunnelId;
+	uint64_t tunnelId = 0;
 	Random().readBinary(tunnelId);	// Generate random tunnel ID
 	BinaryString local = user->identifier();
 	
-	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString());
+	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + " (id " + String::hexa(tunnelId) + ")");
 	
 	Tunneler::Tunnel *tunnel = NULL;
 	SecureTransport *transport = NULL;
@@ -1271,45 +1278,55 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 	{
 		while(mQueue.empty()) wait();
 		
-		Overlay::Message &datagram = mQueue.front();
+		try {
+			Overlay::Message &message = mQueue.front();
 
-		// Read tunnel ID
-		uint64_t tunnelId;
-		datagram.content.readBinary(tunnelId);
+			// Read tunnel ID
+			uint64_t tunnelId = 0;
+			if(!message.content.readBinary(tunnelId))
+				continue;
 
-		Map<uint64_t, Tunnel*>::iterator it = mTunnels.find(tunnelId);
-		if(it == mTunnels.end())
-		{
-			if(source) *source = datagram.source;
-			
-			Tunneler::Tunnel *tunnel = NULL;
-			SecureTransport *transport = NULL;
-			try {
-				tunnel = new Tunneler::Tunnel(this, tunnelId, datagram.source);
-				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-			}
-			catch(...)
+			Map<uint64_t, Tunnel*>::iterator it = mTunnels.find(tunnelId);
+			if(it == mTunnels.end())
 			{
-				delete tunnel;
+				LogDebug("Network::Tunneler::run", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
+				
+				if(source) *source = message.source;
+				
+				Tunneler::Tunnel *tunnel = NULL;
+				SecureTransport *transport = NULL;
+				try {
+					tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
+					transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
+				}
+				catch(...)
+				{
+					delete tunnel;
+					throw;
+				}
+				
+				tunnel->incoming(message);
 				mQueue.pop();
-				throw;
+				return transport;
 			}
 			
-			tunnel->incoming(datagram);
+			//LogDebug("Network::Tunneler::run", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+			it->second->incoming(message);
 			mQueue.pop();
-			return transport;
 		}
-		
-		it->second->incoming(datagram);
-		mQueue.pop();
+		catch(...)
+		{
+			mQueue.pop();
+			throw;
+		}
 	}
 }
 
-bool Network::Tunneler::incoming(const Overlay::Message &datagram)
+bool Network::Tunneler::incoming(const Overlay::Message &message)
 {
 	Synchronize(this);
 	
-	mQueue.push(datagram);
+	mQueue.push(message);
 	notifyAll();
 	return true;
 }
@@ -1486,20 +1503,22 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 
 void Network::Tunneler::run(void)
 {
-	try {
-		while(true)
-		{
+	LogWarn("Network::Backend::run", "Starting tunneler");
+	
+	while(true)
+	{
+		try {
+			
 			Identifier node;
 			SecureTransport *transport = listen(&node);
 			if(!transport) break;
 			
-			LogDebug("Network::Tunneler::run", "Incoming tunnel from " + node.toString());
 			handshake(transport, Link(Identifier::Empty, Identifier::Empty, node), true); // async
 		}
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Network::Tunneler::run", e.what());
+		catch(const std::exception &e)
+		{
+			LogError("Network::Tunneler::run", e.what());
+		}
 	}
 	
 	LogWarn("Network::Backend::run", "Closing tunneler");
@@ -1605,14 +1624,14 @@ bool Network::Tunneler::Tunnel::isDatagram(void) const
 	return true; 
 }
 
-bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &datagram)
+bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 {
 	Synchronize(this);
 	
-	if(datagram.type != Overlay::Message::Tunnel)
+	if(message.type != Overlay::Message::Tunnel)
 		return false;
 	
-	mQueue.push(datagram);
+	mQueue.push(message);
 	notifyAll();
 	return true;
 }
