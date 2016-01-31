@@ -196,7 +196,7 @@ void Network::publish(String prefix, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	LogDebug("Network::publish", "Publishing " + prefix);
+	//LogDebug("Network::publish", "Publishing " + prefix);
 	
 	mPublishers[prefix].insert(publisher);
 }
@@ -225,8 +225,8 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
-
-	LogDebug("Network::subscribe", "Subscribing " + prefix);
+	
+	//LogDebug("Network::subscribe", "Subscribing " + prefix);
 	
 	mSubscribers[prefix].insert(subscriber);
 	
@@ -274,7 +274,7 @@ void Network::advertise(String prefix, const String &path, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	LogDebug("Network::publish", "Advertising " + prefix + path);
+	//LogDebug("Network::publish", "Advertising " + prefix + path);
 	
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
@@ -618,14 +618,14 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 		success = true;
 	}
 	
-	if(success) LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\")");
+	//if(success) LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\")");
 	return success;
 }
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	Desynchronize(this);
-	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
+	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
@@ -732,7 +732,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			
 			if(!targets.empty())	// remote
 			{
-				LogDebug("Network::Handler::incoming", "Anouncing " + path);
+				//LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
 				send(link, "publish", ConstObject()
 						.insert("path", &path)
@@ -1289,7 +1289,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			Map<uint64_t, Tunnel*>::iterator it = mTunnels.find(tunnelId);
 			if(it == mTunnels.end())
 			{
-				LogDebug("Network::Tunneler::run", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
+				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
 				
 				if(source) *source = message.source;
 				
@@ -1310,7 +1310,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				return transport;
 			}
 			
-			//LogDebug("Network::Tunneler::run", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+			//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
 			it->second->incoming(message);
 			mQueue.pop();
 		}
@@ -1320,6 +1320,8 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			throw;
 		}
 	}
+	
+	return NULL;
 }
 
 bool Network::Tunneler::incoming(const Overlay::Message &message)
@@ -1503,7 +1505,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 
 void Network::Tunneler::run(void)
 {
-	LogWarn("Network::Backend::run", "Starting tunneler");
+	LogDebug("Network::Tunneler::run", "Starting tunneler");
 	
 	while(true)
 	{
@@ -1521,7 +1523,7 @@ void Network::Tunneler::run(void)
 		}
 	}
 	
-	LogWarn("Network::Backend::run", "Closing tunneler");
+	LogWarn("Network::Tunneler::run", "Closing tunneler");
 }
 
 Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node) :
