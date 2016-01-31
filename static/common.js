@@ -106,6 +106,15 @@ function formatTime(timestamp) {
 	return date.getFullYear() + '-' + ("0" + (date.getMonth() + 1)).slice(-2) + '-' + ("0" + date.getDate()).slice(-2) + ' ' + ("0" + date.getHours()).slice(-2) + ':' + ("0" + date.getMinutes()).slice(-2) + ':' + ("0" + date.getSeconds()).slice(-2);
 }
 
+function formatBytes(bytes, decimals) {
+	if(bytes == 0) return '0 B';
+	var k = 1000;
+	var dm = decimals + 1 || 3;
+	var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+	var i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), 4);
+	return (bytes / Math.pow(k, i)).toPrecision(dm) + ' ' + sizes[i];
+}
+
 function getBasePath(nbFolders) {
 
 	var pathArray = window.location.pathname.split('/');

@@ -1080,11 +1080,6 @@ img.preview
 	text-overflow: ellipsis; 
 }
 
-.files td.access
-{
-	width: 6em;
-}
-
 .files td.filename .type
 {
 	padding-right: 0.25em;
@@ -1096,12 +1091,14 @@ img.preview
 
 .files td.size
 {
-	width: 6em; 
+	width: 6em;
+	text-align: right;
 }
 
-.files td.add
+.files td.date
 {
-	width: 5em;
+	width: 11em; 
+	text-align: right;
 }
 
 .fileselectorwindow
@@ -1525,7 +1522,17 @@ form #trackerlink
 		overflow: hidden;
 		text-overflow: ellipsis; 
 	}
-
+	
+	.files td.size
+	{
+		display: none;
+	}
+	
+	.files td.date
+	{
+		display: none;
+	}
+	
 	#statuspanel .button
 	{
 		margin-left: 0.5em;

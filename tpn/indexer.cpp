@@ -431,11 +431,13 @@ bool Indexer::process(String path, Resource &resource)
 			++it)
 		{
 			String subPath = path + '/' + it->second;
+			String realSubPath = this->realPath(subPath);
+			
 			Resource subResource;
 			if(!process(subPath, subResource))
 				continue;	// ignore this file
 			
-			Time time = File::Time(this->realPath(path));
+			Time time = File::Time(realSubPath);
 			Resource::DirectoryRecord record;
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();

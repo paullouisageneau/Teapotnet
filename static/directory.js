@@ -64,12 +64,21 @@ function listDirectoryRec(url, object) {
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				
+				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
+				if(existing.length > 0) {
+					if(parseInt(existing.find('td.time').text()) > resource.time) continue;
+					existing.remove();
+				}
+				
 				var link = '/file/' + resource.digest;
 				var line;
 				if(resource.type == "directory") {
 					line = '<tr class="directory">';
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
+					line+= '<td class="size"></td>';
+					line+= '<td class="date">'+formatTime(resource.time).escape()+'</td>';
+					line+= '<td class="time" style="display:none">'+resource.time+'</td>';
 					line+= '<td class="actions"></td>';
 					line+= '</tr>';
 				}
@@ -81,6 +90,9 @@ function listDirectoryRec(url, object) {
 					line = '<tr class="file">';
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>'; 
+					line+= '<td class="size">'+formatBytes(resource.size, 2)+'</td>';
+					line+= '<td class="date">'+formatTime(resource.time).escape()+'</td>';
+					line+= '<td class="time" style="display:none">'+resource.time+'</td>';
 					line+= '<td class="actions"><a class="downloadlink" href="'+link.escape()+'?download=1"><img src="/down.png" alt="(download)"></a>';
 					if(isPlayable) line+= '<a class="playlink" href="'+link.escape()+'?play=1"><img src="/play.png" alt="(play)"></a>';
 					line+= '</td>';
