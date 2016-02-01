@@ -360,7 +360,7 @@ ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const v
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("SecureTransport::DirectWriteCallback", e.what());
+		LogDebug("SecureTransport::DirectWriteCallback", e.what());
 		return -1;
 	}
 }
@@ -380,7 +380,7 @@ ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* d
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("SecureTransport::WriteCallback", e.what());
+		LogDebug("SecureTransport::WriteCallback", e.what());
 	}
 	
 	gnutls_transport_set_errno(st->mSession, ECONNRESET);
@@ -406,7 +406,7 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("SecureTransport::ReadCallback", e.what());
+		LogDebug("SecureTransport::ReadCallback", e.what());
 	}
 	
 	gnutls_transport_set_errno(st->mSession, ECONNRESET);
@@ -423,7 +423,7 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("SecureTransport::TimeoutCallback", e.what());
+		LogDebug("SecureTransport::TimeoutCallback", e.what());
 	}
 	
 	gnutls_transport_set_errno(st->mSession, ECONNRESET);

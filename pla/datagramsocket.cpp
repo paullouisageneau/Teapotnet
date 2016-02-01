@@ -598,7 +598,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 
 void DatagramStream::writeData(const char *data, size_t size)
 {
-	if(!mSock) throw NetException("Datagram socket closed");
+	if(!mSock) throw NetException("Datagram stream closed");
 	mBuffer.writeData(data, size);
 }
 
