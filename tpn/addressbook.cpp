@@ -1158,7 +1158,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "files")
 		{
-			Request *req = new Request("/files/" + identifier().toString() + url);
+			Request *req = new Request("/files/" + identifier().toString() + url, mAddressBook->user()->identifier(), identifier(), true);
 			String reqPrefix = req->urlPrefix();
 			req->autoDelete();
 			
