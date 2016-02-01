@@ -536,7 +536,7 @@ bool Fountain::DataSource::generate(Combination &result)
 		++i;
 	}
 	
-	Assert(result.componentsCount() == mComponents.size());
+	//Assert(result.componentsCount() == mComponents.size());
 	//LogDebug("Fountain::Dataource::generate", "Generated combination (first=" + String::number(result.firstComponent()) + ", count=" + String::number((result.componentsCount())) + ")");
 	return true;
 }

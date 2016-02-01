@@ -76,8 +76,8 @@ function listDirectoryRec(url, object) {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
 					line+= '<td class="size"></td>';
-					line+= '<td class="date">'+formatTime(resource.time).escape()+'</td>';
-					line+= '<td class="time" style="display:none">'+resource.time+'</td>';
+					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
+					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
 					line+= '<td class="actions"></td>';
 					line+= '</tr>';
 				}
@@ -90,8 +90,8 @@ function listDirectoryRec(url, object) {
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>'; 
 					line+= '<td class="size">'+formatBytes(resource.size, 2)+'</td>';
-					line+= '<td class="date">'+formatTime(resource.time).escape()+'</td>';
-					line+= '<td class="time" style="display:none">'+resource.time+'</td>';
+					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
+					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
 					line+= '<td class="actions"><a class="downloadlink" href="'+link.escape()+'?download=1"><img src="/down.png" alt="(download)"></a>';
 					if(isPlayable) line+= '<a class="playlink" href="'+link.escape()+'?play=1"><img src="/play.png" alt="(play)"></a>';
 					line+= '</td>';
