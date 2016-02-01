@@ -1752,7 +1752,9 @@ bool Network::Handler::read(String &type, String &content)
 	}
 	catch(std::exception &e)
 	{
-		LogWarn("Network::Handler::read", String("Reading failed: ") + e.what());
+		//LogDebug("Network::Handler::read", e.what());
+		mClosed = true;
+		throw Exception("Connection lost");
 	}
 	
 	mClosed = true;
