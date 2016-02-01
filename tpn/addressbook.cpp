@@ -1180,7 +1180,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			else page.header(name() + ": " + url.substr(1));
 			
 			page.open("div","topmenu");
-			if(!isSelf()) page.span("Unknown", "status.button");
+			if(!isSelf()) page.span((isConnected() ? "Connected" : "Disconnected"), "status.button");
 			page.link(prefix+"/search/", "Search files", ".button");
 			page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 			page.close("div");
@@ -1224,7 +1224,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
-			if(!isSelf()) page.span("TODO", "status.button");	// TODO
+			if(!isSelf()) page.span((isConnected() ? "Connected" : "Disconnected"), "status.button");
 			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text", "query", match);
 			page.button("search","Search");
