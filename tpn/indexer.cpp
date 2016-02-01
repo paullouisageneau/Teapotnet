@@ -552,7 +552,8 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.execute();
 	
 	// Resource has changed, re-publish it
-	publish(prefix(), path);
+	if(pathAccessLevel(path) == Resource::Public) 
+		publish(prefix(), path);
 }
 
 bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
