@@ -1568,7 +1568,7 @@ void Overlay::Handler::Sender::run(void)
 	catch(std::exception &e)
 	{
 		LogWarn("Overlay::Handler::Sender", String("Sending failed: ") + e.what());
-		mStream->close();
+		//mStream->close();
 	}
 }
 
