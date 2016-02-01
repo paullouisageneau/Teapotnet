@@ -24,7 +24,7 @@
 
 //#define DEBUG			1
 #define APPNAME			"Teapotnet"
-#define APPVERSION		"0.9.2"
+#define APPVERSION		"0.9.3"
 #define APPMAGIC		 0x54504f54 // "TPOT"
 #define APPAUTHOR		"Paul-Louis Ageneau"
 #define APPLINK			"http://teapotnet.org/"
