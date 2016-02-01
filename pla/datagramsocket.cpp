@@ -635,7 +635,12 @@ bool DatagramStream::nextWrite(void)
 void DatagramStream::close(void)
 {
 	Synchronize(&mSync);
-	mSock = NULL;
+	if(mSock)
+	{
+		while(!mIncoming.empty()) mIncoming.pop();
+		mSock->unregisterStream(this);
+		mSock = NULL;
+	}
 	mSync.notifyAll();
 }
 
