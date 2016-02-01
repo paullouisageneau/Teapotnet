@@ -101,7 +101,8 @@ public:
 	void writeData(const char *data, size_t size);
 	bool waitData(double &timeout);			
 	bool nextRead(void);
-	bool nextWrite(void);	
+	bool nextWrite(void);
+	void close(void);
 	bool isDatagram(void) const;
 	
 private:

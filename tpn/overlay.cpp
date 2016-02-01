@@ -739,6 +739,7 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 	Handler *h = NULL;
 	if(mHandlers.get(node, h))
 	{
+		mHandlers.erase(node);
 		LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
 		
 		Desynchronize(this);
@@ -1419,7 +1420,6 @@ bool Overlay::Handler::recv(Message &message)
 		}
 	}
 	
-	//mStream->close();
 	return false;
 }
 
@@ -1434,7 +1434,7 @@ void Overlay::Handler::stop(void)
 	Synchronize(this);
 	mShouldStop = true;
 	mSender.stop();
-	//mStream->close();
+	mStream->close();
 }
 
 void Overlay::Handler::addAddress(const Address &addr)
@@ -1568,6 +1568,7 @@ void Overlay::Handler::Sender::run(void)
 	catch(std::exception &e)
 	{
 		LogWarn("Overlay::Handler::Sender", String("Sending failed: ") + e.what());
+		mStream->close();
 	}
 }
 

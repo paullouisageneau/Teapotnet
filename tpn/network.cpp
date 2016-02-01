@@ -1715,6 +1715,7 @@ int Network::Handler::send(bool force)
 		catch(const std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
+			mStream->close();
 			mClosed = true;
 			break;
 		}
@@ -1754,7 +1755,6 @@ bool Network::Handler::read(String &type, String &content)
 		LogWarn("Network::Handler::read", String("Reading failed: ") + e.what());
 	}
 	
-	//mStream->close();
 	mClosed = true;
 	return false;
 }

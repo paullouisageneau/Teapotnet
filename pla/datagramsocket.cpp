@@ -632,6 +632,13 @@ bool DatagramStream::nextWrite(void)
 	return true;
 }
 
+void DatagramStream::close(void)
+{
+	Synchronize(&mSync);
+	mSock = NULL;
+	mSync.notifyAll();
+}
+
 bool DatagramStream::isDatagram(void) const
 {
 	return true; 

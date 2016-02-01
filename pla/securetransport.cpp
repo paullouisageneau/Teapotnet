@@ -105,7 +105,14 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 
 SecureTransport::~SecureTransport(void)
 {
-	gnutls_deinit(mSession);	
+	int ret;
+	do {
+                ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
+        }
+        while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+	
+	gnutls_deinit(mSession);
+	
 	delete mStream;
 	delete mBuffer;
 	
@@ -186,12 +193,7 @@ void SecureTransport::handshake(void)
 
 void SecureTransport::close(void)
 {
-	int ret;
-	do {
-                ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
-        }
-        while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
-	
+	// Don't call bye here, closing the stream directly cancels reading
 	if(mStream) mStream->close();
 }
 
