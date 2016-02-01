@@ -291,12 +291,48 @@ void Indexer::start(void)
 	if(!mRunning) Scheduler::Global->schedule(this);
 }
 
-bool Indexer::query(const Query &query, Resource &resource)
+bool Indexer::query(const Query &q, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	
+	// Special case for different access levels on root
+	if(q.mPath == "/" && q.mAccess != Resource::Public)
+	{
+		if(q.mOffset > 0 || q.mCount == 0)
+			return false;
+		
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName, File::Truncate);
+		
+		BinarySerializer serializer(&tempFile);
+		Array<String> names;
+		mDirectories.getKeys(names);
+		for(int i=0; i<names.size(); ++i)
+		{
+			String name = names[i];
+			String subPath = "/" + name;
+			
+			if(pathAccessLevel(subPath) > q.mAccess)
+				continue;
+			
+			Resource subResource;
+			Time time(0);
+			if(!get(subPath, subResource, &time))
+				continue;
+			
+			serializer.write(subResource.getDirectoryRecord(time));
+		}
+		
+		tempFile.close();
+		
+		Resource resource;
+		resource.cache(tempFileName, "/", "directory");
+		targets.push_back(resource.digest());
+		return true;
+	}
+	
 	Database::Statement statement;
-	if(prepareQuery(statement, query, "path, digest"))
+	if(prepareQuery(statement, q, "path, digest"))
 	{
 		while(statement.step())
 		{
@@ -306,46 +342,46 @@ bool Indexer::query(const Query &query, Resource &resource)
 			BinaryString digest;
 			statement.input(digest);
 			
-			if(pathAccessLevel(path) > query.mAccess) 
-				continue; 
+			if(pathAccessLevel(path) > q.mAccess)
+				continue;
 			
-			statement.finalize();
-			resource.fetch(digest);
-			return true;
+			targets.push_back(digest);
 		}
 		
 		statement.finalize();
+		return !targets.empty();
 	}
 	
 	return false;
 }
 
-bool Indexer::query(const Query &query, Set<Resource> &resources)
+bool Indexer::query(const Query &q, Set<Resource> &resources)
 {
-	Synchronize(this);
+	List<BinaryString> targets;
+	query(q, targets);
 	
-	Database::Statement statement;
-	if(prepareQuery(statement, query, "path, digest"))
+	for(List<BinaryString>::iterator it = targets.begin();
+		it != targets.end();
+		++it)
 	{
-		while(statement.step())
-		{
-			String path;
-			statement.input(path);
-			
-			BinaryString digest;
-			statement.input(digest);
-			
-			if(pathAccessLevel(path) > query.mAccess)
-				continue; 
-			
-			resources.insert(Resource(digest));
-		}
+		resources.insert(Resource(*it));
+	}
+	
+	return !resources.empty();
+}
 
-		statement.finalize();
+bool Indexer::query(const Query &q, Resource &resource)
+{
+	List<BinaryString> targets;
+	query(q, targets);
+	
+	if(!targets.empty())
+	{
+		resource.fetch(*targets.begin());
 		return true;
 	}
 	
-	return false;
+	return true;
 }
 
 bool Indexer::process(String path, Resource &resource)
@@ -552,36 +588,29 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	statement.execute();
 	
 	// Resource has changed, re-publish it
-	if(pathAccessLevel(path) == Resource::Public) 
-		publish(prefix(), path);
+	publish(prefix(), path);
 }
 
 bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
-	Synchronize(this);
+	// Not synchronized
 	targets.clear();
-
+	
 	String cpath(path);
 	String match = cpath.cut('?');
 	
-	Query query;
-	query.setPath(cpath);
-	query.setMatch(match);
-	query.setAccessLevel((mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
-	query.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
+	Query q;
+	q.setPath(cpath);
+	q.setMatch(match);
+	q.setAccessLevel((mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
+	q.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
 	
-	Database::Statement statement;
-	if(prepareQuery(statement, query, "digest"))
-	{
-		statement.fetchColumn(0, targets);
-		statement.finalize();
-	}
-	
-	return !targets.empty();
+	return query(q, targets);
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)
 {
+	// Not synchronized
 	const String &url = request.url;
 	if(mUser) mUser->setOnline();
 
@@ -789,9 +818,9 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 		if(request.method != "POST" && (request.get.contains("json")  || request.get.contains("playlist")))
 		{
-			Query qry(url);
+			Query q(url);
 			Resource resource;
-			if(!query(qry, resource)) throw 404;
+			if(!query(q, resource)) throw 404;
 			
 			Request req(resource);
 			req.http(req.urlPrefix(), request);
@@ -1084,10 +1113,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 								}
 								update("/");
 								
-								Query qry(fileUrl);
-								qry.setFromSelf(true);
+								Query q(fileUrl);
+								q.setFromSelf(true);
 								Resource res;
-								if(!query(qry, res)) throw Exception("Query failed for " + filePath);
+								if(!query(q, res)) throw Exception("Query failed for " + filePath);
 									
 								resources.insert(res);
 							}

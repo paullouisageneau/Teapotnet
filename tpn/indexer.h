@@ -96,12 +96,13 @@ public:
 		BinaryString mDigest;
 		int mOffset, mCount;
 		Resource::AccessLevel mAccess;
-
+	
 		friend class Indexer;
 	};
-
-	bool query(const Query &query, Resource &resource);
-	bool query(const Query &query, Set<Resource> &resources);
+	
+	bool query(const Query &q, List<BinaryString> &targets);
+	bool query(const Query &q, Set<Resource> &resources);
+	bool query(const Query &q, Resource &resource);
 	
 private:
 	static const String CacheDirectoryName;
