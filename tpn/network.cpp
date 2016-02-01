@@ -1715,7 +1715,7 @@ int Network::Handler::send(bool force)
 		catch(const std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
-			mStream->close();
+			//mStream->close();
 			mClosed = true;
 			break;
 		}
