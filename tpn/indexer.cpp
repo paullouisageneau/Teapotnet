@@ -86,32 +86,34 @@ Indexer::Indexer(User *user) :
 			JsonSerializer serializer(&file);
 			serializer.input(mDirectories);
 			file.close();
-			
-			Map<String,Entry>::iterator it = mDirectories.begin();
-			while(it != mDirectories.end())
-			{
-				String &path = it->second.path;
-				if(path.empty() || path == "/")
-				{
-					mDirectories.erase(it++);
-					continue;
-				}
-
-				if(path[path.size()-1] == '/')
-					path.resize(path.size()-1);
-				
-				++it;
-			}
 		}
 		catch(const Exception &e) 
 		{
 			LogWarn("Indexer", String("Unable to load directories: ") + e.what());
+		}
+		
+		Map<String,Entry>::iterator it = mDirectories.begin();
+		while(it != mDirectories.end())
+		{
+			String &path = it->second.path;
+			if(path.empty() || path == "/")
+			{
+				mDirectories.erase(it++);
+				continue;
+			}
+
+			if(path[path.size()-1] == '/')
+				path.resize(path.size()-1);
+			
+			++it;
 		}
 	}
 	
 	// Special upload directory
 	if(!mDirectories.contains(UploadDirectoryName)) 
 		addDirectory(UploadDirectoryName, "", Resource::Personal);
+	
+	mDirectories[UploadDirectoryName].access = Resource::Personal;	// force
 	
 	save();
 	
@@ -390,6 +392,9 @@ bool Indexer::process(String path, Resource &resource)
 			
 			if(!Directory::Exist(realSubPath))
 				Directory::Create(realSubPath);
+			
+			if(pathAccessLevel(subPath) != Resource::Public)
+				continue;	// put only public directories in root
 			
 			Resource subResource;
 			if(!process(subPath, subResource))
