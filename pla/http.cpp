@@ -865,7 +865,7 @@ void Http::SecureServer::handle(Stream *stream, const Address &remote)
 	delete transport;
 }
 
-int Http::Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
+int Http::Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output, StringMap *responseHeaders, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	Request request(url, method);
 	request.headers.insert(headers);
@@ -970,7 +970,10 @@ int Http::Action(const String &method, const String &url, const String &data, co
 			// TODO: relative location (even if not RFC-compliant)
 			return Get(response.headers["Location"], output, cookies, maxRedirections-1, noproxy);
 		}
-	
+		
+		if(responseHeaders)
+			*responseHeaders = response.headers;
+		
 		if(output) stream->read(*output);
 		else stream->discard();
 		delete stream;
@@ -986,7 +989,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 int Http::Get(const String &url, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	StringMap headers;
-	return Action("GET", url, "", headers, output, cookies, maxRedirections, noproxy);
+	return Action("GET", url, "", headers, output, NULL, cookies, maxRedirections, noproxy);
 }
 
 int Http::Post(const String &url, const StringMap &post, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
@@ -1003,7 +1006,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, StringM
 	StringMap headers;
 	headers["Content-Type"] = "application/x-www-form-urlencoded";
 	
-	return Action("POST", url, postData, headers, output, cookies, maxRedirections, noproxy);
+	return Action("POST", url, postData, headers, output, NULL, cookies, maxRedirections, noproxy);
 }
 
 int Http::Post(const String &url, const String &data, const String &type, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
@@ -1011,7 +1014,7 @@ int Http::Post(const String &url, const String &data, const String &type, Stream
 	StringMap headers;
 	headers["Content-Type"] = type;
 	
-	return Action("POST", url, data, headers, output, cookies, maxRedirections, noproxy);
+	return Action("POST", url, data, headers, output, NULL, cookies, maxRedirections, noproxy);
 }
 
 String Http::AppendParam(const String &url, const String &name, const String &value)
