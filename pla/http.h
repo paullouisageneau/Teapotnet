@@ -130,10 +130,10 @@ public:
 		SecureTransportServer::Credentials *mCredentials;
         };
 
-	static int Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
-	static int Get(const String &url, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
-	static int Post(const String &url, const StringMap &post, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
-	static int Post(const String &url, const String &data, const String &type, Stream *output = NULL, int maxRedirections = 5, bool noproxy = false);
+	static int Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
+	static int Get(const String &url, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
+	static int Post(const String &url, const StringMap &post, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
+	static int Post(const String &url, const String &data, const String &type, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
 	static String AppendParam(const String &url, const String &name, const String &value = "1");
 	
 private:

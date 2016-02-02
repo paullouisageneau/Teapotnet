@@ -865,7 +865,7 @@ void Http::SecureServer::handle(Stream *stream, const Address &remote)
 	delete transport;
 }
 
-int Http::Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output, int maxRedirections, bool noproxy)
+int Http::Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	Request request(url, method);
 	request.headers.insert(headers);
@@ -876,6 +876,9 @@ int Http::Action(const String &method, const String &url, const String &data, co
 	
 	if(!data.empty())
 		request.headers["Content-Length"] = String::number(data.size());
+	
+	if(cookies)
+		request.cookies = *cookies;
 	
 	Socket *sock = new Socket;
 	try {
@@ -956,13 +959,16 @@ int Http::Action(const String &method, const String &url, const String &data, co
 		Response response;
 		response.recv(stream);
 		
+		if(cookies)
+			cookies->insertAll(response.cookies);
+		
 		if(maxRedirections && response.code/100 == 3 && response.headers.contains("Location"))
 		{
 			stream->discard();
 			delete stream;
 	
 			// TODO: relative location (even if not RFC-compliant)
-			return Get(response.headers["Location"], output, maxRedirections-1, noproxy);
+			return Get(response.headers["Location"], output, cookies, maxRedirections-1, noproxy);
 		}
 	
 		if(output) stream->read(*output);
@@ -977,13 +983,13 @@ int Http::Action(const String &method, const String &url, const String &data, co
 	}
 }
 
-int Http::Get(const String &url, Stream *output, int maxRedirections, bool noproxy)
+int Http::Get(const String &url, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	StringMap headers;
-	return Action("GET", url, "", headers, output, maxRedirections, noproxy);
+	return Action("GET", url, "", headers, output, cookies, maxRedirections, noproxy);
 }
 
-int Http::Post(const String &url, const StringMap &post, Stream *output, int maxRedirections, bool noproxy)
+int Http::Post(const String &url, const StringMap &post, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	String postData;
 	for(	StringMap::const_iterator it = post.begin();
@@ -997,15 +1003,15 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, int max
 	StringMap headers;
 	headers["Content-Type"] = "application/x-www-form-urlencoded";
 	
-	return Action("POST", url, postData, headers, output, maxRedirections, noproxy);
+	return Action("POST", url, postData, headers, output, cookies, maxRedirections, noproxy);
 }
 
-int Http::Post(const String &url, const String &data, const String &type, Stream *output, int maxRedirections, bool noproxy)
+int Http::Post(const String &url, const String &data, const String &type, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	StringMap headers;
 	headers["Content-Type"] = type;
 	
-	return Action("POST", url, data, headers, output, maxRedirections, noproxy);
+	return Action("POST", url, data, headers, output, cookies, maxRedirections, noproxy);
 }
 
 String Http::AppendParam(const String &url, const String &name, const String &value)
