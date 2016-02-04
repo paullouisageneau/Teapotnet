@@ -106,7 +106,10 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 
 SecureTransport::~SecureTransport(void)
 {
-	gnutls_deinit(mSession);	
+	close(); // calls gnutls_bye() if necessary
+	
+	gnutls_deinit(mSession);
+	
 	delete mStream;
 	delete mBuffer;
 	
@@ -743,7 +746,7 @@ SecureTransportClient::SecureTransportClient(Stream *stream, Credentials *creds,
 
 SecureTransportClient::~SecureTransportClient(void)
 {
-	close();
+	
 }
 
 SecureTransportClient::Anonymous::Anonymous(void)
@@ -830,7 +833,7 @@ SecureTransportServer::SecureTransportServer(Stream *stream, Credentials *creds,
 
 SecureTransportServer::~SecureTransportServer(void)
 {
-	close();
+	
 }
 
 bool SecureTransportServer::isClient(void) const
