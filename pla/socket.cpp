@@ -284,6 +284,9 @@ void Socket::writeData(const char *data, size_t size)
 
 bool Socket::waitData(double &timeout)
 {
+	if(mSock == INVALID_SOCKET)
+		throw NetException("Socket is closed");
+
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(mSock, &readfds);
@@ -309,6 +312,9 @@ size_t Socket::peekData(char *buffer, size_t size)
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
 {
+	if(mSock == INVALID_SOCKET)
+		throw NetException("Socket is closed");
+
 	if(mReadTimeout >= 0.)
 	{
 		double timeout = mReadTimeout;
@@ -329,6 +335,9 @@ void Socket::sendData(const char *data, size_t size, int flags)
 	Time::SecondsToStruct(std::max(mWriteTimeout, 0.), tv);
 	
 	do {
+		if(mSock == INVALID_SOCKET)
+			throw NetException("Socket is closed");
+
 		if(mWriteTimeout >= 0.)
 		{
 			fd_set writefds;
