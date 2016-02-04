@@ -39,6 +39,7 @@ class Map : public std::map<K,V>
 public:
 	typename std::map<K,V>::iterator insert(const K &key, const V &value);
 	void insert(const std::map<K,V> &other);
+	void insertAll(const std::map<K,V> &other) { this->insert(other); }
 	bool contains(const K &key) const;
 	bool get(const K &key, V &value) const;
 	const V &get(const K &key) const;

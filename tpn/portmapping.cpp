@@ -612,7 +612,7 @@ bool PortMapping::UPnP::parse(BinaryString &dgram)
 	String baseUrl = protocol + "://" + host;
 	
 	String result;
-	if(Http::Get(location, &result, 2, true) != 200) return false;
+	if(Http::Get(location, &result, NULL, 2, true) != 200) return false;
 
 	size_t pos = result.find("urn:schemas-upnp-org:service:WANIPConnection");
 	if(pos == String::NotFound) return false;

@@ -465,6 +465,8 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 				LogWarn("SecureTransport::CertificateCallback", "Invalid certificate: " + tmp);
        	                 	return GNUTLS_E_CERTIFICATE_ERROR;
     			}
+    			
+    			return 0;
 		}
 
 		// We assume certificates are X.509
@@ -514,10 +516,7 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 			
 			gnutls_x509_crt_deinit(crt);
 		}
-		
-		if(!transport->mVerifier)
-			return 0;
-		
+
 		if(transport->mVerifier->verifyPublicKey(chain))
 			return 0;
 	}
