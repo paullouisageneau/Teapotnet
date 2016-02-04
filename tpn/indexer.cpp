@@ -602,7 +602,7 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 	Query q;
 	q.setPath(cpath);
 	q.setMatch(match);
-	q.setAccessLevel((mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
+	q.setAccessLevel((!link.remote.empty() && mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
 	q.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
 	
 	return query(q, targets);
