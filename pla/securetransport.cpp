@@ -64,6 +64,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 	mVerifier(NULL),
 	mPriorities(DefaultPriorities),
 	mIsHandshakeDone(false),
+	mIsByeDone(false),
 	mBuffer(NULL),
 	mBufferSize(0),
 	mBufferOffset(0)
@@ -125,6 +126,7 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 	if(mustDelete) 
 		mCredsToDelete.push_back(creds);
 }
+
 void SecureTransport::setHandshakeTimeout(double timeout)
 {
 	if(!isHandshakeDone())
@@ -182,17 +184,20 @@ void SecureTransport::handshake(void)
 	}
 	
 	mIsHandshakeDone = true;
+	mIsByeDone = false;
 }
 
 void SecureTransport::close(void)
 {
-	if(mStream)
+	if(!mIsByeDone)
 	{
 		int ret;
 		do {
 			ret = gnutls_bye(mSession, GNUTLS_SHUT_RDWR);
 		}
 		while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+
+		mIsByeDone = true;
 	
 		mStream->close();
 	}

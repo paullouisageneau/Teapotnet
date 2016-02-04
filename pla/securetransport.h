@@ -157,6 +157,7 @@ protected:
 	
 	List<Credentials*> mCredsToDelete;
 	bool mIsHandshakeDone;
+	bool mIsByeDone;
 };
 
 class SecureTransportClient : public SecureTransport
