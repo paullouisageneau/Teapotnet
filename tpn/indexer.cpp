@@ -295,10 +295,12 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	
+	targets.clear();
+	
 	// Special case for different access levels on root
 	if(q.mPath == "/" && q.mAccess != Resource::Public)
 	{
-		if(q.mOffset > 0 || q.mCount == 0)
+		if(q.mOffset > 0)
 			return false;
 		
 		String tempFileName = File::TempName();
@@ -357,6 +359,8 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 
 bool Indexer::query(const Query &q, Set<Resource> &resources)
 {
+	resources.clear();
+	
 	List<BinaryString> targets;
 	query(q, targets);
 	
@@ -381,7 +385,7 @@ bool Indexer::query(const Query &q, Resource &resource)
 		return true;
 	}
 	
-	return true;
+	return false;
 }
 
 bool Indexer::process(String path, Resource &resource)
@@ -594,7 +598,6 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	// Not synchronized
-	targets.clear();
 	
 	String cpath(path);
 	String match = cpath.cut('?');
