@@ -1328,9 +1328,13 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 {
 	// Retrieve and prepare parameters
 	String path = query.mPath;
-	path.replace("\\", "\\\\");
-	path.replace("%", "\\%");
-	path.replace("*", "%");
+	bool pattern = path.contains('*');
+	if(pattern)
+	{
+		path.replace("\\", "\\\\");
+		path.replace("%", "\\%");
+		path.replace("*", "%");
+	}
 	
 	String match = query.mMatch;
 	match.replace("\\", "\\\\");
@@ -1346,10 +1350,14 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	// Build SQL request
 	String sql;
 	sql<<"SELECT "<<fields<<" FROM resources ";
-	sql<<"JOIN names ON names.rowid = name_rowid ";
+	if(!match.empty()) sql<<"JOIN names ON names.rowid = name_rowid ";
 	sql<<"WHERE digest IS NOT NULL ";
 	
-	if(!path.empty())			sql<<"AND path LIKE ? ESCAPE '\\' ";
+	if(!path.empty())
+	{
+		if(pattern) sql<<"AND path LIKE ? ESCAPE '\\' ";
+		else sql<<"AND path == ? ";
+	}
 	if(!match.empty())			sql<<"AND names.name MATCH ? ";
 	if(!digest.empty())			sql<<"AND digest = ? ";
 	else if(path.empty() || !isFromSelf)	sql<<"AND path NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
