@@ -1347,6 +1347,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	String sql;
 	sql<<"SELECT "<<fields<<" FROM resources ";
 	sql<<"JOIN names ON names.rowid = name_rowid ";
+	sql<<"WHERE digest IS NOT NULL ";
 	
 	if(!path.empty())			sql<<"AND path LIKE ? ESCAPE '\\' ";
 	if(!match.empty())			sql<<"AND names.name MATCH ? ";

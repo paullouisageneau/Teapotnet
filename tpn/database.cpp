@@ -38,6 +38,7 @@ Database::Database(const String &filename) :
 	
 	execute("PRAGMA synchronous = OFF");
 	execute("PRAGMA journal_mode = MEMORY");
+	execute("PRAGMA case_sensitive_like = 1");
 }
 
 Database::~Database(void)
