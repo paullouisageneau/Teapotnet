@@ -60,6 +60,12 @@ function listDirectoryRec(url, object) {
 				table = $(object).find('table.files');
 			}
 			
+			var referenceUrl = '';
+			if(window.location.href.includes("/files")) {
+				referenceUrl = window.location.href.split(/[?#]/)[0];
+				if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
+			}
+			
 			for(var i=0; i<data.length; i++) {
 				var resource = data[i];
 				
@@ -72,6 +78,7 @@ function listDirectoryRec(url, object) {
 				var link = '/file/' + resource.digest;
 				var line;
 				if(resource.type == "directory") {
+					if(referenceUrl) link = referenceUrl + resource.name + '/';	// use url as link if possible
 					line = '<tr class="directory">';
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
@@ -207,6 +214,12 @@ function listFileSelector(url, object, input, inputName, parents) {
 		$(object).append('<br><div class="fileselectorwindow"><table class="files"></table></div>');
 		var table = $(object).find('table');
 		
+		var referenceUrl = '';
+		if(url.includes("/files")) {
+			referenceUrl = url.split('?')[0];
+			if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
+		}
+		
 		for(var i=0; i<data.length; i++) {
 			var resource = data[i];
 
@@ -223,7 +236,10 @@ function listFileSelector(url, object, input, inputName, parents) {
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
 	
 					func = function() {
-						var link = "/file/" + resource.digest + "?json";
+						var link;
+						if(referenceUrl) link = referenceUrl + resource.name + "/?json";
+						else link = "/file/" + resource.digest + "?json";
+						
 						parents.push(url);
 						listFileSelector(link, object, input, inputName, parents);
 						return false;
