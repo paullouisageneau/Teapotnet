@@ -39,7 +39,8 @@ Request::Request(Resource &resource) :
 	addResult(resource, true);	// finished
 }
   
-Request::Request(const String &target, bool listDirectories) :
+Request::Request(const String &path, bool listDirectories) :
+	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
 	mAutoDeleteTask(this),
@@ -47,11 +48,12 @@ Request::Request(const String &target, bool listDirectories) :
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(target);
+	subscribe(path);
 }
 
-Request::Request(const String &target, const Identifier &local, const Identifier &remote, bool listDirectories) :
+Request::Request(const String &path, const Identifier &local, const Identifier &remote, bool listDirectories) :
 	Subscriber(Network::Link(local, remote)),
+	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
 	mAutoDeleteTask(this),
@@ -59,11 +61,12 @@ Request::Request(const String &target, const Identifier &local, const Identifier
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(target);
+	subscribe(path);
 }
   
-Request::Request(const String &target, const Network::Link &link, bool listDirectories) :
+Request::Request(const String &path, const Network::Link &link, bool listDirectories) :
 	Subscriber(link),
+	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
 	mAutoDeleteTask(this),
@@ -71,7 +74,7 @@ Request::Request(const String &target, const Network::Link &link, bool listDirec
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(target);
+	subscribe(path);
 }
 
 Request::~Request(void)
@@ -80,6 +83,13 @@ Request::~Request(void)
 	Scheduler::Global->cancel(&mAutoDeleteTask);
 	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
+}
+
+bool Request::addTarget(const BinaryString &target)
+{
+	Synchronize(this);
+	if(mPath.empty()) return false;
+	return incoming(link(), mPath, "/", target);
 }
 
 String Request::urlPrefix(void) const

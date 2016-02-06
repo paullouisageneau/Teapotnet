@@ -42,6 +42,8 @@ public:
 	Request(const String &path, const Network::Link &link, bool listDirectories = true);
 	~Request(void);
 	
+	bool addTarget(const BinaryString &target);
+	
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
 	void addResult(Resource &resource, bool finish = false);
@@ -61,7 +63,8 @@ protected:
 	
 private:
 	static int timeParamToSeconds(String param);
-
+	
+	String mPath;
 	String mUrlPrefix;
 	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
 	Set<BinaryString> mDigests;
