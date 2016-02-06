@@ -1158,7 +1158,20 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		
 		if(directory == "files")
 		{
+			BinaryString digest;
+			if(request.get.contains("digest"))
+			{
+				try {
+					request.get["digest"].extract(digest);
+				}
+				catch(...)
+				{
+					LogWarn("AddressBook::Contact::http", "Invalid digest");
+				}
+			}
+			
 			Request *req = new Request("/files/" + identifier().toString() + url, mAddressBook->user()->identifier(), identifier(), true);
+			if(!digest.empty()) req->addTarget(digest);
 			String reqPrefix = req->urlPrefix();
 			req->autoDelete();
 			

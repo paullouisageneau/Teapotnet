@@ -88,7 +88,7 @@ Request::~Request(void)
 bool Request::addTarget(const BinaryString &target)
 {
 	Synchronize(this);
-	if(mPath.empty()) return false;
+	if(mPath.empty() || target.empty()) return false;
 	return incoming(link(), mPath, "/", target);
 }
 

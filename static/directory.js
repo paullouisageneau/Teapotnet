@@ -75,10 +75,10 @@ function listDirectoryRec(url, object) {
 					existing.hide();
 				}
 				
-				var link = '/file/' + resource.digest;
+				var link = "/file/" + resource.digest;
 				var line;
 				if(resource.type == "directory") {
-					if(referenceUrl) link = referenceUrl + resource.name + '/';	// use url as link if possible
+					if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest;	// use url as link if possible
 					line = '<tr class="directory">';
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
@@ -237,7 +237,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 	
 					func = function() {
 						var link;
-						if(referenceUrl) link = referenceUrl + resource.name + "/?json";
+						if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest + "&json";
 						else link = "/file/" + resource.digest + "?json";
 						
 						parents.push(url);
