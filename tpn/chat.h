@@ -19,8 +19,8 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef TPN_BOARD_H
-#define TPN_BOARD_H
+#ifndef TPN_CHAT_H
+#define TPN_CHAT_H
 
 #include "tpn/include.h"
 #include "tpn/mail.h"
@@ -37,19 +37,15 @@
 namespace tpn
 {
 
-class Board : public Synchronizable, public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
+class Chat : public Synchronizable, public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
 {
 public:
-	Board(const String &name, const String &secret = "", const String &displayName = "");
-	~Board(void);
+	Chat(const String &name, const String &displayName = "");
+	~Chat(void);
 	
 	String urlPrefix(void) const;
 	bool hasNew(void) const;
 	bool add(Mail &mail);
-	BinaryString digest(void) const;
-	
-	void addMergeUrl(const String &url);
-	void removeMergeUrl(const String &url);
 	
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
@@ -61,16 +57,12 @@ public:
 	void http(const String &prefix, Http::Request &request);
 	
 private:
-	void process(void);
-  
 	String mName;
 	String mDisplayName;
 	String mSecret;
 	BinaryString mDigest;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
-	
-	StringSet mMergeUrls;
 	
 	mutable bool mHasNew;
 };

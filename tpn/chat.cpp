@@ -19,65 +19,42 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/board.h"
-#include "tpn/resource.h"
-#include "tpn/cache.h"
-#include "tpn/html.h"
-#include "tpn/user.h"
-#include "tpn/store.h"
-
-#include "pla/jsonserializer.h"
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
+#include "tpn/chat.h"
 
 namespace tpn
 {
 
-Board::Board(const String &name, const String &secret, const String &displayName) :
+Chat::Chat(const String &name, const String &displayName) :
 	mName(name),
 	mDisplayName(displayName),
-	mSecret(secret),
 	mHasNew(false)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
 	
 	Interface::Instance->add(urlPrefix(), this);
 	
-	String prefix = "/mail" + mName;
-	
-	Set<BinaryString> digests;
-	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
-	
-	for(Set<BinaryString>::iterator it = digests.begin();
-		it != digests.end();
-		++it)
-	{
-		//LogDebug("Board", "Retrieved digest: " + it->toString());
-		if(fetch(Network::Link::Null, prefix, "/", *it, false))
-			incoming(Network::Link::Null, prefix, "/", *it);
-	}
-	
+	String prefix = "/chat" + mName;
 	publish(prefix);
 	subscribe(prefix);
 }
 
-Board::~Board(void)
+Chat::~Chat(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
 	
-	String prefix = "/mail" + mName;
+	String prefix = "/chat" + mName;
 	unpublish(prefix);
 	unsubscribe(prefix);
 }
 
-String Board::urlPrefix(void) const
+String Chat::urlPrefix(void) const
 {
 	Synchronize(this);
 	
-	return "/mail" + mName;
+	return "/chat" + mName;
 }
 
-bool Board::hasNew(void) const
+bool Chat::hasNew(void) const
 {
 	Synchronize(this);
 
@@ -86,7 +63,7 @@ bool Board::hasNew(void) const
 	return value;
 }
 
-bool Board::add(Mail &mail)
+bool Chat::add(Mail &mail)
 {
 	Synchronize(this);
 	
@@ -95,129 +72,34 @@ bool Board::add(Mail &mail)
 	
 	const Mail *p = &*mMails.insert(mail).first;
 	mUnorderedMails.append(p);
-
-	process();
-	publish("/mail" + mName);
+	
+	publish("/chat" + mName);
 	notifyAll();
 	return true;
 }
 
-BinaryString Board::digest(void) const
-{
-	Synchronize(this);
-	return mDigest;
-}
-
-void Board::addMergeUrl(const String &url)
-{
-	Synchronize(this);
-	mMergeUrls.insert(url);
-}
-
-void Board::removeMergeUrl(const String &url)
-{
-	Synchronize(this);
-	mMergeUrls.erase(url);
-}
-
-void Board::process(void)
-{
-	try {
-		// Write messages to temporary file
-		String tempFileName = File::TempName();
-		File tempFile(tempFileName, File::Truncate);
-		BinarySerializer serializer(&tempFile);
-		for(Set<Mail>::const_iterator it = mMails.begin();
-			it != mMails.end();
-			++it)
-		{
-			serializer.write(*it);
-		}
-		tempFile.close();
-		
-		// Move to cache and process
-		Resource resource;
-		resource.cache(tempFileName, mName, "mail", mSecret);
-		
-		// Retrieve digest and store it
-		mDigest = resource.digest();
-		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, Store::Permanent);
-		
-		LogDebug("Board::process", "Board processed: " + mDigest.toString());
-	}
-	catch(const Exception &e)
-	{
-		LogWarn("Board::process", String("Board processing failed: ") + e.what());
-	}
-}
-
-bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
-{
-	Synchronize(this);
-	targets.clear();
-	
-	if(mDigest.empty())
-		return false;
-	
-	targets.push_back(mDigest);
-	return true;
-}
-
-bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Chat::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	Synchronize(this);
 	
-	if(target == mDigest)
-		return false;
-	
-	if(fetch(link, prefix, path, target, true))
-	{
-		try {
-			Resource resource(target, true);	// local only (already fetched)
-			if(resource.type() != "mail")
-				return false;
-			
-			Resource::Reader reader(&resource, mSecret);
-			BinarySerializer serializer(&reader);
-			Mail mail;
-			unsigned count = 0;
-			while(serializer.read(mail))
-			{
-				if(!mMails.contains(mail))
-				{
-					const Mail *p = &*mMails.insert(mail).first;
-					mUnorderedMails.append(p);
-				}
-				
-				++count;
-			}
-			
-			if(count == mMails.size())
-			{
-				mDigest = target;
-			}
-			else {
-				process();
-				if(mDigest != target)
-					publish("/mail" + mName);
-			}
-			
-			notifyAll();
-		}
-		catch(const Exception &e)
-		{
-			LogWarn("Board::incoming", e.what());
-		}
-	}
-	
-	return true;
+	// TODO
+	return false;
 }
 
-void Board::http(const String &prefix, Http::Request &request)
+bool Chat::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+{
+	Synchronize(this);
+	
+	// TODO
+	return false;
+}
+
+void Chat::http(const String &prefix, Http::Request &request)
 {
 	Synchronize(this);
 	Assert(!request.url.empty());
 	
+	/*
 	try {
 		if(request.url == "/")
 		{
@@ -301,7 +183,7 @@ void Board::http(const String &prefix, Http::Request &request)
 
 			Html page(response.stream);
 			
-			String title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
+			String title = (!mDisplayName.empty() ? mDisplayName : "Chat " + mName); 
 			page.header(title, isPopup || isFrame);
 			
 			if(!isFrame)
@@ -403,7 +285,7 @@ void Board::http(const String &prefix, Http::Request &request)
 	{
 		LogWarn("AddressBook::http", e.what());
 		throw 500;
-	}
+	}*/
 	
 	throw 404;
 }

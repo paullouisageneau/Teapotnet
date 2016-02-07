@@ -845,11 +845,12 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 		if(it->second.contains(*jt))
 		{
 			Desynchronize(this);
-			ret|= (*jt)->recv(link, type, serializer);
+			if((*jt)->recv(link, type, serializer))
+				return true;
 		}
 	}
 	
-	return ret;
+	return false;
 }
 
 bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
