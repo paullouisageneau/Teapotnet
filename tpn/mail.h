@@ -40,6 +40,7 @@ public:
 	Mail(const String &content = "");
 	virtual ~Mail(void);
 	
+	bool empty(void) const;
 	const String &content(void) const;
 	String author(void) const;
 	String board(void) const;

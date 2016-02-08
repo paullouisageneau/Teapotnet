@@ -45,7 +45,7 @@ public:
 	
 	String urlPrefix(void) const;
 	bool hasNew(void) const;
-	bool add(Mail &mail);
+	bool add(const Mail &mail, bool noIssue = false);
 	BinaryString digest(void) const;
 	
 	void addMergeUrl(const String &url);
@@ -56,6 +56,7 @@ public:
 	
 	// Subscriber
 	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
+	bool incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail);
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);

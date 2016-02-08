@@ -25,6 +25,7 @@
 #include "tpn/include.h"
 #include "tpn/overlay.h"
 #include "tpn/fountain.h"
+#include "tpn/mail.h"
 
 #include "pla/address.h"
 #include "pla/stream.h"
@@ -83,6 +84,7 @@ public:
 		
 		void publish(const String &prefix, const String &path = "/");
 		void unpublish(const String &prefix);
+		void issue(const String &prefix, const Mail &mail, const String &path = "/");
 		
 		virtual bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
 		
@@ -103,7 +105,8 @@ public:
 		void unsubscribe(const String &prefix);
 		void unsubscribeAll(void);
 		
-		virtual bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target) = 0;
+		virtual bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)	{ return false; }
+		virtual bool incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)		{ return false; }
 		virtual bool localOnly(void) const;
 		
 	protected:
@@ -176,6 +179,7 @@ public:
 	void subscribe(String prefix, Subscriber *subscriber);
 	void unsubscribe(String prefix, Subscriber *subscriber);
 	void advertise(String prefix, const String &path, Publisher *publisher);
+	void issue(String prefix, const String &path, Publisher *publisher, const Mail &mail);
 	void addRemoteSubscriber(const Link &link, const String &path);
 	
 	// Serializable
@@ -213,6 +217,7 @@ private:
 		~RemoteSubscriber(void);
 		
 		bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target);
+		bool incoming(const Link &link, const String &prefix, const String &path, const Mail &mail);
 		bool localOnly(void) const;
 	};
 	
@@ -319,6 +324,7 @@ private:
 	
 	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
+	bool matchSubscribers(const String &path, const Link &link, const Mail &mail);
 	
 	void onConnected(const Link &link, bool status = true);
 	bool onRecv(const Link &link, const String &type, Serializer &serializer);

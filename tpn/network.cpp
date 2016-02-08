@@ -279,6 +279,19 @@ void Network::advertise(String prefix, const String &path, Publisher *publisher)
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
 
+void Network::issue(String prefix, const String &path, Publisher *publisher, const Mail &mail)
+{
+	Synchronize(this);
+	if(mail.empty()) return;
+	
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
+	//LogDebug("Network::issue", "Issuing " + mail.digest().toString());
+	
+	matchSubscribers(prefix, publisher->link(), mail);
+}
+
 void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
 	Synchronize(this);
@@ -636,13 +649,25 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		if(!hasListener) return false;
 		
 		String path;
+		Mail mail;
 		SerializableList<BinaryString> targets;
 		serializer.read(Object()
 				.insert("path", &path)
+				.insert("message", &mail)
 				.insert("targets", &targets));
-	
-		bool hasNew = false;
+		
+		// We check in cache to prevent publishing loops
 		BinaryString key = Store::Hash(path);
+		
+		// Message
+		if(!mail.empty() && !Store::Instance->hasValue(key, mail.digest()))
+		{
+			Store::Instance->storeValue(key, mail.digest(), Store::Temporary);
+			matchSubscribers(path, link, mail);
+		}
+		
+		// Targets
+		bool hasNew = false;
 		for(SerializableList<BinaryString>::iterator it = targets.begin();
 			it != targets.end();
 			++it)
@@ -651,7 +676,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 			Store::Instance->storeValue(key, *it, Store::Temporary);	// cache
 		}
 		
-		if(hasNew)	// prevents publishing loops
+		if(hasNew)
 		{
 			RemotePublisher publisher(targets, link);
 			matchSubscribers(path, link, &publisher);
@@ -794,6 +819,53 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 						subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt);
 					}
 				}
+			}
+		}
+	
+		if(list.empty()) break;
+		list.pop_back();
+	}
+	
+	return true;
+}
+
+bool Network::matchSubscribers(const String &path, const Link &link, const Mail &mail)
+{
+	Synchronize(this);
+	
+	if(path.empty() || path[0] != '/') return false;
+	
+	List<String> list;
+	path.explode(list,'/');
+	if(list.empty()) return false;
+	list.pop_front();
+	
+	// Match prefixes, longest first
+	while(true)
+	{
+		String prefix;
+		prefix.implode(list, '/');
+		prefix = "/" + prefix;
+		
+		String truncatedPath(path.substr(prefix.size()));
+		if(truncatedPath.empty()) truncatedPath = "/";
+		
+		// Pass to subscribers
+		Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+		if(it != mSubscribers.end())
+		{
+			Set<Subscriber*> set = it->second;
+			Desynchronize(this);
+			
+			for(Set<Subscriber*>::iterator jt = set.begin();
+				jt != set.end();
+				++jt)
+			{
+				Subscriber *subscriber = *jt;
+				if(subscriber->link() != link)
+					continue;
+				
+				subscriber->incoming(link, prefix, truncatedPath, mail);
 			}
 		}
 	
@@ -974,6 +1046,11 @@ void Network::Publisher::unpublish(const String &prefix)
 	}
 }
 
+void Network::Publisher::issue(const String &prefix, const Mail &mail, const String &path)
+{
+	Network::Instance->issue(prefix, path, this, mail);
+}
+
 Network::Subscriber::Subscriber(const Link &link) :
 	mLink(link),
 	mThreadPool(0, 1, 8)
@@ -1117,11 +1194,22 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 	{
 		SerializableArray<BinaryString> targets;
 		targets.append(target);
-				
-		Network::Instance->send(link, "publish",
+		
+		Network::Instance->send(this->link(), "publish",
 			ConstObject()
 				.insert("path", &prefix)
 				.insert("targets", &targets));
+	}
+}
+
+bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)
+{
+	if(link.remote.empty() || link != this->link())
+	{
+		Network::Instance->send(this->link(), "publish",
+			ConstObject()
+				.insert("path", &prefix)
+				.insert("message", &mail));
 	}
 }
 

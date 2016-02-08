@@ -86,7 +86,7 @@ bool Board::hasNew(void) const
 	return value;
 }
 
-bool Board::add(Mail &mail)
+bool Board::add(const Mail &mail, bool noIssue)
 {
 	Synchronize(this);
 	
@@ -95,9 +95,12 @@ bool Board::add(Mail &mail)
 	
 	const Mail *p = &*mMails.insert(mail).first;
 	mUnorderedMails.append(p);
-
+	
+	if(!noIssue) issue("/mail" + mName, mail);
+	
 	process();
 	publish("/mail" + mName);
+	
 	notifyAll();
 	return true;
 }
@@ -211,6 +214,13 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	}
 	
 	return true;
+}
+
+bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
+{
+	Synchronize(this);
+	
+	return add(mail, true);
 }
 
 void Board::http(const String &prefix, Http::Request &request)
