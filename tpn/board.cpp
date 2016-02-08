@@ -186,6 +186,9 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			unsigned count = 0;
 			while(serializer.read(mail))
 			{
+				if(mail.empty())
+					continue;
+				
 				if(!mMails.contains(mail))
 				{
 					const Mail *p = &*mMails.insert(mail).first;
