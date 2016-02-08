@@ -45,7 +45,7 @@ Mail::~Mail(void)
 
 bool Mail::empty(void) const
 {
-	return !mContent.empty();
+	return mContent.empty();
 }
 
 const String &Mail::content(void) const
