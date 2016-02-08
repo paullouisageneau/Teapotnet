@@ -90,7 +90,7 @@ bool Board::add(const Mail &mail, bool noIssue)
 {
 	Synchronize(this);
 	
-	if(mMails.contains(mail))
+	if(mail.empty() || mMails.contains(mail))
 		return false;
 	
 	const Mail *p = &*mMails.insert(mail).first;
