@@ -43,7 +43,6 @@ public:
 	bool empty(void) const;
 	const String &content(void) const;
 	String author(void) const;
-	String board(void) const;
 	Identifier identifier(void) const;
 	Time time(void) const;
 	BinaryString parent(void) const;
@@ -51,7 +50,6 @@ public:
 	
 	void setContent(const String &content);
 	void setAuthor(const String &author);
-	void setBoard(const String &board);
 	void setParent(const BinaryString &parent);
 	void addAttachment(const BinaryString &attachment);
 	
@@ -70,7 +68,6 @@ private:
 	Time mTime;
         String mContent;
 	String mAuthor;
-	String mBoard;
 	Identifier mIdentifier;
 	SerializableArray<BinaryString> mAttachments;
 	BinaryString mParent;

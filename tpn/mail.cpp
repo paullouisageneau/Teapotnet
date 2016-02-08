@@ -58,11 +58,6 @@ String Mail::author(void) const
 	  return mAuthor;
 }
 
-String Mail::board(void) const
-{
-	  return mBoard;
-}
-
 Identifier Mail::identifier(void) const
 {
 	return mIdentifier;
@@ -94,12 +89,6 @@ void Mail::setAuthor(const String &author)
 {
 	mAuthor = author;
 	mDigest.clear();
-}
-
-void Mail::setBoard(const String &board)
-{
-	mBoard = board;
-	mBoard.clear();
 }
 
 void Mail::setParent(const BinaryString &parent)
