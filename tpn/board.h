@@ -45,8 +45,10 @@ public:
 	
 	String urlPrefix(void) const;
 	bool hasNew(void) const;
-	bool add(const Mail &mail, bool noIssue = false);
+	int  unread(void) const;
 	BinaryString digest(void) const;
+	
+	bool add(const Mail &mail, bool noIssue = false);
 	
 	void addMergeUrl(const String &url);
 	void removeMergeUrl(const String &url);
@@ -74,6 +76,7 @@ private:
 	StringSet mMergeUrls;
 	
 	mutable bool mHasNew;
+	mutable bool mUnread;
 };
 
 }

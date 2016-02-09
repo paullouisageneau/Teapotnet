@@ -217,8 +217,8 @@ $(window).resize( function() {
 });
 
 function isPageHidden() {
-	//return document.hidden || document.msHidden || document.webkitHidden;
-	return !document.hasFocus();
+	//return !document.hasFocus();
+	return document.hidden || document.msHidden || document.webkitHidden;
 }
 
 var MailSound = null;
@@ -234,16 +234,16 @@ function playMailSound() {
 	if(MailSound != null) MailSound.play();
 }
 
-/*var Notification = window.Notification || window.mozNotification || window.webkitNotification;
+var Notification = window.Notification || window.mozNotification || window.webkitNotification;
 if(Notification)
 {
 	Notification.requestPermission(function (permission) {
 		// console.log(permission);
 	});
-}*/
+}
 
 function notify(title, message, tag) {
-	/*if(Notification) {
+	if(Notification) {
 		return new Notification(
 			title, {
 				body: message,
@@ -253,7 +253,7 @@ function notify(title, message, tag) {
 		);
 	}
 	
-	return null;*/
+	return null;
 }
 
 function getAuthenticatedUser() {
@@ -297,22 +297,18 @@ function setCallback(url, period, callback) {
 	});
 }
 
-var BaseDocumentTitle = document.title;
-var NbNewMails = 0;
+var BaseTitle = top.document.title;
+var NbNewMessages = 0;
 
-function clearNewMails() {
-	if(NbNewMails) {
-		document.title = BaseDocumentTitle;
-		NbNewMails = 0;
-	}
+function resetTitle() {
+	top.document.title = BaseTitle;
+	NbNewMessages = 0;
 }
 
-$(window).focus(clearNewMails);
-$(window).blur(clearNewMails);
-$(window).keydown(clearNewMails);
-$(window).mousedown(clearNewMails);
-
-var title = document.title;
+$(window).focus(resetTitle);
+$(window).blur(resetTitle);
+$(window).keydown(resetTitle);
+$(window).mousedown(resetTitle);
 
 function displayContacts(url, period, object) {
 	
@@ -356,7 +352,7 @@ function displayContacts(url, period, object) {
 					if(count != 0) str = ' <a href=\"'+contact.prefix+'/chat/\">('+count+')</a>';
 					transition($('#contact_'+uname+' .messagescount'), str);
 					
-					/*if(count > 0 && contact.newmessages)
+					if(count > 0 && contact.newmessages)
 					{
 						play = true;
 						
@@ -364,7 +360,7 @@ function displayContacts(url, period, object) {
 						notif.onclick = function() {
 							window.location.href = contact.prefix+'/chat/';
 						};
-					}*/
+					}
 				}
 			});
 		}

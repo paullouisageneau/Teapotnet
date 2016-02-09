@@ -505,7 +505,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							
 							JsonSerializer json(response.stream);
 							
-							ConstSerializableWrapper<uint32_t> messages(uint32_t(0));
+							ConstSerializableWrapper<int> messages(0);
+							ConstSerializableWrapper<bool> newmessages(false);
 							ConstObject object;
 							object["identifier"] = &identifier;
 							object["uname"] = &name;
@@ -513,6 +514,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 							object["prefix"] = &prefix;
 							object["status"] = &status;
 							object["messages"] = &messages;
+							object["newmessages"] = &newmessages;
 							
 							json.write(object);
 							return;
@@ -1062,7 +1064,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.close("td");
 				page.open("td",".title");
 					page.text("Board");
-					//page.span("", "mailscount.mailscount");
 				page.close("td");
 				page.close("tr");
 				
@@ -1074,7 +1075,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.close("td");
 				page.open("td",".title");
 					page.text("Messages");
-					//page.span("", "mailscount.mailscount");
+					page.span("", "messagescount.messagescount");
 				page.close("td");
 				page.close("tr");
 			}
@@ -1103,8 +1104,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
 				var msg = '';\n\
-				if(info.mails != 0) msg = ' ('+info.mails+')';\n\
-				transition($('#mailscount'), msg);\n\
+				if(info.messages != 0) msg = ' ('+info.messages+')';\n\
+				transition($('#messagescount'), msg);\n\
 				$('#instances').empty();\n\
 				if($.isEmptyObject(info.instances)) $('#instances').text('No connected instance');\n\
 				else $.each(info.instances, function(id, name) {\n\
@@ -1202,7 +1203,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
-				if(info.newmails) playMailSound();\n\
+				if(info.newmessages) playMailSound();\n\
 			});");
 		
 			page.div("","list.box");
@@ -1250,7 +1251,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
-				if(info.newmails) playMailSound();\n\
+				if(info.newmessages) playMailSound();\n\
 			});");
 			
 			if(!match.empty())
@@ -1316,7 +1317,8 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	object["name"] = &mName;
 	
 	String prefix, status;
-	ConstSerializableWrapper<uint32_t> messages(uint32_t(0));	// TODO
+	ConstSerializableWrapper<int> messages(mPrivateBoard ? mPrivateBoard->unread() : 0);
+	ConstSerializableWrapper<bool> newmessages(mPrivateBoard ? mPrivateBoard->hasNew() : false);
 	if(s.optionalOutputMode())
 	{
 		prefix = urlPrefix();
@@ -1326,6 +1328,7 @@ void AddressBook::Contact::serialize(Serializer &s) const
 		object["prefix"] = &prefix;
 		object["status"] = &status;
 		object["messages"] = &messages;
+		object["newmessages"] = &newmessages;
 	}
 	else {
 		object["secret"] = &mRemoteSecret;

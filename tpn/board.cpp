@@ -37,7 +37,8 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	mName(name),
 	mDisplayName(displayName),
 	mSecret(secret),
-	mHasNew(false)
+	mHasNew(false),
+	mUnread(0)
 {
 	Assert(!mName.empty() && mName[0] == '/');	// TODO
 	
@@ -86,6 +87,19 @@ bool Board::hasNew(void) const
 	return value;
 }
 
+int Board::unread(void) const
+{
+	Synchronize(this);
+	
+	return 0;
+}
+
+BinaryString Board::digest(void) const
+{
+	Synchronize(this);
+	return mDigest;
+}
+
 bool Board::add(const Mail &mail, bool noIssue)
 {
 	Synchronize(this);
@@ -103,12 +117,6 @@ bool Board::add(const Mail &mail, bool noIssue)
 	
 	notifyAll();
 	return true;
-}
-
-BinaryString Board::digest(void) const
-{
-	Synchronize(this);
-	return mDigest;
 }
 
 void Board::addMergeUrl(const String &url)
@@ -193,6 +201,9 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				{
 					const Mail *p = &*mMails.insert(mail).first;
 					mUnorderedMails.append(p);
+					
+					++mUnread;
+					mHasNew = true;
 				}
 				
 				++count;
@@ -223,7 +234,14 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 {
 	Synchronize(this);
 	
-	return add(mail, true);
+	if(add(mail, true))
+	{
+		++mUnread;
+		mHasNew = true;
+		return true;
+	}
+	
+	return false;
 }
 
 void Board::http(const String &prefix, Http::Request &request)
@@ -303,6 +321,9 @@ void Board::http(const String &prefix, Http::Request &request)
 				for(int i = next; i < int(mUnorderedMails.size()); ++i)
 					json.outputArrayElement(*mUnorderedMails[i]);
 				json.outputArrayEnd();
+				
+				mUnread = 0;
+				mHasNew = false;
 				return;
 			}
 			

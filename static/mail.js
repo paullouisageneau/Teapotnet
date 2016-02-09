@@ -31,6 +31,7 @@ function setMailReceiverRec(url, object, next) {
 	})
 	.done(function(array) {
 		var posturl = url;
+		var count = 0;
 		$.each(array, function(i, mail) {
 			next++;
 			
@@ -194,6 +195,8 @@ function setMailReceiverRec(url, object, next) {
 			}
 			
 			$('#'+id).append('<span class="footer"></span>');
+			
+			count++;
 		});
 		
 		// Order messages
@@ -201,12 +204,12 @@ function setMailReceiverRec(url, object, next) {
 			return $(a).find(".time").text() < $(b).find(".time").text();
 		}));
 		
-		/*
-		if(NbNewMails) {
-			document.title = '(' + NbNewMails + ') ' + BaseDocumentTitle;
-			if(isPageHidden()) playMailSound();
+		if(count > 0 && isPageHidden()) 
+		{
+			NbNewMessages+= count;
+			top.document.title = '(' + NbNewMessages + ') ' + BaseTitle;
+			playMailSound();
 		}
-		*/
 
 		// Hide replies if they're too many
 		/*
