@@ -688,7 +688,6 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div");	// rightcolumn
 
 			page.close("div");
-			page.close("div");
 			
 			page.footer();
 			return;
