@@ -60,7 +60,7 @@ function listDirectoryRec(url, object, next) {
 			}
 			
 			var referenceUrl = '';
-			if(window.location.href.includes("/files")) {
+			if(window.location.href.indexOf("/files") >= 0) {
 				referenceUrl = window.location.href.split(/[?#]/)[0];
 				if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
 			}
