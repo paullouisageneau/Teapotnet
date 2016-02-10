@@ -37,6 +37,7 @@ Database::Database(const String &filename) :
 		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");	// TODO: close ?
 	
 	execute("PRAGMA synchronous = OFF");
+	execute("PRAGMA journal_mode = TRUNCATE");
 	execute("PRAGMA case_sensitive_like = 1");
 }
 
