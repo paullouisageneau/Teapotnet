@@ -217,8 +217,8 @@ $(window).resize( function() {
 });
 
 function isPageHidden() {
-	//return !document.hasFocus();
-	return document.hidden || document.msHidden || document.webkitHidden;
+	//return document.hidden || document.msHidden || document.webkitHidden;
+	return !top.document.hasFocus();
 }
 
 var MailSound = null;
