@@ -344,6 +344,7 @@ bool Overlay::send(const Message &message)
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
 {
+	Desynchronize(this);
 	Store::Instance->storeValue(key, value, Store::Distributed);
 
 	Message message(Message::Store, value, key);
@@ -360,6 +361,7 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 
 void Overlay::retrieve(const BinaryString &key)
 {
+	Desynchronize(this);
 	send(Message(Message::Retrieve, "", key));
 	
 	// Push Value messages in local queue
@@ -375,6 +377,7 @@ void Overlay::retrieve(const BinaryString &key)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
+	Desynchronize(this);
 	Synchronize(&mRetrieveSync);
 	
 	bool sent = false;
@@ -508,6 +511,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
+			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
 			
 			route(message);
@@ -528,9 +532,11 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Store value in DHT
 	case Message::Store:
 		{
+			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
-			
-			if(Time::Now() - Store::Instance->getValueTime(message.destination, message.content) >= 60.) // 1 min
+			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);			
+
+			if(Time::Now() - oldTime >= 60.) // 1 min
         		{
 				Array<BinaryString> nodes;
 				if(getRoutes(message.destination, 4, nodes))	// TODO
@@ -557,6 +563,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
+			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Value " + message.source.toString());
 			
 			// Value messages differ from Store messages because key is in the source field

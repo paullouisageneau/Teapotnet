@@ -335,8 +335,8 @@ void Store::run(void)
 	LogDebug("Store::run", "Started");
 
 	try {
-		BinaryString node;
-		DesynchronizeStatement(this, node = Network::Instance->overlay()->localNode());
+		Desynchronize(this);
+		BinaryString node = Network::Instance->overlay()->localNode();
 		
 		// Delete old non-permanent values
 		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
@@ -348,9 +348,7 @@ void Store::run(void)
 		int offset = 0;
 		while(true)
 		{
-			int n;
-			DesynchronizeStatement(this, n = Network::Instance->overlay()->connectionsCount());
-			if(n == 0)
+			if(Network::Instance->overlay()->connectionsCount() == 0)
 			{
 				LogDebug("Store::run", "Interrupted");
 				return;
@@ -367,8 +365,6 @@ void Store::run(void)
 			
 			if(result.empty()) break;
 			else {
-				Desynchronize(this);
-				
 				for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
 					Network::Instance->storeValue(*it, node);
 				
