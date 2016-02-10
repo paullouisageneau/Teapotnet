@@ -216,7 +216,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 		var table = $(object).find('table');
 		
 		var referenceUrl = '';
-		if(url.includes("/files")) {
+		if(url.indexOf("/files") >= 0) {
 			referenceUrl = url.split('?')[0];
 			if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
 		}
