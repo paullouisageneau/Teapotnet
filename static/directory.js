@@ -38,12 +38,11 @@ function listDirectory(url, object, showButtons) {
 	
 	$(object).append('<div class="gifloading"><img src="/loading.gif" alt="Loading..."></div>');
 	
-	listDirectoryRec(url, object);
+	listDirectoryRec(url, object, 0);
 }
 
-function listDirectoryRec(url, object) {
+function listDirectoryRec(url, object, next) {
 	var table = $(object).find('table.files');
-	var next = table.find('tr').length;
 	
 	$.ajax({
 		url: url.appendParam("next", next),
@@ -67,6 +66,8 @@ function listDirectoryRec(url, object) {
 			}
 			
 			for(var i=0; i<data.length; i++) {
+				++next;
+				
 				var resource = data[i];
 				
 				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
@@ -121,7 +122,7 @@ function listDirectoryRec(url, object) {
 				return $(a).find(".filename a").text() > $(b).find(".filename a").text();
 			}));
 		
-			listDirectoryRec(url, object);
+			listDirectoryRec(url, object, next);
 		}
 		else {
 			if(table.find('tr:visible').length == 0) {

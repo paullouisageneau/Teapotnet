@@ -209,7 +209,7 @@ void Request::http(const String &prefix, Http::Request &request)
 		
 		JsonSerializer json(response.stream);
 		json.outputArrayBegin();
-		if(mResults.size() > next)
+		if(int(mResults.size()) > next)
 			for(int i = next; i < int(mResults.size()); ++i)
 				json.outputArrayElement(mResults[i]);
 		json.outputArrayEnd();
