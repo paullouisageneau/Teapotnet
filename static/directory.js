@@ -168,12 +168,12 @@ function listFileSelector(url, object, input, inputName, parents) {
 				});
 		}
 		
-		//$(object)
-		//	.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
-		//	.find('a.refreshlink').click(function() {
-		//		listFileSelector(url, object, input, inputName, parents);
-		//		return false;
-		//	});
+		$(object)
+			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, parents);
+				return false;
+			});
 		
 		if(UrlUpload)
 		{
