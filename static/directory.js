@@ -72,8 +72,11 @@ function listDirectoryRec(url, object, next) {
 				
 				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
 				if(existing.length > 0) {
-					if(parseInt(existing.find('td.time').text()) > resource.time) continue;
-					existing.hide();
+					var time = parseInt(existing.find('td.time').text());
+					if(time > 0 && resource.time > 0) {
+						if(time > resource.time) continue;
+						existing.hide();
+					}
 				}
 				
 				var link = "/file/" + resource.digest;
@@ -119,7 +122,8 @@ function listDirectoryRec(url, object, next) {
 			table.html(table.find('tr').detach().sort(function(a,b){
 				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
 				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;  
-				return $(a).find(".filename a").text() > $(b).find(".filename a").text();
+				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
+					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
 			}));
 		
 			listDirectoryRec(url, object, next);
@@ -227,7 +231,16 @@ function listFileSelector(url, object, input, inputName, parents) {
 			var line = '<tr>';
 			var func;
 			(function(resource) { // copy resource (only the reference is passed to callbacks)
-				
+			
+				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
+                                if(existing.length > 0) {
+					var time = parseInt(existing.find('td.time').text());
+                                        if(time > 0 && resource.time > 0) {
+						if(time > resource.time) continue;
+                                        	existing.hide();
+					}
+                                }
+	
 			  	if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
 					if(resource.name == "_upload") resource.name = "Sent files";
 					else return;
@@ -235,7 +248,8 @@ function listFileSelector(url, object, input, inputName, parents) {
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-	
+					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';	
+
 					func = function() {
 						var link;
 						if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest + "&json";
@@ -249,7 +263,8 @@ function listFileSelector(url, object, input, inputName, parents) {
 				else {
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-					
+					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
+	
 					func = function() {
 						$(inputName).val(resource.name).change();
 						$(input).val(resource.digest).change();
@@ -260,8 +275,17 @@ function listFileSelector(url, object, input, inputName, parents) {
 			})(resource);
 			line+= '</tr>';
 			table.append(line);
+
 			table.find('tr:last').click(func).css('cursor', 'pointer');
 			table.find('tr:last a').click(func);
+
+			// Order files
+			table.html(table.find('tr').detach().sort(function(a,b){
+				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
+				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
+				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
+					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+                        }));
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
