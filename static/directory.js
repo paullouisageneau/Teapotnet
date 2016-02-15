@@ -67,7 +67,6 @@ function listDirectoryRec(url, object, next) {
 			
 			for(var i=0; i<data.length; i++) {
 				++next;
-				
 				var resource = data[i];
 				
 				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
@@ -144,178 +143,188 @@ function listDirectoryRec(url, object, next) {
 }
 
 function listFileSelector(url, object, input, inputName, parents) {
+	$(object).html('<h2>Select a file</h2>');
+		
+	if(parents.length > 0) {
+		$(object)
+			.append('<span class="button"> '+data.length+' files</span>')
+			.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+			.find('a.parentlink').click(function() {
+				var parentUrl = parents.pop();
+				listFileSelector(parentUrl, object, input, inputName, parents);
+				return false;
+			});
+	}
+		
+	$(object)
+		.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
+		.find('a.refreshlink').click(function() {
+			listFileSelector(url, object, input, inputName, parents);
+			return false;
+		});
+		
+	if(UrlUpload)
+	{
+		$(object).append('<form id="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
+		$('#selector_file')
+			.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
+			.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Other file</a>')
+			.change(function() {
+				$(object).children().hide();
+				$(object).append('<span>Please wait...</span>');
+				
+				$('#uploadform').ajaxSubmit({
+					timeout: 600000,
+					dataType: 'json',
+					error: function() { 
+						alert('Unable to send the file.'); 
+						$(inputName).val("").change();
+						$(input).val("").change();
+						$(object).remove();
+					},
+					success: function(resources) {
+						if(resources != null && resources.length > 0)
+						{
+							var resource = resources[0];
+							$(inputName).val(resource.name).change();
+							$(input).val(resource.digest).change();
+							$(object).remove();
+						}
+					}
+				});
+			});
+	}
 
-	$(object).html('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
+	$(object)
+		.append('<a href="#" class="button quitlink">Cancel</a>')
+		.find('a.quitlink').click(function() {
+			$(inputName).val("").change();
+			$(input).val("").change();
+			$(object).remove();
+			return false;
+		});
 	
-	$.ajax({
-		url: url,
+	$(object).append('<br>');
+	$(object).append('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
+	
+	listFileSelectorRec(url, object, input, inputName, 0);
+}
+
+function listFileSelectorRec(url, object, input, inputName, next) {
+	
+	var lock_url = $(object).find('.lock_url');
+	if($(lock_url).length == 0) {
+		$(object).append('<span class="lock_url" style="display:none"></span>');
+		lock_url = $(object).find('.lock_url');
+	}
+	
+	$(lock_url).text(url);
+	
+	var table = $(object).find('table');
+	
+	var xhr = $.ajax({
+		url: url.appendParam("next", next),
 		dataType: 'json',
 		timeout: 30000
 	})
 	.done(function(data) {
-		if(!data) data = [];
-	      
-		$(object).html('<h2>Select a file</h2>')
+		if($(lock_url).text() != url)
+			return;	// request is not valid anymore
 		
-		if(parents.length > 0) {
-			$(object)
-				.append('<span class="button"> '+data.length+' files</span>')
-				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-				.find('a.parentlink').click(function() {
-					var parentUrl = parents.pop();
-					listFileSelector(parentUrl, object, input, inputName, parents);
-					return false;
-				});
-		}
+		$(object).find('.gifloading').remove();
 		
-		$(object)
-			.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
-			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, parents);
-				return false;
-			});
-		
-		if(UrlUpload)
-		{
-			$(object).append('<form id="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
-			$('#selector_file')
-				.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
-				.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Other file</a>')
-				.change(function() {
-					$(object).children().hide();
-					$(object).append('<span>Please wait...</span>');
-					
-					$('#uploadform').ajaxSubmit({
-						timeout: 600000,
-						dataType: 'json',
-						error: function() { 
-							alert('Unable to send the file.'); 
-							$(inputName).val("").change();
-							$(input).val("").change();
-							$(object).remove();
-						},
-						success: function(resources) {
-							if(resources != null && resources.length > 0)
-							{
-								var resource = resources[0];
-								$(inputName).val(resource.name).change();
-								$(input).val(resource.digest).change();
-								$(object).remove();
-							}
-						}
-					});
-				});
-		}	
-
-		$(object)
-			.append('<a href="#" class="button quitlink">Cancel</a>')
-			.find('a.quitlink').click(function() {
-				$(inputName).val("").change();
-				$(input).val("").change();
-				$(object).remove();
-				return false;
-			});
-		
-		$(object).append('<br><div class="fileselectorwindow"><table class="files"></table></div>');
-		var table = $(object).find('table');
-		
-		var referenceUrl = '';
-		if(url.indexOf("/files") >= 0) {
-			referenceUrl = url.split('?')[0];
-			if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
-		}
-		
-		for(var i=0; i<data.length; i++) {
-			var resource = data[i];
-		
-			if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
-				if(resource.name == "_upload") resource.name = "Sent files";
-				else return;
-
-			var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
-			if(existing.length > 0) {
-				var time = parseInt(existing.find('td.time').text());
-				if(time > 0 && resource.time > 0) {
-					if(time > resource.time) continue;
-					existing.hide();
-				}
+		if(data && data.length > 0) {
+			
+			if(table.length == 0) {
+				$(object).append('<div class="fileselectorwindow"><table class="files"></table></div>');
+				table = $(object).find('table.files');
 			}
+		
+			var referenceUrl = '';
+			if(url.indexOf("/files") >= 0) {
+				referenceUrl = url.split('?')[0];
+				if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
+			}
+		
+			for(var i=0; i<data.length; i++) {
+				++next;
+				var resource = data[i];
+			
+				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
+					if(resource.name == "_upload") resource.name = "Sent files";
+					else return;
 
-			var line = '<tr>';
-			var func;
-			(function(resource) { // copy resource (only the reference is passed to callbacks)
-				if(resource.type == "directory") {
-					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
-					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';	
-
-					func = function() {
-						var link;
-						if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest + "&json";
-						else link = "/file/" + resource.digest + "?json";
-						
-						parents.push(url);
-						listFileSelector(link, object, input, inputName, parents);
-						return false;
-					};
+				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
+				if(existing.length > 0) {
+					var time = parseInt(existing.find('td.time').text());
+					if(time > 0 && resource.time > 0) {
+						if(time > resource.time) continue;
+						existing.hide();
+					}
 				}
-				else {
-					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
-					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
-	
-					func = function() {
-						$(inputName).val(resource.name).change();
-						$(input).val(resource.digest).change();
-						$(object).remove();
-						return false;
-					};
-				}
-			})(resource);
-			line+= '</tr>';
-			table.append(line);
 
-			table.find('tr:last').click(func).css('cursor', 'pointer');
-			table.find('tr:last a').click(func);
+				var line = '<tr>';
+				var func;
+				(function(resource) { // copy resource (only the reference is passed to callbacks)
+					if(resource.type == "directory") {
+						line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
+						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
+						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';	
 
-			// Order files
-			table.html(table.find('tr').detach().sort(function(a,b){
-				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
-				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
-				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
-					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
-                        }));
+						func = function() {
+							xhr.abort();
+							var link;
+							if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest + "&json";
+							else link = "/file/" + resource.digest + "?json";
+							parents.push(url);
+							listFileSelector(link, object, input, inputName, parents);
+							return false;
+						};
+					}
+					else {
+						line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
+						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
+						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
+		
+						func = function() {
+							xhr.abort();
+							$(inputName).val(resource.name).change();
+							$(input).val(resource.digest).change();
+							$(object).remove();
+							xhr.abort();
+							return false;
+						};
+					}
+				})(resource);
+				line+= '</tr>';
+				table.append(line);
+
+				table.find('tr:last').click(func).css('cursor', 'pointer');
+				table.find('tr:last a').click(func);
+
+				// Order files
+				table.html(table.find('tr').detach().sort(function(a,b){
+					if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
+					if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
+					return $(a).find(".filename a").text() > $(b).find(".filename a").text()
+						|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+				}));
+			}
+			
+			listFileSelectorRec(url, object, input, inputName, next);
+		}
+		else {
+			if(table.find('tr:visible').length == 0) {
+				$(object).append('<div class="files">No files</div>');
+			}
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object)
-			.html('')
-			
-		if(parents.length > 0) {
-			$(object)
-				.append('<span class="button">0 files</span>')
-				.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-				.find('a.parentlink').click(function() {
-					var parentUrl = parents.pop();
-					listFileSelector(parentUrl, object, input, inputName, parents);
-					return false;
-				});
+		$(object).find('.gifloading').remove();
+		
+		if(table.find('tr:visible').length == 0) {
+			$(object).append('<div class="files">Unable to access files</div>');
 		}
-			
-		$(object)
-			.append('<a href="#" class="button refreshlink">Retry</a>')
-			.append('<a href="#" class="button quitlink">Cancel</a>')
-			.append('<div class="files">Unable to access files</div>')
-			.find('a.refreshlink').click(function() {
-				listFileSelector(url, object, input, inputName, parents);
-				return false;
-			})
-			.find('a.quitlink').click(function() {
-				$(inputName).val("").change();
-				$(input).val("").change();
-				$(object).remove();
-				return false;
-			});
 	});
 }
 
