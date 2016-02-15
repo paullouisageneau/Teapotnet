@@ -227,24 +227,23 @@ function listFileSelector(url, object, input, inputName, parents) {
 		
 		for(var i=0; i<data.length; i++) {
 			var resource = data[i];
+		
+			if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
+				if(resource.name == "_upload") resource.name = "Sent files";
+				else return;
+
+			var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
+			if(existing.length > 0) {
+				var time = parseInt(existing.find('td.time').text());
+				if(time > 0 && resource.time > 0) {
+					if(time > resource.time) continue;
+					existing.hide();
+				}
+			}
 
 			var line = '<tr>';
 			var func;
 			(function(resource) { // copy resource (only the reference is passed to callbacks)
-			
-				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
-                                if(existing.length > 0) {
-					var time = parseInt(existing.find('td.time').text());
-                                        if(time > 0 && resource.time > 0) {
-						if(time > resource.time) continue;
-                                        	existing.hide();
-					}
-                                }
-	
-			  	if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
-					if(resource.name == "_upload") resource.name = "Sent files";
-					else return;
-			  
 				if(resource.type == "directory") {
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
@@ -304,13 +303,13 @@ function listFileSelector(url, object, input, inputName, parents) {
 		}
 			
 		$(object)
-			//.append('<a href="#" class="button refreshlink">Retry</a>')
+			.append('<a href="#" class="button refreshlink">Retry</a>')
 			.append('<a href="#" class="button quitlink">Cancel</a>')
 			.append('<div class="files">Unable to access files</div>')
-			//.find('a.refreshlink').click(function() {
-			//	listFileSelector(url, object, input, inputName, parents);
-			//	return false;
-			//})
+			.find('a.refreshlink').click(function() {
+				listFileSelector(url, object, input, inputName, parents);
+				return false;
+			})
 			.find('a.quitlink').click(function() {
 				$(inputName).val("").change();
 				$(input).val("").change();
