@@ -27,7 +27,7 @@ function setMailReceiverRec(url, object, period, next) {
 	$.ajax({
 		url: url + (url.contains('?') ? '&' : '?') + 'next=' + next + '&timeout=0',
 		dataType: 'json',
-		timeout: 60000
+		timeout: 300000
 	})
 	.done(function(array) {
 		var posturl = url;

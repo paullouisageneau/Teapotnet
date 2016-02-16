@@ -45,7 +45,7 @@ function listDirectoryRec(url, object, next) {
 	$.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
-		timeout: 60000
+		timeout: 300000
 	})
 	.done(function(data) {
 		$(object).find('.gifloading').remove();
@@ -220,7 +220,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 	var xhr = $.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
-		timeout: 60000
+		timeout: 300000
 	})
 	.done(function(data) {
 		var lock_url = $(object).find('.lock_url');
