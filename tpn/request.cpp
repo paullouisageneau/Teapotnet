@@ -163,7 +163,7 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(request.get.contains("next"))
 		request.get["next"].extract(next);
 	
-	double timeout = milliseconds(Config::Get("request_timeout").toInt());;
+	double timeout = milliseconds(Config::Get("request_timeout").toInt());
 	if(request.get.contains("timeout"))
 		request.get["timeout"].extract(timeout);
 	

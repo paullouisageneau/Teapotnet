@@ -1180,7 +1180,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(request.get.contains("json"))
 			{
 				Http::Response response(request, 307);
-				response.headers["Location"] = reqPrefix;
+				response.headers["Location"] = reqPrefix + (request.get.contains("next") ? "?next=" + request.get["next"] : "");
 				response.send();
 				return;
 			}

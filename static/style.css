@@ -413,6 +413,7 @@ a.button:hover
 {
 	width: 80%;
 	height: 100%;
+	max-width: 70em;
 	margin-top: 0;
 	margin-bottom: 0.5em;
 	margin-left: auto;
@@ -1473,6 +1474,11 @@ form #trackerlink
 		width: 100%;
 		height: auto;
 		margin: 0;
+		padding: 0;
+	}
+	
+	#rightcolumn iframe
+	{
 		padding: 0;
 	}
 	

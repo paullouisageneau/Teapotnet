@@ -147,7 +147,6 @@ function listFileSelector(url, object, input, inputName, parents) {
 		
 	if(parents.length > 0) {
 		$(object)
-			.append('<span class="button"> '+data.length+' files</span>')
 			.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
 			.find('a.parentlink').click(function() {
 				var parentUrl = parents.pop();
@@ -207,10 +206,10 @@ function listFileSelector(url, object, input, inputName, parents) {
 	$(object).append('<br>');
 	$(object).append('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
 	
-	listFileSelectorRec(url, object, input, inputName, 0);
+	listFileSelectorRec(url, object, input, inputName, parents, 0);
 }
 
-function listFileSelectorRec(url, object, input, inputName, next) {
+function listFileSelectorRec(url, object, input, inputName, parents, next) {
 	
 	var lock_url = $(object).find('.lock_url');
 	if($(lock_url).length == 0) {
@@ -225,7 +224,7 @@ function listFileSelectorRec(url, object, input, inputName, next) {
 	var xhr = $.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
-		timeout: 30000
+		timeout: 300000
 	})
 	.done(function(data) {
 		if($(lock_url).text() != url)
@@ -291,7 +290,6 @@ function listFileSelectorRec(url, object, input, inputName, next) {
 							$(inputName).val(resource.name).change();
 							$(input).val(resource.digest).change();
 							$(object).remove();
-							xhr.abort();
 							return false;
 						};
 					}
@@ -311,7 +309,7 @@ function listFileSelectorRec(url, object, input, inputName, next) {
 				}));
 			}
 			
-			listFileSelectorRec(url, object, input, inputName, next);
+			listFileSelectorRec(url, object, input, inputName, parents, next);
 		}
 		else {
 			if(table.find('tr:visible').length == 0) {
@@ -320,6 +318,9 @@ function listFileSelectorRec(url, object, input, inputName, next) {
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
+		if($(lock_url).text() != url)
+			return;	// request is not valid anymore
+		
 		$(object).find('.gifloading').remove();
 		
 		if(table.find('tr:visible').length == 0) {
