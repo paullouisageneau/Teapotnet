@@ -42,8 +42,6 @@ function listDirectory(url, object, showButtons) {
 }
 
 function listDirectoryRec(url, object, next) {
-	var table = $(object).find('table.files');
-	
 	$.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
@@ -51,9 +49,10 @@ function listDirectoryRec(url, object, next) {
 	})
 	.done(function(data) {
 		$(object).find('.gifloading').remove();
-	
+		$(object).find('div.files').remove();
+		
 		if(data && data.length > 0) {
-			
+			var table = $(object).find('table.files');
 			if(table.length == 0) {
 				$(object).append('<table class="files"></table>');
 				table = $(object).find('table.files');
@@ -128,7 +127,7 @@ function listDirectoryRec(url, object, next) {
 			listDirectoryRec(url, object, next);
 		}
 		else {
-			if(table.find('tr:visible').length == 0) {
+			if($(object).find('table.files tr:visible').length == 0) {
 				$(object).append('<div class="files">No files</div>');
 			}
 		}
@@ -136,7 +135,7 @@ function listDirectoryRec(url, object, next) {
 	.fail(function(jqXHR, textStatus) {
 		$(object).find('.gifloading').remove();
 		
-		if(table.find('tr:visible').length == 0) {
+		if($(object).find('table.files tr:visible').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
 	});
@@ -212,14 +211,11 @@ function listFileSelector(url, object, input, inputName, parents) {
 function listFileSelectorRec(url, object, input, inputName, parents, next) {
 	
 	var lock_url = $(object).find('.lock_url');
-	if($(lock_url).length == 0) {
+	if(lock_url.length == 0) {
 		$(object).append('<span class="lock_url" style="display:none"></span>');
 		lock_url = $(object).find('.lock_url');
 	}
-	
-	$(lock_url).text(url);
-	
-	var table = $(object).find('table');
+	lock_url.text(url);
 	
 	var xhr = $.ajax({
 		url: url.appendParam("next", next),
@@ -228,15 +224,14 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 	})
 	.done(function(data) {
 		var lock_url = $(object).find('.lock_url');
-		console.log($(lock_url).text());
-		console.log(url);
-		if($(lock_url).text() != url)
+		if(lock_url.text() != url)
 			return;	// request is not valid anymore
 		
 		$(object).find('.gifloading').remove();
+		$(object).find('div.files').remove();
 		
 		if(data && data.length > 0) {
-			
+			var table = $(object).find('table');
 			if(table.length == 0) {
 				$(object).append('<div class="fileselectorwindow"><table class="files"></table></div>');
 				table = $(object).find('table.files');
@@ -315,19 +310,19 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 			listFileSelectorRec(url, object, input, inputName, parents, next);
 		}
 		else {
-			if(table.find('tr:visible').length == 0) {
+			if($(object).find('table.files tr:visible').length == 0) {
 				$(object).append('<div class="files">No files</div>');
 			}
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
 		var lock_url = $(object).find('.lock_url');
-		if($(lock_url).text() != url)
+		if(lock_url.text() != url)
 			return;	// request is not valid anymore
 		
 		$(object).find('.gifloading').remove();
 		
-		if(table.find('tr:visible').length == 0) {
+		if($(object).find('table.files tr:visible').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
 	});
