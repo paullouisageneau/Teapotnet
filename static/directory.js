@@ -84,7 +84,6 @@ function listDirectoryRec(url, object, next) {
 					line = '<tr class="directory">';
 					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
-					line+= '<td class="name" style="display:none">'+resource.name.escape()+'</td>';
 					line+= '<td class="size"></td>';
 					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
 					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
@@ -98,8 +97,7 @@ function listDirectoryRec(url, object, next) {
 					
 					line = '<tr class="file">';
 					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
-					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>'; 
-					line+= '<td class="name" style="display:none">'+resource.name.escape()+'</td>';
+					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>';
 					line+= '<td class="size">'+formatBytes(resource.size, 2)+'</td>';
 					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
 					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
@@ -119,11 +117,11 @@ function listDirectoryRec(url, object, next) {
 			});
 			
 			// Order files
-			table.html(table.find('tr').detach().sort(function(a,b){
+			table.html(table.find('tr').detach().sort(function(a, b) {
 				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
 				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;  
-				return $(a).find(".name").text() > $(b).find(".name").text()
-					|| ($(a).find(".name").text() == $(b).find(".name").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+				return $(a).find("td.filename a").text() > $(b).find("td.filename a").text()
+					|| ($(a).find("td.filename a").text() == $(b).find("td.filename a").text() && parseInt($(a).find("td.time").text()) < parseInt($(b).find("td.time").text()));
 			}));
 		
 			listDirectoryRec(url, object, next);
@@ -306,11 +304,11 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 			}
 		
 			// Order files
-			table.html(table.find('tr').detach().sort(function(a,b){
+			table.html(table.find('tr').detach().sort(function(a, b) {
 				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
 				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
-				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
-					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+				return $(a).find("td.filename a").text() > $(b).find("td.filename a").text()
+					|| ($(a).find("td.filename a").text() == $(b).find("td.filename a").text() && parseInt($(a).find("td.time").text()) < parseInt($(b).find("td.time").text()));
 				}));
 			
 			listFileSelectorRec(url, object, input, inputName, parents, next);
