@@ -297,15 +297,15 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 
 				table.find('tr:last').click(func).css('cursor', 'pointer');
 				table.find('tr:last a').click(func);
-
-				// Order files
-				table.html(table.find('tr').detach().sort(function(a,b){
-					if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
-					if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
-					return $(a).find(".filename a").text() > $(b).find(".filename a").text()
-						|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
-				}));
 			}
+		
+			// Order files
+			table.html(table.find('tr').detach().sort(function(a,b){
+				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
+				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
+				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
+					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+				}));
 			
 			listFileSelectorRec(url, object, input, inputName, parents, next);
 		}
