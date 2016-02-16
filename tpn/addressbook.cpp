@@ -1099,7 +1099,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			
 			// TODO: display instances names
-			unsigned refreshPeriod = 5000;
+			unsigned refreshPeriod = 10000;
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
@@ -1199,7 +1199,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 			page.close("div");
 
-			unsigned refreshPeriod = 5000;
+			unsigned refreshPeriod = 10000;
 			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\
@@ -1247,7 +1247,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");
 			page.close("div");
 
-			unsigned refreshPeriod = 5000;
+			unsigned refreshPeriod = 10000;
 			page.javascript("setCallback('"+prefix+"/?json', "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
 				$('#status').removeClass().addClass('button').addClass(info.status);\n\

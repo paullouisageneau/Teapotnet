@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function setMailReceiverRec(url, object, next) {
+function setMailReceiverRec(url, object, period, next) {
 
 	if(typeof this.messagesTimeout != 'undefined')
 		clearTimeout(this.messagesTimeout);
 	
 	$.ajax({
-		url: url + (url.contains('?') ? '&' : '?') + 'next=' + next,
+		url: url + (url.contains('?') ? '&' : '?') + 'next=' + next + '&timeout=0',
 		dataType: 'json',
-		timeout: 300000
+		timeout: 60000
 	})
 	.done(function(array) {
 		var posturl = url;
@@ -254,18 +254,18 @@ function setMailReceiverRec(url, object, next) {
 		*/
 
 		this.messagesTimeout = setTimeout(function() {
-			setMailReceiverRec(url, object, next);
-		}, 1000);
+			setMailReceiverRec(url, object, period, next);
+		}, period);
 
 	})
 	.fail(function(jqXHR, textStatus) {
 		this.messagesTimeout = setTimeout(function() {
-			setMailReceiverRec(url, object, next);
-		}, 1000);
+			setMailReceiverRec(url, object, period, next);
+		}, period);
 	});
 }
 
-function setMailReceiver(url, object, next) {
+function setMailReceiver(url, object, period, next) {
 	
-	setMailReceiverRec(url, object, 0);
+	setMailReceiverRec(url, object, period, 0);
 }

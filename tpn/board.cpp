@@ -25,6 +25,7 @@
 #include "tpn/html.h"
 #include "tpn/user.h"
 #include "tpn/store.h"
+#include "tpn/config.h"
 
 #include "pla/jsonserializer.h"
 #include "pla/binaryserializer.h"
@@ -301,7 +302,7 @@ void Board::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("next"))
 					request.get["next"].extract(next);
 				
-				double timeout = 60.;
+				double timeout = milliseconds(Config::Get("request_timeout").toInt());
 				if(request.get.contains("timeout"))
 					request.get["timeout"].extract(timeout);
 				
@@ -424,10 +425,10 @@ void Board::http(const String &prefix, Http::Request &request)
 				});\n\
 				$('#attachedfile').hide();");
 			
-			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail');");
-			
+			unsigned refreshPeriod = 2000;
+			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail', "+String::number(refreshPeriod)+");");
 			for(StringSet::iterator it = mMergeUrls.begin(); it != mMergeUrls.end(); ++it)
-				page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail');");
+				page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail', "+String::number(refreshPeriod)+");");
 			
 			page.footer();
 			return;
