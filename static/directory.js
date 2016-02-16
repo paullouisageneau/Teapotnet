@@ -227,6 +227,9 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		timeout: 60000
 	})
 	.done(function(data) {
+		var lock_url = $(object).find('.lock_url');
+		console.log($(lock_url).text());
+		console.log(url);
 		if($(lock_url).text() != url)
 			return;	// request is not valid anymore
 		
@@ -318,6 +321,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
+		var lock_url = $(object).find('.lock_url');
 		if($(lock_url).text() != url)
 			return;	// request is not valid anymore
 		
