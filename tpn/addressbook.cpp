@@ -242,8 +242,6 @@ void AddressBook::setSelf(const Identifier &identifier)
 	
 	mContacts.insert(uname, contact);
 	mContactsByIdentifier.insert(identifier, contact);
-
-	mTime = Time::Now();
 	
 	save();
 }
