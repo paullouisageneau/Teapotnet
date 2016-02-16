@@ -165,15 +165,15 @@ function listFileSelector(url, object, input, inputName, parents) {
 		
 	if(UrlUpload)
 	{
-		$(object).append('<form id="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" id="selector_file" name="selector_file" size="30"></form>');
-		$('#selector_file')
+		$(object).append('<form class="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" name="selector_file" size="30"></form>');
+		$(object).find('form.uploadform input[name="selector_file"]')
 			.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
-			.after('<a class="button" href="#" onclick="$(\'#selector_file\').click(); return false;">Other file</a>')
+			.after('<a class="button" href="#" onclick="$(\'form.uploadform input[name=\\\'selector_file\\\']\').click(); return false;">Other file</a>')
 			.change(function() {
 				$(object).children().hide();
 				$(object).append('<span>Please wait...</span>');
 				
-				$('#uploadform').ajaxSubmit({
+				$(object).find('form.uploadform').ajaxSubmit({
 					timeout: 600000,
 					dataType: 'json',
 					error: function() { 
@@ -303,15 +303,15 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 
 				table.find('tr:last').click(func).css('cursor', 'pointer');
 				table.find('tr:last a').click(func);
-
-				// Order files
-				table.html(table.find('tr').detach().sort(function(a,b){
-					if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
-					if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
-					return $(a).find(".filename a").text() > $(b).find(".filename a").text()
-						|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
-				}));
 			}
+		
+			// Order files
+			table.html(table.find('tr').detach().sort(function(a,b){
+				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
+				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;
+				return $(a).find(".filename a").text() > $(b).find(".filename a").text()
+					|| ($(a).find(".filename a").text() == $(b).find(".filename a").text() && parseInt($(a).find(".time").text()) < parseInt($(b).find(".time").text()));
+				}));
 			
 			listFileSelectorRec(url, object, input, inputName, parents, next);
 		}
