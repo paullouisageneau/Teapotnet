@@ -202,7 +202,8 @@ void SecureTransport::close(void)
 
 		mIsByeDone = true;
 	
-		mStream->close();
+		if(mStream);
+			mStream->close();
 	}
 }
 
