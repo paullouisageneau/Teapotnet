@@ -44,7 +44,7 @@ Http::Request::~Request(void)
 
 Http::Request::Request(const String &url, const String &method)
 {
-	clear();
+		clear();
 
 	int p = url.find("://");
 	if(p == String::NotFound) this->url = url;
@@ -56,6 +56,10 @@ Http::Request::Request(const String &url, const String &method)
 
 		String host(url.substr(p+3));
 		this->url = String('/') + host.cut('/');
+		
+		if(host.contains('@'))
+			throw Unsupported("HTTP authentication");
+		
 		headers["Host"] = host;
 	}
 
