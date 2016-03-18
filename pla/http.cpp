@@ -44,7 +44,7 @@ Http::Request::~Request(void)
 
 Http::Request::Request(const String &url, const String &method)
 {
-		clear();
+	clear();
 
 	int p = url.find("://");
 	if(p == String::NotFound) this->url = url;
@@ -970,6 +970,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 		{
 			stream->discard();
 			delete stream;
+			stream = NULL;
 	
 			// TODO: relative location (even if not RFC-compliant)
 			return Get(response.headers["Location"], output, cookies, maxRedirections-1, noproxy);
@@ -981,6 +982,8 @@ int Http::Action(const String &method, const String &url, const String &data, co
 		if(output) stream->read(*output);
 		else stream->discard();
 		delete stream;
+		stream = NULL;
+
         	return response.code;
 	}
 	catch(...)
