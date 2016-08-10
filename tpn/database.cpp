@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/database.h"
+#include "tpn/database.hpp"
 
-#include "pla/lineserializer.h"
-#include "pla/jsonserializer.h"
-#include "pla/object.h"
+#include "pla/lineserializer.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/object.hpp"
 
 namespace tpn
 {

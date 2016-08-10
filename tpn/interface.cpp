@@ -19,17 +19,17 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/interface.h"
-#include "tpn/html.h"
-#include "tpn/user.h"
-#include "tpn/resource.h"
-#include "tpn/config.h"
-#include "tpn/user.h"
-#include "tpn/addressbook.h"
+#include "tpn/interface.hpp"
+#include "tpn/html.hpp"
+#include "tpn/user.hpp"
+#include "tpn/resource.hpp"
+#include "tpn/config.hpp"
+#include "tpn/user.hpp"
+#include "tpn/addressbook.hpp"
 
-#include "pla/directory.h"
-#include "pla/jsonserializer.h"
-#include "pla/mime.h"
+#include "pla/directory.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/mime.hpp"
 
 namespace tpn
 {
@@ -89,7 +89,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					{
 						user = new User(name, password);
 						
-						String token = user->generateToken("auth");
+						String token = user->generateToken("au.hpp");
 						Http::Response response(request, 200);
 						response.cookies["auth_"+user->name()] = token;
 						response.send();
@@ -138,7 +138,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				if(!user) throw 401;	// TODO
 				
-				String token = user->generateToken("auth");
+				String token = user->generateToken("au.hpp");
 				Http::Response response(request, 303);
 				response.headers["Location"] = user->urlPrefix();
 				response.cookies["auth_"+user->name()] = token;
@@ -184,11 +184,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{
 				String cookieName = it->first;
 				String name = cookieName.cut('_');
-				if(cookieName != "auth" || name.empty()) 
+				if(cookieName != "au.hpp" || name.empty()) 
 					continue;
 				
 				User *user = User::Get(name);
-				if(!user || !user->checkToken(it->second, "auth"))
+				if(!user || !user->checkToken(it->second, "au.hpp"))
 					continue;
 				
 				page.open("div",".user");
@@ -277,7 +277,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				Html page(response.stream);
 				page.header("Browse files");
 				page.open("div","topmenu");
-				if(user) page.link(user->urlPrefix()+"/search/", "Search", ".button");
+				if(user) page.link(user->urlPrefix()+"/search/", "Sear.hpp", ".button");
 				page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 				page.close("div");
 				
@@ -308,7 +308,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				// Forge HTTP response header
 				Http::Response response(request, 200);
-				response.headers["Content-Length"] << rangeSize;
+				response.headers["Content-Leng.hpp"] << rangeSize;
 				response.headers["Content-Name"] = resource.name();
 				//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
 				response.headers["Accept-Ranges"] = "bytes";
@@ -422,7 +422,7 @@ void Interface::process(Http::Request &request)
 			String token;
 			request.cookies.get("auth_"+name, token);
 			User *tmp = User::Get(name);
-			if(tmp && tmp->checkToken(token, "auth"))
+			if(tmp && tmp->checkToken(token, "au.hpp"))
 				user = tmp;
 		}
 		
@@ -527,7 +527,7 @@ User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String nam
 		String token;
 		request.cookies.get("auth_"+name, token);
 		User *user = User::Get(name);
-		if(user && user->checkToken(token, "auth"))
+		if(user && user->checkToken(token, "au.hpp"))
 			return user;
 	}
 	
@@ -550,7 +550,7 @@ int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*
 		String name = key.cut('_');
 		
 		User *user = User::Get(name);
-		if(user && user->checkToken(it->second, "auth"))
+		if(user && user->checkToken(it->second, "au.hpp"))
 			users.push_back(user);
 	}
 	

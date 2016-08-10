@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/directory.h"
-#include "pla/exception.h"
-#include "pla/file.h"
+#include "pla/directory.hpp"
+#include "pla/exception.hpp"
+#include "pla/file.hpp"
 
 #include <time.h>
 #include <sys/types.h>

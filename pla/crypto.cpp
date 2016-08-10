@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/crypto.h"
-#include "pla/random.h"
-#include "pla/exception.h"
-#include "pla/binaryserializer.h"
-#include "pla/time.h"
+#include "pla/crypto.hpp"
+#include "pla/random.hpp"
+#include "pla/exception.hpp"
+#include "pla/binaryserializer.hpp"
+#include "pla/time.hpp"
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
@@ -548,16 +548,16 @@ void Rsa::PublicKey::serialize(Serializer &s) const
 	mpz_export_binary(mKey.e, e);
 	mpz_export_binary(mKey.n, n);
 	
-	s.output(e);
-	s.output(n);
+	s >> e;
+	s >> n;
 }
 
 bool Rsa::PublicKey::deserialize(Serializer &s)
 {
 	BinaryString e, n;
 	
-	if(!s.input(e)) return false;
-	AssertIO(s.input(n));
+	if(!(s >> e)) return false;
+	AssertIO(s >> n);
 	
 	try {
 		mKey.size = 0;
@@ -582,7 +582,7 @@ void Rsa::PublicKey::serialize(Stream &s) const
 	
 	serialize(serializer);
 	String str(bs.base64Encode());
-	s.write(str);
+	s << str;
 }
 
 bool Rsa::PublicKey::deserialize(Stream &s)
@@ -590,7 +590,7 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 	clear();  
 	
 	String str;
-	if(!s.read(str)) return false;
+	if(!(s >> str)) return false;
 	
 	try {
 		BinaryString bs(str.base64Decode());
@@ -693,12 +693,12 @@ void Rsa::PrivateKey::serialize(Serializer &s) const
 	mpz_export_binary(mKey.b, b);
 	mpz_export_binary(mKey.c, c);
 	
-	s.output(d);
-	s.output(p);
-	s.output(q);
-	s.output(a);
-	s.output(b);
-	s.output(c);
+	s << d;
+	s << p;
+	s << q;
+	s << a;
+	s << b;
+	s << c;
 }
 
 bool Rsa::PrivateKey::deserialize(Serializer &s)
@@ -707,12 +707,12 @@ bool Rsa::PrivateKey::deserialize(Serializer &s)
 	
 	BinaryString d, p, q, a, b, c;
 	
-	if(!s.input(d)) return false;
-	AssertIO(s.input(p));
-	AssertIO(s.input(q));
-	AssertIO(s.input(a));
-	AssertIO(s.input(b));
-	AssertIO(s.input(c));
+	if(!(s >> d)) return false;
+	AssertIO(s >> p);
+	AssertIO(s >> q);
+	AssertIO(s >> a);
+	AssertIO(s >> b);
+	AssertIO(s >> c);
 	
 	try {
 		mKey.size = 0;
@@ -741,13 +741,13 @@ void Rsa::PrivateKey::serialize(Stream &s) const
 	
 	serialize(serializer);
 	String str(bs.base64Encode());
-	s.write(str);
+	s << str;
 }
 
 bool Rsa::PrivateKey::deserialize(Stream &s)
 {
 	String str;
-	if(!s.read(str)) return false;
+	if(!(s >> str)) return false;
 	
 	try {
 		BinaryString bs(str.base64Decode());

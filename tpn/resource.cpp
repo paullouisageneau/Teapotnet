@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/resource.h"
-#include "tpn/cache.h"
-#include "tpn/store.h"
-#include "tpn/config.h"
+#include "tpn/resource.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/store.hpp"
+#include "tpn/config.hpp"
 
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
-#include "pla/jsonserializer.h"
+#include "pla/binaryserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/jsonserializer.hpp"
 
 namespace tpn
 {
@@ -68,13 +68,13 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 	if(localOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
 	
-	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
+	//LogDebug("Resource::fet.hpp", "Fetching resource " + digest.toString());
 	
 	try {
 		mIndexBlock = new Block(digest);
 		mIndexRecord = new IndexRecord;
 		
-		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
+		//LogDebug("Resource::fet.hpp", "Reading index block for " + digest.toString());
 		
 		BinarySerializer serializer(mIndexBlock);
 		AssertIO(static_cast<Serializer*>(&serializer)->input(mIndexRecord));
@@ -180,14 +180,14 @@ void Resource::cache(const String &filename, const String &name, const String &t
 
 BinaryString Resource::digest(void) const
 {
-	if(!mIndexBlock) return BinaryString();
-	return mIndexBlock->digest();
+	if(mIndexBlock) return mIndexBlock->digest();
+	else return BinaryString();
 }
 
 int Resource::blocksCount(void) const
 {
-	if(!mIndexRecord) return 0;
-	return int(mIndexRecord->blockDigests.size());
+	if(mIndexRecord) return int(mIndexRecord->blockDigests.size());
+	else return 0;
 }
 
 int Resource::blockIndex(int64_t position, size_t *offset) const
@@ -246,6 +246,18 @@ bool Resource::isLocallyAvailable(void) const
 			return false;
 	
 	return true;
+}
+
+bool Resource::isSigned(void) const
+{
+	if(mIndexRecord) return !mIndexRecord->signature.empty();
+	else return false;
+}
+
+bool Resource::check(const Rsa::PublicKey &pubKey) const
+{
+	// TODO
+	return false;
 }
 
 void Resource::serialize(Serializer &s) const
@@ -476,7 +488,8 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
 	object["digests"] = &blockDigests;
-	object["salt"] = &salt;
+	if(!signature.empty()) object["signature"] = &signature;
+	if(!salt.empty()) object["salt"] = &salt;
 	
 	s.write(object);
 }
@@ -490,6 +503,7 @@ bool Resource::IndexRecord::deserialize(Serializer &s)
 	object["type"] = &type;
 	object["size"] = &sizeWrapper;
 	object["digests"] = &blockDigests;
+	object["signature"] = &signature;
 	object["salt"] = &salt;
 	
 	return s.read(object);

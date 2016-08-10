@@ -19,11 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/stream.h"
-#include "pla/string.h"
-#include "pla/serializable.h"
-#include "pla/exception.h"
-#include "pla/thread.h"
+#include "pla/stream.hpp"
+#include "pla/string.hpp"
+#include "pla/serializable.hpp"
+#include "pla/exception.hpp"
 
 namespace pla
 {
@@ -32,40 +31,6 @@ const String Stream::IgnoredCharacters = "\r\0";
 const String Stream::BlankCharacters = " \t\r\n";
 const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
-
-void Stream::Transfer(Stream *s1, Stream *s2)
-{
-	class TransferThread : public Thread
-        {
-        public:
-                TransferThread(Stream *src, Stream *dst) { this->src = src; this->dst = dst; }
-                void run(void) { src->read(*dst); }
-        private:
-                Stream *src, *dst;
-        };
-
-	Assert(s1);
-	Assert(s2);
-
-	TransferThread thread(s2, s1);
-	thread.start();
-
-	s1->read(*s2);
-	thread.join();
-}
-
-Stream::Stream(void) :
-	mLast(0),
-	mHexa(false),
-	mEnd(false)
-{
-
-}
-
-Stream::~Stream(void)
-{
-	
-}
 
 bool Stream::waitData(double &timeout)
 {
@@ -321,6 +286,15 @@ int64_t Stream::read(Stream &s, int64_t max)
 bool Stream::read(Serializable &s)
 {
 	return s.deserialize(*this);
+}
+
+bool Stream::read(std::string &str)
+{
+	// TODO
+	String tmp;
+	if(!read(tmp)) return false;
+	str = tmp;
+	return false;
 }
 
 bool Stream::read(bool &b)

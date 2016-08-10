@@ -19,10 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/address.h"
-#include "pla/exception.h"
-#include "pla/string.h"
-#include "pla/binarystring.h"
+#include "pla/address.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
+#include "pla/binarystring.hpp"
 
 namespace pla
 {
@@ -387,22 +387,22 @@ void Address::serialize(Serializer &s) const
 	{
 	case AF_INET:	// IP v4
 	{
-		s.output(uint8_t(4));
+		s << uint8_t(4);
 		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
 
-		for(int i=0; i<4; ++i) s.output(b[i]);
-		s.output(uint16_t(ntohs(sa->sin_port)));
+		for(int i=0; i<4; ++i) s << b[i];
+		s << uint16_t(ntohs(sa->sin_port));
 		break;
 	}
 
 	case AF_INET6:	// IP v6
 	{
-		s.output(uint8_t(16));
+		s << uint8_t(16);
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		
-		for(int i=0; i<16; ++i) s.output(uint8_t(sa6->sin6_addr.s6_addr[i]));
-		s.output(uint16_t(ntohs(sa6->sin6_port)));
+		for(int i=0; i<16; ++i) s << uint8_t(sa6->sin6_addr.s6_addr[i]);
+		s << uint16_t(ntohs(sa6->sin6_port));
 		break;
 	}
 
@@ -414,7 +414,7 @@ void Address::serialize(Serializer &s) const
 bool Address::deserialize(Serializer &s)
 {
 	uint8_t size = 0;
-	if(!s.input(size)) return false;
+	if(!s >> size) return false;
 
 	if(size == 0)
 	{
@@ -434,10 +434,11 @@ bool Address::deserialize(Serializer &s)
 		uint8_t u;
 		for(int i=0; i<4; ++i)
 		{
-				AssertIO(s.input(u)); b[i] = u;
+			AssertIO(s >> u); 
+			b[i] = u;
 		}
 		uint16_t port;
-		AssertIO(s.input(port));
+		AssertIO(s >> port);
 		sa->sin_port = htons(port);
 		break;
 	}
@@ -451,11 +452,11 @@ bool Address::deserialize(Serializer &s)
 		uint8_t u;
 		for(int i=0; i<16; ++i)
 		{
-			AssertIO(s.input(u));
+			AssertIO(s >> u);
 			sa6->sin6_addr.s6_addr[i] = u;
 		}
 		uint16_t port;
-		AssertIO(s.input(port));
+		AssertIO(s >> port);
 		sa6->sin6_port = htons(port);
 		break;
 	}
@@ -476,8 +477,8 @@ void Address::serialize(Stream &s) const
 	if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network address");
 	
-	if(a.addrFamily() == AF_INET6) s<<'['<<host<<']'<<':'<<service;
-	else s<<host<<':'<<service;
+	if(a.addrFamily() == AF_INET6) s << '[' << host << ']' << ':' << service;
+	else s << host << ':' << service;
 }
 
 bool Address::deserialize(Stream &s)

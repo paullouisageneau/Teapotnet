@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/cache.h"
-#include "tpn/config.h"
-#include "tpn/resource.h"
-#include "tpn/store.h"
+#include "tpn/cache.hpp"
+#include "tpn/config.hpp"
+#include "tpn/resource.hpp"
+#include "tpn/store.hpp"
 
-#include "pla/file.h"
-#include "pla/directory.h"
+#include "pla/file.hpp"
+#include "pla/directory.hpp"
 
 namespace tpn
 {
@@ -69,7 +69,7 @@ bool Cache::prefetch(const BinaryString &target)
 			}
 			catch(const Exception &e)
 			{
-				LogWarn("Cache::prefetch", "Prefetching failed for " + target.toString());
+				LogWarn("Cache::prefet.hpp", "Prefetching failed for " + target.toString());
 			}
 			
 			delete this;	// autodelete

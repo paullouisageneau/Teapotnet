@@ -19,17 +19,16 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/jsonserializer.h"
-#include "pla/exception.h"
-#include "pla/serializable.h"
-#include "pla/lineserializer.h"
+#include "pla/jsonserializer.hpp"
+#include "pla/exception.hpp"
+#include "pla/serializable.hpp"
+#include "pla/lineserializer.hpp"
 
 namespace pla
 {
 
 JsonSerializer::JsonSerializer(Stream *stream) :
-	mStream(stream),
-	mLevel(0)
+	mStream(stream)
 {
 	Assert(stream);
 }
@@ -39,35 +38,19 @@ JsonSerializer::~JsonSerializer(void)
 	 
 }
  
-bool JsonSerializer::input(Serializable &s)
+bool JsonSerializer::read(Serializable &s)
 {
 	if(s.isInlineSerializable() && !s.isNativeSerializable())
 	{
 		String str;
-		if(!input(str)) return false;
+		if(!Serializer::read(str)) return false;
 		s.fromString(str);
 		return true;
 	}
 	else return s.deserialize(*this);
 }
 
-bool JsonSerializer::input(Element &element)
-{
-	return element.deserialize(*this);
-}
-
-bool JsonSerializer::input(Pair &pair)
-{
-	String key;
-	if(!input(key)) return false;
-	AssertIO(mStream->last() == ':');
-	LineSerializer keySerializer(&key);
-	pair.deserializeKey(keySerializer);
-	AssertIO(pair.deserializeValue(*this));
-	return true;
-}
-
-bool JsonSerializer::input(String &str)
+bool JsonSerializer::read(std::string &str)
 {
 	const String fieldDelimiters = ",:]}";
 	
@@ -193,39 +176,15 @@ bool JsonSerializer::input(String &str)
 	return true; 
 }
 
-void JsonSerializer::output(const Serializable &s)
+void JsonSerializer::write(const Serializable &s)
 {
-	if(s.isInlineSerializable() && !s.isNativeSerializable()) output(s.toString());
+	if(s.isInlineSerializable() && !s.isNativeSerializable()) Serializer::write(s.toString());
 	else s.serialize(*this);
+	if(mKey) *mStream << ':' << Stream::Space;
+        mKey = false;
 }
 
-void JsonSerializer::output(const Element &element)
-{
-	if(!mFirst) *mStream<<',';
-	mFirst = false;
-	*mStream<<Stream::NewLine;
-	*mStream<<String(mLevel*2, ' ');
-	
-	element.serialize(*this);
-}
-
-void JsonSerializer::output(const Pair &pair)
-{
-	if(!mFirst) *mStream<<',';
-	mFirst = false;
-	*mStream<<Stream::NewLine;
-	*mStream<<String(mLevel*2, ' ');
-	
-	String key;
-	LineSerializer keySerializer(&key);
-	pair.serializeKey(keySerializer);
-	key.trim();
-	output(key);
-	*mStream<<": ";
-	pair.serializeValue(*this);
-}
-
-void JsonSerializer::output(const String &str)
+void JsonSerializer::write(const std::string &str)
 {
 	*mStream<<'\"';
   	for(size_t i=0; i<str.size(); ++i)
@@ -246,9 +205,12 @@ void JsonSerializer::output(const String &str)
 		}
 	}
 	*mStream<<'\"';
+
+	if(mKey) *mStream << ':' << Stream::Space;
+	mKey = false;
 }
 
-bool JsonSerializer::inputArrayBegin(void)
+bool JsonSerializer::readArrayBegin(void)
 {
 	char chr;
 	do if(!mStream->get(chr)) return false;
@@ -260,7 +222,7 @@ bool JsonSerializer::inputArrayBegin(void)
 	throw IOException();
 }
 
-bool JsonSerializer::inputArrayCheck(void)
+bool JsonSerializer::readArrayNext(void)
 {
 	char chr = mStream->last();
 	while(Stream::BlankCharacters.contains(chr))
@@ -277,7 +239,7 @@ bool JsonSerializer::inputArrayCheck(void)
 	throw IOException();
 }
 
-bool JsonSerializer::inputMapBegin(void)
+bool JsonSerializer::readMapBegin(void)
 {
 	char chr;
 	do if(!mStream->get(chr)) return false;
@@ -289,7 +251,7 @@ bool JsonSerializer::inputMapBegin(void)
 	throw IOException();
 }
 
-bool JsonSerializer::inputMapCheck(void)
+bool JsonSerializer::readMapNext(void)
 {
   	char chr = mStream->last();
 	while(Stream::BlankCharacters.contains(chr))
@@ -306,36 +268,49 @@ bool JsonSerializer::inputMapCheck(void)
 	throw IOException();
 }
 	
-void JsonSerializer::outputArrayBegin(int size)
+void JsonSerializer::writeArrayBegin(size_t size)
 {
-  	*mStream<<'[';
+	*mStream<<'[';
 	++mLevel;
-	mFirst = true;
 }
 
-void JsonSerializer::outputArrayEnd(void)
+void JsonSerializer::writeArrayNext(size_t i)
+{
+	if(i > 0) *mStream<<',';
+        *mStream<<Stream::NewLine;
+        *mStream<<String(mLevel*2, ' ');
+	mKey = false;
+}
+
+void JsonSerializer::writeArrayEnd(void)
 {
 	Assert(mLevel > 0);
 	--mLevel;
 	*mStream<<Stream::NewLine;
 	*mStream<<String(mLevel*2, ' ')<<']';
-	mFirst = false;	// useful for higher level array or map
 }
 
-void JsonSerializer::outputMapBegin(int size)
+void JsonSerializer::writeMapBegin(size_t size)
 {
 	*mStream<<'{';
 	++mLevel;
-	mFirst = true;
 }
 
-void JsonSerializer::outputMapEnd(void)
+void JsonSerializer::writeMapNext(size_t i)
+{
+	if(i > 0) *mStream<<',';
+        *mStream<<Stream::NewLine;
+        *mStream<<String(mLevel*2, ' ');
+	mKey = true;
+}
+
+void JsonSerializer::writeMapEnd(void)
 {
 	Assert(mLevel > 0);
 	--mLevel;
 	*mStream<<Stream::NewLine;
 	*mStream<<String(mLevel*2, ' ')<<'}';
-	mFirst = false;	// useful for higher level array or map
 }
 
 }
+

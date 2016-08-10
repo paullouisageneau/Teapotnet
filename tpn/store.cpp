@@ -19,14 +19,14 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/store.h"
-#include "tpn/config.h"
-#include "tpn/network.h"
-#include "tpn/cache.h"
-#include "tpn/block.h"
+#include "tpn/store.hpp"
+#include "tpn/config.hpp"
+#include "tpn/network.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/block.hpp"
 
-#include "pla/directory.h"
-#include "pla/crypto.h"
+#include "pla/directory.hpp"
+#include "pla/crypto.hpp"
 
 namespace tpn
 {
@@ -83,11 +83,11 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	BinaryString sinkDigest;
 	sink.hash(sinkDigest);
 	
-	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
+	LogDebug("Store::pu.hpp", "Block is complete, digest is " + sinkDigest.toString());
 	
 	if(sinkDigest != digest)
 	{
-		LogWarn("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
+		LogWarn("Store::pu.hpp", "Block digest is invalid (expected " + digest.toString() + ")");
 		mSinks.erase(digest);
 		return false;
 	}

@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/proxy.h"
-#include "pla/exception.h"
-#include "pla/http.h"
+#include "pla/proxy.hpp"
+#include "pla/exception.hpp"
+#include "pla/http.hpp"
 
 namespace pla
 {

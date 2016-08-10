@@ -19,8 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/bytearray.h"
-#include "pla/exception.h"
+#include "pla/bytearray.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
 
 namespace pla
 {
@@ -29,8 +30,6 @@ ByteArray::ByteArray(size_t size) :
 		mArray(new char[size]),
 		mLength(size),
 		mLeft(0),
-		mReadPos(0),
-		mWritePos(0),
 		mMustDelete(true)
 {
 
@@ -40,8 +39,6 @@ ByteArray::ByteArray(char *array, size_t length) :
 		mArray(array),
 		mLength(length),
 		mLeft(length),
-		mReadPos(0),
-		mWritePos(0),
 		mMustDelete(false)
 {
 
@@ -51,8 +48,6 @@ ByteArray::ByteArray(byte *array, size_t length) :
 		mArray(reinterpret_cast<char*>(array)),
 		mLength(length),
 		mLeft(length),
-		mReadPos(0),
-		mWritePos(0),
 		mMustDelete(false)
 {
 
@@ -120,13 +115,13 @@ void ByteArray::reset(void)
 void ByteArray::serialize(Serializer &s) const
 {
 	// implemented in Serializer::output(const BinaryString &)
-	s.output(*this);
+	s << *this;
 }
 
 bool ByteArray::deserialize(Serializer &s)
 {
 	// implemented in Serializer::input(BinaryString &)
-	return s.input(*this);
+	return !!(s >> *this);
 }
 
 void ByteArray::serialize(Stream &s) const

@@ -19,12 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/exception.h"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
 
 namespace pla
 {
 
-Exception::Exception(const String &message) :
+Exception::Exception(const std::string &message) :
 		mMessage(message)
 {
 
@@ -42,31 +43,33 @@ const char* Exception::what() const throw()
 
 }
 
-AssertException::AssertException(const String& File, int Line, const String &message)
+AssertException::AssertException(const std::string& File, int Line, const std::string &message)
 {
-	mMessage<<message<<" in "<<File<<" at line "<<Line;
+	String strLine;
+	strLine << Line;
+	mMessage = message + " in " + File + " at line " + strLine;
 }
 
-LoadingFailed::LoadingFailed(const String& File, const String &message)
+LoadingFailed::LoadingFailed(const std::string& File, const std::string &message)
 {
-	mMessage<<"loading failed for \""<<File<<"\": "<<message;
+	mMessage = "Loading failed for \"" + File + "\": " + message;
 }
 
-Unsupported::Unsupported(const String &feature)
+Unsupported::Unsupported(const std::string &feature)
 {
 	mMessage = "Unsupported";
 	if(!feature.empty()) mMessage+= ": " + feature;
 	else mMessage+= " feature";
 }
 
-InvalidData::InvalidData(const String &message)
+InvalidData::InvalidData(const std::string &message)
 {
 	mMessage = "Invalid Data";
 	if(!message.empty()) mMessage+= ": " + message;
 }
 
-IOException::IOException(const String &message) :
-	Exception(String() + message)
+IOException::IOException(const std::string &message) :
+	Exception(std::string() + message)
 {
 	mMessage = "Unexpected end of input";
 	if(!message.empty()) mMessage+= ": " + message;
@@ -84,20 +87,20 @@ DivideByZero::DivideByZero(void) :
 	
 }
 
-OutOfBounds::OutOfBounds(const String &message) :
-	Exception(String("Out of bounds: ") + message)
+OutOfBounds::OutOfBounds(const std::string &message) :
+	Exception(std::string("Out of bounds: ") + message)
 {
 
 }
 
-NetException::NetException(const String &message) :
-	Exception(String("Network error: ") + message)
+NetException::NetException(const std::string &message) :
+	Exception(std::string("Network error: ") + message)
 {
 
 }
 
-SerializeException::SerializeException(const String &problem) :
-	Exception(String("Unexpected data: ") + problem)
+SerializeException::SerializeException(const std::string &problem) :
+	Exception(std::string("Unexpected data: ") + problem)
 {
 
 }

@@ -19,23 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/serializable.h"
-#include "pla/string.h"
-#include "pla/exception.h"
-#include "pla/lineserializer.h"
+#include "pla/serializable.hpp"
+#include "pla/string.hpp"
+#include "pla/exception.hpp"
+#include "pla/lineserializer.hpp"
 
 namespace pla
 {
-
-Serializable::Serializable(void)
-{
-
-}
-
-Serializable::~Serializable(void)
-{
-
-}
 
 void Serializable::serialize(Serializer &s) const
 {
@@ -79,14 +69,20 @@ String Serializable::toString(void) const
 	return str;
 }
 
-void Serializable::fromString(String str)
+void Serializable::fromString(const std::string &str)
 {
-	deserialize(str);  
+	String tmp(str);
+	deserialize(tmp);  
 }
 
 Serializable::operator String(void) const
 {
 	return toString();
+}
+
+Serializable::operator std::string(void) const
+{
+        return toString();
 }
 
 std::ostream &operator<<(std::ostream &os, const Serializable &s)

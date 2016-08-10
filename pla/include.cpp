@@ -19,14 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/include.h"
-#include "pla/time.h"
+#include "pla/include.hpp"
+#include "pla/string.hpp"
+#include "pla/time.hpp"
 
 namespace pla
 {
 
-Mutex	LogMutex;
-bool	ForceLogToFile = false;
+std::mutex LogMutex;
+bool ForceLogToFile = false;
 
 #ifdef DEBUG
 int	LogLevel = LEVEL_DEBUG;

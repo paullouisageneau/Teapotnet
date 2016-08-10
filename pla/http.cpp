@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/http.h"
-#include "pla/exception.h"
-#include "pla/directory.h"
-#include "pla/mime.h"
-#include "pla/proxy.h"
+#include "pla/http.hpp"
+#include "pla/exception.hpp"
+#include "pla/directory.hpp"
+#include "pla/mime.hpp"
+#include "pla/proxy.hpp"
 
 namespace pla
 {
@@ -634,8 +634,8 @@ void Http::Response::clear(void)
 	cookies.clear();
 }
 
-Http::Server::Server(int port) :
-	mPool(4, 16, 128),
+Http::Server::Server(int port, int threads) :
+	mPool(threads),
 	mSock(port)
 {
 
@@ -784,7 +784,7 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 	}
 }
 
-void Http::Server::run(void)
+void Http::Server::operator()(void)
 {
 	Socket *sock = NULL;
 
@@ -794,11 +794,14 @@ void Http::Server::run(void)
 			sock = new Socket;
 			mSock.accept(*sock);
 			sock->setReadTimeout(RequestTimeout);
-
-			Handler *client = new Handler(this, sock);
-			sock = NULL;
 			
-			mPool.launch(client);
+			mPool.enqueue([this, sock]()
+			{
+				this->handle(sock, sock->getRemoteAddress()); 
+				delete sock;
+			});
+			
+			sock = NULL;
 		}
 	}
 	catch(const NetException &e)
@@ -811,32 +814,6 @@ void Http::Server::run(void)
 		delete sock;
 		throw;
 	}
-}
-
-Http::Server::Handler::Handler(Server *server, Socket *sock) :
-		mServer(server),
-		mSock(sock)
-{
-	Assert(mServer);
-	Assert(mSock);
-}
-
-Http::Server::Handler::~Handler(void)
-{
-	delete mSock;	// deletion closes the socket
-}
-
-void Http::Server::Handler::run(void)
-{
-	try {
-		mServer->handle(mSock, mSock->getRemoteAddress());
-	}
-	catch(...)
-	{
-
-	}
-
-	delete this;	// autodelete
 }
 
 Http::SecureServer::SecureServer(SecureTransportServer::Credentials *credentials, int port) :

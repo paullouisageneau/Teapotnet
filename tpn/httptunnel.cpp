@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/httptunnel.h"
-#include "tpn/config.h"
+#include "tpn/httptunnel.hpp"
+#include "tpn/config.hpp"
 
-#include "pla/exception.h"
-#include "pla/scheduler.h"
-#include "pla/random.h"
-#include "pla/proxy.h"
+#include "pla/exception.hpp"
+#include "pla/scheduler.hpp"
+#include "pla/random.hpp"
+#include "pla/proxy.hpp"
 
 namespace tpn
 {
@@ -365,7 +365,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
                         Http::Request request(url, "POST");
                         request.headers["User-Agent"] = UserAgent;
-                        request.headers["Content-Length"] << mPostSize;
+                        request.headers["Content-Leng.hpp"] << mPostSize;
 			request.cookies["session"] << mSession;
 
                         Address addr = mAddress;
@@ -440,7 +440,7 @@ void HttpTunnel::Client::flush(void)
 	try {
 		if(mUpSock && mUpSock->isConnected() && mPostLeft)
 		{
-			//LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
+			//LogDebug("HttpTunnel::Client::flu.hpp", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
 			
 			try {
 				updatePostSize(mPostLeft);
@@ -470,7 +470,7 @@ void HttpTunnel::Client::flush(void)
 	}
 	catch(const Exception &e)
 	{
-		//LogWarn("HttpTunnel::Client::flush", e.what());
+		//LogWarn("HttpTunnel::Client::flu.hpp", e.what());
 	}
 }
 
@@ -702,7 +702,7 @@ void HttpTunnel::Server::flush(void)
 
 	if(mDownSock && mDownSock->isConnected())
 	{
-		//LogDebug("HttpTunnel::Server::flush", "Flushing...");
+		//LogDebug("HttpTunnel::Server::flu.hpp", "Flushing...");
 		mDownSock->close();
 	}
 

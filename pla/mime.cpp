@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/mime.h"
+#include "pla/mime.hpp"
 
 namespace pla
 {
 
 StringMap Mime::Types;
-Mutex Mime::TypesMutex;
+std::mutex Mime::TypesMutex;
 
 bool Mime::IsAudio(const String &fileName)
 {
@@ -68,17 +68,15 @@ bool Mime::IsVideo(const String &fileName)
 
 String Mime::GetType(const String &fileName)
 {
-	String extension = fileName.afterLast('.').toLower();
-	TypesMutex.lock();
+	std::unique_lock<std::mutex> lock(TypesMutex);
+	
 	if(Types.empty()) Init();
+	
+	String extension = fileName.afterLast('.').toLower();
+	
 	String type;
-	if(Types.get(extension, type))
-	{
-	 	TypesMutex.unlock();
-		return type;
-	}
-	TypesMutex.unlock();
-	return "application/octet-stream";
+	if(Types.get(extension, type)) return type;
+	else return "application/octet-stream";
 }
 
 void Mime::Init(void)

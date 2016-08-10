@@ -19,23 +19,26 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/network.h"
-#include "tpn/user.h"
-#include "tpn/httptunnel.h"
-#include "tpn/config.h"
-#include "tpn/store.h"
-#include "tpn/block.h"
+#include "tpn/network.hpp"
+#include "tpn/user.hpp"
+#include "tpn/httptunnel.hpp"
+#include "tpn/config.hpp"
+#include "tpn/store.hpp"
+#include "tpn/block.hpp"
 
-#include "pla/binaryserializer.h"
-#include "pla/jsonserializer.h"
-#include "pla/object.h"
-#include "pla/securetransport.h"
-#include "pla/crypto.h"
-#include "pla/random.h"
-#include "pla/http.h"
+#include "pla/binaryserializer.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/securetransport.hpp"
+#include "pla/crypto.hpp"
+#include "pla/random.hpp"
+#include "pla/http.hpp"
 
 namespace tpn
 {
+
+const unsigned Network::DefaultTokens = 8;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*16;
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -167,7 +170,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 			{
 				send(link, "subscribe", 
 					ConstObject()
-						.insert("path", &it->first));
+						.insert("pa.hpp", &it->first));
 				break;
 			}
 		}
@@ -196,7 +199,7 @@ void Network::publish(String prefix, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publish", "Publishing " + prefix);
+	//LogDebug("Network::publi.hpp", "Publishing " + prefix);
 	
 	mPublishers[prefix].insert(publisher);
 }
@@ -239,7 +242,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		// Immediatly send subscribe message
 		send(subscriber->link(), "subscribe", 
 			 ConstObject()
-				.insert("path", &prefix));
+				.insert("pa.hpp", &prefix));
 		
 		// Retrieve from cache
 		Set<BinaryString> targets;
@@ -274,7 +277,7 @@ void Network::advertise(String prefix, const String &path, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publish", "Advertising " + prefix + path);
+	//LogDebug("Network::publi.hpp", "Advertising " + prefix + path);
 	
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
@@ -574,7 +577,7 @@ void Network::registerHandler(const Link &link, Handler *handler)
 			{
 				send(link, "subscribe", 
 					ConstObject()
-						.insert("path", &it->first));
+						.insert("pa.hpp", &it->first));
 				break;
 			}
 		}
@@ -642,7 +645,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
-	if(type == "publish")
+	if(type == "publi.hpp")
 	{
 		// If link is not trusted, ignore publications
 		// Subscriptions are filtered in outgoing()
@@ -652,7 +655,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		Mail mail;
 		SerializableList<BinaryString> targets;
 		serializer.read(Object()
-				.insert("path", &path)
+				.insert("pa.hpp", &path)
 				.insert("message", &mail)
 				.insert("targets", &targets));
 		
@@ -686,7 +689,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	{
 		String path;
 		serializer.read(Object()
-				.insert("path", &path));
+				.insert("pa.hpp", &path));
 		
 		addRemoteSubscriber(link, path);
 	}
@@ -759,8 +762,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			{
 				//LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
-				send(link, "publish", ConstObject()
-						.insert("path", &path)
+				send(link, "publi.hpp", ConstObject()
+						.insert("pa.hpp", &path)
 						.insert("targets", &targets));
 			}
 		}
@@ -1139,7 +1142,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 			}
 			catch(const Exception &e)
 			{
-				LogWarn("Network::Subscriber::fetch", "Fetching failed for " + target.toString() + ": " + e.what());
+				LogWarn("Network::Subscriber::fet.hpp", "Fetching failed for " + target.toString() + ": " + e.what());
 			}
 			
 			delete this;	// autodelete
@@ -1195,9 +1198,9 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 		SerializableArray<BinaryString> targets;
 		targets.append(target);
 		
-		Network::Instance->send(this->link(), "publish",
+		Network::Instance->send(this->link(), "publi.hpp",
 			ConstObject()
-				.insert("path", &prefix)
+				.insert("pa.hpp", &prefix)
 				.insert("targets", &targets));
 	}
 }
@@ -1206,9 +1209,9 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 {
 	if(link.remote.empty() || link != this->link())
 	{
-		Network::Instance->send(this->link(), "publish",
+		Network::Instance->send(this->link(), "publi.hpp",
 			ConstObject()
-				.insert("path", &prefix)
+				.insert("pa.hpp", &prefix)
 				.insert("message", &mail));
 	}
 }
@@ -1730,7 +1733,9 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
-	mTokens(10.),
+	mTokens(DefaultTokens),
+	mThreshold(DefaultTokens/2),
+	mAvailableTokens(DefaultTokens),
 	mAccumulator(0.),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
@@ -1748,18 +1753,126 @@ Network::Handler::~Handler(void)
 	delete mStream;
 }
 
-void Network::Handler::write(const String &type, const String &content)
+void Network::Handler::write(uint8_t type, const BinaryString &record)
+{
+	writeRecord(type, record);
+}
+
+void Network::Handler::push(const BinaryString &target, unsigned tokens)
 {
 	Synchronize(this);
 	if(mClosed) return;
 	
-	BinaryString buffer;
-	buffer.writeBinary(type.c_str(), type.size()+1);
-	buffer.writeBinary(content.c_str(), content.size()+1);
-	mSource.write(buffer.data(), buffer.size());
-	mAccumulator+= mRedundancy;
+	if(tokens < uint16_t(-1))
+	{
+		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
+	}
 	
-	send();
+	if(tokens) mTargets[target] = tokens;
+	else mTargets.erase(target);
+	
+	send(false);
+}
+
+void Network::Handler::timeout(void)
+{
+	Synchronize(this);
+
+	// Inactivity timeout is handled by Tunnel
+	if(mAvailableTokens < 1.) mAvailableTokens = 1.;
+	send(true);
+}
+
+bool Network::Handler::readRecord(uint8_t &type, BinaryString &record)
+{
+	Synchronize(this);
+	if(mClosed) return false;
+	
+	try {
+		uint8_t version;
+		uint16_t size;
+		
+		if(readBinary(version))
+		{
+			AssertIO(readBinary(type));
+			AssertIO(readBinary(size));
+			AssertIO(readBinary(content, size) == size);
+			return true;
+		}
+	}
+	catch(std::exception &e)
+	{
+		//LogDebug("Network::Handler::read", e.what());
+		mClosed = true;
+		throw Exception("Connection lost");
+	}
+	
+	mClosed = true;
+	return false;
+}
+
+Network::Handler::writeRecord(uint8_t type, const BinaryString &record)
+{
+	BinaryString buffer;
+	buffer.writeBinary(uint8_t(0));		// version
+	buffer.writeBinary(uint8_t(type));
+	buffer.writeBinary(uint16_t(record.size()));
+	buffer.writeBinary(content.c_str(), content.size());
+	writeData(buffer.data(), buffer.size());
+	flush();
+}
+
+size_t Network::Handler::readData(char *buffer, size_t size)
+{
+	Synchronize(this);
+	
+	size_t count = 0;
+	while(true)
+	{
+		// Try to read
+		size_t r;
+		while(size && (r = mSink.read(buffer, size)))
+		{
+			buffer+= r;
+			count+= r;
+			size-= r;
+		}
+		
+		if(!size)
+			break;
+		
+		// We need more combinations
+		Fountain::Combination combination;
+		if(!recvCombination(combination))
+			break;
+		
+		//LogDebug("Network::Handler::readString", "Received combination");
+		
+		if(!combination.isNull())
+		{
+			mSink.drop(combination.firstComponent());
+			mSink.solve(combination);
+				
+			if(!send(false))
+				Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
+		}
+	}
+	
+	return count;
+}
+
+void Network::Handler::writeData(const char *data, size_t size)
+{
+	Synchronize(this);
+	if(mClosed) return;
+	
+	unsigned count = mSource.write(data, size);
+	mAccumulator+= mRedundancy*count;
+}
+
+void Network::Handler::flush(void)
+{
+	send(false);
 }
 
 int Network::Handler::send(bool force)
@@ -1768,37 +1881,40 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mTokens >= 1.))
+	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mAvailableTokens >= 1.))
 	{
-		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
+		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
 		
 		try {
 			Fountain::Combination combination;
 			mSource.generate(combination);
 			
-			uint32_t nextSeen = mSink.nextSeen();
-			
-			// Send block
-			{
-				Desynchronize(this);
-				MutexLocker lock(&mWriteMutex);
-
-				BinarySerializer serializer(mStream);
-                        	serializer.write(combination);
-                        	serializer.write(nextSeen);
-
-				mStream->writeBinary(combination.data(), combination.codedSize());
-				mStream->nextWrite();
-			}
-
-			++count;
-			
 			if(!combination.isNull())
 			{
-				mTokens = std::max(0., mTokens - 1.);
-				mAccumulator   = std::max(0., mAccumulator - 1.);
+				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
+			/*else {
+				if(!mTargets.empty())
+				{
+					// Pick at random
+					int r = Random().uniform(0, int(mTargets.size()));
+					Map<BinaryString, unsigned>::iterator it = mTargets.begin();
+					while(r--) ++it;
+					Assert(it != mTargets.end());
+					
+					BinaryString target = it->first;
+                        	        unsigned &tokens = it->second;
+					
+					unsigned rank = 0;
+					Store::Instance->pull(target, combination, &rank);
+					
+					tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
+					--tokens;
+				}
+			}*/
 			
+			sendCombination(combination);
+			++count;	
 			force = false;
 		}
 		catch(const std::exception &e)
@@ -1816,94 +1932,87 @@ int Network::Handler::send(bool force)
 	return count;
 }
 
-void Network::Handler::timeout(void)
+bool Network::Handler::recvCombination(Fountain::Combination &combination)
 {
+	Desynchronize(this);
+	BinarySerializer s(mStream);
+	
+	// 32-bit header
+	uint16_t  version    = 0;
+	uint16_t dataSize    = 0;
+	if(!s.read(version)) return false;
+	AssertIO(s.read(dataSize));
+	
+	uint32_t nextSeen = 0;
+	uint32_t nextDecoded = 0;
+	AssertIO(s.read(nextSeen));	// 32-bit next seen
+	AssertIO(s.read(nextDecoded));	// 32-bit next decoded
+	
+	// 64-bit combination descriptor
+	AssertIO(s.read(combination));
+	
+	// Data
+	BinaryString data;
+	mStream->readBinary(data, dataSize); 
+	combination.setCodedData(data);
+	
+	mStream->nextRead();
+	
 	Synchronize(this);
-
-	// Inactivity timeout is handled by Tunnel
-	if(mTokens < 1.) mTokens = 1.;
-	send(true);
+	unsigned backlog = nextSeen - std::min(nextDecoded, nextSeen);
+	unsigned dropped = mSource.drop(nextSeen);
+	
+	if(backlog < mThreshold || backlog > mThreshold*2.)
+	{
+		double tokens;
+		if(mTokens < mThreshold)
+		{
+			// Slow start
+			tokens = dropped*2.;
+		}
+		else {
+			// Additive increase
+			tokens = dropped*1./mTokens;
+		}
+		
+		mTokens+= tokens;
+		mAvailableTokens+= tokens;
+	}
+	else {
+		// Congestion: Multiplicative decrease
+		mThreshold = mTokens/2.;
+		mTokens = 1.;
+		mAvailableTokens = mTokens;
+		
+	}
+	return true;
 }
 
-bool Network::Handler::read(String &type, String &content)
+void Network::Handler::sendCombination(const Fountain::Combination &combination)
 {
 	Synchronize(this);
-	if(mClosed) return false;
+	uint32_t nextSeen = mSink.nextSeen();
+	uint32_t nextDecoded = mSink.nextDecoded();
+	mAvailableTokens = std::max(0., mAvailableTokens - 1.);
 	
-	try {
-		if(readString(type))
-		{
-			if(!readString(content))
-				throw Exception("Connection unexpectedly closed");
-			
-			return true;
-		}
-	}
-	catch(std::exception &e)
-	{
-		//LogDebug("Network::Handler::read", e.what());
-		mClosed = true;
-		throw Exception("Connection lost");
-	}
+	Desynchronize(this);
+	MutexLocker lock(&mWriteMutex);
+	BinarySerializer s(mStream);
 	
-	mClosed = true;
-	return false;
-}
-
-bool Network::Handler::readString(String &str)
-{
-	Synchronize(this);
+	// 32-bit header
+	s.write(uint16_t(0));	// version
+	s.write(uint16_t(combination.codedSize()));
 	
-	str.clear();
-	while(true)
-	{
-		// Try to read
-		char chr;
-		while(mSink.read(&chr, 1))
-		{
-			if(chr == '\0')
-			{
-				// Finished
-				return true;
-			}
-			
-			str+= chr;
-		}
-		
-		// We need more combinations
-		Fountain::Combination combination;
-		uint32_t nextSeen = 0;
-
-		// Recv block
-		{
-			Desynchronize(this);
+	s.write(uint32_t(nextSeen));		// 32-bit next seen
+	s.write(uint32_t(nextDecoded));		// 32-bit next decoded
 	
-			BinarySerializer serializer(mStream);
-			if(!serializer.read(combination)) break;
-		
-			serializer.read(nextSeen);
-		
-			BinaryString data;
-			mStream->readBinary(data);
-			combination.setCodedData(data);
-			
-			mStream->nextRead();
-		}
-
-		//LogDebug("Network::Handler::readString", "Received combination (size=" + String::number(combination.size()) + ", nextSeen=" + String::number(nextSeen) + ")");
-		
-		mTokens+= mSource.drop(nextSeen)*(1.+1./(mTokens+1.));
-		if(!combination.isNull())
-		{
-			mSink.drop(combination.firstComponent());
-			mSink.solve(combination);
-		
-			if(!send(false))
-				Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
-		}
-	}
+	// 64-bit combination descriptor
+	s.write(combination);
 	
-	return false;
+	// Data
+	mStream->writeBinary(combination.data(), combination.codedSize());
+	
+	mStream->nextWrite();
 }
 
 void Network::Handler::process(void)
@@ -1974,6 +2083,7 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 		if(mTargets[target].empty())
 			mTargets.erase(target);
 	}
+	
 	notifyAll();
 }
 

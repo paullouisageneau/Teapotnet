@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/block.h"
-#include "tpn/store.h"
-#include "tpn/cache.h"
+#include "tpn/block.hpp"
+#include "tpn/store.hpp"
+#include "tpn/cache.hpp"
 
-#include "pla/crypto.h"
+#include "pla/crypto.hpp"
 
 namespace tpn
 {

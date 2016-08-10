@@ -19,25 +19,25 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/overlay.h"
-#include "tpn/httptunnel.h"
-#include "tpn/portmapping.h"
-#include "tpn/config.h"
-#include "tpn/cache.h"
-#include "tpn/store.h"
-#include "tpn/httptunnel.h"
+#include "tpn/overlay.hpp"
+#include "tpn/httptunnel.hpp"
+#include "tpn/portmapping.hpp"
+#include "tpn/config.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/store.hpp"
+#include "tpn/httptunnel.hpp"
 
-#include "pla/binaryserializer.h"
-#include "pla/jsonserializer.h"
-#include "pla/object.h"
-#include "pla/socket.h"
-#include "pla/serversocket.h"
-#include "pla/datagramsocket.h"
-#include "pla/securetransport.h"
-#include "pla/crypto.h"
-#include "pla/random.h"
-#include "pla/http.h"
-#include "pla/proxy.h"
+#include "pla/binaryserializer.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/socket.hpp"
+#include "pla/serversocket.hpp"
+#include "pla/datagramsocket.hpp"
+#include "pla/securetransport.hpp"
+#include "pla/crypto.hpp"
+#include "pla/random.hpp"
+#include "pla/http.hpp"
+#include "pla/proxy.hpp"
 
 namespace tpn
 {

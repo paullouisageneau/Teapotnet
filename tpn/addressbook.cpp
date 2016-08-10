@@ -19,27 +19,27 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/addressbook.h"
-#include "tpn/user.h"
-#include "tpn/network.h"
-#include "tpn/config.h"
-#include "tpn/cache.h"
-#include "tpn/request.h"
-#include "tpn/resource.h"
-#include "tpn/indexer.h"
-#include "tpn/html.h"
-#include "tpn/portmapping.h"
-#include "tpn/httptunnel.h"
+#include "tpn/addressbook.hpp"
+#include "tpn/user.hpp"
+#include "tpn/network.hpp"
+#include "tpn/config.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/request.hpp"
+#include "tpn/resource.hpp"
+#include "tpn/indexer.hpp"
+#include "tpn/html.hpp"
+#include "tpn/portmapping.hpp"
+#include "tpn/httptunnel.hpp"
 
-#include "pla/crypto.h"
-#include "pla/random.h"
-#include "pla/file.h"
-#include "pla/directory.h"
-#include "pla/yamlserializer.h"
-#include "pla/jsonserializer.h"
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
-#include "pla/mime.h"
+#include "pla/crypto.hpp"
+#include "pla/random.hpp"
+#include "pla/file.hpp"
+#include "pla/directory.hpp"
+#include "pla/yamlserializer.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/binaryserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/mime.hpp"
 
 namespace tpn
 {
@@ -1044,11 +1044,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.open("tr");
 			page.open("td");
 				page.openLink(prefix + "/search/");
-				page.image("/icon_search.png", "Search", ".bigicon");
+				page.image("/icon_search.png", "Sear.hpp", ".bigicon");
 				page.closeLink();
 			page.close("td");
 			page.open("td", ".title");
-				page.text("Search");
+				page.text("Sear.hpp");
 			page.close("td");
 			page.close("tr");
 			
@@ -1209,7 +1209,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.footer();
 			return;
 		}
-		else if(directory == "search")
+		else if(directory == "sear.hpp")
 		{
 			if(url != "/") throw 404;
 			
@@ -1232,14 +1232,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.stream);
 			
-			if(match.empty()) page.header(name() + ": Search");
+			if(match.empty()) page.header(name() + ": Sear.hpp");
 			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
 			if(!isSelf()) page.span((isConnected() ? "Connected" : "Disconnected"), "status.button");
-			page.openForm(prefix + "/search", "post", "searchForm");
+			page.openForm(prefix + "/sear.hpp", "post", "searchForm");
 			page.input("text", "query", match);
-			page.button("search","Search");
+			page.button("sear.hpp","Sear.hpp");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");

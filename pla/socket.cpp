@@ -19,10 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/socket.h"
-#include "pla/exception.h"
-#include "pla/http.h"
-#include "pla/proxy.h"
+#include "pla/socket.hpp"
+#include "pla/exception.hpp"
+#include "pla/http.hpp"
+#include "pla/proxy.hpp"
 
 namespace pla
 {

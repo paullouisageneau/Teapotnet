@@ -19,12 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/config.h"
-#include "tpn/network.h"
-#include "tpn/portmapping.h"
-#include "tpn/httptunnel.h"	// for user agent
+#include "tpn/config.hpp"
+#include "tpn/network.hpp"
+#include "tpn/portmapping.hpp"
+#include "tpn/httptunnel.hpp"	// for user agent
 
-#include "pla/file.h"
+#include "pla/file.hpp"
 
 namespace tpn
 {

@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/portmapping.h"
-#include "tpn/html.h"
-#include "tpn/network.h"
+#include "tpn/portmapping.hpp"
+#include "tpn/html.hpp"
+#include "tpn/network.hpp"
 
-#include "pla/scheduler.h"
-#include "pla/http.h"
-#include "pla/jsonserializer.h"
-#include "pla/object.h"
-#include "pla/random.h"
+#include "pla/scheduler.hpp"
+#include "pla/http.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/random.hpp"
 
 namespace tpn
 {
@@ -476,7 +476,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 </s:Body>\r\n\
 </s:Envelope>\r\n";
 
-		request.headers["Content-Length"] << content.size();
+		request.headers["Content-Leng.hpp"] << content.size();
 		request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 		request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#AddPortMapping";
 
@@ -566,7 +566,7 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 </s:Body>\r\n\
 </s:Envelope>\r\n";
 
-	request.headers["Content-Length"] << content.size();
+	request.headers["Content-Leng.hpp"] << content.size();
 	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#DeletePortMapping";
 
@@ -627,7 +627,7 @@ bool PortMapping::UPnP::parse(BinaryString &dgram)
 </s:Envelope>\r\n";
 
 	Http::Request request(mControlUrl, "POST");
-	request.headers["Content-Length"] << content.size();
+	request.headers["Content-Leng.hpp"] << content.size();
 	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#GetExternalIPAddress";
 
@@ -772,7 +772,7 @@ bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, Freebox
 	
 	String host;
 	request.headers.get("Host", host);
-	request.headers["Content-Length"] << post.size();
+	request.headers["Content-Leng.hpp"] << post.size();
 	request.headers["Content-Type"] = "application/json; charset=\"utf-8\"";
 	
 	Socket sock;

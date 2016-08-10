@@ -19,8 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/random.h"
-#include "pla/exception.h"
+#include "pla/random.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
 
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>

@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/time.h"
-#include "pla/exception.h"
-#include "pla/string.h"
-#include "pla/list.h"
+#include "pla/time.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
+#include "pla/list.hpp"
 
 namespace pla
 {
 
-Mutex Time::TimeMutex;
+std::mutex Time::TimeMutex;
 Time  Time::StartTime = Time();  
 
 Time Time::Now(void)
@@ -107,39 +107,35 @@ Time::~Time(void)
 
 int Time::hour(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = localtime(&mTime)->tm_hour;	// not thread safe
-	TimeMutex.unlock();
 	return result;
 }
 
 int Time::minute(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = localtime(&mTime)->tm_min;		// not thread safe
-	TimeMutex.unlock();
 	return result;
 }
 
 int Time::second(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = localtime(&mTime)->tm_sec;		// not thread safe
-	TimeMutex.unlock();
 	return result;
 }
 
 int Time::day(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = localtime(&mTime)->tm_mday;	// not thread safe
-	TimeMutex.unlock();
 	return result;
 }
 
 int Time::month(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = localtime(&mTime)->tm_mon;		// not thread safe
 	TimeMutex.unlock();
 	return result;
@@ -147,9 +143,8 @@ int Time::month(void) const
 
 int Time::year(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	int result = 1900 + localtime(&mTime)->tm_year;	// not thread safe
-	TimeMutex.unlock();
 	return result;
 }
 
@@ -261,12 +256,11 @@ void Time::addMicroseconds(int64_t usec)
 
 	mUsec = int(usec);
 
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
         struct tm tms = *localtime(&mTime);     // not thread safe
 	tms.tm_year+= d / 86400;
 	tms.tm_sec+= d % 86400;
 	mTime = std::mktime(&tms);
-        TimeMutex.unlock();
 }
 
 void Time::addMilliseconds(int64_t msec)
@@ -358,15 +352,15 @@ void Time::serialize(Serializer &s) const
 	switch(mFormat)
 	{
 		case IsoDate:
-			s.output(toIsoDate());
+			s << toIsoDate();
 			break;
 		
 		case IsoDateTime:
-			s.output(toIsoDate() + ' ' + toIsoTime());
+			s << (toIsoDate() + ' ' + toIsoTime());
 			break;
 		
 		default:
-			s.output(int64_t(mTime));
+			s << int64_t(mTime);
 			break;
 	}
 }
@@ -379,7 +373,7 @@ bool Time::deserialize(Serializer &s)
 		case IsoDateTime:
 		{
 			String str;
-			s.input(str);
+			if(!(s >> str)) return false;
 			parse(str);
 			break;
 		}
@@ -387,7 +381,7 @@ bool Time::deserialize(Serializer &s)
 		default:
 		{
 			int64_t tmp = 0;
-			s.input(tmp);
+			if(!(s >> tmp)) return false;
 			mTime = time_t(tmp);
 			mUsec = 0;
 			break;
@@ -563,7 +557,7 @@ void Time::parse(const String &str)
 			throw Exception(String("Unknown date format: ") + str);
 	}
 	
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	
 	char *tz = getenv("TZ");
 	putenv(const_cast<char*>("TZ=UTC"));
@@ -585,8 +579,6 @@ void Time::parse(const String &str)
 		putenv(const_cast<char*>("TZ="));
 	}
 	tzset();
-	
-	TimeMutex.unlock();
 	
 	if(mTime == time_t(-1)) 
 		throw Exception(String("Invalid date: ") + str);

@@ -19,23 +19,23 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/indexer.h"
-#include "tpn/user.h"
-#include "tpn/config.h"
-#include "tpn/html.h"
-#include "tpn/request.h"
-#include "tpn/cache.h"
-#include "tpn/addressbook.h"
+#include "tpn/indexer.hpp"
+#include "tpn/user.hpp"
+#include "tpn/config.hpp"
+#include "tpn/html.hpp"
+#include "tpn/request.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/addressbook.hpp"
 
-#include "pla/crypto.h"
-#include "pla/random.h"
-#include "pla/file.h"
-#include "pla/directory.h"
-#include "pla/jsonserializer.h"
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
-#include "pla/time.h"
-#include "pla/mime.h"
+#include "pla/crypto.hpp"
+#include "pla/random.hpp"
+#include "pla/file.hpp"
+#include "pla/directory.hpp"
+#include "pla/jsonserializer.hpp"
+#include "pla/binaryserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/time.hpp"
+#include "pla/mime.hpp"
 
 namespace tpn
 {
@@ -633,7 +633,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				throw 404;
 			
 			String path;
-			if(!request.get.get("path", path)) 
+			if(!request.get.get("pa.hpp", path)) 
 			{
 #ifdef WINDOWS
 				DWORD disks = GetLogicalDrives();
@@ -737,7 +737,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
 				page.input("hidden", "token", user()->generateToken("directory_add"));
 				page.openFieldset("Add directory");
-				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
+				page.label("", "Pa.hpp"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
 				page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
 				page.label("add"); page.button("add","Add directory");
@@ -898,7 +898,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				String redirect = prefix + url;
 			  	request.get.get("redirect", redirect);
 				
-				if(action == "refresh")
+				if(action == "refre.hpp")
 				{
 					start();
 					
@@ -909,7 +909,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					page.header("Refreshing in background...", true, redirect);
 					page.open("div", "notification");
 					page.openLink("/");
-					page.image("/refresh.png", "Refresh");
+					page.image("/refresh.png", "Refre.hpp");
 					page.closeLink();
 					page.br();
 					page.open("h1",".huge");
@@ -1308,7 +1308,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request,200);
 				if(request.get.contains("download")) response.headers["Content-Type"] = "application/force-download";
 				else response.headers["Content-Type"] = Mime::GetType(path);
-				response.headers["Content-Length"] << File::Size(path);
+				response.headers["Content-Leng.hpp"] << File::Size(path);
 				response.headers["Last-Modified"] = File::Time(path).toHttpDate();
 				response.send();
 
@@ -1637,8 +1637,8 @@ void Indexer::Query::serialize(Serializer &s) const
 	String strAccessLevel = (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public"));
 	
 	ConstObject object;
-	if(!mPath.empty())	object["path"] = &mPath;
-	if(!mMatch.empty())	object["match"] = &mMatch;
+	if(!mPath.empty())	object["pa.hpp"] = &mPath;
+	if(!mMatch.empty())	object["mat.hpp"] = &mMatch;
 	if(!mDigest.empty())	object["digest"] = &mDigest;
 	if(mOffset > 0)		object["offset"] = &offsetWrapper;
 	if(mCount > 0)		object["count"] = &countWrapper;
@@ -1654,8 +1654,8 @@ bool Indexer::Query::deserialize(Serializer &s)
 	String strAccessLevel;
 	
 	Object object;
-	object["path"] = &mPath;
-	object["match"] = &mMatch;
+	object["pa.hpp"] = &mPath;
+	object["mat.hpp"] = &mMatch;
 	object["digest"] = &mDigest;
 	object["offset"] = &offsetWrapper;
 	object["count"] = &countWrapper;
@@ -1696,7 +1696,7 @@ void Indexer::Entry::serialize(Serializer &s) const
 	String strAccessLevel = (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public"));
 	
 	ConstObject object;
-	object["path"] = &path;
+	object["pa.hpp"] = &path;
 	object["access"] = &strAccessLevel;
 
 	s.write(object);
@@ -1707,7 +1707,7 @@ bool Indexer::Entry::deserialize(Serializer &s)
 	String strAccessLevel;
 	
 	Object object;
-	object["path"] = &path;
+	object["pa.hpp"] = &path;
 	object["access"] = &strAccessLevel;
 	
 	bool ret = s.read(object);

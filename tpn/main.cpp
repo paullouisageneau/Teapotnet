@@ -19,27 +19,27 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/main.h"
-#include "tpn/store.h"
-#include "tpn/tracker.h"
-#include "tpn/cache.h"
-#include "tpn/store.h"
-#include "tpn/network.h"
-#include "tpn/user.h"
-#include "tpn/config.h"
-#include "tpn/portmapping.h"
-#include "tpn/fountain.h"
+#include "tpn/main.hpp"
+#include "tpn/store.hpp"
+#include "tpn/tracker.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/store.hpp"
+#include "tpn/network.hpp"
+#include "tpn/user.hpp"
+#include "tpn/config.hpp"
+#include "tpn/portmapping.hpp"
+#include "tpn/fountain.hpp"
 
-#include "pla/map.h"
-#include "pla/time.h"
-#include "pla/http.h"
-#include "pla/directory.h"
-#include "pla/thread.h"
-#include "pla/scheduler.h"
-#include "pla/random.h"
-#include "pla/securetransport.h"
-#include "pla/proxy.h"
-#include "pla/file.h"
+#include "pla/map.hpp"
+#include "pla/time.hpp"
+#include "pla/http.hpp"
+#include "pla/directory.hpp"
+#include "pla/thread.hpp"
+#include "pla/scheduler.hpp"
+#include "pla/random.hpp"
+#include "pla/securetransport.hpp"
+#include "pla/proxy.hpp"
+#include "pla/file.hpp"
 
 #include <signal.h>
 
@@ -56,7 +56,7 @@
 #include <CoreFoundation/CFUserNotification.h>
 #endif
 
-#include "pla/jsonserializer.h"
+#include "pla/jsonserializer.hpp"
 
 using namespace tpn;
 
@@ -297,7 +297,7 @@ int main(int argc, char** argv)
 		}
 		if(!last.empty()) args[last] = "";
 		
-		if(args.contains("help") || args.contains("h"))
+		if(args.contains("help") || args.contains(.hpp"))
 		{
 			std::cout<<APPNAME<<" "<<APPVERSION<<std::endl;
 			std::cout<<APPAUTHOR<<std::endl;
@@ -474,7 +474,7 @@ int run(String &commandLine, StringMap &args)
 			
 			CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
 			if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
-				throw Exception("Unable to find application executable path");
+				throw Exception("Unable to find application executable pa.hpp");
 			
 			String executablePath(path);
 			

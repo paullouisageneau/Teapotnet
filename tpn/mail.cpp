@@ -19,15 +19,15 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/mail.h"
-#include "tpn/network.h"
-#include "tpn/user.h"
+#include "tpn/mail.hpp"
+#include "tpn/network.hpp"
+#include "tpn/user.hpp"
 
-#include "pla/binarystring.h"
-#include "pla/yamlserializer.h"
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
-#include "pla/crypto.h"
+#include "pla/binarystring.hpp"
+#include "pla/yamlserializer.hpp"
+#include "pla/binaryserializer.hpp"
+#include "pla/object.hpp"
+#include "pla/crypto.hpp"
 
 namespace tpn
 {
@@ -106,11 +106,6 @@ void Mail::addAttachment(const BinaryString &attachment)
 	}
 }
 
-bool Mail::isSigned(void) const
-{
-	return !mSignature.empty();  
-}
-
 void Mail::sign(const Identifier &identifier, const Rsa::PrivateKey &privKey)
 {
 	Assert(!identifier.empty());
@@ -121,6 +116,11 @@ void Mail::sign(const Identifier &identifier, const Rsa::PrivateKey &privKey)
 bool Mail::check(const Rsa::PublicKey &pubKey) const
 {
 	return pubKey.verify(digest(), mSignature);
+}
+
+bool Mail::isSigned(void) const
+{
+	return !mSignature.empty();  
 }
 
 void Mail::serialize(Serializer &s) const

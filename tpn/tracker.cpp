@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/tracker.h"
+#include "tpn/tracker.hpp"
 
-#include "pla/jsonserializer.h"
+#include "pla/jsonserializer.hpp"
 
 namespace tpn
 {

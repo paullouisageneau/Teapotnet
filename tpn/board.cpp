@@ -19,17 +19,17 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/board.h"
-#include "tpn/resource.h"
-#include "tpn/cache.h"
-#include "tpn/html.h"
-#include "tpn/user.h"
-#include "tpn/store.h"
-#include "tpn/config.h"
+#include "tpn/board.hpp"
+#include "tpn/resource.hpp"
+#include "tpn/cache.hpp"
+#include "tpn/html.hpp"
+#include "tpn/user.hpp"
+#include "tpn/store.hpp"
+#include "tpn/config.hpp"
 
-#include "pla/jsonserializer.h"
-#include "pla/binaryserializer.h"
-#include "pla/object.h"
+#include "pla/jsonserializer.hpp"
+#include "pla/binaryserializer.hpp"
+#include "pla/object.hpp"
 
 namespace tpn
 {

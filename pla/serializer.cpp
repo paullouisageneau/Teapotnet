@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -19,103 +19,164 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/serializer.h"
-#include "pla/serializable.h"
-#include "pla/exception.h"
-#include "pla/string.h"
-#include "pla/binarystring.h"
-#include "pla/map.h"
-#include "pla/array.h"
-#include "pla/object.h"
+#include "pla/serializer.hpp"
+#include "pla/string.hpp"
+#include "pla/binarystring.hpp"
+#include "pla/exception.hpp"
 
 namespace pla
 {
 
-Serializer::Serializer(void) :
-	mOptionalOutputMode(false)
-{
-  
-}
-
-Serializer::~Serializer(void)
-{
-  
-}
- 
-bool Serializer::input(Serializable &s)
+bool Serializer::Serializer::read(Serializable &s)
 {
 	return s.deserialize(*this);
 }
 
-bool Serializer::input(const Serializable &s)
+void Serializer::Serializer::write(const Serializable &s)
 {
-	// Should not happen
-	throw Unsupported("Serializer input with const object");
+	s.serialize(*this);
 }
 
-bool Serializer::input(Element &element)
+bool Serializer::read(String &s)
 {
-	return element.deserialize(*this); 
+	return read(static_cast<Serializable&>(s));
 }
 
-bool Serializer::input(Pair &pair)
+void Serializer::write(const String &s)
 {
-	return pair.deserialize(*this);
+	write(static_cast<const Serializable&>(s));
 }
 
-void Serializer::output(const Serializable &s)
+bool Serializer::read(BinaryString &s)
 {
-        s.serialize(*this);
+	return read(static_cast<Serializable&>(s));
 }
 
-void Serializer::output(const Element &element)
+void Serializer::write(const BinaryString &s)
 {
-        element.serialize(*this); 
+	write(static_cast<const Serializable&>(s));
 }
 
-void Serializer::output(const Pair &pair)
+bool Serializer::read(uint8_t &i)
 {
-        pair.serialize(*this);  
+	uint64_t t = 0;
+	if(!read(t)) return false; 
+	i = uint8_t(t);
+	return true;
+}
+
+bool Serializer::read(uint16_t &i)
+{
+	uint64_t t = 0;
+	if(!read(t)) return false; 
+	i = uint16_t(t);
+	return true;
+}
+
+bool Serializer::read(uint32_t &i)
+{
+	uint64_t t = 0;
+	if(!read(t)) return false; 
+	i = uint32_t(t);
+	return true;
+}
+
+bool Serializer::read(uint64_t &i)
+{
+	int64_t t = 0;
+	if(!read(t)) return false; 
+	i = uint64_t(t);
+	return true;
+}
+
+bool Serializer::read(int8_t &i)
+{
+	int64_t t = 0;
+	if(!read(t)) return false; 
+	i = int8_t(t);
+	return true;
+}
+
+bool Serializer::read(int16_t &i)
+{
+	int64_t t = 0;
+	if(!read(t)) return false; 
+	i = int16_t(t);
+	return true;
+}
+
+bool Serializer::read(int32_t &i)
+{
+	int64_t t = 0;
+	if(!read(t)) return false; 
+	i = int8_t(t);
+	return true;
+}
+
+bool Serializer::read(float &f)
+{
+	double t = 0;
+	if(!read(t)) return false; 
+	f = float(t);
+	return true;
+}
+
+bool Serializer::read(bool &b)
+{ 
+	uint8_t t = 0;
+	if(!read(t)) return false; 
+	b = (t != 0);
+	return true;
+}
+	
+void Serializer::write(uint8_t i)
+{
+	write(uint64_t(i));
+}
+
+void Serializer::write(uint16_t i)
+{
+	write(uint64_t(i));
+}
+
+void Serializer::write(uint32_t i)
+{
+	write(uint64_t(i));
+}
+
+void Serializer::write(uint64_t i)
+{
+	write(int64_t(i));
+}
+
+void Serializer::write(int8_t i)
+{
+	write(int64_t(i));
+}
+
+void Serializer::write(int16_t i)
+{
+	write(int64_t(i));
+}
+
+void Serializer::write(int32_t i)
+{
+	write(int64_t(i));
+}
+
+void Serializer::write(float f)
+{
+	write(double(f));
+}
+
+void Serializer::write(bool b)
+{ 
+	write(uint8_t(b ? 1 : 0)); 
 }
 
 bool Serializer::skip(void)
 {
-	String dummy;
-	return input(dummy);
-}
-
-bool Serializer::optionalOutputMode(void) const
-{
-	return mOptionalOutputMode;  
-}
-
-Serializer &Serializer::setOptionalOutputMode(bool enabled)
-{
-	mOptionalOutputMode = enabled; 
-	return *this;
-}
-
-bool Serializer::inputObject(Object &object)
-{
-	return input(object);
-}
-
-void Serializer::outputObject(ConstObject &object)
-{
-	output(object);
-}
-
-void Serializer::Pair::serialize(Serializer &s) const
-{
-	serializeKey(s);
-	serializeValue(s);
-}
-		 
-bool Serializer::Pair::deserialize(Serializer &s)
-{
-	if(!deserializeKey(s)) return false;
-	return deserializeValue(s);  
+	throw Unsupported("Serializer cannot skip");
 }
 
 }
-

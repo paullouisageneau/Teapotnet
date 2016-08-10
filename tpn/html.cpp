@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/html.h"
-#include "tpn/request.h"
-#include "tpn/user.h"
-#include "tpn/config.h"
+#include "tpn/html.hpp"
+#include "tpn/request.hpp"
+#include "tpn/user.hpp"
+#include "tpn/config.hpp"
 
-#include "pla/exception.h"
-#include "pla/mime.h"
+#include "pla/exception.hpp"
+#include "pla/mime.hpp"
 
 namespace tpn
 {

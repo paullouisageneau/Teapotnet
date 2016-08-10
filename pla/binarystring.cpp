@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/binarystring.h"
-#include "pla/exception.h"
-#include "pla/string.h"
+#include "pla/binarystring.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
 
 namespace pla
 {
@@ -174,10 +174,10 @@ BinaryString BinaryString::base64Decode(void) const
 
 void BinaryString::serialize(Serializer &s) const
 {
-	s.output(uint32_t(size()));
+	s << uint32_t(size());
 
 	for(int i=0; i<size(); ++i)
-		s.output(uint8_t(at(i)));
+		s << uint8_t(at(i));
 }
 
 bool BinaryString::deserialize(Serializer &s)
@@ -185,12 +185,12 @@ bool BinaryString::deserialize(Serializer &s)
 	clear();
 	
 	uint32_t count;
-	if(!s.input(count)) return false;
+	if(!s >> count) return false;
 
 	uint8_t b;
 	for(uint32_t i=0; i<count; ++i)
 	{
-		AssertIO(s.input(b));
+		AssertIO(s >> b);
 		push_back(b);
 	}
 
@@ -204,8 +204,8 @@ void BinaryString::serialize(Stream &s) const
 		std::ostringstream oss;
 		oss.width(2);
 		oss.fill('0');
-		oss<<std::hex<<std::uppercase<<unsigned(uint8_t(at(i)));
-		s<<oss.str();
+		oss << std::hex << std::uppercase << unsigned(uint8_t(at(i)));
+		s << oss.str();
 	}
 }
 

@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/file.h"
-#include "pla/exception.h"
-#include "pla/directory.h"
+#include "pla/file.hpp"
+#include "pla/exception.hpp"
+#include "pla/directory.hpp"
 
 namespace pla
 {

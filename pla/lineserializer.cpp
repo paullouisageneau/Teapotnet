@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/lineserializer.h"
-#include "pla/exception.h"
-#include "pla/serializable.h"
+#include "pla/lineserializer.hpp"
+#include "pla/exception.hpp"
+#include "pla/serializable.hpp"
 
 namespace pla
 {
@@ -37,95 +37,66 @@ LineSerializer::~LineSerializer(void)
  
 }
  
-bool LineSerializer::input(Serializable &s)
+bool LineSerializer::read(Serializable &s)
 {
 	if(s.isInlineSerializable() && !s.isNativeSerializable())
 	{
 		String line;
-		if(!input(line)) return false;
+		if(!Serializer::read(line)) return false;
 		s.fromString(line);
 		return true;
 	}
 	else return s.deserialize(*this);
 }
 
-bool LineSerializer::input(Element &element)
-{
-	String line;
-	if(!mStream->readLine(line)) return false;
-	if(line.empty()) return false;
-	LineSerializer serializer(&line);
-	element.deserialize(serializer);
-	return true;
-}
-
-
-bool LineSerializer::input(Pair &pair)
-{
-	String line;
-	if(!mStream->readLine(line)) return false;
-	if(line.empty()) return false;
-	
-	String value = line.cut('=');
-	value.trim();
-	
-	LineSerializer keySerializer(&line);
-	LineSerializer valueSerializer(&value);
-	pair.deserializeKey(keySerializer);
-	AssertIO(pair.deserializeValue(valueSerializer));
-	return true;
-}
-
-bool LineSerializer::input(String &str)
+bool LineSerializer::read(std::string &str)
 {
 	// TODO: unescape
 	return mStream->readLine(str);
 }
 
-void LineSerializer::output(const Serializable &s)
+void LineSerializer::write(const Serializable &s)
 {
-	if(s.isInlineSerializable() && !s.isNativeSerializable()) output(s.toString());
+	if(s.isInlineSerializable() && !s.isNativeSerializable()) Serializer::write(s.toString());
 	else s.serialize(*this);	
 	mStream->newline();
 }
 
-void LineSerializer::output(const Element &element)
-{
-	String line;
-	LineSerializer serializer(&line);
-	element.serialize(serializer);
-	if(!line.empty()) line.resize(line.size()-1);
-	output(line);
-}
-
-void LineSerializer::output(const Pair &pair)
-{
-	String key, value;
-	LineSerializer keySerializer(&key);
-	LineSerializer valueSerializer(&value);
-	pair.serializeKey(keySerializer);
-	pair.serializeValue(valueSerializer);
-	key.trim();
-	value.trim();
-	String line;
-	line<<key<<'='<<value;
-	output(line);
-}
-
-void LineSerializer::output(const String &str)
+void LineSerializer::write(const std::string &str)
 {	
 	// TODO: escape
 	mStream->writeLine(str);
 }
 
-bool LineSerializer::inputArrayBegin(void)
+bool LineSerializer::readArrayBegin(void)
 {
 	return !mStream->atEnd();
 }
 
-bool LineSerializer::inputMapBegin(void)
+bool LineSerializer::readArrayNext(void)
 {
 	return !mStream->atEnd();
 }
 
+bool LineSerializer::readMapBegin(void)
+{
+	return !mStream->atEnd();
 }
+
+bool LineSerializer::readMapNext(void)
+{
+	return !mStream->atEnd();
+}
+
+void LineSerializer::writeArrayEnd(void)
+{
+	mStream->newline();
+}
+
+void LineSerializer::writeMapEnd(void)
+{
+	mStream->newline();
+}
+
+}
+

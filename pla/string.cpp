@@ -19,13 +19,13 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/string.h"
-#include "pla/exception.h"
-#include "pla/array.h"
-#include "pla/list.h"
-#include "pla/set.h"
-#include "pla/map.h"
-#include "pla/binarystring.h"
+#include "pla/string.hpp"
+#include "pla/exception.hpp"
+#include "pla/array.hpp"
+#include "pla/list.hpp"
+#include "pla/set.hpp"
+#include "pla/map.hpp"
+#include "pla/binarystring.hpp"
 
 namespace pla
 {
@@ -725,12 +725,12 @@ const char &String::operator [](int pos) const
 
 void String::serialize(Serializer &s) const
 {
-	s.output(*this);
+	s << *static_cast<const std::string*>(this);
 }
 
 bool String::deserialize(Serializer &s)
 {
-	return s.input(*this);
+	return !!(s >> *static_cast<std::string*>(this));
 }
 
 void String::serialize(Stream &s) const

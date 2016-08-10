@@ -19,11 +19,11 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/request.h"
-#include "tpn/config.h"
+#include "tpn/request.hpp"
+#include "tpn/config.hpp"
 
-#include "pla/jsonserializer.h"
-#include "pla/mime.h"
+#include "pla/jsonserializer.hpp"
+#include "pla/mime.hpp"
 
 namespace tpn
 {
@@ -258,7 +258,7 @@ int Request::timeParamToSeconds(String param)
 	try {
 		int s = 0;
 	
-		if(param.contains("h"))
+		if(param.contains(.hpp"))
 		{
 			String hours = param;
 			param = hours.cut('h');

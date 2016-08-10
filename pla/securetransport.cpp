@@ -19,11 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/securetransport.h"
-#include "pla/exception.h"
-#include "pla/random.h"
-#include "pla/thread.h"
-#include "pla/datagramsocket.h"
+#include "pla/securetransport.hpp"
+#include "pla/exception.hpp"
+#include "pla/random.hpp"
+#include "pla/datagramsocket.hpp"
 
 #include <gnutls/dtls.h>
 
@@ -35,7 +34,7 @@ double SecureTransport::DefaultTimeout = 10.;	// Defaults to 10 secs
 // Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
 String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
 gnutls_dh_params_t SecureTransport::Params;
-Mutex SecureTransport::ParamsMutex;
+std::mutex SecureTransport::ParamsMutex;
 
 void SecureTransport::Init(void)
 {
@@ -53,7 +52,7 @@ void SecureTransport::GenerateParams(void)
 {
 	const int bits = 4096;
 	
-	MutexLocker lock(&ParamsMutex);
+	std::unique_lock<std::mutex> lock(ParamsMutex);
 	LogDebug("SecureTransport::GenerateParams", "Generating DH parameters");
 	int ret = gnutls_dh_params_generate2(Params, bits);
 	if (ret < 0) throw Exception(String("Failed to generate DH parameters: ") + ErrorString(ret));
@@ -655,10 +654,11 @@ SecureTransport::Certificate::Certificate(const String &certFilename, const Stri
         gnutls_certificate_set_x509_system_trust(mCreds);
 	
 	// Set DH parameters
-	ParamsMutex.lock();
-	gnutls_certificate_set_dh_params(mCreds, Params);
-	ParamsMutex.unlock();
-
+	{
+		std::unique_lock<std::mutex> lock(ParamsMutex);
+		gnutls_certificate_set_dh_params(mCreds, Params);
+	}
+	
 	// Import certificate and private key
 	int ret = gnutls_certificate_set_x509_key_file2(	mCreds,
 								certFilename.c_str(),
@@ -970,7 +970,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *re
 					DirectWriteCallback);
 		
 		// discard peeked data
-		Thread::Sleep(milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
 
@@ -980,9 +980,10 @@ SecureTransportServer::Anonymous::Anonymous(void)
 	Assert(gnutls_anon_allocate_server_credentials(&mCreds) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
-	ParamsMutex.lock();
-	gnutls_anon_set_server_dh_params(mCreds, Params);
-	ParamsMutex.unlock();
+	{
+		std::unique_lock<std::mutex> lock(ParamsMutex);
+		gnutls_anon_set_server_dh_params(mCreds, Params);
+	}
 }
 
 SecureTransportServer::Anonymous::~Anonymous(void)
@@ -1006,9 +1007,10 @@ SecureTransportServer::PrivateSharedKey::PrivateSharedKey(const String &hint)
 		Assert(gnutls_psk_set_server_credentials_hint(mCreds, hint.c_str()) == GNUTLS_E_SUCCESS);
 	
 	// Set DH parameters
-	ParamsMutex.lock();
-	gnutls_psk_set_server_dh_params(mCreds, Params);
-	ParamsMutex.unlock();
+	{
+		std::unique_lock<std::mutex> lock(ParamsMutex);
+		gnutls_psk_set_server_dh_params(mCreds, Params);
+	}
 	
 	// Set PSK callback
 	gnutls_psk_set_server_credentials_function(mCreds, SecureTransport::PrivateSharedKeyCallback);

@@ -6,7 +6,7 @@ TPROOT=/var/lib/teapotnet
 CC=gcc
 CXX=g++
 RM=rm -f
-CPPFLAGS=-O2 -g -DDEBUG
+CPPFLAGS=-std=c++11 -O2 -g -DDEBUG
 LDFLAGS=-O2 -g
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 

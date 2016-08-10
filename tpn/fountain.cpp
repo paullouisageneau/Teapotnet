@@ -19,10 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "tpn/fountain.h"
+#include "tpn/fountain.hpp"
 
-#include "pla/random.h"
-#include "pla/crypto.h"
+#include "pla/random.hpp"
+#include "pla/crypto.hpp"
 
 namespace tpn
 {

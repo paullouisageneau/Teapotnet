@@ -19,10 +19,10 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/datagramsocket.h"
-#include "pla/exception.h"
-#include "pla/string.h"
-#include "pla/time.h"
+#include "pla/datagramsocket.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
+#include "pla/time.hpp"
 
 namespace pla
 {
@@ -327,7 +327,7 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 
 void DatagramSocket::close(void)
 {
-	MutexLocker lock(&mStreamsMutex);
+	std::unique_lock<std::mutex> lock(mStreamsMutex);
 	
 	for(Map<Address, Set<DatagramStream*> >::iterator it = mStreams.begin();
 		it != mStreams.end();
@@ -337,12 +337,15 @@ void DatagramSocket::close(void)
 			jt != it->second.end();
 			++jt)
 		{
-			Synchronize(&(*jt)->mSync);
-			(*jt)->mSock = NULL;
-			(*jt)->mSync.notifyAll();
+			DatagramStream *stream = *jt;
+			
+			std::unique_lock<std::mutex> lock(stream->mMutex);
+			stream->mSock = NULL;
+			lock.unlock();
+			stream->mCondition.notify_all();
 		}
 	}
-
+	
 	mStreams.clear();
 	
 	if(mSock != INVALID_SOCKET)
@@ -462,7 +465,7 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
 		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 		
-		MutexLocker lock(&mStreamsMutex);
+		std::unique_lock<std::mutex> lock(mStreamsMutex);
 		Map<Address, Set<DatagramStream*> >::iterator it = mStreams.find(sender.unmap());
 		if(it == mStreams.end())
 		{
@@ -481,11 +484,13 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		{
 			DatagramStream *stream = *jt;
 			Assert(stream);
-			Synchronize(&stream->mSync);
+			std::unique_lock<std::mutex> lock(stream->mMutex);
 			
 			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
 				stream->mIncoming.push(tmp);
-			stream->mSync.notifyAll();
+			
+			lock.unlock();
+			stream->mCondition.notify_all();
 		}
 		
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
@@ -518,7 +523,7 @@ void DatagramSocket::registerStream(DatagramStream *stream)
 	Assert(stream);
 	Address addr(stream->mAddr.unmap());
 	
-	MutexLocker lock(&mStreamsMutex);
+	std::unique_lock<std::mutex> lock(mStreamsMutex);
 	mStreams[addr].insert(stream);
 }
 
@@ -527,7 +532,7 @@ bool DatagramSocket::unregisterStream(DatagramStream *stream)
 	Assert(stream);
 	Address addr(stream->mAddr.unmap());
 	
-	MutexLocker lock(&mStreamsMutex);
+	std::unique_lock<std::mutex> lock(mStreamsMutex);
 	mStreams[addr].erase(stream);
 	if(mStreams[addr].empty())
 		mStreams.erase(addr);
@@ -578,16 +583,10 @@ void DatagramStream::setTimeout(double timeout)
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	Synchronize(&mSync);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	double timeout = mTimeout;
-	while(mIncoming.empty())
-	{
-		if(!mSock) return 0;
-		if(mTimeout <= 0.) return 0;
-		if(!mSync.wait(timeout))
-			throw Timeout();
-	}
+	if(waitData(mTimeout))
+		throw Timeout();
 
 	Assert(mOffset <= mIncoming.front().size());
 	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
@@ -604,21 +603,23 @@ void DatagramStream::writeData(const char *data, size_t size)
 
 bool DatagramStream::waitData(double &timeout)
 {
-	Synchronize(&mSync);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	while(mIncoming.empty())
+	if(mSock && mIncoming.empty())
 	{
-		if(!mSock) return true;	// readData will return 0
-		if(mTimeout <= 0.) return false;
-		if(!mSync.wait(timeout)) return false;
+		this->mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this]()
+		{ 
+			return !this->mIncoming.empty();
+		});
 	}
 	
-	return true;
+	return !(mSock && mIncoming.empty());
 }
 
 bool DatagramStream::nextRead(void)
 {
-	Synchronize(&mSync);
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	if(mIncoming.empty()) return false;
 	mIncoming.pop();
 	mOffset = 0;
@@ -634,14 +635,16 @@ bool DatagramStream::nextWrite(void)
 
 void DatagramStream::close(void)
 {
-	Synchronize(&mSync);
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	if(mSock)
 	{
 		while(!mIncoming.empty()) mIncoming.pop();
 		mSock->unregisterStream(this);
 		mSock = NULL;
 	}
-	mSync.notifyAll();
+	
+	mCondition.notify_all();
 }
 
 bool DatagramStream::isDatagram(void) const

@@ -19,9 +19,9 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#include "pla/serversocket.h"
-#include "pla/exception.h"
-#include "pla/string.h"
+#include "pla/serversocket.hpp"
+#include "pla/exception.hpp"
+#include "pla/string.hpp"
 
 namespace pla
 {
