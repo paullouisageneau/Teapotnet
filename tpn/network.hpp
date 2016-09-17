@@ -42,7 +42,7 @@ namespace tpn
 
 class User;
   
-class Network : protected Synchronizable, public Thread
+class Network
 {
 public:
 	static const unsigned DefaultTokens;
@@ -115,7 +115,7 @@ public:
 		ThreadPool mThreadPool;
 	};
 	
-	class Caller : protected Synchronizable
+	class Caller
 	{
 	public:
 		Caller(void);
@@ -192,7 +192,7 @@ public:
 	bool hasLink(const Identifier &local, const Identifier &remote);
 	bool hasLink(const Link &link);
 	
-	void run(void);
+	void operator()(void);
 	
 private:
 	class RemotePublisher : public Publisher
@@ -218,7 +218,7 @@ private:
 		bool localOnly(void) const;
 	};
 	
-	class Tunneler : protected Synchronizable, public Thread
+	class Tunneler
 	{
 	public:
 		Tunneler(void);
@@ -228,7 +228,7 @@ private:
 		bool incoming(const Overlay::Message &message);
 		
 	private:
-		class Tunnel : protected Synchronizable, public Stream
+		class Tunnel : public Stream
 		{
 		public:
 			Tunnel(Tunneler *tunneler, uint64_t id, const BinaryString &node);
@@ -265,7 +265,7 @@ private:
 		SecureTransport *listen(BinaryString *source);
 
 		bool handshake(SecureTransport *transport, const Link &link, bool async = false);
-		void run(void);
+		void operator()(void);
 		
 		Map<uint64_t, Tunnel*> mTunnels;
 		ThreadPool mThreadPool;
@@ -273,7 +273,7 @@ private:
 		Set<BinaryString> mPending;		// Pending nodes
 	};
 	
-	class Handler : private Stream, private Synchronizable, public Task
+	class Handler : private Stream
 	{
 	public:
 		Handler(Stream *stream, const Link &link);
@@ -297,11 +297,11 @@ private:
 		void sendCombination(const Fountain::Combination &combination);
 		
 		void process(void);
-		void run(void);
+		void operator()(void);
 		
 		Stream *mStream;
 		Link mLink;
-		Mutex mWriteMutex;
+		std::mutex mWriteMutex;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		Map<BinaryString, unsigned> mTargets;
@@ -311,11 +311,11 @@ private:
 		double mTimeout;
 		bool mClosed;
 		
-		class TimeoutTask : public Task
+		class TimeoutTask
 		{
 		public:
 			TimeoutTask(Handler *handler) { this->handler = handler; }
-			void run(void) { handler->timeout(); }
+			void operator()(void) { handler->timeout(); }
 		private:
 			Handler *handler;
 		};
@@ -350,14 +350,14 @@ private:
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, RemoteSubscriber> > mRemoteSubscribers;
 	
-	class Pusher : protected Synchronizable, public Thread
+	class Pusher
 	{
 	public:
 		Pusher(void);
 		~Pusher(void);
 		
 		void push(const BinaryString &target, const Identifier &destination, unsigned tokens);
-		void run(void);
+		void operator()(void);
 		
 	private:
 		Map<BinaryString, Map<Identifier, unsigned> > mTargets;

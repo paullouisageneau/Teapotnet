@@ -46,7 +46,7 @@ namespace tpn
 {
 
 // Overlay network implementation
-class Overlay : protected Synchronizable, public Serializable, public Task
+class Overlay : public Serializable
 {
 public:
 	static const int MaxQueueSize;
@@ -125,8 +125,7 @@ public:
 	void retrieve(const BinaryString &key);					// async
 	bool retrieve(const BinaryString &key, Set<BinaryString> &values);	// sync
 	
-	void run(void);
-	void launch(Task *task);
+	void operator()(void);
 	
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
@@ -142,7 +141,7 @@ private:
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
 	
-	class Backend : public Thread
+	class Backend
 	{
 	public:
 		Backend(Overlay *overlay);
@@ -155,7 +154,7 @@ private:
 		
 	protected:
 		bool handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote = "");
-		void run(void);
+		void operator()(void);
 
 		Overlay *mOverlay;
 	};
@@ -193,7 +192,7 @@ private:
 		DatagramSocket mSock;
 	};
 	
-	class Handler : public Task, protected Synchronizable
+	class Handler
 	{
 	public:
 		Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr);	// stream will be deleted
@@ -210,8 +209,6 @@ private:
 
 		BinaryString node(void) const;
 		
-		Task *senderTask(void);
-		
 	private:
 		void process(void);
 		void run(void);
@@ -222,7 +219,9 @@ private:
 		Set<Address> mAddrs;
 		bool mShouldStop;
 		
-		class Sender : public Task, protected Synchronizable
+		std::mutex mMutex;
+		
+		class Sender
 		{
 		public:
 			Sender(Overlay *overlay, Stream *stream);
@@ -232,7 +231,7 @@ private:
 			void stop(void);
 			
 		private:
-			void run(void);
+			void operator()(void);
 			void send(const Message &message);
 			
 			Overlay *mOverlay;
@@ -242,12 +241,13 @@ private:
 		};
 		
 		Sender mSender;
+		std::thread mSenderThread;
 	};
 
 	void registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
 	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 	
-	bool track(const String &tracker, SerializableMap<BinaryString, SerializableSet<Address> > &result);
+	bool track(const String &tracker, Map<BinaryString, Set<Address> > &result);
 	
 	ThreadPool mThreadPool;
 	
@@ -262,10 +262,10 @@ private:
 	Set<Address> mRemoteAddresses, mLocalAddresses;
 	
 	Queue<Message> mIncoming;
-	Synchronizable mIncomingSync;
-
-	Synchronizable mRetrieveSync;
 	Set<BinaryString> mRetrievePending;
+	
+	std::mutex mMutex;
+	std::condition_variable mCondition;
 };
 
 }

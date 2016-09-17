@@ -96,7 +96,7 @@ public:
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
 		
-		SerializableArray<BinaryString> blockDigests;
+		Array<BinaryString> blockDigests;
 		BinaryString signature;
 		BinaryString salt;
 	};
@@ -148,22 +148,20 @@ public:
 	};
 	
 	// JSON resource importer
-	class ImportTask : public Task
+	class ImportTask
 	{
 	public:
 		ImportTask(Serializable *object, 
 				const BinaryString &digest,
 				const String &type = "",
-				const BinaryString &secret = "",
-				bool autoDelete = false);
-		void run(void);
+				const BinaryString &secret = "");
+		void operator()(void);
 		
 	private:
 		Serializable *mObject;
 		BinaryString  mDigest;
 		BinaryString  mSecret;
 		String        mType;
-		bool mAutoDelete;
 	};
 	
 protected:

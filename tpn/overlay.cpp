@@ -120,7 +120,7 @@ Overlay::~Overlay(void)
 
 void Overlay::load()
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!File::Exist(mFileName)) return;
 	File file(mFileName, File::Read);
@@ -131,7 +131,7 @@ void Overlay::load()
 
 void Overlay::save() const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
@@ -169,38 +169,38 @@ void Overlay::join(void)
 
 String Overlay::localName(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!mName.empty());
 	return mName;
 }
 
 BinaryString Overlay::localNode(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey.digest();
 }
 
 const Rsa::PublicKey &Overlay::publicKey(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey; 
 }
 
 const Rsa::PrivateKey &Overlay::privateKey(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPrivateKey; 
 }
 
 SecureTransport::Certificate *Overlay::certificate(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mCertificate;
 }
 
 void Overlay::getAddresses(Set<Address> &set) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	set.clear();
 	for(List<Backend*>::const_iterator it = mBackends.begin();
@@ -216,7 +216,7 @@ void Overlay::getAddresses(Set<Address> &set) const
 
 bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
 {
-	class ConnectTask : public Task
+	class ConnectTask
 	{
 	public:
 		ConnectTask(const List<Backend*> &backends, const Set<Address> &addrs, const BinaryString &remote)
@@ -246,7 +246,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 			return false;
 		}
 		
-		void run(void)
+		void operator()(void)
 		{
 			connect();
 			delete this;	// autodelete
@@ -260,7 +260,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 	
 	ConnectTask *task = NULL;
 	try {
-		Synchronize(this);
+		std::unique_lock<std::mutex> lock(mMutex);
 		
 		if(isConnected(remote)) return true;
 		
@@ -301,19 +301,19 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 
 bool Overlay::isConnected(const BinaryString &remote) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mHandlers.contains(remote);
 }
 
 int Overlay::connectionsCount(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mHandlers.size();
 }
 
 bool Overlay::recv(Message &message, double &timeout)
 {
-	Synchronize(&mIncomingSync);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	if(timeout > 0.)
 	{
@@ -338,7 +338,7 @@ bool Overlay::recv(Message &message, const double &timeout)
 
 bool Overlay::send(const Message &message)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return route(message);	// Alias	
 }
 
@@ -361,7 +361,8 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 
 void Overlay::retrieve(const BinaryString &key)
 {
-	Desynchronize(this);
+	//TODO: sync
+	
 	send(Message(Message::Retrieve, "", key));
 	
 	// Push Value messages in local queue
@@ -377,8 +378,7 @@ void Overlay::retrieve(const BinaryString &key)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
-	Desynchronize(this);
-	Synchronize(&mRetrieveSync);
+	// TODO: sync
 	
 	bool sent = false;
 	if(!mRetrievePending.contains(key))
@@ -400,7 +400,7 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 	return !values.empty();
 }
 
-void Overlay::run(void)
+void Overlay::operator()(void)
 {
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
@@ -445,14 +445,10 @@ void Overlay::run(void)
 	}
 }
 
-void Overlay::launch(Task *task)
-{
-	mThreadPool.launch(task);
-}
-
 bool Overlay::incoming(Message &message, const BinaryString &from)
 {
-	Synchronize(this);
+	//TODO: sync
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Route if necessary
 	if((message.type & 0x80) && !message.destination.empty() && message.destination != localNode())
@@ -511,7 +507,6 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
-			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
 			
 			route(message);
@@ -532,7 +527,6 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Store value in DHT
 	case Message::Store:
 		{
-			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);			
 
@@ -548,8 +542,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					}
 				}
 			}
-
-			Synchronize(&mRetrieveSync);
+			
 			if(mRetrievePending.contains(message.content))
 			{
 				mRetrievePending.erase(message.content);
@@ -563,14 +556,12 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
-			Desynchronize(this);
 			//LogDebug("Overlay::Incoming", "Value " + message.source.toString());
 			
 			// Value messages differ from Store messages because key is in the source field
 			store(message.source, message.content);
 			route(message);
 			
-			Synchronize(&mRetrieveSync);
 			if(mRetrievePending.contains(message.content))
 			{
 				mRetrievePending.erase(message.content);
@@ -617,7 +608,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 
 bool Overlay::push(Message &message)
 {
-	Synchronize(&mIncomingSync);
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	mIncoming.push(message);
 	mIncomingSync.notifyAll();
 	return true;
@@ -625,7 +617,7 @@ bool Overlay::push(Message &message)
 
 bool Overlay::route(const Message &message, const BinaryString &from)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Drop if TTL is zero
 	if(message.ttl == 0) return false;
@@ -656,7 +648,7 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 
 bool Overlay::broadcast(const Message &message, const BinaryString &from)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	//LogDebug("Overlay::sendTo", "Broadcasting message");
 	
@@ -681,7 +673,7 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 
 bool Overlay::sendTo(const Message &message, const BinaryString &to)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(to.empty())
 	{
@@ -703,7 +695,7 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 
 int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
@@ -722,7 +714,7 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 
 int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
@@ -737,8 +729,7 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 
 void Overlay::registerHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
 {
-	Synchronize(this);
-	Assert(handler);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mRemoteAddresses.insert(addr);
 	
@@ -754,10 +745,11 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 		h->stop();
 	}
 	
+	Assert(handler);
 	handler->addAddresses(otherAddrs);
 	mHandlers.insert(node, handler);
-	launch(handler);
-	launch(handler->senderTask());
+	std::thread thread(handler);
+	thread.detach();
 	
 	// On first connection, schedule store to publish in DHT
 	if(mHandlers.size() == 1)
@@ -766,8 +758,7 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, Ove
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
-	Synchronize(this);
-	Assert(handler);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Handler *h = NULL;
 	if(mHandlers.get(node, h) && h == handler)
@@ -868,7 +859,7 @@ bool Overlay::track(const String &tracker, SerializableMap<BinaryString, Seriali
 
 void Overlay::serialize(Serializer &s) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	ConstObject object;
 	object["publickey"] = &mPublicKey;
@@ -878,7 +869,7 @@ void Overlay::serialize(Serializer &s) const
 
 bool Overlay::deserialize(Serializer &s)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mPublicKey.clear();
 	mPrivateKey.clear();
@@ -1004,9 +995,9 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	}
 }
 
-void Overlay::Backend::run(void)
+void Overlay::Backend::operator()(void)
 {
-	class HandshakeTask : public Task
+	class HandshakeTask
 	{
 	public:
 		HandshakeTask(Backend *backend, SecureTransport *transport, const Address &addr)
@@ -1016,7 +1007,7 @@ void Overlay::Backend::run(void)
 			this->addr = addr;
 		}
 		
-		void run(void)
+		void operator()(void)
 		{
 			try {
 				backend->handshake(transport, addr, "");
@@ -1047,7 +1038,7 @@ void Overlay::Backend::run(void)
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 			
 			task = new HandshakeTask(this, transport, addr);
-			mOverlay->launch(task);
+			mOverlay->mThreadPool.enqueue(task);
 		}
 		catch(const std::exception &e)
 		{
@@ -1346,8 +1337,9 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 	mOverlay(overlay),
 	mStream(stream),
 	mNode(node),
+	mShouldStop(false),
 	mSender(overlay, stream),
-	mShouldStop(false)
+	mSenderThread(mSender)
 {
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
@@ -1361,13 +1353,13 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 Overlay::Handler::~Handler(void)
 {
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-
 	delete mStream;
+	mSenderThread.join();
 }
 
 bool Overlay::Handler::recv(Message &message)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	while(true)
 	{
@@ -1432,13 +1424,13 @@ bool Overlay::Handler::recv(Message &message)
 
 bool Overlay::Handler::send(const Message &message)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mSender.push(message);
 }
 
 void Overlay::Handler::stop(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mShouldStop = true;
 	mSender.stop();
 	mStream->close();
@@ -1446,36 +1438,31 @@ void Overlay::Handler::stop(void)
 
 void Overlay::Handler::addAddress(const Address &addr)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mAddrs.insert(addr);
 }
 
 void Overlay::Handler::addAddresses(const Set<Address> &addrs)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mAddrs.insertAll(addrs);
 }
 
 void Overlay::Handler::getAddresses(Set<Address> &set) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	set = mAddrs;
 }
 
 BinaryString Overlay::Handler::node(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mNode;
-}
-
-Task *Overlay::Handler::senderTask(void)
-{
-	return &mSender;
 }
 
 void Overlay::Handler::process(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Message message;
 	while(recv(message) && !mShouldStop)
@@ -1486,7 +1473,7 @@ void Overlay::Handler::process(void)
 	}
 }
 
-void Overlay::Handler::run(void)
+void Overlay::Handler::operator()(void)
 {
 	LogDebug("Overlay::Handler", "Starting handler");
 	
@@ -1524,7 +1511,7 @@ Overlay::Handler::Sender::~Sender(void)
 
 bool Overlay::Handler::Sender::push(const Message &message)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mQueue.size() < Overlay::MaxQueueSize)
 	{
@@ -1538,15 +1525,15 @@ bool Overlay::Handler::Sender::push(const Message &message)
 
 void Overlay::Handler::Sender::stop(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mShouldStop = true;
 	notifyAll();
 }
 
-void Overlay::Handler::Sender::run(void)
+void Overlay::Handler::Sender::operator()(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	try {
 		while(!mShouldStop)

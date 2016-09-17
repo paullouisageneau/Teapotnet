@@ -40,7 +40,7 @@ namespace tpn
 
 class User;
   
-class Indexer : protected Synchronizable, public Task, public Network::Publisher, public HttpInterfaceable
+class Indexer : public Network::Publisher, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);
@@ -136,7 +136,7 @@ private:
 	Database *mDatabase;
 	String mFileName;
 	String mBaseDirectory;
-	SerializableMap<String, Entry> mDirectories;
+	Map<String, Entry> mDirectories;
 	bool mRunning;
 };
 

@@ -28,24 +28,82 @@
 namespace pla
 {
 
-class Object : public std::map<std::string, Serializable>
+class Object : public std::map<std::string, Serializable>, public Serializable
 {
-public:
+private:
+	// Wrapper keeping a non-const reference
 	template<typename T>
-	class Wrapper : Serializable
+	class Wrapper : public Serializable
 	{
 	public:
-		Wrapper(T &&v) : value(v) {}
+		Wrapper(T &v) : value(v) {}
 		void serialize(Serializer &s)	{ s << value; }
-		bool deserialize(Serializer &s)	{ s >> value; }
+		bool deserialize(Serializer &s)	{ return !!(s >> value); }
 		
 	private:
-		T &&value;
+		T &value;
 	};
-	
-	template<typename T> Object &insert(const std::string &key, T &&value)
+
+	// Wrapper keeping a const reference
+	template<typename T>
+	class ConstWrapper : public Serializable
+	{
+	public:
+		ConstWrapper(const T &v) : value(v) {}
+		void serialize(Serializer &s)	{ s << value; }
+		bool deserialize(Serializer &s)	{ throw RuntimeException("deserialize on const object");}
+
+	private:
+		const T &value;
+	};
+
+	// Wrapper copying the value
+	template<typename T>
+	class CopyWrapper : public Serializable
+	{
+	public:
+		CopyWrapper(T &&v) : value(v) {}	// copy
+		void serialize(Serializer &s)	{ s << value; }
+		bool deserialize(Serializer &s)	{ throw RuntimeException("deserialize on temp object"); }
+
+	private:
+		T value;
+	};
+
+public:
+	template<typename T> Object &insert(const std::string &key, T &value)
 	{
 		emplace(key, Wrapper<T>(value));
+	}
+
+	template<typename T> Object &insert(const std::string &key, const T &value)
+	{
+		emplace(key, ConstWrapper<T>(value));
+	}
+
+	template<typename T> Object &insert(const std::string &key, T &&value)
+	{
+		emplace(key, CopyWrapper<T>(std::forward<T>(value)));
+	}
+
+	void serialize(Serializer &s) const
+	{
+		s << *static_cast<const std::map<std::string, Serializable>*>(this);
+	}
+	
+	bool deserialize(Serializer &s)
+	{
+		return !!(s >> *static_cast<std::map<std::string, Serializable>*>(this));
+	}
+	
+	bool isInlineSerializable(void) const
+	{
+		return false;
+	}
+	
+	bool isNativeSerializable(void) const
+	{
+		return false;
 	}
 };
 

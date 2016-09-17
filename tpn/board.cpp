@@ -74,14 +74,14 @@ Board::~Board(void)
 
 String Board::urlPrefix(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	return "/mail" + mName;
 }
 
 bool Board::hasNew(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	bool value = false;
 	std::swap(mHasNew, value);
@@ -90,20 +90,20 @@ bool Board::hasNew(void) const
 
 int Board::unread(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	return 0;
 }
 
 BinaryString Board::digest(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mDigest;
 }
 
 bool Board::add(const Mail &mail, bool noIssue)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mail.empty() || mMails.contains(mail))
 		return false;
@@ -116,19 +116,20 @@ bool Board::add(const Mail &mail, bool noIssue)
 	process();
 	publish("/mail" + mName);
 	
-	notifyAll();
+	lock.unlock();
+	mCondition.notify_all();
 	return true;
 }
 
 void Board::addMergeUrl(const String &url)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mMergeUrls.insert(url);
 }
 
 void Board::removeMergeUrl(const String &url)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mMergeUrls.erase(url);
 }
 
@@ -165,7 +166,7 @@ void Board::process(void)
 
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	targets.clear();
 	
 	if(mDigest.empty())
@@ -177,7 +178,7 @@ bool Board::anounce(const Network::Link &link, const String &prefix, const Strin
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(target == mDigest)
 		return false;
@@ -193,7 +194,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			BinarySerializer serializer(&reader);
 			Mail mail;
 			unsigned count = 0;
-			while(serializer.read(mail))
+			while(!!(serializer >> mail))
 			{
 				if(mail.empty())
 					continue;
@@ -220,7 +221,8 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 					publish("/mail" + mName);
 			}
 			
-			notifyAll();
+			lock.unlock();
+			mCondition.notify_all();
 		}
 		catch(const Exception &e)
 		{
@@ -233,7 +235,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(add(mail, true))
 	{
@@ -247,7 +249,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 
 void Board::http(const String &prefix, Http::Request &request)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!request.url.empty());
 	
 	try {
@@ -306,22 +308,25 @@ void Board::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("timeout"))
 					request.get["timeout"].extract(timeout);
 				
-				while(next >= int(mUnorderedMails.size()))
+				if(next >= int(mUnorderedMails.size()))
 				{
-					if(!wait(timeout))
-						break;
+					mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
+						return next < int(this->mUnorderedMails.size());
+					});
 				}
 				
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 				
+				decltype(mUnorderedMails) temp;
+				temp.reserve(int(mUnorderedMails.size() - next));
+				for(int i = next; i < int(mUnorderedMails.size()); ++i)
+					temp.push_back(mUnorderedMails[i]);
+				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json.outputArrayBegin();
-				for(int i = next; i < int(mUnorderedMails.size()); ++i)
-					json.outputArrayElement(*mUnorderedMails[i]);
-				json.outputArrayEnd();
+				json << temp;
 				
 				mUnread = 0;
 				mHasNew = false;

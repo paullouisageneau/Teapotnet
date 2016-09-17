@@ -39,6 +39,9 @@ public:
 	template<typename T> Serializer &operator>> (T& value);
 	bool operator!(void) const { return lastReadFailed; }
 	
+	bool optionalOutputMode(void) const { return optionalOutput; }
+	void setOptionalOutputMode(bool enabled = true) { optionalOutput = enabled; }
+	
 protected:
 	template<class T> bool read(T *ptr);
 	template<class T> void write(const T *ptr);
@@ -108,9 +111,6 @@ protected:
 	virtual void	writeMapNext(size_t i)		{}
 	virtual void	writeMapEnd(void)		{}
 	virtual void	writeEnd(void)			{}
-	
-	bool optionalOutputMode(void) const { return optionalOutput; }
-	void setOptionalOutputMode(bool enabled = true) { optionalOutput = enabled; }
 	
 private:
 	template<typename T> bool readElement(T &element, size_t i);

@@ -31,7 +31,7 @@ namespace tpn
 {
 
 #ifdef ANDROID
-String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:40.0) Gecko/40.0 Firefox/40.0";	// mobile is important
+String HttpTunnel::UserAgent = "Mozilla/5.0 (Android; Mobile; rv:40.0) Gecko/48.0 Firefox/48.0";	// mobile is important
 #else
 String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";	// IE should be better for very restrictive environments
 #endif
@@ -74,7 +74,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 					throw 400;
 				}
 				
-				MutexLocker lock(&SessionsMutex);
+				std::lock_guard<std::mutex> lock(SessionsMutex);
 				while(!session || Sessions.contains(session))
 					Random().readBinary(session);
 				
@@ -82,7 +82,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 				isNew = true;
 			}
 			else {
-				MutexLocker lock(&SessionsMutex);
+				std::lock_guard<std::mutex> lock(SessionsMutex);
 				Sessions.get(session, server);
 			}
 
@@ -95,7 +95,7 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 			
 			if(request.method == "GET") 
 			{
-				Synchronize(server);
+				std::unique_lock<std::mutex> lock(server->mMutex);
 				if(server->mDownSock) throw 409;	// Conflict
 				if(server->mClosed) throw 400;		// Closed session
 				
@@ -206,7 +206,7 @@ HttpTunnel::Client::~Client(void)
 
 void HttpTunnel::Client::close(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 	
 	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session "+String::number(mSession));
 	
@@ -234,7 +234,7 @@ void HttpTunnel::Client::close(void)
 
 size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	if(!mDownSock)
 	{
@@ -342,7 +342,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 
 void HttpTunnel::Client::writeData(const char *data, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	if(!mSession) readData(NULL, 0);	// ensure session is opened
 	if(!mUpSock) 
@@ -435,7 +435,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
 void HttpTunnel::Client::flush(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	try {
 		if(mUpSock && mUpSock->isConnected() && mPostLeft)
@@ -476,9 +476,9 @@ void HttpTunnel::Client::flush(void)
 
 void HttpTunnel::Client::writePaddingUntil(size_t left)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 	Assert(mUpSock);
-
+	
 	if(mPostLeft <= left) return;
 	
 	while(mPostLeft > left + 3)
@@ -523,7 +523,7 @@ HttpTunnel::Server::Server(uint32_t session) :
 
 	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session "+String::number(mSession));
 	
-	MutexLocker lock(&SessionsMutex);
+	std::lock_guard<std::mutex> lock(SessionsMutex);
 	Sessions.insert(mSession, this);
 }
 
@@ -534,7 +534,7 @@ HttpTunnel::Server::~Server(void)
 
 void HttpTunnel::Server::close(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session "+String::number(mSession));
 	
@@ -544,13 +544,13 @@ void HttpTunnel::Server::close(void)
 	delete mUpSock; mUpSock = NULL;
 	mClosed = true;
 	
-	MutexLocker lock(&SessionsMutex);
+	std::lock_guard<std::mutex> lock(SessionsMutex);
         Sessions.erase(mSession);
 }
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 	
 	while(!mPostBlockLeft)
 	{
@@ -643,7 +643,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 
 void HttpTunnel::Server::writeData(const char *data, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	while(true)
 	{
@@ -698,7 +698,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 
 void HttpTunnel::Server::flush(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex>(mMutex);
 
 	if(mDownSock && mDownSock->isConnected())
 	{

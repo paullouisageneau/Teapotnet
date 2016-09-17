@@ -97,7 +97,7 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 
 	String request = "INSERT OR REPLACE INTO `" + table + "` (" + columns + ") VALUES (" + values + ")";
 	Statement statement = prepare(request);
-	statement.output(serializable);
+	statement << serializable;
 	statement.execute();	// unbound parameters will be interpreted as null
 
 	return insertId();
@@ -110,7 +110,7 @@ bool Database::retrieve(const String &table, int64_t id, Serializable &serializa
 
 	bool success = false;
 	if(statement.step())
-		success = statement.input(serializable);	
+		success = !!(statement >> serializable);	
 	
 	statement.finalize();
 	return success;
@@ -346,55 +346,33 @@ void Database::Statement::value(int column, Time &v) const
 	v = time_t(t);
 }
 
-bool Database::Statement::input(Serializable &s)
+bool Database::Statement::read(Serializable &s)
 {
 	if(mInputLevel == 0 || s.isInlineSerializable()) return s.deserialize(*this);
 	else {
 		String tmp;
-		if(!input(tmp)) return false;
+		if(!read(tmp)) return false;
 		JsonSerializer serializer(&tmp);
 		s.deserialize(serializer);
 		return true;
 	}
 }
 
-bool Database::Statement::input(Element &element)
-{
-	++mInputLevel;
-	bool result = element.deserialize(*this);
-	--mInputLevel;
-	return result;
-}
-
-bool Database::Statement::input(Pair &pair)
-{
-	if(mInputColumn >= columnsCount()) return false;
-	String key = name(mInputColumn);
-	key = key.afterLast('.');
-	LineSerializer keySerializer(&key);
-	pair.deserializeKey(keySerializer);
-	
-	++mInputLevel;
-	bool result = pair.deserializeValue(*this);
-	--mInputLevel;
-	return result;
-}
-
-bool Database::Statement::input(String &str)
+bool Database::Statement::read(String &str)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, str);
 	return true;
 }
 
-bool Database::Statement::input(BinaryString &str)
+bool Database::Statement::read(BinaryString &str)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, str);
 	return true;
 }
 
-bool Database::Statement::input(int8_t &i)
+bool Database::Statement::read(int8_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	int v = 0;
@@ -403,7 +381,7 @@ bool Database::Statement::input(int8_t &i)
 	return true;
 }
 
-bool Database::Statement::input(int16_t &i)
+bool Database::Statement::read(int16_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	int v = 0;
@@ -412,7 +390,7 @@ bool Database::Statement::input(int16_t &i)
 	return true;
 }
 	
-bool Database::Statement::input(int32_t &i)
+bool Database::Statement::read(int32_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	int v = 0;
@@ -421,14 +399,14 @@ bool Database::Statement::input(int32_t &i)
 	return true;
 }
 
-bool Database::Statement::input(int64_t &i)
+bool Database::Statement::read(int64_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, i);
 	return true;
 }
 
-bool Database::Statement::input(uint8_t &i)
+bool Database::Statement::read(uint8_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	unsigned v = 0;
@@ -437,7 +415,7 @@ bool Database::Statement::input(uint8_t &i)
 	return false;
 }
 
-bool Database::Statement::input(uint16_t &i)
+bool Database::Statement::read(uint16_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	unsigned v = 0;
@@ -446,7 +424,7 @@ bool Database::Statement::input(uint16_t &i)
 	return true;
 }
 
-bool Database::Statement::input(uint32_t &i)
+bool Database::Statement::read(uint32_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	unsigned v = 0;
@@ -455,122 +433,98 @@ bool Database::Statement::input(uint32_t &i)
 	return true;
 }
 
-bool Database::Statement::input(uint64_t &i)
+bool Database::Statement::read(uint64_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, i);
 	return true;
 }
 
-bool Database::Statement::input(bool &b)
+bool Database::Statement::read(bool &b)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	int8_t i = 0;
-	input(i);
+	read(i);
 	b = (i != 0);
 	return true;
 }
 
-bool Database::Statement::input(float &f)
+bool Database::Statement::read(float &f)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, f);
 	return true;
 }
 
-bool Database::Statement::input(double &f)
+bool Database::Statement::read(double &f)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, f);
 	return true;
 }
 
-void Database::Statement::output(const Serializable &s)
+void Database::Statement::write(const Serializable &s)
 {
 	if(mOutputLevel == 0 || s.isInlineSerializable()) s.serialize(*this);
 	else {
 		String tmp;
 		JsonSerializer serializer(&tmp);
 		s.serialize(serializer);
-		output(tmp);
+		write(tmp);
 	}
 }
 	
-void Database::Statement::output(const Element &element)
-{
-	++mOutputLevel;
-	element.serialize(*this);
-	--mOutputLevel;
-}
-
-void Database::Statement::output(const Pair &pair)
-{
-	String key;
-	LineSerializer keySerializer(&key);
-	pair.serializeKey(keySerializer);
-	key.trim();
-	
-	int parameter = parameterIndex(key);
-	if(parameter != 0) 
-	{
-		mOutputParameter = parameter;
-		++mOutputLevel;
-		pair.serializeValue(*this);
-		--mOutputLevel;
-	}
-}
-
-void Database::Statement::output(const String &str)
+void Database::Statement::write(const String &str)
 {
 	bind(mOutputParameter++, str);
 }
 
-void Database::Statement::output(const BinaryString &str)
+void Database::Statement::write(const BinaryString &str)
 {
 	bind(mOutputParameter++, str);
 }
 
-void Database::Statement::output(int8_t i)
+void Database::Statement::write(int8_t i)
 {
 	bind(mOutputParameter++, int(i));
 }
 
-void Database::Statement::output(int16_t i)
+void Database::Statement::write(int16_t i)
 {
 	bind(mOutputParameter++, int(i));
 }
 
-void Database::Statement::output(int32_t i)
+void Database::Statement::write(int32_t i)
 {
 	bind(mOutputParameter++, int(i));
 }
 
-void Database::Statement::output(int64_t i)
+void Database::Statement::write(int64_t i)
 {
 	bind(mOutputParameter++, i);
 }
 
-void Database::Statement::output(uint8_t i)
+void Database::Statement::write(uint8_t i)
 {
 	bind(mOutputParameter++, unsigned(i));
 }
 
-void Database::Statement::output(uint16_t i)
+void Database::Statement::write(uint16_t i)
 {
 	bind(mOutputParameter++, unsigned(i));
 }
 
-void Database::Statement::output(uint32_t i)
+void Database::Statement::write(uint32_t i)
 {
 	bind(mOutputParameter++, unsigned(i));
 }
 
-void Database::Statement::output(uint64_t i)
+void Database::Statement::write(uint64_t i)
 {
 	bind(mOutputParameter++, i);
 }
 
-void Database::Statement::output(bool b)
+void Database::Statement::write(bool b)
 {
 	int8_t i;
 	if(b) i = 1;
@@ -578,12 +532,12 @@ void Database::Statement::output(bool b)
 	bind(mOutputParameter++, i);
 }
 
-void Database::Statement::output(float f)
+void Database::Statement::write(float f)
 {
 	bind(mOutputParameter++, f);
 }
 
-void Database::Statement::output(double f)
+void Database::Statement::write(double f)
 {
 	bind(mOutputParameter++, f);
 }

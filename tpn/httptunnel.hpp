@@ -40,7 +40,7 @@ public:
 	
 	static Server *Incoming(Socket *sock);
 	
-	class Client : protected Synchronizable, public Stream
+	class Client : public Stream
 	{
 	public:
 		Client(const Address &a, double timeout = -1.); // timeout used for first connection only
@@ -60,13 +60,14 @@ public:
 		Address mAddress;
 		String mReverse;
 		Socket *mUpSock, *mDownSock;
-		Stream::FlushTask mFlushTask;
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
 		double mConnTimeout;
+
+		std::mutex mMutex;
 	};
 	
-	class Server : protected Synchronizable, public Stream
+	class Server : public Stream
 	{
 	public:
 		~Server(void);
@@ -82,13 +83,14 @@ public:
 		Server(uint32_t session);	// instanciated by Incoming() only
 		
 		Socket *mUpSock, *mDownSock;
-		Stream::FlushTask mFlushTask;
 		Http::Request mUpRequest;
 		uint32_t mSession;
 		size_t mPostBlockLeft;
 		size_t mDownloadLeft;
 		bool mClosed;
 		
+		std::mutex mMutex;
+
 		friend Server *HttpTunnel::Incoming(Socket *sock);;
 	};
 
@@ -105,7 +107,7 @@ private:
 	HttpTunnel(void);
 
 	static Map<uint32_t,Server*> 	Sessions;
-	static Mutex			SessionsMutex;
+	static std::mutex		SessionsMutex;
 
 	static const uint8_t TunnelOpen		= 0x01;
 	static const uint8_t TunnelData		= 0x02;

@@ -32,7 +32,7 @@
 namespace tpn
 {
 
-class Request :	protected Network::Subscriber, public Synchronizable, public HttpInterfaceable
+class Request :	protected Network::Subscriber, public HttpInterfaceable
 {
 public:
 	Request(Resource &resource);
@@ -69,8 +69,6 @@ private:
 	Set<BinaryString> mDigests;
 	bool mListDirectories;
 	bool mFinished;
-	
-	AutoDeleteTask<Request> mAutoDeleteTask;
 	double mAutoDeleteTimeout;
 };
 

@@ -25,6 +25,7 @@
 #include "tpn/include.hpp"
 #include "tpn/network.hpp"
 #include "tpn/fountain.hpp"
+#include "tpn/cache.hpp"
 
 #include "pla/serializable.hpp"
 #include "pla/string.hpp"
@@ -41,7 +42,7 @@ public:
 	static const size_t MaxChunks = 1024;
 	static const size_t ChunkSize = Fountain::ChunkSize;
 	static const size_t Size = MaxChunks*ChunkSize;
-	
+
 	static bool ProcessFile(File &file, Block &block);
 	static bool ProcessFile(File &file, BinaryString &digest);
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, BinaryString &digest, String *newFileName = NULL);

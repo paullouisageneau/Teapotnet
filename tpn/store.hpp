@@ -26,8 +26,6 @@
 #include "tpn/database.hpp"
 #include "tpn/fountain.hpp"
 
-#include "pla/synchronizable.hpp"
-#include "pla/binarystring.hpp"
 #include "pla/file.hpp"
 #include "pla/map.hpp"
 #include "pla/string.hpp"
@@ -36,7 +34,7 @@
 namespace tpn
 {
   
-class Store : protected Synchronizable, public Task
+class Store
 {
 public:
 	static Store *Instance;
@@ -69,7 +67,7 @@ public:
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;
 	
-	void run(void);
+	void operator()(void);
 	
 private:
 	Database *mDatabase;
@@ -80,3 +78,4 @@ private:
 }
 
 #endif
+

@@ -94,46 +94,58 @@ public:
 		void value(int column, BinaryString &v) const;
 		void value(int column, Time &v) const;
 	
-		inline bool retrieve(Serializable &s) { return input(s); }
+		inline bool retrieve(Serializable &s) { return read(s); }
 	
 		// --- Serializer interface
-		virtual bool    input(Serializable &s);
-		virtual bool	input(Element &element);
-		virtual bool	input(Pair &pair);
-	
-		virtual bool    input(String &str);
-		virtual bool    input(BinaryString &str);
-		virtual bool	input(int8_t &i);
-		virtual bool	input(int16_t &i);
-		virtual bool	input(int32_t &i);
-		virtual bool	input(int64_t &i);
-		virtual bool	input(uint8_t &i);
-		virtual bool	input(uint16_t &i);
-		virtual bool	input(uint32_t &i);
-		virtual bool	input(uint64_t &i);
-		virtual bool	input(bool &b);
-		virtual bool	input(float &f);
-		virtual bool	input(double &f);
-
-		virtual void    output(const Serializable &s);
-		virtual void	output(const Element &element);
-		virtual void	output(const Pair &pair);
+		virtual bool	read(Serializable &s);
+		virtual void	write(const Serializable &s);
+		virtual bool	read(String &s);
+		virtual void	write(const String &s);
+		virtual bool	read(BinaryString &s);
+		virtual void	write(const BinaryString &s);
 		
-		virtual void    output(const String &str);
-		virtual void    output(const BinaryString &str);
-		virtual void	output(int8_t i);
-		virtual void	output(int16_t i);
-		virtual void	output(int32_t i);
-		virtual void	output(int64_t i);
-		virtual void	output(uint8_t i);
-		virtual void	output(uint16_t i);
-		virtual void	output(uint32_t i);
-		virtual void	output(uint64_t i);	
-		virtual void	output(bool b);
-		virtual void	output(float f);
-		virtual void	output(double f);
+		virtual bool	read(std::string &str);
+		virtual bool	read(uint8_t &i);
+		virtual bool	read(uint16_t &i);
+		virtual bool	read(uint32_t &i);
+		virtual bool	read(uint64_t &i);
+		virtual bool	read(int8_t &i);
+		virtual bool	read(int16_t &i);
+		virtual bool	read(int32_t &i);
+		virtual bool	read(int64_t &i);
+		virtual bool	read(float &f);
+		virtual bool	read(double &f)	;
+		virtual bool	read(bool &b);
+		
+		virtual void	write(const std::string &str);
+		virtual void	write(uint8_t i);
+		virtual void	write(uint16_t i);
+		virtual void	write(uint32_t i);
+		virtual void	write(uint64_t i);
+		virtual void	write(int8_t i);
+		virtual void	write(int16_t i);
+		virtual void	write(int32_t i);
+		virtual void	write(int64_t i);
+		virtual void	write(float f);
+		virtual void	write(double f);
+		virtual void	write(bool b);
+		
+		virtual bool	skip(void);
+		
+		virtual bool	readArrayBegin(void)		{ return true; }
+		virtual bool	readArrayNext(void)		{ return true; }
+		virtual bool	readMapBegin(void)		{ return true; }
+		virtual bool	readMapNext(void)		{ return true; }
+		
+		virtual void	writeArrayBegin(size_t size)	{}
+		virtual void	writeArrayNext(size_t i)	{}
+		virtual void	writeArrayEnd(void)		{}
+		virtual void	writeMapBegin(size_t size)	{}
+		virtual void	writeMapNext(size_t i)		{}
+		virtual void	writeMapEnd(void)		{}
+		virtual void	writeEnd(void)			{}
 		// ---
-	
+		
 	private:
 		sqlite3 *mDb;
 		sqlite3_stmt *mStmt;

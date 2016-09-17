@@ -50,6 +50,11 @@ AssertException::AssertException(const std::string& File, int Line, const std::s
 	mMessage = message + " in " + File + " at line " + strLine;
 }
 
+RuntimeException::RuntimeException(const std::string &message)
+{
+	mMessage = "Runtime exception: " + message;
+}
+
 LoadingFailed::LoadingFailed(const std::string& File, const std::string &message)
 {
 	mMessage = "Loading failed for \"" + File + "\": " + message;

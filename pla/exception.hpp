@@ -60,6 +60,13 @@ public:
 
 //#define assert(condition) Assert(condition)
 
+// If a code issue is detected at run-time
+class RuntimeException : public Exception
+{
+public:
+    RuntimeException(const std::string &message);
+};
+
 // If a file cannot be loaded
 class LoadingFailed : public Exception
 {

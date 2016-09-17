@@ -540,8 +540,7 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 Resource::ImportTask::ImportTask(Serializable *object, 
 	const BinaryString &digest,
 	const String &type,
-	const BinaryString &secret,
-	bool autoDelete)
+	const BinaryString &secret)
 {
 	Assert(object);
 	
@@ -549,7 +548,6 @@ Resource::ImportTask::ImportTask(Serializable *object,
 	mDigest = digest;
 	mSecret = secret;
 	mType   = type;
-	mAutoDelete = autoDelete;
 }
 		
 void Resource::ImportTask::run(void)
@@ -567,8 +565,6 @@ void Resource::ImportTask::run(void)
 	{
 		LogWarn("Resource::ImportTask", e.what());
 	}
-	
-	if(mAutoDelete) delete this;
 }
 
 }

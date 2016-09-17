@@ -19,21 +19,19 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-#ifndef PLA_THREADPOOL_H
-#define PLA_THREADPOOL_H
+#ifndef PLA_SCHEDULER_H
+#define PLA_SCHEDULER_H
 
-#include <multimap>
-
-#include "pla/threadpool.h"
+#include "pla/threadpool.hpp"
 
 namespace pla 
 {
 
 class Scheduler : protected ThreadPool
 {
+public:
 	using clock = std::chrono::steady_clock;
 	
-public:
 	Scheduler(size_t threads = 1);
 	~Scheduler(void);
 	
@@ -44,9 +42,9 @@ public:
 	void join(void);
 	
 private:
-	std::multimap<clock::time_point, std::function<void()> > schedule;
+	std::multimap<clock::time_point, std::shared_ptr<std::packaged_task<void()> > > scheduleMap;
+	std::condition_variable scheduleCondition;
 	std::thread thread;
-	std::conditional_variable scheduleCondition;
 };
 
 inline Scheduler::Scheduler(size_t threads) :
@@ -55,23 +53,23 @@ inline Scheduler::Scheduler(size_t threads) :
 	thread = std::thread([this]()
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		while(!this->stop || !this->schedule.empty())
+		while(!this->stop || !this->scheduleMap.empty())
 		{
-			if(this->schedule.empty())
+			if(this->scheduleMap.empty())
 			{
 				this->scheduleCondition.wait(lock);
 			}
 			else {
-				clock::time_point time = this->schedule.begin()->first;
-				if(time > clock::now())
+				clock::time_point time = this->scheduleMap.begin()->first;
+				if(time <= clock::now())
 				{
-					this->scheduleCondition.wait_until(lock, time);
-				}
-				
-				if(elapse.count() <= 0.)
-				{
-					tasks.emplace(std::move(this->schedule.begin()->second));
+					auto task = this->scheduleMap.begin()->second;
+					this->scheduleMap.erase(this->scheduleMap.begin());
+					tasks.emplace([task] { (*task)(); });
 					condition.notify_one();
+				}
+				else {
+					this->scheduleCondition.wait_until(lock, time);
 				}
 			}
 		}
@@ -85,30 +83,27 @@ inline Scheduler::~Scheduler(void)
 }
 
 template<class F, class... Args>
-auto ThreadPool::schedule(clock::time_point time, F&& f, Args&&... args) 
+auto Scheduler::schedule(clock::time_point time, F&& f, Args&&... args) 
 	-> std::future<typename std::result_of<F(Args...)>::type>
 {
 	using type = typename std::result_of<F(Args...)>::type;
 
-	auto task = std::make_shared< std::packaged_task<type()> >(
-			std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-		);
-	
-	std::future<type> result = task->get_future();
-	
+	auto task = std::make_shared<std::packaged_task<type()> >(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+	std::future<type> result = task->get_future();	
+
 	{
 		std::unique_lock<std::mutex> lock(mutex);
 		if(stop) throw std::runtime_error("schedule on stopped Scheduler");
-		schedule.insert(std::make_pair(time, task));
+		scheduleMap.emplace(std::make_pair(time, task));
 	}
 	
 	scheduleCondition.notify_all();
 	return result;
 }
 
-inline void ThreadPool::join(void)
+inline void Scheduler::join(void)
 {
-	mThreadPool.join();
+	ThreadPool::join();
 }
 
 }

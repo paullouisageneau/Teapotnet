@@ -431,9 +431,9 @@ void Fountain::Combination::serialize(Serializer &s) const
 	Assert(componentsCount() <= std::numeric_limits<uint16_t>::max());
 	
 	// 64-bit combination descriptor
-	s.write(uint32_t(firstComponent()));	// 32-bit first
-	s.write(uint16_t(componentsCount()));	// 16-bit count
-	s.write(mNonce);			// 16-bit nonce
+	s << uint32_t(firstComponent());	// 32-bit first
+	s << uint16_t(componentsCount());	// 16-bit count
+	s << mNonce;				// 16-bit nonce
 }
 
 bool Fountain::Combination::deserialize(Serializer &s)
@@ -444,9 +444,9 @@ bool Fountain::Combination::deserialize(Serializer &s)
 	uint16_t count = 0;
 	
 	// 64-bit combination descriptor
-	if(!s.read(first)) return false;	// 32-bit first
-	AssertIO(s.read(count));		// 16-bit count
-	AssertIO(s.read(mNonce));		// 16-bit nonce
+	if(!(s >> first)) return false;		// 32-bit first
+	AssertIO(s >> count);			// 16-bit count
+	AssertIO(s >> mNonce);			// 16-bit nonce
 	
 	Generator gen(seed(first, count));
 	for(unsigned i=0; i<count; ++i)

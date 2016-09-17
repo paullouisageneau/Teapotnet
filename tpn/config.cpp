@@ -25,17 +25,18 @@
 #include "tpn/httptunnel.hpp"	// for user agent
 
 #include "pla/file.hpp"
+#include "pla/lineserializer.hpp"
 
 namespace tpn
 {
 
 StringMap Config::Params;
-Mutex Config::ParamsMutex;
+std::mutex Config::ParamsMutex;
 bool Config::UpdateAvailableFlag = false;  
 
 String Config::Get(const String &key)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 
 	String value;
 	if(Params.get(key, value))
@@ -47,25 +48,26 @@ String Config::Get(const String &key)
 
 void Config::Put(const String &key, const String &value)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 
 	Params.insert(key, value);
 }
 
 void Config::Default(const String &key, const String &value)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 
 	if(!Params.contains(key)) Params.insert(key, value);
 }
 
 void Config::Load(const String &filename)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 
 	try {
 		File file(filename, File::Read);
-		file.read(Params);
+		LineSerializer serializer(&file);
+		serializer >> Params;
 		file.close();
 	}
 	catch(const Exception &e) 
@@ -76,16 +78,17 @@ void Config::Load(const String &filename)
 
 void Config::Save(const String &filename)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 	
 	File file(filename, File::Truncate);
-	file.write(Params);
+	LineSerializer serializer(&file);
+	serializer << Params;
 	file.close();
 }
 
 void Config::Clear(void)
 {
-	MutexLocker lock(&ParamsMutex);
+	std::lock_guard<std::mutex> lock(ParamsMutex);
 
 	Params.clear();
 }
@@ -133,7 +136,6 @@ bool Config::IsUpdateAvailable(void)
 {
 	return UpdateAvailableFlag;
 }
-
 
 bool Config::CheckUpdate(void)
 {

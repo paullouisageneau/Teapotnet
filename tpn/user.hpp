@@ -37,7 +37,7 @@ namespace tpn
 
 class AddressBook;
   
-class User : protected Synchronizable, public Serializable, public HttpInterfaceable
+class User : public Serializable, public HttpInterfaceable
 {
 public:
 	static unsigned Count(void);
@@ -105,21 +105,10 @@ private:
 	BinaryString mTokenSecret;
 	mutable Map<String, BinaryString> mSecretKeysCache;
 	
-	class SetOfflineTask : public Task
-	{
-	public:
-		SetOfflineTask(User *user)	{ this->user = user; }
-		void run(void)			{ user->setOffline(); } 
-	private:
-		User *user;
-	};
-	
-	SetOfflineTask mSetOfflineTask;
-	
 	static Map<String, User*>	UsersByName;
 	static Map<BinaryString, User*>	UsersByAuth;
 	static Map<Identifier, User*>	UsersByIdentifier;
-	static Mutex			UsersMutex;
+	static std::mutex		UsersMutex;
 };
 
 }

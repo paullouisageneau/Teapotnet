@@ -51,7 +51,7 @@ public:
 	
 private:
 	static StringMap Params;
-	static Mutex ParamsMutex;
+	static std::mutex ParamsMutex;
 	static bool UpdateAvailableFlag;
 
 	Config(void);

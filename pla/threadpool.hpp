@@ -68,8 +68,7 @@ inline ThreadPool::ThreadPool(size_t threads) : stop(false)
 				
 				{
 					std::unique_lock<std::mutex> lock(this->mutex);
-					this->condition.wait(lock, [this]()
-					{ 
+					this->condition.wait(lock, [this]() { 
 						return this->stop || !this->tasks.empty();
 					});
 					if(this->stop && this->tasks.empty()) return;
@@ -94,10 +93,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 {
 	using type = typename std::result_of<F(Args...)>::type;
 
-	auto task = std::make_shared< std::packaged_task<type()> >(
-			std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-		);
-	
+	auto task = std::make_shared< std::packaged_task<type()> >(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 	std::future<type> result = task->get_future();
 	
 	{

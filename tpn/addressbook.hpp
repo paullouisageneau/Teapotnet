@@ -43,7 +43,7 @@ namespace tpn
 
 class User;
 
-class AddressBook : protected Synchronizable, public Serializable, public HttpInterfaceable
+class AddressBook : public Serializable, public HttpInterfaceable
 {
 public:
 	AddressBook(User *user);
@@ -119,7 +119,7 @@ public:
 		Identifier mIdentifier;
 		BinaryString mRemoteSecret;
 		
-		SerializableMap<Identifier, String> mInstances;
+		Map<Identifier, String> mInstances;
 		
 		friend class AddressBook;
 	};
@@ -144,13 +144,14 @@ private:
 	
 	User *mUser;
 	String mFileName;
-	SerializableMap<String, Contact*> mContacts;	// Sorted by unique name
-	SerializableMap<Identifier, Contact*> mContactsByIdentifier;
+	Map<String, Contact*> mContacts;	// Sorted by unique name
+	Map<Identifier, Contact*> mContactsByIdentifier;
 	Map<Identifier, String> mInvitations;
 	Time mTime;	// modification time
-	
+		
 	Scheduler mScheduler;
 	
+	mutable std::mutex mMutex;
 	mutable BinaryString mDigest;
 };
 

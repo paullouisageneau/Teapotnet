@@ -36,7 +36,7 @@
 namespace tpn
 {
 
-class Board : public Synchronizable, public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
+class Board : public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
 {
 public:
 	Board(const String &name, const String &secret = "", const String &displayName = "");
@@ -74,6 +74,8 @@ private:
 	
 	StringSet mMergeUrls;
 	
+	mutable std::mutex mMutex;
+	mutable std::condition_variable mCondition;
 	mutable bool mHasNew;
 	mutable bool mUnread;
 };

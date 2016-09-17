@@ -176,7 +176,7 @@ void Serializer::write(bool b)
 
 bool Serializer::skip(void)
 {
-	throw Unsupported("Serializer cannot skip");
+	throw Unsupported("serializer cannot skip");
 }
 
 }

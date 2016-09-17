@@ -31,8 +31,9 @@ namespace tpn
 {
 
 Cache *Cache::Instance = NULL;
-  
-Cache::Cache(void)
+
+Cache::Cache(void) :
+	mScheduler(2)	// TODO
 {
 	mDirectory = Config::Get("cache_dir");
 
@@ -55,32 +56,18 @@ bool Cache::prefetch(const BinaryString &target)
 			return true;
 	}
 	
-	class PrefetchTask : public Task
-	{
-	public:
-		PrefetchTask(const BinaryString &target) { this->target = target; }
-		
-		void run(void)
-		{
-			try {
-				Resource resource(target);
-				Resource::Reader reader(&resource);
-				reader.discard();		// read everything
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("Cache::prefet.hpp", "Prefetching failed for " + target.toString());
-			}
-			
-			delete this;	// autodelete
+	mScheduler.schedule(Scheduler::clock::now(), [target]() {
+		try {
+			Resource resource(target);
+			Resource::Reader reader(&resource);
+			reader.discard();		// read everything
 		}
-		
-	private:
-		BinaryString target;
-	};
-	
-	PrefetchTask *task = new PrefetchTask(target);
-	Scheduler::Global->schedule(task);
+		catch(const Exception &e)
+		{
+			LogWarn("Cache::prefetch", "Prefetching failed for " + target.toString());
+		}
+	});
+
 	return false;
 }
 

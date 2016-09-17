@@ -69,7 +69,7 @@ private:
         String mContent;
 	String mAuthor;
 	Identifier mIdentifier;
-	SerializableArray<BinaryString> mAttachments;
+	Array<BinaryString> mAttachments;
 	BinaryString mParent;
 	mutable BinaryString mSignature;
 	mutable BinaryString mDigest;

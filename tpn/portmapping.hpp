@@ -33,7 +33,7 @@
 namespace tpn
 {
 
-class PortMapping : public Task, protected Synchronizable
+class PortMapping
 {
 public:
 	static PortMapping *Instance;
@@ -60,7 +60,7 @@ public:
 	bool get(Protocol protocol, uint16_t internal, uint16_t &external) const;
 	
 private:
-	void run(void);
+	void operator()(void);
 
 	struct Descriptor
 	{

@@ -471,6 +471,8 @@ void Interface::process(Http::Request &request)
 	
 	while(!list.empty())
 	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
 		String prefix;
 		prefix.implode(list,'/');
 		if(!prefix.empty())
@@ -478,11 +480,11 @@ void Interface::process(Http::Request &request)
 	
 		list.pop_back();
 		
-		mMutex.lock();
-		HttpInterfaceable *interfaceable;
-		if(mPrefixes.get(prefix,interfaceable)) 
+		auto it = mPrefixes.find(prefix);
+		if(it != mPrefixes.end()) 
 		{
-			mMutex.unlock();
+			HttpInterfaceable *interfaceable = it->second;
+			lock.unlock();
 			
 			//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
 			request.url.ignore(prefix.size());
@@ -492,7 +494,6 @@ void Interface::process(Http::Request &request)
 			interfaceable->http(prefix, request);
 			return;
 		}
-		mMutex.unlock();
 	}
 	
 	throw 404;

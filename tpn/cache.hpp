@@ -24,6 +24,7 @@
 
 #include "tpn/include.hpp"
 
+#include "pla/scheduler.hpp"
 #include "pla/string.hpp"
 #include "pla/binarystring.hpp"
 #include "pla/set.hpp"
@@ -31,7 +32,7 @@
 namespace tpn
 {
 
-class Cache : public Synchronizable
+class Cache
 {
 public:
 	static Cache *Instance;
@@ -42,11 +43,12 @@ public:
 	bool prefetch(const BinaryString &target);	// Asynchronous resource prefetching (true is already available)
 	String move(const String &filename);
 	String path(const BinaryString &digest) const;
-
+	
 	// TODO: cleaning
 	
 private:
 	String mDirectory;
+	Scheduler mScheduler;
 };
 
 }
