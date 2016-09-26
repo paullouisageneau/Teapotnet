@@ -44,10 +44,13 @@ Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
 
 Network::Network(int port) :
-		mOverlay(port),
-		mThreadPool(1, 8, Config::Get("max_connections").toInt())
+		mOverlay(port)
 {
-
+	// Start network thread
+	mThread = std::thread([this]()
+	{
+		this->run();
+	});
 }
 
 Network::~Network(void)
@@ -55,20 +58,10 @@ Network::~Network(void)
 	join();
 }
 
-void Network::start(void)
-{
-	mOverlay.start();
-	mTunneler.start();
-	mPusher.start();
-	Thread::start();
-}
-
 void Network::join(void)
 {
-	Thread::join();
-	mPusher.join();
-	mTunneler.join();
 	mOverlay.join();
+	mThread.join();
 }
 
 Overlay *Network::overlay(void)
@@ -84,7 +77,7 @@ void Network::connect(const Identifier &node, const Identifier &remote, User *us
 
 void Network::registerCaller(const BinaryString &target, Caller *caller)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(caller);
 	
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
@@ -100,7 +93,7 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 			call.writeBinary(tokens);
 			call.writeBinary(target);
 			
-			for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+			for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
 				mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 		}
 		
@@ -116,10 +109,10 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(caller);
 	
-	Map<BinaryString, Set<Caller*> >::iterator it = mCallers.find(target);
+	auto it = mCallers.find(target);
 	if(it != mCallers.end())
 	{
 		it->second.erase(caller);
@@ -130,13 +123,13 @@ void Network::unregisterCaller(const BinaryString &target, Caller *caller)
 
 void Network::unregisterAllCallers(const BinaryString &target)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mCallers.erase(target);
 }
 
 void Network::registerListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(listener);
 	
 	mListeners[IdentifierPair(remote, local)].insert(listener);
@@ -144,33 +137,36 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	Link link(local, remote);
 
 	Set<Link> temp;		// We need to copy the links since we are going to desynchronize
-	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
+	for(auto it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
 		++it)
 	{
 		temp.insert(it->first);
 	}
 	
-	for(Set<Link>::iterator it = temp.begin(); it != temp.end(); ++it)
+	for(auto it = temp.begin(); it != temp.end(); ++it)
 	{
-		Desynchronize(this);
-		listener->seen(*it);      // so Listener::seen() is triggered even with incoming tunnels
-                listener->connected(*it, true);
+		lock.unlock();
+		try {
+			listener->seen(*it);      // so Listener::seen() is triggered even with incoming tunnels
+			listener->connected(*it, true);
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("Network::registerListener", e.what());
+		}
+		lock.lock();
 	}
-
-	for(Map<String, Set<Subscriber*> >::iterator it = mSubscribers.begin();
-		it != mSubscribers.end();
-		++it)
+	
+	for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 	{
-		for(Set<Subscriber*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
+		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 		{
 			if((*jt)->link() == link)
 			{
 				send(link, "subscribe", 
-					ConstObject()
-						.insert("pa.hpp", &it->first));
+					Object()
+						.insert("path", &it->first));
 				break;
 			}
 		}
@@ -179,10 +175,10 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 
 void Network::unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(listener);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(remote, local));
+	auto it = mListeners.find(IdentifierPair(remote, local));
 	if(it != mListeners.end())
 	{
 		it->second.erase(listener);
@@ -193,26 +189,26 @@ void Network::unregisterListener(const Identifier &local, const Identifier &remo
 
 void Network::publish(String prefix, Publisher *publisher)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publi.hpp", "Publishing " + prefix);
+	//LogDebug("Network::publish", "Publishing " + prefix);
 	
 	mPublishers[prefix].insert(publisher);
 }
 
 void Network::unpublish(String prefix, Publisher *publisher)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+	auto it = mPublishers.find(prefix);
 	if(it != mPublishers.end())
 	{
 		it->second.erase(publisher);
@@ -223,7 +219,7 @@ void Network::unpublish(String prefix, Publisher *publisher)
 
 void Network::subscribe(String prefix, Subscriber *subscriber)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
@@ -241,26 +237,26 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	{
 		// Immediatly send subscribe message
 		send(subscriber->link(), "subscribe", 
-			 ConstObject()
-				.insert("pa.hpp", &prefix));
+			Object()
+				.insert("path", &prefix));
 		
 		// Retrieve from cache
 		Set<BinaryString> targets;
 		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
-			for(Set<BinaryString>::iterator it = targets.begin(); it != targets.end(); ++it)
+			for(auto it = targets.begin(); it != targets.end(); ++it)
 				subscriber->incoming(Link::Null, prefix, "", *it);
 	}
 }
 
 void Network::unsubscribe(String prefix, Subscriber *subscriber)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+	auto it = mSubscribers.find(prefix);
 	if(it != mSubscribers.end())
 	{
 		it->second.erase(subscriber);
@@ -271,20 +267,20 @@ void Network::unsubscribe(String prefix, Subscriber *subscriber)
 
 void Network::advertise(String prefix, const String &path, Publisher *publisher)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publi.hpp", "Advertising " + prefix + path);
+	//LogDebug("Network::publish", "Advertising " + prefix + path);
 	
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
 
 void Network::issue(String prefix, const String &path, Publisher *publisher, const Mail &mail)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mail.empty()) return;
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
@@ -297,7 +293,7 @@ void Network::issue(String prefix, const String &path, Publisher *publisher, con
 
 void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!mRemoteSubscribers[link].contains(path))
 		mRemoteSubscribers[link].insert(path, RemoteSubscriber(link));
@@ -319,7 +315,6 @@ bool Network::send(const Identifier &local, const Identifier &remote, const Stri
 
 bool Network::send(const Link &link, const String &type, const Serializable &object)
 {
-	Synchronize(this);
 	return outgoing(link, type, object);
 }
 
@@ -341,7 +336,7 @@ bool Network::hasLink(const Identifier &local, const Identifier &remote)
 
 bool Network::hasLink(const Link &link)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mHandlers.contains(link);
 }
 
@@ -366,7 +361,7 @@ void Network::run(void)
 				// Value
 				case Overlay::Message::Value:
 					{
-						Synchronize(this);
+						std::unique_lock<std::mutex> lock(mMutex);
 						
 						if(!message.content.empty() && message.content != mOverlay.localNode())
 						{
@@ -384,7 +379,7 @@ void Network::run(void)
 							}
 							
 							// Or it can be about a contact
-							Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
+							auto it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
 							
 							// We have to copy the sets since we are going to desynchronize
 							Map<IdentifierPair, Set<Listener*> > temp;
@@ -398,19 +393,14 @@ void Network::run(void)
 							{
 								//LogDebug("Network::run", "Got instance for " + message.source.toString());
 								
-								for(Map<IdentifierPair, Set<Listener*> >::iterator kt = temp.begin(); kt != temp.end(); ++kt)
+								for(auto kt = temp.begin(); kt != temp.end(); ++kt)
 								{
-									for(Set<Listener*>::iterator jt = kt->second.begin();
-											jt != kt->second.end();
-											++jt)
+									for(auto jt = kt->second.begin(); jt != kt->second.end(); ++jt)
 									{
 										it = mListeners.find(kt->first);
 										if(it == mListeners.end()) break;
 										if(it->second.contains(*jt))
-										{
-											Desynchronize(this);
 											(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
-										}
 									}
 								}
 							}
@@ -435,7 +425,8 @@ void Network::run(void)
 								else LogDebug("Network::run", "Called " + target.toString());
 							}
 							
-							mPusher.push(target, message.source, tokens);
+							// TODO
+							//mPusher.push(target, message.source, tokens);
 						}
 						else {
 							//LogDebug("Network::run", "Called (unknown) " + target.toString());
@@ -448,7 +439,7 @@ void Network::run(void)
 					{
 						BinarySerializer serializer(&message.content);
 						Fountain::Combination combination;
-						serializer.read(combination);
+						serializer >> combination;
 						combination.setCodedData(message.content);
 						if(Store::Instance->push(message.source, combination))
 						{
@@ -461,7 +452,7 @@ void Network::run(void)
 								call.writeBinary(uint16_t(0));
 								call.writeBinary(message.source);
 								
-								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+								for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
 									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 							}
 						}
@@ -479,15 +470,11 @@ void Network::run(void)
 			
 			// Send beacons
 			{
-				Synchronize(this);
+				std::unique_lock<std::mutex> lock(mMutex);
 				
-				for(Map<BinaryString, Set<Caller*> >::iterator it = mCallers.begin();
-					it != mCallers.end();
-					++it)
+				for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
 				{
-					for(Set<Caller*>::iterator jt = it->second.begin();
-						jt != it->second.end();
-						++jt)
+					for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 					{
 						if(!(*jt)->hint().empty())
 						{
@@ -499,7 +486,7 @@ void Network::run(void)
 								call.writeBinary(tokens);
 								call.writeBinary(it->first);
 								
-								for(Set<BinaryString>::iterator kt = nodes.begin(); kt != nodes.end(); ++kt)
+								for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
 									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
 							}
 							else mOverlay.retrieve((*jt)->hint());
@@ -515,24 +502,18 @@ void Network::run(void)
 					Set<Identifier> localIds;
 					Set<Identifier> remoteIds;
 					
-					for(Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.begin();
-						it != mListeners.end();
-						++it)
+					for(auto it = mListeners.begin(); it != mListeners.end(); ++it)
 					{
 						localIds.insert(it->first.second);
 						remoteIds.insert(it->first.first);
 					}
 					
-					for(Set<Identifier>::iterator it = localIds.begin();
-						it != localIds.end();
-						++it)
+					for(auto it = localIds.begin(); it != localIds.end(); ++it)
 					{
 						storeValue(*it, node);
 					}
 					
-					for(Set<Identifier>::iterator it = remoteIds.begin();
-						it != remoteIds.end();
-						++it)
+					for(auto it = remoteIds.begin(); it != remoteIds.end(); ++it)
 					{
 						mOverlay.retrieve(*it);
 					}
@@ -550,34 +531,25 @@ void Network::run(void)
 	}
 }
 
-void Network::registerHandler(const Link &link, Handler *handler)
+void Network::registerHandler(const Link &link, sptr<Handler> handler)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
 	Assert(handler);
 	
-	Handler *h = NULL;
-	if(mHandlers.get(link, h))
-		mOtherHandlers.insert(h);
-	
 	mHandlers.insert(link, handler);
-	mThreadPool.launch(handler);
 	
-	for(Map<String, Set<Subscriber*> >::iterator it = mSubscribers.begin();
-		it != mSubscribers.end();
-		++it)
+	for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 	{
-		for(Set<Subscriber*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
+		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 		{
 			if((*jt)->link() == link)
 			{
 				send(link, "subscribe", 
-					ConstObject()
-						.insert("pa.hpp", &it->first));
+					Object()
+						.insert("path", &it->first));
 				break;
 			}
 		}
@@ -586,18 +558,14 @@ void Network::registerHandler(const Link &link, Handler *handler)
 	onConnected(link, true);
 }
 
-void Network::unregisterHandler(const Link &link, Handler *handler)
+void Network::unregisterHandler(const Link &link)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
-	Assert(handler);
 	
-	mOtherHandlers.erase(handler);
-	
-	Handler *h = NULL;
-	if(mHandlers.get(link, h) && h == handler)
+	if(mHandlers.contains(link))
 	{
 		mRemoteSubscribers.erase(link);
 		mHandlers.erase(link);
@@ -613,13 +581,13 @@ bool Network::outgoing(const String &type, const Serializable &content)
 
 bool Network::outgoing(const Link &link, const String &type, const Serializable &content)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	String serialized;
-	JsonSerializer(&serialized).write(content);
+	JsonSerializer(&serialized) << content;
 
 	bool success = false;
-	for(Map<Link, Handler*>::iterator it = mHandlers.lower_bound(link);
+	for(auto it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && it->first == link;
 		++it)
 	{
@@ -640,12 +608,11 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	Desynchronize(this);
 	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
-	if(type == "publi.hpp")
+	if(type == "publish")
 	{
 		// If link is not trusted, ignore publications
 		// Subscriptions are filtered in outgoing()
@@ -653,11 +620,11 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		
 		String path;
 		Mail mail;
-		SerializableList<BinaryString> targets;
-		serializer.read(Object()
-				.insert("pa.hpp", &path)
+		List<BinaryString> targets;
+		serializer >> Object()
+				.insert("path", &path)
 				.insert("message", &mail)
-				.insert("targets", &targets));
+				.insert("targets", &targets);
 		
 		// We check in cache to prevent publishing loops
 		BinaryString key = Store::Hash(path);
@@ -671,9 +638,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		
 		// Targets
 		bool hasNew = false;
-		for(SerializableList<BinaryString>::iterator it = targets.begin();
-			it != targets.end();
-			++it)
+		for(auto it = targets.begin(); it != targets.end(); ++it)
 		{
 			hasNew|= !Store::Instance->hasValue(key, *it);
 			Store::Instance->storeValue(key, *it, Store::Temporary);	// cache
@@ -688,16 +653,16 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	else if(type == "subscribe")
 	{
 		String path;
-		serializer.read(Object()
-				.insert("pa.hpp", &path));
+		serializer >> Object()
+				.insert("path", &path);
 		
 		addRemoteSubscriber(link, path);
 	}
 	else if(type == "invite")
 	{
 		String name;
-		serializer.read(Object()
-				.insert("name", &name));
+		serializer >> Object()
+				.insert("name", &name);
 		
 		User *user = User::GetByIdentifier(link.local);
 		if(user && !name.empty()) user->invite(link.remote, name);
@@ -711,7 +676,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 
 bool Network::matchPublishers(const String &path, const Link &link, Subscriber *subscriber)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(path.empty() || path[0] != '/') return false;
 	
@@ -730,16 +695,13 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 		String truncatedPath(path.substr(prefix.size()));
 		if(truncatedPath.empty()) truncatedPath = "/";
 
-		SerializableList<BinaryString> targets;
-		Map<String, Set<Publisher*> >::iterator it = mPublishers.find(prefix);
+		List<BinaryString> targets;
+		auto it = mPublishers.find(prefix);
 		if(it != mPublishers.end())
 		{
 			Set<Publisher*> set = it->second;
-			Desynchronize(this);
 			
-			for(Set<Publisher*>::iterator jt = set.begin();
-				jt != set.end();
-				++jt)
+			for(auto jt = set.begin(); jt != set.end(); ++jt)
 			{
 				Publisher *publisher = *jt;
 				if(publisher->link() != link)
@@ -751,7 +713,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					Assert(!result.empty());
 					if(subscriber) 	// local
 					{
-						for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
+						for(auto it = result.begin(); it != result.end(); ++it)
 							subscriber->incoming(publisher->link(), path, "/", *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
@@ -762,8 +724,9 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			{
 				//LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
-				send(link, "publi.hpp", ConstObject()
-						.insert("pa.hpp", &path)
+				send(link, "publish",
+					Object()
+						.insert("path", &path)
 						.insert("targets", &targets));
 			}
 		}
@@ -777,7 +740,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 
 bool Network::matchSubscribers(const String &path, const Link &link, Publisher *publisher)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(path.empty() || path[0] != '/') return false;
 	
@@ -797,15 +760,11 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 		if(truncatedPath.empty()) truncatedPath = "/";
 		
 		// Pass to subscribers
-		Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+		auto it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
 		{
 			Set<Subscriber*> set = it->second;
-			Desynchronize(this);
-			
-			for(Set<Subscriber*>::iterator jt = set.begin();
-				jt != set.end();
-				++jt)
+			for(auto jt = set.begin(); jt != set.end(); ++jt)
 			{
 				Subscriber *subscriber = *jt;
 				if(subscriber->link() != link)
@@ -834,7 +793,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 
 bool Network::matchSubscribers(const String &path, const Link &link, const Mail &mail)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(path.empty() || path[0] != '/') return false;
 	
@@ -854,13 +813,11 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 		if(truncatedPath.empty()) truncatedPath = "/";
 		
 		// Pass to subscribers
-		Map<String, Set<Subscriber*> >::iterator it = mSubscribers.find(prefix);
+		auto it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
 		{
 			Set<Subscriber*> set = it->second;
-			Desynchronize(this);
-			
-			for(Set<Subscriber*>::iterator jt = set.begin();
+			for(auto jt = set.begin();
 				jt != set.end();
 				++jt)
 			{
@@ -881,21 +838,18 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 
 void Network::onConnected(const Link &link, bool status)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
+	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return;
 	
 	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(Set<Listener*>::iterator jt = set.begin();
-		jt != set.end();
-		++jt)
+	for(auto jt = set.begin(); jt != set.end(); ++jt)
 	{
                 it = mListeners.find(IdentifierPair(link.remote, link.local));
 		if(it == mListeners.end()) break;
 		if(it->second.contains(*jt))
 		{
- 			Desynchronize(this);
 			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
 			(*jt)->connected(link, status);
 		}
@@ -904,22 +858,19 @@ void Network::onConnected(const Link &link, bool status)
 
 bool Network::onRecv(const Link &link, const String &type, Serializer &serializer)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
+	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return false;
 
 	bool ret = false;
 	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(Set<Listener*>::iterator jt = set.begin();
-		jt != set.end();
-		++jt)
+	for(auto jt = set.begin(); jt != set.end(); ++jt)
 	{
 		it = mListeners.find(IdentifierPair(link.remote, link.local));
 		if(it == mListeners.end()) break;
 		if(it->second.contains(*jt))
 		{
-			Desynchronize(this);
 			if((*jt)->recv(link, type, serializer))
 				return true;
 		}
@@ -930,21 +881,18 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 
 bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Map<IdentifierPair, Set<Listener*> >::iterator it = mListeners.find(IdentifierPair(link.remote, link.local));
+	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return true;
 	
 	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(Set<Listener*>::iterator jt = set.begin();
-		jt != set.end();
-		++jt)
+	for(auto jt = set.begin(); jt != set.end(); ++jt)
 	{
 		it = mListeners.find(IdentifierPair(link.remote, link.local));
 		if(it == mListeners.end()) break;
 		if(it->second.contains(*jt))
 		{
-			Desynchronize(this);
 			if(!(*jt)->auth(link, pubKey))
 				return false;
 		}
@@ -1016,9 +964,7 @@ Network::Publisher::Publisher(const Link &link) :
 
 Network::Publisher::~Publisher(void)
 {
-	for(StringSet::iterator it = mPublishedPrefixes.begin();
-		it != mPublishedPrefixes.end();
-		++it)
+	for(auto it = mPublishedPrefixes.begin(); it != mPublishedPrefixes.end(); ++it)
 	{
 		Network::Instance->unpublish(*it, this);
 	}
@@ -1056,7 +1002,7 @@ void Network::Publisher::issue(const String &prefix, const Mail &mail, const Str
 
 Network::Subscriber::Subscriber(const Link &link) :
 	mLink(link),
-	mThreadPool(0, 1, 8)
+	mPool(2)	// TODO
 {
 	
 }
@@ -1091,9 +1037,7 @@ void Network::Subscriber::unsubscribe(const String &prefix)
 
 void Network::Subscriber::unsubscribeAll(void)
 {
-	for(StringSet::iterator it = mSubscribedPrefixes.begin();
-		it != mSubscribedPrefixes.end();
-		++it)
+	for(auto it = mSubscribedPrefixes.begin(); it != mSubscribedPrefixes.end(); ++it)
 	{
 		Network::Instance->unsubscribe(*it, this);
 	}
@@ -1114,51 +1058,26 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 			return true;
 	}
 	
-	class PrefetchTask : public Task
+	// Enqueue fetch task
+	mPool.enqueue([this, link, prefix, path, target, fetchContent]()
 	{
-	public:
-		PrefetchTask(Network::Subscriber *subscriber, const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent)
-		{
-			this->subscriber = subscriber;
-			this->link = link;
-			this->target = target;
-			this->prefix = prefix;
-			this->path = path;
-			this->fetchContent = fetchContent;
-		}
-		
-		void run(void)
-		{
-			try {
-				Resource resource(target);
-				
-				if(fetchContent)
-				{
-					Resource::Reader reader(&resource, "", true);	// empty password + no check
-					reader.discard();				// read everything
-				}
-
-				subscriber->incoming(link, prefix, path, target);
-			}
-			catch(const Exception &e)
-			{
-				LogWarn("Network::Subscriber::fet.hpp", "Fetching failed for " + target.toString() + ": " + e.what());
-			}
+		try {
+			Resource resource(target);
 			
-			delete this;	// autodelete
+			if(fetchContent)
+			{
+				Resource::Reader reader(&resource, "", true);	// empty password + no check
+				reader.discard();				// read everything
+			}
+
+			this->incoming(link, prefix, path, target);
 		}
+		catch(const Exception &e)
+		{
+			LogWarn("Network::Subscriber::fet.hpp", "Fetching failed for " + target.toString() + ": " + e.what());
+		}
+	});
 	
-	private:
-		Network::Subscriber *subscriber;
-		Link link;
-		BinaryString target;
-		String prefix;
-		String path;
-		bool fetchContent;
-	};
-	
-	PrefetchTask *task = new PrefetchTask(this, link, prefix, path, target, fetchContent);
-	mThreadPool.launch(task);
 	return false;
 }
 
@@ -1195,12 +1114,12 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 {
 	if(link.remote.empty() || link != this->link())
 	{
-		SerializableArray<BinaryString> targets;
+		Array<BinaryString> targets;
 		targets.append(target);
 		
-		Network::Instance->send(this->link(), "publi.hpp",
-			ConstObject()
-				.insert("pa.hpp", &prefix)
+		Network::Instance->send(this->link(), "publish",
+			Object()
+				.insert("path", &prefix)
 				.insert("targets", &targets));
 	}
 }
@@ -1209,9 +1128,9 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 {
 	if(link.remote.empty() || link != this->link())
 	{
-		Network::Instance->send(this->link(), "publi.hpp",
-			ConstObject()
-				.insert("pa.hpp", &prefix)
+		Network::Instance->send(this->link(), "publish",
+			Object()
+				.insert("path", &prefix)
 				.insert("message", &mail));
 	}
 }
@@ -1293,9 +1212,7 @@ void Network::Listener::ignore(const Identifier &local, const Identifier &remote
 
 void Network::Listener::ignore(void)
 {
-	for(Set<IdentifierPair>::iterator it = mPairs.begin();
-                it != mPairs.end();
-                ++it)
+	for(auto it = mPairs.begin(); it != mPairs.end(); ++it)
         {
                 Network::Instance->unregisterListener(it->second, it->first, this);
         }
@@ -1303,19 +1220,30 @@ void Network::Listener::ignore(void)
 	mPairs.clear();
 }
 
-Network::Tunneler::Tunneler(void)
+Network::Tunneler::Tunneler(void) : 
+	mPool(2),	// TODO 
+	mStop(false)
 {
-
+	mThread = std::thread([this]()
+	{
+		this->run();
+	});
 }
 
 Network::Tunneler::~Tunneler(void)
 {
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mStop = true;
+	}
 	
+	mCondition.notify_all();
+	mThread.join();
 }
 
 bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!node.empty());
 	Assert(!remote.empty());
 	Assert(user);
@@ -1364,21 +1292,25 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	while(true)
+	while(!mStop)
 	{
-		while(mQueue.empty()) wait();
+		mCondition.wait(lock, [this]() {
+			return mStop || !mQueue.empty();
+		});
+		
+		if(mStop) break;
 		
 		try {
 			Overlay::Message &message = mQueue.front();
-
+			
 			// Read tunnel ID
 			uint64_t tunnelId = 0;
 			if(!message.content.readBinary(tunnelId))
 				continue;
-
-			Map<uint64_t, Tunnel*>::iterator it = mTunnels.find(tunnelId);
+			
+			auto it = mTunnels.find(tunnelId);
 			if(it == mTunnels.end())
 			{
 				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
@@ -1418,16 +1350,18 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 
 bool Network::Tunneler::incoming(const Overlay::Message &message)
 {
-	Synchronize(this);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mQueue.push(message);
+	}
 	
-	mQueue.push(message);
-	notifyAll();
+	mCondition.notify_all();
 	return true;
 }
 
 bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(tunnel);
 	
 	Tunneler::Tunnel *t = NULL;
@@ -1440,7 +1374,7 @@ bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
 
 bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(tunnel);
 	
 	mPending.erase(tunnel->node());
@@ -1455,7 +1389,7 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!link.node.empty());
 	
 	class MyVerifier : public SecureTransport::Verifier
@@ -1504,16 +1438,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 		}
 	};
 	
-	class HandshakeTask : public Task
-	{
-	public:
-		HandshakeTask(SecureTransport *transport, const Link &link)
-		{ 
-			this->transport = transport;
-			this->link = link;
-		}
-		
-		bool handshake(void)
+	try {
+		auto handshakeTask = [transport, link]()
 		{
 			//LogDebug("Network::Tunneler::handshake", "HandshakeTask starting...");
 			
@@ -1545,7 +1471,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				LogDebug("Network::Tunneler::handshake", "Handshake succeeded");
 				
 				Link link(verifier.local, verifier.remote, verifier.node);
-				Handler *handler = new Handler(transport, link);
+				sptr<Handler> handler = std::make_shared<Handler>(transport, link);
+				Network::Instance->registerHandler(link, handler);
 				return true;
 			}
 			catch(const Timeout &e)
@@ -1559,37 +1486,20 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			
 			delete transport;
 			return false;
-		}
+		};
 		
-		void run(void)
-		{
-			handshake();
-			delete this;	// autodelete
-		}
-		
-	private:
-		SecureTransport *transport;
-		Link link;
-	};
-	
-	HandshakeTask *task = NULL;
-	try {
 		if(async)
 		{
-			task = new HandshakeTask(transport, link);
-			mThreadPool.launch(task);
+			mPool.enqueue(handshakeTask);
 			return true;
 		}
 		else {
-			Desynchronize(this);
-			HandshakeTask stask(transport, link);
-			return stask.handshake();
+			return handshakeTask();
 		}
 	}
 	catch(const std::exception &e)
 	{
 		LogError("Network::Tunneler::handshake", e.what());
-		delete task;
 		delete transport;
 		return false;
 	}
@@ -1623,7 +1533,8 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mId(id),
 	mNode(node),
 	mOffset(0),
-	mTimeout(milliseconds(Config::Get("idle_timeout").toInt()))
+	mTimeout(milliseconds(Config::Get("idle_timeout").toInt())),
+	mClosed(false)
 {
 	//LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
 	if(!mTunneler->registerTunnel(this))
@@ -1634,36 +1545,46 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 
 Network::Tunneler::Tunnel::~Tunnel(void)
 {
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mClosed = true;
+	}
+	
+	mCondition.notify_all();
+	
 	//LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
 	mTunneler->unregisterTunnel(this);
 }
 
 uint64_t Network::Tunneler::Tunnel::id(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mId;
 }
 
 BinaryString Network::Tunneler::Tunnel::node(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mNode;
 }
 
 void Network::Tunneler::Tunnel::setTimeout(double timeout)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mTimeout = timeout;
 }
 
 size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	double timeout = mTimeout;
-        while(mQueue.empty())
-		if(!wait(timeout))
-			throw Timeout();
+	if(mClosed) return 0;
+	mCondition.wait_for(lock, std::chrono::duration<double>(mTimeout), [this]() {
+		return this->mClosed || !this->mQueue.empty();
+	});
+	
+	if(mClosed) return 0;
+	if(mQueue.empty()) throw Timeout();
 	
 	const Overlay::Message &message = mQueue.front();
 	Assert(mOffset <= message.content.size());
@@ -1674,30 +1595,26 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mBuffer.writeBinary(data, size);
 }
 
 bool Network::Tunneler::Tunnel::waitData(double &timeout)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	while(mQueue.empty())
-	{
-		if(timeout <= 0.)
-			return false;
-		
-		if(!wait(timeout))
-			return false;
-	}
+	if(mClosed) return true;
+	mCondition.wait_for(lock, std::chrono::duration<double>(mTimeout), [this]() {
+		return this->mClosed || !this->mQueue.empty();
+	});
 	
-	return true;
+	return (mClosed || !mQueue.empty());
 }
 
 bool Network::Tunneler::Tunnel::nextRead(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(!mQueue.empty()) mQueue.pop();
 	mOffset = 0;
 	return true;
@@ -1707,7 +1624,7 @@ bool Network::Tunneler::Tunnel::nextWrite(void)
 {
 	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, mBuffer, mNode));
 	
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mBuffer.clear();
 	mBuffer.writeBinary(mId);
 	return true;
@@ -1720,13 +1637,15 @@ bool Network::Tunneler::Tunnel::isDatagram(void) const
 
 bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 {
-	Synchronize(this);
-	
 	if(message.type != Overlay::Message::Tunnel)
 		return false;
+
+	{
+		std::unique_lock<std::mutex> lock(mMutex);	
+		mQueue.push(message);
+	}
 	
-	mQueue.push(message);
-	notifyAll();
+	mCondition.notify_all();
 	return true;
 }
 
@@ -1739,28 +1658,30 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mAccumulator(0.),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
-	mClosed(false),
-	mTimeoutTask(this)
+	mClosed(false)
 {
-	Network::Instance->registerHandler(mLink, this);
+	// Start handler thread
+	mThread = std::thread([this]()
+	{
+		this->run();
+	});
 }
 
 Network::Handler::~Handler(void)
 {
-	Network::Instance->unregisterHandler(mLink, this);	// should be done already
-	Scheduler::Global->cancel(&mTimeoutTask);
-	
+	mStream->close();
+	mThread.join();
 	delete mStream;
 }
 
-void Network::Handler::write(uint8_t type, const BinaryString &record)
+void Network::Handler::write(const String &type, const String &record)
 {
 	writeRecord(type, record);
 }
 
 void Network::Handler::push(const BinaryString &target, unsigned tokens)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
 	if(tokens < uint16_t(-1))
@@ -1776,27 +1697,22 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 
 void Network::Handler::timeout(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	// Inactivity timeout is handled by Tunnel
 	if(mAvailableTokens < 1.) mAvailableTokens = 1.;
 	send(true);
 }
 
-bool Network::Handler::readRecord(uint8_t &type, BinaryString &record)
+bool Network::Handler::readRecord(String &type, String &record)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return false;
 	
 	try {
-		uint8_t version;
-		uint16_t size;
-		
-		if(readBinary(version))
+		if(readBinary(type))
 		{
-			AssertIO(readBinary(type));
-			AssertIO(readBinary(size));
-			AssertIO(readBinary(content, size) == size);
+			AssertIO(readBinary(record));
 			return true;
 		}
 	}
@@ -1811,20 +1727,18 @@ bool Network::Handler::readRecord(uint8_t &type, BinaryString &record)
 	return false;
 }
 
-Network::Handler::writeRecord(uint8_t type, const BinaryString &record)
+void Network::Handler::writeRecord(const String &type, const String &record)
 {
 	BinaryString buffer;
-	buffer.writeBinary(uint8_t(0));		// version
-	buffer.writeBinary(uint8_t(type));
-	buffer.writeBinary(uint16_t(record.size()));
-	buffer.writeBinary(content.c_str(), content.size());
+	buffer.writeBinary(type);
+	buffer.writeBinary(record);
 	writeData(buffer.data(), buffer.size());
 	flush();
 }
 
 size_t Network::Handler::readData(char *buffer, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	size_t count = 0;
 	while(true)
@@ -1842,19 +1756,26 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			break;
 		
 		// We need more combinations
+		BinaryString target;
 		Fountain::Combination combination;
-		if(!recvCombination(combination))
+		if(!recvCombination(target, combination))
 			break;
 		
 		//LogDebug("Network::Handler::readString", "Received combination");
 		
-		if(!combination.isNull())
+		if(target.empty())
 		{
-			mSink.drop(combination.firstComponent());
-			mSink.solve(combination);
-				
-			if(!send(false))
-				Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
+			if(!combination.isNull())
+			{
+				mSink.drop(combination.firstComponent());
+				mSink.solve(combination);
+					
+				if(!send(false))
+					Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
+			}
+		}
+		else {
+			Store::Instance->push(target, combination);
 		}
 	}
 	
@@ -1863,7 +1784,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 
 void Network::Handler::writeData(const char *data, size_t size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
 	unsigned count = mSource.write(data, size);
@@ -1877,7 +1798,7 @@ void Network::Handler::flush(void)
 
 int Network::Handler::send(bool force)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return 0;
 	
 	int count = 0;
@@ -1886,6 +1807,7 @@ int Network::Handler::send(bool force)
 		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
 		
 		try {
+			BinaryString target;
 			Fountain::Combination combination;
 			mSource.generate(combination);
 			
@@ -1893,27 +1815,28 @@ int Network::Handler::send(bool force)
 			{
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
-			/*else {
-				if(!mTargets.empty())
-				{
-					// Pick at random
-					int r = Random().uniform(0, int(mTargets.size()));
-					Map<BinaryString, unsigned>::iterator it = mTargets.begin();
-					while(r--) ++it;
-					Assert(it != mTargets.end());
-					
-					BinaryString target = it->first;
-                        	        unsigned &tokens = it->second;
-					
-					unsigned rank = 0;
-					Store::Instance->pull(target, combination, &rank);
-					
-					tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
-					--tokens;
-				}
-			}*/
+			else if(!mTargets.empty())
+			{
+				// Pick at random
+				int r = Random().uniform(0, int(mTargets.size()));
+				auto it = mTargets.begin();
+				while(r--) ++it;
+				Assert(it != mTargets.end());
+				
+				target = it->first;
+				unsigned &tokens = it->second;
+				
+				unsigned rank = 0;
+				Store::Instance->pull(target, combination, &rank);
+				
+				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
+				--tokens;
+			}
 			
-			sendCombination(combination);
+			if(!combination.isNull())
+				--mAvailableTokens;
+			
+			sendCombination(target, combination);
 			++count;	
 			force = false;
 		}
@@ -1932,33 +1855,38 @@ int Network::Handler::send(bool force)
 	return count;
 }
 
-bool Network::Handler::recvCombination(Fountain::Combination &combination)
+bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combination &combination)
 {
-	Desynchronize(this);
 	BinarySerializer s(mStream);
 	
 	// 32-bit header
-	uint16_t  version    = 0;
-	uint16_t dataSize    = 0;
-	if(!s.read(version)) return false;
-	AssertIO(s.read(dataSize));
+	uint8_t  version    = 0;
+	uint8_t  targetSize = 0;
+	uint16_t dataSize   = 0;
+	if(!(s >> version)) return false;
+	AssertIO(s >> targetSize);
+	AssertIO(s >> dataSize);
 	
+	// 64-bit acknowledgement
 	uint32_t nextSeen = 0;
 	uint32_t nextDecoded = 0;
-	AssertIO(s.read(nextSeen));	// 32-bit next seen
-	AssertIO(s.read(nextDecoded));	// 32-bit next decoded
+	AssertIO(s >> nextSeen);	// 32-bit next seen
+	AssertIO(s >> nextDecoded);	// 32-bit next decoded
 	
 	// 64-bit combination descriptor
-	AssertIO(s.read(combination));
+	AssertIO(s >> combination);
+	
+	// Target
+	AssertIO(mStream->readBinary(target, targetSize) == targetSize);
 	
 	// Data
 	BinaryString data;
-	mStream->readBinary(data, dataSize); 
+	AssertIO(mStream->readBinary(data, dataSize) == dataSize); 
 	combination.setCodedData(data);
 	
 	mStream->nextRead();
 	
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	unsigned backlog = nextSeen - std::min(nextDecoded, nextSeen);
 	unsigned dropped = mSource.drop(nextSeen);
 	
@@ -1988,26 +1916,29 @@ bool Network::Handler::recvCombination(Fountain::Combination &combination)
 	return true;
 }
 
-void Network::Handler::sendCombination(const Fountain::Combination &combination)
+void Network::Handler::sendCombination(const BinaryString &target, const Fountain::Combination &combination)
 {
-	Synchronize(this);
 	uint32_t nextSeen = mSink.nextSeen();
 	uint32_t nextDecoded = mSink.nextDecoded();
 	mAvailableTokens = std::max(0., mAvailableTokens - 1.);
 	
-	Desynchronize(this);
-	MutexLocker lock(&mWriteMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	BinarySerializer s(mStream);
 	
 	// 32-bit header
-	s.write(uint16_t(0));	// version
-	s.write(uint16_t(combination.codedSize()));
+	s << uint8_t(0);	// version
+	s << uint8_t(target.size());
+	s << uint16_t(combination.codedSize());
 	
-	s.write(uint32_t(nextSeen));		// 32-bit next seen
-	s.write(uint32_t(nextDecoded));		// 32-bit next decoded
+	// 64-bit acknowledgement
+	s << uint32_t(nextSeen);	// 32-bit next seen
+	s << uint32_t(nextDecoded);	// 32-bit next decoded
 	
 	// 64-bit combination descriptor
-	s.write(combination);
+	s << combination;
+	
+	// Target
+	mStream->writeBinary(target.data(), target.size());
 	
 	// Data
 	mStream->writeBinary(combination.data(), combination.codedSize());
@@ -2017,14 +1948,11 @@ void Network::Handler::sendCombination(const Fountain::Combination &combination)
 
 void Network::Handler::process(void)
 {
-	Synchronize(this);
-	
-	String type, content;
-	while(read(type, content))
+	String type, record;
+	while(readRecord(type, record))
 	{
 		try {
-			Desynchronize(this);
-			JsonSerializer serializer(&content);
+			JsonSerializer serializer(&record);
 			Network::Instance->incoming(mLink, type, serializer);
 		}
 		catch(const std::exception &e)
@@ -2048,102 +1976,7 @@ void Network::Handler::run(void)
 		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	Network::Instance->unregisterHandler(mLink, this);
-	Scheduler::Global->cancel(&mTimeoutTask);
-	
-	notifyAll();
-	Thread::Sleep(10.);	// TODO
-	delete this;		// autodelete
-}
-
-Network::Pusher::Pusher(void) :
-	mRedundant(16)	// TODO
-{
-	
-}
-
-Network::Pusher::~Pusher(void)
-{
-	
-}
-
-void Network::Pusher::push(const BinaryString &target, const Identifier &destination, unsigned tokens)
-{
-	Synchronize(this);
-	
-	if(tokens < uint16_t(-1))
-	{
-		if(tokens < mRedundant) tokens*=2;
-		else tokens+= mRedundant;
-	}
-	
-	if(tokens) mTargets[target][destination] = tokens;
-	else {
-		mTargets[target].erase(destination);
-		if(mTargets[target].empty())
-			mTargets.erase(target);
-	}
-	
-	notifyAll();
-}
-
-void Network::Pusher::run(void)
-{
-	while(true)
-	{
-		try {
-			Synchronize(this);
-			
-			while(mTargets.empty()) wait();
-			
-			bool congestion = false;	// local congestion
-			Map<BinaryString, Map<Identifier, unsigned> >::iterator it = mTargets.begin();
-			while(it != mTargets.end())
-			{
-				const BinaryString &target = it->first;
-				
-				Map<Identifier, unsigned>::iterator jt = it->second.begin();
-				while(jt != it->second.end())
-				{
-					const Identifier &destination = jt->first;
-					unsigned &tokens = jt->second;
-					
-					if(tokens)
-					{
-						unsigned rank = 0;
-						Fountain::Combination combination;
-						Store::Instance->pull(target, combination, &rank);
-						
-						tokens = std::min(tokens, rank + mRedundant);
-						--tokens;
-						
-						Overlay::Message data(Overlay::Message::Data, "", destination, target);
-						BinarySerializer serializer(&data.content);
-						serializer.write(combination);
-						data.content.writeBinary(combination.data(), combination.codedSize());
-						
-						congestion|= Network::Instance->overlay()->send(data);
-					}
-					
-					if(!tokens) it->second.erase(jt++);
-					else ++jt;
-				}
-				
-				if(it->second.empty()) mTargets.erase(it++);
-				else ++it;
-			}
-			
-			if(congestion)
-			{
-				Desynchronize(this);
-				yield();
-			}
-		}
-		catch(const std::exception &e)
-		{
-			LogWarn("Network::Pusher::run", e.what());
-		}
-	}
+	Network::Instance->unregisterHandler(mLink);
 }
 
 }

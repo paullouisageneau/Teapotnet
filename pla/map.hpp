@@ -25,9 +25,6 @@
 #include "pla/include.hpp"
 #include "pla/exception.hpp"
 #include "pla/serializable.hpp"
-#include "pla/array.hpp"
-#include "pla/list.hpp"
-#include "pla/set.hpp"
 
 #include <map>
 
@@ -48,10 +45,11 @@ public:
 	bool getAndRemove(const K &key, V &value) const;
 	const V &getOrDefault(const K &key, const V &defaultValue) const;
 	
-	int getKeys(Set<K> &set) const;
-	int getKeys(Array<K> &array) const;
-	int getKeys(List<K> &list) const;
-	int getValues(Array<V> &array) const;
+	int getKeys(std::set<K> &set) const;
+	int getKeys(std::vector<K> &array) const;
+	int getKeys(std::list<K> &list) const;
+	int getValues(std::vector<V> &array) const;
+	int getValues(std::list<V> &array) const;
 };
 
 class String;
@@ -123,7 +121,7 @@ const V &Map<K,V>::getOrDefault(const K &key, const V &defaultValue) const
 }
 
 template<typename K, typename V>
-int Map<K,V>::getKeys(Set<K> &set) const
+int Map<K,V>::getKeys(std::set<K> &set) const
 {
 	set.clear();
 	for(	typename std::map<K,V>::const_iterator it = this->begin();
@@ -137,7 +135,7 @@ int Map<K,V>::getKeys(Set<K> &set) const
 }
 
 template<typename K, typename V>
-int Map<K,V>::getKeys(Array<K> &array) const
+int Map<K,V>::getKeys(std::vector<K> &array) const
 {
 	array.clear();
 	array.reserve(this->size());
@@ -152,7 +150,7 @@ int Map<K,V>::getKeys(Array<K> &array) const
 }
 
 template<typename K, typename V>
-int Map<K,V>::getKeys(List<K> &list) const
+int Map<K,V>::getKeys(std::list<K> &list) const
 {
 	list.clear();
 	for(	typename std::map<K,V>::const_iterator it = this->begin();
@@ -166,7 +164,7 @@ int Map<K,V>::getKeys(List<K> &list) const
 }
 
 template<typename K, typename V>
-int Map<K,V>::getValues(Array<V> &array) const
+int Map<K,V>::getValues(std::vector<V> &array) const
 {
 	array.clear();
 	array.reserve(this->size());
@@ -178,6 +176,20 @@ int Map<K,V>::getValues(Array<V> &array) const
 	}
 	
 	return array.size();
+}
+
+template<typename K, typename V>
+int Map<K,V>::getValues(std::list<V> &list) const
+{
+	list.clear();
+	for(	typename std::map<K,V>::const_iterator it = this->begin();
+		it != this->end();
+		++it)
+	{
+		list.push_back(it->second);
+	}
+	
+	return list.size();
 }
 
 }

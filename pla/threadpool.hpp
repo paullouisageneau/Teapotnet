@@ -45,7 +45,7 @@ public:
 	auto enqueue(F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
 	
-	void join(void);
+	virtual void join(void);
 	
 protected:
 	std::vector<std::thread > workers;
@@ -98,7 +98,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 	
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		if(stop) throw std::runtime_error("enqueue on stopped ThreadPool");
+		if(this->stop) throw std::runtime_error("enqueue on stopped ThreadPool");
 		tasks.emplace([task](){ (*task)(); });
 	}
 	

@@ -282,7 +282,7 @@ void Socket::writeData(const char *data, size_t size)
 	sendData(data, size, 0);
 }
 
-bool Socket::waitData(double &timeout)
+bool Socket::waitData(double timeout)
 {
 	if(mSock == INVALID_SOCKET)
 		throw NetException("Socket is closed");
@@ -295,14 +295,7 @@ bool Socket::waitData(double &timeout)
 	Time::SecondsToStruct(timeout, tv);
 	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 	if (ret < 0) throw Exception("Unable to wait on socket");
-	if(ret == 0)
-	{
-		timeout = 0.;
-		return false;
-	}
-	
-	timeout = Time::StructToSeconds(tv);
-	return true;
+	return (ret != 0);
 }
 
 size_t Socket::peekData(char *buffer, size_t size)

@@ -125,32 +125,23 @@ bool Mail::isSigned(void) const
 
 void Mail::serialize(Serializer &s) const
 {
-	ConstObject object;
-	object["content"] = &mContent;
-	object["time"] = &mTime;
+	Object object;
+	object.insert("content", mContent);
+	object.insert("time", mTime);
 	
-	if(!mAuthor.empty())
-		object["author"] = &mAuthor;
-	
-	if(!mIdentifier.empty())
-		object["identifier"] = &mIdentifier;
-	
-	if(!mAttachments.empty())
-		object["attachments"] = &mAttachments;
-	
-	if(!mParent.empty())
-		object["parent"] = &mParent;
-	
-	if(!mSignature.empty())
-		object["signature"] = &mSignature;
+	if(!mAuthor.empty()) object.insert("author", mAuthor);
+	if(!mIdentifier.empty()) object.insert("identifier", mIdentifier);
+	if(!mAttachments.empty()) object.insert("attachments", mAttachments);
+	if(!mParent.empty()) object.insert("parent", mParent);
+	if(!mSignature.empty()) object.insert("signature", mSignature);
 	
 	if(s.optionalOutputMode())
 	{
 		digest();	// so mDigest is computed
-		object["digest"] = &mDigest;
+		object.insert("digest", mDigest);
 	}
 	
-	s.write(object);
+	s << object;
 }
 
 bool Mail::deserialize(Serializer &s)
@@ -165,16 +156,15 @@ bool Mail::deserialize(Serializer &s)
 	mDigest.clear();
 	
 	Object object;
-        object["content"] = &mContent;
-	object["time"] = &mTime;
-	object["author"] = &mAuthor;
-	object["identifier"] = &mIdentifier;
-	object["attachments"] = &mAttachments;
-	object["parent"] = &mParent;
-	object["signature"] = &mSignature;
+        object.insert("content", mContent);
+	object.insert("time", mTime);
+	object.insert("author", mAuthor);
+	object.insert("identifier", mIdentifier);
+	object.insert("attachments", mAttachments);
+	object.insert("parent", mParent);
+	object.insert("signature", mSignature);
 	
-	if(!s.read(object))
-		return false;
+	if(!(s >> object)) return false;
 	
 	// TODO: checks
 	return true;

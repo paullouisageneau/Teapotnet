@@ -59,7 +59,7 @@ public:
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-	bool waitData(double &timeout);
+	bool waitData(double timeout);
 	
 	// Socket-specific
 	size_t peekData(char *buffer, size_t size);

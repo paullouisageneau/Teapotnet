@@ -102,6 +102,8 @@ public:
 	bool query(const Query &q, Set<Resource> &resources);
 	bool query(const Query &q, Resource &resource);
 	
+	void operator()(void);
+	
 private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
@@ -112,9 +114,6 @@ private:
 	bool isHiddenPath(String path) const;
 	Resource::AccessLevel pathAccessLevel(String path) const;
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
-	
-	// Task
-	void run(void);
 	
 	struct Entry : public Serializable
 	{
@@ -138,6 +137,8 @@ private:
 	String mBaseDirectory;
 	Map<String, Entry> mDirectories;
 	bool mRunning;
+	
+	mutable std::mutex mMutex;
 };
 
 }

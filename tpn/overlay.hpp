@@ -97,7 +97,6 @@ public:
 	void load(void);
 	void save(void) const;
 	
-	void start(void);
 	void join(void);
 	
 	// Global
@@ -125,7 +124,7 @@ public:
 	void retrieve(const BinaryString &key);					// async
 	bool retrieve(const BinaryString &key, Set<BinaryString> &values);	// sync
 	
-	void operator()(void);
+	void run(void);
 	
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
@@ -249,21 +248,22 @@ private:
 	
 	bool track(const String &tracker, Map<BinaryString, Set<Address> > &result);
 	
-	ThreadPool mThreadPool;
+	ThreadPool mPool;
 	
 	String mName;
 	String mFileName;
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
-	SecureTransport::Certificate *mCertificate;
+	sptr<SecureTransport::Certificate> mCertificate;
 
-	List<Backend*> mBackends;
+	List<sptr<Backend> > mBackends;
 	Map<BinaryString, Handler*> mHandlers;
 	Set<Address> mRemoteAddresses, mLocalAddresses;
 	
 	Queue<Message> mIncoming;
 	Set<BinaryString> mRetrievePending;
 	
+	std::thread mThread;
 	std::mutex mMutex;
 	std::condition_variable mCondition;
 };

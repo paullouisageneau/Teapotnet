@@ -81,14 +81,12 @@ User *AddressBook::user(void) const
 
 String AddressBook::userName(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mUser) return mUser->name();
 	else return "";
 }
 
 String AddressBook::urlPrefix(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mUser) return mUser->urlPrefix() + "/contacts";
 	else return "";
 }
@@ -97,64 +95,62 @@ void AddressBook::clear(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	for(Map<String, Contact*>::iterator it = mContacts.begin();
-		it != mContacts.end();
-		++it)
-	{
-		delete it->second;
-	}
-	
 	mContactsByIdentifier.clear();
 	mContacts.clear();
 }
 
 void AddressBook::save(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
 
-	SafeWriteFile file(mFileName);
-	JsonSerializer serializer(&file);
-	serializer.write(*this);
-	file.close();
+		SafeWriteFile file(mFileName);
+		JsonSerializer serializer(&file);
+		serializer.write(*this);
+		file.close();
+	}
 	
-	const Contact *self = getSelf();
+	sptr<const Contact> self = getSelf();
 	if(self)
 	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
 		Resource resource;
 		resource.process(mFileName, "contacts", "contacts", self->secret());
 		mDigest = resource.digest();
-		
+			
 		self->send("contacts", Object()
-				.insert("digest", digest())
-				.insert("time", time()));
+				.insert("digest", mDigest)
+				.insert("time", mTime));
 	}
 }
 
 String AddressBook::addContact(const String &name, const Identifier &identifier)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(name.empty())
 		throw Exception("Contact name is empty");
 	
 	if(!name.isAlphanumeric())
 		throw Exception("Contact name is invalid: " + name);
-	
-	String uname = name;
-	unsigned i = 1;
-	while((mContacts.contains(uname))
-		|| uname == userName())	// userName reserved for self
-	{
-		uname = name;
-		uname << ++i;
-	}
-	
-	Contact *contact = new Contact(this, uname, name, identifier);
-	
-	mContacts.insert(uname, contact);
-	mContactsByIdentifier.insert(identifier, contact);
 
-	mTime = Time::Now();
+	String uname = name;
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		unsigned i = 1;
+		while((mContacts.contains(uname))
+			|| uname == userName())	// userName reserved for self
+		{
+			uname = name;
+			uname << ++i;
+		}
+		
+		sptr<Contact> contact = std::make_shared<Contact>(this, uname, name, identifier);	
+		mContacts.insert(uname, contact);
+		mContactsByIdentifier.insert(identifier, contact);
+		mTime = Time::Now();
+	}
 	
 	save();
 	
@@ -163,42 +159,41 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 
 bool AddressBook::removeContact(const String &uname)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
-	Map<String, Contact*>::iterator it = mContacts.find(uname);
-	if(it == mContacts.end()) return false;
-	
-	Contact *contact = it->second;
-	mContactsByIdentifier.erase(contact->identifier());
-	mContacts.erase(it);
-	
-	delete contact;
-	
-	mTime = Time::Now();
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		auto it = mContacts.find(uname);
+		if(it == mContacts.end()) return false;
+		
+		sptr<Contact> contact = it->second;
+		mContactsByIdentifier.erase(contact->identifier());
+		mContacts.erase(it);
+		mTime = Time::Now();
+	}
 
 	save();
 	return true;
 }
 
-AddressBook::Contact *AddressBook::getContact(const String &uname)
+sptr<AddressBook::Contact> AddressBook::getContact(const String &uname)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-  
-	Map<String, Contact*>::iterator it = mContacts.find(uname);
+	
+	auto it = mContacts.find(uname);
 	if(it != mContacts.end()) return it->second;
 	else return NULL;
 }
 
-const AddressBook::Contact *AddressBook::getContact(const String &uname) const
+sptr<const AddressBook::Contact> AddressBook::getContact(const String &uname) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
   
-	Map<String, Contact*>::const_iterator it = mContacts.find(uname);
+	auto it = mContacts.find(uname);
 	if(it != mContacts.end()) return it->second;
 	else return NULL;
 }
 
-int AddressBook::getContacts(Array<AddressBook::Contact*> &result)
+int AddressBook::getContacts(std::vector<sptr<AddressBook::Contact> > &result)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	mContactsByIdentifier.getValues(result);
@@ -220,48 +215,47 @@ bool AddressBook::hasIdentifier(const Identifier &identifier) const
 
 void AddressBook::setSelf(const Identifier &identifier)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	String uname = userName();
 
-	Map<String, Contact*>::iterator it = mContacts.find(uname);
-	if(it != mContacts.end())
 	{
-		Contact *contact = it->second;
+		std::unique_lock<std::mutex> lock(mMutex);
+	
+		auto it = mContacts.find(uname);
+		if(it != mContacts.end())
+		{
+			// Delete
+			sptr<Contact> contact = it->second;
+			if(contact->identifier() == identifier) return;
+			mContactsByIdentifier.erase(contact->identifier());
+			mContacts.erase(it);
+		}
 		
-		if(contact->identifier() == identifier)
-			return;
-			
-		mContactsByIdentifier.erase(contact->identifier());
-		mContacts.erase(it);
-		
-		delete contact;
+		// Create
+		sptr<Contact> contact = std::make_shared<Contact>(this, uname, uname, identifier);
+		mContacts.insert(uname, contact);
+		mContactsByIdentifier.insert(identifier, contact);
 	}
-	
-	Contact *contact = new Contact(this, uname, uname, identifier);
-	
-	mContacts.insert(uname, contact);
-	mContactsByIdentifier.insert(identifier, contact);
 	
 	save();
 }
 
-AddressBook::Contact *AddressBook::getSelf(void)
+sptr<AddressBook::Contact> AddressBook::getSelf(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	return getContact(userName());
 }
 
-const AddressBook::Contact *AddressBook::getSelf(void) const
+sptr<const AddressBook::Contact> AddressBook::getSelf(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	return getContact(userName());
 }
 
 void AddressBook::addInvitation(const Identifier &remote, const String &name)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	if(!hasIdentifier(remote)) mInvitations.insert(remote, name);
+	if(!hasIdentifier(remote)) 
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mInvitations.insert(remote, name);
+	}
 }
 
 Time AddressBook::time(void) const
@@ -278,7 +272,7 @@ BinaryString AddressBook::digest(void) const
 
 bool AddressBook::send(const String &type, const Serializable &object) const
 {
-	Array<Identifier> keys;
+	std::vector<Identifier> keys;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mContactsByIdentifier.getKeys(keys);
@@ -287,7 +281,7 @@ bool AddressBook::send(const String &type, const Serializable &object) const
 	bool success = false;
 	for(int i=0; i<keys.size(); ++i)
         {
-                const Contact *contact = getContact(keys[i]);
+                sptr<const Contact> contact = getContact(keys[i]);
 		if(contact) success|= contact->send(type, object);
 	}
 	
@@ -300,13 +294,11 @@ void AddressBook::serialize(Serializer &s) const
 	
 	s << Object()
 		.insert("contacts", mContacts)
-		.insert("time", time());
+		.insert("time", mTime);
 }
 
 bool AddressBook::deserialize(Serializer &s)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	Map<String, Contact> temp;
 	Time time;
 	
@@ -318,27 +310,31 @@ bool AddressBook::deserialize(Serializer &s)
 	StringSet toDelete;
 	mContacts.getKeys(toDelete);
 	
-	for(auto it = temp.begin(); it != temp.end(); ++it)
 	{
-		toDelete.erase(it->first);
+		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(!mContacts.contains(it->first))
+		for(auto it = temp.begin(); it != temp.end(); ++it)
 		{
-			Assert(!it->second.uniqueName().empty());
-			Assert(!it->second.identifier().empty());
+			toDelete.erase(it->first);
 			
-			Contact *contact = new Contact(it->second);
-			contact->setAddressBook(this);
-			
-			mContacts.insert(contact->uniqueName(), contact);
-			mContactsByIdentifier.insert(contact->identifier(), contact);
+			if(!mContacts.contains(it->first))
+			{
+				Assert(!it->second.uniqueName().empty());
+				Assert(!it->second.identifier().empty());
+				
+				sptr<Contact> contact = std::make_shared<Contact>(it->second);
+				contact->setAddressBook(this);
+				
+				mContacts.insert(contact->uniqueName(), contact);
+				mContactsByIdentifier.insert(contact->identifier(), contact);
+			}
 		}
+		
+		mTime = time;
 	}
 	
-	for(StringSet::iterator it = toDelete.begin(); it != toDelete.end(); ++it)
+	for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
 		removeContact(*it);
-	
-	mTime = time;
 	
 	save();
 	return true;
@@ -375,23 +371,25 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(identifier.size() != 32)
 							throw Exception("Invalid identifier");
 						
-						std::unique_lock<std::mutex> lock(mMutex);
-						if(name.empty())
+						// TODO: function
 						{
-							if(!mInvitations.contains(identifier))
-								throw Exception("No name for contact");
+							std::unique_lock<std::mutex> lock(mMutex);
 							
-							name = mInvitations.get(identifier);
+							if(name.empty())
+							{
+								if(!mInvitations.contains(identifier))
+									throw Exception("No name for contact");
+								
+								name = mInvitations.get(identifier);
+							}
+							
+							addContact(name, identifier);
+							mInvitations.erase(identifier);
 						}
-						
-						addContact(name, identifier);
-						mInvitations.erase(identifier);
 					}
 					else if(action == "delete")
 					{
 						String uname = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("uname"));
-						
-						std::unique_lock<std::mutex> lock(mMutex);
 						removeContact(uname);
 					}
 					else if(action == "deleteinvitation")
@@ -403,8 +401,11 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(identifier.size() != 32)
 							throw Exception("Invalid identifier");
 						
-						std::unique_lock<std::mutex> lock(mMutex);
-						mInvitations.erase(identifier);
+						// TODO: function
+						{
+							std::unique_lock<std::mutex> lock(mMutex);
+							mInvitations.erase(identifier);
+						}
 					}
 					else if(action == "createsynchronization")
 					{
@@ -483,33 +484,37 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					Identifier identifier;
 					request.get["id"].extract(identifier);
 					
-					std::unique_lock<std::mutex> lock(mMutex);
-					Contact *contact = NULL;
-					if(!mContactsByIdentifier.get(identifier, contact))
+					sptr<Contact> contact;
+					
 					{
-						if(identifier == mUser->identifier())
-						{
-							String name = mUser->name();
-							String prefix = mUser->urlPrefix();
-							String status = "disconnected";
-							
-							Http::Response response(request, 200);
-							response.headers["Content-Type"] = "application/json";
-							response.send();
-							
-							JsonSerializer json(response.stream);
-							json.write(Object()
-								.insert("identifier", identifier)
-								.insert("uname", name)
-								.insert("name", name)
-								.insert("prefix", prefix)
-								.insert("status", status)
-								.insert("messages", 0)
-								.insert("newmessages", false));
-							return;
-						}
+						std::unique_lock<std::mutex> lock(mMutex);
 						
-						throw 404;
+						if(!mContactsByIdentifier.get(identifier, contact))
+						{
+							if(identifier == mUser->identifier())
+							{
+								String name = mUser->name();
+								String prefix = mUser->urlPrefix();
+								String status = "disconnected";
+								
+								Http::Response response(request, 200);
+								response.headers["Content-Type"] = "application/json";
+								response.send();
+								
+								JsonSerializer json(response.stream);
+								json.write(Object()
+									.insert("identifier", identifier)
+									.insert("uname", name)
+									.insert("name", name)
+									.insert("prefix", prefix)
+									.insert("status", status)
+									.insert("messages", 0)
+									.insert("newmessages", false));
+								return;
+							}
+							
+							throw 404;
+						}
 					}
 					
 					Http::Response response(request, 200);
@@ -518,7 +523,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					JsonSerializer json(response.stream);
 					json.setOptionalOutputMode(true);
-					json.write(*contact);
+					json << *contact;
 					return;
 				}
 				
@@ -580,58 +585,58 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", token);
 			page.closeForm();
 			
-			// Synchronized block
+			// Contacts
+			std::vector<sptr<Contact> > contacts;
+			getContacts(contacts);
+			if(!contacts.empty())
+			{
+				page.open("div",".box");
+				page.open("h2");
+				page.text("Contacts");
+				page.close("h2");
+				
+				page.open("table",".contacts");
+				
+				for(int i=0; i<contacts.size(); ++i)
+				{
+					sptr<Contact> contact = contacts[i];
+					
+					page.open("tr");
+					page.open("td",".name");
+					page.link(contact->urlPrefix(), (contact->isSelf() ? "Myself" : contact->name()));
+					page.close("td");
+					page.open("td",".uname");
+					page.text(contact->uniqueName());
+					page.close("td");
+					page.open("td",".id");
+					page.text(contact->identifier().toString());
+					page.close("td");
+					page.open("td",".actions");
+					page.openLink('#', ".deletelink");
+					page.image("/delete.png", "Delete");
+					page.closeLink();
+					page.close("td");
+					page.close("tr");
+				}
+				
+				page.close("table");
+				page.close("div");
+				
+				page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
+					event.stopPropagation();\n\
+					var uname = $(this).closest('tr').find('td.uname').text();\n\
+					if(confirm('Do you really want to delete '+uname+' ?')) {\n\
+						document.actionForm.action.value = 'delete';\n\
+						document.actionForm.argument.value = uname;\n\
+						document.actionForm.submit();\n\
+					}\n\
+					return false;\n\
+				});");
+			}
+			
+			// Invitations
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
-			
-				Array<Contact*> contacts;
-				getContacts(contacts);
-				
-				if(!contacts.empty())
-				{
-					page.open("div",".box");
-					page.open("h2");
-					page.text("Contacts");
-					page.close("h2");
-					
-					page.open("table",".contacts");
-					
-					for(int i=0; i<contacts.size(); ++i)
-					{
-						Contact *contact = contacts[i];
-						
-						page.open("tr");
-						page.open("td",".name");
-						page.link(contact->urlPrefix(), (contact->isSelf() ? "Myself" : contact->name()));
-						page.close("td");
-						page.open("td",".uname");
-						page.text(contact->uniqueName());
-						page.close("td");
-						page.open("td",".id");
-						page.text(contact->identifier().toString());
-						page.close("td");
-						page.open("td",".actions");
-						page.openLink('#', ".deletelink");
-						page.image("/delete.png", "Delete");
-						page.closeLink();
-						page.close("td");
-						page.close("tr");
-					}
-					
-					page.close("table");
-					page.close("div");
-					
-					page.javascript("$('.contacts .deletelink').css('cursor', 'pointer').click(function(event) {\n\
-						event.stopPropagation();\n\
-						var uname = $(this).closest('tr').find('td.uname').text();\n\
-						if(confirm('Do you really want to delete '+uname+' ?')) {\n\
-							document.actionForm.action.value = 'delete';\n\
-							document.actionForm.argument.value = uname;\n\
-							document.actionForm.submit();\n\
-						}\n\
-						return false;\n\
-					});");
-				}
 				
 				if(!mInvitations.empty())
 				{
@@ -642,9 +647,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					
 					page.open("table",".invitations");
 					
-					for(Map<Identifier, String>::iterator it = mInvitations.begin();
-						it != mInvitations.end();
-						++it)
+					for(auto it = mInvitations.begin(); it != mInvitations.end(); ++it)
 					{
 						page.open("tr");
 						page.open("td",".name");
@@ -752,12 +755,14 @@ AddressBook::Contact::~Contact(void)
 
 void AddressBook::Contact::init(void)
 {
+	// Private, no sync
+	
 	if(!mAddressBook) return;
 	
 	mBoard = NULL;
 	if(!isSelf())
 	{
-		if(!mBoard) mBoard = new Board("/" + identifier().toString(), "", name());	// Public board
+		if(!mBoard) mBoard = std::make_shared<Board>("/" + identifier().toString(), "", name());	// Public board
 		mAddressBook->user()->mergeBoard(mBoard);
 	}
 	
@@ -767,18 +772,20 @@ void AddressBook::Contact::init(void)
 
 void AddressBook::Contact::uninit(void)
 {
+	// Private, no sync
+	
 	if(mAddressBook && mBoard) mAddressBook->user()->unmergeBoard(mBoard);
 	if(mAddressBook) Interface::Instance->remove(urlPrefix(), this);
 	ignore();       // stop listening
 	
-	delete mBoard;
-	delete mPrivateBoard;
 	mBoard = NULL;
 	mPrivateBoard = NULL;
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	if(mAddressBook != addressBook)
 	{
 		if(mAddressBook) uninit();
@@ -789,24 +796,28 @@ void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
 
 Identifier AddressBook::Contact::identifier(void) const
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mIdentifier;
 }
 
 String AddressBook::Contact::uniqueName(void) const
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mUniqueName;
 }
 
 String AddressBook::Contact::name(void) const
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mName;
 }
 
 String AddressBook::Contact::urlPrefix(void) const
 {
-	if(!mAddressBook || mUniqueName.empty()) return "";
+	String uname = uniqueName();
+	if(!mAddressBook || uname.empty()) return "";
 	if(isSelf()) return mAddressBook->user()->urlPrefix()+"/myself";
-	return mAddressBook->urlPrefix()+"/"+mUniqueName;
+	return mAddressBook->urlPrefix()+"/"+uname;
 }
 
 BinaryString AddressBook::Contact::secret(void) const
@@ -835,7 +846,7 @@ BinaryString AddressBook::Contact::remoteSecret(void) const
 bool AddressBook::Contact::Contact::isSelf(void) const
 {
 	if(!mAddressBook) return false;
-	return (mUniqueName == mAddressBook->userName());
+	return (uniqueName() == mAddressBook->userName());
 }
 
 bool AddressBook::Contact::isConnected(void) const
@@ -884,8 +895,12 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 	if(status)
 	{
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
-		if(!mInstances.contains(link.node)) 
-			mInstances[link.node] = link.node.toString(); // default name
+		
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			if(!mInstances.contains(link.node)) 
+				mInstances[link.node] = link.node.toString(); // default name
+		}
 		
 		send(link.node, "info", Object()
 			.insert("instance", Network::Instance->overlay()->localName())
@@ -904,7 +919,11 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 	}
 	else {
 		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is disconnected");
-		mInstances.erase(link.node);
+		
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			mInstances.erase(link.node);
+		}
 	}
 }
 
@@ -917,21 +936,23 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 	if(type == "info")
 	{
 		String instance;
+		BinaryString remoteSecret;
 		serializer >> Object()
 			.insert("instance", instance)
-			.insert("secret", mRemoteSecret);
+			.insert("secret", remoteSecret);
 		
+		BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
+			
 		LogDebug("AddressBook::Contact", "Remote instance name is \"" + instance + "\"");
-		mInstances[link.node] = instance;
+		
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			mInstances[link.node] = instance;
+			mRemoteSecret = remoteSecret;
+			mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+		}
 		
 		mAddressBook->save();
-		
-		if(mPrivateBoard)
-		{
-			delete mPrivateBoard;
-			BinaryString id = mAddressBook->user()->identifier() ^ identifier();
-			mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name());
-		}
 	}
 	else if(type == "contacts")
 	{
@@ -957,7 +978,6 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
 	if(!mAddressBook) return false;
-	
 	return (pubKey.digest() == identifier());
 }
 
@@ -1177,7 +1197,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.footer();
 			return;
 		}
-		else if(directory == "sear.hpp")
+		else if(directory == "search")
 		{
 			if(url != "/") throw 404;
 			
@@ -1250,8 +1270,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			
 			if(!mPrivateBoard)
 			{
-				BinaryString id = mAddressBook->user()->identifier() ^ identifier();
-				mPrivateBoard = new Board("/" + id.toString(), secret().toString(), name() + " (Private)");
+				BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
+				mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name() + " (Private)");
 			}
 			
 			Http::Response response(request, 301);	// Moved permanently
@@ -1275,6 +1295,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 
 void AddressBook::Contact::serialize(Serializer &s) const
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	Object object;
 	object.insert("identifier", mIdentifier);
 	object.insert("uname", mUniqueName);
@@ -1298,6 +1320,8 @@ void AddressBook::Contact::serialize(Serializer &s) const
 
 bool AddressBook::Contact::deserialize(Serializer &s)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	if(!(s >> Object()
 		.insert("identifier", mIdentifier)
 		.insert("uname", mUniqueName)

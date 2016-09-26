@@ -74,7 +74,7 @@ public:
 	class RsaCertificateChain : public Certificate
 	{
 	public:
-		RsaCertificateChain(const Array<SecureTransport::RsaCertificate*> &chain);
+		RsaCertificateChain(const std::vector<SecureTransport::RsaCertificate*> &chain);
 		~RsaCertificateChain(void);
 	};
 	
@@ -119,7 +119,7 @@ public:
 	
 	struct Verifier
         {
-		virtual bool verifyPublicKey(const Array<Rsa::PublicKey> &chain) { return false; }
+		virtual bool verifyPublicKey(const std::vector<Rsa::PublicKey> &chain) { return false; }
 		virtual bool verifyPrivateSharedKey(const String &username, BinaryString &key) { return false; }
 		virtual bool verifyPrivateSharedKey(String &username, BinaryString &key, const String &hint) { return verifyPrivateSharedKey(username, key); }
 		virtual bool verifyName(const String &name, SecureTransport *transport) { return true; }	// default is true

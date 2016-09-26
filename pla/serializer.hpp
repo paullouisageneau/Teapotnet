@@ -43,8 +43,11 @@ public:
 	void setOptionalOutputMode(bool enabled = true) { optionalOutput = enabled; }
 	
 protected:
-	template<class T> bool read(T *ptr);
+	template<class T> bool read(T *&ptr);
 	template<class T> void write(const T *ptr);
+	
+	template<class T> bool read(sptr<T> &ptr);
+	template<class T> void write(sptr<const T> ptr);
 	
 	template<typename T> bool read(std::vector<T> &container);
 	template<typename T> void write(const std::vector<T> &container);
@@ -136,13 +139,27 @@ Serializer &Serializer::operator<< (const T& value)
 }
 
 template<class T>
-bool Serializer::read(T *ptr)
+bool Serializer::read(T *&ptr)
 {
+	if(!ptr) ptr = new T();
 	return read(*ptr);
 }
 
 template<class T>
 void Serializer::write(const T *ptr)
+{
+	write(*ptr);
+}
+
+template<class T>
+bool Serializer::read(sptr<T> &ptr)
+{
+	if(!ptr) ptr = std::make_shared<T>();
+	return read(*ptr);
+}
+
+template<class T>
+void Serializer::write(sptr<const T> ptr)
 {
 	write(*ptr);
 }

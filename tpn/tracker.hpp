@@ -25,17 +25,14 @@
 #include "tpn/include.hpp"
 
 #include "pla/http.hpp"
-#include "pla/synchronizable.hpp"
 #include "pla/address.hpp"
 #include "pla/binarystring.hpp"
-#include "pla/array.hpp"
-#include "pla/map.hpp"
 #include "pla/time.hpp"
 
 namespace tpn
 {
 
-class Tracker : protected Synchronizable, public Http::Server
+class Tracker : public Http::Server
 {
 public:
 	static const double EntryLife;
@@ -44,13 +41,13 @@ public:
 	~Tracker(void);
 
 private:
-	Map<BinaryString, Map<Address, Time> > mMap;
-	Map<BinaryString, Map<Address, Time> >::iterator mCleaner;
+	std::map<BinaryString, std::map<Address, Time> > mMap;
+	std::map<BinaryString, std::map<Address, Time> >::iterator mCleaner;
 	
 	void process(Http::Request &request);
 	void clean(int count = -1);
 	void insert(const BinaryString &node, const Address &addr);
-	void retrieve(const BinaryString &node, int count, SerializableMap<BinaryString, SerializableSet<Address> > &result) const;
+	void retrieve(const BinaryString &node, int count, std::map<BinaryString, std::set<Address> > &result) const;
 };
 
 }

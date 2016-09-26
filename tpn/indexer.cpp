@@ -84,7 +84,7 @@ Indexer::Indexer(User *user) :
 		try {
 			File file(mFileName, File::Read);
 			JsonSerializer serializer(&file);
-			serializer.input(mDirectories);
+			serializer >> mDirectories;
 			file.close();
 		}
 		catch(const Exception &e) 
@@ -125,9 +125,9 @@ Indexer::Indexer(User *user) :
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
-	// Task
-	Scheduler::Global->schedule(this, 60.);		// 1 min
-	Scheduler::Global->repeat(this, 6*60*60.);	// 6h
+	// TODO
+	//Scheduler::Global->schedule(this, 60.);	// 1 min
+	//Scheduler::Global->repeat(this, 6*60*60.);	// 6h
 }
 
 Indexer::~Indexer(void)
@@ -136,8 +136,6 @@ Indexer::~Indexer(void)
 	
 	Interface::Instance->remove(mUser->urlPrefix()+"/files");
 	Interface::Instance->remove(mUser->urlPrefix()+"/explore");
-	
-	Scheduler::Global->cancel(this);
 }
 User *Indexer::user(void) const
 {
@@ -156,7 +154,7 @@ String Indexer::prefix(void) const
 
 void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 
 	Assert(!name.empty());
 	Assert(!name.contains('/') && !name.contains('\\'));
@@ -186,7 +184,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 
 void Indexer::removeDirectory(const String &name)
 {
-  	Synchronize(this);
+  	std::unique_lock<std::mutex> lock(mMutex);;
   
 	if(mDirectories.contains(name))
 	{
@@ -198,7 +196,7 @@ void Indexer::removeDirectory(const String &name)
 
 void Indexer::getDirectories(Array<String> &array) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	mDirectories.getKeys(array);
 	array.remove(CacheDirectoryName);
 	array.remove(UploadDirectoryName);
@@ -213,7 +211,7 @@ Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 
 bool Indexer::moveFileToCache(String &fileName, String name)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	// Check file size
 	int64_t fileSize = File::Size(fileName);
@@ -261,7 +259,6 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 	placeholder.close();
 
 	try {
-		Desynchronize(this);
 		File::Rename(fileName, path);
 	}
 	catch(...)
@@ -277,23 +274,22 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 
 void Indexer::save(void) const
 {
-  	Synchronize(this);
+  	std::unique_lock<std::mutex> lock(mMutex);;
   
 	File file(mFileName, File::Write);
 	JsonSerializer serializer(&file);
-	serializer.write(mDirectories);
+	serializer << mDirectories;
 	file.close();
 }
 
 void Indexer::start(void)
 {
-	Synchronize(this);
-	if(!mRunning) Scheduler::Global->schedule(this);
+	
 }
 
 bool Indexer::query(const Query &q, List<BinaryString> &targets)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	targets.clear();
 	
@@ -339,10 +335,10 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 		while(statement.step())
 		{
 			String path;
-			statement.input(path);
+			statement >> path;
 			
 			BinaryString digest;
-			statement.input(digest);
+			statement >> digest;
 			
 			if(pathAccessLevel(path) > q.mAccess)
 				continue;
@@ -390,8 +386,6 @@ bool Indexer::query(const Query &q, Resource &resource)
 
 bool Indexer::process(String path, Resource &resource)
 {
-	Desynchronize(this);
-	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
@@ -471,9 +465,7 @@ bool Indexer::process(String path, Resource &resource)
 
 		// Process ordered files
 		BinarySerializer serializer(&tempFile);
-		for(StringMap::iterator it = sorted.begin();
-			it != sorted.end();
-			++it)
+		for(auto it = sorted.begin(); it != sorted.end(); ++it)
 		{
 			String subPath = path + '/' + it->second;
 			String realSubPath = this->realPath(subPath);
@@ -528,7 +520,7 @@ bool Indexer::process(String path, Resource &resource)
 
 bool Indexer::get(String path, Resource &resource, Time *time)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -566,7 +558,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 
 void Indexer::notify(String path, const Resource &resource, const Time &time)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
   
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -623,7 +615,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	accessSelectMap["personal"] = "Only me";
 
 	try {
-		Synchronize(this);	// TODO: There shouldn't be a global Synchronize
+		std::unique_lock<std::mutex> lock(mMutex);;	// TODO: There shouldn't be a global Synchronize
 
 		if(prefix.afterLast('/') == "explore")
 		{
@@ -633,7 +625,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				throw 404;
 			
 			String path;
-			if(!request.get.get("pa.hpp", path)) 
+			if(!request.get.get("path", path)) 
 			{
 #ifdef WINDOWS
 				DWORD disks = GetLogicalDrives();
@@ -737,7 +729,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
 				page.input("hidden", "token", user()->generateToken("directory_add"));
 				page.openFieldset("Add directory");
-				page.label("", "Pa.hpp"); page.text(path + Directory::Separator); page.br();
+				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
 				page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
 				page.label("add"); page.button("add","Add directory");
@@ -761,7 +753,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				if(dir.fileIsDir() && dir.fileName().at(0) != '.')
 					folders.insert(dir.fileName());
 			
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
 			response.send();
 			
 			Html page(response.stream);
@@ -770,18 +762,14 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.open("div",".box");
 			if(folders.empty()) page.text("No subdirectories");
 			else {
-				Set<String> existingPathsSet;
-				for(Map<String, Entry>::const_iterator it = mDirectories.begin();
-					it != mDirectories.end();
-					++it)
+				std::set<String> existingPathsSet;
+				for(auto it = mDirectories.begin(); it != mDirectories.end(); ++it)
 				{
 					existingPathsSet.insert(it->second.path);
 				}
 				
 				page.open("table",".files");
-				for(Set<String>::iterator it = folders.begin();
-					it != folders.end();
-					++it)
+				for(auto it = folders.begin(); it != folders.end(); ++it)
 				{
 					const String &name = *it; 
 					String childPath = path + name;
@@ -898,7 +886,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				String redirect = prefix + url;
 			  	request.get.get("redirect", redirect);
 				
-				if(action == "refre.hpp")
+				if(action == "refresh")
 				{
 					start();
 					
@@ -909,7 +897,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					page.header("Refreshing in background...", true, redirect);
 					page.open("div", "notification");
 					page.openLink("/");
-					page.image("/refresh.png", "Refre.hpp");
+					page.image("/refresh.png", "Refresh");
 					page.closeLink();
 					page.br();
 					page.open("h1",".huge");
@@ -1082,11 +1070,9 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						}
 					}
 					else {
-						SerializableSet<Resource> resources;
+						std::set<Resource> resources;
 						
-						for(Map<String,TempFile*>::iterator it = request.files.begin();
-						it != request.files.end();
-						++it)
+						for(auto it = request.files.begin(); it != request.files.end(); ++it)
 						{
 							String fileName;
 							if(!request.post.get(it->first, fileName)) continue;
@@ -1137,7 +1123,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							response.send();
 							
 							JsonSerializer json(response.stream);
-							json.output(resources);
+							json << resources;
 							return;
 						}
 						
@@ -1286,7 +1272,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			}
 			else if(File::Exist(path))
 			{
-				Desynchronize(this);
+				lock.unlock();
 				
 				if(request.get.contains("play"))
 				{
@@ -1308,7 +1294,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Http::Response response(request,200);
 				if(request.get.contains("download")) response.headers["Content-Type"] = "application/force-download";
 				else response.headers["Content-Type"] = Mime::GetType(path);
-				response.headers["Content-Leng.hpp"] << File::Size(path);
+				response.headers["Content-Length"] << File::Size(path);
 				response.headers["Last-Modified"] = File::Time(path).toHttpDate();
 				response.send();
 
@@ -1388,7 +1374,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 
 void Indexer::update(String path)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	if(!path.empty() && path[path.size() - 1] == '/')
 		path.resize(path.size() - 1);
@@ -1432,8 +1418,9 @@ void Indexer::update(String path)
 			}
 		}
 	
+		lock.unlock();
 		Resource dummy;
-		DesynchronizeStatement(this, process(path, dummy));
+		process(path, dummy);
 	}
 	catch(const Exception &e)
 	{
@@ -1443,7 +1430,7 @@ void Indexer::update(String path)
 
 String Indexer::realPath(String path) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	if(path.empty() || path == "/") return mBaseDirectory;
 	if(path[0] == '/') path.ignore(1);
@@ -1474,7 +1461,7 @@ bool Indexer::isHiddenPath(String path) const
 
 Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	
 	if(path.empty() || path == "/") return Resource::Public;
 	if(path[0] == '/') path.ignore(1);
@@ -1544,9 +1531,9 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 	return std::max(maxSize - totalSize, int64_t(0));
 }
 
-void Indexer::run(void)
+void Indexer::operator()(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);;
 	if(mRunning) return;
 	mRunning = true;
 	
@@ -1632,42 +1619,44 @@ void Indexer::Query::setFromSelf(bool isFromSelf)
 
 void Indexer::Query::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<int> offsetWrapper(mOffset);
-	ConstSerializableWrapper<int> countWrapper(mCount);
-	String strAccessLevel = (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public"));
+	Object object;
+	object.insert("path", mPath);
+	object.insert("match", mMatch);
+	object.insert("digest", mDigest);
 	
-	ConstObject object;
-	if(!mPath.empty())	object["pa.hpp"] = &mPath;
-	if(!mMatch.empty())	object["mat.hpp"] = &mMatch;
-	if(!mDigest.empty())	object["digest"] = &mDigest;
-	if(mOffset > 0)		object["offset"] = &offsetWrapper;
-	if(mCount > 0)		object["count"] = &countWrapper;
-	object["access"] = &strAccessLevel;
-
-	s.write(object);
+	if(mOffset > 0) object.insert("offset", mOffset);
+	if(mCount > 0)  object.insert("count", mCount);	
+		
+	object.insert("access", (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public")));
+	
+	s << object;
 }
 
 bool Indexer::Query::deserialize(Serializer &s)
 {
-	SerializableWrapper<int> offsetWrapper(&mOffset);
-	SerializableWrapper<int> countWrapper(&mCount);
-	String strAccessLevel;
+	String strAccess;
+	
+	mPath.clear();
+	mMatch.clear();
+	mDigest.clear();
+	mOffset = 0;
+	mCount = 0;
 	
 	Object object;
-	object["pa.hpp"] = &mPath;
-	object["mat.hpp"] = &mMatch;
-	object["digest"] = &mDigest;
-	object["offset"] = &offsetWrapper;
-	object["count"] = &countWrapper;
-	object["access"] = &strAccessLevel;
+	object.insert("path", mPath);
+	object.insert("match", mMatch);
+	object.insert("digest", mDigest);
+	object.insert("offset", mOffset);
+	object.insert("count", mCount);	
+	object.insert("access", strAccess);
 	
-	bool ret = s.read(object);
+	if(!(s >> object)) return false;
 	
-	if(strAccessLevel == "personal") mAccess = Resource::Personal;
-	else if(strAccessLevel == "private") mAccess = Resource::Private;
+	if(strAccess== "personal") mAccess = Resource::Personal;
+	else if(strAccess == "private") mAccess = Resource::Private;
 	else mAccess = Resource::Public;
 	
-	return ret;
+	return true;
 }
 
 bool Indexer::Query::isInlineSerializable(void) const
@@ -1693,30 +1682,27 @@ Indexer::Entry::~Entry(void)
 
 void Indexer::Entry::serialize(Serializer &s) const
 {
-	String strAccessLevel = (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public"));
-	
-	ConstObject object;
-	object["pa.hpp"] = &path;
-	object["access"] = &strAccessLevel;
-
-	s.write(object);
+	s << Object()
+		.insert("path", path)
+		.insert("access", (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public")));
 }
 
 bool Indexer::Entry::deserialize(Serializer &s)
 {
-	String strAccessLevel;
+	String strAccess;
 	
-	Object object;
-	object["pa.hpp"] = &path;
-	object["access"] = &strAccessLevel;
+	path.clear();
 	
-	bool ret = s.read(object);
+	if(!(s >> Object()
+		.insert("path", path)
+		.insert("access", strAccess)))
+		return false;
 	
-	if(strAccessLevel == "personal") access = Resource::Personal;
-	else if(strAccessLevel == "private") access = Resource::Private;
+	if(strAccess == "personal") access = Resource::Personal;
+	else if(strAccess == "private") access = Resource::Private;
 	else access = Resource::Public;
 	
-	return ret;
+	return true;
 }
 
 bool Indexer::Entry::isInlineSerializable(void) const

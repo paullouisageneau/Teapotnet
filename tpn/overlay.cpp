@@ -45,7 +45,7 @@ namespace tpn
 const int Overlay::MaxQueueSize = 128;
 
 Overlay::Overlay(int port) :
-		mThreadPool(1, Config::Get("min_connections").toInt()*2+1, Config::Get("max_connections").toInt()*2)
+		mThreadPool(Config::Get("max_connections").toInt())
 {
 	mFileName = "keys";
 	load();
@@ -59,7 +59,7 @@ Overlay::Overlay(int port) :
 	}
 	
 	// Create certificate
-	mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, localNode().toString());
+	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, localNode().toString());
 	
 	// Define node name
 	mName = Config::Get("node_name");
@@ -73,49 +73,28 @@ Overlay::Overlay(int port) :
 			mName = localNode().toString();
 	}
 	
-	// Launch
-	try {
-		// Create backends
-		mBackends.push_back(new DatagramBackend(this, port));
-		mBackends.push_back(new StreamBackend(this, port));
-	}
-	catch(...)
-	{
-		// Delete created backends
-		for(List<Backend*>::iterator it = mBackends.begin();
-			it != mBackends.end();
-			++it)
-		{
-			Backend *backend = *it;
-			delete backend;
-		}
-		
-		// Delete certificate
-		delete mCertificate;
-		
-		throw;
-	}
-	
 	LogDebug("Overlay", "Instance name is \"" + localName() + "\"");
 	LogDebug("Overlay", "Local node is " + localNode().toString());
-	
 	save();
+	
+	// Create backends
+	mBackends.push_back(new DatagramBackend(this, port));
+	mBackends.push_back(new StreamBackend(this, port));
+	
+	// Start backends
+	for(auto it = mBackends.begin(); it != mBackends.end(); ++it)
+		(*it)->start();
+	
+	// Start overlay thread
+	mThread = std::thread([this]()
+	{
+		this->run();
+	});
 }
 
 Overlay::~Overlay(void)
 {
 	join();
-	
-	// Delete backends
-	for(List<Backend*>::iterator it = mBackends.begin();
-		it != mBackends.end();
-		++it)
-	{
-		Backend *backend = *it;
-		delete backend;
-	}
-	
-	delete mCertificate;
 }
 
 void Overlay::load()
@@ -139,32 +118,16 @@ void Overlay::save() const
 	file.close();
 }
 
-void Overlay::start(void)
-{
-	// Start backends
-	for(List<Backend*>::iterator it = mBackends.begin();
-		it != mBackends.end();
-		++it)
-	{
-		Backend *backend = *it;
-		backend->start();
-	}
-	
-	Scheduler::Global->schedule(this);
-}
-
 void Overlay::join(void)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	// Join backends
-	for(List<Backend*>::iterator it = mBackends.begin();
-		it != mBackends.end();
-		++it)
-	{
-		Backend *backend = *it;
-		backend->join();
-	}
+	for(auto it = mBackends.begin(); it != mBackends.end(); ++it)
+		(*it)->join();
 
-	Scheduler::Global->cancel(this);
+	// Join thread
+	mThread.join();
 }
 
 String Overlay::localName(void) const
@@ -216,49 +179,6 @@ void Overlay::getAddresses(Set<Address> &set) const
 
 bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
 {
-	class ConnectTask
-	{
-	public:
-		ConnectTask(const List<Backend*> &backends, const Set<Address> &addrs, const BinaryString &remote)
-		{
-			this->backends = backends;
-			this->addrs = addrs;
-			this->remote = remote;
-		}
-		
-		bool connect(void)
-		{
-			for(List<Backend*>::iterator it = backends.begin();
-				it != backends.end();
-				++it)
-			{
-				try {
-					Backend *backend = *it;
-					if(backend->connect(addrs, remote))
-						return true;
-				}
-				catch(const std::exception &e)
-				{
-					LogWarn("Overlay::connect", e.what());
-				}
-			}
-			
-			return false;
-		}
-		
-		void operator()(void)
-		{
-			connect();
-			delete this;	// autodelete
-		}
-		
-	private:
-		List<Backend*> backends;
-		Set<Address> addrs;
-		BinaryString remote;
-	};
-	
-	ConnectTask *task = NULL;
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 		
@@ -277,15 +197,31 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 		
 		if(!filteredAddrs.empty())
 		{
+			auto connectTask = [backends, filteredAddrs, remote]()
+			{
+				for(auto it = backends.begin(); it != backends.end(); ++it)
+				{
+					try {
+						Backend *backend = *it;
+						if(backend->connect(addrs, remote))
+							return true;
+					}
+					catch(const std::exception &e)
+					{
+						LogWarn("Overlay::connect", e.what());
+					}
+				}
+				
+				return false;
+			};
+			
 			if(async)
 			{
-				task = new ConnectTask(mBackends, filteredAddrs, remote);
-				launch(task);
+				mPool.enqueue(connectTask);
 				return true;
 			}
 			else {
-				ConnectTask stask(mBackends, filteredAddrs, remote);
-				DesynchronizeStatement(this, stask.connect());
+				return connectTask();
 			}
 		}
 	}
@@ -995,41 +931,11 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	}
 }
 
-void Overlay::Backend::operator()(void)
+void Overlay::Backend::run(void)
 {
-	class HandshakeTask
-	{
-	public:
-		HandshakeTask(Backend *backend, SecureTransport *transport, const Address &addr)
-		{
-			this->backend = backend; 
-			this->transport = transport;
-			this->addr = addr;
-		}
-		
-		void operator()(void)
-		{
-			try {
-				backend->handshake(transport, addr, "");
-			}
-			catch(const std::exception &e)
-			{
-				LogDebug("Overlay::Backend::HandshakeTask", e.what());
-			}
-	
-			delete this;	// autodelete
-		}
-		
-	private:
-		Backend *backend;
-		SecureTransport *transport;
-		Address addr;
-	};
-
 	while(true)
 	{
 		SecureTransport *transport = NULL;
-		HandshakeTask *task = NULL;		
 		try {
 			Address addr;
 			transport = listen(&addr);
@@ -1037,14 +943,21 @@ void Overlay::Backend::operator()(void)
 			
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 			
-			task = new HandshakeTask(this, transport, addr);
-			mOverlay->mThreadPool.enqueue(task);
+			mPool.enqueue([backend, transport, addr]()
+			{
+				try {
+					backend->handshake(transport, addr, "");
+				}
+				catch(const std::exception &e)
+				{
+					LogDebug("Overlay::Backend::run", e.what());
+				}
+			});
 		}
 		catch(const std::exception &e)
 		{
 			LogError("Overlay::Backend::run", e.what());
 			delete transport;
-			delete task;
 		}
 	}
 	

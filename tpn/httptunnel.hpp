@@ -28,6 +28,7 @@
 #include "pla/socket.hpp"
 #include "pla/address.hpp"
 #include "pla/http.hpp"
+#include "pla/alarm.hpp"
 
 namespace tpn
 {
@@ -38,7 +39,7 @@ public:
 	class Client;
 	class Server;
 	
-	static Server *Incoming(Socket *sock);
+	static sptr<Server> Incoming(Socket *sock);
 	
 	class Client : public Stream
 	{
@@ -63,7 +64,8 @@ public:
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
 		double mConnTimeout;
-
+		Alarm mFlusher;
+		
 		std::mutex mMutex;
 	};
 	
@@ -88,10 +90,12 @@ public:
 		size_t mPostBlockLeft;
 		size_t mDownloadLeft;
 		bool mClosed;
+		Alarm mFlusher;
 		
 		std::mutex mMutex;
-
-		friend Server *HttpTunnel::Incoming(Socket *sock);;
+		mutable std::condition_variable mCondition;
+		
+		friend sptr<Server> HttpTunnel::Incoming(Socket *sock);;
 	};
 
 	static String UserAgent;
@@ -106,8 +110,8 @@ public:
 private:
 	HttpTunnel(void);
 
-	static Map<uint32_t,Server*> 	Sessions;
-	static std::mutex		SessionsMutex;
+	static std::map<uint32_t, sptr<Server> > 	Sessions;
+	static std::mutex				SessionsMutex;
 
 	static const uint8_t TunnelOpen		= 0x01;
 	static const uint8_t TunnelData		= 0x02;

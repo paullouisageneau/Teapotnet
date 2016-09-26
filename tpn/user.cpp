@@ -280,17 +280,17 @@ BinaryString User::secret(void) const
 	return mSecret;
 }
 
-AddressBook *User::addressBook(void) const
+sptr<AddressBook> User::addressBook(void) const
 {
 	return mAddressBook;
 }
 
-Board *User::board(void) const
+sptr<Board> User::board(void) const
 {
 	return mBoard;
 }
 
-Indexer *User::indexer(void) const
+sptr<Indexer> User::indexer(void) const
 {
 	return mIndexer;
 }
@@ -300,13 +300,13 @@ void User::invite(const Identifier &remote, const String &name)
 	mAddressBook->addInvitation(remote, name);
 }
 
-void User::mergeBoard(const Board *board)
+void User::mergeBoard(sptr<const Board> board)
 {
 	if(!board) return;
 	mBoard->addMergeUrl(board->urlPrefix());
 }
 
-void User::unmergeBoard(const Board *board)
+void User::unmergeBoard(sptr<const Board> board)
 {
 	if(!board) return;
 	mBoard->removeMergeUrl(board->urlPrefix());

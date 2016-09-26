@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -98,11 +98,12 @@ public:
 	protected:
 		virtual void handle(Stream *stream, const Address &remote);
 		virtual void respondWithFile(const Request &request, const String &fileName);
-		
-		void operator()(void);
 
 		ServerSocket mSock;
 		ThreadPool mPool;
+		
+	private:
+		void run(void);
 	};
 
 	class SecureServer : public Server

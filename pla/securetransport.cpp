@@ -488,7 +488,7 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
                         return GNUTLS_E_CERTIFICATE_ERROR;
 		}
 		
-		Array<Rsa::PublicKey> chain;
+		std::vector<Rsa::PublicKey> chain;
 		chain.reserve(count);
 		for(int i=0; i<count; ++i)
 		{
@@ -509,7 +509,7 @@ int SecureTransport::CertificateCallback(gnutls_session_t session)
 					}
 				}
 				
-				chain.append(Rsa::PublicKey(crt));
+				chain.push_back(Rsa::PublicKey(crt));
 			}
 			catch(...)
 			{
@@ -707,7 +707,7 @@ SecureTransport::RsaCertificate::~RsaCertificate(void)
 	// Keys are freed by gnutls_certificate_free_credentials
 }
 
-SecureTransport::RsaCertificateChain::RsaCertificateChain(const Array<SecureTransport::RsaCertificate*> &chain)
+SecureTransport::RsaCertificateChain::RsaCertificateChain(const std::vector<SecureTransport::RsaCertificate*> &chain)
 {
 	if(chain.empty())
 		throw Exception("Empty certificate chain provided");

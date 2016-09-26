@@ -60,13 +60,13 @@ public:
 	String urlPrefix(void) const;
 	BinaryString secret(void) const;
 	
-	AddressBook *addressBook(void) const;
-	Board *board(void) const;
-	Indexer *indexer(void) const;
+	sptr<AddressBook> addressBook(void) const;
+	sptr<Board> board(void) const;
+	sptr<Indexer> indexer(void) const;
 	
 	void invite(const Identifier &remote, const String &name);
-	void mergeBoard(const Board *board);
-	void unmergeBoard(const Board *board);
+	void mergeBoard(sptr<const Board> board);
+	void unmergeBoard(sptr<const Board> board);
 	
 	bool isOnline(void) const;
 	void setOnline(void);
@@ -92,9 +92,9 @@ private:
 	String mName;
 	String mFileName;
 	BinaryString mAuth;
-	AddressBook *mAddressBook;
-	Board *mBoard;
-	Indexer *mIndexer;
+	sptr<AddressBook> mAddressBook;
+	sptr<Board> mBoard;
+	sptr<Indexer> mIndexer;
 	
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;

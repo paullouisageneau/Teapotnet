@@ -34,7 +34,6 @@
 #include "pla/time.hpp"
 #include "pla/http.hpp"
 #include "pla/directory.hpp"
-#include "pla/thread.hpp"
 #include "pla/scheduler.hpp"
 #include "pla/random.hpp"
 #include "pla/securetransport.hpp"
@@ -297,7 +296,7 @@ int main(int argc, char** argv)
 		}
 		if(!last.empty()) args[last] = "";
 		
-		if(args.contains("help") || args.contains(.hpp"))
+		if(args.contains("help") || args.contains("h"))
 		{
 			std::cout<<APPNAME<<" "<<APPVERSION<<std::endl;
 			std::cout<<APPAUTHOR<<std::endl;
@@ -527,7 +526,7 @@ int run(String &commandLine, StringMap &args)
 				system("mv /tmp/Teapotnet.plist ~/Library/LaunchAgents");
 				
 				// Let some time for the service process to launch
-				Thread::Sleep(1.);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 				
 				// Try interface
 				if(!InterfacePort) try {
@@ -570,7 +569,7 @@ int run(String &commandLine, StringMap &args)
 	if(isBoot)
 	{
 		Config::Save(configFileName);
-		Sleep(1000);
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 	else {
 		try {
@@ -579,7 +578,7 @@ int run(String &commandLine, StringMap &args)
 		catch(...)
 		{
 			LogInfo("main", "Trying to run as administrator..."); 
-			Sleep(100);
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			
 			char szFileName[MAX_PATH];
 			HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -626,7 +625,7 @@ int run(String &commandLine, StringMap &args)
 							if(--attempts == 0) break;
 							content.clear();
 							LogInfo("main", "Waiting for network availability...");
-							Sleep(5000);
+							std::this_thread::sleep_for(std::chrono::seconds(5000));
 							continue;
 						}
 						catch(...)
@@ -688,8 +687,7 @@ int run(String &commandLine, StringMap &args)
 
 		LogInfo("main", "Launching the tracker...");
 		tracker = new Tracker(port);
-		tracker->start();
-		Thread::Sleep(0.100);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	
 	String sport = Config::Get("port");
@@ -708,7 +706,6 @@ int run(String &commandLine, StringMap &args)
 	
 	// Starting interface
 	Interface::Instance = new Interface(ifport);
-	Interface::Instance->start();
 	
 	// Starting core
 	bool portChanged = false;
@@ -752,9 +749,6 @@ int run(String &commandLine, StringMap &args)
 		LogInfo("main", "NAT port mapping is disabled");
 	}
 	
-	// Starting network
-	Network::Instance->start();
-
 	try {
 		if(!Directory::Exist(Config::Get("profiles_dir")))
 			Directory::Create(Config::Get("profiles_dir"));
@@ -778,7 +772,7 @@ int run(String &commandLine, StringMap &args)
 					continue;
 				}
 				
-				Thread::Sleep(0.1);
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 		}
 		
@@ -796,7 +790,6 @@ int run(String &commandLine, StringMap &args)
 				if(name.empty()) continue;
 				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
-				Thread::Sleep(0.1);
 				line.clear();
 			}
 			usersFile.close();

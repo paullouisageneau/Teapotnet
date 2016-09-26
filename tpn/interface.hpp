@@ -48,7 +48,7 @@ public:
 	static Interface *Instance;
 
 	Interface(int port);
-        ~Interface();
+        ~Interface(void);
 	
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
 	void remove(const String &prefix, HttpInterfaceable *interfaceable = NULL);
@@ -59,7 +59,7 @@ private:
 	void process(Http::Request &request);
 	void generate(Stream &out, int code, const String &message);
 
-	std::map<String,HttpInterfaceable*> mPrefixes;
+	Map<String,HttpInterfaceable*> mPrefixes;
 	std::mutex mMutex;
 };
 

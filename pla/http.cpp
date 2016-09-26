@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -638,12 +638,16 @@ Http::Server::Server(int port, int threads) :
 	mPool(threads),
 	mSock(port)
 {
-
+	mPool.enqueue([this]() 
+	{
+		this->run();
+	});
 }
 
 Http::Server::~Server(void)
 {
-	mSock.close();	// useless
+	mSock.close();
+	mPool.join();
 }
 
 void Http::Server::generate(Stream &out, int code, const String &message)
@@ -784,7 +788,7 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 	}
 }
 
-void Http::Server::operator()(void)
+void Http::Server::run(void)
 {
 	Socket *sock = NULL;
 

@@ -32,15 +32,9 @@ const String Stream::BlankCharacters = " \t\r\n";
 const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
 
-bool Stream::waitData(double &timeout)
+bool Stream::waitData(double timeout)
 {
 	return true;
-}
-
-bool Stream::waitData(const double &timeout)
-{
-	double tmp = timeout;
-	return waitData(tmp);
 }
 
 void Stream::seekRead(int64_t position)

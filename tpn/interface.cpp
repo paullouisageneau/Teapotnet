@@ -52,20 +52,17 @@ Interface::~Interface(void)
 
 void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 {
+	std::lock_guard<std::mutex> lock(mMutex);
 	Assert(interfaceable != NULL);
-	
-	mMutex.lock();
 	mPrefixes.insert(prefix, interfaceable);
-	mMutex.unlock();
 }
 
 void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 {
-	mMutex.lock();
+	std::lock_guard<std::mutex> lock(mMutex);
 	HttpInterfaceable *test = NULL;
 	if(mPrefixes.get(prefix, test) && (!interfaceable || test == interfaceable))
 		mPrefixes.erase(prefix);
-	mMutex.unlock();
 }
 
 void Interface::http(const String &prefix, Http::Request &request)
@@ -296,7 +293,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					response.send();
 
 					JsonSerializer json(response.stream);
-					json.output(resource);
+					json << resource;
 					return;
 				}
 				

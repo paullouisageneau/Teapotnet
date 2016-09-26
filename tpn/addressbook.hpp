@@ -78,8 +78,6 @@ public:
 		~Contact(void);
 		
 		void setAddressBook(AddressBook *addressBook);
-		void init(void);
-		void uninit(void);
 		
 		Identifier identifier(void) const;
 		String uniqueName(void) const;
@@ -109,11 +107,14 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void init(void);
+		void uninit(void);
+		
 		BinaryString localSecret(void) const;
 		BinaryString remoteSecret(void) const;
 	  
 		AddressBook *mAddressBook;
-		Board *mBoard, *mPrivateBoard;
+		sptr<Board> mBoard, mPrivateBoard;
 		
 		String mUniqueName, mName;
 		Identifier mIdentifier;
@@ -121,20 +122,22 @@ public:
 		
 		Map<Identifier, String> mInstances;
 		
+		mutable std::mutex mMutex;
+		
 		friend class AddressBook;
 	};
 	
 	String addContact(const String &name, const Identifier &identifier);	// returns uname
 	bool removeContact(const String &uname);
-	Contact *getContact(const String &uname);
-	const Contact *getContact(const String &uname) const;
-	int getContacts(Array<AddressBook::Contact*> &result);
+	sptr<Contact> getContact(const String &uname);
+	sptr<const Contact> getContact(const String &uname) const;
+	int getContacts(std::vector<sptr<AddressBook::Contact> > &result);
 	int getContactsIdentifiers(Array<Identifier> &result) const;
 	bool hasIdentifier(const Identifier &identifier) const;
 	
 	void setSelf(const Identifier &identifier);
-	Contact *getSelf(void);
-	const Contact *getSelf(void) const;
+	sptr<Contact> getSelf(void);
+	sptr<const Contact> getSelf(void) const;
 	
 	void addInvitation(const Identifier &remote, const String &name);
 	
@@ -144,8 +147,8 @@ private:
 	
 	User *mUser;
 	String mFileName;
-	Map<String, Contact*> mContacts;	// Sorted by unique name
-	Map<Identifier, Contact*> mContactsByIdentifier;
+	Map<String, sptr<Contact> > mContacts;	// Sorted by unique name
+	Map<Identifier, sptr<Contact> > mContactsByIdentifier;
 	Map<Identifier, String> mInvitations;
 	Time mTime;	// modification time
 		

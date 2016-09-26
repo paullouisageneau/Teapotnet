@@ -23,6 +23,7 @@
 #define PLA_SCHEDULER_H
 
 #include "pla/threadpool.hpp"
+#include "pla/include.hpp"
 
 namespace pla 
 {
@@ -31,18 +32,21 @@ class Scheduler : protected ThreadPool
 {
 public:
 	using clock = std::chrono::steady_clock;
+	typedef std::chrono::duration<double> duration;
+	typedef std::chrono::time_point<clock, duration> time_point;
 	
 	Scheduler(size_t threads = 1);
 	~Scheduler(void);
 	
 	template<class F, class... Args>
-	auto schedule(clock::time_point time, F&& f, Args&&... args)
+	auto schedule(time_point time, F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
 	
+	void clear(void);
 	void join(void);
 	
 private:
-	std::multimap<clock::time_point, std::shared_ptr<std::packaged_task<void()> > > scheduleMap;
+	std::multimap<time_point, std::function<void()> > scheduleMap;
 	std::condition_variable scheduleCondition;
 	std::thread thread;
 };
@@ -50,26 +54,27 @@ private:
 inline Scheduler::Scheduler(size_t threads) :
 	ThreadPool(threads)
 {
-	thread = std::thread([this]()
+	this->thread = std::thread([this]()
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		while(!this->stop || !this->scheduleMap.empty())
+		while(true)
 		{
 			if(this->scheduleMap.empty())
 			{
+				if(this->stop) break;
 				this->scheduleCondition.wait(lock);
 			}
 			else {
-				clock::time_point time = this->scheduleMap.begin()->first;
-				if(time <= clock::now())
+				time_point time = this->scheduleMap.begin()->first;
+				if(time > clock::now())
 				{
-					auto task = this->scheduleMap.begin()->second;
-					this->scheduleMap.erase(this->scheduleMap.begin());
-					tasks.emplace([task] { (*task)(); });
-					condition.notify_one();
+					this->scheduleCondition.wait_until(lock, time);
 				}
 				else {
-					this->scheduleCondition.wait_until(lock, time);
+					auto task = this->scheduleMap.begin()->second;
+					this->scheduleMap.erase(this->scheduleMap.begin());
+					tasks.emplace(std::move(task));
+					condition.notify_one();
 				}
 			}
 		}
@@ -78,12 +83,17 @@ inline Scheduler::Scheduler(size_t threads) :
 
 inline Scheduler::~Scheduler(void)
 {
-	thread.join();
 	join();
 }
 
+inline void Scheduler::clear(void)
+{
+	std::unique_lock<std::mutex> lock(mutex);
+	scheduleMap.clear();
+}
+
 template<class F, class... Args>
-auto Scheduler::schedule(clock::time_point time, F&& f, Args&&... args) 
+auto Scheduler::schedule(time_point time, F&& f, Args&&... args) 
 	-> std::future<typename std::result_of<F(Args...)>::type>
 {
 	using type = typename std::result_of<F(Args...)>::type;
@@ -93,8 +103,8 @@ auto Scheduler::schedule(clock::time_point time, F&& f, Args&&... args)
 
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		if(stop) throw std::runtime_error("schedule on stopped Scheduler");
-		scheduleMap.emplace(std::make_pair(time, task));
+		if(this->stop) throw std::runtime_error("schedule on stopped Scheduler");
+		scheduleMap.emplace(std::make_pair(time, [task]() { (*task)(); } ));
 	}
 	
 	scheduleCondition.notify_all();
@@ -103,6 +113,14 @@ auto Scheduler::schedule(clock::time_point time, F&& f, Args&&... args)
 
 inline void Scheduler::join(void)
 {
+	{
+		std::unique_lock<std::mutex> lock(mutex);
+		stop = true;
+	}
+	
+	scheduleCondition.notify_all();
+	thread.join();
+	
 	ThreadPool::join();
 }
 

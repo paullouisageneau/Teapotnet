@@ -112,7 +112,7 @@ public:
 	private:
 		Link mLink;
 		StringSet mSubscribedPrefixes;
-		ThreadPool mThreadPool;
+		ThreadPool mPool;
 	};
 	
 	class Caller
@@ -154,7 +154,6 @@ public:
 	Network(int port);
 	~Network(void);
 	
-	void start(void);
 	void join(void);
 	
 	Overlay *overlay(void);
@@ -179,7 +178,7 @@ public:
 	void issue(String prefix, const String &path, Publisher *publisher, const Mail &mail);
 	void addRemoteSubscriber(const Link &link, const String &path);
 	
-	// Serializable
+	// Send/Recv
 	bool broadcast(const Identifier &local, const String &type, const Serializable &object);
 	bool send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &object);
 	bool send(const Link &link, const String &type, const Serializable &object);
@@ -192,7 +191,7 @@ public:
 	bool hasLink(const Identifier &local, const Identifier &remote);
 	bool hasLink(const Link &link);
 	
-	void operator()(void);
+	void run(void);
 	
 private:
 	class RemotePublisher : public Publisher
@@ -227,6 +226,8 @@ private:
 		bool open(const BinaryString &node, const Identifier &remote, User *user, bool async = false);
 		bool incoming(const Overlay::Message &message);
 		
+		void run(void);
+		
 	private:
 		class Tunnel : public Stream
 		{
@@ -257,6 +258,10 @@ private:
 			size_t mOffset;			// read offset
 			BinaryString mBuffer;		// write buffer
 			double mTimeout;
+			bool mClosed;
+			
+			mutable std::mutex mMutex;
+			std::condition_variable mCondition;
 		};
 		
 		bool registerTunnel(Tunnel *tunnel);
@@ -265,12 +270,16 @@ private:
 		SecureTransport *listen(BinaryString *source);
 
 		bool handshake(SecureTransport *transport, const Link &link, bool async = false);
-		void operator()(void);
 		
 		Map<uint64_t, Tunnel*> mTunnels;
-		ThreadPool mThreadPool;
 		Queue<Overlay::Message> mQueue;		// Queue for listening
 		Set<BinaryString> mPending;		// Pending nodes
+		ThreadPool mPool;
+		bool mStop;
+		
+		std::thread mThread;
+		mutable std::mutex mMutex;
+		mutable std::condition_variable mCondition;
 	};
 	
 	class Handler : private Stream
@@ -279,13 +288,13 @@ private:
 		Handler(Stream *stream, const Link &link);
 		~Handler(void);
 		
-		void write(uint8_t type, const BinaryString &record);
+		void write(const String &type, const String &record);
 		void push(const BinaryString &target, unsigned tokens);
 		void timeout(void);
 		
 	private:
-		bool readRecord(uint8_t &type, BinaryString &record);
-		void writeRecord(uint8_t type, const BinaryString &record);
+		bool readRecord(String &type, String &record);
+		void writeRecord(const String &type, const String &record);
 		
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
@@ -293,15 +302,14 @@ private:
 		
 		int send(bool force = false);
 		
-		bool recvCombination(Fountain::Combination &combination);
-		void sendCombination(const Fountain::Combination &combination);
+		bool recvCombination(BinaryString &target, Fountain::Combination &combination);
+		void sendCombination(const BinaryString &target, const Fountain::Combination &combination);
 		
 		void process(void);
-		void operator()(void);
+		void run(void);
 		
 		Stream *mStream;
 		Link mLink;
-		std::mutex mWriteMutex;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		Map<BinaryString, unsigned> mTargets;
@@ -311,20 +319,13 @@ private:
 		double mTimeout;
 		bool mClosed;
 		
-		class TimeoutTask
-		{
-		public:
-			TimeoutTask(Handler *handler) { this->handler = handler; }
-			void operator()(void) { handler->timeout(); }
-		private:
-			Handler *handler;
-		};
-		
-		TimeoutTask mTimeoutTask;
+		std::thread mThread;
+		mutable std::mutex mMutex;
+		mutable std::mutex mWriteMutex;
 	};
 	
-	void registerHandler(const Link &link, Handler *handler);
-	void unregisterHandler(const Link &link, Handler *handler);
+	void registerHandler(const Link &link, sptr<Handler> handler);
+	void unregisterHandler(const Link &link);
 	
 	bool outgoing(const String &type, const Serializable &content);
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
@@ -340,31 +341,16 @@ private:
 	
 	Overlay mOverlay;
 	Tunneler mTunneler;
-	ThreadPool mThreadPool;
 
-	Map<Link, Handler*> mHandlers;
-	Set<Handler*> mOtherHandlers;
+	Map<Link, sptr<Handler> > mHandlers;
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, RemoteSubscriber> > mRemoteSubscribers;
 	
-	class Pusher
-	{
-	public:
-		Pusher(void);
-		~Pusher(void);
-		
-		void push(const BinaryString &target, const Identifier &destination, unsigned tokens);
-		void operator()(void);
-		
-	private:
-		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
-		unsigned mRedundant;
-	};
-	
-	Pusher mPusher;
+	std::thread mThread;
+	std::mutex mMutex;
 	
 	friend class Handler;
 };

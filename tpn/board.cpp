@@ -50,9 +50,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	Set<BinaryString> digests;
 	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
 	
-	for(Set<BinaryString>::iterator it = digests.begin();
-		it != digests.end();
-		++it)
+	for(auto it = digests.begin(); it != digests.end(); ++it)
 	{
 		//LogDebug("Board", "Retrieved digest: " + it->toString());
 		if(fetch(Network::Link::Null, prefix, "/", *it, false))
@@ -75,14 +73,12 @@ Board::~Board(void)
 String Board::urlPrefix(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
 	return "/mail" + mName;
 }
 
 bool Board::hasNew(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-
 	bool value = false;
 	std::swap(mHasNew, value);
 	return value;
@@ -90,8 +86,7 @@ bool Board::hasNew(void) const
 
 int Board::unread(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
+	// TODO
 	return 0;
 }
 
@@ -135,17 +130,15 @@ void Board::removeMergeUrl(const String &url)
 
 void Board::process(void)
 {
+	// Private, no sync
+	
 	try {
 		// Write messages to temporary file
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		BinarySerializer serializer(&tempFile);
-		for(Set<Mail>::const_iterator it = mMails.begin();
-			it != mMails.end();
-			++it)
-		{
+		for(auto it = mMails.begin(); it != mMails.end(); ++it)
 			serializer.write(*it);
-		}
 		tempFile.close();
 		
 		// Move to cache and process
@@ -167,11 +160,9 @@ void Board::process(void)
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
+	
 	targets.clear();
-	
-	if(mDigest.empty())
-		return false;
-	
+	if(mDigest.empty()) return false;
 	targets.push_back(mDigest);
 	return true;
 }
@@ -249,7 +240,6 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 
 void Board::http(const String &prefix, Http::Request &request)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!request.url.empty());
 	
 	try {
@@ -308,28 +298,32 @@ void Board::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("timeout"))
 					request.get["timeout"].extract(timeout);
 				
-				if(next >= int(mUnorderedMails.size()))
+				decltype(mUnorderedMails) temp;
 				{
-					mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
-						return next < int(this->mUnorderedMails.size());
-					});
+					std::unique_lock<std::mutex> lock(mMutex);
+					
+					if(next >= int(mUnorderedMails.size()))
+					{
+						mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
+							return next < int(this->mUnorderedMails.size());
+						});
+					}
+					
+					temp.reserve(int(mUnorderedMails.size() - next));
+					for(int i = next; i < int(mUnorderedMails.size()); ++i)
+						temp.push_back(mUnorderedMails[i]);
+					
+					mUnread = 0;
+					mHasNew = false;
 				}
 				
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/json";
 				response.send();
 				
-				decltype(mUnorderedMails) temp;
-				temp.reserve(int(mUnorderedMails.size() - next));
-				for(int i = next; i < int(mUnorderedMails.size()); ++i)
-					temp.push_back(mUnorderedMails[i]);
-				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
 				json << temp;
-				
-				mUnread = 0;
-				mHasNew = false;
 				return;
 			}
 			
@@ -341,7 +335,12 @@ void Board::http(const String &prefix, Http::Request &request)
 
 			Html page(response.stream);
 			
-			String title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
+			String title;
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
+			}
+			
 			page.header(title, isPopup || isFrame);
 			
 			if(!isFrame)
@@ -432,8 +431,12 @@ void Board::http(const String &prefix, Http::Request &request)
 			
 			unsigned refreshPeriod = 2000;
 			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail', "+String::number(refreshPeriod)+");");
-			for(StringSet::iterator it = mMergeUrls.begin(); it != mMergeUrls.end(); ++it)
-				page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail', "+String::number(refreshPeriod)+");");
+			
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				for(auto it = mMergeUrls.begin(); it != mMergeUrls.end(); ++it)
+					page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail', "+String::number(refreshPeriod)+");");
+			}
 			
 			page.footer();
 			return;
