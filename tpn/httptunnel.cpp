@@ -39,10 +39,10 @@ String HttpTunnel::UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6
 size_t HttpTunnel::DefaultPostSize = 1*1024;		// 1 KB
 size_t HttpTunnel::MaxPostSize = 2*1024*1024;		// 2 MB
 size_t HttpTunnel::MaxDownloadSize = 20*1024*1024;	// 20 MB
-double HttpTunnel::ConnTimeout = 30.;
-double HttpTunnel::SockTimeout = 10.;
-double HttpTunnel::FlushTimeout = 0.2;
-double HttpTunnel::ReadTimeout = 60.;
+duration HttpTunnel::ConnTimeout = seconds(30.);
+duration HttpTunnel::SockTimeout = seconds(10.);
+duration HttpTunnel::FlushTimeout = seconds(0.2);
+duration HttpTunnel::ReadTimeout = seconds(60.);
 
 std::map<uint32_t, sptr<HttpTunnel::Server>> 	HttpTunnel::Sessions;
 std::mutex					HttpTunnel::SessionsMutex;
@@ -122,7 +122,7 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 				server->mDownSock = sock;
 				server->mDownloadLeft = MaxDownloadSize;
 				server->mCondition.notify_all();
-				server->mFlusher.schedule(Alarm::clock::now() + std::chrono::duration<double>(ReadTimeout*0.75));
+				server->mFlusher.schedule(ReadTimeout*0.75);
 				return NULL;
 			}
 			else {
@@ -310,7 +310,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 					}
 					else if(response.code == 409)	// Conflict
 					{
-						std::this_thread::sleep_for(std::chrono::seconds(1));
+						std::this_thread::sleep_for(seconds(1));
 						continue;
 					}
 				}
@@ -451,7 +451,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		}
 	}
 
-	mFlusher.schedule(Alarm::clock::now() + std::chrono::duration<double>(FlushTimeout));
+	mFlusher.schedule(FlushTimeout);
 }
 
 void HttpTunnel::Client::flush(void)
@@ -576,7 +576,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 
 		if(!mUpSock)
 		{
-			if(!mCondition.wait_for(lock, std::chrono::duration<double>(ReadTimeout), [this]() { 
+			if(!mCondition.wait_for(lock, ReadTimeout, [this]() { 
 				return mClosed || mUpSock;
 			}))
 				throw Timeout();
@@ -693,7 +693,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		
 		if(!mDownSock)
 		{
-			if(!mCondition.wait_for(lock, std::chrono::duration<double>(ConnTimeout), [this]() { 
+			if(!mCondition.wait_for(lock, ConnTimeout, [this]() { 
 				return mClosed || mDownSock;
 			}))
 				throw Timeout();
@@ -731,7 +731,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		mDownSock->close();
 	}
 	
-	mFlusher.schedule(Alarm::clock::now() + std::chrono::duration<double>(FlushTimeout));
+	mFlusher.schedule(FlushTimeout);
 }
 
 void HttpTunnel::Server::flush(void)

@@ -29,7 +29,7 @@
 namespace pla
 {
 
-double SecureTransport::DefaultTimeout = 10.;	// Defaults to 10 secs
+duration SecureTransport::DefaultTimeout = seconds(10.);	// Defaults to 10 secs
 
 // Force 128+ bits cipher, disable SSL3.0 and TLS1.0, disable RC4
 String SecureTransport::DefaultPriorities = "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-ARCFOUR-128";
@@ -129,11 +129,11 @@ void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)
 		mCredsToDelete.push_back(creds);
 }
 
-void SecureTransport::setHandshakeTimeout(double timeout)
+void SecureTransport::setHandshakeTimeout(duration timeout)
 {
 	if(!isHandshakeDone())
 	{
-		gnutls_handshake_set_timeout(mSession, unsigned(timeout*1000));
+		gnutls_handshake_set_timeout(mSession, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 	
 		if(mStream->isDatagram())
 		{
@@ -149,10 +149,12 @@ void SecureTransport::setDatagramMtu(unsigned int mtu)
 		gnutls_dtls_set_mtu(mSession, mtu);
 }
 
-void SecureTransport::setDatagramTimeout(double timeout, double retransTimeout)
+void SecureTransport::setDatagramTimeout(duration timeout, duration retransTimeout)
 {
 	if(mStream->isDatagram())
-		gnutls_dtls_set_timeouts(mSession, unsigned(retransTimeout*1000), unsigned(timeout*1000));
+		gnutls_dtls_set_timeouts(mSession,
+				std::chrono::duration_cast<std::chrono::milliseconds>(retransTimeout).count(),
+				std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 }
 
 void SecureTransport::handshake(void)
@@ -880,7 +882,7 @@ int SecureTransportServer::PostClientHelloCallback(gnutls_session_t session)
 	return 0;
 }
 
-SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *remote, bool requestClientCertificate, double connectionTimeout)
+SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *remote, bool requestClientCertificate, duration connectionTimeout)
 {
 	while(true)
 	{
@@ -891,7 +893,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *rem
 			lsock.accept(*sock);
 			if(remote)
 				*remote = sock->getRemoteAddress();
-			if(connectionTimeout > 0.)
+			if(connectionTimeout > duration::zero())
 				sock->setTimeout(connectionTimeout);
 		}
 		catch(...)
@@ -915,7 +917,7 @@ SecureTransport *SecureTransportServer::Listen(ServerSocket &lsock, Address *rem
 	}
 }
 
-SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *remote, bool requestClientCertificate, double streamTimeout)
+SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *remote, bool requestClientCertificate, duration streamTimeout)
 {
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
@@ -945,7 +947,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *re
 			SecureTransportServer *transport = NULL;
 			try {
 				stream = new DatagramStream(&sock, sender);
-				if(streamTimeout > 0.)
+				if(streamTimeout > duration::zero())
 					stream->setTimeout(streamTimeout);
 				transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
 			}

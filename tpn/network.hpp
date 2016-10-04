@@ -34,6 +34,7 @@
 #include "pla/string.hpp"
 #include "pla/threadpool.hpp"
 #include "pla/scheduler.hpp"
+#include "pla/alarm.hpp"
 #include "pla/map.hpp"
 #include "pla/array.hpp"
 
@@ -310,10 +311,11 @@ private:
 		
 		Stream *mStream;
 		Link mLink;
+		Alarm mTimeoutAlarm;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		Map<BinaryString, unsigned> mTargets;
-		
+
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator;
 		double mRedundancy;
 		double mTimeout;

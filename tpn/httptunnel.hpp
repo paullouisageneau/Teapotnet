@@ -102,10 +102,10 @@ public:
         static size_t DefaultPostSize;
 	static size_t MaxPostSize;
 	static size_t MaxDownloadSize;
-	static double ConnTimeout;
-	static double SockTimeout;
-	static double FlushTimeout;
-	static double ReadTimeout;
+	static duration ConnTimeout;
+	static duration SockTimeout;
+	static duration FlushTimeout;
+	static duration ReadTimeout;
 
 private:
 	HttpTunnel(void);

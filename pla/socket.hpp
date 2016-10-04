@@ -38,7 +38,7 @@ public:
 	static Address HttpProxy;
 	
 	Socket(void);
-	Socket(const Address &a, double timeout = -1.);
+	Socket(const Address &a, duration timeout = seconds(-1.));
 	Socket(socket_t sock);
 	virtual ~Socket(void);
 
@@ -48,10 +48,10 @@ public:
 	Address getLocalAddress(void) const;
 	Address getRemoteAddress(void) const;
 
-	void setConnectTimeout(double timeout);
-	void setReadTimeout(double timeout);
-	void setWriteTimeout(double timeout);
-	void setTimeout(double timeout);	// connect + read + write
+	void setConnectTimeout(duration timeout);
+	void setReadTimeout(duration timeout);
+	void setWriteTimeout(duration timeout);
+	void setTimeout(duration timeout);	// connect + read + write
 	
 	void connect(const Address &addr, bool noproxy = false);
 	void close(void);
@@ -59,7 +59,7 @@ public:
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-	bool waitData(double timeout);
+	bool waitData(duration timeout);
 	
 	// Socket-specific
 	size_t peekData(char *buffer, size_t size);

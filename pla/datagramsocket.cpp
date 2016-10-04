@@ -356,26 +356,14 @@ void DatagramSocket::close(void)
 	}
 }
 
-int DatagramSocket::read(char *buffer, size_t size, Address &sender, double &timeout)
+int DatagramSocket::read(char *buffer, size_t size, Address &sender, duration timeout)
 {
 	return recv(buffer, size, sender, timeout, 0);
 }
 
-int DatagramSocket::read(char *buffer, size_t size, Address &sender, const double &timeout)
-{
-	double dummy = timeout;
-	return  read(buffer, size, sender, dummy);
-}
-
-int DatagramSocket::peek(char *buffer, size_t size, Address &sender, double &timeout)
+int DatagramSocket::peek(char *buffer, size_t size, Address &sender, duration timeout)
 {
 	return recv(buffer, size, sender, timeout, MSG_PEEK);
-}
-
-int DatagramSocket::peek(char *buffer, size_t size, Address &sender, const double &timeout)
-{
-	double dummy = timeout;
-	return  peek(buffer, size, sender, dummy);
 }
 
 void DatagramSocket::write(const char *buffer, size_t size, const Address &receiver)
@@ -383,7 +371,7 @@ void DatagramSocket::write(const char *buffer, size_t size, const Address &recei
 	send(buffer, size, receiver, 0);
 }
 
-bool DatagramSocket::read(Stream &stream, Address &sender, double &timeout)
+bool DatagramSocket::read(Stream &stream, Address &sender, duration timeout)
 {
 	stream.clear();
 	char buffer[MaxDatagramSize];
@@ -394,13 +382,7 @@ bool DatagramSocket::read(Stream &stream, Address &sender, double &timeout)
 	return true;
 }
 
-bool DatagramSocket::read(Stream &stream, Address &sender, const double &timeout)
-{
-	double dummy = timeout;
-	return  read(stream, sender, dummy);
-}
-
-bool DatagramSocket::peek(Stream &stream, Address &sender, double &timeout)
+bool DatagramSocket::peek(Stream &stream, Address &sender, duration timeout)
 {
 	stream.clear();
 	char buffer[MaxDatagramSize];
@@ -411,12 +393,6 @@ bool DatagramSocket::peek(Stream &stream, Address &sender, double &timeout)
 	return true;
 }
 
-bool DatagramSocket::peek(Stream &stream, Address &sender, const double &timeout)
-{
-	double dummy = timeout;
-	return peek(stream, sender, dummy);
-}
-
 void DatagramSocket::write(Stream &stream, const Address &receiver)
 {
 	char buffer[MaxDatagramSize];
@@ -425,14 +401,14 @@ void DatagramSocket::write(Stream &stream, const Address &receiver)
 	stream.clear();
 }
 
-bool DatagramSocket::wait(double &timeout)
+bool DatagramSocket::wait(duration timeout)
 {
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(mSock, &readfds);
 	
 	struct timeval tv;
-	Time::SecondsToStruct(timeout, tv);
+	durationToStruct(timeout, tv);
 	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 	if (ret < 0) throw Exception("Unable to wait on socket");
 	if (ret ==  0)
@@ -441,27 +417,23 @@ bool DatagramSocket::wait(double &timeout)
 		return false;
 	}
 	
-	timeout = Time::StructToSeconds(tv);
 	return true;
 }
 
-int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &timeout, int flags)
+int DatagramSocket::recv(char *buffer, size_t size, Address &sender, duration timeout, int flags)
 {
-	int result = 0;
-	size = std::min(size, MaxDatagramSize);
-
-	while(true)
-	{
-		if(timeout >= 0.)
-		{
-			if(!wait(timeout))
-				return -1;
-		}
+	std::chrono::time_point<std::chrono::steady_clock> end;
+       	if(timeout => duration::zero()) end = std::chrono::steady_clock::now() + timeout;
+	else end = std::chrono::steady_clock::max();
+	
+	do {
+		duration d = end - std::chrono::steady_clock::now();
+		if(!wait(d)) break;
 		
 		char datagramBuffer[MaxDatagramSize];
 		sockaddr_storage sa;
 		socklen_t sl = sizeof(sa);
-		result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags | MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
+		int result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags | MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 		if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
 		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
 		
@@ -469,12 +441,12 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		Map<Address, Set<DatagramStream*> >::iterator it = mStreams.find(sender.unmap());
 		if(it == mStreams.end())
 		{
-			result = std::min(result, int(size));
-			std::memcpy(buffer, datagramBuffer, result);
+			size = std::min(result, int(size));
+			std::memcpy(buffer, datagramBuffer, size);
 			
 			if(!(flags & MSG_PEEK))
 				::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
-			break;
+			return size;
 		}
 		
 		BinaryString tmp(datagramBuffer, size_t(result));
@@ -495,8 +467,9 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, double &tim
 		
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 	}
+	while(std::chrono::steady_clock::now() <= end);
 	
-	return result;
+	return -1;
 }
 
 void DatagramSocket::send(const char *buffer, size_t size, const Address &receiver, int flags)

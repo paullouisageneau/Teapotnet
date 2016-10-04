@@ -46,7 +46,12 @@ public:
 	auto schedule(time_point time, F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
 	
+	template<class F, class... Args>
+	auto schedule(duration d, F&& f, Args&&... args)	
+		-> std::future<typename std::result_of<F(Args...)>::type>;
+	
 	void schedule(time_point time);
+	void schedule(duration d);
 	void cancel(void);
 	void join(void);
 	
@@ -135,6 +140,13 @@ auto Alarm::schedule(time_point time, F&& f, Args&&... args)
 }
 
 
+template<class F, class... Args>
+auto Alarm::schedule(duration d, F&& f, Args&&... args) 
+	-> std::future<typename std::result_of<F(Args...)>::type>
+{
+	return schedule(clock::now() + d, std::forward<F>(f), std::forward<Args>(args)...);
+}
+
 inline void Alarm::schedule(time_point time)
 {
 	{
@@ -144,6 +156,11 @@ inline void Alarm::schedule(time_point time)
 	}
 	
 	condition.notify_all();
+}
+
+inline void Alarm::schedule(duration d)
+{
+	schedule(clock::now() + d);
 }
 
 inline void Alarm::cancel(void)

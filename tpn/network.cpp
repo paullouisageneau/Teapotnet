@@ -1771,6 +1771,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mSink.solve(combination);
 					
 				if(!send(false))
+					mTimeoutAlarm.schedule(
 					Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
 			}
 		}

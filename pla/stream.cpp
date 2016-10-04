@@ -32,7 +32,7 @@ const String Stream::BlankCharacters = " \t\r\n";
 const String Stream::NewLine = "\r\n";
 const char Stream::Space = ' ';
 
-bool Stream::waitData(double timeout)
+bool Stream::waitData(duration timeout)
 {
 	return true;
 }

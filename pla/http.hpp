@@ -38,8 +38,8 @@ class Http
 {
 public:
 	static String UserAgent;
-	static double ConnectTimeout;
-	static double RequestTimeout;  
+	static duration ConnectTimeout;
+	static duration RequestTimeout;  
 
 	struct Request
 	{

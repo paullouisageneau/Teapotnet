@@ -42,6 +42,10 @@ public:
 	auto schedule(time_point time, F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
 	
+	template<class F, class... Args>
+	auto schedule(duration d, F&& f, Args&&... args)
+		-> std::future<typename std::result_of<F(Args...)>::type>;
+	
 	void clear(void);
 	void join(void);
 	
@@ -109,6 +113,13 @@ auto Scheduler::schedule(time_point time, F&& f, Args&&... args)
 	
 	scheduleCondition.notify_all();
 	return result;
+}
+
+template<class F, class... Args>
+auto Scheduler::schedule(duration d, F&& f, Args&&... args) 
+	-> std::future<typename std::result_of<F(Args...)>::type>
+{
+	return schedule(clock::now() + d, std::forward<F>(f), std::forward<Args>(args)...);
 }
 
 inline void Scheduler::join(void)

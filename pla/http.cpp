@@ -29,8 +29,8 @@ namespace pla
 {
 
 String Http::UserAgent = "unknown";
-double Http::ConnectTimeout = 10.;
-double Http::RequestTimeout = 10.;
+duration Http::ConnectTimeout = seconds(10.);
+duration Http::RequestTimeout = seconds(10.);
   
 Http::Request::Request(void)
 {

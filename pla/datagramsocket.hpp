@@ -50,19 +50,15 @@ public:
 	void bind(const Address &local, bool broadcast = false);
 	void close(void);
 	
-	int read(char *buffer, size_t size, Address &sender, double &timeout);
-	int read(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
-	int peek(char *buffer, size_t size, Address &sender, double &timeout);
-	int peek(char *buffer, size_t size, Address &sender, const double &timeout = -1.);
+	int read(char *buffer, size_t size, Address &sender, duration timeout);
+	int peek(char *buffer, size_t size, Address &sender, duration timeout);
 	void write(const char *buffer, size_t size, const Address &receiver);
 	
-	bool read(Stream &stream, Address &sender, double &timeout);
-	bool read(Stream &stream, Address &sender, const double &timeout = -1.);
-	bool peek(Stream &stream, Address &sender, double &timeout);
-	bool peek(Stream &stream, Address &sender, const double &timeout = -1.);
+	bool read(Stream &stream, Address &sender, duration timeout);
+	bool peek(Stream &stream, Address &sender, duration timeout);
 	void write(Stream &stream, const Address &receiver);
 	
-	bool wait(double &timeout);
+	bool wait(duration timeout);
 	
 	void accept(DatagramStream &stream);
 	void registerStream(DatagramStream *stream);
@@ -93,12 +89,12 @@ public:
 	Address getLocalAddress(void) const;
 	Address getRemoteAddress(void) const;
 	
-	void setTimeout(double timeout);
+	void setTimeout(duration timeout);
 	
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-	bool waitData(double &timeout);			
+	bool waitData(duration timeout);			
 	bool nextRead(void);
 	bool nextWrite(void);
 	void close(void);
@@ -110,7 +106,7 @@ private:
 	BinaryString mBuffer;
 	Queue<BinaryString> mIncoming;
 	size_t mOffset;
-	double mTimeout;
+	duration mTimeout;
 	
 	std::mutex mMutex;
 	std::condition_variable mCondition;

@@ -49,7 +49,7 @@ public:
 	// Data-level access
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
-	virtual bool waitData(double timeout);
+	virtual bool waitData(duration timeout);
 	virtual void seekRead(int64_t position);
 	virtual void seekWrite(int64_t position);
 	virtual int64_t tellRead(void) const;

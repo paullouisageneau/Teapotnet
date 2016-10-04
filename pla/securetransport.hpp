@@ -40,7 +40,7 @@ namespace pla
 class SecureTransport : public Stream
 {
 public:
-	static double DefaultTimeout;
+	static duration DefaultTimeout;
 	static String DefaultPriorities;
 	
 	static void Init(void);
@@ -94,9 +94,9 @@ public:
 	virtual ~SecureTransport(void);
 	
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
-	void setHandshakeTimeout(double timeout);
+	void setHandshakeTimeout(duration timeout);
 	void setDatagramMtu(unsigned int mtu);					// ignored if not a datagram stream
-	void setDatagramTimeout(double timeout, double retransTimeout);		// ignored if not a datagram stream
+	void setDatagramTimeout(duration timeout, duration retransTimeout);	// ignored if not a datagram stream
 	
 	void handshake(void);
 	void close(void);
@@ -216,8 +216,8 @@ public:
 	};	
 	
 	// These functions are preferred, especially for datagrams (protection against DoS)
-	static SecureTransport *Listen(ServerSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double connectionTimeout = -1.);
-	static SecureTransport *Listen(DatagramSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, double streamTimeout = -1.);
+	static SecureTransport *Listen(ServerSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, duration connectionTimeout = seconds(-1.));
+	static SecureTransport *Listen(DatagramSocket &sock, Address *remote = NULL, bool requestClientCertificate = false, duration streamTimeout = seconds(-1.));
 	
 	SecureTransportServer(Stream *stream, Credentials *creds = NULL, bool requestClientCertificate = false);	// creds will be deleted
 	~SecureTransportServer(void);

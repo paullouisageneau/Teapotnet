@@ -213,6 +213,13 @@ typedef double			float64_t;	// 64 bits float
 template<typename T> using sptr = std::shared_ptr<T>;
 template<typename T> using wptr = std::weak_ptr<T>;
 
+// Typedefs
+typedef std::chrono::duration<double> duration;
+typedef std::chrono::duration<double> seconds;
+typedef std::chrono::duration<double, std::milli> milliseconds;
+typedef std::chrono::duration<double, std::micro> microseconds;
+typedef std::chrono::duration<double, std::nano>  nanoseconds;
+
 // Utility functions
 template<typename T> T bounds(T val, T val_min, T val_max)
 {
@@ -250,9 +257,32 @@ inline void memxor(char *a, const char *b, size_t size)
 		a[i]^= b[i];
 }
 
-inline double milliseconds(unsigned long msec)
+inline duration structToDuration(const struct timeval &tv)
 {
-	return 0.001*msec;
+	return seconds(double(tv.tv_sec) + double(tv.tv_usec)/1000000.);
+}
+
+inline duration structToDuration(const struct timespec &ts)
+{
+	return seconds(double(ts.tv_sec) + double(ts.tv_nsec)/1000000000.);
+}
+
+void durationToStruct(duration d, struct timeval &tv)
+{
+	double secs = seconds(d).count();
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	tv.tv_sec = time_t(isecs);
+	tv.tv_usec = long(fsecs*1000000.);
+}
+
+void durationToStruct(duration d, struct timespec &ts)
+{
+	double secs = seconds(d).count();
+	double isecs = 0.;
+	double fsecs = std::modf(secs, &isecs);
+	ts.tv_sec = time_t(isecs);
+	ts.tv_nsec = long(fsecs*100000000.);
 }
 
 #define Queue std::queue

@@ -68,27 +68,27 @@ void Socket::Transfer(Socket *sock1, Socket *sock2)
   
 Socket::Socket(void) :
 		mSock(INVALID_SOCKET),
-		mConnectTimeout(-1.),
-		mReadTimeout(-1.),
-		mWriteTimeout(-1.)
+		mConnectTimeout(seconds(-1.)),
+		mReadTimeout(seconds(-1.)),
+		mWriteTimeout(seconds(-1.))
 {
 
 }
 
-Socket::Socket(const Address &a, double timeout) :
+Socket::Socket(const Address &a, duration timeout) :
 		mSock(INVALID_SOCKET),
-		mConnectTimeout(-1.),
-		mReadTimeout(-1.),
-		mWriteTimeout(-1.)
+		mConnectTimeout(seconds(-1.)),
+		mReadTimeout(seconds(-1.)),
+		mWriteTimeout(seconds(-1.))
 {
 	setTimeout(timeout);
 	connect(a);
 }
 
 Socket::Socket(socket_t sock) :
-		mConnectTimeout(-1.),
-		mReadTimeout(-1.),
-		mWriteTimeout(-1.)
+		mConnectTimeout(seconds(-1.)),
+		mReadTimeout(seconds(-1.)),
+		mWriteTimeout(seconds(-1.))
 {
 	mSock = sock;
 }
@@ -155,22 +155,22 @@ Address Socket::getRemoteAddress(void) const
 	return Address(reinterpret_cast<sockaddr*>(&addr), len);
 }
 
-void Socket::setConnectTimeout(double timeout)
+void Socket::setConnectTimeout(duration timeout)
 {
 	mConnectTimeout = timeout;
 }
 
-void Socket::setReadTimeout(double timeout)
+void Socket::setReadTimeout(duration timeout)
 {
 	mReadTimeout = timeout;
 }
 
-void Socket::setWriteTimeout(double timeout)
+void Socket::setWriteTimeout(duration timeout)
 {
 	mWriteTimeout = timeout;
 }
 
-void Socket::setTimeout(double timeout)
+void Socket::setTimeout(duration timeout)
 {
 	setConnectTimeout(timeout);
 	setReadTimeout(timeout);
@@ -235,7 +235,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			FD_SET(mSock, &writefds);
 
 			struct timeval tv;
-			Time::SecondsToStruct(mConnectTimeout, tv);
+			durationToStruct(mConnectTimeout, tv);
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
 			if (ret < 0) 
@@ -282,7 +282,7 @@ void Socket::writeData(const char *data, size_t size)
 	sendData(data, size, 0);
 }
 
-bool Socket::waitData(double timeout)
+bool Socket::waitData(duration timeout)
 {
 	if(mSock == INVALID_SOCKET)
 		throw NetException("Socket is closed");
@@ -292,7 +292,7 @@ bool Socket::waitData(double timeout)
 	FD_SET(mSock, &readfds);
 
 	struct timeval tv;
-	Time::SecondsToStruct(timeout, tv);
+	durationToStruct(timeout, tv);
 	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 	if (ret < 0) throw Exception("Unable to wait on socket");
 	return (ret != 0);
@@ -308,12 +308,9 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 	if(mSock == INVALID_SOCKET)
 		throw NetException("Socket is closed");
 
-	if(mReadTimeout >= 0.)
-	{
-		double timeout = mReadTimeout;
-		if(!waitData(timeout)) 
+	if(mReadTimeout >= duration::zero())
+		if(!waitData(mReadTimeout)) 
 			throw Timeout();
-	}
 
 	int count = ::recv(mSock, buffer, size, flags);	
 	if(count < 0)
@@ -325,13 +322,13 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 void Socket::sendData(const char *data, size_t size, int flags)
 {
 	struct timeval tv;
-	Time::SecondsToStruct(std::max(mWriteTimeout, 0.), tv);
+	durationToStruct(std::max(mWriteTimeout, duration::zero()), tv);
 	
 	do {
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket is closed");
 
-		if(mWriteTimeout >= 0.)
+		if(mWriteTimeout >= duration::zero())
 		{
 			fd_set writefds;
 			FD_ZERO(&writefds);
