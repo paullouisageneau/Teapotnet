@@ -411,20 +411,15 @@ bool DatagramSocket::wait(duration timeout)
 	durationToStruct(timeout, tv);
 	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 	if (ret < 0) throw Exception("Unable to wait on socket");
-	if (ret ==  0)
-	{
-		timeout = 0.;
-		return false;
-	}
-	
-	return true;
+	return (ret > 0);
 }
 
 int DatagramSocket::recv(char *buffer, size_t size, Address &sender, duration timeout, int flags)
 {
-	std::chrono::time_point<std::chrono::steady_clock> end;
-       	if(timeout => duration::zero()) end = std::chrono::steady_clock::now() + timeout;
-	else end = std::chrono::steady_clock::max();
+	using clock = std::chrono::steady_clock;
+	std::chrono::time_point<clock> end;
+	if(timeout >= duration::zero()) end = clock::now() + std::chrono::duration_cast<clock::duration>(timeout);
+	else end = std::chrono::time_point<clock>::max();
 	
 	do {
 		duration d = end - std::chrono::steady_clock::now();
@@ -511,7 +506,7 @@ bool DatagramSocket::unregisterStream(DatagramStream *stream)
 		mStreams.erase(addr);
 }
 
-double DatagramStream::DefaultTimeout = 60.; // 1 min
+duration DatagramStream::DefaultTimeout = seconds(60.); // 1 min
 int DatagramStream::MaxQueueSize = 100;
 
 DatagramStream::DatagramStream(void) :
@@ -549,7 +544,7 @@ Address DatagramStream::getRemoteAddress(void) const
 	return mAddr;
 }
 
-void DatagramStream::setTimeout(double timeout)
+void DatagramStream::setTimeout(duration timeout)
 {
 	mTimeout = timeout;
 }
@@ -574,13 +569,13 @@ void DatagramStream::writeData(const char *data, size_t size)
 	mBuffer.writeData(data, size);
 }
 
-bool DatagramStream::waitData(double &timeout)
+bool DatagramStream::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mSock && mIncoming.empty())
 	{
-		this->mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this]()
+		this->mCondition.wait_for(lock, timeout, [this]()
 		{ 
 			return !this->mIncoming.empty();
 		});

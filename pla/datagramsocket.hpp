@@ -50,12 +50,12 @@ public:
 	void bind(const Address &local, bool broadcast = false);
 	void close(void);
 	
-	int read(char *buffer, size_t size, Address &sender, duration timeout);
-	int peek(char *buffer, size_t size, Address &sender, duration timeout);
+	int read(char *buffer, size_t size, Address &sender, duration timeout = seconds(-1.));
+	int peek(char *buffer, size_t size, Address &sender, duration timeout = seconds(-1.));
 	void write(const char *buffer, size_t size, const Address &receiver);
 	
-	bool read(Stream &stream, Address &sender, duration timeout);
-	bool peek(Stream &stream, Address &sender, duration timeout);
+	bool read(Stream &stream, Address &sender, duration timeout = seconds(-1.));
+	bool peek(Stream &stream, Address &sender, duration timeout = seconds(-1.));
 	void write(Stream &stream, const Address &receiver);
 	
 	bool wait(duration timeout);
@@ -65,7 +65,7 @@ public:
 	bool unregisterStream(DatagramStream *stream);
 	
 private:
-	int recv(char *buffer, size_t size, Address &sender, double &timeout, int flags);
+	int recv(char *buffer, size_t size, Address &sender, duration timeout, int flags);
 	void send(const char *buffer, size_t size, const Address &receiver, int flags);
 	
 	socket_t mSock;
@@ -79,7 +79,7 @@ private:
 class DatagramStream : public Stream
 {
 public:
-	static double DefaultTimeout;
+	static duration DefaultTimeout;
 	static int MaxQueueSize;
 
 	DatagramStream(void);

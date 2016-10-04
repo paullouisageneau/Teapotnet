@@ -221,7 +221,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket creation failed");
 
-		if(mConnectTimeout >= 0.)
+		if(mConnectTimeout >= duration::zero())
 		{
 			ctl_t b = 1;
 			if(ioctl(mSock, FIONBIO, &b) < 0)

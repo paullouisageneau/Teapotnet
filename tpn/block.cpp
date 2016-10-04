@@ -179,7 +179,7 @@ void Block::writeData(const char *data, size_t size)
 	throw Unsupported("Writing to Block");
 }
 
-bool Block::waitData(double &timeout)
+bool Block::waitData(duration timeout)
 {
 	if(!waitContent(timeout)) return false;
 	return mFile->waitData(timeout);
@@ -252,19 +252,13 @@ void Block::waitContent(void) const
 	}
 }
 
-bool Block::waitContent(double &timeout) const
+bool Block::waitContent(duration timeout) const
 {
 	if(!Store::Instance->waitBlock(mDigest, timeout, mHint))
 		return false;
 	
 	waitContent();
 	return true;
-}
-
-bool Block::waitContent(const double &timeout) const
-{
-	double dummy = timeout;
-	return waitContent(dummy);
 }
 
 void Block::notifyStore(void) const

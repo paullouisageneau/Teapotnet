@@ -44,7 +44,7 @@ public:
 	class Client : public Stream
 	{
 	public:
-		Client(const Address &a, double timeout = -1.); // timeout used for first connection only
+		Client(const Address &a, duration timeout = seconds(-1.)); // timeout used for first connection only
 		~Client(void);
 
 		void close(void);
@@ -63,7 +63,7 @@ public:
 		Socket *mUpSock, *mDownSock;
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
-		double mConnTimeout;
+		duration mConnTimeout;
 		Alarm mFlusher;
 		
 		std::mutex mMutex;

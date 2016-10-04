@@ -49,8 +49,7 @@ public:
 	
 	bool hasBlock(const BinaryString &digest);
 	void waitBlock(const BinaryString &digest, const BinaryString &hint = "");
-	bool waitBlock(const BinaryString &digest, double &timeout, const BinaryString &hint = "");
-	bool waitBlock(const BinaryString &digest, const double &timeout, const BinaryString &hint = "");
+	bool waitBlock(const BinaryString &digest, duration timeout, const BinaryString &hint = "");
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);

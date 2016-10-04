@@ -187,7 +187,7 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 	return NULL;		
 }
 
-HttpTunnel::Client::Client(const Address &addr, double timeout) :
+HttpTunnel::Client::Client(const Address &addr, duration timeout) :
 	mAddress(addr),
 	mReverse(addr.reverse()),
 	mUpSock(NULL), 
@@ -198,12 +198,13 @@ HttpTunnel::Client::Client(const Address &addr, double timeout) :
 	mConnTimeout(ConnTimeout),
 	mFlusher([this]() { this->flush(); })
 {
-	if(timeout > 0.) mConnTimeout = timeout;
+	if(timeout >= duration::zero()) mConnTimeout = timeout;
 	readData(NULL, 0); 	// Connect mDownSock
 	
 	Assert(mSession);	// mSession should be set
 	LogDebug("HttpTunnel::Client", "Starting HTTP tunnel client session "+String::number(mSession));
 	
+	// Set timeout for the following connections
 	mConnTimeout = ConnTimeout;
 }
 	

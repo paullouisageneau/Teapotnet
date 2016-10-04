@@ -69,7 +69,7 @@ private:
         void sendData(const char *data, size_t size, int flags);
 
 	socket_t mSock;
-	double mConnectTimeout, mReadTimeout, mWriteTimeout;
+	duration mConnectTimeout, mReadTimeout, mWriteTimeout;
 	Address mProxifiedAddr;
 	
 	friend class ServerSocket;

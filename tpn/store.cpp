@@ -149,7 +149,7 @@ void Store::waitBlock(const BinaryString &digest, const BinaryString &hint)
 		throw Timeout();
 }
 
-bool Store::waitBlock(const BinaryString &digest, double &timeout, const BinaryString &hint)
+bool Store::waitBlock(const BinaryString &digest, duration timeout, const BinaryString &hint)
 {
 	Synchronize(this);
 	
@@ -172,12 +172,6 @@ bool Store::waitBlock(const BinaryString &digest, double &timeout, const BinaryS
 	}
 	
 	return true;
-}
-
-bool Store::waitBlock(const BinaryString &digest, const double &timeout, const BinaryString &hint)
-{
-	double dummy = timeout;
-	return waitBlock(digest, dummy, hint);
 }
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)
