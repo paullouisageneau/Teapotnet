@@ -239,12 +239,12 @@ private:
 			uint64_t id(void) const;
 			BinaryString node(void) const;
 			
-			void setTimeout(double timeout);
+			void setTimeout(duration timeout);
 			
 			// Stream
 			size_t readData(char *buffer, size_t size);
 			void writeData(const char *data, size_t size);
-			bool waitData(double &timeout);
+			bool waitData(duration timeout);
 			bool nextRead(void);
 			bool nextWrite(void);
 			bool isDatagram(void) const;
@@ -258,7 +258,7 @@ private:
 			Queue<Overlay::Message> mQueue;	// recv queue
 			size_t mOffset;			// read offset
 			BinaryString mBuffer;		// write buffer
-			double mTimeout;
+			duration mTimeout;
 			bool mClosed;
 			
 			mutable std::mutex mMutex;
@@ -318,7 +318,7 @@ private:
 
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator;
 		double mRedundancy;
-		double mTimeout;
+		duration mTimeout;
 		bool mClosed;
 		
 		std::thread mThread;
@@ -349,7 +349,7 @@ private:
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
 	Map<IdentifierPair, Set<Listener*> > mListeners;
-	Map<Link, Map<String, RemoteSubscriber> > mRemoteSubscribers;
+	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
 	
 	std::thread mThread;
 	std::mutex mMutex;

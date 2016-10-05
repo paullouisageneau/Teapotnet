@@ -296,9 +296,9 @@ void Network::addRemoteSubscriber(const Link &link, const String &path)
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!mRemoteSubscribers[link].contains(path))
-		mRemoteSubscribers[link].insert(path, RemoteSubscriber(link));
+		mRemoteSubscribers[link].insert(path, std::make_shared<RemoteSubscriber>(link));
 	
-	mRemoteSubscribers[link][path].subscribe(path);
+	mRemoteSubscribers[link][path]->subscribe(path);
 }
 
 bool Network::broadcast(const Identifier &local, const String &type, const Serializable &object)
@@ -342,17 +342,15 @@ bool Network::hasLink(const Link &link)
 
 void Network::run(void)
 {
-	const double period = 1.;	// 1 sec
+	const duration period = seconds(1.);	// TODO
 	
 	unsigned loops = 0;
 	while(true)
 	{
 		try {
-			double timeout = period;
-			
 			// Receive messages
 			Overlay::Message message;
-			while(mOverlay.recv(message, timeout))
+			if(mOverlay.recv(message, period))
 			{
 				//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
 				
@@ -1454,7 +1452,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 				transport->setDatagramMtu(1200);	// TODO
 				
 				// Set timeout
-				const double timeout = milliseconds(Config::Get("request_timeout").toInt());
+				duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
 				transport->setHandshakeTimeout(timeout);
 				
 				// Do handshake
@@ -1533,7 +1531,7 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mId(id),
 	mNode(node),
 	mOffset(0),
-	mTimeout(milliseconds(Config::Get("idle_timeout").toInt())),
+	mTimeout(milliseconds(Config::Get("idle_timeout").toDouble())),
 	mClosed(false)
 {
 	//LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
@@ -1568,7 +1566,7 @@ BinaryString Network::Tunneler::Tunnel::node(void) const
 	return mNode;
 }
 
-void Network::Tunneler::Tunnel::setTimeout(double timeout)
+void Network::Tunneler::Tunnel::setTimeout(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	mTimeout = timeout;
@@ -1579,7 +1577,7 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mClosed) return 0;
-	mCondition.wait_for(lock, std::chrono::duration<double>(mTimeout), [this]() {
+	mCondition.wait_for(lock, mTimeout, [this]() {
 		return this->mClosed || !this->mQueue.empty();
 	});
 	
@@ -1600,12 +1598,12 @@ void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 	mBuffer.writeBinary(data, size);
 }
 
-bool Network::Tunneler::Tunnel::waitData(double &timeout)
+bool Network::Tunneler::Tunnel::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mClosed) return true;
-	mCondition.wait_for(lock, std::chrono::duration<double>(mTimeout), [this]() {
+	mCondition.wait_for(lock, timeout, [this]() {
 		return this->mClosed || !this->mQueue.empty();
 	});
 	
@@ -1660,6 +1658,12 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mClosed(false)
 {
+	// Set timeout alarm
+	mTimeoutAlarm.set([this]()
+	{
+		this->timeout();
+	});
+	
 	// Start handler thread
 	mThread = std::thread([this]()
 	{
@@ -1771,8 +1775,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mSink.solve(combination);
 					
 				if(!send(false))
-					mTimeoutAlarm.schedule(
-					Scheduler::Global->schedule(&mTimeoutTask, mTimeout/10);
+					mTimeoutAlarm.schedule(mTimeout*0.1);
 			}
 		}
 		else {
@@ -1850,9 +1853,9 @@ int Network::Handler::send(bool force)
 		}
 	}
 	
-	double idleTimeout = milliseconds(Config::Get("idle_timeout").toInt())/5;	// so the tunnel should not time out
-	if(mSource.rank() > 0) Scheduler::Global->schedule(&mTimeoutTask, mTimeout);
-	else Scheduler::Global->schedule(&mTimeoutTask, idleTimeout);
+	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.2;	// so the tunnel should not time out
+	if(mSource.rank() > 0) mTimeoutAlarm.schedule(mTimeout);
+	else mTimeoutAlarm.schedule(idleTimeout);
 	return count;
 }
 

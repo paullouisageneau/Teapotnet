@@ -115,8 +115,7 @@ public:
 	int connectionsCount(void) const;
 	
 	// Message interface
-	bool recv(Message &message, double &timeout);
-	bool recv(Message &message, const double &timeout);
+	bool recv(Message &message, duration timeout);
 	bool send(const Message &message);
 
 	// DHT

@@ -251,11 +251,13 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		mDownSock->setTimeout(SockTimeout);
 	}
 
-	Time endTime = Time::Now() + ReadTimeout;
+	using clock = std::chrono::steady_clock;
+	std::chrono::time_point<clock> end = clock::now() + std::chrono::duration_cast<clock::duration>(ReadTimeout);
+	
 	while(true)
 	{
-		if(Time::Now() >= endTime) throw Timeout();
-
+		if(clock::now() >= end) throw Timeout();
+		
 		bool freshConnection = false;
 		if(!mDownSock->isConnected())
 		{

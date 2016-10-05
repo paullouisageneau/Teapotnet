@@ -1451,9 +1451,10 @@ void Overlay::Handler::Sender::operator()(void)
 	try {
 		while(!mShouldStop)
 		{
-			const double timeout = milliseconds(Config::Get("keepalive_timeout").toInt());
+			const duration timeout = milliseconds(Config::Get("keepalive_timeout").toDouble());
 			
-			while(mQueue.empty())
+			// TODO
+			if(mQueue.empty())
 			{
 				if(!wait(timeout))
 					break;
