@@ -44,10 +44,10 @@ duration HttpTunnel::SockTimeout = seconds(10.);
 duration HttpTunnel::FlushTimeout = seconds(0.2);
 duration HttpTunnel::ReadTimeout = seconds(60.);
 
-std::map<uint32_t, sptr<HttpTunnel::Server>> 	HttpTunnel::Sessions;
+std::map<uint32_t, HttpTunnel::Server*> 	HttpTunnel::Sessions;
 std::mutex					HttpTunnel::SessionsMutex;
 
-sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
+HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 {
 	Http::Request request;
 	try {
@@ -63,7 +63,7 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 
 			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::number(session)+")");
 
-			sptr<Server> server;
+			Server *server = NULL;
 			bool isNew = false;
 
 			if(!session)
@@ -79,7 +79,7 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 					while(!session || Sessions.find(session) != Sessions.end())
 						Random().readBinary(session);
 					
-					server = sptr<Server>(new Server(session));
+					server = new Server(session);
 					Sessions.insert(std::make_pair(session, server));
 				}
 				
@@ -101,10 +101,6 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 			
 			if(request.method == "GET") 
 			{
-				std::unique_lock<std::mutex> lock(server->mMutex);
-				if(server->mDownSock) throw 409;	// Conflict
-				if(server->mClosed) throw 400;		// Closed session
-				
 				Http::Response response(request, 200);
 				response.headers["Cache-Control"] = "no-cache";
 				response.cookies["session"] << session;
@@ -115,14 +111,21 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 					response.headers["Content-Type"] = "text/html";
 					response.send(sock);
 					delete sock;
+					return server;
 				}
+				else {
+					std::unique_lock<std::mutex> lock(server->mMutex);
+					if(server->mDownSock) throw 409;	// Conflict
+					if(server->mClosed) throw 400;		// Closed session
+				
+					response.headers["Content-Type"] = "application/octet-stream";
+					response.send(sock);
 
-				response.headers["Content-Type"] = "application/octet-stream";
-				response.send(sock);
-				server->mDownSock = sock;
-				server->mDownloadLeft = MaxDownloadSize;
-				server->mCondition.notify_all();
-				server->mFlusher.schedule(ReadTimeout*0.75);
+					server->mDownSock = sock;
+					server->mDownloadLeft = MaxDownloadSize;
+					server->mCondition.notify_all();
+					server->mFlusher.schedule(ReadTimeout*0.75);
+				}
 				return NULL;
 			}
 			else {
@@ -147,6 +150,7 @@ sptr<HttpTunnel::Server> HttpTunnel::Incoming(Socket *sock)
 					std::unique_lock<std::mutex> lock(server->mMutex);
 					if(server->mUpSock) throw 409;	// Conflict
 					if(server->mClosed) throw 400;	// Closed session
+					
 					Assert(!server->mPostBlockLeft);
 					server->mUpSock = sock;
 					server->mUpRequest = request;
@@ -549,18 +553,21 @@ HttpTunnel::Server::~Server(void)
 
 void HttpTunnel::Server::close(void)
 {
-	std::unique_lock<std::mutex>(mMutex);
 
 	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session "+String::number(mSession));
 	
-	mFlusher.cancel();
-	
-	delete mDownSock; mDownSock = NULL;
-	delete mUpSock; mUpSock = NULL;
-	mClosed = true;
-	
-	std::lock_guard<std::mutex> lock(SessionsMutex);
-        Sessions.erase(mSession);
+	{
+		std::unique_lock<std::mutex>(mMutex);
+		mFlusher.cancel();	
+		delete mDownSock; mDownSock = NULL;
+		delete mUpSock; mUpSock = NULL;
+		mClosed = true;
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(SessionsMutex);
+        	Sessions.erase(mSession);
+	}
 }
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)

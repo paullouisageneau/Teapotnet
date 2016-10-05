@@ -34,7 +34,7 @@
 #include "pla/datagramsocket.hpp"
 #include "pla/securetransport.hpp"
 #include "pla/threadpool.hpp"
-#include "pla/scheduler.hpp"
+#include "pla/alarm.hpp"
 #include "pla/serializable.hpp"
 #include "pla/object.hpp"
 #include "pla/map.hpp"
@@ -104,7 +104,7 @@ public:
 	BinaryString localNode(void) const;
 	const Rsa::PublicKey &publicKey(void) const;
 	const Rsa::PrivateKey &privateKey(void) const;
-	SecureTransport::Certificate *certificate(void) const;
+	sptr<SecureTransport::Certificate> certificate(void) const;
 
 	// Addresses
 	void getAddresses(Set<Address> &set) const;
@@ -204,20 +204,20 @@ private:
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
 		void getAddresses(Set<Address> &set) const;
-
 		BinaryString node(void) const;
-		
+	
+		void run(void);
+
 	private:
 		void process(void);
-		void run(void);
-		
+	
 		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
-		bool mShouldStop;
+		bool mStop;
 		
-		std::mutex mMutex;
+		mutable std::mutex mMutex;
 		
 		class Sender
 		{
@@ -228,14 +228,18 @@ private:
 			bool push(const Message &message);
 			void stop(void);
 			
+			void run(void);
+
 		private:
-			void operator()(void);
 			void send(const Message &message);
 			
 			Overlay *mOverlay;
 			Stream *mStream;
 			Queue<Message> mQueue;
-			bool mShouldStop;
+			bool mStop;
+
+			mutable std::mutex mMutex;
+			mutable std::condition_variable mCondition;
 		};
 		
 		Sender mSender;
@@ -262,9 +266,11 @@ private:
 	Queue<Message> mIncoming;
 	Set<BinaryString> mRetrievePending;
 	
-	std::thread mThread;
-	std::mutex mMutex;
-	std::condition_variable mCondition;
+	Alarm mRunAlarm;
+
+	mutable std::mutex mMutex;
+	mutable std::condition_variable mIncomingCondition;
+	mutable std::condition_variable mRetrieveCondition;
 };
 
 }

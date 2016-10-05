@@ -39,7 +39,7 @@ public:
 	class Client;
 	class Server;
 	
-	static sptr<Server> Incoming(Socket *sock);
+	static Server *Incoming(Socket *sock);
 	
 	class Client : public Stream
 	{
@@ -95,7 +95,7 @@ public:
 		std::mutex mMutex;
 		mutable std::condition_variable mCondition;
 		
-		friend sptr<Server> HttpTunnel::Incoming(Socket *sock);;
+		friend Server *HttpTunnel::Incoming(Socket *sock);;
 	};
 
 	static String UserAgent;
@@ -110,8 +110,8 @@ public:
 private:
 	HttpTunnel(void);
 
-	static std::map<uint32_t, sptr<Server> > 	Sessions;
-	static std::mutex				SessionsMutex;
+	static std::map<uint32_t, Server*> 	Sessions;
+	static std::mutex			SessionsMutex;
 
 	static const uint8_t TunnelOpen		= 0x01;
 	static const uint8_t TunnelData		= 0x02;

@@ -66,9 +66,11 @@ public:
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;
 	
-	void operator()(void);
+	void start(void);
 	
 private:
+	void run(void);
+
 	Database *mDatabase;
 	Map<BinaryString,Fountain::Sink> mSinks;
 	bool mRunning;

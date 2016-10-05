@@ -49,7 +49,7 @@ Network::Network(int port) :
 	// Start network thread
 	mThread = std::thread([this]()
 	{
-		this->run();
+		run();
 	});
 }
 
@@ -1068,7 +1068,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 				reader.discard();				// read everything
 			}
 
-			this->incoming(link, prefix, path, target);
+			incoming(link, prefix, path, target);
 		}
 		catch(const Exception &e)
 		{
@@ -1224,7 +1224,7 @@ Network::Tunneler::Tunneler(void) :
 {
 	mThread = std::thread([this]()
 	{
-		this->run();
+		run();
 	});
 }
 
@@ -1578,7 +1578,7 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 	
 	if(mClosed) return 0;
 	mCondition.wait_for(lock, mTimeout, [this]() {
-		return this->mClosed || !this->mQueue.empty();
+		return mClosed || !mQueue.empty();
 	});
 	
 	if(mClosed) return 0;
@@ -1604,7 +1604,7 @@ bool Network::Tunneler::Tunnel::waitData(duration timeout)
 	
 	if(mClosed) return true;
 	mCondition.wait_for(lock, timeout, [this]() {
-		return this->mClosed || !this->mQueue.empty();
+		return mClosed || !mQueue.empty();
 	});
 	
 	return (mClosed || !mQueue.empty());
@@ -1661,13 +1661,13 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	// Set timeout alarm
 	mTimeoutAlarm.set([this]()
 	{
-		this->timeout();
+		timeout();
 	});
 	
 	// Start handler thread
 	mThread = std::thread([this]()
 	{
-		this->run();
+		run();
 	});
 }
 
