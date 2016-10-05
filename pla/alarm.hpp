@@ -22,7 +22,12 @@
 #ifndef PLA_ALARM_H
 #define PLA_ALARM_H
 
-#include "pla/include.hpp"
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <functional>
+#include <stdexcept>
 
 namespace pla 
 {

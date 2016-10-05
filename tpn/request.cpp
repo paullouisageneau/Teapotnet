@@ -31,7 +31,6 @@ namespace tpn
 Request::Request(Resource &resource) :
 	mListDirectories(true),
 	mFinished(false),
-	mAutoDeleteTask(this),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -43,7 +42,6 @@ Request::Request(const String &path, bool listDirectories) :
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
-	mAutoDeleteTask(this),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -56,7 +54,6 @@ Request::Request(const String &path, const Identifier &local, const Identifier &
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
-	mAutoDeleteTask(this),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -69,7 +66,6 @@ Request::Request(const String &path, const Network::Link &link, bool listDirecto
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
-	mAutoDeleteTask(this),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -79,39 +75,35 @@ Request::Request(const String &path, const Network::Link &link, bool listDirecto
 
 Request::~Request(void)
 {
-	Synchronize(this);
-	Scheduler::Global->cancel(&mAutoDeleteTask);
+	std::unique_lock<std::mutex> lock(mMutex);
+	mAutoDeleter.cancel();
 	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
 }
 
 bool Request::addTarget(const BinaryString &target)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mPath.empty() || target.empty()) return false;
 	return incoming(link(), mPath, "/", target);
 }
 
 String Request::urlPrefix(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mUrlPrefix;
 }
 
 int Request::resultsCount(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return int(mResults.size());
 }
 
 void Request::addResult(Resource &resource, bool finish)
 {
-	Synchronize(this);
-	
 	if(resource.isDirectory() && mListDirectories)
 	{
-		Desynchronize(this);
-
 		// List directory and add records
 		Resource::Reader reader(&resource);
 		Resource::DirectoryRecord record;
@@ -123,12 +115,16 @@ void Request::addResult(Resource &resource, bool finish)
 		addResult(resource.getDirectoryRecord());
 	}
 	
-	if(finish) mFinished = true;
+	if(finish) 
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mFinished = true;
+	}
 }
 
 void Request::addResult(const Resource::DirectoryRecord &record)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!mDigests.contains(record.digest))
 	{
@@ -136,46 +132,49 @@ void Request::addResult(const Resource::DirectoryRecord &record)
 
 		mResults.append(record);
 		mDigests.insert(record.digest);
-		notifyAll();
+		lock.unlock();
+		mCondition.notify_all();
 	}
 }
 
 void Request::getResult(int i, Resource::DirectoryRecord &record) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(i < resultsCount());
 	record = mResults.at(i);
 }
 
-void Request::autoDelete(double timeout)
+void Request::autoDelete(duration timeout)
 {
-	Synchronize(this);
-	if(timeout >= 0.) Scheduler::Global->schedule(&mAutoDeleteTask, timeout);
-	else Scheduler::Global->cancel(&mAutoDeleteTask);
+	std::unique_lock<std::mutex> lock(mMutex);
+	if(timeout >= duration::zero()) mAutoDeleter.schedule(timeout);
+	else mAutoDeleter.cancel();
 	mAutoDeleteTimeout = timeout;
 }
 
 void Request::http(const String &prefix, Http::Request &request)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	int next = 0;
 	if(request.get.contains("next"))
 		request.get["next"].extract(next);
 	
-	double timeout = milliseconds(Config::Get("request_timeout").toInt());
+	duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
 	if(request.get.contains("timeout"))
-		request.get["timeout"].extract(timeout);
+		timeout = milliseconds(request.get["timeout"].toDouble());
 	
-	while(int(mResults.size()) <= next && !mFinished)
+	if(int(mResults.size()) <= next && !mFinished)
 	{
-		Scheduler::Global->cancel(&mAutoDeleteTask);
-		if(!wait(timeout))
-			break;
+		mAutoDeleter.cancel();
+		
+		if(mCondition.wait_for(lock, timeout, [this, next]() {
+			return int(mResults.size()) > next || mFinished;
+		}));
 	}
 	
-	if(mAutoDeleteTimeout >= 0.)
-		Scheduler::Global->schedule(&mAutoDeleteTask, mAutoDeleteTimeout);
+	if(mAutoDeleteTimeout >= duration::zero())
+		mAutoDeleter.schedule(timeout);
 	
 	// Playlist
 	if(request.get.contains("playlist"))
@@ -207,18 +206,18 @@ void Request::http(const String &prefix, Http::Request &request)
 		response.headers["Content-Type"] = "application/json";
 		response.send();
 		
-		JsonSerializer json(response.stream);
-		json.outputArrayBegin();
+		std::list<Resource::DirectoryRecord*> tmp;
 		if(int(mResults.size()) > next)
 			for(int i = next; i < int(mResults.size()); ++i)
-				json.outputArrayElement(mResults[i]);
-		json.outputArrayEnd();
+				tmp.push_back(&mResults[i]);
+			
+		JsonSerializer(response.stream) << tmp;
 	}
 }
 
 bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	if(fetch(link, prefix, path, target, false))	// no content
 	{		
@@ -232,7 +231,7 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 
 void Request::createPlaylist(Stream *output, String host, int start, int stop)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(output);
 	
 	if(host.empty()) 
@@ -258,7 +257,7 @@ int Request::timeParamToSeconds(String param)
 	try {
 		int s = 0;
 	
-		if(param.contains(.hpp"))
+		if(param.contains("h"))
 		{
 			String hours = param;
 			param = hours.cut('h');

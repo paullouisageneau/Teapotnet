@@ -72,7 +72,7 @@ Store::~Store(void)
 
 bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
   
 	if(hasBlock(digest)) return true;
   
@@ -105,7 +105,7 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 
 bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
   
 	int64_t size;
 	File *file = getBlock(digest, size);
@@ -119,7 +119,7 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 
 unsigned Store::missing(const BinaryString &digest)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Map<BinaryString,Fountain::Sink>::iterator it = mSinks.find(digest);
 	if(it != mSinks.end()) return it->second.missing();
@@ -128,7 +128,7 @@ unsigned Store::missing(const BinaryString &digest)
 
 bool Store::hasBlock(const BinaryString &digest)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
 	statement.bind(1, digest);
@@ -144,28 +144,28 @@ bool Store::hasBlock(const BinaryString &digest)
 
 void Store::waitBlock(const BinaryString &digest, const BinaryString &hint)
 {
-	const double timeout = milliseconds(Config::Get("request_timeout").toInt())*2;
+	const duration timeout = milliseconds(Config::Get("request_timeout").toDouble())*2;
 	if(!waitBlock(digest, timeout, hint))
 		throw Timeout();
 }
 
 bool Store::waitBlock(const BinaryString &digest, duration timeout, const BinaryString &hint)
 {
-	Synchronize(this);
-	
 	if(!hasBlock(digest))
 	{
-		Desynchronize(this);
 		Network::Caller caller(digest, hint);		// Block is missing locally, call it
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		
 		{
-			Synchronize(this);
+			std::unique_lock<std::mutex> lock(mMutex);
 			
-			while(!hasBlock(digest))
-				if(!wait(timeout))
-					return false;
+			mCondition.wait_for(lock, timeout, [this, digest]() {
+				return hasBlock(digest);
+			});
+			
+			if(!hasBlock(digest))
+				return false;
 		}
 		
 		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
@@ -176,7 +176,7 @@ bool Store::waitBlock(const BinaryString &digest, duration timeout, const Binary
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
   
 	Database::Statement statement = mDatabase->prepare("SELECT f.name, b.offset, b.size FROM blocks b LEFT JOIN files f ON f.id = b.file_id WHERE b.digest = ?1 LIMIT 1");
 	statement.bind(1, digest);
@@ -208,30 +208,32 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 
 void Store::notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size)
 {
-	Synchronize(this);
-	
 	//LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
-	statement.bind(1, filename);
-	statement.execute();
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
+		statement.bind(1, filename);
+		statement.execute();
+		
+		statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+		statement.bind(1, filename);
+		statement.bind(2, digest);
+		statement.bind(3, offset);
+		statement.bind(4, size);
+		statement.execute();
+	}
 	
-	statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
-	statement.bind(1, filename);
-	statement.bind(2, digest);
-	statement.bind(3, offset);
-	statement.bind(4, size);
-	statement.execute();
-	
-	notifyAll();
+	mCondition.notify_all();
 	
 	// Publish into DHT
-	DesynchronizeStatement(this, Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode()));
+	Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode());
 }
 
 void Store::notifyFileErasure(const String &filename)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Database::Statement statement = mDatabase->prepare("DELETE FROM blocks WHERE file_id = (SELECT id FROM files WHERE name = ?1)");
 	statement.bind(1, filename);
@@ -244,7 +246,7 @@ void Store::notifyFileErasure(const String &filename)
 
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(type == Permanent)
 	{
@@ -254,17 +256,21 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 		statement.execute();
 	}
 	
+	auto secs = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	
 	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	statement.bind(3, Time::Now());
+	statement.bind(3, secs);
 	statement.bind(4, static_cast<int>(type));
 	statement.execute();
 }
 
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
-	Synchronize(this);
+	Identifier localNode = Network::Instance->overlay()->localNode();
+	
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
 	statement.bind(1, key);
@@ -280,7 +286,7 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
 	statement.bind(1, key);
 	if(statement.step())
-		DesynchronizeStatement(this, values.insert(Network::Instance->overlay()->localNode()));
+		values.insert(localNode);
 	statement.finalize();
 	
 	return !values.empty();
@@ -288,7 +294,7 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 
 bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
 	statement.bind(1, key);
@@ -301,7 +307,7 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 
 Time Store::getValueTime(const BinaryString &key, const BinaryString &value) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	Database::Statement statement = mDatabase->prepare("SELECT time FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
         statement.bind(1, key);
@@ -317,25 +323,26 @@ Time Store::getValueTime(const BinaryString &key, const BinaryString &value) con
 
 void Store::run(void)
 {	
-	Synchronize(this);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		if(mRunning) return;
+		mRunning = true;
+	}
 	
-	if(mRunning) return;
-	mRunning = true;
-	
-	const double maxAge = Config::Get("store_max_age").toDouble();
-	const double delay = 1.;	// TODO
-	const int batch = 10;		// TODO
+	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
+	const duration delay = seconds(1.);	// TODO
+	const int batch = 10;			// TODO
 	
 	LogDebug("Store::run", "Started");
 
 	try {
-		Desynchronize(this);
 		BinaryString node = Network::Instance->overlay()->localNode();
+		auto secs = std::chrono::duration_cast<std::chrono::seconds>((std::chrono::system_clock::now() - maxAge).time_since_epoch()).count();
 		
 		// Delete old non-permanent values
 		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
 		statement.bind(1, static_cast<int>(Permanent));
-		statement.bind(2, Time::Now() - maxAge);
+		statement.bind(2, secs);
 		statement.execute();
 		
 		// Publish everything into DHT periodically
@@ -362,7 +369,7 @@ void Store::run(void)
 				for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
 					Network::Instance->storeValue(*it, node);
 				
-				Thread::Sleep(delay);
+				std::this_thread::sleep_for(delay);
 			}
 			
 			offset+= result.size();
@@ -375,9 +382,14 @@ void Store::run(void)
 		LogWarn("Store::run", e.what());
 	}
 	
-	// Store is scheduled by Overlay on first connection
-	mRunning = false;
-	Scheduler::Global->schedule(this, maxAge/2);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mRunning = false;
+		
+		// Store is scheduled by Overlay on first connection
+		// TODO
+		//Scheduler::Global->schedule(this, maxAge/2);
+	}
 }
 
 }

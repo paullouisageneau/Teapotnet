@@ -74,6 +74,9 @@ private:
 	Database *mDatabase;
 	Map<BinaryString,Fountain::Sink> mSinks;
 	bool mRunning;
+	
+	mutable std::mutex mMutex;
+	mutable std::condition_variable mCondition;
 };
 
 }

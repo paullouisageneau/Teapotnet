@@ -48,55 +48,51 @@ PortMapping::~PortMapping(void)
 
 void PortMapping::enable(void)
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	mEnabled = true;
-	
-	Scheduler::Global->repeat(this, 600.);	// 10 min
-	Scheduler::Global->schedule(this);
+	mAlarm.schedule(seconds(600.), [this]()
+	{
+		run();
+	});
 }
 
 void PortMapping::disable(void)
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	mEnabled = false;
-	
-	Scheduler::Global->cancel(this);
+	mAlarm.cancel();
 
 	if(mProtocol)
 	{
-        	for(Map<Descriptor, Entry>::iterator it = mMap.begin();
-			it != mMap.end();
-			++it)
+        	for(auto it = mMap.begin(); it != mMap.end(); ++it)
 		{
 			mProtocol->remove(it->first.protocol, it->first.port, it->second.external);
 		}
 
-		delete mProtocol;
-		mProtocol = NULL;
+		mProtocol.reset();
 	}
 }
 
 bool PortMapping::isEnabled(void) const
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	return mEnabled; 
 }
 
 bool PortMapping::isAvailable(void) const
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	return !mExternalHost.empty(); 
 }
 
 String PortMapping::getExternalHost(void) const
 {	
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	return mExternalHost;
 }
 
 Address PortMapping::getExternalAddress(Protocol protocol, uint16_t internal) const
 {
-	Synchronize(this);
 	uint16_t external = internal;
 	get(protocol, internal, external);
 	return Address(mExternalHost, external);  
@@ -104,9 +100,9 @@ Address PortMapping::getExternalAddress(Protocol protocol, uint16_t internal) co
 
 void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 {
-	Synchronize(this);
-	
 	remove(protocol, internal);
+	
+	std::lock_guard<std::mutex> lock(mMutex);
 	
 	Entry &entry = mMap[Descriptor(protocol, internal)];
 	entry.suggested = suggested;
@@ -117,8 +113,8 @@ void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 
 void PortMapping::remove(Protocol protocol, uint16_t internal)
 {
-	Synchronize(this);
-	
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	Descriptor descriptor(protocol, internal);
 	Entry entry;
 	if(mMap.get(descriptor, entry))
@@ -130,11 +126,10 @@ void PortMapping::remove(Protocol protocol, uint16_t internal)
 
 bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) const
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
+	if(!mProtocol) return false;
 	
 	external = internal;
-	
-	if(!mProtocol) return false;
 	
 	Entry entry;
 	if(mMap.get(Descriptor(protocol, internal), entry)) return false;
@@ -146,7 +141,7 @@ bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) 
 
 void PortMapping::run(void)
 {
-	Synchronize(this);
+	std::lock_guard<std::mutex> lock(mMutex);
 	if(!mEnabled) return;
 	
 	Set<Address> addresses;
@@ -154,7 +149,7 @@ void PortMapping::run(void)
 
 	bool hasIpv4 = false;
 	bool hasPublicIpv4 = false;
-	Set<Address>::iterator it = addresses.begin();
+	auto it = addresses.begin();
 	while(it != addresses.end())
 	{
 		hasIpv4|= it->isIpv4();
@@ -164,8 +159,7 @@ void PortMapping::run(void)
 	
 	if(!hasIpv4 || hasPublicIpv4) 
 	{
-		delete mProtocol;
-		mProtocol = NULL;
+		mProtocol.reset();
 		return;
 	}
 	
@@ -179,15 +173,11 @@ void PortMapping::run(void)
 				success = true;
 		}
 		catch(const Exception &e)
-                {
-                	LogWarn("PortMapping", e.what());
-                }
-
-		if(!success)
 		{
-			delete mProtocol;
-                	mProtocol = NULL;
+			LogWarn("PortMapping", e.what());
 		}
+		
+		if(!success) mProtocol.reset();
 	}
 	
 	if(!mProtocol)
@@ -200,9 +190,9 @@ void PortMapping::run(void)
 			try {
 				switch(i)
 				{
-				case 0: mProtocol = new NatPMP;		break;
-				case 1: mProtocol = new UPnP;		break;
-				case 2: mProtocol = new FreeboxAPI;	break;
+					case 0: mProtocol = std::make_shared<NatPMP>(); 	break;
+					case 1: mProtocol = std::make_shared<UPnP>();		break;
+					case 2: mProtocol = std::make_shared<FreeboxAPI>();	break;
 				}
 				
 				if(mProtocol->check(mExternalHost) && !mExternalHost.empty()) 
@@ -213,7 +203,6 @@ void PortMapping::run(void)
 				LogWarn("PortMapping", e.what());
 			}
 			
-			delete mProtocol;
 			mProtocol = NULL;
 		}
 		
@@ -223,9 +212,7 @@ void PortMapping::run(void)
 	
 	if(mProtocol)
 	{
-		for(Map<Descriptor, Entry>::iterator it = mMap.begin();
-			it != mMap.end();
-			++it)
+		for(auto it = mMap.begin(); it != mMap.end(); ++it)
 		{
 			if(!it->second.external) it->second.external = it->second.suggested;
 			if(!mProtocol->add(it->first.protocol, it->first.port, it->second.external))
@@ -255,16 +242,21 @@ bool PortMapping::NatPMP::check(String &host)
 	query.writeBinary(uint8_t(0));	// op
 	
 	int attempts = 3;
-	double timeout = 0.250;
+	duration timeout = milliseconds(250.);
 	for(int i=0; i<attempts; ++i)
 	{
 		BinaryString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
-		Address sender;
-		double time = timeout;
-		while(mSock.read(dgram, sender, time))
+		using clock = std::chrono::steady_clock;
+		std::chrono::time_point<clock> end = clock::now() + std::chrono::duration_cast<clock::duration>(timeout);
+		
+		while(clock::now() < end)
 		{
+			Address sender;
+			duration left = end - clock::now();
+			if(!mSock.read(dgram, sender, left)) break;
+			
 			if(!sender.isPrivate()) continue;
 			
 			LogDebug("PortMapping::NatPMP", String("Got response from ") + sender.toString());
@@ -307,16 +299,21 @@ bool PortMapping::NatPMP::request(uint8_t op, uint16_t internal, uint16_t sugges
 	query.writeBinary(lifetime);
 	
 	const int attempts = 3;
-	double timeout = 0.250;
+	duration timeout = milliseconds(250.);
 	for(int i=0; i<attempts; ++i)
 	{
 		BinaryString dgram = query;
 		mSock.write(dgram, mGatewayAddr);
 		
-		Address sender;
-		double time = timeout;
-		while(mSock.read(dgram, sender, time))
+		using clock = std::chrono::steady_clock;
+		std::chrono::time_point<clock> end = clock::now() + std::chrono::duration_cast<clock::duration>(timeout);
+		
+		while(clock::now() < end)
 		{
+			Address sender;
+			duration left = end - clock::now();
+			if(!mSock.read(dgram, sender, left)) break;
+			
 			if(!sender.isPrivate()) continue;
 			
 			if(parse(dgram, op, internal))
@@ -407,16 +404,21 @@ bool PortMapping::UPnP::check(String &host)
 	message << "ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n";
 	
 	int attempts = 3;
-	double timeout = 0.250;
+	duration timeout = milliseconds(250.);
 	for(int i=0; i<attempts; ++i)
 	{
 		BinaryString dgram(message);
 		mSock.write(dgram, addr);
 		
-		Address sender;
-		double time = timeout;
-		while(mSock.read(dgram, sender, time))
+		using clock = std::chrono::steady_clock;
+		std::chrono::time_point<clock> end = clock::now() + std::chrono::duration_cast<clock::duration>(timeout);
+		
+		while(clock::now() < end)
 		{
+			Address sender;
+			duration left = end - clock::now();
+			if(!mSock.read(dgram, sender, left)) break;
+			
 			if(!sender.isPrivate()) continue;
 			
 			LogDebug("PortMapping::UPnP", String("Got response from ") + sender.toString());
@@ -457,7 +459,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 		
 		String host;
 		request.headers.get("Host", host);
-		Socket sock(host, 10.);
+		Socket sock(host, seconds(10.));
 		Address localAddr = sock.getLocalAddress();
 		
 		String content = "<?xml version=\"1.0\"?>\r\n\
@@ -553,7 +555,7 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 	
 	String host;
 	request.headers.get("Host", host);
-	Socket sock(host, 10.);
+	Socket sock(host, seconds(10.));
 	
 	String content = "<?xml version=\"1.0\"?>\r\n\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n\
@@ -633,7 +635,7 @@ bool PortMapping::UPnP::parse(BinaryString &dgram)
 
 	request.headers.get("Host", host);
 	
-	Socket sock(host, 10.);
+	Socket sock(host, seconds(10.));
 	request.send(&sock);
 	sock.write(content);
 
@@ -689,7 +691,7 @@ bool PortMapping::FreeboxAPI::check(String &host)
 	String hhost;
 	request.headers.get("Host", hhost);
 	
-	Socket sock(hhost, 2.);
+	Socket sock(hhost, seconds(2.));
 	sock.connect(hhost);
 	request.send(&sock);
 	mLocalAddr = sock.getLocalAddress();
@@ -698,13 +700,13 @@ bool PortMapping::FreeboxAPI::check(String &host)
 	response.recv(&sock);
 	if(response.code != 200) return false;
 	
-	StringMap map;
-	JsonSerializer serializer(&sock);
-	serializer.input(map);
-	
 	String apiBaseUrl, apiVersion;
-	if(!map.get("api_base_url", apiBaseUrl)) return false;
-	if(!map.get("api_version", apiVersion)) return false;
+	JsonSerializer(&sock) >> Object()
+		.insert("api_base_url", apiBaseUrl)
+		.insert("api_version", apiVersion);
+	
+	if(apiBaseUrl.empty()) return false;
+	if(apiVersion.empty()) return false;
 	
 	LogDebug("PortMapping::FreeboxAPI", "Found Freebox Server");
 	mFreeboxUrl = baseUrl + apiBaseUrl + "v" + apiVersion.before('.');
@@ -718,18 +720,18 @@ bool PortMapping::FreeboxAPI::check(String &host)
 
 bool PortMapping::FreeboxAPI::add(Protocol protocol, uint16_t internal, uint16_t &external)
 {
-	StringMap map;
-	map["enabled"] << "true";
-	map["comment"] << APPNAME;
-	map["lan_port"] << internal;
-	map["wan_port_end"] << external;
-	map["wan_port_start"] << external;
-	map["lan_ip"] = mLocalAddr.host();
-	map["ip_proto"] = (protocol == TCP ? "tcp" : "udp");
-	map["src_ip"] = "0.0.0.0";
+	Object object;
+	object.insert("enabled", "true");
+	object.insert("comment", APPNAME);
+	object.insert("lan_port", internal);
+	object.insert("wan_port_end", external);
+	object.insert("wan_port_start", external);
+	object.insert("lan_ip", mLocalAddr.host());
+	object.insert("ip_proto", (protocol == TCP ? "tcp" : "udp"));
+	object.insert("src_ip", "0.0.0.0");
 	
 	FreeboxResponse fbr;
-	if(!put("/api/v1/fw/redir/", map, fbr)) return false;
+	if(!put("/api/v1/fw/redir/", object, fbr)) return false;
 	return fbr.success;
 }
 
@@ -748,15 +750,14 @@ bool PortMapping::FreeboxAPI::get(const String &url, FreeboxResponse &response)
 	String host;
 	request.headers.get("Host", host);
 	
-	Socket sock(host, 10.);
+	Socket sock(host, seconds(10.));
 	request.send(&sock);
 	
 	Http::Response hresponse;
 	hresponse.recv(&sock);
 	if(hresponse.code != 200) return false;
 	
-	JsonSerializer serializer(&sock);
-	serializer.input(response);
+	JsonSerializer(&sock) >> response;
 	return true;
 }
 
@@ -767,8 +768,7 @@ bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, Freebox
 	Http::Request request(mFreeboxUrl + url, "PUT");
 	
 	String post;
-	JsonSerializer postSerializer(&post);
-	postSerializer.output(data);
+	JsonSerializer(&post) << data;
 	
 	String host;
 	request.headers.get("Host", host);
@@ -784,8 +784,7 @@ bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, Freebox
 	hresponse.recv(&sock);
 	if(hresponse.code != 200) return false;
 	
-	JsonSerializer serializer(&sock);
-	serializer.input(response);
+	JsonSerializer(&sock) >> response;
 	return true;
 }
 
@@ -797,15 +796,11 @@ PortMapping::FreeboxAPI::FreeboxResponse::FreeboxResponse(void) :
 
 void PortMapping::FreeboxAPI::FreeboxResponse::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<bool> successWrapper(success);
-
-	ConstObject object;
-	object["success"] = &successWrapper;
-        object["error_code"] = &errorCode;
-        object["message"] = &message;
-        object["result"] = &result;
-	
-	s.write(object);
+	s << Object()
+		.insert("success", success)
+		.insert("error_code", errorCode)
+		.insert("message", message)
+		.insert("result", result);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
@@ -815,15 +810,11 @@ bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
 	message.clear();
 	result.clear();
 	
-	SerializableWrapper<bool> successWrapper(&success);
-
-	Object object;
-	object["success"] = &successWrapper;
-        object["error_code"] = &errorCode;
-        object["message"] = &message;
-        object["result"] = &result;
-	
-	return s.read(object);
+	return !!(s >> Object()
+		.insert("success", success)
+		.insert("error_code", errorCode)
+		.insert("message", message)
+		.insert("result", result));
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::isInlineSerializable(void) const

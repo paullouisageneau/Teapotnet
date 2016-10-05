@@ -58,7 +58,7 @@ void Tracker::process(Http::Request &request)
 	if(request.get.contains("count"))
 		request.get["count"].extract(count);
 	
-	SerializableMap<BinaryString, SerializableSet<Address> > result;
+	Map<BinaryString, Set<Address> > result;
 	
 	if(request.method == "POST")
 	{
@@ -124,8 +124,7 @@ void Tracker::process(Http::Request &request)
 	response.headers["Content-Type"] = "application/json";
 	response.send();
 	
-	JsonSerializer serializer(response.stream);
-	serializer.write(result);
+	JsonSerializer(response.stream) << result;
 }
 
 void Tracker::clean(int count)
@@ -139,7 +138,7 @@ void Tracker::clean(int count)
 	{
 		if(mCleaner == mMap.end()) mCleaner = mMap.begin();
 		
-		Map<Address, Time>::iterator it = mCleaner->second.begin();
+		auto it = mCleaner->second.begin();
 		while(it != mCleaner->second.end())
 		{
 			if(Time::Now() - it->second >= EntryLife) mCleaner->second.erase(it++);
@@ -159,15 +158,16 @@ void Tracker::insert(const BinaryString &node, const Address &addr)
 	mMap[node][addr] = Time::Now();
 }
 
-void Tracker::retrieve(const BinaryString &node, int count, SerializableMap<BinaryString, SerializableSet<Address> > &result) const
+void Tracker::retrieve(const BinaryString &node, int count, Map<BinaryString, Set<Address> > &result) const
 {
 	Synchronize(this);
 	Assert(!node.empty());
 	
 	// Note: Do not clear result
 	
-	/*Map<BinaryString, Map<Address, Time> >::const_iterator it, jt;
-	it = jt = mMap.upper_bound(node);
+	/*
+	auto it = mMap.upper_bound(node);
+	auto jt = it;
 	
 	int n;
 	n = count;   while(it != mMap.begin() && n--) --it;
@@ -177,29 +177,26 @@ void Tracker::retrieve(const BinaryString &node, int count, SerializableMap<Bina
 	{
 		if(it->first != node)
 		{
-			SerializableSet<Address> addrs;
+			Set<Address> addrs;
 			it->second.getKeys(addrs);
 			result.insert(it->second, addrs);
 		}
 
 		++it;
-	}*/
+	}
+	*/
 	
 	// Linear, but returns the correct potential neighbors
 	Map<BinaryString, BinaryString> sorted;
-	for(Map<BinaryString, Map<Address, Time> >::const_iterator it = mMap.begin();
-		it != mMap.end();
-		++it)
+	for(auto it = mMap.begin(); it != mMap.end(); ++it)
 	{
 		if(it->first != node)
 			sorted[it->first ^ node] = it->first;
 	}
 	
-	for(Map<BinaryString, BinaryString>::iterator it = sorted.begin();
-		it != sorted.end() && result.size() < count;
-		++it)
+	for(auto it = sorted.begin(); it != sorted.end() && result.size() < count; ++it)
 	{
-		SerializableSet<Address> addrs;
+		Set<Address> addrs;
 		mMap.get(it->second).getKeys(addrs);
 		result.insert(it->second, addrs);
 	}

@@ -28,6 +28,7 @@
 #include "tpn/resource.hpp"
 
 #include "pla/binarystring.hpp"
+#include "pla/alarm.hpp"
 
 namespace tpn
 {
@@ -49,7 +50,7 @@ public:
 	void addResult(const Resource::DirectoryRecord &record);
 	void getResult(int i, Resource::DirectoryRecord &record) const;
 	
-	void autoDelete(double timeout = 300.);
+	void autoDelete(duration timeout = seconds(300.));
 	
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
@@ -69,7 +70,11 @@ private:
 	Set<BinaryString> mDigests;
 	bool mListDirectories;
 	bool mFinished;
-	double mAutoDeleteTimeout;
+	duration mAutoDeleteTimeout;
+	Alarm mAutoDeleter;
+	
+	mutable std::mutex mMutex;
+	mutable std::condition_variable mCondition;
 };
 
 }

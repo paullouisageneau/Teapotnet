@@ -422,8 +422,8 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, duration ti
 	else end = std::chrono::time_point<clock>::max();
 	
 	do {
-		duration d = end - std::chrono::steady_clock::now();
-		if(!wait(d)) break;
+		duration left = end - std::chrono::steady_clock::now();
+		if(!wait(left)) break;
 		
 		char datagramBuffer[MaxDatagramSize];
 		sockaddr_storage sa;

@@ -28,6 +28,7 @@
 #include "pla/binarystring.hpp"
 #include "pla/datagramsocket.hpp"
 #include "pla/address.hpp"
+#include "pla/alarm.hpp"
 #include "pla/map.hpp"
 
 namespace tpn
@@ -60,8 +61,8 @@ public:
 	bool get(Protocol protocol, uint16_t internal, uint16_t &external) const;
 	
 private:
-	void operator()(void);
-
+	void run(void);
+	
 	struct Descriptor
 	{
 		Protocol protocol;
@@ -163,10 +164,13 @@ private:
 		Address mLocalAddr;
 	};
 
-	Map<Descriptor, Entry> mMap;	// Ports object
-	MappingProtocol *mProtocol;	// Current object protocol
+	Map<Descriptor, Entry> mMap;		// Ports mapping
+	sptr<MappingProtocol> mProtocol;	// Current mapping protocol
 	String mExternalHost;
+	Alarm mAlarm;
 	bool mEnabled;
+	
+	mutable std::mutex mMutex;
 };
 
 }

@@ -76,8 +76,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 		
 		//LogDebug("Resource::fet.hpp", "Reading index block for " + digest.toString());
 		
-		BinarySerializer serializer(mIndexBlock);
-		AssertIO(static_cast<Serializer*>(&serializer)->input(mIndexRecord));
+		AssertIO(BinarySerializer(mIndexBlock) >> mIndexRecord);
 	}
 	catch(const std::exception &e)
 	{
@@ -264,22 +263,16 @@ void Resource::serialize(Serializer &s) const
 {
 	if(!mIndexRecord) throw Unsupported("Serializing empty resource");
 	
-	ConstSerializableWrapper<int64_t> sizeWrapper(mIndexRecord->size);
-	BinaryString digest(mIndexBlock->digest());
-	
-	ConstObject object;
-	object["name"] = &mIndexRecord->name;
-	object["type"] = &mIndexRecord->type;
-	object["size"] = &sizeWrapper;
-	object["digest"] = &digest;
-	
-	s.write(object);
+	s << Object()
+		.insert("name", mIndexRecord->name)
+		.insert("type", mIndexRecord->type)
+		.insert("size", mIndexRecord->size)
+		.insert("digest", mIndexBlock->digest());
 }
 
 bool Resource::deserialize(Serializer &s)
 {
 	throw Unsupported("Deserializing resource");
-	return false;
 }
 
 bool Resource::isInlineSerializable(void) const
@@ -287,7 +280,7 @@ bool Resource::isInlineSerializable(void) const
 	return false;
 }
 
-Resource &Resource::operator = (const Resource &resource)
+Resource &Resource::operator= (const Resource &resource)
 {
 	delete mIndexBlock;
 	delete mIndexRecord;
@@ -295,27 +288,27 @@ Resource &Resource::operator = (const Resource &resource)
 	mIndexRecord = new IndexRecord(*resource.mIndexRecord);
 }
 
-bool operator <  (const Resource &r1, const Resource &r2)
+bool operator< (const Resource &r1, const Resource &r2)
 {
 	if(r1.isDirectory() && !r2.isDirectory()) return true;
 	if(!r1.isDirectory() && r2.isDirectory()) return false;
 	return r1.name().toLower() < r2.name().toLower();
 }
 
-bool operator >  (const Resource &r1, const Resource &r2)
+bool operator> (const Resource &r1, const Resource &r2)
 {
 	if(r1.isDirectory() && !r2.isDirectory()) return false;
 	if(!r1.isDirectory() && r2.isDirectory()) return true;
 	return r1.name().toLower() > r2.name().toLower();
 }
 
-bool operator == (const Resource &r1, const Resource &r2)
+bool operator==(const Resource &r1, const Resource &r2)
 {
 	if(r1.name() != r2.name()) return false;
 	return r1.digest() == r2.digest() && r1.isDirectory() == r2.isDirectory();
 }
 
-bool operator != (const Resource &r1, const Resource &r2)
+bool operator!=(const Resource &r1, const Resource &r2)
 {
 	return !(r1 == r2);
 }
@@ -439,7 +432,7 @@ int64_t Resource::Reader::tellWrite(void) const
 bool Resource::Reader::readDirectory(DirectoryRecord &record)
 {
 	BinarySerializer serializer(this);
-	return serializer.read(record);
+	return !!(serializer >> record);
 }
 
 Block *Resource::Reader::createBlock(int index)
@@ -452,26 +445,18 @@ Block *Resource::Reader::createBlock(int index)
 
 void Resource::MetaRecord::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<int64_t> sizeWrapper(size);
-	
-	ConstObject object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	
-	s.write(object);
+	s << Object()
+		.insert("name", name)
+		.insert("type", type)
+		.insert("size", size);
 }
 
 bool Resource::MetaRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(&size);
-	
-	Object object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	
-	return s.read(object);
+	return !!(s >> Object()
+		.insert("name", name)
+		.insert("type", type)
+		.insert("size", size));
 }
 
 bool Resource::MetaRecord::isInlineSerializable(void) const
@@ -481,60 +466,50 @@ bool Resource::MetaRecord::isInlineSerializable(void) const
 
 void Resource::IndexRecord::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<int64_t> sizeWrapper(size);
+	Object object;
+	object.insert("name", name)
+	      .insert("type", type)
+	      .insert("size", size)
+	      .insert("digests", blockDigests);
 	
-	ConstObject object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	object["digests"] = &blockDigests;
-	if(!signature.empty()) object["signature"] = &signature;
-	if(!salt.empty()) object["salt"] = &salt;
+	if(!signature.empty()) object.insert("signature", signature);
+	if(!salt.empty()) object.insert("salt", salt);
 	
-	s.write(object);
+	s << object;
 }
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(&size);
-	
-	Object object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	object["digests"] = &blockDigests;
-	object["signature"] = &signature;
-	object["salt"] = &salt;
-	
-	return s.read(object);
+	return !!(s << Object()
+		.insert("name", name)
+		.insert("type", type)
+		.insert("size", size)
+		.insert("digests", blockDigests)
+		.insert("signature", signature)
+		.insert("salt", salt));
 }
 
 void Resource::DirectoryRecord::serialize(Serializer &s) const
 {
-	ConstSerializableWrapper<int64_t> sizeWrapper(size);
+	Object object;
+	object.insert("name", name)
+	      .insert("type", type)
+	      .insert("size", size)
+	      .insert("digest", digest);
 	
-	ConstObject object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	object["digest"] = &digest;
-	if(time != 0) object["time"] = &time;
+	if(time != 0) object.insert("time", time);
 	
-	s.write(object);
+	s << object;
 }
 
 bool Resource::DirectoryRecord::deserialize(Serializer &s)
 {
-	SerializableWrapper<int64_t> sizeWrapper(&size);
-	
-	Object object;
-	object["name"] = &name;
-	object["type"] = &type;
-	object["size"] = &sizeWrapper;
-	object["digest"] = &digest;
-	object["time"] = &time;
-	
-	return s.read(object);
+	return !!(s >> Object()
+		.insert("name", name)
+		.insert("type", type)
+		.insert("size", size)
+		.insert("digest", digest)
+		.insert("time", time));
 }
 
 Resource::ImportTask::ImportTask(Serializable *object, 
@@ -550,7 +525,7 @@ Resource::ImportTask::ImportTask(Serializable *object,
 	mType   = type;
 }
 		
-void Resource::ImportTask::run(void)
+void Resource::ImportTask::operator()(void)
 {
 	try {
 		Resource resource(mDigest);

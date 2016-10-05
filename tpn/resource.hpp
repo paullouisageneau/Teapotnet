@@ -148,6 +148,7 @@ public:
 	};
 	
 	// JSON resource importer
+	// TODO: deprecated, delete
 	class ImportTask
 	{
 	public:
@@ -171,10 +172,10 @@ protected:
 	friend class Indexer;
 };
 
-bool operator <  (const Resource &r1, const Resource &r2);
-bool operator >  (const Resource &r1, const Resource &r2);
-bool operator == (const Resource &r1, const Resource &r2);
-bool operator != (const Resource &r1, const Resource &r2);
+bool operator< (const Resource &r1, const Resource &r2);
+bool operator> (const Resource &r1, const Resource &r2);
+bool operator==(const Resource &r1, const Resource &r2);
+bool operator!=(const Resource &r1, const Resource &r2);
 
 }
 
