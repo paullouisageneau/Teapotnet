@@ -37,12 +37,12 @@ class Serializer
 public:
 	template<typename T> Serializer &operator<< (const T& value);
 	template<typename T> Serializer &operator>> (T& value);
-	bool operator!(void) const { return lastReadFailed; }
+	bool operator!(void) const { return mReadFailed; }
 	
 	virtual bool skip(void);
 	
-	bool optionalOutputMode(void) const { return optionalOutput; }
-	void setOptionalOutputMode(bool enabled = true) { optionalOutput = enabled; }
+	bool optionalOutputMode(void) const { return mOptionalOutput; }
+	void setOptionalOutputMode(bool enabled = true) { mOptionalOutput = enabled; }
 	
 protected:
 	template<class T> bool read(T *&ptr);
@@ -122,14 +122,14 @@ private:
 	template<typename K, typename V> bool readElement(std::pair<K, V> &pair, size_t i);
 	template<typename K, typename V> void writeElement(const std::pair<K, V> &pair, size_t i, size_t size);
 	
-	bool lastReadFailed = false;
-	bool optionalOutput = false;
+	bool mReadFailed = false;
+	bool mOptionalOutput = false;
 };
 
 template<typename T>
 Serializer &Serializer::operator>> (T& value)
 {
-	lastReadFailed|= !read(value);
+	mReadFailed|= !read(value);
 	return *this;
 }
 
@@ -274,7 +274,6 @@ bool Serializer::read(std::map<K, V> &container)
 			AssertIO(read(it->second));
 		}
 		else {
-			VAR(p.first);
 			AssertIO(read(p.second));
 			container.emplace(p);
 		}

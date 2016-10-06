@@ -578,7 +578,7 @@ bool Rsa::PublicKey::deserialize(Serializer &s)
 void Rsa::PublicKey::serialize(Stream &s) const
 {
 	BinaryString bs;
-	BinarySerializer serializer(&bs);	
+	BinarySerializer serializer(&bs);
 	serialize(serializer);
 	s << String(bs.base64Encode());
 }
@@ -605,7 +605,7 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 
 bool Rsa::PublicKey::isInlineSerializable(void) const
 {
-	return true; 
+	return true;
 }
 
 Rsa::PrivateKey::PrivateKey(void)
@@ -744,7 +744,7 @@ bool Rsa::PrivateKey::deserialize(Stream &s)
 {
 	String str;
 	if(!(s >> str)) return false;
-
+	
 	try {
 		BinaryString bs(str.base64Decode());
 		BinarySerializer serializer(&bs);

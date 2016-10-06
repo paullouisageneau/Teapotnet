@@ -180,18 +180,20 @@ User::User(const String &name, const String &password) :
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
 	
+	Identifier identifier = mPublicKey.digest();
+	
 	// Order matters here
 	mIndexer = std::make_shared<Indexer>(this);
-	mBoard = std::make_shared<Board>("/" + identifier().toString(), "", mName);
+	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", mName);
 	mAddressBook = std::make_shared<AddressBook>(this);
 		
-	if(!mCertificate) mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier().toString());
+	if(!mCertificate) mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
 	
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
 		UsersByName.insert(mName, this);
 		UsersByAuth.insert(mAuth, this);
-		UsersByIdentifier.insert(identifier(), this);
+		UsersByIdentifier.insert(identifier, this);
 	}
 	
 	Interface::Instance->add(urlPrefix(), this);
@@ -216,8 +218,6 @@ User::~User(void)
 
 void User::load()
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(!File::Exist(mFileName)) return;
 	File file(mFileName, File::Read);
 	JsonSerializer serializer(&file);
@@ -229,8 +229,6 @@ void User::load()
 
 void User::save() const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
 	serializer << *this;
@@ -781,7 +779,7 @@ bool User::deserialize(Serializer &s)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Identifier oldIdentifier = identifier();
+	Identifier oldIdentifier = mPublicKey.digest();
 	
 	mPublicKey.clear();
 	mPrivateKey.clear();
@@ -795,24 +793,25 @@ bool User::deserialize(Serializer &s)
 	
 	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
 	{
+		Identifier identifier = mPublicKey.digest();
+		
 		// Register
-		if(oldIdentifier != identifier())
+		if(oldIdentifier != identifier)
 		{
 			UsersMutex.lock();
 			UsersByIdentifier.erase(oldIdentifier);
-			UsersByIdentifier.insert(identifier(), this);
+			UsersByIdentifier.insert(identifier, this);
 			UsersMutex.unlock();
 		}
 		
 		// Reload certificate
-		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier().toString());
+		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
 		
 		// Reload self contact is it exists
 		if(mAddressBook && mAddressBook->getSelf())
-			mAddressBook->setSelf(identifier());
+			mAddressBook->setSelf(identifier);
 	}
 	
-	save();
 	return true;
 }
 

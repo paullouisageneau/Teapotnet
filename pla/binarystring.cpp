@@ -185,7 +185,7 @@ bool BinaryString::deserialize(Serializer &s)
 	clear();
 	
 	uint32_t count;
-	if(!s >> count) return false;
+	if(!(s >> count)) return false;
 
 	uint8_t b;
 	for(uint32_t i=0; i<count; ++i)

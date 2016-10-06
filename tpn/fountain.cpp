@@ -28,7 +28,8 @@ namespace tpn
 {
 
 const size_t Fountain::ChunkSize;
-	
+const unsigned Fountain::GenerateSize;
+
 uint8_t *Fountain::MulTable = NULL;
 uint8_t *Fountain::InvTable = NULL;
   

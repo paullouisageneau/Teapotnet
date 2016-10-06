@@ -143,7 +143,7 @@ public:
 	template<typename T> Stream& operator>>(T &val);
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
-	bool operator!(void) const { return mEnd; }
+	bool operator!(void) const { return mFailed; }
 	
 	// Parsing
 	bool assertChar(char chr);
@@ -193,21 +193,19 @@ protected:
 	char mLast   = 0;
 	bool mHexa   = false;
 	bool mEnd    = false;
+	bool mFailed = false;
 
 private:
 	bool readStdString(std::string &output);
-	void error(void);
-
+	
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
 	
 	virtual Stream *pipeIn(void);	// return the write end for a pipe
-
+	
 	uint16_t fixEndianess(uint16_t n);
 	uint32_t fixEndianess(uint32_t n);
 	uint64_t fixEndianess(uint64_t n);
-
-	friend class Pipe;
 };
 
 // NB: String is not defined here, as it herits from Stream.
@@ -223,8 +221,7 @@ template<typename T> bool Stream::readStd(T &val)
 	std::istringstream iss(str);
 	if(mHexa) iss>>std::hex;
 	else iss>>std::dec;
-	if(!(iss>>val)) error();
-	return true;
+	return !!(iss>>val);
 }
 
 template<typename T> void Stream::writeStd(const T &val)
@@ -232,13 +229,13 @@ template<typename T> void Stream::writeStd(const T &val)
 	std::ostringstream oss;
 	if(mHexa) oss<<std::hex<<std::uppercase;
 	else oss<<std::dec;
-	if(!(oss<<val)) error();
+	oss<<val;
 	write(oss.str());
 }
 
 template<typename T> Stream& Stream::operator>>(T &val)
 {
-	if(!read(val)) error();
+	mFailed|= !read(val);
 	return (*this);
 }
 

@@ -421,11 +421,6 @@ bool Stream::readStdString(std::string &output)
 	return true;
 }
 
-void Stream::error(void)
-{
-	throw IOException();
-}
-
 int64_t Stream::readBinary(char *data, size_t size)
 {
 	size_t left = size;
