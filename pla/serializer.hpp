@@ -179,7 +179,7 @@ bool Serializer::read(std::vector<T> &container)
 	while(readArrayNext())
 	{
 		T v;
-		AssertIO(read(v));
+		if(!read(v)) break;
 		container.emplace(container.end(), v);
 	}
 	return true;
@@ -206,7 +206,7 @@ bool Serializer::read(std::list<T> &container)
 	while(readArrayNext())
 	{
 		T v;
-		AssertIO(read(v));
+		if(!read(v)) break;
 		container.emplace(container.end(), v);
 	}
 	return true;
@@ -233,7 +233,7 @@ bool Serializer::read(std::set<T> &container)
 	while(readArrayNext())
 	{
 		T v;
-		AssertIO(read(v));
+		if(!read(v)) break;
 		container.emplace(v);
 	}
 	return true;
@@ -255,11 +255,38 @@ void Serializer::write(const std::set<T> &container)
 template<typename K, typename V> 
 bool Serializer::read(std::map<K, V> &container)
 {
-	container.clear();
-	if(!readMapBegin()) return false;
-	std::pair<K, V> p;
-	while(read(p))
-		container.emplace(p);
+	if(!readMapBegin())
+	{
+		container.clear();
+		return false;
+	}
+
+	std::set<K> keys;
+	while(readMapNext())
+	{
+		std::pair<K, V> p;
+		if(!read(p.first)) break;
+		keys.insert(p.first);
+		
+		auto it = container.find(p.first); // check if key already exists
+		if(it != container.end()) 
+		{
+			AssertIO(read(it->second));
+		}
+		else {
+			VAR(p.first);
+			AssertIO(read(p.second));
+			container.emplace(p);
+		}
+	}
+
+	auto it = container.begin();
+	while(it != container.end())
+	{
+		if(keys.find(it->first) != keys.end()) ++it;
+		else it = container.erase(it);
+	}
+
 	return true;
 }
 
@@ -280,7 +307,7 @@ template<typename K, typename V>
 bool Serializer::read(std::pair<K, V> &pair)
 {
 	if(!readMapNext()) return false;
-	AssertIO(read(pair.first));
+	if(!read(pair.first)) return false;
 	AssertIO(read(pair.second));
 	return true;
 }
@@ -316,7 +343,7 @@ template<typename T> bool Serializer::readElement(T &element, size_t i)
 {
 	if(i == 0 && !readArrayBegin()) return false;
 	if(!readArrayNext()) return false;
-	AssertIO(read(element));
+	if(!read(element)) return false;
 	return true;
 }
 
@@ -332,7 +359,7 @@ template<typename K, typename V> bool Serializer::readElement(std::pair<K, V> &p
 {
 	if(i == 0 && !readMapBegin()) return false;
 	if(!readMapNext()) return false;
-	AssertIO(read(pair.first));
+	if(!read(pair.first)) return false;
 	AssertIO(read(pair.second));
 	return true;
 }

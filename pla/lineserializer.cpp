@@ -46,7 +46,9 @@ bool LineSerializer::read(Serializable &s)
 		s.fromString(line);
 		return true;
 	}
-	else return s.deserialize(*this);
+	else {
+		return s.deserialize(*this);
+	}
 }
 
 bool LineSerializer::read(std::string &str)
@@ -57,9 +59,13 @@ bool LineSerializer::read(std::string &str)
 
 void LineSerializer::write(const Serializable &s)
 {
-	if(s.isInlineSerializable() && !s.isNativeSerializable()) Serializer::write(s.toString());
-	else s.serialize(*this);	
-	mStream->newline();
+	if(s.isInlineSerializable() && !s.isNativeSerializable())
+	{
+		Serializer::write(s.toString());
+	}
+	else {
+		s.serialize(*this);	
+	}
 }
 
 void LineSerializer::write(const std::string &str)

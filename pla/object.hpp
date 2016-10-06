@@ -36,12 +36,12 @@ private:
 	class Wrapper : public Serializable
 	{
 	public:
-		Wrapper(T &v) : value(v) {}
-		void serialize(Serializer &s)	{ s << value; }
-		bool deserialize(Serializer &s)	{ return !!(s >> value); }
+		Wrapper(T &v) : value(&v) {}
+		void serialize(Serializer &s) const { s << *value; }
+		bool deserialize(Serializer &s)	{ return !!(s >> *value); }
 		
 	private:
-		T &value;
+		T *value;
 	};
 
 	// Wrapper keeping a const reference
@@ -49,12 +49,12 @@ private:
 	class ConstWrapper : public Serializable
 	{
 	public:
-		ConstWrapper(const T &v) : value(v) {}
-		void serialize(Serializer &s)	{ s << value; }
+		ConstWrapper(const T &v) : value(&v) {}
+		void serialize(Serializer &s) const { s << *value; }
 		bool deserialize(Serializer &s)	{ throw RuntimeException("deserialize on const object");}
 
 	private:
-		const T &value;
+		const T *value;
 	};
 
 	// Wrapper copying the value

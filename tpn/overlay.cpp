@@ -53,6 +53,7 @@ Overlay::Overlay(int port) :
 	// Generate RSA key if necessary
 	if(mPublicKey.isNull())
 	{
+		LogDebug("Overlay", "Generating new keys...");
 		Random rnd(Random::Key);
 		Rsa rsa(4096);
 		rsa.generate(mPublicKey, mPrivateKey);

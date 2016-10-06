@@ -29,13 +29,12 @@ namespace pla
 
 void Serializable::serialize(Serializer &s) const
 {
-	// DUMMY
+	throw Unsupported("Object cannot be serialized");
 }
 
 bool Serializable::deserialize(Serializer &s)
 {
-	s.skip();
-	return true;
+	return s.skip();
 }
 
 void Serializable::serialize(Stream &s) const

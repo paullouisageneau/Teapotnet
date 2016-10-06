@@ -295,6 +295,7 @@ const size_t BufferSize = 4*1024;	// 4 KiB
 extern std::mutex LogMutex;
 extern bool ForceLogToFile;
 extern int LogLevel;
+extern std::map<std::thread::id, unsigned> ThreadsMap;
 
 std::string GetFormattedLogTime(void);
 
@@ -307,7 +308,17 @@ std::string GetFormattedLogTime(void);
 template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)
 {
 	if(level < pla::LogLevel) return;
+	
+	std::lock_guard<std::mutex> lock(LogMutex);
   
+	unsigned mythreadid = 0;
+	auto it = ThreadsMap.find(std::this_thread::get_id());
+	if(it != ThreadsMap.end()) mythreadid = it->second;
+	else {
+		mythreadid = unsigned(ThreadsMap.size()) + 1;
+		ThreadsMap[std::this_thread::get_id()] = mythreadid;
+	}
+
 	const char *strLevel;
 	switch(level)
 	{
@@ -317,7 +328,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	  case LEVEL_WARN:	strLevel = "WARNING:";	break;
 	  default:		strLevel = "ERROR:";	break;
 	}
-	
+
 	std::ostringstream oss;
 	oss.fill(' ');
 	oss<<pla::GetFormattedLogTime()<<' ';
@@ -326,11 +337,9 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	tmp<<file<<':'<<std::dec<<line;
 	oss<<tmp.str();
 	if(tmp.str().size() < 30) oss<<std::string(30-tmp.str().size(), ' ');
-	oss<<' '<<std::setw(4)<<std::this_thread::get_id()<<' '<<std::setw(36)<<prefix<<' ';
+	oss<<' '<<std::setw(3)<<mythreadid<<' '<<std::setw(24)<<prefix<<' ';
 #endif
 	oss<<std::setw(8)<<strLevel<<' '<<value;
-	
-	std::unique_lock<std::mutex> lock(LogMutex);
 	
 #ifdef ANDROID
 	__android_log_print(ANDROID_LOG_VERBOSE, "teapotnet", "%s", oss.str().c_str());

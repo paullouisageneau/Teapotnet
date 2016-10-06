@@ -176,7 +176,8 @@ void Serializer::write(bool b)
 
 bool Serializer::skip(void)
 {
-	throw Unsupported("serializer cannot skip");
+	std::string dummy;
+	return read(dummy);
 }
 
 }

@@ -28,6 +28,7 @@ namespace pla
 
 std::mutex LogMutex;
 bool ForceLogToFile = false;
+std::map<std::thread::id, unsigned> ThreadsMap;
 
 #ifdef DEBUG
 int	LogLevel = LEVEL_DEBUG;

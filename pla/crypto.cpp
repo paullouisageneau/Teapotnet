@@ -548,8 +548,8 @@ void Rsa::PublicKey::serialize(Serializer &s) const
 	mpz_export_binary(mKey.e, e);
 	mpz_export_binary(mKey.n, n);
 	
-	s >> e;
-	s >> n;
+	s << e;
+	s << n;
 }
 
 bool Rsa::PublicKey::deserialize(Serializer &s)
@@ -578,11 +578,9 @@ bool Rsa::PublicKey::deserialize(Serializer &s)
 void Rsa::PublicKey::serialize(Stream &s) const
 {
 	BinaryString bs;
-	BinarySerializer serializer(&bs);
-	
+	BinarySerializer serializer(&bs);	
 	serialize(serializer);
-	String str(bs.base64Encode());
-	s << str;
+	s << String(bs.base64Encode());
 }
 
 bool Rsa::PublicKey::deserialize(Stream &s)
@@ -591,7 +589,7 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 	
 	String str;
 	if(!(s >> str)) return false;
-	
+
 	try {
 		BinaryString bs(str.base64Decode());
 		BinarySerializer serializer(&bs);
@@ -738,17 +736,15 @@ void Rsa::PrivateKey::serialize(Stream &s) const
 {
 	BinaryString bs;
 	BinarySerializer serializer(&bs);
-	
 	serialize(serializer);
-	String str(bs.base64Encode());
-	s << str;
+	s << String(bs.base64Encode());
 }
 
 bool Rsa::PrivateKey::deserialize(Stream &s)
 {
 	String str;
 	if(!(s >> str)) return false;
-	
+
 	try {
 		BinaryString bs(str.base64Decode());
 		BinarySerializer serializer(&bs);
