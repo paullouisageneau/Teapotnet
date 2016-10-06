@@ -28,6 +28,8 @@
 #include "pla/address.hpp"
 #include "pla/binarystring.hpp"
 #include "pla/time.hpp"
+#include "pla/map.hpp"
+#include "pla/set.hpp"
 
 namespace tpn
 {
@@ -41,13 +43,15 @@ public:
 	~Tracker(void);
 
 private:
-	std::map<BinaryString, std::map<Address, Time> > mMap;
-	std::map<BinaryString, std::map<Address, Time> >::iterator mCleaner;
+	Map<BinaryString, Map<Address, Time> > mMap;
+	Map<BinaryString, Map<Address, Time> >::iterator mCleaner;
 	
 	void process(Http::Request &request);
 	void clean(int count = -1);
 	void insert(const BinaryString &node, const Address &addr);
-	void retrieve(const BinaryString &node, int count, std::map<BinaryString, std::set<Address> > &result) const;
+	void retrieve(const BinaryString &node, int count, Map<BinaryString, Set<Address> > &result) const;
+	
+	mutable std::mutex mMutex;
 };
 
 }

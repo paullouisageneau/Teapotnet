@@ -268,7 +268,7 @@ inline duration structToDuration(const struct timespec &ts)
 	return seconds(double(ts.tv_sec) + double(ts.tv_nsec)/1000000000.);
 }
 
-void durationToStruct(duration d, struct timeval &tv)
+inline void durationToStruct(duration d, struct timeval &tv)
 {
 	double secs = seconds(d).count();
 	double isecs = 0.;
@@ -277,7 +277,7 @@ void durationToStruct(duration d, struct timeval &tv)
 	tv.tv_usec = long(fsecs*1000000.);
 }
 
-void durationToStruct(duration d, struct timespec &ts)
+inline void durationToStruct(duration d, struct timespec &ts)
 {
 	double secs = seconds(d).count();
 	double isecs = 0.;

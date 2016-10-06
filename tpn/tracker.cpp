@@ -129,7 +129,7 @@ void Tracker::process(Http::Request &request)
 
 void Tracker::clean(int count)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(count < 0 || count > mMap.size())
 		count = mMap.size();
@@ -153,14 +153,14 @@ void Tracker::clean(int count)
 
 void Tracker::insert(const BinaryString &node, const Address &addr)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mMap[node][addr] = Time::Now();
 }
 
 void Tracker::retrieve(const BinaryString &node, int count, Map<BinaryString, Set<Address> > &result) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!node.empty());
 	
 	// Note: Do not clear result

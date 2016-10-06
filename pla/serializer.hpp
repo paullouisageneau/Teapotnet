@@ -39,6 +39,8 @@ public:
 	template<typename T> Serializer &operator>> (T& value);
 	bool operator!(void) const { return lastReadFailed; }
 	
+	virtual bool skip(void);
+	
 	bool optionalOutputMode(void) const { return optionalOutput; }
 	void setOptionalOutputMode(bool enabled = true) { optionalOutput = enabled; }
 	
@@ -47,6 +49,7 @@ protected:
 	template<class T> void write(const T *ptr);
 	
 	template<class T> bool read(sptr<T> &ptr);
+	template<class T> void write(sptr<T> ptr);
 	template<class T> void write(sptr<const T> ptr);
 	
 	template<typename T> bool read(std::vector<T> &container);
@@ -99,8 +102,6 @@ protected:
 	virtual void	write(float f);
 	virtual void	write(double f)		= 0;
 	virtual void	write(bool b);
-	
-	virtual bool	skip(void);
 	
 	virtual bool	readArrayBegin(void)		{ return true; }
 	virtual bool	readArrayNext(void)		{ return true; }
@@ -156,6 +157,12 @@ bool Serializer::read(sptr<T> &ptr)
 {
 	if(!ptr) ptr = std::make_shared<T>();
 	return read(*ptr);
+}
+
+template<class T>
+void Serializer::write(sptr<T> ptr)
+{
+	write(*ptr);
 }
 
 template<class T>

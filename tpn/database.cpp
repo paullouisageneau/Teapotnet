@@ -234,6 +234,13 @@ void Database::Statement::bind(int parameter, double value)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
+void Database::Statement::bind(int parameter, const std::string &value)
+{
+	if(!parameter) return;
+	if(sqlite3_bind_text(mStmt, parameter, value.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+}
+
 void Database::Statement::bind(int parameter, const String &value)
 {
 	if(!parameter) return;
@@ -316,17 +323,24 @@ void Database::Statement::value(int column, uint64_t &v) const
 
 void Database::Statement::value(int column, float &v) const
 {
-  	v = float(sqlite3_column_double(mStmt, column));
+	v = float(sqlite3_column_double(mStmt, column));
 }
 
 void Database::Statement::value(int column, double &v) const
 {
-  	v = sqlite3_column_double(mStmt, column);
+	v = sqlite3_column_double(mStmt, column);
+}
+
+void Database::Statement::value(int column, std::string &v) const
+{
+	const char *text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+	if(text) v = text;
+	else v.clear();
 }
 
 void Database::Statement::value(int column, String &v) const
 {
-  	const char *text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
+	const char *text = reinterpret_cast<const char*>(sqlite3_column_text(mStmt, column));
 	if(text) v = text;
 	else v.clear();
 }
@@ -366,6 +380,13 @@ bool Database::Statement::read(String &str)
 }
 
 bool Database::Statement::read(BinaryString &str)
+{
+	if(mInputColumn >= columnsCount()) return false;
+	value(mInputColumn++, str);
+	return true;
+}
+
+bool Database::Statement::read(std::string &str)
 {
 	if(mInputColumn >= columnsCount()) return false;
 	value(mInputColumn++, str);
@@ -480,6 +501,11 @@ void Database::Statement::write(const String &str)
 }
 
 void Database::Statement::write(const BinaryString &str)
+{
+	bind(mOutputParameter++, str);
+}
+
+void Database::Statement::write(const std::string &str)
 {
 	bind(mOutputParameter++, str);
 }

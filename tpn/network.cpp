@@ -1281,7 +1281,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	
 	// Add certificates
 	//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
-	transport->addCredentials(user->certificate(), false);
+	transport->addCredentials(user->certificate().get(), false);
 	
 	mPending.insert(node);
 	
@@ -1412,7 +1412,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			User *user = User::GetByIdentifier(local);
 			if(user)
 			{
-				transport->addCredentials(user->certificate(), false);
+				transport->addCredentials(user->certificate().get(), false);
 			}
 			else {
 				 LogDebug("Network::Tunneler::handshake", String("User does not exist: ") + name);

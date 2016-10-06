@@ -28,7 +28,7 @@
 namespace pla
 {
 
-class Object : public std::map<std::string, Serializable>, public Serializable
+class Object : public std::map<std::string, sptr<Serializable> >, public Serializable
 {
 private:
 	// Wrapper keeping a non-const reference
@@ -73,27 +73,30 @@ private:
 public:
 	template<typename T> Object &insert(const std::string &key, T &value)
 	{
-		emplace(key, Wrapper<T>(value));
+		emplace(key, std::make_shared<Wrapper<T> >(value));
+		return *this;
 	}
 
 	template<typename T> Object &insert(const std::string &key, const T &value)
 	{
-		emplace(key, ConstWrapper<T>(value));
+		emplace(key, std::make_shared<ConstWrapper<T> >(value));
+		return *this;
 	}
 
 	template<typename T> Object &insert(const std::string &key, T &&value)
 	{
-		emplace(key, CopyWrapper<T>(std::forward<T>(value)));
+		emplace(key, std::make_shared<CopyWrapper<T> >(std::forward<T>(value)));
+		return *this;
 	}
 
 	void serialize(Serializer &s) const
 	{
-		s << *static_cast<const std::map<std::string, Serializable>*>(this);
+		s << *static_cast<const std::map<std::string, sptr<Serializable> >*>(this);
 	}
 	
 	bool deserialize(Serializer &s)
 	{
-		return !!(s >> *static_cast<std::map<std::string, Serializable>*>(this));
+		return !!(s >> *static_cast<std::map<std::string, sptr<Serializable> >*>(this));
 	}
 	
 	bool isInlineSerializable(void) const

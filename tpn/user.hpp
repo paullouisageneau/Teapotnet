@@ -30,6 +30,7 @@
 #include "pla/serializable.hpp"
 #include "pla/securetransport.hpp"
 #include "pla/crypto.hpp"
+#include "pla/alarm.hpp"
 #include "pla/map.hpp"
 
 namespace tpn
@@ -80,7 +81,7 @@ public:
 	Identifier identifier(void) const;
 	const Rsa::PublicKey  &publicKey(void) const;
 	const Rsa::PrivateKey &privateKey(void) const;
-	SecureTransport::Certificate *certificate(void) const;
+	sptr<SecureTransport::Certificate> certificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);
 
@@ -98,12 +99,16 @@ private:
 	
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
-	SecureTransport::Certificate *mCertificate;
+	sptr<SecureTransport::Certificate> mCertificate;
 	BinaryString mSecret;
 	
 	bool mOnline;
+	Alarm mOfflineAlarm;
+	
 	BinaryString mTokenSecret;
 	mutable Map<String, BinaryString> mSecretKeysCache;
+	
+	mutable std::mutex mMutex;
 	
 	static Map<String, User*>	UsersByName;
 	static Map<BinaryString, User*>	UsersByAuth;

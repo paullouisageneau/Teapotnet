@@ -40,7 +40,7 @@ namespace tpn
 Map<String, User*>		User::UsersByName;
 Map<BinaryString, User*>	User::UsersByAuth;
 Map<Identifier, User*>		User::UsersByIdentifier;
-Mutex				User::UsersMutex;
+std::mutex			User::UsersMutex;
 
 unsigned User::Count(void)
 {
@@ -126,8 +126,7 @@ void User::UpdateAll(void)
 
 User::User(const String &name, const String &password) :
 	mName(name),
-	mOnline(false),
-	mSetOfflineTask(this)
+	mOnline(false)
 {
 	mIndexer = NULL;
 	mAddressBook = NULL;
@@ -180,58 +179,49 @@ User::User(const String &name, const String &password) :
 	Assert(!mPublicKey.isNull());
 	Assert(!mSecret.empty());
 	Assert(!mTokenSecret.empty());
-
-	try {
-		// Order matters here
-		mIndexer = new Indexer(this);
-		mBoard = new Board("/" + identifier().toString(), "", mName);
-        	mAddressBook = new AddressBook(this);
+	
+	// Order matters here
+	mIndexer = std::make_shared<Indexer>(this);
+	mBoard = std::make_shared<Board>("/" + identifier().toString(), "", mName);
+	mAddressBook = std::make_shared<AddressBook>(this);
 		
-		if(!mCertificate) mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
-	}
-	catch(...)
+	if(!mCertificate) mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier().toString());
+	
 	{
-		delete mIndexer;
-		delete mBoard;
-		delete mAddressBook;
-		delete mCertificate;
-		
-		throw;
+		std::lock_guard<std::mutex> lock(UsersMutex);
+		UsersByName.insert(mName, this);
+		UsersByAuth.insert(mAuth, this);
+		UsersByIdentifier.insert(identifier(), this);
 	}
-
-	UsersMutex.lock();
-	UsersByName.insert(mName, this);
-	UsersByAuth.insert(mAuth, this);
-	UsersByIdentifier.insert(identifier(), this);
-	UsersMutex.unlock();
-
+	
 	Interface::Instance->add(urlPrefix(), this);
+	
+	mOfflineAlarm.set([this]()
+	{
+		setOffline();
+	});
 }
 
 User::~User(void)
 {
-  	UsersMutex.lock();
-	UsersByName.erase(mName);
-  	UsersByAuth.erase(mAuth);
-	UsersMutex.unlock();
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		UsersByName.erase(mName);
+		UsersByAuth.erase(mAuth);
+	}
 	
 	Interface::Instance->remove(urlPrefix());
-	Scheduler::Global->cancel(&mSetOfflineTask);
-	
-	delete mAddressBook;
-	delete mBoard;
-	delete mIndexer;
-	delete mCertificate;
+	mOfflineAlarm.cancel();
 }
 
 void User::load()
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!File::Exist(mFileName)) return;
 	File file(mFileName, File::Read);
 	JsonSerializer serializer(&file);
-	serializer.read(*this);
+	serializer >> *this;
 	file.close();
 	
 	LogDebug("User::load", "User loaded: " + name() + ", " + identifier().toString());
@@ -239,23 +229,23 @@ void User::load()
 
 void User::save() const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
-	serializer.write(*this);
+	serializer << *this;
 	file.close();
 }
 
 String User::name(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mName; 
 }
 
 String User::profilePath(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
 	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
 	if(!Directory::Exist(path)) Directory::Create(path);
@@ -264,19 +254,19 @@ String User::profilePath(void) const
 
 String User::fileName(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mFileName;
 }
 
 String User::urlPrefix(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return String("/user/") + mName;
 }
 
 BinaryString User::secret(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mSecret;
 }
 
@@ -314,39 +304,41 @@ void User::unmergeBoard(sptr<const Board> board)
 
 bool User::isOnline(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mOnline;
 }
 
 void User::setOnline(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(!mOnline) 
 	{
 		mOnline = true;
 		//sendStatus();
 	
-		// TODO	
-		//DesynchronizeStatement(this, mAddressBook->update());
+		// TODO
+		//mAddressBook->update();
 	}
 	
-	Scheduler::Global->schedule(&mSetOfflineTask, 60.);
+	mOfflineAlarm.schedule(seconds(60.));
 }
 
 void User::setOffline(void)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(mOnline) 
 	{
 		mOnline = false;
 		//sendStatus();
 	}
+	
+	mOfflineAlarm.cancel();
 }
 
 BinaryString User::getSecretKey(const String &action) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Cache for subkeys
 	BinaryString key;
@@ -368,11 +360,15 @@ String User::generateToken(const String &action) const
 
 	BinaryString plain;
 	BinarySerializer splain(&plain);
-	splain.output(name());
-	splain.output(action);
-	splain.output(salt);
-	SynchronizeStatement(this, splain.output(mTokenSecret));
-
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		splain << mName;
+		splain << action;
+		splain << salt;
+		splain << mTokenSecret;
+	}
+	
 	BinaryString digest;
 	Sha256().compute(plain, digest);
 	
@@ -409,10 +405,14 @@ bool User::checkToken(const String &token, const String &action) const
 			
 			BinaryString plain;
 			BinarySerializer splain(&plain);
-			splain.output(name());
-			splain.output(action);
-			splain.output(salt);
-			SynchronizeStatement(this, splain.output(mTokenSecret));
+			
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				splain << mName;
+				splain << action;
+				splain << salt;
+				splain << mTokenSecret;
+			}
 			
 			BinaryString digest;
 			Sha256().compute(plain, digest);
@@ -431,24 +431,25 @@ bool User::checkToken(const String &token, const String &action) const
 
 Identifier User::identifier(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey.digest();
 }
 
 const Rsa::PublicKey &User::publicKey(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey;
 }
 
 const Rsa::PrivateKey &User::privateKey(void) const
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mPrivateKey;
 }
 
-SecureTransport::Certificate *User::certificate(void) const
+sptr<SecureTransport::Certificate> User::certificate(void) const
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mCertificate;
 }
 
@@ -495,7 +496,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.footer();
 					response.stream->close();
 					
-					Thread::Sleep(1.);	// Some time for the browser to load resources
+					std::this_thread::sleep_for(seconds(1.));	// Some time for the browser to load resources
 					
 					LogInfo("User::http", "Exiting");
 					exit(0);
@@ -619,8 +620,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("h2");
 		
 			// TODO
-			AddressBook::Contact *self = mAddressBook->getSelf();
-			Array<AddressBook::Contact*> contacts;
+			sptr<AddressBook::Contact> self = mAddressBook->getSelf();
+			Array<sptr<AddressBook::Contact> > contacts;
 			mAddressBook->getContacts(contacts);
 			
 			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add contact / Accept request");
@@ -768,20 +769,17 @@ void User::http(const String &prefix, Http::Request &request)
 
 void User::serialize(Serializer &s) const
 {
-	Synchronize(this);
-
-	// TODO
-	ConstObject object;
-	object["publickey"] = &mPublicKey;
-	object["privatekey"] = &mPrivateKey;
-	object["secret"] = &mSecret;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
-	s.write(object);
+	s << Object()
+		.insert("publickey", mPublicKey)
+		.insert("privatekey", mPrivateKey)
+		.insert("secret", mSecret);
 }
 
 bool User::deserialize(Serializer &s)
 {
-	Synchronize(this);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Identifier oldIdentifier = identifier();
 	
@@ -789,12 +787,10 @@ bool User::deserialize(Serializer &s)
 	mPrivateKey.clear();
 	mSecret.clear();
 	
-	Object object;
-	object["publickey"] = &mPublicKey;
-	object["privatekey"] = &mPrivateKey;
-	object["secret"] = &mSecret;
-	
-	if(!s.read(object))
+	if(!(s >> Object()
+		.insert("publickey", mPublicKey)
+		.insert("privatekey", mPrivateKey)
+		.insert("secret", mSecret)))
 		return false;
 	
 	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
@@ -809,8 +805,7 @@ bool User::deserialize(Serializer &s)
 		}
 		
 		// Reload certificate
-		delete mCertificate;
-		mCertificate = new SecureTransport::RsaCertificate(mPublicKey, mPrivateKey, identifier().toString());
+		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier().toString());
 		
 		// Reload self contact is it exists
 		if(mAddressBook && mAddressBook->getSelf())

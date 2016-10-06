@@ -3,6 +3,7 @@ CXX=$(CROSS)-g++
 RES=$(CROSS)-windres
 STRIP=$(CROSS)-strip
 RM=rm -f
+CCFLAGS=-O2
 CPPFLAGS=-std=c++11 -O2
 LDFLAGS=-O2
 LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll
@@ -13,8 +14,8 @@ OBJS=$(subst .cpp,.o,$(SRCS))
 all: teapotnet.exe winservice.exe winupdater.exe
 
 include/sqlite3.o: include/sqlite3.c
-	$(CC) -c $(CPPFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS $*.c -o $*.o
-	
+	$(CC) $(CCFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -o $*.o -c $*.c
+
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -I. -MMD -MP -o $@ -c $<
 	

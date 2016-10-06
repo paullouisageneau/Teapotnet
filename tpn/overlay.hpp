@@ -127,7 +127,6 @@ public:
 	
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
-	bool isInlineSerializable(void) const;
 	
 private:
 	// Routing

@@ -321,6 +321,20 @@ Time Store::getValueTime(const BinaryString &key, const BinaryString &value) con
         return time;
 }
 
+void Store::start(void)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	if(mRunning) return;
+	mRunning = true;
+	
+	std::thread thread([this]()
+	{
+		run();
+	});
+	
+	thread.detach();
+}
+
 void Store::run(void)
 {	
 	{

@@ -75,6 +75,7 @@ public:
 		void bind(int parameter, uint64_t value);
 		void bind(int parameter, float value);
 		void bind(int parameter, double value);
+		void bind(int parameter, const std::string &value);
 		void bind(int parameter, const String &value);
 		void bind(int parameter, const BinaryString &value);
 		void bind(int parameter, const Time &value);
@@ -90,6 +91,7 @@ public:
 		void value(int column, uint64_t &v) const;
 		void value(int column, float &v) const;
 		void value(int column, double &v) const;
+		void value(int column, std::string &v) const;
 		void value(int column, String &v) const;
 		void value(int column, BinaryString &v) const;
 		void value(int column, Time &v) const;
@@ -130,7 +132,7 @@ public:
 		virtual void	write(double f);
 		virtual void	write(bool b);
 		
-		virtual bool	skip(void);
+		//virtual bool	skip(void);
 		
 		virtual bool	readArrayBegin(void)		{ return true; }
 		virtual bool	readArrayNext(void)		{ return true; }
