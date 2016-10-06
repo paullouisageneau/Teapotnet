@@ -154,28 +154,29 @@ String Indexer::prefix(void) const
 
 void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
-
 	Assert(!name.empty());
 	Assert(!name.contains('/') && !name.contains('\\'));
 
-	if(path.empty()) path = mBaseDirectory + Directory::Separator + name;
-	if(path[path.size()-1] == Directory::Separator) path.ignore(1);
-	
-	if(!Directory::Exist(path))
-		Directory::Create(path);
-	
-	Directory test(path);
-	test.close();
-	
-	Map<String, Entry>::iterator it = mDirectories.find(name);
-	if(it != mDirectories.end())
 	{
-		it->second.path = path;
-		it->second.access = access;
-	}
-	else {
-		mDirectories.insert(name, Entry(path, access));
+		std::unique_lock<std::mutex> lock(mMutex);
+		if(path.empty()) path = mBaseDirectory + Directory::Separator + name;
+		if(path[path.size()-1] == Directory::Separator) path.ignore(1);
+		
+		if(!Directory::Exist(path))
+			Directory::Create(path);
+		
+		Directory test(path);
+		test.close();
+		
+		Map<String, Entry>::iterator it = mDirectories.find(name);
+		if(it != mDirectories.end())
+		{
+			it->second.path = path;
+			it->second.access = access;
+		}
+		else {
+			mDirectories.insert(name, Entry(path, access));
+		}
 	}
 	
 	save();
@@ -184,7 +185,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 
 void Indexer::removeDirectory(const String &name)
 {
-  	std::unique_lock<std::mutex> lock(mMutex);;
+  	std::unique_lock<std::mutex> lock(mMutex);
   
 	if(mDirectories.contains(name))
 	{
@@ -196,7 +197,8 @@ void Indexer::removeDirectory(const String &name)
 
 void Indexer::getDirectories(Array<String> &array) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	mDirectories.getKeys(array);
 	array.remove(CacheDirectoryName);
 	array.remove(UploadDirectoryName);
@@ -211,7 +213,7 @@ Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 
 bool Indexer::moveFileToCache(String &fileName, String name)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Check file size
 	int64_t fileSize = File::Size(fileName);
@@ -274,7 +276,7 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 
 void Indexer::save(void) const
 {
-  	std::unique_lock<std::mutex> lock(mMutex);;
+  	std::unique_lock<std::mutex> lock(mMutex);
   
 	File file(mFileName, File::Write);
 	JsonSerializer serializer(&file);
@@ -284,12 +286,21 @@ void Indexer::save(void) const
 
 void Indexer::start(void)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	if(mRunning) return;
+	mRunning = true;
 	
+	std::thread thread([this]()
+	{
+		run();
+	});
+	
+	thread.detach();
 }
 
 bool Indexer::query(const Query &q, List<BinaryString> &targets)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	targets.clear();
 	
@@ -520,7 +531,7 @@ bool Indexer::process(String path, Resource &resource)
 
 bool Indexer::get(String path, Resource &resource, Time *time)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -558,7 +569,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 
 void Indexer::notify(String path, const Resource &resource, const Time &time)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
   
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -615,7 +626,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	accessSelectMap["personal"] = "Only me";
 
 	try {
-		std::unique_lock<std::mutex> lock(mMutex);;	// TODO: There shouldn't be a global Synchronize
+		std::unique_lock<std::mutex> lock(mMutex);	// TODO: There shouldn't be a global Synchronize
 
 		if(prefix.afterLast('/') == "explore")
 		{
@@ -1374,7 +1385,7 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 
 void Indexer::update(String path)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(!path.empty() && path[path.size() - 1] == '/')
 		path.resize(path.size() - 1);
@@ -1430,7 +1441,7 @@ void Indexer::update(String path)
 
 String Indexer::realPath(String path) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(path.empty() || path == "/") return mBaseDirectory;
 	if(path[0] == '/') path.ignore(1);
@@ -1461,7 +1472,7 @@ bool Indexer::isHiddenPath(String path) const
 
 Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	if(path.empty() || path == "/") return Resource::Public;
 	if(path[0] == '/') path.ignore(1);
@@ -1531,9 +1542,9 @@ int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
 	return std::max(maxSize - totalSize, int64_t(0));
 }
 
-void Indexer::operator()(void)
+void Indexer::run(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);;
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mRunning) return;
 	mRunning = true;
 	
@@ -1684,14 +1695,14 @@ void Indexer::Entry::serialize(Serializer &s) const
 {
 	s << Object()
 		.insert("path", path)
-		.insert("access", (access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public")));
+		.insert("access", String(access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public")));
 }
 
 bool Indexer::Entry::deserialize(Serializer &s)
 {
-	String strAccess;
-	
 	path.clear();
+	
+	String strAccess;
 	
 	if(!(s >> Object()
 		.insert("path", path)

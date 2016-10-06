@@ -102,7 +102,7 @@ public:
 	bool query(const Query &q, Set<Resource> &resources);
 	bool query(const Query &q, Resource &resource);
 	
-	void operator()(void);
+	void run(void);
 	
 private:
 	static const String CacheDirectoryName;
