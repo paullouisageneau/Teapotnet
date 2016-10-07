@@ -146,7 +146,7 @@ void Request::getResult(int i, Resource::DirectoryRecord &record) const
 void Request::autoDelete(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	if(timeout >= duration::zero()) mAutoDeleter.schedule(timeout);
+	if(timeout >= duration::zero()) mAutoDeleter.schedule(timeout, [this]() { delete this; });
 	else mAutoDeleter.cancel();
 	mAutoDeleteTimeout = timeout;
 }
