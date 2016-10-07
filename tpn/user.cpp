@@ -202,6 +202,8 @@ User::User(const String &name, const String &password) :
 	{
 		setOffline();
 	});
+	
+	mIndexer->start();
 }
 
 User::~User(void)
@@ -751,7 +753,7 @@ void User::http(const String &prefix, Http::Request &request)
 		else if(directory == "myself")
 		{
 			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = prefix + "/files" + (request.get.contains("json") ? "?json" : "");
+			response.headers["Location"] = prefix + "/files" + (request.get.contains("json") ? "?json" + (request.get.contains("next") ? "&next=" + request.get["next"] : "") : "");
 			response.send();
 			return;
 		}

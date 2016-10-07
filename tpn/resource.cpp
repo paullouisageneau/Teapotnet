@@ -480,7 +480,7 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
 {
-	return !!(s << Object()
+	return !!(s >> Object()
 		.insert("name", name)
 		.insert("type", type)
 		.insert("size", size)

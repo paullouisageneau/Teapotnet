@@ -83,7 +83,6 @@ Request::~Request(void)
 
 bool Request::addTarget(const BinaryString &target)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mPath.empty() || target.empty()) return false;
 	return incoming(link(), mPath, "/", target);
 }
@@ -154,7 +153,7 @@ void Request::autoDelete(duration timeout)
 
 void Request::http(const String &prefix, Http::Request &request)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);	// Request::http() is synced !
 	
 	int next = 0;
 	if(request.get.contains("next"))
@@ -217,8 +216,6 @@ void Request::http(const String &prefix, Http::Request &request)
 
 bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	if(fetch(link, prefix, path, target, false))	// no content
 	{		
 		Resource resource(target, true);	// local only

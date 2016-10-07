@@ -77,7 +77,6 @@ void Network::connect(const Identifier &node, const Identifier &remote, User *us
 
 void Network::registerCaller(const BinaryString &target, Caller *caller)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(caller);
 	
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
@@ -104,70 +103,78 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	// Immediately send retrieve for target
 	mOverlay.retrieve(target);
 	
-	mCallers[target].insert(caller);
+	{
+		std::unique_lock<std::mutex> lock(mCallersMutex);
+		mCallers[target].insert(caller);
+	}
 }
 
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(caller);
 	
-	auto it = mCallers.find(target);
-	if(it != mCallers.end())
 	{
-		it->second.erase(caller);
-		if(it->second.empty())   
-			mCallers.erase(it);
+		std::unique_lock<std::mutex> lock(mCallersMutex);
+		
+		auto it = mCallers.find(target);
+		if(it != mCallers.end())
+		{
+			it->second.erase(caller);
+			if(it->second.empty())   
+				mCallers.erase(it);
+		}
 	}
 }
 
 void Network::unregisterAllCallers(const BinaryString &target)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mCallersMutex);
 	mCallers.erase(target);
 }
 
 void Network::registerListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(listener);
 	
-	mListeners[IdentifierPair(remote, local)].insert(listener);
+	{
+		std::unique_lock<std::mutex> lock(mListenersMutex);
+		mListeners[IdentifierPair(remote, local)].insert(listener);
+	}
 	
 	Link link(local, remote);
 
-	Set<Link> temp;		// We need to copy the links since we are going to desynchronize
-	for(auto it = mHandlers.lower_bound(link);
-		it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
-		++it)
 	{
-		temp.insert(it->first);
-	}
-	
-	for(auto it = temp.begin(); it != temp.end(); ++it)
-	{
-		lock.unlock();
-		try {
-			listener->seen(*it);      // so Listener::seen() is triggered even with incoming tunnels
-			listener->connected(*it, true);
-		}
-		catch(const Exception &e)
+		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		
+		for(auto it = mHandlers.lower_bound(link);
+			it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
+			++it)
 		{
-			LogWarn("Network::registerListener", e.what());
-		}
-		lock.lock();
-	}
-	
-	for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
-	{
-		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
-		{
-			if((*jt)->link() == link)
+			try {
+				listener->seen(it->first);      // so Listener::seen() is triggered even with incoming tunnels
+				listener->connected(it->first, true);
+			}
+			catch(const Exception &e)
 			{
-				send(link, "subscribe", 
-					Object()
-						.insert("path", &it->first));
-				break;
+				LogWarn("Network::registerListener", e.what());
+			}
+		}
+	}
+	
+	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
+		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
+		{
+			for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
+			{
+				if((*jt)->link() == link)
+				{
+					send(link, "subscribe", 
+						Object()
+							.insert("path", &it->first));
+					break;
+				}
 			}
 		}
 	}
@@ -175,21 +182,23 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 
 void Network::unregisterListener(const Identifier &local, const Identifier &remote, Listener *listener)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(listener);
 	
-	auto it = mListeners.find(IdentifierPair(remote, local));
-	if(it != mListeners.end())
 	{
-		it->second.erase(listener);
-		if(it->second.empty())   
-			mListeners.erase(it);
+		std::unique_lock<std::mutex> lock(mListenersMutex);
+		
+		auto it = mListeners.find(IdentifierPair(remote, local));
+		if(it != mListeners.end())
+		{
+			it->second.erase(listener);
+			if(it->second.empty())   
+				mListeners.erase(it);
+		}
 	}
 }
 
 void Network::publish(String prefix, Publisher *publisher)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
@@ -197,29 +206,34 @@ void Network::publish(String prefix, Publisher *publisher)
 	
 	//LogDebug("Network::publish", "Publishing " + prefix);
 	
-	mPublishers[prefix].insert(publisher);
+	{
+		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		mPublishers[prefix].insert(publisher);
+	}
 }
 
 void Network::unpublish(String prefix, Publisher *publisher)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	auto it = mPublishers.find(prefix);
-	if(it != mPublishers.end())
 	{
-		it->second.erase(publisher);
-		if(it->second.empty()) 
-			mPublishers.erase(it);
+		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		
+		auto it = mPublishers.find(prefix);
+		if(it != mPublishers.end())
+		{
+			it->second.erase(publisher);
+			if(it->second.empty()) 
+				mPublishers.erase(it);
+		}
 	}
 }
 
 void Network::subscribe(String prefix, Subscriber *subscriber)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
@@ -227,7 +241,10 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	
 	//LogDebug("Network::subscribe", "Subscribing " + prefix);
 	
-	mSubscribers[prefix].insert(subscriber);
+	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		mSubscribers[prefix].insert(subscriber);
+	}
 	
 	// Local publishers
 	matchPublishers(prefix, subscriber->link(), subscriber);
@@ -250,37 +267,38 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 
 void Network::unsubscribe(String prefix, Subscriber *subscriber)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(subscriber);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	auto it = mSubscribers.find(prefix);
-	if(it != mSubscribers.end())
 	{
-		it->second.erase(subscriber);
-		if(it->second.empty())
-			mSubscribers.erase(it);
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
+		auto it = mSubscribers.find(prefix);
+		if(it != mSubscribers.end())
+		{
+			it->second.erase(subscriber);
+			if(it->second.empty())
+				mSubscribers.erase(it);
+		}
 	}
 }
 
 void Network::advertise(String prefix, const String &path, Publisher *publisher)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(publisher);
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
 	//LogDebug("Network::publish", "Advertising " + prefix + path);
-	
+
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
 
 void Network::issue(String prefix, const String &path, Publisher *publisher, const Mail &mail)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mail.empty()) return;
 	
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
@@ -293,7 +311,7 @@ void Network::issue(String prefix, const String &path, Publisher *publisher, con
 
 void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mSubscribersMutex);
 	
 	if(!mRemoteSubscribers[link].contains(path))
 		mRemoteSubscribers[link].insert(path, std::make_shared<RemoteSubscriber>(link));
@@ -315,6 +333,7 @@ bool Network::send(const Identifier &local, const Identifier &remote, const Stri
 
 bool Network::send(const Link &link, const String &type, const Serializable &object)
 {
+	// Alias
 	return outgoing(link, type, object);
 }
 
@@ -336,7 +355,7 @@ bool Network::hasLink(const Identifier &local, const Identifier &remote)
 
 bool Network::hasLink(const Link &link)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mHandlersMutex);
 	return mHandlers.contains(link);
 }
 
@@ -348,10 +367,19 @@ void Network::run(void)
 	while(true)
 	{
 		try {
+			using clock = std::chrono::steady_clock;
+			std::chrono::time_point<clock> end;
+			end = clock::now() + std::chrono::duration_cast<clock::duration>(period);
+	
 			// Receive messages
-			Overlay::Message message;
-			if(mOverlay.recv(message, period))
+			while(std::chrono::steady_clock::now() <= end)
 			{
+				duration left = end - std::chrono::steady_clock::now();
+				
+				Overlay::Message message;
+				if(!mOverlay.recv(message, left))
+					break;
+				
 				//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
 				
 				switch(message.type)
@@ -359,49 +387,13 @@ void Network::run(void)
 				// Value
 				case Overlay::Message::Value:
 					{
-						std::unique_lock<std::mutex> lock(mMutex);
-						
-						if(!message.content.empty() && message.content != mOverlay.localNode())
+						if(!message.content.empty() && 	message.content != mOverlay.localNode())
 						{
 							// It can be about a block
-							if(mCallers.contains(message.source))
-							{
-								//LogDebug("Network::run", "Got candidate for " + message.source.toString());
-								
-								uint16_t tokens = uint16_t(Store::Instance->missing(message.source));
-								BinaryString call;
-								call.writeBinary(tokens);
-								call.writeBinary(message.source);
-								
-								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, message.content));
-							}
+							matchCallers(message.source, message.content);
 							
 							// Or it can be about a contact
-							auto it = mListeners.lower_bound(IdentifierPair(message.source, Identifier::Empty));	// pair is (remote, local)
-							
-							// We have to copy the sets since we are going to desynchronize
-							Map<IdentifierPair, Set<Listener*> > temp;
-							while(it != mListeners.end() && it->first.first == message.source)
-							{
-								temp.insert(it->first, it->second);
-								++it;
-							}
-							
-							if(!temp.empty())
-							{
-								//LogDebug("Network::run", "Got instance for " + message.source.toString());
-								
-								for(auto kt = temp.begin(); kt != temp.end(); ++kt)
-								{
-									for(auto jt = kt->second.begin(); jt != kt->second.end(); ++jt)
-									{
-										it = mListeners.find(kt->first);
-										if(it == mListeners.end()) break;
-										if(it->second.contains(*jt))
-											(*jt)->seen(Link(kt->first.second, kt->first.first, message.content));
-									}
-								}
-							}
+							matchListeners(message.source, message.content);
 						}
 						
 						break;
@@ -468,7 +460,7 @@ void Network::run(void)
 			
 			// Send beacons
 			{
-				std::unique_lock<std::mutex> lock(mMutex);
+				std::unique_lock<std::mutex> lock(mCallersMutex);
 				
 				for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
 				{
@@ -490,34 +482,34 @@ void Network::run(void)
 							else mOverlay.retrieve((*jt)->hint());
 						}
 					}
-
+					
 					mOverlay.retrieve(it->first);
 				}
+			}
+			
+			if(loops % 10 == 0)
+			{
+				Identifier node(mOverlay.localNode());
+				Set<Identifier> localIds;
+				Set<Identifier> remoteIds;
 				
-				if(loops % 10 == 0)
+				for(auto &p : mListeners)
 				{
-					Identifier node(mOverlay.localNode());
-					Set<Identifier> localIds;
-					Set<Identifier> remoteIds;
-					
-					for(auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					{
-						localIds.insert(it->first.second);
-						remoteIds.insert(it->first.first);
-					}
-					
-					for(auto it = localIds.begin(); it != localIds.end(); ++it)
-					{
-						storeValue(*it, node);
-					}
-					
-					for(auto it = remoteIds.begin(); it != remoteIds.end(); ++it)
-					{
-						mOverlay.retrieve(*it);
-					}
-					
-					//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
+					localIds.insert(p.first.second);
+					remoteIds.insert(p.first.first);
 				}
+				
+				for(auto &id : localIds)
+				{
+					storeValue(id, node);
+				}
+				
+				for(auto &id : remoteIds)
+				{
+					mOverlay.retrieve(id);
+				}
+				
+				//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
 			}
 		}
 		catch(const std::exception &e)
@@ -530,25 +522,31 @@ void Network::run(void)
 }
 
 void Network::registerHandler(const Link &link, sptr<Handler> handler)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
+{	
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
 	Assert(handler);
 	
-	mHandlers.insert(link, handler);
-	
-	for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 	{
-		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
+		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		mHandlers.insert(link, handler);
+	}
+	
+	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
+		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 		{
-			if((*jt)->link() == link)
+			for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 			{
-				send(link, "subscribe", 
-					Object()
-						.insert("path", &it->first));
-				break;
+				if((*jt)->link() == link)
+				{
+					send(link, "subscribe", 
+						Object()
+							.insert("path", &it->first));
+					break;
+				}
 			}
 		}
 	}
@@ -558,17 +556,24 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 
 void Network::unregisterHandler(const Link &link)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
 	
-	if(mHandlers.contains(link))
 	{
-		mRemoteSubscribers.erase(link);
+		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		if(!mHandlers.contains(link))
+			return;
+		
 		mHandlers.erase(link);
-		onConnected(link, false);
 	}
+	
+	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		mRemoteSubscribers.erase(link);
+	}
+	
+	onConnected(link, false);
 }
 
 bool Network::outgoing(const String &type, const Serializable &content)
@@ -579,11 +584,13 @@ bool Network::outgoing(const String &type, const Serializable &content)
 
 bool Network::outgoing(const Link &link, const String &type, const Serializable &content)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	String serialized;
 	JsonSerializer(&serialized) << content;
 
+	std::unique_lock<std::mutex> lock1(mHandlersMutex,  std::defer_lock);
+	std::unique_lock<std::mutex> lock2(mListenersMutex, std::defer_lock);
+	std::lock(lock1, lock2);
+	
 	bool success = false;
 	for(auto it = mHandlers.lower_bound(link);
 		it != mHandlers.end() && it->first == link;
@@ -674,8 +681,6 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 
 bool Network::matchPublishers(const String &path, const Link &link, Subscriber *subscriber)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(path.empty() || path[0] != '/') return false;
 	
 	List<String> list;
@@ -686,6 +691,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 	// Match prefixes, longest first
 	while(true)
 	{
+		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		
 		String prefix;
 		prefix.implode(list, '/');
 		prefix = "/" + prefix;
@@ -738,8 +745,6 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 
 bool Network::matchSubscribers(const String &path, const Link &link, Publisher *publisher)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(path.empty() || path[0] != '/') return false;
 	
 	List<String> list;
@@ -750,6 +755,8 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 	// Match prefixes, longest first
 	while(true)
 	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
 		String prefix;
 		prefix.implode(list, '/');
 		prefix = "/" + prefix;
@@ -791,8 +798,6 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 
 bool Network::matchSubscribers(const String &path, const Link &link, const Mail &mail)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(path.empty() || path[0] != '/') return false;
 	
 	List<String> list;
@@ -803,6 +808,8 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 	// Match prefixes, longest first
 	while(true)
 	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
 		String prefix;
 		prefix.implode(list, '/');
 		prefix = "/" + prefix;
@@ -834,66 +841,101 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 	return true;
 }
 
+bool Network::matchCallers(const Identifier &target, const Identifier &node)
+{
+	if(node == mOverlay.localNode())
+		return false;
+	
+	std::unique_lock<std::mutex> lock(mCallersMutex);
+	
+	if(!mCallers.contains(target))
+		return false;
+	
+	//LogDebug("Network::run", "Got candidate for " + target.toString());
+	
+	uint16_t tokens = uint16_t(Store::Instance->missing(target));
+	BinaryString call;
+	call.writeBinary(tokens);
+	call.writeBinary(target);
+	
+	mOverlay.send(Overlay::Message(Overlay::Message::Call, call, node));
+	
+	return true;
+}
+
+bool Network::matchListeners(const Identifier &identifier, const Identifier &node)
+{
+	if(node == mOverlay.localNode())
+		return false;
+	
+	std::unique_lock<std::mutex> lock(mListenersMutex);
+	
+	auto it = mListeners.lower_bound(IdentifierPair(identifier, Identifier::Empty));	// pair is (remote, local)
+	if(it == mListeners.end())
+		return false;
+	
+	//LogDebug("Network::run", "Got instance for " + identifier.toString());
+	
+	while(it != mListeners.end() && it->first.first == identifier)
+	{
+		for(auto listener : it->second)
+			listener->seen(Link(it->first.second, it->first.first, node));
+		++it;
+	}
+	
+	return true;
+}
+
 void Network::onConnected(const Link &link, bool status)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return;
 	
-	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(auto jt = set.begin(); jt != set.end(); ++jt)
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
 	{
-                it = mListeners.find(IdentifierPair(link.remote, link.local));
-		if(it == mListeners.end()) break;
-		if(it->second.contains(*jt))
+		for(auto listener : it->second)
 		{
-			if(status) (*jt)->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
-			(*jt)->connected(link, status);
+			if(status) listener->seen(link);	// so Listener::seen() is triggered even with incoming tunnels
+			listener->connected(link, status);
 		}
+		++it;
 	}
 }
 
 bool Network::onRecv(const Link &link, const String &type, Serializer &serializer)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return false;
-
+	
 	bool ret = false;
-	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(auto jt = set.begin(); jt != set.end(); ++jt)
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
 	{
-		it = mListeners.find(IdentifierPair(link.remote, link.local));
-		if(it == mListeners.end()) break;
-		if(it->second.contains(*jt))
-		{
-			if((*jt)->recv(link, type, serializer))
-				return true;
-		}
+		for(auto listener : it->second)
+			ret|= listener->recv(link, type, serializer);
+		++it;
 	}
 	
-	return false;
+	return ret;
 }
 
 bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
-	if(it == mListeners.end()) return true;
+	if(it == mListeners.end()) return false;
 	
-	Set<Listener*> set(it->second);	// we have to copy the set since we are going to desynchronize
-	for(auto jt = set.begin(); jt != set.end(); ++jt)
+	bool ret = false;
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
 	{
-		it = mListeners.find(IdentifierPair(link.remote, link.local));
-		if(it == mListeners.end()) break;
-		if(it->second.contains(*jt))
-		{
-			if(!(*jt)->auth(link, pubKey))
+		for(auto listener : it->second)
+			if(!listener->auth(link, pubKey))
 				return false;
-		}
+		++it;
 	}
 	
 	return true;

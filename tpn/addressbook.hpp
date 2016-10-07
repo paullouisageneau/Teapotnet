@@ -86,8 +86,7 @@ public:
 		BinaryString secret(void) const;
 		
 		bool isSelf(void) const;
-		bool isConnected(void) const;
-		bool isConnected(const Identifier &instance) const;
+		bool isConnected(const Identifier &instance = Identifier::Empty) const;
 		
 		bool send(const String &type, const Serializable &object) const;
 		bool send(const Identifier &instance, const String &type, const Serializable &object) const;
@@ -110,9 +109,13 @@ public:
 		void init(void);
 		void uninit(void);
 		
+		bool nIsSelf(void) const;
+		bool nIsConnected(const Identifier &instance = Identifier::Empty) const;
+		String nUrlPrefix(void) const;
+		
 		BinaryString localSecret(void) const;
 		BinaryString remoteSecret(void) const;
-	  
+		
 		AddressBook *mAddressBook;
 		sptr<Board> mBoard, mPrivateBoard;
 		

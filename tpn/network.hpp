@@ -336,6 +336,8 @@ private:
 	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
 	bool matchSubscribers(const String &path, const Link &link, const Mail &mail);
+	bool matchCallers(const Identifier &target, const Identifier &node);
+	bool matchListeners(const Identifier &identifier, const Identifier &node);
 	
 	void onConnected(const Link &link, bool status = true);
 	bool onRecv(const Link &link, const String &type, Serializer &serializer);
@@ -351,8 +353,13 @@ private:
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
 	
+	mutable std::mutex mHandlersMutex;
+	mutable std::mutex mPublishersMutex;
+	mutable std::mutex mSubscribersMutex;
+	mutable std::mutex mCallersMutex;
+	mutable std::mutex mListenersMutex;
+	
 	std::thread mThread;
-	std::mutex mMutex;
 	
 	friend class Handler;
 };

@@ -101,14 +101,10 @@ void AddressBook::clear(void)
 
 void AddressBook::save(void) const
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-
-		SafeWriteFile file(mFileName);
-		JsonSerializer serializer(&file);
-		serializer.write(*this);
-		file.close();
-	}
+	SafeWriteFile file(mFileName);
+	JsonSerializer serializer(&file);
+	serializer.write(*this);
+	file.close();
 	
 	sptr<const Contact> self = getSelf();
 	if(self)
@@ -760,14 +756,14 @@ void AddressBook::Contact::init(void)
 	if(!mAddressBook) return;
 	
 	mBoard = NULL;
-	if(!isSelf())
+	if(nIsSelf())
 	{
-		if(!mBoard) mBoard = std::make_shared<Board>("/" + identifier().toString(), "", name());	// Public board
+		if(!mBoard) mBoard = std::make_shared<Board>("/" + mIdentifier.toString(), "", mName);	// Public board
 		mAddressBook->user()->mergeBoard(mBoard);
 	}
 	
-	Interface::Instance->add(urlPrefix(), this);
-	listen(mAddressBook->user()->identifier(), identifier());
+	Interface::Instance->add(nUrlPrefix(), this);
+	listen(mAddressBook->user()->identifier(), mIdentifier);
 }
 
 void AddressBook::Contact::uninit(void)
@@ -775,11 +771,42 @@ void AddressBook::Contact::uninit(void)
 	// Private, no sync
 	
 	if(mAddressBook && mBoard) mAddressBook->user()->unmergeBoard(mBoard);
-	if(mAddressBook) Interface::Instance->remove(urlPrefix(), this);
+	if(mAddressBook) Interface::Instance->remove(nUrlPrefix(), this);
 	ignore();       // stop listening
 	
 	mBoard = NULL;
 	mPrivateBoard = NULL;
+}
+
+bool AddressBook::Contact::nIsSelf(void) const
+{
+	if(!mAddressBook) return false;
+	return (mUniqueName == mAddressBook->userName());
+}
+
+bool AddressBook::Contact::nIsConnected(const Identifier &instance) const
+{
+	if(!mAddressBook) return false;
+	Network::Link link(mAddressBook->user()->identifier(), mIdentifier, instance);
+	return Network::Instance->hasLink(link);
+}
+
+String AddressBook::Contact::nUrlPrefix(void) const
+{
+	if(!mAddressBook || mUniqueName.empty()) return "";
+	if(nIsSelf()) return mAddressBook->user()->urlPrefix()+"/myself";
+	return mAddressBook->urlPrefix()+"/"+mUniqueName;
+}
+
+BinaryString AddressBook::Contact::localSecret(void) const
+{
+	if(!mAddressBook) return "";
+	return mAddressBook->user()->getSecretKey(identifier().toString());
+}
+
+BinaryString AddressBook::Contact::remoteSecret(void) const
+{
+	return mRemoteSecret;
 }
 
 void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
@@ -814,10 +841,8 @@ String AddressBook::Contact::name(void) const
 
 String AddressBook::Contact::urlPrefix(void) const
 {
-	String uname = uniqueName();
-	if(!mAddressBook || uname.empty()) return "";
-	if(isSelf()) return mAddressBook->user()->urlPrefix()+"/myself";
-	return mAddressBook->urlPrefix()+"/"+uname;
+	std::unique_lock<std::mutex> lock(mMutex);
+	return nUrlPrefix();
 }
 
 BinaryString AddressBook::Contact::secret(void) const
@@ -832,35 +857,16 @@ BinaryString AddressBook::Contact::secret(void) const
 	}
 }
 
-BinaryString AddressBook::Contact::localSecret(void) const
-{
-	if(!mAddressBook) return "";
-	return mAddressBook->user()->getSecretKey(identifier().toString());
-}
-
-BinaryString AddressBook::Contact::remoteSecret(void) const
-{
-	return mRemoteSecret;
-}
-
 bool AddressBook::Contact::Contact::isSelf(void) const
 {
-	if(!mAddressBook) return false;
-	return (uniqueName() == mAddressBook->userName());
-}
-
-bool AddressBook::Contact::isConnected(void) const
-{
-	if(!mAddressBook) return false;
-	Network::Link link(mAddressBook->user()->identifier(), identifier());
-	return Network::Instance->hasLink(link); 
+	std::unique_lock<std::mutex> lock(mMutex);
+	return nIsSelf();
 }
 
 bool AddressBook::Contact::isConnected(const Identifier &instance) const
 {
-	if(!mAddressBook) return false;
-	Network::Link link(mAddressBook->user()->identifier(), identifier(), instance);
-	return Network::Instance->hasLink(link);
+	std::unique_lock<std::mutex>(mMutex);
+	return nIsConnected();
 }
 
 bool AddressBook::Contact::send(const String &type, const Serializable &object) const
@@ -1032,11 +1038,11 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.open("tr");
 			page.open("td");
 				page.openLink(prefix + "/search/");
-				page.image("/icon_search.png", "Sear.hpp", ".bigicon");
+				page.image("/icon_search.png", "Search", ".bigicon");
 				page.closeLink();
 			page.close("td");
 			page.open("td", ".title");
-				page.text("Sear.hpp");
+				page.text("Search");
 			page.close("td");
 			page.close("tr");
 			
@@ -1220,14 +1226,14 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.stream);
 			
-			if(match.empty()) page.header(name() + ": Sear.hpp");
+			if(match.empty()) page.header(name() + ": Search");
 			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
 			if(!isSelf()) page.span((isConnected() ? "Connected" : "Disconnected"), "status.button");
-			page.openForm(prefix + "/sear.hpp", "post", "searchForm");
+			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text", "query", match);
-			page.button("sear.hpp","Sear.hpp");
+			page.button("search","Search");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");
@@ -1306,8 +1312,8 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	if(s.optionalOutputMode())
 	{
 		object.insert("instances", mInstances);
-		object.insert("prefix", urlPrefix());
-		object.insert("status", String(isConnected() ? "connected" : "disconnected"));
+		object.insert("prefix", nUrlPrefix());
+		object.insert("status", String(nIsConnected() ? "connected" : "disconnected"));
 		object.insert("messages", mPrivateBoard ? mPrivateBoard->unread() : 0);
 		object.insert("newmessages", mPrivateBoard ? mPrivateBoard->hasNew() : false);
 	}

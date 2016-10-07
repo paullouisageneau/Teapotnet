@@ -250,7 +250,6 @@ bool Overlay::recv(Message &message, duration timeout)
 
 bool Overlay::send(const Message &message)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	return route(message);	// Alias	
 }
 
@@ -272,24 +271,23 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 
 void Overlay::retrieve(const BinaryString &key)
 {
-	// TODO: sync
-	
 	send(Message(Message::Retrieve, "", key));
 	
 	// Push Value messages in local queue
 	BinaryString node(localNode());
 	Set<BinaryString> values;
 	if(Store::Instance->retrieveValue(key, values))
-		for(auto it = values.begin(); it != values.end(); ++it)
+	{
+		for(auto &v : values)
 		{
-			Message message(Message::Value, *it, node, key);
+			Message message(Message::Value, v, node, key);
 			push(message);
 		}
+	}
 }
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
-	// TODO: sync
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	bool sent = false;
@@ -600,19 +598,23 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 
 int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
-        Array<BinaryString> neighbors;
-        mHandlers.getKeys(neighbors);
-        for(int i=0; i<neighbors.size(); ++i)
-                sorted.insert(destination ^ neighbors[i], neighbors[i]);
-
+	Array<BinaryString> neighbors;
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mHandlers.getKeys(neighbors);
+	}
+	
+	for(int i=0; i<neighbors.size(); ++i)
+		sorted.insert(destination ^ neighbors[i], neighbors[i]);
+	
 	// local node
-        sorted.insert(destination ^ localNode(), localNode());
-
-        sorted.getValues(result);	
+	sorted.insert(destination ^ localNode(), localNode());
+	
+	sorted.getValues(result);	
 	if(count > 0 && result.size() > count) result.resize(count);
 	return result.size();
 }
