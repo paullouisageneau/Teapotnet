@@ -86,7 +86,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					{
 						user = new User(name, password);
 						
-						String token = user->generateToken("au.hpp");
+						String token = user->generateToken("auth");
 						Http::Response response(request, 200);
 						response.cookies["auth_"+user->name()] = token;
 						response.send();
@@ -135,7 +135,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				if(!user) throw 401;	// TODO
 				
-				String token = user->generateToken("au.hpp");
+				String token = user->generateToken("auth");
 				Http::Response response(request, 303);
 				response.headers["Location"] = user->urlPrefix();
 				response.cookies["auth_"+user->name()] = token;
@@ -181,11 +181,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{
 				String cookieName = it->first;
 				String name = cookieName.cut('_');
-				if(cookieName != "au.hpp" || name.empty()) 
+				if(cookieName != "auth" || name.empty()) 
 					continue;
 				
 				User *user = User::Get(name);
-				if(!user || !user->checkToken(it->second, "au.hpp"))
+				if(!user || !user->checkToken(it->second, "auth"))
 					continue;
 				
 				page.open("div",".user");
@@ -419,7 +419,7 @@ void Interface::process(Http::Request &request)
 			String token;
 			request.cookies.get("auth_"+name, token);
 			User *tmp = User::Get(name);
-			if(tmp && tmp->checkToken(token, "au.hpp"))
+			if(tmp && tmp->checkToken(token, "auth"))
 				user = tmp;
 		}
 		
@@ -525,7 +525,7 @@ User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String nam
 		String token;
 		request.cookies.get("auth_"+name, token);
 		User *user = User::Get(name);
-		if(user && user->checkToken(token, "au.hpp"))
+		if(user && user->checkToken(token, "auth"))
 			return user;
 	}
 	
@@ -548,7 +548,7 @@ int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*
 		String name = key.cut('_');
 		
 		User *user = User::Get(name);
-		if(user && user->checkToken(it->second, "au.hpp"))
+		if(user && user->checkToken(it->second, "auth"))
 			users.push_back(user);
 	}
 	

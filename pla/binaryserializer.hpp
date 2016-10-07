@@ -32,8 +32,9 @@ class BinarySerializer : public Serializer
 {
 public:
 	BinarySerializer(Stream *stream);	// stream WON'T be destroyed
-	virtual ~BinarySerializer(void);
+	~BinarySerializer(void);
 	
+private:
 	bool		read(std::string &str);
 	bool		read(bool &b);
 	inline bool	read(int8_t &i)		{ return mStream->readBinary(i); }
@@ -68,7 +69,6 @@ public:
 	void	writeArrayBegin(size_t size);
 	void	writeMapBegin(size_t size);
 	
-private:
   	Stream *mStream;
 	Stack<uint32_t> mLeft;
 };

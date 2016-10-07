@@ -68,13 +68,13 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 	if(localOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
 	
-	//LogDebug("Resource::fet.hpp", "Fetching resource " + digest.toString());
+	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
 	
 	try {
 		mIndexBlock = new Block(digest);
 		mIndexRecord = new IndexRecord;
 		
-		//LogDebug("Resource::fet.hpp", "Reading index block for " + digest.toString());
+		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
 		
 		AssertIO(BinarySerializer(mIndexBlock) >> mIndexRecord);
 	}
@@ -134,7 +134,7 @@ void Resource::process(const String &filename, const String &name, const String 
 			BinaryString subkey;
 			Sha256().pbkdf2_hmac(key, subsalt, subkey, 32, 100);
 			
-			// Generate iv
+			// Generate IV
 			BinaryString iv;
 			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
 			
@@ -154,7 +154,7 @@ void Resource::process(const String &filename, const String &name, const String 
 	String tempFileName = File::TempName();
 	File tempFile(tempFileName, File::Truncate);
 	BinarySerializer serializer(&tempFile);
-	serializer.write(mIndexRecord);
+	serializer << mIndexRecord;
 	tempFile.close();
 	String indexFilePath = Cache::Instance->move(tempFileName);
 	
@@ -534,7 +534,7 @@ void Resource::ImportTask::operator()(void)
 		
 		Reader reader(&resource, mSecret);
 		JsonSerializer serializer(&reader);
-		serializer.read(*mObject);
+		serializer >> *mObject;
 	}
 	catch(const std::exception &e)
 	{

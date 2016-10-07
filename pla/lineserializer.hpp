@@ -35,8 +35,9 @@ class LineSerializer : public Serializer
 {
 public:
 	LineSerializer(Stream *stream);	// stream WON'T be destroyed
-	virtual ~LineSerializer(void);
+	~LineSerializer(void);
 	
+private:
 	bool read(Serializable &s);
 	bool read(std::string &str);
 	inline bool	read(int8_t &i)		{ return mStream->read(i); }
@@ -73,8 +74,7 @@ public:
 	void	writeArrayEnd(void);
 	void	writeMapEnd(void);
 	
-private:
-  	Stream *mStream;
+	Stream *mStream;
 };
 
 }

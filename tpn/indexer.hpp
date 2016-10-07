@@ -138,7 +138,7 @@ private:
 	Map<String, Entry> mDirectories;
 	bool mRunning;
 	
-	mutable std::recursive_mutex mMutex;
+	mutable std::mutex mMutex;
 };
 
 }

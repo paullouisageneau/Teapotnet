@@ -177,7 +177,7 @@ BinaryString Mail::computeDigest(void) const
 	
 	BinaryString tmp;
 	BinarySerializer serializer(&tmp);
-	serializer.write(*this);
+	serializer << *this;
 	
 	BinaryString digest;
 	Sha256().compute(tmp, digest),

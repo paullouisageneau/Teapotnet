@@ -158,7 +158,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 	Assert(!name.contains('/') && !name.contains('\\'));
 
 	{
-		std::unique_lock<std::recursive_mutex> lock(mMutex);
+		std::unique_lock<std::mutex> lock(mMutex);
 		if(path.empty()) path = mBaseDirectory + Directory::Separator + name;
 		if(path[path.size()-1] == Directory::Separator) path.ignore(1);
 		
@@ -185,7 +185,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 
 void Indexer::removeDirectory(const String &name)
 {
-  	std::unique_lock<std::recursive_mutex> lock(mMutex);
+  	std::unique_lock<std::mutex> lock(mMutex);
   
 	if(mDirectories.contains(name))
 	{
@@ -197,7 +197,7 @@ void Indexer::removeDirectory(const String &name)
 
 void Indexer::getDirectories(Array<String> &array) const
 {
-	std::unique_lock<std::recursive_mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	mDirectories.getKeys(array);
 	array.remove(CacheDirectoryName);
@@ -213,7 +213,7 @@ Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 
 bool Indexer::moveFileToCache(String &fileName, String name)
 {
-	std::unique_lock<std::recursive_mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Check file size
 	int64_t fileSize = File::Size(fileName);
@@ -276,7 +276,7 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 
 void Indexer::save(void) const
 {
-  	std::unique_lock<std::recursive_mutex> lock(mMutex);
+  	std::unique_lock<std::mutex> lock(mMutex);
   
 	File file(mFileName, File::Write);
 	JsonSerializer serializer(&file);
@@ -286,7 +286,7 @@ void Indexer::save(void) const
 
 void Indexer::start(void)
 {
-	std::unique_lock<std::recursive_mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(mRunning) return;
 	mRunning = true;
 	
@@ -315,7 +315,7 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 		Array<String> names;
 		
 		{
-			std::unique_lock<std::recursive_mutex> lock(mMutex);
+			std::unique_lock<std::mutex> lock(mMutex);
 			mDirectories.getKeys(names);
 		}
 		
@@ -332,7 +332,7 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 			if(!get(subPath, subResource, &time))
 				continue;
 			
-			serializer.write(subResource.getDirectoryRecord(time));
+			serializer << subResource.getDirectoryRecord(time);
 		}
 		
 		tempFile.close();
@@ -428,10 +428,15 @@ bool Indexer::process(String path, Resource &resource)
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		
-		// Iterate on directories
 		BinarySerializer serializer(&tempFile);
 		Array<String> names;
-		mDirectories.getKeys(names);
+		
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			mDirectories.getKeys(names);
+		}
+		
+		// Iterate on directories
 		for(int i=0; i<names.size(); ++i)
 		try {
 			String name = names[i];
@@ -451,7 +456,7 @@ bool Indexer::process(String path, Resource &resource)
 			Time time = File::Time(realSubPath);
 			fileTime = std::max(fileTime, time);
 			
-			serializer.write(subResource.getDirectoryRecord(time));
+			serializer << subResource.getDirectoryRecord(time);
 		}
 		catch(const Exception &e)
 		{
@@ -493,7 +498,7 @@ bool Indexer::process(String path, Resource &resource)
 			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
 			record.digest = subResource.digest();
 			record.time = time;
-			serializer.write(record);
+			serializer << record;
 			
 			fileTime = std::max(fileTime, time);
 		}
@@ -516,25 +521,26 @@ bool Indexer::process(String path, Resource &resource)
 		
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
+		
+		//LogDebug("Indexer::process", "Processed: digest is " + resource.digest().toString());
 	}
-	else {
-		// Publish into DHT right now
-		// Store will publish the blocks anyway
-        	Network::Instance->storeValue(resource.digest(), Network::Instance->overlay()->localNode());
-	}
+	
+	// Publish into DHT right now
+	// Store will publish the blocks anyway
+	Network::Instance->storeValue(resource.digest(), Network::Instance->overlay()->localNode());
 	
 	// Mark as seen
 	Database::Statement statement = mDatabase->prepare("UPDATE resources SET seen=1 WHERE path=?1");
 	statement.bind(1, path);
 	statement.execute();
-
-	//yield();
+	
+	std::this_thread::yield();
 	return true;
 }
 
 bool Indexer::get(String path, Resource &resource, Time *time)
 {
-	std::unique_lock<std::recursive_mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -572,7 +578,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 
 void Indexer::notify(String path, const Resource &resource, const Time &time)
 {
-	std::unique_lock<std::recursive_mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
   
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
@@ -629,8 +635,6 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	accessSelectMap["personal"] = "Only me";
 
 	try {
-		std::unique_lock<std::recursive_mutex> lock(mMutex);	// TODO: There shouldn't be a global Synchronize
-
 		if(prefix.afterLast('/') == "explore")
 		{
 			if(url != "/") throw 404;
@@ -1286,8 +1290,6 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			}
 			else if(File::Exist(path))
 			{
-				lock.unlock();
-				
 				if(request.get.contains("play"))
 				{
 					String host;
@@ -1392,16 +1394,19 @@ void Indexer::update(String path)
 		path.resize(path.size() - 1);
 	if(path.empty()) path = "/";
 
-	//LogDebug("Indexer::process", "Updating: " + path);
+	//LogDebug("Indexer::update", "Updating: " + path);
 	
 	try {
-		std::unique_lock<std::recursive_mutex> lock(mMutex);
-		
 		if(path == "/")	// Top-level: Indexer directories
 		{
-			// Iterate on directories
 			Array<String> names;
-			mDirectories.getKeys(names);
+			
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				mDirectories.getKeys(names);
+			}
+			
+			// Iterate on directories
 			for(int i=0; i<names.size(); ++i)
 			{
 				String subpath = "/" + names[i];
@@ -1432,7 +1437,6 @@ void Indexer::update(String path)
 			}
 		}
 		
-		lock.unlock();
 		Resource dummy;
 		process(path, dummy);
 	}
@@ -1563,7 +1567,7 @@ void Indexer::run(void)
 	}
 	
 	{
-		std::unique_lock<std::recursive_mutex> lock(mMutex);
+		std::unique_lock<std::mutex> lock(mMutex);
 		mRunning = false;
 	}
 }

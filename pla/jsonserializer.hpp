@@ -33,8 +33,9 @@ class JsonSerializer : public Serializer
 {
 public:
 	JsonSerializer(Stream *stream);	// stream WON'T be destroyed
-	virtual ~JsonSerializer(void);
+	~JsonSerializer(void);
 	
+private:
 	bool read(Serializable &s);
 	bool read(std::string &str);
 	bool read(int8_t &i)	{ return readValue(i); }
@@ -75,7 +76,6 @@ public:
 	void writeMapNext(size_t i);
 	void writeMapEnd(void);
 	
-private:
   	template<typename T> bool readValue(T &value);
   	template<typename T> void writeValue(const T &value);
   

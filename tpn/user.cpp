@@ -577,10 +577,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.openLink("/"); page.image("/logo.png", APPNAME); page.closeLink();
 			page.close("div");
 
-			page.open("div","sear.hpp");
-			page.openForm(prefix + "/sear.hpp", "post", "searchForm");
+			page.open("div","search");
+			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text","query", "Search for files...");
-			//page.button("sear.hpp","Sear.hpp");
+			//page.button("search","Search");
 			page.closeForm();
 			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
 			page.javascript("$(document).ready(function() {\n\
@@ -642,7 +642,7 @@ void User::http(const String &prefix, Http::Request &request)
 			mIndexer->getDirectories(directories);
 			
 			page.link(prefix+"/files/","Edit",".button");
-			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refre.hpp", "refreshfiles.button");
+			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", "refreshfiles.button");
 			
 			page.open("h2");
 			page.text("Shared folders");
@@ -699,7 +699,7 @@ void User::http(const String &prefix, Http::Request &request)
 		url = "/" + directory.cut('/');
 		if(directory.empty()) throw 404;
 		
-		if(directory == "sear.hpp")
+		if(directory == "search")
 		{
 			if(url != "/") throw 404;
 			
@@ -722,13 +722,13 @@ void User::http(const String &prefix, Http::Request &request)
 				
 			Html page(response.stream);
 			
-			if(match.empty()) page.header(name() + ": Sear.hpp");
+			if(match.empty()) page.header(name() + ": Search");
 			else page.header(name() + ": Searching " + match);
 			
 			page.open("div","topmenu");
-			page.openForm(prefix + "/sear.hpp", "post", "searchForm");
+			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text", "query", match);
-			page.button("sear.hpp","Sear.hpp");
+			page.button("search","Search");
 			page.closeForm();
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");

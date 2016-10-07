@@ -138,7 +138,7 @@ void Board::process(void)
 		File tempFile(tempFileName, File::Truncate);
 		BinarySerializer serializer(&tempFile);
 		for(auto it = mMails.begin(); it != mMails.end(); ++it)
-			serializer.write(*it);
+			serializer << *it;
 		tempFile.close();
 		
 		// Move to cache and process

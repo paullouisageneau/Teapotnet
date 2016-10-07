@@ -56,7 +56,7 @@ AddressBook::AddressBook(User *user) :
 		try {
 			File file(mFileName, File::Read);
 			JsonSerializer serializer(&file);
-			serializer.read(*this);
+			serializer >> *this;
 			file.close();
 		}
 		catch(const Exception &e)
@@ -103,7 +103,7 @@ void AddressBook::save(void) const
 {
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
-	serializer.write(*this);
+	serializer << *this;
 	file.close();
 	
 	sptr<const Contact> self = getSelf();
@@ -498,14 +498,14 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								response.send();
 								
 								JsonSerializer json(response.stream);
-								json.write(Object()
+								json << Object()
 									.insert("identifier", identifier)
 									.insert("uname", name)
 									.insert("name", name)
 									.insert("prefix", prefix)
 									.insert("status", status)
 									.insert("messages", 0)
-									.insert("newmessages", false));
+									.insert("newmessages", false);
 								return;
 							}
 							
@@ -529,7 +529,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json.write(*this);
+				json << *this;
 				return;
 			}
 			
@@ -1006,7 +1006,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json.write(*this);
+				json << *this;
 				return;
 			}
 			
