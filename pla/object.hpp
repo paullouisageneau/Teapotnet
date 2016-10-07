@@ -38,7 +38,7 @@ private:
 	public:
 		Wrapper(T &v) : value(&v) {}
 		void serialize(Serializer &s) const { s << *value; }
-		bool deserialize(Serializer &s)	{ return !!(s >> *value); }
+		bool deserialize(Serializer &s) { return !!(s >> *value); }
 		
 	private:
 		T *value;
@@ -51,7 +51,7 @@ private:
 	public:
 		ConstWrapper(const T &v) : value(&v) {}
 		void serialize(Serializer &s) const { s << *value; }
-		bool deserialize(Serializer &s)	{ throw RuntimeException("deserialize on const object");}
+		bool deserialize(Serializer &s) { throw RuntimeException("deserialize on const object");}
 
 	private:
 		const T *value;
@@ -63,8 +63,8 @@ private:
 	{
 	public:
 		CopyWrapper(T &&v) : value(v) {}	// copy
-		void serialize(Serializer &s)	{ s << value; }
-		bool deserialize(Serializer &s)	{ throw RuntimeException("deserialize on temp object"); }
+		void serialize(Serializer &s) const { s << value; }
+		bool deserialize(Serializer &s) { throw RuntimeException("deserialize on temp object"); }
 
 	private:
 		T value;
