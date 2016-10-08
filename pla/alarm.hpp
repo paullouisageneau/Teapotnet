@@ -186,7 +186,7 @@ inline void Alarm::join(void)
 	}
 	
 	condition.notify_all();
-	thread.join();
+	if(thread.joinable()) thread.join();
 }
 
 }

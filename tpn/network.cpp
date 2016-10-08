@@ -55,7 +55,7 @@ Network::Network(int port) :
 
 Network::~Network(void)
 {
-	join();
+
 }
 
 void Network::join(void)

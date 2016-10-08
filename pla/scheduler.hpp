@@ -131,8 +131,7 @@ inline void Scheduler::join(void)
 	}
 	
 	scheduleCondition.notify_all();
-	thread.join();
-	
+	if(thread.joinable()) thread.join();
 	ThreadPool::join();
 }
 

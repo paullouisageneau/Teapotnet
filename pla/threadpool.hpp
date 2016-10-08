@@ -116,8 +116,14 @@ inline void ThreadPool::join(void)
 	
 	condition.notify_all();
 	
-	for(std::thread &worker: workers)
-		worker.join();
+	for(std::thread &w: workers)
+		if(w.joinable())
+			w.join();
+	
+	{
+		std::unique_lock<std::mutex> lock(mutex);
+		workers.clear();
+	}
 }
 
 }

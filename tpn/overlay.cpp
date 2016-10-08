@@ -97,7 +97,7 @@ Overlay::Overlay(int port) :
 
 Overlay::~Overlay(void)
 {
-	join();
+
 }
 
 void Overlay::load()
@@ -1411,6 +1411,8 @@ void Overlay::Handler::Sender::run(void)
 					return !mQueue.empty() || mStop;
 				});
 			}
+			
+			if(mStop) break;
 			
 			if(!mQueue.empty())
 			{
