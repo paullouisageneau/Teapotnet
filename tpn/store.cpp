@@ -72,10 +72,11 @@ Store::~Store(void)
 
 bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 {
+	// TODO: sinks should be independant
 	std::unique_lock<std::mutex> lock(mMutex);
-  
+	
 	if(hasBlock(digest)) return true;
-  
+	
 	Fountain::Sink &sink = mSinks[digest];
 	sink.solve(input);
 	if(!sink.isDecoded()) return false;
@@ -98,8 +99,9 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	int64_t size = sink.dump(file);
 	file.close();
 	
-	notifyBlock(digest, path, 0, size);
 	mSinks.erase(digest);
+
+	notifyBlock(digest, path, 0, size);
 	return true;
 }
 
@@ -128,8 +130,6 @@ unsigned Store::missing(const BinaryString &digest)
 
 bool Store::hasBlock(const BinaryString &digest)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
 	statement.bind(1, digest);
 	if(statement.step())
@@ -176,8 +176,6 @@ bool Store::waitBlock(const BinaryString &digest, duration timeout, const Binary
 
 File *Store::getBlock(const BinaryString &digest, int64_t &size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-  
 	Database::Statement statement = mDatabase->prepare("SELECT f.name, b.offset, b.size FROM blocks b LEFT JOIN files f ON f.id = b.file_id WHERE b.digest = ?1 LIMIT 1");
 	statement.bind(1, digest);
 	if(statement.step())
@@ -210,20 +208,16 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 {
 	//LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
 	
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
+	statement.bind(1, filename);
+	statement.execute();
 		
-		Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
-		statement.bind(1, filename);
-		statement.execute();
-		
-		statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
-		statement.bind(1, filename);
-		statement.bind(2, digest);
-		statement.bind(3, offset);
-		statement.bind(4, size);
-		statement.execute();
-	}
+	statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
+	statement.bind(1, filename);
+	statement.bind(2, digest);
+	statement.bind(3, offset);
+	statement.bind(4, size);
+	statement.execute();
 	
 	mCondition.notify_all();
 	
@@ -233,8 +227,6 @@ void Store::notifyBlock(const BinaryString &digest, const String &filename, int6
 
 void Store::notifyFileErasure(const String &filename)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	Database::Statement statement = mDatabase->prepare("DELETE FROM blocks WHERE file_id = (SELECT id FROM files WHERE name = ?1)");
 	statement.bind(1, filename);
 	statement.execute();
@@ -246,8 +238,6 @@ void Store::notifyFileErasure(const String &filename)
 
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(type == Permanent)
 	{
 		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND type = ?2");
@@ -269,8 +259,6 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
 	Identifier localNode = Network::Instance->overlay()->localNode();
-	
-	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
 	statement.bind(1, key);
@@ -294,8 +282,6 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 
 bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
 	statement.bind(1, key);
 	statement.bind(2, value);
@@ -307,18 +293,16 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 
 Time Store::getValueTime(const BinaryString &key, const BinaryString &value) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	Database::Statement statement = mDatabase->prepare("SELECT time FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
-        statement.bind(1, key);
-        statement.bind(2, value);
+	statement.bind(1, key);
+	statement.bind(2, value);
 
 	Time time(0);
-        if(statement.step())
+	if(statement.step())
 		statement.value(0, time);
-        statement.finalize();
-
-        return time;
+	statement.finalize();
+	
+	return time;
 }
 
 void Store::start(void)
@@ -337,12 +321,6 @@ void Store::start(void)
 
 void Store::run(void)
 {	
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		if(mRunning) return;
-		mRunning = true;
-	}
-	
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
 	const duration delay = seconds(1.);	// TODO
 	const int batch = 10;			// TODO
