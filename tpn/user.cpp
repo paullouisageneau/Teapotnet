@@ -816,6 +816,7 @@ bool User::deserialize(Serializer &s)
 	if(mAddressBook && mAddressBook->getSelf())
 		mAddressBook->setSelf(identifier());
 	
+	save();
 	return true;
 }
 

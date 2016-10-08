@@ -1340,6 +1340,8 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 	while(true)
 	{
 		Overlay::Message message;
+		sptr<Tunneler::Tunnel> tunnel;
+		uint64_t tunnelId = 0;
 		
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
@@ -1355,38 +1357,32 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			
 			message = mQueue.front();
 			mQueue.pop();
+			
+			// Read tunnel ID
+			if(!message.content.readBinary(tunnelId))
+				continue;
+			
+			// Find tunnel
+			auto it = mTunnels.find(tunnelId);
+			if(it != mTunnels.end())
+				tunnel = it->second;
 		}
 		
-		// Read tunnel ID
-		uint64_t tunnelId = 0;
-		if(!message.content.readBinary(tunnelId))
-			continue;
-		
-		auto it = mTunnels.find(tunnelId);
-		if(it == mTunnels.end())
+		if(tunnel)
 		{
+			//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+			tunnel->incoming(message);
+		}
+		else {
 			LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
 			
-			if(source) *source = message.source;
-			
-			Tunneler::Tunnel *tunnel = NULL;
-			SecureTransport *transport = NULL;
-			try {
-				tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
-				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-			}
-			catch(...)
-			{
-				delete tunnel;
-				throw;
-			}
-			
+			tunnel = std::make_shared<Tunneler::Tunnel>(this, tunnelId, message.source);
 			tunnel->incoming(message);
-			return transport;
+			registerTunnel(tunnelId, tunnel);
+			
+			if(source) *source = message.source;
+			return new SecureTransportServer(tunnel.get(), NULL, true);	// ask for certificate
 		}
-		
-		//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
-		it->second->incoming(message);
 	}
 	
 	return NULL;
@@ -1403,32 +1399,22 @@ bool Network::Tunneler::incoming(const Overlay::Message &message)
 	return true;
 }
 
-bool Network::Tunneler::registerTunnel(Tunnel *tunnel)
+void Network::Tunneler::registerTunnel(uint64_t id, sptr<Tunnel> tunnel)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(tunnel);
-	
-	Tunneler::Tunnel *t = NULL;
-	if(mTunnels.get(tunnel->id(), t))
-		return (t == tunnel);
-	
 	mTunnels.insert(tunnel->id(), tunnel);
-	return true;
 }
 
-bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
+void Network::Tunneler::unregisterTunnel(uint64_t id)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	Assert(tunnel);
-	
-	mPending.erase(tunnel->node());
-	
-	Tunneler::Tunnel *t = NULL;
-	if(!mTunnels.get(tunnel->id(), t) || t != tunnel)
-		return false;
-	
-	mTunnels.erase(tunnel->id());
-	return true;
+	auto it = mTunnels.find(id);
+	if(it != mTunnels.end())
+	{
+		mPending.erase(it->second->node());
+		mTunnels.erase(it);
+	}
 }
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
@@ -1555,7 +1541,6 @@ void Network::Tunneler::run(void)
 	while(true)
 	{
 		try {
-			
 			Identifier node;
 			SecureTransport *transport = listen(&node);
 			if(!transport) break;
@@ -1579,10 +1564,6 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 	mTimeout(milliseconds(Config::Get("idle_timeout").toDouble())),
 	mClosed(false)
 {
-	//LogDebug("Network::Tunneler::Tunnel", "Registering tunnel " + String::hexa(mId) + " to " + mNode.toString());
-	if(!mTunneler->registerTunnel(this))
-		throw Exception("Tunnel " + String::hexa(mId) + " is already registered");
-
 	mBuffer.writeBinary(mId);
 }
 
@@ -1596,7 +1577,7 @@ Network::Tunneler::Tunnel::~Tunnel(void)
 	mCondition.notify_all();
 	
 	//LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
-	mTunneler->unregisterTunnel(this);
+	mTunneler->unregisterTunnel(mId);
 }
 
 uint64_t Network::Tunneler::Tunnel::id(void) const
