@@ -551,10 +551,10 @@ void DatagramStream::setTimeout(duration timeout)
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(waitData(mTimeout))
 		throw Timeout();
+	
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	Assert(mOffset <= mIncoming.front().size());
 	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
