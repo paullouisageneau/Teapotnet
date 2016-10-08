@@ -296,19 +296,18 @@ private:
 		void write(const String &type, const String &record);
 		void push(const BinaryString &target, unsigned tokens);
 		void timeout(void);
-		
+
+	private:
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
-		
-	private:
-		int send(bool force = false);
 		
 		bool readRecord(String &type, String &record);
 		void writeRecord(const String &type, const String &record);
 		
 		bool recvCombination(BinaryString &target, Fountain::Combination &combination);
 		void sendCombination(const BinaryString &target, const Fountain::Combination &combination);
+		int send(bool force = false);
 		
 		void process(void);
 		void run(void);

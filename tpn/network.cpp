@@ -1751,8 +1751,6 @@ void Network::Handler::timeout(void)
 
 size_t Network::Handler::readData(char *buffer, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	size_t count = 0;
 	while(true)
 	{
@@ -1793,11 +1791,10 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 	}
 	
 	return count;
-}
+}	int send(bool force = false);
 
 void Network::Handler::writeData(const char *data, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
 	unsigned count = mSource.write(data, size);
@@ -1806,66 +1803,7 @@ void Network::Handler::writeData(const char *data, size_t size)
 
 void Network::Handler::flush(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	send(false);
-}
-
-int Network::Handler::send(bool force)
-{
-	if(mClosed) return 0;
-	
-	int count = 0;
-	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mAvailableTokens >= 1.))
-	{
-		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
-		
-		try {
-			BinaryString target;
-			Fountain::Combination combination;
-			mSource.generate(combination);
-			
-			if(!combination.isNull())
-			{
-				mAccumulator = std::max(0., mAccumulator - 1.);
-			}
-			else if(!mTargets.empty())
-			{
-				// Pick at random
-				int r = Random().uniform(0, int(mTargets.size()));
-				auto it = mTargets.begin();
-				while(r--) ++it;
-				Assert(it != mTargets.end());
-				
-				target = it->first;
-				unsigned &tokens = it->second;
-				
-				unsigned rank = 0;
-				Store::Instance->pull(target, combination, &rank);
-				
-				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
-				--tokens;
-			}
-			
-			if(!combination.isNull())
-				--mAvailableTokens;
-			
-			sendCombination(target, combination);
-			++count;	
-			force = false;
-		}
-		catch(const std::exception &e)
-		{
-			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
-			//mStream->close();
-			mClosed = true;
-			break;
-		}
-	}
-	
-	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.2;	// so the tunnel should not time out
-	if(mSource.rank() > 0) mTimeoutAlarm.schedule(mTimeout);
-	else mTimeoutAlarm.schedule(idleTimeout);
-	return count;
 }
 
 bool Network::Handler::readRecord(String &type, String &record)
@@ -1986,6 +1924,65 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 	mStream->writeBinary(combination.data(), combination.codedSize());
 	
 	mStream->nextWrite();
+}
+
+
+int Network::Handler::send(bool force)
+{
+	if(mClosed) return 0;
+	
+	int count = 0;
+	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mAvailableTokens >= 1.))
+	{
+		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
+		
+		try {
+			BinaryString target;
+			Fountain::Combination combination;
+			mSource.generate(combination);
+			
+			if(!combination.isNull())
+			{
+				mAccumulator = std::max(0., mAccumulator - 1.);
+			}
+			else if(!mTargets.empty())
+			{
+				// Pick at random
+				int r = Random().uniform(0, int(mTargets.size()));
+				auto it = mTargets.begin();
+				while(r--) ++it;
+				Assert(it != mTargets.end());
+				
+				target = it->first;
+				unsigned &tokens = it->second;
+				
+				unsigned rank = 0;
+				Store::Instance->pull(target, combination, &rank);
+				
+				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
+				--tokens;
+			}
+			
+			if(!combination.isNull())
+				--mAvailableTokens;
+			
+			sendCombination(target, combination);
+			++count;	
+			force = false;
+		}
+		catch(const std::exception &e)
+		{
+			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
+			//mStream->close();
+			mClosed = true;
+			break;
+		}
+	}
+	
+	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.2;	// so the tunnel should not time out
+	if(mSource.rank() > 0) mTimeoutAlarm.schedule(mTimeout);
+	else mTimeoutAlarm.schedule(idleTimeout);
+	return count;
 }
 
 void Network::Handler::process(void)
