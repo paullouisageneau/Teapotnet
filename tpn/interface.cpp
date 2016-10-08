@@ -52,14 +52,14 @@ Interface::~Interface(void)
 
 void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(interfaceable != NULL);
 	mPrefixes.insert(prefix, interfaceable);
 }
 
 void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	HttpInterfaceable *test = NULL;
 	if(mPrefixes.get(prefix, test) && (!interfaceable || test == interfaceable))
 		mPrefixes.erase(prefix);

@@ -342,9 +342,9 @@ private:
 	bool matchCallers(const Identifier &target, const Identifier &node);
 	bool matchListeners(const Identifier &identifier, const Identifier &node);
 	
-	void onConnected(const Link &link, bool status = true);
-	bool onRecv(const Link &link, const String &type, Serializer &serializer);
-	bool onAuth(const Link &link, const Rsa::PublicKey &pubKey);
+	void onConnected(const Link &link, bool status = true) const;
+	bool onRecv(const Link &link, const String &type, Serializer &serializer) const;
+	bool onAuth(const Link &link, const Rsa::PublicKey &pubKey) const;
 	
 	Overlay mOverlay;
 	Tunneler mTunneler;
@@ -360,7 +360,7 @@ private:
 	mutable std::mutex mPublishersMutex;
 	mutable std::mutex mSubscribersMutex;
 	mutable std::mutex mCallersMutex;
-	mutable std::mutex mListenersMutex;
+	mutable std::recursive_mutex mListenersMutex;	// recursive so listeners can call network on event
 	
 	std::thread mThread;
 	

@@ -48,7 +48,7 @@ PortMapping::~PortMapping(void)
 
 void PortMapping::enable(void)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mEnabled = true;
 	mAlarm.schedule(seconds(600.), [this]()
 	{
@@ -58,7 +58,7 @@ void PortMapping::enable(void)
 
 void PortMapping::disable(void)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	mEnabled = false;
 	mAlarm.cancel();
 
@@ -75,19 +75,19 @@ void PortMapping::disable(void)
 
 bool PortMapping::isEnabled(void) const
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mEnabled; 
 }
 
 bool PortMapping::isAvailable(void) const
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return !mExternalHost.empty(); 
 }
 
 String PortMapping::getExternalHost(void) const
 {	
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	return mExternalHost;
 }
 
@@ -102,7 +102,7 @@ void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 {
 	remove(protocol, internal);
 	
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	
 	Entry &entry = mMap[Descriptor(protocol, internal)];
 	entry.suggested = suggested;
@@ -113,7 +113,7 @@ void PortMapping::add(Protocol protocol, uint16_t internal, uint16_t suggested)
 
 void PortMapping::remove(Protocol protocol, uint16_t internal)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 
 	Descriptor descriptor(protocol, internal);
 	Entry entry;
@@ -126,7 +126,7 @@ void PortMapping::remove(Protocol protocol, uint16_t internal)
 
 bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) const
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(!mProtocol) return false;
 	
 	external = internal;
@@ -141,7 +141,7 @@ bool PortMapping::get(Protocol protocol, uint16_t internal, uint16_t &external) 
 
 void PortMapping::run(void)
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	if(!mEnabled) return;
 	
 	Set<Address> addresses;

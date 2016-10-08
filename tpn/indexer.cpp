@@ -168,7 +168,7 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 		Directory test(path);
 		test.close();
 		
-		Map<String, Entry>::iterator it = mDirectories.find(name);
+		auto it = mDirectories.find(name);
 		if(it != mDirectories.end())
 		{
 			it->second.path = path;
@@ -213,8 +213,6 @@ Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 
 bool Indexer::moveFileToCache(String &fileName, String name)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	// Check file size
 	int64_t fileSize = File::Size(fileName);
 	int64_t maxCacheFileSize = 0;
@@ -226,8 +224,14 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 	}
 	
 	// Create cache directory
-	if(!mDirectories.contains(CacheDirectoryName))
-        	addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Personal);
+	bool hasDirectory;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		hasDirectory = mDirectories.contains(CacheDirectoryName);
+	}
+	
+	if(!hasDirectory)
+		addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Personal);
 
 	Entry cacheEntry;
 	Assert(mDirectories.get(CacheDirectoryName, cacheEntry));
@@ -540,8 +544,6 @@ bool Indexer::process(String path, Resource &resource)
 
 bool Indexer::get(String path, Resource &resource, Time *time)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);
@@ -578,8 +580,6 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 
 void Indexer::notify(String path, const Resource &resource, const Time &time)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-  
 	// Sanitize path
 	if(!path.empty() && path[path.size() - 1] == Directory::Separator)
 		path.resize(path.size() - 1);

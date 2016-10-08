@@ -434,8 +434,8 @@ void Board::http(const String &prefix, Http::Request &request)
 			
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
-				for(auto it = mMergeUrls.begin(); it != mMergeUrls.end(); ++it)
-					page.javascript("setMailReceiver('"+Http::AppendParam(*it, "json")+"','#mail', "+String::number(refreshPeriod)+");");
+				for(auto &url : mMergeUrls)
+					page.javascript("setMailReceiver('"+Http::AppendParam(url, "json")+"','#mail', "+String::number(refreshPeriod)+");");
 			}
 			
 			page.footer();

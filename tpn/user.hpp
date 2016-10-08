@@ -79,8 +79,8 @@ public:
 	bool checkToken(const String &token, const String &action = "") const;
 	
 	Identifier identifier(void) const;
-	const Rsa::PublicKey  &publicKey(void) const;
-	const Rsa::PrivateKey &privateKey(void) const;
+	Rsa::PublicKey publicKey(void) const;
+	Rsa::PrivateKey privateKey(void) const;
 	sptr<SecureTransport::Certificate> certificate(void) const;
 	
 	void http(const String &prefix, Http::Request &request);

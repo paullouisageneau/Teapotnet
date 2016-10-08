@@ -435,13 +435,13 @@ Identifier User::identifier(void) const
 	return mPublicKey.digest();
 }
 
-const Rsa::PublicKey &User::publicKey(void) const
+Rsa::PublicKey User::publicKey(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey;
 }
 
-const Rsa::PrivateKey &User::privateKey(void) const
+Rsa::PrivateKey User::privateKey(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	return mPrivateKey;

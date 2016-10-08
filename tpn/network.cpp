@@ -137,7 +137,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	Assert(listener);
 	
 	{
-		std::unique_lock<std::mutex> lock(mListenersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 		mListeners[IdentifierPair(remote, local)].insert(listener);
 	}
 	
@@ -185,7 +185,7 @@ void Network::unregisterListener(const Identifier &local, const Identifier &remo
 	Assert(listener);
 	
 	{
-		std::unique_lock<std::mutex> lock(mListenersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 		
 		auto it = mListeners.find(IdentifierPair(remote, local));
 		if(it != mListeners.end())
@@ -365,158 +365,156 @@ void Network::run(void)
 	
 	unsigned loops = 0;
 	while(true)
-	{
-		try {
-			using clock = std::chrono::steady_clock;
-			std::chrono::time_point<clock> end;
-			end = clock::now() + std::chrono::duration_cast<clock::duration>(period);
-	
-			// Receive messages
-			while(std::chrono::steady_clock::now() <= end)
-			{
-				duration left = end - std::chrono::steady_clock::now();
-				
-				Overlay::Message message;
-				if(!mOverlay.recv(message, left))
-					break;
-				
-				//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
-				
-				switch(message.type)
-				{
-				// Value
-				case Overlay::Message::Value:
-					{
-						if(!message.content.empty() && 	message.content != mOverlay.localNode())
-						{
-							// It can be about a block
-							matchCallers(message.source, message.content);
-							
-							// Or it can be about a contact
-							matchListeners(message.source, message.content);
-						}
-						
-						break;
-					}
-					
-				// Call
-				case Overlay::Message::Call:
-					{
-						uint16_t tokens;
-						BinaryString target;
-						message.content.readBinary(tokens);
-						message.content.readBinary(target);
-						
-						if(Store::Instance->hasBlock(target))
-						{
-							if(tokens)
-							{
-								if(tokens < uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
-								else LogDebug("Network::run", "Called " + target.toString());
-							}
-							
-							mPusher.push(target, message.source, tokens);
-						}
-						else {
-							//LogDebug("Network::run", "Called (unknown) " + target.toString());
-						}
-						break;
-					}
-					
-				// Data
-				case Overlay::Message::Data:
-					{
-						BinarySerializer serializer(&message.content);
-						Fountain::Combination combination;
-						serializer >> combination;
-						combination.setCodedData(message.content);
-						if(Store::Instance->push(message.source, combination))
-						{
-							unregisterAllCallers(message.source);
-							
-							Set<BinaryString> nodes;
-							if(Store::Instance->retrieveValue(message.source, nodes))
-							{
-								BinaryString call;
-								call.writeBinary(uint16_t(0));
-								call.writeBinary(message.source);
-								
-								for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
-									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
-							}
-						}
-						break;
-					}
-					
-				// Tunnel
-				case Overlay::Message::Tunnel:
-					{
-						mTunneler.incoming(message);
-						break;
-					}
-				}
-			}
-			
-			// Send beacons
-			{
-				std::unique_lock<std::mutex> lock(mCallersMutex);
-				
-				for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
-				{
-					for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
-					{
-						if(!(*jt)->hint().empty())
-						{
-							Set<BinaryString> nodes;
-							if(Store::Instance->retrieveValue((*jt)->hint(), nodes))
-							{
-								uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
-								BinaryString call;
-								call.writeBinary(tokens);
-								call.writeBinary(it->first);
-								
-								for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
-									mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
-							}
-							else mOverlay.retrieve((*jt)->hint());
-						}
-					}
-					
-					mOverlay.retrieve(it->first);
-				}
-			}
-			
-			if(loops % 10 == 0)
-			{
-				Identifier node(mOverlay.localNode());
-				Set<Identifier> localIds;
-				Set<Identifier> remoteIds;
-				
-				for(auto &p : mListeners)
-				{
-					localIds.insert(p.first.second);
-					remoteIds.insert(p.first.first);
-				}
-				
-				for(auto &id : localIds)
-				{
-					storeValue(id, node);
-				}
-				
-				for(auto &id : remoteIds)
-				{
-					mOverlay.retrieve(id);
-				}
-				
-				//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
-			}
-		}
-		catch(const std::exception &e)
+	try {
+		++loops;
+		
+		using clock = std::chrono::steady_clock;
+		std::chrono::time_point<clock> end;
+		end = clock::now() + std::chrono::duration_cast<clock::duration>(period);
+
+		// Receive messages
+		while(std::chrono::steady_clock::now() <= end)
 		{
-			LogWarn("Network::run", e.what());
+			duration left = end - std::chrono::steady_clock::now();
+			
+			Overlay::Message message;
+			if(!mOverlay.recv(message, left))
+				break;
+			
+			//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
+			
+			switch(message.type)
+			{
+			// Value
+			case Overlay::Message::Value:
+				{
+					if(!message.content.empty() && 	message.content != mOverlay.localNode())
+					{
+						// It can be about a block
+						matchCallers(message.source, message.content);
+						
+						// Or it can be about a contact
+						matchListeners(message.source, message.content);
+					}
+					
+					break;
+				}
+				
+			// Call
+			case Overlay::Message::Call:
+				{
+					uint16_t tokens;
+					BinaryString target;
+					message.content.readBinary(tokens);
+					message.content.readBinary(target);
+					
+					if(Store::Instance->hasBlock(target))
+					{
+						if(tokens)
+						{
+							if(tokens < uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
+							else LogDebug("Network::run", "Called " + target.toString());
+						}
+						
+						mPusher.push(target, message.source, tokens);
+					}
+					else {
+						//LogDebug("Network::run", "Called (unknown) " + target.toString());
+					}
+					break;
+				}
+				
+			// Data
+			case Overlay::Message::Data:
+				{
+					BinarySerializer serializer(&message.content);
+					Fountain::Combination combination;
+					serializer >> combination;
+					combination.setCodedData(message.content);
+					if(Store::Instance->push(message.source, combination))
+					{
+						unregisterAllCallers(message.source);
+						
+						Set<BinaryString> nodes;
+						if(Store::Instance->retrieveValue(message.source, nodes))
+						{
+							BinaryString call;
+							call.writeBinary(uint16_t(0));
+							call.writeBinary(message.source);
+							
+							for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
+								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
+						}
+					}
+					break;
+				}
+				
+			// Tunnel
+			case Overlay::Message::Tunnel:
+				{
+					mTunneler.incoming(message);
+					break;
+				}
+			}
 		}
 		
-		++loops;
+		// Send beacons
+		{
+			std::unique_lock<std::mutex> lock(mCallersMutex);
+			
+			for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
+			{
+				for(Caller *caller : it->second)
+				{
+					if(!caller->hint().empty())
+					{
+						Set<BinaryString> nodes;
+						if(Store::Instance->retrieveValue(caller->hint(), nodes))
+						{
+							uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
+							BinaryString call;
+							call.writeBinary(tokens);
+							call.writeBinary(it->first);
+							
+							for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
+								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
+						}
+						else mOverlay.retrieve(caller->hint());
+					}
+				}
+				
+				mOverlay.retrieve(it->first);
+			}
+		}
+		
+		if(loops % 10 == 0)
+		{
+			Identifier node(mOverlay.localNode());
+			Set<Identifier> localIds;
+			Set<Identifier> remoteIds;
+			
+			for(auto &p : mListeners)
+			{
+				localIds.insert(p.first.second);
+				remoteIds.insert(p.first.first);
+			}
+			
+			for(auto &id : localIds)
+			{
+				storeValue(id, node);
+			}
+			
+			for(auto &id : remoteIds)
+			{
+				mOverlay.retrieve(id);
+			}
+			
+			//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Network::run", e.what());
 	}
 }
 
@@ -537,9 +535,9 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 		
 		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 		{
-			for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
+			for(Subscriber *subscriber : it->second)
 			{
-				if((*jt)->link() == link)
+				if(subscriber->link() == link)
 				{
 					send(link, "subscribe", 
 						Object()
@@ -586,8 +584,8 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	String serialized;
 	JsonSerializer(&serialized) << content;
 
-	std::unique_lock<std::mutex> lock1(mHandlersMutex,  std::defer_lock);
-	std::unique_lock<std::mutex> lock2(mListenersMutex, std::defer_lock);
+	std::unique_lock<std::mutex>           lock1(mHandlersMutex,  std::defer_lock);
+	std::unique_lock<std::recursive_mutex> lock2(mListenersMutex, std::defer_lock);
 	std::lock(lock1, lock2);
 	
 	bool success = false;
@@ -703,11 +701,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 		auto it = mPublishers.find(prefix);
 		if(it != mPublishers.end())
 		{
-			Set<Publisher*> set = it->second;
-			
-			for(auto jt = set.begin(); jt != set.end(); ++jt)
+			for(Publisher *publisher : it->second)
 			{
-				Publisher *publisher = *jt;
 				if(publisher->link() != link)
 					continue;
 				
@@ -767,10 +762,8 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 		auto it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
 		{
-			Set<Subscriber*> set = it->second;
-			for(auto jt = set.begin(); jt != set.end(); ++jt)
+			for(Subscriber *subscriber : it->second)
 			{
-				Subscriber *subscriber = *jt;
 				if(subscriber->link() != link)
 					continue;
 				
@@ -820,12 +813,8 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 		auto it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
 		{
-			Set<Subscriber*> set = it->second;
-			for(auto jt = set.begin();
-				jt != set.end();
-				++jt)
+			for(Subscriber *subscriber : it->second)
 			{
-				Subscriber *subscriber = *jt;
 				if(subscriber->link() != link)
 					continue;
 				
@@ -867,7 +856,7 @@ bool Network::matchListeners(const Identifier &identifier, const Identifier &nod
 	if(node == mOverlay.localNode())
 		return false;
 	
-	std::unique_lock<std::mutex> lock(mListenersMutex);
+	std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.lower_bound(IdentifierPair(identifier, Identifier::Empty));	// pair is (remote, local)
 	if(it == mListeners.end())
@@ -885,9 +874,9 @@ bool Network::matchListeners(const Identifier &identifier, const Identifier &nod
 	return true;
 }
 
-void Network::onConnected(const Link &link, bool status)
+void Network::onConnected(const Link &link, bool status) const
 {
-	std::unique_lock<std::mutex> lock(mListenersMutex);
+	std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return;
@@ -903,9 +892,9 @@ void Network::onConnected(const Link &link, bool status)
 	}
 }
 
-bool Network::onRecv(const Link &link, const String &type, Serializer &serializer)
+bool Network::onRecv(const Link &link, const String &type, Serializer &serializer) const
 {
-	std::unique_lock<std::mutex> lock(mListenersMutex);
+	std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return false;
@@ -921,9 +910,9 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 	return ret;
 }
 
-bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey)
+bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey) const
 {
-	std::unique_lock<std::mutex> lock(mListenersMutex);
+	std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
 	
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return false;
@@ -1634,7 +1623,6 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
 	mBuffer.writeBinary(data, size);
 }
 
