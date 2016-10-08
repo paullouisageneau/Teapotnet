@@ -1702,7 +1702,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 Network::Handler::~Handler(void)
 {
 	mStream->close();
-	mThread.join();
+	if(mThread.joinable()) mThread.join();
 	delete mStream;
 }
 

@@ -900,7 +900,7 @@ void AddressBook::Contact::connected(const Network::Link &link, bool status)
 	
 	if(status)
 	{
-		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": " + link.node.toString() + " is connected");
+		LogDebug("AddressBook::Contact", "Contact " + uniqueName() + " on " + link.node.toString() + " is connected");
 		
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
