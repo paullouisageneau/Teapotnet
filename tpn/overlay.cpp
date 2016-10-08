@@ -485,17 +485,15 @@ bool Overlay::push(Message &message)
 
 bool Overlay::route(const Message &message, const BinaryString &from)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	// Drop if TTL is zero
 	if(message.ttl == 0) return false;
-	
-	// Drop if not connected
-	if(mHandlers.empty()) return false;
 	
 	// Drop if self
 	if(message.destination == localNode()) return false;
 	
+	// Drop if not connected
+	if(mHandlers.empty()) return false;
+		
 	// Neighbor
 	if(mHandlers.contains(message.destination))
 		return sendTo(message, message.destination);
