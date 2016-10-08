@@ -89,8 +89,12 @@ inline Alarm::Alarm(void) : time(time_point::min()), stop(false)
 			}
 			else {
 				this->time = time_point::min();
-				lock.unlock();
-				if(this->function) this->function();
+				if(this->function) 
+				{
+					std::function<void()> f = this->function;
+					lock.unlock();
+					f();
+				}
 			}
 		}
 	});
