@@ -81,7 +81,12 @@ Overlay::Overlay(int port) :
 	// Create backends
 	mBackends.push_back(std::make_shared<DatagramBackend>(this, port));
 	mBackends.push_back(std::make_shared<StreamBackend>(this, port));
-	// TODO
+	
+	for(auto b : mBackends)
+		mPool.enqueue([b]()
+		{
+			b->run();
+		});
 
 	// Start
 	mRunAlarm.schedule(Alarm::clock::now(), [this]()
@@ -153,11 +158,10 @@ void Overlay::getAddresses(Set<Address> &set) const
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	set.clear();
-	for(auto it = mBackends.begin(); it != mBackends.end(); ++it)
+	for(auto b : mBackends)
 	{
-		sptr<Backend> backend = *it;
 		Set<Address> backendSet;
-		backend->getAddresses(backendSet);
+		b->getAddresses(backendSet);
 		set.insertAll(backendSet);
 	}
 }
@@ -889,7 +893,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	}
 }
 
-void Overlay::Backend::operator()(void)
+void Overlay::Backend::run(void)
 {
 	while(true)
 	{
@@ -899,7 +903,7 @@ void Overlay::Backend::operator()(void)
 			transport = listen(&addr);
 			if(!transport) break;
 			
-			LogDebug("Overlay::Backend::operator()", "Incoming connection from " + addr.toString());
+			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 			
 			mOverlay->mPool.enqueue([this, transport, addr]()
 			{
@@ -908,18 +912,18 @@ void Overlay::Backend::operator()(void)
 				}
 				catch(const std::exception &e)
 				{
-					LogDebug("Overlay::Backend::operator()", e.what());
+					LogDebug("Overlay::Backend::run", e.what());
 				}
 			});
 		}
 		catch(const std::exception &e)
 		{
-			LogError("Overlay::Backend::operator()", e.what());
+			LogError("Overlay::Backend::run", e.what());
 			delete transport;
 		}
 	}
 	
-	LogWarn("Overlay::Backend::operator()", "Closing backend");
+	LogWarn("Overlay::Backend::run", "Closing backend");
 }
 
 Overlay::StreamBackend::StreamBackend(Overlay *overlay, int port) :

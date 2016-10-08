@@ -145,12 +145,12 @@ private:
 		
 		virtual bool connect(const Set<Address> &addrs, const BinaryString &remote = "") = 0;
 		virtual SecureTransport *listen(Address *addr = NULL) = 0;
-		
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
+		
+		void run(void);
 		
 	protected:
 		bool handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote = "");
-		void operator()(void);
 
 		Overlay *mOverlay;
 	};
