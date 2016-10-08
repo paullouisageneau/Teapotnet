@@ -361,6 +361,27 @@ private:
 	
 	std::thread mThread;
 	
+	class Pusher
+	{
+	public:
+		Pusher(void);
+		~Pusher(void);
+		
+		void push(const BinaryString &target, const Identifier &destination, unsigned tokens);
+		void run(void);
+		
+	private:
+		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
+		unsigned mRedundant;
+		
+		mutable std::mutex mMutex;
+		mutable std::condition_variable mCondition;
+		
+		std::thread mThread;
+	};
+	
+	Pusher mPusher;
+
 	friend class Handler;
 };
 

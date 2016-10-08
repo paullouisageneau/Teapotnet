@@ -415,8 +415,7 @@ void Network::run(void)
 								else LogDebug("Network::run", "Called " + target.toString());
 							}
 							
-							// TODO
-							//mPusher.push(target, message.source, tokens);
+							mPusher.push(target, message.source, tokens);
 						}
 						else {
 							//LogDebug("Network::run", "Called (unknown) " + target.toString());
@@ -2023,6 +2022,104 @@ void Network::Handler::run(void)
 	}
 	
 	Network::Instance->unregisterHandler(mLink);
+}
+
+Network::Pusher::Pusher(void) :
+	mRedundant(16)	// TODO
+{
+	mThread = std::thread([this]()
+	{
+		run();
+	});
+}
+
+Network::Pusher::~Pusher(void)
+{
+	
+}
+
+void Network::Pusher::push(const BinaryString &target, const Identifier &destination, unsigned tokens)
+{
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		if(tokens < uint16_t(-1))
+		{
+			if(tokens < mRedundant) tokens*=2;
+			else tokens+= mRedundant;
+		}
+		
+		if(tokens) mTargets[target][destination] = tokens;
+		else {
+			mTargets[target].erase(destination);
+			if(mTargets[target].empty())
+				mTargets.erase(target);
+		}
+	}
+	
+	mCondition.notify_all();
+}
+
+void Network::Pusher::run(void)
+{
+	while(true)
+	try {
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		if(mTargets.empty())
+		{
+			mCondition.wait(lock, [this]() {
+				return !mTargets.empty();
+			});
+		}
+		
+		bool congestion = false;	// local congestion
+		auto it = mTargets.begin();
+		while(it != mTargets.end())
+		{
+			const BinaryString &target = it->first;
+			
+			auto jt = it->second.begin();
+			while(jt != it->second.end())
+			{
+				const Identifier &destination = jt->first;
+				unsigned &tokens = jt->second;
+				
+				if(tokens)
+				{
+					unsigned rank = 0;
+					Fountain::Combination combination;
+					Store::Instance->pull(target, combination, &rank);
+					
+					tokens = std::min(tokens, rank + mRedundant);
+					--tokens;
+					
+					Overlay::Message data(Overlay::Message::Data, "", destination, target);
+					BinarySerializer serializer(&data.content);
+					serializer << combination;
+					data.content.writeBinary(combination.data(), combination.codedSize());
+					
+					congestion|= Network::Instance->overlay()->send(data);
+				}
+				
+				if(!tokens) it->second.erase(jt++);
+				else ++jt;
+			}
+			
+			if(it->second.empty()) mTargets.erase(it++);
+			else ++it;
+		}
+		
+		if(congestion)
+		{
+			lock.unlock();
+			std::this_thread::yield();
+		}
+	}
+	catch(const std::exception &e)
+	{
+		LogWarn("Network::Pusher::run", e.what());
+	}
 }
 
 }
