@@ -1282,13 +1282,9 @@ Network::Tunneler::~Tunneler(void)
 
 bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!node.empty());
 	Assert(!remote.empty());
 	Assert(user);
-	
-	if(mPending.contains(node))
-		return false;
 	
 	if(node == Network::Instance->overlay()->localNode())
 		return false;
@@ -1298,6 +1294,15 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		if(mPending.contains(node))
+			return false;
+		
+		mPending.insert(node);
+	}
 	
 	uint64_t tunnelId = 0;
 	Random().readBinary(tunnelId);	// Generate random tunnel ID
@@ -1314,6 +1319,9 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	catch(...)
 	{
 		delete tunnel;
+		
+		std::unique_lock<std::mutex> lock(mMutex);
+		mPending.erase(node);
 		throw;
 	}
 	
@@ -1323,8 +1331,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	// Add certificates
 	//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
 	transport->addCredentials(user->certificate().get(), false);
-	
-	mPending.insert(node);
 	
 	return handshake(transport, Link(local, remote, node), async);
 }
@@ -1428,7 +1434,6 @@ bool Network::Tunneler::unregisterTunnel(Tunnel *tunnel)
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!link.node.empty());
 	
 	class MyVerifier : public SecureTransport::Verifier
