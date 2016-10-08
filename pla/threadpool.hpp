@@ -100,7 +100,10 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 	{
 		std::unique_lock<std::mutex> lock(mutex);
 		if(this->stop) throw std::runtime_error("enqueue on stopped ThreadPool");
-		tasks.emplace([task](){ (*task)(); });
+		tasks.emplace([task]()
+		{
+			(*task)();
+		});
 	}
 	
 	condition.notify_one();

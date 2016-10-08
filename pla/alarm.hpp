@@ -118,7 +118,11 @@ auto Alarm::set(F&& f, Args&&... args)
 
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		this->function = [task]() { (*task)(); };
+		this->function = [task]() 
+		{ 
+			(*task)();
+			task->reset();
+		};
 	}
 	
 	return result;
@@ -136,8 +140,12 @@ auto Alarm::schedule(time_point time, F&& f, Args&&... args)
 	{
 		std::unique_lock<std::mutex> lock(mutex);
 		if(this->stop) throw std::runtime_error("schedule on stopped Alarm");
-		this->function = [task]() { (*task)(); };
 		this->time = time;
+		this->function = [task]() 
+		{
+			(*task)();
+			task->reset();
+		};
 	}
 	
 	condition.notify_all();
