@@ -551,7 +551,7 @@ void DatagramStream::setTimeout(duration timeout)
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	if(waitData(mTimeout))
+	if(!waitData(mTimeout))
 		throw Timeout();
 	
 	std::unique_lock<std::mutex> lock(mMutex);
