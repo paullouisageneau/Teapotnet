@@ -1295,6 +1295,11 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
+	uint64_t tunnelId = 0;
+	Random().readBinary(tunnelId);	// Generate random tunnel ID
+	BinaryString local = user->identifier();
+	
+	SecureTransport *transport = NULL;
 	{
 		std::unique_lock<std::mutex> lock(mTunnelsMutex);
 		
@@ -1302,36 +1307,30 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 			return false;
 		
 		mPending.insert(node);
+	
+		//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + " (id " + String::hexa(tunnelId) + ")");
+		
+		Tunneler::Tunnel *tunnel = NULL;
+		try {
+			tunnel = new Tunneler::Tunnel(this, tunnelId, node);
+			transport = new SecureTransportClient(tunnel, NULL);
+			mTunnels.insert(tunnel->id(), tunnel);
+			
+			// Set remote name
+			transport->setHostname(remote.toString());
+			
+			// Add certificates
+			//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
+			transport->addCredentials(user->certificate().get(), false);
+		}
+		catch(...)
+		{
+			delete tunnel;
+			delete transport;
+			mPending.erase(node);
+			throw;
+		}
 	}
-	
-	uint64_t tunnelId = 0;
-	Random().readBinary(tunnelId);	// Generate random tunnel ID
-	BinaryString local = user->identifier();
-	
-	//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + " (id " + String::hexa(tunnelId) + ")");
-	
-	Tunneler::Tunnel *tunnel = NULL;
-	SecureTransport *transport = NULL;
-	try {
-		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
-		transport = new SecureTransportClient(tunnel, NULL);
-		registerTunnel(tunnelId, tunnel);
-	}
-	catch(...)
-	{
-		delete tunnel;
-		delete transport;
-		std::unique_lock<std::mutex> lock(mTunnelsMutex);
-		mPending.erase(node);
-		throw;
-	}
-	
-	// Set remote name
-	transport->setHostname(remote.toString());
-	
-	// Add certificates
-	//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
-	transport->addCredentials(user->certificate().get(), false);
 	
 	return handshake(transport, Link(local, remote, node), async);
 }
@@ -1383,7 +1382,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				try {
 					tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
 					transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-					registerTunnel(tunnelId, tunnel);
+					mTunnels.insert(tunnel->id(), tunnel);
 				}
 				catch(...)
 				{
