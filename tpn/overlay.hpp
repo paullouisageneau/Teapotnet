@@ -96,7 +96,6 @@ public:
 	
 	void load(void);
 	void save(void) const;
-	
 	void join(void);
 	
 	// Global
@@ -123,8 +122,6 @@ public:
 	void retrieve(const BinaryString &key);					// async
 	bool retrieve(const BinaryString &key, Set<BinaryString> &values);	// sync
 	
-	void run(void);
-	
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
 	
@@ -137,6 +134,8 @@ private:
 	bool sendTo(const Message &message, const BinaryString &to);
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
+	
+	void run(void);
 	
 	class Backend
 	{

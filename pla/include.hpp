@@ -337,7 +337,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	tmp<<file<<':'<<std::dec<<line;
 	oss<<tmp.str();
 	if(tmp.str().size() < 30) oss<<std::string(30-tmp.str().size(), ' ');
-	oss<<' '<<std::setw(3)<<mythreadid<<' '<<std::setw(24)<<prefix<<' ';
+	oss<<' '<<std::setw(3)<<mythreadid<<' '<<std::setw(30)<<prefix<<' ';
 #endif
 	oss<<std::setw(8)<<strLevel<<' '<<value;
 	

@@ -83,8 +83,8 @@ Overlay::Overlay(int port) :
 	mBackends.push_back(std::make_shared<StreamBackend>(this, port));
 	// TODO
 
-	// Set alarm
-	mRunAlarm.set([this]()
+	// Start
+	mRunAlarm.schedule(Alarm::clock::now(), [this]()
 	{
 		run();
 	});
@@ -114,6 +114,7 @@ void Overlay::save() const
 
 void Overlay::join(void)
 {
+	mRunAlarm.join();
 	mPool.join();
 }
 
@@ -309,49 +310,6 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 	mRetrievePending.erase(key);
 	Store::Instance->retrieveValue(key, values);
 	return !values.empty();
-}
-
-void Overlay::run(void)
-{
-	try {
-		const int minConnectionsCount = Config::Get("min_connections").toInt();
-
-		Map<BinaryString, Set<Address> > result;
-		if(track(Config::Get("tracker"), result))
-			if(connectionsCount() < minConnectionsCount)
-				for(auto it = result.begin(); it != result.end(); ++it)
-				{
-					if(it->first == localNode())
-					{
-						// Store external addresses for Offer messages
-						mLocalAddresses = it->second;
-					}
-					else {
-						connect(it->second, it->first, false);	// sync
-					}
-				}
-		
-		Set<Address> addrs;
-		Config::GetExternalAddresses(addrs);
-		addrs.insertAll(mLocalAddresses);
-		
-		// TODO: external address discovery by other nodes
-		
-		if(!addrs.empty())
-		{
-			BinaryString content;
-			BinarySerializer(&content) << addrs;
-			broadcast(Message(Message::Offer, content));
-		}
-		
-		if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(Random().uniform(0.,120.)));	// avg 1 min
-		else mRunAlarm.schedule(seconds(600.));   // 10 min
-	}
-	catch(const std::exception &e)
-	{
-		LogError("Overlay::run", e.what());
-		mRunAlarm.schedule(seconds(60.));   // 1 min	
-	}
 }
 
 bool Overlay::incoming(Message &message, const BinaryString &from)
@@ -785,6 +743,49 @@ bool Overlay::deserialize(Serializer &s)
 	
 	// TODO: Sanitize
 	return true;
+}
+
+void Overlay::run(void)
+{
+	try {
+		const int minConnectionsCount = Config::Get("min_connections").toInt();
+
+		Map<BinaryString, Set<Address> > result;
+		if(track(Config::Get("tracker"), result))
+			if(connectionsCount() < minConnectionsCount)
+				for(auto it = result.begin(); it != result.end(); ++it)
+				{
+					if(it->first == localNode())
+					{
+						// Store external addresses for Offer messages
+						mLocalAddresses = it->second;
+					}
+					else {
+						connect(it->second, it->first, false);	// sync
+					}
+				}
+		
+		Set<Address> addrs;
+		Config::GetExternalAddresses(addrs);
+		addrs.insertAll(mLocalAddresses);
+		
+		// TODO: external address discovery by other nodes
+		
+		if(!addrs.empty())
+		{
+			BinaryString content;
+			BinarySerializer(&content) << addrs;
+			broadcast(Message(Message::Offer, content));
+		}
+		
+		if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(Random().uniform(0.,120.)));	// avg 1 min
+		else mRunAlarm.schedule(seconds(600.));   // 10 min
+	}
+	catch(const std::exception &e)
+	{
+		LogError("Overlay::run", e.what());
+		mRunAlarm.schedule(seconds(60.));   // 1 min	
+	}
 }
 
 Overlay::Message::Message(void)
