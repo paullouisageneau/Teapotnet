@@ -114,7 +114,6 @@ void Overlay::save() const
 
 void Overlay::join(void)
 {
-	mRunAlarm.join();
 	mPool.join();
 }
 
@@ -166,28 +165,25 @@ void Overlay::getAddresses(Set<Address> &set) const
 bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
 {
 	try {
-		std::unique_lock<std::mutex> lock(mMutex);
-		
 		if(isConnected(remote)) return true;
 		
 		Set<Address> filteredAddrs;
-		for(auto it = addrs.begin(); it != addrs.end(); ++it)
+		for(auto &a : addrs)
 		{
-			Address tmp(*it);
+			Address tmp(a);
 			tmp.setPort(0);	// so it matches any port
 			if(!mRemoteAddresses.contains(tmp))
-				filteredAddrs.insert(*it);
+				filteredAddrs.insert(a);
 		}
 		
 		if(!filteredAddrs.empty())
 		{
-			auto connectTask = [this, filteredAddrs, remote]()
+			auto connectTask = [filteredAddrs, remote](List<sptr<Backend> > backends)
 			{
-				for(auto it = mBackends.begin(); it != mBackends.end(); ++it)
+				for(auto b : backends)
 				{
 					try {
-						sptr<Backend> backend = *it;
-						if(backend->connect(filteredAddrs, remote))
+						if(b->connect(filteredAddrs, remote))
 							return true;
 					}
 					catch(const std::exception &e)
@@ -201,11 +197,11 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 			
 			if(async)
 			{
-				mPool.enqueue(connectTask);
+				mPool.enqueue(connectTask, mBackends);
 				return true;
 			}
 			else {
-				return connectTask();
+				return connectTask(mBackends);
 			}
 		}
 	}
