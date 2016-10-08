@@ -1463,7 +1463,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			return true;	// continue handshake anyway
 		}
 		
-		bool verifyPublicKey(const Array<Rsa::PublicKey> &chain)
+		bool verifyPublicKey(const std::vector<Rsa::PublicKey> &chain)
 		{
 			if(chain.empty()) return false;
 			publicKey = chain[0];
