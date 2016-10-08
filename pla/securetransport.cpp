@@ -112,12 +112,8 @@ SecureTransport::~SecureTransport(void)
 	delete mStream;
 	delete mBuffer;
 	
-	for(List<Credentials*>::iterator it = mCredsToDelete.begin();
-		it != mCredsToDelete.end();
-		++it)
-	{
-		delete *it;      
-	}
+	for(auto &c : mCredsToDelete)
+		delete c;
 }
 
 void SecureTransport::addCredentials(Credentials *creds, bool mustDelete)

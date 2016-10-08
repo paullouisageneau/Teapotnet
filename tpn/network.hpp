@@ -265,22 +265,26 @@ private:
 			std::condition_variable mCondition;
 		};
 		
-		void registerTunnel(uint64_t id, sptr<Tunnel> tunnel);
+		void registerTunnel(uint64_t id, Tunnel *tunnel);
 		void unregisterTunnel(uint64_t id);
 		
 		SecureTransport *listen(BinaryString *source);
 
 		bool handshake(SecureTransport *transport, const Link &link, bool async = false);
 		
-		Map<uint64_t, sptr<Tunnel> > mTunnels;
-		Queue<Overlay::Message> mQueue;		// Queue for listening
+		Map<uint64_t, Tunnel*> mTunnels;	// Tunnels
 		Set<BinaryString> mPending;		// Pending nodes
+		
+		mutable std::mutex mTunnelsMutex;
+		
+		Queue<Overlay::Message> mQueue;		// Queue for listening
 		ThreadPool mPool;
 		bool mStop;
 		
-		std::thread mThread;
 		mutable std::mutex mMutex;
 		mutable std::condition_variable mCondition;
+		
+		std::thread mThread;
 	};
 	
 	class Handler : private Stream

@@ -1296,7 +1296,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 		return false;
 	
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
+		std::unique_lock<std::mutex> lock(mTunnelsMutex);
 		
 		if(mPending.contains(node))
 			return false;
@@ -1315,12 +1315,13 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	try {
 		tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 		transport = new SecureTransportClient(tunnel, NULL);
+		registerTunnel(tunnelId, tunnel);
 	}
 	catch(...)
 	{
 		delete tunnel;
-		
-		std::unique_lock<std::mutex> lock(mMutex);
+		delete transport;
+		std::unique_lock<std::mutex> lock(mTunnelsMutex);
 		mPending.erase(node);
 		throw;
 	}
@@ -1340,7 +1341,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 	while(true)
 	{
 		Overlay::Message message;
-		sptr<Tunneler::Tunnel> tunnel;
+		Tunneler::Tunnel *tunnel;
 		uint64_t tunnelId = 0;
 		
 		{
@@ -1357,31 +1358,46 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			
 			message = mQueue.front();
 			mQueue.pop();
-			
-			// Read tunnel ID
-			if(!message.content.readBinary(tunnelId))
-				continue;
+		}
+		
+		// Read tunnel ID
+		if(!message.content.readBinary(tunnelId))
+			continue;
+		
+		{
+			std::unique_lock<std::mutex> lock(mTunnelsMutex);
 			
 			// Find tunnel
 			auto it = mTunnels.find(tunnelId);
 			if(it != mTunnels.end())
 				tunnel = it->second;
-		}
-		
-		if(tunnel)
-		{
-			//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
-			tunnel->incoming(message);
-		}
-		else {
-			LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
-			
-			tunnel = std::make_shared<Tunneler::Tunnel>(this, tunnelId, message.source);
-			tunnel->incoming(message);
-			registerTunnel(tunnelId, tunnel);
-			
-			if(source) *source = message.source;
-			return new SecureTransportServer(tunnel.get(), NULL, true);	// ask for certificate
+
+			if(tunnel)
+			{
+				//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+				tunnel->incoming(message);
+			}
+			else {
+				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
+				
+				SecureTransport *transport = NULL;
+				try {
+					tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
+					transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
+					registerTunnel(tunnelId, tunnel);
+				}
+				catch(...)
+				{
+					delete tunnel;
+					delete transport;
+					throw;
+				}
+				
+				tunnel->incoming(message);
+				
+				if(source) *source = message.source;
+				return transport;
+			}
 		}
 	}
 	
@@ -1399,16 +1415,16 @@ bool Network::Tunneler::incoming(const Overlay::Message &message)
 	return true;
 }
 
-void Network::Tunneler::registerTunnel(uint64_t id, sptr<Tunnel> tunnel)
+void Network::Tunneler::registerTunnel(uint64_t id, Tunnel *tunnel)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mTunnelsMutex);
 	Assert(tunnel);
 	mTunnels.insert(tunnel->id(), tunnel);
 }
 
 void Network::Tunneler::unregisterTunnel(uint64_t id)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mTunnelsMutex);
 	auto it = mTunnels.find(id);
 	if(it != mTunnels.end())
 	{
