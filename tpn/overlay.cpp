@@ -120,6 +120,7 @@ void Overlay::save() const
 void Overlay::join(void)
 {
 	mPool.join();
+	mRunAlarm.join();
 }
 
 String Overlay::localName(void) const

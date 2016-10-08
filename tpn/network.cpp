@@ -60,8 +60,8 @@ Network::~Network(void)
 
 void Network::join(void)
 {
-	mOverlay.join();
 	mThread.join();
+	mOverlay.join();
 }
 
 Overlay *Network::overlay(void)
