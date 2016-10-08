@@ -779,40 +779,42 @@ void User::serialize(Serializer &s) const
 
 bool User::deserialize(Serializer &s)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
-	Identifier oldIdentifier = mPublicKey.digest();
-	
-	mPublicKey.clear();
-	mPrivateKey.clear();
-	mSecret.clear();
-	
-	if(!(s >> Object()
-		.insert("publickey", mPublicKey)
-		.insert("privatekey", mPrivateKey)
-		.insert("secret", mSecret)))
-		return false;
-	
-	if(!mPublicKey.isNull() && !mPrivateKey.isNull())
 	{
-		Identifier identifier = mPublicKey.digest();
+		std::unique_lock<std::mutex> lock(mMutex);
 		
-		// Register
-		if(oldIdentifier != identifier)
+		Identifier oldIdentifier = mPublicKey.digest();
+		
+		mPublicKey.clear();
+		mPrivateKey.clear();
+		mSecret.clear();
+		
+		if(!(s >> Object()
+			.insert("publickey", mPublicKey)
+			.insert("privatekey", mPrivateKey)
+			.insert("secret", mSecret)))
+			return false;
+		
+		if(!mPublicKey.isNull() && !mPrivateKey.isNull())
 		{
-			UsersMutex.lock();
-			UsersByIdentifier.erase(oldIdentifier);
-			UsersByIdentifier.insert(identifier, this);
-			UsersMutex.unlock();
+			Identifier identifier = mPublicKey.digest();
+			
+			// Register
+			if(oldIdentifier != identifier)
+			{
+				UsersMutex.lock();
+				UsersByIdentifier.erase(oldIdentifier);
+				UsersByIdentifier.insert(identifier, this);
+				UsersMutex.unlock();
+			}
+			
+			// Reload certificate
+			mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
 		}
-		
-		// Reload certificate
-		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
-		
-		// Reload self contact is it exists
-		if(mAddressBook && mAddressBook->getSelf())
-			mAddressBook->setSelf(identifier);
 	}
+	
+	// Reload self contact is it exists
+	if(mAddressBook && mAddressBook->getSelf())
+		mAddressBook->setSelf(identifier());
 	
 	return true;
 }
