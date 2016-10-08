@@ -1677,7 +1677,7 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 {
 	if(message.type != Overlay::Message::Tunnel)
 		return false;
-
+	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mQueue.push(message);
@@ -1720,6 +1720,7 @@ Network::Handler::~Handler(void)
 
 void Network::Handler::write(const String &type, const String &record)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	writeRecord(type, record);
 }
 
@@ -1746,38 +1747,6 @@ void Network::Handler::timeout(void)
 	// Inactivity timeout is handled by Tunnel
 	if(mAvailableTokens < 1.) mAvailableTokens = 1.;
 	send(true);
-}
-
-bool Network::Handler::readRecord(String &type, String &record)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	if(mClosed) return false;
-	
-	try {
-		if(readBinary(type))
-		{
-			AssertIO(readBinary(record));
-			return true;
-		}
-	}
-	catch(std::exception &e)
-	{
-		//LogDebug("Network::Handler::read", e.what());
-		mClosed = true;
-		throw Exception("Connection lost");
-	}
-	
-	mClosed = true;
-	return false;
-}
-
-void Network::Handler::writeRecord(const String &type, const String &record)
-{
-	BinaryString buffer;
-	buffer.writeBinary(type);
-	buffer.writeBinary(record);
-	writeData(buffer.data(), buffer.size());
-	flush();
 }
 
 size_t Network::Handler::readData(char *buffer, size_t size)
@@ -1837,12 +1806,12 @@ void Network::Handler::writeData(const char *data, size_t size)
 
 void Network::Handler::flush(void)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
 	send(false);
 }
 
 int Network::Handler::send(bool force)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return 0;
 	
 	int count = 0;
@@ -1899,6 +1868,37 @@ int Network::Handler::send(bool force)
 	return count;
 }
 
+bool Network::Handler::readRecord(String &type, String &record)
+{
+	if(mClosed) return false;
+	
+	try {
+		if(readBinary(type))
+		{
+			AssertIO(readBinary(record));
+			return true;
+		}
+	}
+	catch(std::exception &e)
+	{
+		//LogDebug("Network::Handler::read", e.what());
+		mClosed = true;
+		throw Exception("Connection lost");
+	}
+	
+	mClosed = true;
+	return false;
+}
+
+void Network::Handler::writeRecord(const String &type, const String &record)
+{
+	BinaryString buffer;
+	buffer.writeBinary(type);
+	buffer.writeBinary(record);
+	writeData(buffer.data(), buffer.size());
+	flush();
+}
+
 bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combination &combination)
 {
 	BinarySerializer s(mStream);
@@ -1930,7 +1930,6 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	
 	mStream->nextRead();
 	
-	std::unique_lock<std::mutex> lock(mMutex);
 	unsigned backlog = nextSeen - std::min(nextDecoded, nextSeen);
 	unsigned dropped = mSource.drop(nextSeen);
 	
@@ -1966,7 +1965,6 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 	uint32_t nextDecoded = mSink.nextDecoded();
 	mAvailableTokens = std::max(0., mAvailableTokens - 1.);
 	
-	std::unique_lock<std::mutex> lock(mMutex);
 	BinarySerializer s(mStream);
 	
 	// 32-bit header
