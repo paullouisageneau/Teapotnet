@@ -315,9 +315,6 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 
 bool Overlay::incoming(Message &message, const BinaryString &from)
 {
-	//TODO: sync
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	// Route if necessary
 	if((message.type & 0x80) && !message.destination.empty() && message.destination != localNode())
 	{
@@ -578,12 +575,16 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 
 int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	result.clear();
 	
 	Map<BinaryString, BinaryString> sorted;
 	Array<BinaryString> neighbors;
-	mHandlers.getKeys(neighbors);
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mHandlers.getKeys(neighbors);
+	}
+
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
 	
