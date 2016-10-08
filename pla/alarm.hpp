@@ -73,23 +73,24 @@ inline Alarm::Alarm(void) : time(time_point::min()), stop(false)
 {
 	this->thread = std::thread([this]()
 	{
-		std::unique_lock<std::mutex> lock(mutex);
 		while(true)
 		{
+			std::unique_lock<std::mutex> lock(mutex);
+			
 			if(this->time == time_point::min())
 			{
 				if(this->stop) break;
 				this->condition.wait(lock);
 			}
+			
+			if(this->time > clock::now())
+			{
+				this->condition.wait_until(lock, this->time);
+			}
 			else {
-				if(this->time > clock::now())
-				{
-					this->condition.wait_until(lock, this->time);
-				}
-				else {
-					this->time = time_point::min();
-					if(function) this->function();
-				}
+				this->time = time_point::min();
+				lock.unlock();
+				if(this->function) this->function();
 			}
 		}
 	});
