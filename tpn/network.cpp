@@ -1341,9 +1341,6 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 	while(true)
 	{
 		Overlay::Message message;
-		Tunneler::Tunnel *tunnel;
-		uint64_t tunnelId = 0;
-		
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
 			
@@ -1361,6 +1358,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 		}
 		
 		// Read tunnel ID
+		uint64_t tunnelId = 0;
 		if(!message.content.readBinary(tunnelId))
 			continue;
 		
@@ -1368,6 +1366,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			std::unique_lock<std::mutex> lock(mTunnelsMutex);
 			
 			// Find tunnel
+			Tunneler::Tunnel *tunnel = NULL;
 			auto it = mTunnels.find(tunnelId);
 			if(it != mTunnels.end())
 				tunnel = it->second;
@@ -1681,7 +1680,7 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 		return false;
 
 	{
-		std::unique_lock<std::mutex> lock(mMutex);	
+		std::unique_lock<std::mutex> lock(mMutex);
 		mQueue.push(message);
 	}
 	
