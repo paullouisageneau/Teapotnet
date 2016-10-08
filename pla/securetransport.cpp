@@ -153,8 +153,8 @@ void SecureTransport::setDatagramTimeout(duration timeout, duration retransTimeo
 {
 	if(mStream->isDatagram())
 		gnutls_dtls_set_timeouts(mSession,
-				std::chrono::duration_cast<std::chrono::milliseconds>(retransTimeout).count(),
-				std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+			std::chrono::duration_cast<std::chrono::milliseconds>(retransTimeout).count(),
+			std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 }
 
 void SecureTransport::handshake(void)
@@ -177,11 +177,11 @@ void SecureTransport::handshake(void)
 	//LogDebug("SecureTransport::handshake", "Performing handshake...");
 	int ret;
 	do {
-                ret = gnutls_handshake(mSession);
-        }
-        while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
+		ret = gnutls_handshake(mSession);
+	}
+	while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
 	
-        if(ret < 0) 
+	if(ret < 0)
 	{
 		if(ret == GNUTLS_E_TIMEDOUT) throw Timeout();
 		else throw Exception(String("TLS handshake failed: ") + ErrorString(ret));

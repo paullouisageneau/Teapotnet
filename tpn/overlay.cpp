@@ -855,7 +855,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	public:
 		Rsa::PublicKey publicKey;
 		
-		bool verifyPublicKey(const Array<Rsa::PublicKey> &chain)
+		bool verifyPublicKey(const std::vector<Rsa::PublicKey> &chain)
 		{
 			if(chain.empty()) return false;
 			publicKey = chain[0];
