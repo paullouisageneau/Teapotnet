@@ -1337,57 +1337,56 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
-	while(!mStop)
+	while(true)
 	{
-		mCondition.wait(lock, [this]() {
-			return mStop || !mQueue.empty();
-		});
+		Overlay::Message message;
 		
-		if(mStop) break;
-		
-		try {
-			Overlay::Message &message = mQueue.front();
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
 			
-			// Read tunnel ID
-			uint64_t tunnelId = 0;
-			if(!message.content.readBinary(tunnelId))
-				continue;
-			
-			auto it = mTunnels.find(tunnelId);
-			if(it == mTunnels.end())
+			if(mQueue.empty() && !mStop)
 			{
-				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
-				
-				if(source) *source = message.source;
-				
-				Tunneler::Tunnel *tunnel = NULL;
-				SecureTransport *transport = NULL;
-				try {
-					tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
-					transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
-				}
-				catch(...)
-				{
-					delete tunnel;
-					throw;
-				}
-				
-				tunnel->incoming(message);
-				mQueue.pop();
-				return transport;
+				mCondition.wait(lock, [this]() {
+					return !mQueue.empty() || mStop;
+				});
 			}
 			
-			//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
-			it->second->incoming(message);
+			if(mStop) break;
+			
+			message = mQueue.front();
 			mQueue.pop();
 		}
-		catch(...)
+		
+		// Read tunnel ID
+		uint64_t tunnelId = 0;
+		if(!message.content.readBinary(tunnelId))
+			continue;
+		
+		auto it = mTunnels.find(tunnelId);
+		if(it == mTunnels.end())
 		{
-			mQueue.pop();
-			throw;
+			LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() /*+ " (id " + String::hexa(tunnelId) + ")"*/);
+			
+			if(source) *source = message.source;
+			
+			Tunneler::Tunnel *tunnel = NULL;
+			SecureTransport *transport = NULL;
+			try {
+				tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
+				transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
+			}
+			catch(...)
+			{
+				delete tunnel;
+				throw;
+			}
+			
+			tunnel->incoming(message);
+			return transport;
 		}
+		
+		//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+		it->second->incoming(message);
 	}
 	
 	return NULL;
