@@ -244,7 +244,7 @@ private:
 		std::thread mSenderThread;
 	};
 
-	void registerHandler(const BinaryString &node, const Address &addr, Handler *handler);
+	void registerHandler(const BinaryString &node, const Address &addr, sptr<Handler> handler);
 	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 	
 	bool track(const String &tracker, Map<BinaryString, Set<Address> > &result);
@@ -258,7 +258,7 @@ private:
 	sptr<SecureTransport::Certificate> mCertificate;
 
 	List<sptr<Backend> > mBackends;
-	Map<BinaryString, Handler*> mHandlers;
+	Map<BinaryString, sptr<Handler> > mHandlers;
 	Set<Address> mRemoteAddresses, mLocalAddresses;
 	
 	Queue<Message> mIncoming;

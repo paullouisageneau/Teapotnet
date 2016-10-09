@@ -551,7 +551,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	onConnected(link, true);
 }
 
-void Network::unregisterHandler(const Link &link)
+void Network::unregisterHandler(const Link &link, Handler *handler)
 {
 	Assert(!link.local.empty());
 	Assert(!link.remote.empty());
@@ -559,7 +559,9 @@ void Network::unregisterHandler(const Link &link)
 	
 	{
 		std::unique_lock<std::mutex> lock(mHandlersMutex);
-		if(!mHandlers.contains(link))
+		
+		sptr<Handler> h;
+		if(!mHandlers.get(link, h) || h.get() != handler)
 			return;
 		
 		mHandlers.erase(link);
@@ -2003,7 +2005,7 @@ void Network::Handler::run(void)
 		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
-	Network::Instance->unregisterHandler(mLink);
+	Network::Instance->unregisterHandler(mLink, this);
 }
 
 Network::Pusher::Pusher(void) :

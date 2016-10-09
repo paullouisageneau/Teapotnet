@@ -521,7 +521,7 @@ bool Overlay::broadcast(const Message &message, const BinaryString &from)
 	{
 		if(!from.empty() && neighbors[i] == from) continue;
 		
-		Handler *handler;
+		sptr<Handler> handler;
 		if(mHandlers.get(neighbors[i], handler))
 		{
 			success|= handler->send(message);
@@ -539,7 +539,7 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 		return true;
 	}
 	
-	Handler *handler;
+	sptr<Handler> handler;
 	if(mHandlers.get(to, handler))
 	{
 		//LogDebug("Overlay::sendTo", "Sending message via " + to.toString());
@@ -592,14 +592,14 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 	return result.size();
 }
 
-void Overlay::registerHandler(const BinaryString &node, const Address &addr, Overlay::Handler *handler)
+void Overlay::registerHandler(const BinaryString &node, const Address &addr, sptr<Overlay::Handler> handler)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
 	mRemoteAddresses.insert(addr);
 	
 	Set<Address> otherAddrs;
-	Handler *h = NULL;
+	sptr<Handler> h;
 	if(mHandlers.get(node, h))
 	{
 		mHandlers.erase(node);
@@ -627,14 +627,14 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Handler *h = NULL;
-	if(mHandlers.get(node, h) && h == handler)
-	{
-		for(auto it = addrs.begin(); it != addrs.end(); ++it)
-			mRemoteAddresses.erase(*it);
+	sptr<Handler> h;
+	if(!mHandlers.get(node, h) || h.get() != handler)
+		return;
 		
-		mHandlers.erase(node);
-	}
+	for(auto &a : addrs)
+		mRemoteAddresses.erase(a);
+	
+	mHandlers.erase(node);
 
 	// If it was the last handler, try to reconnect now
 	if(mHandlers.empty())
@@ -884,7 +884,8 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 		// Handshake succeeded
 		LogDebug("Overlay::Backend::handshake", "Handshake succeeded");
 		
-		Handler *handler = new Handler(mOverlay, transport, identifier, addr);
+		sptr<Handler> handler = std::make_shared<Handler>(mOverlay, transport, identifier, addr);
+		mOverlay->registerHandler(identifier, addr, handler);
 		return true;
 	}
 	else {
@@ -1215,7 +1216,6 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 		throw Exception("Spawned a handler for local node");
 	
 	addAddress(addr);
-	mOverlay->registerHandler(mNode, addr, this);
 
 	mSenderThread = std::thread([this]()
 	{

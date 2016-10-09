@@ -330,7 +330,7 @@ private:
 	};
 	
 	void registerHandler(const Link &link, sptr<Handler> handler);
-	void unregisterHandler(const Link &link);
+	void unregisterHandler(const Link &link, Handler *handler);
 	
 	bool outgoing(const String &type, const Serializable &content);
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
