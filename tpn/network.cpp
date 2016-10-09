@@ -1705,7 +1705,7 @@ Network::Handler::~Handler(void)
 {
 	mStream->close();
 	
-	if(mThread.get_id() != std::this_thread::get_id() && mThread.joinable()) 
+	if(mThread.joinable()) 
 		mThread.join();
 	
 	delete mStream;
@@ -2008,6 +2008,7 @@ void Network::Handler::run(void)
 		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
 	
+	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();	// prevent deadlock
 	Network::Instance->unregisterHandler(mLink, this);
 }
 
