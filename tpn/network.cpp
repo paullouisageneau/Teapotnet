@@ -1705,7 +1705,7 @@ Network::Handler::~Handler(void)
 {
 	mStream->close();
 	
-	if(mThread.get_id() != std::this_thread::id() && mThread.joinable()) 
+	if(mThread.get_id() != std::this_thread::get_id() && mThread.joinable()) 
 		mThread.join();
 	
 	delete mStream;
