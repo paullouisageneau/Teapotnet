@@ -1251,7 +1251,7 @@ void Network::Listener::ignore(void)
 }
 
 Network::Tunneler::Tunneler(void) : 
-	mPool(2),	// TODO 
+	mPool(3),	// TODO 
 	mStop(false)
 {
 	mThread = std::thread([this]()
