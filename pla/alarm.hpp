@@ -198,7 +198,9 @@ inline void Alarm::join(void)
 	}
 	
 	condition.notify_all();
-	if(thread.joinable()) thread.join();
+	
+	if(thread.get_id() == std::this_thread::get_id()) thread.detach();
+	else if(thread.joinable()) thread.join();
 }
 
 }
