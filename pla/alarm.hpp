@@ -67,48 +67,14 @@ private:
 	std::function<void()> function;
 	time_point time;
 	bool stop;
+	
+	static thread_local bool AutoDeleted;
 };
-
-inline Alarm::Alarm(void) : time(time_point::min()), stop(false)
-{
-	this->thread = std::thread([this]()
-	{
-		while(true)
-		{
-			std::unique_lock<std::mutex> lock(mutex);
-			
-			if(this->time == time_point::min())
-			{
-				if(this->stop) break;
-				this->condition.wait(lock);
-			}
-			
-			if(this->time > clock::now())
-			{
-				this->condition.wait_until(lock, this->time);
-			}
-			else {
-				this->time = time_point::min();
-				if(this->function) 
-				{
-					std::function<void()> f = this->function;
-					lock.unlock();
-					f();
-				}
-			}
-		}
-	});
-}
 
 template<class F, class... Args>
 Alarm::Alarm(F&& f, Args&&... args) : Alarm()
 {
 	set(std::forward<F>(f), std::forward<Args>(args)...);
-}
-
-inline Alarm::~Alarm(void)
-{
-	join();
 }
 
 template<class F, class... Args>
@@ -162,45 +128,6 @@ auto Alarm::schedule(duration d, F&& f, Args&&... args)
 	-> std::future<typename std::result_of<F(Args...)>::type>
 {
 	return schedule(clock::now() + d, std::forward<F>(f), std::forward<Args>(args)...);
-}
-
-inline void Alarm::schedule(time_point time)
-{
-	{
-		std::unique_lock<std::mutex> lock(mutex);
-		if(this->stop) throw std::runtime_error("reschedule on stopped Alarm");
-		this->time = time;
-	}
-	
-	condition.notify_all();
-}
-
-inline void Alarm::schedule(duration d)
-{
-	schedule(clock::now() + d);
-}
-
-inline void Alarm::cancel(void)
-{
-	{
-		std::unique_lock<std::mutex> lock(mutex);
-		this->time = time_point::min();
-	}
-	
-	condition.notify_all();
-}
-
-inline void Alarm::join(void)
-{
-	{
-		std::unique_lock<std::mutex> lock(mutex);
-		this->stop = true;
-	}
-	
-	condition.notify_all();
-	
-	if(thread.get_id() == std::this_thread::get_id()) thread.detach();
-	else if(thread.joinable()) thread.join();
 }
 
 }
