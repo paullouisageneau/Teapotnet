@@ -39,11 +39,11 @@ LineSerializer::~LineSerializer(void)
  
 bool LineSerializer::read(Serializable &s)
 {
-	if(s.isInlineSerializable() && !s.isNativeSerializable())
+	if(s.isInlineSerializable())
 	{
-		String line;
-		if(!Serializer::read(line)) return false;
-		s.fromString(line);
+		std::string line;
+		if(!read(line) || line.empty()) return false;
+		s.fromString(String(line));
 		return true;
 	}
 	else {
@@ -54,24 +54,36 @@ bool LineSerializer::read(Serializable &s)
 bool LineSerializer::read(std::string &str)
 {
 	// TODO: unescape
-	return mStream->readLine(str);
+	String tmp;
+	bool ret = mStream->readUntil(tmp, String(Stream::NewLine) + "=");
+	str = tmp;
+	return ret;
 }
 
 void LineSerializer::write(const Serializable &s)
 {
-	if(s.isInlineSerializable() && !s.isNativeSerializable())
+	if(s.isInlineSerializable())
 	{
-		Serializer::write(s.toString());
+		write(static_cast<const std::string &>(s.toString()));
 	}
 	else {
-		s.serialize(*this);	
+		s.serialize(*this);
 	}
 }
 
 void LineSerializer::write(const std::string &str)
 {	
 	// TODO: escape
-	mStream->writeLine(str);
+	mStream->write(String(str));
+
+	if(mKey) 
+	{
+		mStream->write('=');
+		mKey = false;
+	}
+	else {
+		mStream->write(Stream::NewLine);
+	}
 }
 
 bool LineSerializer::readArrayBegin(void)
@@ -94,9 +106,29 @@ bool LineSerializer::readMapNext(void)
 	return !mStream->atEnd();
 }
 
+void LineSerializer::writeArrayBegin(size_t size)
+{
+	// Dummy
+}
+
+void LineSerializer::writeArrayNext(size_t i)
+{
+	mKey = false;
+}
+
 void LineSerializer::writeArrayEnd(void)
 {
 	mStream->newline();
+}
+
+void LineSerializer::writeMapBegin(size_t size)
+{
+	// Dummy
+}
+
+void LineSerializer::writeMapNext(size_t i)
+{
+	mKey = true;
 }
 
 void LineSerializer::writeMapEnd(void)

@@ -71,10 +71,15 @@ private:
 	bool	readMapBegin(void);
 	bool	readMapNext(void);
 
-	void	writeArrayEnd(void);
-	void	writeMapEnd(void);
-	
+	void writeArrayBegin(size_t size);
+	void writeArrayNext(size_t i);
+	void writeArrayEnd(void);
+	void writeMapBegin(size_t size);
+	void writeMapNext(size_t i);
+	void writeMapEnd(void);
+
 	Stream *mStream;
+	bool mKey = false;
 };
 
 }
