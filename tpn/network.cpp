@@ -311,12 +311,18 @@ void Network::issue(String prefix, const String &path, Publisher *publisher, con
 
 void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
-	std::unique_lock<std::mutex> lock(mSubscribersMutex);
+	sptr<RemoteSubscriber> subscriber;
+	{
+		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		
+		if(!mRemoteSubscribers[link].get(path, subscriber))
+		{
+			subscriber = std::make_shared<RemoteSubscriber>(link);
+			mRemoteSubscribers[link].insert(path, subscriber);
+		}
+	}
 	
-	if(!mRemoteSubscribers[link].contains(path))
-		mRemoteSubscribers[link].insert(path, std::make_shared<RemoteSubscriber>(link));
-	
-	mRemoteSubscribers[link][path]->subscribe(path);
+	subscriber->subscribe(path);
 }
 
 bool Network::broadcast(const Identifier &local, const String &type, const Serializable &object)
