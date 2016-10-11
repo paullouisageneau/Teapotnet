@@ -1790,7 +1790,6 @@ void Network::Handler::writeString(const String &str)
 	char zero = '\0';
 	writeBinary(str.data(), str.size());
 	writeBinary(&zero, 1);
-	flush();
 }
 
 size_t Network::Handler::readData(char *buffer, size_t size)
