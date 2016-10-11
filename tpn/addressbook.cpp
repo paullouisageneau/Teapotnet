@@ -955,7 +955,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			std::unique_lock<std::mutex> lock(mMutex);
 			mInstances[link.node] = instance;
 			mRemoteSecret = remoteSecret;
-			mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+			mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), mName);
 		}
 		
 		mAddressBook->save();
