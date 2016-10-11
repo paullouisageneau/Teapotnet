@@ -937,7 +937,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 {
 	if(!mAddressBook) return false;
 	
-	//LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
+	LogDebug("AddressBook::Contact", "Contact " + uniqueName() + ": received message (type=\"" + type + "\")");
 	
 	if(type == "info")
 	{
@@ -947,8 +947,12 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("instance", instance)
 			.insert("secret", remoteSecret);
 		
-		BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
-		sptr<Board> board = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+		sptr<Board> board;
+		if(!isSelf())
+		{
+			BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
+			board = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+		}
 		
 		LogDebug("AddressBook::Contact", "Remote instance name is \"" + instance + "\"");
 		
