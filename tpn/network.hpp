@@ -298,12 +298,15 @@ private:
 		void timeout(void);
 
 	private:
+		bool readRecord(String &type, String &record);
+		void writeRecord(const String &type, const String &record);
+		
+		bool readString(String &str);
+		void writeString(const String &str);
+		
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
-		
-		bool readRecord(String &type, String &record);
-		void writeRecord(const String &type, const String &record);
 		
 		bool recvCombination(BinaryString &target, Fountain::Combination &combination);
 		void sendCombination(const BinaryString &target, const Fountain::Combination &combination);

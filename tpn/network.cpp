@@ -381,7 +381,7 @@ void Network::run(void)
 			if(!mOverlay.recv(message, left))
 				break;
 			
-			LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
+			//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
 			
 			switch(message.type)
 			{
@@ -1742,8 +1742,61 @@ void Network::Handler::timeout(void)
 	send(true);
 }
 
+
+bool Network::Handler::readRecord(String &type, String &record)
+{
+	if(mClosed) return false;
+	
+	try {
+		if(readString(type))
+		{
+			AssertIO(readString(record));
+			return true;
+		}
+	}
+	catch(std::exception &e)
+	{
+		//LogDebug("Network::Handler::read", e.what());
+		mClosed = true;
+		throw Exception("Connection lost");
+	}
+	
+	mClosed = true;
+	return false;
+}
+
+void Network::Handler::writeRecord(const String &type, const String &record)
+{
+	writeString(type);
+	writeString(record);
+	flush();
+}
+
+bool Network::Handler::readString(String &str)
+{
+	char chr;
+	while(readBinary(&chr, 1))
+	{
+		VAR(chr);
+		if(chr == '\0') return true;
+		str+= chr;
+	}
+	
+	return false;
+}
+
+void Network::Handler::writeString(const String &str)
+{
+	char zero = '\0';
+	writeBinary(str.data(), str.size());
+	writeBinary(&zero, 1);
+	flush();
+}
+
 size_t Network::Handler::readData(char *buffer, size_t size)
 {
+	if(!size) return 0;
+	
 	size_t count = 0;
 	while(true)
 	{
@@ -1756,8 +1809,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			size-= r;
 		}
 		
-		if(!size)
-			break;
+		if(count) break;
 		
 		// We need more combinations
 		BinaryString target;
@@ -1784,7 +1836,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 	}
 	
 	return count;
-}	int send(bool force = false);
+}
 
 void Network::Handler::writeData(const char *data, size_t size)
 {
@@ -1797,37 +1849,6 @@ void Network::Handler::writeData(const char *data, size_t size)
 void Network::Handler::flush(void)
 {
 	send(false);
-}
-
-bool Network::Handler::readRecord(String &type, String &record)
-{
-	if(mClosed) return false;
-	
-	try {
-		if(readBinary(type))
-		{
-			AssertIO(readBinary(record));
-			return true;
-		}
-	}
-	catch(std::exception &e)
-	{
-		//LogDebug("Network::Handler::read", e.what());
-		mClosed = true;
-		throw Exception("Connection lost");
-	}
-	
-	mClosed = true;
-	return false;
-}
-
-void Network::Handler::writeRecord(const String &type, const String &record)
-{
-	BinaryString buffer;
-	buffer.writeBinary(type);
-	buffer.writeBinary(record);
-	writeData(buffer.data(), buffer.size());
-	flush();
 }
 
 bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combination &combination)
