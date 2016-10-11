@@ -172,7 +172,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 				{
 					send(link, "subscribe", 
 						Object()
-							.insert("path", &it->first));
+							.insert("path", it->first));
 					break;
 				}
 			}
@@ -255,7 +255,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		// Immediatly send subscribe message
 		send(subscriber->link(), "subscribe", 
 			Object()
-				.insert("path", &prefix));
+				.insert("path", prefix));
 		
 		// Retrieve from cache
 		Set<BinaryString> targets;
@@ -541,7 +541,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 				{
 					send(link, "subscribe", 
 						Object()
-							.insert("path", &it->first));
+							.insert("path", it->first));
 					break;
 				}
 			}
@@ -626,9 +626,9 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		Mail mail;
 		List<BinaryString> targets;
 		serializer >> Object()
-				.insert("path", &path)
-				.insert("message", &mail)
-				.insert("targets", &targets);
+				.insert("path", path)
+				.insert("message", mail)
+				.insert("targets", targets);
 		
 		// We check in cache to prevent publishing loops
 		BinaryString key = Store::Hash(path);
@@ -658,7 +658,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	{
 		String path;
 		serializer >> Object()
-				.insert("path", &path);
+				.insert("path", path);
 		
 		addRemoteSubscriber(link, path);
 	}
@@ -666,7 +666,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	{
 		String name;
 		serializer >> Object()
-				.insert("name", &name);
+				.insert("name", name);
 		
 		User *user = User::GetByIdentifier(link.local);
 		if(user && !name.empty()) user->invite(link.remote, name);
@@ -727,8 +727,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 	
 				send(link, "publish",
 					Object()
-						.insert("path", &path)
-						.insert("targets", &targets));
+						.insert("path", path)
+						.insert("targets", targets));
 			}
 		}
 		
@@ -1149,8 +1149,8 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 		
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", &prefix)
-				.insert("targets", &targets));
+				.insert("path", prefix)
+				.insert("targets", targets));
 	}
 }
 
@@ -1160,8 +1160,8 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 	{
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", &prefix)
-				.insert("message", &mail));
+				.insert("path", prefix)
+				.insert("message", mail));
 	}
 }
 
