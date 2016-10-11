@@ -204,7 +204,7 @@ void Network::publish(String prefix, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publish", "Publishing " + prefix);
+	LogDebug("Network::publish", "Publishing " + prefix);
 	
 	{
 		std::unique_lock<std::mutex> lock(mPublishersMutex);
@@ -239,7 +239,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::subscribe", "Subscribing " + prefix);
+	LogDebug("Network::subscribe", "Subscribing " + prefix);
 	
 	{
 		std::unique_lock<std::mutex> lock(mSubscribersMutex);
@@ -292,7 +292,7 @@ void Network::advertise(String prefix, const String &path, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::publish", "Advertising " + prefix + path);
+	LogDebug("Network::publish", "Advertising " + prefix + path);
 
 	matchSubscribers(prefix, publisher->link(), publisher);
 }
@@ -304,7 +304,7 @@ void Network::issue(String prefix, const String &path, Publisher *publisher, con
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	//LogDebug("Network::issue", "Issuing " + mail.digest().toString());
+	LogDebug("Network::issue", "Issuing " + mail.digest().toString());
 	
 	matchSubscribers(prefix, publisher->link(), mail);
 }
@@ -381,7 +381,7 @@ void Network::run(void)
 			if(!mOverlay.recv(message, left))
 				break;
 			
-			//LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
+			LogDebug("Network::incoming", "Processing message, type: " + String::hexa(unsigned(message.type)));
 			
 			switch(message.type)
 			{
@@ -612,7 +612,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
+	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
@@ -723,7 +723,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			
 			if(!targets.empty())	// remote
 			{
-				//LogDebug("Network::Handler::incoming", "Anouncing " + path);
+				LogDebug("Network::Handler::incoming", "Anouncing " + path);
 	
 				send(link, "publish",
 					Object()
