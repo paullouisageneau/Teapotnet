@@ -948,14 +948,15 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			.insert("secret", remoteSecret);
 		
 		BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
-			
+		sptr<Board> board = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+		
 		LogDebug("AddressBook::Contact", "Remote instance name is \"" + instance + "\"");
 		
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
 			mInstances[link.node] = instance;
 			mRemoteSecret = remoteSecret;
-			mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), mName);
+			mPrivateBoard = board;
 		}
 		
 		mAddressBook->save();
