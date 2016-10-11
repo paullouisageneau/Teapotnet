@@ -1774,10 +1774,11 @@ void Network::Handler::writeRecord(const String &type, const String &record)
 
 bool Network::Handler::readString(String &str)
 {
+	str.clear();
+	
 	char chr;
 	while(readBinary(&chr, 1))
 	{
-		VAR(chr);
 		if(chr == '\0') return true;
 		str+= chr;
 	}
