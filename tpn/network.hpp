@@ -320,6 +320,7 @@ private:
 		Alarm mTimeoutAlarm;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
+		BinaryString		mSourceBuffer;
 		Map<BinaryString, unsigned> mTargets;
 
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator;

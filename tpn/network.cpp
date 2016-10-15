@@ -1729,9 +1729,7 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	if(mClosed) return;
 	
 	if(tokens < uint16_t(-1))
-	{
 		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
-	}
 	
 	if(tokens) mTargets[target] = tokens;
 	else mTargets.erase(target);
@@ -1848,12 +1846,18 @@ void Network::Handler::writeData(const char *data, size_t size)
 {
 	if(mClosed) return;
 	
-	unsigned count = mSource.write(data, size);
-	mAccumulator+= mRedundancy*count;
+	mSourceBuffer.writeData(data, size);
 }
 
 void Network::Handler::flush(void)
 {
+	if(!mSourceBuffer.empty())
+	{
+		unsigned count = mSource.write(mSourceBuffer.data(), mSourceBuffer.size());
+		mAccumulator+= mRedundancy*count;
+		mSourceBuffer.clear();
+	}
+	
 	send(false);
 }
 

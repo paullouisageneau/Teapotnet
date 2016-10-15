@@ -165,7 +165,7 @@ Fountain::Combination::~Combination(void)
 
 void Fountain::Combination::addComponent(unsigned offset, uint8_t coeff)
 {
-	Map<unsigned, uint8_t>::iterator it = mComponents.find(offset);
+	auto it = mComponents.find(offset);
 	if(it != mComponents.end())
 	{
 		it->second^= coeff;	// it->second = Fountain::gAdd(it->second, coeff);
@@ -402,12 +402,8 @@ Fountain::Combination &Fountain::Combination::operator*=(uint8_t coeff)
 			for(size_t i = 0; i < mSize; ++i)
 				mData[i] = Fountain::gMul(mData[i], coeff);
 
-			for(	Map<unsigned, uint8_t>::iterator it = mComponents.begin();
-				it != mComponents.end();
-				++it)
-			{
+			for(auto it = mComponents.begin(); it != mComponents.end(); ++it)
 				it->second = Fountain::gMul(it->second, coeff);
-			}
 		}
 		else {
 			std::fill(mData, mData + mSize, 0);
@@ -528,9 +524,7 @@ bool Fountain::DataSource::generate(Combination &result)
 	
 	// TODO
 	unsigned i = first;
-	for(List<BinaryString>::iterator it = mComponents.begin();
-		it != mComponents.end() && result.componentsCount() < count;
-		++it)
+	for(auto it = mComponents.begin(); it != mComponents.end() && result.componentsCount() < count; ++it)
 	{
 		uint8_t coeff = gen.next();
 		result.addComponent(i, coeff, it->data(), it->size());
@@ -773,7 +767,7 @@ bool Fountain::Sink::isDecoded(void) const
 size_t Fountain::Sink::read(char *buffer, size_t size)
 {
 	int64_t total = 0;
-	Map<unsigned,Combination>::const_iterator it = mCombinations.lower_bound(mNextRead);
+	Map<unsigned, Combination>::const_iterator it = mCombinations.lower_bound(mNextRead);
 	if(it != mCombinations.end() && it->first == mNextRead && !it->second.isCoded())
 	{
 		size_t s = it->second.size();	// unpad
@@ -814,7 +808,7 @@ int64_t Fountain::Sink::hash(BinaryString &digest) const
 	hash.init();
 	
 	int64_t total = 0;
-	Map<unsigned,Combination>::const_iterator it = mCombinations.begin();
+	Map<unsigned, Combination>::const_iterator it = mCombinations.begin();
 	while(it != mCombinations.end() && !it->second.isCoded())
 	{
 		size_t s = it->second.size();	// unpad
