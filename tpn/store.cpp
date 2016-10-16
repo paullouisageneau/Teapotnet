@@ -77,6 +77,8 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	
 	if(hasBlock(digest)) return true;
 	
+	//LogDebug("Store::push", "Pushing to " + digest.toString());
+	
 	Fountain::Sink &sink = mSinks[digest];
 	sink.solve(input);
 	if(!sink.isDecoded()) return false;
@@ -160,12 +162,11 @@ bool Store::waitBlock(const BinaryString &digest, duration timeout, const Binary
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
 			
-			mCondition.wait_for(lock, timeout, [this, digest]() {
-				return hasBlock(digest);
-			});
-			
 			if(!hasBlock(digest))
-				return false;
+			{
+				if(!mCondition.wait_for(lock, timeout, [this, digest]() { return hasBlock(digest); }))
+					return false;
+			}
 		}
 		
 		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());

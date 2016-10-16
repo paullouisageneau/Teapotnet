@@ -1734,8 +1734,8 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
-	if(tokens < uint16_t(-1))
-		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
+	tokens = std::min(tokens, unsigned(Block::MaxChunks));
+	tokens = unsigned(double(tokens)*mRedundancy + 0.5);
 	
 	if(tokens) mTargets[target] = tokens;
 	else mTargets.erase(target);
@@ -2067,11 +2067,9 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(tokens < uint16_t(-1))
-		{
-			if(tokens < mRedundant) tokens*=2;
-			else tokens+= mRedundant;
-		}
+		tokens = std::min(tokens, unsigned(Block::MaxChunks));
+		if(tokens < mRedundant) tokens*=2;
+		else tokens+= mRedundant;
 		
 		if(tokens) mTargets[target][destination] = tokens;
 		else {
