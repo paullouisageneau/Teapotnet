@@ -626,7 +626,7 @@ Fountain::Sink::~Sink(void)
 
 int64_t Fountain::Sink::solve(Combination &incoming)
 {
-	//LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(incoming.firstComponent()) + ", count=" + String::number(incoming.componentsCount()) + ")");
+	LogDebug("Fountain::Sink::solve", "Incoming combination (first=" + String::number(incoming.firstComponent()) + ", count=" + String::number(incoming.componentsCount()) + ")");
 	
 	if(mFinished) return true;
 	
@@ -653,7 +653,7 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 	
 	if(incoming.isNull())
 	{
-		//LogDebug("Fountain::Sink::solve", "Incoming combination is redundant");
+		LogDebug("Fountain::Sink::solve", "Incoming combination is redundant");
 		return false;
 	}
 	
@@ -708,7 +708,7 @@ int64_t Fountain::Sink::solve(Combination &incoming)
 	
 	// ==================================
 	
-	//LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, next seen " + String::number(mNextSeen) + ", next decoded " + String::number(mNextDecoded));
+	LogDebug("Fountain::Sink::solve", "Total " + String::number(int(mCombinations.size())) + " combinations, next seen " + String::number(mNextSeen) + ", next decoded " + String::number(mNextDecoded));
 	return total;
 }
 

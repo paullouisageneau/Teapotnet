@@ -84,11 +84,11 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	BinaryString sinkDigest;
 	sink.hash(sinkDigest);
 	
-	LogDebug("Store::pu.hpp", "Block is complete, digest is " + sinkDigest.toString());
+	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
 	
 	if(sinkDigest != digest)
 	{
-		LogWarn("Store::pu.hpp", "Block digest is invalid (expected " + digest.toString() + ")");
+		LogWarn("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
 		mSinks.erase(digest);
 		return false;
 	}

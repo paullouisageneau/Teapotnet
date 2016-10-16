@@ -433,20 +433,24 @@ void Network::run(void)
 			// Data
 			case Overlay::Message::Data:
 				{
+					const BinaryString &target = message.source;
 					BinarySerializer serializer(&message.content);
 					Fountain::Combination combination;
 					serializer >> combination;
 					combination.setCodedData(message.content);
-					if(Store::Instance->push(message.source, combination))
+					
+					//LogDebug("Network::run", "Data for " + target.toString() + " (" + combination.toString() + ")");
+					
+					if(Store::Instance->push(target, combination))
 					{
-						unregisterAllCallers(message.source);
+						unregisterAllCallers(target);
 						
 						Set<BinaryString> nodes;
-						if(Store::Instance->retrieveValue(message.source, nodes))
+						if(Store::Instance->retrieveValue(target, nodes))
 						{
 							BinaryString call;
 							call.writeBinary(uint16_t(0));
-							call.writeBinary(message.source);
+							call.writeBinary(target);
 							
 							for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
 								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
@@ -1580,15 +1584,17 @@ Network::Tunneler::Tunnel::Tunnel(Tunneler *tunneler, uint64_t id, const BinaryS
 
 Network::Tunneler::Tunnel::~Tunnel(void)
 {
+	//LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
+	mTunneler->unregisterTunnel(mId);
+	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mClosed = true;
 	}
 	
 	mCondition.notify_all();
-	
-	//LogDebug("Network::Tunneler::Tunnel", "Unregistering tunnel " + String::hexa(mId) + " to " + mNode.toString());
-	mTunneler->unregisterTunnel(mId);
+	std::this_thread::sleep_for(seconds(1.));	// TODO
+	std::unique_lock<std::mutex> lock(mMutex);
 }
 
 uint64_t Network::Tunneler::Tunnel::id(void) const
