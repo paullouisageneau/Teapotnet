@@ -228,7 +228,6 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 
 void Request::createPlaylist(Stream *output, String host, int start, int stop)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
 	Assert(output);
 	
 	if(host.empty()) 
