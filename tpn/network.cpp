@@ -735,7 +735,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 			
 			if(!targets.empty())	// remote
 			{
-				LogDebug("Network::Handler::incoming", "Anouncing " + path);
+				LogDebug("Network::matchPublishers", "Anouncing " + path);
 	
 				send(link, "publish",
 					Object()
