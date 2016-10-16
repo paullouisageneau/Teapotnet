@@ -357,6 +357,7 @@ private:
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
 	Map<BinaryString, Set<Caller*> > mCallers;
+	Map<BinaryString, Set<BinaryString> > mCallCandidates;
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
 	

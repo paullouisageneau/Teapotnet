@@ -81,6 +81,11 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	
 	LogDebug("Network::registerCaller", "Calling " + target.toString());
 
+	{
+		std::unique_lock<std::mutex> lock(mCallersMutex);
+		mCallers[target].insert(caller);
+	}
+	
 	// Immediately send to node providing hinted block
 	if(!caller->hint().empty())
 	{
@@ -102,11 +107,6 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 	
 	// Immediately send retrieve for target
 	mOverlay.retrieve(target);
-	
-	{
-		std::unique_lock<std::mutex> lock(mCallersMutex);
-		mCallers[target].insert(caller);
-	}
 }
 
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
@@ -495,6 +495,8 @@ void Network::run(void)
 				
 				mOverlay.retrieve(it->first);
 			}
+			
+			mCallCandidates.clear();
 		}
 		
 		if(loops % 10 == 0)
@@ -851,7 +853,12 @@ bool Network::matchCallers(const Identifier &target, const Identifier &node)
 	if(!mCallers.contains(target))
 		return false;
 	
-	//LogDebug("Network::run", "Got candidate for " + target.toString());
+	if(!mCallCandidates[target].contains(target))
+		return true;
+	
+	mCallCandidates[target].insert(node);
+	
+	LogDebug("Network::run", "Got candidate for " + target.toString());
 	
 	uint16_t tokens = uint16_t(Store::Instance->missing(target));
 	BinaryString call;
@@ -859,7 +866,6 @@ bool Network::matchCallers(const Identifier &target, const Identifier &node)
 	call.writeBinary(target);
 	
 	mOverlay.send(Overlay::Message(Overlay::Message::Call, call, node));
-	
 	return true;
 }
 
@@ -1734,8 +1740,8 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
-	tokens = std::min(tokens, unsigned(Block::MaxChunks));
-	tokens = unsigned(double(tokens)*mRedundancy + 0.5);
+	if(tokens < uint16_t(-1))
+		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
 	
 	if(tokens) mTargets[target] = tokens;
 	else mTargets.erase(target);
@@ -2067,9 +2073,11 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		tokens = std::min(tokens, unsigned(Block::MaxChunks));
-		if(tokens < mRedundant) tokens*=2;
-		else tokens+= mRedundant;
+		if(tokens < uint16_t(-1))
+		{
+			if(tokens < mRedundant) tokens*=2;
+			else tokens+= mRedundant;
+		}
 		
 		if(tokens) mTargets[target][destination] = tokens;
 		else {

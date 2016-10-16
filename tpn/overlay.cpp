@@ -379,9 +379,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			Set<BinaryString> values;
 			Store::Instance->retrieveValue(message.destination, values);
 			for(auto it = values.begin(); it != values.end(); ++it)
-			{
 				send(Message(Message::Value, *it, message.source, message.destination));
-			}
 			
 			//push(message);	// useless
 			break;
@@ -391,7 +389,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	case Message::Store:
 		{
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
-			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);			
+			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);
 
 			if(Time::Now() - oldTime >= 60.) // 1 min
         		{
