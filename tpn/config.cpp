@@ -112,7 +112,8 @@ void Config::GetExternalAddresses(Set<Address> &set)
 	}
 
 	Set<Address> tmp;
-	Network::Instance->overlay()->getAddresses(tmp);
+	if(Network::Instance)
+		Network::Instance->overlay()->getAddresses(tmp);
 	
 	uint16_t port = 0;
 	for(Set<Address>::const_iterator it = tmp.begin();

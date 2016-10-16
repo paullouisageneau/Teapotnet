@@ -75,10 +75,17 @@ Request::Request(const String &path, const Network::Link &link, bool listDirecto
 
 Request::~Request(void)
 {
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mAutoDeleter.cancel();
+		Interface::Instance->remove(mUrlPrefix, this);
+		unsubscribeAll();
+		mFinished = true;
+	}
+	
+	mCondition.notify_all();
+	std::this_thread::sleep_for(seconds(1.));	// TODO
 	std::unique_lock<std::mutex> lock(mMutex);
-	mAutoDeleter.cancel();
-	Interface::Instance->remove(mUrlPrefix, this);
-	unsubscribeAll();
 }
 
 bool Request::addTarget(const BinaryString &target)

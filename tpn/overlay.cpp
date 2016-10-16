@@ -89,7 +89,7 @@ Overlay::Overlay(int port) :
 		});
 
 	// Start
-	mRunAlarm.schedule(Alarm::clock::now(), [this]()
+	mRunAlarm.schedule(Alarm::clock::now() + seconds(1.), [this]()
 	{
 		run();
 	});
