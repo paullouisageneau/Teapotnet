@@ -2129,7 +2129,7 @@ void Network::Pusher::run(void)
 					serializer << combination;
 					data.content.writeBinary(combination.data(), combination.codedSize());
 					
-					congestion|= Network::Instance->overlay()->send(data);
+					congestion|= !Network::Instance->overlay()->send(data);
 				}
 				
 				if(!tokens) it->second.erase(jt++);
