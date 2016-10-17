@@ -311,19 +311,30 @@ bool AddressBook::deserialize(Serializer &s)
 		
 		for(auto it = temp.begin(); it != temp.end(); ++it)
 		{
-			toDelete.erase(it->first);
+			Assert(!it->second.uniqueName().empty());
+			Assert(!it->second.identifier().empty());
 			
-			if(!mContacts.contains(it->first))
+			toDelete.erase(it->first);
+		
+			sptr<Contact> contact;
+			if(mContacts.get(it->first, contact))	
 			{
-				Assert(!it->second.uniqueName().empty());
-				Assert(!it->second.identifier().empty());
-				
-				sptr<Contact> contact = std::make_shared<Contact>(it->second);
-				contact->setAddressBook(this);
-				
-				mContacts.insert(contact->uniqueName(), contact);
-				mContactsByIdentifier.insert(contact->identifier(), contact);
+				if(contact->identifier() != it->second.identifier())
+				{
+					
+					contact->setAddressBook(NULL);
+					mContacts.erase(contact->uniqueName());
+					mContactsByIdentifier.erase(contact->identifier());
+					contact.reset();
+				}
+
 			}
+
+			contact = std::make_shared<Contact>(it->second);
+			contact->setAddressBook(this);
+				
+			mContacts.insert(contact->uniqueName(), contact);
+			mContactsByIdentifier.insert(contact->identifier(), contact);
 		}
 		
 		mTime = time;
@@ -379,9 +390,13 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 								name = mInvitations.get(identifier);
 							}
 							
-							addContact(name, identifier);
 							mInvitations.erase(identifier);
 						}
+						
+						if(name.empty())
+							throw Exception("Missing contact name");
+						
+						addContact(name, identifier);
 					}
 					else if(action == "delete")
 					{
@@ -753,29 +768,36 @@ void AddressBook::Contact::init(void)
 {
 	// Private, no sync
 	
-	if(!mAddressBook) return;
+	mBoard.reset();
+	mPrivateBoard.reset();
 	
-	mBoard = NULL;
-	if(nIsSelf())
+	if(mAddressBook)
 	{
-		if(!mBoard) mBoard = std::make_shared<Board>("/" + mIdentifier.toString(), "", mName);	// Public board
-		mAddressBook->user()->mergeBoard(mBoard);
-	}
+		if(!nIsSelf())
+		{
+			if(!mBoard) mBoard = std::make_shared<Board>("/" + mIdentifier.toString(), "", mName);	// Public board
+			mAddressBook->user()->mergeBoard(mBoard);
+		}
 	
-	Interface::Instance->add(nUrlPrefix(), this);
-	listen(mAddressBook->user()->identifier(), mIdentifier);
+		Interface::Instance->add(nUrlPrefix(), this);
+		listen(mAddressBook->user()->identifier(), mIdentifier);
+	}
 }
 
 void AddressBook::Contact::uninit(void)
 {
 	// Private, no sync
 	
-	if(mAddressBook && mBoard) mAddressBook->user()->unmergeBoard(mBoard);
-	if(mAddressBook) Interface::Instance->remove(nUrlPrefix(), this);
-	ignore();       // stop listening
+	if(mAddressBook)
+	{
+		if(mBoard) mAddressBook->user()->unmergeBoard(mBoard);
+		
+		Interface::Instance->remove(nUrlPrefix(), this);
+		ignore();       // stop listening
+	}
 	
-	mBoard = NULL;
-	mPrivateBoard = NULL;
+	mBoard.reset();
+	mPrivateBoard.reset();
 }
 
 bool AddressBook::Contact::nIsSelf(void) const

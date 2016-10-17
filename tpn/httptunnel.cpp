@@ -590,8 +590,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 				return mClosed || mUpSock;
 			}))
 				throw Timeout();
-			if(mClosed) 
-				continue;
+				
+			if(!mUpSock) continue;
 		}
 
 		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
@@ -707,8 +707,8 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 				return mClosed || mDownSock;
 			}))
 				throw Timeout();
-			if(mClosed) 
-				continue;
+				
+			if(!mDownSock) continue;
 		}
 		
 		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
