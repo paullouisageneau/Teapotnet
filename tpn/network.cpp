@@ -1120,7 +1120,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 		}
 		catch(const Exception &e)
 		{
-			LogWarn("Network::Subscriber::fet.hpp", "Fetching failed for " + target.toString() + ": " + e.what());
+			LogWarn("Network::Subscriber::fetch", "Fetching failed for " + target.toString() + ": " + e.what());
 		}
 	});
 	
