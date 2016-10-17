@@ -34,9 +34,7 @@ Alarm::Alarm(void) : time(time_point::min()), stop(false)
 		{
 			std::unique_lock<std::mutex> lock(mutex);
 			
-			if(stop) break;
-			
-			if(time == time_point::min())
+			if(!stop && time == time_point::min())
 				condition.wait(lock);
 			
 			if(stop) break;
@@ -68,8 +66,8 @@ void Alarm::schedule(time_point time)
 {
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		if(stop) throw std::runtime_error("reschedule on stopped Alarm");
-		time = time;
+		if(stop) throw std::runtime_error("schedule on stopped Alarm");
+		this->time = time;
 	}
 	
 	condition.notify_all();
