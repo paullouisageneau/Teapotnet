@@ -607,13 +607,9 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 	}
 	
 	Assert(handler);
-	handler->addAddresses(otherAddrs);
 	mHandlers.insert(node, handler);
-	std::thread thread([handler]()
-	{
-		handler->run();
-	});
-	thread.detach();
+	handler->addAddresses(otherAddrs);
+	handler->start();
 	
 	// On first connection, schedule store to publish in DHT
 	if(mHandlers.size() == 1)
@@ -1213,18 +1209,17 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 		throw Exception("Spawned a handler for local node");
 	
 	addAddress(addr);
-
-	mSenderThread = std::thread([this]()
-	{
-		mSender.run();
-	});
 }
 
 Overlay::Handler::~Handler(void)
 {
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-	delete mStream;
+	
+	stop();
+	mThread.join();
 	mSenderThread.join();
+	
+	delete mStream;
 }
 
 bool Overlay::Handler::recv(Message &message)
@@ -1295,6 +1290,21 @@ bool Overlay::Handler::send(const Message &message)
 	return mSender.push(message);
 }
 
+void Overlay::Handler::start(void)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	
+	mThread = std::thread([this]()
+	{
+		run();
+	});
+
+	mSenderThread = std::thread([this]()
+	{
+		mSender.run();
+	});
+}
+
 void Overlay::Handler::stop(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
@@ -1327,16 +1337,6 @@ BinaryString Overlay::Handler::node(void) const
 	return mNode;
 }
 
-void Overlay::Handler::process(void)
-{
-	Message message;
-	while(recv(message) && !mStop)
-	{
-		//LogDebug("Overlay::Handler", "Received message");
-		mOverlay->incoming(message, mNode);
-	}
-}
-
 void Overlay::Handler::run(void)
 {
 	LogDebug("Overlay::Handler::run", "Starting handler");
@@ -1354,6 +1354,16 @@ void Overlay::Handler::run(void)
 	mOverlay->unregisterHandler(mNode, mAddrs, this);
 	
 	mSender.stop();	
+}
+
+void Overlay::Handler::process(void)
+{
+	Message message;
+	while(recv(message) && !mStop)
+	{
+		//LogDebug("Overlay::Handler", "Received message");
+		mOverlay->incoming(message, mNode);
+	}
 }
 
 Overlay::Handler::Sender::Sender(Overlay *overlay, Stream *stream) :

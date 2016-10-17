@@ -529,7 +529,7 @@ DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
 
 DatagramStream::~DatagramStream(void)
 {
-	if(mSock) mSock->unregisterStream(this);
+	close();
 }
 
 Address DatagramStream::getLocalAddress(void) const

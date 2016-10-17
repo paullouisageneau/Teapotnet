@@ -197,18 +197,18 @@ private:
 		bool recv(Message &message);
 		bool send(const Message &message);
 		
+		void start(void);
 		void stop(void);
 		
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
 		void getAddresses(Set<Address> &set) const;
 		BinaryString node(void) const;
-	
-		void run(void);
 
 	private:
+		void run(void);
 		void process(void);
-	
+		
 		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
@@ -216,6 +216,9 @@ private:
 		bool mStop;
 		
 		mutable std::mutex mMutex;
+		
+		std::thread mThread;
+		std::thread mSenderThread;
 		
 		class Sender
 		{
@@ -241,7 +244,6 @@ private:
 		};
 		
 		Sender mSender;
-		std::thread mSenderThread;
 	};
 
 	void registerHandler(const BinaryString &node, const Address &addr, sptr<Handler> handler);
