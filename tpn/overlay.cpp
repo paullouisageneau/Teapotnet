@@ -403,10 +403,15 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				}
 			}
 			
-			if(mRetrievePending.contains(message.content))
 			{
-				mRetrievePending.erase(message.content);
-				mRetrieveCondition.notify_all();
+				std::unique_lock<std::mutex> lock(mMutex);
+				
+				if(mRetrievePending.contains(message.content))
+				{
+					mRetrievePending.erase(message.content);
+					lock.unlock();
+					mRetrieveCondition.notify_all();
+				}
 			}
 			
 			//push(message);	// useless
@@ -591,37 +596,39 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 
 void Overlay::registerHandler(const BinaryString &node, const Address &addr, sptr<Overlay::Handler> handler)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
-	mRemoteAddresses.insert(addr);
-	
 	Set<Address> otherAddrs;
-	sptr<Handler> h;
-	if(mHandlers.get(node, h))
+	sptr<Handler> otherHandler;
 	{
-		mHandlers.erase(node);
-		LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
+		std::unique_lock<std::mutex> lock(mMutex);
 		
-		h->getAddresses(otherAddrs);
-		h->stop();
+		mRemoteAddresses.insert(addr);
+		
+		if(mHandlers.get(node, otherHandler))
+		{
+			mHandlers.erase(node);
+			LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
+			
+			otherHandler->getAddresses(otherAddrs);
+			otherHandler->stop();
+		}
+		
+		Assert(handler);
+		mHandlers.insert(node, handler);
+		handler->addAddresses(otherAddrs);
+		handler->start();
+		
+		// On first connection, schedule store to publish in DHT
+		if(mHandlers.size() == 1)
+			Store::Instance->start();
 	}
-	
-	Assert(handler);
-	mHandlers.insert(node, handler);
-	handler->addAddresses(otherAddrs);
-	handler->start();
-	
-	// On first connection, schedule store to publish in DHT
-	if(mHandlers.size() == 1)
-		Store::Instance->start(); 
 }
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	sptr<Handler> h;
-	if(!mHandlers.get(node, h) || h.get() != handler)
+	sptr<Handler> otherHandler;
+	if(!mHandlers.get(node, otherHandler) || otherHandler.get() != handler)
 		return;
 		
 	for(auto &a : addrs)
