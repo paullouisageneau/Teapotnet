@@ -764,6 +764,18 @@ AddressBook::Contact::~Contact(void)
 	uninit();
 }
 
+void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
+{
+	// Private, no sync
+	
+	if(mAddressBook != addressBook)
+	{
+		if(mAddressBook) uninit();
+		mAddressBook = addressBook;
+		if(mAddressBook) init();
+	}
+}
+
 void AddressBook::Contact::init(void)
 {
 	// Private, no sync
@@ -829,18 +841,6 @@ BinaryString AddressBook::Contact::localSecret(void) const
 BinaryString AddressBook::Contact::remoteSecret(void) const
 {
 	return mRemoteSecret;
-}
-
-void AddressBook::Contact::setAddressBook(AddressBook *addressBook)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	
-	if(mAddressBook != addressBook)
-	{
-		if(mAddressBook) uninit();
-		mAddressBook = addressBook;
-		if(mAddressBook) init();
-	}
 }
 
 Identifier AddressBook::Contact::identifier(void) const

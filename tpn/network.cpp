@@ -144,7 +144,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	Link link(local, remote);
 
 	{
-		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 		
 		for(auto it = mHandlers.lower_bound(link);
 			it != mHandlers.end() && (it->first.local == local && it->first.remote == remote);
@@ -361,7 +361,7 @@ bool Network::hasLink(const Identifier &local, const Identifier &remote)
 
 bool Network::hasLink(const Link &link)
 {
-	std::unique_lock<std::mutex> lock(mHandlersMutex);
+	std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 	return mHandlers.contains(link);
 }
 
@@ -538,7 +538,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	Assert(handler);
 	
 	{
-		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 		mHandlers.insert(link, handler);
 	}
 	
@@ -570,7 +570,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	Assert(!link.node.empty());
 	
 	{
-		std::unique_lock<std::mutex> lock(mHandlersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 		
 		sptr<Handler> h;
 		if(!mHandlers.get(link, h) || h.get() != handler)
@@ -598,7 +598,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	String serialized;
 	JsonSerializer(&serialized) << content;
 
-	std::unique_lock<std::mutex>           lock1(mHandlersMutex,  std::defer_lock);
+	std::unique_lock<std::recursive_mutex> lock1(mHandlersMutex,  std::defer_lock);
 	std::unique_lock<std::recursive_mutex> lock2(mListenersMutex, std::defer_lock);
 	std::lock(lock1, lock2);
 	

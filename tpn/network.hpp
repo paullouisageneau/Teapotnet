@@ -361,11 +361,11 @@ private:
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
 	
-	mutable std::mutex mHandlersMutex;
+	mutable std::recursive_mutex mHandlersMutex;	// recursive so listeners can call network on event
+	mutable std::recursive_mutex mListenersMutex;	// idem
 	mutable std::mutex mPublishersMutex;
 	mutable std::mutex mSubscribersMutex;
 	mutable std::mutex mCallersMutex;
-	mutable std::recursive_mutex mListenersMutex;	// recursive so listeners can call network on event
 	
 	std::thread mThread;
 	

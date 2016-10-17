@@ -77,8 +77,6 @@ public:
 				const Identifier &identifier);
 		~Contact(void);
 		
-		void setAddressBook(AddressBook *addressBook);
-		
 		Identifier identifier(void) const;
 		String uniqueName(void) const;
 		String name(void) const;
@@ -106,6 +104,8 @@ public:
 		bool isInlineSerializable(void) const;
 		
 	private:
+		void setAddressBook(AddressBook *addressBook);
+		
 		void init(void);
 		void uninit(void);
 		
