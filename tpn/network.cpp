@@ -895,11 +895,11 @@ bool Network::matchListeners(const Identifier &identifier, const Identifier &nod
 void Network::onConnected(const Link &link, bool status) const
 {
 	std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
-	
+
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return;
 	
-	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.second == link.local)
 	{
 		for(auto listener : it->second)
 		{
@@ -918,7 +918,7 @@ bool Network::onRecv(const Link &link, const String &type, Serializer &serialize
 	if(it == mListeners.end()) return false;
 	
 	bool ret = false;
-	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.second == link.local)
 	{
 		for(auto listener : it->second)
 			ret|= listener->recv(link, type, serializer);
@@ -936,7 +936,7 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey) const
 	if(it == mListeners.end()) return false;
 	
 	bool ret = false;
-	while(it != mListeners.end() && it->first.first == link.remote && it->first.first == link.local)
+	while(it != mListeners.end() && it->first.first == link.remote && it->first.second == link.local)
 	{
 		for(auto listener : it->second)
 			if(!listener->auth(link, pubKey))
@@ -1480,11 +1480,15 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			remote = Identifier(publicKey.digest());
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
-			if(Network::Instance->onAuth(Link(local, remote, node), publicKey))
+			
+			/*if(Network::Instance->onAuth(Link(local, remote, node), publicKey))
 				return true;
 			
 			LogDebug("Network::Tunneler::handshake", "Certificate verification failed");
-			return false;
+			return false;*/
+			
+			// Always accept
+			Network::Instance->onAuth(Link(local, remote, node), publicKey);
 		}
 	};
 	
@@ -2015,9 +2019,9 @@ int Network::Handler::send(bool force)
 		}
 	}
 	
-	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.2;	// so the tunnel should not time out
-	if(mSource.rank() > 0) mTimeoutAlarm.schedule(mTimeout);
-	else mTimeoutAlarm.schedule(idleTimeout);
+	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.1;	// so the tunnel should not time out
+	if(mSource.rank() == 0) mTimeoutAlarm.schedule(idleTimeout); 
+	else mTimeoutAlarm.schedule(mTimeout);
 	return count;
 }
 
