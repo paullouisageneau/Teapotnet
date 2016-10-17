@@ -407,14 +407,14 @@ void Address::serialize(Serializer &s) const
 	}
 
 	default:
-		throw InvalidData("Stored network Address cannot be serialized to binary");
+		throw InvalidData("Stored network address cannot be serialized");
 	}
 }
 
 bool Address::deserialize(Serializer &s)
 {
 	uint8_t size = 0;
-	if(!s >> size) return false;
+	if(!(s >> size)) return false;
 
 	if(size == 0)
 	{

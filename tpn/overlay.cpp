@@ -362,8 +362,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				LogDebug("Overlay::Incoming", "Suggest " + message.source.toString());
 				
 				Set<Address> addrs;
-				BinarySerializer serializer(&message.content);
-				serializer >> addrs;
+				BinarySerializer(&message.content) >> addrs;
 				connect(addrs, message.source);
 			}
 			break;
