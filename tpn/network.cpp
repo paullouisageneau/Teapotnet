@@ -394,7 +394,7 @@ void Network::run(void)
 			// Value
 			case Overlay::Message::Value:
 				{
-					if(!message.content.empty() && 	message.content != mOverlay.localNode())
+					if(!message.content.empty())
 					{
 						// It can be about a block
 						matchCallers(message.source, message.content);
@@ -853,7 +853,7 @@ bool Network::matchCallers(const Identifier &target, const Identifier &node)
 	if(!mCallers.contains(target))
 		return false;
 	
-	if(!mCallCandidates[target].contains(target))
+	if(mCallCandidates[target].contains(node))
 		return true;
 	
 	mCallCandidates[target].insert(node);
