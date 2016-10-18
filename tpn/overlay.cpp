@@ -1225,8 +1225,9 @@ Overlay::Handler::~Handler(void)
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
 	
 	stop();
-	mThread.join();
 	mSenderThread.join();
+	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
+	else if(mThread.joinable()) mThread.join();
 	
 	delete mStream;
 }
