@@ -98,20 +98,20 @@ BinaryString Board::digest(void) const
 
 bool Board::add(const Mail &mail, bool noIssue)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		
+		if(mail.empty() || mMails.contains(mail))
+			return false;
 	
-	if(mail.empty() || mMails.contains(mail))
-		return false;
-	
-	const Mail *p = &*mMails.insert(mail).first;
-	mUnorderedMails.append(p);
+		const Mail &mail = *mMails.insert(mail).first;
+		mUnorderedMails.append(&mail);
+	}
 	
 	if(!noIssue) issue("/mail" + mName, mail);
-	
 	process();
 	publish("/mail" + mName);
 	
-	lock.unlock();
 	mCondition.notify_all();
 	return true;
 }
@@ -160,23 +160,28 @@ void Board::process(void)
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
 	targets.clear();
-	if(mDigest.empty()) return false;
+	
+	if(mDigest.empty()) 
+		return false;
+	
 	targets.push_back(mDigest);
 	return true;
 }
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
-	if(target == mDigest)
-		return false;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		if(target == mDigest) 
+			return false;
+	}
 	
 	if(fetch(link, prefix, path, target, true))
 	{
 		try {
+			std::unique_lock<std::mutex> lock(mMutex);
+			
 			Resource resource(target, true);	// local only (already fetched)
 			if(resource.type() != "mail")
 				return false;
@@ -192,8 +197,8 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				
 				if(!mMails.contains(mail))
 				{
-					const Mail *p = &*mMails.insert(mail).first;
-					mUnorderedMails.append(p);
+					const Mail &mail = *mMails.insert(mail).first;
+					mUnorderedMails.append(&mail);
 					
 					++mUnread;
 					mHasNew = true;
@@ -211,14 +216,13 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				if(mDigest != target)
 					publish("/mail" + mName);
 			}
-			
-			lock.unlock();
-			mCondition.notify_all();
 		}
 		catch(const Exception &e)
 		{
 			LogWarn("Board::incoming", e.what());
 		}
+		
+		mCondition.notify_all();
 	}
 	
 	return true;
@@ -226,8 +230,6 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	if(add(mail, true))
 	{
 		++mUnread;
@@ -305,7 +307,7 @@ void Board::http(const String &prefix, Http::Request &request)
 					if(next >= int(mUnorderedMails.size()))
 					{
 						mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
-							return next < int(this->mUnorderedMails.size());
+							return next < int(mUnorderedMails.size());
 						});
 					}
 					
