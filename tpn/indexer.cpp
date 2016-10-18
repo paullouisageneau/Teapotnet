@@ -185,21 +185,23 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 
 void Indexer::removeDirectory(const String &name)
 {
-  	std::unique_lock<std::mutex> lock(mMutex);
-  
-	if(mDirectories.contains(name))
 	{
-		mDirectories.erase(name);
-		save();
-		start();
+		std::unique_lock<std::mutex> lock(mMutex);
+		if(mDirectories.contains(name))
+			mDirectories.erase(name);
 	}
+	
+	save();
+	start();
 }
 
 void Indexer::getDirectories(Array<String> &array) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mDirectories.getKeys(array);
+	}
 	
-	mDirectories.getKeys(array);
 	array.remove(CacheDirectoryName);
 	array.remove(UploadDirectoryName);
 }
