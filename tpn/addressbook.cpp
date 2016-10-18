@@ -307,34 +307,41 @@ bool AddressBook::deserialize(Serializer &s)
 	mContacts.getKeys(toDelete);
 	
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		
 		for(auto it = temp.begin(); it != temp.end(); ++it)
 		{
 			Assert(!it->second.uniqueName().empty());
 			Assert(!it->second.identifier().empty());
 			
 			toDelete.erase(it->first);
-		
-			sptr<Contact> contact;
-			if(mContacts.get(it->first, contact))	
+			
+			sptr<Contact> contact = getContact(it->first);
+			if(contact)	
 			{
 				if(contact->identifier() != it->second.identifier())
 				{
+					{
+						std::unique_lock<std::mutex> lock(mMutex);
+						mContacts.erase(contact->uniqueName());
+						mContactsByIdentifier.erase(contact->identifier());
+					}
 					
 					contact->setAddressBook(NULL);
-					mContacts.erase(contact->uniqueName());
-					mContactsByIdentifier.erase(contact->identifier());
 					contact.reset();
 				}
-
-			}
-
-			contact = std::make_shared<Contact>(it->second);
-			contact->setAddressBook(this);
 				
-			mContacts.insert(contact->uniqueName(), contact);
-			mContactsByIdentifier.insert(contact->identifier(), contact);
+			}
+			
+			if(!contact)
+			{
+				contact = std::make_shared<Contact>(it->second);
+				contact->setAddressBook(this);
+				
+				{
+					std::unique_lock<std::mutex> lock(mMutex);
+					mContacts.insert(contact->uniqueName(), contact);
+					mContactsByIdentifier.insert(contact->identifier(), contact);
+				}
+			}
 		}
 		
 		mTime = time;
