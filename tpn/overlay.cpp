@@ -625,20 +625,22 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	
 	sptr<Handler> otherHandler;
-	if(!mHandlers.get(node, otherHandler) || otherHandler.get() != handler)
-		return;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
 		
-	for(auto &a : addrs)
-		mRemoteAddresses.erase(a);
-	
-	mHandlers.erase(node);
+		if(!mHandlers.get(node, otherHandler) || otherHandler.get() != handler)
+			return;
+			
+		for(auto &a : addrs)
+			mRemoteAddresses.erase(a);
+		
+		mHandlers.erase(node);
 
-	// If it was the last handler, try to reconnect now
-	if(mHandlers.empty())
-		mRunAlarm.schedule(Alarm::clock::now());
+		// If it was the last handler, try to reconnect now
+		if(mHandlers.empty())
+			mRunAlarm.schedule(Alarm::clock::now());
+	}
 }
 
 bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &result)
