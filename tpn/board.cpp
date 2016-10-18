@@ -104,8 +104,9 @@ bool Board::add(const Mail &mail, bool noIssue)
 		if(mail.empty() || mMails.contains(mail))
 			return false;
 	
-		const Mail &mail = *mMails.insert(mail).first;
-		mUnorderedMails.append(&mail);
+		auto it = mMails.insert(mail);
+		const Mail &m = *it.first;
+		mUnorderedMails.append(&m);
 	}
 	
 	if(!noIssue) issue("/mail" + mName, mail);
@@ -197,8 +198,9 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				
 				if(!mMails.contains(mail))
 				{
-					const Mail &mail = *mMails.insert(mail).first;
-					mUnorderedMails.append(&mail);
+					auto it = mMails.insert(mail);
+					const Mail &m = *it.first;
+					mUnorderedMails.append(&m);
 					
 					++mUnread;
 					mHasNew = true;
