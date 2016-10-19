@@ -1692,6 +1692,7 @@ bool Network::Tunneler::Tunnel::incoming(const Overlay::Message &message)
 	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
+		if(mClosed) return false;
 		mQueue.push(message);
 	}
 	
