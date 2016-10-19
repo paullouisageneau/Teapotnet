@@ -6,8 +6,8 @@ TPROOT=/var/lib/teapotnet
 CC=gcc
 CXX=g++
 RM=rm -f
-CCFLAGS=-O2 -g
-CPPFLAGS=-std=c++11 -O2 -g -DDEBUG
+CCFLAGS=-O2 -g -fno-var-tracking
+CPPFLAGS=-std=c++11 -O2 -g -fno-var-tracking -DDEBUG
 LDFLAGS=-g
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 
