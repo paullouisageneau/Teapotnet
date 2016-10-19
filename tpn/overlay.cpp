@@ -1362,8 +1362,6 @@ void Overlay::Handler::run(void)
 	}
 	
 	mOverlay->unregisterHandler(mNode, mAddrs, this);
-	
-	mSender.stop();	
 }
 
 void Overlay::Handler::process(void)
