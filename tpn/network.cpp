@@ -1726,6 +1726,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 
 Network::Handler::~Handler(void)
 {
+	mTimeoutAlarm.join();
 	mStream->close();
 	
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
