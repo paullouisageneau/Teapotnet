@@ -1761,6 +1761,7 @@ void Network::Handler::timeout(void)
 
 	// Inactivity timeout is handled by Tunnel
 	if(mAvailableTokens < 1.) mAvailableTokens = 1.;
+	
 	send(true);
 }
 
@@ -1847,7 +1848,10 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			{
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
-					
+			
+				// We need to lock since we are calling send()
+				std::unique_lock<std::mutex> lock(mMutex);
+
 				if(!send(false))
 					mTimeoutAlarm.schedule(mTimeout*0.1);
 			}
@@ -1876,6 +1880,7 @@ void Network::Handler::flush(void)
 		mSourceBuffer.clear();
 	}
 	
+	// Already locked, we can call send() safely
 	send(false);
 }
 
@@ -1909,33 +1914,37 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	combination.setCodedData(data);
 	
 	mStream->nextRead();
-	
-	unsigned backlog = nextSeen - std::min(nextDecoded, nextSeen);
-	unsigned dropped = mSource.drop(nextSeen);
-	
-	if(backlog < mThreshold || backlog > mThreshold*2.)
+
 	{
-		double tokens;
-		if(mTokens < mThreshold)
+		std::unique_lock<std::mutex> lock(mMutex);
+			
+		unsigned backlog = nextSeen - std::min(nextDecoded, nextSeen);
+		unsigned dropped = mSource.drop(nextSeen);
+		
+		if(backlog < mThreshold || backlog > mThreshold*2.)
 		{
-			// Slow start
-			tokens = dropped*2.;
+			double tokens;
+			if(mTokens < mThreshold)
+			{
+				// Slow start
+				tokens = dropped*2.;
+			}
+			else {
+				// Additive increase
+				tokens = dropped*1./mTokens;
+			}
+			
+			mTokens+= tokens;
+			mAvailableTokens+= tokens;
 		}
 		else {
-			// Additive increase
-			tokens = dropped*1./mTokens;
+			// Congestion: Multiplicative decrease
+			mThreshold = mTokens/2.;
+			mTokens = 1.;
+			mAvailableTokens = mTokens;	
 		}
-		
-		mTokens+= tokens;
-		mAvailableTokens+= tokens;
 	}
-	else {
-		// Congestion: Multiplicative decrease
-		mThreshold = mTokens/2.;
-		mTokens = 1.;
-		mAvailableTokens = mTokens;
-		
-	}
+
 	return true;
 }
 
