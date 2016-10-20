@@ -596,28 +596,26 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 
 void Overlay::registerHandler(const BinaryString &node, const Address &addr, sptr<Overlay::Handler> handler)
 {
-	Assert(handler);
-	
-	sptr<Handler> currentHandler;
-	Set<Address>  currentAddrs;
-
+	Set<Address> otherAddrs;
+	sptr<Handler> otherHandler;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(mHandlers.get(node, currentHandler))
+		mRemoteAddresses.insert(addr);
+		
+		if(mHandlers.get(node, otherHandler))
 		{
 			mHandlers.erase(node);
 			LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
 			
-			currentHandler->getAddresses(currentAddrs);
-			currentHandler->stop();
+			otherHandler->getAddresses(otherAddrs);
+			otherHandler->stop();
 		}
 		
+		Assert(handler);
 		mHandlers.insert(node, handler);
-		handler->addAddresses(currentAddrs);
+		handler->addAddresses(otherAddrs);
 		handler->start();
-		
-		mRemoteAddresses.insert(addr);
 		
 		// On first connection, schedule store to publish in DHT
 		if(mHandlers.size() == 1)
@@ -627,18 +625,17 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
-	sptr<Handler> currentHandler; // prevent handler deletion on erase
-
+	sptr<Handler> otherHandler;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(!mHandlers.get(node, currentHandler) || currentHandler.get() != handler)
+		if(!mHandlers.get(node, otherHandler) || otherHandler.get() != handler)
 			return;
-		
-		mHandlers.erase(node);
-
+			
 		for(auto &a : addrs)
 			mRemoteAddresses.erase(a);
+		
+		mHandlers.erase(node);
 
 		// If it was the last handler, try to reconnect now
 		if(mHandlers.empty())
@@ -839,6 +836,7 @@ bool Overlay::Message::deserialize(Serializer &s)
 	if(!(s >> source)) return false;
 	AssertIO(s >> destination);
 	AssertIO(s >> content);
+	return true;
 }
 
 Overlay::Backend::Backend(Overlay *overlay) :
