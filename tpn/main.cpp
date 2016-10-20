@@ -100,7 +100,7 @@ void mainWrapper(void)
 	main(2, argv);*/
 }
 
-Thread *MainThread = NULL;
+std::thread MainThread;
 
 extern "C" 
 {
@@ -182,7 +182,7 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setCacheDirec
 JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env, jobject obj)
 {
 	Log("main", "Starting main thread...");
-	MainThread = new Thread(mainWrapper);
+	MainThread = std::thread(mainWrapper);
 }
 
 JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv *env, jobject obj)
