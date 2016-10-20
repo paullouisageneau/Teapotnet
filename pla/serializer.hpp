@@ -137,6 +137,7 @@ template<typename T>
 Serializer &Serializer::operator<< (const T& value)
 {
 	write(value);
+	return *this;
 }
 
 template<class T>
