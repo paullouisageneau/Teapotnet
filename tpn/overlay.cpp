@@ -596,26 +596,28 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 
 void Overlay::registerHandler(const BinaryString &node, const Address &addr, sptr<Overlay::Handler> handler)
 {
-	Set<Address> otherAddrs;
-	sptr<Handler> otherHandler;
+	Assert(handler);
+	
+	sptr<Handler> currentHandler;
+	Set<Address>  currentAddrs;
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		mRemoteAddresses.insert(addr);
-		
-		if(mHandlers.get(node, otherHandler))
+		if(mHandlers.get(node, currentHandler))
 		{
 			mHandlers.erase(node);
 			LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
 			
-			otherHandler->getAddresses(otherAddrs);
-			otherHandler->stop();
+			currentHandler->getAddresses(currentAddrs);
+			currentHandler->stop();
 		}
 		
-		Assert(handler);
 		mHandlers.insert(node, handler);
-		handler->addAddresses(otherAddrs);
+		handler->addAddresses(currentAddrs);
 		handler->start();
+		
+		mRemoteAddresses.insert(addr);
 		
 		// On first connection, schedule store to publish in DHT
 		if(mHandlers.size() == 1)
@@ -625,17 +627,18 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
-	sptr<Handler> otherHandler;
+	sptr<Handler> currentHandler; // prevent handler deletion on erase
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(!mHandlers.get(node, otherHandler) || otherHandler.get() != handler)
+		if(!mHandlers.get(node, currentHandler) || currentHandler.get() != handler)
 			return;
-			
-		for(auto &a : addrs)
-			mRemoteAddresses.erase(a);
 		
 		mHandlers.erase(node);
+
+		for(auto &a : addrs)
+			mRemoteAddresses.erase(a);
 
 		// If it was the last handler, try to reconnect now
 		if(mHandlers.empty())
