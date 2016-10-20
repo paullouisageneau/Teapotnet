@@ -42,6 +42,9 @@ public:
 	static const String NewLine;
 	static const char Space;
 	
+	Stream(void) {}
+	virtual ~Stream(void) {}
+	
 	// Settings
 	bool hexaMode(void);
 	bool hexaMode(bool enabled);
