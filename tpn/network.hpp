@@ -365,6 +365,7 @@ private:
 	mutable std::recursive_mutex mListenersMutex;	// idem
 	mutable std::mutex mPublishersMutex;
 	mutable std::mutex mSubscribersMutex;
+	mutable std::mutex mRemoteSubscribersMutex;
 	mutable std::mutex mCallersMutex;
 	
 	std::thread mThread;

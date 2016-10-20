@@ -313,7 +313,7 @@ void Network::addRemoteSubscriber(const Link &link, const String &path)
 {
 	sptr<RemoteSubscriber> subscriber;
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::mutex> lock(mRemoteSubscribersMutex);
 		
 		if(!mRemoteSubscribers[link].get(path, subscriber))
 		{
@@ -585,7 +585,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	}
 	
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::mutex> lock(mRemoteSubscribersMutex);
 		mRemoteSubscribers.erase(link);
 	}
 	
