@@ -286,6 +286,7 @@ Resource &Resource::operator= (const Resource &resource)
 	delete mIndexRecord;
 	mIndexBlock = new Block(*resource.mIndexBlock);
 	mIndexRecord = new IndexRecord(*resource.mIndexRecord);
+	return *this;
 }
 
 bool operator< (const Resource &r1, const Resource &r2)

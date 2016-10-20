@@ -176,9 +176,9 @@ void Request::http(const String &prefix, Http::Request &request)
 	{
 		mAutoDeleter.cancel();
 		
-		if(mCondition.wait_for(lock, timeout, [this, next]() {
+		mCondition.wait_for(lock, timeout, [this, next]() {
 			return int(mResults.size()) > next || mFinished;
-		}));
+		});
 	}
 	
 	if(mAutoDeleteTimeout >= duration::zero())

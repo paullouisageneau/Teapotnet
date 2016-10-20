@@ -66,7 +66,7 @@ ByteArray::ByteArray(const ByteArray &array) :
 
 ByteArray::~ByteArray(void)
 {
-	if(mMustDelete) delete mArray;
+	if(mMustDelete) delete[] mArray;
 }
 
 char *ByteArray::array(void)

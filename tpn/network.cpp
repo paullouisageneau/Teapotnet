@@ -1172,7 +1172,11 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 			Object()
 				.insert("path", prefix)
 				.insert("targets", targets));
+		
+		return true;
 	}
+	
+	return false;
 }
 
 bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)
@@ -1183,7 +1187,11 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 			Object()
 				.insert("path", prefix)
 				.insert("message", mail));
+		
+		return true;
 	}
+	
+	return false;
 }
 
 bool Network::RemoteSubscriber::localOnly(void) const
@@ -1486,14 +1494,13 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
 			
-			/*if(Network::Instance->onAuth(Link(local, remote, node), publicKey))
-				return true;
-			
+			/*if(Network::Instance->onAuth(Link(local, remote, node), publicKey)) return true;
 			LogDebug("Network::Tunneler::handshake", "Certificate verification failed");
 			return false;*/
 			
 			// Always accept
 			Network::Instance->onAuth(Link(local, remote, node), publicKey);
+			return true;
 		}
 	};
 	

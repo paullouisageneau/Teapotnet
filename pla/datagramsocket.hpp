@@ -62,7 +62,7 @@ public:
 	
 	void accept(DatagramStream &stream);
 	void registerStream(DatagramStream *stream);
-	bool unregisterStream(DatagramStream *stream);
+	void unregisterStream(DatagramStream *stream);
 	
 private:
 	int recv(char *buffer, size_t size, Address &sender, duration timeout, int flags);

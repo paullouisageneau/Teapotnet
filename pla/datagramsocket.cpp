@@ -495,7 +495,7 @@ void DatagramSocket::registerStream(DatagramStream *stream)
 	mStreams[addr].insert(stream);
 }
 
-bool DatagramSocket::unregisterStream(DatagramStream *stream)
+void DatagramSocket::unregisterStream(DatagramStream *stream)
 {
 	Assert(stream);
 	Address addr(stream->mAddr.unmap());

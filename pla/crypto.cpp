@@ -53,7 +53,7 @@ int64_t Hash::compute(Stream &stream, char *digest)
 	char buffer[BufferSize];
 	size_t size;
 	int64_t total = 0;
-	while(size = stream.readData(buffer, BufferSize))
+	while((size = stream.readData(buffer, BufferSize)) > 0)
 	{
 		process(buffer, size);
 		total+= size;
@@ -635,6 +635,7 @@ Rsa::PrivateKey &Rsa::PrivateKey::operator=(const Rsa::PrivateKey &key)
 	mpz_set(mKey.a, key.mKey.a);
 	mpz_set(mKey.b, key.mKey.b);
 	mpz_set(mKey.c, key.mKey.c);
+	return *this;
 }
 
 bool Rsa::PrivateKey::isNull(void) const

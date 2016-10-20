@@ -863,5 +863,6 @@ int benchmark(String &commandLine, StringMap &args)
 	
 	std::cout << "Coding:   " << 1./(t2-t1) << " MB/s" << std::endl;
 	std::cout << "Decoding: " << 1./(t3-t2) << " MB/s" << std::endl;
+	return 0;
 }
 

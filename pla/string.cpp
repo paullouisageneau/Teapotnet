@@ -162,41 +162,43 @@ String::String(const String &str, int begin, int end) :
 
 String::String(const wchar_t *str)
 {
-      unsigned int codepoint = 0;
-      for (str;  *str != 0;  ++str)
-      {
-	  if (*str >= 0xd800 && *str <= 0xdbff)
-	      codepoint = ((*str - 0xd800) << 10) + 0x10000;
-	  else
-	  {
-	      if (*str >= 0xdc00 && *str <= 0xdfff)
-		  codepoint |= *str - 0xdc00;
-	      else
-		  codepoint = *str;
-
-	      if (codepoint <= 0x7f)
-		  append(1, static_cast<char>(codepoint));
-	      else if (codepoint <= 0x7ff)
-	      {
-		  append(1, static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f)));
-		  append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
-	      }
-	      else if (codepoint <= 0xffff)
-	      {
-		  append(1, static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f)));
-		  append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
-		  append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
-	      }
-	      else
-	      {
-		  append(1, static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07)));
-		  append(1, static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
-		  append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
-		  append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
-	      }
-	      codepoint = 0;
-	  }
-      }
+	unsigned int codepoint = 0;
+	while(*str != 0)
+	{
+		if (*str >= 0xd800 && *str <= 0xdbff)
+			codepoint = ((*str - 0xd800) << 10) + 0x10000;
+		else
+		{
+			if (*str >= 0xdc00 && *str <= 0xdfff)
+				codepoint |= *str - 0xdc00;
+			else
+				codepoint = *str;
+			
+			if (codepoint <= 0x7f)
+				append(1, static_cast<char>(codepoint));
+			else if (codepoint <= 0x7ff)
+			{
+				append(1, static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f)));
+				append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+			}
+			else if (codepoint <= 0xffff)
+			{
+				append(1, static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f)));
+				append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+				append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+			}
+			else
+			{
+				append(1, static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07)));
+				append(1, static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+				append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+				append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+			}
+			codepoint = 0;
+		}
+		
+		++str;
+	}
 }
 
 String::~String(void)

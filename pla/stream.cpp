@@ -71,7 +71,7 @@ void Stream::clear(void)
 {
 	char buffer[BufferSize];
 	size_t len;
-	while(len = readData(buffer,BufferSize))
+	while((len = readData(buffer,BufferSize)) > 0)
 		mLast = buffer[len-1];
 }
 

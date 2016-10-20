@@ -223,6 +223,7 @@ Block &Block::operator = (const Block &block)
 	mOffset = block.mOffset;
 	mSize = block.mSize;
 	mFile = new File(block.mFile->name());
+	return *this;
 }
 
 void Block::waitContent(void) const

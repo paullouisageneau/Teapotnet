@@ -77,7 +77,7 @@ private:
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;
 	mutable bool mHasNew;
-	mutable bool mUnread;
+	mutable unsigned mUnread;
 };
 
 }
