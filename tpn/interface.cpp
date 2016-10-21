@@ -274,7 +274,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				Html page(response.stream);
 				page.header("Browse files");
 				page.open("div","topmenu");
-				if(user) page.link(user->urlPrefix()+"/search/", "Sear.hpp", ".button");
+				if(user) page.link(user->urlPrefix()+"/search/", "Search", ".button");
 				page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 				page.close("div");
 				
@@ -305,7 +305,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				
 				// Forge HTTP response header
 				Http::Response response(request, 200);
-				response.headers["Content-Leng.hpp"] << rangeSize;
+				response.headers["Content-Length"] << rangeSize;
 				response.headers["Content-Name"] = resource.name();
 				//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
 				response.headers["Accept-Ranges"] = "bytes";
