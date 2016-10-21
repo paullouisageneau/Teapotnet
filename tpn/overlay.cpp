@@ -374,7 +374,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
-			LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
+			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
 			
 			route(message);
 			
@@ -390,7 +390,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Store value in DHT
 	case Message::Store:
 		{
-			LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
+			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);
 
 			if(Time::Now() - oldTime >= 60.) // 1 min
@@ -424,7 +424,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
-			LogDebug("Overlay::Incoming", "Value " + message.source.toString());
+			//LogDebug("Overlay::Incoming", "Value " + message.source.toString());
 			
 			// Value messages differ from Store messages because key is in the source field
 			store(message.source, message.content);
