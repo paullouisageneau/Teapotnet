@@ -556,7 +556,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	
 	std::unique_lock<std::mutex> lock(mMutex);
 
-	if(!mSock) return 0;
+	if(mIncoming.empty()) return 0;
 	Assert(mOffset <= mIncoming.front().size());
 	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
 	std::memcpy(buffer, mIncoming.front().data() + mOffset, size);
@@ -591,7 +591,7 @@ bool DatagramStream::nextRead(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	if(!mSock || mIncoming.empty()) return false;
+	if(mIncoming.empty()) return false;
 	mIncoming.pop();
 	mOffset = 0;
 	return true;
