@@ -159,7 +159,13 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		if(path.empty()) path = mBaseDirectory + Directory::Separator + name;
+		if(path.empty()) 
+		{
+			String dirname = name;
+			dirname.replace(' ','_');
+			path = mBaseDirectory + Directory::Separator + dirname;
+		}
+		
 		if(path[path.size()-1] == Directory::Separator) path.ignore(1);
 		
 		if(!Directory::Exist(path))
@@ -233,7 +239,7 @@ bool Indexer::moveFileToCache(String &fileName, String name)
 	}
 	
 	if(!hasDirectory)
-		addDirectory(CacheDirectoryName, CacheDirectoryName, Resource::Personal);
+		addDirectory(CacheDirectoryName, "", Resource::Personal);
 
 	Entry cacheEntry;
 	Assert(mDirectories.get(CacheDirectoryName, cacheEntry));
@@ -872,13 +878,8 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							|| name.contains('/') || name.contains('\\') 
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
-
-						String dirname = name.toLower();
-						dirname.replace(' ','_');
-						// TODO: sanitize dirname
 						
-						Assert(!dirname.empty());
-					 	addDirectory(name, dirname, accessLevel);
+						addDirectory(name, "", accessLevel);
 					}
 					catch(const Exception &e)
 					{
