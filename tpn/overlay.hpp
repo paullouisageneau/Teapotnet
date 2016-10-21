@@ -253,10 +253,11 @@ private:
 	
 	ThreadPool mPool;
 	
-	String mName;
+	String mLocalName;
 	String mFileName;
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
+	BinaryString mLocalNode;
 	sptr<SecureTransport::Certificate> mCertificate;
 
 	List<sptr<Backend> > mBackends;

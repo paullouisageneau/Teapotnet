@@ -59,23 +59,26 @@ Overlay::Overlay(int port) :
 		rsa.generate(mPublicKey, mPrivateKey);
 	}
 	
+	// Generate local node id
+	mLocalNode = mPublicKey.digest();
+	
 	// Create certificate
 	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, localNode().toString());
 	
 	// Define node name
-	mName = Config::Get("node_name");
-	if(mName.empty())
+	mLocalName = Config::Get("node_name");
+	if(mLocalName.empty())
 	{
 		char hostname[HOST_NAME_MAX];
 		if(gethostname(hostname,HOST_NAME_MAX) == 0)
-			mName = hostname;
+			mLocalName = hostname;
 
-		if(mName.empty() || mName == "localhost")
-			mName = localNode().toString();
+		if(mLocalName.empty() || mLocalName == "localhost")
+			mLocalName = localNode().toString();
 	}
 	
-	LogDebug("Overlay", "Instance name is \"" + localName() + "\"");
-	LogDebug("Overlay", "Local node is " + localNode().toString());
+	LogDebug("Overlay", "Instance name is \"" + mLocalName + "\"");
+	LogDebug("Overlay", "Local node is " + mLocalNode.toString());
 	save();
 	
 	// Create backends
@@ -126,31 +129,31 @@ void Overlay::join(void)
 String Overlay::localName(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	Assert(!mName.empty());
-	return mName;
+	Assert(!mLocalName.empty());
+	return mLocalName;
 }
 
 BinaryString Overlay::localNode(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	return mPublicKey.digest();
+	//std::unique_lock<std::mutex> lock(mMutex);
+	return mLocalNode;
 }
 
 const Rsa::PublicKey &Overlay::publicKey(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mPublicKey; 
 }
 
 const Rsa::PrivateKey &Overlay::privateKey(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mPrivateKey; 
 }
 
 sptr<SecureTransport::Certificate> Overlay::certificate(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mCertificate;
 }
 
@@ -740,6 +743,7 @@ bool Overlay::deserialize(Serializer &s)
 	
 	mPublicKey.clear();
 	mPrivateKey.clear();
+	mLocalNode.clear();
 	
 	if(!(s >> Object()
 		.insert("publickey", mPublicKey)
@@ -747,6 +751,8 @@ bool Overlay::deserialize(Serializer &s)
 		return false;
 	
 	// TODO: Sanitize
+	
+	mLocalNode = mPublicKey.digest();
 	return true;
 }
 
