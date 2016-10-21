@@ -556,6 +556,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 	
 	std::unique_lock<std::mutex> lock(mMutex);
 
+	if(!mSock) return 0;
 	Assert(mOffset <= mIncoming.front().size());
 	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
 	std::memcpy(buffer, mIncoming.front().data() + mOffset, size);
@@ -565,6 +566,8 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 
 void DatagramStream::writeData(const char *data, size_t size)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+	
 	if(!mSock) throw NetException("Datagram stream closed");
 	mBuffer.writeData(data, size);
 }
@@ -577,18 +580,18 @@ bool DatagramStream::waitData(duration timeout)
 	{
 		this->mCondition.wait_for(lock, timeout, [this]()
 		{ 
-			return !this->mIncoming.empty();
+			return (!mSock || !this->mIncoming.empty());
 		});
 	}
 	
-	return !(mSock && mIncoming.empty());
+	return (!mSock || !mIncoming.empty());
 }
 
 bool DatagramStream::nextRead(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	if(mIncoming.empty()) return false;
+	if(!mSock || mIncoming.empty()) return false;
 	mIncoming.pop();
 	mOffset = 0;
 	return true;
