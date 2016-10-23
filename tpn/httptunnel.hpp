@@ -95,7 +95,7 @@ public:
 		std::mutex mMutex;
 		mutable std::condition_variable mCondition;
 		
-		friend Server *HttpTunnel::Incoming(Socket *sock);;
+		friend Server *HttpTunnel::Incoming(Socket *sock);
 	};
 
 	static String UserAgent;

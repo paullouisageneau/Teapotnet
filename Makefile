@@ -7,7 +7,7 @@ CC=gcc
 CXX=g++
 RM=rm -f
 CCFLAGS=-O2 -g -fno-var-tracking
-CPPFLAGS=-std=c++11 -O2 -g -fno-var-tracking -DDEBUG
+CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -g -fno-var-tracking -DDEBUG
 LDFLAGS=-g
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 

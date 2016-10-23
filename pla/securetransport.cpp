@@ -62,11 +62,11 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 	mStream(stream),
 	mVerifier(NULL),
 	mPriorities(DefaultPriorities),
-	mIsHandshakeDone(false),
-	mIsByeDone(false),
 	mBuffer(NULL),
 	mBufferSize(0),
-	mBufferOffset(0)
+	mBufferOffset(0),
+	mIsHandshakeDone(false),
+	mIsByeDone(false)
 {
 	Assert(stream);
 
@@ -918,57 +918,66 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *re
 	gnutls_datum_t cookieKey;
 	gnutls_key_generate(&cookieKey, GNUTLS_COOKIE_KEY_SIZE);
 	
-	while(true)
-	{
-		char buffer[DatagramSocket::MaxDatagramSize];
-		Address sender;
-		int len = sock.peek(buffer, DatagramSocket::MaxDatagramSize, sender);
-		if(len < 0) throw NetException("Unable to listen on datagram socket");
+	char *buffer = new char[DatagramSocket::MaxDatagramSize];
+	try {
+		while(true)
+		{
+			Address sender;
+			int len = sock.peek(buffer, DatagramSocket::MaxDatagramSize, sender);
+			if(len < 0) throw NetException("Unable to listen on datagram socket");
 
-		gnutls_dtls_prestate_st prestate;
-		std::memset(&prestate, 0, sizeof(prestate));
+			gnutls_dtls_prestate_st prestate;
+			std::memset(&prestate, 0, sizeof(prestate));
+				
+			int ret = gnutls_dtls_cookie_verify(&cookieKey,
+							const_cast<sockaddr*>(sender.addr()),	// WTF ?
+							sender.addrLen(),
+							buffer, len,
+							&prestate);
 			
-		int ret = gnutls_dtls_cookie_verify(&cookieKey,
+			if(ret == GNUTLS_E_SUCCESS)	// valid cookie
+			{
+				if(remote)
+					*remote = sender;
+				
+				DatagramStream *stream = NULL;
+				SecureTransportServer *transport = NULL;
+				try {
+					stream = new DatagramStream(&sock, sender);
+					if(streamTimeout > duration::zero())
+						stream->setTimeout(streamTimeout);
+					transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
+				}
+				catch(...)
+				{
+					delete stream;
+					delete transport;
+					throw;
+				}
+				
+				gnutls_dtls_prestate_set(transport->mSession, &prestate);
+				delete[] buffer;
+				return transport;
+			}
+			
+			NOEXCEPTION(sock.read(buffer, DatagramSocket::MaxDatagramSize, sender));
+		
+			DatagramStream stream(&sock, sender);	
+			gnutls_dtls_cookie_send(&cookieKey,
 						const_cast<sockaddr*>(sender.addr()),	// WTF ?
 						sender.addrLen(),
-						buffer, len,
-						&prestate);
-		
-		if(ret == GNUTLS_E_SUCCESS)	// valid cookie
-		{
-			if(remote)
-				*remote = sender;
+						&prestate,
+						static_cast<gnutls_transport_ptr_t>(&stream),
+						DirectWriteCallback);
 			
-			DatagramStream *stream = NULL;
-			SecureTransportServer *transport = NULL;
-			try {
-				stream = new DatagramStream(&sock, sender);
-				if(streamTimeout > duration::zero())
-					stream->setTimeout(streamTimeout);
-				transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
-			}
-			catch(...)
-			{
-				delete stream;
-				throw;
-			}
-			
-			gnutls_dtls_prestate_set(transport->mSession, &prestate);
-			return transport;
+			// discard peeked data
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
-		
-		NOEXCEPTION(sock.read(buffer, DatagramSocket::MaxDatagramSize, sender));
-	
-		DatagramStream stream(&sock, sender);	
-		gnutls_dtls_cookie_send(&cookieKey,
-					const_cast<sockaddr*>(sender.addr()),	// WTF ?
-					sender.addrLen(),
-					&prestate,
-					static_cast<gnutls_transport_ptr_t>(&stream),
-					DirectWriteCallback);
-		
-		// discard peeked data
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+	catch(...)
+	{
+		delete[] buffer;
+		throw;
 	}
 }
 

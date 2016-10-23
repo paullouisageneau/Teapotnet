@@ -192,7 +192,6 @@ void DatagramSocket::getHardwareAddresses(Set<BinaryString> &set) const
 	if (ioctl(mSock, SIOCGIFCONF, &ifc) == -1)
 		throw NetException("Unable to retrive hardware addresses");
 	
-	bool success = 0;
 	for(	struct ifreq* it = ifc.ifc_req;
 		it != ifc.ifc_req + ifc.ifc_len/sizeof(struct ifreq);
 		++it)

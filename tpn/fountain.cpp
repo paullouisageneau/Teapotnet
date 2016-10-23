@@ -590,7 +590,6 @@ bool Fountain::FileSource::generate(Combination &result)
 	
 	// Generate
 	Generator gen(result.seed(first, count));
-	unsigned i = first;
 	char buffer[ChunkSize];
 	size_t size;
 	for(unsigned i=0; i<count; ++i)
@@ -766,7 +765,6 @@ bool Fountain::Sink::isDecoded(void) const
 
 size_t Fountain::Sink::read(char *buffer, size_t size)
 {
-	int64_t total = 0;
 	Map<unsigned, Combination>::const_iterator it = mCombinations.lower_bound(mNextRead);
 	if(it != mCombinations.end() && it->first == mNextRead && !it->second.isCoded())
 	{

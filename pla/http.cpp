@@ -635,8 +635,8 @@ void Http::Response::clear(void)
 }
 
 Http::Server::Server(int port, int threads) :
-	mPool(threads),
-	mSock(port)
+	mSock(port),
+	mPool(threads)
 {
 	mPool.enqueue([this]() 
 	{

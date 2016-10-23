@@ -40,7 +40,7 @@ public:
 	Request(const String &path, bool listDirectories = true);
 	Request(const String &path, const Identifier &local, const Identifier &remote, bool listDirectories = true);
 	Request(const String &path, const Network::Link &link, bool listDirectories = true);
-	~Request(void);
+	virtual ~Request(void);
 	
 	bool addTarget(const BinaryString &target);
 	

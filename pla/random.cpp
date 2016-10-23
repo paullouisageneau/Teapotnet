@@ -46,9 +46,9 @@ void Random::generate(char *buffer, size_t size) const
 	
 	switch(mLevel)
 	{
-		case Nonce:	level = GNUTLS_RND_NONCE;	break;
 		case Crypto:	level = GNUTLS_RND_RANDOM;	break;
 		case Key:	level = GNUTLS_RND_KEY;		break;
+		default:	level = GNUTLS_RND_NONCE;	break;
 	}
 	
 	int ret = gnutls_rnd(level, buffer, size);

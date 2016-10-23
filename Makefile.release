@@ -7,7 +7,7 @@ CC=gcc
 CXX=g++
 RM=rm -f
 CCFLAGS=-O2
-CPPFLAGS=-std=c++11 -O2
+CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2
 LDFLAGS=-O2
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
 

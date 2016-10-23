@@ -761,9 +761,8 @@ int run(String &commandLine, StringMap &args)
 				String name = profilesDir.fileName();
 				User *user;
 				
-				LogInfo("main", String("Loading user ") + name + "...");
-				
 				try {
+					LogInfo("main", String("Loading user ") + name + "...");
 					user = new User(name);
 				}
 				catch(const std::exception &e)
@@ -771,6 +770,8 @@ int run(String &commandLine, StringMap &args)
 					LogError("main", "Unable to load user " + name + ": " + e.what());
 					continue;
 				}
+				
+				LogDebug("main", String("Loaded user ") + user->name());
 				
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
@@ -790,6 +791,7 @@ int run(String &commandLine, StringMap &args)
 				if(name.empty()) continue;
 				LogInfo("main", String("Creating user ") + name + "...");
 				User *user = new User(name, password);
+				LogDebug("main", String("Created user ") + user->name());
 				line.clear();
 			}
 			usersFile.close();
@@ -823,14 +825,13 @@ int run(String &commandLine, StringMap &args)
 		Scheduler::Global->cancel(&checkUpdateTask);
 #endif		
 	}
-	catch(...)
+	catch(const std::exception &e)
 	{
-		PortMapping::Instance->disable();
-		throw;
+		LogError("main", e.what());
 	}
 	
 	PortMapping::Instance->disable();
-	LogInfo("main", "Finished");
+	delete tracker;
 	return 0;
 }
 

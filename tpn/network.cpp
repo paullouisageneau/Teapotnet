@@ -940,7 +940,6 @@ bool Network::onAuth(const Link &link, const Rsa::PublicKey &pubKey) const
 	auto it = mListeners.find(IdentifierPair(link.remote, link.local));
 	if(it == mListeners.end()) return false;
 	
-	bool ret = false;
 	while(it != mListeners.end() && it->first.first == link.remote && it->first.second == link.local)
 	{
 		for(auto listener : it->second)
@@ -1716,8 +1715,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
 	mTokens(DefaultTokens),
-	mThreshold(DefaultTokens/2),
 	mAvailableTokens(DefaultTokens),
+	mThreshold(DefaultTokens/2),
 	mAccumulator(0.),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),

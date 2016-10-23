@@ -753,11 +753,11 @@ AddressBook::Contact::Contact(	AddressBook *addressBook,
 				const String &name,
 			        const Identifier &identifier) :
 	mAddressBook(NULL),
+	mBoard(NULL),
+	mPrivateBoard(NULL),
 	mUniqueName(uname),
 	mName(name),
-	mIdentifier(identifier),
-	mBoard(NULL),
-	mPrivateBoard(NULL)
+	mIdentifier(identifier)
 {
 	Assert(!uname.empty());
 	Assert(!name.empty());
