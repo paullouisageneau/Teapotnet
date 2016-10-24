@@ -128,7 +128,7 @@ void Overlay::join(void)
 
 String Overlay::localName(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	Assert(!mLocalName.empty());
 	return mLocalName;
 }
