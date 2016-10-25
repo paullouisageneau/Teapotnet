@@ -135,14 +135,14 @@ public:
 		bool readDirectory(DirectoryRecord &record);
 		
 	private:
-		Block *createBlock(int index); 
+		sptr<Block> createBlock(int index); 
 	  
 		Resource *mResource;
 		int64_t mReadPosition;
 		
 		int mCurrentBlockIndex;
-		Block *mCurrentBlock;
-		Block *mNextBlock;
+		sptr<Block> mCurrentBlock;
+		sptr<Block> mNextBlock;
 		
 		BinaryString mKey;
 	};
@@ -166,8 +166,8 @@ public:
 	};
 	
 protected:
-	Block *mIndexBlock;
-	IndexRecord *mIndexRecord;
+	sptr<Block> mIndexBlock;
+	sptr<IndexRecord> mIndexRecord;
 	
 	friend class Indexer;
 };

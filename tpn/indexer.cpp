@@ -507,7 +507,7 @@ bool Indexer::process(String path, Resource &resource)
 			
 			Time time = File::Time(realSubPath);
 			Resource::DirectoryRecord record;
-			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord);
+			*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(subResource.mIndexRecord.get());
 			record.digest = subResource.digest();
 			record.time = time;
 			serializer << record;

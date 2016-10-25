@@ -434,9 +434,8 @@ void Network::run(void)
 			case Overlay::Message::Data:
 				{
 					const BinaryString &target = message.source;
-					BinarySerializer serializer(&message.content);
 					Fountain::Combination combination;
-					serializer >> combination;
+					BinarySerializer(&message.content) >> combination;
 					combination.setCodedData(message.content);
 					
 					//LogDebug("Network::run", "Data for " + target.toString() + " (" + combination.toString() + ")");
@@ -2151,8 +2150,7 @@ void Network::Pusher::run(void)
 					--tokens;
 					
 					Overlay::Message data(Overlay::Message::Data, "", destination, target);
-					BinarySerializer serializer(&data.content);
-					serializer << combination;
+					BinarySerializer(&data.content) << combination;
 					data.content.writeBinary(combination.data(), combination.codedSize());
 					
 					congestion|= !Network::Instance->overlay()->send(data);

@@ -54,16 +54,13 @@ Resource::Resource(const BinaryString &digest, bool localOnly) :
 
 Resource::~Resource(void)
 {
-	delete mIndexBlock;
-	delete mIndexRecord;
+
 }
 
 void Resource::fetch(const BinaryString &digest, bool localOnly)
 {
-	delete mIndexBlock;
-	delete mIndexRecord;
-	mIndexRecord = NULL;
-	mIndexBlock = NULL;
+	mIndexRecord.reset();
+	mIndexBlock.reset();
 	
 	if(localOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
@@ -71,19 +68,17 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
 	
 	try {
-		mIndexBlock = new Block(digest);
-		mIndexRecord = new IndexRecord;
+		mIndexBlock = std::make_shared<Block>(digest);
+		mIndexRecord = std::make_shared<IndexRecord>();
 		
 		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
 		
-		AssertIO(BinarySerializer(mIndexBlock) >> mIndexRecord);
+		AssertIO(BinarySerializer(mIndexBlock.get()) >> mIndexRecord);
 	}
 	catch(const std::exception &e)
 	{
-		delete mIndexBlock;
-		delete mIndexRecord;
-		mIndexRecord = NULL;
-		mIndexBlock = NULL;
+		mIndexRecord.reset();
+		mIndexBlock.reset();
 		throw Exception(String("Unable to fetch resource index block: ") + e.what());
 	}
 
@@ -106,9 +101,8 @@ void Resource::process(const String &filename, const String &name, const String 
 	}
 	
 	// Fill index record
-	delete mIndexRecord;
 	int64_t size = File::Size(filename);
-	mIndexRecord = new Resource::IndexRecord;
+	mIndexRecord = std::make_shared<Resource::IndexRecord>();
 	mIndexRecord->name = name;
 	mIndexRecord->type = type;
 	mIndexRecord->size = size;
@@ -159,8 +153,7 @@ void Resource::process(const String &filename, const String &name, const String 
 	String indexFilePath = Cache::Instance->move(tempFileName);
 	
 	// Create index block
-	delete mIndexBlock;
-	mIndexBlock = new Block(indexFilePath);
+	mIndexBlock = std::make_shared<Block>(indexFilePath);
 }
 
 void Resource::cache(const String &filename, const String &name, const String &type, const String &secret)
@@ -282,10 +275,8 @@ bool Resource::isInlineSerializable(void) const
 
 Resource &Resource::operator= (const Resource &resource)
 {
-	delete mIndexBlock;
-	delete mIndexRecord;
-	mIndexBlock = new Block(*resource.mIndexBlock);
-	mIndexRecord = new IndexRecord(*resource.mIndexRecord);
+	mIndexBlock = resource.mIndexBlock;
+	mIndexRecord = resource.mIndexRecord;
 	return *this;
 }
 
@@ -325,7 +316,7 @@ Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
 	 if(!mIndexRecord) throw Exception("No index record for the resource");
 	 
 	Resource::DirectoryRecord record;
-	*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(mIndexRecord);
+	*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(mIndexRecord.get());
 	record.digest = digest();
 	record.time = recordTime;
 	return record;
@@ -356,8 +347,7 @@ Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck)
 
 Resource::Reader::~Reader(void)
 {
-	delete mCurrentBlock;
-	delete mNextBlock;
+
 }
 
 size_t Resource::Reader::readData(char *buffer, size_t size)
@@ -388,7 +378,6 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 		return ret;
 	}
 	
-	delete mCurrentBlock;
 	++mCurrentBlockIndex;
 	mCurrentBlock = mNextBlock;
 	mNextBlock = createBlock(mCurrentBlockIndex + 1);
@@ -402,9 +391,6 @@ void Resource::Reader::writeData(const char *data, size_t size)
 
 void Resource::Reader::seekRead(int64_t position)
 {
-	delete mCurrentBlock;
-	delete mNextBlock;
-	
 	size_t offset = 0;
 	mCurrentBlockIndex = mResource->blockIndex(position, &offset);
 	mCurrentBlock	= createBlock(mCurrentBlockIndex);
@@ -436,12 +422,12 @@ bool Resource::Reader::readDirectory(DirectoryRecord &record)
 	return !!(serializer >> record);
 }
 
-Block *Resource::Reader::createBlock(int index)
+sptr<Block> Resource::Reader::createBlock(int index)
 {
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
 	
 	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
-	return new Block(mResource->blockDigest(index), mResource->digest()); 
+	return std::make_shared<Block>(mResource->blockDigest(index), mResource->digest()); 
 }
 
 void Resource::MetaRecord::serialize(Serializer &s) const
