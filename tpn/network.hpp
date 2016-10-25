@@ -340,6 +340,9 @@ private:
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
 	bool incoming(const Link &link, const String &type, Serializer &serializer);
 	
+	bool push(const BinaryString &target, unsigned tokens);
+	bool push(const Link &link, const BinaryString &target, unsigned tokens);
+	
 	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
 	bool matchSubscribers(const String &path, const Link &link, const Mail &mail);

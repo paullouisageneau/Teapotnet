@@ -602,28 +602,65 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	String serialized;
 	JsonSerializer(&serialized) << content;
 
-	std::unique_lock<std::recursive_mutex> lock1(mHandlersMutex,  std::defer_lock);
-	std::unique_lock<std::recursive_mutex> lock2(mListenersMutex, std::defer_lock);
-	std::lock(lock1, lock2);
-	
-	bool success = false;
-	for(auto it = mHandlers.lower_bound(link);
-		it != mHandlers.end() && it->first == link;
-		++it)
+	Set<sptr<Handler> > handlers;
 	{
-		if(type == "subscribe")
-		{
-			// If link is not trusted, do not send subscriptions
-			if(!mListeners.contains(IdentifierPair(it->first.remote, it->first.local)))
-				continue;
-		}
+		std::unique_lock<std::recursive_mutex> lock1(mHandlersMutex,  std::defer_lock);
+		std::unique_lock<std::recursive_mutex> lock2(mListenersMutex, std::defer_lock);
+		std::lock(lock1, lock2);
 		
-		it->second->write(type, serialized);
-		success = true;
+		for(auto it = mHandlers.lower_bound(link);
+			it != mHandlers.end() && it->first == link;
+			++it)
+		{
+			if(type == "subscribe")
+			{
+				// If link is not trusted, do not send subscriptions
+				if(!mListeners.contains(IdentifierPair(it->first.remote, it->first.local)))
+					continue;
+			}
+			
+			handlers.insert(it->second);
+		}
 	}
 	
-	//if(success) LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\")");
-	return success;
+	for(auto h : handlers)
+		h->write(type, serialized);
+	
+	//LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\") on " + String::number(handlers.size()) + " links");
+	return !handlers.empty();
+}
+
+bool Network::push(const BinaryString &target, unsigned tokens)
+{
+	// Alias
+	return push(Link::Null, target, tokens);
+}
+
+bool Network::push(const Link &link, const BinaryString &target, unsigned tokens)
+{
+	if(!Store::Instance->hasBlock(target))
+		return false;
+	
+	Set<sptr<Handler> > handlers;
+	{
+		std::unique_lock<std::recursive_mutex> lock1(mHandlersMutex,  std::defer_lock);
+		std::unique_lock<std::recursive_mutex> lock2(mListenersMutex, std::defer_lock);
+		std::lock(lock1, lock2);
+		
+		for(auto it = mHandlers.lower_bound(link);
+			it != mHandlers.end() && it->first == link;
+			++it)
+		{
+			handlers.insert(it->second);
+		}
+	}
+	
+	unsigned t = (tokens + (handlers.size()-1))/handlers.size();
+	for(auto h : handlers)
+		h->push(target, t);
+	
+	//LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
+	return !handlers.empty();
 }
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
@@ -632,7 +669,17 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	
 	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
-	if(type == "publish")
+	if(type == "pull")	// equivalent to call between users
+	{
+		BinaryString target;
+		unsigned tokens = 0;
+		serializer >> Object()
+				.insert("target", target)
+				.insert("tokens", tokens);
+		
+		push(link, target, tokens);
+	}
+	else if(type == "publish")
 	{
 		// If link is not trusted, ignore publications
 		// Subscriptions are filtered in outgoing()
