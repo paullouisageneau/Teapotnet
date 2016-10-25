@@ -109,15 +109,17 @@ void AddressBook::save(void) const
 	sptr<const Contact> self = getSelf();
 	if(self)
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		
 		Resource resource;
 		resource.process(mFileName, "contacts", "contacts", self->secret());
-		mDigest = resource.digest();
-			
+		
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			mDigest = resource.digest();
+		}
+		
 		self->send("contacts", Object()
-				.insert("digest", mDigest)
-				.insert("time", mTime));
+				.insert("digest", resource.digest())
+				.insert("time", time()));
 	}
 }
 
