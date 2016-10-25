@@ -127,7 +127,7 @@ unsigned Store::missing(const BinaryString &digest)
 	
 	Map<BinaryString,Fountain::Sink>::iterator it = mSinks.find(digest);
 	if(it != mSinks.end()) return it->second.missing();
-	else return uint16_t(-1);
+	else return Block::MaxChunks;
 }
 
 bool Store::hasBlock(const BinaryString &digest)

@@ -37,6 +37,7 @@
 namespace tpn
 {
 
+const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
 const unsigned Network::DefaultThreshold = Network::DefaultTokens*16;
 
@@ -86,27 +87,9 @@ void Network::registerCaller(const BinaryString &target, Caller *caller)
 		mCallers[target].insert(caller);
 	}
 	
-	// Immediately send to node providing hinted block
-	if(!caller->hint().empty())
-	{
-		Set<BinaryString> nodes;
-		if(Store::Instance->retrieveValue(caller->hint(), nodes))
-		{
-			uint16_t tokens = uint16_t(Store::Instance->missing(target));
-			BinaryString call;
-			call.writeBinary(tokens);
-			call.writeBinary(target);
-			
-			for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
-				mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
-		}
-		
-		// Send retrieve for node
-		mOverlay.retrieve(caller->hint());
-	}
-	
-	// Immediately send retrieve for target
-	mOverlay.retrieve(target);
+	Set<BinaryString> hints;
+	hints.insert(caller->hint());
+	call(target, hints);
 }
 
 void Network::unregisterCaller(const BinaryString &target, Caller *caller)
@@ -325,22 +308,22 @@ void Network::addRemoteSubscriber(const Link &link, const String &path)
 	subscriber->subscribe(path);
 }
 
-bool Network::broadcast(const Identifier &local, const String &type, const Serializable &object)
+bool Network::broadcast(const Identifier &local, const String &type, const Serializable &content)
 {	
 	// Alias
-	return send(Link(local, Identifier::Empty), type, object);
+	return send(Link(local, Identifier::Empty), type, content);
 }
 
-bool Network::send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &object)
+bool Network::send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content)
 {
 	// Alias
-	return send(Link(local, remote), type, object);
+	return send(Link(local, remote), type, content);
 }
 
-bool Network::send(const Link &link, const String &type, const Serializable &object)
+bool Network::send(const Link &link, const String &type, const Serializable &content)
 {
 	// Alias
-	return outgoing(link, type, object);
+	return outgoing(link, type, content);
 }
 
 void Network::storeValue(const BinaryString &key, const BinaryString &value)
@@ -416,12 +399,7 @@ void Network::run(void)
 					
 					if(Store::Instance->hasBlock(target))
 					{
-						if(tokens)
-						{
-							if(tokens < uint16_t(-1)) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
-							else LogDebug("Network::run", "Called " + target.toString());
-						}
-						
+						if(tokens) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
 						mPusher.push(target, message.source, tokens);
 					}
 					else {
@@ -467,37 +445,32 @@ void Network::run(void)
 			}
 		}
 		
-		// Send beacons
+		// Send calls
+		if(loops % 2 == 0)
 		{
 			std::unique_lock<std::mutex> lock(mCallersMutex);
 			
 			for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
 			{
-				for(Caller *caller : it->second)
+				const BinaryString &target = it->first;
+				Set<BinaryString> hints;
+				
+				for(const Caller *caller : it->second)
 				{
-					if(!caller->hint().empty())
+					if(caller->elapsed() >= CallerFallbackTimeout)
 					{
-						Set<BinaryString> nodes;
-						if(Store::Instance->retrieveValue(caller->hint(), nodes))
-						{
-							uint16_t tokens = uint16_t(Store::Instance->missing(it->first));
-							BinaryString call;
-							call.writeBinary(tokens);
-							call.writeBinary(it->first);
-							
-							for(auto kt = nodes.begin(); kt != nodes.end(); ++kt)
-								mOverlay.send(Overlay::Message(Overlay::Message::Call, call, *kt));
-						}
-						else mOverlay.retrieve(caller->hint());
+						std::unique_lock<std::mutex> lock(mTargetsMutex);
+						mTargets.erase(target);
 					}
+					
+					hints.insert(caller->hint());
 				}
 				
-				mOverlay.retrieve(it->first);
+				call(target, hints);
 			}
-			
-			mCallCandidates.clear();
 		}
 		
+		// Send beacons
 		if(loops % 10 == 0)
 		{
 			Identifier node(mOverlay.localNode());
@@ -511,16 +484,17 @@ void Network::run(void)
 			}
 			
 			for(auto &id : localIds)
-			{
 				storeValue(id, node);
-			}
 			
 			for(auto &id : remoteIds)
-			{
 				mOverlay.retrieve(id);
-			}
 			
 			//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
+			
+			{
+				std::unique_lock<std::mutex> lock(mCallersMutex);
+				mCallCandidates.clear();
+			}
 		}
 	}
 	catch(const std::exception &e)
@@ -655,9 +629,9 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 		}
 	}
 	
-	unsigned t = (tokens + (handlers.size()-1))/handlers.size();
+	tokens = (tokens + (handlers.size()-1))/handlers.size();
 	for(auto h : handlers)
-		h->push(target, t);
+		h->push(target, tokens);
 	
 	//LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
 	return !handlers.empty();
@@ -666,8 +640,6 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
 	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
-	
-	bool hasListener = mListeners.contains(IdentifierPair(link.remote, link.local));
 	
 	if(type == "pull")	// equivalent to call between users
 	{
@@ -683,7 +655,11 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	{
 		// If link is not trusted, ignore publications
 		// Subscriptions are filtered in outgoing()
-		if(!hasListener) return false;
+		{
+			std::unique_lock<std::recursive_mutex> lock(mListenersMutex);
+			if(!mListeners.contains(IdentifierPair(link.remote, link.local)))
+				return false;
+		}
 		
 		String path;
 		Mail mail;
@@ -705,10 +681,15 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		
 		// Targets
 		bool hasNew = false;
-		for(auto it = targets.begin(); it != targets.end(); ++it)
+		for(auto target : targets)
 		{
-			hasNew|= !Store::Instance->hasValue(key, *it);
-			Store::Instance->storeValue(key, *it, Store::Temporary);	// cache
+			hasNew|= !Store::Instance->hasValue(key, target);
+			Store::Instance->storeValue(key, target, Store::Temporary);	// cache
+			
+			{
+				std::unique_lock<std::mutex> lock(mTargetsMutex);
+				mTargets[target].insert(link);
+			}
 		}
 		
 		if(hasNew)
@@ -739,6 +720,72 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	}
 	
 	return true;
+}
+
+bool Network::call(const BinaryString &target, Set<BinaryString> hints)
+{
+	unsigned tokens = Store::Instance->missing(target);
+	
+	// Consider target as a hint
+	hints.insert(target);
+	
+	// Retrieve candidate links for pulling
+	Set<Link> links;
+	{
+		std::unique_lock<std::mutex> lock(mTargetsMutex);
+		
+		for(const BinaryString &hint : hints)
+		{
+			auto it = mTargets.find(hint);
+			if(it != mTargets.end())
+			{
+				auto jt = it->second.begin();
+				while(jt != it->second.end())
+				{
+					if(hasLink(*jt)) links.insert(*jt++);
+					else jt = it->second.erase(jt);	
+				}
+				
+				if(it->second.empty())
+					mTargets.erase(it);
+			}
+		}
+	}
+	
+	// If we have candidate links
+	if(!links.empty())
+	{
+		// Immediately send pull
+		tokens = (tokens + (links.size()-1))/links.size();
+		for(auto link : links)
+		{
+			send(link, "pull", Object()
+				.insert("target", target)
+				.insert("tokens", uint16_t(tokens)));
+		}
+		
+		return true;
+	}
+	
+	// Fallback: Immediately call nodes providing hinted blocks and target block
+	for(const BinaryString &hint : hints)
+	{
+		Set<BinaryString> nodes;
+		if(Store::Instance->retrieveValue(hint, nodes))
+		{
+			BinaryString call;
+			call.writeBinary(uint16_t(tokens));
+			call.writeBinary(target);
+			
+			for(auto n : nodes)
+				mOverlay.send(Overlay::Message(Overlay::Message::Call, call, n));
+		}
+		
+		// Send retrieve for node
+		mOverlay.retrieve(hint);
+	}
+	
+	return false;
 }
 
 bool Network::matchPublishers(const String &path, const Link &link, Subscriber *subscriber)
@@ -911,9 +958,9 @@ bool Network::matchCallers(const Identifier &target, const Identifier &node)
 	
 	LogDebug("Network::run", "Got candidate for " + target.toString());
 	
-	uint16_t tokens = uint16_t(Store::Instance->missing(target));
+	unsigned tokens = Store::Instance->missing(target);
 	BinaryString call;
-	call.writeBinary(tokens);
+	call.writeBinary(uint16_t(tokens));
 	call.writeBinary(target);
 	
 	mOverlay.send(Overlay::Message(Overlay::Message::Call, call, node));
@@ -1244,9 +1291,10 @@ bool Network::RemoteSubscriber::localOnly(void) const
 	return true;
 }
 
-Network::Caller::Caller(void)
+Network::Caller::Caller(void) :
+	mStartTime(std::chrono::steady_clock::time_point::min())
 {
-	
+
 }
 
 Network::Caller::Caller(const BinaryString &target, const BinaryString &hint)
@@ -1268,6 +1316,7 @@ void Network::Caller::startCalling(const BinaryString &target, const BinaryStrin
 		
 		mTarget = target;
 		mHint = hint;
+		mStartTime = std::chrono::steady_clock::now();
 		if(!mTarget.empty()) Network::Instance->registerCaller(mTarget, this);
 	}
 }
@@ -1290,6 +1339,11 @@ BinaryString Network::Caller::target(void) const
 BinaryString Network::Caller::hint(void) const
 {
 	return mHint;
+}
+
+duration Network::Caller::elapsed(void) const
+{
+	return std::chrono::steady_clock::now() - mStartTime;
 }
 
 Network::Listener::Listener(void)
@@ -1792,6 +1846,13 @@ Network::Handler::~Handler(void)
 	delete mStream;
 }
 
+void Network::Handler::write(const String &type, const Serializable &content)
+{
+	String serialized;
+	JsonSerializer(&serialized) << content;
+	write(type, serialized);
+}
+
 void Network::Handler::write(const String &type, const String &record)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
@@ -1803,11 +1864,11 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	std::unique_lock<std::mutex> lock(mMutex);
 	if(mClosed) return;
 	
-	if(tokens < uint16_t(-1))
+	if(!tokens) mTargets.erase(target);
+	{
 		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
-	
-	if(tokens) mTargets[target] = tokens;
-	else mTargets.erase(target);
+		mTargets[target] = tokens;
+	}
 	
 	send(false);
 }
@@ -1914,7 +1975,12 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			}
 		}
 		else {
-			Store::Instance->push(target, combination);
+			if(Store::Instance->push(target, combination))
+			{
+				write("pull", Object()
+					.insert("target", target)
+					.insert("tokens", uint16_t(0)));
+			}
 		}
 	}
 	
@@ -2145,17 +2211,17 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
-		if(tokens < uint16_t(-1))
+		if(!tokens) 
 		{
-			if(tokens < mRedundant) tokens*=2;
-			else tokens+= mRedundant;
-		}
-		
-		if(tokens) mTargets[target][destination] = tokens;
-		else {
 			mTargets[target].erase(destination);
 			if(mTargets[target].empty())
 				mTargets.erase(target);
+			
+		}
+		else {
+			if(tokens < mRedundant) tokens*=2;
+			else tokens+= mRedundant;
+			mTargets[target][destination] = tokens;
 		}
 	}
 	

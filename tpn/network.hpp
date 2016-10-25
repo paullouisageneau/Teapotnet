@@ -46,6 +46,7 @@ class User;
 class Network
 {
 public:
+	static const duration CallerFallbackTimeout;
 	static const unsigned DefaultTokens;
 	static const unsigned DefaultThreshold;
 
@@ -128,9 +129,11 @@ public:
 		
 		BinaryString target(void) const;
 		BinaryString hint(void) const;
+		duration elapsed(void) const;
 
 	private:
 		BinaryString mTarget, mHint;
+		std::chrono::steady_clock::time_point mStartTime;
 	};
 	
 	class Listener
@@ -179,10 +182,12 @@ public:
 	void issue(String prefix, const String &path, Publisher *publisher, const Mail &mail);
 	void addRemoteSubscriber(const Link &link, const String &path);
 	
-	// Send/Recv
-	bool broadcast(const Identifier &local, const String &type, const Serializable &object);
-	bool send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &object);
-	bool send(const Link &link, const String &type, const Serializable &object);
+	// Send
+	bool broadcast(const Identifier &local, const String &type, const Serializable &content);
+	bool send(const Identifier &local, const Identifier &remote, const String &type, const Serializable &content);
+	bool send(const Link &link, const String &type, const Serializable &content);
+	bool push(const BinaryString &target, unsigned tokens);
+	bool push(const Link &link, const BinaryString &target, unsigned tokens);
 	
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
@@ -293,6 +298,7 @@ private:
 		Handler(Stream *stream, const Link &link);
 		~Handler(void);
 		
+		void write(const String &type, const Serializable &content);
 		void write(const String &type, const String &record);
 		void push(const BinaryString &target, unsigned tokens);
 		void timeout(void);
@@ -340,8 +346,7 @@ private:
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
 	bool incoming(const Link &link, const String &type, Serializer &serializer);
 	
-	bool push(const BinaryString &target, unsigned tokens);
-	bool push(const Link &link, const BinaryString &target, unsigned tokens);
+	bool call(const BinaryString &target, Set<BinaryString> hints);
 	
 	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
@@ -364,12 +369,15 @@ private:
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
 	
+	Map<BinaryString, Set<Link> > mTargets;		// candidates for each target
+	
 	mutable std::recursive_mutex mHandlersMutex;	// recursive so listeners can call network on event
 	mutable std::recursive_mutex mListenersMutex;	// idem
 	mutable std::mutex mPublishersMutex;
 	mutable std::mutex mSubscribersMutex;
 	mutable std::mutex mRemoteSubscribersMutex;
 	mutable std::mutex mCallersMutex;
+	mutable std::mutex mTargetsMutex;
 	
 	std::thread mThread;
 	
