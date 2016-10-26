@@ -245,7 +245,16 @@ void Store::hintBlock(const BinaryString &digest, const BinaryString &hint)
 
 bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
 {
-	return retrieveValue(Store::Hash(digest), result);
+	retrieveValue(Store::Hash(digest), result);
+	if(result.empty()) return false;
+	
+	// Add hints of order 2
+	Set<BinaryString> tmp;
+	for(const BinaryString &value : result)
+		retrieveValue(Store::Hash(value), tmp);
+	
+	result.insertAll(tmp);
+	return true;
 }
 
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
@@ -270,6 +279,8 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
+	// Note: values is not cleared !
+	
 	Identifier localNode = Network::Instance->overlay()->localNode();
 	
 	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
