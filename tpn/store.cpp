@@ -237,6 +237,17 @@ void Store::notifyFileErasure(const String &filename)
 	statement.execute();
 }
 
+void Store::hintBlock(const BinaryString &digest, const BinaryString &hint)
+{
+	// Values for digest are candidate nodes, re-hash to store hints
+	storeValue(Store::Hash(digest), hint, Temporary);
+}
+
+bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
+{
+	return retrieveValue(Store::Hash(digest), result);
+}
+
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
 {
 	if(type == Permanent)

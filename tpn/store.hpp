@@ -54,6 +54,9 @@ public:
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
 	
+	void hintBlock(const BinaryString &digest, const BinaryString &hint);
+	bool getBlockHints(const BinaryString &digest, Set<BinaryString> &result);
+	
 	enum ValueType
 	{
 		Permanent   = 0,	// Local and permanent

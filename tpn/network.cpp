@@ -455,18 +455,14 @@ void Network::run(void)
 				const BinaryString &target = it->first;
 				Set<BinaryString> hints;
 				
+				bool fallback = false;
 				for(const Caller *caller : it->second)
 				{
-					if(caller->elapsed() >= CallerFallbackTimeout)
-					{
-						std::unique_lock<std::mutex> lock(mTargetsMutex);
-						mTargets.erase(target);
-					}
-					
+					fallback|= (caller->elapsed() >= CallerFallbackTimeout);
 					hints.insert(caller->hint());
 				}
 				
-				call(target, hints);
+				call(target, hints, fallback);
 			}
 		}
 		
@@ -722,18 +718,24 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 	return true;
 }
 
-bool Network::call(const BinaryString &target, Set<BinaryString> hints)
+bool Network::call(const BinaryString &target, Set<BinaryString> hints, bool fallback)
 {
 	unsigned tokens = Store::Instance->missing(target);
 	
 	// Consider target as a hint
 	hints.insert(target);
 	
-	// Retrieve candidate links for pulling
+	// Get other hints from Store
+	Set<BinaryString> otherHints;
+	Store::Instance->getBlockHints(target, otherHints);
+	hints.insertAll(otherHints);
+	
 	Set<Link> links;
+	if(!fallback)
 	{
 		std::unique_lock<std::mutex> lock(mTargetsMutex);
 		
+		// Retrieve candidate links for pulling
 		for(const BinaryString &hint : hints)
 		{
 			auto it = mTargets.find(hint);
@@ -750,6 +752,12 @@ bool Network::call(const BinaryString &target, Set<BinaryString> hints)
 					mTargets.erase(it);
 			}
 		}
+	}
+	else {
+		std::unique_lock<std::mutex> lock(mTargetsMutex);
+		
+		for(const BinaryString &hint : hints)
+			mTargets.erase(hint);
 	}
 	
 	// If we have candidate links

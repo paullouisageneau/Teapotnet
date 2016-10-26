@@ -74,6 +74,9 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
 		
 		AssertIO(BinarySerializer(mIndexBlock.get()) >> mIndexRecord);
+		
+		for(const BinaryString &digest : mIndexRecord->blockDigests)
+			Store::Instance->hintBlock(digest, mIndexBlock->digest());
 	}
 	catch(const std::exception &e)
 	{
@@ -363,7 +366,7 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 		BinaryString subkey;
 		Sha256().pbkdf2_hmac(mKey, subsalt, subkey, 32, 100);
 		
-		// Generate iv
+		// Generate IV
 		BinaryString iv;
 		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
 		
@@ -419,7 +422,10 @@ int64_t Resource::Reader::tellWrite(void) const
 bool Resource::Reader::readDirectory(DirectoryRecord &record)
 {
 	BinarySerializer serializer(this);
-	return !!(serializer >> record);
+	if(!(serializer >> record)) return false;
+	
+	Store::Instance->hintBlock(record.digest, mResource->digest());
+	return true;
 }
 
 sptr<Block> Resource::Reader::createBlock(int index)
