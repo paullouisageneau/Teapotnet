@@ -2071,6 +2071,8 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	
 	mStream->nextRead();
 
+	VAR(target);
+	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
@@ -2164,7 +2166,6 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 	mStream->nextWrite();
 }
 
-
 int Network::Handler::send(bool force)
 {
 	if(mClosed) return 0;
@@ -2198,10 +2199,12 @@ int Network::Handler::send(bool force)
 				Store::Instance->pull(target, combination, &rank);
 				
 				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
-				--tokens;
-
+				if(tokens) --tokens;
+				
 				++mLocalSequence;
 				mLocalCap+= 1/mRedundancy;
+				
+				if(!tokens) mTargets.erase(it);
 			}
 			
 			if(!combination.isNull())
