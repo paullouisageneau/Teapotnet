@@ -645,6 +645,8 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("target", target)
 				.insert("tokens", tokens);
 		
+		if(tokens) LogDebug("Network::run", "Pulled " + target.toString() + " (" + String::number(tokens) + " tokens)");
+		
 		push(link, target, tokens);
 	}
 	else if(type == "publish")
@@ -763,6 +765,8 @@ bool Network::call(const BinaryString &target, Set<BinaryString> hints, bool fal
 	// If we have candidate links
 	if(!links.empty())
 	{
+		LogDebug("Network::run", "Pulling " + target.toString() + " from " + String::number(links.size()) + " users");
+		
 		// Immediately send pull
 		tokens = (tokens + (links.size()-1))/links.size();
 		for(auto link : links)
@@ -2166,10 +2170,8 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mSource.rank() >= 1 && mAccumulator >= 1. && mAvailableTokens >= 1.))
+	while(force || (mAvailableTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
 	{
-		//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
-		
 		try {
 			BinaryString target;
 			Fountain::Combination combination;
@@ -2177,6 +2179,8 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
+				//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
+				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
 			else if(!mTargets.empty())
