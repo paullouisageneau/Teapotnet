@@ -1995,6 +1995,8 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 		else {
 			if(Store::Instance->push(target, combination))
 			{
+				Network::Instance->unregisterAllCallers(target);
+				
 				write("pull", Object()
 					.insert("target", target)
 					.insert("tokens", uint16_t(0)));
@@ -2070,8 +2072,6 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	combination.setCodedData(data);
 	
 	mStream->nextRead();
-
-	VAR(target);
 	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
