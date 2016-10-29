@@ -1972,17 +1972,19 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 		Fountain::Combination combination;
 		if(!recvCombination(target, combination))
 			break;
-		
-		//LogDebug("Network::Handler::readString", "Received combination");
 	
 		if(!combination.isNull() || !target.empty())
 		{
 			if(target.empty())
 			{
+				LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + String::number(combination.firstComponent()) + ")");
+				
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
 			}
 			else {
+				LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
+				
 				if(Store::Instance->push(target, combination))
 				{
 					Network::Instance->unregisterAllCallers(target);
@@ -2075,11 +2077,8 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 
 		mCap = std::max(mCap, cap);	// Count cap, prevent counting redundant packets
 		
-		if(!target.empty())
-		{
-			mLocalSideSeen = std::max(mLocalSideSeen, mCap);	// update local side seen
-			mLocalSideCount = std::min(mLocalSideCount+1, mCap);	// increment and cap local count
-		}
+		mLocalSideSeen = std::max(mLocalSideSeen, mCap);	// update local side seen
+		mLocalSideCount = std::min(mLocalSideCount+1, mCap);	// increment and cap local count
 		
 		unsigned flowBacklog  = nextSeen - std::min(nextDecoded, nextSeen);	// packets seen but not decoded on remote side
 		unsigned flowReceived = mSource.drop(nextSeen);				// packets newly decoded on remote side
@@ -2092,6 +2091,8 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 
+		LogDebug("Network::Handler::recvCombination", "Acknowledged "+String::number(nextSeen)+", "+String::number(sideSeen)+" (received=" + String::number(sideReceived) + "+" + String::number(flowReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
+		
 		if(backlog < mThreshold || backlog > mThreshold*2.)
 		{
 			double tokens;
@@ -2102,7 +2103,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			}
 			else {
 				// Additive increase
-				tokens = received*(1. + 1./mTokens);
+				tokens = received*(1. + 1./std::max(mTokens, 1.));
 			}
 	
 			mTokens+= tokens;
@@ -2170,7 +2171,9 @@ int Network::Handler::send(bool force)
 		try {
 			BinaryString target;
 			Fountain::Combination combination;
-			mSource.generate(combination);
+			
+			if(mSource.rank() >= 1 && mAccumulator >= 1.)
+				mSource.generate(combination);
 			
 			if(!combination.isNull())
 			{
