@@ -1827,8 +1827,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
 	mTokens(DefaultTokens),
-	mAvailableTokens(DefaultTokens),
-	mThreshold(DefaultTokens/2),
+	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
 	mLocalCap(0.),
 	mLocalSequence(0),
@@ -1896,7 +1895,7 @@ void Network::Handler::timeout(void)
 	std::unique_lock<std::mutex> lock(mMutex);
 
 	// Inactivity timeout is handled by Tunnel
-	if(mAvailableTokens < 1.) mAvailableTokens = 1.;
+	mTokens = std::max(mTokens, 1.);
 	
 	send(true);
 }
@@ -1977,30 +1976,30 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			break;
 		
 		//LogDebug("Network::Handler::readString", "Received combination");
-		
-		if(target.empty())
+	
+		if(!combination.isNull() || !target.empty())
 		{
-			if(!combination.isNull())
+			if(target.empty())
 			{
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
-			
-				// We need to lock since we are calling send()
-				std::unique_lock<std::mutex> lock(mMutex);
+			}
+			else {
+				if(Store::Instance->push(target, combination))
+				{
+					Network::Instance->unregisterAllCallers(target);
+					
+					write("pull", Object()
+						.insert("target", target)
+						.insert("tokens", uint16_t(0)));
+				}
+			}
 
-				if(!send(false))
-					mTimeoutAlarm.schedule(mTimeout*0.1);
-			}
-		}
-		else {
-			if(Store::Instance->push(target, combination))
-			{
-				Network::Instance->unregisterAllCallers(target);
-				
-				write("pull", Object()
-					.insert("target", target)
-					.insert("tokens", uint16_t(0)));
-			}
+			// We need to lock since we are calling send()
+			std::unique_lock<std::mutex> lock(mMutex);
+			
+			if(!send(false))
+				mTimeoutAlarm.schedule(mTimeout*0.1);
 		}
 	}
 	
@@ -2105,17 +2104,15 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			}
 			else {
 				// Additive increase
-				tokens = received*1./mTokens;
+				tokens = received*(1. + 1./mTokens);
 			}
-			
+	
 			mTokens+= tokens;
-			mAvailableTokens+= tokens;
 		}
 		else {
 			// Congestion: Multiplicative decrease
 			mThreshold = mTokens/2.;
-			mTokens = 1.;
-			mAvailableTokens = mTokens;	
+			mTokens = DefaultTokens;
 		}
 	}
 
@@ -2126,7 +2123,6 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 {
 	uint32_t nextSeen = mSink.nextSeen();
 	uint32_t nextDecoded = mSink.nextDecoded();
-	mAvailableTokens = std::max(0., mAvailableTokens - 1.);
 	
 	BinarySerializer s(mStream);
 	
@@ -2171,7 +2167,7 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mAvailableTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
+	while(force || (mTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
 	{
 		try {
 			BinaryString target;
@@ -2180,7 +2176,7 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
-				//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mAvailableTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
 				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
@@ -2191,10 +2187,9 @@ int Network::Handler::send(bool force)
 				auto it = mTargets.begin();
 				while(r--) ++it;
 				Assert(it != mTargets.end());
-				
+	
 				target = it->first;
 				unsigned &tokens = it->second;
-				
 				unsigned rank = 0;
 				Store::Instance->pull(target, combination, &rank);
 				
@@ -2208,8 +2203,8 @@ int Network::Handler::send(bool force)
 			}
 			
 			if(!combination.isNull())
-				--mAvailableTokens;
-			
+				mTokens-= 1.;
+		
 			sendCombination(target, combination);
 			++count;	
 			force = false;

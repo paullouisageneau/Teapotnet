@@ -329,7 +329,7 @@ private:
 		BinaryString		mSourceBuffer;
 		Map<BinaryString, unsigned> mTargets;
 
-		double mTokens, mAvailableTokens, mThreshold, mAccumulator, mLocalCap;
+		double mTokens, mThreshold, mAccumulator, mLocalCap;
 		unsigned mLocalSequence, mLocalSideSeen, mLocalSideCount, mSideCount, mCap;
 		double mRedundancy;
 		duration mTimeout;
