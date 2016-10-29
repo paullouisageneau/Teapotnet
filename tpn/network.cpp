@@ -1883,7 +1883,7 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	if(mClosed) return;
 	
 	if(!tokens) mTargets.erase(target);
-	{
+	else {
 		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
 		mTargets[target] = tokens;
 	}
