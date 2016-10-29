@@ -757,9 +757,7 @@ bool Network::call(const BinaryString &target, Set<BinaryString> hints, bool fal
 	}
 	else {
 		std::unique_lock<std::mutex> lock(mTargetsMutex);
-		
-		for(const BinaryString &hint : hints)
-			mTargets.erase(hint);
+		mTargets.erase(target);
 	}
 	
 	// If we have candidate links
