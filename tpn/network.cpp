@@ -2080,7 +2080,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		if(!target.empty())
 		{
-			mLocalSideSeen = std::max(mLocalSideSeen, sequence);	// update local side seen
+			mLocalSideSeen = std::max(mLocalSideSeen, mCap);	// update local side seen
 			mLocalSideCount = std::min(mLocalSideCount+1, mCap);	// increment and cap local count
 		}
 		
