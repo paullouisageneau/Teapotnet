@@ -1882,7 +1882,10 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	if(!tokens) mTargets.erase(target);
 	else {
 		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
-		mTargets[target] = tokens;
+		
+		auto it = mTargets.find(target);
+		if(it != mTargets.end()) it->second = std::min(it->second, tokens);
+		else mTargets[target] = tokens;
 	}
 	
 	send(false);
@@ -1989,9 +1992,9 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				{
 					Network::Instance->unregisterAllCallers(target);
 					
-					write("pull", Object()
+					/*write("pull", Object()
 						.insert("target", target)
-						.insert("tokens", uint16_t(0)));
+						.insert("tokens", uint16_t(0)));*/
 				}
 			}
 
@@ -2289,7 +2292,15 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 		else {
 			if(tokens < mRedundant) tokens*=2;
 			else tokens+= mRedundant;
-			mTargets[target][destination] = tokens;
+			
+			auto it = mTargets.find(target);
+			if(it != mTargets.end())
+			{
+				auto jt = it->second.find(destination);
+				if(jt != it->second.end()) jt->second = std::min(jt->second, tokens);
+				else mTargets[target][destination] = tokens;
+			}
+			else mTargets[target][destination] = tokens;
 		}
 	}
 	
