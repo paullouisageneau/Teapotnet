@@ -2092,7 +2092,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 
-		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(sideReceived) + "+" + String::number(flowReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
 		
 		if(backlog < mThreshold || backlog > mThreshold*2.)
 		{
