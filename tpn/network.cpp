@@ -1827,12 +1827,10 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTokens(DefaultTokens),
 	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
-	mLocalCap(0.),
-	mLocalSequence(0),
+	mLocalSideSequence(0.),
 	mLocalSideSeen(0),
 	mLocalSideCount(0),
-	mSideCount(0), 
-	mCap(0),
+	mSideCount(0),
 	mRedundancy(1.25),	// TODO
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mClosed(false)
@@ -2041,6 +2039,10 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	AssertIO(s >> targetSize);
 	AssertIO(s >> dataSize);
 	
+	// 3é-bit sequence
+	uint32_t sequence = 0;
+	AssertIO(s >> sequence);	// 32-bit sequence
+	
 	// 64-bit flow acknowledgement
 	uint32_t nextSeen = 0;
 	uint32_t nextDecoded = 0;
@@ -2049,17 +2051,12 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 
 	uint32_t sideSeen = 0;
 	uint32_t sideCount = 0;
-	uint32_t sequence = 0;
-	uint32_t cap = 0;
+	
 	if(version & 0x01)	// side channel bit
 	{
 		// 64-bit side acknowledgement
 		AssertIO(s >> sideSeen);	// 32-bit side seen
 		AssertIO(s >> sideCount); 	// 32-bit side count
-		
-		// 64-bit side sequencing	
-		AssertIO(s >> sequence);	// 32-bit sequence
-		AssertIO(s >> cap);		// 32-bit count cap
 	}
 
 	// 64-bit combination descriptor
@@ -2077,11 +2074,12 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-
-		mCap = std::max(mCap, cap);	// Count cap, prevent counting redundant packets
 		
-		mLocalSideSeen = std::max(mLocalSideSeen, mCap);	// update local side seen
-		mLocalSideCount = std::min(mLocalSideCount+1, mCap);	// increment and cap local count
+		if(!target.empty())
+		{
+			mLocalSideSeen  = std::max(mLocalSideSeen, sequence);		// update local side seen
+			mLocalSideCount = std::min(mLocalSideCount+1, mLocalSideSeen);	// increment and cap local count
+		}
 		
 		unsigned flowBacklog  = nextSeen - std::min(nextDecoded, nextSeen);	// packets seen but not decoded on remote side
 		unsigned flowReceived = mSource.drop(nextSeen);				// packets newly decoded on remote side
@@ -2126,16 +2124,22 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 	uint32_t nextSeen = mSink.nextSeen();
 	uint32_t nextDecoded = mSink.nextDecoded();
 	
+	uint32_t sequence;
+	if(target.empty()) sequence = combination.lastComponent();
+	else sequence = std::ceil(mLocalSideSequence);
+	
 	BinarySerializer s(mStream);
 	
 	uint8_t version = 0;
-	if(!target.empty() || mLocalSideSeen)
-		version|= 0x01; // side channel bit
+	if(mLocalSideSeen) version|= 0x01; // side channel bit
 
 	// 32-bit header
 	s << uint8_t(version);
 	s << uint8_t(target.size());
 	s << uint16_t(combination.codedSize());
+	
+	// 32-bit sequencing
+	s << uint32_t(sequence);
 	
 	// 64-bit flow acknowledgement
 	s << uint32_t(nextSeen);	// 32-bit next seen
@@ -2146,10 +2150,6 @@ void Network::Handler::sendCombination(const BinaryString &target, const Fountai
 		// 64-bit side acknowledgement
 		s << uint32_t(mLocalSideSeen);		// 32-bit side seen
 		s << uint32_t(mLocalSideCount);		// 32-bit side count
-	
-		// 64-bit side sequencing
-		s << uint32_t(mLocalSequence);		// 32-bit sequence
-		s << uint32_t(std::ceil(mLocalCap));	// 32-bit count cap
 	}
 
 	// 64-bit combination descriptor
@@ -2202,8 +2202,7 @@ int Network::Handler::send(bool force)
 				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
 				if(tokens) --tokens;
 				
-				++mLocalSequence;
-				mLocalCap+= 1/mRedundancy;
+				mLocalSideSequence+= 1/mRedundancy;
 				
 				if(!tokens) mTargets.erase(it);
 			}
@@ -2212,6 +2211,7 @@ int Network::Handler::send(bool force)
 				mTokens-= 1.;
 		
 			sendCombination(target, combination);
+			
 			++count;	
 			force = false;
 		}
