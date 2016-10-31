@@ -2092,7 +2092,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 
-		LogDebug("Network::Handler::recvCombination", "Acknowledged "+String::number(nextSeen)+", "+String::number(sideSeen)+" (received=" + String::number(sideReceived) + "+" + String::number(flowReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(sideReceived) + "+" + String::number(flowReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
 		
 		if(backlog < mThreshold || backlog > mThreshold*2.)
 		{
@@ -2224,9 +2224,11 @@ int Network::Handler::send(bool force)
 		}
 	}
 	
+	// Reset timeout
 	duration idleTimeout = milliseconds(Config::Get("idle_timeout").toDouble())*0.1;	// so the tunnel should not time out
 	if(mSource.rank() == 0) mTimeoutAlarm.schedule(idleTimeout); 
 	else mTimeoutAlarm.schedule(mTimeout);
+	
 	return count;
 }
 

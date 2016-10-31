@@ -771,8 +771,7 @@ int run(String &commandLine, StringMap &args)
 					continue;
 				}
 				
-				LogDebug("main", String("Loaded user ") + user->name());
-				
+				Assert(user);
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 		}
