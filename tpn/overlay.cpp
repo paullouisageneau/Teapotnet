@@ -236,7 +236,7 @@ int Overlay::connectionsCount(void) const
 
 bool Overlay::recv(Message &message, duration timeout)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mIncomingMutex);
 
 	if(mIncoming.empty() && timeout > duration::zero())
 	{
@@ -293,9 +293,9 @@ void Overlay::retrieve(const BinaryString &key)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mRetrieveMutex);
 	
-	bool sent = false;
+	bool sent = true;
 	if(!mRetrievePending.contains(key))
 	{
 		mRetrievePending.insert(key);
@@ -407,7 +407,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			}
 			
 			{
-				std::unique_lock<std::mutex> lock(mMutex);
+				std::unique_lock<std::mutex> lock(mRetrieveMutex);
 				
 				if(mRetrievePending.contains(message.content))
 				{
@@ -477,7 +477,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 bool Overlay::push(Message &message)
 {
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
+		std::unique_lock<std::mutex> lock(mIncomingMutex);
 		mIncoming.push(message);
 	}
 
@@ -1306,7 +1306,7 @@ bool Overlay::Handler::recv(Message &message)
 
 bool Overlay::Handler::send(const Message &message)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mSender.push(message);
 }
 

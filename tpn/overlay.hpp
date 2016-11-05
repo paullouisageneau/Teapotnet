@@ -270,7 +270,11 @@ private:
 	Alarm mRunAlarm;
 
 	mutable std::mutex mMutex;
+	
+	mutable std::mutex mIncomingMutex;
 	mutable std::condition_variable mIncomingCondition;
+	
+	mutable std::mutex mRetrieveMutex;
 	mutable std::condition_variable mRetrieveCondition;
 };
 
