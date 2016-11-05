@@ -229,7 +229,7 @@ private:
 		Tunneler(void);
 		~Tunneler(void);
 		
-		bool open(const BinaryString &node, const Identifier &remote, User *user, bool async = false);
+		bool open(const BinaryString &node, const Identifier &remote, User *user);
 		bool incoming(const Overlay::Message &message);
 		
 		void run(void);
@@ -275,7 +275,7 @@ private:
 		
 		SecureTransport *listen(BinaryString *source);
 
-		bool handshake(SecureTransport *transport, const Link &link, bool async = false);
+		bool handshake(SecureTransport *transport, const Link &link);
 		
 		Map<uint64_t, Tunnel*> mTunnels;	// Tunnels
 		Set<BinaryString> mPending;		// Pending nodes

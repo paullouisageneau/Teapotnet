@@ -73,7 +73,7 @@ Overlay *Network::overlay(void)
 void Network::connect(const Identifier &node, const Identifier &remote, User *user)
 {
 	if(!hasLink(Link(user->identifier(), remote, node)))
-		mTunneler.open(node, remote, user, true);	// async
+		mTunneler.open(node, remote, user);
 }
 
 void Network::registerCaller(const BinaryString &target, Caller *caller)
@@ -1409,7 +1409,7 @@ Network::Tunneler::~Tunneler(void)
 	mThread.join();
 }
 
-bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user, bool async)
+bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote, User *user)
 {
 	Assert(!node.empty());
 	Assert(!remote.empty());
@@ -1424,44 +1424,50 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
-	uint64_t tunnelId = 0;
-	Random().readBinary(tunnelId);	// Generate random tunnel ID
-	BinaryString local = user->identifier();
-	
-	SecureTransport *transport = NULL;
+	auto openTask = [this, node, remote, user]()
 	{
-		std::unique_lock<std::mutex> lock(mTunnelsMutex);
+		uint64_t tunnelId = 0;
+		Random().readBinary(tunnelId);	// Generate random tunnel ID
+		BinaryString local = user->identifier();
 		
-		if(mPending.contains(node))
-			return false;
-		
-		mPending.insert(node);
-	
-		//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + " (id " + String::hexa(tunnelId) + ")");
-		
-		Tunneler::Tunnel *tunnel = NULL;
-		try {
-			tunnel = new Tunneler::Tunnel(this, tunnelId, node);
-			transport = new SecureTransportClient(tunnel, NULL);
-			mTunnels.insert(tunnel->id(), tunnel);
-			
-			// Set remote name
-			transport->setHostname(remote.toString());
-			
-			// Add certificates
-			//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
-			transport->addCredentials(user->certificate().get(), false);
-		}
-		catch(...)
+		SecureTransport *transport = NULL;
 		{
-			delete tunnel;
-			delete transport;
-			mPending.erase(node);
-			throw;
+			std::unique_lock<std::mutex> lock(mTunnelsMutex);
+			
+			if(mPending.contains(node))
+				return false;
+			
+			mPending.insert(node);
+		
+			//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + " (id " + String::hexa(tunnelId) + ")");
+			
+			Tunneler::Tunnel *tunnel = NULL;
+			try {
+				tunnel = new Tunneler::Tunnel(this, tunnelId, node);
+				transport = new SecureTransportClient(tunnel, NULL);
+				mTunnels.insert(tunnel->id(), tunnel);
+				
+				// Set remote name
+				transport->setHostname(remote.toString());
+				
+				// Add certificates
+				//LogDebug("Network::Tunneler::open", "Setting certificate credentials: " + user->name());
+				transport->addCredentials(user->certificate().get(), false);
+			}
+			catch(...)
+			{
+				delete tunnel;
+				delete transport;
+				mPending.erase(node);
+				throw;
+			}
 		}
-	}
+		
+		return handshake(transport, Link(local, remote, node));
+	};
 	
-	return handshake(transport, Link(local, remote, node), async);
+	mPool.enqueue(openTask);
+	return true;
 }
 
 SecureTransport *Network::Tunneler::listen(BinaryString *source)
@@ -1560,7 +1566,7 @@ void Network::Tunneler::unregisterTunnel(uint64_t id)
 	}
 }
 
-bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, bool async)
+bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 {
 	Assert(!link.node.empty());
 	
@@ -1663,14 +1669,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link, 
 			return false;
 		};
 		
-		if(async)
-		{
-			mPool.enqueue(handshakeTask);
-			return true;
-		}
-		else {
-			return handshakeTask();
-		}
+		mPool.enqueue(handshakeTask);
+		return true;
 	}
 	catch(const std::exception &e)
 	{
@@ -1691,7 +1691,7 @@ void Network::Tunneler::run(void)
 			SecureTransport *transport = listen(&node);
 			if(!transport) break;
 			
-			handshake(transport, Link(Identifier::Empty, Identifier::Empty, node), true); // async
+			handshake(transport, Link(Identifier::Empty, Identifier::Empty, node));
 		}
 		catch(const std::exception &e)
 		{
