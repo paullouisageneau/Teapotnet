@@ -1424,7 +1424,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
 	
-	auto openTask = [this, node, remote, user]()
+	mPool.enqueue([this, node, remote, user]()
 	{
 		uint64_t tunnelId = 0;
 		Random().readBinary(tunnelId);	// Generate random tunnel ID
@@ -1464,9 +1464,8 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 		}
 		
 		return handshake(transport, Link(local, remote, node));
-	};
+	});
 	
-	mPool.enqueue(openTask);
 	return true;
 }
 
@@ -1620,7 +1619,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 	};
 	
 	try {
-		auto handshakeTask = [transport, link]()
+		mPool.enqueue([transport, link]()
 		{
 			//LogDebug("Network::Tunneler::handshake", "HandshakeTask starting...");
 			
@@ -1667,9 +1666,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 			
 			delete transport;
 			return false;
-		};
-		
-		mPool.enqueue(handshakeTask);
+		});
+
 		return true;
 	}
 	catch(const std::exception &e)
