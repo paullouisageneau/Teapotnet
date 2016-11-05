@@ -63,6 +63,7 @@ Store::Store(void) :
 		time INTEGER(8),\
 		type INTEGER(1))");
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS type ON map (type, time)");
 }
 
 Store::~Store(void)
