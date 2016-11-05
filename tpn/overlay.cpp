@@ -871,8 +871,8 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 			if(chain.empty()) return false;
 			publicKey = chain[0];
 			
-			LogDebug("Overlay::Backend::handshake", String("Remote node is ") + publicKey.digest().toString());
-			return true;		// Accept
+			LogInfo("Overlay::Backend::handshake", String("Node connected: ") + publicKey.digest().toString());
+			return true;	// Accept
 		}
 	};
 

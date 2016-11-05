@@ -24,15 +24,14 @@
 
 //#define DEBUG			1
 #define APPNAME			"Teapotnet"
-#define APPVERSION		"0.9.4"
+#define APPVERSION		"0.9.5"
 #define APPMAGIC		 0x54504f54 // "TPOT"
 #define APPAUTHOR		"Paul-Louis Ageneau"
-#define APPLINK			"http://teapotnet.org/"
-#define SOURCELINK		"http://teapotnet.org/source"
-#define HELPLINK		"http://teapotnet.org/help"
-#define BUGSLINK		"mailto:bugs@teapotnet.org"
+#define APPLINK			"https://teapotnet.org/"
+#define SOURCELINK		"https://teapotnet.org/source"
+#define HELPLINK		"https://teapotnet.org/help"
 #define DOWNLOADURL		"https://teapotnet.org/download"
-#define RAPTUREURL		"https://teapotnet.org/rapture/"	// Rapture must use HTTPS 
+#define BUGSLINK		"mailto:bugs@teapotnet.org"
 
 #include "pla/include.hpp"
 #include "pla/string.hpp"

@@ -39,7 +39,7 @@ namespace tpn
 
 const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
-const unsigned Network::DefaultThreshold = Network::DefaultTokens*16;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -635,7 +635,7 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
+	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	if(type == "pull")	// equivalent to call between users
 	{
@@ -1976,13 +1976,13 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 		{
 			if(target.empty())
 			{
-				LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + String::number(combination.firstComponent()) + ")");
+				//LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + String::number(combination.firstComponent()) + ")");
 				
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
 			}
 			else {
-				LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
+				//LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
 				
 				if(Store::Instance->push(target, combination))
 				{
