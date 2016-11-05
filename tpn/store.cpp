@@ -356,9 +356,10 @@ void Store::run(void)
 		auto secs = std::chrono::duration_cast<std::chrono::seconds>((std::chrono::system_clock::now() - maxAge).time_since_epoch()).count();
 		
 		// Delete old non-permanent values
-		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE type != ?1 AND time < ?2");
-		statement.bind(1, static_cast<int>(Permanent));
-		statement.bind(2, secs);
+		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3");
+		statement.bind(1, static_cast<int>(Temporary));
+		statement.bind(2, static_cast<int>(Distributed));
+		statement.bind(3, secs);
 		statement.execute();
 		
 		// Publish everything into DHT periodically
