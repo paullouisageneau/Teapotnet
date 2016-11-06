@@ -1460,6 +1460,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 			}
 			catch(...)
 			{
+				lock.unlock();	// tunnel will unregister
 				delete tunnel;
 				delete transport;
 				mPending.erase(node);
@@ -1524,6 +1525,7 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				}
 				catch(...)
 				{
+					lock.unlock();	// tunnel will unregister
 					delete tunnel;
 					delete transport;
 					throw;
