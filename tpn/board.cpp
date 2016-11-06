@@ -45,7 +45,7 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	
 	Interface::Instance->add(urlPrefix(), this);
 	
-	String prefix = "/mail" + mName;
+	const String prefix = "/mail" + mName;
 	
 	Set<BinaryString> digests;
 	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
@@ -65,7 +65,8 @@ Board::~Board(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
 	
-	String prefix = "/mail" + mName;
+	const String prefix = "/mail" + mName;
+	
 	unpublish(prefix);
 	unsubscribe(prefix);
 }
@@ -109,9 +110,11 @@ bool Board::add(const Mail &mail, bool noIssue)
 		mUnorderedMails.append(&m);
 	}
 	
-	if(!noIssue) issue("/mail" + mName, mail);
+	const String prefix = "/mail" + mName;
+	
+	if(!noIssue) issue(prefix, mail);
 	process();
-	publish("/mail" + mName);
+	publish(prefix);
 	
 	mCondition.notify_all();
 	return true;
@@ -131,9 +134,9 @@ void Board::removeMergeUrl(const String &url)
 
 void Board::process(void)
 {
-	// Private, no sync
-	
 	try {
+		std::unique_lock<std::mutex> lock(mMutex);
+		
 		// Write messages to temporary file
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
@@ -147,8 +150,9 @@ void Board::process(void)
 		resource.cache(tempFileName, mName, "mail", mSecret);
 		
 		// Retrieve digest and store it
+		const String prefix = "/mail" + mName;
 		mDigest = resource.digest();
-		Store::Instance->storeValue(Store::Hash("/mail" + mName), mDigest, Store::Permanent);
+		Store::Instance->storeValue(Store::Hash(prefix), mDigest, Store::Permanent);
 		
 		LogDebug("Board::process", "Board processed: " + mDigest.toString());
 	}
@@ -181,42 +185,50 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	if(fetch(link, prefix, path, target, true))
 	{
 		try {
-			std::unique_lock<std::mutex> lock(mMutex);
-			
 			Resource resource(target, true);	// local only (already fetched)
 			if(resource.type() != "mail")
 				return false;
 			
-			Resource::Reader reader(&resource, mSecret);
-			BinarySerializer serializer(&reader);
-			Mail mail;
-			unsigned count = 0;
-			while(!!(serializer >> mail))
+			bool complete = false;
 			{
-				if(mail.empty())
-					continue;
+				std::unique_lock<std::mutex> lock(mMutex);
 				
-				if(!mMails.contains(mail))
+				Resource::Reader reader(&resource, mSecret);
+				BinarySerializer serializer(&reader);
+				Mail mail;
+				unsigned count = 0;
+				while(!!(serializer >> mail))
 				{
-					auto it = mMails.insert(mail);
-					const Mail &m = *it.first;
-					mUnorderedMails.append(&m);
+					if(mail.empty())
+						continue;
 					
-					++mUnread;
-					mHasNew = true;
+					if(!mMails.contains(mail))
+					{
+						auto it = mMails.insert(mail);
+						const Mail &m = *it.first;
+						mUnorderedMails.append(&m);
+						
+						++mUnread;
+						mHasNew = true;
+					}
+					
+					++count;
 				}
 				
-				++count;
+				if(count == mMails.size())
+				{
+					mDigest = target;
+					complete = true;
+				}
 			}
 			
-			if(count == mMails.size())
+			if(!complete)
 			{
-				mDigest = target;
-			}
-			else {
+				const String prefix = "/mail" + mName;
+				
 				process();
-				if(mDigest != target)
-					publish("/mail" + mName);
+				if(digest() != target)
+					publish(prefix);
 			}
 		}
 		catch(const Exception &e)
