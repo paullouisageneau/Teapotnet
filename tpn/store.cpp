@@ -368,7 +368,7 @@ void Store::run(void)
 			Database::Statement statement;
 			
 			// Delete old non-permanent values
-			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 LIMIT ?4)");
+			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 ORDER BY id DESC LIMIT ?4)");
 			statement.bind(1, static_cast<int>(Temporary));
 			statement.bind(2, static_cast<int>(Distributed));
 			statement.bind(3, secs);
