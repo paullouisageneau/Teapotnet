@@ -2182,13 +2182,13 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
-				LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
 				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
 			else if(!mTargets.empty())
 			{
-				LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ")");
 				
 				// Pick at random
 				int r = Random().uniform(0, int(mTargets.size()));
