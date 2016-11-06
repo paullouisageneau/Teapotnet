@@ -197,6 +197,9 @@ public:
 	bool hasLink(const Identifier &local, const Identifier &remote);
 	bool hasLink(const Link &link);
 	
+	void sendCalls(void);
+	void sendBeacons(void);
+	
 	void run(void);
 	
 private:

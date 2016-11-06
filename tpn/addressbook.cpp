@@ -985,7 +985,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 			board = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
 		}
 		
-		LogDebug("AddressBook::Contact", "Remote instance name is \"" + instance + "\"");
+		LogDebug("AddressBook::Contact", "Remote instance name: \"" + instance + "\"");
 		
 		{
 			std::unique_lock<std::mutex> lock(mMutex);

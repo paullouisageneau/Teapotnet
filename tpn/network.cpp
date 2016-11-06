@@ -446,56 +446,60 @@ void Network::run(void)
 		}
 		
 		// Send calls
-		if(loops % 2 == 0)
-		{
-			std::unique_lock<std::mutex> lock(mCallersMutex);
-			
-			for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
-			{
-				const BinaryString &target = it->first;
-				Set<BinaryString> hints;
-				
-				bool fallback = false;
-				for(const Caller *caller : it->second)
-				{
-					fallback|= (caller->elapsed() >= CallerFallbackTimeout);
-					hints.insert(caller->hint());
-				}
-				
-				call(target, hints, fallback);
-			}
-		}
+		sendCalls();
 		
 		// Send beacons
-		if(loops % 10 == 0)
-		{
-			Identifier node(mOverlay.localNode());
-			Set<Identifier> localIds;
-			Set<Identifier> remoteIds;
-			
-			for(auto &p : mListeners)
-			{
-				localIds.insert(p.first.second);
-				remoteIds.insert(p.first.first);
-			}
-			
-			for(auto &id : localIds)
-				storeValue(id, node);
-			
-			for(auto &id : remoteIds)
-				mOverlay.retrieve(id);
-			
-			//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
-			
-			{
-				std::unique_lock<std::mutex> lock(mCallersMutex);
-				mCallCandidates.clear();
-			}
-		}
+		if(loops % 10 == 0) sendBeacons();
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("Network::run", e.what());
+	}
+}
+
+void Network::sendCalls(void)
+{
+	std::unique_lock<std::mutex> lock(mCallersMutex);
+	
+	for(auto it = mCallers.begin(); it != mCallers.end(); ++it)
+	{
+		const BinaryString &target = it->first;
+		Set<BinaryString> hints;
+		
+		bool fallback = false;
+		for(const Caller *caller : it->second)
+		{
+			fallback|= (caller->elapsed() >= CallerFallbackTimeout);
+			hints.insert(caller->hint());
+		}
+		
+		call(target, hints, fallback);
+	}
+}
+
+void Network::sendBeacons(void)
+{
+	Identifier node(mOverlay.localNode());
+	Set<Identifier> localIds;
+	Set<Identifier> remoteIds;
+	
+	for(auto &p : mListeners)
+	{
+		localIds.insert(p.first.second);
+		remoteIds.insert(p.first.first);
+	}
+	
+	for(auto &id : localIds)
+		storeValue(id, node);
+	
+	for(auto &id : remoteIds)
+		mOverlay.retrieve(id);
+	
+	//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
+	
+	{
+		std::unique_lock<std::mutex> lock(mCallersMutex);
+		mCallCandidates.clear();
 	}
 }
 

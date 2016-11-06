@@ -26,6 +26,7 @@
 #include "tpn/cache.hpp"
 #include "tpn/store.hpp"
 #include "tpn/httptunnel.hpp"
+#include "tpn/network.hpp"	// for sendCalls()
 
 #include "pla/binaryserializer.hpp"
 #include "pla/jsonserializer.hpp"
@@ -604,8 +605,11 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 	sptr<Handler> currentHandler;
 	Set<Address>  currentAddrs;
 
+	bool isFirst = false;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
+		
+		isFirst = (mHandlers.empty());
 		
 		if(mHandlers.get(node, currentHandler))
 		{
@@ -621,10 +625,13 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 		handler->start();
 		
 		mRemoteAddresses.insert(addr);
-		
-		// On first connection, schedule store to publish in DHT
-		if(mHandlers.size() == 1)
-			Store::Instance->start();
+	}
+	
+	// On first connection, send network calls and schedule store to publish in DHT
+	if(isFirst)
+	{
+		Network::Instance->sendCalls();
+		Store::Instance->start();
 	}
 }
 
