@@ -355,13 +355,6 @@ void Store::run(void)
 		BinaryString node = Network::Instance->overlay()->localNode();
 		auto secs = std::chrono::duration_cast<std::chrono::seconds>((std::chrono::system_clock::now() - maxAge).time_since_epoch()).count();
 		
-		// Delete old non-permanent values
-		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3");
-		statement.bind(1, static_cast<int>(Temporary));
-		statement.bind(2, static_cast<int>(Distributed));
-		statement.bind(3, secs);
-		statement.execute();
-		
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
@@ -372,8 +365,18 @@ void Store::run(void)
 				return;
 			}
 			
+			Database::Statement statement;
+			
+			// Delete old non-permanent values
+			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 LIMIT ?4)");
+			statement.bind(1, static_cast<int>(Temporary));
+			statement.bind(2, static_cast<int>(Distributed));
+			statement.bind(3, secs);
+			statement.bind(4, batch);
+			statement.execute();
+			
 			// Select DHT values
-			Database::Statement statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY id DESC LIMIT ?1 OFFSET ?2");
+			statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY id DESC LIMIT ?1 OFFSET ?2");
 			statement.bind(1, batch);
 			statement.bind(2, offset);
 			
