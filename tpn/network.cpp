@@ -1833,7 +1833,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
 	mLocalSideSequence(0.),
-	mRedundancy(1.25),	// TODO
+	mRedundancy(1.10),	// TODO
 	mLocalSideSeen(0),
 	mLocalSideCount(0),
 	mSideSeen(0),
