@@ -2087,12 +2087,13 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		// Compute received
 		unsigned flowReceived = mSource.drop(nextSeen);	
-		unsigned sideReceived = sideCount - std::min(mSideCount, sideCount);
+		unsigned sideReceived = sideSeen - std::min(mSideSeen, sideSeen);
 		unsigned received = flowReceived + sideReceived;
 		
 		const double alpha = 2.;	// Slow start factor
 		const double beta  = 16.;	// Additive increase factor
 		const double gamma = 0.5;	// Multiplicative decrease factor
+		const unsigned trigger = 16;	// Congestion trigger
 		
 		double delta;
 		if(mTokens < mThreshold) delta = alpha; 	// Slow start
@@ -2106,8 +2107,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		mAccumulator+= mRedundancy*backlog;
 		mAccumulator = std::min(mAccumulator, mRedundancy*mSource.rank());
 		
-		unsigned margin = unsigned(std::ceil(1./(mRedundancy - 1.)));
-		if(backlog > mSource.rank() || sideSeen > sideCount + margin)
+		if(backlog > mSource.rank() + trigger || sideSeen > sideCount + trigger)
 		{
 			if(!mCongestion)
 			{
