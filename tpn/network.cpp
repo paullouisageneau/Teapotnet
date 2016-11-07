@@ -2124,7 +2124,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 				// Congestion: Multiplicative decrease
 				mCongestionMode = true;
 				mThreshold = mTokens*gamma;
-				mTokens = std::min(mTokens, double(backlog));
+				mTokens = double(DefaultTokens);
 			}
 			
 			mTokens = std::max(mTokens, double(DefaultTokens));
