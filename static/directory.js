@@ -118,16 +118,27 @@ function listDirectoryRec(url, object, next) {
 			
 			// Order files
 			table.html(table.find('tr').detach().sort(function(a, b) {
-				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
-				if($(b).hasClass("directory") && !$(a).hasClass("directory")) return true;  
-				return $(a).find("td.filename a").text() > $(b).find("td.filename a").text()
-					|| ($(a).find("td.filename a").text() == $(b).find("td.filename a").text() && parseInt($(a).find("td.time").text()) < parseInt($(b).find("td.time").text()));
+				var da = $(a).hasClass("directory");
+				var db = $(b).hasClass("directory");
+				if(da && !db) return -1;
+				if(db && !da) return 1;
+				
+				var fa = $(a).find("td.filename a").text();
+				var fb = $(b).find("td.filename a").text();
+				if(fa < fb) return -1;
+				if(fa > fb) return 1;
+				
+				var ta = parseInt($(a).find("td.time").text());
+				var tb = parseInt($(b).find("td.time").text());
+				if(ta < tb) return -1;
+				if(ta > tb) return 1;
+				return 0;
 			}));
-		
+			
 			listDirectoryRec(url, object, next);
 		}
 		else {
-			if($(object).find('table.files tr:visible').length == 0) {
+			if($(object).find('table.files tr').length == 0) {
 				$(object).append('<div class="files">No files</div>');
 			}
 		}
@@ -135,7 +146,7 @@ function listDirectoryRec(url, object, next) {
 	.fail(function(jqXHR, textStatus) {
 		$(object).find('.gifloading').remove();
 		
-		if($(object).find('table.files tr:visible').length == 0) {
+		if($(object).find('table.files tr').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
 	});
