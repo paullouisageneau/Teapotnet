@@ -2087,7 +2087,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		// Compute received
 		unsigned flowReceived = mSource.drop(nextSeen);	
-		unsigned sideReceived = sideSeen - std::min(mSideSeen, sideSeen);
+		unsigned sideReceived = sideCount - std::min(mSideCount, sideCount);
 		unsigned received = flowReceived + sideReceived;
 		
 		const double alpha = 2.;	// Slow start factor
@@ -2095,19 +2095,12 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		const double gamma = 0.5;	// Multiplicative decrease factor
 		
 		double delta;
-		if(mTokens < mThreshold)
-		{
-			// Slow start
-			delta = received*alpha;
-		}
-		else {
-			// Additive increase
-			delta = received*(1. + beta/std::max(mTokens, 1.));
-		}
+		if(mTokens < mThreshold) delta = alpha; 	// Slow start
+		else delta = beta/std::max(mTokens, 1.);	// Additive increase
 		
-		delta*= mRedundancy;
-		mTokens+= delta;
-		mAvailableTokens+= delta;
+		mTokens+= received*delta;
+		mAvailableTokens+= received*(mRedundancy + delta);
+		mAvailableTokens = std::min(mTokens, mAvailableTokens);
 		
 		unsigned margin = unsigned(std::ceil(1./(mRedundancy - 1.)));
 		if(nextSeen - nextDecoded > mSource.rank() || sideSeen > sideCount + margin)
@@ -2223,7 +2216,7 @@ int Network::Handler::send(bool force)
 			}
 			
 			if(mAvailableTokens >= 1. && !combination.isNull())
-				mTokens-= 1.;
+				mAvailableTokens-= 1.;
 		
 			sendCombination(target, combination);
 			
