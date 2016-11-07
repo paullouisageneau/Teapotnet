@@ -333,7 +333,7 @@ private:
 		Map<BinaryString, unsigned> mTargets;
 
 		double mTokens, mThreshold, mAccumulator, mLocalSideSequence, mRedundancy;
-		unsigned mLocalSideSeen, mLocalSideCount, mSideCount;
+		unsigned mLocalSideSeen, mLocalSideCount, mSideSeen, mSideCount;
 		bool mCongestionMode;
 		duration mTimeout;
 		bool mClosed;

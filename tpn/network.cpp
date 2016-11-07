@@ -1835,6 +1835,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mRedundancy(1.25),	// TODO
 	mLocalSideSeen(0),
 	mLocalSideCount(0),
+	mSideSeen(0),
 	mSideCount(0),
 	mCongestionMode(false),
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
@@ -2087,11 +2088,12 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		unsigned flowReceived = mSource.drop(nextSeen);				// packets newly decoded on remote side
 		
 		unsigned sideBacklog  = sideSeen - std::min(sideCount, sideSeen);	// packets seen but not counted on remote side
-		unsigned sideReceived = sideCount - std::min(mSideCount, sideCount);	// packets newly counted on remote side
+		unsigned sideReceived = sideSeen - std::min(mSideSeen, sideSeen);	// packets newly seen on remote side
 		
-		unsigned backlog  = flowBacklog + sideBacklog;		// total backlog
+		unsigned backlog  = flowBacklog  + sideBacklog;		// total backlog
 		unsigned received = flowReceived + sideReceived;	// total received
 		
+		mSideSeen  = std::max(mSideSeen,  sideSeen);	// update remote side seen
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 		
 		const double alpha = 2.;	// Slow start factor
@@ -2130,7 +2132,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			mTokens = std::max(mTokens, double(DefaultTokens));
 		}
 		
-		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold = " + String::number(unsigned(mThreshold)) + ", tokens = " + String::number(unsigned(mTokens)) + ")");
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold=" + String::number(unsigned(mThreshold)) + ", tokens=" + String::number(unsigned(mTokens)) + ")");
 	}
 
 	return true;
