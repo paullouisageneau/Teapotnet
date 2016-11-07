@@ -93,7 +93,12 @@ Request::~Request(void)
 bool Request::addTarget(const BinaryString &target)
 {
 	if(mPath.empty() || target.empty()) return false;
-	return incoming(link(), mPath, "/", target);
+	
+	String prefix = mPath;
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+	
+	return incoming(link(), prefix, "/", target);
 }
 
 String Request::urlPrefix(void) const
@@ -225,8 +230,11 @@ void Request::http(const String &prefix, Http::Request &request)
 
 bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
+	if(!mPath.empty() && prefix + path != mPath)
+		return false;	// ignore subdirectories
+	
 	if(fetch(link, prefix, path, target, false))	// no content
-	{		
+	{
 		Resource resource(target, true);	// local only
 		if(!mListDirectories || !resource.isDirectory() || fetch(link, prefix, path, target, true))
 			addResult(resource);
