@@ -2125,7 +2125,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 				mTokens = std::min(mTokens, double(backlog));
 			}
 			
-			mTokens = std::max(mTokens, DefaultTokens);
+			mTokens = std::max(mTokens, double(DefaultTokens));
 		}
 	}
 
