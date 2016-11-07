@@ -244,7 +244,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		Set<BinaryString> targets;
 		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
 			for(auto it = targets.begin(); it != targets.end(); ++it)
-				subscriber->incoming(Link::Null, prefix, "", *it);
+				subscriber->incoming(Link::Null, prefix, "/", *it);
 	}
 }
 
@@ -839,7 +839,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					if(subscriber) 	// local
 					{
 						for(auto it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming(publisher->link(), path, "/", *it);
+							subscriber->incoming(publisher->link(), prefix, truncatedPath, *it);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -1832,10 +1832,11 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
 	mLocalSideSequence(0.),
+	mRedundancy(1.25),	// TODO
 	mLocalSideSeen(0),
 	mLocalSideCount(0),
 	mSideCount(0),
-	mRedundancy(1.25),	// TODO
+	mCongestionMode(false),
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mClosed(false)
 {
@@ -1896,9 +1897,6 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 void Network::Handler::timeout(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-
-	// Inactivity timeout is handled by Tunnel
-	mTokens = std::max(mTokens, 1.);
 	
 	send(true);
 }
@@ -2098,8 +2096,11 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 
 		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
 		
-		if(backlog < mThreshold || backlog > mThreshold*2.)
+		if(backlog < mThreshold)
 		{
+			// No congestion
+			mCongestionMode = false;
+			
 			double tokens;
 			if(mTokens < mThreshold)
 			{
@@ -2110,13 +2111,22 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 				// Additive increase
 				tokens = received*(1. + 1./std::max(mTokens, 1.));
 			}
-	
+			
 			mTokens+= tokens;
 		}
 		else {
-			// Congestion: Multiplicative decrease
-			mThreshold = mTokens/2.;
-			mTokens = DefaultTokens;
+			mTokens+= received*1.;
+			mTokens = std::max(mTokens, 1.);
+			
+			if(!mCongestionMode)
+			{
+				// Congestion: Multiplicative decrease
+				mCongestionMode = true;
+				mThreshold = mTokens/2.;
+				mTokens = std::min(mTokens, double(backlog));
+			}
+			
+			
 		}
 	}
 
@@ -2211,7 +2221,7 @@ int Network::Handler::send(bool force)
 				if(!tokens) mTargets.erase(it);
 			}
 			
-			if(!combination.isNull())
+			if(mTokens >= 1. && !combination.isNull())
 				mTokens-= 1.;
 		
 			sendCombination(target, combination);

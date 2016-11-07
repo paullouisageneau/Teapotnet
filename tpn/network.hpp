@@ -332,9 +332,9 @@ private:
 		BinaryString		mSourceBuffer;
 		Map<BinaryString, unsigned> mTargets;
 
-		double mTokens, mThreshold, mAccumulator, mLocalSideSequence;
+		double mTokens, mThreshold, mAccumulator, mLocalSideSequence, mRedundancy;
 		unsigned mLocalSideSeen, mLocalSideCount, mSideCount;
-		double mRedundancy;
+		bool mCongestionMode;
 		duration mTimeout;
 		bool mClosed;
 		
