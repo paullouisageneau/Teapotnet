@@ -2098,12 +2098,16 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		if(mTokens < mThreshold) delta = alpha; 	// Slow start
 		else delta = beta/std::max(mTokens, 1.);	// Additive increase
 		
-		mTokens+= received*delta;
-		mAvailableTokens+= received*(mRedundancy + delta);
-		mAvailableTokens = std::min(mTokens, mAvailableTokens);
+		mTokens+= delta*received;
+		mAvailableTokens+= (mRedundancy + delta)*received;
+		mAvailableTokens = std::min(mAvailableTokens, mTokens);
+		
+		unsigned backlog = nextSeen - nextDecoded;
+		mAccumulator+= mRedundancy*backlog;
+		mAccumulator = std::min(mAccumulator, mRedundancy*mSource.rank());
 		
 		unsigned margin = unsigned(std::ceil(1./(mRedundancy - 1.)));
-		if(nextSeen - nextDecoded > mSource.rank() || sideSeen > sideCount + margin)
+		if(backlog > mSource.rank() || sideSeen > sideCount + margin)
 		{
 			if(!mCongestion)
 			{
