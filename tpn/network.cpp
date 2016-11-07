@@ -39,7 +39,7 @@ namespace tpn
 
 const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
-const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*256;
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -2093,10 +2093,12 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		unsigned received = flowReceived + sideReceived;	// total received
 		
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
-
-		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold = " + String::number(mThreshold) + ")");
 		
-		if(backlog < mThreshold)
+		const double alpha = 2.;	// Slow start factor
+		const double beta  = 16.;	// Additive increase factor
+		const double gamma = 0.5;	// Multiplicative decrease factor
+		
+		if(double(backlog) < mThreshold)
 		{
 			// No congestion
 			mCongestionMode = false;
@@ -2105,11 +2107,11 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			if(mTokens < mThreshold)
 			{
 				// Slow start
-				tokens = received*2.;
+				tokens = received*alpha;
 			}
 			else {
 				// Additive increase
-				tokens = received*(1. + 1./std::max(mTokens, 1.));
+				tokens = received*(1. + beta/std::max(mTokens, 1.));
 			}
 			
 			mTokens+= tokens;
@@ -2121,12 +2123,14 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			{
 				// Congestion: Multiplicative decrease
 				mCongestionMode = true;
-				mThreshold = mTokens/2.;
+				mThreshold = mTokens*gamma;
 				mTokens = std::min(mTokens, double(backlog));
 			}
 			
 			mTokens = std::max(mTokens, double(DefaultTokens));
 		}
+		
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold = " + String::number(unsigned(mThreshold)) + ", tokens = " + String::number(unsigned(mTokens)) + ")");
 	}
 
 	return true;
