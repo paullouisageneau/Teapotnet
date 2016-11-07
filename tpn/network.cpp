@@ -39,7 +39,7 @@ namespace tpn
 
 const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
-const unsigned Network::DefaultThreshold = Network::DefaultTokens*256;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -2103,21 +2103,21 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			// No congestion
 			mCongestionMode = false;
 			
-			double tokens;
+			double delta;
 			if(mTokens < mThreshold)
 			{
 				// Slow start
-				tokens = received*alpha;
+				delta = received*alpha;
 			}
 			else {
 				// Additive increase
-				tokens = received*(1. + beta/std::max(mTokens, 1.));
+				delta = received*(1. + beta/std::max(mTokens, 1.));
 			}
 			
-			mTokens+= tokens;
+			mTokens+= delta*mRedundancy;
 		}
 		else {
-			mTokens+= received*1.;
+			mTokens+= received*mRedundancy;
 			
 			if(!mCongestionMode)
 			{
