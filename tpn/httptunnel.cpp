@@ -345,17 +345,12 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 		}
 		catch(const NetException &e)
 		{
-			lock.lock();
 			if(!freshConnection)
 			{
+				lock.lock();
 				mDownSock->close();
 				throw;
 			}
-		}
-		catch(...)
-		{
-			lock.lock();
-			throw;
 		}
 		lock.lock();
 		
@@ -626,15 +621,8 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		case TunnelPadding:
 		{
 			lock.unlock();
-			try {
-				if(!mUpSock->ignore(len))
-					throw NetException("Connection unexpectedly closed");
-			}
-			catch(...)
-			{
-				lock.lock();
-				throw;
-			}
+			if(!mUpSock->ignore(len))
+				throw NetException("Connection unexpectedly closed");
 			lock.lock();
 			break;
 		}
@@ -658,8 +646,10 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 
 		default:
 			LogWarn("HttpTunnel::Server", "Unknown command: " + String::hexa(command));	
+			lock.unlock();
 			if(!mUpSock->ignore(len))
 				throw NetException("Connection unexpectedly closed");
+			lock.lock();
                         break;
 		}
 	}
@@ -668,17 +658,9 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 	Assert(mPostBlockLeft > 0);
 	mUpSock->setTimeout(SockTimeout);
 	
-	size_t r;
 	lock.unlock();
-	try {
-		r = mUpSock->readData(buffer, std::min(size, mPostBlockLeft));
-		if(size && !r) throw NetException("Connection unexpectedly closed");
-	}
-	catch(...)
-	{
-		lock.lock();
-		throw;
-	}
+	size_t r = mUpSock->readData(buffer, std::min(size, mPostBlockLeft));
+	if(size && !r) throw NetException("Connection unexpectedly closed");
 	lock.lock();
 	
 	mPostBlockLeft-= r;

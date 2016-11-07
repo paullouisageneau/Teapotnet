@@ -1829,6 +1829,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mStream(stream),
 	mLink(link),
 	mTokens(DefaultTokens),
+	mAvailableTokens(DefaultTokens),
 	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
 	mLocalSideSequence(0.),
@@ -1837,7 +1838,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mLocalSideCount(0),
 	mSideSeen(0),
 	mSideCount(0),
-	mCongestionMode(false),
+	mCongestion(false),
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toInt())),
 	mClosed(false)
 {
@@ -1981,7 +1982,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 		{
 			if(target.empty())
 			{
-				//LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + String::number(combination.firstComponent()) + ")");
+				//LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + Stréing::number(combination.firstComponent()) + ")");
 				
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
@@ -2042,7 +2043,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 	AssertIO(s >> targetSize);
 	AssertIO(s >> dataSize);
 	
-	// 3é-bit sequence
+	// 32-bit sequence
 	uint32_t sequence = 0;
 	AssertIO(s >> sequence);	// 32-bit sequence
 	
@@ -2084,55 +2085,50 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 			mLocalSideCount = std::min(mLocalSideCount+1, mLocalSideSeen);	// increment and cap local count
 		}
 		
-		unsigned flowBacklog  = nextSeen - std::min(nextDecoded, nextSeen);	// packets seen but not decoded on remote side
-		unsigned flowReceived = mSource.drop(nextSeen);				// packets newly decoded on remote side
-		
-		unsigned sideBacklog  = sideSeen - std::min(sideCount, sideSeen);	// packets seen but not counted on remote side
-		unsigned sideReceived = sideSeen - std::min(mSideSeen, sideSeen);	// packets newly seen on remote side
-		
-		unsigned backlog  = flowBacklog  + sideBacklog;		// total backlog
-		unsigned received = flowReceived + sideReceived;	// total received
-		
-		mSideSeen  = std::max(mSideSeen,  sideSeen);	// update remote side seen
-		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
+		// Compute received
+		unsigned flowReceived = mSource.drop(nextSeen);	
+		unsigned sideReceived = sideSeen - std::min(mSideSeen, sideSeen);
+		unsigned received = flowReceived + sideReceived;
 		
 		const double alpha = 2.;	// Slow start factor
 		const double beta  = 16.;	// Additive increase factor
 		const double gamma = 0.5;	// Multiplicative decrease factor
 		
-		if(double(backlog) < mThreshold)
+		double delta;
+		if(mTokens < mThreshold)
 		{
-			// No congestion
-			mCongestionMode = false;
-			
-			double delta;
-			if(mTokens < mThreshold)
-			{
-				// Slow start
-				delta = received*alpha;
-			}
-			else {
-				// Additive increase
-				delta = received*(1. + beta/std::max(mTokens, 1.));
-			}
-			
-			mTokens+= delta*mRedundancy;
+			// Slow start
+			delta = received*alpha;
 		}
 		else {
-			mTokens+= received*mRedundancy;
-			
-			if(!mCongestionMode)
-			{
-				// Congestion: Multiplicative decrease
-				mCongestionMode = true;
-				mThreshold = mTokens*gamma;
-				mTokens = double(DefaultTokens);
-			}
-			
-			mTokens = std::max(mTokens, double(DefaultTokens));
+			// Additive increase
+			delta = received*(1. + beta/std::max(mTokens, 1.));
 		}
 		
-		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold=" + String::number(unsigned(mThreshold)) + ", tokens=" + String::number(unsigned(mTokens)) + ")");
+		delta*= mRedundancy;
+		mTokens+= delta;
+		mAvailableTokens+= delta;
+		
+		unsigned margin = unsigned(std::ceil(1./(mRedundancy - 1.)));
+		if(nextSeen - nextDecoded > mSource.rank() || sideSeen > sideCount + margin)
+		{
+			if(!mCongestion)
+			{
+				// Congestion: Multiplicative decrease
+				mCongestion = true;
+				mThreshold = mTokens*gamma;
+				mTokens = double(DefaultTokens);
+				mAvailableTokens = mTokens;
+			}
+			
+			mAvailableTokens = std::max(mAvailableTokens, 1.);
+		}
+		else mCongestion = false;
+		
+		mSideSeen  = std::max(mSideSeen,  sideSeen);	// update remote side seen
+		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
+		
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", tokens=" + String::number(unsigned(mTokens)) + ", available=" + String::number(unsigned(mAvailableTokens)) +", threshold=" + String::number(unsigned(mThreshold)) + ")");
 	}
 
 	return true;
@@ -2188,7 +2184,7 @@ int Network::Handler::send(bool force)
 	if(mClosed) return 0;
 	
 	int count = 0;
-	while(force || (mTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
+	while(force || (mAvailableTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
 	{
 		try {
 			BinaryString target;
@@ -2199,13 +2195,13 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
-				//LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator)+", tokens=" + String::number(mTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator) + ", tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
 			else if(!mTargets.empty())
 			{
-				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				
 				// Pick at random
 				int r = Random().uniform(0, int(mTargets.size()));
@@ -2226,7 +2222,7 @@ int Network::Handler::send(bool force)
 				if(!tokens) mTargets.erase(it);
 			}
 			
-			if(mTokens >= 1. && !combination.isNull())
+			if(mAvailableTokens >= 1. && !combination.isNull())
 				mTokens-= 1.;
 		
 			sendCombination(target, combination);
