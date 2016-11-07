@@ -2094,7 +2094,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 
-		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ")");
+		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", backlog=" + String::number(flowBacklog) + "+" + String::number(sideBacklog) + ", threshold = " + String::number(mThreshold) + ")");
 		
 		if(backlog < mThreshold)
 		{
@@ -2116,7 +2116,6 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		}
 		else {
 			mTokens+= received*1.;
-			mTokens = std::max(mTokens, 1.);
 			
 			if(!mCongestionMode)
 			{
@@ -2126,7 +2125,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 				mTokens = std::min(mTokens, double(backlog));
 			}
 			
-			
+			mTokens = std::max(mTokens, DefaultTokens);
 		}
 	}
 
