@@ -482,9 +482,6 @@ int run(String &commandLine, StringMap &args)
 			workingDirectory = Directory::GetHomeDirectory() + "/Teapotnet";
 			ForceLogToFile = true;
 			
-			// TODO: backward compatibility, should be removed
-			system("if [ -d ~/TeapotNet ]; then mv ~/TeapotNet ~/Teapotnet; fi");
-			
 			if(!isBoot)	// If it's not the service process
 			{
 				String plist = "\
@@ -514,10 +511,7 @@ int run(String &commandLine, StringMap &args)
 				
 				// Clean
 				system("launchctl remove org.ageneau.teapotnet");
-			
-				// TODO: backward compatibility, should be removed
-				system("if [ -f ~/Library/LaunchAgents/TeapotNet.plist ]; then rm ~/Library/LaunchAgents/TeapotNet.plist; fi");
-
+				
 				// Launch now
 				system("launchctl load /tmp/Teapotnet.plist");
 				
