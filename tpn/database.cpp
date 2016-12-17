@@ -34,7 +34,7 @@ Database::Database(const String &filename) :
 	Assert(sqlite3_threadsafe());
 
 	if(sqlite3_open(filename.c_str(), &mDb) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");	// TODO: close ?
+		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");
 	
 	execute("PRAGMA synchronous = OFF");
 	execute("PRAGMA journal_mode = TRUNCATE");
@@ -251,10 +251,7 @@ void Database::Statement::bind(int parameter, const String &value)
 void Database::Statement::bind(int parameter, const BinaryString &value)
 {
 	if(!parameter) return;
-	// TODO
-	std::vector<char> tmp;
-	tmp.assign(value.begin(), value.end());
-	if(sqlite3_bind_blob(mStmt, parameter, &tmp[0], tmp.size(), SQLITE_TRANSIENT) != SQLITE_OK)
+	if(sqlite3_bind_blob(mStmt, parameter, value.data(), value.size(), SQLITE_TRANSIENT) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
 }
 
