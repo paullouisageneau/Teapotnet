@@ -149,7 +149,6 @@ public:
 	};
 	
 	// JSON resource importer
-	// TODO: deprecated, delete
 	class ImportTask
 	{
 	public:

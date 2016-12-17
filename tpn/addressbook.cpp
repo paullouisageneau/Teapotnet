@@ -249,11 +249,20 @@ sptr<const AddressBook::Contact> AddressBook::getSelf(void) const
 
 void AddressBook::addInvitation(const Identifier &remote, const String &name)
 {
-	if(!hasIdentifier(remote)) 
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
+	
+	if(!mContactsByIdentifier.contains(remote))
 		mInvitations.insert(remote, name);
-	}
+}
+
+String AddressBook::removeInvitation(const Identifier &remote)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	
+	String name;
+	mInvitations.get(remote, name);
+	mInvitations.erase(remote);
+	return name;
 }
 
 Time AddressBook::time(void) const
@@ -387,23 +396,9 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(identifier.size() != 32)
 							throw Exception("Invalid identifier");
 						
-						// TODO: function
-						{
-							std::unique_lock<std::mutex> lock(mMutex);
-							
-							if(name.empty())
-							{
-								if(!mInvitations.contains(identifier))
-									throw Exception("No name for contact");
-								
-								name = mInvitations.get(identifier);
-							}
-							
-							mInvitations.erase(identifier);
-						}
-						
-						if(name.empty())
-							throw Exception("Missing contact name");
+						String invitationName = removeInvitation(identifier);
+						if(name.empty()) name = invitationName;
+						if(name.empty()) throw Exception("Missing contact name");
 						
 						addContact(name, identifier);
 					}
@@ -421,11 +416,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						if(identifier.size() != 32)
 							throw Exception("Invalid identifier");
 						
-						// TODO: function
-						{
-							std::unique_lock<std::mutex> lock(mMutex);
-							mInvitations.erase(identifier);
-						}
+						removeInvitation(identifier);
 					}
 					else if(action == "createsynchronization")
 					{
@@ -1126,7 +1117,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.close("table");
 			page.close("div");
 			
-			// TODO: display instances names
 			unsigned refreshPeriod = 10000;
 			page.javascript("setCallback(\""+prefix+"/?json\", "+String::number(refreshPeriod)+", function(info) {\n\
 				transition($('#status'), info.status.capitalize());\n\
@@ -1371,7 +1361,9 @@ bool AddressBook::Contact::deserialize(Serializer &s)
 		.insert("secret", mRemoteSecret)))
 		return false;
 	
-	// TODO: sanity checks
+	if(mIdentifier.empty()) return false;
+	if(mUniqueName.empty()) return false;
+	if(mName.empty()) mName = mUniqueName;
 	return true;
 }
 

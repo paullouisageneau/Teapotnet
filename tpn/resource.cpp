@@ -508,14 +508,13 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 Resource::ImportTask::ImportTask(Serializable *object, 
 	const BinaryString &digest,
 	const String &type,
-	const BinaryString &secret)
+	const BinaryString &secret) :
+	mObject(object),
+	mDigest(digest),
+	mSecret(secret),
+	mType(type)
 {
-	Assert(object);
-	
-	mObject = object;
-	mDigest = digest;
-	mSecret = secret;
-	mType   = type;
+	Assert(mObject);
 }
 		
 void Resource::ImportTask::operator()(void)

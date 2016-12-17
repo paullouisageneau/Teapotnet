@@ -143,6 +143,7 @@ public:
 	sptr<const Contact> getSelf(void) const;
 	
 	void addInvitation(const Identifier &remote, const String &name);
+	String removeInvitation(const Identifier &remote);
 	
 private:
 	Time time(void) const;
