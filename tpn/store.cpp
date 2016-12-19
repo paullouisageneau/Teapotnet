@@ -73,38 +73,30 @@ Store::~Store(void)
 
 bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 {
-	// TODO: sinks should be independant
-	std::unique_lock<std::mutex> lock(mMutex);
+	sptr<Sink> sink;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
 	
-	if(hasBlock(digest)) return true;
+		if(hasBlock(digest)) return true;
+	
+		mSinks.get(digest, sink);
+		if(!sink)
+		{
+			sink = std::make_shared<Sink>(digest);
+			mSinks.insert(digest, sink);
+		}
+	}
 	
 	//LogDebug("Store::push", "Pushing to " + digest.toString());
 	
-	Fountain::Sink &sink = mSinks[digest];
-	sink.solve(input);
-	if(!sink.isDecoded()) return false;
-	
-	BinaryString sinkDigest;
-	sink.hash(sinkDigest);
-	
-	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
-	
-	if(sinkDigest != digest)
+	if(sink->push(input))
 	{
-		LogWarn("Store::push", "Block digest is invalid (expected " + digest.toString() + ")");
+		// Block is decoded !
+		std::unique_lock<std::mutex> lock(mMutex);
 		mSinks.erase(digest);
-		return false;
+		notifyBlock(digest, sink->path(), 0, sink->size());
 	}
-	
-	String path = Cache::Instance->path(digest);
-	
-	File file(path, File::Write);
-	int64_t size = sink.dump(file);
-	file.close();
-	
-	mSinks.erase(digest);
 
-	notifyBlock(digest, path, 0, size);
 	return true;
 }
 
@@ -126,8 +118,8 @@ unsigned Store::missing(const BinaryString &digest)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	Map<BinaryString,Fountain::Sink>::iterator it = mSinks.find(digest);
-	if(it != mSinks.end()) return it->second.missing();
+	auto it = mSinks.find(digest);
+	if(it != mSinks.end()) return it->second->missing();
 	else return Block::MaxChunks;
 }
 
@@ -346,8 +338,10 @@ void Store::start(void)
 void Store::run(void)
 {	
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
-	const duration delay = seconds(1.);	// TODO
-	const int batch = 10;			// TODO
+	
+	// TODO: delay and batch values
+	const duration delay = seconds(1.);
+	const int batch = 10;
 	
 	LogDebug("Store::run", "Started");
 
@@ -405,11 +399,64 @@ void Store::run(void)
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mRunning = false;
-		
-		// Store is scheduled by Overlay on first connection
-		// TODO
-		//Scheduler::Global->schedule(this, maxAge/2);
 	}
+}
+
+Store::Sink::Sink(const BinaryString &digest) :
+	mDigest(digest),
+	mSize(0)
+{
+
+}
+
+Store::Sink::~Sink(void)
+{
+	
+}
+		
+bool Store::Sink::push(Fountain::Combination &incoming)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	
+	mSink.solve(incoming);
+	if(!mSink.isDecoded()) return false;
+	
+	BinaryString sinkDigest;
+	mSink.hash(sinkDigest);
+	
+	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
+	
+	if(!mDigest.empty() && sinkDigest != mDigest)
+	{
+		LogWarn("Store::push", "Block digest is invalid (expected " + mDigest.toString() + ")");
+		mSink.clear();
+		return false;
+	}
+	
+	mPath = Cache::Instance->path(mDigest);
+	
+	File file(mPath, File::Write);
+	mSize = mSink.dump(file);
+	file.close();
+	return true;
+}
+
+unsigned Store::Sink::missing(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mSink.missing();
+}
+
+String Store::Sink::path(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mPath;
+}
+
+int64_t Store::Sink::size(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mSize;
 }
 
 }

@@ -187,8 +187,11 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_start(JNIEnv *env
 
 JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv *env, jobject obj)
 {
-	Log("main", "Updating all users...");
-	User::UpdateAll();
+	if(Network::Instance)
+	{
+		Log("main", "Updating overlay...");
+		Netwok::Instance->overlay()->start();
+	}
 }
 #endif
 

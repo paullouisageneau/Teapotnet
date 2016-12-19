@@ -92,11 +92,7 @@ Overlay::Overlay(int port) :
 			b->run();
 		});
 
-	// Start
-	mRunAlarm.schedule(Alarm::clock::now() + seconds(1.), [this]()
-	{
-		run();
-	});
+	start(seconds(1.));
 }
 
 Overlay::~Overlay(void)
@@ -125,6 +121,14 @@ void Overlay::join(void)
 {
 	mPool.join();
 	mRunAlarm.join();
+}
+
+void Overlay::start(duration delay)
+{
+	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
+	{
+		run();
+	});	
 }
 
 String Overlay::localName(void) const

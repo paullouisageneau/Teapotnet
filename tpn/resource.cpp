@@ -190,7 +190,6 @@ int Resource::blockIndex(int64_t position, size_t *offset) const
 	if(!mIndexBlock || position < 0 || (position > 0 && position >= mIndexRecord->size))
 		throw OutOfBounds("Resource position out of bounds");
   
-	// TODO: block size in record ?
 	if(offset) *offset = size_t(position % Block::Size);
 	return int(position/Block::Size);
 }

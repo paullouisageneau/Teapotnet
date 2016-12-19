@@ -74,8 +74,30 @@ public:
 private:
 	void run(void);
 
+	// Sink wrapper with mutex
+	class Sink
+	{
+	public:
+		Sink(const BinaryString &digest = "");
+		~Sink(void);
+		
+		bool push(Fountain::Combination &incoming);
+		unsigned missing(void) const;
+		
+		String path(void) const;
+		int64_t size(void) const;
+		
+	private:
+		Fountain::Sink mSink;
+		BinaryString mDigest;
+		String mPath;
+		int64_t mSize;
+		
+		mutable std::mutex mMutex;
+	};
+	
 	Database *mDatabase;
-	Map<BinaryString,Fountain::Sink> mSinks;
+	Map<BinaryString,sptr<Sink> > mSinks;
 	bool mRunning;
 	
 	mutable std::mutex mMutex;

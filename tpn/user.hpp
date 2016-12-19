@@ -47,7 +47,6 @@ public:
 	static User *Get(const String &name);
 	static User *GetByIdentifier(const Identifier &id);
 	static User *Authenticate(const String &name, const String &password);
-	static void UpdateAll(void);
 	
 	User(const String &name, const String &password = "");
 	~User(void);

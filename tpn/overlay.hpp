@@ -98,6 +98,8 @@ public:
 	void save(void) const;
 	void join(void);
 	
+	void start(duration delay = duration(0.));
+	
 	// Global
 	String localName(void) const;
 	BinaryString localNode(void) const;
