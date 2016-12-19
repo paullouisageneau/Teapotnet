@@ -44,9 +44,10 @@ public:
 	String move(const String &filename);
 	String path(const BinaryString &digest) const;
 	
-	// TODO: cleaning
-	
 private:
+	int64_t freeSpace(const String &path, int64_t maxSize, int64_t space);
+
+	
 	String mDirectory;
 	Scheduler mScheduler;
 };

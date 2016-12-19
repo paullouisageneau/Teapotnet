@@ -44,9 +44,11 @@ namespace tpn
 {
 
 const int Overlay::MaxQueueSize = 128;
+const int Overlay::StoreNeighbors = 3;
+const int Overlay::DefaultTtl = 16;
 
 Overlay::Overlay(int port) :
-		mPool(2 + 3)	// TODO
+		mPool(2 + 3)
 {
 	mFileName = "keys";
 	load();
@@ -162,7 +164,7 @@ sptr<SecureTransport::Certificate> Overlay::certificate(void) const
 	return mCertificate;
 }
 
-void Overlay::getAddresses(Set<Address> &set) const
+int Overlay::getAddresses(Set<Address> &set) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
@@ -173,6 +175,22 @@ void Overlay::getAddresses(Set<Address> &set) const
 		b->getAddresses(backendSet);
 		set.insertAll(backendSet);
 	}
+	
+	return set.size();
+}
+
+int Overlay::getRemoteAddresses(const BinaryString &remote, Set<Address> &set) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	
+	set.clear();
+	if(remote.empty()) return 0;
+	
+	sptr<Handler> handler;
+	if(mHandlers.get(remote, handler))
+		handler->getAddresses(set);
+	
+	return set.size();
 }
 
 bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, bool async)
@@ -269,7 +287,7 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 
 	Message message(Message::Store, value, key);
 	Array<BinaryString> nodes;
-	if(getRoutes(key, 4, nodes))	// TODO
+	if(getRoutes(key, StoreNeighbors, nodes))
 	{
 		for(int i=0; i<nodes.size(); ++i)
 		{
@@ -330,6 +348,9 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		return false;
 	}
 
+	if(message.source.empty())
+		message.source = from;
+	
 	//LogDebug("Overlay::incoming", "Incoming message (type=" + String::hexa(unsigned(message.type)) + ") from " + message.source.toString());
 	
 	// Message is for us
@@ -344,9 +365,22 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Path-folding offer
 	case Message::Offer:
 		{
-			message.type = Message::Suggest;	// message modified in place
+			// Read addresses
+			Set<Address> addrs;
+			BinarySerializer(&message.content) >> addrs;
 			
-			BinaryString distance = message.source ^ localNode();			
+			// Add known addresses
+			Set<Address> remoteAddresses;
+			getRemoteAddresses(message.source, remoteAddresses);
+			addrs.insertAll(remoteAddresses);
+			
+			// Send suggest message
+			Message suggest(Message::Suggest);
+			suggest.ttl = message.ttl;
+			suggest.source = message.source;
+			BinarySerializer(&suggest.content) << addrs;
+			
+			BinaryString distance = message.source ^ localNode();
 			Array<BinaryString> neighbors;
 			mHandlers.getKeys(neighbors);
 			for(int i=0; i<neighbors.size(); ++i)
@@ -354,8 +388,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				if(message.source != neighbors[i] 
 					&& (message.source ^ neighbors[i]) <= distance)
 				{
-					message.destination = neighbors[i];
-					send(message);
+					suggest.destination = neighbors[i];
+					send(suggest);
 				}
 			}
 			
@@ -401,7 +435,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			if(Time::Now() - oldTime >= 60.) // 1 min
         		{
 				Array<BinaryString> nodes;
-				if(getRoutes(message.destination, 4, nodes))	// TODO
+				if(getRoutes(message.destination, StoreNeighbors, nodes))
                 		{
                         		for(int i=0; i<nodes.size(); ++i)
                         		{
@@ -834,29 +868,12 @@ void Overlay::Message::clear(void)
 {
 	version = 0;
 	flags = 0x00;
-	ttl = 16;	// TODO
+	ttl = DefaultTtl;
 	type = Message::Dummy;
 
 	source.clear();
 	destination.clear();
 	content.clear();
-}
-
-void Overlay::Message::serialize(Serializer &s) const
-{
-	// TODO
-	s << source;
-	s << destination;
-	s << content;
-}
-
-bool Overlay::Message::deserialize(Serializer &s)
-{
-	// TODO
-	if(!(s >> source)) return false;
-	AssertIO(s >> destination);
-	AssertIO(s >> content);
-	return true;
 }
 
 Overlay::Backend::Backend(Overlay *overlay) :

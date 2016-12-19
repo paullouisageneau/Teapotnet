@@ -185,7 +185,7 @@ void PortMapping::run(void)
 		LogDebug("PortMapping", "Probing protocols...");
 		
 		mExternalHost.clear();
-		for(int i=0; i<2; ++i)	// TODO: FreeboxAPI is disabled for now
+		for(int i=0; i<2; ++i)	// TODO: FreeboxAPI is disabled
 		{
 			try {
 				switch(i)
@@ -225,7 +225,7 @@ void PortMapping::run(void)
 PortMapping::NatPMP::NatPMP(void)
 {
 	mSock.bind(5350, true, AF_INET);
-	mGatewayAddr.set("255.255.255.255", 5351, AF_INET, SOCK_DGRAM);	// TODO
+	mGatewayAddr.set("255.255.255.255", 5351, AF_INET, SOCK_DGRAM);
 }
 
 PortMapping::NatPMP::~NatPMP(void)
@@ -683,7 +683,7 @@ bool PortMapping::FreeboxAPI::check(String &host)
 {
 	LogDebug("PortMapping::FreeboxAPI", "Trying Freebox API...");
 	
-	// TODO: this is not the right method
+	// TODO: This is not the right method to check freebox API
 	
 	const String baseUrl = "http://mafreebox.freebox.fr";
 	Http::Request request(baseUrl + "/api_version", "GET");
@@ -737,7 +737,6 @@ bool PortMapping::FreeboxAPI::add(Protocol protocol, uint16_t internal, uint16_t
 
 bool PortMapping::FreeboxAPI::remove(Protocol protocol, uint16_t internal, uint16_t external)
 {
-	// TODO
 	return false;
 }
 

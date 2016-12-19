@@ -250,7 +250,7 @@ bool Resource::isSigned(void) const
 
 bool Resource::check(const Rsa::PublicKey &pubKey) const
 {
-	// TODO
+	// TODO: signature checking
 	return false;
 }
 

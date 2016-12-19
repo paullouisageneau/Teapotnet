@@ -49,7 +49,11 @@ public:
 	static const duration CallerFallbackTimeout;
 	static const unsigned DefaultTokens;
 	static const unsigned DefaultThreshold;
-
+	static const unsigned TunnelMtu;
+	static const unsigned DefaultRedundantCount;
+	static const double   DefaultRedundancy;
+	static const duration CallPeriod;
+	
 	static Network *Instance;
 	
 	struct Link

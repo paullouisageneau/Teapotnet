@@ -50,8 +50,10 @@ class Overlay : public Serializable
 {
 public:
 	static const int MaxQueueSize;
+	static const int StoreNeighbors;
+	static const int DefaultTtl;
 	
-	struct Message : public Serializable
+	struct Message
 	{
 		// Non-routable messages
 		static const uint8_t Dummy	= 0x00;
@@ -76,10 +78,6 @@ public:
 		~Message(void);
 		
 		void clear(void);
-		
-		// Serializable
-		void serialize(Serializer &s) const;
-		bool deserialize(Serializer &s);
 		
 		// Fields
 		uint8_t version;
@@ -108,7 +106,8 @@ public:
 	sptr<SecureTransport::Certificate> certificate(void) const;
 
 	// Addresses
-	void getAddresses(Set<Address> &set) const;
+	int getAddresses(Set<Address> &set) const;
+	int getRemoteAddresses(const BinaryString &remote, Set<Address> &set) const;
 	
 	// Connections
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);

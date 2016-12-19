@@ -348,7 +348,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 		{
 			LogWarn("Interface::process", "Creating board: " + request.url);
 			
-			Board *board = new Board(request.url);
+			Board *board = new Board(request.url.substr(1));
 			
 			String url = request.url;
 			request.url = "/";

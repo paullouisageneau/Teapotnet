@@ -41,11 +41,12 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	mHasNew(false),
 	mUnread(0)
 {
-	Assert(!mName.empty() && mName[0] == '/');	// TODO
+	if(!mName.empty() && mName[0] == '/') mName = mName.substr(1);
+	Assert(!mName.empty());
 	
 	Interface::Instance->add(urlPrefix(), this);
 	
-	const String prefix = "/mail" + mName;
+	const String prefix = "/mail/" + mName;
 	
 	Set<BinaryString> digests;
 	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
@@ -65,7 +66,7 @@ Board::~Board(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
 	
-	const String prefix = "/mail" + mName;
+	const String prefix = "/mail/" + mName;
 	
 	unpublish(prefix);
 	unsubscribe(prefix);
@@ -74,7 +75,7 @@ Board::~Board(void)
 String Board::urlPrefix(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	return "/mail" + mName;
+	return "/mail/" + mName;
 }
 
 bool Board::hasNew(void) const
@@ -87,7 +88,7 @@ bool Board::hasNew(void) const
 
 int Board::unread(void) const
 {
-	// TODO
+	// TODO: count unread
 	return 0;
 }
 
@@ -110,7 +111,7 @@ bool Board::add(const Mail &mail, bool noIssue)
 		mUnorderedMails.append(&m);
 	}
 	
-	const String prefix = "/mail" + mName;
+	const String prefix = "/mail/" + mName;
 	
 	if(!noIssue) issue(prefix, mail);
 	process();
@@ -150,7 +151,7 @@ void Board::process(void)
 		resource.cache(tempFileName, mName, "mail", mSecret);
 		
 		// Retrieve digest and store it
-		const String prefix = "/mail" + mName;
+		const String prefix = "/mail/" + mName;
 		mDigest = resource.digest();
 		Store::Instance->storeValue(Store::Hash(prefix), mDigest, Store::Permanent);
 		
@@ -224,7 +225,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			
 			if(!complete)
 			{
-				const String prefix = "/mail" + mName;
+				const String prefix = "/mail/" + mName;
 				
 				process();
 				if(digest() != target)

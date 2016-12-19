@@ -40,7 +40,6 @@
 namespace tpn
 {
 
-const String Indexer::CacheDirectoryName = "_cache";
 const String Indexer::UploadDirectoryName = "_upload";
 
 Indexer::Indexer(User *user) :
@@ -208,7 +207,6 @@ void Indexer::getDirectories(Array<String> &array) const
 		mDirectories.getKeys(array);
 	}
 	
-	array.remove(CacheDirectoryName);
 	array.remove(UploadDirectoryName);
 }
 
@@ -217,73 +215,6 @@ Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
 	Map<String, Entry>::const_iterator it = mDirectories.find(name);
 	if(it == mDirectories.end()) throw Exception("Unknown directory: " + name);
 	return it->second.access;
-}
-
-bool Indexer::moveFileToCache(String &fileName, String name)
-{
-	// Check file size
-	int64_t fileSize = File::Size(fileName);
-	int64_t maxCacheFileSize = 0;
-	Config::Get("cache_max_file_size").extract(maxCacheFileSize);	// MiB
-	if(fileSize > maxCacheFileSize*1024*1024)
-	{
-		LogDebug("Indexer", "File is too large for cache: " + name);
-		return false;
-	}
-	
-	// Create cache directory
-	bool hasDirectory;
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		hasDirectory = mDirectories.contains(CacheDirectoryName);
-	}
-	
-	if(!hasDirectory)
-		addDirectory(CacheDirectoryName, "", Resource::Personal);
-
-	Entry cacheEntry;
-	Assert(mDirectories.get(CacheDirectoryName, cacheEntry));
-	String cachePath = cacheEntry.path;
-	
-	// Free some space
-	int64_t maxCacheSize = 0;
-	Config::Get("cache_max_size").extract(maxCacheSize);	// MiB
-	if(freeSpace(cachePath, maxCacheSize*1024*1024, fileSize) < fileSize)
-	{
-		// This is not normal
-		LogWarn("Indexer", "Not enough free space in cache for " + name);
-		return false;
-	}
-	
-	if(name.empty()) name = fileName.afterLast(Directory::Separator);
-	LogInfo("Indexer", "Moving to cache: " + name);
-	
-	// Find a unique name
-	int count = 0;
-	String path;
-	do {
-		path = "/" + CacheDirectoryName + "/" + name.beforeLast('.');
-		if(++count >= 2) path+= "_" + String::number(count);
-		if(name.contains('.')) path+= "." + name.afterLast('.');
-	} 
-	while(File::Exist(path));
-
-	// Copy the file
-	File placeholder(path, File::Write);
-	placeholder.close();
-
-	try {
-		File::Rename(fileName, path);
-	}
-	catch(...)
-	{
-		File::Remove(path);
-		throw;
-	}
-
-	update(path);
-	fileName = path;
-	return true;
 }
 
 void Indexer::save(void) const
@@ -1061,7 +992,6 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							
 							if(Directory::Exist(filePath))
                                                         {
-								// TODO: recursively delete directories
 								if(Directory::Remove(filePath))
 								{
 									Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
@@ -1166,8 +1096,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				directory.cut('/');
 				
 				String title;
-				if(directory == CacheDirectoryName) title = "Cached files";
-				else if(directory == UploadDirectoryName) title = "Sent files";
+				if(directory == UploadDirectoryName) title = "Sent files";
 				else title = "Shared folder: " + request.url.substr(1,request.url.size()-2);
 					
 				page.header(title);
@@ -1490,62 +1419,6 @@ Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 		throw Exception("Invalid path: unknown directory: " + directory);
 	
 	return entry.access;
-}
-
-int64_t Indexer::freeSpace(String path, int64_t maxSize, int64_t space)
-{
-	int64_t totalSize = 0;
-
-	try {
-		Assert(!path.empty());
-		if(path[path.size()-1] == Directory::Separator)
-			path.resize(path.size()-1);
-
-		StringList list;
-		Directory dir(realPath(path));
-		while(dir.nextFile())
-			if(!dir.fileIsDir())
-			{
-				list.push_back(dir.fileName());
-				totalSize+= dir.fileSize();
-			}
-		
-		if(maxSize > totalSize)
-		{
-			int64_t freeSpace = Directory::GetAvailableSpace(path);
-			int64_t margin = 1024*1024;	// 1 MiB
-			freeSpace = std::max(freeSpace - margin, int64_t(0));
-			maxSize = totalSize + std::min(maxSize-totalSize, freeSpace);
-		}
-		
-		space = std::min(space, maxSize);
-		
-		while(!list.empty() && totalSize > maxSize - space)
-		{
-			int r = Random().uniform(0, int(list.size()));
-			StringList::iterator it = list.begin();
-			while(r--) ++it;
-			
-			String filePath = path + Directory::Separator + *it;
-			
-			Database::Statement statement = mDatabase->prepare("DELETE FROM resources WHERE path = ?1");
-                	statement.bind(1, filePath);
-			statement.execute();
-			
-			// TODO: delete in Resources
-
-			String absFilePath = realPath(filePath);
-			totalSize-= File::Size(absFilePath);
-			File::Remove(absFilePath);
-			list.erase(it);
-		}
-	}
-	catch(const Exception &e)
-	{
-		throw Exception(String("Unable to free space: ") + e.what());
-	}
-
-	return std::max(maxSize - totalSize, int64_t(0));
 }
 
 void Indexer::run(void)

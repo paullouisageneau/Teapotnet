@@ -793,7 +793,7 @@ void AddressBook::Contact::init(void)
 	{
 		if(!nIsSelf())
 		{
-			if(!mBoard) mBoard = std::make_shared<Board>("/" + mIdentifier.toString(), "", mName);	// Public board
+			if(!mBoard) mBoard = std::make_shared<Board>(mIdentifier.toString(), "", mName);	// Public board
 			mAddressBook->user()->mergeBoard(mBoard);
 		}
 	
@@ -979,7 +979,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 		if(!isSelf())
 		{
 			BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
-			board = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name());
+			board = std::make_shared<Board>(boardId.toString(), secret().toString(), name());
 		}
 		
 		LogDebug("AddressBook::Contact", "Remote instance name: \"" + instance + "\"");
@@ -1309,7 +1309,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!mPrivateBoard)
 			{
 				BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
-				mPrivateBoard = std::make_shared<Board>("/" + boardId.toString(), secret().toString(), name() + " (Private)");
+				mPrivateBoard = std::make_shared<Board>(boardId.toString(), secret().toString(), name() + " (Private)");
 			}
 			
 			Http::Response response(request, 301);	// Moved permanently

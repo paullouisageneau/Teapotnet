@@ -40,6 +40,10 @@ namespace tpn
 const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
 const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
+const unsigned Network::TunnelMtu = 1200;
+const unsigned Network::DefaultRedundantCount = 16;
+const double   Network::DefaultRedundancy = 1.10;
+const duration Network::CallPeriod = seconds(1.);
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -350,7 +354,7 @@ bool Network::hasLink(const Link &link)
 
 void Network::run(void)
 {
-	const duration period = seconds(1.);	// TODO
+	const duration period = CallPeriod;
 	
 	unsigned loops = 0;
 	while(true)
@@ -1159,7 +1163,7 @@ void Network::Publisher::issue(const String &prefix, const Mail &mail, const Str
 
 Network::Subscriber::Subscriber(const Link &link) :
 	mLink(link),
-	mPool(2)	// TODO
+	mPool(2)
 {
 	
 }
@@ -1393,7 +1397,7 @@ void Network::Listener::ignore(void)
 }
 
 Network::Tunneler::Tunneler(void) : 
-	mPool(3),	// TODO 
+	mPool(3),
 	mStop(false)
 {
 	mThread = std::thread([this]()
@@ -1637,7 +1641,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 				transport->setVerifier(&verifier);
 				
 				// Set MTU
-				transport->setDatagramMtu(1200);	// TODO
+				transport->setDatagramMtu(TunnelMtu);
 				
 				// Set timeout
 				duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
@@ -1728,7 +1732,7 @@ Network::Tunneler::Tunnel::~Tunnel(void)
 	}
 	
 	mCondition.notify_all();
-	std::this_thread::sleep_for(seconds(1.));	// TODO
+	std::this_thread::sleep_for(seconds(1.));
 	std::unique_lock<std::mutex> lock(mMutex);
 }
 
@@ -1833,7 +1837,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mThreshold(DefaultThreshold),
 	mAccumulator(0.),
 	mLocalSideSequence(0.),
-	mRedundancy(1.10),	// TODO
+	mRedundancy(DefaultRedundancy),
 	mLocalSideSeen(0),
 	mLocalSideCount(0),
 	mSideSeen(0),
@@ -2278,7 +2282,7 @@ void Network::Handler::run(void)
 }
 
 Network::Pusher::Pusher(void) :
-	mRedundant(16)	// TODO
+	mRedundant(DefaultRedundantCount)
 {
 	mThread = std::thread([this]()
 	{

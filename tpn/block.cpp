@@ -239,14 +239,21 @@ void Block::waitContent(void) const
 	{
 		Store::Instance->waitBlock(mDigest, mHint);
 		File *source = Store::Instance->getBlock(mDigest, mSize);
-		Assert(mFile);
-		mFile->seekWrite(mOffset);
-		mFile->write(*source);
-		mFile->reopen(File::Read);
-		mFile->seekRead(mOffset);
-		delete source;
+		try
+		{
+			Assert(mFile);
+			mFile->seekWrite(mOffset);
+			mFile->write(*source);
+			mFile->reopen(File::Read);
+			mFile->seekRead(mOffset);
+		}
+		catch(...)
+		{
+			delete source;
+			throw;
+		}
 		
-		// TODO: remove block from cache
+		delete source;
 	}
 	else {
 		// Content is available, don't wait for Store !
