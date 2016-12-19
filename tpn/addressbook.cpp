@@ -123,6 +123,12 @@ void AddressBook::save(void) const
 	}
 }
 
+int AddressBook::count(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mContacts.size();
+}
+
 String AddressBook::addContact(const String &name, const Identifier &identifier)
 {
 	if(name.empty())

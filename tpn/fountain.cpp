@@ -522,7 +522,6 @@ bool Fountain::DataSource::generate(Combination &result)
 	
 	Generator gen(result.seed(first, count));
 	
-	// TODO
 	unsigned i = first;
 	for(auto it = mComponents.begin(); it != mComponents.end() && result.componentsCount() < count; ++it)
 	{

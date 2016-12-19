@@ -55,6 +55,7 @@ public:
 	
 	void clear(void);
 	void save(void) const;
+	int count(void) const;
 	
 	bool send(const String &type, const Serializable &object) const;
 	

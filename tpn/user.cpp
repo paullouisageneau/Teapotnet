@@ -295,10 +295,7 @@ void User::setOnline(void)
 	if(!mOnline) 
 	{
 		mOnline = true;
-		//sendStatus();
-	
-		// TODO
-		//mAddressBook->update();
+		Network::Instance->overlay()->start();
 	}
 	
 	mOfflineAlarm.schedule(seconds(60.));
@@ -459,7 +456,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 				if(command == "update")
 				{
-					//if(!request.sock->getRemoteAddress().isLocal()) throw 403;	// TODO
+					if(!request.remoteAddress.isLocal()) throw 403;
 					if(!Config::LaunchUpdater()) throw 500;
 					
 					Http::Response response(request, 200);
@@ -484,8 +481,7 @@ void User::http(const String &prefix, Http::Request &request)
 				}
 				else if(command == "shutdown")
 				{
-					// TODO
-					//if(!request.sock->getRemoteAddress().isLocal()) throw 403;
+					if(!request.remoteAddress.isLocal()) throw 403;
 					shutdown = true;
 				}
 				else throw 400;
@@ -510,11 +506,11 @@ void User::http(const String &prefix, Http::Request &request)
 			Html page(response.stream);
 			page.header(APPNAME, true);
 
-			// TODO: This is awful
+			// TODO: Move this into CSS
 			page.javascript("$('#page').css('max-width','100%');");
 			
 #if defined(WINDOWS)
-                        if(/*request.sock->getRemoteAddress().isLocal() &&*/ Config::IsUpdateAvailable())	// TODO
+                        if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
                         {
                                 page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
@@ -532,7 +528,7 @@ void User::http(const String &prefix, Http::Request &request)
 #endif
 		
 #if defined(MACOSX)
-                        if(/*request.sock->getRemoteAddress().isLocal()*/ && Config::IsUpdateAvailable())	// TODO
+                        if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
                         {
                                 page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
@@ -599,13 +595,8 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("h2");
 			page.text("Contacts");
 			page.close("h2");
-		
-			// TODO
-			sptr<AddressBook::Contact> self = mAddressBook->getSelf();
-			Array<sptr<AddressBook::Contact> > contacts;
-			mAddressBook->getContacts(contacts);
 			
-			if(contacts.empty() && !self) page.link(prefix+"/contacts/","Add contact / Accept request");
+			if(mAddressBook->count() == 0) page.link(prefix+"/contacts/","Add contact / Accept request");
 			else {
 				page.open("div", "contactsTable");
 				page.open("p"); page.text("Loading..."); page.close("p");
