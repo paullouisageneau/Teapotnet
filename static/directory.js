@@ -23,18 +23,20 @@ function listDirectory(url, object, showButtons) {
 
 	$(object).empty();
 	
+	/*
 	if(showButtons) {
-		//var location = url.split('?')[0];
-		//var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-		//$(object)
-		//	.append('<span class="button"> '+data.length+' files</span>')
-		//	.append('<a href="'+parentLink+'" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
-		//	.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>');
-		//	.find('a.refreshlink').click(function() {
-		//		listDirectory(url, object, showButtons);
-		//		return false;
-		//	});
+		var location = url.split('?')[0];
+		var parentLink = (location[location.length-1] == '/' ? '..' : '.');
+		$(object)
+			.append('<span class="button"> '+data.length+' files</span>')
+			.append('<a href="'+parentLink+'" class="button parentlink"><img src="/static/arrow_up.png" alt="Parent"></a>')
+			.append('<a href="#" class="button refreshlink"><img src="/static/arrow_refresh.png" alt="Refresh"></a>');
+			.find('a.refreshlink').click(function() {
+				listDirectory(url, object, showButtons);
+				return false;
+			});
 	}
+	*/
 	
 	$(object).append('<div class="gifloading"><img src="/loading.gif" alt="Loading..."></div>');
 	
@@ -82,7 +84,7 @@ function listDirectoryRec(url, object, next) {
 				if(resource.type == "directory") {
 					if(referenceUrl) link = referenceUrl + resource.name + "/?digest=" + resource.digest;	// use url as link if possible
 					line = '<tr class="directory">';
-					line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
+					line+= '<td class="icon"><img src="/static/dir.png" alt="(directory)"></td>';
 					line+= '<td class="filename"><a href="'+link.escape()+'">'+resource.name.escape()+'</a></td>';
 					line+= '<td class="size"></td>';
 					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
@@ -96,13 +98,13 @@ function listDirectoryRec(url, object, next) {
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
 					
 					line = '<tr class="file">';
-					line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
+					line+= '<td class="icon"><img src="/static/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>';
 					line+= '<td class="size">'+formatBytes(resource.size, 2)+'</td>';
 					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
 					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
-					line+= '<td class="actions"><a class="downloadlink" href="'+link.escape()+'?download=1"><img src="/down.png" alt="(download)"></a>';
-					if(isPlayable) line+= '<a class="playlink" href="'+link.escape()+'?play=1"><img src="/play.png" alt="(play)"></a>';
+					line+= '<td class="actions"><a class="downloadlink" href="'+link.escape()+'?download=1"><img src="/static/down.png" alt="(download)"></a>';
+					if(isPlayable) line+= '<a class="playlink" href="'+link.escape()+'?play=1"><img src="/static/play.png" alt="(play)"></a>';
 					line+= '</td>';
 					line+= '</tr>';
 				}
@@ -157,7 +159,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 		
 	if(parents.length > 0) {
 		$(object)
-			.append('<a href="#" class="button parentlink"><img src="/arrow_up.png" alt="Parent"></a>')
+			.append('<a href="#" class="button parentlink"><img src="/static/arrow_up.png" alt="Parent"></a>')
 			.find('a.parentlink').click(function() {
 				var parentUrl = parents.pop();
 				listFileSelector(parentUrl, object, input, inputName, parents);
@@ -166,7 +168,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 	}
 		
 	$(object)
-		.append('<a href="#" class="button refreshlink"><img src="/arrow_refresh.png" alt="Refresh"></a>')
+		.append('<a href="#" class="button refreshlink"><img src="/static/arrow_refresh.png" alt="Refresh"></a>')
 		.find('a.refreshlink').click(function() {
 			listFileSelector(url, object, input, inputName, parents);
 			return false;
@@ -276,7 +278,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 				(function(resource) { // copy resource (only the reference is passed to callbacks)
 					if(resource.type == "directory") {
 						line = '<tr class="directory">';
-						line+= '<td class="icon"><img src="/dir.png" alt="(directory)"></td>';
+						line+= '<td class="icon"><img src="/static/dir.png" alt="(directory)"></td>';
 						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
 						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';	
 						line+= '</tr>';
@@ -293,7 +295,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 					}
 					else {
 						line = '<tr class="file">';
-						line+= '<td class="icon"><img src="/file.png" alt="(file)"></td>';
+						line+= '<td class="icon"><img src="/static/file.png" alt="(file)"></td>';
 						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
 						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
 						line+= '</tr>';

@@ -73,33 +73,6 @@ if(!String.contains) {
 	};
 }
 
-if(!String.smileys) {
-	String.prototype.smileys = function() {
-		var smileys = {
-			':)' : 'smile.png\" height=15 width=24',
-			':-)' : 'smile.png\" height=15 width=24',
-			':-('  : 'sad.png\" height=15 width=24',
-			':('  : 'sad.png\" height=15 width=24',
-			':\'-('  : 'sad.png\" height=15 width=24',
-			':S'  : 'embarrassed.png\" height=15 width=24',
-			':@'  : 'angry.png\" height=20 width=30'
-		}, url = "\"/", patterns = [], metachars = /[[\]{}()*+?.\\|^$\-,&#\s]/g;
-
-		for (var i in smileys) {
-			if (smileys.hasOwnProperty(i)) {
-				patterns.push('('+i.replace(metachars, "\\$&")+')');
-			}
-		}
-
-		return this.replace(new RegExp(patterns.join('|'),'g'), function (match) {
-			return (typeof smileys[match] != 'undefined' ?
-				'<img src='+url+smileys[match]+'/>' :
-				match);
-		});
-
-	}
-}
-
 function formatTime(timestamp) {
 	var date = new Date(timestamp*1000);
 	//return date.toLocaleDateString() + " " + date.toLocaleTimeString();
@@ -247,7 +220,7 @@ function notify(title, message, tag) {
 		return new Notification(
 			title, {
 				body: message,
-				icon: "/icon.png",
+				icon: "/static/icon.png",
 				tag: tag
 			}
 		);
@@ -342,10 +315,10 @@ function displayContacts(url, period, object) {
 					});
 				}
 				
-				$('#contactinfo_'+uname).html('<span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/icon_files.png" alt="Files"/></a></span>');
+				$('#contactinfo_'+uname).html('<span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/static/icon_files.png" alt="Files"/></a></span>');
 				if(!isSelf) {
-					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/icon_board.png" alt="Board"/></a></span>');
-					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/icon_chat.png" alt="Messages"/></a></span>');
+					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/static/icon_board.png" alt="Board"/></a></span>');
+					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/static/icon_chat.png" alt="Messages"/></a></span>');
 				
 					var count = parseInt(contact.messages);
 					var str = '';
