@@ -198,8 +198,8 @@ var MailSound = null;
 
 if(window.Audio)
 {
-	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/message.ogg');
-	else MailSound = new Audio('/message.m4a');
+	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/static/message.ogg');
+	else MailSound = new Audio('/static/message.m4a');
 	if(MailSound != null) MailSound.load();
 }
 

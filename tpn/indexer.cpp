@@ -1160,7 +1160,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td",".icon");
-						if(info.get("type") == "directory") page.image("/dir.png");
+						if(info.get("type") == "directory") page.image("/static/dir.png");
 						else page.image("/static/file.png");
 						page.close("td");
 						page.open("td",".filename");

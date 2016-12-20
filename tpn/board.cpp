@@ -388,7 +388,7 @@ void Board::http(const String &prefix, Http::Request &request)
 						var UrlSelector = '"+user->urlPrefix()+"/myself/files/?json';\n\
 						var UrlUpload = '"+user->urlPrefix()+"/files/_upload/?json';");
 				
-				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector(UrlSelector, '#fileSelector', 'input.attachment', 'input.attachmentname', UrlUpload); return false;\"><img alt=\"File\" src=\"/paperclip.png\"></a>");
+				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector(UrlSelector, '#fileSelector', 'input.attachment', 'input.attachmentname', UrlUpload); return false;\"><img alt=\"File\" src=\"/static/paperclip.png\"></a>");
 			}
 			
 			page.openForm("#", "post", "boardform");
@@ -434,7 +434,7 @@ void Board::http(const String &prefix, Http::Request &request)
 					$('#attachedfile').hide();\n\
 					var filename = $(document.boardform.attachmentname).val();\n\
 					if(filename != '') {\n\
-						$('#attachedfile').append('<img class=\"icon\" src=\"/file.png\">');\n\
+						$('#attachedfile').append('<img class=\"icon\" src=\"/static/file.png\">');\n\
 						$('#attachedfile').append('<span class=\"filename\">'+filename+'</span>');\n\
 						$('#attachedfile').show();\n\
 					}\n\
