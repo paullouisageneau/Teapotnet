@@ -607,7 +607,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						
 						page.open("tr");
 						page.open("td",".icon");
-						page.image("/dir.png");
+						page.image("/static/dir.png");
 						page.close("td");
 						page.open("td",".filename");
 						page.link(link, hrName);
@@ -734,7 +734,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					
 					page.open("tr");
 					page.open("td",".icon");
-					page.image("/dir.png");
+					page.image("/static/dir.png");
 					page.close("td");
 					
 					if(existingPathsSet.find(childPath) == existingPathsSet.end())
@@ -849,7 +849,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					page.header("Refreshing in background...", true, redirect);
 					page.open("div", "notification");
 					page.openLink("/");
-					page.image("/refresh.png", "Refresh");
+					page.image("/static/refresh.png", "Refresh");
 					page.closeLink();
 					page.br();
 					page.open("h1",".huge");
@@ -887,7 +887,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				
 				page.open("tr");
 				page.open("td",".icon");
-				page.image("/dir.png");
+				page.image("/static/dir.png");
 				page.close("td");
 				page.open("td",".access");
 				page.text("(");
@@ -909,7 +909,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				if(directories[i] != UploadDirectoryName)
 				{
 					page.openLink("#", ".deletelink");
-					page.image("/delete.png", "Delete");
+					page.image("/static/delete.png", "Delete");
 					page.closeLink();
 				}
 				page.close("td");
@@ -1142,7 +1142,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					
 				if(request.url[request.url.size()-1] == '/') page.openLink("..", ".button");
 				else page.openLink(".", ".button");
-				page.image("/arrow_up.png", "Parent");
+				page.image("/static/arrow_up.png", "Parent");
 				page.closeLink();
 					
 				page.br();
@@ -1161,7 +1161,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						page.open("tr");
 						page.open("td",".icon");
 						if(info.get("type") == "directory") page.image("/dir.png");
-						else page.image("/file.png");
+						else page.image("/static/file.png");
 						page.close("td");
 						page.open("td",".filename");
 						if(info.get("type") != "directory" && name.contains('.'))
@@ -1175,19 +1175,19 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						page.open("td",".actions");
 						
 						page.openLink("#", ".linkdelete");
-						page.image("/delete.png", "Delete", ".deletelink");
+						page.image("/static/delete.png", "Delete", ".deletelink");
 						page.closeLink();
                                                 
 						if(info.get("type") != "directory")
 						{
 							page.openLink(Http::AppendParam(link,"download"), ".downloadlink");
-							page.image("/down.png", "Download");
+							page.image("/static/down.png", "Download");
 							page.closeLink();
 							
 							if(Mime::IsAudio(name) || Mime::IsVideo(name))
 							{
 								page.openLink(Http::AppendParam(link,"play"), ".playlink");
-								page.image("/play.png", "Play");
+								page.image("/static/play.png", "Play");
 								page.closeLink();
 							}
 						}	

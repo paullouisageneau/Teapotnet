@@ -630,7 +630,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.close("td");
 					page.open("td",".actions");
 					page.openLink('#', ".deletelink");
-					page.image("/delete.png", "Delete");
+					page.image("/static/delete.png", "Delete");
 					page.closeLink();
 					page.close("td");
 					page.close("tr");
@@ -675,10 +675,10 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						page.close("td");
 						page.open("td",".actions");
 						page.openLink('#', ".acceptlink");
-						page.image("/add.png", "Accept");
+						page.image("/static/add.png", "Accept");
 						page.closeLink();
 						page.openLink('#', ".deletelink");
-						page.image("/delete.png", "Delete");
+						page.image("/static/delete.png", "Delete");
 						page.closeLink();
 						page.close("td");
 						page.close("tr");
@@ -1061,7 +1061,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.open("tr");
 			page.open("td");
 				page.openLink(prefix + "/files/");
-				page.image("/icon_files.png", "Files", ".bigicon");
+				page.image("/static/icon_files.png", "Files", ".bigicon");
 				page.closeLink();
 			page.close("td");
 			page.open("td", ".title");
@@ -1071,7 +1071,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			page.open("tr");
 			page.open("td");
 				page.openLink(prefix + "/search/");
-				page.image("/icon_search.png", "Search", ".bigicon");
+				page.image("/static/icon_search.png", "Search", ".bigicon");
 				page.closeLink();
 			page.close("td");
 			page.open("td", ".title");
@@ -1084,7 +1084,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.open("tr");
 				page.open("td");
 					page.openLink(prefix + "/board/");
-					page.image("/icon_board.png", "Board", ".bigicon");
+					page.image("/static/icon_board.png", "Board", ".bigicon");
 					page.closeLink();
 				page.close("td");
 				page.open("td",".title");
@@ -1095,7 +1095,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				page.open("tr");
 				page.open("td");
 					page.openLink(prefix + "/chat/");
-					page.image("/icon_chat.png", "Messages", ".bigicon");
+					page.image("/static/icon_chat.png", "Messages", ".bigicon");
 					page.closeLink();
 				page.close("td");
 				page.open("td",".title");

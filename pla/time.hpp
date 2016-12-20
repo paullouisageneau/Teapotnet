@@ -28,19 +28,18 @@
 namespace pla
 {
 
+// Thread-safe wrapper around time_t
 class Time : public Serializable
 {
 public:
 	static Time Now(void);
-	static Time Start(void);
-	static uint64_t Milliseconds(void);
 	static double StructToSeconds(const struct timeval &tv);
 	static double StructToSeconds(const struct timespec &ts);
 	static void SecondsToStruct(double secs, struct timeval &tv);
 	static void SecondsToStruct(double secs, struct timespec &ts);
 	
 	Time(void);
-	Time(time_t time, int usec = 0);
+	Time(time_t time);
 	Time(const String &str);
 	~Time(void);
 	
@@ -50,8 +49,6 @@ public:
 	int day(void) const;
 	int month(void) const;
 	int year(void) const;
-	int millisecond(void) const;
-	int microsecond(void) const;
 	
 	String toDisplayDate(void) const;
 	String toHttpDate(void) const;
@@ -61,23 +58,19 @@ public:
 	void   toStruct(struct timeval &ts) const;
 	void   toStruct(struct timespec &ts) const;
 	
-	int64_t toMicroseconds(void) const;
-	int64_t toMilliseconds(void) const;
 	double toSeconds(void) const;
 	double toHours(void) const;
 	double toDays(void) const;
 	
-	void addMicroseconds(int64_t usec);
-	void addMilliseconds(int64_t msec);
 	void addSeconds(double seconds);
 	void addHours(double hours);
 	void addDays(double days);
 	
-	Time &operator += (double seconds);
-	Time operator + (double seconds) const;
-	Time &operator -= (double seconds);
-	Time operator - (double seconds) const;
-	double operator - (const Time &t) const;
+	Time &operator += (duration d);
+	Time operator + (duration d) const;
+	Time &operator -= (duration d);
+	Time operator - (duration d) const;
+	duration operator - (const Time &t) const;
 	bool operator < (const Time &t);
 	bool operator > (const Time &t);
 	bool operator == (const Time &t);
@@ -89,18 +82,15 @@ public:
 	bool deserialize(Serializer &s);
 	bool isNativeSerializable(void) const;
 	
-	enum SerializationFormat { Timestamp, IsoDate, IsoDateTime };
+	enum SerializationFormat { Timestamp, IsoDate, IsoTime };
 	void setSerializationFormat(SerializationFormat format);
 
 private:
   	static std::mutex TimeMutex;
-	static Time StartTime;
 	
 	void parse(const String &str);
 	
 	time_t mTime;
-	int mUsec;
-	
 	SerializationFormat mFormat;
 };
 

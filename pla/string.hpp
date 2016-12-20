@@ -44,7 +44,9 @@ public:
 	static String number(unsigned int n, int minDigits = 1);
 	static String number64(uint64_t n, int minDigits = 1);
 	static String hexa(unsigned int n, int minDigits = 1);
+	
 	static String random(size_t nbr, Random::QualityLevel level = Random::Nonce);
+	
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
 	

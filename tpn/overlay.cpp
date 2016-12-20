@@ -432,7 +432,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
 			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);
 
-			if(Time::Now() - oldTime >= 60.) // 1 min
+			if(Time::Now() - oldTime >= seconds(60.)) // 1 min
         		{
 				Array<BinaryString> nodes;
 				if(getRoutes(message.destination, StoreNeighbors, nodes))

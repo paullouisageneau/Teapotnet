@@ -73,20 +73,20 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	else *mStream<<"<title>"<<title<<" - "<<APPNAME<<"</title>\n";
 	*mStream<<"<meta http-equiv=\"content-type\" content=\"text/html;charset=UTF-8\">\n";
 	*mStream<<"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n";
-	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n";
-	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\">\n";
+	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/style.css\">\n";
+	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/static/favicon.ico\">\n";
 	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
-	*mStream<<"<noscript><meta http-equiv=\"refresh\" content=\"0;url=/noscript.html\"></noscript>\n";
-	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.min.js\"></script>\n";
-	*mStream<<"<script type=\"text/javascript\" src=\"/jquery.form.min.js\"></script>\n";
-	*mStream<<"<script type=\"text/javascript\" src=\"/common.js\"></script>\n";
-	*mStream<<"<script type=\"text/javascript\" src=\"/directory.js\"></script>\n";
-	*mStream<<"<script type=\"text/javascript\" src=\"/mail.js\"></script>\n";
+	*mStream<<"<noscript><meta http-equiv=\"refresh\" content=\"0;url=/static/noscript.html\"></noscript>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.min.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.form.min.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/common.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/directory.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/mail.js\"></script>\n";
 	*mStream<<"<base target=\"_parent\">\n";
 	
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 		if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || deviceAgent.indexOf('iPad') >= 0)\n\
-			$('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/touchscreen.css\">');");
+			$('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/touchscreen.css\">');");
 	
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
@@ -96,7 +96,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	if(!mBlank)
 	{
 		open("div","header");
-		openLink("/","#backlink"); image("/logo.png", APPNAME, "logo"); closeLink();
+		openLink("/","#backlink"); image("/static/logo.png", APPNAME, "logo"); closeLink();
 		open("div","title");
 		if(title.empty()) text(APPNAME);
 		else text(title);

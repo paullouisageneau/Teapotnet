@@ -37,7 +37,7 @@ namespace tpn
 class Tracker : public Http::Server
 {
 public:
-	static const double EntryLife;
+	static const duration EntryLife;
   
 	Tracker(int port = 8080);
 	~Tracker(void);

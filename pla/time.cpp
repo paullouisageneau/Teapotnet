@@ -28,23 +28,10 @@ namespace pla
 {
 
 std::mutex Time::TimeMutex;
-Time  Time::StartTime = Time();  
 
 Time Time::Now(void)
 {
 	return Time(); 
-}
-
-Time Time::Start(void)
-{
-	return StartTime;
-}
-
-uint64_t Time::Milliseconds(void)
-{
-	timeval tv;
-	Assert(gettimeofday(&tv, NULL) == 0);
-	return uint64_t(tv.tv_sec)*1000 + uint64_t(tv.tv_usec)/1000;
 }
 
 double Time::StructToSeconds(const struct timeval &tv)
@@ -79,15 +66,13 @@ Time::Time(void) :
 	timeval tv;
 	Assert(gettimeofday(&tv, NULL) == 0);
 	mTime = tv.tv_sec;
-	mUsec = tv.tv_usec;
 }
 
-Time::Time(time_t time, int usec) :
+Time::Time(time_t time) :
 	mTime(time),
-	mUsec(0),
 	mFormat(Timestamp)
 {
-	addMicroseconds(usec);
+
 }
 
 // 1994-11-06 08:49:37            ; ISO date and time
@@ -108,35 +93,35 @@ Time::~Time(void)
 int Time::hour(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = localtime(&mTime)->tm_hour;	// not thread safe
+	int result = std::localtime(&mTime)->tm_hour;	// not thread safe
 	return result;
 }
 
 int Time::minute(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = localtime(&mTime)->tm_min;		// not thread safe
+	int result = std::localtime(&mTime)->tm_min;		// not thread safe
 	return result;
 }
 
 int Time::second(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = localtime(&mTime)->tm_sec;		// not thread safe
+	int result = std::localtime(&mTime)->tm_sec;		// not thread safe
 	return result;
 }
 
 int Time::day(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = localtime(&mTime)->tm_mday;	// not thread safe
+	int result = std::localtime(&mTime)->tm_mday;	// not thread safe
 	return result;
 }
 
 int Time::month(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = localtime(&mTime)->tm_mon;		// not thread safe
+	int result = std::localtime(&mTime)->tm_mon;		// not thread safe
 	TimeMutex.unlock();
 	return result;
 }
@@ -144,53 +129,39 @@ int Time::month(void) const
 int Time::year(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
-	int result = 1900 + localtime(&mTime)->tm_year;	// not thread safe
+	int result = 1900 + std::localtime(&mTime)->tm_year;	// not thread safe
 	return result;
-}
-
-int Time::millisecond(void) const
-{
-	return int(mUsec/1000);
-}
-
-int Time::microsecond(void) const
-{
-	return int(mUsec%1000);
 }
 
 String Time::toDisplayDate(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	char buffer[256];
-	strftime(buffer, 256, "%x %X", localtime(&mTime));
-	TimeMutex.unlock();
+	std::strftime(buffer, 256, "%x %X", std::localtime(&mTime));	// not thread safe
 	return String(buffer);
 }
 
 String Time::toHttpDate(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	char buffer[256];
-	strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S", gmtime(&mTime));
-	TimeMutex.unlock();
+	std::strftime(buffer, 256, "%a, %d %b %Y %H:%M:%S", std::gmtime(&mTime));	// not thread safe
 	return String(buffer) + " GMT";
 }
 
 String Time::toIsoDate(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	char buffer[256];
-	strftime(buffer, 256, "%Y-%m-%d", localtime(&mTime));
-	TimeMutex.unlock();
+	std::strftime(buffer, 256, "%Y-%m-%d", std::localtime(&mTime));	// not thread safe
 	return String(buffer);
 }
 
 String Time::toIsoTime(void) const
 {
-	TimeMutex.lock();
+	std::unique_lock<std::mutex> lock(TimeMutex);
 	char buffer[256];
-	strftime(buffer, 256, "%H:%M:%S", localtime(&mTime));
-	TimeMutex.unlock();
+	std::strftime(buffer, 256, "%H:%M:%S %Y-%m-%d", std::localtime(&mTime));	// not thread safe
 	return String(buffer);
 }
 
@@ -202,28 +173,18 @@ time_t Time::toUnixTime(void) const
 void Time::toStruct(struct timeval &tv) const
 {
 	tv.tv_sec = mTime;
-	tv.tv_usec = mUsec;
+	tv.tv_usec = 0;
 }
 
 void Time::toStruct(struct timespec &ts) const
 {
 	ts.tv_sec = mTime;
-	ts.tv_nsec = mUsec*1000;
-}
-
-int64_t Time::toMicroseconds(void) const
-{
-	return int64_t(difftime(mTime, time_t(0)))*1000000 + mUsec;
-}
-
-int64_t Time::toMilliseconds(void) const
-{
-	return toMicroseconds()/1000;
+	ts.tv_nsec = 0;
 }
 
 double Time::toSeconds(void) const
 {
-	return double(toMicroseconds())/1000000;
+	return std::difftime(mTime, time_t(0));
 }
 
 double Time::toHours(void) const
@@ -236,41 +197,12 @@ double Time::toDays(void) const
 	return toSeconds()/86400; 
 }
 
-void Time::addMicroseconds(int64_t usec)
-{
-	usec+= mUsec;	// usec is 64 bits
-	int64_t d = usec/1000000;
-	
-	if(usec >= 0)
-	{
-		usec = usec % 1000000;
-	}
-	else {
-		usec = (-usec) % 1000000;
-		if(usec)
-		{
-			d-= 1;
-			usec = 1000000 - usec;
-		}
-	}
-
-	mUsec = int(usec);
-
-	std::unique_lock<std::mutex> lock(TimeMutex);
-        struct tm tms = *localtime(&mTime);     // not thread safe
-	tms.tm_year+= d / 86400;
-	tms.tm_sec+= d % 86400;
-	mTime = std::mktime(&tms);
-}
-
-void Time::addMilliseconds(int64_t msec)
-{
-	addMicroseconds(msec*1000);
-}
-
 void Time::addSeconds(double seconds)
 {
-	addMicroseconds(int64_t(seconds*1000000));
+	std::unique_lock<std::mutex> lock(TimeMutex);
+	struct tm t = *std::localtime(&mTime);	// not thread safe
+	t.tm_sec += int(seconds);
+	mTime = std::mktime(&t);
 }
 
 void Time::addHours(double hours)
@@ -283,61 +215,53 @@ void Time::addDays(double days)
 	addSeconds(days*86400);
 }
 
-Time &Time::operator += (double seconds)
+Time &Time::operator+= (duration d)
 {
-	addSeconds(seconds);
+	addSeconds(seconds(d).count());
 	return *this;
 }
 
-Time Time::operator + (double seconds) const
+Time Time::operator+ (duration d) const
 {
 	Time result(*this);
-	result+= seconds;
+	result+= d;
 	return result;
 }
 
-Time &Time::operator -= (double seconds)
+Time &Time::operator-= (duration d)
 {
-	addSeconds(-seconds);
+	addSeconds(-seconds(d).count());
 	return *this;
 }
 
-Time Time::operator - (double seconds) const
+Time Time::operator- (duration d) const
 {
 	Time result(*this);
-	result-= seconds;
+	result-= d;
 	return result;
 }
 
-double Time::operator - (const Time &t) const
+duration Time::operator- (const Time &t) const
 {
-	double d = difftime(mTime, t.mTime);
-	int u;
-	if(mUsec >= t.mUsec) u = mUsec - t.mUsec;
-	else {
-		u = 1000000 - (t.mUsec - mUsec);
-		d-= 1.;
-	}
-	
-	return d + double(u)/1000000;
+	return seconds(std::difftime(mTime, t.mTime));
 }
 
-bool Time::operator < (const Time &t)
+bool Time::operator< (const Time &t)
 {
-	return (mTime < t.mTime || (mTime == t.mTime && mUsec < t.mUsec));
+	return (mTime < t.mTime || mTime == t.mTime);
 }
 
-bool Time::operator > (const Time &t)
+bool Time::operator> (const Time &t)
 {
-	return (mTime > t.mTime || (mTime == t.mTime && mUsec > t.mUsec));
+	return (mTime > t.mTime || mTime == t.mTime);
 }
 
-bool Time::operator == (const Time &t)
+bool Time::operator== (const Time &t)
 {
-	return (mTime == t.mTime && mUsec == t.mUsec);
+	return (mTime == t.mTime);
 }
 
-bool Time::operator != (const Time &t)
+bool Time::operator!= (const Time &t)
 {
 	return !(*this == t);
 }
@@ -355,8 +279,8 @@ void Time::serialize(Serializer &s) const
 			s << toIsoDate();
 			break;
 		
-		case IsoDateTime:
-			s << (toIsoDate() + ' ' + toIsoTime());
+		case IsoTime:
+			s << toIsoTime();
 			break;
 		
 		default:
@@ -370,7 +294,7 @@ bool Time::deserialize(Serializer &s)
 	switch(mFormat)
 	{
 		case IsoDate:
-		case IsoDateTime:
+		case IsoTime:
 		{
 			String str;
 			if(!(s >> str)) return false;
@@ -383,7 +307,6 @@ bool Time::deserialize(Serializer &s)
 			int64_t tmp = 0;
 			if(!(s >> tmp)) return false;
 			mTime = time_t(tmp);
-			mUsec = 0;
 			break;
 		}
 	}
@@ -409,10 +332,9 @@ void Time::parse(const String &str)
 	// Sunday, 06-Nov-94 08:49:37 GMT ; RFC 850, obsoleted by RFC 1036
 	// Sun Nov  6 08:49:37 1994       ; ANSI C's asctime() format
 
-	const String months[] = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"};
+	const String months[] = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
 
 	mTime = time_t(0);
-	mUsec = 0;
 	
 	if(str.trimmed().empty())
 		return;
@@ -445,7 +367,7 @@ void Time::parse(const String &str)
 			break;
 		}
 			
-		case 2: // ISO YYYY-MM-DD HH:MM:SS[.X]
+		case 2: // ISO YYYY-MM-DD HH:MM:SS
 		{
 			String tmp;
 			tmp = list.front(); list.pop_front();
@@ -462,10 +384,7 @@ void Time::parse(const String &str)
                         Assert(hourParts.size() == 3);
 			tms.tm_hour = hourParts.front().toInt(); hourParts.pop_front();
                         tms.tm_min  = hourParts.front().toInt(); hourParts.pop_front();
-                        double secs = 0.;
-			double usecs = std::modf(hourParts.front().toDouble(), &secs);
-			tms.tm_sec = int(secs);
-			mUsec = int(usecs * 1000000);
+			tms.tm_sec  = hourParts.front().toInt(); hourParts.pop_front();
 			break;
 		}
 			

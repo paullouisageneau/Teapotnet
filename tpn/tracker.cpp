@@ -26,7 +26,7 @@
 namespace tpn
 {
 
-const double Tracker::EntryLife = 3600.;	// seconds
+const duration Tracker::EntryLife = seconds(3600.);	// seconds
   
 Tracker::Tracker(int port) :
 	Http::Server(port)

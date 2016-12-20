@@ -464,7 +464,7 @@ void User::http(const String &prefix, Http::Request &request)
 					Html page(response.stream);
 					page.header("Please wait", true);
 					page.open("div", "notification");
-					page.image("/loading.png", "Please wait");
+					page.image("/static/loading.png", "Please wait");
 					page.br();
 					page.open("h1",".huge");
 					page.text("Updating and restarting...");
@@ -551,7 +551,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","leftpage");
 
 			page.open("div", "logo");
-			page.openLink("/"); page.image("/logo.png", APPNAME); page.closeLink();
+			page.openLink("/"); page.image("/static/logo.png", APPNAME); page.closeLink();
 			page.close("div");
 
 			page.open("div","search");
@@ -631,7 +631,7 @@ void User::http(const String &prefix, Http::Request &request)
 					page.open("div", ".filestr");
 					
 					page.span("", ".icon");
-					page.image("/dir.png");
+					page.image("/static/dir.png");
 					
 					page.span("", ".filename");
 					page.link(directoryUrl, directory);

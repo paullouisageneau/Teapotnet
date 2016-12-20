@@ -96,7 +96,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 						page.open("div","login");
 						page.open("div","logo");
 						page.openLink("/");
-						page.image("/logo.png", "Teapotnet");
+						page.image("/static/logo.png", "Teapotnet");
 						page.closeLink();
 						page.close("div");
 						
@@ -133,7 +133,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					return;
 				}
 				
-				if(!user) throw 401;	// TODO
+				if(!user) throw 401;
 				
 				String token = user->generateToken("auth");
 				Http::Response response(request, 303);
@@ -151,7 +151,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.open("div","login");
 			page.open("div","logo");
 			page.openLink("/");
-			page.image("/logo.png", "Teapotnet");
+			page.image("/static/logo.png", "Teapotnet");
 			page.closeLink();
 			page.close("div");
 			
@@ -307,7 +307,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				Http::Response response(request, 200);
 				response.headers["Content-Length"] << rangeSize;
 				response.headers["Content-Name"] = resource.name();
-				//response.headers["Last-Modified"] = resource.time().toHttpDate();	// TODO
+				//if(!hasRange) response.headers["Last-Modified"] = resource.time().toHttpDate();
 				response.headers["Accept-Ranges"] = "bytes";
 				
 				String ext = resource.name().afterLast('.');
@@ -381,18 +381,6 @@ void Interface::process(Http::Request &request)
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
 	
-	// TODO: direct static access is deprecated
-	if(list.size() == 1 && list.front().contains('.') && request.url[request.url.size()-1] != '/') 
-	{
-		String fileName = Config::Get("static_dir") + Directory::Separator + list.front();
-		if(File::Exist(fileName)) 
-		{
-			respondWithFile(request, fileName);
-			return;
-		}
-	}
-	//
-	
 	if(list.front() == "user" && list.size() >= 2)
 	{
 		User *user = NULL;
@@ -452,7 +440,7 @@ void Interface::process(Http::Request &request)
 				page.header(response.message, true);
 				page.open("div", "error");
 				page.openLink("/");
-				page.image("/error.png", "Error");
+				page.image("/static/error.png", "Error");
 				page.closeLink();
 				page.br();
 				page.br();
@@ -502,7 +490,7 @@ void Interface::generate(Stream &out, int code, const String &message)
 	page.header(message, true);
 	page.open("div", "error");
 	page.openLink("/");
-	page.image("/error.png", "Error");
+	page.image("/static/error.png", "Error");
 	page.closeLink();
 	page.br();
 	page.br();

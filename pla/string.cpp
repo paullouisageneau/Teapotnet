@@ -112,7 +112,7 @@ String String::hrSize(const String &size)
 	tmp >> i;
 	return hrSize(i);
 }
-  
+
 String::String(void)
 {
 
