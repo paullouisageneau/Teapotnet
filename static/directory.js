@@ -38,7 +38,7 @@ function listDirectory(url, object, showButtons) {
 	}
 	*/
 	
-	$(object).append('<div class="gifloading"><img src="/loading.gif" alt="Loading..."></div>');
+	$(object).append('<div class="gifloading"><img src="/static/loading.gif" alt="Loading..."></div>');
 	
 	listDirectoryRec(url, object, 0);
 }
@@ -216,7 +216,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 		});
 	
 	$(object).append('<br>');
-	$(object).append('<span class="gifloading"><img src="/loading.gif" alt="Loading..."></span>');
+	$(object).append('<span class="gifloading"><img src="/static/loading.gif" alt="Loading..."></span>');
 	
 	listFileSelectorRec(url, object, input, inputName, parents, 0);
 }
