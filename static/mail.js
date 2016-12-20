@@ -149,7 +149,7 @@ function setMailReceiverRec(url, object, period, next) {
 				})(idReply);
 			}
 			
-			$('#'+id+' .content').html(mail.content.escape().smileys().linkify().split("\n").join("<br>"));
+			$('#'+id+' .content').html(mail.content.escape().linkify().split("\n").join("<br>"));
 			
 			if(mail.attachments && mail.attachments[0]) {
 				
