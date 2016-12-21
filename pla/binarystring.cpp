@@ -140,6 +140,7 @@ BinaryString BinaryString::base64Decode(void) const
 	while(i < size())
 	{
 		unsigned char tab[4];
+		std::memset(tab, 0, 4);
 		int j = 0;
 		while(i < size() && j < 4)
 		{
