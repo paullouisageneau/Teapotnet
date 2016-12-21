@@ -833,33 +833,45 @@ int run(String &commandLine, StringMap &args)
 
 int benchmark(String &commandLine, StringMap &args)
 {
+	using clock = std::chrono::high_resolution_clock;
+	
 	std::cout << "Benchmarking fountain..." << std::endl;
 	
-	TempFile *file = new TempFile;
-	file->writeZero(1024*1024);
+	const unsigned s = 1024*1024;
+	const unsigned n = 1024 + 16;
+	const unsigned k = 100;
 	
-	unsigned n = 1024 + 16;
+	TempFile file;
+	file.writeZero(s);
 	
 	Array<Fountain::Combination> tmp;
 	tmp.resize(n);
 	
-	Fountain::FileSource source(file, 0, 1024*1024);
+	duration coding(0.);
+	duration decoding(0.);
+	for(int i=0; i<k; ++i)
+	{
+		Fountain::FileSource source(new File(file.name()), 0, s);
+		Fountain::Sink sink;
+		
+		auto t1 = clock::now();
+		for(unsigned j=0; j<n; ++j)
+			source.generate(tmp[j]);
+		
+		auto t2 = clock::now();
+		for(unsigned j=0; j<n; ++j)
+			if(sink.solve(tmp[j]))
+				break;
+		
+		auto t3 = clock::now();
+		Assert(sink.isDecoded());
+		
+		coding+= t2-t1;
+		decoding+= t3-t2;
+	}
 	
-	Time t1;
-	for(unsigned i=0; i<n; ++i)
-		source.generate(tmp[i]);
-	
-	Time t2;
-	Fountain::Sink sink;
-	for(unsigned i=0; i<n; ++i)
-		if(sink.solve(tmp[i]))
-			break;
-	
-	Time t3;
-	Assert(sink.isDecoded());
-	
-	std::cout << "Coding:   " << 1./seconds(t2-t1).count() << " MB/s" << std::endl;
-	std::cout << "Decoding: " << 1./seconds(t3-t2).count() << " MB/s" << std::endl;
+	std::cout << "Coding:   " << double(k)/coding.count() << " MB/s" << std::endl;
+	std::cout << "Decoding: " << double(k)/decoding.count() << " MB/s" << std::endl;
 	return 0;
 }
 

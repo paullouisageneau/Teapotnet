@@ -217,7 +217,7 @@ void Time::addDays(double days)
 
 Time &Time::operator+= (duration d)
 {
-	addSeconds(seconds(d).count());
+	addSeconds(d.count());
 	return *this;
 }
 
@@ -230,7 +230,7 @@ Time Time::operator+ (duration d) const
 
 Time &Time::operator-= (duration d)
 {
-	addSeconds(-seconds(d).count());
+	addSeconds(-d.count());
 	return *this;
 }
 
