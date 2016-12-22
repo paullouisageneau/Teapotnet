@@ -190,7 +190,7 @@ JNIEXPORT void JNICALL Java_org_ageneau_teapotnet_MainActivity_updateAll(JNIEnv 
 	if(Network::Instance)
 	{
 		Log("main", "Updating overlay...");
-		Netwok::Instance->overlay()->start();
+		Network::Instance->overlay()->start();
 	}
 }
 #endif
