@@ -204,7 +204,8 @@ void DatagramSocket::getHardwareAddresses(Set<BinaryString> &set) const
 			{
 				if (ioctl(mSock, SIOCGIFHWADDR, &ifr) == 0)
 				{
-					set.insert(BinaryString(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data), size_t(IFHWADDRLEN)));	// hwaddr.sa_data is big endian
+					// Note: hwaddr.sa_data is big endian
+					set.insert(BinaryString(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data), size_t(IFHWADDRLEN)));
 				}
 			}
 		}
@@ -533,9 +534,9 @@ DatagramStream::~DatagramStream(void)
 
 Address DatagramStream::getLocalAddress(void) const
 {
-	// TODO: this is actually different from local address
-	if(!mSock) return Address();
-	else return mSock->getBindAddress();
+	// Warning: this is actually different from local address
+	if(mSock) return mSock->getBindAddress();
+	else return Address();
 }
 
 Address DatagramStream::getRemoteAddress(void) const

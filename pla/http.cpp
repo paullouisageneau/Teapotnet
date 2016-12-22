@@ -952,9 +952,23 @@ int Http::Action(const String &method, const String &url, const String &data, co
 			stream->discard();
 			delete stream;
 			stream = NULL;
-	
-			// TODO: relative location (even if not RFC-compliant)
-			return Get(response.headers["Location"], output, cookies, maxRedirections-1, noproxy);
+			
+			// Handle relative location even if not RFC-compliant
+			String location(response.headers["Location"]);
+			if(location.empty())
+				throw Exception("Redirection with empty URL");
+				
+			if(!location.contains(":/"))
+			{
+				if(location[0] == '/') location = request.protocol.toLower() + "://" + host + location;
+				else {
+					int p = url.lastIndexOf('/');
+					Assert(p > 0);
+					location = url.substr(0, p) + "/" + location;
+				}
+			}
+			
+			return Get(location, output, cookies, maxRedirections-1, noproxy);
 		}
 		
 		if(responseHeaders)

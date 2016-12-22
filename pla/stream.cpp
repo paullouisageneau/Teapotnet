@@ -284,11 +284,10 @@ bool Stream::read(Serializable &s)
 
 bool Stream::read(std::string &str)
 {
-	// TODO
 	String tmp;
 	if(!read(tmp)) return false;
 	str = tmp;
-	return false;
+	return true;
 }
 
 bool Stream::read(bool &b)

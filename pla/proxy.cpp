@@ -163,7 +163,7 @@ bool Proxy::GetProxyForUrl(const String &url, Address &addr)
 	
 	return hasProxy;
 #else
-	// TODO
+	// TODO: Get proxy on Linux and MacOS
 	return false;
 #endif
 }

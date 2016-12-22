@@ -161,7 +161,6 @@ void SecureTransport::handshake(void)
 	if(gnutls_priority_set_direct(mSession, mPriorities.c_str(), &err_pos))
 			throw Exception("Unable to set TLS priorities: " + mPriorities);
 	
-	// TODO: virtual function
 	if(isClient())
 	{
 		 // Set server name

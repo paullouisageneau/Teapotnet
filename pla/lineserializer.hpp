@@ -30,7 +30,7 @@ namespace pla
 {
 
 // Dummy serializer that only writes values as text
-// WARNING: Never use for complex structures
+// WARNING: For debugging purposes only, never use for complex structures
 class LineSerializer : public Serializer
 {
 public:

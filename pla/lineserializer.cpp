@@ -53,7 +53,6 @@ bool LineSerializer::read(Serializable &s)
 
 bool LineSerializer::read(std::string &str)
 {
-	// TODO: unescape
 	String tmp;
 	bool ret = mStream->readUntil(tmp, String(Stream::NewLine) + "=");
 	str = tmp;
@@ -72,8 +71,7 @@ void LineSerializer::write(const Serializable &s)
 }
 
 void LineSerializer::write(const std::string &str)
-{	
-	// TODO: escape
+{
 	mStream->write(String(str));
 
 	if(mKey) 
