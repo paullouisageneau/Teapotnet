@@ -146,7 +146,7 @@ void Board::process(void)
 			serializer << *it;
 		tempFile.close();
 		
-		// Move to cache and process
+		// Move to cache
 		Resource resource;
 		resource.cache(tempFileName, mName, "mail", mSecret);
 		

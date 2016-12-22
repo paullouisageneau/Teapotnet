@@ -73,7 +73,7 @@ bool Cache::prefetch(const BinaryString &target)
 	return false;
 }
 
-String Cache::move(const String &filename)
+String Cache::move(const String &filename, BinaryString *fileDigest)
 {
 	// Check file size
 	int64_t fileSize = File::Size(filename);
@@ -92,6 +92,8 @@ String Cache::move(const String &filename)
 	File file(filename);
 	Sha256().compute(file, digest);
 	file.close();
+	
+	if(fileDigest) *fileDigest = digest;
 	
 	String destination = path(digest);
 	File::Rename(filename, destination);

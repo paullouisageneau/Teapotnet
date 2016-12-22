@@ -41,7 +41,7 @@ public:
 	~Cache(void);
 	
 	bool prefetch(const BinaryString &target);	// Asynchronous resource prefetching (true is already available)
-	String move(const String &filename);
+	String move(const String &filename, BinaryString *fileDigest = NULL);
 	String path(const BinaryString &digest) const;
 	
 private:

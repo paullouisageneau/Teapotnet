@@ -28,10 +28,24 @@
 namespace tpn
 {
 
-bool Block::ProcessFile(File &file, BinaryString &digest)
+bool Block::ProcessFile(File &file, BinaryString &digest, bool cache)
 {
-	int64_t offset = file.tellRead();
-	int64_t size = Sha256().compute(file, Size, digest);
+	int64_t offset = 0;
+	int64_t size = 0;
+	
+	if(!cache)
+	{
+		offset = file.tellRead();
+		size = Sha256().compute(file, Size, digest);
+	}
+	else {
+		String tempFileName = File::TempName();
+		File tempFile(tempFileName, File::Truncate);
+		size = tempFile.write(file, Size);
+		tempFile.close();
+		
+		String fileName = Cache::Instance->move(tempFileName, &digest);
+	}
 	
 	if(size)
 	{
@@ -42,13 +56,14 @@ bool Block::ProcessFile(File &file, BinaryString &digest)
 	return false;
 }
 
-bool Block::ProcessFile(File &file, Block &block)
+bool Block::ProcessFile(File &file, Block &block, bool cache)
 {
 	int64_t offset = file.tellRead();
   
-	if(!ProcessFile(file, block.mDigest))
+	if(!ProcessFile(file, block.mDigest, cache))
 		return false;
 	
+	// TODO
 	block.mFile = new File(file.name(), File::Read);
 	block.mOffset = offset;
 	block.mSize = file.tellRead() - offset;
@@ -64,14 +79,16 @@ bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryStr
 	Aes cipher(&tempFile);
 	cipher.setEncryptionKey(key);
 	cipher.setInitializationVector(iv);
-	cipher.write(stream);
+	cipher.write(stream, Size);
 	cipher.close();
+	
+	Assert(tempFile.size() <= Size);
 	
 	String fileName = Cache::Instance->move(tempFileName);
 	if(newFileName) *newFileName = fileName;
 	
 	File file(fileName, File::Read);
-	return Block::ProcessFile(file, digest);
+	return Block::ProcessFile(file, digest, false);
 }
 
 bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block)

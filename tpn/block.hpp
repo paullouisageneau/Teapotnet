@@ -43,8 +43,8 @@ public:
 	static const size_t ChunkSize = Fountain::ChunkSize;
 	static const size_t Size = MaxChunks*ChunkSize;
 
-	static bool ProcessFile(File &file, Block &block);
-	static bool ProcessFile(File &file, BinaryString &digest);
+	static bool ProcessFile(File &file, Block &block, bool cache = false);
+	static bool ProcessFile(File &file, BinaryString &digest, bool cache = false);
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, BinaryString &digest, String *newFileName = NULL);
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block);
 	

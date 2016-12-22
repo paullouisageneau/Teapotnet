@@ -134,7 +134,6 @@ void Html::text(const String &str)
 
 void Html::object(const Serializable &s)
 {
-	// TODO
 	open("span");
 	mStream->write(escape(s.toString()));
 	close("span");

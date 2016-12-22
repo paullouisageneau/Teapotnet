@@ -87,7 +87,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 
 }
 
-void Resource::process(const String &filename, const String &name, const String &type, const String &secret)
+void Resource::process(const String &filename, const String &name, const String &type, const String &secret, bool cache)
 {
 	BinaryString salt;
 	
@@ -143,7 +143,7 @@ void Resource::process(const String &filename, const String &name, const String 
 		}
 	} 
 	else {
-		while(Block::ProcessFile(file, blockDigest))
+		while(Block::ProcessFile(file, blockDigest, cache))
 			mIndexRecord->blockDigests.append(blockDigest);
 	}
 	
@@ -164,12 +164,15 @@ void Resource::cache(const String &filename, const String &name, const String &t
 	if(!secret.empty())
 	{
 		// Blocks will be copied to cache since resource is encrypted
-		process(filename, name, type, secret);
+		process(filename, name, type, secret, true);
 		File::Remove(filename);
 	}
 	else {
-		// Move to cache and process
-		process(Cache::Instance->move(filename), name, type, "");
+		// Process in cache mode
+		process(filename, name, type, "", true);
+		
+		// And remove the original file
+		File::Remove(filename);
 	}
 }
 
