@@ -953,22 +953,22 @@ int Http::Action(const String &method, const String &url, const String &data, co
 			delete stream;
 			stream = NULL;
 			
-			// Handle relative location even if not RFC-compliant
 			String location(response.headers["Location"]);
-			if(location.empty())
-				throw Exception("Redirection with empty URL");
-				
-			if(!location.contains(":/"))
+			if(!location.empty())
 			{
-				if(location[0] == '/') location = request.protocol.toLower() + "://" + host + location;
-				else {
-					int p = url.lastIndexOf('/');
-					Assert(p > 0);
-					location = url.substr(0, p) + "/" + location;
+				// Handle relative location even if not RFC-compliant
+				if(!location.contains(":/"))
+				{
+					if(location[0] == '/') location = request.protocol.toLower() + "://" + host + location;
+					else {
+						int p = url.lastIndexOf('/');
+						Assert(p > 0);
+						location = url.substr(0, p) + "/" + location;
+					}
 				}
+				
+				return Get(location, output, cookies, maxRedirections-1, noproxy);
 			}
-			
-			return Get(location, output, cookies, maxRedirections-1, noproxy);
 		}
 		
 		if(responseHeaders)
