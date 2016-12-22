@@ -430,15 +430,15 @@ int run(String &commandLine, StringMap &args)
 	
 #ifdef ANDROID
 	Config::Default("force_http_tunnel", "false");
-	Config::Default("cache_max_size", "100");		// MiB
-	Config::Default("cache_max_file_size", "10");		// MiB
+	Config::Default("cache_max_size", "200");		// MiB
+	Config::Default("cache_max_file_size", "20");		// MiB
 	
 	if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 	if(!CacheDirectory.empty())  Config::Put("cache_dir",  CacheDirectory);
 #else
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "10000");		// MiB
-	Config::Default("cache_max_file_size", "2000");		// MiB
+	Config::Default("cache_max_file_size", "1000");		// MiB
 #endif
 
 #if defined(WINDOWS) || defined(MACOSX)
