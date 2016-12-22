@@ -95,9 +95,11 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 		std::unique_lock<std::mutex> lock(mMutex);
 		mSinks.erase(digest);
 		notifyBlock(digest, sink->path(), 0, sink->size());
+		return true;
 	}
 
-	return true;
+	// We need more combinations
+	return false;
 }
 
 bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank)
