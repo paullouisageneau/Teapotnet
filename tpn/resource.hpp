@@ -168,6 +168,7 @@ public:
 protected:
 	sptr<Block> mIndexBlock;
 	sptr<IndexRecord> mIndexRecord;
+	bool mLocalOnly;
 	
 	friend class Indexer;
 };

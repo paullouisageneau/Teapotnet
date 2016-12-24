@@ -141,7 +141,8 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 			String filePath = path + Directory::Separator + *it;
 			
 			// Delete file
-			File::Remove(filePath);
+			if(!File::Remove(filePath))
+				continue;
 			
 			// Notify Store
 			Store::Instance->notifyFileErasure(filePath);

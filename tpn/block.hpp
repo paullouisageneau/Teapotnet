@@ -55,6 +55,7 @@ public:
 	virtual ~Block(void);
 	
 	BinaryString digest(void) const;
+	bool isLocallyAvailable(void) const;
 	
 	void setDecryption(const BinaryString &key, const BinaryString &iv); 
 	bool hasDecryption(void) const;

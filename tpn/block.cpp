@@ -164,6 +164,11 @@ BinaryString Block::digest(void) const
 	return mDigest;
 }
 
+bool Block::isLocallyAvailable(void) const
+{
+	return (mFile && mFile->openMode() == File::Read);
+}
+
 void Block::setDecryption(const BinaryString &key, const BinaryString &iv)
 {
 	waitContent();

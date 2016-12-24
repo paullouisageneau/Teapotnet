@@ -127,7 +127,7 @@ unsigned Store::missing(const BinaryString &digest)
 
 bool Store::hasBlock(const BinaryString &digest)
 {
-	Database::Statement statement = mDatabase->prepare("SELECT f.name FROM blocks b LEFT JOIN files f ON f.id=b.file_id WHERE b.digest = ?1");
+	Database::Statement statement = mDatabase->prepare("SELECT f.name FROM blocks b LEFT JOIN files f ON f.id = b.file_id WHERE b.digest = ?1");
 	statement.bind(1, digest);
 	if(statement.step())
 	{

@@ -33,21 +33,24 @@ namespace tpn
 
 Resource::Resource(void) :
 	mIndexBlock(NULL),
-	mIndexRecord(NULL)
+	mIndexRecord(NULL),
+	mLocalOnly(false)
 {
 
 }
 
 Resource::Resource(const Resource &resource) :
 	mIndexBlock(NULL),
-	mIndexRecord(NULL)
+	mIndexRecord(NULL),
+	mLocalOnly(false)
 {
 	*this = resource;
 }
 
 Resource::Resource(const BinaryString &digest, bool localOnly) :
 	mIndexBlock(NULL),
-	mIndexRecord(NULL)
+	mIndexRecord(NULL),
+	mLocalOnly(false)
 {
 	fetch(digest, localOnly);
 }
@@ -59,20 +62,23 @@ Resource::~Resource(void)
 
 void Resource::fetch(const BinaryString &digest, bool localOnly)
 {
+	mLocalOnly = localOnly;
 	mIndexRecord.reset();
 	mIndexBlock.reset();
 	
-	if(localOnly && !Store::Instance->hasBlock(digest))
+	if(mLocalOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
 	
 	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
 	
 	try {
 		mIndexBlock = std::make_shared<Block>(digest);
-		mIndexRecord = std::make_shared<IndexRecord>();
+		if(mLocalOnly && !mIndexBlock->isLocallyAvailable())
+			throw Exception("Block is not available locally");
 		
 		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
 		
+		mIndexRecord = std::make_shared<IndexRecord>();
 		AssertIO(BinarySerializer(mIndexBlock.get()) >> mIndexRecord);
 		
 		for(const BinaryString &digest : mIndexRecord->blockDigests)
@@ -435,7 +441,11 @@ sptr<Block> Resource::Reader::createBlock(int index)
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
 	
 	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
-	return std::make_shared<Block>(mResource->blockDigest(index), mResource->digest()); 
+	sptr<Block> block = std::make_shared<Block>(mResource->blockDigest(index), mResource->digest());
+	if(mResource->mLocalOnly && !block->isLocallyAvailable())
+		throw Exception("Block is not available locally");
+	
+	return block;
 }
 
 void Resource::MetaRecord::serialize(Serializer &s) const
