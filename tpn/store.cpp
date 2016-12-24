@@ -127,12 +127,19 @@ unsigned Store::missing(const BinaryString &digest)
 
 bool Store::hasBlock(const BinaryString &digest)
 {
-	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1");
+	Database::Statement statement = mDatabase->prepare("SELECT f.name FROM blocks b LEFT JOIN files f ON f.id=b.file_id WHERE b.digest = ?1");
 	statement.bind(1, digest);
 	if(statement.step())
 	{
+		String filename;
+		statement.value(0, filename);
 		statement.finalize();
-		return true;
+		
+		if(File::Exist(filename))
+			return true;
+			
+		notifyFileErasure(filename);
+		return false;
 	}
 	
 	statement.finalize();

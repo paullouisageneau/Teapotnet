@@ -139,8 +139,14 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 			while(r--) ++it;
 			
 			String filePath = path + Directory::Separator + *it;
-			totalSize-= File::Size(filePath);
+			
+			// Delete file
 			File::Remove(filePath);
+			
+			// Notify Store
+			Store::Instance->notifyFileErasure(filePath);
+			
+			totalSize-= File::Size(filePath);
 			list.erase(it);
 		}
 	}
