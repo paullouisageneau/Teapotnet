@@ -637,7 +637,7 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 	for(auto h : handlers)
 		h->push(target, tokens);
 	
-	//LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
+	LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
 	return !handlers.empty();
 }
 
@@ -653,9 +653,10 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("target", target)
 				.insert("tokens", tokens);
 		
-		if(tokens) LogDebug("Network::run", "Pulled " + target.toString() + " (" + String::number(tokens) + " tokens)");
+		if(tokens) LogDebug("Network::incoming", "Pulled " + target.toString() + " (" + String::number(tokens) + " tokens)");
 		
-		push(link, target, tokens);
+		if(!push(link, target, tokens))
+			LogWarn("Network::incoming", "Failed to push " + target.toString());
 	}
 	else if(type == "publish")
 	{
