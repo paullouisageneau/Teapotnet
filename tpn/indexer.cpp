@@ -44,8 +44,7 @@ const String Indexer::UploadDirectoryName = "_upload";
 
 Indexer::Indexer(User *user) :
 	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
-	mUser(user),
-	mRunning(false)
+	mUser(user)
 {
 	Assert(mUser);
 	mDatabase = new Database(mUser->profilePath() + "files.db");
@@ -124,9 +123,8 @@ Indexer::Indexer(User *user) :
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
-	// TODO
-	//Scheduler::Global->schedule(this, 60.);	// 1 min
-	//Scheduler::Global->repeat(this, 6*60*60.);	// 6h
+	// Run
+	start(seconds(10.));
 }
 
 Indexer::~Indexer(void)
@@ -227,18 +225,12 @@ void Indexer::save(void) const
 	file.close();
 }
 
-void Indexer::start(void)
+void Indexer::start(duration delay)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	if(mRunning) return;
-	mRunning = true;
-	
-	std::thread thread([this]()
+	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
 	});
-	
-	thread.detach();
 }
 
 bool Indexer::query(const Query &q, List<BinaryString> &targets)
@@ -1439,11 +1431,6 @@ void Indexer::run(void)
 	catch(const Exception &e)
 	{
 		LogWarn("Indexer::run", e.what());
-	}
-	
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mRunning = false;
 	}
 }
 

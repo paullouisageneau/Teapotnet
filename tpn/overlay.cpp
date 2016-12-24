@@ -130,7 +130,7 @@ void Overlay::start(duration delay)
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
-	});	
+	});
 }
 
 String Overlay::localName(void) const

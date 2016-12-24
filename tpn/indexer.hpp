@@ -34,6 +34,7 @@
 #include "pla/set.hpp"
 #include "pla/array.hpp"
 #include "pla/list.hpp"
+#include "pla/alarm.hpp"
 
 namespace tpn
 {
@@ -57,7 +58,7 @@ public:
 	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
 	
 	void save(void) const;
-	void start(void);
+	void start(duration delay = duration(0.));
 	
 	bool process(String path, Resource &resource);
 	bool get(String path, Resource &resource, Time *time = NULL);
@@ -102,11 +103,11 @@ public:
 	bool query(const Query &q, Set<Resource> &resources);
 	bool query(const Query &q, Resource &resource);
 	
-	void run(void);
-	
 private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
+	
+	void run(void);
 	
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void update(String path = "/");
@@ -136,7 +137,7 @@ private:
 	String mFileName;
 	String mBaseDirectory;
 	Map<String, Entry> mDirectories;
-	bool mRunning;
+	Alarm mRunAlarm;
 	
 	mutable std::mutex mMutex;
 };
