@@ -501,6 +501,7 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 		
 		try {
 			resource.fetch(digest, true);	// local only
+			return resource.isLocallyAvailable();
 		}
 		catch(const Exception &e)
 		{
@@ -508,8 +509,6 @@ bool Indexer::get(String path, Resource &resource, Time *time)
 			LogWarn("Indexer::get", e.what());
 			return false;
 		}
-		
-		return true;
 	}
 	
 	//LogDebug("Indexer::get", "Not found in index: " + path);
