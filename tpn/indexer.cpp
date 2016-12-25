@@ -44,7 +44,8 @@ const String Indexer::UploadDirectoryName = "_upload";
 
 Indexer::Indexer(User *user) :
 	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
-	mUser(user)
+	mUser(user),
+	mRunning(false)
 {
 	Assert(mUser);
 	mDatabase = new Database(mUser->profilePath() + "files.db");
@@ -1414,6 +1415,12 @@ Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 
 void Indexer::run(void)
 {
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		if(mRunning) return;
+		mRunning = true;
+	}
+	
 	try {
 		LogDebug("Indexer::run", "Started");
 		
@@ -1431,6 +1438,11 @@ void Indexer::run(void)
 	catch(const Exception &e)
 	{
 		LogWarn("Indexer::run", e.what());
+	}
+	
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mRunning = false;
 	}
 }
 

@@ -138,6 +138,7 @@ private:
 	String mBaseDirectory;
 	Map<String, Entry> mDirectories;
 	Alarm mRunAlarm;
+	bool mRunning;
 	
 	mutable std::mutex mMutex;
 };
