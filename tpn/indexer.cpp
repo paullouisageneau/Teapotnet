@@ -455,7 +455,7 @@ bool Indexer::process(String path, Resource &resource)
 	{
 		LogDebug("Indexer::process", "Processing: " + path);
 		
-		resource.process(realPath, name, (isDirectory ? "directory" : "file"), false);	// do not cache, already cached
+		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
 		
 		LogDebug("Indexer::process", "Processed: digest is " + resource.digest().toString());
