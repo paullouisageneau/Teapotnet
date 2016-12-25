@@ -42,7 +42,7 @@ public:
 	Request(const String &path, const Network::Link &link, bool listDirectories = true);
 	virtual ~Request(void);
 	
-	bool addTarget(const BinaryString &target);
+	bool addTarget(const BinaryString &target, bool finish = false);
 	
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
@@ -69,7 +69,7 @@ private:
 	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
 	Set<BinaryString> mDigests;
 	bool mListDirectories;
-	bool mFinished;
+	bool mFinished, mFinishedAfterTarget;
 	duration mAutoDeleteTimeout;
 	Alarm mAutoDeleter;
 	

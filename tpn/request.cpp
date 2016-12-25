@@ -31,6 +31,7 @@ namespace tpn
 Request::Request(Resource &resource) :
 	mListDirectories(true),
 	mFinished(false),
+	mFinishedAfterTarget(false),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -42,6 +43,7 @@ Request::Request(const String &path, bool listDirectories) :
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
+	mFinishedAfterTarget(false),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -54,6 +56,7 @@ Request::Request(const String &path, const Identifier &local, const Identifier &
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
+	mFinishedAfterTarget(false),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -66,6 +69,7 @@ Request::Request(const String &path, const Network::Link &link, bool listDirecto
 	mPath(path),
 	mListDirectories(listDirectories),
 	mFinished(false),
+	mFinishedAfterTarget(false),
 	mAutoDeleteTimeout(-1.)
 {
 	mUrlPrefix = "/request/" + String::random(32);
@@ -90,13 +94,15 @@ Request::~Request(void)
 	std::unique_lock<std::mutex> lock(mMutex);
 }
 
-bool Request::addTarget(const BinaryString &target)
+bool Request::addTarget(const BinaryString &target, bool finished)
 {
 	if(mPath.empty() || target.empty()) return false;
 	
 	String prefix = mPath;
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
+	
+	mFinishedAfterTarget|= finished;
 	
 	return incoming(link(), prefix, "/", target);
 }
@@ -141,7 +147,7 @@ void Request::addResult(const Resource::DirectoryRecord &record)
 	
 	if(!mDigests.contains(record.digest))
 	{
-		//LogDebug("Request", "Adding result: " + record.digest.toString() + " (" + record.name + ")");	
+		LogDebug("Request", "Adding result: " + record.digest.toString() + " (" + record.name + ")");	
 
 		mResults.append(record);
 		mDigests.insert(record.digest);
@@ -237,7 +243,7 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 	{
 		Resource resource(target, true);	// local only
 		if(!mListDirectories || !resource.isDirectory() || fetch(link, prefix, path, target, true))
-			addResult(resource);
+			addResult(resource, mFinishedAfterTarget);
 	}
 
 	return true;

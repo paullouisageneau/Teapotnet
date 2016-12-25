@@ -1196,7 +1196,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			}
 			
 			Request *req = new Request("/files/" + identifier().toString() + url, mAddressBook->user()->identifier(), identifier(), true);
-			if(!digest.empty()) req->addTarget(digest);
+			if(!digest.empty()) req->addTarget(digest, true);	// finished after target
 			String reqPrefix = req->urlPrefix();
 			req->autoDelete();
 			
