@@ -32,24 +32,25 @@ bool Block::ProcessFile(File &file, BinaryString &digest, bool cache)
 {
 	int64_t offset = 0;
 	int64_t size = 0;
+	String fileName;
 	
 	if(!cache)
 	{
 		offset = file.tellRead();
 		size = Sha256().compute(file, Size, digest);
+		fileName = file.name();
 	}
 	else {
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		size = tempFile.write(file, Size);
 		tempFile.close();
-		
-		String fileName = Cache::Instance->move(tempFileName, &digest);
+		fileName = Cache::Instance->move(tempFileName, &digest);
 	}
 	
 	if(size)
 	{
-		Store::Instance->notifyBlock(digest, file.name(), offset, size);
+		Store::Instance->notifyBlock(digest, fileName, offset, size);
 		return true;
 	}
 	

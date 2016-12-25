@@ -458,7 +458,7 @@ bool Indexer::process(String path, Resource &resource)
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
 		
-		LogDebug("Indexer::process", "Processed: digest is " + resource.digest().toString());
+		//LogDebug("Indexer::process", "Processed: digest is " + resource.digest().toString());
 	}
 	
 	// Publish into DHT right now
