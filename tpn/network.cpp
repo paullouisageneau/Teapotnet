@@ -407,7 +407,7 @@ void Network::run(void)
 						mPusher.push(target, message.source, tokens);
 					}
 					else {
-						//LogDebug("Network::run", "Called (unknown) " + target.toString());
+						LogDebug("Network::run", "Called (unknown) " + target.toString());
 					}
 					break;
 				}
@@ -604,7 +604,7 @@ bool Network::outgoing(const Link &link, const String &type, const Serializable 
 	for(auto h : handlers)
 		h->write(type, serialized);
 	
-	//LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\") on " + String::number(handlers.size()) + " links");
+	LogDebug("Network::outgoing", "Sending command (type=\"" + type + "\") on " + String::number(handlers.size()) + " links");
 	return !handlers.empty();
 }
 
@@ -643,7 +643,7 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
 {
-	//LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
+	LogDebug("Network::incoming", "Incoming command (type=\"" + type + "\")");
 	
 	if(type == "pull")	// equivalent to call between users
 	{
@@ -1987,7 +1987,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 		{
 			if(target.empty())
 			{
-				//LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + Stréing::number(combination.firstComponent()) + ")");
+				LogDebug("Network::Handler::recvCombination", "Received flow combination (first=" + String::number(combination.firstComponent()) + ")");
 				
 				mSink.drop(combination.firstComponent());
 				mSink.solve(combination);
@@ -2197,7 +2197,7 @@ int Network::Handler::send(bool force)
 			
 			if(!combination.isNull())
 			{
-				//LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator) + ", tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
+				LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator) + ", tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
