@@ -1276,6 +1276,8 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 {
 	if(link.remote.empty() || link != this->link())
 	{
+		LogDebug("Network::RemoteSubscriber::incoming", "Publishing " + target.toString() + " for " + path);
+		
 		Array<BinaryString> targets;
 		targets.append(target);
 		

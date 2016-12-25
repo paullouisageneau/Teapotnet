@@ -167,19 +167,11 @@ void Resource::process(const String &filename, const String &name, const String 
 
 void Resource::cache(const String &filename, const String &name, const String &type, const String &secret)
 {
-	if(!secret.empty())
-	{
-		// Blocks will be copied to cache since resource is encrypted
-		process(filename, name, type, secret, true);
-		File::Remove(filename);
-	}
-	else {
-		// Process in cache mode
-		process(filename, name, type, "", true);
-		
-		// And remove the original file
-		File::Remove(filename);
-	}
+	// Process in cache mode
+	process(filename, name, type, "", true);
+	
+	// And remove the original file
+	File::Remove(filename);
 }
 
 BinaryString Resource::digest(void) const
