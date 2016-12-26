@@ -237,8 +237,10 @@ bool Resource::isLocallyAvailable(void) const
 	if(!mIndexRecord) return false;
 	
 	for(int i=0; i<mIndexRecord->blockDigests.size(); ++i)
+	{
 		if(!Store::Instance->hasBlock(mIndexRecord->blockDigests[i]))
 			return false;
+	}
 	
 	return true;
 }

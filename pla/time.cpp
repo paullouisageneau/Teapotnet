@@ -248,12 +248,12 @@ duration Time::operator- (const Time &t) const
 
 bool Time::operator< (const Time &t)
 {
-	return (mTime < t.mTime || mTime == t.mTime);
+	return (mTime < t.mTime);
 }
 
 bool Time::operator> (const Time &t)
 {
-	return (mTime > t.mTime || mTime == t.mTime);
+	return (mTime > t.mTime);
 }
 
 bool Time::operator== (const Time &t)

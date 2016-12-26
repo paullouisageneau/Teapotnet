@@ -453,7 +453,7 @@ bool Indexer::process(String path, Resource &resource)
 	Time time(0);
 	if(!get(path, resource, &time) || time < fileTime || path == "/")
 	{
-		LogDebug("Indexer::process", "Processing: " + path);
+		LogInfo("Indexer::process", "Processing: " + path);
 		
 		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
 		notify(path, resource, fileTime);
@@ -1341,21 +1341,11 @@ void Indexer::update(String path)
 			String realPath = this->realPath(path);
 			if(Directory::Exist(realPath))
 			{
-				// Iterate on files and order them by name
-				StringMap sorted;
+				// Iterate on files
 				Directory dir(realPath);
 				while(dir.nextFile())
 				{
-					String key = String(dir.fileIsDir() ? "0" : "1") + dir.fileName().toLower();
-					sorted.insert(key, dir.fileName());
-				}
-				
-				// Update ordered files
-				for(StringMap::iterator it = sorted.begin();
-					it != sorted.end();
-					++it)
-				{
-					String subpath = path + '/' + it->second;
+					String subpath = path + '/' + dir.fileName();
 					update(subpath);
 				}
 			}
