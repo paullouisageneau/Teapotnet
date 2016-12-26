@@ -22,7 +22,6 @@
 #ifndef TPN_INCLUDE_H
 #define TPN_INCLUDE_H
 
-//#define DEBUG			1
 #define APPNAME			"Teapotnet"
 #define APPVERSION		"0.10.1"
 #define APPMAGIC		 0x54504f54 // "TPOT"
