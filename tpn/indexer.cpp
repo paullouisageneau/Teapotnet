@@ -228,6 +228,7 @@ void Indexer::save(void) const
 
 void Indexer::start(duration delay)
 {
+	// TODO: do not reschedule if longer delay
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
@@ -1412,7 +1413,7 @@ void Indexer::run(void)
 	}
 	
 	try {
-		LogDebug("Indexer::run", "Started");
+		LogDebug("Indexer::run", "Indexation started");
 		
 		// Invalidate all entries
 		mDatabase->execute("UPDATE resources SET seen=0");
@@ -1423,9 +1424,9 @@ void Indexer::run(void)
 		// Clean
 		mDatabase->execute("DELETE FROM resources WHERE seen=0");	// TODO: delete from names
 		
-		LogDebug("Indexer::run", "Finished");
+		LogDebug("Indexer::run", "Indexation finished");
 	}
-	catch(const Exception &e)
+	catch(const std::exception &e)
 	{
 		LogWarn("Indexer::run", e.what());
 	}
@@ -1434,6 +1435,8 @@ void Indexer::run(void)
 		std::unique_lock<std::mutex> lock(mMutex);
 		mRunning = false;
 	}
+
+	start(seconds(6*3600));
 }
 
 Indexer::Query::Query(const String &path) :
