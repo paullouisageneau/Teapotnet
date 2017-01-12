@@ -247,8 +247,8 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		// Retrieve from cache
 		Set<BinaryString> targets;
 		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
-			for(auto it = targets.begin(); it != targets.end(); ++it)
-				subscriber->incoming(Link::Null, prefix, "/", *it);
+			for(auto t : targets)
+				subscriber->incoming(Link::Null, prefix, "/", t);
 	}
 }
 

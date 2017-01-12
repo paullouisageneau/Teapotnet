@@ -1286,8 +1286,9 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	if(!path.empty())
 	{
 		if(pattern) sql<<"AND path LIKE ? ESCAPE '\\' ";
-		else sql<<"AND path == ? ";
+		else sql<<"AND path = ? ";
 	}
+	
 	if(!match.empty())			sql<<"AND names.name MATCH ? ";
 	if(!digest.empty())			sql<<"AND digest = ? ";
 	else if(path.empty() || !isFromSelf)	sql<<"AND path NOT LIKE '/\\_%' ESCAPE '\\' ";		// hidden files
