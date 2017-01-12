@@ -699,7 +699,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 			if(!mListeners.contains(IdentifierPair(link.remote, link.local)))
 				return false;
 		}
-		
+
 		String path;
 		Mail mail;
 		List<BinaryString> targets;
@@ -707,8 +707,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("path", path)
 				.insert("message", mail)
 				.insert("targets", targets);
-		
-		// We check in cache to prevent publishing loops
+			
 		BinaryString key = Store::Hash(path);
 		
 		// Message
@@ -722,7 +721,9 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		bool hasNew = false;
 		for(auto target : targets)
 		{
+			// We check in cache to prevent publishing loops
 			hasNew|= !Store::Instance->hasValue(key, target);
+			
 			Store::Instance->storeValue(key, target, Store::Temporary);		// cache path resolution
 			Store::Instance->storeValue(target, link.node, Store::Temporary);	// cache candidate node
 		}
@@ -860,8 +861,8 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					Assert(!result.empty());
 					if(subscriber) 	// local
 					{
-						for(auto it = result.begin(); it != result.end(); ++it)
-							subscriber->incoming(publisher->link(), prefix, truncatedPath, *it);
+						for(const auto &t : result)
+							subscriber->incoming(publisher->link(), prefix, truncatedPath, t);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -918,12 +919,10 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 				List<BinaryString> targets;
 				if(publisher->anounce(link, prefix, truncatedPath, targets))
 				{
-					for(List<BinaryString>::const_iterator kt = targets.begin();
-						kt != targets.end();
-						++kt)
+					for(const auto &t : targets)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						subscriber->incoming(publisher->link(), prefix, truncatedPath, *kt);
+						subscriber->incoming(publisher->link(), prefix, truncatedPath, t);
 					}
 				}
 			}
@@ -1300,7 +1299,7 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 		
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", prefix)
+				.insert("path", prefix + path)
 				.insert("targets", targets));
 		
 		return true;
@@ -1315,7 +1314,7 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 	{
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", prefix)
+				.insert("path", prefix + path)
 				.insert("message", mail));
 		
 		return true;
