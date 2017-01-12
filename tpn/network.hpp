@@ -198,8 +198,9 @@ public:
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	
 	// Links
-	bool hasLink(const Identifier &local, const Identifier &remote);
-	bool hasLink(const Link &link);
+	bool hasLink(const Identifier &local, const Identifier &remote) const;
+	bool hasLink(const Link &link) const;
+	bool getLinkFromNode(const Identifier &node, Link &link) const;
 	
 	void sendCalls(void);
 	void sendBeacons(void);
@@ -376,8 +377,7 @@ private:
 	Map<BinaryString, Set<BinaryString> > mCallCandidates;
 	Map<IdentifierPair, Set<Listener*> > mListeners;
 	Map<Link, Map<String, sptr<RemoteSubscriber> > > mRemoteSubscribers;
-	
-	Map<BinaryString, Set<Link> > mTargets;		// candidates for each target
+	Map<Identifier, List<Link> > mLinksFromNodes;
 	
 	mutable std::recursive_mutex mHandlersMutex;	// recursive so listeners can call network on event
 	mutable std::recursive_mutex mListenersMutex;	// idem
@@ -385,7 +385,7 @@ private:
 	mutable std::mutex mSubscribersMutex;
 	mutable std::mutex mRemoteSubscribersMutex;
 	mutable std::mutex mCallersMutex;
-	mutable std::mutex mTargetsMutex;
+	mutable std::mutex mLinksFromNodesMutex;
 	
 	std::thread mThread;
 	

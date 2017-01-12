@@ -51,8 +51,8 @@ public:
 	String userName(void) const;
 	String prefix(void) const;
 	
-	void addDirectory(const String &name, String path, Resource::AccessLevel access = Resource::Public);
-	void removeDirectory(const String &name);
+	void addDirectory(const String &name, String path, Resource::AccessLevel access = Resource::Public, bool nocommit = false);
+	void removeDirectory(const String &name, bool nocommit = false);
 	void getDirectories(Array<String> &array) const;
 	Resource::AccessLevel directoryAccessLevel(const String &name) const; 
 	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success

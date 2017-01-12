@@ -109,12 +109,7 @@ Indexer::Indexer(User *user) :
 	}
 	
 	// Special upload directory
-	if(!mDirectories.contains(UploadDirectoryName)) 
-		addDirectory(UploadDirectoryName, "", Resource::Personal);
-	
-	mDirectories[UploadDirectoryName].access = Resource::Personal;	// force
-	
-	save();
+	addDirectory(UploadDirectoryName, "", Resource::Personal, true);	// don't commit
 	
 	// Publisher
 	publish(prefix());
@@ -124,7 +119,8 @@ Indexer::Indexer(User *user) :
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 	
-	// Run
+	// Save and run
+	save();
 	start(seconds(10.));
 }
 
@@ -150,7 +146,7 @@ String Indexer::prefix(void) const
 	return "/files/" + mUser->identifier().toString(); 
 }
 
-void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access)
+void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access, bool nocommit)
 {
 	Assert(!name.empty());
 	Assert(!name.contains('/') && !name.contains('\\'));
@@ -182,21 +178,27 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 			mDirectories.insert(name, Entry(path, access));
 		}
 	}
-	
-	save();
-	start();
+
+	if(!nocommit)
+	{	
+		save();
+		start();
+	}
 }
 
-void Indexer::removeDirectory(const String &name)
+void Indexer::removeDirectory(const String &name, bool nocommit)
 {
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		if(mDirectories.contains(name))
 			mDirectories.erase(name);
 	}
-	
-	save();
-	start();
+
+	if(!nocommit)
+	{	
+		save();
+		start();
+	}
 }
 
 void Indexer::getDirectories(Array<String> &array) const

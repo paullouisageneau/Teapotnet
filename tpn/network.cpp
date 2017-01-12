@@ -41,8 +41,8 @@ const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 8;
 const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
 const unsigned Network::TunnelMtu = 1200;
-const unsigned Network::DefaultRedundantCount = 16;
-const double   Network::DefaultRedundancy = 1.10;
+const unsigned Network::DefaultRedundantCount = 32;
+const double   Network::DefaultRedundancy = 1.20;
 const duration Network::CallPeriod = seconds(1.);
 
 Network *Network::Instance = NULL;
@@ -340,16 +340,29 @@ bool Network::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	return mOverlay.retrieve(key, values);
 }
 
-bool Network::hasLink(const Identifier &local, const Identifier &remote)
+bool Network::hasLink(const Identifier &local, const Identifier &remote) const
 {
 	// Alias
 	return hasLink(Link(local, remote));
 }
 
-bool Network::hasLink(const Link &link)
+bool Network::hasLink(const Link &link) const
 {
 	std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 	return mHandlers.contains(link);
+}
+
+bool Network::getLinkFromNode(const BinaryString &node, Link &link) const
+{
+	std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
+	
+	auto it = mLinksFromNodes.find(node);
+	if(it != mLinksFromNodes.end() && !it->second.empty()) 
+	{
+		link = it->second.back();
+		return true;
+	}
+	else return false;	
 }
 
 void Network::run(void)
@@ -522,7 +535,13 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 		mHandlers.get(link, currentHandler); 
 		mHandlers.insert(link, handler);
 	}
-	
+
+	{
+		std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
+		
+		mLinksFromNodes[link.node].push_back(link);
+	}
+
 	{
 		std::unique_lock<std::mutex> lock(mSubscribersMutex);
 		
@@ -551,7 +570,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	Assert(!link.node.empty());
 	
 	sptr<Handler> currentHandler;	// prevent handler deletion on erase (we need reference on link)
-	
+
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 		
@@ -560,6 +579,18 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 		
 		mHandlers.erase(link);
 	}
+
+	{
+                std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
+		
+		auto it = mLinksFromNodes.find(link.node); 
+		if(it != mLinksFromNodes.end())
+		{
+			it->second.remove(link);
+			if(it->second.empty())
+				mLinksFromNodes.erase(it);
+		}
+        }
 	
 	{
 		std::unique_lock<std::mutex> lock(mRemoteSubscribersMutex);
@@ -633,11 +664,12 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 		}
 	}
 	
+	LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
+	
 	tokens = (tokens + (handlers.size()-1))/handlers.size();
 	for(auto h : handlers)
 		h->push(target, tokens);
 	
-	LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
 	return !handlers.empty();
 }
 
@@ -691,12 +723,8 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		for(auto target : targets)
 		{
 			hasNew|= !Store::Instance->hasValue(key, target);
-			Store::Instance->storeValue(key, target, Store::Temporary);	// cache
-			
-			{
-				std::unique_lock<std::mutex> lock(mTargetsMutex);
-				mTargets[target].insert(link);
-			}
+			Store::Instance->storeValue(key, target, Store::Temporary);		// cache path resolution
+			Store::Instance->storeValue(target, link.node, Store::Temporary);	// cache candidate node
 		}
 		
 		if(hasNew)
@@ -744,29 +772,18 @@ bool Network::call(const BinaryString &target, Set<BinaryString> hints, bool fal
 	Set<Link> links;
 	if(!fallback)
 	{
-		std::unique_lock<std::mutex> lock(mTargetsMutex);
-		
 		// Retrieve candidate links for pulling
 		for(const BinaryString &hint : hints)
 		{
-			auto it = mTargets.find(hint);
-			if(it != mTargets.end())
+			Set<BinaryString> nodes;
+			Store::Instance->retrieveValue(hint, nodes);
+			for(auto n : nodes)
 			{
-				auto jt = it->second.begin();
-				while(jt != it->second.end())
-				{
-					if(hasLink(*jt)) links.insert(*jt++);
-					else jt = it->second.erase(jt);	
-				}
-				
-				if(it->second.empty())
-					mTargets.erase(it);
+				Link l;
+				if(getLinkFromNode(n, l))
+					links.insert(l);
 			}
 		}
-	}
-	else {
-		std::unique_lock<std::mutex> lock(mTargetsMutex);
-		mTargets.erase(target);
 	}
 	
 	// If we have candidate links
@@ -786,7 +803,7 @@ bool Network::call(const BinaryString &target, Set<BinaryString> hints, bool fal
 		return true;
 	}
 	
-	// Fallback: Immediately call nodes providing hinted blocks and target block
+	// Else, fallback: Immediately call nodes providing hinted blocks and target block
 	for(const BinaryString &hint : hints)
 	{
 		Set<BinaryString> nodes;
@@ -1893,10 +1910,10 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	
 	if(!tokens) mTargets.erase(target);
 	else {
-		tokens = unsigned(double(tokens)*mRedundancy + 0.5);
-		
+		tokens = unsigned(std::ceil(double(tokens)*mRedundancy));
+	
 		auto it = mTargets.find(target);
-		if(it != mTargets.end()) it->second = std::min(it->second, tokens);
+		if(it != mTargets.end()) it->second = std::min(it->second + DefaultRedundantCount, tokens);
 		else mTargets[target] = tokens;
 	}
 	
@@ -2187,8 +2204,12 @@ int Network::Handler::send(bool force)
 {
 	if(mClosed) return 0;
 	
+	Set<BinaryString> availableTargets;
+	for(auto it = mTargets.begin(); it != mTargets.end(); ++it)
+        	if(it->second) availableTargets.insert(it->first);
+
 	int count = 0;
-	while(force || (mAvailableTokens >= 1. && (!mTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
+	while(force || (mAvailableTokens >= 1. && (!availableTargets.empty() || (mSource.rank() >= 1 && mAccumulator >= 1.))))
 	{
 		try {
 			BinaryString target;
@@ -2203,27 +2224,31 @@ int Network::Handler::send(bool force)
 				
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
-			else if(!mTargets.empty())
+			else if(!availableTargets.empty())
 			{
 				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
-				
 				// Pick at random
-				int r = Random().uniform(0, int(mTargets.size()));
-				auto it = mTargets.begin();
+				int r = Random().uniform(0, int(availableTargets.size()));
+				auto it = availableTargets.begin();
 				while(r--) ++it;
-				Assert(it != mTargets.end());
-	
-				target = it->first;
-				unsigned &tokens = it->second;
+				Assert(it != availableTargets.end());
+				
+				target = *it;
+				unsigned &tokens = mTargets[target];
 				unsigned rank = 0;
+				
 				Store::Instance->pull(target, combination, &rank);
 				
 				tokens = std::min(tokens, unsigned(double(rank)*mRedundancy + 0.5));
 				if(tokens) --tokens;
 				
 				mLocalSideSequence+= 1/mRedundancy;
-				
-				if(!tokens) mTargets.erase(it);
+
+				if(!tokens) 
+				{
+					availableTargets.erase(target);
+					//mTargets.erase(it);
+				}
 			}
 			
 			if(mAvailableTokens >= 1. && !combination.isNull())
@@ -2318,7 +2343,7 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 			if(it != mTargets.end())
 			{
 				auto jt = it->second.find(destination);
-				if(jt != it->second.end()) jt->second = std::min(jt->second, tokens);
+				if(jt != it->second.end()) jt->second = std::min(jt->second + mRedundant, tokens);
 				else mTargets[target][destination] = tokens;
 			}
 			else mTargets[target][destination] = tokens;
@@ -2369,8 +2394,8 @@ void Network::Pusher::run(void)
 					congestion|= !Network::Instance->overlay()->send(data);
 				}
 				
-				if(!tokens) it->second.erase(jt++);
-				else ++jt;
+				/*if(!tokens) it->second.erase(jt++);
+				else*/ ++jt;
 			}
 			
 			if(it->second.empty()) mTargets.erase(it++);
