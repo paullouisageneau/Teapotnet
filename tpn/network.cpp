@@ -417,7 +417,7 @@ void Network::run(void)
 					if(Store::Instance->hasBlock(target))
 					{
 						if(tokens) LogDebug("Network::run", "Called " + target.toString() + " (" + String::number(tokens) + " tokens)");
-						mPusher.push(target, message.source, tokens);
+						pushRaw(message.source, target, tokens);
 					}
 					else {
 						LogDebug("Network::run", "Called (unknown) " + target.toString());
@@ -664,13 +664,18 @@ bool Network::push(const Link &link, const BinaryString &target, unsigned tokens
 		}
 	}
 	
-	LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
+	if(tokens) LogDebug("Network::push", "Pushing " + target.toString() + " on " + String::number(handlers.size()) + " links");
 	
-	tokens = (tokens + (handlers.size()-1))/handlers.size();
 	for(auto h : handlers)
 		h->push(target, tokens);
 	
 	return !handlers.empty();
+}
+
+bool Network::pushRaw(const BinaryString &node, const BinaryString &target, unsigned tokens)
+{
+	mPusher.push(target, node, tokens);	// Warning: order is different
+	return true;
 }
 
 bool Network::incoming(const Link &link, const String &type, Serializer &serializer)
@@ -2246,7 +2251,12 @@ int Network::Handler::send(bool force)
 				if(!tokens) 
 				{
 					availableTargets.erase(target);
-					//mTargets.erase(it);
+					
+					Link link(mLink);
+					Network::Instance->mScheduler.schedule(seconds(60.), [target, link]()
+					{
+						Network::Instance->push(link, target, 0);
+					});
 				}
 			}
 			
@@ -2393,8 +2403,15 @@ void Network::Pusher::run(void)
 					congestion|= !Network::Instance->overlay()->send(data);
 				}
 				
-				/*if(!tokens) it->second.erase(jt++);
-				else*/ ++jt;
+				if(!tokens)
+				{
+					Network::Instance->mScheduler.schedule(seconds(60.), [target, destination]()
+					{
+						Network::Instance->mPusher.push(target, destination, 0);
+					});
+				}
+				
+				++jt;
 			}
 			
 			if(it->second.empty()) mTargets.erase(it++);

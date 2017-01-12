@@ -192,6 +192,7 @@ public:
 	bool send(const Link &link, const String &type, const Serializable &content);
 	bool push(const BinaryString &target, unsigned tokens);
 	bool push(const Link &link, const BinaryString &target, unsigned tokens);
+	bool pushRaw(const BinaryString &node, const BinaryString &target, unsigned tokens);
 	
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
@@ -369,7 +370,8 @@ private:
 	
 	Overlay mOverlay;
 	Tunneler mTunneler;
-
+	Scheduler mScheduler;
+	
 	Map<Link, sptr<Handler> > mHandlers;
 	Map<String, Set<Publisher*> > mPublishers;
 	Map<String, Set<Subscriber*> > mSubscribers;
