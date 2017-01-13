@@ -236,8 +236,9 @@ void Request::http(const String &prefix, Http::Request &request)
 
 bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(!mPath.empty() && prefix + path != mPath)
-		return false;	// ignore subdirectories
+	// Ignore subdirectories
+	if(mListDirectories && !mPath.empty() && prefix + path != mPath)
+		return false;
 	
 	if(fetch(link, prefix, path, target, false))	// no content
 	{

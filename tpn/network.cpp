@@ -248,7 +248,9 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		Set<BinaryString> targets;
 		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
 			for(auto t : targets)
+			{
 				subscriber->incoming(Link::Null, prefix, "/", t);
+			}
 	}
 }
 
@@ -279,9 +281,13 @@ void Network::advertise(String prefix, const String &path, Publisher *publisher)
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
-	LogDebug("Network::publish", "Advertising " + prefix + path);
+	String fullPath(prefix + path);
+	if(fullPath[fullPath.size()-1] == '/')
+		fullPath.resize(fullPath.size()-1);
+	
+	LogDebug("Network::publish", "Advertising " + fullPath);
 
-	matchSubscribers(prefix, publisher->link(), publisher);
+	matchSubscribers(fullPath, publisher->link(), publisher);
 }
 
 void Network::issue(String prefix, const String &path, Publisher *publisher, const Mail &mail)
@@ -291,9 +297,13 @@ void Network::issue(String prefix, const String &path, Publisher *publisher, con
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
 	
+	String fullPath(prefix + path);
+	if(fullPath[fullPath.size()-1] == '/')
+		fullPath.resize(fullPath.size()-1);
+	
 	LogDebug("Network::issue", "Issuing " + mail.digest().toString());
 	
-	matchSubscribers(prefix, publisher->link(), mail);
+	matchSubscribers(fullPath, publisher->link(), mail);
 }
 
 void Network::addRemoteSubscriber(const Link &link, const String &path)
@@ -712,7 +722,10 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 				.insert("path", path)
 				.insert("message", mail)
 				.insert("targets", targets);
-			
+		
+		if(!path.empty() && path[path.size()-1] == '/')
+			path.resize(path.size()-1);
+		
 		BinaryString key = Store::Hash(path);
 		
 		// Message
@@ -745,6 +758,9 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		serializer >> Object()
 				.insert("path", path);
 		
+		if(!path.empty() && path[path.size()-1] == '/')
+		path.resize(path.size()-1);
+				
 		addRemoteSubscriber(link, path);
 	}
 	else if(type == "invite")
@@ -1295,16 +1311,20 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
+	String fullPath(prefix + path);
+	if(fullPath[fullPath.size()-1] == '/')
+		fullPath.resize(fullPath.size()-1);
+	
 	if(link.remote.empty() || link != this->link())
 	{
-		//LogDebug("Network::RemoteSubscriber::incoming", "Publishing " + target.toString() + " for " + path);
+		//LogDebug("Network::RemoteSubscriber::incoming", "Publishing " + target.toString() + " for " + fullPath);
 		
 		Array<BinaryString> targets;
 		targets.append(target);
 		
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", prefix + path)
+				.insert("path", fullPath)
 				.insert("targets", targets));
 		
 		return true;
@@ -1315,11 +1335,15 @@ bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix,
 
 bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)
 {
+	String fullPath(prefix + path);
+	if(fullPath[fullPath.size()-1] == '/')
+		fullPath.resize(fullPath.size()-1);
+	
 	if(link.remote.empty() || link != this->link())
 	{
 		Network::Instance->send(this->link(), "publish",
 			Object()
-				.insert("path", prefix + path)
+				.insert("path", fullPath)
 				.insert("message", mail));
 		
 		return true;
