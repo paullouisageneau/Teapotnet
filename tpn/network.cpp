@@ -1951,7 +1951,7 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 void Network::Handler::timeout(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	send(true);
 }
 
@@ -2148,9 +2148,17 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		const unsigned trigger = 16;	// Congestion trigger
 		
 		double delta;
-		if(mTokens < mThreshold) delta = alpha; 	// Slow start
-		else delta = beta/std::max(mTokens, 1.);	// Additive increase
-		
+		if(mTokens < mThreshold)
+		{
+			// Slow start
+			delta = alpha;
+		}
+		else {
+			// Additive increase
+			delta = beta/std::max(mTokens, 1.);
+			mCongestion = false;
+		}
+
 		mTokens+= delta*received;
 		mAvailableTokens+= (mRedundancy + delta)*received;
 		mAvailableTokens = std::min(mAvailableTokens, mTokens);
@@ -2169,8 +2177,6 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 				mTokens = double(DefaultTokens);
 				mAvailableTokens = mTokens;
 			}
-			
-			mAvailableTokens = std::max(mAvailableTokens, 1.);
 		}
 		else mCongestion = false;
 		
@@ -2256,6 +2262,7 @@ int Network::Handler::send(bool force)
 			{
 				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				// Pick at random
+				// TODO: targets should be ordered
 				int r = Random().uniform(0, int(availableTargets.size()));
 				auto it = availableTargets.begin();
 				while(r--) ++it;
