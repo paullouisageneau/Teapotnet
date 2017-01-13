@@ -357,6 +357,9 @@ bool Indexer::process(String path, Resource &resource)
 	
 	String realPath = this->realPath(path);
 	Time   fileTime = File::Time(realPath);
+
+	// This should be a background process, so yield
+	std::this_thread::yield();
 	
 	// Recursively process if it's a directory 
 	bool isDirectory = false;
@@ -473,7 +476,6 @@ bool Indexer::process(String path, Resource &resource)
 	statement.bind(1, path);
 	statement.execute();
 	
-	std::this_thread::yield();
 	return true;
 }
 
