@@ -2080,7 +2080,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mSink.solve(combination);
 			}
 			else {
-				LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
+				//LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
 				
 				if(Store::Instance->push(target, combination))
 					Network::Instance->unregisterAllCallers(target);
@@ -2290,9 +2290,11 @@ int Network::Handler::send(bool force)
 			}
 			else if(!mTargets.empty())
 			{
-				LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				
-				const BinaryString &target = mTargets.begin()->digest;
+				target = mTargets.begin()->digest;
+				Assert(!target.empty());
+				
 				unsigned &tokens = mTargets.begin()->tokens;
 				unsigned rank = 0;
 				
