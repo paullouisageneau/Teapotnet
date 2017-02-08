@@ -722,7 +722,8 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		serializer >> Object()
 				.insert("target", target);
 		
-		directCall(target, Store::Instance->missing(target));
+		unsigned tokens = Store::Instance->missing(target);
+		if(tokens) directCall(target, tokens);
 	}
 	else if(type == "publish")
 	{
