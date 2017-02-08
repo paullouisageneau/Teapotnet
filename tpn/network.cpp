@@ -2080,16 +2080,10 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mSink.solve(combination);
 			}
 			else {
-				//LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
+				LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
 				
 				if(Store::Instance->push(target, combination))
-				{
 					Network::Instance->unregisterAllCallers(target);
-					
-					/*write("pull", Object()
-						.insert("target", target)
-						.insert("tokens", uint16_t(0)));*/
-				}
 			}
 
 			// We need to lock since we are calling send()
@@ -2296,7 +2290,7 @@ int Network::Handler::send(bool force)
 			}
 			else if(!mTargets.empty())
 			{
-				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
+				LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
 				
 				const BinaryString &target = mTargets.begin()->digest;
 				unsigned &tokens = mTargets.begin()->tokens;
