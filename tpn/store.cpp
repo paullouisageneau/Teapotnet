@@ -118,6 +118,8 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 
 unsigned Store::missing(const BinaryString &digest)
 {
+	if(hasBlock(digest)) return 0;
+	
 	std::unique_lock<std::mutex> lock(mMutex);
 	
 	auto it = mSinks.find(digest);
