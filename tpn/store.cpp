@@ -146,18 +146,18 @@ bool Store::hasBlock(const BinaryString &digest)
 	return false;
 }
 
-void Store::waitBlock(const BinaryString &digest, const BinaryString &hint)
+void Store::waitBlock(const BinaryString &digest)
 {
 	const duration timeout = milliseconds(Config::Get("request_timeout").toDouble())*2;
-	if(!waitBlock(digest, timeout, hint))
+	if(!waitBlock(digest, timeout))
 		throw Timeout();
 }
 
-bool Store::waitBlock(const BinaryString &digest, duration timeout, const BinaryString &hint)
+bool Store::waitBlock(const BinaryString &digest, duration timeout)
 {
 	if(!hasBlock(digest))
 	{
-		Network::Caller caller(digest, hint);		// Block is missing locally, call it
+		Network::Caller caller(digest);		// Block is missing locally, call it
 		
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
 		

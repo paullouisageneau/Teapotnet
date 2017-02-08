@@ -113,9 +113,8 @@ Block::Block(const Block &block) :
 	*this = block;
 }
  
-Block::Block(const BinaryString &digest, const BinaryString &hint) :
+Block::Block(const BinaryString &digest) :
 	mDigest(digest),
-	mHint(hint),
 	mCipher(NULL)
 {
 	mFile = Store::Instance->getBlock(digest, mSize);
@@ -253,14 +252,14 @@ void Block::waitContent(void) const
 {
 	if(!mFile)
 	{
-		Store::Instance->waitBlock(mDigest, mHint);
+		Store::Instance->waitBlock(mDigest);
 		mFile = Store::Instance->getBlock(mDigest, mSize);
 		Assert(mFile);
 		mOffset = mFile->tellRead();
 	}
 	else if(mFile->openMode() == File::Write)
 	{
-		Store::Instance->waitBlock(mDigest, mHint);
+		Store::Instance->waitBlock(mDigest);
 		File *source = Store::Instance->getBlock(mDigest, mSize);
 		try
 		{
@@ -285,7 +284,7 @@ void Block::waitContent(void) const
 
 bool Block::waitContent(duration timeout) const
 {
-	if(!Store::Instance->waitBlock(mDigest, timeout, mHint))
+	if(!Store::Instance->waitBlock(mDigest, timeout))
 		return false;
 	
 	waitContent();

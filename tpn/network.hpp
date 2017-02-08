@@ -125,14 +125,13 @@ public:
 	{
 	public:
 		Caller(void);
-		Caller(const BinaryString &target, const BinaryString &hint = "");
+		Caller(const BinaryString &target);
 		~Caller(void);
 		
-		void startCalling(const BinaryString &target, const BinaryString &hint = "");
+		void startCalling(const BinaryString &target);
 		void stopCalling(void);
 		
 		BinaryString target(void) const;
-		BinaryString hint(void) const;
 		duration elapsed(void) const;
 
 	private:
@@ -314,14 +313,15 @@ private:
 
 	private:
 		bool readRecord(String &type, String &record);
-		void writeRecord(const String &type, const String &record);
+		void writeRecord(const String &type, const Serializable &content, bool dontsend = false);
+		void writeRecord(const String &type, const String &record, bool dontsend = false);
 		
 		bool readString(String &str);
 		void writeString(const String &str);
 		
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
-		void flush(void);
+		void flush(bool dontsend = false);
 		
 		bool recvCombination(BinaryString &target, Fountain::Combination &combination);
 		void sendCombination(const BinaryString &target, const Fountain::Combination &combination);
@@ -336,7 +336,14 @@ private:
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		BinaryString		mSourceBuffer;
-		Map<BinaryString, unsigned> mTargets;
+		
+		struct Target
+		{
+			BinaryString digest;
+			unsigned tokens;
+		};
+		
+		List<Target> mTargets;
 
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator, mLocalSideSequence, mRedundancy;
 		unsigned mLocalSideSeen, mLocalSideCount, mSideSeen, mSideCount;
@@ -356,7 +363,8 @@ private:
 	bool outgoing(const Link &link, const String &type, const Serializable &content);
 	bool incoming(const Link &link, const String &type, Serializer &serializer);
 	
-	bool call(const BinaryString &target, Set<BinaryString> hints, bool fallback = false);
+	bool directCall(const BinaryString &target, unsigned tokens);
+	bool fallbackCall(const BinaryString &target, unsigned tokens);
 	
 	bool matchPublishers(const String &path, const Link &link, Subscriber *subscriber = NULL);
 	bool matchSubscribers(const String &path, const Link &link, Publisher *publisher);
@@ -401,7 +409,13 @@ private:
 		void run(void);
 		
 	private:
-		Map<BinaryString, Map<Identifier, unsigned> > mTargets;
+		struct Target
+		{
+			BinaryString digest;
+			unsigned tokens;
+		};
+		
+		Map<BinaryString, List<Target> > mTargets;
 		unsigned mRedundant;
 		
 		mutable std::mutex mMutex;

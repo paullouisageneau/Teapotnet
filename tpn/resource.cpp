@@ -435,7 +435,7 @@ sptr<Block> Resource::Reader::createBlock(int index)
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
 	
 	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
-	sptr<Block> block = std::make_shared<Block>(mResource->blockDigest(index), mResource->digest());
+	sptr<Block> block = std::make_shared<Block>(mResource->blockDigest(index));
 	if(mResource->mLocalOnly && !block->isLocallyAvailable())
 		throw Exception("Block is not available locally");
 	

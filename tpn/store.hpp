@@ -48,8 +48,8 @@ public:
 	unsigned missing(const BinaryString &digest);
 	
 	bool hasBlock(const BinaryString &digest);
-	void waitBlock(const BinaryString &digest, const BinaryString &hint = "");
-	bool waitBlock(const BinaryString &digest, duration timeout, const BinaryString &hint = "");
+	void waitBlock(const BinaryString &digest);
+	bool waitBlock(const BinaryString &digest, duration timeout);
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
