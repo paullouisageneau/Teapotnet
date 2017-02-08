@@ -2399,13 +2399,18 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 		if(!tokens) 
 		{
 			auto it = mTargets.find(destination);
-			it->second.remove_if([target](const Target &t)
+			if(it != mTargets.end())
 			{
-				return t.digest == target;
-			});
-			
-			if(it->second.empty())
-				mTargets.erase(it);
+				List<Target> &list = it->second;
+				
+				list.remove_if([target](const Target &t)
+				{
+					return t.digest == target;
+				});
+				
+				if(list.empty())
+					mTargets.erase(it);
+			}
 		}
 		else {
 			if(tokens < mRedundant) tokens*=2;
