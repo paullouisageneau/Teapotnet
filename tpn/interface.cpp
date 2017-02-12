@@ -303,12 +303,17 @@ void Interface::http(const String &prefix, Http::Request &request)
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
 				int64_t rangeSize = rangeEnd - rangeBegin + 1;
 				
+				if(hasRange && (rangeBegin >= resource.size() || rangeEnd >= resource.size()))
+					throw 406;	// Not Acceptable
+				
 				// Forge HTTP response header
-				Http::Response response(request, 200);
-				response.headers["Content-Length"] << rangeSize;
+				Http::Response response(request, (hasRange ? 206 : 200));
+				
 				response.headers["Content-Name"] = resource.name();
-				//if(!hasRange) response.headers["Last-Modified"] = resource.time().toHttpDate();
 				response.headers["Accept-Ranges"] = "bytes";
+				
+				response.headers["Content-Length"] << rangeSize;
+				if(hasRange) response.headers["Content-Range"] << "bytes " << rangeBegin << "-" << rangeEnd << "/" << resource.size();
 				
 				String ext = resource.name().afterLast('.');
 				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
@@ -322,23 +327,25 @@ void Interface::http(const String &prefix, Http::Request &request)
 				}
 				
 				response.send();
-				if(request.method == "HEAD") return;
 				
-				try {
-					// Launch transfer
-					Resource::Reader reader(&resource);
-					if(hasRange) reader.seekRead(rangeBegin);
-					int64_t size = reader.readBinary(*response.stream, rangeSize);	// let's go !
-					if(size != rangeSize)
-						throw Exception("range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
-				}
-				catch(const NetException &e)
+				if(request.method != "HEAD")
 				{
-					return;	// nothing to do
-				}
-				catch(const Exception &e)
-				{
-					LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+					try {
+						// Launch transfer
+						Resource::Reader reader(&resource);
+						if(hasRange) reader.seekRead(rangeBegin);
+						int64_t size = reader.readBinary(*response.stream, rangeSize);	// let's go !
+						if(size != rangeSize)
+							throw Exception("Range size is " + String::number(rangeSize) + ", but sent size is " + String::number(size));
+					}
+					catch(const NetException &e)
+					{
+						return;	// nothing to do
+					}
+					catch(const Exception &e)
+					{
+						LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
+					}
 				}
 				
 				return;

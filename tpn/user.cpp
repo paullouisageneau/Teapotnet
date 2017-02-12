@@ -656,7 +656,7 @@ void User::http(const String &prefix, Http::Request &request)
 
 			page.open("div", "rightcolumn");
 			
-			page.raw("<iframe src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
+			page.raw("<iframe name=\"main\" src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
 			
 			page.close("div");	// rightcolumn
 

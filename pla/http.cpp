@@ -722,7 +722,7 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 				}
 				catch(const Exception &e)
 				{
-					LogWarn("Http::RespondWithFile", e.what()); 
+					LogWarn("Http::respondWithFile", e.what()); 
 				}
 			}
 		  
@@ -736,12 +736,13 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 		}
 	}
 	
-	int64_t rangeBegin;
-	int64_t rangeEnd;
+	int64_t rangeBegin = 0;
+	int64_t rangeEnd = 0;
 	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
-	if(hasRange) code = 206;
+	if(rangeBegin >= file.size() || rangeEnd >= file.size())
+		code = 406;
 	
-	if(code != 200 && code != 206)
+	if(code != 200)
 	{
 		Response response(request, code);
 		response.headers["Content-Type"] = "text/html; charset=UTF-8";
@@ -753,16 +754,20 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 		return;
 	}
 	
+	if(hasRange) code = 206;
 	Response response(request, code);
 	
 	String name = fileName.afterLast(Directory::Separator);
-	if(name != request.url.afterLast('/')) 
+	if(name != request.url.afterLast('/'))
+	{
+		response.headers["Content-Name"] = name;
 		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
+	}
 	
 	if(hasRange)
 	{
-		 response.headers["Content-Range"] << rangeBegin << '-' << rangeEnd << '/' << file.size();
-		 response.headers["Content-Length"]  << rangeEnd - rangeBegin + 1;
+		response.headers["Content-Length"] << rangeEnd - rangeBegin + 1;
+		response.headers["Content-Range"] << rangeBegin << "-" << rangeEnd << "/" << file.size();
 	}
 	else {
 		response.headers["Content-Length"] << file.size();
