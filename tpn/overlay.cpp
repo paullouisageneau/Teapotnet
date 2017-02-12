@@ -127,6 +127,9 @@ void Overlay::join(void)
 
 void Overlay::start(duration delay)
 {
+	for(const auto &p : mKnownPeers)
+		connect(p.first, p.second, true);
+	
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
@@ -209,17 +212,48 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 		
 		if(!filteredAddrs.empty())
 		{
-			auto connectTask = [filteredAddrs, remote](List<sptr<Backend> > backends)
+			auto connectTask = [this, filteredAddrs, remote](List<sptr<Backend> > backends)
 			{
 				for(auto b : backends)
 				{
-					try {
-						if(b->connect(filteredAddrs, remote))
-							return true;
-					}
-					catch(const std::exception &e)
+					for(auto it = filteredAddrs.rbegin(); it != filteredAddrs.rend(); ++it)
 					{
-						LogWarn("Overlay::connect", e.what());
+						const Address &addr = *it;
+						
+						try {
+							if(b->connect(addr, remote))
+							{
+								bool changed = false;
+								{
+									std::unique_lock<std::mutex> lock(mMutex);
+									if(!mKnownPeers.contains(addr))
+									{
+										mKnownPeers.insert(addr, remote);
+										changed = true;
+									}
+								}
+								
+								if(changed) save();
+								return true;
+							}
+							else {
+								bool changed = false;
+								{
+									std::unique_lock<std::mutex> lock(mMutex);
+									if(mKnownPeers.contains(addr) && Random().uniform(0, 10) == 0)
+									{
+										mKnownPeers.erase(addr);
+										changed = true;
+									}
+								}
+								
+								if(changed) save();
+							}
+						}
+						catch(const std::exception &e)
+						{
+							LogWarn("Overlay::connect", e.what());
+						}
 					}
 				}
 				
@@ -243,6 +277,13 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 	}
 	
 	return false;
+}
+
+bool Overlay::connect(const Address &addr, const BinaryString &remote, bool async)
+{
+	Set<Address> addrs;
+	addrs.insert(addr);
+	return connect(addrs, remote, async);
 }
 
 bool Overlay::isConnected(const BinaryString &remote) const
@@ -776,10 +817,11 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 void Overlay::serialize(Serializer &s) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-
+	
 	s << Object()
 		.insert("publickey", mPublicKey)
-		.insert("privatekey", mPrivateKey);
+		.insert("privatekey", mPrivateKey)
+		.insert("peers", mKnownPeers);
 }
 
 bool Overlay::deserialize(Serializer &s)
@@ -790,14 +832,18 @@ bool Overlay::deserialize(Serializer &s)
 	mPrivateKey.clear();
 	mLocalNode.clear();
 	
+	Map<Address, BinaryString> peers;
+	
 	if(!(s >> Object()
 		.insert("publickey", mPublicKey)
-		.insert("privatekey", mPrivateKey)))
+		.insert("privatekey", mPrivateKey)
+		.insert("peers", peers)))
 		return false;
 	
 	// TODO: Sanitize
 	
 	mLocalNode = mPublicKey.digest();
+	mKnownPeers.insertAll(peers);
 	return true;
 }
 
@@ -805,7 +851,7 @@ void Overlay::run(void)
 {
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
-
+		
 		Map<BinaryString, Set<Address> > result;
 		if(track(Config::Get("tracker"), result))
 			if(connectionsCount() < minConnectionsCount)
@@ -979,85 +1025,75 @@ Overlay::StreamBackend::~StreamBackend(void)
 	
 }
 
-bool Overlay::StreamBackend::connect(const Set<Address> &addrs, const BinaryString &remote)
-{
-	Set<Address> localAddrs;
-	getAddresses(localAddrs);
-	
-	for(auto it = addrs.rbegin(); it != addrs.rend(); ++it)
-	{
-		if(localAddrs.contains(*it))
-			continue;
-		
-		try {
-			if(connect(*it, remote))
-				return true;
-		}
-		catch(const Timeout &e)
-		{
-			//LogDebug("Overlay::StreamBackend::connect", e.what());
-		}
-		catch(const NetException &e)
-		{
-			//LogDebug("Overlay::StreamBackend::connect", e.what());
-		}
-		catch(const std::exception &e)
-		{
-			LogDebug("Overlay::StreamBackend::connect", e.what());
-		}
-	}
-	
-	return false;
-}
-
 bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const duration connectTimeout = milliseconds(Config::Get("connect_timeout").toDouble());
 	
-	if(Config::Get("force_http_tunnel").toBool())
-		return connectHttp(addr, remote);
-	
-	LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
-	
-	Socket *sock = NULL;
 	try {
-		sock = new Socket;
-		sock->setTimeout(timeout);
-		sock->setConnectTimeout(connectTimeout);
-		sock->connect(addr);
-	}
-	catch(...)
-	{
-		delete sock;
+		Set<Address> localAddrs;
+		getAddresses(localAddrs);
+		if(localAddrs.contains(addr))
+			return false;
 		
-		// Try HTTP tunnel if a proxy is available
-		String url = "http://" + addr.toString() + "/";
-		if(Proxy::HasProxyForUrl(url))
+		if(Config::Get("force_http_tunnel").toBool())
 			return connectHttp(addr, remote);
 		
-		// else throw
-		throw;
+		LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
+		
+		Socket *sock = NULL;
+		try {
+			sock = new Socket;
+			sock->setTimeout(timeout);
+			sock->setConnectTimeout(connectTimeout);
+			sock->connect(addr);
+		}
+		catch(...)
+		{
+			delete sock;
+			
+			// Try HTTP tunnel if a proxy is available
+			String url = "http://" + addr.toString() + "/";
+			if(Proxy::HasProxyForUrl(url))
+				return connectHttp(addr, remote);
+			
+			// else throw
+			throw;
+		}
+		
+		SecureTransport *transport = NULL;
+		try {
+			transport = new SecureTransportClient(sock, NULL, "");
+		}
+		catch(...)
+		{
+			delete sock;
+			throw;
+		}
+		
+		try {
+			return handshake(transport, addr, remote);
+		}
+		catch(...)
+		{
+			delete transport;
+			return connectHttp(addr, remote);	// Try HTTP tunnel
+		}
+	}
+	catch(const Timeout &e)
+	{
+		//LogDebug("Overlay::StreamBackend::connect", e.what());
+	}
+	catch(const NetException &e)
+	{
+		//LogDebug("Overlay::StreamBackend::connect", e.what());
+	}
+	catch(const std::exception &e)
+	{
+		LogDebug("Overlay::StreamBackend::connect", e.what());
 	}
 	
-	SecureTransport *transport = NULL;
-	try {
-		transport = new SecureTransportClient(sock, NULL, "");
-	}
-	catch(...)
-	{
-		delete sock;
-		throw;
-	}
-	
-	try {
-		return handshake(transport, addr, remote);
-	}
-	catch(...)
-	{
-		delete transport;
-		return connectHttp(addr, remote);	// Try HTTP tunnel
-	}
+	return false;
 }
 
 bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString &remote)
@@ -1160,67 +1196,57 @@ Overlay::DatagramBackend::~DatagramBackend(void)
 	
 }
 
-bool Overlay::DatagramBackend::connect(const Set<Address> &addrs, const BinaryString &remote)
-{
-	if(Config::Get("force_http_tunnel").toBool())
-		return false;
-	
-	Set<Address> localAddrs;
-	getAddresses(localAddrs);
-	
-	for(auto it = addrs.rbegin(); it != addrs.rend(); ++it)
-	{
-		if(localAddrs.contains(*it))
-			continue;
-		
-		try {
-			if(connect(*it, remote))
-				return true;
-		}
-		catch(const Timeout &e)
-		{
-			//LogDebug("Overlay::DatagramBackend::connect", e.what());
-		}
-		catch(const NetException &e)
-		{
-			//LogDebug("Overlay::DatagramBackend::connect", e.what());
-		}
-		catch(const std::exception &e)
-		{
-			LogDebug("Overlay::DatagramBackend::connect", e.what());
-		}
-	}
-	
-	return false;
-}
-
 bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
 	
-	LogDebug("Overlay::DatagramBackend::connect", "Trying address " + addr.toString() + " (UDP)");
-	
-	DatagramStream *stream = NULL;
-	SecureTransport *transport = NULL;
 	try {
-		stream = new DatagramStream(&mSock, addr);
-		transport = new SecureTransportClient(stream, NULL);
+		Set<Address> localAddrs;
+		getAddresses(localAddrs);
+		if(localAddrs.contains(addr))
+			return false;
+		
+		if(Config::Get("force_http_tunnel").toBool())
+			return false;
+		
+		LogDebug("Overlay::DatagramBackend::connect", "Trying address " + addr.toString() + " (UDP)");
+		
+		DatagramStream *stream = NULL;
+		SecureTransport *transport = NULL;
+		try {
+			stream = new DatagramStream(&mSock, addr);
+			transport = new SecureTransportClient(stream, NULL);
+		}
+		catch(...)
+		{
+			delete stream;
+			throw;
+		}
+		
+		try {
+			transport->setDatagramMtu(mtu);
+			return handshake(transport, addr, remote);
+		}
+		catch(...)
+		{
+			delete transport;
+			throw;
+		}
 	}
-	catch(...)
+	catch(const Timeout &e)
 	{
-		delete stream;
-		throw;
+		//LogDebug("Overlay::DatagramBackend::connect", e.what());
+	}
+	catch(const NetException &e)
+	{
+		//LogDebug("Overlay::DatagramBackend::connect", e.what());
+	}
+	catch(const std::exception &e)
+	{
+		LogDebug("Overlay::DatagramBackend::connect", e.what());
 	}
 	
-	try {
-		transport->setDatagramMtu(mtu);
-		return handshake(transport, addr, remote);
-	}
-	catch(...)
-	{
-		delete transport;
-		throw;
-	}
+	return false;
 }
 
 SecureTransport *Overlay::DatagramBackend::listen(Address *addr)

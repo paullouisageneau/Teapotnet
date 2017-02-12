@@ -111,6 +111,7 @@ public:
 	
 	// Connections
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
+	bool connect(const Address &addr, const BinaryString &remote = "", bool async = false);
 	bool isConnected(const BinaryString &remote) const;
 	int connectionsCount(void) const;
 	
@@ -144,7 +145,7 @@ private:
 		Backend(Overlay *overlay);
 		virtual ~Backend(void);
 		
-		virtual bool connect(const Set<Address> &addrs, const BinaryString &remote = "") = 0;
+		virtual bool connect(const Address &addrs, const BinaryString &remote = "") = 0;
 		virtual SecureTransport *listen(Address *addr = NULL) = 0;
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
 		
@@ -162,7 +163,6 @@ private:
 		StreamBackend(Overlay *overlay, int port);
 		~StreamBackend(void);
 		
-		bool connect(const Set<Address> &addrs, const BinaryString &remote);
 		bool connect(const Address &addr, const BinaryString &remote);
 		bool connectHttp(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(Address *addr = NULL);
@@ -179,7 +179,6 @@ private:
 		DatagramBackend(Overlay *overlay, int port);
 		~DatagramBackend(void);
 		
-		bool connect(const Set<Address> &addrs, const BinaryString &remote);
 		bool connect(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(Address *addr = NULL);
 		
@@ -264,6 +263,7 @@ private:
 	List<sptr<Backend> > mBackends;
 	Map<BinaryString, sptr<Handler> > mHandlers;
 	Set<Address> mRemoteAddresses, mLocalAddresses;
+	Map<Address, BinaryString> mKnownPeers;
 	
 	Queue<Message> mIncoming;
 	Set<BinaryString> mRetrievePending;
