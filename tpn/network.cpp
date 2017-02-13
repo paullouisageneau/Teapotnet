@@ -2003,7 +2003,7 @@ bool Network::Handler::readRecord(String &type, String &record)
 	}
 	catch(std::exception &e)
 	{
-		//LogDebug("Network::Handler::read", e.what());
+		LogDebug("Network::Handler::read", e.what());
 		mClosed = true;
 		throw Exception("Connection lost");
 	}
