@@ -1904,7 +1904,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mSideCount(0),
 	mCongestion(false),
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toDouble())),
-	mIdleTimeout(milliseconds(Config::Get("idle_timeout").toDouble())*0.1),	// so the tunnel should not time out
+	mKeepaliveTimeout(milliseconds(Config::Get("keepalive_timeout").toDouble())),	// so the tunnel should not time out
 	mClosed(false)
 {
 	// Set timeout alarm
@@ -2335,7 +2335,7 @@ int Network::Handler::send(bool force)
 	}
 	
 	// Reset timeout
-	duration timeout = mIdleTimeout;
+	duration timeout = mKeepaliveTimeout;
 	if(mSource.rank() >= 1 || !mTargets.empty()) timeout = std::min(timeout, mTimeout);
 	mTimeoutAlarm.schedule(timeout); 
 	

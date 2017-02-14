@@ -348,7 +348,7 @@ private:
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator, mLocalSideSequence, mRedundancy;
 		unsigned mLocalSideSeen, mLocalSideCount, mSideSeen, mSideCount;
 		bool mCongestion;
-		duration mTimeout, mIdleTimeout;
+		duration mTimeout, mKeepaliveTimeout;
 		bool mClosed;
 		
 		std::thread mThread;

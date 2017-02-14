@@ -419,7 +419,7 @@ int run(String &commandLine, StringMap &args)
 	Config::Default("http_proxy", "auto");
 	Config::Default("http_timeout", "10000");
 	Config::Default("connect_timeout", "10000");
-	Config::Default("idle_timeout", "60000");
+	Config::Default("idle_timeout", "30000");
 	Config::Default("request_timeout", "30000");
 	Config::Default("keepalive_timeout", "10000");
 	Config::Default("retransmit_timeout", "200");

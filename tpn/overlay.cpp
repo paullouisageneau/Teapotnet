@@ -523,7 +523,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Ping
 	case Message::Ping:
 		{
-			LogDebug("Overlay::incoming", "Ping from " + message.source.toString());
+			//LogDebug("Overlay::incoming", "Ping from " + message.source.toString());
 			send(Message(Message::Pong, message.content, message.source));
 			break;
 		}
@@ -531,7 +531,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Pong
 	case Message::Pong:
 		{
-			LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
+			//LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
 			break;
 		}
 		
@@ -683,7 +683,6 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 	
 	sptr<Handler> currentHandler;
 	Set<Address>  currentAddrs;
-
 	bool isFirst = false;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
@@ -710,6 +709,7 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 	if(isFirst)
 	{
 		Network::Instance->sendCalls();
+		Network::Instance->sendBeacons();
 		Store::Instance->start();
 	}
 }
@@ -717,7 +717,6 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
 	sptr<Handler> currentHandler; // prevent handler deletion on erase
-
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		
@@ -725,10 +724,10 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 			return;
 		
 		mHandlers.erase(node);
-
+		
 		for(auto &a : addrs)
 			mRemoteAddresses.erase(a);
-
+		
 		// If it was the last handler, try to reconnect now
 		if(mHandlers.empty())
 			mRunAlarm.schedule(Alarm::clock::now());
@@ -1198,6 +1197,7 @@ Overlay::DatagramBackend::~DatagramBackend(void)
 
 bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &remote)
 {
+	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
 	
 	try {
@@ -1215,6 +1215,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 		SecureTransport *transport = NULL;
 		try {
 			stream = new DatagramStream(&mSock, addr);
+			stream->setTimeout(timeout);
 			transport = new SecureTransportClient(stream, NULL);
 		}
 		catch(...)
