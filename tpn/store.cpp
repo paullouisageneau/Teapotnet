@@ -281,6 +281,14 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 	statement.execute();
 }
 
+void Store::eraseValue(const BinaryString &key, const BinaryString &value)
+{
+	Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND value = ?2");
+	statement.bind(1, key);
+	statement.bind(2, value);
+	statement.execute();
+}
+
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
 	// Note: values is not cleared !

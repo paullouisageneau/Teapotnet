@@ -806,8 +806,8 @@ bool Network::directCall(const BinaryString &target, unsigned tokens)
 	Store::Instance->getBlockHints(target, hints);
 	hints.insert(target);
 	
-	Set<Link> links;
 	// Retrieve candidate links for pulling
+	Set<Link> links;
 	for(const BinaryString &hint : hints)
 	{
 		Set<BinaryString> nodes;

@@ -65,6 +65,7 @@ public:
 	};
 	
 	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary);
+	void eraseValue(const BinaryString &key, const BinaryString &value);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;
