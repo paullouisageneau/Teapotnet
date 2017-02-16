@@ -1830,7 +1830,8 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 	Assert(mOffset <= message.content.size());
 	size = std::min(size, size_t(message.content.size() - mOffset));
 	std::copy(message.content.data() + mOffset, message.content.data() + mOffset + size, buffer);
-        return size;
+        mOffset+= size;
+	return size;
 }
 
 void Network::Tunneler::Tunnel::writeData(const char *data, size_t size)
