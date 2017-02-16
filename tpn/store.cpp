@@ -359,7 +359,7 @@ void Store::run(void)
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
 	
 	// TODO: delay and batch values
-	const duration delay = seconds(1.);
+	const duration delay = seconds(10.);
 	const int batch = 10;
 	
 	LogDebug("Store::run", "Started");
@@ -367,7 +367,7 @@ void Store::run(void)
 	try {
 		BinaryString node = Network::Instance->overlay()->localNode();
 		auto secs = std::chrono::duration_cast<std::chrono::seconds>((std::chrono::system_clock::now() - maxAge).time_since_epoch()).count();
-		
+	
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
@@ -377,17 +377,17 @@ void Store::run(void)
 				LogDebug("Store::run", "Interrupted");
 				return;
 			}
-			
+
 			Database::Statement statement;
-			
-			// Delete old non-permanent values
+
+			// Delete some old non-permanent values
 			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 LIMIT ?4)");
 			statement.bind(1, static_cast<int>(Temporary));
 			statement.bind(2, static_cast<int>(Distributed));
 			statement.bind(3, secs);
 			statement.bind(4, batch);
-			statement.execute();
-			
+			statement.execute();	
+	
 			// Select DHT values
 			statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY id DESC LIMIT ?1 OFFSET ?2");
 			statement.bind(1, batch);
@@ -398,14 +398,12 @@ void Store::run(void)
 			statement.finalize();
 			
 			if(result.empty()) break;
-			else {
-				for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
-					Network::Instance->storeValue(*it, node);
-				
-				std::this_thread::sleep_for(delay);
-			}
-			
 			offset+= result.size();
+
+			for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
+				Network::Instance->storeValue(*it, node);
+			
+			std::this_thread::sleep_for(delay);
 		}
 		
 		LogDebug("Store::run", "Finished, " + String::number(offset) + " values published");
