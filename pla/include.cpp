@@ -39,7 +39,7 @@ int	LogLevel = LEVEL_INFO;
 std::string GetFormattedLogTime(void)
 {
 	Time time(Time::Now());
-	return std::string(time.toIsoDate() + " " + time.toIsoTime());
+	return std::string(time.toIsoTime());
 }
 
 }

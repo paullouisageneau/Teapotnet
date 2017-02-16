@@ -161,7 +161,7 @@ String Time::toIsoTime(void) const
 {
 	std::unique_lock<std::mutex> lock(TimeMutex);
 	char buffer[256];
-	std::strftime(buffer, 256, "%H:%M:%S %Y-%m-%d", std::localtime(&mTime));	// not thread safe
+	std::strftime(buffer, 256, "%Y-%m-%d %H:%M:%S", std::localtime(&mTime));	// not thread safe
 	return String(buffer);
 }
 
