@@ -1818,16 +1818,19 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	if(mClosed) return 0;
-	mCondition.wait_for(lock, mTimeout, [this]() {
-		return mClosed || !mQueue.empty();
-	});
+	if(!mClosed && mQueue.empty())
+	{
+		mCondition.wait_for(lock, mTimeout, [this]() {
+			return mClosed || !mQueue.empty();
+		});
+	}
 	
 	if(mClosed) return 0;
 	if(mQueue.empty()) throw Timeout();
 	
 	const Overlay::Message &message = mQueue.front();
 	Assert(mOffset <= message.content.size());
+
 	size = std::min(size, size_t(message.content.size() - mOffset));
 	std::copy(message.content.data() + mOffset, message.content.data() + mOffset + size, buffer);
         mOffset+= size;
@@ -1844,11 +1847,13 @@ bool Network::Tunneler::Tunnel::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	
-	if(mClosed) return true;
-	mCondition.wait_for(lock, timeout, [this]() {
-		return mClosed || !mQueue.empty();
-	});
-	
+	if(!mClosed && mQueue.empty())
+	{
+		mCondition.wait_for(lock, timeout, [this]() {
+			return mClosed || !mQueue.empty();
+		});
+	}
+
 	return (mClosed || !mQueue.empty());
 }
 
@@ -1862,9 +1867,10 @@ bool Network::Tunneler::Tunnel::nextRead(void)
 
 bool Network::Tunneler::Tunnel::nextWrite(void)
 {
-	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, mBuffer, mNode));
-	
 	std::unique_lock<std::mutex> lock(mMutex);
+
+	Network::Instance->overlay()->send(Overlay::Message(Overlay::Message::Tunnel, mBuffer, mNode));	
+
 	mBuffer.clear();
 	mBuffer.writeBinary(mId);
 	return true;
