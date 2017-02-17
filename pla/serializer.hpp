@@ -129,7 +129,7 @@ private:
 template<typename T>
 Serializer &Serializer::operator>> (T& value)
 {
-	mReadFailed|= !read(value);
+	mReadFailed = !read(value);
 	return *this;
 }
 
