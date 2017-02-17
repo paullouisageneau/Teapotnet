@@ -533,7 +533,7 @@ void Network::sendBeacons(void)
 	for(auto &id : remoteIds)
 		mOverlay.retrieve(id);
 	
-	//LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
+	LogDebug("Network::run", "Identifiers: stored " + String::number(localIds.size()) + ", queried " + String::number(remoteIds.size()));
 	
 	{
 		std::unique_lock<std::mutex> lock(mCallersMutex);

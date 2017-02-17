@@ -453,7 +453,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
 			
-			route(message);
+			route(message, from);
 			
 			Set<BinaryString> values;
 			Store::Instance->retrieveValue(message.destination, values);
@@ -505,7 +505,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			
 			// Value messages differ from Store messages because key is in the source field
 			store(message.source, message.content);
-			route(message);
+			route(message, from);
 			
 			if(mRetrievePending.contains(message.content))
 			{
