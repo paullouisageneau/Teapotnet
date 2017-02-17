@@ -224,7 +224,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 							{
 								std::unique_lock<std::mutex> lock(mMutex);
 								auto it = mKnownPeers.find(addr);
-								if(!remote.empty() && (it != mKnownPeers.end() || it->second != remote))
+								if(!remote.empty() && (it == mKnownPeers.end() || it->second != remote))
 								{
 									mKnownPeers.insert(addr, remote);
 									changed = true;
