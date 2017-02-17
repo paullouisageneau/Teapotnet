@@ -61,7 +61,7 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 			if(request.cookies.get("session", cookie))
 				cookie.extract(session);	
 
-			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::number(session)+")");
+			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::hexa(session)+")");
 
 			Server *server = NULL;
 			bool isNew = false;
@@ -95,7 +95,7 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 			if(!server)
 			{
 				// Unknown or closed session
-				LogDebug("HttpTunnel::Incoming", "Unknown or closed session: " + String::number(session));
+				LogDebug("HttpTunnel::Incoming", "Unknown or closed session: " + String::hexa(session));
 				throw 400;
 			}
 			
@@ -206,7 +206,7 @@ HttpTunnel::Client::Client(const Address &addr, duration timeout) :
 	readData(NULL, 0); 	// Connect mDownSock
 	
 	Assert(mSession);	// mSession should be set
-	LogDebug("HttpTunnel::Client", "Starting HTTP tunnel client session "+String::number(mSession));
+	LogDebug("HttpTunnel::Client", "Starting HTTP tunnel client session: "+String::hexa(mSession));
 	
 	// Set timeout for the following connections
 	mConnTimeout = ConnTimeout;
@@ -221,7 +221,7 @@ void HttpTunnel::Client::close(void)
 {
 	std::unique_lock<std::mutex>(mMutex);
 	
-	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session "+String::number(mSession));
+	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session: "+String::hexa(mSession));
 	
 	mFlusher.cancel();
 	
@@ -538,7 +538,7 @@ HttpTunnel::Server::Server(uint32_t session) :
 	mFlusher([this]() { this->flush(); })
 {
 	Assert(mSession);
-	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session "+String::number(mSession));
+	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session: "+String::hexa(mSession));
 }
 
 HttpTunnel::Server::~Server(void)
@@ -548,8 +548,7 @@ HttpTunnel::Server::~Server(void)
 
 void HttpTunnel::Server::close(void)
 {
-
-	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session "+String::number(mSession));
+	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session: "+String::hexa(mSession));
 	
 	{
 		std::unique_lock<std::mutex>(mMutex);
