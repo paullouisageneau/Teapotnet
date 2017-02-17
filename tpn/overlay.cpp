@@ -207,64 +207,63 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 				filteredAddrs.insert(a);
 		}
 		
-		if(!filteredAddrs.empty())
+		if(filteredAddrs.empty()) return false;
+		
+		if(!remote.empty()) LogDebug("Overlay::connect", "Trying node " + remote.toString());
+		
+		auto connectTask = [this, filteredAddrs, remote](List<sptr<Backend> > backends)
 		{
-			auto connectTask = [this, filteredAddrs, remote](List<sptr<Backend> > backends)
+			for(auto b : backends)
 			{
-				for(auto b : backends)
+				for(const auto &addr : filteredAddrs)
 				{
-					for(auto it = filteredAddrs.rbegin(); it != filteredAddrs.rend(); ++it)
-					{
-						const Address &addr = *it;
-						
-						try {
-							if(b->connect(addr, remote))
-							{
-								bool changed = false;
-								{
-									std::unique_lock<std::mutex> lock(mMutex);
-									if(!mKnownPeers.contains(addr))
-									{
-										mKnownPeers.insert(addr, remote);
-										changed = true;
-									}
-								}
-								
-								if(changed) save();
-								return true;
-							}
-							else {
-								bool changed = false;
-								{
-									std::unique_lock<std::mutex> lock(mMutex);
-									if(mKnownPeers.contains(addr) && Random().uniform(0, 100) == 0)
-									{
-										mKnownPeers.erase(addr);
-										changed = true;
-									}
-								}
-								
-								if(changed) save();
-							}
-						}
-						catch(const std::exception &e)
+					try {
+						if(b->connect(addr, remote))
 						{
-							LogWarn("Overlay::connect", e.what());
+							bool changed = false;
+							{
+								std::unique_lock<std::mutex> lock(mMutex);
+								if(!mKnownPeers.contains(addr))
+								{
+									mKnownPeers.insert(addr, remote);
+									changed = true;
+								}
+							}
+							
+							if(changed) save();
+							return true;
+						}
+						else {
+							bool changed = false;
+							{
+								std::unique_lock<std::mutex> lock(mMutex);
+								if(mKnownPeers.contains(addr) && Random().uniform(0, 100) == 0)
+								{
+									mKnownPeers.erase(addr);
+									changed = true;
+								}
+							}
+							
+							if(changed) save();
 						}
 					}
+					catch(const std::exception &e)
+					{
+						LogWarn("Overlay::connect", e.what());
+					}
 				}
-				
-				return false;
-			};
+			}
 			
-			if(async)
-			{
-				mPool.enqueue(connectTask, mBackends);
-				return true;
-			}
-			else {
-				return connectTask(mBackends);
-			}
+			return false;
+		};
+		
+		if(async)
+		{
+			mPool.enqueue(connectTask, mBackends);
+			return true;
+		}
+		else {
+			return connectTask(mBackends);
 		}
 	}
 	catch(const std::exception &e)
@@ -863,31 +862,32 @@ void Overlay::run(void)
 		}
 		
 		Map<BinaryString, Set<Address> > result;
-		if(track(Config::Get("tracker"), result))
-			if(connectionsCount() < minConnectionsCount)
-				for(auto it = result.begin(); it != result.end(); ++it)
+		if(track(Config::Get("tracker"), result) && connectionsCount() < minConnectionsCount)
+		{
+			for(const auto &p : result)
+			{
+				if(p.first == localNode())
 				{
-					if(it->first == localNode())
+					std::unique_lock<std::mutex> lock(mMutex);
+					
+					// Store external addresses for Offer messages
+					mLocalAddresses.clear();
+					Config::GetExternalAddresses(mLocalAddresses);
+					mLocalAddresses.insertAll(p.second);
+					
+					// TODO: external address discovery by other nodes
+					
+					if(!mLocalAddresses.empty())
 					{
-						// Store external addresses for Offer messages
-						mLocalAddresses = it->second;
-					}
-					else {
-						connect(it->second, it->first, false);	// sync
+						BinaryString content;
+						BinarySerializer(&content) << mLocalAddresses;
+						broadcast(Message(Message::Offer, content));
 					}
 				}
-		
-		Set<Address> addrs;
-		Config::GetExternalAddresses(addrs);
-		addrs.insertAll(mLocalAddresses);
-		
-		// TODO: external address discovery by other nodes
-		
-		if(!addrs.empty())
-		{
-			BinaryString content;
-			BinarySerializer(&content) << addrs;
-			broadcast(Message(Message::Offer, content));
+				else {
+					connect(p.second, p.first, false);	// sync
+				}
+			}
 		}
 		
 		if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(Random().uniform(0.,120.)));	// avg 1 min
@@ -954,8 +954,6 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 		{
 			if(chain.empty()) return false;
 			publicKey = chain[0];
-			
-			LogInfo("Overlay::Backend::handshake", String("Node connected: ") + publicKey.digest().toString());
 			return true;	// Accept
 		}
 	};
@@ -978,14 +976,14 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	if(remote.empty() || remote == identifier)
 	{
 		// Handshake succeeded
-		LogDebug("Overlay::Backend::handshake", "Handshake succeeded");
+		LogInfo("Overlay::Backend::handshake", String("Connected node: ") + identifier.toString());
 		
 		sptr<Handler> handler = std::make_shared<Handler>(mOverlay, transport, identifier, addr);
 		mOverlay->registerHandler(identifier, addr, handler);
 		return true;
 	}
 	else {
-		LogDebug("Overlay::Backend::handshake", "Handshake failed");
+		LogDebug("Overlay::Backend::handshake", String("Unexpected node: ") + identifier.toString());
 		delete transport;
 		return false;
 	}
