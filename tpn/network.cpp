@@ -1575,11 +1575,11 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 
 			if(tunnel)
 			{
-				LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+				//LogDebug("Network::Tunneler::listen", "Message tunnel from " + message.source.toString() + ": " + String::hexa(tunnelId));
 				tunnel->incoming(message);
 			}
 			else {
-				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() + " (id " + String::hexa(tunnelId) + ")");
+				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() + ": " + String::hexa(tunnelId));
 				
 				SecureTransport *transport = NULL;
 				try {

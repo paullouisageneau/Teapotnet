@@ -127,9 +127,6 @@ void Overlay::join(void)
 
 void Overlay::start(duration delay)
 {
-	for(const auto &p : mKnownPeers)
-		connect(p.first, p.second, true);
-	
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
@@ -240,7 +237,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 								bool changed = false;
 								{
 									std::unique_lock<std::mutex> lock(mMutex);
-									if(mKnownPeers.contains(addr) && Random().uniform(0, 10) == 0)
+									if(mKnownPeers.contains(addr) && Random().uniform(0, 100) == 0)
 									{
 										mKnownPeers.erase(addr);
 										changed = true;
@@ -851,6 +848,20 @@ void Overlay::run(void)
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
 		
+		if(connectionsCount() < minConnectionsCount)
+		{
+			Map<Address, BinaryString> peers;
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				for(const auto &p : mKnownPeers)
+					if(!mHandlers.contains(p.second))
+						peers.insert(p.first, p.second);
+			}
+		
+			for(const auto &p : peers)
+				connect(p.first, p.second, false);	// sync
+		}
+		
 		Map<BinaryString, Set<Address> > result;
 		if(track(Config::Get("tracker"), result))
 			if(connectionsCount() < minConnectionsCount)
@@ -975,6 +986,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	}
 	else {
 		LogDebug("Overlay::Backend::handshake", "Handshake failed");
+		delete transport;
 		return false;
 	}
 }
