@@ -121,7 +121,7 @@ Indexer::Indexer(User *user) :
 	
 	// Save and run
 	save();
-	start(seconds(10.));
+	start(seconds(60.));
 }
 
 Indexer::~Indexer(void)
@@ -358,8 +358,8 @@ bool Indexer::process(String path, Resource &resource)
 	String realPath = this->realPath(path);
 	Time   fileTime = File::Time(realPath);
 
-	// This should be a background process, so yield
-	std::this_thread::yield();
+	// This should be a background process, so sleep for a bit
+	std::this_thread::sleep_for(milliseconds(100));
 	
 	// Recursively process if it's a directory 
 	bool isDirectory = false;

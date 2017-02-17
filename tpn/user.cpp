@@ -183,8 +183,6 @@ User::User(const String &name, const String &password) :
 	{
 		setOffline();
 	});
-	
-	mIndexer->start();
 }
 
 User::~User(void)
