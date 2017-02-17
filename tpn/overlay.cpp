@@ -847,6 +847,10 @@ void Overlay::run(void)
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
 		
+		Set<Address> externalAddrs;
+		Config::GetExternalAddresses(externalAddrs);
+					
+		
 		if(connectionsCount() < minConnectionsCount)
 		{
 			Map<Address, BinaryString> peers;
@@ -871,8 +875,7 @@ void Overlay::run(void)
 					std::unique_lock<std::mutex> lock(mMutex);
 					
 					// Store external addresses for Offer messages
-					mLocalAddresses.clear();
-					Config::GetExternalAddresses(mLocalAddresses);
+					mLocalAddresses = externalAddrs;
 					mLocalAddresses.insertAll(p.second);
 					
 					// TODO: external address discovery by other nodes
