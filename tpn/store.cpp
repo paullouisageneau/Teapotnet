@@ -394,7 +394,7 @@ void Store::run(void)
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
 	
 	// TODO: delay and batch values
-	const duration delay = seconds(10.);
+	const duration delay = seconds(1.);
 	const int batch = 10;
 	
 	LogDebug("Store::run", "Started");
