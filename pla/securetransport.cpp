@@ -609,8 +609,8 @@ String SecureTransport::ErrorString(int code)
 {
 	switch(code)
 	{
-		case GNUTLS_E_PULL_ERROR: return "Writing failed";
-		case GNUTLS_E_PUSH_ERROR: return "Reading failed";
+		case GNUTLS_E_PULL_ERROR: return "Reading failed";
+		case GNUTLS_E_PUSH_ERROR: return "Writing failed";
 		default: return gnutls_strerror(code);
 	}
 }
