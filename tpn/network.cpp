@@ -1457,7 +1457,7 @@ void Network::Listener::ignore(void)
 }
 
 Network::Tunneler::Tunneler(void) : 
-	mPool(3),
+	mPool(10),
 	mStop(false)
 {
 	mThread = std::thread([this]()
@@ -1491,6 +1491,13 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	
 	if(Network::Instance->hasLink(Link(user->identifier(), remote, node)))
 		return false;
+	
+	{
+		std::unique_lock<std::mutex> lock(mTunnelsMutex);
+			
+		if(mPending.contains(node))
+			return false;
+	}
 	
 	mPool.enqueue([this, node, remote, user]()
 	{

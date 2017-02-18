@@ -28,7 +28,8 @@
 
 #include "pla/file.hpp"
 #include "pla/map.hpp"
-#include "pla/string.hpp"
+#include "pla/list.hpp"
+#include "pla/set.hpp"
 #include "pla/binarystring.hpp"
 
 namespace tpn
@@ -66,6 +67,7 @@ public:
 	
 	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary);
 	void eraseValue(const BinaryString &key, const BinaryString &value);
+	bool retrieveValue(const BinaryString &key, List<BinaryString> &values);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;

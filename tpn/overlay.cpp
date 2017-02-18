@@ -455,10 +455,10 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			
 			route(message, from);
 			
-			Set<BinaryString> values;
+			List<BinaryString> values;
 			Store::Instance->retrieveValue(message.destination, values);
-			for(auto it = values.begin(); it != values.end(); ++it)
-				send(Message(Message::Value, *it, message.source, message.destination));
+			for(const auto &v : values)
+				send(Message(Message::Value, v, message.source, message.destination));
 			
 			//push(message);	// useless
 			break;

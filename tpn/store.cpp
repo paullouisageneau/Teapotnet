@@ -289,11 +289,42 @@ void Store::eraseValue(const BinaryString &key, const BinaryString &value)
 	statement.execute();
 }
 
+bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values)
+{
+	// Note: values is not cleared !
+	
+	const Identifier localNode = Network::Instance->overlay()->localNode();
+	bool hasLocalNode = false; 
+	
+	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1 ORDER BY time DESC");
+	statement.bind(1, key);
+	while(statement.step())
+	{
+		BinaryString v;
+		statement.value(0, v);
+		values.push_back(v);
+		hasLocalNode|= (v == localNode);
+	}
+	statement.finalize();
+	
+	if(!hasLocalNode)
+	{
+		// Also look for digest in blocks in case map is not up-to-date
+		statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
+		statement.bind(1, key);
+		if(statement.step()) 
+			values.push_front(localNode);
+		statement.finalize();
+	}
+	
+	return !values.empty();
+}
+
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
 	// Note: values is not cleared !
 	
-	Identifier localNode = Network::Instance->overlay()->localNode();
+	const Identifier localNode = Network::Instance->overlay()->localNode();
 	
 	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
 	statement.bind(1, key);
@@ -305,15 +336,19 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	}
 	statement.finalize();
 	
-	// Also look for digest in blocks in case map is not up-to-date
-	statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
-	statement.bind(1, key);
-	if(statement.step())
-		values.insert(localNode);
-	statement.finalize();
+	if(!values.contains(localNode))
+	{
+		// Also look for digest in blocks in case map is not up-to-date
+		statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
+		statement.bind(1, key);
+		if(statement.step())
+			values.insert(localNode);
+		statement.finalize();
+	}
 	
 	return !values.empty();
 }
+
 
 bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 {
