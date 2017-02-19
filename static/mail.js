@@ -200,17 +200,18 @@ function setMailReceiverRec(url, object, period, next) {
 		});
 		
 		// Order messages
-		$(object).html($(object).children().detach().sort(function(a,b){
-			return $(a).find(".time").text() < $(b).find(".time").text();
-		}));
-		
-		if(count > 0 && isPageHidden()) 
-		{
-			NbNewMessages+= count;
-			top.document.title = '(' + NbNewMessages + ') ' + BaseTitle;
-			playMailSound();
+		if(count > 0) {
+			$(object).html($(object).children().detach().sort(function(a,b){
+				return $(a).find(".time").text() < $(b).find(".time").text();
+			}));
+			
+			if(isPageHidden()) {
+				NbNewMessages+= count;
+				top.document.title = '(' + NbNewMessages + ') ' + BaseTitle;
+				playMailSound();
+			}
 		}
-
+		
 		// Hide replies if they're too many
 		/*
 		$('.conversation').each(function() {
