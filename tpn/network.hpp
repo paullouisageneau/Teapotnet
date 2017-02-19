@@ -391,8 +391,8 @@ private:
 	
 	mutable std::recursive_mutex mHandlersMutex;	// recursive so listeners can call network on event
 	mutable std::recursive_mutex mListenersMutex;	// idem
-	mutable std::mutex mPublishersMutex;
-	mutable std::mutex mSubscribersMutex;
+	mutable std::recursive_mutex mSubscribersMutex; // recursive so publish can be called from subscribers
+	mutable std::recursive_mutex mPublishersMutex;	// idem
 	mutable std::mutex mRemoteSubscribersMutex;
 	mutable std::mutex mCallersMutex;
 	mutable std::mutex mLinksFromNodesMutex;

@@ -155,7 +155,7 @@ void Network::registerListener(const Identifier &local, const Identifier &remote
 	}
 	
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		
 		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 		{
@@ -200,7 +200,7 @@ void Network::publish(String prefix, Publisher *publisher)
 	LogDebug("Network::publish", "Publishing " + prefix);
 	
 	{
-		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mPublishersMutex);
 		mPublishers[prefix].insert(publisher);
 	}
 }
@@ -213,7 +213,7 @@ void Network::unpublish(String prefix, Publisher *publisher)
 		prefix.resize(prefix.size()-1);
 	
 	{
-		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mPublishersMutex);
 		
 		auto it = mPublishers.find(prefix);
 		if(it != mPublishers.end())
@@ -235,7 +235,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 	LogDebug("Network::subscribe", "Subscribing " + prefix);
 	
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		mSubscribers[prefix].insert(subscriber);
 	}
 	
@@ -268,7 +268,7 @@ void Network::unsubscribe(String prefix, Subscriber *subscriber)
 		prefix.resize(prefix.size()-1);
 	
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		
 		auto it = mSubscribers.find(prefix);
 		if(it != mSubscribers.end())
@@ -566,7 +566,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	}
 
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		
 		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
 		{
@@ -879,7 +879,7 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 	// Match prefixes, longest first
 	while(true)
 	{
-		std::unique_lock<std::mutex> lock(mPublishersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mPublishersMutex);
 		
 		String prefix;
 		prefix.implode(list, '/');
@@ -940,7 +940,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 	// Match prefixes, longest first
 	while(true)
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		
 		String prefix;
 		prefix.implode(list, '/');
@@ -989,7 +989,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 	// Match prefixes, longest first
 	while(true)
 	{
-		std::unique_lock<std::mutex> lock(mSubscribersMutex);
+		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 		
 		String prefix;
 		prefix.implode(list, '/');
