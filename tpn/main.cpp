@@ -448,7 +448,7 @@ int run(String &commandLine, StringMap &args)
 	
 	if(!InterfacePort) try {
 		int port = Config::Get("interface_port").toInt();
-		Socket sock(Address("127.0.0.1", port), 0.2);
+		Socket sock(Address("127.0.0.1", port), milliseconds(200));
 		InterfacePort = port;
 	}
 	catch(...) {}
@@ -800,26 +800,15 @@ int run(String &commandLine, StringMap &args)
 		InterfacePort = ifport;
 		if(!isSilent && !isBoot)
 			openUserInterface();
-
-		class CheckUpdateTask : public Task
-		{
-		public:
-			void run(void)
-			{
-				Config::CheckUpdate();
-			}
-		};
 		
-		CheckUpdateTask checkUpdateTask;
-		Scheduler::Global->schedule(&checkUpdateTask, 300.);	// 5 min
-		Scheduler::Global->repeat(&checkUpdateTask, 86400.);	// 1 day
+		Alarm updateAlarm;
+		updateAlarm.schedule(seconds(300), [&updateAlarm]() {	// 5 min
+			Config::CheckUpdate();
+			updateAlarm.schedule(seconds(86400));		// 1 day
+		});
 #endif
-
-		Network::Instance->join();
 		
-#if defined(WINDOWS) || defined(MACOSX)
-		Scheduler::Global->cancel(&checkUpdateTask);
-#endif		
+		Network::Instance->join();
 	}
 	catch(const std::exception &e)
 	{

@@ -107,6 +107,7 @@ typedef u_long ctl_t;
 
 #ifdef MINGW
 #include <sys/stat.h>
+#include <sys/time.h>
 #ifndef IPV6_V6ONLY
 #define IPV6_V6ONLY 27 
 #endif

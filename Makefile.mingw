@@ -11,7 +11,7 @@ LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgn
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
 
-all: teapotnet.exe winservice.exe winupdater.exe
+all: teapotnet.exe winservice.exe winupdater.exe installer.exe
 
 include/sqlite3.o: include/sqlite3.c
 	$(CC) $(CCFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -o $*.o -c $*.c
@@ -56,8 +56,11 @@ winservice.exe: winservice.c
 winupdater.exe: winupdater/Makefile winupdater/main.cpp
 	cd winupdater && make all && cp winupdater.exe ..
 
-test: all
+installer.exe: installer.nsi teapotnet.exe winservice.exe winupdater.exe installer.exe
 	makensis installer.nsi
+
+test: all
 	mkdir -p ~/vmshare/teapotnet
 	cp *.exe ~/vmshare/teapotnet
 	cp -r static ~/vmshare/teapotnet
+
