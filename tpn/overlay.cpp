@@ -528,9 +528,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			BinaryString value = message.content;
 			uint64_t ts = 0;
 			if(!value.readBinary(ts) || value.empty()) return false;
-			Time time = std::min(Time(ts), Time::Now());
 			
-			Store::Instance->storeValue(key, value, Store::Distributed, time);
+			Store::Instance->storeValue(key, value, Store::Distributed, Time(ts));
 			
 			{
 				std::unique_lock<std::mutex> lock(mRetrieveMutex);

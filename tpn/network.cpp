@@ -414,7 +414,6 @@ void Network::run(void)
 					BinaryString value = message.content;
 					uint64_t ts = 0;
 					Assert(value.readBinary(ts) && !value.empty());
-					//Time time = std::min(Time(ts), Time::Now());
 					
 					// It can be about a block
 					matchCallers(key, value);

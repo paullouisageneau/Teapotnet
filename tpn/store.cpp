@@ -264,6 +264,8 @@ bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type, Time time)
 {
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
+	time = std::min(time, Time::Now());
+	
 	if(type != Permanent && Time::Now() - time >= maxAge) 
 		return;
 	
