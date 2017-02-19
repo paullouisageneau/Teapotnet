@@ -410,14 +410,17 @@ void Network::run(void)
 			// Value
 			case Overlay::Message::Value:
 				{
-					if(!message.content.empty())
-					{
-						// It can be about a block
-						matchCallers(message.source, message.content);
+					const BinaryString &key = message.source;
+					BinaryString value = message.content;
+					uint64_t ts = 0;
+					Assert(value.readBinary(ts) && !value.empty());
+					//Time time = std::min(Time(ts), Time::Now());
+					
+					// It can be about a block
+					matchCallers(key, value);
 						
-						// Or it can be about a contact
-						matchListeners(message.source, message.content);
-					}
+					// Or it can be about a contact
+					matchListeners(key, value);
 					
 					break;
 				}

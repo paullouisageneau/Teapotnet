@@ -261,7 +261,7 @@ bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
 	return true;
 }
 
-void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type)
+void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type, Time time)
 {
 	if(type == Permanent)
 	{
@@ -271,12 +271,10 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 		statement.execute();
 	}
 	
-	auto secs = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-	
 	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	statement.bind(3, secs);
+	statement.bind(3, time);
 	statement.bind(4, static_cast<int>(type));
 	statement.execute();
 }
@@ -287,37 +285,6 @@ void Store::eraseValue(const BinaryString &key, const BinaryString &value)
 	statement.bind(1, key);
 	statement.bind(2, value);
 	statement.execute();
-}
-
-bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values)
-{
-	// Note: values is not cleared !
-	
-	const Identifier localNode = Network::Instance->overlay()->localNode();
-	bool hasLocalNode = false; 
-	
-	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1 ORDER BY time DESC");
-	statement.bind(1, key);
-	while(statement.step())
-	{
-		BinaryString v;
-		statement.value(0, v);
-		values.push_back(v);
-		hasLocalNode|= (v == localNode);
-	}
-	statement.finalize();
-	
-	if(!hasLocalNode)
-	{
-		// Also look for digest in blocks in case map is not up-to-date
-		statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
-		statement.bind(1, key);
-		if(statement.step()) 
-			values.push_front(localNode);
-		statement.finalize();
-	}
-	
-	return !values.empty();
 }
 
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
@@ -349,6 +316,44 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 	return !values.empty();
 }
 
+bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values, List<Time> &times)
+{
+	// Note: values is not cleared !
+	
+	const Identifier localNode = Network::Instance->overlay()->localNode();
+	bool hasLocalNode = false; 
+	
+	// Look first for digest in blocks in case map is not up-to-date
+	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
+	statement.bind(1, key);
+	if(statement.step())
+	{
+		values.push_back(localNode);
+		times.push_back(Time::Now());
+		hasLocalNode = true;
+		
+	}
+	statement.finalize();
+	
+	statement = mDatabase->prepare("SELECT value, time FROM map WHERE key = ?1 ORDER BY time DESC");
+	statement.bind(1, key);
+	while(statement.step())
+	{
+		BinaryString v;
+		statement.value(0, v);
+		if(hasLocalNode && v == localNode)
+			continue;
+		
+		Time t;
+		statement.value(1, t);
+		
+		values.push_back(v);
+		times.push_back(t);
+	}
+	statement.finalize();
+	
+	return !values.empty();
+}
 
 bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 {
@@ -400,9 +405,8 @@ void Store::run(void)
 	LogDebug("Store::run", "Started");
 
 	try {
-		BinaryString node = Network::Instance->overlay()->localNode();
-		auto secs = std::chrono::duration_cast<std::chrono::seconds>((std::chrono::system_clock::now() - maxAge).time_since_epoch()).count();
-	
+		const BinaryString node = Network::Instance->overlay()->localNode();
+		
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
@@ -419,7 +423,7 @@ void Store::run(void)
 			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 LIMIT ?4)");
 			statement.bind(1, static_cast<int>(Temporary));
 			statement.bind(2, static_cast<int>(Distributed));
-			statement.bind(3, secs);
+			statement.bind(3, Time::Now() - maxAge);
 			statement.bind(4, batch);
 			statement.execute();	
 	

@@ -27,6 +27,7 @@
 #include "tpn/fountain.hpp"
 
 #include "pla/file.hpp"
+#include "pla/time.hpp"
 #include "pla/map.hpp"
 #include "pla/list.hpp"
 #include "pla/set.hpp"
@@ -65,10 +66,10 @@ public:
 		Distributed = 2		// DHT
 	};
 	
-	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary);
+	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary, Time time = Time::Now());
 	void eraseValue(const BinaryString &key, const BinaryString &value);
-	bool retrieveValue(const BinaryString &key, List<BinaryString> &values);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
+	bool retrieveValue(const BinaryString &key, List<BinaryString> &values, List<Time> &times);
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;
 	

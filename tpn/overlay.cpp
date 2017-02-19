@@ -341,13 +341,17 @@ void Overlay::retrieve(const BinaryString &key)
 	
 	// Push Value messages in local queue
 	BinaryString node(localNode());
-	Set<BinaryString> values;
-	if(Store::Instance->retrieveValue(key, values))
+	List<BinaryString> values;
+	List<Time> times;
+	if(Store::Instance->retrieveValue(key, values, times))
 	{
-		for(auto &v : values)
+		while(!values.empty())
 		{
-			Message message(Message::Value, v, node, key);
+			Assert(!times.empty());
+			Message message(Message::Value, BinaryString::number(uint64_t(times.front())) + values.front(), node, key);
 			push(message);
+			values.pop_front();
+			times.pop_front();
 		}
 	}
 }
@@ -451,14 +455,23 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Retrieve value from DHT
 	case Message::Retrieve:
 		{
-			//LogDebug("Overlay::Incoming", "Retrieve " + message.destination.toString());
+			// In Retrieve messages, key is in the destination field
+			const BinaryString &key = message.destination;
+			
+			//LogDebug("Overlay::Incoming", "Retrieve " + key.toString());
 			
 			route(message, from);
 			
 			List<BinaryString> values;
-			Store::Instance->retrieveValue(message.destination, values);
-			for(const auto &v : values)
-				send(Message(Message::Value, v, message.source, message.destination));
+			List<Time> times;
+			Store::Instance->retrieveValue(key, values, times);
+			while(!values.empty())
+			{
+				Assert(!times.empty());
+				send(Message(Message::Value, BinaryString::number(uint64_t(times.front())) + values.front(), message.source, key));
+				values.pop_front();
+				times.pop_front();
+			}
 			
 			//push(message);	// useless
 			break;
@@ -467,17 +480,23 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Store value in DHT
 	case Message::Store:
 		{
-			//LogDebug("Overlay::Incoming", "Store " + message.destination.toString());
-			Time oldTime = Store::Instance->getValueTime(message.destination, message.content);
-
-			if(Time::Now() - oldTime >= seconds(60.)) // 1 min
+			// In Store messages, key is in the destination field
+			const BinaryString &key = message.destination;
+			const BinaryString &value = message.content;
+			
+			//LogDebug("Overlay::Incoming", "Store " + key.toString());
+			
+			Time oldTime = Store::Instance->getValueTime(key, value);
+			Time now = Time::Now();
+			
+			if(now - oldTime >= seconds(60.)) // 1 min
         		{
 				Array<BinaryString> nodes;
-				if(getRoutes(message.destination, StoreNeighbors, nodes))
-                		{
-                        		for(int i=0; i<nodes.size(); ++i)
-                        		{
-						if(nodes[i] == localNode()) Store::Instance->storeValue(message.destination, message.content, Store::Distributed);
+				if(getRoutes(key, StoreNeighbors, nodes))
+				{
+					for(int i=0; i<nodes.size(); ++i)
+					{
+						if(nodes[i] == localNode()) Store::Instance->storeValue(key, value, Store::Distributed, now);
 						else if(nodes[i] != from) sendTo(message, nodes[i]);
 					}
 				}
@@ -486,9 +505,9 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			{
 				std::unique_lock<std::mutex> lock(mRetrieveMutex);
 				
-				if(mRetrievePending.contains(message.content))
+				if(mRetrievePending.contains(key))
 				{
-					mRetrievePending.erase(message.content);
+					mRetrievePending.erase(key);
 					lock.unlock();
 					mRetrieveCondition.notify_all();
 				}
@@ -501,18 +520,29 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
-			//LogDebug("Overlay::Incoming", "Value " + message.source.toString());
+			// In Value messages, key is in the source field
+			const BinaryString &key = message.source;
 			
-			// Value messages differ from Store messages because key is in the source field
-			store(message.source, message.content);
-			route(message, from);
+			//LogDebug("Overlay::Incoming", "Value " + key.toString());
 			
-			if(mRetrievePending.contains(message.content))
+			BinaryString value = message.content;
+			uint64_t ts = 0;
+			if(!value.readBinary(ts) || value.empty()) return false;
+			Time time = std::min(Time(ts), Time::Now());
+			
+			Store::Instance->storeValue(key, value, Store::Distributed, time);
+			
 			{
-				mRetrievePending.erase(message.content);
-				mRetrieveCondition.notify_all();
+				std::unique_lock<std::mutex> lock(mRetrieveMutex);
+				
+				if(mRetrievePending.contains(key))
+				{
+					mRetrievePending.erase(key);
+					mRetrieveCondition.notify_all();
+				}
 			}
 			
+			route(message, from);
 			push(message);
 			break;
 		}

@@ -32,6 +32,8 @@ namespace pla
 class BinaryString : public std::string, public Stream, public Serializable
 {
 public:
+	template<typename T> static BinaryString number(T n);
+	
 	static const BinaryString Empty;
 	static const size_type NotFound = npos;
 	
@@ -76,6 +78,14 @@ protected:
 };
 
 BinaryString operator ^ (const BinaryString &a, const BinaryString &b);
+
+template<typename T>
+BinaryString BinaryString::number(T n)
+{
+    BinaryString tmp;
+    tmp.writeBinary(n);
+    return tmp;
+}
 
 template<typename T>
 T BinaryString::checksum(T &result) const
