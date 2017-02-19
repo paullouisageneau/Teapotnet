@@ -411,8 +411,9 @@ void Network::run(void)
 			case Overlay::Message::Value:
 				{
 					const BinaryString &key = message.source;
-					BinaryString value = message.content;
+					
 					uint64_t ts = 0;
+					BinaryString value = message.content;
 					Assert(value.readBinary(ts) && !value.empty());
 					
 					// It can be about a block
@@ -427,7 +428,7 @@ void Network::run(void)
 			// Call
 			case Overlay::Message::Call:
 				{
-					uint16_t tokens;
+					uint16_t tokens = 0;
 					BinaryString target;
 					message.content.readBinary(tokens);
 					message.content.readBinary(target);

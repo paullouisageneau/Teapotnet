@@ -63,7 +63,7 @@ Store::Store(void) :
 		time INTEGER(8),\
 		type INTEGER(1))");
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS pair ON map (key, value)");
-	mDatabase->execute("CREATE INDEX IF NOT EXISTS type ON map (type, time)");
+	mDatabase->execute("CREATE INDEX IF NOT EXISTS type ON map (time, type)");
 }
 
 Store::~Store(void)
@@ -272,14 +272,14 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	statement.bind(3, time);
+	statement.bind(3, uint64_t(time.toUnixTime()));
 	statement.bind(4, static_cast<int>(type));
 	statement.execute();
 	
-	statement = mDatabase->prepare("UPDATE map SET time = MAX(time, ?3) AND type = MIN(type, ?4) WHERE key = ?1 AND value = ?2");
+	statement = mDatabase->prepare("UPDATE map SET time = MAX(time, ?3), type = MIN(type, ?4) WHERE key = ?1 AND value = ?2");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	statement.bind(3, time);
+	statement.bind(3, uint64_t(time.toUnixTime()));
 	statement.bind(4, static_cast<int>(type));
 	statement.execute();
 }
@@ -349,11 +349,11 @@ bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values, L
 		if(hasLocalNode && v == localNode)
 			continue;
 		
-		Time t;
+		uint64_t t;
 		statement.value(1, t);
 		
 		values.push_back(v);
-		times.push_back(t);
+		times.push_back(Time(t));
 	}
 	statement.finalize();
 	
@@ -377,12 +377,12 @@ Time Store::getValueTime(const BinaryString &key, const BinaryString &value) con
 	statement.bind(1, key);
 	statement.bind(2, value);
 
-	Time time(0);
+	uint64_t t = 0;
 	if(statement.step())
-		statement.value(0, time);
+		statement.value(0, t);
 	statement.finalize();
 	
-	return time;
+	return Time(t);
 }
 
 void Store::start(void)
@@ -425,7 +425,7 @@ void Store::run(void)
 			Database::Statement statement;
 
 			// Delete some old non-permanent values
-			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE type != ?1 AND time <= ?2 LIMIT ?3)");
+			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE time <= ?2 AND type != ?1 LIMIT ?3)");
 			statement.bind(1, static_cast<int>(Permanent));
 			statement.bind(2, Time::Now() - maxAge);
 			statement.bind(3, batch);

@@ -525,8 +525,8 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			
 			//LogDebug("Overlay::Incoming", "Value " + key.toString());
 			
-			BinaryString value = message.content;
 			uint64_t ts = 0;
+			BinaryString value = message.content;
 			if(!value.readBinary(ts) || value.empty()) return false;
 			
 			Store::Instance->storeValue(key, value, Store::Distributed, Time(ts));
@@ -537,6 +537,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				if(mRetrievePending.contains(key))
 				{
 					mRetrievePending.erase(key);
+					lock.unlock();
 					mRetrieveCondition.notify_all();
 				}
 			}

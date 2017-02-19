@@ -56,7 +56,7 @@ winservice.exe: winservice.c
 winupdater.exe: winupdater/Makefile winupdater/main.cpp
 	cd winupdater && make all && cp winupdater.exe ..
 
-installer.exe: installer.nsi teapotnet.exe winservice.exe winupdater.exe installer.exe
+installer.exe: installer.nsi teapotnet.exe winservice.exe winupdater.exe
 	makensis installer.nsi
 
 test: all
