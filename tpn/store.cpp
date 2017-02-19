@@ -263,15 +263,18 @@ bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
 
 void Store::storeValue(const BinaryString &key, const BinaryString &value, Store::ValueType type, Time time)
 {
-	if(type == Permanent)
-	{
-		Database::Statement statement = mDatabase->prepare("DELETE FROM map WHERE key = ?1 AND type = ?2");
-		statement.bind(1, key);
-		statement.bind(2, static_cast<int>(Permanent));
-		statement.execute();
-	}
+	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
+	if(type != Permanent && Time::Now() - time >= maxAge) 
+		return;
 	
-	Database::Statement statement = mDatabase->prepare("INSERT OR REPLACE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
+	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
+	statement.bind(1, key);
+	statement.bind(2, value);
+	statement.bind(3, time);
+	statement.bind(4, static_cast<int>(type));
+	statement.execute();
+	
+	statement = mDatabase->prepare("UPDATE map SET time = MAX(time, ?3) AND type = MIN(type, ?4) WHERE key = ?1 AND value = ?2");
 	statement.bind(1, key);
 	statement.bind(2, value);
 	statement.bind(3, time);
@@ -420,11 +423,10 @@ void Store::run(void)
 			Database::Statement statement;
 
 			// Delete some old non-permanent values
-			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE (type = ?1 OR type = ?2) AND time < ?3 LIMIT ?4)");
-			statement.bind(1, static_cast<int>(Temporary));
-			statement.bind(2, static_cast<int>(Distributed));
-			statement.bind(3, Time::Now() - maxAge);
-			statement.bind(4, batch);
+			statement = mDatabase->prepare("DELETE FROM map WHERE rowid IN (SELECT rowid FROM map WHERE type != ?1 AND time <= ?2 LIMIT ?3)");
+			statement.bind(1, static_cast<int>(Permanent));
+			statement.bind(2, Time::Now() - maxAge);
+			statement.bind(3, batch);
 			statement.execute();	
 	
 			// Select DHT values
