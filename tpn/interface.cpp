@@ -169,7 +169,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.close("tr");
 			page.open("tr");
 			page.open("td",".leftcolumn"); page.close("td");
-			page.open("td",".middlecolumn"); if(User::Count() > 0) page.button("login", "Login"); page.button("create", "Create"); page.close("td");
+			page.open("td",".middlecolumn"); page.button("login", "Login"); page.button("create", "Create"); page.close("td");
 			page.open("td",".rightcolumn"); page.close("td");
 			page.close("tr");
 			page.close("table");
