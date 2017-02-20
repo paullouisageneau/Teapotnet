@@ -139,21 +139,23 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 			while(r--) ++it;
 			
 			String filePath = path + Directory::Separator + *it;
-			
-			// Delete file
-			if(!File::Remove(filePath))
-				continue;
+			if(File::Exist(filePath))
+			{
+				int64_t fileSize = File::Size(filePath);
+				if(!File::Remove(filePath)) continue;
+				totalSize-= fileSize;
+			}
 			
 			// Notify Store
 			Store::Instance->notifyFileErasure(filePath);
 			
-			totalSize-= File::Size(filePath);
 			list.erase(it);
 		}
 	}
 	catch(const Exception &e)
 	{
-		throw Exception(String("Unable to free space: ") + e.what());
+		LogWarn("Cache::freeSpace", String("Unable to free space: ") + e.what());
+		return 0;
 	}
 
 	return std::max(maxSize - totalSize, int64_t(0));
