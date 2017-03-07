@@ -41,6 +41,7 @@ dist-clean: clean
 
 install: teapotnet teapotnet.service
 	install -d $(DESTDIR)$(prefix)/bin
+	install -d $(DESTDIR)/etc
 	install -d $(DESTDIR)$(prefix)/share/teapotnet
 	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
 	cp -r static $(DESTDIR)$(prefix)/share/teapotnet
