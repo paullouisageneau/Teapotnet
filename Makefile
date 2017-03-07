@@ -45,13 +45,13 @@ install: teapotnet teapotnet.service
 	install -d $(DESTDIR)/etc/teapotnet
 	install -m 0755 teapotnet $(DESTDIR)$(prefix)/bin
 	cp -r static $(DESTDIR)$(prefix)/share/teapotnet
-	echo "static_dir=$(prefix)/share/teapotnet/static" > $(DESTDIR)/etc/teapotnet/config.conf
+	echo "static_dir=$(prefix)/share/teapotnet/static" > $(DESTDIR)/etc/teapotnet.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh install $(prefix) $(TPROOT)"; fi
 
 uninstall:
 	rm -f $(DESTDIR)$(prefix)/bin/teapotnet
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
-	rm -f $(DESTDIR)/etc/teapotnet/config.conf
+	rm -f $(DESTDIR)/etc/teapotnet.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix) $(TPROOT)"; fi
 
 bundle: teapotnet

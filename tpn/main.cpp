@@ -392,7 +392,7 @@ int run(String &commandLine, StringMap &args)
 #ifndef ANDROID
 	// Main config file name
 	// Should tell us where the static dir is located
-	const String mainConfigFileName = "/etc/teapotnet/config.conf";
+	const String mainConfigFileName = "/etc/teapotnet.conf";
 	if(File::Exist(mainConfigFileName)) Config::Load(mainConfigFileName);
 #endif
 #endif
