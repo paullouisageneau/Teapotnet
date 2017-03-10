@@ -1,20 +1,14 @@
 prefix=/usr
-
 DESTDIR=
 TPROOT=/var/lib/teapotnet
 
-CC=gcc
-CXX=g++
+CC=$(CROSS)gcc
+CXX=$(CROSS)g++
 RM=rm -f
 CCFLAGS=-O3 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O3 -fno-var-tracking
 LDFLAGS=
 LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
-
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-        LDLIBS += -framework CoreFoundation
-endif
 
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
@@ -54,18 +48,3 @@ uninstall:
 	rm -f $(DESTDIR)/etc/teapotnet.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix) $(TPROOT)"; fi
 
-bundle: teapotnet
-ifeq ($(UNAME_S),Darwin)
-	mkdir -p Teapotnet.app/Contents
-	cp Info.plist Teapotnet.app/Contents/Info.plist
-	mkdir -p Teapotnet.app/Contents/MacOS
-	cp teapotnet Teapotnet.app/Contents/MacOS/Teapotnet
-	mkdir -p Teapotnet.app/Contents/Resources
-	cp teapotnet.icns Teapotnet.app/Contents/Resources/TeapotnetIcon.icns
-	cp -r static Teapotnet.app/Contents/Resources/static
-	cd ..
-	zip -r Teapotnet.zip Teapotnet.app
-	rm -r Teapotnet.app
-else
-	@echo "This target is only available on Mac OS"
-endif

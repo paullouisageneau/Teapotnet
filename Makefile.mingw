@@ -1,7 +1,7 @@
-CC=$(CROSS)-gcc
-CXX=$(CROSS)-g++
-RES=$(CROSS)-windres
-STRIP=$(CROSS)-strip
+CC=$(CROSS)gcc
+CXX=$(CROSS)g++
+RES=$(CROSS)windres
+STRIP=$(CROSS)strip
 RM=rm -f
 CCFLAGS=-O2 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -fno-var-tracking
