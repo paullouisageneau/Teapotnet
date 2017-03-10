@@ -77,7 +77,7 @@ bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryStr
 	String tempFileName = File::TempName();
 	File tempFile(tempFileName, File::Truncate);
 	
-	Aes cipher(&tempFile);
+	AesCtr cipher(&tempFile);
 	cipher.setEncryptionKey(key);
 	cipher.setInitializationVector(iv);
 	cipher.write(stream, Size);
@@ -174,7 +174,7 @@ void Block::setDecryption(const BinaryString &key, const BinaryString &iv)
 	waitContent();
 	
 	delete mCipher;
-	mCipher = new Aes(mFile, false);	// don't delete file
+	mCipher = new AesCtr(mFile, false);	// don't delete file
 	mCipher->setDecryptionKey(key);
 	mCipher->setInitializationVector(iv);
 }

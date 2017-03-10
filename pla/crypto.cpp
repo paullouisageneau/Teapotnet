@@ -39,7 +39,7 @@ void Hash::compute(const char *data, size_t size, char *digest)
 	process(data, size);
 	finalize(digest);
 }
-        
+
 void Hash::compute(const char *data, size_t size, BinaryString &digest)
 {
 	digest.resize(length());
@@ -58,7 +58,7 @@ int64_t Hash::compute(Stream &stream, char *digest)
 		process(buffer, size);
 		total+= size;
 	}
-	
+
 	finalize(digest);
 	return total;
 }
@@ -149,7 +149,7 @@ void Sha1::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t 
 	Assert(iterations != 0);
 	pbkdf2_hmac_sha1(len, reinterpret_cast<const uint8_t*>(secret),
 				iterations,
-				salt_len, reinterpret_cast<const uint8_t*>(salt), 
+				salt_len, reinterpret_cast<const uint8_t*>(salt),
 				key_len, reinterpret_cast<uint8_t*>(key));
 }
 
@@ -209,7 +209,7 @@ void Sha256::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_
 	Assert(iterations != 0);
 	pbkdf2_hmac_sha256(len, reinterpret_cast<const uint8_t*>(secret),
 				iterations,
-				salt_len, reinterpret_cast<const uint8_t*>(salt), 
+				salt_len, reinterpret_cast<const uint8_t*>(salt),
 				key_len, reinterpret_cast<uint8_t*>(key));
 }
 
@@ -267,10 +267,10 @@ void Sha512::hmac(const BinaryString &message, const BinaryString &key, BinarySt
 void Sha512::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
 {
 	Assert(iterations != 0);
-	
+
 	struct hmac_sha512_ctx ctx;
 	hmac_sha512_set_key(&ctx, len, reinterpret_cast<const uint8_t*>(secret));
-	PBKDF2(&ctx, hmac_sha512_update, hmac_sha512_digest, 
+	PBKDF2(&ctx, hmac_sha512_update, hmac_sha512_digest,
 		64, iterations,
 		salt_len, reinterpret_cast<const uint8_t*>(salt),
 		key_len, reinterpret_cast<uint8_t*>(key));
@@ -287,6 +287,7 @@ Cipher::Cipher(Stream *stream, bool mustDelete) :
 	mMustDelete(mustDelete),
 	mReadBlock(NULL),
 	mWriteBlock(NULL),
+	mDigest(NULL),
 	mReadBlockSize(0),
 	mWriteBlockSize(0),
 	mReadPosition(0),
@@ -299,7 +300,8 @@ Cipher::~Cipher(void)
 {
 	delete mReadBlock;
 	delete mWriteBlock;
-	
+	delete mDigest;
+
 	if(mMustDelete)
 		delete mStream;
 }
@@ -308,13 +310,13 @@ size_t Cipher::readData(char *buffer, size_t size)
 {
 	if(!mReadBlock)
 		mReadBlock = new char[blockSize()];
-	
+
 	if(!mReadBlockSize)
 	{
 		mReadBlockSize = mStream->readBinary(mReadBlock, blockSize());
 		decryptBlock(mReadBlock, mReadBlockSize);
 	}
-	
+
 	size = std::min(size, mReadBlockSize);
 	std::memcpy(buffer, mReadBlock, size);
 	mReadBlockSize-= size;
@@ -326,7 +328,7 @@ void Cipher::writeData(const char *data, size_t size)
 {
 	if(!mWriteBlock)
 		mWriteBlock = new char[blockSize()];
-	
+
 	while(size)
 	{
 		 size_t len = std::min(blockSize() - mWriteBlockSize, size);
@@ -334,7 +336,7 @@ void Cipher::writeData(const char *data, size_t size)
 		 mWriteBlockSize+= len;
 		 data+= len;
 		 size-= len;
-		 
+
 		 if(mWriteBlockSize == blockSize())
 		 {
 		 	encryptBlock(mWriteBlock, mWriteBlockSize);
@@ -351,7 +353,7 @@ void Cipher::seekRead(int64_t position)
 
 void Cipher::seekWrite(int64_t position)
 {
-	throw Unsupported("Seeking in block cipher"); 
+	throw Unsupported("Seeking in block cipher");
 }
 
 int64_t Cipher::tellRead(void) const
@@ -373,54 +375,111 @@ void Cipher::close(void)
 		mStream->writeBinary(mWriteBlock, mWriteBlockSize);
 		mWriteBlockSize = 0;
 	}
-	
+
 	mStream->close();
 }
 
-Aes::Aes(Stream *stream, bool mustDelete) :
+AesCtr::AesCtr(Stream *stream, bool mustDelete) :
 	Cipher(stream, mustDelete)
 {
 
 }
 
-Aes::~Aes(void)
+AesCtr::~AesCtr(void)
 {
 	close();	// must be called here and not in Cipher
 }
 
-void Aes::setEncryptionKey(const BinaryString &key)
+void AesCtr::setEncryptionKey(const BinaryString &key)
 {
-	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes());
+  Assert(key.size() >= AES256_KEY_SIZE);
+	aes256_set_encrypt_key(&mCtx.ctx, key.bytes());
 }
 
-void Aes::setDecryptionKey(const BinaryString &key)
+void AesCtr::setDecryptionKey(const BinaryString &key)
 {
 	// Counter mode also uses encrypt function for decryption
-	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes()); 
+	Assert(key.size() >= AES256_KEY_SIZE);
+	aes256_set_encrypt_key(&mCtx.ctx, key.bytes());
 }
 
-void Aes::setInitializationVector(const BinaryString &iv)
+void AesCtr::setInitializationVector(const BinaryString &iv)
 {
 	Assert(iv.size() >= AES_BLOCK_SIZE);
 	CTR_SET_COUNTER(&mCtx, iv.bytes());
 }
 
-size_t Aes::blockSize(void) const
+size_t AesCtr::blockSize(void) const
 {
-	return AES_BLOCK_SIZE;  
+	return AES_BLOCK_SIZE;
 }
 
-void Aes::encryptBlock(char *block, size_t size)
+void AesCtr::encryptBlock(char *block, size_t size)
 {
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
+	CTR_CRYPT(&mCtx, aes256_encrypt, size, ptr, ptr);
 }
 
-void Aes::decryptBlock(char *block, size_t size)
+void AesCtr::decryptBlock(char *block, size_t size)
 {
 	// Counter mode also uses encrypt function for decryption
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
+	CTR_CRYPT(&mCtx, aes256_encrypt, size, ptr, ptr);
+}
+
+AesGcm::AesGcm(Stream *stream, bool mustDelete) :
+	Cipher(stream, mustDelete)
+{
+
+}
+
+AesGcm::~AesGcm(void)
+{
+	close();	// must be called here and not in Cipher
+}
+
+void AesGcm::setEncryptionKey(const BinaryString &key)
+{
+	Assert(key.size() >= AES256_KEY_SIZE);
+	gcm_aes256_set_key(&mCtx, key.bytes());
+}
+
+void AesGcm::setDecryptionKey(const BinaryString &key)
+{
+	Assert(key.size() >= AES256_KEY_SIZE);
+	gcm_aes256_set_key(&mCtx, key.bytes());
+}
+
+void AesGcm::setInitializationVector(const BinaryString &iv)
+{
+	Assert(iv.size() >= GCM_IV_SIZE);
+	gcm_aes256_set_iv(&mCtx, iv.size(), iv.bytes());
+}
+
+bool AesGcm::getAuthenticationTag(BinaryString &tag)
+{
+	tag.resize(GCM_DIGEST_SIZE);
+	gcm_aes256_digest(&mCtx, tag.size(), tag.bytes());
+	return true;
+}
+
+size_t AesGcm::blockSize(void) const
+{
+	return GCM_BLOCK_SIZE;
+}
+
+void AesGcm::encryptBlock(char *block, size_t size)
+{
+	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
+	gcm_aes256_update (&mCtx, size, ptr);
+	gcm_aes256_encrypt(&mCtx, size, ptr, ptr);
+}
+
+void AesGcm::decryptBlock(char *block, size_t size)
+{
+	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
+	gcm_aes256_update (&mCtx, size, ptr);
+	gcm_aes256_decrypt(&mCtx, size, ptr, ptr);
 }
 
 Rsa::PublicKey::PublicKey(void)
@@ -440,22 +499,22 @@ Rsa::PublicKey::PublicKey(gnutls_x509_crt_t crt)
 {
 	if(gnutls_x509_crt_get_pk_algorithm(crt, NULL) != GNUTLS_PK_RSA)
 		throw Exception("Certificate public key algorithm is not RSA");
-	
+
 	rsa_public_key_init(&mKey);
 	mKey.size = 0;
-	
+
 	try {
 		gnutls_datum_t n, e;
-		
+
 		int ret = gnutls_x509_crt_get_pk_rsa_raw(crt, &n, &e);
 		if(ret != GNUTLS_E_SUCCESS)
 			throw Exception(String("Key exportation failed: ") + gnutls_strerror(ret));
-		
+
 		mpz_import(mKey.n, n.size, 1, 1, 1, 0, n.data);	// big endian
 		mpz_import(mKey.e, e.size, 1, 1, 1, 0, e.data);	// big endian
 		gnutls_free(n.data);
 		gnutls_free(e.data);
-		
+
 		if(!rsa_public_key_prepare(&mKey))
 			throw Exception("Invalid parameters");
 	}
@@ -495,7 +554,7 @@ void Rsa::PublicKey::clear(void)
 	rsa_public_key_clear(&mKey);
 	rsa_public_key_init(&mKey);
 	mKey.size = 0;
-	
+
 	mDigest.clear();
 }
 
@@ -508,7 +567,7 @@ const BinaryString &Rsa::PublicKey::digest(void) const
 		serialize(serializer);
 		Sha256().compute(tmp, mDigest);
 	}
-	
+
 	return mDigest;
 }
 
@@ -516,14 +575,14 @@ bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &sign
 {
 	if(digest.empty())
 		throw Exception("Empty digest used for RSA verification");
-	
+
 	mpz_t s;
 	mpz_init(s);
-	
+
 	int ret = 0;
 	try {
 		mpz_import_binary(s, signature);
-		
+
 		switch(digest.size()*8)
 		{
 			case 256: ret = rsa_sha256_verify_digest(&mKey, digest.bytes(), s); break;
@@ -536,7 +595,7 @@ bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &sign
 		mpz_clear(s);
 		throw;
 	}
-	
+
 	mpz_clear(s);
 	return (ret != 0);
 }
@@ -544,10 +603,10 @@ bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &sign
 void Rsa::PublicKey::serialize(Serializer &s) const
 {
 	BinaryString e, n;
-	
+
 	mpz_export_binary(mKey.e, e);
 	mpz_export_binary(mKey.n, n);
-	
+
 	s << e;
 	s << n;
 }
@@ -555,15 +614,15 @@ void Rsa::PublicKey::serialize(Serializer &s) const
 bool Rsa::PublicKey::deserialize(Serializer &s)
 {
 	BinaryString e, n;
-	
+
 	if(!(s >> e)) return false;
 	AssertIO(s >> n);
-	
+
 	try {
 		mKey.size = 0;
 		mpz_import_binary(mKey.e, e);
 		mpz_import_binary(mKey.n, n);
-		
+
 		if(!rsa_public_key_prepare(&mKey))
 			throw Exception("Invalid parameters");
 	}
@@ -571,7 +630,7 @@ bool Rsa::PublicKey::deserialize(Serializer &s)
 	{
 		throw InvalidData(String("RSA public key: ") + e.what());
 	}
-	
+
 	return true;
 }
 
@@ -585,8 +644,8 @@ void Rsa::PublicKey::serialize(Stream &s) const
 
 bool Rsa::PublicKey::deserialize(Stream &s)
 {
-	clear();  
-	
+	clear();
+
 	String str;
 	if(!(s >> str)) return false;
 
@@ -599,7 +658,7 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 	{
 		throw InvalidData(String("Invalid RSA public key: ") + e.what());
 	}
-	
+
 	return true;
 }
 
@@ -655,10 +714,10 @@ void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) 
 {
 	if(digest.empty())
 		throw Exception("Empty digest used for RSA signature");
-	
+
 	mpz_t s;
 	mpz_init(s);
-	
+
 	try {
 		int ret;
 		switch(digest.size()*8)
@@ -667,9 +726,9 @@ void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) 
 			case 512: ret = rsa_sha512_sign_digest(&mKey, digest.bytes(), s); break;
 			default: throw Exception("Incompatible digest used for RSA signature"); break;
 		}
-	
+
 		if(!ret) throw Exception("RSA signature failed");
-		
+
 		mpz_export_binary(s, signature);
 	}
 	catch(...)
@@ -684,14 +743,14 @@ void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) 
 void Rsa::PrivateKey::serialize(Serializer &s) const
 {
 	BinaryString d, p, q, a, b, c;
-	
+
 	mpz_export_binary(mKey.d, d);
 	mpz_export_binary(mKey.p, p);
 	mpz_export_binary(mKey.q, q);
 	mpz_export_binary(mKey.a, a);
 	mpz_export_binary(mKey.b, b);
 	mpz_export_binary(mKey.c, c);
-	
+
 	s << d;
 	s << p;
 	s << q;
@@ -703,16 +762,16 @@ void Rsa::PrivateKey::serialize(Serializer &s) const
 bool Rsa::PrivateKey::deserialize(Serializer &s)
 {
 	clear();
-	
+
 	BinaryString d, p, q, a, b, c;
-	
+
 	if(!(s >> d)) return false;
 	AssertIO(s >> p);
 	AssertIO(s >> q);
 	AssertIO(s >> a);
 	AssertIO(s >> b);
 	AssertIO(s >> c);
-	
+
 	try {
 		mKey.size = 0;
 		mpz_import_binary(mKey.d, d);
@@ -721,7 +780,7 @@ bool Rsa::PrivateKey::deserialize(Serializer &s)
 		mpz_import_binary(mKey.a, a);
 		mpz_import_binary(mKey.b, b);
 		mpz_import_binary(mKey.c, c);
-		
+
 		if(!rsa_private_key_prepare(&mKey))
 			throw Exception("Invalid parameters");
 	}
@@ -729,7 +788,7 @@ bool Rsa::PrivateKey::deserialize(Serializer &s)
 	{
 		throw InvalidData(String("RSA private key: ") + e.what());
 	}
-	
+
 	return true;
 }
 
@@ -745,7 +804,7 @@ bool Rsa::PrivateKey::deserialize(Stream &s)
 {
 	String str;
 	if(!(s >> str)) return false;
-	
+
 	try {
 		BinaryString bs(str.base64Decode());
 		BinarySerializer serializer(&bs);
@@ -759,13 +818,13 @@ bool Rsa::PrivateKey::deserialize(Stream &s)
 	{
 		throw InvalidData(String("RSA private key: ") + e.what());
 	}
-	
+
 	return true;
 }
 
 bool Rsa::PrivateKey::isInlineSerializable(void) const
 {
-	return true; 
+	return true;
 }
 
 Rsa::Rsa(unsigned bits) :
@@ -785,7 +844,7 @@ void Rsa::generate(PublicKey &pub, PrivateKey &priv)
 	// Use exponent 65537 for compatibility and performance
 	const unsigned long exponent = 65537;
 	mpz_set_ui(pub.mKey.e, exponent);
-	
+
 	if(!rsa_generate_keypair (&pub.mKey, &priv.mKey, NULL, Random::wrapperKey, NULL, NULL, mBits, 0 /*e already set*/))
 		throw Exception("RSA keypair generation failed (size=" + String::number(mBits) + ")");
 }
@@ -794,28 +853,28 @@ void Rsa::CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, co
 {
 	if(pub.isNull() || priv.isNull())
 		throw Exception("Creating certificate from null key pair");
-	
+
 	BinaryString bs_n; mpz_export_binary(pub.mKey.n,  bs_n);
 	BinaryString bs_e; mpz_export_binary(pub.mKey.e,  bs_e);
 	BinaryString bs_d; mpz_export_binary(priv.mKey.d, bs_d);
 	BinaryString bs_p; mpz_export_binary(priv.mKey.p, bs_p);
 	BinaryString bs_q; mpz_export_binary(priv.mKey.q, bs_q);
 	BinaryString bs_c; mpz_export_binary(priv.mKey.c, bs_c);
-	
+
 	gnutls_datum_t n; n.data = bs_n.bytes(); n.size = bs_n.size();
 	gnutls_datum_t e; e.data = bs_e.bytes(); e.size = bs_e.size();
 	gnutls_datum_t d; d.data = bs_d.bytes(); d.size = bs_d.size();
 	gnutls_datum_t p; p.data = bs_p.bytes(); p.size = bs_p.size();
 	gnutls_datum_t q; q.data = bs_q.bytes(); q.size = bs_q.size();
 	gnutls_datum_t c; c.data = bs_c.bytes(); c.size = bs_c.size();
-	
+
 	int ret = gnutls_x509_privkey_import_rsa_raw(key, &n, &e, &d, &p, &q, &c);
 	if(ret != GNUTLS_E_SUCCESS)
 		throw Exception(String("Unable to convert RSA key pair to X509: ") + gnutls_strerror(ret));
-	
+
 	Time activationTime(Time::Now());
 	Time expirationTime(Time::Now()); expirationTime.addDays(365);
-	
+
 	gnutls_x509_crt_set_activation_time(crt, activationTime.toUnixTime());
 	gnutls_x509_crt_set_expiration_time(crt, expirationTime.toUnixTime());
 	gnutls_x509_crt_set_version(crt, 1);
@@ -844,10 +903,10 @@ void mpz_export_binary(const mpz_t n, BinaryString &bs)
 {
 	size_t size = (mpz_sizeinbase(n, 2) + 7) / 8;
 	bs.resize(size);
-	
+
 	size_t len = 0;
 	mpz_export(bs.ptr(), &len, 1, 1, 1, 0, n);	// big endian
-	
+
 	if(len == 0) bs.clear();
 	Assert(len == bs.size());
 }
@@ -867,4 +926,3 @@ void mpz_export_string(const mpz_t n, String &str)
 }
 
 }
-

@@ -31,6 +31,7 @@
 #include <nettle/sha2.h>
 #include <nettle/aes.h>
 #include <nettle/ctr.h>
+#include <nettle/gcm.h>
 #include <nettle/rsa.h>
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
@@ -44,7 +45,7 @@ class Hash
 public:
 	Hash(void) {}
 	virtual ~Hash(void) {}
-	
+
 	// Implementation
 	virtual size_t length(void) const = 0;
 	virtual void init(void) = 0;
@@ -61,7 +62,7 @@ public:
 	int64_t compute(Stream &stream, int64_t max, char *digest);
         int64_t compute(Stream &stream, int64_t max, BinaryString &digest);
 	BinaryString compute(const BinaryString &str);
-	
+
 	// HMAC
 	virtual void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest) = 0;
 	virtual void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest) = 0;
@@ -77,10 +78,10 @@ public:
 	void process(const BinaryString &str);
         void finalize(char *digest);
 	void finalize(BinaryString &digest);
-	
+
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
-	
+
 	// PBKDF2-HMAC-SHA1
 	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
 	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
@@ -99,10 +100,10 @@ public:
 	void process(const BinaryString &str);
         void finalize(char *digest);
 	void finalize(BinaryString &digest);
-	
+
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
-	
+
 	// PBKDF2-HMAC-SHA256
 	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
 	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
@@ -128,7 +129,7 @@ public:
 	// PBKDF2-HMAC-SHA256
 	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
 	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
-	
+
 private:
 	struct sha512_ctx mCtx;
 };
@@ -138,11 +139,12 @@ class Cipher : public Stream
 public:
 	Cipher(Stream *stream, bool mustDelete = false);
 	virtual ~Cipher(void);
-	
+
 	virtual void setEncryptionKey(const BinaryString &key) = 0;
 	virtual void setDecryptionKey(const BinaryString &key) = 0;
 	virtual void setInitializationVector(const BinaryString &iv) = 0;
-	
+	virtual bool getAuthenticationTag(BinaryString &tag) { return false; }
+
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
@@ -151,39 +153,60 @@ public:
 	int64_t tellRead(void) const;
 	int64_t tellWrite(void) const;
 	void close(void);
-	
+
 protected:
 	virtual size_t blockSize(void) const = 0;
 	virtual void encryptBlock(char *block, size_t size) = 0;
 	virtual void decryptBlock(char *block, size_t size) = 0;
-	
+
 private:
 	Stream *mStream;
 	bool mMustDelete;
-	
-	char *mReadBlock, *mWriteBlock;
+
+	char *mReadBlock, *mWriteBlock, *mDigest;
 	size_t mReadBlockSize, mWriteBlockSize;
 	uint64_t mReadPosition, mWritePosition;
 };
 
-// AES-CTR implementation
-class Aes : public Cipher
+// AES256-CTR implementation
+class AesCtr : public Cipher
 {
 public:
-	Aes(Stream *stream, bool mustDelete = false);
-	~Aes(void);
-	
+	AesCtr(Stream *stream, bool mustDelete = false);
+	~AesCtr(void);
+
 	void setEncryptionKey(const BinaryString &key);
 	void setDecryptionKey(const BinaryString &key);
 	void setInitializationVector(const BinaryString &iv);
-	
+
 protected:
 	size_t blockSize(void) const;
 	void encryptBlock(char *block, size_t size);
 	void decryptBlock(char *block, size_t size);
-	
+
 private:
-	struct CTR_CTX(struct aes_ctx, AES_BLOCK_SIZE) mCtx;
+	struct CTR_CTX(struct aes256_ctx, AES_BLOCK_SIZE) mCtx;
+};
+
+// AES256-GCM implementation
+class AesGcm : public Cipher
+{
+public:
+	AesGcm(Stream *stream, bool mustDelete = false);
+	~AesGcm(void);
+
+	void setEncryptionKey(const BinaryString &key);
+	void setDecryptionKey(const BinaryString &key);
+	void setInitializationVector(const BinaryString &iv);
+	bool getAuthenticationTag(BinaryString &tag);
+
+protected:
+	size_t blockSize(void) const;
+	void encryptBlock(char *block, size_t size);
+	void decryptBlock(char *block, size_t size);
+
+private:
+	struct gcm_aes256_ctx mCtx;
 };
 
 class Rsa
@@ -197,14 +220,14 @@ public:
 		PublicKey(gnutls_x509_crt_t crt);
 		~PublicKey(void);
 		PublicKey &operator=(const PublicKey &key);
-		
+
 		bool operator==(const PublicKey &key) const;
-		
+
 		bool isNull(void) const;
 		void clear(void);
 		const BinaryString &digest(void) const;
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
-		
+
 		// Serializable
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
@@ -217,7 +240,7 @@ public:
 		mutable BinaryString mDigest;
 		friend class Rsa;
         };
-	
+
 	class PrivateKey : public Serializable
 	{
 	public:
@@ -225,11 +248,11 @@ public:
 		PrivateKey(const PrivateKey &key);
 		~PrivateKey(void);
 		PrivateKey &operator=(const PrivateKey &key);
-		
+
 		bool isNull(void) const;
 		void clear(void);
 		void sign(const BinaryString &digest, BinaryString &signature) const;
-		
+
 		// Serializable
         	void serialize(Serializer &s) const;
         	bool deserialize(Serializer &s);
@@ -241,15 +264,15 @@ public:
 		struct rsa_private_key mKey;
 		friend class Rsa;
 	};
-	
+
 	Rsa(unsigned bits = 4096);
 	~Rsa(void);
-	
+
 	void generate(PublicKey &pub, PrivateKey &priv);
 
 	static void CreateCertificate(gnutls_x509_crt_t crt, gnutls_x509_privkey_t key, const PublicKey &pub, const PrivateKey &priv, const String &name);
 	static void SignCertificate(gnutls_x509_crt_t crt, gnutls_x509_crt_t issuer, gnutls_x509_privkey_t issuerKey);
-	
+
 private:
 	unsigned mBits;
 };
