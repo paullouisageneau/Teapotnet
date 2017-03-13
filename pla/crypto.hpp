@@ -168,7 +168,7 @@ private:
 	uint64_t mReadPosition, mWritePosition;
 };
 
-// AES256-CTR implementation
+// AES-CTR implementation
 class AesCtr : public Cipher
 {
 public:
@@ -185,10 +185,10 @@ protected:
 	void decryptBlock(char *block, size_t size);
 
 private:
-	struct CTR_CTX(struct aes256_ctx, AES_BLOCK_SIZE) mCtx;
+	struct CTR_CTX(struct aes_ctx, AES_BLOCK_SIZE) mCtx;
 };
 
-// AES256-GCM implementation
+// AES-GCM implementation
 class AesGcm : public Cipher
 {
 public:
@@ -206,7 +206,7 @@ protected:
 	void decryptBlock(char *block, size_t size);
 
 private:
-	struct gcm_aes256_ctx mCtx;
+	struct gcm_aes_ctx mCtx;
 };
 
 class Rsa
