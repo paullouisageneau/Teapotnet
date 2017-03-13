@@ -37,7 +37,7 @@ namespace tpn
 {
 
 class AddressBook;
-  
+
 class User : public Serializable, public HttpInterfaceable
 {
 public:
@@ -47,68 +47,75 @@ public:
 	static User *Get(const String &name);
 	static User *GetByIdentifier(const Identifier &id);
 	static User *Authenticate(const String &name, const String &password);
-	
+
 	User(const String &name, const String &password = "");
 	~User(void);
-	
-	void load(void);
+
+	bool load(void);
 	void save(void) const;
-	
+	bool recv(const String &password);
+	void send(const String &password = "") const;
+
+  void generateKeyPair(void);
+
 	String name(void) const;
 	String profilePath(void) const;
 	String fileName(void) const;
 	String urlPrefix(void) const;
 	BinaryString secret(void) const;
-	
+
 	sptr<AddressBook> addressBook(void) const;
 	sptr<Board> board(void) const;
 	sptr<Indexer> indexer(void) const;
-	
+
 	void invite(const Identifier &remote, const String &name);
 	void mergeBoard(sptr<const Board> board);
 	void unmergeBoard(sptr<const Board> board);
-	
+
 	bool isOnline(void) const;
 	void setOnline(void);
 	void setOffline(void);
-	
+
 	BinaryString getSecretKey(const String &action) const;
-	
+
 	String generateToken(const String &action = "") const;
 	bool checkToken(const String &token, const String &action = "") const;
-	
+
 	Identifier identifier(void) const;
 	Rsa::PublicKey publicKey(void) const;
 	Rsa::PrivateKey privateKey(void) const;
 	sptr<SecureTransport::Certificate> certificate(void) const;
-	
+
 	void http(const String &prefix, Http::Request &request);
 
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
 	bool isInlineSerializable(void) const;
-	
+
 private:
+	void setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+	void setSecret(const BinaryString &secret);
+
 	String mName;
 	String mFileName;
 	BinaryString mAuth;
 	sptr<AddressBook> mAddressBook;
 	sptr<Board> mBoard;
 	sptr<Indexer> mIndexer;
-	
+
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
 	sptr<SecureTransport::Certificate> mCertificate;
 	BinaryString mSecret;
-	
+
 	bool mOnline;
 	Alarm mOfflineAlarm;
-	
+
 	BinaryString mTokenSecret;
 	mutable Map<String, BinaryString> mSecretKeysCache;
-	
+
 	mutable std::mutex mMutex;
-	
+
 	static Map<String, User*>	UsersByName;
 	static Map<BinaryString, User*>	UsersByAuth;
 	static Map<Identifier, User*>	UsersByIdentifier;

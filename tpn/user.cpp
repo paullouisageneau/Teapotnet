@@ -22,6 +22,7 @@
 #include "tpn/user.hpp"
 #include "tpn/config.hpp"
 #include "tpn/addressbook.hpp"
+#include "tpn/resource.hpp"
 #include "tpn/html.hpp"
 
 #include "pla/file.hpp"
@@ -66,38 +67,40 @@ User *User::Get(const String &name)
 {
 	User *user = NULL;
 	UsersMutex.lock();
-	if(UsersByName.get(name, user)) 
+	if(UsersByName.get(name, user))
 	{
 	  	UsersMutex.unlock();
 		return user;
 	}
 	UsersMutex.unlock();
-	return NULL; 
+	return NULL;
 }
 
 User *User::GetByIdentifier(const Identifier &id)
 {
 	User *user = NULL;
 	UsersMutex.lock();
-	if(UsersByIdentifier.get(id, user)) 
+	if(UsersByIdentifier.get(id, user))
 	{
 	  	UsersMutex.unlock();
 		return user;
 	}
 	UsersMutex.unlock();
-	return NULL; 
+	return NULL;
 }
 
 User *User::Authenticate(const String &name, const String &password)
 {
-	BinaryString hash;
-	Sha256().pbkdf2_hmac(password, name, hash, 32, 10000);
-	
+	const unsigned iterations = 100000;
+	BinaryString auth;
+	Sha256().pbkdf2_hmac(password, name, auth, 32, iterations);
+
 	User *user = NULL;
 	UsersMutex.lock();
-	if(UsersByAuth.get(hash, user))
+	if(UsersByAuth.get(auth, user))
 	{
-	  	UsersMutex.unlock();
+	  UsersMutex.unlock();
+		user->send(password);
 		return user;
 	}
 	UsersMutex.unlock();
@@ -109,76 +112,54 @@ User::User(const String &name, const String &password) :
 	mName(name),
 	mOnline(false)
 {
-	mIndexer = NULL;
-	mAddressBook = NULL;
-	mBoard = NULL;
-	mCertificate = NULL;
-	
-	if(mName.empty()) 
+	if(mName.empty())
 		throw Exception("Empty user name");
-	
-	if(!mName.isAlphanumeric()) 
+
+	if(!mName.isAlphanumeric())
 		throw Exception("User name must be alphanumeric");
-	
+
 	// Auth digest
 	if(password.empty())
 	{
-		File file(profilePath()+"password", File::Read);
-		file.read(mAuth);
-		file.close();
+    try {
+			File file(profilePath()+"auth", File::Read);
+			file.read(mAuth);
+			file.close();
+		}
+		catch(...)
+		{
+			throw Exception("Missing password");
+		}
 	}
 	else {
-		Sha256().pbkdf2_hmac(password, name, mAuth, 32, 10000);
-	
-		File file(profilePath()+"password", File::Truncate);
+		const unsigned iterations = 100000;
+		Sha256().pbkdf2_hmac(password, name, mAuth, 32, iterations);
+
+		File file(profilePath()+"auth", File::Truncate);
 		file.write(mAuth);
 		file.close();
 	}
-	
-	// User config file
+
+	Assert(!mAuth.empty());
+
+	// Load from config file if it exists
 	mFileName = profilePath() + "keys";
-	
-	// Load if config file exist
 	load();
-	
-	// Generate RSA key and secret if necessary
-	Random rnd(Random::Key);
-	if(mPublicKey.isNull())
-	{
-		Rsa rsa(4096);
-		rsa.generate(mPublicKey, mPrivateKey);
-		rnd.readBinary(mSecret, 32);
-		
-		save();
-	}
-	
-	Assert(File::Exist(mFileName));
-	
+
 	// Generate token secret
+	Random rnd(Random::Key);
 	rnd.readBinary(mTokenSecret, 16);
-	
-	Assert(!mPublicKey.isNull());
-	Assert(!mSecret.empty());
-	Assert(!mTokenSecret.empty());
-	
-	Identifier identifier = mPublicKey.digest();
-	
-	// Order matters here
-	mIndexer = std::make_shared<Indexer>(this);
-	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", mName);
-	mAddressBook = std::make_shared<AddressBook>(this);
-		
-	if(!mCertificate) mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
-	
+
+	// Register
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
 		UsersByName.insert(mName, this);
 		UsersByAuth.insert(mAuth, this);
-		UsersByIdentifier.insert(identifier, this);
 	}
-	
+
+	// Register interface
 	Interface::Instance->add(urlPrefix(), this);
-	
+
 	mOfflineAlarm.set([this]()
 	{
 		setOffline();
@@ -187,28 +168,66 @@ User::User(const String &name, const String &password) :
 
 User::~User(void)
 {
+	// Unregister
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		UsersByName.erase(mName);
 		UsersByAuth.erase(mAuth);
 	}
-	
+
+	// Unregister interface
 	Interface::Instance->remove(urlPrefix());
+
 	mOfflineAlarm.cancel();
 }
 
-void User::load()
+void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
-	if(!File::Exist(mFileName)) return;
+	std::unique_lock<std::mutex> lock(mMutex);
+
+	Identifier oldIdentifier = mPublicKey.digest();
+	Identifier identifier = pub.digest();
+	if(oldIdentifier == identifier)
+		return;
+
+	mPublicKey = pub;
+	mPrivateKey = priv;
+	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
+
+	// Order matters here
+	mIndexer = std::make_shared<Indexer>(this);
+	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", mName);
+	mAddressBook = std::make_shared<AddressBook>(this);
+
+	// Re-register
+	{
+		std::lock_guard<std::mutex> lock(UsersMutex);
+		UsersByIdentifier.erase(oldIdentifier);
+		UsersByIdentifier.insert(identifier, this);
+	}
+}
+
+void User::setSecret(const BinaryString &secret)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	mSecret = secret;
+}
+
+bool User::load(void)
+{
+	if(!File::Exist(mFileName))
+		return false;
+
 	File file(mFileName, File::Read);
 	JsonSerializer serializer(&file);
 	serializer >> *this;
 	file.close();
-	
+
 	LogDebug("User::load", "User loaded: " + name() + ", " + identifier().toString());
+	return true;
 }
 
-void User::save() const
+void User::save(void) const
 {
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
@@ -216,10 +235,66 @@ void User::save() const
 	file.close();
 }
 
+bool User::recv(const String &password)
+{
+	Assert(!password.empty());
+
+	const duration timeout = seconds(60);
+	Set<BinaryString> values;
+	Network::Instance->retrieveValue(mAuth, values, timeout);
+
+  LogDebug("User::import", "Got " + String::number(values.size()) + " candidates");
+
+	for(auto v : values)
+	{
+		try {
+			Resource resource(v);
+			if(resource.type() != "user")
+				continue;
+
+			Resource::Reader reader(&resource, password);
+			JsonSerializer serializer(&reader);
+			if(!(serializer >> *this))
+				continue;
+
+			return true;
+		}
+		catch(const Exception &e)
+		{
+			LogWarn("User::import", e.what());
+		}
+	}
+
+	return false;
+}
+
+void User::send(const String &password) const
+{
+	Assert(!password.empty());
+
+	Resource resource;
+	resource.process(mFileName, "user", "user", password);
+
+	Network::Instance->storeValue(mAuth, resource.digest());
+}
+
+void User::generateKeyPair(void)
+{
+	// Generate keypair
+	Rsa rsa(4096);
+	rsa.generate(mPublicKey, mPrivateKey);
+
+  // Generate secret
+	Random rnd(Random::Key);
+	rnd.readBinary(mSecret, 32);
+
+	save();
+}
+
 String User::name(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	return mName; 
+	return mName;
 }
 
 String User::profilePath(void) const
@@ -290,32 +365,32 @@ bool User::isOnline(void) const
 void User::setOnline(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	if(!mOnline) 
+	if(!mOnline)
 	{
 		mOnline = true;
 		Network::Instance->overlay()->start();
 	}
-	
+
 	mOfflineAlarm.schedule(seconds(60.));
 }
 
 void User::setOffline(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
-	if(mOnline) 
+
+	if(mOnline)
 	{
 		mOnline = false;
 		//sendStatus();
 	}
-	
+
 	mOfflineAlarm.cancel();
 }
 
 BinaryString User::getSecretKey(const String &action) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	// Cache for subkeys
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
@@ -330,13 +405,13 @@ BinaryString User::getSecretKey(const String &action) const
 String User::generateToken(const String &action) const
 {
 	Random rnd(Random::Nonce);
-	
+
 	BinaryString salt;
 	salt.writeBinary(rnd, 8);
 
 	BinaryString plain;
 	BinarySerializer splain(&plain);
-	
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		splain << mName;
@@ -344,17 +419,17 @@ String User::generateToken(const String &action) const
 		splain << salt;
 		splain << mTokenSecret;
 	}
-	
+
 	BinaryString digest;
 	Sha256().compute(plain, digest);
-	
+
 	BinaryString key;
 	digest.readBinary(key, 8);
 
 	BinaryString token;
 	token.writeBinary(salt);	// 8 bytes
 	token.writeBinary(key);		// 8 bytes
-	
+
 	Assert(token.size() == 16);
 	return token;
 }
@@ -378,10 +453,10 @@ bool User::checkToken(const String &token, const String &action) const
 			BinaryString salt, remoteKey;
 			AssertIO(bs.readBinary(salt, 8));
 			AssertIO(bs.readBinary(remoteKey, 8));
-			
+
 			BinaryString plain;
 			BinarySerializer splain(&plain);
-			
+
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
 				splain << mName;
@@ -389,18 +464,18 @@ bool User::checkToken(const String &token, const String &action) const
 				splain << salt;
 				splain << mTokenSecret;
 			}
-			
+
 			BinaryString digest;
 			Sha256().compute(plain, digest);
-			
+
 			BinaryString key;
 			digest.readBinary(key, 8);
 
-			if(key == remoteKey) 
+			if(key == remoteKey)
 				return true;
 		}
 	}
-	
+
 	LogDebug("User::checkToken", String("Invalid token") + (!action.empty() ? " for action \"" + action + "\"" : ""));
 	return false;
 }
@@ -432,10 +507,10 @@ sptr<SecureTransport::Certificate> User::certificate(void) const
 void User::http(const String &prefix, Http::Request &request)
 {
 	Assert(!request.url.empty());
-	
+
 	try {
 		setOnline();
-		
+
 		String url = request.url;
 		if(url == "/")
 		{
@@ -447,16 +522,16 @@ void User::http(const String &prefix, Http::Request &request)
 				String redirect;
 				request.post.get("redirect", redirect);
 				if(redirect.empty()) redirect = prefix + "/";
-				
+
 				String command = request.post["command"];
-				
+
 				bool shutdown = false;
 
 				if(command == "update")
 				{
 					if(!request.remoteAddress.isLocal()) throw 403;
 					if(!Config::LaunchUpdater()) throw 500;
-					
+
 					Http::Response response(request, 200);
 					response.send();
 					Html page(response.stream);
@@ -471,9 +546,9 @@ void User::http(const String &prefix, Http::Request &request)
 					page.javascript("setTimeout(function() {window.location.href = \""+redirect+"\";}, 20000);");
 					page.footer();
 					response.stream->close();
-					
+
 					std::this_thread::sleep_for(seconds(1.));	// Some time for the browser to load resources
-					
+
 					LogInfo("User::http", "Exiting");
 					exit(0);
 				}
@@ -483,12 +558,12 @@ void User::http(const String &prefix, Http::Request &request)
 					shutdown = true;
 				}
 				else throw 400;
-				
+
 				Http::Response response(request, 303);
 				response.headers["Location"] = redirect;
 				response.send();
 				response.stream->close();
-				
+
 				if(shutdown)
 				{
 					LogInfo("User::http", "Shutdown");
@@ -497,16 +572,16 @@ void User::http(const String &prefix, Http::Request &request)
 
 				return;
 			}
-			
+
 			Http::Response response(request,200);
 			response.send();
-			
+
 			Html page(response.stream);
 			page.header(APPNAME, true);
 
 			// TODO: Move this into CSS
 			page.javascript("$('#page').css('max-width','100%');");
-			
+
 #if defined(WINDOWS)
                         if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
                         {
@@ -524,7 +599,7 @@ void User::http(const String &prefix, Http::Request &request)
                                 page.close("div");
                         }
 #endif
-		
+
 #if defined(MACOSX)
                         if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
                         {
@@ -543,7 +618,7 @@ void User::http(const String &prefix, Http::Request &request)
                                 page.close("div");
                         }
 #endif
-		
+
 			page.open("div", "wrapper");
 			page.open("div","leftcolumn");
 			page.open("div","leftpage");
@@ -585,61 +660,61 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.closeLink();
 			page.close("h1");
 			page.close("div");
-			
+
 			page.open("div","contacts.box");
-			
+
 			page.link(prefix+"/contacts/","Edit",".button");
-		
+
 			page.open("h2");
 			page.text("Contacts");
 			page.close("h2");
-			
+
 			if(mAddressBook->count() == 0) page.link(prefix+"/contacts/","Add contact / Accept request");
 			else {
 				page.open("div", "contactsTable");
 				page.open("p"); page.text("Loading..."); page.close("p");
 				page.close("div");
-				
+
 				unsigned refreshPeriod = 5000;
 				page.javascript("displayContacts('"+prefix+"/contacts/?json"+"','"+String::number(refreshPeriod)+"','#contactsTable')");
 			}
-			
+
 			page.close("div");
 
 			page.open("div","files.box");
-			
+
 			Array<String> directories;
 			mIndexer->getDirectories(directories);
-			
+
 			page.link(prefix+"/files/","Edit",".button");
 			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", "refreshfiles.button");
-			
+
 			page.open("h2");
 			page.text("Shared folders");
 			page.close("h2");
-			
+
 			if(directories.empty()) page.link(prefix+"/files/","Add shared folder");
 			else {
 				page.open("div",".files");
 				for(int i=0; i<directories.size(); ++i)
-				{	
+				{
 					const String &directory = directories[i];
 					String directoryUrl = prefix + "/files/" + directory + "/";
 
 					page.open("div", ".filestr");
-					
+
 					page.span("", ".icon");
 					page.image("/static/dir.png");
-					
+
 					page.span("", ".filename");
 					page.link(directoryUrl, directory);
-					
+
 					page.close("div");
 				}
 				page.close("div");
 			}
 			page.close("div");
-			
+
 			page.open("div", "footer");
 			page.text(String("Version ") + APPVERSION + " - ");
 			page.link(HELPLINK, "Help", "", true);
@@ -648,37 +723,37 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text(" - ");
 			page.link(BUGSLINK, "Report a bug", "", true);
 			page.close("div");
-			
+
 			page.close("div"); // leftpage
 			page.close("div"); // leftcolumn
 
 			page.open("div", "rightcolumn");
-			
+
 			page.raw("<iframe name=\"main\" src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
-			
+
 			page.close("div");	// rightcolumn
 
 			page.close("div");
-			
+
 			page.footer();
 			return;
 		}
-		
+
 		String directory = url;
 		directory.ignore();		// remove first '/'
 		url = "/" + directory.cut('/');
 		if(directory.empty()) throw 404;
-		
+
 		if(directory == "search")
 		{
 			if(url != "/") throw 404;
-			
+
 			String match;
 			if(!request.post.get("query", match))
 				request.get.get("query", match);
 			match.replace('/', ' ');
 			match.trim();
-			
+
 			String reqPrefix;
 			if(!match.empty())
 			{
@@ -686,15 +761,15 @@ void User::http(const String &prefix, Http::Request &request)
 				reqPrefix = req->urlPrefix();
 				req->autoDelete();
 			}
-			
+
 			Http::Response response(request, 200);
 			response.send();
-				
+
 			Html page(response.stream);
-			
+
 			if(match.empty()) page.header(name() + ": Search");
 			else page.header(name() + ": Searching " + match);
-			
+
 			page.open("div","topmenu");
 			page.openForm(prefix + "/search", "post", "searchForm");
 			page.input("text", "query", match);
@@ -703,20 +778,20 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");
 			if(!match.empty()) page.link(reqPrefix+"?playlist","Play all",".button");
 			page.close("div");
-			
+
 			if(!match.empty())
 			{
 				page.div("", "list.box");
 				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
 			}
-			
+
 			page.footer();
 			return;
 		}
 		/*else if(directory == "avatar" || request.url == "/myself/avatar")
 		{
 			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = profile()->avatarUrl(); 
+			response.headers["Location"] = profile()->avatarUrl();
 			response.send();
 			return;
 		}*/
@@ -733,14 +808,14 @@ void User::http(const String &prefix, Http::Request &request)
 		LogWarn("User::http", e.what());
 		throw 404;	// Httpd handles integer exceptions
 	}
-			
+
 	throw 404;
 }
 
 void User::serialize(Serializer &s) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	s << Object()
 		.insert("publickey", mPublicKey)
 		.insert("privatekey", mPrivateKey)
@@ -749,43 +824,23 @@ void User::serialize(Serializer &s) const
 
 bool User::deserialize(Serializer &s)
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		
-		Identifier oldIdentifier = mPublicKey.digest();
-		
-		mPublicKey.clear();
-		mPrivateKey.clear();
-		mSecret.clear();
-		
-		if(!(s >> Object()
-			.insert("publickey", mPublicKey)
-			.insert("privatekey", mPrivateKey)
-			.insert("secret", mSecret)))
-			return false;
-		
-		if(!mPublicKey.isNull() && !mPrivateKey.isNull())
-		{
-			Identifier identifier = mPublicKey.digest();
-			
-			// Register
-			if(oldIdentifier != identifier)
-			{
-				UsersMutex.lock();
-				UsersByIdentifier.erase(oldIdentifier);
-				UsersByIdentifier.insert(identifier, this);
-				UsersMutex.unlock();
-			}
-			
-			// Reload certificate
-			mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
-		}
-	}
-	
+	Rsa::PublicKey pub;
+	Rsa::PrivateKey priv;
+	BinaryString secret;
+
+	if(!(s >> Object()
+		.insert("publickey", pub)
+		.insert("privatekey", priv)
+		.insert("secret", secret)))
+		return false;
+
+	setKeyPair(pub, priv);
+	setSecret(secret);
+
 	// Reload self contact is it exists
 	if(mAddressBook && mAddressBook->getSelf())
 		mAddressBook->setSelf(identifier());
-	
+
 	save();
 	return true;
 }

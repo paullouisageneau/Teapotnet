@@ -65,22 +65,22 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 	mLocalOnly = localOnly;
 	mIndexRecord.reset();
 	mIndexBlock.reset();
-	
+
 	if(mLocalOnly && !Store::Instance->hasBlock(digest))
 		throw Exception(String("Local resource not found: ") + digest.toString());
-	
+
 	//LogDebug("Resource::fetch", "Fetching resource " + digest.toString());
-	
+
 	try {
 		mIndexBlock = std::make_shared<Block>(digest);
 		if(mLocalOnly && !mIndexBlock->isLocallyAvailable())
 			throw Exception("Block is not available locally");
-		
+
 		//LogDebug("Resource::fetch", "Reading index block for " + digest.toString());
-		
+
 		mIndexRecord = std::make_shared<IndexRecord>();
 		AssertIO(BinarySerializer(mIndexBlock.get()) >> mIndexRecord);
-		
+
 		for(const BinaryString &digest : mIndexRecord->blockDigests)
 			Store::Instance->hintBlock(digest, mIndexBlock->digest());
 	}
@@ -96,7 +96,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 void Resource::process(const String &filename, const String &name, const String &type, const String &secret, bool cache)
 {
 	BinaryString salt;
-	
+
 	// If secret is not empty then this is an encrypted resource
 	if(!secret.empty())
 	{
@@ -108,7 +108,7 @@ void Resource::process(const String &filename, const String &name, const String 
 		Sha256().pbkdf2_hmac(digest, type, salt, 32, 100000);
 		Assert(!salt.empty());
 	}
-	
+
 	// Fill index record
 	int64_t size = File::Size(filename);
 	mIndexRecord = std::make_shared<Resource::IndexRecord>();
@@ -117,42 +117,42 @@ void Resource::process(const String &filename, const String &name, const String 
 	mIndexRecord->size = size;
 	mIndexRecord->salt = salt;
 	mIndexRecord->blockDigests.reserve(size/Block::Size);
-	
+
 	// Process blocks
 	File file(filename, File::Read);
 	BinaryString blockDigest;
-	
+
 	if(!secret.empty())
 	{
 		BinaryString key;
 		Sha256().pbkdf2_hmac(secret, salt, key, 32, 100000);
-		
+
 		uint64_t i = 0;
 		while(true)
 		{
 			BinaryString subsalt;
 			subsalt.writeBinary(i);
-			
+
 			// Generate subkey
 			BinaryString subkey;
 			Sha256().pbkdf2_hmac(key, subsalt, subkey, 32, 100);
-			
+
 			// Generate IV
 			BinaryString iv;
 			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
-			
+
 			if(!Block::EncryptFile(file, subkey, iv, blockDigest))
 				break;
-			
+
 			mIndexRecord->blockDigests.append(blockDigest);
 			++i;
 		}
-	} 
+	}
 	else {
 		while(Block::ProcessFile(file, blockDigest, cache))
 			mIndexRecord->blockDigests.append(blockDigest);
 	}
-	
+
 	// Create index
 	String tempFileName = File::TempName();
 	File tempFile(tempFileName, File::Truncate);
@@ -160,7 +160,7 @@ void Resource::process(const String &filename, const String &name, const String 
 	serializer << mIndexRecord;
 	tempFile.close();
 	String indexFilePath = Cache::Instance->move(tempFileName);
-	
+
 	// Create index block
 	mIndexBlock = std::make_shared<Block>(indexFilePath);
 }
@@ -169,7 +169,7 @@ void Resource::cache(const String &filename, const String &name, const String &t
 {
 	// Process in cache mode
 	process(filename, name, type, "", true);
-	
+
 	// And remove the original file
 	File::Remove(filename);
 }
@@ -190,7 +190,7 @@ int Resource::blockIndex(int64_t position, size_t *offset) const
 {
 	if(!mIndexBlock || position < 0 || (position > 0 && position >= mIndexRecord->size))
 		throw OutOfBounds("Resource position out of bounds");
-  
+
 	if(offset) *offset = size_t(position % Block::Size);
 	return int(position/Block::Size);
 }
@@ -199,8 +199,8 @@ BinaryString Resource::blockDigest(int index) const
 {
 	if(!mIndexBlock || index < 0 || index >= mIndexRecord->blockDigests.size())
 		throw OutOfBounds("Block index out of bounds");
-	
-	return mIndexRecord->blockDigests.at(index);  
+
+	return mIndexRecord->blockDigests.at(index);
 }
 
 String Resource::name(void) const
@@ -235,13 +235,13 @@ bool Resource::isDirectory(void) const
 bool Resource::isLocallyAvailable(void) const
 {
 	if(!mIndexRecord) return false;
-	
+
 	for(int i=0; i<mIndexRecord->blockDigests.size(); ++i)
 	{
 		if(!Store::Instance->hasBlock(mIndexRecord->blockDigests[i]))
 			return false;
 	}
-	
+
 	return true;
 }
 
@@ -260,7 +260,7 @@ bool Resource::check(const Rsa::PublicKey &pubKey) const
 void Resource::serialize(Serializer &s) const
 {
 	if(!mIndexRecord) throw Unsupported("Serializing empty resource");
-	
+
 	s << Object()
 		.insert("name", mIndexRecord->name)
 		.insert("type", mIndexRecord->type)
@@ -319,7 +319,7 @@ Resource::IndexRecord Resource::getIndexRecord(void) const
 Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
 {
 	 if(!mIndexRecord) throw Exception("No index record for the resource");
-	 
+
 	Resource::DirectoryRecord record;
 	*static_cast<Resource::MetaRecord*>(&record) = *static_cast<Resource::MetaRecord*>(mIndexRecord.get());
 	record.digest = digest();
@@ -334,19 +334,19 @@ Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck)
 	mNextBlock(NULL)
 {
 	Assert(mResource);
-	
+
 	if(!secret.empty())
 	{
 		if(!nocheck && mResource->salt().empty())
 			throw Exception("Expected encrypted resource");
-		
-		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000); 
+
+		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000);
 	}
 	else {
 		if(!nocheck && !mResource->salt().empty())
 			throw Exception("Expected non-encrypted resource");
 	}
-	
+
 	seekRead(0);	// Initialize positions
 }
 
@@ -358,31 +358,31 @@ Resource::Reader::~Reader(void)
 size_t Resource::Reader::readData(char *buffer, size_t size)
 {
 	if(!mCurrentBlock) return 0;	// EOF
-	
+
 	if(!mKey.empty() && !mCurrentBlock->hasDecryption())
 	{
 		BinaryString subsalt;
 		subsalt.writeBinary(uint64_t(mCurrentBlockIndex));
-		
+
 		// Generate subkey
 		BinaryString subkey;
 		Sha256().pbkdf2_hmac(mKey, subsalt, subkey, 32, 100);
-		
+
 		// Generate IV
 		BinaryString iv;
 		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
-		
+
 		// Initialize decryption process
 		mCurrentBlock->setDecryption(subkey, iv);
 	}
-	
+
 	size_t ret;
 	if((ret = mCurrentBlock->readData(buffer, size)))
 	{
 		mReadPosition+= ret;
 		return ret;
 	}
-	
+
 	++mCurrentBlockIndex;
 	mCurrentBlock = mNextBlock;
 	mNextBlock = createBlock(mCurrentBlockIndex + 1);
@@ -401,8 +401,8 @@ void Resource::Reader::seekRead(int64_t position)
 	mCurrentBlock	= createBlock(mCurrentBlockIndex);
 	mNextBlock	= createBlock(mCurrentBlockIndex + 1);
 	mReadPosition	= position;
-	
-	if(mCurrentBlock) 
+
+	if(mCurrentBlock)
 		mCurrentBlock->seekRead(offset);
 }
 
@@ -413,19 +413,19 @@ void Resource::Reader::seekWrite(int64_t position)
 
 int64_t Resource::Reader::tellRead(void) const
 {
-	return mReadPosition;  
+	return mReadPosition;
 }
 
 int64_t Resource::Reader::tellWrite(void) const
 {
-	return 0;  
+	return 0;
 }
 
 bool Resource::Reader::readDirectory(DirectoryRecord &record)
 {
 	BinarySerializer serializer(this);
 	if(!(serializer >> record)) return false;
-	
+
 	Store::Instance->hintBlock(record.digest, mResource->digest());
 	return true;
 }
@@ -433,12 +433,12 @@ bool Resource::Reader::readDirectory(DirectoryRecord &record)
 sptr<Block> Resource::Reader::createBlock(int index)
 {
 	if(index < 0 || index >= mResource->blocksCount()) return NULL;
-	
+
 	//LogDebug("Resource::Reader", "Creating block " + String::number(index) + " over " + String::number(mResource->blocksCount()));
 	sptr<Block> block = std::make_shared<Block>(mResource->blockDigest(index));
 	if(mResource->mLocalOnly && !block->isLocallyAvailable())
 		throw Exception("Block is not available locally");
-	
+
 	return block;
 }
 
@@ -470,10 +470,10 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 	      .insert("type", type)
 	      .insert("size", size)
 	      .insert("digests", blockDigests);
-	
+
 	if(!signature.empty()) object.insert("signature", signature);
 	if(!salt.empty()) object.insert("salt", salt);
-	
+
 	s << object;
 }
 
@@ -495,9 +495,9 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 	      .insert("type", type)
 	      .insert("size", size)
 	      .insert("digest", digest);
-	
+
 	if(time != 0) object.insert("time", time);
-	
+
 	s << object;
 }
 
@@ -511,7 +511,7 @@ bool Resource::DirectoryRecord::deserialize(Serializer &s)
 		.insert("time", time));
 }
 
-Resource::ImportTask::ImportTask(Serializable *object, 
+Resource::ImportTask::ImportTask(Serializable *object,
 	const BinaryString &digest,
 	const String &type,
 	const BinaryString &secret) :
@@ -522,14 +522,14 @@ Resource::ImportTask::ImportTask(Serializable *object,
 {
 	Assert(mObject);
 }
-		
+
 void Resource::ImportTask::operator()(void)
 {
 	try {
 		Resource resource(mDigest);
 		if(!mType.empty() && resource.type() != mType)
 			return;
-		
+
 		Reader reader(&resource, mSecret);
 		JsonSerializer serializer(&reader);
 		serializer >> *mObject;

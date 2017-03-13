@@ -68,9 +68,9 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 void Interface::http(const String &prefix, Http::Request &request)
 {
 	Assert(!request.url.empty());
-	
+
 	if(!Network::Instance) throw 400;	// Network is not ready yet !
-	
+
 	try {
 		if(prefix == "")
 		{
@@ -79,62 +79,36 @@ void Interface::http(const String &prefix, Http::Request &request)
 				String name, password;
 				request.post.get("name", name);
 				request.post.get("password", password);
-				
+
 				User *user = NULL;
 				try {
 					if(request.post.contains("create") && !User::Exist(name))
 					{
-						user = new User(name, password);
-						
+						// TODO
+
 						String token = user->generateToken("auth");
 						Http::Response response(request, 200);
 						response.cookies["auth_"+user->name()] = token;
 						response.send();
-						
-						Html page(response.stream);
-						page.header("Synchronize device", true);
-						page.open("div","login");
-						page.open("div","logo");
-						page.openLink("/");
-						page.image("/static/logo.png", "Teapotnet");
-						page.closeLink();
-						page.close("div");
-						
-						page.openForm(user->addressBook()->urlPrefix(), "post");
-						page.open("p");
-						page.text("If you have Teapotnet installed on another device, generate a synchronization secret code and enter it here.");
-						page.br();
-						page.text("If you don't, and this is your first Teapotnet installation, just let the field empty.");
-						page.br();
-						page.close("p");
-						page.input("hidden", "token", user->generateToken("contact"));
-						page.input("hidden", "action", "acceptsynchronization");
-						page.input("hidden", "redirect", user->urlPrefix());
-						page.input("text", "code");
-						page.button("validate", "Validate");
-						page.closeForm();
-						
-						page.close("div");
-						page.footer();
 						return;
 					}
-					
+
 					user = User::Authenticate(name, password);
 				}
 				catch(const Exception &e)
 				{
 					Http::Response response(request, 200);
 					response.send();
-					
+
 					Html page(response.stream);
 					page.header("Error", false, "/");
 					page.text(e.what());
 					page.footer();
 					return;
 				}
-				
+
 				if(!user) throw 401;
-				
+
 				String token = user->generateToken("auth");
 				Http::Response response(request, 303);
 				response.headers["Location"] = user->urlPrefix();
@@ -142,10 +116,10 @@ void Interface::http(const String &prefix, Http::Request &request)
 				response.send();
 				return;
 			}
-			
+
 			Http::Response response(request, 200);
 			response.send();
-			
+
 			Html page(response.stream);
 			page.header("Login - Teapotnet", true);
 			page.open("div","login");
@@ -154,12 +128,12 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.image("/static/logo.png", "Teapotnet");
 			page.closeLink();
 			page.close("div");
-			
+
 			page.openForm("/", "post");
 			page.open("table");
 			page.open("tr");
 			page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");
-			page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td"); 
+			page.open("td", ".middlecolumn"); page.input("text", "name"); page.close("td");
 			page.open("td", ".rightcolumn"); page.close("td");
 			page.close("tr");
 			page.open("tr");
@@ -174,20 +148,20 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.close("tr");
 			page.close("table");
 			page.closeForm();
-			
+
 			for(StringMap::iterator it = request.cookies.begin();
-				it != request.cookies.end(); 
+				it != request.cookies.end();
 				++it)
 			{
 				String cookieName = it->first;
 				String name = cookieName.cut('_');
-				if(cookieName != "auth" || name.empty()) 
+				if(cookieName != "auth" || name.empty())
 					continue;
-				
+
 				User *user = User::Get(name);
 				if(!user || !user->checkToken(it->second, "auth"))
 					continue;
-				
+
 				page.open("div",".user");
 				page.openLink(user->urlPrefix());
 				//page.image(user->profile()->avatarUrl(), "", ".avatar");
@@ -198,14 +172,14 @@ void Interface::http(const String &prefix, Http::Request &request)
 				page.text(" - ");
 				page.link("#", "Logout", ".logoutlink");
 				page.close("div");
-				
+
 				page.javascript("$('.user a.logoutlink').click(function() {\n\
 					unsetCookie('auth_'+$(this).parent().find('.username').text());\n\
 					window.location.reload();\n\
 					return false;\n\
 				});");
 			}
-			
+
 			page.close("div");
 			page.footer();
 			return;
@@ -215,13 +189,13 @@ void Interface::http(const String &prefix, Http::Request &request)
 			String name = request.url;
 			if(!name.empty() && name[0] == '/') name.ignore();
 			if(!name.empty() && name[name.size()-1] == '/') name.resize(name.size()-1);
-			if(name.empty() 
+			if(name.empty()
 				|| name.contains('/') || name.contains(Directory::Separator)
-				|| name == "." || name == "..") 
+				|| name == "." || name == "..")
 				throw 404;
-			
+
 			String path = Config::Get("static_dir") + Directory::Separator + name;
-			if(File::Exist(path)) 
+			if(File::Exist(path))
 			{
 				respondWithFile(request, path);
 				return;
@@ -233,30 +207,30 @@ void Interface::http(const String &prefix, Http::Request &request)
 			if(!tmp.empty() && tmp[0] == '/') tmp.ignore();
 			if(!tmp.empty() && tmp[tmp.size()-1] == '/') tmp.resize(tmp.size()-1);
 			if(tmp.empty() || tmp.contains('/')) throw 404;
-			
+
 			BinaryString digest;
 			try { tmp >> digest; }
-			catch(...) { throw 404; }		
-		
+			catch(...) { throw 404; }
+
 			// Query resource
 			Resource resource;
 			resource.fetch(digest);		// this can take some time
-			
+
 			// Playlist
 			if(request.get.contains("play") || request.get.contains("playlist"))
-			{	
+			{
 				request.get.insert("playlist", "");
 				Request req(resource);
 				req.http(req.urlPrefix(), request);
 				return;
 			}
-			
+
 			if(resource.isDirectory())
 			{
 				Request *req = new Request(resource);
 				String reqPrefix = req->urlPrefix();
 				req->autoDelete();
-				
+
 				// JSON
 				if(request.get.contains("json"))
 				{
@@ -265,26 +239,26 @@ void Interface::http(const String &prefix, Http::Request &request)
 					response.send();
 					return;
 				}
-			
+
 				User *user = getAuthenticatedUser(request);
-	
+
 				Http::Response response(request, 200);
 				response.send();
-				
+
 				Html page(response.stream);
 				page.header("Browse files");
 				page.open("div","topmenu");
 				if(user) page.link(user->urlPrefix()+"/search/", "Search", ".button");
 				page.link(reqPrefix+"?playlist", "Play all", "playall.button");
 				page.close("div");
-				
+
 				page.div("", "list.box");
 				page.javascript("listDirectory('"+reqPrefix+"','#list',true);");
 				page.footer();
 				return;
 			}
 			else { // resource is a file
-			
+
 				// JSON
 				if(request.get.contains("json"))
 				{
@@ -296,25 +270,25 @@ void Interface::http(const String &prefix, Http::Request &request)
 					json << resource;
 					return;
 				}
-				
+
 				// Get range
 				int64_t rangeBegin = 0;
 				int64_t rangeEnd = 0;
 				bool hasRange = request.extractRange(rangeBegin, rangeEnd, resource.size());
 				int64_t rangeSize = rangeEnd - rangeBegin + 1;
-				
+
 				if(hasRange && (rangeBegin >= resource.size() || rangeEnd >= resource.size()))
 					throw 406;	// Not Acceptable
-				
+
 				// Forge HTTP response header
 				Http::Response response(request, (hasRange ? 206 : 200));
-				
+
 				response.headers["Content-Name"] = resource.name();
 				response.headers["Accept-Ranges"] = "bytes";
-				
+
 				response.headers["Content-Length"] << rangeSize;
 				if(hasRange) response.headers["Content-Range"] << "bytes " << rangeBegin << "-" << rangeEnd << "/" << resource.size();
-				
+
 				String ext = resource.name().afterLast('.');
 				if(request.get.contains("download") || ext == "htm" || ext == "html" || ext == "xhtml")
 				{
@@ -325,9 +299,9 @@ void Interface::http(const String &prefix, Http::Request &request)
 					response.headers["Content-Disposition"] = "inline; filename=\"" + resource.name() + "\"";
 					response.headers["Content-Type"] = Mime::GetType(resource.name());
 				}
-				
+
 				response.send();
-				
+
 				if(request.method != "HEAD")
 				{
 					try {
@@ -347,16 +321,16 @@ void Interface::http(const String &prefix, Http::Request &request)
 						LogWarn("Interface::process", String("Error during file transfer: ") + e.what());
 					}
 				}
-				
+
 				return;
 			}
 		}
 		else if(prefix == "/mail")
 		{
 			LogWarn("Interface::process", "Creating board: " + request.url);
-			
+
 			Board *board = new Board(request.url.substr(1));
-			
+
 			String url = request.url;
 			request.url = "/";
 			board->http(prefix+url, request);
@@ -372,30 +346,30 @@ void Interface::http(const String &prefix, Http::Request &request)
 		LogWarn("Interface::http", e.what());
 		throw 500;
 	}
-	
+
 	throw 404;
 }
 
 void Interface::process(Http::Request &request)
 {
 	//LogDebug("Interface", request.method + " " + request.fullUrl);
-	
+
 	// URL must begin with /
 	if(request.url.empty() || request.url[0] != '/') throw 404;
-	
+
 	List<String> list;
 	request.url.explode(list,'/');
 	list.pop_front();	// first element is empty because url begin with '/'
 	if(list.empty()) throw 500;
-	
+
 	if(list.front() == "user" && list.size() >= 2)
 	{
 		User *user = NULL;
 		String name;
-		
+
 		if(list.size() >= 2)
 			name = *(++list.begin());
-		
+
 		String auth;
 		if(request.headers.get("Authorization", auth))
 		{
@@ -406,7 +380,7 @@ void Interface::process(Http::Request &request)
 
 			String authName = tmp.base64Decode();
 			String authPassword = authName.cut(':');
-			
+
 			if(authName == name)
 				user = User::Authenticate(authName, authPassword);
 		}
@@ -417,7 +391,7 @@ void Interface::process(Http::Request &request)
 			if(tmp && tmp->checkToken(token, "auth"))
 				user = tmp;
 		}
-		
+
 		if(!user)
 		{
 			if(request.get.contains("json"))
@@ -426,10 +400,10 @@ void Interface::process(Http::Request &request)
 				response.send();
 				return;
 			}
-		
+
 			String userAgent;
 			request.headers.get("User-Agent", userAgent);
-		
+
 			// If it is a browser
 			if(userAgent.substr(0,7) == "Mozilla")
 			{
@@ -442,7 +416,7 @@ void Interface::process(Http::Request &request)
 				Http::Response response(request, 401);
 				response.headers.insert("WWW-Authenticate", "Basic realm=\""+String(APPNAME)+"\"");
 				response.send();
-				
+
 				Html page(response.stream);
 				page.header(response.message, true);
 				page.open("div", "error");
@@ -460,34 +434,34 @@ void Interface::process(Http::Request &request)
 			}
 		}
 	}
-	
+
 	while(!list.empty())
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		
+
 		String prefix;
 		prefix.implode(list,'/');
 		if(!prefix.empty())
 			prefix = "/" + prefix;
-	
+
 		list.pop_back();
-		
+
 		auto it = mPrefixes.find(prefix);
-		if(it != mPrefixes.end()) 
+		if(it != mPrefixes.end())
 		{
 			HttpInterfaceable *interfaceable = it->second;
 			lock.unlock();
-			
+
 			//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
 			request.url.ignore(prefix.size());
 			if(request.url.empty())
 				request.url = "/";
-			
+
 			interfaceable->http(prefix, request);
 			return;
 		}
 	}
-	
+
 	throw 404;
 }
 
@@ -514,7 +488,7 @@ User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String nam
 {
 	if(name.empty())
 		request.cookies.get("name", name);
-	
+
 	if(!name.empty())
 	{
 		String token;
@@ -523,30 +497,30 @@ User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String nam
 		if(user && user->checkToken(token, "auth"))
 			return user;
 	}
-	
+
 	Array<User*> users;
 	if(getAuthenticatedUsers(request, users))
 		return users[0];
-	
+
 	return NULL;
 }
 
 int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*> &users)
 {
 	users.clear();
-	
+
 	for(	StringMap::iterator it = request.cookies.begin();
 		it != request.cookies.end();
 		++it)
 	{
 		String key = it->first;
 		String name = key.cut('_');
-		
+
 		User *user = User::Get(name);
 		if(user && user->checkToken(it->second, "auth"))
 			users.push_back(user);
 	}
-	
+
 	return int(users.size());
 }
 

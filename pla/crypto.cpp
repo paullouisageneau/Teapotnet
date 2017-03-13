@@ -287,7 +287,6 @@ Cipher::Cipher(Stream *stream, bool mustDelete) :
 	mMustDelete(mustDelete),
 	mReadBlock(NULL),
 	mWriteBlock(NULL),
-	mDigest(NULL),
 	mReadBlockSize(0),
 	mWriteBlockSize(0),
 	mReadPosition(0),
@@ -300,7 +299,6 @@ Cipher::~Cipher(void)
 {
 	delete mReadBlock;
 	delete mWriteBlock;
-	delete mDigest;
 
 	if(mMustDelete)
 		delete mStream;
@@ -314,6 +312,7 @@ size_t Cipher::readData(char *buffer, size_t size)
 	if(!mReadBlockSize)
 	{
 		mReadBlockSize = mStream->readBinary(mReadBlock, blockSize());
+		if(!mReadBlockSize) return 0;
 		decryptBlock(mReadBlock, mReadBlockSize);
 	}
 
@@ -456,13 +455,6 @@ void AesGcm::setInitializationVector(const BinaryString &iv)
 	gcm_aes256_set_iv(&mCtx, iv.size(), iv.bytes());
 }
 
-bool AesGcm::getAuthenticationTag(BinaryString &tag)
-{
-	tag.resize(GCM_DIGEST_SIZE);
-	gcm_aes256_digest(&mCtx, tag.size(), tag.bytes());
-	return true;
-}
-
 size_t AesGcm::blockSize(void) const
 {
 	return GCM_BLOCK_SIZE;
@@ -480,6 +472,13 @@ void AesGcm::decryptBlock(char *block, size_t size)
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
 	gcm_aes256_update (&mCtx, size, ptr);
 	gcm_aes256_decrypt(&mCtx, size, ptr, ptr);
+}
+
+bool AesGcm::getAuthenticationTag(BinaryString &tag)
+{
+	tag.resize(GCM_DIGEST_SIZE);
+	gcm_aes256_digest(&mCtx, GCM_DIGEST_SIZE, tag.bytes());
+	return true;
 }
 
 Rsa::PublicKey::PublicKey(void)

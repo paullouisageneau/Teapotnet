@@ -163,7 +163,7 @@ private:
 	Stream *mStream;
 	bool mMustDelete;
 
-	char *mReadBlock, *mWriteBlock, *mDigest;
+	char *mReadBlock, *mWriteBlock;
 	size_t mReadBlockSize, mWriteBlockSize;
 	uint64_t mReadPosition, mWritePosition;
 };

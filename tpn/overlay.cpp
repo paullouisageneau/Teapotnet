@@ -52,7 +52,7 @@ Overlay::Overlay(int port) :
 {
 	mFileName = "keys";
 	load();
-	
+
 	// Generate RSA key if necessary
 	if(mPublicKey.isNull())
 	{
@@ -61,13 +61,13 @@ Overlay::Overlay(int port) :
 		Rsa rsa(4096);
 		rsa.generate(mPublicKey, mPrivateKey);
 	}
-	
+
 	// Generate local node id
 	mLocalNode = mPublicKey.digest();
-	
+
 	// Create certificate
 	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, localNode().toString());
-	
+
 	// Define node name
 	mLocalName = Config::Get("node_name");
 	if(mLocalName.empty())
@@ -79,15 +79,15 @@ Overlay::Overlay(int port) :
 		if(mLocalName.empty() || mLocalName == "localhost")
 			mLocalName = localNode().toString();
 	}
-	
+
 	LogDebug("Overlay", "Instance name is \"" + mLocalName + "\"");
 	LogDebug("Overlay", "Local node is " + mLocalNode.toString());
 	save();
-	
+
 	// Create backends
 	mBackends.push_back(std::make_shared<DatagramBackend>(this, port));
 	mBackends.push_back(std::make_shared<StreamBackend>(this, port));
-	
+
 	for(auto b : mBackends)
 		mPool.enqueue([b]()
 		{
@@ -149,13 +149,13 @@ BinaryString Overlay::localNode(void) const
 const Rsa::PublicKey &Overlay::publicKey(void) const
 {
 	//std::unique_lock<std::mutex> lock(mMutex);
-	return mPublicKey; 
+	return mPublicKey;
 }
 
 const Rsa::PrivateKey &Overlay::privateKey(void) const
 {
 	//std::unique_lock<std::mutex> lock(mMutex);
-	return mPrivateKey; 
+	return mPrivateKey;
 }
 
 sptr<SecureTransport::Certificate> Overlay::certificate(void) const
@@ -167,7 +167,7 @@ sptr<SecureTransport::Certificate> Overlay::certificate(void) const
 int Overlay::getAddresses(Set<Address> &set) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	set.clear();
 	for(auto b : mBackends)
 	{
@@ -175,21 +175,21 @@ int Overlay::getAddresses(Set<Address> &set) const
 		b->getAddresses(backendSet);
 		set.insertAll(backendSet);
 	}
-	
+
 	return set.size();
 }
 
 int Overlay::getRemoteAddresses(const BinaryString &remote, Set<Address> &set) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	set.clear();
 	if(remote.empty()) return 0;
-	
+
 	sptr<Handler> handler;
 	if(mHandlers.get(remote, handler))
 		handler->getAddresses(set);
-	
+
 	return set.size();
 }
 
@@ -197,7 +197,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 {
 	try {
 		if(isConnected(remote)) return true;
-		
+
 		Set<Address> filteredAddrs;
 		for(auto &a : addrs)
 		{
@@ -206,11 +206,11 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 			if(!mRemoteAddresses.contains(tmp))
 				filteredAddrs.insert(a);
 		}
-		
+
 		if(filteredAddrs.empty()) return false;
-		
+
 		if(!remote.empty()) LogDebug("Overlay::connect", "Trying node " + remote.toString());
-		
+
 		auto connectTask = [this, filteredAddrs, remote](List<sptr<Backend> > backends)
 		{
 			for(auto b : backends)
@@ -230,7 +230,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 									changed = true;
 								}
 							}
-							
+
 							if(changed) save();
 							return true;
 						}
@@ -244,7 +244,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 									changed = true;
 								}
 							}
-							
+
 							if(changed) save();
 						}
 					}
@@ -254,10 +254,10 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 					}
 				}
 			}
-			
+
 			return false;
 		};
-		
+
 		if(async)
 		{
 			mPool.enqueue(connectTask, mBackends);
@@ -272,7 +272,7 @@ bool Overlay::connect(const Set<Address> &addrs, const BinaryString &remote, boo
 		LogError("Overlay::connect", e.what());
 		return false;
 	}
-	
+
 	return false;
 }
 
@@ -305,10 +305,10 @@ bool Overlay::recv(Message &message, duration timeout)
 			return !mIncoming.empty();
 		});
 	}
-	
+
 	if(mIncoming.empty())
 		return false;
-	
+
 	message = mIncoming.front();
 	mIncoming.pop();
 	return true;
@@ -316,7 +316,7 @@ bool Overlay::recv(Message &message, duration timeout)
 
 bool Overlay::send(const Message &message)
 {
-	return route(message);	// Alias	
+	return route(message);	// Alias
 }
 
 void Overlay::store(const BinaryString &key, const BinaryString &value)
@@ -338,7 +338,7 @@ void Overlay::store(const BinaryString &key, const BinaryString &value)
 void Overlay::retrieve(const BinaryString &key)
 {
 	send(Message(Message::Retrieve, "", key));
-	
+
 	// Push Value messages in local queue
 	BinaryString node(localNode());
 	List<BinaryString> values;
@@ -358,24 +358,30 @@ void Overlay::retrieve(const BinaryString &key)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 {
+	return retrieve(key, values, duration(-1));
+}
+
+bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values, duration timeout)
+{
 	std::unique_lock<std::mutex> lock(mRetrieveMutex);
-	
+
 	bool sent = true;
 	if(!mRetrievePending.contains(key))
 	{
 		mRetrievePending.insert(key);
 		sent = send(Message(Message::Retrieve, "", key));
 	}
-	
+
 	if(sent)
 	{
-		duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
-	
+		if(timeout <= duration(0))
+			timeout = milliseconds(Config::Get("request_timeout").toDouble());
+
 		mRetrieveCondition.wait_for(lock, timeout, [this, key]() {
 			return !mRetrievePending.contains(key);
 		});
 	}
-	
+
 	mRetrievePending.erase(key);
 	Store::Instance->retrieveValue(key, values);
 	return !values.empty();
@@ -392,9 +398,9 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 
 	if(message.source.empty())
 		message.source = from;
-	
+
 	//LogDebug("Overlay::incoming", "Incoming message (type=" + String::hexa(unsigned(message.type)) + ") from " + message.source.toString());
-	
+
 	// Message is for us
 	switch(message.type)
 	{
@@ -403,48 +409,48 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			// Nothing to do
 			break;
 		}
-		
+
 	// Path-folding offer
 	case Message::Offer:
 		{
 			// Read addresses
 			Set<Address> addrs;
 			BinarySerializer(&message.content) >> addrs;
-			
+
 			// Add known addresses
 			Set<Address> remoteAddresses;
 			getRemoteAddresses(message.source, remoteAddresses);
 			addrs.insertAll(remoteAddresses);
-			
+
 			// Send suggest message
 			Message suggest(Message::Suggest);
 			suggest.ttl = message.ttl;
 			suggest.source = message.source;
 			BinarySerializer(&suggest.content) << addrs;
-			
+
 			BinaryString distance = message.source ^ localNode();
 			Array<BinaryString> neighbors;
 			mHandlers.getKeys(neighbors);
 			for(int i=0; i<neighbors.size(); ++i)
 			{
-				if(message.source != neighbors[i] 
+				if(message.source != neighbors[i]
 					&& (message.source ^ neighbors[i]) <= distance)
 				{
 					suggest.destination = neighbors[i];
 					send(suggest);
 				}
 			}
-			
+
 			break;
 		}
-	
+
 	// Path-folding suggestion (relayed offer)
 	case Message::Suggest:
 		{
 			if(!isConnected(message.source))
 			{
 				LogDebug("Overlay::Incoming", "Suggest " + message.source.toString());
-				
+
 				Set<Address> addrs;
 				BinarySerializer(&message.content) >> addrs;
 				connect(addrs, message.source);
@@ -457,11 +463,11 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			// In Retrieve messages, key is in the destination field
 			const BinaryString &key = message.destination;
-			
+
 			//LogDebug("Overlay::Incoming", "Retrieve " + key.toString());
-			
+
 			route(message, from);
-			
+
 			List<BinaryString> values;
 			List<Time> times;
 			Store::Instance->retrieveValue(key, values, times);
@@ -472,23 +478,23 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				values.pop_front();
 				times.pop_front();
 			}
-			
+
 			//push(message);	// useless
 			break;
 		}
-		
+
 	// Store value in DHT
 	case Message::Store:
 		{
 			// In Store messages, key is in the destination field
 			const BinaryString &key = message.destination;
 			const BinaryString &value = message.content;
-			
+
 			//LogDebug("Overlay::Incoming", "Store " + key.toString());
-			
+
 			Time oldTime = Store::Instance->getValueTime(key, value);
 			Time now = Time::Now();
-			
+
 			if(now - oldTime >= seconds(60.)) // 1 min
         		{
 				Array<BinaryString> nodes;
@@ -501,10 +507,10 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					}
 				}
 			}
-			
+
 			{
 				std::unique_lock<std::mutex> lock(mRetrieveMutex);
-				
+
 				if(mRetrievePending.contains(key))
 				{
 					mRetrievePending.erase(key);
@@ -512,28 +518,28 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					mRetrieveCondition.notify_all();
 				}
 			}
-			
+
 			//push(message);	// useless
 			break;
 		}
-		
+
 	// Response to retrieve from DHT
 	case Message::Value:
 		{
 			// In Value messages, key is in the source field
 			const BinaryString &key = message.source;
-			
+
 			//LogDebug("Overlay::Incoming", "Value " + key.toString());
-			
+
 			uint64_t ts = 0;
 			BinaryString value = message.content;
 			if(!value.readBinary(ts) || value.empty()) return false;
-			
+
 			Store::Instance->storeValue(key, value, Store::Distributed, Time(ts));
-			
+
 			{
 				std::unique_lock<std::mutex> lock(mRetrieveMutex);
-				
+
 				if(mRetrievePending.contains(key))
 				{
 					mRetrievePending.erase(key);
@@ -541,12 +547,12 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 					mRetrieveCondition.notify_all();
 				}
 			}
-			
+
 			route(message, from);
 			push(message);
 			break;
 		}
-	
+
 	// Ping
 	case Message::Ping:
 		{
@@ -554,14 +560,14 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			send(Message(Message::Pong, message.content, message.source));
 			break;
 		}
-	
+
 	// Pong
 	case Message::Pong:
 		{
 			//LogDebug("Overlay::incoming", "Pong from " + message.source.toString());
 			break;
 		}
-		
+
 	// Higher-level messages are pushed to queue
 	case Message::Call:
 	case Message::Data:
@@ -570,14 +576,14 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 			push(message);
 			break;
 		}
-		
+
 	default:
 		{
 			LogDebug("Overlay::incoming", "Unknown message type: " + String::number(message.type));
 			return false;
 		}
 	}
-	
+
 	return true;
 }
 
@@ -596,50 +602,50 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 {
 	// Drop if TTL is zero
 	if(message.ttl == 0) return false;
-	
+
 	// Drop if self
 	if(message.destination == localNode()) return false;
-	
+
 	// Drop if not connected
 	if(mHandlers.empty()) return false;
-		
+
 	// Neighbor
 	if(mHandlers.contains(message.destination))
 		return sendTo(message, message.destination);
-	
+
 	Array<BinaryString> neigh;
 	getNeighbors(message.destination, neigh);
 	if(neigh.size() >= 2) neigh.remove(from);
-	
+
 	BinaryString route;
 	for(int i=0; i<neigh.size(); ++i)
 	{
 		route = neigh[i];
 		if(Random().uniformInt()%2 == 0) break;
 	}
-	
+
 	return sendTo(message, route);
 }
 
 bool Overlay::broadcast(const Message &message, const BinaryString &from)
 {
 	//LogDebug("Overlay::sendTo", "Broadcasting message");
-	
+
 	Array<BinaryString> neighbors;
 	mHandlers.getKeys(neighbors);
-	
+
 	bool success = false;
 	for(int i=0; i<neighbors.size(); ++i)
 	{
 		if(!from.empty() && neighbors[i] == from) continue;
-		
+
 		sptr<Handler> handler;
 		if(mHandlers.get(neighbors[i], handler))
 		{
 			success|= handler->send(message);
 		}
 	}
-	
+
 	return success;
 }
 
@@ -650,7 +656,7 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 		broadcast(message);
 		return true;
 	}
-	
+
 	sptr<Handler> handler;
 	if(mHandlers.get(to, handler))
 	{
@@ -658,29 +664,29 @@ bool Overlay::sendTo(const Message &message, const BinaryString &to)
 		handler->send(message);
 		return true;
 	}
-	
+
 	return false;
 }
 
 int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result)
 {
 	result.clear();
-	
+
 	Map<BinaryString, BinaryString> sorted;
 	Array<BinaryString> neighbors;
-	
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mHandlers.getKeys(neighbors);
 	}
-	
+
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
-	
+
 	// local node
 	sorted.insert(destination ^ localNode(), localNode());
-	
-	sorted.getValues(result);	
+
+	sorted.getValues(result);
 	if(count > 0 && result.size() > count) result.resize(count);
 	return result.size();
 }
@@ -688,10 +694,10 @@ int Overlay::getRoutes(const BinaryString &destination, int count, Array<BinaryS
 int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &result)
 {
 	result.clear();
-	
+
 	Map<BinaryString, BinaryString> sorted;
 	Array<BinaryString> neighbors;
-	
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mHandlers.getKeys(neighbors);
@@ -699,7 +705,7 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 
 	for(int i=0; i<neighbors.size(); ++i)
 		sorted.insert(destination ^ neighbors[i], neighbors[i]);
-	
+
 	sorted.getValues(result);
 	return result.size();
 }
@@ -707,31 +713,31 @@ int Overlay::getNeighbors(const BinaryString &destination, Array<BinaryString> &
 void Overlay::registerHandler(const BinaryString &node, const Address &addr, sptr<Overlay::Handler> handler)
 {
 	Assert(handler);
-	
+
 	sptr<Handler> currentHandler;
 	Set<Address>  currentAddrs;
 	bool isFirst = false;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		
+
 		isFirst = (mHandlers.empty());
-		
+
 		if(mHandlers.get(node, currentHandler))
 		{
 			mHandlers.erase(node);
 			LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
-			
+
 			currentHandler->getAddresses(currentAddrs);
 			currentHandler->stop();
 		}
-		
+
 		mHandlers.insert(node, handler);
 		handler->addAddresses(currentAddrs);
 		handler->start();
-		
+
 		mRemoteAddresses.insert(addr);
 	}
-	
+
 	// On first connection, send network calls and schedule store to publish in DHT
 	if(isFirst)
 	{
@@ -746,15 +752,15 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 	sptr<Handler> currentHandler; // prevent handler deletion on erase
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		
+
 		if(!mHandlers.get(node, currentHandler) || currentHandler.get() != handler)
 			return;
-		
+
 		mHandlers.erase(node);
-		
+
 		for(auto &a : addrs)
 			mRemoteAddresses.erase(a);
-		
+
 		// If it was the last handler, try to reconnect now
 		if(mHandlers.empty())
 			mRunAlarm.schedule(Alarm::clock::now());
@@ -765,16 +771,16 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 {
 	result.clear();
 	if(tracker.empty()) return false;
-	
+
 	String url;
 	if(tracker.contains("://")) url = tracker;
 	else url = "http://" + tracker;
-	
-	LogDebug("Overlay::track", "Contacting tracker " + url);	
-	
+
+	LogDebug("Overlay::track", "Contacting tracker " + url);
+
 	try {
 		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet/tracker?id=" + localNode().toString();
-		
+
 		// Dirty hack to test if tracker is private or public
 		bool trackerIsPrivate = false;
 		List<Address> trackerAddresses;
@@ -787,14 +793,14 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 				break;
 			}
 		}
-		
+
 		Set<Address> addresses, tmp;
-		Config::GetExternalAddresses(addresses); 
-		
+		Config::GetExternalAddresses(addresses);
+
 		// Mix our own addresses with known public addresses
 		//getKnownPublicAdresses(tmp);
 		//addresses.insertAll(tmp);
-		
+
 		String strAddresses;
 		for(auto it = addresses.begin(); it != addresses.end(); ++it)
 		{
@@ -804,11 +810,11 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 				strAddresses+= it->toString();
 			}
 		}
-		
+
 		StringMap post;
 		if(!strAddresses.empty())
 			post["addresses"] = strAddresses;
-		
+
 		const String externalPort = Config::Get("external_port");
 		if(!externalPort.empty() && externalPort != "auto")
 		{
@@ -819,7 +825,7 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 		{
 			post["port"] = Config::Get("port");
 		}
-		
+
 		String json;
 		int code = Http::Post(url, post, &json);
 		if(code == 200)
@@ -828,14 +834,14 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 			if(!(serializer >> result)) return false;
 			return !result.empty();
 		}
-		
-		LogWarn("Overlay::track", "Tracker HTTP error: " + String::number(code)); 
+
+		LogWarn("Overlay::track", "Tracker HTTP error: " + String::number(code));
 	}
 	catch(const std::exception &e)
 	{
-		LogWarn("Overlay::track", e.what()); 
+		LogWarn("Overlay::track", e.what());
 	}
-	
+
 	return false;
 }
 
@@ -843,7 +849,7 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 void Overlay::serialize(Serializer &s) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	s << Object()
 		.insert("publickey", mPublicKey)
 		.insert("privatekey", mPrivateKey)
@@ -853,21 +859,21 @@ void Overlay::serialize(Serializer &s) const
 bool Overlay::deserialize(Serializer &s)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	mPublicKey.clear();
 	mPrivateKey.clear();
 	mLocalNode.clear();
-	
+
 	Map<Address, BinaryString> peers;
-	
+
 	if(!(s >> Object()
 		.insert("publickey", mPublicKey)
 		.insert("privatekey", mPrivateKey)
 		.insert("peers", peers)))
 		return false;
-	
+
 	// TODO: Sanitize
-	
+
 	mLocalNode = mPublicKey.digest();
 	mKnownPeers.insertAll(peers);
 	return true;
@@ -877,11 +883,11 @@ void Overlay::run(void)
 {
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();
-		
+
 		Set<Address> externalAddrs;
 		Config::GetExternalAddresses(externalAddrs);
-					
-		
+
+
 		if(connectionsCount() < minConnectionsCount)
 		{
 			Map<Address, BinaryString> peers;
@@ -891,11 +897,11 @@ void Overlay::run(void)
 					if(!mHandlers.contains(p.second))
 						peers.insert(p.first, p.second);
 			}
-		
+
 			for(const auto &p : peers)
 				connect(p.first, p.second, false);	// sync
 		}
-		
+
 		Map<BinaryString, Set<Address> > result;
 		if(track(Config::Get("tracker"), result) && connectionsCount() < minConnectionsCount)
 		{
@@ -904,13 +910,13 @@ void Overlay::run(void)
 				if(p.first == localNode())
 				{
 					std::unique_lock<std::mutex> lock(mMutex);
-					
+
 					// Store external addresses for Offer messages
 					mLocalAddresses = externalAddrs;
 					mLocalAddresses.insertAll(p.second);
-					
+
 					// TODO: external address discovery by other nodes
-					
+
 					if(!mLocalAddresses.empty())
 					{
 						BinaryString content;
@@ -923,14 +929,14 @@ void Overlay::run(void)
 				}
 			}
 		}
-		
+
 		if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(Random().uniform(0.,120.)));	// avg 1 min
 		else mRunAlarm.schedule(seconds(600.));   // 10 min
 	}
 	catch(const std::exception &e)
 	{
 		LogError("Overlay::run", e.what());
-		mRunAlarm.schedule(seconds(60.));   // 1 min	
+		mRunAlarm.schedule(seconds(60.));   // 1 min
 	}
 }
 
@@ -942,7 +948,7 @@ Overlay::Message::Message(void)
 Overlay::Message::Message(uint8_t type, const BinaryString &content, const BinaryString &destination, const BinaryString &source)
 {
 	clear();
-	
+
 	this->type = type;
 	this->source = source;
 	this->destination = destination;
@@ -951,7 +957,7 @@ Overlay::Message::Message(uint8_t type, const BinaryString &content, const Binar
 
 Overlay::Message::~Message(void)
 {
-	
+
 }
 
 void Overlay::Message::clear(void)
@@ -974,7 +980,7 @@ Overlay::Backend::Backend(Overlay *overlay) :
 
 Overlay::Backend::~Backend(void)
 {
-	
+
 }
 
 bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote)
@@ -983,7 +989,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	{
 	public:
 		Rsa::PublicKey publicKey;
-		
+
 		bool verifyPublicKey(const std::vector<Rsa::PublicKey> &chain)
 		{
 			if(chain.empty()) return false;
@@ -998,20 +1004,20 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	// Set verifier
 	MyVerifier verifier;
 	transport->setVerifier(&verifier);
-	
+
 	// Set timeout
 	transport->setHandshakeTimeout(milliseconds(Config::Get("connect_timeout").toInt()));
-	
+
 	// Do handshake
 	transport->handshake();
 	Assert(transport->hasCertificate());
-	
+
 	BinaryString identifier = verifier.publicKey.digest();
 	if(remote.empty() || remote == identifier)
 	{
 		// Handshake succeeded
 		LogInfo("Overlay::Backend::handshake", String("Connected node: ") + identifier.toString());
-		
+
 		sptr<Handler> handler = std::make_shared<Handler>(mOverlay, transport, identifier, addr);
 		mOverlay->registerHandler(identifier, addr, handler);
 		return true;
@@ -1032,9 +1038,9 @@ void Overlay::Backend::run(void)
 			Address addr;
 			transport = listen(&addr);
 			if(!transport) break;
-			
+
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
-			
+
 			mOverlay->mPool.enqueue([this, transport, addr]()
 			{
 				try {
@@ -1052,7 +1058,7 @@ void Overlay::Backend::run(void)
 			delete transport;
 		}
 	}
-	
+
 	LogWarn("Overlay::Backend::run", "Closing backend");
 }
 
@@ -1065,25 +1071,25 @@ Overlay::StreamBackend::StreamBackend(Overlay *overlay, int port) :
 
 Overlay::StreamBackend::~StreamBackend(void)
 {
-	
+
 }
 
 bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const duration connectTimeout = milliseconds(Config::Get("connect_timeout").toDouble());
-	
+
 	try {
 		Set<Address> localAddrs;
 		getAddresses(localAddrs);
 		if(localAddrs.contains(addr))
 			return false;
-		
+
 		if(Config::Get("force_http_tunnel").toBool())
 			return connectHttp(addr, remote);
-		
+
 		LogDebug("Overlay::StreamBackend::connect", "Trying address " + addr.toString() + " (TCP)");
-		
+
 		Socket *sock = NULL;
 		try {
 			sock = new Socket;
@@ -1094,16 +1100,16 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 		catch(...)
 		{
 			delete sock;
-			
+
 			// Try HTTP tunnel if a proxy is available
 			String url = "http://" + addr.toString() + "/";
 			if(Proxy::HasProxyForUrl(url))
 				return connectHttp(addr, remote);
-			
+
 			// else throw
 			throw;
 		}
-		
+
 		SecureTransport *transport = NULL;
 		try {
 			transport = new SecureTransportClient(sock, NULL, "");
@@ -1113,7 +1119,7 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 			delete sock;
 			throw;
 		}
-		
+
 		try {
 			return handshake(transport, addr, remote);
 		}
@@ -1135,16 +1141,16 @@ bool Overlay::StreamBackend::connect(const Address &addr, const BinaryString &re
 	{
 		LogDebug("Overlay::StreamBackend::connect", e.what());
 	}
-	
+
 	return false;
 }
 
 bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString &remote)
 {
 	const duration connectTimeout = milliseconds(Config::Get("connect_timeout").toDouble());
-	
+
 	LogDebug("Overlay::StreamBackend::connectHttp", "Trying address " + addr.toString() + " (HTTP)");
-	
+
 	Stream *stream = NULL;
 	SecureTransport *transport = NULL;
 	try {
@@ -1156,7 +1162,7 @@ bool Overlay::StreamBackend::connectHttp(const Address &addr, const BinaryString
 		delete stream;
 		throw;
 	}
-	
+
 	try {
 		return handshake(transport, addr, remote);
 	}
@@ -1171,7 +1177,7 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 {
 	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const duration dataTimeout = milliseconds(Config::Get("connect_timeout").toDouble());
-	
+
 	while(true)
 	{
 		Socket *sock = NULL;
@@ -1184,19 +1190,19 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 			delete sock;
 			throw;
 		}
-		
+
 		Stream *stream = sock;
 		try {
 			const size_t peekSize = 5;
 			char peekBuffer[peekSize];
-			
+
 			sock->setTimeout(dataTimeout);
 			if(sock->peekData(peekBuffer, peekSize) != peekSize)
 				throw NetException("Connection prematurely closed");
-			
+
 			sock->setTimeout(timeout);
 			if(addr) *addr = sock->getRemoteAddress();
-			
+
 			if(std::memcmp(peekBuffer, "GET ", 4) == 0
 				|| std::memcmp(peekBuffer, "POST ", 5) == 0)
 			{
@@ -1204,7 +1210,7 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 				stream = HttpTunnel::Incoming(sock);
 				if(!stream) continue;	// eaten
 			}
-			
+
 			return new SecureTransportServer(stream, NULL, true);	// ask for certificate
 		}
 		catch(const Timeout &e)
@@ -1215,10 +1221,10 @@ SecureTransport *Overlay::StreamBackend::listen(Address *addr)
 		{
 			LogWarn("Overlay::StreamBackend::listen", e.what());
 		}
-		
+
 		delete stream;
 	}
-	
+
 	return NULL;
 }
 
@@ -1231,30 +1237,30 @@ Overlay::DatagramBackend::DatagramBackend(Overlay *overlay, int port) :
 	Backend(overlay),
 	mSock(port)
 {
-	
+
 }
 
 Overlay::DatagramBackend::~DatagramBackend(void)
 {
-	
+
 }
 
 bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &remote)
 {
 	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
-	
+
 	try {
 		Set<Address> localAddrs;
 		getAddresses(localAddrs);
 		if(localAddrs.contains(addr))
 			return false;
-		
+
 		if(Config::Get("force_http_tunnel").toBool())
 			return false;
-		
+
 		LogDebug("Overlay::DatagramBackend::connect", "Trying address " + addr.toString() + " (UDP)");
-		
+
 		DatagramStream *stream = NULL;
 		SecureTransport *transport = NULL;
 		try {
@@ -1267,7 +1273,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 			delete stream;
 			throw;
 		}
-		
+
 		try {
 			transport->setDatagramMtu(mtu);
 			return handshake(transport, addr, remote);
@@ -1290,7 +1296,7 @@ bool Overlay::DatagramBackend::connect(const Address &addr, const BinaryString &
 	{
 		LogDebug("Overlay::DatagramBackend::connect", e.what());
 	}
-	
+
 	return false;
 }
 
@@ -1298,16 +1304,16 @@ SecureTransport *Overlay::DatagramBackend::listen(Address *addr)
 {
 	const duration timeout = milliseconds(Config::Get("idle_timeout").toDouble());
 	const unsigned int mtu = 1452; // UDP over IPv6 on ethernet
-	
+
 	while(true)
 	{
 		SecureTransport *transport = SecureTransportServer::Listen(mSock, addr, true, timeout);	// ask for certificate
 		if(!transport) break;
-		
+
 		transport->setDatagramMtu(mtu);
 		return transport;
 	}
-	
+
 	return NULL;
 }
 
@@ -1325,19 +1331,19 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 {
 	if(node == mOverlay->localNode())
 		throw Exception("Spawned a handler for local node");
-	
+
 	addAddress(addr);
 }
 
 Overlay::Handler::~Handler(void)
 {
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-	
+
 	stop();
 	mSenderThread.join();
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
-	
+
 	delete mStream;
 }
 
@@ -1347,25 +1353,25 @@ bool Overlay::Handler::recv(Message &message)
 	{
 		try {
 			BinarySerializer s(mStream);
-			
+
 			// 32-bit control block
 			if(!(s >> message.version))
 			{
 				if(!mStream->nextRead()) break;
 				continue;
 			}
-			
+
 			AssertIO(s >> message.flags);
 			AssertIO(s >> message.ttl);
 			AssertIO(s >> message.type);
-			
+
 			// 32-bit size block
 			uint8_t sourceSize, destinationSize;
 			uint16_t contentSize;
 			AssertIO(s >> sourceSize);
 			AssertIO(s >> destinationSize);
 			AssertIO(s >> contentSize);
-			
+
 			// data
 			message.source.clear();
 			message.destination.clear();
@@ -1375,17 +1381,17 @@ bool Overlay::Handler::recv(Message &message)
 			AssertIO(mStream->readBinary(message.content, contentSize) == contentSize);
 
 			mStream->nextRead();	// switch to next datagram if this is a datagram stream
-			
+
 			if(message.source.empty())	continue;
 			if(message.ttl == 0)		continue;
 			--message.ttl;
-			
+
 			if(message.destination == node())
 			{
 				LogWarn("Overlay::Handler::recv", "Message destination is source node ?!");
 				continue;
 			}
-			
+
 			return true;
 		}
 		catch(const IOException &e)
@@ -1395,11 +1401,11 @@ bool Overlay::Handler::recv(Message &message)
 				LogWarn("Overlay::Handler::recv", "Connexion unexpectedly closed");
 				break;
 			}
-			
+
 			LogWarn("Overlay::Handler::recv", "Truncated message");
 		}
 	}
-	
+
 	return false;
 }
 
@@ -1412,7 +1418,7 @@ bool Overlay::Handler::send(const Message &message)
 void Overlay::Handler::start(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	mThread = std::thread([this]()
 	{
 		run();
@@ -1459,17 +1465,17 @@ BinaryString Overlay::Handler::node(void) const
 void Overlay::Handler::run(void)
 {
 	LogDebug("Overlay::Handler::run", "Starting handler");
-	
+
 	try {
 		process();
-		
+
 		LogDebug("Overlay::Handler::run", "Closing handler");
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("Overlay::Handler::run", String("Closing handler: ") + e.what());
 	}
-	
+
 	mOverlay->unregisterHandler(mNode, mAddrs, this);
 }
 
@@ -1488,7 +1494,7 @@ Overlay::Handler::Sender::Sender(Overlay *overlay, Stream *stream) :
 	mStream(stream),
 	mStop(false)
 {
-	
+
 }
 
 Overlay::Handler::Sender::~Sender(void)
@@ -1499,7 +1505,7 @@ Overlay::Handler::Sender::~Sender(void)
 bool Overlay::Handler::Sender::push(const Message &message)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(mQueue.size() < Overlay::MaxQueueSize)
 	{
 		mQueue.push(message);
@@ -1507,7 +1513,7 @@ bool Overlay::Handler::Sender::push(const Message &message)
 		mCondition.notify_all();
 		return true;
 	}
-	
+
 	return false;
 }
 
@@ -1524,21 +1530,21 @@ void Overlay::Handler::Sender::stop(void)
 void Overlay::Handler::Sender::run(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	try {
 		while(!mStop)
 		{
 			const duration timeout = milliseconds(Config::Get("keepalive_timeout").toDouble());
-			
+
 			if(mQueue.empty())
 			{
 				mCondition.wait_for(lock, timeout, [this]() {
 					return !mQueue.empty() || mStop;
 				});
 			}
-			
+
 			if(mStop) break;
-			
+
 			if(!mQueue.empty())
 			{
 				send(mQueue.front());
@@ -1564,25 +1570,25 @@ void Overlay::Handler::Sender::send(const Message &message)
 
 	BinaryString header;
 	BinarySerializer s(&header);
-	
+
 	// 32-bit control block
 	s << message.version;
 	s << message.flags;
 	s << message.ttl;
 	s << message.type;
-	
+
 	// 32-bit size block
 	s << uint8_t(source.size());
 	s << uint8_t(message.destination.size());
 	s << uint16_t(message.content.size());
-	
+
 	mStream->writeBinary(header);
-	
+
 	// data
 	mStream->writeBinary(source);
 	mStream->writeBinary(message.destination);
 	mStream->writeBinary(message.content);
-	
+
 	mStream->nextWrite();	// switch to next datagram if this is a datagram stream
 }
 

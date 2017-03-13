@@ -52,7 +52,7 @@ public:
 	static const int MaxQueueSize;
 	static const int StoreNeighbors;
 	static const int DefaultTtl;
-	
+
 	struct Message
 	{
 		// Non-routable messages
@@ -62,23 +62,23 @@ public:
 		static const uint8_t Retrieve   = 0x03;
 		static const uint8_t Store	= 0x04;
 		static const uint8_t Value	= 0x05;
-		
+
 		// Routable messages
 		static const uint8_t Call	= 0x80|0x01;
 		static const uint8_t Data	= 0x80|0x02;
 		static const uint8_t Tunnel	= 0x80|0x03;
 		static const uint8_t Ping	= 0x80|0x04;
 		static const uint8_t Pong	= 0x80|0x05;
-		
+
 		Message(void);
-		Message(uint8_t type, 
-			const BinaryString &content = "", 
+		Message(uint8_t type,
+			const BinaryString &content = "",
 			const BinaryString &destination = "",
 			const BinaryString &source = "");
 		~Message(void);
-		
+
 		void clear(void);
-		
+
 		// Fields
 		uint8_t version;
 		uint8_t flags;
@@ -88,16 +88,16 @@ public:
 		BinaryString destination;
 		BinaryString content;
 	};
-	
+
 	Overlay(int port);
 	~Overlay(void);
-	
+
 	void load(void);
 	void save(void) const;
 	void join(void);
-	
+
 	void start(duration delay = duration(0.));
-	
+
 	// Global
 	String localName(void) const;
 	BinaryString localNode(void) const;
@@ -108,13 +108,13 @@ public:
 	// Addresses
 	int getAddresses(Set<Address> &set) const;
 	int getRemoteAddresses(const BinaryString &remote, Set<Address> &set) const;
-	
+
 	// Connections
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
 	bool connect(const Address &addr, const BinaryString &remote = "", bool async = false);
 	bool isConnected(const BinaryString &remote) const;
 	int connectionsCount(void) const;
-	
+
 	// Message interface
 	bool recv(Message &message, duration timeout);
 	bool send(const Message &message);
@@ -123,10 +123,11 @@ public:
 	void store(const BinaryString &key, const BinaryString &value);
 	void retrieve(const BinaryString &key);					// async
 	bool retrieve(const BinaryString &key, Set<BinaryString> &values);	// sync
-	
+	bool retrieve(const BinaryString &key, Set<BinaryString> &values, duration timeout);
+
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
-	
+
 private:
 	// Routing
 	bool incoming(Message &message, const BinaryString &from);
@@ -136,70 +137,70 @@ private:
 	bool sendTo(const Message &message, const BinaryString &to);
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
-	
+
 	void run(void);
-	
+
 	class Backend
 	{
 	public:
 		Backend(Overlay *overlay);
 		virtual ~Backend(void);
-		
+
 		virtual bool connect(const Address &addrs, const BinaryString &remote = "") = 0;
 		virtual SecureTransport *listen(Address *addr = NULL) = 0;
 		virtual void getAddresses(Set<Address> &set) const { set.clear(); }
-		
+
 		void run(void);
-		
+
 	protected:
 		bool handshake(SecureTransport *transport, const Address &addr, const BinaryString &remote = "");
 
 		Overlay *mOverlay;
 	};
-	
+
 	class StreamBackend : public Backend
 	{
 	public:
 		StreamBackend(Overlay *overlay, int port);
 		~StreamBackend(void);
-		
+
 		bool connect(const Address &addr, const BinaryString &remote);
 		bool connectHttp(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(Address *addr = NULL);
-		
+
 		void getAddresses(Set<Address> &set) const;
-		
+
 	private:
 		ServerSocket mSock;
 	};
-	
+
 	class DatagramBackend : public Backend
 	{
 	public:
 		DatagramBackend(Overlay *overlay, int port);
 		~DatagramBackend(void);
-		
+
 		bool connect(const Address &addr, const BinaryString &remote);
 		SecureTransport *listen(Address *addr = NULL);
-		
+
 		void getAddresses(Set<Address> &set) const;
-		
+
 	private:
 		DatagramSocket mSock;
 	};
-	
+
 	class Handler
 	{
 	public:
 		Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr);	// stream will be deleted
 		~Handler(void);
-		
+
 		bool recv(Message &message);
 		bool send(const Message &message);
-		
+
 		void start(void);
 		void stop(void);
-		
+
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
 		void getAddresses(Set<Address> &set) const;
@@ -208,32 +209,32 @@ private:
 	private:
 		void run(void);
 		void process(void);
-		
+
 		Overlay *mOverlay;
 		Stream  *mStream;
 		BinaryString mNode;
 		Set<Address> mAddrs;
 		bool mStop;
-		
+
 		mutable std::mutex mMutex;
-		
+
 		std::thread mThread;
 		std::thread mSenderThread;
-		
+
 		class Sender
 		{
 		public:
 			Sender(Overlay *overlay, Stream *stream);
 			~Sender(void);
-			
+
 			bool push(const Message &message);
 			void stop(void);
-			
+
 			void run(void);
 
 		private:
 			void send(const Message &message);
-			
+
 			Overlay *mOverlay;
 			Stream *mStream;
 			Queue<Message> mQueue;
@@ -242,17 +243,17 @@ private:
 			mutable std::mutex mMutex;
 			mutable std::condition_variable mCondition;
 		};
-		
+
 		Sender mSender;
 	};
 
 	void registerHandler(const BinaryString &node, const Address &addr, sptr<Handler> handler);
 	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
-	
+
 	bool track(const String &tracker, Map<BinaryString, Set<Address> > &result);
-	
+
 	ThreadPool mPool;
-	
+
 	String mLocalName;
 	String mFileName;
 	Rsa::PublicKey	mPublicKey;
@@ -264,17 +265,17 @@ private:
 	Map<BinaryString, sptr<Handler> > mHandlers;
 	Set<Address> mRemoteAddresses, mLocalAddresses;
 	Map<Address, BinaryString> mKnownPeers;
-	
+
 	Queue<Message> mIncoming;
 	Set<BinaryString> mRetrievePending;
-	
+
 	Alarm mRunAlarm;
 
 	mutable std::mutex mMutex;
-	
+
 	mutable std::mutex mIncomingMutex;
 	mutable std::condition_variable mIncomingCondition;
-	
+
 	mutable std::mutex mRetrieveMutex;
 	mutable std::condition_variable mRetrieveCondition;
 };
@@ -282,4 +283,3 @@ private:
 }
 
 #endif
-
