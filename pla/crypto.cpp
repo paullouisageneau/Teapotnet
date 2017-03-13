@@ -392,15 +392,15 @@ AesCtr::~AesCtr(void)
 
 void AesCtr::setEncryptionKey(const BinaryString &key)
 {
-  Assert(key.size() >= AES256_KEY_SIZE);
-	aes256_set_encrypt_key(&mCtx.ctx, key.bytes());
+	Assert(key.size() >= AES_MIN_KEY_SIZE);
+	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes());
 }
 
 void AesCtr::setDecryptionKey(const BinaryString &key)
 {
 	// Counter mode also uses encrypt function for decryption
-	Assert(key.size() >= AES256_KEY_SIZE);
-	aes256_set_encrypt_key(&mCtx.ctx, key.bytes());
+	Assert(key.size() >= AES_MIN_KEY_SIZE);
+	aes_set_encrypt_key(&mCtx.ctx, key.size(), key.bytes());
 }
 
 void AesCtr::setInitializationVector(const BinaryString &iv)
@@ -417,14 +417,14 @@ size_t AesCtr::blockSize(void) const
 void AesCtr::encryptBlock(char *block, size_t size)
 {
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	CTR_CRYPT(&mCtx, aes256_encrypt, size, ptr, ptr);
+	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
 }
 
 void AesCtr::decryptBlock(char *block, size_t size)
 {
 	// Counter mode also uses encrypt function for decryption
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	CTR_CRYPT(&mCtx, aes256_encrypt, size, ptr, ptr);
+	CTR_CRYPT(&mCtx, aes_encrypt, size, ptr, ptr);
 }
 
 AesGcm::AesGcm(Stream *stream, bool mustDelete) :
@@ -440,26 +440,26 @@ AesGcm::~AesGcm(void)
 
 void AesGcm::setEncryptionKey(const BinaryString &key)
 {
-	Assert(key.size() >= AES256_KEY_SIZE);
-	gcm_aes256_set_key(&mCtx, key.bytes());
+	Assert(key.size() >= AES_MIN_KEY_SIZE);
+	gcm_aes_set_key(&mCtx, key.size(), key.bytes());
 }
 
 void AesGcm::setDecryptionKey(const BinaryString &key)
 {
-	Assert(key.size() >= AES256_KEY_SIZE);
-	gcm_aes256_set_key(&mCtx, key.bytes());
+	Assert(key.size() >= AES_MIN_KEY_SIZE);
+	gcm_aes_set_key(&mCtx, key.size(), key.bytes());
 }
 
 void AesGcm::setInitializationVector(const BinaryString &iv)
 {
 	Assert(iv.size() >= GCM_IV_SIZE);
-	gcm_aes256_set_iv(&mCtx, iv.size(), iv.bytes());
+	gcm_aes_set_iv(&mCtx, iv.size(), iv.bytes());
 }
 
 bool AesGcm::getAuthenticationTag(BinaryString &tag)
 {
-	tag.resize(GCM_DIGEST_SIZE);
-	gcm_aes256_digest(&mCtx, tag.size(), tag.bytes());
+	tag.resize(GCM_BLOCK_SIZE);
+	gcm_aes_digest(&mCtx, tag.size(), tag.bytes());
 	return true;
 }
 
@@ -471,15 +471,15 @@ size_t AesGcm::blockSize(void) const
 void AesGcm::encryptBlock(char *block, size_t size)
 {
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	gcm_aes256_update (&mCtx, size, ptr);
-	gcm_aes256_encrypt(&mCtx, size, ptr, ptr);
+	gcm_aes_update (&mCtx, size, ptr);
+	gcm_aes_encrypt(&mCtx, size, ptr, ptr);
 }
 
 void AesGcm::decryptBlock(char *block, size_t size)
 {
 	uint8_t *ptr = reinterpret_cast<uint8_t*>(block);
-	gcm_aes256_update (&mCtx, size, ptr);
-	gcm_aes256_decrypt(&mCtx, size, ptr, ptr);
+	gcm_aes_update(&mCtx, size, ptr);
+	gcm_aes_decrypt(&mCtx, size, ptr, ptr);
 }
 
 Rsa::PublicKey::PublicKey(void)

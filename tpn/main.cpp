@@ -239,13 +239,13 @@ int main(int argc, char** argv)
 		String message = "Hello world ! Hello world ! Hello world !";
 		
 		BinaryString tmp;
-		Aes encryptor(&tmp);
+		AesCtr encryptor(&tmp);
 		encryptor.setEncryptionKey(key);
 		encryptor.setInitializationVector(iv);
 		encryptor.write(message);
 		encryptor.close();
 		
-		Aes decryptor(&tmp);
+		AesCtr decryptor(&tmp);
 		decryptor.setDecryptionKey(key);
 		decryptor.setInitializationVector(iv);
 		String result;
