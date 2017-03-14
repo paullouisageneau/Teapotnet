@@ -229,38 +229,6 @@ int main(int argc, char** argv)
 
 	File::TempPrefix = "tpn_";
 
-	// ---------- AES auto-test ----------
-	try {
-		BinaryString key, salt, iv;
-		Random(Random::Key).readBinary(key, 32);
-		Random(Random::Nonce).readBinary(salt, 32);
-		Random(Random::Nonce).readBinary(iv, 16);
-
-		String message = "Hello world ! Hello world ! Hello world !";
-
-		BinaryString tmp;
-		AesCtr encryptor(&tmp);
-		encryptor.setEncryptionKey(key);
-		encryptor.setInitializationVector(iv);
-		encryptor.write(message);
-		encryptor.close();
-		
-		AesCtr decryptor(&tmp);
-		decryptor.setDecryptionKey(key);
-		decryptor.setInitializationVector(iv);
-		String result;
-		decryptor.readLine(result);
-		decryptor.close();
-
-		Assert(message == result);
-	}
-	catch(const Exception &e)
-	{
-		LogError("main", String("AES auto-test failed: ") + e.what());
-		exit(1);
-	}
-	// ----------
-
 	StringMap args;
 	String commandLine;
 	try {
