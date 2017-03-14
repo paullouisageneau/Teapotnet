@@ -21,17 +21,7 @@ Alternatively, you can install it:
 Or with another prefix (default prefix is /usr/local):
 # make install prefix=/usr
 
-By default, it listens for TPOT connections on port 8080.
-The interface listens by defaut on port 8480, and the tracker on port 80.
+By default, it listens for TPOT connections on UDP or TCP port 8080.
+The HTTP interface listens on port 8480, and the tracker on port 8488.
 This can be changed in config.txt (created at first startup)
-
-You can create a new user directly from the interface.
-Alternatively, write the username and password to users.txt
-(deleted during startup) before launching the program, as follow:
-$ echo myusername mypassword > users.txt
-$ ./teapotnet
-
-Note directories.txt (created at first startup) contains global shared directories
-(ie for all users of the program).
-The format is "name=path" on each line (for instance "test=/home/test").
 
