@@ -82,18 +82,59 @@ void Interface::http(const String &prefix, Http::Request &request)
 
 				User *user = NULL;
 				try {
-					if(request.post.contains("create") && !User::Exist(name))
+					if(!User::Exist(name))
 					{
-						// TODO
+						if(request.post.contains("create"))
+						{
+							User *user = new User(name, password);
+							user->generateKeyPair();
+							user->save();
 
-						String token = user->generateToken("auth");
+							String token = user->generateToken("auth");
+							Http::Response response(request, 303);
+							response.headers["Location"] = user->urlPrefix();
+							response.cookies["auth_"+user->name()] = token;
+							response.send();
+							return;
+						}
+						else if(request.post.contains("import"))
+						{
+							User *user = new User(name, password);
+							if(!user->recv(password)) throw 401;
+
+							String token = user->generateToken("auth");
+							Http::Response response(request, 303);
+							response.headers["Location"] = user->urlPrefix();
+							response.cookies["auth_"+user->name()] = token;
+							response.send();
+							return;
+						}
+
 						Http::Response response(request, 200);
-						response.cookies["auth_"+user->name()] = token;
 						response.send();
+
+						Html page(response.stream);
+						page.header("Please wait...", true);
+						page.open("div", "notification");
+						page.image("/static/loading.png", "Loading");
+						page.br();
+						page.br();
+						page.open("h1",".huge");
+						page.text("Please wait...");
+						page.close("h1");
+						page.close("div");
+						page.openForm(request.url, "post");
+						page.input("hidden", "name", name);
+						page.input("hidden", "password", password);
+						page.input("hidden", "import", "1");
+						page.javascript("$(document).ready(function() { $('form:first').submit(); });");
+						page.closeForm();
+						page.footer();
 						return;
 					}
 
 					user = User::Authenticate(name, password);
+					if(!user) throw 401;
 				}
 				catch(const Exception &e)
 				{
@@ -106,8 +147,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 					page.footer();
 					return;
 				}
-
-				if(!user) throw 401;
 
 				String token = user->generateToken("auth");
 				Http::Response response(request, 303);

@@ -151,14 +151,21 @@ User::User(const String &name, const String &password) :
 	rnd.readBinary(mTokenSecret, 16);
 
 	// Register
+	User *oldUser = NULL;
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
+		auto it = UsersByName.find(mName);
+		if(it != UsersByName.end())
+			oldUser = it->second;
 		UsersByName.insert(mName, this);
 		UsersByAuth.insert(mAuth, this);
 	}
 
 	// Register interface
 	Interface::Instance->add(urlPrefix(), this);
+
+	// Delete old user if it exists
+	delete oldUser;
 
 	mOfflineAlarm.set([this]()
 	{
@@ -170,29 +177,36 @@ User::~User(void)
 {
 	// Unregister
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		UsersByName.erase(mName);
-		UsersByAuth.erase(mAuth);
+		std::unique_lock<std::mutex> lock(UsersMutex);
+		auto it = UsersByName.find(mName);
+		if(it->second == this)
+		{
+			UsersByName.erase(mName);
+			UsersByAuth.erase(mAuth);
+		}
 	}
 
 	// Unregister interface
-	Interface::Instance->remove(urlPrefix());
+	Interface::Instance->remove(urlPrefix(), this);
 
 	mOfflineAlarm.cancel();
 }
 
 void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
-	Identifier oldIdentifier = mPublicKey.digest();
 	Identifier identifier = pub.digest();
-	if(oldIdentifier == identifier)
-		return;
+	Identifier oldIdentifier;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+	
+		oldIdentifier = mPublicKey.digest();
+		if(oldIdentifier == identifier)
+			return;
 
-	mPublicKey = pub;
-	mPrivateKey = priv;
-	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
+		mPublicKey = pub;
+		mPrivateKey = priv;
+		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
+	}
 
 	// Order matters here
 	mIndexer = std::make_shared<Indexer>(this);

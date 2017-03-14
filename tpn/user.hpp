@@ -49,7 +49,7 @@ public:
 	static User *Authenticate(const String &name, const String &password);
 
 	User(const String &name, const String &password = "");
-	~User(void);
+	virtual ~User(void);
 
 	bool load(void);
 	void save(void) const;

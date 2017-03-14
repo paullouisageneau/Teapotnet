@@ -48,7 +48,7 @@ String Html::escape(const String &str)
 	}
 	return result;
 }
-  
+
 Html::Html(Stream *stream) :
 	mStream(stream),
 	mBlank(false)
@@ -64,7 +64,7 @@ Html::~Html(void)
 void Html::header(const String &title, bool blank, const String &redirect)
 {
 	mBlank = blank;
-  
+
 	*mStream<<"<!DOCTYPE html>\n";
 	*mStream<<"<html>\n";
 	*mStream<<"<head>\n";
@@ -75,7 +75,7 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n";
 	*mStream<<"<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/style.css\">\n";
 	*mStream<<"<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/static/favicon.ico\">\n";
-	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"5;URL='"+redirect+"'\">\n";
+	if(!redirect.empty()) *mStream<<"<meta http-equiv=\"refresh\" content=\"3;URL='"+redirect+"'\">\n";
 	*mStream<<"<noscript><meta http-equiv=\"refresh\" content=\"0;url=/static/noscript.html\"></noscript>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.form.min.js\"></script>\n";
@@ -83,16 +83,16 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/directory.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/mail.js\"></script>\n";
 	*mStream<<"<base target=\"_parent\">\n";
-	
+
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 		if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || deviceAgent.indexOf('iPad') >= 0)\n\
 			$('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/touchscreen.css\">');");
-	
+
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
 
 	open("div","page");
-	
+
 	if(!mBlank)
 	{
 		open("div","header");
@@ -111,13 +111,13 @@ void Html::footer(void)
 {
 	if(!mBlank)
 	{
-		close("div"); 
+		close("div");
 		open("div", "footer");
 		close("div");
 	}
 
 	close("div");
-	
+
 	*mStream<<"</body>\n";
 	*mStream<<"</html>\n";
 }
@@ -142,10 +142,10 @@ void Html::object(const Serializable &s)
 void Html::open(const String &type, String id)
 {
 	Assert(!type.empty());
-	
+
 	if(!id.empty() && id[0] == '#') id.ignore();
 	String cl = id.cut('.');
-	
+
 	*mStream<<"<"<<type;
 	if(!id.empty()) *mStream<<" id=\""<<id<<"\"";
 	if(!cl.empty()) *mStream<<" class=\""<<cl<<"\"";
@@ -179,7 +179,7 @@ void Html::span(const String &txt, String id)
 {
  	open("span",id);
 	text(txt);
-	close("span"); 
+	close("span");
 }
 
 void Html::div(const String &txt, String id)
@@ -205,7 +205,7 @@ void Html::image(	const String &url,
 {
 	if(!id.empty() && id[0] == '#') id.ignore();
   	String cl = id.cut('.');
-	
+
 	*mStream<<"<img src=\""<<url<<"\"";
 	if(!alt.empty()) *mStream<<" alt=\""<<alt<<"\"";
 	if(!id.empty())  *mStream<<" id=\""<<id<<"\"";
@@ -216,8 +216,8 @@ void Html::image(	const String &url,
 void Html::javascript(const String &code)
 {
 	*mStream<<"<script type=\"text/javascript\">\n";
-	*mStream<<code<<"\n"; 
-	*mStream<<"</script>\n"; 
+	*mStream<<code<<"\n";
+	*mStream<<"</script>\n";
 }
 
 void Html::space(void)
@@ -239,7 +239,7 @@ void Html::openForm(	const String &action,
 	String enctype;
 	if(multipart) enctype = "multipart/form-data";
 	else enctype = "application/x-www-form-urlencoded";
-	
+
 	*mStream<<"<form";
 	if(!name.empty()) *mStream<<" name=\""<<name<<"\"";
 	*mStream<<" action=\""<<escape(action)<<"\" method=\""<<method<<"\"";
