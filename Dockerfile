@@ -1,5 +1,5 @@
 FROM debian:stable
-MAINTAINER Paul-Louis Ageneau <paul-louis@ageneau.org>
+MAINTAINER Paul-Louis Ageneau <paul-louis (at) ageneau (dot) org>
 EXPOSE 8480 8080
 
 RUN apt-get update
