@@ -1,6 +1,6 @@
 FROM debian:stable
 MAINTAINER Paul-Louis Ageneau <paul-louis@ageneau.org>
-EXPOSE 8480
+EXPOSE 8480 8080
 
 RUN apt-get update
 RUN apt-get upgrade -y
@@ -13,6 +13,7 @@ RUN dpkg -i /tmp/teapotnet_*.deb
 
 RUN mkdir -p /var/lib/teapotnet
 RUN chown -R teapotnet.teapotnet /var/lib/teapotnet
+RUN chmod 750 /var/lib/teapotnet
 VOLUME /var/lib/teapotnet
 
 WORKDIR /var/lib/teapotnet 
