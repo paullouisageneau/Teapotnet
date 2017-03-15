@@ -43,6 +43,14 @@ Interface::Interface(int port) :
 	add("/static", this);
 	add("/file", this);
 	add("/mail", this);
+
+	const String badPasswordsFile = Config::Get("static_dir") + "/bad_passwords.txt";
+	if(File::Exist(badPasswordsFile))
+	{
+		File file(badPasswordsFile);
+		file.readBinary(mBadPasswordsString);
+		file.close();
+	}
 }
 
 Interface::~Interface(void)
@@ -80,15 +88,57 @@ void Interface::http(const String &prefix, Http::Request &request)
 				request.post.get("name", name);
 				request.post.get("password", password);
 
+				if(name.empty() || password.empty())
+				{
+					Http::Response response(request, 303);
+					response.headers["Location"] = request.url;
+					response.send();
+					return;
+				}
+
 				User *user = NULL;
 				try {
 					if(!User::Exist(name))
 					{
 						if(request.post.contains("create"))
 						{
-							User *user = new User(name, password);
-							user->generateKeyPair();
-							user->save();
+							User *user = NULL;
+							try {
+								if(name.size() < 3)
+									throw Exception("Username too short");
+
+								if(mBadPasswordsString.contains(password))
+									throw Exception("Password too weak");
+
+								if(password.size() < 12)
+									throw Exception("Password too short");
+
+								user = new User(name, password);
+								user->generateKeyPair();
+								user->save();
+							}
+							catch(const Exception &e)
+							{
+								delete user;
+
+								Http::Response response(request, 400);
+								response.send();
+
+								Html page(response.stream);
+								page.header("Error", true, request.url);
+								page.open("div", "error");
+								page.openLink("/");
+								page.image("/static/error.png", "Error");
+								page.closeLink();
+								page.br();
+								page.br();
+								page.open("h1",".huge");
+								page.text(e.what());
+								page.close("h1");
+								page.close("div");
+								page.footer();
+								return;
+							}
 
 							String token = user->generateToken("auth");
 							Http::Response response(request, 303);
@@ -168,7 +218,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.closeLink();
 			page.close("div");
 
-			page.openForm("/", "post");
+			page.openForm(request.url, "post");
 			page.open("table");
 			page.open("tr");
 			page.open("td", ".leftcolumn"); page.label("name", "Name"); page.close("td");

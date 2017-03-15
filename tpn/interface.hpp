@@ -31,7 +31,7 @@ namespace tpn
 {
 
 class User;
-  
+
 class HttpInterfaceable
 {
 public:
@@ -49,18 +49,20 @@ public:
 
 	Interface(int port);
         ~Interface(void);
-	
+
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
 	void remove(const String &prefix, HttpInterfaceable *interfaceable = NULL);
-	
+
 	void http(const String &prefix, Http::Request &request);
-	
+
 private:
 	void process(Http::Request &request);
 	void generate(Stream &out, int code, const String &message);
 
 	Map<String,HttpInterfaceable*> mPrefixes;
 	std::mutex mMutex;
+
+  String mBadPasswordsString;
 };
 
 }
