@@ -163,6 +163,9 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 
 bool AddressBook::removeContact(const String &uname)
 {
+	if(uname == userName())
+		return false;
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
@@ -447,7 +450,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					request.get["id"].extract(identifier);
 
 					sptr<Contact> contact;
-
 					{
 						std::unique_lock<std::mutex> lock(mMutex);
 
@@ -513,7 +515,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "action", "create");
 			page.label("id", "Identifier"); page.input("text", "id"); page.br();
 			page.label("name", "Name"); page.input("text", "name"); page.br();
-			page.label("generate"); page.button("generate", "Add contact"); page.br(); page.br();
+			page.label("add"); page.button("add", "Add contact"); page.br(); page.br();
 			page.closeFieldset();
 			page.closeForm();
 
@@ -557,9 +559,12 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					page.text(contact->identifier().toString());
 					page.close("td");
 					page.open("td",".actions");
-					page.openLink('#', ".deletelink");
-					page.image("/static/delete.png", "Delete");
-					page.closeLink();
+					if(!contact->isSelf())
+					{
+						page.openLink('#', ".deletelink");
+						page.image("/static/delete.png", "Delete");
+						page.closeLink();
+					}
 					page.close("td");
 					page.close("tr");
 				}
