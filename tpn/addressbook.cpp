@@ -159,7 +159,6 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 	}
 
 	save();
-
 	return uname;
 }
 
@@ -327,8 +326,6 @@ bool AddressBook::deserialize(Serializer &s)
 		.insert("time", time)))
 		return false;
 
-	mTime = time;
-
 	StringSet toDelete;
 	mContacts.getKeys(toDelete);
 
@@ -366,11 +363,18 @@ bool AddressBook::deserialize(Serializer &s)
 				mContactsByIdentifier.insert(contact->identifier(), contact);
 			}
 		}
-
-		for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
-			removeContact(*it);
 	}
 
+	for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		auto it = mContacts.find(uname);
+		if(it == mContacts.end()) continue;
+		mContactsByIdentifier.erase(it->second->identifier());
+		mContacts.erase(it);
+	}
+
+	mTime = time;
 	save();
 	return true;
 }
