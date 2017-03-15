@@ -114,11 +114,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 
 								user = new User(name, password);
 								user->generateKeyPair();
-								user->save();
 							}
 							catch(const Exception &e)
 							{
 								delete user;
+								user = NULL;
 
 								Http::Response response(request, 400);
 								response.send();
@@ -138,56 +138,43 @@ void Interface::http(const String &prefix, Http::Request &request)
 								page.footer();
 								return;
 							}
-
-							String token = user->generateToken("auth");
-							Http::Response response(request, 303);
-							response.headers["Location"] = user->urlPrefix();
-							response.cookies["auth_"+user->name()] = token;
-							response.send();
-							return;
 						}
 						else if(request.post["import"].toBool())
 						{
-							User *user = new User(name, password);
+							user = new User(name, password);
 							if(!user->recv(password))
 							{
 								delete user;
-								throw 401;
+								user = NULL;
 							}
-
-							String token = user->generateToken("auth");
-							Http::Response response(request, 303);
-							response.headers["Location"] = user->urlPrefix();
-							response.cookies["auth_"+user->name()] = token;
+						}
+						else {
+							Http::Response response(request, 200);
 							response.send();
+
+							Html page(response.stream);
+							page.header("Please wait...", true);
+							page.open("div", "notification");
+							page.image("/static/loading.png", "Loading");
+							page.br();
+							page.br();
+							page.open("h1",".huge");
+							page.text("Please wait...");
+							page.close("h1");
+							page.close("div");
+							page.openForm(request.url, "post");
+							page.input("hidden", "name", name);
+							page.input("hidden", "password", password);
+							page.input("hidden", "import", "1");
+							page.javascript("$(document).ready(function() { $('form:first').submit(); });");
+							page.closeForm();
+							page.footer();
 							return;
 						}
-
-						Http::Response response(request, 200);
-						response.send();
-
-						Html page(response.stream);
-						page.header("Please wait...", true);
-						page.open("div", "notification");
-						page.image("/static/loading.png", "Loading");
-						page.br();
-						page.br();
-						page.open("h1",".huge");
-						page.text("Please wait...");
-						page.close("h1");
-						page.close("div");
-						page.openForm(request.url, "post");
-						page.input("hidden", "name", name);
-						page.input("hidden", "password", password);
-						page.input("hidden", "import", "1");
-						page.javascript("$(document).ready(function() { $('form:first').submit(); });");
-						page.closeForm();
-						page.footer();
-						return;
 					}
-
-					user = User::Authenticate(name, password);
-					if(!user) throw 401;
+					else {
+						user = User::Authenticate(name, password);
+					}
 				}
 				catch(const Exception &e)
 				{
@@ -200,6 +187,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 					page.footer();
 					return;
 				}
+
+				if(!user) throw 401;	// Login failed
+
+				user->save();
+				user->send(password);
 
 				String token = user->generateToken("auth");
 				Http::Response response(request, 303);

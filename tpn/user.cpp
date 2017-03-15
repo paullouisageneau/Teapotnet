@@ -100,7 +100,6 @@ User *User::Authenticate(const String &name, const String &password)
 	if(UsersByAuth.get(auth, user))
 	{
 	  UsersMutex.unlock();
-		user->send(password);
 		return user;
 	}
 	UsersMutex.unlock();
