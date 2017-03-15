@@ -517,23 +517,6 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 			page.closeFieldset();
 			page.closeForm();
 
-			page.openForm(prefix + "/", "post", "createsynchronization");
-			page.openFieldset("Synchronize new device");
-			page.input("hidden", "token", token);
-			page.input("hidden", "action", "createsynchronization");
-			page.button("generate", "Generate synchronization secret");
-			page.closeFieldset();
-			page.closeForm();
-
-			page.openForm(prefix + "/", "post", "acceptsynchronization");
-			page.openFieldset("Accept synchronization");
-			page.input("hidden", "token", token);
-			page.input("hidden", "action", "acceptsynchronization");
-			page.input("text", "code");
-			page.button("validate", "Validate");
-			page.closeFieldset();
-			page.closeForm();
-
 			page.open("div",".box");
 			page.open("h2");
 			page.text("Identifier");
