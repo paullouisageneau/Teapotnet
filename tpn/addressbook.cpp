@@ -238,6 +238,8 @@ void AddressBook::setSelf(const Identifier &identifier)
 		sptr<Contact> contact = std::make_shared<Contact>(this, uname, uname, identifier);
 		mContacts.insert(uname, contact);
 		mContactsByIdentifier.insert(identifier, contact);
+
+		// Setting self DO NOT update mTime
 	}
 
 	save();
@@ -320,52 +322,49 @@ bool AddressBook::deserialize(Serializer &s)
 		.insert("time", time)))
 		return false;
 
+	mTime = time;
+
 	StringSet toDelete;
 	mContacts.getKeys(toDelete);
 
+	for(auto it = temp.begin(); it != temp.end(); ++it)
 	{
-		for(auto it = temp.begin(); it != temp.end(); ++it)
+		Assert(!it->second.uniqueName().empty());
+		Assert(!it->second.identifier().empty());
+
+		toDelete.erase(it->first);
+
+		sptr<Contact> contact = getContact(it->first);
+		if(contact)
 		{
-			Assert(!it->second.uniqueName().empty());
-			Assert(!it->second.identifier().empty());
-
-			toDelete.erase(it->first);
-
-			sptr<Contact> contact = getContact(it->first);
-			if(contact)
+			if(contact->identifier() != it->second.identifier())
 			{
-				if(contact->identifier() != it->second.identifier())
-				{
-					{
-						std::unique_lock<std::mutex> lock(mMutex);
-						mContacts.erase(contact->uniqueName());
-						mContactsByIdentifier.erase(contact->identifier());
-					}
-
-					contact->setAddressBook(NULL);
-					contact.reset();
-				}
-
-			}
-
-			if(!contact)
-			{
-				contact = std::make_shared<Contact>(it->second);
-				contact->setAddressBook(this);
-
 				{
 					std::unique_lock<std::mutex> lock(mMutex);
-					mContacts.insert(contact->uniqueName(), contact);
-					mContactsByIdentifier.insert(contact->identifier(), contact);
+					mContacts.erase(contact->uniqueName());
+					mContactsByIdentifier.erase(contact->identifier());
 				}
+
+				contact->setAddressBook(NULL);
+				contact.reset(); // This will trigger if(!contact)
 			}
 		}
 
-		mTime = time;
-	}
+		if(!contact)
+		{
+			contact = std::make_shared<Contact>(it->second);
+			contact->setAddressBook(this);
 
-	for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
-		removeContact(*it);
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				mContacts.insert(contact->uniqueName(), contact);
+				mContactsByIdentifier.insert(contact->identifier(), contact);
+			}
+		}
+
+		for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
+			removeContact(*it);
+	}
 
 	save();
 	return true;
@@ -421,7 +420,7 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 						id.extract(identifier);
 						if(identifier.size() != 32)
 							throw Exception("Invalid identifier");
-						
+
 						removeInvitation(identifier);
 					}
 					else {
