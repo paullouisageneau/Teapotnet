@@ -289,6 +289,25 @@ bool Overlay::isConnected(const BinaryString &remote) const
 	return mHandlers.contains(remote);
 }
 
+bool Overlay::waitConnection(void) const
+{
+	return waitConnection(duration(-1));
+}
+
+bool Overlay::waitConnection(duration timeout) const
+{
+	if(timeout <= duration(0))
+		timeout = milliseconds(Config::Get("request_timeout").toDouble());
+
+	std::unique_lock<std::mutex> lock(mMutex);
+	if(!mHandlers.empty())
+		return true;
+	mCondition.wait_for(lock, timeout, [this]() {
+		return !mHandlers.empty();
+	});
+	return !mHandlers.empty();
+}
+
 int Overlay::connectionsCount(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
@@ -363,6 +382,11 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values, duration timeout)
 {
+	if(timeout <= duration(0))
+		timeout = milliseconds(Config::Get("request_timeout").toDouble());
+
+  waitConnection(timeout);
+
 	std::unique_lock<std::mutex> lock(mRetrieveMutex);
 
 	bool sent = true;
@@ -374,9 +398,6 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values, durat
 
 	if(sent)
 	{
-		if(timeout <= duration(0))
-			timeout = milliseconds(Config::Get("request_timeout").toDouble());
-
 		mRetrieveCondition.wait_for(lock, timeout, [this, key]() {
 			return !mRetrievePending.contains(key);
 		});
@@ -738,18 +759,24 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 		mRemoteAddresses.insert(addr);
 	}
 
-	// On first connection, send network calls and schedule store to publish in DHT
+	// On first connection
 	if(isFirst)
 	{
+		// Send network calls
 		Network::Instance->sendCalls();
 		Network::Instance->sendBeacons();
+
+		// Schedule store to publish in DHT
 		Store::Instance->start();
 	}
+
+	mCondition.notify_all();
 }
 
 void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Overlay::Handler *handler)
 {
 	sptr<Handler> currentHandler; // prevent handler deletion on erase
+	bool isLast = false;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
@@ -761,10 +788,25 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 		for(auto &a : addrs)
 			mRemoteAddresses.erase(a);
 
-		// If it was the last handler, try to reconnect now
-		if(mHandlers.empty())
-			mRunAlarm.schedule(Alarm::clock::now());
+		isLast = (mHandlers.empty());
 	}
+
+	// If it was the last handler
+	if(isLast)
+	{
+		// Clear pending retrieve requests
+		{
+			std::unique_lock<std::mutex> lock(mRetrieveMutex);
+			mRetrievePending.clear();
+		}
+
+		mRetrieveCondition.notify_all();
+
+		// Try to reconnect now
+		mRunAlarm.schedule(Alarm::clock::now());
+	}
+
+	mCondition.notify_all();
 }
 
 bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &result)

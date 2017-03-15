@@ -42,7 +42,7 @@ Store::Store(void) :
 	mRunning(false)
 {
 	mDatabase = new Database("store.db");
-	
+
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS blocks\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		digest BLOB,\
@@ -51,12 +51,12 @@ Store::Store(void) :
 		size INTEGER(8))");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS digest ON blocks (digest)");
 	mDatabase->execute("CREATE UNIQUE INDEX IF NOT EXISTS location ON blocks (file_id, offset)");
-	
+
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS files\
 		(id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		name TEXT UNIQUE)");
 	mDatabase->execute("CREATE INDEX IF NOT EXISTS name ON files (name)");
-	
+
 	mDatabase->execute("CREATE TABLE IF NOT EXISTS map\
 		(key BLOB,\
 		value BLOB,\
@@ -76,9 +76,9 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 	sptr<Sink> sink;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-	
+
 		if(hasBlock(digest)) return true;
-	
+
 		mSinks.get(digest, sink);
 		if(!sink)
 		{
@@ -86,9 +86,9 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 			mSinks.insert(digest, sink);
 		}
 	}
-	
+
 	//LogDebug("Store::push", "Pushing to " + digest.toString());
-	
+
 	if(sink->push(input))
 	{
 		// Block is decoded !
@@ -105,11 +105,11 @@ bool Store::push(const BinaryString &digest, Fountain::Combination &input)
 bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-  
+
 	int64_t size;
 	File *file = getBlock(digest, size);
 	if(!file) return false;
-	
+
 	Fountain::FileSource source(file, file->tellRead(), size);
 	source.generate(output);
 	if(rank) *rank = source.rank();
@@ -119,9 +119,9 @@ bool Store::pull(const BinaryString &digest, Fountain::Combination &output, unsi
 unsigned Store::missing(const BinaryString &digest)
 {
 	if(hasBlock(digest)) return 0;
-	
+
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	auto it = mSinks.find(digest);
 	if(it != mSinks.end()) return it->second->missing();
 	else return Block::MaxChunks;
@@ -136,14 +136,14 @@ bool Store::hasBlock(const BinaryString &digest)
 		String filename;
 		statement.value(0, filename);
 		statement.finalize();
-		
+
 		if(File::Exist(filename))
 			return true;
-			
+
 		notifyFileErasure(filename);
 		return false;
 	}
-	
+
 	statement.finalize();
 	return false;
 }
@@ -160,22 +160,22 @@ bool Store::waitBlock(const BinaryString &digest, duration timeout)
 	if(!hasBlock(digest))
 	{
 		Network::Caller caller(digest);		// Block is missing locally, call it
-		
+
 		LogDebug("Store::waitBlock", "Waiting for block: " + digest.toString());
-		
+
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
-			
+
 			if(!hasBlock(digest))
 			{
 				if(!mCondition.wait_for(lock, timeout, [this, digest]() { return hasBlock(digest); }))
 					return false;
 			}
 		}
-		
+
 		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());
 	}
-	
+
 	return true;
 }
 
@@ -192,7 +192,7 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 		statement.value(2, size);
 		statement.finalize();
 
-		try {		
+		try {
 			File *file = new File(filename);
 			file->seekRead(offset);
 			return file;
@@ -201,10 +201,10 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 		{
 			notifyFileErasure(filename);
 		}
-		
+
 		return NULL;
 	}
-	
+
 	statement.finalize();
 	return NULL;
 }
@@ -212,20 +212,20 @@ File *Store::getBlock(const BinaryString &digest, int64_t &size)
 void Store::notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size)
 {
 	//LogDebug("Store::notifyBlock", "Block notified: " + digest.toString());
-	
+
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO files (name) VALUES (?1)");
 	statement.bind(1, filename);
 	statement.execute();
-		
+
 	statement = mDatabase->prepare("INSERT OR REPLACE INTO blocks (file_id, digest, offset, size) VALUES ((SELECT id FROM files WHERE name = ?1 LIMIT 1), ?2, ?3, ?4)");
 	statement.bind(1, filename);
 	statement.bind(2, digest);
 	statement.bind(3, offset);
 	statement.bind(4, size);
 	statement.execute();
-	
+
 	mCondition.notify_all();
-	
+
 	// Publish into DHT
 	Network::Instance->storeValue(digest, Network::Instance->overlay()->localNode());
 }
@@ -235,7 +235,7 @@ void Store::notifyFileErasure(const String &filename)
 	Database::Statement statement = mDatabase->prepare("DELETE FROM blocks WHERE file_id = (SELECT id FROM files WHERE name = ?1)");
 	statement.bind(1, filename);
 	statement.execute();
-	
+
 	statement = mDatabase->prepare("DELETE FROM files WHERE name = ?1");
 	statement.bind(1, filename);
 	statement.execute();
@@ -251,12 +251,12 @@ bool Store::getBlockHints(const BinaryString &digest, Set<BinaryString> &result)
 {
 	retrieveValue(Store::Hash(digest), result);
 	if(result.empty()) return false;
-	
+
 	// Add hints of order 2
 	Set<BinaryString> tmp;
 	for(const BinaryString &value : result)
 		retrieveValue(Store::Hash(value), tmp);
-	
+
 	result.insertAll(tmp);
 	return true;
 }
@@ -265,17 +265,17 @@ void Store::storeValue(const BinaryString &key, const BinaryString &value, Store
 {
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
 	time = std::min(time, Time::Now());
-	
-	if(type != Permanent && Time::Now() - time >= maxAge) 
+
+	if(type != Permanent && Time::Now() - time >= maxAge)
 		return;
-	
+
 	Database::Statement statement = mDatabase->prepare("INSERT OR IGNORE INTO map (key, value, time, type) VALUES (?1, ?2, ?3, ?4)");
 	statement.bind(1, key);
 	statement.bind(2, value);
 	statement.bind(3, uint64_t(time.toUnixTime()));
 	statement.bind(4, static_cast<int>(type));
 	statement.execute();
-	
+
 	statement = mDatabase->prepare("UPDATE map SET time = MAX(time, ?3), type = MIN(type, ?4) WHERE key = ?1 AND value = ?2");
 	statement.bind(1, key);
 	statement.bind(2, value);
@@ -295,9 +295,9 @@ void Store::eraseValue(const BinaryString &key, const BinaryString &value)
 bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 {
 	// Note: values is not cleared !
-	
+
 	const Identifier localNode = Network::Instance->overlay()->localNode();
-	
+
 	Database::Statement statement = mDatabase->prepare("SELECT value FROM map WHERE key = ?1");
 	statement.bind(1, key);
 	while(statement.step())
@@ -307,7 +307,7 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 		values.insert(v);
 	}
 	statement.finalize();
-	
+
 	if(!values.contains(localNode))
 	{
 		// Also look for digest in blocks in case map is not up-to-date
@@ -317,17 +317,17 @@ bool Store::retrieveValue(const BinaryString &key, Set<BinaryString> &values)
 			values.insert(localNode);
 		statement.finalize();
 	}
-	
+
 	return !values.empty();
 }
 
 bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values, List<Time> &times)
 {
 	// Note: values is not cleared !
-	
+
 	const Identifier localNode = Network::Instance->overlay()->localNode();
-	bool hasLocalNode = false; 
-	
+	bool hasLocalNode = false;
+
 	// Look first for digest in blocks in case map is not up-to-date
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM blocks WHERE digest = ?1 LIMIT 1");
 	statement.bind(1, key);
@@ -336,10 +336,10 @@ bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values, L
 		values.push_back(localNode);
 		times.push_back(Time::Now());
 		hasLocalNode = true;
-		
+
 	}
 	statement.finalize();
-	
+
 	statement = mDatabase->prepare("SELECT value, time FROM map WHERE key = ?1 ORDER BY time DESC");
 	statement.bind(1, key);
 	while(statement.step())
@@ -348,15 +348,15 @@ bool Store::retrieveValue(const BinaryString &key, List<BinaryString> &values, L
 		statement.value(0, v);
 		if(hasLocalNode && v == localNode)
 			continue;
-		
+
 		uint64_t t;
 		statement.value(1, t);
-		
+
 		values.push_back(v);
 		times.push_back(Time(t));
 	}
 	statement.finalize();
-	
+
 	return !values.empty();
 }
 
@@ -365,7 +365,7 @@ bool Store::hasValue(const BinaryString &key, const BinaryString &value) const
 	Database::Statement statement = mDatabase->prepare("SELECT 1 FROM map WHERE key = ?1 AND value = ?2 LIMIT 1");
 	statement.bind(1, key);
 	statement.bind(2, value);
-	
+
 	bool found = statement.step();
 	statement.finalize();
 	return found;
@@ -381,7 +381,7 @@ Time Store::getValueTime(const BinaryString &key, const BinaryString &value) con
 	if(statement.step())
 		statement.value(0, t);
 	statement.finalize();
-	
+
 	return Time(t);
 }
 
@@ -390,28 +390,28 @@ void Store::start(void)
 	std::unique_lock<std::mutex> lock(mMutex);
 	if(mRunning) return;
 	mRunning = true;
-	
+
 	std::thread thread([this]()
 	{
 		run();
 	});
-	
+
 	thread.detach();
 }
 
 void Store::run(void)
-{	
+{
 	const duration maxAge = seconds(Config::Get("store_max_age").toDouble());
-	
+
 	// TODO: delay and batch values
 	const duration delay = seconds(1.);
 	const int batch = 10;
-	
+
 	LogDebug("Store::run", "Started");
 
 	try {
 		const BinaryString node = Network::Instance->overlay()->localNode();
-		
+
 		// Publish everything into DHT periodically
 		int offset = 0;
 		while(true)
@@ -429,33 +429,33 @@ void Store::run(void)
 			statement.bind(1, static_cast<int>(Permanent));
 			statement.bind(2, Time::Now() - maxAge);
 			statement.bind(3, batch);
-			statement.execute();	
-	
+			statement.execute();
+
 			// Select DHT values
 			statement = mDatabase->prepare("SELECT digest FROM blocks WHERE digest IS NOT NULL ORDER BY id DESC LIMIT ?1 OFFSET ?2");
 			statement.bind(1, batch);
 			statement.bind(2, offset);
-			
+
 			List<BinaryString> result;
 			statement.fetchColumn(0, result);
 			statement.finalize();
-			
+
 			if(result.empty()) break;
 			offset+= result.size();
 
 			for(List<BinaryString>::iterator it = result.begin(); it != result.end(); ++it)
 				Network::Instance->storeValue(*it, node);
-			
+
 			std::this_thread::sleep_for(delay);
 		}
-		
+
 		LogDebug("Store::run", "Finished, " + String::number(offset) + " values published");
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("Store::run", e.what());
 	}
-	
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mRunning = false;
@@ -471,30 +471,30 @@ Store::Sink::Sink(const BinaryString &digest) :
 
 Store::Sink::~Sink(void)
 {
-	
+
 }
-		
+
 bool Store::Sink::push(Fountain::Combination &incoming)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	mSink.solve(incoming);
 	if(!mSink.isDecoded()) return false;
-	
+
 	BinaryString sinkDigest;
 	mSink.hash(sinkDigest);
-	
+
 	LogDebug("Store::push", "Block is complete, digest is " + sinkDigest.toString());
-	
+
 	if(!mDigest.empty() && sinkDigest != mDigest)
 	{
 		LogWarn("Store::push", "Block digest is invalid (expected " + mDigest.toString() + ")");
 		mSink.clear();
 		return false;
 	}
-	
+
 	mPath = Cache::Instance->path(mDigest);
-	
+
 	File file(mPath, File::Write);
 	mSize = mSink.dump(file);
 	file.close();

@@ -198,7 +198,7 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 	Identifier oldIdentifier;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-	
+
 		oldIdentifier = mPublicKey.digest();
 		if(oldIdentifier == identifier)
 			return;
@@ -212,6 +212,7 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 	mIndexer = std::make_shared<Indexer>(this);
 	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", mName);
 	mAddressBook = std::make_shared<AddressBook>(this);
+	mAddressBook->setSelf(identifier);	// create self contact
 
 	// Re-register
 	{

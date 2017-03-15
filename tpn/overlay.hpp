@@ -113,6 +113,8 @@ public:
 	bool connect(const Set<Address> &addrs, const BinaryString &remote = "", bool async = false);
 	bool connect(const Address &addr, const BinaryString &remote = "", bool async = false);
 	bool isConnected(const BinaryString &remote) const;
+	bool waitConnection(void) const;
+	bool waitConnection(duration timeout) const;
 	int connectionsCount(void) const;
 
 	// Message interface
@@ -272,6 +274,7 @@ private:
 	Alarm mRunAlarm;
 
 	mutable std::mutex mMutex;
+  mutable std::condition_variable mCondition;
 
 	mutable std::mutex mIncomingMutex;
 	mutable std::condition_variable mIncomingCondition;
