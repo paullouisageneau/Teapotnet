@@ -283,7 +283,7 @@ void Html::input(const String &type, const String &name, const String &value, bo
 
 void Html::checkbox(const String &name, const String &value, bool checked)
 {
- 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<">";
+ 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<">&nbsp;";
  	text(value);
  	*mStream<<"</span>\n";
 }

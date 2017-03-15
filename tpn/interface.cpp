@@ -100,9 +100,8 @@ void Interface::http(const String &prefix, Http::Request &request)
 				try {
 					if(!User::Exist(name))
 					{
-						if(request.post.contains("create"))
+						if(request.post["create"].toBool())
 						{
-							User *user = NULL;
 							try {
 								if(name.size() < 3)
 									throw Exception("Username too short");
@@ -147,7 +146,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 							response.send();
 							return;
 						}
-						else if(request.post.contains("import"))
+						else if(request.post["import"].toBool())
 						{
 							User *user = new User(name, password);
 							if(!user->recv(password)) throw 401;
@@ -232,7 +231,10 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.close("tr");
 			page.open("tr");
 			page.open("td",".leftcolumn"); page.close("td");
-			page.open("td",".middlecolumn"); page.button("login", "Login"); page.button("create", "Create"); page.close("td");
+			page.open("td",".middlecolumn");
+			page.checkbox("create", "Create new user", false); page.br();
+			page.button("login", "Login"); page.br();
+			page.close("td");
 			page.open("td",".rightcolumn"); page.close("td");
 			page.close("tr");
 			page.close("table");

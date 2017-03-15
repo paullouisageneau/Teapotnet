@@ -88,10 +88,10 @@ p
 
 form
 {
-	display: inline;	
+	display: inline;
 }
 
-hr 
+hr
 {
 	clear: both;
 }
@@ -122,12 +122,12 @@ h3
 	font-weight: bold;
 }
 
-table 
+table
 {
 	width: 100%;
 	margin: 0em;
 	padding: 0em;
-	border: 0; 
+	border: 0;
 	border-collapse: collapse;
 	border-style: none;
 	border-width:0
@@ -153,7 +153,7 @@ td
 	text-align: left;
 }
 
-fieldset 
+fieldset
 {
 	display: block;
 	margin: 0em;
@@ -170,7 +170,7 @@ fieldset
 	overflow: hidden;
 }
 
-label 
+label
 {
 	float: left;
 	clear: both;
@@ -181,7 +181,7 @@ label
 	font-weight: bold;
 }
 
-legend 
+legend
 {
 	position: absolute;
 	padding: 0.2em 0.5em;
@@ -319,7 +319,7 @@ a.button:hover
 	text-align: center;
 }
 
-.loading > body > * 
+.loading > body > *
 {
     display: none;
 }
@@ -329,7 +329,7 @@ a.button:hover
     background: #F0F0F0;
 }
 
-.animloading body 
+.animloading body
 {
     background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
 }
@@ -511,6 +511,7 @@ a.button:hover
 #login input
 {
 	display: block;
+	width: 100%;
 	margin-left: auto;
 	margin-right: auto;
 	margin-top: 0em;
@@ -520,6 +521,15 @@ a.button:hover
 #login input[type="submit"]
 {
 	width: 10em;
+}
+
+#login table input[type="checkbox"]
+{
+	display: inline-block;
+	width: auto;
+	vertical-align: middle;
+	margin-top: 0.5em;
+	margin-bottom: 1em;
 }
 
 #login label
@@ -534,16 +544,6 @@ a.button:hover
 	margin-left: auto;
 	margin-right: auto;
 	margin-bottom: 2em;
-}
-
-#login table input
-{
-	width: 100%;
-}
-
-#login table input[type="submit"]
-{
-	width: 10em;
 }
 
 #login table td.leftcolumn
@@ -653,7 +653,7 @@ a.button:hover
 #newsfeed .message .header
 {
 	display: block;
-	
+
 }
 
 #newsfeed .message .header img.avatar
@@ -665,7 +665,7 @@ a.button:hover
 
 #newsfeed .message .content
 {
-	
+
 }
 
 #newsfeed .message .attachment .attached
@@ -728,7 +728,7 @@ a.button:hover
 	border-radius: 4px;
 	max-width: 30em;
 	overflow: hidden;
-	text-overflow: ellipsis; 
+	text-overflow: ellipsis;
 }
 
 .attachedfile .filename
@@ -761,12 +761,12 @@ a.button:hover
 
 .title
 {
-	font-weight: bold; 
+	font-weight: bold;
 }
 
 .value
 {
-  
+
 }
 
 img.avatar
@@ -989,7 +989,7 @@ img.avatar
 	display: block;
 }
 
-img.preview 
+img.preview
 {
 	max-width: 400px;
 	max-height: 200px;
@@ -1074,7 +1074,7 @@ img.preview
 	max-width: 24em;
 	white-space: nowrap;
 	overflow: hidden;
-	text-overflow: ellipsis; 
+	text-overflow: ellipsis;
 }
 
 .files td.filename .type
@@ -1094,7 +1094,7 @@ img.preview
 
 .files td.date
 {
-	width: 11em; 
+	width: 11em;
 	text-align: right;
 }
 
@@ -1424,7 +1424,7 @@ form #trackerlink
 	border-radius: 4px;
 }
 
-/* Mobile version */  
+/* Mobile version */
 
 @media screen and (max-width: 790px)
 {
@@ -1433,7 +1433,7 @@ form #trackerlink
 		margin: 0;
 		padding: 0;
 	}
-	
+
 	#page
 	{
 		width: 100%;
@@ -1448,7 +1448,7 @@ form #trackerlink
 		text-align: center;
 	}
 
-	#wrapper 
+	#wrapper
 	{
 		display: block;
 		width: 100%;
@@ -1467,7 +1467,7 @@ form #trackerlink
 		padding: 0;
 	}
 
-	#rightcolumn 
+	#rightcolumn
 	{
 		display: block;
 		width: 100%;
@@ -1475,34 +1475,34 @@ form #trackerlink
 		margin: 0;
 		padding: 0;
 	}
-	
+
 	#rightcolumn iframe
 	{
 		padding: 0;
 	}
-	
+
 	#leftpage
 	{
-		width: 100%; 
+		width: 100%;
 	}
 
 	#logo
 	{
 		width: 64px;
 	}
-	
+
 	#logo img
 	{
 		width: 64px;
 	}
-	
+
 	#statuspanel textarea
 	{
 		width: 95%;
 		margin-left: auto;
 		margin-right: auto;
 	}
-	
+
 	.box
 	{
 		border-radius: 0;
@@ -1512,34 +1512,34 @@ form #trackerlink
 	{
 		border-radius: 0;
 	}
-	
+
 	.files
 	{
 		white-space: normal;
 	}
-	
+
 	.files td.filename
 	{
 		white-space: normal;
 		overflow: hidden;
-		text-overflow: ellipsis; 
+		text-overflow: ellipsis;
 	}
-	
+
 	.files td.size
 	{
 		display: none;
 	}
-	
+
 	.files td.date
 	{
 		display: none;
 	}
-	
+
 	#statuspanel .button
 	{
 		margin-left: 0.5em;
 	}
-	
+
 	.message .attachment
 	{
 		display: block;
@@ -1550,7 +1550,7 @@ form #trackerlink
 		min-height: 2em;
 		margin: 0.5em 0em 0.5em 0em;
 	}
-	
+
 	.message .attachment .attached
 	{
 		display: block;
@@ -1561,27 +1561,27 @@ form #trackerlink
 		box-sizing: border-box;
 		-moz-box-sizing: border-box;
 	}
-	
+
 	#newsfeed .message .attachment .attached
 	{
 		margin: 0;
 	}
-	
+
 	.message .attachment .attached .filename
 	{
 		margin: 0.5em;
 	}
-	
+
 	.message .attachment .attached .clip
 	{
 		display: none;
 	}
-	
+
 	.message .attachment img.preview
 	{
 		max-width: 100%;
 	}
-	
+
 	.message iframe
 	{
 		display: block;
@@ -1590,37 +1590,37 @@ form #trackerlink
 		max-width: 100%;
 		margin: 0.5em 0em 0.5em 0em;
 	}
-	
+
 	#newsfeed .message
 	{
 		max-width: 100%;
 		width: 100%;
 	}
-	
+
 	#newsfeed .childmessage
 	{
 		width: 90%;
 		margin-left: 10%;
 	}
-	
+
 	#newsfeed .reply
 	{
 		width: 90%;
 		margin-left: 10%;
 	}
-	
+
 	#newsfeed .morereplies
 	{
 		width: 90%;
 		margin-left: 10%;
 	}
-	
+
 	.files td.actions a
-	{	
+	{
 		margin: 0;
 		padding: 0;
 	}
-	
+
 	td.id
 	{
 		display: none;
@@ -1629,11 +1629,11 @@ form #trackerlink
 
 /* End of mobile version */
 
-/* Tablet version */  
+/* Tablet version */
 
 @media screen and (min-width : 791px) and (max-width : 1024px)
 {
-	#wrapper 
+	#wrapper
 	{
 		display: block;
 		width: 100%;
@@ -1649,16 +1649,16 @@ form #trackerlink
 		height: auto;
 	}
 
-	#rightcolumn 
+	#rightcolumn
 	{
 		display: block;
 		width: 100%;
 		height: auto;
 	}
-	
+
 	#leftpage
 	{
-		width: 100%; 
+		width: 100%;
 	}
 }
 
