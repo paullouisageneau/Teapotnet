@@ -241,13 +241,10 @@ bool User::load(void)
 void User::save(void) const
 {
 	// Save auth
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		File file(profilePath()+"auth", File::Truncate);
-		file.write(mAuth);
-		file.close();
-	}
-	
+	SafeWriteFile authFile(profilePath()+"auth");
+	authFile.write(mAuth);
+	authFile.close();
+
 	// Save keys
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
@@ -307,8 +304,6 @@ void User::generateKeyPair(void)
   // Generate secret
 	Random rnd(Random::Key);
 	rnd.readBinary(mSecret, 32);
-
-	save();
 }
 
 String User::name(void) const
@@ -861,7 +856,6 @@ bool User::deserialize(Serializer &s)
 	if(mAddressBook && mAddressBook->getSelf())
 		mAddressBook->setSelf(identifier());
 
-	save();
 	return true;
 }
 
