@@ -365,7 +365,7 @@ bool AddressBook::deserialize(Serializer &s)
 		}
 	}
 
-	for(auto it = toDelete.begin(); it != toDelete.end(); ++it)
+	for(String uname : toDelete)
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		auto it = mContacts.find(uname);
