@@ -137,8 +137,10 @@ String AddressBook::addContact(const String &name, const Identifier &identifier)
 	if(!name.isAlphanumeric())
 		throw Exception("Contact name is invalid: " + name);
 
-	String uname = name;
+	if(identifier == user()->identifier())
+		throw Exception("Cannot add self as contact");
 
+	String uname = name;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
@@ -398,6 +400,8 @@ void AddressBook::http(const String &prefix, Http::Request &request)
 					{
 						String id = (request.post.contains("argument") ? request.post.get("argument") : request.post.get("id"));
 						String name = request.post["name"];
+						id.trim();
+						name.trim();
 
 						Identifier identifier;
 						id.extract(identifier);
