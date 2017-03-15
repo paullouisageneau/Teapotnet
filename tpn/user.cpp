@@ -134,10 +134,6 @@ User::User(const String &name, const String &password) :
 	else {
 		const unsigned iterations = 100000;
 		Sha256().pbkdf2_hmac(password, name, mAuth, 32, iterations);
-
-		File file(profilePath()+"auth", File::Truncate);
-		file.write(mAuth);
-		file.close();
 	}
 
 	Assert(!mAuth.empty());
@@ -244,6 +240,15 @@ bool User::load(void)
 
 void User::save(void) const
 {
+	// Save auth
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		File file(profilePath()+"auth", File::Truncate);
+		file.write(mAuth);
+		file.close();
+	}
+	
+	// Save keys
 	SafeWriteFile file(mFileName);
 	JsonSerializer serializer(&file);
 	serializer << *this;

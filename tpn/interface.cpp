@@ -149,7 +149,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 						else if(request.post["import"].toBool())
 						{
 							User *user = new User(name, password);
-							if(!user->recv(password)) throw 401;
+							if(!user->recv(password))
+							{
+								delete user;
+								throw 401;
+							}
 
 							String token = user->generateToken("auth");
 							Http::Response response(request, 303);
