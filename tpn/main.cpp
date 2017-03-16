@@ -724,42 +724,18 @@ int run(String &commandLine, StringMap &args)
 			if(profilesDir.fileIsDir())
 			{
 				String name = profilesDir.fileName();
-				User *user;
 
 				try {
 					LogInfo("main", String("Loading user ") + name + "...");
-					user = new User(name);
+					sptr<User> user = std::make_shared<User>(name);
+					User::Register(user);
 				}
 				catch(const std::exception &e)
 				{
 					LogError("main", "Unable to load user " + name + ": " + e.what());
 					continue;
 				}
-
-				Assert(user);
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
-		}
-
-		String usersFileName = "users.txt";
-		if(File::Exist(usersFileName))
-		{
-			File usersFile(usersFileName, File::Read);
-			String line;
-			while(usersFile.readLine(line))
-			{
-				String &name = line;
-				name.trim();
-				String password = name.cut(' ');
-				password.trim();
-				if(name.empty()) continue;
-				LogInfo("main", String("Creating user ") + name + "...");
-				User *user = new User(name, password);
-				LogDebug("main", String("Created user ") + user->name());
-				line.clear();
-			}
-			usersFile.close();
-			File::Remove(usersFileName);
 		}
 
 		LogInfo("main", String("Ready. You can access the interface on http://localhost:") + String::number(ifport) + "/");

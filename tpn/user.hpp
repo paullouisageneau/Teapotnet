@@ -44,9 +44,10 @@ public:
 	static unsigned Count(void);
 	static void GetNames(Array<String> &array);
 	static bool Exist(const String &name);
-	static User *Get(const String &name);
-	static User *GetByIdentifier(const Identifier &id);
-	static User *Authenticate(const String &name, const String &password);
+	static void Register(sptr<User> user);
+	static sptr<User> Get(const String &name);
+	static sptr<User> GetByIdentifier(const Identifier &id);
+	static sptr<User> Authenticate(const String &name, const String &password);
 
 	User(const String &name, const String &password = "");
 	virtual ~User(void);
@@ -62,6 +63,7 @@ public:
 	String profilePath(void) const;
 	String fileName(void) const;
 	String urlPrefix(void) const;
+	BinaryString authenticationDigest(void) const;
 	BinaryString secret(void) const;
 
 	sptr<AddressBook> addressBook(void) const;
@@ -98,7 +100,7 @@ private:
 
 	String mName;
 	String mFileName;
-	BinaryString mAuth;
+	BinaryString mAuthDigest;
 	sptr<AddressBook> mAddressBook;
 	sptr<Board> mBoard;
 	sptr<Indexer> mIndexer;
@@ -116,9 +118,9 @@ private:
 
 	mutable std::mutex mMutex;
 
-	static Map<String, User*>	UsersByName;
-	static Map<BinaryString, User*>	UsersByAuth;
-	static Map<Identifier, User*>	UsersByIdentifier;
+	static Map<String, sptr<User> >	UsersByName;
+	static Map<BinaryString, String>	UsersByAuth;
+	static Map<Identifier, String>	UsersByIdentifier;
 	static std::mutex		UsersMutex;
 };
 

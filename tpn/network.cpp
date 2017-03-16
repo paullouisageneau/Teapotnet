@@ -797,7 +797,7 @@ bool Network::incoming(const Link &link, const String &type, Serializer &seriali
 		serializer >> Object()
 				.insert("name", name);
 
-		User *user = User::GetByIdentifier(link.local);
+		sptr<User> user = User::GetByIdentifier(link.local);
 		if(user && !name.empty()) user->invite(link.remote, name);
 	}
 	else {
@@ -1673,7 +1673,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 				return false;
 			}
 
-			User *user = User::GetByIdentifier(local);
+			sptr<User> user = User::GetByIdentifier(local);
 			if(user)
 			{
 				transport->addCredentials(user->certificate().get(), false);

@@ -43,21 +43,21 @@ Board::Board(const String &name, const String &secret, const String &displayName
 {
 	if(!mName.empty() && mName[0] == '/') mName = mName.substr(1);
 	Assert(!mName.empty());
-	
+
 	Interface::Instance->add(urlPrefix(), this);
-	
+
 	const String prefix = "/mail/" + mName;
-	
+
 	Set<BinaryString> digests;
 	Store::Instance->retrieveValue(Store::Hash(prefix), digests);
-	
+
 	for(auto it = digests.begin(); it != digests.end(); ++it)
 	{
 		//LogDebug("Board", "Retrieved digest: " + it->toString());
 		if(fetch(Network::Link::Null, prefix, "/", *it, false))
 			incoming(Network::Link::Null, prefix, "/", *it);
 	}
-	
+
 	publish(prefix);
 	subscribe(prefix);
 }
@@ -65,9 +65,9 @@ Board::Board(const String &name, const String &secret, const String &displayName
 Board::~Board(void)
 {
 	Interface::Instance->remove(urlPrefix(), this);
-	
+
 	const String prefix = "/mail/" + mName;
-	
+
 	unpublish(prefix);
 	unsubscribe(prefix);
 }
@@ -102,21 +102,21 @@ bool Board::add(const Mail &mail, bool noIssue)
 {
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		
+
 		if(mail.empty() || mMails.contains(mail))
 			return false;
-	
+
 		auto it = mMails.insert(mail);
 		const Mail &m = *it.first;
 		mUnorderedMails.append(&m);
 	}
-	
+
 	const String prefix = "/mail/" + mName;
-	
+
 	if(!noIssue) issue(prefix, mail);
 	process();
 	publish(prefix);
-	
+
 	mCondition.notify_all();
 	return true;
 }
@@ -137,7 +137,7 @@ void Board::process(void)
 {
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
-		
+
 		// Write messages to temporary file
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
@@ -145,16 +145,16 @@ void Board::process(void)
 		for(auto it = mMails.begin(); it != mMails.end(); ++it)
 			serializer << *it;
 		tempFile.close();
-		
+
 		// Move to cache
 		Resource resource;
 		resource.cache(tempFileName, mName, "mail", mSecret);
-		
+
 		// Retrieve digest and store it
 		const String prefix = "/mail/" + mName;
 		mDigest = resource.digest();
 		Store::Instance->storeValue(Store::Hash(prefix), mDigest, Store::Permanent);
-		
+
 		LogDebug("Board::process", "Board processed: " + mDigest.toString());
 	}
 	catch(const Exception &e)
@@ -167,10 +167,10 @@ bool Board::anounce(const Network::Link &link, const String &prefix, const Strin
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	targets.clear();
-	
-	if(mDigest.empty()) 
+
+	if(mDigest.empty())
 		return false;
-	
+
 	targets.push_back(mDigest);
 	return true;
 }
@@ -179,21 +179,21 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 {
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		if(target == mDigest) 
+		if(target == mDigest)
 			return false;
 	}
-	
+
 	if(fetch(link, prefix, path, target, true))
 	{
 		try {
 			Resource resource(target, true);	// local only (already fetched)
 			if(resource.type() != "mail")
 				return false;
-			
+
 			bool complete = false;
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
-				
+
 				Resource::Reader reader(&resource, mSecret);
 				BinarySerializer serializer(&reader);
 				Mail mail;
@@ -202,31 +202,31 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				{
 					if(mail.empty())
 						continue;
-					
+
 					if(!mMails.contains(mail))
 					{
 						auto it = mMails.insert(mail);
 						const Mail &m = *it.first;
 						mUnorderedMails.append(&m);
-						
+
 						++mUnread;
 						mHasNew = true;
 					}
-					
+
 					++count;
 				}
-				
+
 				if(count == mMails.size())
 				{
 					mDigest = target;
 					complete = true;
 				}
 			}
-			
+
 			if(!complete)
 			{
 				const String prefix = "/mail/" + mName;
-				
+
 				process();
 				if(digest() != target)
 					publish(prefix);
@@ -236,10 +236,10 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		{
 			LogWarn("Board::incoming", e.what());
 		}
-		
+
 		mCondition.notify_all();
 	}
-	
+
 	return true;
 }
 
@@ -251,14 +251,14 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		mHasNew = true;
 		return true;
 	}
-	
+
 	return false;
 }
 
 void Board::http(const String &prefix, Http::Request &request)
 {
 	Assert(!request.url.empty());
-	
+
 	try {
 		if(request.url == "/")
 		{
@@ -268,14 +268,14 @@ void Board::http(const String &prefix, Http::Request &request)
 				{
 					Mail mail;
 					mail.setContent(request.post["message"]);
-					
+
 					if(request.post.contains("parent"))
 					{
 						BinaryString parent;
 						request.post["parent"].extract(parent);
 						mail.setParent(parent);
 					}
-					
+
 					if(request.post.contains("attachment"))
 					{
 						BinaryString attachment;
@@ -283,88 +283,88 @@ void Board::http(const String &prefix, Http::Request &request)
 						if(!attachment.empty())
 							mail.addAttachment(attachment);
 					}
-					
+
 					if(request.post.contains("author"))
 					{
 						mail.setAuthor(request.post["author"]);
 					}
 					else {
-						User *user = getAuthenticatedUser(request);
+						sptr<User> user = getAuthenticatedUser(request);
 						if(user) {
 							mail.setAuthor(user->name());
 							mail.sign(user->identifier(), user->privateKey());
 						}
 					}
-					
+
 					add(mail);
-					
+
 					Http::Response response(request, 200);
 					response.send();
 				}
-				
+
 				throw 400;
 			}
-		  
+
 			if(request.get.contains("json"))
 			{
 				int next = 0;
 				if(request.get.contains("next"))
 					request.get["next"].extract(next);
-				
+
 				duration timeout = milliseconds(Config::Get("request_timeout").toInt());
 				if(request.get.contains("timeout"))
 					timeout = seconds(request.get["timeout"].toDouble());
-				
+
 				decltype(mUnorderedMails) temp;
 				{
 					std::unique_lock<std::mutex> lock(mMutex);
-					
+
 					if(next >= int(mUnorderedMails.size()))
 					{
 						mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
 							return next < int(mUnorderedMails.size());
 						});
 					}
-					
+
 					temp.reserve(int(mUnorderedMails.size() - next));
 					for(int i = next; i < int(mUnorderedMails.size()); ++i)
 						temp.push_back(mUnorderedMails[i]);
-					
+
 					mUnread = 0;
 					mHasNew = false;
 				}
-				
+
 				Http::Response response(request, 200);
 				response.headers["Content-Type"] = "application/json";
 				response.send();
-				
+
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
 				json << temp;
 				return;
 			}
-			
+
 			bool isPopup = request.get.contains("popup");
 			bool isFrame = request.get.contains("frame");
-			
+
 			Http::Response response(request, 200);
 			response.send();
 
 			Html page(response.stream);
-			
+
 			String title;
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
-				title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName); 
+				title = (!mDisplayName.empty() ? mDisplayName : "Board " + mName);
 			}
-			
+
 			page.header(title, isPopup || isFrame);
-			
+
 			if(!isFrame)
 			{
-				page.open("div","topmenu");	
+				page.open("div","topmenu");
 				if(isPopup) page.span(title, ".button");
-			
+
 // TODO: should be hidden in CSS
 #ifndef ANDROID
 				if(!isPopup)
@@ -373,13 +373,13 @@ void Board::http(const String &prefix, Http::Request &request)
 					page.raw("<a class=\"button\" href=\""+popupUrl+"\" target=\"_blank\" onclick=\"return popup('"+popupUrl+"','/');\">Popup</a>");
 				}
 #endif
-				
+
 				page.close("div");
 			}
-			
+
 			page.open("div", ".replypanel");
-			
-			User *user = getAuthenticatedUser(request);
+
+			sptr<User> user = getAuthenticatedUser(request);
 			if(user)
 			{
 				page.javascript("var TokenMail = '"+user->generateToken("mail")+"';\n\
@@ -387,10 +387,10 @@ void Board::http(const String &prefix, Http::Request &request)
 						var TokenContact = '"+user->generateToken("contact")+"';\n\
 						var UrlSelector = '"+user->urlPrefix()+"/myself/files/?json';\n\
 						var UrlUpload = '"+user->urlPrefix()+"/files/_upload/?json';");
-				
+
 				page.raw("<a class=\"button\" href=\"#\" onclick=\"createFileSelector(UrlSelector, '#fileSelector', 'input.attachment', 'input.attachmentname', UrlUpload); return false;\"><img alt=\"File\" src=\"/static/paperclip.png\"></a>");
 			}
-			
+
 			page.openForm("#", "post", "boardform");
 			page.textarea("input");
 			page.input("hidden", "attachment");
@@ -399,16 +399,16 @@ void Board::http(const String &prefix, Http::Request &request)
 			page.close("div");
 			page.div("","#attachedfile.attachedfile");
 			page.div("", "#fileSelector.fileselector");
-			
+
 			if(isPopup) page.open("div", "board");
 			else page.open("div", "board.box");
-			
+
 			page.open("div", "mail");
 			page.open("p"); page.text("No messages"); page.close("p");
 			page.close("div");
-			
+
 			page.close("div");
-			
+
 			page.javascript("function post() {\n\
 					var message = $(document.boardform.input).val();\n\
 					var attachment = $(document.boardform.attachment).val();\n\
@@ -445,16 +445,16 @@ void Board::http(const String &prefix, Http::Request &request)
 					}\n\
 				});\n\
 				$('#attachedfile').hide();");
-			
+
 			unsigned refreshPeriod = 2000;
 			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail', "+String::number(refreshPeriod)+");");
-			
+
 			{
 				std::unique_lock<std::mutex> lock(mMutex);
 				for(auto &url : mMergeUrls)
 					page.javascript("setMailReceiver('"+Http::AppendParam(url, "json")+"','#mail', "+String::number(refreshPeriod)+");");
 			}
-			
+
 			page.footer();
 			return;
 		}
@@ -464,7 +464,7 @@ void Board::http(const String &prefix, Http::Request &request)
 		LogWarn("AddressBook::http", e.what());
 		throw 500;
 	}
-	
+
 	throw 404;
 }
 

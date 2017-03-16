@@ -38,71 +38,70 @@
 namespace tpn
 {
 
-Map<String, User*>		User::UsersByName;
-Map<BinaryString, User*>	User::UsersByAuth;
-Map<Identifier, User*>		User::UsersByIdentifier;
-std::mutex			User::UsersMutex;
+Map<String, sptr<User> >	User::UsersByName;
+Map<BinaryString, String>	User::UsersByAuth;
+Map<Identifier, String>	User::UsersByIdentifier;
+std::mutex	User::UsersMutex;
 
 unsigned User::Count(void)
 {
-	 UsersMutex.lock();
-	 unsigned count = UsersByName.size();
-	 UsersMutex.unlock();
-	 return count;
+	 std::lock_guard<std::mutex> lock(UsersMutex);
+	 return unsigned(UsersByName.size());
 }
 
 void User::GetNames(Array<String> &array)
 {
-	 UsersMutex.lock();
+	 std::lock_guard<std::mutex> lock(UsersMutex);
 	 UsersByName.getKeys(array);
-	 UsersMutex.unlock();
 }
 
 bool User::Exist(const String &name)
 {
-	return (User::Get(name) != NULL);
+	return bool(User::Get(name));
 }
 
-User *User::Get(const String &name)
+void User::Register(sptr<User> user)
 {
-	User *user = NULL;
-	UsersMutex.lock();
-	if(UsersByName.get(name, user))
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	UsersByName.insert(user->name(), user);
+	UsersByAuth.insert(user->authenticationDigest(), user->name());
+}
+
+sptr<User> User::Get(const String &name)
+{
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	sptr<User> user;
+	UsersByName.get(name, user);
+	return user;
+}
+
+sptr<User> User::GetByIdentifier(const Identifier &id)
+{
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	String name;
+	if(UsersByIdentifier.get(id, name))
 	{
-	  	UsersMutex.unlock();
+		sptr<User> user;
+		UsersByName.get(name, user);
 		return user;
 	}
-	UsersMutex.unlock();
 	return NULL;
 }
 
-User *User::GetByIdentifier(const Identifier &id)
-{
-	User *user = NULL;
-	UsersMutex.lock();
-	if(UsersByIdentifier.get(id, user))
-	{
-	  	UsersMutex.unlock();
-		return user;
-	}
-	UsersMutex.unlock();
-	return NULL;
-}
-
-User *User::Authenticate(const String &name, const String &password)
+sptr<User> User::Authenticate(const String &name, const String &password)
 {
 	const unsigned iterations = 100000;
 	BinaryString auth;
 	Sha256().pbkdf2_hmac(password, name, auth, 32, iterations);
 
-	User *user = NULL;
-	UsersMutex.lock();
-	if(UsersByAuth.get(auth, user))
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	String uname;
+	if(UsersByAuth.get(auth, uname) && uname == name)
 	{
-	  UsersMutex.unlock();
+		sptr<User> user;
+		UsersByName.get(name, user);
 		return user;
 	}
-	UsersMutex.unlock();
 	LogWarn("User::Authenticate", "Authentication failed for \""+name+"\"");
 	return NULL;
 }
@@ -122,7 +121,7 @@ User::User(const String &name, const String &password) :
 	{
     try {
 			File file(profilePath()+"auth", File::Read);
-			file.read(mAuth);
+			file.read(mAuthDigest);
 			file.close();
 		}
 		catch(...)
@@ -132,10 +131,10 @@ User::User(const String &name, const String &password) :
 	}
 	else {
 		const unsigned iterations = 100000;
-		Sha256().pbkdf2_hmac(password, name, mAuth, 32, iterations);
+		Sha256().pbkdf2_hmac(password, name, mAuthDigest, 32, iterations);
 	}
 
-	Assert(!mAuth.empty());
+	Assert(!mAuthDigest.empty());
 
 	// Load from config file if it exists
 	mFileName = profilePath() + "keys";
@@ -145,22 +144,8 @@ User::User(const String &name, const String &password) :
 	Random rnd(Random::Key);
 	rnd.readBinary(mTokenSecret, 16);
 
-	// Register
-	User *oldUser = NULL;
-	{
-		std::lock_guard<std::mutex> lock(UsersMutex);
-		auto it = UsersByName.find(mName);
-		if(it != UsersByName.end())
-			oldUser = it->second;
-		UsersByName.insert(mName, this);
-		UsersByAuth.insert(mAuth, this);
-	}
-
 	// Register interface
 	Interface::Instance->add(urlPrefix(), this);
-
-	// Delete old user if it exists
-	delete oldUser;
 
 	mOfflineAlarm.set([this]()
 	{
@@ -171,14 +156,11 @@ User::User(const String &name, const String &password) :
 User::~User(void)
 {
 	// Unregister
+	Identifier identifier = mPublicKey.digest();
 	{
 		std::unique_lock<std::mutex> lock(UsersMutex);
-		auto it = UsersByName.find(mName);
-		if(it->second == this)
-		{
-			UsersByName.erase(mName);
-			UsersByAuth.erase(mAuth);
-		}
+		UsersByAuth.erase(mAuthDigest);
+		UsersByIdentifier.erase(identifier);
 	}
 
 	// Unregister interface
@@ -213,7 +195,7 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
 		UsersByIdentifier.erase(oldIdentifier);
-		UsersByIdentifier.insert(identifier, this);
+		UsersByIdentifier.insert(identifier, mName);
 	}
 }
 
@@ -241,7 +223,7 @@ void User::save(void) const
 {
 	// Save auth
 	SafeWriteFile authFile(profilePath()+"auth");
-	authFile.write(mAuth);
+	authFile.write(mAuthDigest);
 	authFile.close();
 
 	// Save keys
@@ -257,7 +239,7 @@ bool User::recv(const String &password)
 
 	const duration timeout = seconds(60);
 	Set<BinaryString> values;
-	Network::Instance->retrieveValue(mAuth, values, timeout);
+	Network::Instance->retrieveValue(mAuthDigest, values, timeout);
 
   LogDebug("User::import", "Got " + String::number(values.size()) + " candidates");
 
@@ -291,7 +273,7 @@ void User::send(const String &password) const
 	Resource resource;
 	resource.process(mFileName, "user", "user", password);
 
-	Network::Instance->storeValue(mAuth, resource.digest());
+	Network::Instance->storeValue(mAuthDigest, resource.digest());
 }
 
 void User::generateKeyPair(void)
@@ -330,6 +312,12 @@ String User::urlPrefix(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	return String("/user/") + mName;
+}
+
+BinaryString User::authenticationDigest(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mAuthDigest;
 }
 
 BinaryString User::secret(void) const

@@ -96,7 +96,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					return;
 				}
 
-				User *user = NULL;
+				sptr<User> user;
 				try {
 					if(!User::Exist(name))
 					{
@@ -112,14 +112,11 @@ void Interface::http(const String &prefix, Http::Request &request)
 								if(password.size() < 12)
 									throw Exception("Password too short");
 
-								user = new User(name, password);
+								user = std::make_shared<User>(name, password);
 								user->generateKeyPair();
 							}
 							catch(const Exception &e)
 							{
-								delete user;
-								user = NULL;
-
 								Http::Response response(request, 400);
 								response.send();
 
@@ -141,12 +138,9 @@ void Interface::http(const String &prefix, Http::Request &request)
 						}
 						else if(request.post["import"].toBool())
 						{
-							user = new User(name, password);
+							user = std::make_shared<User>(name, password);
 							if(!user->recv(password))
-							{
-								delete user;
-								user = NULL;
-							}
+								user.reset();
 						}
 						else {
 							Http::Response response(request, 200);
@@ -190,6 +184,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 
 				if(!user) throw 401;	// Login failed
 
+				User::Register(user);
 				user->save();
 				user->send(password);
 
@@ -245,7 +240,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 				if(cookieName != "auth" || name.empty())
 					continue;
 
-				User *user = User::Get(name);
+				sptr<User> user = User::Get(name);
 				if(!user || !user->checkToken(it->second, "auth"))
 					continue;
 
@@ -327,7 +322,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 					return;
 				}
 
-				User *user = getAuthenticatedUser(request);
+				sptr<User> user = getAuthenticatedUser(request);
 
 				Http::Response response(request, 200);
 				response.send();
@@ -451,7 +446,7 @@ void Interface::process(Http::Request &request)
 
 	if(list.front() == "user" && list.size() >= 2)
 	{
-		User *user = NULL;
+		sptr<User> user;
 		String name;
 
 		if(list.size() >= 2)
@@ -474,7 +469,7 @@ void Interface::process(Http::Request &request)
 		else {
 			String token;
 			request.cookies.get("auth_"+name, token);
-			User *tmp = User::Get(name);
+			sptr<User> tmp = User::Get(name);
 			if(tmp && tmp->checkToken(token, "auth"))
 				user = tmp;
 		}
@@ -571,7 +566,7 @@ void Interface::generate(Stream &out, int code, const String &message)
 	page.footer();
 }
 
-User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String name)
+sptr<User> HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String name)
 {
 	if(name.empty())
 		request.cookies.get("name", name);
@@ -580,19 +575,19 @@ User *HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String nam
 	{
 		String token;
 		request.cookies.get("auth_"+name, token);
-		User *user = User::Get(name);
+		sptr<User> user = User::Get(name);
 		if(user && user->checkToken(token, "auth"))
 			return user;
 	}
 
-	Array<User*> users;
+	Array<sptr<User> > users;
 	if(getAuthenticatedUsers(request, users))
 		return users[0];
 
 	return NULL;
 }
 
-int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*> &users)
+int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<sptr<User> > &users)
 {
 	users.clear();
 
@@ -603,7 +598,7 @@ int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<User*
 		String key = it->first;
 		String name = key.cut('_');
 
-		User *user = User::Get(name);
+		sptr<User> user = User::Get(name);
 		if(user && user->checkToken(it->second, "auth"))
 			users.push_back(user);
 	}
