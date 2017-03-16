@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -189,7 +189,7 @@ void Html::div(const String &txt, String id)
 	close("div");
 }
 
-void Html::link(	const String &url,
+void Html::link(const String &url,
 			const String &txt,
 			String id,
 			bool newTab)
@@ -199,7 +199,7 @@ void Html::link(	const String &url,
 	closeLink();
 }
 
-void Html::image(	const String &url,
+void Html::image(const String &url,
 			const String &alt,
 			String id)
 {
@@ -231,10 +231,10 @@ void Html::br(void)
 	*mStream<<"<br/>\n";
 }
 
-void Html::openForm(	const String &action,
-			const String &method,
-		     	const String &name,
-			bool multipart)
+void Html::openForm(const String &action,
+		const String &method,
+		const String &name,
+		bool multipart)
 {
 	String enctype;
 	if(multipart) enctype = "multipart/form-data";
@@ -300,18 +300,18 @@ void Html::select(const String &name, const StringMap &options, const String &de
 	*mStream<<"<select name=\""<<name<<"\">\n";
 	for(StringMap::const_iterator it=options.begin(); it!=options.end(); ++it)
 	{
-		 *mStream<<"<option ";
-		 if(def == it->first) *mStream<<"selected ";
-		 *mStream<<"value=\""<<it->first<<"\">";
-		 text(it->second);
-		 *mStream<<"</option>\n";
+		*mStream<<"<option ";
+		if(def == it->first) *mStream<<"selected ";
+		*mStream<<"value=\""<<it->first<<"\">";
+		text(it->second);
+		*mStream<<"</option>\n";
 	}
 	*mStream<<"</select>\n";
 }
 
 void Html::button(const String &name, String text)
 {
-  	if(text.empty()) input("submit", name, name);
+	if(text.empty()) input("submit", name, name);
 	else input("submit", name, text);
 }
 

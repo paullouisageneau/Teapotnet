@@ -35,17 +35,17 @@ public:
 	ByteArray(size_t size);
 	ByteArray(char *array, size_t length);	// data is NOT copied
 	ByteArray(byte *array, size_t length);	// data is NOT copied
-	ByteArray(const ByteArray &array);	// data is NOT copied
+	ByteArray(const ByteArray &array);		// data is NOT copied
 	virtual ~ByteArray(void);
 
-	char *array(void);			// complete array
+	char *array(void);					// entire array
 	const char *array(void) const;
-	size_t length(void) const;		// total size
+	size_t length(void) const;			// total size
 
 	const char *data(void) const;		// reading position
 	const byte *bytes(void) const;		// reading position
-	size_t size(void) const;		// data left
-	
+	size_t size(void) const;			// data left
+
 	void clear(void);
 	void reset(void);
 
@@ -55,11 +55,11 @@ public:
 	virtual void serialize(Stream &s) const;
 	virtual bool deserialize(Stream &s);
 	virtual bool isNativeSerializable(void) const;
-	
+
 protected:
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-	
+
 private:
 	char *mArray		= NULL;
 	size_t mLength		= 0;

@@ -31,29 +31,28 @@ void Socket::Transfer(Socket *sock1, Socket *sock2)
 {
 	Assert(sock1);
 	Assert(sock2);
-  
 	char buffer[BufferSize];
-	
+
 	while(true)
 	{
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(sock1->mSock, &readfds);
 		FD_SET(sock2->mSock, &readfds);
-		
+
 		int n = std::max(SOCK_TO_INT(sock1->mSock),SOCK_TO_INT(sock2->mSock))+1;
 		int ret = ::select(n, &readfds, NULL, NULL, NULL);
 
 		if (ret < 0) throw Exception("Unable to wait on socket");
 		if (ret ==  0) break;
-		
+
 		if(FD_ISSET(sock1->mSock, &readfds))
 		{
 			 int count = ::recv(sock1->mSock, buffer, BufferSize, 0);
 			 if(count <= 0) break;
 			 sock2->writeData(buffer, count);
 		}
-		
+
 		if(FD_ISSET(sock2->mSock, &readfds))
 		{
 			 int count = ::recv(sock2->mSock, buffer, BufferSize, 0);
@@ -61,11 +60,11 @@ void Socket::Transfer(Socket *sock1, Socket *sock2)
 			 sock1->writeData(buffer, count);
 		}
 	}
-	
+
 	sock1->close();
 	sock2->close();
 }
-  
+
 Socket::Socket(void) :
 		mSock(INVALID_SOCKET),
 		mConnectTimeout(seconds(-1.)),
@@ -76,19 +75,19 @@ Socket::Socket(void) :
 }
 
 Socket::Socket(const Address &a, duration timeout) :
-		mSock(INVALID_SOCKET),
-		mConnectTimeout(seconds(-1.)),
-		mReadTimeout(seconds(-1.)),
-		mWriteTimeout(seconds(-1.))
+	mSock(INVALID_SOCKET),
+	mConnectTimeout(seconds(-1.)),
+	mReadTimeout(seconds(-1.)),
+	mWriteTimeout(seconds(-1.))
 {
 	setTimeout(timeout);
 	connect(a);
 }
 
 Socket::Socket(socket_t sock) :
-		mConnectTimeout(seconds(-1.)),
-		mReadTimeout(seconds(-1.)),
-		mWriteTimeout(seconds(-1.))
+	mConnectTimeout(seconds(-1.)),
+	mReadTimeout(seconds(-1.)),
+	mWriteTimeout(seconds(-1.))
 {
 	mSock = sock;
 }
@@ -106,14 +105,14 @@ bool Socket::isConnected(void) const
 bool Socket::isReadable(void) const
 {
 	if(!isConnected()) return false;
-	
+
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(mSock, &readfds);
 
 	struct timeval tv;
 	tv.tv_sec = 0;
-        tv.tv_usec = 0;
+	tv.tv_usec = 0;
 	::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
 	return FD_ISSET(mSock, &readfds);
 }
@@ -121,14 +120,14 @@ bool Socket::isReadable(void) const
 bool Socket::isWriteable(void) const
 {
 	if(!isConnected()) return false;
-	
+
 	fd_set writefds;
 	FD_ZERO(&writefds);
 	FD_SET(mSock, &writefds);
 
 	struct timeval tv;
 	tv.tv_sec = 0;
-        tv.tv_usec = 0;
+	tv.tv_usec = 0;
 	::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 	return FD_ISSET(mSock, &writefds);
 }
@@ -182,19 +181,19 @@ void Socket::connect(const Address &addr, bool noproxy)
 	String target = addr.toString();
 	uint16_t port = addr.port();
 	Address proxyAddr;
-	
+
 	if(!noproxy && addr.isPublic()
 		&& port == 443
 		&& Proxy::GetProxyForUrl("https://"+target+"/", proxyAddr))
 	{
 		connect(proxyAddr, true);
-		
+
 		try {
 			Http::Request request(target, "CONNECT");
 			request.version = "1.1";
 			request.headers["Host"] = target;
 			request.send(this);
-		
+
 			Http::Response response;
 			response.recv(this);
 			if(response.code != 200)
@@ -215,7 +214,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 	else try {
 
 		close();
-	  
+
 		// Create socket
 		mSock = ::socket(addr.addrFamily(),SOCK_STREAM,0);
 		if(mSock == INVALID_SOCKET)
@@ -226,10 +225,10 @@ void Socket::connect(const Address &addr, bool noproxy)
 			ctl_t b = 1;
 			if(ioctl(mSock, FIONBIO, &b) < 0)
 				throw Exception("Cannot set non-blocking mode");
-		
+
 			// Initiate connection
 			::connect(mSock, addr.addr(), addr.addrLen());
-			
+
 			fd_set writefds;
 			FD_ZERO(&writefds);
 			FD_SET(mSock, &writefds);
@@ -238,15 +237,15 @@ void Socket::connect(const Address &addr, bool noproxy)
 			durationToStruct(mConnectTimeout, tv);
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
 
-			if (ret < 0) 
+			if (ret < 0)
 				throw Exception("Unable to wait on socket");
-			
+
 			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
-				throw NetException(String("Connection to ")+addr.toString()+" failed"); 
-		
+				throw NetException(String("Connection to ")+addr.toString()+" failed");
+
 			b = 0;
-                	if(ioctl(mSock, FIONBIO, &b) < 0)
-                        	throw Exception("Cannot set blocking mode");
+			if(ioctl(mSock, FIONBIO, &b) < 0)
+				throw Exception("Cannot set blocking mode");
 		}
 		else {
 			// Connect it
@@ -300,7 +299,7 @@ bool Socket::waitData(duration timeout)
 
 size_t Socket::peekData(char *buffer, size_t size)
 {
-        return recvData(buffer, size, MSG_PEEK);
+	return recvData(buffer, size, MSG_PEEK);
 }
 
 size_t Socket::recvData(char *buffer, size_t size, int flags)
@@ -309,10 +308,10 @@ size_t Socket::recvData(char *buffer, size_t size, int flags)
 		throw NetException("Socket is closed");
 
 	if(mReadTimeout >= duration::zero())
-		if(!waitData(mReadTimeout)) 
+		if(!waitData(mReadTimeout))
 			throw Timeout();
 
-	int count = ::recv(mSock, buffer, size, flags);	
+	int count = ::recv(mSock, buffer, size, flags);
 	if(count < 0)
 		throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 
@@ -323,7 +322,7 @@ void Socket::sendData(const char *data, size_t size, int flags)
 {
 	struct timeval tv;
 	durationToStruct(std::max(mWriteTimeout, duration::zero()), tv);
-	
+
 	do {
 		if(mSock == INVALID_SOCKET)
 			throw NetException("Socket is closed");
@@ -335,16 +334,16 @@ void Socket::sendData(const char *data, size_t size, int flags)
 			FD_SET(mSock, &writefds);
 
 			int ret = ::select(SOCK_TO_INT(mSock)+1, NULL, &writefds, NULL, &tv);
-			if (ret == -1) 
+			if (ret == -1)
 				throw Exception("Unable to wait on socket");
-			if (ret == 0) 
+			if (ret == 0)
 				throw Timeout();
 		}
-		
+
 		int count = ::send(mSock, data, size, flags);
-		if(count < 0) 
+		if(count < 0)
 			throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
-		
+
 		data+= count;
 		size-= count;
 	}

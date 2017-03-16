@@ -39,30 +39,30 @@ class Http
 public:
 	static String UserAgent;
 	static duration ConnectTimeout;
-	static duration RequestTimeout;  
+	static duration RequestTimeout;
 
 	struct Request
 	{
 		Request(void);
 		Request(const String &url, const String &method = "GET");
 		virtual ~Request(void);
-		
+
 		void send(Stream *stream);
 		void recv(Stream *stream, bool parsePost = true);
 		void clear(void);
 		bool extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t contentLength = -1) const;
-		
-		String protocol;	// HTTP or HTTPS
-		String method;          // GET, POST, HEAD...
-		String version;         // 1.0 or 1.1
-		String url;             // URL without host and parameters
-		StringMap headers;      // HTTP headers
-		StringMap cookies;      // Cookies
-		StringMap get;          // URL parameters
-		StringMap post;         // POST parameters
-		Map<String, TempFile*> files; // Files posted with POST
-		Address remoteAddress;	// Remote address, set by Server	
-	
+
+		String protocol;		// HTTP or HTTPS
+		String method;			// GET, POST, HEAD...
+		String version;			// 1.0 or 1.1
+		String url;				// URL without host and parameters
+		StringMap headers;		// HTTP headers
+		StringMap cookies;		// Cookies
+		StringMap get;			// URL parameters
+		StringMap post;			// POST parameters
+		Map<String, TempFile*> files;	// Files posted with POST
+		Address remoteAddress;			// Remote address, set by Server
+
 		String fullUrl;		// URL with parameters, used only by recv
 		Stream *stream;		// Internal use for Response construction
 	};
@@ -77,15 +77,15 @@ public:
 		void recv(Stream *stream);
 		void clear(void);
 
-		int code;		// Response code
+		int code;			// Response code
 		String version;		// 1.0 or 1.1
 		String message;		// Message
 		StringMap headers;	// HTTP headers
-		StringMap cookies;      // Cookies
-		
+		StringMap cookies;	// Cookies
+
 		Stream *stream;		// Stream where to send/receive data
 	};
-	
+
 	class Server
 	{
 	public:
@@ -94,37 +94,37 @@ public:
 
 		virtual void process(Http::Request &request) = 0;
 		virtual void generate(Stream &out, int code, const String &message);
-		
+
 	protected:
 		virtual void handle(Stream *stream, const Address &remote);
 		virtual void respondWithFile(const Request &request, const String &fileName);
 
 		ServerSocket mSock;
 		ThreadPool mPool;
-		
+
 	private:
 		void run(void);
 	};
 
 	class SecureServer : public Server
-        {
-        public:
-                SecureServer(SecureTransportServer::Credentials *credentials, int port = 443);	// credentials will be deleted
-                virtual ~SecureServer(void);
+	{
+	public:
+		SecureServer(SecureTransportServer::Credentials *credentials, int port = 443);	// credentials will be deleted
+		virtual ~SecureServer(void);
 
-       	protected:
-                virtual void handle(Stream *stream, const Address &remote);
-		
+	protected:
+		virtual void handle(Stream *stream, const Address &remote);
+
 	private:
 		SecureTransportServer::Credentials *mCredentials;
-        };
+	};
 
 	static int Action(const String &method, const String &url, const String &data, const StringMap &headers, Stream *output = NULL, StringMap *responseHeaders = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Get(const String &url, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const StringMap &post, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
 	static int Post(const String &url, const String &data, const String &type, Stream *output = NULL, StringMap *cookies = NULL, int maxRedirections = 5, bool noproxy = false);
 	static String AppendParam(const String &url, const String &name, const String &value = "1");
-	
+
 private:
 	Http(void);
 };

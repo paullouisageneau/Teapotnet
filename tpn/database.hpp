@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -53,19 +53,19 @@ public:
 		Statement(void);
 		Statement(sqlite3 *db, sqlite3_stmt *stmt);
 		~Statement(void);
-		
+
 		bool step(void);
 		void reset(void);
-		void finalize(void);		
+		void finalize(void);
 		void execute(void);	// step + finalize
 
 		template<typename T> bool fetch(List<T> &result);
 		template<typename T> bool fetchColumn(int index, List<T> &result);
 		template<typename T> bool fetch(Array<T> &result);
 		template<typename T> bool fetchColumn(int index, Array<T> &result);
-	
+
 		enum type_t { Null, Integer, Float, Text, Blob };
-		
+
 		int parametersCount(void) const;
 		String parameterName(int parameter) const;
 		int parameterIndex(const String &name) const;
@@ -80,7 +80,7 @@ public:
 		void bind(int parameter, const BinaryString &value);
 		void bind(int parameter, const Time &value);
 		void bindNull(int parameter);
-		
+
 		int columnsCount(void) const;
 		type_t type(int column) const;
 		String name(int column) const;
@@ -95,9 +95,9 @@ public:
 		void value(int column, String &v) const;
 		void value(int column, BinaryString &v) const;
 		void value(int column, Time &v) const;
-	
+
 		inline bool retrieve(Serializable &s) { return read(s); }
-	
+
 		// --- Serializer interface
 		virtual bool	read(Serializable &s);
 		virtual void	write(const Serializable &s);
@@ -105,7 +105,7 @@ public:
 		virtual void	write(const String &s);
 		virtual bool	read(BinaryString &s);
 		virtual void	write(const BinaryString &s);
-		
+
 		virtual bool	read(std::string &str);
 		virtual bool	read(uint8_t &i);
 		virtual bool	read(uint16_t &i);
@@ -118,7 +118,7 @@ public:
 		virtual bool	read(float &f);
 		virtual bool	read(double &f)	;
 		virtual bool	read(bool &b);
-		
+
 		virtual void	write(const std::string &str);
 		virtual void	write(uint8_t i);
 		virtual void	write(uint16_t i);
@@ -131,14 +131,14 @@ public:
 		virtual void	write(float f);
 		virtual void	write(double f);
 		virtual void	write(bool b);
-		
+
 		//virtual bool	skip(void);
-		
+
 		virtual bool	readArrayBegin(void)		{ return true; }
 		virtual bool	readArrayNext(void)		{ return true; }
 		virtual bool	readMapBegin(void)		{ return true; }
 		virtual bool	readMapNext(void)		{ return true; }
-		
+
 		virtual void	writeArrayBegin(size_t size)	{}
 		virtual void	writeArrayNext(size_t i)	{}
 		virtual void	writeArrayEnd(void)		{}
@@ -147,17 +147,17 @@ public:
 		virtual void	writeMapEnd(void)		{}
 		virtual void	writeEnd(void)			{}
 		// ---
-		
+
 	private:
 		sqlite3 *mDb;
 		sqlite3_stmt *mStmt;
-		
+
 		// For serializer
 		int mInputColumn;
 		int mOutputParameter;
 		int mInputLevel, mOutputLevel;
 	};
-	
+
 	Statement prepare(const String &request);
 	void execute(const String &request);
 	int64_t insertId(void) const;

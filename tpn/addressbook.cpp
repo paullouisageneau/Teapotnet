@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -279,8 +279,8 @@ String AddressBook::removeInvitation(const Identifier &remote)
 
 Time AddressBook::time(void) const
 {
-        std::unique_lock<std::mutex> lock(mMutex);
-        return mTime;
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mTime;
 }
 
 BinaryString AddressBook::digest(void) const
@@ -299,8 +299,8 @@ bool AddressBook::send(const String &type, const Serializable &object) const
 
 	bool success = false;
 	for(int i=0; i<keys.size(); ++i)
-        {
-                sptr<const Contact> contact = getContact(keys[i]);
+	{
+		sptr<const Contact> contact = getContact(keys[i]);
 		if(contact) success|= contact->send(type, object);
 	}
 
@@ -333,7 +333,6 @@ bool AddressBook::deserialize(Serializer &s)
 	{
 		Assert(!it->second.uniqueName().empty());
 		Assert(!it->second.identifier().empty());
-
 		toDelete.erase(it->first);
 
 		sptr<Contact> contact = getContact(it->first);
@@ -689,9 +688,9 @@ AddressBook::Contact::Contact(const Contact &contact) :
 }
 
 AddressBook::Contact::Contact(	AddressBook *addressBook,
-				const String &uname,
-				const String &name,
-			        const Identifier &identifier) :
+		const String &uname,
+		const String &name,
+		const Identifier &identifier) :
 	mAddressBook(NULL),
 	mBoard(NULL),
 	mPrivateBoard(NULL),

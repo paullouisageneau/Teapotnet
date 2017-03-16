@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -40,7 +40,7 @@ class Html
 {
 public:
 	static String escape(const String &str);
-  
+
 	Html(Stream *stream);	// stream WON'T be destroyed
 	~Html(void);
 
@@ -50,33 +50,33 @@ public:
 	void raw(const String &str);
 	void text(const String &str);
 	void object(const Serializable &s);
-	
+
 	void open(const String &type, String id = "");
 	void close(const String &type);
-	
+
 	void openLink(const String &url, String id = "", bool newTab = false);
 	void closeLink(void);
-	
+
 	void span(const String &txt, String id = "");
 	void div(const String &txt, String id = "");
-	
+
 	void link(	const String &url,
 			const String &txt,
 			String id = "",
 			bool newTab = false);
-	
+
 	void image(	const String &url,
 			const String &alt = "",
 			String id = "");
 
 	void javascript(const String &code);
-	
+
 	void space(void);
 	void br(void);
 
 	void openForm(	const String &action = "#",
 			const String &method = "post",
-		     	const String &name = "",
+			const String &name = "",
 			bool multipart = false);
 	void closeForm(void);
 	void openFieldset(const String &legend);
@@ -90,9 +90,9 @@ public:
 	void file(const String &name, String text = "");
 
 	void listFilesFromRequest(Request &trequest, const String &prefix, Http::Request &request, const User *user = NULL, bool playlistMode = false);
-	
+
 	Stream *stream(void);
-	
+
 private:
 	Stream *mStream;
 	bool mBlank;

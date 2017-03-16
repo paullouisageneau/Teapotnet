@@ -27,7 +27,7 @@ namespace pla
 {
 
 const BinaryString BinaryString::Empty;
-	
+
 BinaryString::BinaryString(void)
 {
 
@@ -56,7 +56,7 @@ BinaryString::BinaryString(size_t n, char chr) :
 {
 
 }
-	
+
 
 BinaryString::BinaryString(const BinaryString &str, int begin) :
 		std::string(str,begin)
@@ -77,17 +77,17 @@ BinaryString::~BinaryString(void)
 
 char *BinaryString::ptr(void)
 {
-        return reinterpret_cast<char*>(&at(0));
+	return reinterpret_cast<char*>(&at(0));
 }
 
 const char *BinaryString::ptr(void) const
 {
-        return reinterpret_cast<const char*>(&at(0));
+	return reinterpret_cast<const char*>(&at(0));
 }
 
 byte *BinaryString::bytes(void)
 {
-        return reinterpret_cast<byte*>(&at(0));
+	return reinterpret_cast<byte*>(&at(0));
 }
 
 const byte *BinaryString::bytes(void) const
@@ -98,39 +98,39 @@ const byte *BinaryString::bytes(void) const
 BinaryString BinaryString::base64Encode(bool safeMode) const
 {
 	// safeMode is RFC 4648 'base64url' encoding
-	
-        static const char standardTab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	static const char standardTab[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	static const char safeTab[]     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 	const char *tab = (safeMode ? safeTab : standardTab);
-	
-        String out;
-        int i = 0;
-        while (size()-i >= 3)
-        {
-                out+= tab[uint8_t(at(i)) >> 2];
-                out+= tab[((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
-                out+= tab[((uint8_t(at(i+1)) & 0x0F) << 2) | (uint8_t(at(i+2)) >> 6)];
-                out+= tab[uint8_t(at(i+2)) & 0x3F];
-                i+= 3;
-        }
 
-        int left = size()-i;
-        if(left)
-        {
-                out+= tab[uint8_t(at(i)) >> 2];
-                if(left == 1)
-                {
-                        out+= tab[(uint8_t(at(i)) & 3) << 4];
-                        if(!safeMode) out+= '=';
-                }
-                else {	// left == 2
-                        out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
-                        out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
-                }
-                if(!safeMode) out+= '=';
-        }
+	String out;
+	int i = 0;
+	while (size()-i >= 3)
+	{
+		out+= tab[uint8_t(at(i)) >> 2];
+		out+= tab[((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+		out+= tab[((uint8_t(at(i+1)) & 0x0F) << 2) | (uint8_t(at(i+2)) >> 6)];
+		out+= tab[uint8_t(at(i+2)) & 0x3F];
+		i+= 3;
+	}
 
-        return out;
+	int left = size()-i;
+	if(left)
+	{
+		out+= tab[uint8_t(at(i)) >> 2];
+		if(left == 1)
+		{
+			out+= tab[(uint8_t(at(i)) & 3) << 4];
+			if(!safeMode) out+= '=';
+		}
+		else {	// left == 2
+			out+= tab [((uint8_t(at(i)) & 3) << 4) | (uint8_t(at(i+1)) >> 4)];
+			out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
+		}
+		if(!safeMode) out+= '=';
+	}
+
+	return out;
 }
 
 BinaryString BinaryString::base64Decode(void) const
@@ -146,14 +146,14 @@ BinaryString BinaryString::base64Decode(void) const
 		{
 			char c = at(i);
 			if(c == '=') break;
-			
+
 			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
 			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
 			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
 			else if (c == '+' || c == '-') tab[j] = 62;
 			else if (c == '/' || c == '_') tab[j] = 63;
 			else throw IOException("Invalid character");
-			
+
 			++i; ++j;
 		}
 
@@ -166,7 +166,7 @@ BinaryString BinaryString::base64Decode(void) const
 				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
 			}
 		}
-		
+
 		if(i < size() && at(i) == '=') break;
 	}
 
@@ -184,7 +184,7 @@ void BinaryString::serialize(Serializer &s) const
 bool BinaryString::deserialize(Serializer &s)
 {
 	clear();
-	
+
 	uint32_t count;
 	if(!(s >> count)) return false;
 
@@ -213,11 +213,11 @@ void BinaryString::serialize(Stream &s) const
 bool BinaryString::deserialize(Stream &s)
 {
 	clear();
-	
+
 	String str;
 	if(!s.read(str)) return false;
 	if(str.empty()) return true;
-	
+
 	int count = (str.size()+1)/2;
 	reserve(count);
 	for(int i=0; i<count; ++i)
@@ -235,18 +235,18 @@ bool BinaryString::deserialize(Stream &s)
 
 		push_back(uint8_t(value % 256));
 	}
-	
+
 	return true;
 }
 
 bool BinaryString::isNativeSerializable(void) const
 {
-        return false;
+	return false;
 }
 
 bool BinaryString::isInlineSerializable(void) const
 {
-        return true;
+	return true;
 }
 
 size_t BinaryString::readData(char *buffer, size_t size)
@@ -280,8 +280,7 @@ BinaryString operator ^ (const BinaryString &a, const BinaryString &b)
 		if(!a.empty()) memxor(result.ptr(), a.ptr(), a.size());
 	}
 	return result;
-	  
-}
 
 }
 
+}

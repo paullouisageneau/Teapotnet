@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -33,7 +33,7 @@ bool Block::ProcessFile(File &file, BinaryString &digest, bool cache)
 	int64_t offset = 0;
 	int64_t size = 0;
 	String fileName;
-	
+
 	if(!cache)
 	{
 		offset = file.tellRead();
@@ -47,23 +47,23 @@ bool Block::ProcessFile(File &file, BinaryString &digest, bool cache)
 		tempFile.close();
 		fileName = Cache::Instance->move(tempFileName, &digest);
 	}
-	
+
 	if(size)
 	{
 		Store::Instance->notifyBlock(digest, fileName, offset, size);
 		return true;
 	}
-	
+
 	return false;
 }
 
 bool Block::ProcessFile(File &file, Block &block, bool cache)
 {
 	int64_t offset = file.tellRead();
-  
+
 	if(!ProcessFile(file, block.mDigest, cache))
 		return false;
-	
+
 	// TODO
 	block.mFile = new File(file.name(), File::Read);
 	block.mOffset = offset;
@@ -76,18 +76,18 @@ bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryStr
 {
 	String tempFileName = File::TempName();
 	File tempFile(tempFileName, File::Truncate);
-	
+
 	AesCtr cipher(&tempFile);
 	cipher.setEncryptionKey(key);
 	cipher.setInitializationVector(iv);
 	cipher.write(stream, Size);
 	cipher.close();
-	
+
 	Assert(tempFile.size() <= Size);
-	
+
 	String fileName = Cache::Instance->move(tempFileName);
 	if(newFileName) *newFileName = fileName;
-	
+
 	File file(fileName, File::Read);
 	return Block::ProcessFile(file, digest, false);
 }
@@ -97,7 +97,7 @@ bool Block::EncryptFile(Stream &stream, const BinaryString &key, const BinaryStr
 	String fileName;
 	if(!EncryptFile(stream, key, iv, block.mDigest, &fileName))
 		return false;
-	
+
 	block.mFile = new File(fileName, File::Read);
 	block.mOffset = 0;
 	block.mSize = block.mFile->size();
@@ -112,7 +112,7 @@ Block::Block(const Block &block) :
 	mSize = 0;
 	*this = block;
 }
- 
+
 Block::Block(const BinaryString &digest) :
 	mDigest(digest),
 	mCipher(NULL)
@@ -135,7 +135,7 @@ Block::Block(const BinaryString &digest, const String &filename, int64_t offset,
 	mFile = new File(filename, File::Write);
 	mOffset = offset;
 	mSize = size;
-	
+
 	notifyStore();
 }
 
@@ -144,11 +144,11 @@ Block::Block(const String &filename, int64_t offset, int64_t size) :
 {
 	mFile = new File(filename, File::Read);
 	mOffset = offset;
-	
+
 	mFile->seekRead(mOffset);
 	if(size >= 0) mSize = Sha256().compute(*mFile, size, mDigest);
 	else mSize = Sha256().compute(*mFile, mDigest);
-	
+
 	mFile->seekRead(mOffset);
 	notifyStore();
 }
@@ -172,7 +172,7 @@ bool Block::isLocallyAvailable(void) const
 void Block::setDecryption(const BinaryString &key, const BinaryString &iv)
 {
 	waitContent();
-	
+
 	delete mCipher;
 	mCipher = new AesCtr(mFile, false);	// don't delete file
 	mCipher->setDecryptionKey(key);
@@ -187,11 +187,11 @@ bool Block::hasDecryption(void) const
 size_t Block::readData(char *buffer, size_t size)
 {
 	waitContent();
-	
+
 	int64_t left = mSize - tellRead();
 	if(left <= 0) return 0;
 	size = size_t(std::min(left, int64_t(size)));
-	
+
 	if(mCipher) return mCipher->readData(buffer, size);
 	else return mFile->readData(buffer, size);
 }
@@ -210,12 +210,12 @@ bool Block::waitData(duration timeout)
 void Block::seekRead(int64_t position)
 {
 	waitContent();
-	
+
 	if(mCipher)
 	{
 		if(position < mCipher->tellRead())
 			throw Unsupported("Seeking backward in crypted block");
-		
+
 		mCipher->ignore(position - mCipher->tellRead());
 	}
 	else {
@@ -274,7 +274,7 @@ void Block::waitContent(void) const
 			delete source;
 			throw;
 		}
-		
+
 		delete source;
 	}
 	else {
@@ -286,7 +286,7 @@ bool Block::waitContent(duration timeout) const
 {
 	if(!Store::Instance->waitBlock(mDigest, timeout))
 		return false;
-	
+
 	waitContent();
 	return true;
 }
@@ -295,7 +295,7 @@ void Block::notifyStore(void) const
 {
 	Assert(mFile);
 	Assert(mFile->openMode() == File::Read);
-	
+
 	Store::Instance->notifyBlock(mDigest, mFile->name(), mOffset, mSize);
 }
 

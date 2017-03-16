@@ -37,7 +37,7 @@ public:
 	static bool Resolve(const String &host, uint16_t port, List<Address> &result);
 	static bool Resolve(const String &str, List<Address> &result, const String &protocol = "");
 	static bool Reverse(const Address &a, String &result);
-	
+
 	Address(void);
 	Address(const String &host, const String &service);
 	Address(const String &host, uint16_t port);
@@ -63,7 +63,7 @@ public:
 	uint16_t port(void) const;
 	String reverse(void) const;
 	Address unmap(void) const;
-	
+
 	const sockaddr *addr(void) const;
 	int addrFamily(void) const;
 	socklen_t addrLen(void) const;
@@ -77,12 +77,12 @@ public:
 	bool isInlineSerializable(void) const;
 
 private:
-	sockaddr_storage 	mAddr;
-	socklen_t		mAddrLen;
+	sockaddr_storage	mAddr;
+	socklen_t			mAddrLen;
 };
 
-bool operator < (const Address &a1, const Address &a2);
-bool operator > (const Address &a1, const Address &a2);
+bool operator <  (const Address &a1, const Address &a2);
+bool operator >  (const Address &a1, const Address &a2);
 bool operator == (const Address &a1, const Address &a2);
 bool operator != (const Address &a1, const Address &a2);
 

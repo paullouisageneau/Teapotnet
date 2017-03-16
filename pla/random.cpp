@@ -32,25 +32,24 @@ namespace pla
 Random::Random(QualityLevel level) :
 	mLevel(level)
 {
-	
+
 }
 
 Random::~Random(void)
 {
-	
+
 }
 
 void Random::generate(char *buffer, size_t size) const
 {
 	gnutls_rnd_level_t level;
-	
 	switch(mLevel)
 	{
 		case Crypto:	level = GNUTLS_RND_RANDOM;	break;
-		case Key:	level = GNUTLS_RND_KEY;		break;
-		default:	level = GNUTLS_RND_NONCE;	break;
+		case Key:		level = GNUTLS_RND_KEY;		break;
+		default:		level = GNUTLS_RND_NONCE;	break;
 	}
-	
+
 	int ret = gnutls_rnd(level, buffer, size);
 	if(ret < 0) throw Exception(String("Random generator error: ") + gnutls_strerror(ret));
 }

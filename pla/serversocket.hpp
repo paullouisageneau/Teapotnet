@@ -47,7 +47,7 @@ public:
 
 private:
 	socket_t	mSock;
-	int		mPort;
+	int			mPort;
 };
 
 }

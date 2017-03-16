@@ -34,7 +34,7 @@ class JsonSerializer : public Serializer
 public:
 	JsonSerializer(Stream *stream);	// stream WON'T be destroyed
 	~JsonSerializer(void);
-	
+
 private:
 	bool read(Serializable &s);
 	bool read(std::string &str);
@@ -49,7 +49,7 @@ private:
 	bool read(bool &b)	{ return readValue(b); }
 	bool read(float &f)	{ return readValue(f); }
 	bool read(double &f)	{ return readValue(f); }
-	
+
 	void write(const Serializable &s);
 	void write(const std::string &str);
 	void write(int8_t i)	{ writeValue(i); }
@@ -63,28 +63,28 @@ private:
 	void write(bool b)	{ writeValue(b); }
 	void write(float f)	{ writeValue(f); }
 	void write(double f)	{ writeValue(f); }
-	
+
 	bool readArrayBegin(void);
 	bool readArrayNext(void);
 	bool readMapBegin(void);
 	bool readMapNext(void);
-	
+
 	void writeArrayBegin(size_t size);
 	void writeArrayNext(size_t i);
 	void writeArrayEnd(void);
 	void writeMapBegin(size_t size);
 	void writeMapNext(size_t i);
 	void writeMapEnd(void);
-	
-  	template<typename T> bool readValue(T &value);
-  	template<typename T> void writeValue(const T &value);
-  
-  	Stream *mStream;
+
+	template<typename T> bool readValue(T &value);
+	template<typename T> void writeValue(const T &value);
+
+	Stream *mStream;
 	int mLevel = 0;
 	bool mKey = false;
 };
 
-template<typename T> 
+template<typename T>
 bool JsonSerializer::readValue(T &value)
 {
 	String tmp;
@@ -93,7 +93,7 @@ bool JsonSerializer::readValue(T &value)
 	return true;
 }
 
-template<typename T> 
+template<typename T>
 void JsonSerializer::writeValue(const T &value)
 {
 	mStream->space();
@@ -106,4 +106,3 @@ void JsonSerializer::writeValue(const T &value)
 }
 
 #endif
-

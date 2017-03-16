@@ -48,13 +48,13 @@ if(!String.linkify) {
 		// Youtube video
 		var youtubePattern = /(?:^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([^&\s]+)(?:&[^&\s]+)*([!?:,.;]*(?:$|\s))/gim;
 		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
-	
+
 		return this
 		    .replace(youtubePattern, youtubeFrame)
 		    .replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
 		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
 		    .replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
-		    
+
 		    // Support for bold and italic
 		    .replace(/(^|\s)\*([^\/\*_<>]*)\*($|\s)/g,'$1<b>$2</b>$3')
 		    .replace(/(^|\s)_([^\/\*_<>]*)_($|\s)/g,'$1<i>$2</i>$3');
@@ -68,7 +68,7 @@ if(!String.capitalize) {
 }
 
 if(!String.contains) {
-	String.prototype.contains = function(it) { 
+	String.prototype.contains = function(it) {
 		return this.indexOf(it) != -1;
 	};
 }
@@ -99,7 +99,7 @@ function getBasePath(nbFolders) {
 }
 
 function popup(url, redirect) {
-  
+
 	w = window.open(url, "_blank", "status=0,toolbar=0,scrollbars=0,menubar=0,directories=0,resizeable=1,width=480,height=500");
 	if(window.focus) w.focus();
 	if(typeof redirect !== 'undefined') document.location.href = redirect;
@@ -107,7 +107,7 @@ function popup(url, redirect) {
 }
 
 function transition(selector, html) {
-	
+
 	var elem = $(selector);
 	if(elem.html() == html) return elem;
 	return elem.fadeOut('slow', function() {
@@ -117,7 +117,7 @@ function transition(selector, html) {
 }
 
 function resizeContent() {
-  
+
 	var content = $('#content');
 	if(content.length)
 	{
@@ -132,7 +132,7 @@ function resizeContent() {
 	if(boardpanel.length && boardinput.length) {
 		boardinput.height(boardpanel.height()-10);
         }
-        
+
         var boardmessages = $('#mail');
 	if(boardmessages.length) {
 		boardmessages.scrollTop(boardmessages[0].scrollHeight);
@@ -151,7 +151,7 @@ if (document.documentElement) {
 }
 
 $(document).ready( function() {
-  
+
 	if($(document.documentElement).hasClass('loading')) {
 		$(document.documentElement).removeClass('loading');
 		if($(document.documentElement).hasClass('animloading')) {
@@ -160,24 +160,24 @@ $(document).ready( function() {
 			  $(document.body).fadeIn(300);
 		}
 	}
-	
+
 	resizeContent();
-	
+
 	$('table.menu tr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
 	});
-	
+
 	$('.filestr').css('cursor', 'pointer').click(function() {
 		window.location.href = $(this).find('a').attr('href');
 	});
-	
+
 	$('body').on('keypress','textarea', function (e) {
 		if (e.keyCode == 13 && !e.shiftKey) {
 			$(this).closest('form').submit();
 			return false;
 		}
 	});
-	
+
 	var user = getAuthenticatedUser();
 	if(user) {
 		$('#logo a').attr('href', '/user/'+user);
@@ -225,7 +225,7 @@ function notify(title, message, tag) {
 			}
 		);
 	}
-	
+
 	return null;
 }
 
@@ -234,7 +234,7 @@ function getAuthenticatedUser() {
 	var name = getCookie('name');
 	if(name && checkCookie('auth_'+name))
 		return name;
-	
+
 	var start = document.cookie.indexOf('auth_');
 	if(start < 0) return null;
 	start+=5;
@@ -244,7 +244,7 @@ function getAuthenticatedUser() {
 }
 
 function setCallback(url, period, callback) {
-	
+
 	$.ajax({
 		url: url,
 		dataType: 'json',
@@ -284,14 +284,14 @@ $(window).keydown(resetTitle);
 $(window).mousedown(resetTitle);
 
 function displayContacts(url, period, object) {
-	
+
 	setCallback(url, period, function(data) {
 		$(object).find('p').remove();
 		if(data != null) {
 			$.each(data.contacts, function(uname, contact) {
-				
+
 				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
-				
+
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
 					var div = '<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+(isSelf ? "Myself" : uname)+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>';
 					if(isSelf) $(object).prepend(div);
@@ -300,35 +300,34 @@ function displayContacts(url, period, object) {
 
 				$('#contact_'+uname).attr('class', contact.status);
 				transition($('#contact_'+uname+' .status'), contact.status.capitalize());
-				
+
 				if($('#contactinfo_'+uname).html() == '') {
 					$('#contact_'+uname).click(function(event) {
 						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
 						else $('#contactinfo_'+uname).slideToggle('fast');
 					});
-					$('#contact_'+uname+' a').click(function(event)
-					{
+					$('#contact_'+uname+' a').click(function(event) {
 						event.stopPropagation(); // So the div contactinfo is not displayed when clicked on contact link
 					});
 					$('#contact_'+uname).hover(function () {
 						$(this).css('cursor','pointer');
 					});
 				}
-				
+
 				$('#contactinfo_'+uname).html('<span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/static/icon_files.png" alt="Files"/></a></span>');
 				if(!isSelf) {
 					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/static/icon_board.png" alt="Board"/></a></span>');
 					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/static/icon_chat.png" alt="Messages"/></a></span>');
-				
+
 					var count = parseInt(contact.messages);
 					var str = '';
 					if(count != 0) str = ' <a href=\"'+contact.prefix+'/chat/\">('+count+')</a>';
 					transition($('#contact_'+uname+' .messagescount'), str);
-					
+
 					if(count > 0 && contact.newmessages)
 					{
 						play = true;
-						
+
 						var notif = notify("New private message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
 						notif.onclick = function() {
 							window.location.href = contact.prefix+'/chat/';

@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -40,33 +40,33 @@ namespace tpn
 {
 
 class User;
-  
+
 class Indexer : public Network::Publisher, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);
 	~Indexer(void);
-	
+
 	User *user(void) const;
 	String userName(void) const;
 	String prefix(void) const;
-	
+
 	void addDirectory(const String &name, String path, Resource::AccessLevel access = Resource::Public, bool nocommit = false);
 	void removeDirectory(const String &name, bool nocommit = false);
 	void getDirectories(Array<String> &array) const;
-	Resource::AccessLevel directoryAccessLevel(const String &name) const; 
+	Resource::AccessLevel directoryAccessLevel(const String &name) const;
 	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
-	
+
 	void save(void) const;
 	void start(duration delay = duration(0.));
-	
+
 	bool process(String path, Resource &resource);
 	bool get(String path, Resource &resource, Time *time = NULL);
 	void notify(String path, const Resource &resource, const Time &time);
-	
+
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
-	
+
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
 
@@ -75,63 +75,63 @@ public:
 	public:
 		Query(const String &path = "");
 		~Query(void);
-		
+
 		void setPath(const String &path);
 		void setDigest(const BinaryString &digest);
 		void setRange(int first, int last);
 		void setLimit(int count);
 		void setMatch(const String &match);
-		
+
 		void setAccessLevel(Resource::AccessLevel access);
 		void setFromSelf(bool isFromSelf = true);	// Sets the access level accordingly
-		
+
 		// Serializable
 		virtual void serialize(Serializer &s) const;
 		virtual bool deserialize(Serializer &s);
 		virtual bool isInlineSerializable(void) const;
-		
+
 	private:
 		String mPath, mMatch;
 		BinaryString mDigest;
 		int mOffset, mCount;
 		Resource::AccessLevel mAccess;
-	
+
 		friend class Indexer;
 	};
-	
+
 	bool query(const Query &q, List<BinaryString> &targets);
 	bool query(const Query &q, Set<Resource> &resources);
 	bool query(const Query &q, Resource &resource);
-	
+
 private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
-	
+
 	void run(void);
-	
+
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void update(String path = "/");
 	String realPath(String path) const;
 	bool isHiddenPath(String path) const;
 	Resource::AccessLevel pathAccessLevel(String path) const;
 	int64_t freeSpace(String path, int64_t maxSize, int64_t space = 0);
-	
+
 	struct Entry : public Serializable
 	{
 	public:
 		Entry(void);
 		Entry(const String &path, Resource::AccessLevel access = Resource::Public);
 		~Entry(void);
-		
+
 		// Serializable
 		virtual void serialize(Serializer &s) const;
 		virtual bool deserialize(Serializer &s);
 		virtual bool isInlineSerializable(void) const;
-		
+
 		String path;
 		Resource::AccessLevel access;
 	};
-	
+
 	User *mUser;
 	Database *mDatabase;
 	String mFileName;
@@ -139,7 +139,7 @@ private:
 	Map<String, Entry> mDirectories;
 	Alarm mRunAlarm;
 	bool mRunning;
-	
+
 	mutable std::mutex mMutex;
 };
 

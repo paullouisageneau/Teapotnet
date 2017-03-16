@@ -33,11 +33,11 @@
 #define stat _stat
 #define PATH_SEPARATOR '\\'
 #else
-#ifndef ANDROID 
-#include <sys/statvfs.h> 
+#ifndef ANDROID
+#include <sys/statvfs.h>
 #else
-#include <sys/vfs.h> 
-#define statvfs statfs 
+#include <sys/vfs.h>
+#define statvfs statfs
 #define fstatvfs fstatfs
 #endif
 #include <pwd.h>
@@ -55,7 +55,7 @@ bool Directory::Exist(const String &path)
 	if(!dir) return false;
 	closedir(dir);
 	return true;*/
-	
+
 	stat_t st;
 	if(pla::stat(fixPath(path).pathEncode().c_str(), &st)) return false;
 	return S_ISDIR(st.st_mode);
@@ -81,7 +81,7 @@ uint64_t Directory::GetAvailableSpace(const String &path)
 		throw Exception("Unable to get free space for " + path);
 	return uint64_t(freeBytesAvailable.QuadPart);
 #else
-	struct statvfs f; 
+	struct statvfs f;
 	if(statvfs(path, &f)) throw Exception("Unable to get free space for " + path);
 	return uint64_t(f.f_bavail) * uint64_t(f.f_bsize);
 #endif
@@ -91,7 +91,7 @@ String Directory::GetHomeDirectory(void)
 {
 #ifdef WINDOWS
 	char szPath[MAX_PATH];
-	/*if(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, szPath) == S_OK) 
+	/*if(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, szPath) == S_OK)
 		return String(szPath);*/
 	if(ExpandEnvironmentStrings("%USERPROFILE%", szPath, MAX_PATH))
 		return String(szPath);
@@ -102,12 +102,11 @@ String Directory::GetHomeDirectory(void)
 		struct passwd* pwd = getpwuid(getuid());
 		if(pwd) home = pwd->pw_dir;
 	}
-	
+
 	if(home) return String(home);
 #endif
-	
+
 	throw Exception("Unable to get home directory path");
-	return "";
 }
 
 void Directory::ChangeCurrent(const String &path)
@@ -213,11 +212,11 @@ bool Directory::fileIsDir(void) const
 void Directory::getFileInfo(StringMap &map) const
 {
 	// Note: fileInfo must not contain path
-	
+
 	map.clear();
 	map["name"] =  fileName();
 	map["time"] << fileTime();
-	
+
 	if(fileIsDir()) map["type"] =  "directory";
 	else {
 		map["type"] =  "file";
@@ -227,8 +226,8 @@ void Directory::getFileInfo(StringMap &map) const
 
 String Directory::fixPath(String path)
 {
-	if(path.empty()) throw Exception("Empty path");	
-  	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
+	if(path.empty()) throw Exception("Empty path");
+	if(path.size() >= 2 && path[path.size()-1] == Separator) path.resize(path.size()-1);
 #ifdef WINDOWS
 	if(path.size() == 2 && path[path.size()-1] == ':') path+= Separator;
 #endif

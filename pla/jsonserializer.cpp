@@ -35,9 +35,9 @@ JsonSerializer::JsonSerializer(Stream *stream) :
 
 JsonSerializer::~JsonSerializer(void)
 {
-	 
+
 }
- 
+
 bool JsonSerializer::read(Serializable &s)
 {
 	if(s.isInlineSerializable() && !s.isNativeSerializable())
@@ -53,27 +53,27 @@ bool JsonSerializer::read(Serializable &s)
 bool JsonSerializer::read(std::string &str)
 {
 	const String fieldDelimiters = ",:]}";
-	
+
 	str.clear();
-	
+
 	char chr;
 	if(!mStream->get(chr)) return false;
 	while(Stream::BlankCharacters.contains(chr))
 		if(!mStream->get(chr)) return false;
-	
+
 	if(fieldDelimiters.contains(chr))
 	{
 		if(chr == '}' || chr == ']')
 		{
 			do {
-				if(!mStream->get(chr)) 
+				if(!mStream->get(chr))
 					return false;
 			}
 			while(Stream::BlankCharacters.contains(chr));
 		}
 		return false;
 	}
-		
+
 	// Special case: read map or array in string
 	if(chr == '{' || chr == '[')
 	{
@@ -81,30 +81,30 @@ bool JsonSerializer::read(std::string &str)
 		char closing;
 		if(opening ==  '{') closing = '}';
 		else closing = ']';
-		
+
 		int count = 1;
 		str+= chr;
 		while(count)
 		{
 			AssertIO(mStream->get(chr));
 			str+= chr;
-			
+
 			if(chr == opening) ++count;
 			else if(chr == closing) --count;
 		}
-		
+
 		do {
-			if(!mStream->get(chr)) 
+			if(!mStream->get(chr))
 				return true;
 		}
 		while(Stream::BlankCharacters.contains(chr));
-		
+
 		AssertIO(fieldDelimiters.contains(chr));
 		return true;
 	}
-		
+
 	bool quotes = (chr == '\'' || chr == '\"');
-	
+
 	String delimiters;
 	if(quotes)
 	{
@@ -134,7 +134,7 @@ bool JsonSerializer::read(std::string &str)
 			{
 				String tmp;
 				AssertIO(mStream->read(tmp, 4));
-				
+
 				unsigned u = 0;
 				tmp.hexaMode(true);
 				tmp >> u;
@@ -142,13 +142,13 @@ bool JsonSerializer::read(std::string &str)
 				wchar_t wstr[2];
 				wstr[0] = wchar_t(u);
 				wstr[1] = 0;
-				
+
 				str+= String(wstr);
 				chr = 0;
 				break;
 			}
-			default: 
-				if(isalpha(chr) || isdigit(chr)) 
+			default:
+				if(isalpha(chr) || isdigit(chr))
 					chr = 0; // unknown escape sequence
 				break;
 			}
@@ -161,19 +161,19 @@ bool JsonSerializer::read(std::string &str)
 			else break;
 		}
 	}
-	
+
 	if(!fieldDelimiters.contains(chr))
 	{
 		do {
-			if(!mStream->get(chr)) 
+			if(!mStream->get(chr))
 				return true;
 		}
 		while(Stream::BlankCharacters.contains(chr));
-		
+
 		AssertIO(fieldDelimiters.contains(chr));
 	}
 
-	return true; 
+	return true;
 }
 
 void JsonSerializer::write(const Serializable &s)
@@ -181,16 +181,15 @@ void JsonSerializer::write(const Serializable &s)
 	if(s.isInlineSerializable() && !s.isNativeSerializable()) Serializer::write(s.toString());
 	else s.serialize(*this);
 	if(mKey) *mStream << ':' << Stream::Space;
-        mKey = false;
+	mKey = false;
 }
 
 void JsonSerializer::write(const std::string &str)
 {
 	*mStream<<'\"';
-  	for(size_t i=0; i<str.size(); ++i)
+	for(size_t i=0; i<str.size(); ++i)
 	{
-	  	char chr = str[i];
-		
+		char chr = str[i];
 		switch(chr)
 		{
 		case '\\': mStream->write("\\\\"); break;
@@ -215,10 +214,10 @@ bool JsonSerializer::readArrayBegin(void)
 	char chr;
 	do if(!mStream->get(chr)) return false;
 	while(Stream::BlankCharacters.contains(chr));
-	
+
 	if(chr == '[') return true;
 	if(chr == '}' || chr == ']') return false;
-	
+
 	throw IOException();
 }
 
@@ -226,7 +225,7 @@ bool JsonSerializer::readArrayNext(void)
 {
 	char chr = mStream->last();
 	while(Stream::BlankCharacters.contains(chr))
-		if(!mStream->get(chr)) 
+		if(!mStream->get(chr))
 			return false;
 
 	if(chr == '[' || chr == ',') return true;
@@ -235,7 +234,7 @@ bool JsonSerializer::readArrayNext(void)
 		mStream->ignore(1);
 		return false;
 	}
-	
+
 	throw IOException();
 }
 
@@ -244,30 +243,30 @@ bool JsonSerializer::readMapBegin(void)
 	char chr;
 	do if(!mStream->get(chr)) return false;
 	while(Stream::BlankCharacters.contains(chr));
-	
+
 	if(chr == '{') return true;
 	if(chr == '}' || chr == ']') return false;
-	
+
 	throw IOException();
 }
 
 bool JsonSerializer::readMapNext(void)
 {
-  	char chr = mStream->last();
+	char chr = mStream->last();
 	while(Stream::BlankCharacters.contains(chr))
-		if(!mStream->get(chr)) 
+		if(!mStream->get(chr))
 			return false;
 
 	if(chr == '{' || chr == ',') return true;
 	if(chr == '}' || chr == ']')
 	{
-		mStream->ignore(1);  
+		mStream->ignore(1);
 		return false;
 	}
-	
+
 	throw IOException();
 }
-	
+
 void JsonSerializer::writeArrayBegin(size_t size)
 {
 	*mStream<<'[';
@@ -277,8 +276,8 @@ void JsonSerializer::writeArrayBegin(size_t size)
 void JsonSerializer::writeArrayNext(size_t i)
 {
 	if(i > 0) *mStream<<',';
-        *mStream<<Stream::NewLine;
-        *mStream<<String(mLevel*2, ' ');
+	*mStream<<Stream::NewLine;
+	*mStream<<String(mLevel*2, ' ');
 	mKey = false;
 }
 
@@ -299,8 +298,8 @@ void JsonSerializer::writeMapBegin(size_t size)
 void JsonSerializer::writeMapNext(size_t i)
 {
 	if(i > 0) *mStream<<',';
-        *mStream<<Stream::NewLine;
-        *mStream<<String(mLevel*2, ' ');
+	*mStream<<Stream::NewLine;
+	*mStream<<String(mLevel*2, ' ');
 	mKey = true;
 }
 
@@ -313,4 +312,3 @@ void JsonSerializer::writeMapEnd(void)
 }
 
 }
-

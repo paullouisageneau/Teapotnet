@@ -31,7 +31,7 @@ namespace pla
 String Http::UserAgent = "unknown";
 duration Http::ConnectTimeout = seconds(10.);
 duration Http::RequestTimeout = seconds(10.);
-  
+
 Http::Request::Request(void)
 {
 	clear();
@@ -56,10 +56,10 @@ Http::Request::Request(const String &url, const String &method)
 
 		String host(url.substr(p+3));
 		this->url = String('/') + host.cut('/');
-		
+
 		if(host.contains('@'))
 			throw Unsupported("HTTP authentication");
-		
+
 		headers["Host"] = host;
 	}
 
@@ -75,7 +75,7 @@ void Http::Request::send(Stream *stream)
 	this->stream = stream;
 
 	if(method != "CONNECT" && version == "1.1" && !headers.contains("Connection"))
-                headers["Connection"] = "close";
+		headers["Connection"] = "close";
 
 	//if(!headers.contains("Accept-Encoding"))
 	//	headers["Accept-Encoding"] = "identity";
@@ -109,7 +109,7 @@ void Http::Request::send(Stream *stream)
 		headers["Content-Length"] << postData.size();
 		headers["Content-Type"] = "application/x-www-form-urlencoded";
 	}
-	
+
 	String buf;
 	buf<<method<<" "<<completeUrl<<" HTTP/"<<version<<"\r\n";
 
@@ -140,10 +140,10 @@ void Http::Request::send(Stream *stream)
 		}
 		buf<<"\r\n";
 	}
-	
+
 	buf<<"\r\n";
 	*stream<<buf;
-	
+
 	if(!postData.empty())
 		*stream<<postData;
 }
@@ -202,7 +202,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 	}
 
 	fullUrl = url;
-	
+
 	// Read URL variables
 	String getData = url.cut('?');
 	if(!getData.empty())
@@ -219,14 +219,14 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 	}
 
 	url = url.urlDecode();
-	
+
 	String expect;
 	if((headers.get("Expect",expect) && expect.toLower() == "100-continue")
 		|| (method == "POST" && version == "1.1"))
 	{
 		stream->write("HTTP/1.1 100 Continue\r\n\r\n");
 	}
-	
+
 	// Read post variables
 	if(method == "POST" && parsePost)
 	{
@@ -235,19 +235,19 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 
 		size_t contentLength = 0;
 		headers["Content-Length"].extract(contentLength);
-		
+
 		String contentType;
 		if(headers.get("Content-Type", contentType))
 		{
 			String parameters = contentType.cut(';');
 			contentType.trim();
-			
+
 			if(contentType == "application/x-www-form-urlencoded")
 			{
 				String data;
 				if(stream->read(data, contentLength) != contentLength)
 					throw NetException("Connection unexpectedly closed");
-			  
+
 				List<String> exploded;
 				data.explode(exploded,'&');
 				for(	List<String>::iterator it = exploded.begin();
@@ -271,13 +271,13 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 					value.trimQuotes();
 					if(key == "boundary") boundary = String("--") + value;
 				}
-				
+
 				Assert(!boundary.empty());
-				
+
 				String line;
 				while(line.empty()) AssertIO(stream->readLine(line));
 				Assert(line == boundary);
-				
+
 				bool finished = false;
 				while(!finished)
 				{
@@ -287,27 +287,27 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 						String line;
 						AssertIO(stream->readLine(line));
 						if(line.empty()) break;
-						
+
 						String value = line.cut(':');
 						line.trim();
 						value.trim();
 						mimeHeaders.insert(line,value);
 					}
-					
+
 					String contentType;
 					if(mimeHeaders.get("Content-Type", contentType))
 					{
 						String parameters = contentType.cut(';');
 						contentType.trim();
 					}
-					
+
 					String contentDisposition;
 					if(!mimeHeaders.get("Content-Disposition", contentDisposition))
 						throw Exception("Missing Content-Disposition header in multipart POST request");
-					
+
 					String parameters = contentDisposition.cut(';');
 					contentDisposition.trim();
-					
+
 					String name, fileName;
 					while(true)
 					{
@@ -320,7 +320,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 						if(key == "name") name = value;
 						else if(key == "filename") fileName = value;
 					}
-					
+
 					Stream *output = NULL;
 					if(fileName.empty()) output = &post[name];
 					else {
@@ -330,14 +330,14 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 						output = tempFile;
 						LogDebug("Http::Request", String("File upload: ") + fileName);
 					}
-	
+
 					String contentLength;
 					if(mimeHeaders.get("Content-Length", contentLength))
 					{
 						int64_t size = 0;
 						contentLength >> size;
 						stream->read(*output,size);
-						
+
 						String line;
 						AssertIO(stream->readLine(line));
 						AssertIO(stream->readLine(line));
@@ -352,7 +352,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 							output->write(line);
 							line.clear();
 						}*/
-						
+
 						// TODO: This must be replaced with Boyer-Moore algorithm for performance
 						String bound = String("\r\n") + boundary;
 						char *buffer = new char[bound.size()];
@@ -368,7 +368,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 									size = stream->readData(buffer,bound.size()-i);
 									AssertIO(size);
 								}
-								
+
 								if(buffer[c] == bound[i])
 								{
 									++i; ++c;
@@ -389,7 +389,7 @@ void Http::Request::recv(Stream *stream, bool parsePost)
 									i = 0;
 								}
 							}
-						}	  
+						}
 						catch(...)
 						{
 							delete[] buffer;
@@ -421,10 +421,10 @@ void Http::Request::clear(void)
 	get.clear();
 	post.clear();
 	fullUrl.clear();
-	
+
 	for(Map<String, TempFile*>::iterator it = files.begin(); it != files.end(); ++it)
 	 	delete it->second;
-	
+
 	files.clear();
 }
 
@@ -433,7 +433,7 @@ bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t
 	if(contentLength < 0) contentLength = std::numeric_limits<int64_t>::max();
 	rangeBegin = 0;
 	rangeEnd = contentLength-1;
-	
+
 	String range;
 	if(headers.get("Range",range))
 	{
@@ -443,7 +443,7 @@ bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t
 		else {
 			List<String> intervals;
 			tmp.explode(intervals, ',');
-			
+
 			rangeBegin = contentLength-1;
 			rangeEnd = 0;
 			while(!intervals.empty())
@@ -451,7 +451,7 @@ bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t
 				String sbegin = intervals.front();
 				String send = sbegin.cut('-');
 				intervals.pop_front();
-				
+
 				int64_t begin, end;
 				if(!send.empty())   send >> end;
 				else end = contentLength-1;
@@ -460,18 +460,18 @@ bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t
 					begin = contentLength-end;
 					end = contentLength-1;
 				}
-			
+
 				if(begin >= contentLength || end >= contentLength || begin > end)
 					throw 416;
-				
+
 				rangeBegin = std::min(begin, rangeBegin);
 				rangeEnd   = std::max(end, rangeEnd);
 			}
-			
+
 			return true;
 		 }
 	}
-	
+
 	return false;
 }
 
@@ -487,6 +487,7 @@ Http::Response::Response(const Request &request, int code)
 	this->code = code;
 	this->version = request.version;
 	this->stream = request.stream;
+
 	if(code != 204)
 		this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
@@ -510,40 +511,40 @@ void Http::Response::send(Stream *stream)
 
 	if(!headers.contains("Last-Modified"))
 		headers["Last-Modified"] = headers["Date"];
-	
+
 	if(message.empty())
 	{
 		switch(code)
 		{
 		case 100: message = "Continue";				break;
-		case 200: message = "OK";				break;
+		case 200: message = "OK";					break;
 		case 204: message = "No content";			break;
-		case 206: message = "Partial Content";			break;
-		case 301: message = "Moved Permanently"; 		break;
+		case 206: message = "Partial Content";		break;
+		case 301: message = "Moved Permanently"; 	break;
 		case 302: message = "Found";				break;
 		case 303: message = "See Other";			break;
-		case 304: message = "Not Modified"; 			break;
+		case 304: message = "Not Modified"; 		break;
 		case 305: message = "Use Proxy"; 			break;
-		case 307: message = "Temporary Redirect";		break;
+		case 307: message = "Temporary Redirect";	break;
 		case 400: message = "Bad Request"; 			break;
 		case 401: message = "Unauthorized";			break;
 		case 403: message = "Forbidden"; 			break;
 		case 404: message = "Not Found";			break;
-		case 405: message = "Method Not Allowed";		break;
-		case 406: message = "Not Acceptable";			break;
-		case 408: message = "Request Timeout";			break;
+		case 405: message = "Method Not Allowed";	break;
+		case 406: message = "Not Acceptable";		break;
+		case 408: message = "Request Timeout";		break;
 		case 409: message = "Conflict";				break;
-		case 410: message = "Gone";				break;
-		case 413: message = "Request Entity Too Large"; 	break;
-		case 414: message = "Request-URI Too Long";		break;
+		case 410: message = "Gone";					break;
+		case 413: message = "Request Entity Too Large"; 		break;
+		case 414: message = "Request-URI Too Long";				break;
 		case 416: message = "Requested Range Not Satisfiable";	break;
-		case 418: message = "I'm a teapot";			break;
-		case 500: message = "Internal Server Error";		break;
-		case 501: message = "Not Implemented";			break;
-		case 502: message = "Bad Gateway";			break;
-		case 503: message = "Service Unavailable";		break;
-		case 504: message = "Gateway Timeout";			break;
-		case 505: message = "HTTP Version Not Supported";	break;
+		case 418: message = "I'm a teapot";						break;
+		case 500: message = "Internal Server Error";			break;
+		case 501: message = "Not Implemented";					break;
+		case 502: message = "Bad Gateway";						break;
+		case 503: message = "Service Unavailable";				break;
+		case 504: message = "Gateway Timeout";					break;
+		case 505: message = "HTTP Version Not Supported";		break;
 
 		default:
 			if(code < 300) message = "OK";
@@ -555,9 +556,7 @@ void Http::Response::send(Stream *stream)
 	String buf;
 	buf<<"HTTP/"<<version<<" "<<code<<" "<<message<<"\r\n";
 
-	for(	StringMap::iterator it = headers.begin();
-			it != headers.end();
-			++it)
+	for(StringMap::iterator it = headers.begin(); it != headers.end(); ++it)
 	{
 		List<String> lines;
 		it->second.remove('\r');
@@ -570,13 +569,9 @@ void Http::Response::send(Stream *stream)
 		}
 	}
 
-	for(	StringMap::iterator it = cookies.begin();
-			it != cookies.end();
-			++it)
-	{
+	for(StringMap::iterator it = cookies.begin(); it != cookies.end(); ++it)
 		buf<<"Set-Cookie: "<<it->first<<'='<<it->second<<"\r\n";
-	}
-	
+
 	buf<<"\r\n";
 	*stream<<buf;
 }
@@ -584,13 +579,12 @@ void Http::Response::send(Stream *stream)
 void Http::Response::recv(Stream *stream)
 {
 	this->stream = stream;
-
 	clear();
 
 	// Read first line
 	String line;
 	if(!stream->readLine(line)) throw NetException("Connection closed");
-	
+
 	String protocol;
 	line.readString(protocol);
 	version = protocol.cut('/');
@@ -607,11 +601,11 @@ void Http::Response::recv(Stream *stream)
 		String line;
 		AssertIO(stream->readLine(line));
 		if(line.empty()) break;
-		
+
 		String value = line.cut(':');
 		line.trim();
 		value.trim();
-		
+
 		if(line == "Set-Cookie")
 		{
 			String cookie = value;
@@ -638,7 +632,7 @@ Http::Server::Server(int port, int threads) :
 	mSock(port),
 	mPool(threads)
 {
-	mPool.enqueue([this]() 
+	mPool.enqueue([this]()
 	{
 		this->run();
 	});
@@ -703,7 +697,7 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 {
 	int code = 200;
 	File file;
-	
+
 	if(!File::Exist(fileName)) code = 404;
 	else {
 		if(request.method != "GET" && request.method != "HEAD") code = 405;
@@ -722,10 +716,10 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 				}
 				catch(const Exception &e)
 				{
-					LogWarn("Http::respondWithFile", e.what()); 
+					LogWarn("Http::respondWithFile", e.what());
 				}
 			}
-		  
+
 			try {
 				file.open(fileName, File::Read);
 			}
@@ -735,44 +729,44 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 			}
 		}
 	}
-	
+
 	int64_t rangeBegin = 0;
 	int64_t rangeEnd = 0;
 	bool hasRange = request.extractRange(rangeBegin, rangeEnd, file.size());
 	if(rangeBegin >= file.size() || rangeEnd >= file.size())
 		code = 406;
-	
+
 	if(code != 200)
 	{
 		Response response(request, code);
 		response.headers["Content-Type"] = "text/html; charset=UTF-8";
 		response.send();
-		
+
 		if(request.method != "HEAD")
 			generate(*response.stream, response.code, response.message);
-		
+
 		return;
 	}
-	
+
 	if(hasRange) code = 206;
 	Response response(request, code);
-	
+
 	String name = fileName.afterLast(Directory::Separator);
 	if(name != request.url.afterLast('/'))
 	{
 		response.headers["Content-Name"] = name;
 		response.headers["Content-Disposition"] = "inline; filename=\"" + name + "\"";
 	}
-	
+
 	if(hasRange)
 	{
-		response.headers["Content-Length"] << rangeEnd - rangeBegin + 1;
+		response.headers["Content-Length"] << (rangeEnd - rangeBegin + 1);
 		response.headers["Content-Range"] << rangeBegin << "-" << rangeEnd << "/" << file.size();
 	}
 	else {
 		response.headers["Content-Length"] << file.size();
 	}
-	
+
 	response.headers["Accept-Ranges"] = "bytes";
 	response.headers["Content-Type"] = Mime::GetType(fileName);
 	response.headers["Last-Modified"] = File::Time(fileName).toHttpDate();
@@ -796,20 +790,19 @@ void Http::Server::respondWithFile(const Request &request, const String &fileNam
 void Http::Server::run(void)
 {
 	Socket *sock = NULL;
-
 	try {
 		while(true)
 		{
 			sock = new Socket;
 			mSock.accept(*sock);
 			sock->setReadTimeout(RequestTimeout);
-			
+
 			mPool.enqueue([this, sock]()
 			{
-				this->handle(sock, sock->getRemoteAddress()); 
+				this->handle(sock, sock->getRemoteAddress());
 				delete sock;
 			});
-			
+
 			sock = NULL;
 		}
 	}
@@ -844,13 +837,13 @@ void Http::SecureServer::handle(Stream *stream, const Address &remote)
 		transport = new SecureTransportServer(stream);
 		transport->addCredentials(mCredentials);
 		transport->handshake();
-		
+
 		Server::handle(transport, remote);
 	}
 	catch(const std::exception &e)
 	{
-        	LogDebug("Http::SecureServer::Handler", e.what());
- 	}
+		LogDebug("Http::SecureServer::Handler", e.what());
+	}
 
 	delete transport;
 }
@@ -859,28 +852,28 @@ int Http::Action(const String &method, const String &url, const String &data, co
 {
 	Request request(url, method);
 	request.headers.insert(headers);
-	
+
 	String host;
 	if(!request.headers.get("Host", host))
 		throw Exception("Invalid URL");
-	
+
 	if(!data.empty())
 		request.headers["Content-Length"] = String::number(data.size());
-	
+
 	if(cookies)
 		request.cookies = *cookies;
-	
+
 	Socket *sock = new Socket;
 	try {
 		sock->setConnectTimeout(ConnectTimeout);
 		sock->setReadTimeout(RequestTimeout);
-			
+
 		Address proxyAddr;
 		if(!noproxy && Proxy::GetProxyForUrl(url, proxyAddr))
 		{
 			try {
 				sock->connect(proxyAddr, true);	// Connect without proxy
-				
+
 				if(request.protocol == "HTTP")
 				{
 					request.url = url;              // Full URL for proxy
@@ -892,10 +885,10 @@ int Http::Action(const String &method, const String &url, const String &data, co
 					connectRequest.version = "1.1";
 					connectRequest.headers["Host"] = connectHost;
 					connectRequest.send(sock);
-					
+
 					Http::Response connectResponse;
 					connectResponse.recv(sock);
-					
+
 					if(connectResponse.code != 200)
 					{
 						String msg = String::number(connectResponse.code) + " " + connectResponse.message;
@@ -914,7 +907,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 			List<Address> addrs;
 			if(!Address::Resolve(host, addrs, request.protocol.toLower()))
 				throw NetException("Unable to resolve: " + host);
-	
+
 			for(List<Address>::iterator it = addrs.begin(); it != addrs.end(); ++it)
 			{
 				try {
@@ -926,7 +919,7 @@ int Http::Action(const String &method, const String &url, const String &data, co
 					// Connection failed for this address
 				}
 			}
-			
+
 			if(!sock->isConnected())
 				throw NetException("Connection to " + host + " failed");
 		}
@@ -941,23 +934,23 @@ int Http::Action(const String &method, const String &url, const String &data, co
 	try {
 		if(request.protocol == "HTTPS")
 			stream = new SecureTransportClient(sock, new SecureTransportClient::Certificate, host);
-		
+
 		request.send(stream);
 		if(!data.empty())
 			stream->write(data);
-		
+
 		Response response;
 		response.recv(stream);
-		
+
 		if(cookies)
 			cookies->insertAll(response.cookies);
-		
+
 		if(maxRedirections && response.code/100 == 3 && response.headers.contains("Location"))
 		{
 			stream->discard();
 			delete stream;
 			stream = NULL;
-			
+
 			String location(response.headers["Location"]);
 			if(!location.empty())
 			{
@@ -971,20 +964,19 @@ int Http::Action(const String &method, const String &url, const String &data, co
 						location = url.substr(0, p) + "/" + location;
 					}
 				}
-				
+
 				return Get(location, output, cookies, maxRedirections-1, noproxy);
 			}
 		}
-		
+
 		if(responseHeaders)
 			*responseHeaders = response.headers;
-		
+
 		if(output) stream->read(*output);
 		else stream->discard();
 		delete stream;
 		stream = NULL;
-
-        	return response.code;
+		return response.code;
 	}
 	catch(...)
 	{
@@ -1002,9 +994,7 @@ int Http::Get(const String &url, Stream *output, StringMap *cookies, int maxRedi
 int Http::Post(const String &url, const StringMap &post, Stream *output, StringMap *cookies, int maxRedirections, bool noproxy)
 {
 	String postData;
-	for(	StringMap::const_iterator it = post.begin();
-			it != post.end();
-			++it)
+	for(StringMap::const_iterator it = post.begin(); it != post.end(); ++it)
 	{
 		if(!postData.empty()) postData<<'&';
 		postData<<it->first.urlEncode()<<'='<<it->second.urlEncode();
@@ -1012,7 +1002,7 @@ int Http::Post(const String &url, const StringMap &post, Stream *output, StringM
 
 	StringMap headers;
 	headers["Content-Type"] = "application/x-www-form-urlencoded";
-	
+
 	return Action("POST", url, postData, headers, output, NULL, cookies, maxRedirections, noproxy);
 }
 
@@ -1020,7 +1010,7 @@ int Http::Post(const String &url, const String &data, const String &type, Stream
 {
 	StringMap headers;
 	headers["Content-Type"] = type;
-	
+
 	return Action("POST", url, data, headers, output, NULL, cookies, maxRedirections, noproxy);
 }
 

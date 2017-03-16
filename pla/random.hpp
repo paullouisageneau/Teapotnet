@@ -34,12 +34,12 @@ class Random : public Stream
 {
 public:
 	enum QualityLevel { Nonce, Crypto, Key };
-	
+
 	Random(QualityLevel mLevel = Nonce);
 	~Random(void);
-	
+
 	void generate(char *buffer, size_t size) const;
-	
+
 	template<typename T> T uniform(T min, T max)
 	{
 		uint32_t i = 0;
@@ -56,14 +56,14 @@ public:
 	}
 
 	inline double uniformDouble(void)
-        {
-                return uniform(0., 1.);
-        }
-	
+	{
+		return uniform(0., 1.);
+	}
+
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
-	
+
 	// Wrappers for internal use, used in crypto.cpp
 	// The size argument type changed from unsigned to size_t in nettle 3.0 (?!)
 #if NETTLE_VERSION_MAJOR >= 3
@@ -74,7 +74,7 @@ public:
 	static void wrapperNonce (void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Nonce).generate (reinterpret_cast<char*>(buffer), size_t(size)); }
 	static void wrapperCrypto(void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Crypto).generate(reinterpret_cast<char*>(buffer), size_t(size)); }
 	static void wrapperKey   (void *dummy, wrappersize_t size, uint8_t *buffer) { Random(Key).generate   (reinterpret_cast<char*>(buffer), size_t(size)); }
-	
+
 private:
 	QualityLevel mLevel;
 };
@@ -82,4 +82,3 @@ private:
 }
 
 #endif
-

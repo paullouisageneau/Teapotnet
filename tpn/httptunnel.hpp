@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -38,9 +38,9 @@ class HttpTunnel
 public:
 	class Client;
 	class Server;
-	
+
 	static Server *Incoming(Socket *sock);
-	
+
 	class Client : public Stream
 	{
 	public:
@@ -48,16 +48,16 @@ public:
 		~Client(void);
 
 		void close(void);
-		
+
 		// Stream, Stream
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
-		
+
 	private:
 		void writePaddingUntil(size_t left);
 		void updatePostSize(size_t left);
-		
+
 		Address mAddress;
 		String mReverse;
 		Socket *mUpSock, *mDownSock;
@@ -65,25 +65,25 @@ public:
 		size_t mPostSize, mPostLeft;
 		duration mConnTimeout;
 		Alarm mFlusher;
-		
+
 		std::mutex mMutex;
 	};
-	
+
 	class Server : public Stream
 	{
 	public:
 		~Server(void);
-		
+
 		void close(void);
-		
+
 		// Stream, Stream
-                size_t readData(char *buffer, size_t size);
-                void writeData(const char *data, size_t size);
+		size_t readData(char *buffer, size_t size);
+		void writeData(const char *data, size_t size);
 		void flush(void);
-		
+
 	private:
 		Server(uint32_t session);	// instanciated by Incoming() only
-		
+
 		Socket *mUpSock, *mDownSock;
 		Http::Request mUpRequest;
 		uint32_t mSession;
@@ -91,15 +91,15 @@ public:
 		size_t mDownloadLeft;
 		bool mClosed;
 		Alarm mFlusher;
-		
+
 		std::mutex mMutex;
 		mutable std::condition_variable mCondition;
-		
+
 		friend Server *HttpTunnel::Incoming(Socket *sock);
 	};
 
 	static String UserAgent;
-        static size_t DefaultPostSize;
+	static size_t DefaultPostSize;
 	static size_t MaxPostSize;
 	static size_t MaxDownloadSize;
 	static duration ConnTimeout;
@@ -110,15 +110,15 @@ public:
 private:
 	HttpTunnel(void);
 
-	static std::map<uint32_t, Server*> 	Sessions;
-	static std::mutex			SessionsMutex;
+	static std::map<uint32_t, Server*> Sessions;
+	static std::mutex SessionsMutex;
 
-	static const uint8_t TunnelOpen		= 0x01;
-	static const uint8_t TunnelData		= 0x02;
-	static const uint8_t TunnelPadding	= 0x03;
-	static const uint8_t TunnelError	= 0x04;
-	static const uint8_t TunnelPad		= 0x45;
-	static const uint8_t TunnelClose	= 0x46;
+	static const uint8_t TunnelOpen			= 0x01;
+	static const uint8_t TunnelData			= 0x02;
+	static const uint8_t TunnelPadding		= 0x03;
+	static const uint8_t TunnelError		= 0x04;
+	static const uint8_t TunnelPad			= 0x45;
+	static const uint8_t TunnelClose		= 0x46;
 	static const uint8_t TunnelDisconnect	= 0x47;
 };
 

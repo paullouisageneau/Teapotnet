@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -35,7 +35,7 @@ Database::Database(const String &filename) :
 
 	if(sqlite3_open(filename.c_str(), &mDb) != SQLITE_OK)
 		throw DatabaseException(mDb, String("Unable to open database file \"")+filename+"\"");
-	
+
 	execute("PRAGMA synchronous = OFF");
 	execute("PRAGMA journal_mode = TRUNCATE");
 	execute("PRAGMA case_sensitive_like = 1");
@@ -52,7 +52,7 @@ Database::Statement Database::prepare(const String &request)
 	sqlite3_stmt *stmt = NULL;
 	if(sqlite3_prepare_v2(mDb, request.c_str(), -1, &stmt, NULL) != SQLITE_OK)
 		 throw DatabaseException(mDb, String("Unable to prepare request \"")+request+"\"");
-	
+
 	return Statement(mDb, stmt);
 }
 
@@ -65,7 +65,7 @@ void Database::execute(const String &request)
 
 int64_t Database::insertId(void) const
 {
-	return sqlite3_last_insert_rowid(mDb); 
+	return sqlite3_last_insert_rowid(mDb);
 }
 
 int64_t Database::insert(const String &table, const Serializable &serializable)
@@ -81,16 +81,16 @@ int64_t Database::insert(const String &table, const Serializable &serializable)
 	{
 		String name = dummy.name(i);
 		if(name == "rowid" || name == "id")
-			continue;		
+			continue;
 
-		if(count) 
+		if(count)
 		{
 			columns+= ',';
 			values+= ',';
 		}
 		columns+= name;
 		values+= "@" + name;
-		
+
 		++count;
 	}
 
@@ -111,8 +111,8 @@ bool Database::retrieve(const String &table, int64_t id, Serializable &serializa
 
 	bool success = false;
 	if(statement.step())
-		success = !!(statement >> serializable);	
-	
+		success = !!(statement >> serializable);
+
 	statement.finalize();
 	return success;
 }
@@ -145,12 +145,12 @@ bool Database::Statement::step(void)
 	int status = sqlite3_step(mStmt);
 	if(status != SQLITE_DONE && status != SQLITE_ROW)
 		throw DatabaseException(mDb, "Statement execution failed");
-	  
+
 	mInputColumn = 0;
 	mOutputParameter = 1;
 	mInputLevel = 0;
 	mOutputLevel = 0;
-	
+
 	return (status == SQLITE_ROW);
 }
 
@@ -158,7 +158,7 @@ void Database::Statement::reset(void)
 {
 	if(sqlite3_reset(mStmt) != SQLITE_OK)
 		throw DatabaseException(mDb, "Unable to reset statement");
-	
+
 	mInputColumn = 0;
 	mOutputParameter = 1;
 	mInputLevel = 0;
@@ -197,7 +197,7 @@ void Database::Statement::bind(int parameter, int value)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_int(mStmt, parameter, value) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, int64_t value)
@@ -211,7 +211,7 @@ void Database::Statement::bind(int parameter, unsigned value)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_int(mStmt, parameter, int(value)) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, uint64_t value)
@@ -239,21 +239,21 @@ void Database::Statement::bind(int parameter, const std::string &value)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_text(mStmt, parameter, value.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, const String &value)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_text(mStmt, parameter, value.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, const BinaryString &value)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_blob(mStmt, parameter, value.data(), value.size(), SQLITE_TRANSIENT) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 void Database::Statement::bind(int parameter, const Time &value)
@@ -266,30 +266,30 @@ void Database::Statement::bindNull(int parameter)
 {
 	if(!parameter) return;
 	if(sqlite3_bind_null(mStmt, parameter) != SQLITE_OK)
-		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));  
+		throw DatabaseException(mDb, String("Unable to bind parameter ") + String::number(parameter));
 }
 
 int Database::Statement::columnsCount(void) const
 {
-	return sqlite3_column_count(mStmt);  
+	return sqlite3_column_count(mStmt);
 }
 
 Database::Statement::type_t Database::Statement::type(int column) const
 {
 	switch(sqlite3_column_type(mStmt, column))
 	{
-	  case SQLITE_INTEGER:  return Integer;
-	  case SQLITE_FLOAT:	return Float;
-	  case SQLITE_TEXT:	return Text;
-	  case SQLITE_BLOB:	return Blob;
-	  case SQLITE_NULL:	return Null;
-	  default: throw DatabaseException(mDb, "Unable to retrieve column type");
+		case SQLITE_INTEGER:  	return Integer;
+		case SQLITE_FLOAT:		return Float;
+		case SQLITE_TEXT:		return Text;
+		case SQLITE_BLOB:		return Blob;
+		case SQLITE_NULL:		return Null;
+		default: throw DatabaseException(mDb, "Unable to retrieve column type");
 	}
 }
 
 String Database::Statement::name(int column) const
 {
-	return sqlite3_column_name(mStmt, column);  
+	return sqlite3_column_name(mStmt, column);
 }
 
 String Database::Statement::value(int column) const
@@ -298,7 +298,7 @@ String Database::Statement::value(int column) const
 	if(text) return String(text);
 	else return String();
 }
-		
+
 void Database::Statement::value(int column, int &v) const
 {
 	v = sqlite3_column_int(mStmt, column);
@@ -408,7 +408,7 @@ bool Database::Statement::read(int16_t &i)
 	i = int16_t(v);
 	return true;
 }
-	
+
 bool Database::Statement::read(int32_t &i)
 {
 	if(mInputColumn >= columnsCount()) return false;
@@ -492,7 +492,7 @@ void Database::Statement::write(const Serializable &s)
 		write(tmp);
 	}
 }
-	
+
 void Database::Statement::write(const String &str)
 {
 	bind(mOutputParameter++, str);

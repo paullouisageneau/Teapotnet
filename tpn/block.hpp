@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -35,7 +35,7 @@
 
 namespace tpn
 {
-	
+
 class Block : public Stream
 {
 public:
@@ -47,19 +47,19 @@ public:
 	static bool ProcessFile(File &file, BinaryString &digest, bool cache = false);
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, BinaryString &digest, String *newFileName = NULL);
 	static bool EncryptFile(Stream &stream, const BinaryString &key, const BinaryString &iv, Block &block);
-	
+
 	Block(const Block &block);
 	Block(const BinaryString &digest);
 	Block(const BinaryString &digest, const String &filename, int64_t offset = 0, int64_t size = -1);	// override file
 	Block(const String &filename, int64_t offset = 0, int64_t size = -1);					// digest computed from file
 	virtual ~Block(void);
-	
+
 	BinaryString digest(void) const;
 	bool isLocallyAvailable(void) const;
-	
-	void setDecryption(const BinaryString &key, const BinaryString &iv); 
+
+	void setDecryption(const BinaryString &key, const BinaryString &iv);
 	bool hasDecryption(void) const;
-	
+
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
@@ -68,16 +68,16 @@ public:
 	void seekWrite(int64_t position);
 	int64_t tellRead(void) const;
 	int64_t tellWrite(void) const;
-	
+
 	Block &operator = (const Block &block);
-	
+
 private:
   	void waitContent(void) const;
 	bool waitContent(duration timeout) const;
 	void notifyStore(void) const;
-  
+
 	BinaryString mDigest;
-	
+
 	mutable File *mFile;
 	mutable Cipher *mCipher;
 	mutable int64_t mOffset;
@@ -87,4 +87,3 @@ private:
 }
 
 #endif
-

@@ -38,45 +38,45 @@ public:
 	template<typename T> Serializer &operator<< (const T& value);
 	template<typename T> Serializer &operator>> (T& value);
 	bool operator!(void) const { return mReadFailed; }
-	
+
 	virtual bool skip(void);
-	
+
 	bool optionalOutputMode(void) const { return mOptionalOutput; }
 	void setOptionalOutputMode(bool enabled = true) { mOptionalOutput = enabled; }
-	
+
 protected:
 	template<class T> bool read(T *&ptr);
 	template<class T> void write(const T *ptr);
-	
+
 	template<class T> bool read(sptr<T> &ptr);
 	template<class T> void write(sptr<T> ptr);
 	template<class T> void write(sptr<const T> ptr);
-	
+
 	template<typename T> bool read(std::vector<T> &container);
 	template<typename T> void write(const std::vector<T> &container);
-	
+
 	template<typename T> bool read(std::list<T> &container);
 	template<typename T> void write(const std::list<T> &container);
-	
+
 	template<typename T> bool read(std::set<T> &container);
 	template<typename T> void write(const std::set<T> &container);
-	
+
 	template<typename K, typename V> bool read(std::map<K, V> &container);
 	template<typename K, typename V> void write(const std::map<K, V> &container);
-	
+
 	template<typename K, typename V> bool read(std::pair<K, V> &pair);
 	template<typename K, typename V> void write(const std::pair<K, V> &pair);
-	
+
 	template<typename Iterator> bool read(Iterator begin, Iterator end);
 	template<typename Iterator> void write(Iterator begin, Iterator end);
-	
+
 	virtual bool	read(Serializable &s);
 	virtual void	write(const Serializable &s);
 	virtual bool	read(String &s);
 	virtual void	write(const String &s);
 	virtual bool	read(BinaryString &s);
 	virtual void	write(const BinaryString &s);
-	
+
 	virtual bool	read(std::string &str) = 0;
 	virtual bool	read(uint8_t &i);
 	virtual bool	read(uint16_t &i);
@@ -89,7 +89,7 @@ protected:
 	virtual bool	read(float &f);
 	virtual bool	read(double &f)		= 0;
 	virtual bool	read(bool &b);
-	
+
 	virtual void	write(const std::string &str) = 0;
 	virtual void	write(uint8_t i);
 	virtual void	write(uint16_t i);
@@ -102,26 +102,26 @@ protected:
 	virtual void	write(float f);
 	virtual void	write(double f)		= 0;
 	virtual void	write(bool b);
-	
-	virtual bool	readArrayBegin(void)		{ return true; }
+
+	virtual bool	readArrayBegin(void)	{ return true; }
 	virtual bool	readArrayNext(void)		{ return true; }
 	virtual bool	readMapBegin(void)		{ return true; }
 	virtual bool	readMapNext(void)		{ return true; }
-	
+
 	virtual void	writeArrayBegin(size_t size)	{}
-	virtual void	writeArrayNext(size_t i)	{}
-	virtual void	writeArrayEnd(void)		{}
+	virtual void	writeArrayNext(size_t i)		{}
+	virtual void	writeArrayEnd(void)			{}
 	virtual void	writeMapBegin(size_t size)	{}
 	virtual void	writeMapNext(size_t i)		{}
 	virtual void	writeMapEnd(void)		{}
 	virtual void	writeEnd(void)			{}
-	
+
 private:
 	template<typename T> bool readElement(T &element, size_t i);
 	template<typename T> void writeElement(const T &element, size_t i, size_t size);
 	template<typename K, typename V> bool readElement(std::pair<K, V> &pair, size_t i);
 	template<typename K, typename V> void writeElement(const std::pair<K, V> &pair, size_t i, size_t size);
-	
+
 	bool mReadFailed = false;
 	bool mOptionalOutput = false;
 };
@@ -133,7 +133,7 @@ Serializer &Serializer::operator>> (T& value)
 	return *this;
 }
 
-template<typename T> 
+template<typename T>
 Serializer &Serializer::operator<< (const T& value)
 {
 	write(value);
@@ -199,7 +199,7 @@ void Serializer::write(const std::vector<T> &container)
 	writeArrayEnd();
 }
 
-template<typename T> 
+template<typename T>
 bool Serializer::read(std::list<T> &container)
 {
 	container.clear();
@@ -213,12 +213,12 @@ bool Serializer::read(std::list<T> &container)
 	return true;
 }
 
-template<typename T> 
+template<typename T>
 void Serializer::write(const std::list<T> &container)
 {
 	writeArrayBegin(container.size());
 	size_t i = 0;
-	for(const T &v: container) 
+	for(const T &v: container)
 	{
 		writeArrayNext(i++);
 		write(v);
@@ -245,7 +245,7 @@ void Serializer::write(const std::set<T> &container)
 {
 	writeArrayBegin(container.size());
 	size_t i = 0;
-	for(const T &v: container) 
+	for(const T &v: container)
 	{
 		writeArrayNext(i++);
 		write(v);
@@ -253,7 +253,7 @@ void Serializer::write(const std::set<T> &container)
 	writeArrayEnd();
 }
 
-template<typename K, typename V> 
+template<typename K, typename V>
 bool Serializer::read(std::map<K, V> &container)
 {
 	if(!readMapBegin())
@@ -268,9 +268,9 @@ bool Serializer::read(std::map<K, V> &container)
 		std::pair<K, V> p;
 		if(!read(p.first)) break;
 		keys.insert(p.first);
-		
+
 		auto it = container.find(p.first); // check if key already exists
-		if(it != container.end()) 
+		if(it != container.end())
 		{
 			AssertIO(read(it->second));
 		}
@@ -376,4 +376,3 @@ template<typename K, typename V> void Serializer::writeElement(const std::pair<K
 }
 
 #endif
-

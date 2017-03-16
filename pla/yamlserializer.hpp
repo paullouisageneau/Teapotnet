@@ -33,7 +33,7 @@ class YamlSerializer : public Serializer
 public:
 	YamlSerializer(Stream *stream, int writeLevel = 0);	// stream WON'T be destroyed
 	virtual ~YamlSerializer(void);
-	
+
 	bool read(Serializable &s);
 	bool read(std::string &str);
 	inline bool read(int8_t &i)	{ return readValue(i); }
@@ -49,7 +49,7 @@ public:
 	inline bool read(double &f)	{ return readValue(f); }
 
 	void write(const Serializable &s);
-        void write(const std::string &str);
+	void write(const std::string &str);
 	inline void write(int8_t i)	{ writeValue(i); }
 	inline void write(int16_t i)	{ writeValue(i); }
 	inline void write(int32_t i)	{ writeValue(i); }
@@ -61,48 +61,48 @@ public:
 	inline void write(bool b)	{ writeValue(b); }
 	inline void write(float f)	{ writeValue(f); }
 	inline void write(double f)	{ writeValue(f); }
-	
+
 	bool readArrayBegin(void);
 	bool readArrayNext(void);
 	bool readMapBegin(void);
 	bool readMapNext(void);
-	
+
 	void writeArrayBegin(size_t size);
 	void writeArrayNext(size_t i);
 	void writeArrayEnd(void);
 	void writeMapBegin(size_t size);
 	void writeMapNext(size_t i);
 	void writeMapEnd(void);
-	
+
 	void writeClose(void);
-	
+
 private:
-  	template<typename T> bool readValue(T &value);
-  	template<typename T> void writeValue(const T &value);
-  
-  	Stream *mStream;
+	template<typename T> bool readValue(T &value);
+	template<typename T> void writeValue(const T &value);
+
+	Stream *mStream;
 	String mLine;		// for reading
 	Stack<int> mIndent;	// for reading
 	int mLevel = 0;		// for writing
 	bool mKey = false;	// for writing
 };
 
-template<typename T> 
+template<typename T>
 bool YamlSerializer::readValue(T &value)
 {
 	if(mIndent.empty())
 	{
 		if(mLine.empty() && !mStream->readLine(mLine))
 			return false;
-		
+
 		if(mLine.trimmed() == "...") return false;
 		if(mLine.trimmed() == "---") mLine.clear();
 	}
-	
+
 	return mLine.read(value);
 }
 
-template<typename T> 
+template<typename T>
 void YamlSerializer::writeValue(const T &value)
 {
 	if(!mLevel) *mStream<<"---"<<Stream::NewLine;
@@ -116,4 +116,3 @@ void YamlSerializer::writeValue(const T &value)
 }
 
 #endif
-

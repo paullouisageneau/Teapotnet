@@ -44,7 +44,7 @@ public:
 	V &get(const K &key);
 	bool getAndRemove(const K &key, V &value) const;
 	const V &getOrDefault(const K &key, const V &defaultValue) const;
-	
+
 	int getKeys(std::set<K> &set) const;
 	int getKeys(std::vector<K> &array) const;
 	int getKeys(std::list<K> &list) const;
@@ -64,11 +64,11 @@ typename std::map<K,V>::iterator Map<K,V>::insert(const K &key, const V &value)
 template<typename K, typename V>
 void Map<K,V>::insert(const std::map<K,V> &other)
 {
-	for(	typename std::map<K,V>::const_iterator it = other.begin();
+	for(typename std::map<K,V>::const_iterator it = other.begin();
 		it != other.end();
 		++it)
 	{
-		      insert(it->first, it->second);
+		insert(it->first, it->second);
 	}
 }
 
@@ -124,13 +124,13 @@ template<typename K, typename V>
 int Map<K,V>::getKeys(std::set<K> &set) const
 {
 	set.clear();
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
+	for(typename std::map<K,V>::const_iterator it = this->begin();
 		it != this->end();
 		++it)
 	{
-		      set.insert(it->first);
+		set.insert(it->first);
 	}
-	
+
 	return set.size();
 }
 
@@ -139,13 +139,13 @@ int Map<K,V>::getKeys(std::vector<K> &array) const
 {
 	array.clear();
 	array.reserve(this->size());
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
+	for(typename std::map<K,V>::const_iterator it = this->begin();
 		it != this->end();
 		++it)
 	{
-		      array.push_back(it->first);
+		array.push_back(it->first);
 	}
-	
+
 	return array.size();
 }
 
@@ -153,13 +153,13 @@ template<typename K, typename V>
 int Map<K,V>::getKeys(std::list<K> &list) const
 {
 	list.clear();
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
+	for(typename std::map<K,V>::const_iterator it = this->begin();
 		it != this->end();
 		++it)
 	{
-		      list.push_back(it->first);
+		list.push_back(it->first);
 	}
-	
+
 	return list.size();
 }
 
@@ -168,13 +168,13 @@ int Map<K,V>::getValues(std::vector<V> &array) const
 {
 	array.clear();
 	array.reserve(this->size());
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
+	for(typename std::map<K,V>::const_iterator it = this->begin();
 		it != this->end();
 		++it)
 	{
 		array.push_back(it->second);
 	}
-	
+
 	return array.size();
 }
 
@@ -182,13 +182,13 @@ template<typename K, typename V>
 int Map<K,V>::getValues(std::list<V> &list) const
 {
 	list.clear();
-	for(	typename std::map<K,V>::const_iterator it = this->begin();
+	for(typename std::map<K,V>::const_iterator it = this->begin();
 		it != this->end();
 		++it)
 	{
 		list.push_back(it->second);
 	}
-	
+
 	return list.size();
 }
 

@@ -34,21 +34,21 @@ namespace pla
 class Exception : public std::exception
 {
 public:
-    Exception(const std::string &message = "");
-    virtual ~Exception() throw();
+	Exception(const std::string &message = "");
+	virtual ~Exception() throw();
 
-    // Returns the associated message
-    virtual const char* what() const throw();
+	// Returns the associated message
+	virtual const char* what() const throw();
 
 protected:
-    std::string mMessage; // associated message
+	std::string mMessage; // associated message
 };
 
 // If a condition is not matched
 class AssertException : public Exception
 {
 public:
-    AssertException(const std::string &File, int Line, const std::string &message);
+	AssertException(const std::string &File, int Line, const std::string &message);
 };
 
 #ifdef DEBUG
@@ -64,28 +64,28 @@ public:
 class RuntimeException : public Exception
 {
 public:
-    RuntimeException(const std::string &message);
+	RuntimeException(const std::string &message);
 };
 
 // If a file cannot be loaded
 class LoadingFailed : public Exception
 {
 public:
-    LoadingFailed(const std::string& File, const std::string &message);
+	LoadingFailed(const std::string& File, const std::string &message);
 };
 
 // If a functionnality is not available
 class Unsupported : public Exception
 {
 public:
-    Unsupported(const std::string &feature);
+	Unsupported(const std::string &feature);
 };
 
 // If a parameter or a field is invalid
 class InvalidData : public Exception
 {
 public:
-    InvalidData(const std::string &message);
+	InvalidData(const std::string &message);
 };
 
 // If an IO exception occured
@@ -101,7 +101,7 @@ public:
 // If the system is out of memory
 class OutOfMemory : public Exception
 {
-    OutOfMemory(void);
+	OutOfMemory(void);
 };
 
 // If a division by zero has been attempted

@@ -37,19 +37,19 @@ public:
 	static double StructToSeconds(const struct timespec &ts);
 	static void SecondsToStruct(double secs, struct timeval &tv);
 	static void SecondsToStruct(double secs, struct timespec &ts);
-	
+
 	Time(void);
 	Time(time_t time);
 	Time(const String &str);
 	~Time(void);
-	
+
 	int hour(void) const;
 	int minute(void) const;
 	int second(void) const;
 	int day(void) const;
 	int month(void) const;
 	int year(void) const;
-	
+
 	String toDisplayDate(void) const;
 	String toHttpDate(void) const;
 	String toIsoDate(void) const;
@@ -57,15 +57,15 @@ public:
 	time_t toUnixTime(void) const;
 	void   toStruct(struct timeval &ts) const;
 	void   toStruct(struct timespec &ts) const;
-	
+
 	double toSeconds(void) const;
 	double toHours(void) const;
 	double toDays(void) const;
-	
+
 	void addSeconds(double seconds);
 	void addHours(double hours);
 	void addDays(double days);
-	
+
 	Time &operator += (duration d);
 	Time operator + (duration d) const;
 	Time &operator -= (duration d);
@@ -76,20 +76,20 @@ public:
 	bool operator == (const Time &t);
 	bool operator != (const Time &t);
 	operator time_t(void) const;
-	
+
 	// Serializable
 	void serialize(Serializer &s) const;
 	bool deserialize(Serializer &s);
 	bool isNativeSerializable(void) const;
-	
+
 	enum SerializationFormat { Timestamp, IsoDate, IsoTime };
 	void setSerializationFormat(SerializationFormat format);
 
 private:
-  	static std::mutex TimeMutex;
-	
+	static std::mutex TimeMutex;
+
 	void parse(const String &str);
-	
+
 	time_t mTime;
 	SerializationFormat mFormat;
 };

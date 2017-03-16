@@ -38,7 +38,7 @@ DatagramSocket::DatagramSocket(int port, bool broadcast) :
 DatagramSocket::DatagramSocket(const Address &local, bool broadcast) :
 		mSock(INVALID_SOCKET)
 {
- 	bind(local, broadcast);  
+	bind(local, broadcast);
 }
 
 DatagramSocket::~DatagramSocket(void)
@@ -63,7 +63,7 @@ Address DatagramSocket::getBindAddress(void) const
 void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 {
 	set.clear();
-  
+
 	Address bindAddr = getBindAddress();
 
 // getifaddrs() returns AF_PACKET addresses ?!
@@ -94,15 +94,15 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 			return;
 		}
 	}
-	
-	addrinfo *ai = aiList;  
+
+	addrinfo *ai = aiList;
 	while(ai)
 	{
 		if(ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
 		{
 			Address addr(ai->ai_addr,ai->ai_addrlen);
 			String host = addr.host();
-			
+
 			if(ai->ai_addr->sa_family != AF_INET6 || host.substr(0,4) != "fe80")
 			{
 				if(addr == bindAddr)
@@ -111,33 +111,33 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 					set.insert(addr);
 					break;
 				}
-				
+
 				set.insert(addr);
 			}
 		}
-		
+
 		ai = ai->ai_next;
 	}
-	
+
 	freeaddrinfo(aiList);
 #else
 	ifaddrs *ifas;
 	if(getifaddrs(&ifas) < 0)
 		throw NetException("Unable to list network interfaces");
 
-        ifaddrs *ifa = ifas;
+	ifaddrs *ifa = ifas;
 	while(ifa)
 	{
 		sockaddr *sa = ifa->ifa_addr;
-		if(!sa) break;		
+		if(!sa) break;
 
 		socklen_t len = 0;
-		switch(sa->sa_family) 
+		switch(sa->sa_family)
 		{
 			case AF_INET:  len = sizeof(sockaddr_in);  break;
 			case AF_INET6: len = sizeof(sockaddr_in6); break;
 		}
-		
+
 		if(len)
 		{
 			Address addr(sa, len);
@@ -154,7 +154,7 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 				set.insert(addr);
 			}
 		}
-		
+
 		ifa = ifa->ifa_next;
 	}
 
@@ -165,40 +165,40 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 void DatagramSocket::getHardwareAddresses(Set<BinaryString> &set) const
 {
 	set.clear();
-	
+
 #ifdef WINDOWS
-	IP_ADAPTER_ADDRESSES adapterInfo[16];   
+	IP_ADAPTER_ADDRESSES adapterInfo[16];
 	DWORD dwBufLen = sizeof(IP_ADAPTER_ADDRESSES)*16;
-	
+
 	DWORD dwStatus = GetAdaptersAddresses(getBindAddress().addrFamily(), 0, NULL, adapterInfo, &dwBufLen);
 	if(dwStatus != ERROR_SUCCESS)
 		throw NetException("Unable to retrive hardware addresses");
-	
+
 	IP_ADAPTER_ADDRESSES *pAdapterInfo = adapterInfo;
 	while(pAdapterInfo)
 	{
 		if(pAdapterInfo->PhysicalAddressLength)
 			set.insert(BinaryString((char*)pAdapterInfo->PhysicalAddress, pAdapterInfo->PhysicalAddressLength));
-		
+
 		pAdapterInfo = pAdapterInfo->Next;
 	}
 #else
 	struct ifreq ifr;
 	struct ifconf ifc;
 	char buf[BufferSize];
-	
+
 	ifc.ifc_len = sizeof(buf);
 	ifc.ifc_buf = buf;
 	if (ioctl(mSock, SIOCGIFCONF, &ifc) == -1)
 		throw NetException("Unable to retrive hardware addresses");
-	
+
 	for(	struct ifreq* it = ifc.ifc_req;
 		it != ifc.ifc_req + ifc.ifc_len/sizeof(struct ifreq);
 		++it)
 	{
 		strcpy(ifr.ifr_name, it->ifr_name);
-		
-		if (ioctl(mSock, SIOCGIFFLAGS, &ifr) == 0) 
+
+		if (ioctl(mSock, SIOCGIFFLAGS, &ifr) == 0)
 		{
 			if(!(ifr.ifr_flags & IFF_LOOPBACK))
 			{
@@ -216,9 +216,8 @@ void DatagramSocket::getHardwareAddresses(Set<BinaryString> &set) const
 void DatagramSocket::bind(int port, bool broadcast, int family)
 {
 	close();
-	
 	mPort = port;
-	
+
 	// Obtain local Address
 	addrinfo *aiList = NULL;
 	addrinfo aiHints;
@@ -231,14 +230,14 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
 		throw NetException("Local binding address resolution failed for UDP port "+service);
-	
+
 	try {
 		// Prefer IPv6
 		addrinfo *ai = aiList;
 		while(ai && ai->ai_family != AF_INET6)
 			ai = ai->ai_next;
 		if(!ai) ai = aiList;
-			
+
 		// Create socket
 		mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if(mSock == INVALID_SOCKET)
@@ -254,15 +253,14 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 			if(!ai) throw NetException("Datagram socket creation failed");
 		}
 
-
 		// Set options
 		int enabled = 1;
 		int disabled = 0;
 		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
 		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char*>(&enabled), sizeof(enabled));
-		if(ai->ai_family == AF_INET6) 
-			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
-		
+		if(ai->ai_family == AF_INET6)
+			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled));
+
 		// Necessary for DTLS
 #ifdef LINUX
 		int val = IP_PMTUDISC_DO;
@@ -270,7 +268,7 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 #else
 		setsockopt(mSock, IPPROTO_IP, IP_DONTFRAG, reinterpret_cast<char*>(&enabled), sizeof(enabled));
 #endif
-		
+
 		// Bind it
 		if(::bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)
 			throw NetException(String("Binding failed on UDP port ") + String::number(port));
@@ -287,14 +285,14 @@ void DatagramSocket::bind(int port, bool broadcast, int family)
 		close();
 		throw;
 	}
-	
+
 	freeaddrinfo(aiList);
 }
 
 void DatagramSocket::bind(const Address &local, bool broadcast)
 {
 	close();
-	
+
 	try {
 		mPort = local.port();
 
@@ -307,7 +305,7 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 		int enabled = 1;
 		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
 		if(broadcast) setsockopt(mSock, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<char*>(&enabled), sizeof(enabled));
-		
+
 		// Bind it
 		if(::bind(mSock, local.addr(), local.addrLen()) != 0)
 			throw NetException(String("Binding failed on ") + local.toString());
@@ -322,32 +320,26 @@ void DatagramSocket::bind(const Address &local, bool broadcast)
 	{
 		close();
 		throw;
-	} 
+	}
 }
 
 void DatagramSocket::close(void)
 {
 	std::unique_lock<std::mutex> lock(mStreamsMutex);
-	
-	for(Map<Address, Set<DatagramStream*> >::iterator it = mStreams.begin();
-		it != mStreams.end();
-		++it)
-	{
-		for(Set<DatagramStream*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
+
+	for(auto it = mStreams.begin(); it != mStreams.end(); ++it)
+		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 		{
 			DatagramStream *stream = *jt;
-			
+
 			std::unique_lock<std::mutex> lock(stream->mMutex);
 			stream->mSock = NULL;
 			lock.unlock();
 			stream->mCondition.notify_all();
 		}
-	}
-	
+
 	mStreams.clear();
-	
+
 	if(mSock != INVALID_SOCKET)
 	{
 		::closesocket(mSock);
@@ -406,7 +398,7 @@ bool DatagramSocket::wait(duration timeout)
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(mSock, &readfds);
-	
+
 	struct timeval tv;
 	durationToStruct(timeout, tv);
 	int ret = ::select(SOCK_TO_INT(mSock)+1, &readfds, NULL, NULL, &tv);
@@ -420,50 +412,48 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, duration ti
 	std::chrono::time_point<clock> end;
 	if(timeout >= duration::zero()) end = clock::now() + std::chrono::duration_cast<clock::duration>(timeout);
 	else end = std::chrono::time_point<clock>::max();
-	
+
 	do {
 		duration left = end - std::chrono::steady_clock::now();
 		if(!wait(left)) break;
-		
+
 		char datagramBuffer[MaxDatagramSize];
 		sockaddr_storage sa;
 		socklen_t sl = sizeof(sa);
 		int result = ::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags | MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 		if(result < 0) throw NetException("Unable to read from socket (error " + String::number(sockerrno) + ")");
 		sender.set(reinterpret_cast<sockaddr*>(&sa),sl);
-		
+
 		std::unique_lock<std::mutex> lock(mStreamsMutex);
-		Map<Address, Set<DatagramStream*> >::iterator it = mStreams.find(sender.unmap());
+		auto it = mStreams.find(sender.unmap());
 		if(it == mStreams.end())
 		{
 			size = std::min(result, int(size));
 			std::memcpy(buffer, datagramBuffer, size);
-			
+
 			if(!(flags & MSG_PEEK))
 				::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags, reinterpret_cast<sockaddr*>(&sa), &sl);
 			return size;
 		}
-		
+
 		BinaryString tmp(datagramBuffer, size_t(result));
-		for(Set<DatagramStream*>::iterator jt = it->second.begin();
-			jt != it->second.end();
-			++jt)
+		for(auto jt = it->second.begin(); jt != it->second.end(); ++jt)
 		{
 			DatagramStream *stream = *jt;
 			Assert(stream);
 			std::unique_lock<std::mutex> lock(stream->mMutex);
-			
-			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)	
+
+			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)
 				stream->mIncoming.push(tmp);
-			
+
 			lock.unlock();
 			stream->mCondition.notify_all();
 		}
-		
+
 		::recvfrom(mSock, datagramBuffer, MaxDatagramSize, flags & ~MSG_PEEK, reinterpret_cast<sockaddr*>(&sa), &sl);
 	}
 	while(std::chrono::steady_clock::now() <= end);
-	
+
 	return -1;
 }
 
@@ -478,9 +468,9 @@ void DatagramSocket::accept(DatagramStream &stream)
 	BinaryString buffer;
 	Address sender;
 	read(buffer, sender);
-	
+
 	unregisterStream(&stream);
-	
+
 	stream.mSock = this;
 	stream.mAddr = sender;
 	std::swap(stream.mBuffer, buffer);
@@ -490,7 +480,7 @@ void DatagramSocket::registerStream(DatagramStream *stream)
 {
 	Assert(stream);
 	Address addr(stream->mAddr.unmap());
-	
+
 	std::unique_lock<std::mutex> lock(mStreamsMutex);
 	mStreams[addr].insert(stream);
 }
@@ -499,7 +489,7 @@ void DatagramSocket::unregisterStream(DatagramStream *stream)
 {
 	Assert(stream);
 	Address addr(stream->mAddr.unmap());
-	
+
 	std::unique_lock<std::mutex> lock(mStreamsMutex);
 	mStreams[addr].erase(stream);
 	if(mStreams[addr].empty())
@@ -514,7 +504,7 @@ DatagramStream::DatagramStream(void) :
 	mOffset(0),
 	mTimeout(DefaultTimeout)
 {
-	
+
 }
 
 DatagramStream::DatagramStream(DatagramSocket *sock, const Address &addr) :
@@ -551,9 +541,8 @@ void DatagramStream::setTimeout(duration timeout)
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	if(!waitData(mTimeout))
-		throw Timeout();
-	
+	if(!waitData(mTimeout)) throw Timeout();
+
 	std::unique_lock<std::mutex> lock(mMutex);
 
 	if(mIncoming.empty()) return 0;
@@ -567,7 +556,7 @@ size_t DatagramStream::readData(char *buffer, size_t size)
 void DatagramStream::writeData(const char *data, size_t size)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(!mSock) throw NetException("Datagram stream closed");
 	mBuffer.writeData(data, size);
 }
@@ -575,22 +564,21 @@ void DatagramStream::writeData(const char *data, size_t size)
 bool DatagramStream::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(mSock && mIncoming.empty())
 	{
-		this->mCondition.wait_for(lock, timeout, [this]()
-		{ 
+		this->mCondition.wait_for(lock, timeout, [this]() {
 			return (!mSock || !this->mIncoming.empty());
 		});
 	}
-	
+
 	return (!mSock || !mIncoming.empty());
 }
 
 bool DatagramStream::nextRead(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(mIncoming.empty()) return false;
 	mIncoming.pop();
 	mOffset = 0;
@@ -607,20 +595,20 @@ bool DatagramStream::nextWrite(void)
 void DatagramStream::close(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(mSock)
 	{
 		while(!mIncoming.empty()) mIncoming.pop();
 		mSock->unregisterStream(this);
 		mSock = NULL;
 	}
-	
+
 	mCondition.notify_all();
 }
 
 bool DatagramStream::isDatagram(void) const
 {
-	return true; 
+	return true;
 }
 
 }

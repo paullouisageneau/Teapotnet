@@ -30,7 +30,7 @@ namespace pla
 bool Address::Resolve(const String &host, const String &service, List<Address> &result)
 {
 	result.clear();
-	
+
 	addrinfo aiHints;
 	std::memset(&aiHints, 0, sizeof(aiHints));
 	aiHints.ai_family = AF_UNSPEC;
@@ -49,7 +49,7 @@ bool Address::Resolve(const String &host, const String &service, List<Address> &
 		result.push_back(Address(ai->ai_addr, ai->ai_addrlen));
 		ai = ai->ai_next;
 	}
-	
+
 	freeaddrinfo(aiList);
 	return !result.empty();
 }
@@ -64,9 +64,8 @@ bool Address::Resolve(const String &host, uint16_t port, List<Address> &result)
 bool Address::Resolve(const String &str, List<Address> &result, const String &protocol)
 {
 	result.clear();
-	
+
 	String host, service;
-	
 	int separator = str.find_last_of(':');
 	if(separator != String::NotFound && !String(str,separator+1).contains(']'))
 	{
@@ -81,10 +80,10 @@ bool Address::Resolve(const String &str, List<Address> &result, const String &pr
 
 	if(!host.empty() && host[0] == '[')
 		host = host.substr(1, host.find(']')-1);
-	
-	if(host.empty() || service.empty()) 
+
+	if(host.empty() || service.empty())
 		return false;
-		
+
 	return Resolve(host, service, result);
 }
 
@@ -92,16 +91,16 @@ bool Address::Reverse(const Address &a, String &result)
 {
 	if(a.isNull()) return "";
 
-        char host[HOST_NAME_MAX];
+	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
-        if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+	if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
 	{
 		result = a.toString();
 		return false;
 	}
-	
+
 	result = host;
-	if(a.addrFamily() == AF_INET6 && result.contains(':')) 
+	if(a.addrFamily() == AF_INET6 && result.contains(':'))
 	{
 		result.clear();
 		result << '[' << host << ']';
@@ -110,7 +109,7 @@ bool Address::Reverse(const Address &a, String &result)
 	result << ':' << service;
 	return true;
 }
-	
+
 Address::Address(void)
 {
 	clear();
@@ -179,7 +178,7 @@ void Address::set(const String &str)
 void Address::set(const sockaddr *addr, socklen_t addrlen)
 {
 	//std::memset(&mAddr, 0, sizeof(mAddr));
-	
+
 	if(!addr || !addrlen)
 	{
 		mAddrLen = 0;
@@ -192,19 +191,18 @@ void Address::set(const sockaddr *addr, socklen_t addrlen)
 
 void Address::setPort(uint16_t port)
 {
-	if(mAddrLen == 0)
-		return;
-	
+	if(mAddrLen == 0) return;
+
 	switch(addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
 		sa->sin_port = port;
 		break;
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		sockaddr_in6 *sa = reinterpret_cast<sockaddr_in6*>(&mAddr);
 		sa->sin6_port = port;
@@ -231,7 +229,7 @@ bool Address::isLocal(void) const
 {
 	switch(addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
@@ -239,7 +237,7 @@ bool Address::isLocal(void) const
 		break;
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
@@ -252,7 +250,7 @@ bool Address::isLocal(void) const
 		if(b[15] == 1) return true;
 		break;
 	}
-	
+
 	}
 	return false;
 }
@@ -261,7 +259,7 @@ bool Address::isPrivate(void) const
 {
 	switch(addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(&sa->sin_addr.s_addr);
@@ -272,11 +270,11 @@ bool Address::isPrivate(void) const
 		break;
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
-		if(b[0] == 0xFC || b[0] == 0xFD) return true; 
+		if(b[0] == 0xFC || b[0] == 0xFD) return true;
 		for(int i=0; i<9; ++i) if(b[i] != 0) break;
 		if(b[10] == 0xFF && b[11] == 0xFF)		// mapped
 		{
@@ -286,14 +284,14 @@ bool Address::isPrivate(void) const
 		}
 		break;
 	}
-	
+
 	}
 	return false;
 }
 
 bool Address::isPublic(void) const
 {
-	return !isLocal() && !isPrivate();  
+	return !isLocal() && !isPrivate();
 }
 
 bool Address::isIpv4(void) const
@@ -303,7 +301,7 @@ bool Address::isIpv4(void) const
 
 bool Address::isIpv6(void) const
 {
-	return (addrFamily() == AF_INET6);  
+	return (addrFamily() == AF_INET6);
 }
 
 String Address::host(bool numeric) const
@@ -340,13 +338,13 @@ String Address::reverse(void) const
 {
 	if(isNull()) return "";
 
-        char host[HOST_NAME_MAX];
+	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
-        if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
+	if(getnameinfo(addr(), addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICSERV))
 		return toString();
-        
+
 	String str(host);
-	if(addrFamily() == AF_INET6 && str.contains(':')) 
+	if(addrFamily() == AF_INET6 && str.contains(':'))
 	{
 		str.clear();
 		str << '[' << host << ']';
@@ -362,22 +360,22 @@ Address Address::unmap(void) const
 	{
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
 		const uint8_t *b = reinterpret_cast<const uint8_t *>(sa6->sin6_addr.s6_addr);
-		
-		for(int i=0; i<9; ++i) 
-			if(b[i] != 0) 
+
+		for(int i=0; i<9; ++i)
+			if(b[i] != 0)
 				return *this;
-		
+
 		if(b[10] != 0xFF || b[11] != 0xFF)
 			return *this;
-		
+
 		struct sockaddr_in sin;
 		sin.sin_family = AF_INET;
 		sin.sin_port = sa6->sin6_port;
 		std::memcpy(reinterpret_cast<uint8_t*>(&sin.sin_addr.s_addr), b + 12, 4);
-		
+
 		return Address(reinterpret_cast<sockaddr*>(&sin), sizeof(sin));
 	}
-	
+
 	return *this;
 }
 
@@ -385,7 +383,7 @@ void Address::serialize(Serializer &s) const
 {
 	switch(addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		s << uint8_t(4);
 		const sockaddr_in *sa = reinterpret_cast<const sockaddr_in*>(&mAddr);
@@ -396,11 +394,11 @@ void Address::serialize(Serializer &s) const
 		break;
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		s << uint8_t(16);
 		const sockaddr_in6 *sa6 = reinterpret_cast<const sockaddr_in6*>(&mAddr);
-		
+
 		for(int i=0; i<16; ++i) s << uint8_t(sa6->sin6_addr.s6_addr[i]);
 		s << uint16_t(ntohs(sa6->sin6_port));
 		break;
@@ -424,7 +422,7 @@ bool Address::deserialize(Serializer &s)
 
 	switch(size)
 	{
-	case 4:		// IP v4
+	case 4:		// IPv4
 	{
 		mAddrLen = sizeof(sockaddr_in);
 		sockaddr_in *sa = reinterpret_cast<sockaddr_in*>(&mAddr);
@@ -434,7 +432,7 @@ bool Address::deserialize(Serializer &s)
 		uint8_t u;
 		for(int i=0; i<4; ++i)
 		{
-			AssertIO(s >> u); 
+			AssertIO(s >> u);
 			b[i] = u;
 		}
 		uint16_t port;
@@ -443,7 +441,7 @@ bool Address::deserialize(Serializer &s)
 		break;
 	}
 
-	case 16:	// IP v6
+	case 16:	// IPv6
 	{
 		mAddrLen = sizeof(sockaddr_in6);
 		sockaddr_in6 *sa6 = reinterpret_cast<sockaddr_in6*>(&mAddr);
@@ -464,19 +462,19 @@ bool Address::deserialize(Serializer &s)
 	default:
 		throw InvalidData("Invalid network address");
 	}
-	
+
 	return true;
 }
 
 void Address::serialize(Stream &s) const
 {
 	Address a(unmap());
-	
+
 	char host[HOST_NAME_MAX];
 	char service[SERVICE_NAME_MAX];
 	if(getnameinfo(a.addr(), a.addrLen(), host, HOST_NAME_MAX, service, SERVICE_NAME_MAX, NI_NUMERICHOST|NI_NUMERICSERV))
 		throw InvalidData("Invalid stored network address");
-	
+
 	if(a.addrFamily() == AF_INET6) s << '[' << host << ']' << ':' << service;
 	else s << host << ':' << service;
 }
@@ -487,7 +485,7 @@ bool Address::deserialize(Stream &s)
 	if(!s.read(str)) return false;
   	str.trim();
 	if(str.empty()) throw InvalidData("Invalid network address");
-	
+
 	String host, service;
 
 	int separator = str.find_last_of(':');
@@ -503,7 +501,7 @@ bool Address::deserialize(Stream &s)
 
 	if(!host.empty() && host[0] == '[')
 		host = host.substr(1, host.find(']')-1);
-	
+
 	if(host.empty() || service.empty())
 		throw InvalidData("Invalid network address: " + str);
 
@@ -540,7 +538,7 @@ bool operator < (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() < a2.addrLen();
 	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() < a2.addrFamily();
-	
+
 	if(!a2.isLocal())
 	{
 		if(a1.isLocal()) return true;
@@ -551,17 +549,17 @@ bool operator < (const Address &a1, const Address &a2)
 		if(a2.isLocal()) return false;
 		if(a2.isPrivate() && !a1.isPrivate()) return false;
 	}
-	
+
 	switch(a1.addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
 		return (sa1->sin_addr.s_addr < sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port < sa2->sin_port && sa1->sin_port && sa2->sin_port));
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
@@ -578,7 +576,7 @@ bool operator > (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return a1.addrLen() > a2.addrLen();
 	if(a1.addrFamily() != a2.addrFamily()) return a1.addrFamily() > a2.addrFamily();
-	
+
 	if(!a1.isLocal())
 	{
 		if(a2.isLocal()) return true;
@@ -589,17 +587,17 @@ bool operator > (const Address &a1, const Address &a2)
 		if(a1.isLocal()) return false;
 		if(a1.isPrivate() && !a2.isPrivate()) return false;
 	}
-	
+
 	switch(a1.addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
 		return (sa1->sin_addr.s_addr > sa2->sin_addr.s_addr || (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && sa1->sin_port > sa2->sin_port && sa1->sin_port && sa2->sin_port));
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());
@@ -616,17 +614,17 @@ bool operator == (const Address &a1, const Address &a2)
 {
 	if(a1.addrLen() != a2.addrLen()) return false;
 	if(a1.addrFamily() != a2.addrFamily()) return false;
-	  
+
 	switch(a1.addrFamily())
 	{
-	case AF_INET:	// IP v4
+	case AF_INET:	// IPv4
 	{
 		const sockaddr_in *sa1 = reinterpret_cast<const sockaddr_in*>(a1.addr());
 		const sockaddr_in *sa2 = reinterpret_cast<const sockaddr_in*>(a2.addr());
 		return (sa1->sin_addr.s_addr == sa2->sin_addr.s_addr && (sa1->sin_port == sa2->sin_port || !sa1->sin_port || !sa2->sin_port));
 	}
 
-	case AF_INET6:	// IP v6
+	case AF_INET6:	// IPv6
 	{
 		const sockaddr_in6 *sa1 = reinterpret_cast<const sockaddr_in6*>(a1.addr());
 		const sockaddr_in6 *sa2 = reinterpret_cast<const sockaddr_in6*>(a2.addr());

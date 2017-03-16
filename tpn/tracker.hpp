@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -38,19 +38,19 @@ class Tracker : public Http::Server
 {
 public:
 	static const duration EntryLife;
-  
+
 	Tracker(int port = 8080);
 	~Tracker(void);
 
 private:
 	Map<BinaryString, Map<Address, Time> > mMap;
 	Map<BinaryString, Map<Address, Time> >::iterator mCleaner;
-	
+
 	void process(Http::Request &request);
 	void clean(int count = -1);
 	void insert(const BinaryString &node, const Address &addr);
 	void retrieve(const BinaryString &node, int count, Map<BinaryString, Set<Address> > &result) const;
-	
+
 	mutable std::mutex mMutex;
 };
 

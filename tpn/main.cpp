@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -114,7 +114,7 @@ extern "C"
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setWorkingDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
-        String str = env->GetStringUTFChars(dir, NULL);
+	String str = env->GetStringUTFChars(dir, NULL);
 
 	try {
 		if(!Directory::Exist(str)) Directory::Create(str);
@@ -133,7 +133,7 @@ String CacheDirectory;
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
-        String str = env->GetStringUTFChars(dir, NULL);
+	String str = env->GetStringUTFChars(dir, NULL);
 
 	try {
 		if(!Directory::Exist(str)) Directory::Create(str);
@@ -149,7 +149,7 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setSharedDire
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
-        String str = env->GetStringUTFChars(dir, NULL);
+	String str = env->GetStringUTFChars(dir, NULL);
 
 	try {
 		if(!Directory::Exist(str)) Directory::Create(str);
@@ -165,7 +165,7 @@ JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setTempDirect
 
 JNIEXPORT jboolean JNICALL Java_org_ageneau_teapotnet_MainActivity_setCacheDirectory(JNIEnv *env, jobject obj, jstring dir)
 {
-        String str = env->GetStringUTFChars(dir, NULL);
+	String str = env->GetStringUTFChars(dir, NULL);
 
 	try {
 		if(!Directory::Exist(str)) Directory::Create(str);
@@ -200,8 +200,8 @@ int main(int argc, char** argv)
 	int exitCode = 0;
 
 	struct timeval tv;
-  	Assert(gettimeofday(&tv, 0) == 0);
-  	unsigned seed = unsigned(tv.tv_sec) ^ unsigned(tv.tv_usec);
+	Assert(gettimeofday(&tv, 0) == 0);
+	unsigned seed = unsigned(tv.tv_sec) ^ unsigned(tv.tv_usec);
 
 #ifdef WINDOWS
 	srand(seed);
@@ -368,11 +368,6 @@ int run(String &commandLine, StringMap &args)
 	const String configFileName = "config.txt";	// TODO: also defined in core.cpp
 	if(File::Exist(configFileName)) Config::Load(configFileName);
 
-	// --- Reset config from old version ---
-	if(Config::Get("tracker") == "teapotnet.org")
-		Config::Clear();
-	// ---
-
 	Config::Default("tracker", "https://teapotnet.org");
 	Config::Default("port", "8080");
 	Config::Default("interface_port", "8480");
@@ -399,14 +394,14 @@ int run(String &commandLine, StringMap &args)
 #ifdef ANDROID
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "200");		// MiB
-	Config::Default("cache_max_file_size", "20");		// MiB
+	Config::Default("cache_max_file_size", "20");	// MiB
 
 	if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 	if(!CacheDirectory.empty())  Config::Put("cache_dir",  CacheDirectory);
 #else
 	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "10000");		// MiB
-	Config::Default("cache_max_file_size", "1000");		// MiB
+	Config::Default("cache_max_file_size", "1000");	// MiB
 #endif
 
 #if defined(WINDOWS) || defined(MACOSX)

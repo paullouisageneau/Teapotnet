@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -38,21 +38,21 @@
 namespace tpn
 {
 
-Map<String, sptr<User> >	User::UsersByName;
-Map<BinaryString, String>	User::UsersByAuth;
-Map<Identifier, String>	User::UsersByIdentifier;
-std::mutex	User::UsersMutex;
+Map<String, sptr<User> > User::UsersByName;
+Map<BinaryString, String> User::UsersByAuth;
+Map<Identifier, String> User::UsersByIdentifier;
+std::mutex User::UsersMutex;
 
 unsigned User::Count(void)
 {
-	 std::lock_guard<std::mutex> lock(UsersMutex);
-	 return unsigned(UsersByName.size());
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	return unsigned(UsersByName.size());
 }
 
 void User::GetNames(Array<String> &array)
 {
-	 std::lock_guard<std::mutex> lock(UsersMutex);
-	 UsersByName.getKeys(array);
+	std::lock_guard<std::mutex> lock(UsersMutex);
+	UsersByName.getKeys(array);
 }
 
 bool User::Exist(const String &name)
@@ -119,7 +119,7 @@ User::User(const String &name, const String &password) :
 	// Auth digest
 	if(password.empty())
 	{
-    try {
+		try {
 			File file(profilePath()+"auth", File::Read);
 			file.read(mAuthDigest);
 			file.close();
@@ -585,40 +585,40 @@ void User::http(const String &prefix, Http::Request &request)
 			page.javascript("$('#page').css('max-width','100%');");
 
 #if defined(WINDOWS)
-                        if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
-                        {
-                                page.open("div", "updateavailable.banner");
+			if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
+			{
+				page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
 				page.input("hidden", "token", generateToken("admin"));
-                        	page.input("hidden", "command", "update");
+				page.input("hidden", "command", "update");
 				page.text("New version available - ");
-                                page.link("#", "Update now", "shutdownAndUpdateLink");
+				page.link("#", "Update now", "shutdownAndUpdateLink");
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\
 					document.shutdownAndUpdateForm.submit();\n\
 				});");
-                                page.close("div");
-                        }
+				page.close("div");
+			}
 #endif
 
 #if defined(MACOSX)
-                        if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
-                        {
-                                page.open("div", "updateavailable.banner");
+			if(request.remoteAddress.isLocal() && Config::IsUpdateAvailable())
+			{
+				page.open("div", "updateavailable.banner");
 				page.openForm(prefix+'/', "post", "shutdownAndUpdateForm");
 				page.input("hidden", "token", generateToken("admin"));
-                        	page.input("hidden", "command", "shutdown");
-                        	page.input("hidden", "redirect", String(DOWNLOADURL) + "?release=osx&update=1");
+				page.input("hidden", "command", "shutdown");
+				page.input("hidden", "redirect", String(DOWNLOADURL) + "?release=osx&update=1");
 				page.text("New version available - ");
-                                page.link(String(DOWNLOADURL) + "?release=osx&update=1", "Quit and download now", "shutdownAndUpdateLink");
+				page.link(String(DOWNLOADURL) + "?release=osx&update=1", "Quit and download now", "shutdownAndUpdateLink");
 				page.closeForm();
 				page.javascript("$('#shutdownAndUpdateLink').click(function(event) {\n\
 					event.preventDefault();\n\
 					document.shutdownAndUpdateForm.submit();\n\
 				});");
-                                page.close("div");
-                        }
+				page.close("div");
+			}
 #endif
 
 			page.open("div", "wrapper");
@@ -848,7 +848,7 @@ bool User::deserialize(Serializer &s)
 
 bool User::isInlineSerializable(void) const
 {
-        return false;
+	return false;
 }
 
 }

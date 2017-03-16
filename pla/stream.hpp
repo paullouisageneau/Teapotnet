@@ -41,14 +41,14 @@ public:
 	static const String BlankCharacters;
 	static const String NewLine;
 	static const char Space;
-	
+
 	Stream(void) {}
 	virtual ~Stream(void) {}
-	
+
 	// Settings
 	bool hexaMode(void);
 	bool hexaMode(bool enabled);
-	
+
 	// Data-level access
 	virtual size_t readData(char *buffer, size_t size) = 0;
 	virtual void writeData(const char *data, size_t size) = 0;
@@ -69,7 +69,7 @@ public:
 	size_t readData(Stream &s, size_t max);
 	size_t writeData(Stream &s, size_t max);
 	inline void discard(void) { clear(); }
-	
+
 	// Atomic
 	bool get(char &chr);
 	void put(char chr);
@@ -78,7 +78,7 @@ public:
 
 	char last(void) const;
 	bool atEnd(void) const;
-	
+
 	// Conditionnal
 	bool ignoreUntil(char delimiter);
 	bool ignoreUntil(const String &delimiters);
@@ -92,11 +92,11 @@ public:
 	bool	read(Serializable &s);
 	bool    read(std::string &str);
 	bool	read(bool &b);
-	
+
 	// Disambiguation
 	bool	read(BinaryString &str);
 	bool	read(String &str);
-	
+
 	inline bool	read(char &c) 			{ return readData(&c,1); }
 	inline bool	read(signed char &i) 		{ return readStd(i); }
 	inline bool	read(signed short &i) 		{ return readStd(i); }
@@ -123,11 +123,11 @@ public:
 	void	write(const char *str);
 	void	write(const std::string &str);
 	void	write(bool b);
-	
+
 	// Disambiguation
 	void	write(const BinaryString &str);
 	void	write(const String &str);
-	
+
 	inline void	write(char c) 			{ writeData(&c,1); }
 	inline void	write(signed char i) 		{ writeStd(i); }
 	inline void	write(signed short i) 		{ writeStd(i); }
@@ -147,7 +147,7 @@ public:
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
 	bool operator!(void) const { return mFailed; }
-	
+
 	// Parsing
 	bool assertChar(char chr);
 	bool readChar(char &chr);
@@ -155,7 +155,7 @@ public:
 	bool readString(String &str);
 	template<typename T> bool readLine(T &output);
 	template<typename T> void writeLine(const T &input);
-	
+
 	// Binary reading
 	int64_t	readBinary(Stream &s, int64_t max)	{ return read(s, max); }
 	int64_t	readBinary(char *data, size_t size);	// blocks until size bytes are read
@@ -170,7 +170,7 @@ public:
 	bool	readBinary(uint64_t &i);
 	bool	readBinary(float32_t &f);
 	bool	readBinary(float64_t &f);
-	
+
 	template<class T> bool readBinary(T *ptr);
 
 	// Binary writing
@@ -187,11 +187,11 @@ public:
 	void	writeBinary(uint64_t i);
 	void	writeBinary(float32_t f);
 	void	writeBinary(float64_t f);
-	
+
 	template<class T> void writeBinary(const T *ptr);
-	
+
 	void writeZero(size_t size = 1);
-	
+
 protected:
 	char mLast   = 0;
 	bool mHexa   = false;
@@ -200,19 +200,19 @@ protected:
 
 private:
 	bool readStdString(std::string &output);
-	
+
 	template<typename T> bool readStd(T &val);
 	template<typename T> void writeStd(const T &val);
-	
+
 	virtual Stream *pipeIn(void);	// return the write end for a pipe
-	
+
 	uint16_t fixEndianess(uint16_t n);
 	uint32_t fixEndianess(uint32_t n);
 	uint64_t fixEndianess(uint64_t n);
 };
 
 // NB: String is not defined here, as it herits from Stream.
-// Threrefore, it cannot be used in template functions defined here.
+// Therefore, it cannot be used in template functions defined here.
 // Template functions readLine() and writeLine() are defined in string.h
 
 class IOException;
@@ -251,4 +251,3 @@ template<typename T> Stream& Stream::operator<<(const T &val)
 }
 
 #endif // STREAM_H
-

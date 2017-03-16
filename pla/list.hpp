@@ -47,12 +47,12 @@ bool List<T>::remove(const T &value)
 	bool found = false;
 	typename List<T>::iterator it = this->begin();
 	while(it != this->end())
-		  if(*it == value) 
-		  {
-			  this->erase(it++);
-			  found = true;
-		  }
-		  else ++it;
+		if(*it == value)
+		{
+			this->erase(it++);
+			found = true;
+		}
+		else ++it;
 	return found;
 }
 
@@ -60,9 +60,9 @@ template<typename T>
 bool List<T>::contains(const T &value) const
 {
 	for(typename List<T>::iterator it = this->begin(); it != this->end(); ++it)
-		  if(*it == value)
-			  return true;
-	
+		if(*it == value)
+			return true;
+
 	return false;
 }
 

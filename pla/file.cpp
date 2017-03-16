@@ -28,15 +28,15 @@ namespace pla
 
 String File::TempDirectory = "";	// empty = auto
 String File::TempPrefix    = "pla_";
-  
+
 bool File::Exist(const String &filename)
 {
 	if(filename.empty()) return false;
-  
+
 	/*std::fstream file;
 	file.open(filename.pathEncode().c_str(), std::ios_base::in);
 	return file.is_open();*/
-	
+
 	stat_t st;
 	if(pla::stat(filename.pathEncode().c_str(), &st)) return false;
 	if(!S_ISDIR(st.st_mode)) return true;
@@ -52,9 +52,9 @@ void File::Rename(const String &source, const String &destination)
 {
 	if(!Exist(source)) throw Exception(String("Rename: source file does not exist: ") + source);
 	if(Exist(destination)) Remove(destination);
-	
+
 	if(std::rename(source.pathEncode().c_str(), destination.pathEncode().c_str()) == 0) return;
-	
+
 	// std::rename will fail to copy between filesystems, so we need to try manually
 	File sourceFile(source, Read);
 	File destinationFile(destination, Truncate);
@@ -98,7 +98,7 @@ void File::CleanTemp(void)
 		}
 		catch(...)
 		{
-		
+
 		}
 	}
 	catch(const Exception &e)
@@ -123,7 +123,7 @@ String File::TempPath(void)
 #else
 		tempPath = "/tmp/";
 #endif
-		
+
 		return tempPath;
 	}
 }
@@ -158,20 +158,21 @@ void File::open(const String &filename, OpenMode mode)
 	std::ios_base::openmode m;
 	switch(mode)
 	{
-	case Read:		m = std::ios_base::in;						break;
-	case Write:		m = std::ios_base::out;						break;
-	case Append:		m = std::ios_base::app;						break;
-	case Truncate:		m = std::ios_base::out|std::ios_base::trunc;			break;
+	case Read:				m = std::ios_base::in;	break;
+	case Write:				m = std::ios_base::out;	break;
+	case Append:			m = std::ios_base::app;	break;
+	case Truncate:			m = std::ios_base::out|std::ios_base::trunc;	break;
 	case TruncateReadWrite:	m = std::ios_base::in|std::ios_base::out|std::ios_base::trunc;	break;
-	default:		m = std::ios_base::in|std::ios_base::out;			break;
+	default:				m = std::ios_base::in|std::ios_base::out;	break;
 	}
 
 	std::fstream::open(filename.pathEncode().c_str(), m|std::ios_base::binary);
-	if(!std::fstream::is_open() || std::fstream::bad()) throw Exception(String("Unable to open file: ")+filename);
-	
+	if(!std::fstream::is_open() || std::fstream::bad())
+		throw Exception(String("Unable to open file: ")+filename);
+
 	mReadPosition = 0;
 	mWritePosition = 0;
-	
+
 	if(m & std::ios_base::app)
 		mWritePosition = size();
 }
@@ -181,13 +182,13 @@ void File::close(void)
 	// mName MUST NOT be changed here
 	if(std::fstream::is_open())
 		std::fstream::close();
-	
+
 	std::fstream::clear();	// clear state
 }
 
 File::OpenMode File::openMode(void) const
 {
-	return mMode;  
+	return mMode;
 }
 
 void  File::reopen(OpenMode mode)
@@ -200,7 +201,7 @@ void  File::reopen(OpenMode mode)
 void File::seekRead(int64_t position)
 {
 	mReadPosition = position;
-	
+
 	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekg(0, std::fstream::beg);
 	do {
@@ -214,7 +215,7 @@ void File::seekRead(int64_t position)
 void File::seekWrite(int64_t position)
 {
 	mWritePosition = position;
-	
+
 	int64_t step = std::numeric_limits<std::streamoff>::max();	// streamoff is signed
 	std::fstream::seekp(0, std::fstream::beg);
 	do {
@@ -222,7 +223,7 @@ void File::seekWrite(int64_t position)
 		position-= offset;
 		std::fstream::seekp(std::streamoff(offset), std::fstream::cur);
 	}
-	while(position != 0);  
+	while(position != 0);
 }
 
 int64_t File::tellRead(void) const
@@ -237,7 +238,7 @@ int64_t File::tellWrite(void) const
 
 String File::name(void) const
 {
-	return mName; 
+	return mName;
 }
 
 File::OpenMode File::mode(void) const
@@ -256,14 +257,15 @@ size_t File::readData(char *buffer, size_t size)
 	// Hack to fix a bug with readsome() not resetting gcount
 	std::fstream::peek();
 #endif
-	
+
 	std::fstream::clear();	// clear state
 	std::fstream::readsome(buffer, size);
 	if(!std::fstream::gcount() && std::fstream::good())
 		std::fstream::read(buffer, size);
-	
-	if(std::fstream::bad()) throw Exception(String("Unable to read from file: ") + mName);
-	
+
+	if(std::fstream::bad())
+		throw Exception(String("Unable to read from file: ") + mName);
+
 	mReadPosition+= std::fstream::gcount();
 	return std::fstream::gcount();
 }
@@ -272,14 +274,15 @@ void File::writeData(const char *data, size_t size)
 {
 	std::fstream::clear();	// clear state
 	std::fstream::write(data,size);
-	if(std::fstream::bad()) throw Exception(String("Unable to write to file: ") + mName);
-	
+	if(std::fstream::bad())
+		throw Exception(String("Unable to write to file: ") + mName);
+
 	mWritePosition+= std::fstream::gcount();
 }
 
 void File::flush(void)
 {
-	std::fstream::flush(); 
+	std::fstream::flush();
 }
 
 bool File::skipMark(void)
@@ -297,10 +300,10 @@ bool File::skipMark(void)
 				return true;
 			}
 		}
-		
+
 		seekRead(0);
 	}
-	
+
 	return false;
 }
 
@@ -314,7 +317,7 @@ Stream *File::pipeIn(void)
 	}
 	catch(...)
 	{
-		return NULL; 
+		return NULL;
 	}
 }
 
@@ -357,19 +360,19 @@ void SafeWriteFile::close(void)
 TempFile::TempFile(void) :
 	File(TempName(), TruncateReadWrite)
 {
-  
+
 }
 
 TempFile::TempFile(const String &filename) :
 	File(filename, TruncateReadWrite)
 {
-	  
+
 }
 
 TempFile::~TempFile(void)
 {
 	File::close();
-	if(File::Exist(mName)) File::Remove(mName);  
+	if(File::Exist(mName)) File::Remove(mName);
 }
 
 void TempFile::open(const String &filename, OpenMode mode)

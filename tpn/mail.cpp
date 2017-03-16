@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -40,7 +40,7 @@ Mail::Mail(const String &content) :
 
 Mail::~Mail(void)
 {
-  
+
 }
 
 bool Mail::empty(void) const
@@ -50,7 +50,7 @@ bool Mail::empty(void) const
 
 const String &Mail::content(void) const
 {
-	return mContent;  
+	return mContent;
 }
 
 String Mail::author(void) const
@@ -65,12 +65,12 @@ Identifier Mail::identifier(void) const
 
 Time Mail::time(void) const
 {
-	return mTime;  
+	return mTime;
 }
 
 BinaryString Mail::parent(void) const
 {
-	return mParent;  
+	return mParent;
 }
 
 BinaryString Mail::digest(void) const
@@ -120,7 +120,7 @@ bool Mail::check(const Rsa::PublicKey &pubKey) const
 
 bool Mail::isSigned(void) const
 {
-	return !mSignature.empty();  
+	return !mSignature.empty();
 }
 
 void Mail::serialize(Serializer &s) const
@@ -128,19 +128,19 @@ void Mail::serialize(Serializer &s) const
 	Object object;
 	object.insert("content", mContent);
 	object.insert("time", mTime);
-	
+
 	if(!mAuthor.empty()) object.insert("author", mAuthor);
 	if(!mIdentifier.empty()) object.insert("identifier", mIdentifier);
 	if(!mAttachments.empty()) object.insert("attachments", mAttachments);
 	if(!mParent.empty()) object.insert("parent", mParent);
 	if(!mSignature.empty()) object.insert("signature", mSignature);
-	
+
 	if(s.optionalOutputMode())
 	{
 		digest();	// so mDigest is computed
 		object.insert("digest", mDigest);
 	}
-	
+
 	s << object;
 }
 
@@ -152,20 +152,20 @@ bool Mail::deserialize(Serializer &s)
 	mParent.clear();
 	mSignature.clear();
 	mTime = time_t(Time::Now());
-	
+
 	mDigest.clear();
-	
+
 	Object object;
-        object.insert("content", mContent);
+	object.insert("content", mContent);
 	object.insert("time", mTime);
 	object.insert("author", mAuthor);
 	object.insert("identifier", mIdentifier);
 	object.insert("attachments", mAttachments);
 	object.insert("parent", mParent);
 	object.insert("signature", mSignature);
-	
+
 	if(!(s >> object)) return false;
-	
+
 	// TODO: checks
 	return true;
 }
@@ -174,14 +174,14 @@ BinaryString Mail::computeDigest(void) const
 {
 	BinaryString signature = mSignature;
 	mSignature.clear();
-	
+
 	BinaryString tmp;
 	BinarySerializer serializer(&tmp);
 	serializer << *this;
-	
+
 	BinaryString digest;
 	Sha256().compute(tmp, digest),
-	
+
 	mSignature = signature;
 	return digest;
 }
@@ -203,7 +203,7 @@ bool operator > (const Mail &m1, const Mail &m2)
 
 bool operator == (const Mail &m1, const Mail &m2)
 {
-	return m1.digest() == m2.digest();   
+	return m1.digest() == m2.digest();
 }
 
 bool operator != (const Mail &m1, const Mail &m2)

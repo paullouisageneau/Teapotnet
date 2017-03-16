@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -35,46 +35,46 @@
 
 namespace tpn
 {
-  
+
 class Store
 {
 public:
 	static Store *Instance;
 	static BinaryString Hash(const String &str);
-	
+
 	Store(void);
 	~Store(void);
-	
+
 	bool push(const BinaryString &digest, Fountain::Combination &input);
 	bool pull(const BinaryString &digest, Fountain::Combination &output, unsigned *rank = NULL);
 	unsigned missing(const BinaryString &digest);
-	
+
 	bool hasBlock(const BinaryString &digest);
 	void waitBlock(const BinaryString &digest);
 	bool waitBlock(const BinaryString &digest, duration timeout);
 	File *getBlock(const BinaryString &digest, int64_t &size);
 	void notifyBlock(const BinaryString &digest, const String &filename, int64_t offset, int64_t size);
 	void notifyFileErasure(const String &filename);
-	
+
 	void hintBlock(const BinaryString &digest, const BinaryString &hint);
 	bool getBlockHints(const BinaryString &digest, Set<BinaryString> &result);
-	
+
 	enum ValueType
 	{
 		Permanent   = 0,	// Local and permanent
 		Temporary   = 1,	// Local but temporary
 		Distributed = 2		// DHT
 	};
-	
+
 	void storeValue(const BinaryString &key, const BinaryString &value, ValueType type = Store::Temporary, Time time = Time::Now());
 	void eraseValue(const BinaryString &key, const BinaryString &value);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	bool retrieveValue(const BinaryString &key, List<BinaryString> &values, List<Time> &times);
 	bool hasValue(const BinaryString &key, const BinaryString &value) const;
 	Time getValueTime(const BinaryString &key, const BinaryString &value) const;
-	
+
 	void start(void);
-	
+
 private:
 	void run(void);
 
@@ -84,26 +84,26 @@ private:
 	public:
 		Sink(const BinaryString &digest = "");
 		~Sink(void);
-		
+
 		bool push(Fountain::Combination &incoming);
 		unsigned missing(void) const;
-		
+
 		String path(void) const;
 		int64_t size(void) const;
-		
+
 	private:
 		Fountain::Sink mSink;
 		BinaryString mDigest;
 		String mPath;
 		int64_t mSize;
-		
+
 		mutable std::mutex mMutex;
 	};
-	
+
 	Database *mDatabase;
 	Map<BinaryString,sptr<Sink> > mSinks;
 	bool mRunning;
-	
+
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;
 };
@@ -111,4 +111,3 @@ private:
 }
 
 #endif
-

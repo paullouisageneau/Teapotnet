@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -41,39 +41,39 @@ class Board : public Network::Publisher, public Network::Subscriber, public Http
 public:
 	Board(const String &name, const String &secret = "", const String &displayName = "");
 	~Board(void);
-	
+
 	String urlPrefix(void) const;
 	bool hasNew(void) const;
 	int  unread(void) const;
 	BinaryString digest(void) const;
-	
+
 	bool add(const Mail &mail, bool noIssue = false);
-	
+
 	void addMergeUrl(const String &url);
 	void removeMergeUrl(const String &url);
-	
+
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
-	
+
 	// Subscriber
 	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
 	bool incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail);
-	
+
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
-	
+
 private:
 	void process(void);
-  
+
 	String mName;
 	String mDisplayName;
 	String mSecret;
 	BinaryString mDigest;
 	Set<Mail> mMails;
 	Array<const Mail*> mUnorderedMails;
-	
+
 	StringSet mMergeUrls;
-	
+
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;
 	mutable bool mHasNew;
@@ -83,4 +83,3 @@ private:
 }
 
 #endif
-

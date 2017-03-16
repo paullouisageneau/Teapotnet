@@ -30,7 +30,7 @@
 
 namespace pla
 {
-  
+
 template<typename T> class Array;
 template<typename T> class Set;
 template<typename K, typename V> class Map;
@@ -44,15 +44,15 @@ public:
 	static String number(unsigned int n, int minDigits = 1);
 	static String number64(uint64_t n, int minDigits = 1);
 	static String hexa(unsigned int n, int minDigits = 1);
-	
+
 	static String random(size_t nbr, Random::QualityLevel level = Random::Nonce);
-	
+
 	static String hrSize(uint64_t size);
 	static String hrSize(const String &size);
-	
+
 	static const String Empty;
 	static const size_type NotFound = npos;
-	
+
 	String(void);
 	String(char chr);
 	String(const char *str);
@@ -64,7 +64,7 @@ public:
 	String(const wchar_t *str);	// UTF-16
 	template <class InputIterator> String(InputIterator first, InputIterator last) : BinaryString(first, last) {}
 	virtual ~String(void);
-	
+
 	void explode(std::list<String> &strings, char separator) const;
 	void implode(const std::list<String> &strings, char separator);
 	String cut(char separator);
@@ -87,16 +87,16 @@ public:
 	bool remove(char chr);
 	bool replace(char a, char b);
 	bool replace(const String &a, const String &b);
-	
+
 	String mid(int pos, int n = -1) const;
 	String left(int pos) const;
 	String right(int pos) const;
-	
+
 	String after(char c) const;
 	String afterLast(char c) const;
 	String before(char c) const;
 	String beforeLast(char c) const;
-	
+
 	String noAccents(void) const;
 	String toLower(void) const;
 	String toUpper(void) const;
@@ -105,27 +105,27 @@ public:
 	String trimmed(void) const;
 	String urlEncode(void) const;
 	String urlDecode(void) const;
-	String windowsEncode(void) const;
-	String windowsDecode(void) const;
+	String windowsEncode(void) const;  // To Windows-1252
+	String windowsDecode(void) const;  // From Windows-1252
 	String pathEncode(void) const;
 	String pathDecode(void) const;
 	String lineEncode(void) const;
 	String lineDecode(void) const;
 	unsigned dottedToInt(unsigned base = 256) const;
-	
+
 	double toDouble() const;
 	float toFloat() const;
 	int toInt() const;
 	bool toBool() const;
-	
+
 	template<typename T> void extract(T &value) const;
-	
+
 	void substrings(Set<String> &result, int minlength = 0) const;
-	
+
 	operator const char*(void) const;
 	char &operator [](int pos);
 	const char &operator [](int pos) const;
-	
+
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
@@ -133,8 +133,8 @@ public:
 	virtual bool deserialize(Stream &s);
 	virtual bool isNativeSerializable(void) const;
 	virtual String toString(void) const;
-        virtual void fromString(String str);
-	
+	virtual void fromString(String str);
+
 protected:
 	// Stream
 	size_t readData(char *buffer, size_t size);
@@ -143,15 +143,15 @@ protected:
 
 template<typename T> String String::number(T n)
 {
-    std::ostringstream out;
-    out << n;
-    return out.str();
+	std::ostringstream out;
+	out << n;
+	return out.str();
 }
 
 template<typename T> void String::extract(T &value) const
 {
-    String tmp(*this);
-    tmp.read(value);
+	String tmp(*this);
+	tmp.read(value);
 }
 
 // Templates functions from Stream using String are defined here

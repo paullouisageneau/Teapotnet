@@ -69,9 +69,8 @@ Address ServerSocket::getBindAddress(void) const
 void ServerSocket::getLocalAddresses(Set<Address> &set) const
 {
 	set.clear();
-  
 	Address bindAddr = getBindAddress();
-  
+
 #ifdef NO_IFADDRS
 	// Retrieve hostname
 	char hostname[HOST_NAME_MAX];
@@ -97,15 +96,15 @@ void ServerSocket::getLocalAddresses(Set<Address> &set) const
 			return;
 		}
 	}
-	
-	addrinfo *ai = aiList;  
+
+	addrinfo *ai = aiList;
 	while(ai)
 	{
 		if(ai->ai_family == AF_INET || ai->ai_family == AF_INET6)
 		{
 			Address addr(ai->ai_addr,ai->ai_addrlen);
 			String host = addr.host();
-			
+
 			if(ai->ai_addr->sa_family != AF_INET6 || host.substr(0,4) != "fe80")
 			{
 				if(addr == bindAddr)
@@ -114,33 +113,33 @@ void ServerSocket::getLocalAddresses(Set<Address> &set) const
 					set.insert(addr);
 					break;
 				}
-				
+
 				set.insert(addr);
 			}
 		}
-		
+
 		ai = ai->ai_next;
 	}
-	
+
 	freeaddrinfo(aiList);
 #else
 	ifaddrs *ifas = NULL;
 	if(getifaddrs(&ifas) < 0)
 		throw NetException("Unable to list network interfaces");
 
-        ifaddrs *ifa = ifas;
+	ifaddrs *ifa = ifas;
 	while(ifa)
 	{
 		sockaddr *sa = ifa->ifa_addr;
 		if(sa)
 		{
 			socklen_t len = 0;
-			switch(sa->sa_family) 
+			switch(sa->sa_family)
 			{
 				case AF_INET:  len = sizeof(sockaddr_in);  break;
 				case AF_INET6: len = sizeof(sockaddr_in6); break;
 			}
-			
+
 			if(len)
 			{
 				Address addr(sa, len);
@@ -158,7 +157,7 @@ void ServerSocket::getLocalAddresses(Set<Address> &set) const
 				}
 			}
 		}
-		
+
 		ifa = ifa->ifa_next;
 	}
 
@@ -169,7 +168,6 @@ void ServerSocket::getLocalAddresses(Set<Address> &set) const
 void ServerSocket::listen(int port)
 {
 	close();
-
 	mPort = port;
 	mSock = INVALID_SOCKET;
 
@@ -185,14 +183,14 @@ void ServerSocket::listen(int port)
 	service << port;
 	if(getaddrinfo(NULL, service.c_str(), &aiHints, &aiList) != 0)
 		throw NetException(String("Local binding address resolution failed for TCP port ")+String::number(port));
-		
+
 	try {
 		// Prefer IPv6
 		addrinfo *ai = aiList;
 		while(ai && ai->ai_family != AF_INET6)
 			ai = ai->ai_next;
 		if(!ai) ai = aiList;
-		
+
 		// Create socket
 		mSock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if(mSock == INVALID_SOCKET)
@@ -212,9 +210,9 @@ void ServerSocket::listen(int port)
 		int enabled = 1;
 		int disabled = 0;
 		setsockopt(mSock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&enabled), sizeof(enabled));
-		if(ai->ai_family == AF_INET6) 
-			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled)); 
-		
+		if(ai->ai_family == AF_INET6)
+			setsockopt(mSock, IPPROTO_IPV6, IPV6_V6ONLY, reinterpret_cast<char*>(&disabled), sizeof(disabled));
+
 		// Bind it
 		if(bind(mSock, ai->ai_addr, ai->ai_addrlen) != 0)
 			throw NetException(String("Binding failed on port ")+String::number(port));
@@ -233,7 +231,7 @@ void ServerSocket::listen(int port)
 		close();
 		throw;
 	}
-	
+
 	freeaddrinfo(aiList);
 }
 

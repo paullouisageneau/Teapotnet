@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -492,9 +492,9 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 {
 	Object object;
 	object.insert("name", name)
-	      .insert("type", type)
-	      .insert("size", size)
-	      .insert("digest", digest);
+		.insert("type", type)
+		.insert("size", size)
+		.insert("digest", digest);
 
 	if(time != 0) object.insert("time", time);
 

@@ -60,7 +60,7 @@ public:
 	int64_t compute(Stream &stream, char *digest);
 	int64_t compute(Stream &stream, BinaryString &digest);
 	int64_t compute(Stream &stream, int64_t max, char *digest);
-        int64_t compute(Stream &stream, int64_t max, BinaryString &digest);
+	int64_t compute(Stream &stream, int64_t max, BinaryString &digest);
 	BinaryString compute(const BinaryString &str);
 
 	// HMAC
@@ -72,11 +72,11 @@ public:
 class Sha1 : public Hash
 {
 public:
-        size_t length(void) const;
-        void init(void);
-        void process(const char *data, size_t size);
+	size_t length(void) const;
+	void init(void);
+	void process(const char *data, size_t size);
 	void process(const BinaryString &str);
-        void finalize(char *digest);
+	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
@@ -94,11 +94,11 @@ private:
 class Sha256 : public Hash
 {
 public:
-        size_t length(void) const;
-        void init(void);
-        void process(const char *data, size_t size);
+	size_t length(void) const;
+	void init(void);
+	void process(const char *data, size_t size);
 	void process(const BinaryString &str);
-        void finalize(char *digest);
+	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
@@ -118,9 +118,9 @@ class Sha512 : public Hash
 public:
 	size_t length(void) const;
 	void init(void);
-        void process(const char *data, size_t size);
+	void process(const char *data, size_t size);
 	void process(const BinaryString &str);
-        void finalize(char *digest);
+	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
@@ -213,8 +213,8 @@ class Rsa
 {
 public:
 	class PublicKey : public Serializable
-        {
-        public:
+	{
+	public:
 		PublicKey(void);
 		PublicKey(const PublicKey &key);
 		PublicKey(gnutls_x509_crt_t crt);
@@ -235,11 +235,11 @@ public:
 		bool deserialize(Stream &s);
 		bool isInlineSerializable(void) const;
 
-        private:
+	private:
 		struct rsa_public_key mKey;
 		mutable BinaryString mDigest;
 		friend class Rsa;
-        };
+	};
 
 	class PrivateKey : public Serializable
 	{
@@ -254,10 +254,10 @@ public:
 		void sign(const BinaryString &digest, BinaryString &signature) const;
 
 		// Serializable
-        	void serialize(Serializer &s) const;
-        	bool deserialize(Serializer &s);
-        	void serialize(Stream &s) const;
-        	bool deserialize(Stream &s);
+		void serialize(Serializer &s) const;
+		bool deserialize(Serializer &s);
+		void serialize(Stream &s) const;
+		bool deserialize(Stream &s);
 		bool isInlineSerializable(void) const;
 
 	private:

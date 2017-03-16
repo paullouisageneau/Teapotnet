@@ -29,8 +29,8 @@ std::mutex Mime::TypesMutex;
 
 bool Mime::IsAudio(const String &fileName)
 {
-  	String extension = fileName.afterLast('.').toLower();
-	return  (  extension == "ogg" 
+	String extension = fileName.afterLast('.').toLower();
+	return (extension == "ogg"
 		|| extension == "oga"
 		|| extension == "mp3"
 		|| extension == "flac"
@@ -44,16 +44,16 @@ bool Mime::IsAudio(const String &fileName)
 
 bool Mime::IsVideo(const String &fileName)
 {
-        String extension = fileName.afterLast('.').toLower();
-        return  (  extension == "avi"
-                || extension == "mkv"
-                || extension == "ogv"
+	String extension = fileName.afterLast('.').toLower();
+	return (extension == "avi"
+		|| extension == "mkv"
+		|| extension == "ogv"
 		|| extension == "ogx"
 		|| extension == "ogm"
-                || extension == "wmv"
-                || extension == "asf"
-                || extension == "flv"
-                || extension == "mpg"
+		|| extension == "wmv"
+		|| extension == "asf"
+		|| extension == "flv"
+		|| extension == "mpg"
 		|| extension == "mpeg"
 		|| extension == "mp4"
 		|| extension == "m4v"
@@ -69,11 +69,9 @@ bool Mime::IsVideo(const String &fileName)
 String Mime::GetType(const String &fileName)
 {
 	std::unique_lock<std::mutex> lock(TypesMutex);
-	
 	if(Types.empty()) Init();
-	
+
 	String extension = fileName.afterLast('.').toLower();
-	
 	String type;
 	if(Types.get(extension, type)) return type;
 	else return "application/octet-stream";
@@ -852,7 +850,7 @@ void Mime::Init(void)
 	Types["avi"] = "video/x-msvideo";
 	Types["movie"] = "video/x-sgi-movie";
 	Types["smv"] = "video/x-smv";
-	Types["ice"] = "x-conference/x-cooltalk";  
+	Types["ice"] = "x-conference/x-cooltalk";
 }
 
 }

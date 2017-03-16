@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -38,55 +38,55 @@ class PortMapping
 {
 public:
 	static PortMapping *Instance;
-  
+
 	PortMapping(void);
 	~PortMapping(void);
-	
+
 	void enable(void);
 	void disable(void);
 	bool isEnabled(void) const;
 	bool isAvailable(void) const;
-	
+
 	enum Protocol
 	{
 		UDP,
 		TCP
 	};
-	
+
 	String  getExternalHost(void) const;
 	Address getExternalAddress(Protocol protocol, uint16_t internal) const;
-	
+
 	void add(Protocol protocol, uint16_t internal, uint16_t suggested);
 	void remove(Protocol protocol, uint16_t internal);
 	bool get(Protocol protocol, uint16_t internal, uint16_t &external) const;
-	
+
 private:
 	void run(void);
-	
+
 	struct Descriptor
 	{
 		Protocol protocol;
-                uint16_t port;
+		uint16_t port;
 
-		Descriptor(Protocol protocol, uint16_t port)	{ this->protocol = protocol; this->port = port; }
-		bool operator < (const Descriptor &d) const	{ return protocol < d.protocol || (protocol == d.protocol && port < d.port); }
-                bool operator == (const Descriptor &d) const	{ return protocol == d.protocol && port == d.port; }
+		Descriptor(Protocol protocol, uint16_t port) { this->protocol = protocol; this->port = port; }
+		bool operator < (const Descriptor &d) const  { return protocol < d.protocol || (protocol == d.protocol && port < d.port); }
+		bool operator == (const Descriptor &d) const { return protocol == d.protocol && port == d.port; }
 	};
 
 	struct Entry
 	{
 		uint16_t suggested;
-                uint16_t external;
+		uint16_t external;
 
-		Entry(uint16_t suggested = 0, uint16_t external = 0)	{ this->suggested = suggested; this->external = external; }
-	};	
+		Entry(uint16_t suggested = 0, uint16_t external = 0) { this->suggested = suggested; this->external = external; }
+	};
 
 	class MappingProtocol
 	{
 	public:
 		MappingProtocol(void)	{}
 		virtual ~MappingProtocol(void)	{}
-		
+
 		virtual bool check(String &host) = 0;	// true if protocol is available
 		virtual bool add(Protocol protocol, uint16_t internal, uint16_t &external) = 0;
 		virtual bool remove(Protocol protocol, uint16_t internal, uint16_t external) = 0;
@@ -99,34 +99,34 @@ private:
 		~NatPMP(void);
 
 		bool check(String &host);
-        	bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-        	bool remove(Protocol protocol, uint16_t internal, uint16_t external);
+		bool add(Protocol protocol, uint16_t internal, uint16_t &external);
+		bool remove(Protocol protocol, uint16_t internal, uint16_t external);
 
 	private:
-        	bool request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external = NULL);
-        	bool parse(BinaryString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
+		bool request(uint8_t op, uint16_t internal, uint16_t suggested, uint32_t lifetime, uint16_t *external = NULL);
+		bool parse(BinaryString &dgram, uint8_t reqOp, uint16_t reqInternal = 0, uint16_t *retExternal = NULL);
 
 		DatagramSocket mSock;
-        	Address mGatewayAddr;
+		Address mGatewayAddr;
 		String mExternalHost;
 	};
 
 	class UPnP : public MappingProtocol
 	{
 	public:
-                UPnP(void);
-                ~UPnP(void);
+		UPnP(void);
+		~UPnP(void);
 
-                bool check(String &host);
-                bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-                bool remove(Protocol protocol, uint16_t internal, uint16_t external);
+		bool check(String &host);
+		bool add(Protocol protocol, uint16_t internal, uint16_t &external);
+		bool remove(Protocol protocol, uint16_t internal, uint16_t external);
 
 	private:
 		bool parse(BinaryString &dgram);
 		String extract(String &xml, const String &field, size_t pos = 0);
-		
+
 		DatagramSocket mSock;
-        	Address mGatewayAddr;
+		Address mGatewayAddr;
 		String mControlUrl;
 		String mExternalHost;
 	};
@@ -134,32 +134,32 @@ private:
 	class FreeboxAPI : public MappingProtocol
 	{
 	public:
-        	FreeboxAPI(void);
-                ~FreeboxAPI(void);
+		FreeboxAPI(void);
+		~FreeboxAPI(void);
 
-                bool check(String &host);
-                bool add(Protocol protocol, uint16_t internal, uint16_t &external);
-                bool remove(Protocol protocol, uint16_t internal, uint16_t external);
-        
-        private:
+		bool check(String &host);
+		bool add(Protocol protocol, uint16_t internal, uint16_t &external);
+		bool remove(Protocol protocol, uint16_t internal, uint16_t external);
+
+	private:
 		struct FreeboxResponse : public Serializable
 		{
 		public:
 			FreeboxResponse(void);
-			
+
 			bool success;
 			String errorCode;
 			String message;
 			StringMap result;
-			
+
 			void serialize(Serializer &s) const;
 			bool deserialize(Serializer &s);
 			bool isInlineSerializable(void) const;
 		};
-		
+
 		bool get(const String &url, FreeboxResponse &response);
 		bool put(const String &url, Serializable &data, FreeboxResponse &response);
-		
+
 		String mFreeboxUrl;
 		Address mLocalAddr;
 	};
@@ -169,7 +169,7 @@ private:
 	String mExternalHost;
 	Alarm mAlarm;
 	bool mEnabled;
-	
+
 	mutable std::mutex mMutex;
 };
 

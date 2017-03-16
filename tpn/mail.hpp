@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -33,13 +33,13 @@
 
 namespace tpn
 {
-	
+
 class Mail : public Serializable
 {
 public:
 	Mail(const String &content = "");
 	virtual ~Mail(void);
-	
+
 	bool empty(void) const;
 	const String &content(void) const;
 	String author(void) const;
@@ -47,26 +47,26 @@ public:
 	Time time(void) const;
 	BinaryString parent(void) const;
 	BinaryString digest(void) const;
-	
+
 	void setContent(const String &content);
 	void setAuthor(const String &author);
 	void setParent(const BinaryString &parent);
 	void addAttachment(const BinaryString &attachment);
-	
+
 	void sign(const Identifier &identifier, const Rsa::PrivateKey &privKey);
 	bool check(const Rsa::PublicKey &pubKey) const;
 	bool isSigned(void) const;
-	
+
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
 	virtual bool isInlineSerializable(void) const;
-	
+
 private:
 	BinaryString computeDigest(void) const;
-	
+
 	Time mTime;
-        String mContent;
+	String mContent;
 	String mAuthor;
 	Identifier mIdentifier;
 	Array<BinaryString> mAttachments;
@@ -83,4 +83,3 @@ bool operator != (const Mail &m1, const Mail &m2);
 }
 
 #endif
-

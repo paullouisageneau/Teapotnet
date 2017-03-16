@@ -27,7 +27,6 @@
 
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
-
 #include <gmp.h>
 
 namespace pla
@@ -43,7 +42,7 @@ void Hash::compute(const char *data, size_t size, char *digest)
 void Hash::compute(const char *data, size_t size, BinaryString &digest)
 {
 	digest.resize(length());
-        compute(data, size, digest.ptr());
+		compute(data, size, digest.ptr());
 }
 
 int64_t Hash::compute(Stream &stream, char *digest)
@@ -66,30 +65,30 @@ int64_t Hash::compute(Stream &stream, char *digest)
 int64_t Hash::compute(Stream &stream, BinaryString &digest)
 {
 	digest.resize(length());
-        return compute(stream, digest.ptr());
+		return compute(stream, digest.ptr());
 }
 
 int64_t Hash::compute(Stream &stream, int64_t max, char *digest)
 {
-        init();
+	init();
 
-        char buffer[BufferSize];
-        size_t size;
+	char buffer[BufferSize];
+	size_t size;
 	int64_t left = max;
-        while(left && (size = stream.readData(buffer, size_t(std::min(int64_t(BufferSize), left)))))
-        {
-                process(buffer, size);
+	while(left && (size = stream.readData(buffer, size_t(std::min(int64_t(BufferSize), left)))))
+	{
+		process(buffer, size);
 		left-= size;
-        }
+	}
 
-        finalize(digest);
+	finalize(digest);
 	return max - left;
 }
 
 int64_t Hash::compute(Stream &stream, int64_t max, BinaryString &digest)
 {
-        digest.resize(length());
-        return compute(stream, max, digest.ptr());
+	digest.resize(length());
+	return compute(stream, max, digest.ptr());
 }
 
 BinaryString Hash::compute(const BinaryString &str)
@@ -221,17 +220,17 @@ void Sha256::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 
 size_t Sha512::length(void) const
 {
-        return size_t(SHA512_DIGEST_SIZE);
+	return size_t(SHA512_DIGEST_SIZE);
 }
 
 void Sha512::init(void)
 {
-        sha512_init(&mCtx);
+	sha512_init(&mCtx);
 }
 
 void Sha512::process(const char *data, size_t size)
 {
-        sha512_update(&mCtx, unsigned(size), reinterpret_cast<const uint8_t*>(data));
+	sha512_update(&mCtx, unsigned(size), reinterpret_cast<const uint8_t*>(data));
 }
 
 void Sha512::process(const BinaryString &str)
@@ -241,7 +240,7 @@ void Sha512::process(const BinaryString &str)
 
 void Sha512::finalize(char *digest)
 {
-        sha512_digest(&mCtx, unsigned(length()), reinterpret_cast<uint8_t*>(digest));
+	sha512_digest(&mCtx, unsigned(length()), reinterpret_cast<uint8_t*>(digest));
 }
 
 void Sha512::finalize(BinaryString &digest)
@@ -261,7 +260,9 @@ void Sha512::hmac(const char *message, size_t len, const char *key, size_t key_l
 void Sha512::hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
 {
 	digest.resize(length());
-	hmac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
+	hmac(message.data(), message.size(),
+		key.data(), key.size(),
+		digest.ptr());
 }
 
 void Sha512::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
@@ -279,7 +280,10 @@ void Sha512::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_
 void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
 {
 	key.resize(key_len);
-	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
+	pbkdf2_hmac(secret.data(), secret.size(),
+		salt.data(), salt.size(),
+		key.ptr(), key.size(),
+		iterations);
 }
 
 Cipher::Cipher(Stream *stream, bool mustDelete) :

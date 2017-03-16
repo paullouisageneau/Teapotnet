@@ -27,28 +27,28 @@ namespace pla
 {
 
 ByteArray::ByteArray(size_t size) :
-		mArray(new char[size]),
-		mLength(size),
-		mLeft(0),
-		mMustDelete(true)
+	mArray(new char[size]),
+	mLength(size),
+	mLeft(0),
+	mMustDelete(true)
 {
 
 }
 
 ByteArray::ByteArray(char *array, size_t length) :
-		mArray(array),
-		mLength(length),
-		mLeft(length),
-		mMustDelete(false)
+	mArray(array),
+	mLength(length),
+	mLeft(length),
+	mMustDelete(false)
 {
 
 }
 
 ByteArray::ByteArray(byte *array, size_t length) :
-		mArray(reinterpret_cast<char*>(array)),
-		mLength(length),
-		mLeft(length),
-		mMustDelete(false)
+	mArray(reinterpret_cast<char*>(array)),
+	mLength(length),
+	mLeft(length),
+	mMustDelete(false)
 {
 
 }
@@ -66,7 +66,8 @@ ByteArray::ByteArray(const ByteArray &array) :
 
 ByteArray::~ByteArray(void)
 {
-	if(mMustDelete) delete[] mArray;
+	if(mMustDelete)
+		delete[] mArray;
 }
 
 char *ByteArray::array(void)
@@ -140,11 +141,11 @@ void ByteArray::serialize(Stream &s) const
 bool ByteArray::deserialize(Stream &s)
 {
 	clear();
-	
+
 	String str;
 	if(!s.read(str)) return false;
 	if(str.empty()) return true;
-	
+
 	int count = (str.size()+1)/2;
 	for(int i=0; i<count; ++i)
 	{
@@ -162,7 +163,7 @@ bool ByteArray::deserialize(Stream &s)
 		char chr(value % 256);
 		writeData(&chr, 1);
 	}
-	
+
 	return true;
 }
 

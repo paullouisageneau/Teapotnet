@@ -37,7 +37,7 @@
 		#define ANDROID
 	#endif
 	#define NO_IFADDRS
-	
+
 	#include <jni.h>
 	#include <android/log.h>
 #endif
@@ -109,7 +109,7 @@ typedef u_long ctl_t;
 #include <sys/stat.h>
 #include <sys/time.h>
 #ifndef IPV6_V6ONLY
-#define IPV6_V6ONLY 27 
+#define IPV6_V6ONLY 27
 #endif
 #endif
 
@@ -240,12 +240,12 @@ template<typename T> unsigned int bitcount(T n)
 	static T m2  = (~T(0)) / 5;
 	static T m4  = (~T(0)) / 17;
 	static T h01 = (~T(0)) / 255;
-	
+
 	n-= (n >> 1) & m1;			// Put count of each 2 bits into those 2 bits
-	n = (n & m2) + ((n >> 2) & m2);		// Put count of each 4 bits into those 4 bits 
-	n = (n + (n >> 4)) & m4;		// Put count of each 8 bits into those 8 bits 
-	
-	return (n * h01) >> (sizeof(T)*8 - 8);  // Returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ... 
+	n = (n & m2) + ((n >> 2) & m2);		// Put count of each 4 bits into those 4 bits
+	n = (n + (n >> 4)) & m4;		// Put count of each 8 bits into those 8 bits
+
+	return (n * h01) >> (sizeof(T)*8 - 8);  // Returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ...
 }
 
 inline void memxor(char *a, const char *b, size_t size)
@@ -309,9 +309,9 @@ std::string GetFormattedLogTime(void);
 template<typename T> void LogImpl(const char *file, int line, int level, const char *prefix, const T &value)
 {
 	if(level < pla::LogLevel) return;
-	
+
 	std::lock_guard<std::mutex> lock(LogMutex);
-  
+
 	unsigned mythreadid = 0;
 	auto it = ThreadsMap.find(std::this_thread::get_id());
 	if(it != ThreadsMap.end()) mythreadid = it->second;
@@ -323,11 +323,11 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	const char *strLevel;
 	switch(level)
 	{
-	  case LEVEL_TRACE:	strLevel = "Trace:";	break;
-	  case LEVEL_DEBUG:	strLevel = "Debug:";	break;
-	  case LEVEL_INFO:	strLevel = "Info:";	break;
-	  case LEVEL_WARN:	strLevel = "WARNING:";	break;
-	  default:		strLevel = "ERROR:";	break;
+		case LEVEL_TRACE:	strLevel = "Trace:";	break;
+		case LEVEL_DEBUG:	strLevel = "Debug:";	break;
+		case LEVEL_INFO:	strLevel = "Info:";		break;
+		case LEVEL_WARN:	strLevel = "WARNING:";	break;
+		default:			strLevel = "ERROR:";	break;
 	}
 
 	std::ostringstream oss;
@@ -343,7 +343,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 	oss<<' '<<std::setw(36)<<tmp.str()<<' ';
 #endif
 	oss<<std::setw(8)<<strLevel<<' '<<value;
-	
+
 #ifdef ANDROID
 	__android_log_print(ANDROID_LOG_VERBOSE, "teapotnet", "%s", oss.str().c_str());
 #else
@@ -373,4 +373,3 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 }
 
 #endif
-

@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -32,7 +32,7 @@ namespace tpn
 
 StringMap Config::Params;
 std::mutex Config::ParamsMutex;
-bool Config::UpdateAvailableFlag = false;  
+bool Config::UpdateAvailableFlag = false;
 
 String Config::Get(const String &key)
 {
@@ -41,7 +41,7 @@ String Config::Get(const String &key)
 	String value;
 	if(Params.get(key, value))
 		return value;
-	
+
 	//throw Exception("Config: no entry for \""+key+"\"");
 	return "";
 }
@@ -70,7 +70,7 @@ void Config::Load(const String &filename)
 		serializer >> Params;
 		file.close();
 	}
-	catch(const Exception &e) 
+	catch(const Exception &e)
 	{
 		LogError("Config", String("Unable to load config: ") + e.what());
 	}
@@ -79,7 +79,7 @@ void Config::Load(const String &filename)
 void Config::Save(const String &filename)
 {
 	std::lock_guard<std::mutex> lock(ParamsMutex);
-	
+
 	File file(filename, File::Truncate);
 	LineSerializer serializer(&file);
 	serializer << Params;
@@ -96,7 +96,7 @@ void Config::Clear(void)
 void Config::GetExternalAddresses(Set<Address> &set)
 {
 	set.clear();
-	
+
 	String externalAddress = Config::Get("external_address");
 	if(!externalAddress.empty() && externalAddress != "auto")
 	{
@@ -114,7 +114,7 @@ void Config::GetExternalAddresses(Set<Address> &set)
 	Set<Address> tmp;
 	if(Network::Instance)
 		Network::Instance->overlay()->getAddresses(tmp);
-	
+
 	uint16_t port = 0;
 	for(Set<Address>::const_iterator it = tmp.begin();
 		it != tmp.end();
@@ -124,11 +124,11 @@ void Config::GetExternalAddresses(Set<Address> &set)
 
 		if(addr.isIpv4() && addr.isPrivate())
 			port = addr.port();
-		
+
 		if(!addr.isLocal())
 			set.insert(addr);
 	}
-	
+
 	if(port && PortMapping::Instance->isAvailable())
 		set.insert(PortMapping::Instance->getExternalAddress(PortMapping::TCP, port));
 }
@@ -141,40 +141,39 @@ bool Config::IsUpdateAvailable(void)
 bool Config::CheckUpdate(void)
 {
 	String release;
-
 #if defined(WINDOWS)
-        release = "win32";
+	release = "win32";
 #elif defined(MACOSX)
-        release = "osx";
+	release = "osx";
 #else
 	release = "src";
 #endif
 
-        try {
-                LogInfo("Config::CheckUpdate", "Looking for updates...");
-                String url = String(DOWNLOADURL) + "?version&release=" + release + "&current=" + APPVERSION;
+	try {
+		LogInfo("Config::CheckUpdate", "Looking for updates...");
+		String url = String(DOWNLOADURL) + "?version&release=" + release + "&current=" + APPVERSION;
 
-                String content;
-                int result = Http::Get(url, &content);
-                if(result != 200)
-                        throw Exception("HTTP error code " + String::number(result));
+		String content;
+		int result = Http::Get(url, &content);
+		if(result != 200)
+			throw Exception("HTTP error code " + String::number(result));
 
-                unsigned lastVersion = content.trimmed().dottedToInt();
-                unsigned appVersion = String(APPVERSION).dottedToInt();
+		unsigned lastVersion = content.trimmed().dottedToInt();
+		unsigned appVersion = String(APPVERSION).dottedToInt();
 
-                Assert(appVersion != 0);
-                if(lastVersion > appVersion)
+		Assert(appVersion != 0);
+		if(lastVersion > appVersion)
 		{
 			UpdateAvailableFlag = true;
 			return true;
 		}
-        }
-        catch(const Exception &e)
-        {
-                LogWarn("Config::CheckUpdate", String("Unable to look for updates: ") + e.what());
-        }
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("Config::CheckUpdate", String("Unable to look for updates: ") + e.what());
+	}
 
-        return false;
+	return false;
 }
 
 bool Config::LaunchUpdater(String *commandLine)
@@ -188,9 +187,8 @@ bool Config::LaunchUpdater(String *commandLine)
 		return true;
 	LogWarn("Config::ExitAndUpdate", "Unable to run WinUpdater");
 #endif
-	
+
 	return false;
 }
 
 }
-

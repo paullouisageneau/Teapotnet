@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -41,29 +41,29 @@ public:
 	Request(const String &path, const Identifier &local, const Identifier &remote, bool listDirectories = true);
 	Request(const String &path, const Network::Link &link, bool listDirectories = true);
 	virtual ~Request(void);
-	
+
 	bool addTarget(const BinaryString &target, bool finish = false);
-	
+
 	String urlPrefix(void) const;
 	int resultsCount(void) const;
 	void addResult(Resource &resource, bool finish = false);
 	void addResult(const Resource::DirectoryRecord &record);
 	void getResult(int i, Resource::DirectoryRecord &record) const;
-	
+
 	void autoDelete(duration timeout = seconds(300.));
-	
+
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
-	
+
 protected:
 	void createPlaylist(Stream *output, String host = "", int start = -1, int stop = -1);
-	
+
 	// Network::Subscriber
 	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
-	
+
 private:
 	static int timeParamToSeconds(String param);
-	
+
 	String mPath;
 	String mUrlPrefix;
 	Array<Resource::DirectoryRecord> mResults;	// We don't store resources but durectory records (see addResult)
@@ -72,7 +72,7 @@ private:
 	bool mFinished, mFinishedAfterTarget;
 	duration mAutoDeleteTimeout;
 	Alarm mAutoDeleter;
-	
+
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;
 };
@@ -80,4 +80,3 @@ private:
 }
 
 #endif
-

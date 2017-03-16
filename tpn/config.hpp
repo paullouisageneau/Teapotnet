@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -46,9 +46,9 @@ public:
 	static bool IsUpdateAvailable(void);
 	static bool CheckUpdate(void);
 	static bool LaunchUpdater(String *commandLine = NULL);
-	
+
 	static void GetExternalAddresses(Set<Address> &set);
-	
+
 private:
 	static StringMap Params;
 	static std::mutex ParamsMutex;

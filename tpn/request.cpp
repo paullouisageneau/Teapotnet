@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -38,7 +38,7 @@ Request::Request(Resource &resource) :
 	Interface::Instance->add(mUrlPrefix, this);
 	addResult(resource, true);	// finished
 }
-  
+
 Request::Request(const String &path, bool listDirectories) :
 	mPath(path),
 	mListDirectories(listDirectories),
@@ -63,7 +63,7 @@ Request::Request(const String &path, const Identifier &local, const Identifier &
 	Interface::Instance->add(mUrlPrefix, this);
 	subscribe(path);
 }
-  
+
 Request::Request(const String &path, const Network::Link &link, bool listDirectories) :
 	Subscriber(link),
 	mPath(path),
@@ -81,14 +81,14 @@ Request::~Request(void)
 {
 	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
-	
+
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mAutoDeleteTimeout = seconds(-1.);
 		mAutoDeleter.cancel();
 		mFinished = true;
 	}
-	
+
 	mCondition.notify_all();
 	std::this_thread::sleep_for(seconds(1.));	// TODO
 	std::unique_lock<std::mutex> lock(mMutex);
@@ -97,13 +97,13 @@ Request::~Request(void)
 bool Request::addTarget(const BinaryString &target, bool finished)
 {
 	if(mPath.empty() || target.empty()) return false;
-	
+
 	String prefix = mPath;
 	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
 		prefix.resize(prefix.size()-1);
-	
+
 	mFinishedAfterTarget|= finished;
-	
+
 	return incoming(link(), prefix, "/", target);
 }
 
@@ -133,8 +133,8 @@ void Request::addResult(Resource &resource, bool finish)
 		// Do not list, just add corresponding record
 		addResult(resource.getDirectoryRecord());
 	}
-	
-	if(finish) 
+
+	if(finish)
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 		mFinished = true;
@@ -144,10 +144,10 @@ void Request::addResult(Resource &resource, bool finish)
 void Request::addResult(const Resource::DirectoryRecord &record)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	
+
 	if(!mDigests.contains(record.digest))
 	{
-		LogDebug("Request", "Adding result: " + record.digest.toString() + " (" + record.name + ")");	
+		LogDebug("Request", "Adding result: " + record.digest.toString() + " (" + record.name + ")");
 
 		mResults.append(record);
 		mDigests.insert(record.digest);
@@ -174,27 +174,27 @@ void Request::autoDelete(duration timeout)
 void Request::http(const String &prefix, Http::Request &request)
 {
 	std::unique_lock<std::mutex> lock(mMutex);	// Request::http() is synced !
-	
+
 	int next = 0;
 	if(request.get.contains("next"))
 		request.get["next"].extract(next);
-	
+
 	duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
 	if(request.get.contains("timeout"))
 		timeout = milliseconds(request.get["timeout"].toDouble());
-	
+
 	if(int(mResults.size()) <= next && !mFinished)
 	{
 		mAutoDeleter.cancel();
-		
+
 		mCondition.wait_for(lock, timeout, [this, next]() {
 			return int(mResults.size()) > next || mFinished;
 		});
 	}
-	
+
 	if(mAutoDeleteTimeout >= duration::zero())
 		mAutoDeleter.schedule(timeout);
-	
+
 	// Playlist
 	if(request.get.contains("playlist"))
 	{
@@ -204,32 +204,31 @@ void Request::http(const String &prefix, Http::Request &request)
 		String startParam;
 		if(request.get.get("start", startParam) || request.get.get("t", startParam))
 			start = timeParamToSeconds(startParam);
-	
+
 		String stopParam;
-                if(request.get.get("stop", stopParam))
-                        stop = timeParamToSeconds(stopParam);
+		if(request.get.get("stop", stopParam))
+			stop = timeParamToSeconds(stopParam);
 
 		Http::Response response(request, 200);
 		response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
 		response.headers["Content-Type"] = "audio/x-mpegurl";
 		response.send();
-					
+
 		String host;
 		request.headers.get("Host", host);
 		createPlaylist(response.stream, host, start, stop);
 	}
 	else {
 		// JSON
-		
 		Http::Response response(request, 200);
 		response.headers["Content-Type"] = "application/json";
 		response.send();
-		
+
 		std::list<Resource::DirectoryRecord*> tmp;
 		if(int(mResults.size()) > next)
 			for(int i = next; i < int(mResults.size()); ++i)
 				tmp.push_back(&mResults[i]);
-			
+
 		JsonSerializer(response.stream) << tmp;
 	}
 }
@@ -239,7 +238,7 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 	// Ignore subdirectories
 	if(mListDirectories && !mPath.empty() && prefix + path != mPath)
 		return false;
-	
+
 	if(fetch(link, prefix, path, target, false))	// no content
 	{
 		Resource resource(target, true);	// local only
@@ -253,10 +252,10 @@ bool Request::incoming(const Network::Link &link, const String &prefix, const St
 void Request::createPlaylist(Stream *output, String host, int start, int stop)
 {
 	Assert(output);
-	
-	if(host.empty()) 
+
+	if(host.empty())
 		host = String("localhost:") + Config::Get("interface_port");
-	
+
 	output->writeLine("#EXTM3U");
 	for(int i = 0; i < int(mResults.size()); ++i)
 	{
@@ -276,24 +275,24 @@ int Request::timeParamToSeconds(String param)
 {
 	try {
 		int s = 0;
-	
+
 		if(param.contains("h"))
 		{
 			String hours = param;
 			param = hours.cut('h');
 			s+= hours.toInt()*3600;
-	
+
 			if(!param.contains("m") && !param.contains("s"))
 				param+= 'm';
 		}
-		
+
 		if(param.contains("m"))
 		{
 			String minutes = param;
 			param = minutes.cut('m');
 			s+= minutes.toInt()*60;
 		}
-		
+
 		param.cut('s');
 		s+= param.toInt();
 		return s;
@@ -305,4 +304,3 @@ int Request::timeParamToSeconds(String param)
 }
 
 }
-

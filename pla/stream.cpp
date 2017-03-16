@@ -107,7 +107,7 @@ bool Stream::skipMark(void)
 
 bool Stream::isDatagram(void) const
 {
-	return false; 
+	return false;
 }
 
 size_t Stream::readData(Stream &s, size_t max)
@@ -151,7 +151,7 @@ bool Stream::hexaMode(bool enabled)
 bool Stream::get(char &chr)
 {
 	skipMark();
-  
+
 	while(readData(&mLast,1))
 	{
 		mEnd = false;
@@ -161,7 +161,7 @@ bool Stream::get(char &chr)
 			return true;
 		}
 	}
-	
+
 	mEnd = true;
 	return false;
 }
@@ -218,7 +218,7 @@ bool Stream::ignoreWhile(const String &chars)
 bool Stream::readUntil(Stream &output, char delimiter)
 {
 	const int maxCount = 10240;	// 10 Ko for security reasons
-	
+
 	int left = maxCount;
 	char chr;
 	if(!get(chr)) return false;
@@ -234,7 +234,7 @@ bool Stream::readUntil(Stream &output, char delimiter)
 bool Stream::readUntil(Stream &output, const String &delimiters)
 {
 	const int maxCount = 10240;	// 10 Ko for security reasons
-	
+
 	int left = maxCount;
 	char chr;
 	if(!get(chr)) return false;
@@ -371,7 +371,7 @@ void Stream::write(bool b)
 	else write("false");
 }
 
-void Stream::write(const BinaryString &str)	
+void Stream::write(const BinaryString &str)
 {
 	write(*static_cast<const Serializable*>(&str));
 }
@@ -429,7 +429,7 @@ int64_t Stream::readBinary(char *data, size_t size)
 		data+= r;
 		left-= r;
 	}
-	
+
 	return size - left;
 }
 
@@ -612,4 +612,3 @@ uint64_t Stream::fixEndianess(uint64_t n)
 }
 
 }
-

@@ -70,7 +70,7 @@ String Serializable::toString(void) const
 void Serializable::fromString(const std::string &str)
 {
 	String tmp(str);
-	deserialize(tmp);  
+	deserialize(tmp);
 }
 
 Serializable::operator String(void) const
@@ -80,7 +80,7 @@ Serializable::operator String(void) const
 
 Serializable::operator std::string(void) const
 {
-        return toString();
+	return toString();
 }
 
 std::ostream &operator<<(std::ostream &os, const Serializable &s)

@@ -35,13 +35,13 @@ public:
 	static bool IsAudio(const String &fileName);
 	static bool IsVideo(const String &fileName);
 	static String GetType(const String &fileName);
-	
+
 private:
-  	static void Init(void);
-  
+	static void Init(void);
+
 	static StringMap Types;
 	static std::mutex TypesMutex;
-	
+
 	Mime(void);
 	~Mime(void);
 };

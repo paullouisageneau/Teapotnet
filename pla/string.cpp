@@ -32,37 +32,37 @@ namespace pla
 
 String String::number(double d, int digits)
 {
-    std::ostringstream out;
-    out << std::fixed << std::setprecision(digits) << d;
-    return out.str();
+	std::ostringstream out;
+	out << std::fixed << std::setprecision(digits) << d;
+	return out.str();
 }
 
 String String::number(int n, int minDigits)
 {
-    std::ostringstream out;
-    out << std::abs(n);
-    return (n < 0 ? "-" : "") + String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+	std::ostringstream out;
+	out << std::abs(n);
+	return (n < 0 ? "-" : "") + String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
 
 String String::number(unsigned int n, int minDigits)
 {
-    std::ostringstream out;
-    out << n;
-    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+	std::ostringstream out;
+	out << n;
+	return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
 
 String String::number64(uint64_t n, int minDigits)
 {
-    std::ostringstream out;
-    out << n;
-    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+	std::ostringstream out;
+	out << n;
+	return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
 
 String String::hexa(unsigned int n, int minDigits)
 {
-    std::ostringstream out;
-    out << std::hex << std::uppercase << n;
-    return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
+	std::ostringstream out;
+	out << std::hex << std::uppercase << n;
+	return String(std::max(0, int(minDigits-out.str().size())), '0') + out.str();
 }
 
 String String::random(size_t nbr, Random::QualityLevel level)
@@ -72,7 +72,7 @@ String String::random(size_t nbr, Random::QualityLevel level)
 	while(nbr--)
 	{
 		int i = rnd.uniform(0, 26 + 26 + 10);
-		
+
 		if(i < 26) result+= char('a' + i);
 		else {
 			i-= 26;
@@ -91,16 +91,16 @@ String String::hrSize(uint64_t size)
 {
  	const char prefix[] = {'K','M','G','T'};
 	const int base = 1024;
-	
+
 	if(size < base) return String::number(size) + " B";
-	
+
 	char symbol;
 	double fsize(size);
 	for(int i=0; i<4; ++i)
 	{
 		fsize/= base;
 		symbol = prefix[i];
-		if(fsize < base) break; 
+		if(fsize < base) break;
 	}
 	return String::number(fsize,1) + " " + symbol + "iB";
 }
@@ -127,13 +127,13 @@ String::String(char chr) :
 String::String(const char *str) :
 	BinaryString(str)
 {
-	
+
 }
 
 String::String(const char *data, size_t size) :
 	BinaryString(data, size)
 {
-	
+
 }
 
 String::String(const std::string &str) :
@@ -173,7 +173,7 @@ String::String(const wchar_t *str)
 				codepoint |= *str - 0xdc00;
 			else
 				codepoint = *str;
-			
+
 			if (codepoint <= 0x7f)
 				append(1, static_cast<char>(codepoint));
 			else if (codepoint <= 0x7ff)
@@ -196,7 +196,7 @@ String::String(const wchar_t *str)
 			}
 			codepoint = 0;
 		}
-		
+
 		++str;
 	}
 }
@@ -284,7 +284,7 @@ bool String::containsDigits(void) const
 		unsigned char c = (unsigned char)(at(i));
 		if(c >= 48 && c <= 57) return true;
 	}
-	
+
 	return false;
 }
 
@@ -297,7 +297,7 @@ bool String::containsLetters(void) const
 		if(c >= 97 && c <= 122) return true;
 		if(c >= 128) return true;
 	}
-	
+
 	return false;
 }
 
@@ -312,7 +312,7 @@ bool String::isAlphanumeric(void) const
 		if(c >= 128) continue;
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -409,28 +409,28 @@ String String::after(char c) const
 {
 	int pos = this->indexOf(c);
 	if(pos == NotFound) return *this;
-	else return this->substr(pos+1);   
+	else return this->substr(pos+1);
 }
 
 String String::afterLast(char c) const
 {
 	int pos = this->lastIndexOf(c);
 	if(pos == NotFound) return *this;
-	else return this->substr(pos+1); 
+	else return this->substr(pos+1);
 }
 
 String String::before(char c) const
 {
 	int pos = this->indexOf(c);
 	if(pos == NotFound) return *this;
-	else return this->substr(0,pos);   
+	else return this->substr(0,pos);
 }
 
 String String::beforeLast(char c) const
 {
 	int pos = this->lastIndexOf(c);
 	if(pos == NotFound) return *this;
-	else return this->substr(0,pos); 
+	else return this->substr(0,pos);
 }
 
 String String::noAccents(void) const
@@ -521,7 +521,7 @@ String String::urlDecode(void) const
 	for(int i=0; i<size(); ++i)
 	{
 		char c = at(i);
- 		if(c == '%') 
+		if(c == '%')
 		{
 			String h(substr(i+1,2));
 
@@ -537,17 +537,19 @@ String String::urlDecode(void) const
 			}
 			out+= char(value);
 			i+=2;
-    		} 
-    		else if(c == '+') out+= ' ';
+		}
+		else if(c == '+') out+= ' ';
 		else out+= c;
 	}
 	return out;
 }
 
+// Quick and dirty Windows-1252 to UTF-8 conversion
+// TODO: this is ugly and should be replaced by proper locale handling
 String String::windowsDecode(void) const
 {
 	String result;
-  
+
 	for(int i=0; i<size(); ++i)
 	{
 		char chr = at(i);
@@ -560,14 +562,16 @@ String String::windowsDecode(void) const
 			result+= chr;
 		}
 	}
-	
+
 	return result;
 }
 
+// Quick and dirty UTF-8 to Windows-1252 conversion
+// TODO: this is ugly and should be replaced by proper locale handling
 String String::windowsEncode(void) const
 {
 	String result;
-  
+
 	for(int i=0; i<size(); ++i)
 	{
 		char chr = at(i);
@@ -582,7 +586,7 @@ String String::windowsEncode(void) const
 			}
 			else {
 				chr = char(uint8_t(chr) << 6);
-				if(i != size()) 
+				if(i != size())
 					chr|= char(uint8_t(at(i)) & ~uint8_t(0xC0));
 				result+= chr;
 			}
@@ -591,7 +595,7 @@ String String::windowsEncode(void) const
 			result+= chr;
 		}
 	}
-	
+
 	return result;
 }
 
@@ -610,7 +614,7 @@ String String::pathDecode(void) const
 	return windowsDecode();
 #else
 	return *this;
-#endif 
+#endif
 }
 
 String String::lineEncode(void) const
@@ -633,7 +637,7 @@ String String::lineDecode(void) const
 	for(int i=0; i<size(); ++i)
 	{
 		char c = at(i);
- 		if(c == '\\') 
+ 		if(c == '\\')
 		{
 			++i;
 			if(i == size()) break;
@@ -656,22 +660,22 @@ unsigned String::dottedToInt(unsigned base) const
 	List<String> l;
 	explode(l, '.');
 	if(l.size() <= 1) return 0;
-	
+
 	unsigned n = 0;
 	unsigned b = 1;
 	while(!l.empty())
 	{
 		try {
 		  	unsigned i = 0;
-			l.back().extract(i); 
+			l.back().extract(i);
 			n+= i*b;
 			b*= base;
 		}
 		catch(...) { }
-		
+
 		l.pop_back();
 	}
-	
+
 	return n;
 }
 
@@ -712,7 +716,7 @@ void String::substrings(Set<String> &result, int minlength) const
 
 String::operator const char*(void) const
 {
-	return this->c_str(); 
+	return this->c_str();
 }
 
 char &String::operator [](int pos)
@@ -722,7 +726,7 @@ char &String::operator [](int pos)
 
 const char &String::operator [](int pos) const
 {
-	return this->at(pos); 
+	return this->at(pos);
 }
 
 void String::serialize(Serializer &s) const
@@ -743,7 +747,7 @@ void String::serialize(Stream &s) const
 bool String::deserialize(Stream &s)
 {
 	clear();
-  
+
 	char chr;
 	if(!s.get(chr)) return false;
 

@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Teapotnet.                                     *
@@ -45,7 +45,7 @@ Cache::Cache(void) :
 
 Cache::~Cache(void)
 {
-	
+
 }
 
 bool Cache::prefetch(const BinaryString &target)
@@ -57,7 +57,7 @@ bool Cache::prefetch(const BinaryString &target)
 		if(resource.isLocallyAvailable())
 			return true;
 	}
-	
+
 	mScheduler.schedule(Scheduler::clock::now(), [target]() {
 		try {
 			Resource resource(target);
@@ -81,20 +81,20 @@ String Cache::move(const String &filename, BinaryString *fileDigest)
 	Config::Get("cache_max_file_size").extract(maxCacheFileSize);	// MiB
 	if(fileSize > maxCacheFileSize*1024*1024)
 		throw Exception("File is too large for cache: " + filename);
-	
+
 	// Free some space
 	int64_t maxCacheSize = 0;
 	Config::Get("cache_max_size").extract(maxCacheSize);	// MiB
 	if(freeSpace(mDirectory, maxCacheSize*1024*1024, fileSize) < fileSize)
 		throw Exception("Not enough free space in cache for " + filename);
-	
+
 	BinaryString digest;
 	File file(filename);
 	Sha256().compute(file, digest);
 	file.close();
-	
+
 	if(fileDigest) *fileDigest = digest;
-	
+
 	String destination = path(digest);
 	File::Rename(filename, destination);
 	return destination;
@@ -121,7 +121,7 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 				totalSize+= dir.fileSize();
 			}
 		}
-		
+
 		if(maxSize > totalSize)
 		{
 			int64_t freeSpace = Directory::GetAvailableSpace(path);
@@ -129,15 +129,15 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 			freeSpace = std::max(freeSpace - margin, int64_t(0));
 			maxSize = totalSize + std::min(maxSize-totalSize, freeSpace);
 		}
-		
+
 		space = std::min(space, maxSize);
-		
+
 		while(!list.empty() && totalSize > maxSize - space)
 		{
 			int r = Random().uniform(0, int(list.size()));
 			StringList::iterator it = list.begin();
 			while(r--) ++it;
-			
+
 			String filePath = path + Directory::Separator + *it;
 			if(File::Exist(filePath))
 			{
@@ -145,10 +145,10 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 				if(!File::Remove(filePath)) continue;
 				totalSize-= fileSize;
 			}
-			
+
 			// Notify Store
 			Store::Instance->notifyFileErasure(filePath);
-			
+
 			list.erase(it);
 		}
 	}
