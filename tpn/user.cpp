@@ -851,11 +851,6 @@ bool User::deserialize(Serializer &s)
 
 	setSecret(secret);
 	setKeyPair(pub, priv);
-
-	// Reload self contact if it exists
-	if(mAddressBook && mAddressBook->getSelf())
-		mAddressBook->setSelf(identifier());
-
 	return true;
 }
 
