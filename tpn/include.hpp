@@ -23,14 +23,14 @@
 #define TPN_INCLUDE_H
 
 #define APPNAME			"Teapotnet"
-#define APPVERSION		"0.10.1"
+#define APPVERSION		"0.10.2"
 #define APPMAGIC		 0x54504f54 // "TPOT"
 #define APPAUTHOR		"Paul-Louis Ageneau"
 #define APPLINK			"https://teapotnet.org/"
 #define SOURCELINK		"https://teapotnet.org/source"
 #define HELPLINK		"https://teapotnet.org/help"
 #define DOWNLOADURL		"https://teapotnet.org/download"
-#define BUGSLINK		"https://teapotnet.org/bugs"
+#define BUGSLINK		"https://teapotnet.org/issues"
 
 #include "pla/include.hpp"
 #include "pla/string.hpp"

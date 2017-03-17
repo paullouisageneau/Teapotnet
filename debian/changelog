@@ -1,4 +1,10 @@
-teapotnet (0.10.1) unstable; urgency=low
+teapotnet (0.10.2) unstable; urgency=low
+
+  * Version 0.10.2
+
+ -- Paul-Louis Ageneau <paul-louis@ageneau.org>  Fri, 17 Mar 2016 16:00:00 +0100
+
+ teapotnet (0.10.1) unstable; urgency=low
 
   * Version 0.10.1
 
