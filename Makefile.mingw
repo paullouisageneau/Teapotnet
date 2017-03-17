@@ -7,6 +7,7 @@ CCFLAGS=-O2 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -fno-var-tracking
 LDFLAGS=
 LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll
+CROSSPATH=/usr/${CROSS%?}/bin/
 
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
@@ -24,15 +25,15 @@ include/sqlite3.o: include/sqlite3.c
 teapotnet.exe: $(OBJS) include/sqlite3.o res.o
 	$(CXX) $(LDFLAGS) -static -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
 	$(STRIP) teapotnet.exe
-	cp /usr/$(CROSS)/bin/libgcc_*.dll .
-	cp /usr/$(CROSS)/bin/libwinpthread-*.dll .
-	cp /usr/$(CROSS)/bin/libnettle-*.dll .
-	cp /usr/$(CROSS)/bin/libhogweed-*.dll .
-	cp /usr/$(CROSS)/bin/libgmp-*.dll .
-	cp /usr/$(CROSS)/bin/libgnutls-*.dll .
-	cp /usr/$(CROSS)/bin/libreadline*.dll .
-	cp /usr/$(CROSS)/bin/libtasn1-*.dll .
-	cp /usr/$(CROSS)/bin/zlib*.dll .
+	cp $(CROSSPATH)libgcc_*.dll .
+	cp $(CROSSPATH)libwinpthread-*.dll .
+	cp $(CROSSPATH)libnettle-*.dll .
+	cp $(CROSSPATH)libhogweed-*.dll .
+	cp $(CROSSPATH)libgmp-*.dll .
+	cp $(CROSSPATH)libgnutls-*.dll .
+	cp $(CROSSPATH)libreadline*.dll .
+	cp $(CROSSPATH)libtasn1-*.dll .
+	cp $(CROSSPATH)zlib*.dll .
 
 clean:
 	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d res.o
