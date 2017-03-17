@@ -7,7 +7,7 @@ CCFLAGS=-O2 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -fno-var-tracking
 LDFLAGS=
 LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll
-CROSSPATH=/usr/${CROSS%?}/bin/
+CROSSPATH=/usr/$(shell echo $(CROSS)|sed 's/.$$//')/bin/
 
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
