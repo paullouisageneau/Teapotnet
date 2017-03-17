@@ -213,7 +213,6 @@ int main(int argc, char** argv)
 	srandom(seed);
 
 	//signal(SIGPIPE, SIG_IGN);
-
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = SIG_IGN;
@@ -296,13 +295,8 @@ int main(int argc, char** argv)
 		if(args.contains("verbose"))	LogLevel = LEVEL_DEBUG;
 		if(args.contains("trace"))	LogLevel = LEVEL_TRACE;
 
-		if(args.contains("benchmark") || args.contains("b"))
-		{
-			exitCode = benchmark(commandLine, args);
-		}
-		else {
-			exitCode = run(commandLine, args);
-		}
+		if(args.contains("benchmark")) exitCode = benchmark(commandLine, args);
+		else exitCode = run(commandLine, args);
 	}
 	catch(const std::exception &e)
 	{
@@ -390,16 +384,14 @@ int run(String &commandLine, StringMap &args)
 	Config::Default("max_connections", "256");
 	Config::Default("store_max_age", "21600");	// 6h
 	Config::Default("user_global_shares", "true");
+	Config::Default("force_http_tunnel", "false");
 
 #ifdef ANDROID
-	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "200");		// MiB
 	Config::Default("cache_max_file_size", "20");	// MiB
-
 	if(!SharedDirectory.empty()) Config::Put("shared_dir", SharedDirectory);
 	if(!CacheDirectory.empty())  Config::Put("cache_dir",  CacheDirectory);
 #else
-	Config::Default("force_http_tunnel", "false");
 	Config::Default("cache_max_size", "10000");		// MiB
 	Config::Default("cache_max_file_size", "1000");	// MiB
 #endif
@@ -409,17 +401,22 @@ int run(String &commandLine, StringMap &args)
 	bool isSilent = args.contains("nointerface");
 	if(isBoot) ForceLogToFile = true;
 
-	if(!InterfacePort) try {
-		int port = Config::Get("interface_port").toInt();
-		Socket sock(Address("127.0.0.1", port), milliseconds(200));
-		InterfacePort = port;
+	if(!InterfacePort)
+	{
+		try {
+			int port = Config::Get("interface_port").toInt();
+			Socket sock(Address("127.0.0.1", port), milliseconds(200));
+			InterfacePort = port;
+		}
+		catch(...)
+		{
+
+		}
 	}
-	catch(...) {}
 
 	if(InterfacePort)
 	{
-		if(!isSilent && !isBoot)
-			openUserInterface();
+		if(!isSilent && !isBoot) openUserInterface();
 		return 0;
 	}
 #endif
@@ -677,7 +674,8 @@ int run(String &commandLine, StringMap &args)
 		}
 		catch(const NetException &e)
 		{
-			if(--attempts == 0) throw NetException("Unable to listen for incoming network connections");
+			if(--attempts == 0)
+				throw NetException("Unable to listen for incoming network connections");
 
 			int newPort = Random().uniform(1024, 49151);
 			LogInfo("main", "Unable to listen on port " + String::number(port) + ", trying port " + String::number(newPort));

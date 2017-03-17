@@ -640,14 +640,14 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					if(!user()->checkToken(request.post["token"], "directory_add"))
 						throw 403;
 
-					request.post.get("name", name);
-
 					String access;
+					request.post.get("name", name);
 					request.post.get("access", access);
-                                        Resource::AccessLevel accessLevel;
-                                        if(access == "personal") accessLevel = Resource::Personal;
-                                        else if(access == "private") accessLevel = Resource::Private;
-                                        else accessLevel = Resource::Public;
+
+					Resource::AccessLevel accessLevel;
+					if(access == "personal") accessLevel = Resource::Personal;
+					else if(access == "private") accessLevel = Resource::Private;
+					else accessLevel = Resource::Public;
 
 					try {
 						if(name.empty()

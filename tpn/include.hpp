@@ -30,7 +30,7 @@
 #define SOURCELINK		"https://teapotnet.org/source"
 #define HELPLINK		"https://teapotnet.org/help"
 #define DOWNLOADURL		"https://teapotnet.org/download"
-#define BUGSLINK		"mailto:bugs@teapotnet.org"
+#define BUGSLINK		"https://teapotnet.org/bugs"
 
 #include "pla/include.hpp"
 #include "pla/string.hpp"

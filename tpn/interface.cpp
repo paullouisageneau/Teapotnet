@@ -262,6 +262,16 @@ void Interface::http(const String &prefix, Http::Request &request)
 			}
 
 			page.close("div");
+
+			page.open("div", "footer");
+			page.text(String("Version ") + APPVERSION + " - ");
+			page.link(HELPLINK, "Help", "", true);
+			page.text(" - ");
+			page.link(SOURCELINK, "Source code", "", true);
+			page.text(" - ");
+			page.link(BUGSLINK, "Report a bug", "", true);
+			page.close("div");
+
 			page.footer();
 			return;
 		}
