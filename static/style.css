@@ -450,6 +450,7 @@ a.button:hover
 #footer
 {
 	width: 100%;
+	margin-top: 2em;
 	margin-bottom: 1em;
 	font-size: 0.8em;
 	text-align: center;
@@ -543,7 +544,6 @@ a.button:hover
 	width: 100%;
 	margin-left: auto;
 	margin-right: auto;
-	margin-bottom: 2em;
 }
 
 #login table td.leftcolumn
