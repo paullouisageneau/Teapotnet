@@ -95,7 +95,7 @@ public:
 	bool isInlineSerializable(void) const;
 
 private:
-	void setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);
+	void setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv);	// calls save()
 	void setSecret(const BinaryString &secret);
 
 	String mName;

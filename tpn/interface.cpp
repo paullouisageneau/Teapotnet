@@ -185,7 +185,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 				if(!user) throw 401;	// Login failed
 
 				User::Register(user);
-				user->save();
 				user->send(password);
 
 				String token = user->generateToken("auth");

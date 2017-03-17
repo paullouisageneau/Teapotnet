@@ -563,7 +563,7 @@ void Rsa::PublicKey::clear(void)
 
 const BinaryString &Rsa::PublicKey::digest(void) const
 {
-	if(mDigest.empty())
+	if(mDigest.empty() && !isNull())
 	{
 		BinaryString tmp;
 		BinarySerializer serializer(&tmp);

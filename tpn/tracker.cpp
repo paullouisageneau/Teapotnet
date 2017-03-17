@@ -200,7 +200,6 @@ void Tracker::retrieve(const BinaryString &node, int count, Map<BinaryString, Se
 		mMap.get(it->second).getKeys(addrs);
 		result.insert(it->second, addrs);
 	}
-	//
 }
 
 }

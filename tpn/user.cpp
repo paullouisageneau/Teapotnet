@@ -171,13 +171,16 @@ User::~User(void)
 
 void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 {
+	Assert(!pub.isNull());
+	Assert(!priv.isNull());
+
 	Identifier identifier = pub.digest();
 	Identifier oldIdentifier;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
 		oldIdentifier = mPublicKey.digest();
-		if(oldIdentifier == identifier)
+		if(identifier == oldIdentifier)
 			return;
 
 		mPublicKey = pub;
@@ -185,17 +188,20 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
 	}
 
+	// Save, so directories are created
+	save();
+
 	// Order matters here
 	mIndexer = std::make_shared<Indexer>(this);
-	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", mName);
+	mBoard = std::make_shared<Board>("/" + identifier.toString(), "", name());
 	mAddressBook = std::make_shared<AddressBook>(this);
 	mAddressBook->setSelf(identifier);	// create self contact
 
 	// Re-register
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
-		UsersByIdentifier.erase(oldIdentifier);
-		UsersByIdentifier.insert(identifier, mName);
+		if(!oldIdentifier.empty()) UsersByIdentifier.erase(oldIdentifier);
+		UsersByIdentifier.insert(identifier, name());
 	}
 }
 
@@ -221,6 +227,9 @@ bool User::load(void)
 
 void User::save(void) const
 {
+	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
+	if(!Directory::Exist(profilePath())) Directory::Create(profilePath());
+
 	// Save auth
 	SafeWriteFile authFile(profilePath()+"auth");
 	authFile.write(mAuthDigest);
@@ -241,7 +250,7 @@ bool User::recv(const String &password)
 	Set<BinaryString> values;
 	Network::Instance->retrieveValue(mAuthDigest, values, timeout);
 
-  LogDebug("User::import", "Got " + String::number(values.size()) + " candidates");
+	LogDebug("User::import", "Got " + String::number(values.size()) + " candidates");
 
 	for(auto v : values)
 	{
@@ -278,13 +287,20 @@ void User::send(const String &password) const
 
 void User::generateKeyPair(void)
 {
+	Rsa::PublicKey pub;
+	Rsa::PrivateKey priv;
+	BinaryString secret;
+
 	// Generate keypair
 	Rsa rsa(4096);
-	rsa.generate(mPublicKey, mPrivateKey);
+	rsa.generate(pub, priv);
 
-  // Generate secret
+	// Generate secret
 	Random rnd(Random::Key);
-	rnd.readBinary(mSecret, 32);
+	rnd.readBinary(secret, 32);
+
+	setSecret(secret);
+	setKeyPair(pub, priv);
 }
 
 String User::name(void) const
@@ -296,10 +312,7 @@ String User::name(void) const
 String User::profilePath(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	if(!Directory::Exist(Config::Get("profiles_dir"))) Directory::Create(Config::Get("profiles_dir"));
-	String path = Config::Get("profiles_dir") + Directory::Separator + mName;
-	if(!Directory::Exist(path)) Directory::Create(path);
-	return path + Directory::Separator;
+	return Config::Get("profiles_dir") + Directory::Separator + mName + Directory::Separator;
 }
 
 String User::fileName(void) const
@@ -836,10 +849,10 @@ bool User::deserialize(Serializer &s)
 		.insert("secret", secret)))
 		return false;
 
-	setKeyPair(pub, priv);
 	setSecret(secret);
+	setKeyPair(pub, priv);
 
-	// Reload self contact is it exists
+	// Reload self contact if it exists
 	if(mAddressBook && mAddressBook->getSelf())
 		mAddressBook->setSelf(identifier());
 
