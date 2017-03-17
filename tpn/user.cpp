@@ -670,7 +670,7 @@ void User::http(const String &prefix, Http::Request &request)
 			//page.image(profile()->avatarUrl(), "", ".avatar");	// NO alt text for avatars
 			page.text(name());
 #ifndef ANDROID
-			if(addressBook()->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
+			if(mAddressBook && mAddressBook->getSelf() && !instance.empty()) page.text(" (" + instance + ")");
 #endif
 			//page.closeLink();
 			page.close("h1");
@@ -684,7 +684,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.text("Contacts");
 			page.close("h2");
 
-			if(mAddressBook->count() == 0) page.link(prefix+"/contacts/","Add contact / Accept request");
+			if(!mAddressBook || mAddressBook->count() == 0) page.link(prefix+"/contacts/","Add contact / Accept request");
 			else {
 				page.open("div", "contactsTable");
 				page.open("p"); page.text("Loading..."); page.close("p");
@@ -699,7 +699,7 @@ void User::http(const String &prefix, Http::Request &request)
 			page.open("div","files.box");
 
 			Array<String> directories;
-			mIndexer->getDirectories(directories);
+			if(mIndexer) mIndexer->getDirectories(directories);
 
 			page.link(prefix+"/files/","Edit",".button");
 			if(!directories.empty()) page.link(prefix+"/files/?action=refresh&redirect="+String(prefix+url).urlEncode(), "Refresh", "refreshfiles.button");
