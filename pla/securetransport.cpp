@@ -373,6 +373,8 @@ ssize_t SecureTransport::DirectWriteCallback(gnutls_transport_ptr_t ptr, const v
 ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* data, size_t len)
 {
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
+	if(!st->mStream) return 0;
+
 	try {
 		st->mStream->writeData(static_cast<const char*>(data), len);
 		st->mStream->nextWrite();
@@ -395,6 +397,8 @@ ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* d
 ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, size_t maxlen)
 {
 	SecureTransport *st = static_cast<SecureTransport*>(ptr);
+	if(!st->mStream) return 0;
+
 	try {
 		ssize_t ret;
 		do {
