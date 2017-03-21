@@ -36,7 +36,7 @@ public:
 	static const char Separator;
 
 	static bool Exist(const String &path);
-	static bool Remove(const String &path);
+	static bool Remove(const String &path, bool recursive = false);
 	static void Create(const String &path);
 	static uint64_t GetAvailableSpace(const String &path);
 	static String GetHomeDirectory(void);
@@ -60,7 +60,7 @@ public:
 	String fileName(void) const;
 	Time fileTime(void) const;
 	uint64_t fileSize(void) const;
-	bool fileIsDir(void)  const;
+	bool fileIsDirectory(void)  const;
 
 	void getFileInfo(StringMap &map) const;	// Get all attributes
 

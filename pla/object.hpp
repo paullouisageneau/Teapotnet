@@ -39,7 +39,7 @@ private:
 		Wrapper(T &v) : value(&v) {}
 		void serialize(Serializer &s) const { s << *value; }
 		bool deserialize(Serializer &s) { return !!(s >> *value); }
-		
+
 	private:
 		T *value;
 	};
@@ -77,15 +77,15 @@ public:
 		return *this;
 	}
 
-	template<typename T> Object &insert(const std::string &key, const T &value)
+	template<typename T> Object &insert(const std::string &key, const T &value, bool cond = true)
 	{
-		emplace(key, std::make_shared<ConstWrapper<T> >(value));
+		if(cond) emplace(key, std::make_shared<ConstWrapper<T> >(value));
 		return *this;
 	}
 
-	template<typename T> Object &insert(const std::string &key, T &&value)
+	template<typename T> Object &insert(const std::string &key, T &&value, bool cond = true)
 	{
-		emplace(key, std::make_shared<CopyWrapper<T> >(std::forward<T>(value)));
+		if(cond) emplace(key, std::make_shared<CopyWrapper<T> >(std::forward<T>(value)));
 		return *this;
 	}
 
@@ -93,17 +93,17 @@ public:
 	{
 		s << *static_cast<const std::map<std::string, sptr<Serializable> >*>(this);
 	}
-	
+
 	bool deserialize(Serializer &s)
 	{
 		return !!(s >> *static_cast<std::map<std::string, sptr<Serializable> >*>(this));
 	}
-	
+
 	bool isInlineSerializable(void) const
 	{
 		return false;
 	}
-	
+
 	bool isNativeSerializable(void) const
 	{
 		return false;
@@ -113,4 +113,3 @@ public:
 }
 
 #endif
- 

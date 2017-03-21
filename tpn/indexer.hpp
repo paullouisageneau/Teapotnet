@@ -41,7 +41,7 @@ namespace tpn
 
 class User;
 
-class Indexer : public Network::Publisher, public HttpInterfaceable
+class Indexer : public Network::Publisher, public Network::Subscriber, public HttpInterfaceable
 {
 public:
 	Indexer(User *user);
@@ -66,6 +66,9 @@ public:
 
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
+
+	// Subscriber
+	virtual bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
 
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);
@@ -109,6 +112,7 @@ private:
 
 	void run(void);
 
+	void syncFiles(const String &path, const BinaryString &target, Time time);
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void update(String path = "/");
 	String realPath(String path) const;
@@ -129,6 +133,7 @@ private:
 		virtual bool isInlineSerializable(void) const;
 
 		String path;
+		String remote;
 		Resource::AccessLevel access;
 	};
 

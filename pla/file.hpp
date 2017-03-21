@@ -36,10 +36,10 @@ class File : public Stream, public std::fstream
 public:
 	using Stream::read;
 	using Stream::write;
-	
+
 	static String TempDirectory;
 	static String TempPrefix;
-	
+
 	static bool Exist(const String &filename);
 	static bool Remove(const String &filename);
 	static void Rename(const String &source, const String &destination);
@@ -47,7 +47,7 @@ public:
 	static pla::Time Time(const String &filename);
 	static String TempName(void);
 	static void CleanTemp(void);
-	
+
 	enum OpenMode { Read, Write, ReadWrite, Append, Truncate, TruncateReadWrite };
 
 	File(void);
@@ -56,28 +56,28 @@ public:
 
 	virtual void open(const String &filename, OpenMode mode = Read);
 	virtual void close(void);
-	
+
 	OpenMode openMode(void) const;
 	void reopen(OpenMode mode);
-	
+
 	void seekRead(int64_t position);
 	void seekWrite(int64_t position);
 	int64_t tellRead(void) const;
 	int64_t tellWrite(void) const;
-	
+
 	String name(void) const;
 	OpenMode mode(void) const;
 	uint64_t size(void) const;
-	
+
 	// Stream
 	size_t readData(char *buffer, size_t size);
 	void writeData(const char *data, size_t size);
 	void flush(void);
 	bool skipMark(void);
-	
+
 protected:
 	static String TempPath(void);
-	
+
 	Stream *pipeIn(void);
 	String mName;
 	OpenMode mMode;
@@ -90,7 +90,7 @@ public:
 	SafeWriteFile(void);
 	SafeWriteFile(const String &filename);
 	~SafeWriteFile(void);
-	
+
 	void open(const String &filename, OpenMode mode = Truncate);	// mode MUST be Truncate
 	void close(void);
 
@@ -106,7 +106,7 @@ public:
 	~TempFile(void);
 
 	void close(void);
-	
+
 private:
 	void open(const String &filename, OpenMode mode = ReadWrite);
 };

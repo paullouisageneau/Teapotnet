@@ -61,9 +61,15 @@ bool Directory::Exist(const String &path)
 	return S_ISDIR(st.st_mode);
 }
 
-bool Directory::Remove(const String &path)
+bool Directory::Remove(const String &path, bool recursive)
 {
-	return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
+	if(!recursive)
+	{
+		return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
+	}
+	else {
+		throw Exception("TODO: recursive directory deletion");
+	}
 }
 
 void Directory::Create(const String &path)
@@ -196,13 +202,13 @@ Time Directory::fileTime(void) const
 uint64_t Directory::fileSize(void) const
 {
 	if(!mDirent) throw Exception("No more files in directory");
-	if(fileIsDir()) return 0;
+	if(fileIsDirectory()) return 0;
 	stat_t st;
 	if(pla::stat(filePath().pathEncode().c_str(), &st)) return 0;
 	return uint64_t(st.st_size);
 }
 
-bool Directory::fileIsDir(void) const
+bool Directory::fileIsDirectory(void) const
 {
 	if(!mDirent) throw Exception("No more files in directory");
 	//return (mDirent->d_type == DT_DIR);
@@ -217,7 +223,7 @@ void Directory::getFileInfo(StringMap &map) const
 	map["name"] =  fileName();
 	map["time"] << fileTime();
 
-	if(fileIsDir()) map["type"] =  "directory";
+	if(fileIsDirectory()) map["type"] =  "directory";
 	else {
 		map["type"] =  "file";
 		map["size"] << fileSize();

@@ -714,7 +714,7 @@ int run(String &commandLine, StringMap &args)
 		Directory profilesDir(Config::Get("profiles_dir"));
 		while(profilesDir.nextFile())
 		{
-			if(profilesDir.fileIsDir())
+			if(profilesDir.fileIsDirectory())
 			{
 				String name = profilesDir.fileName();
 

@@ -74,7 +74,7 @@ public:
 	class MetaRecord : public Serializable
 	{
 	public:
-		MetaRecord(void)		{ size = 0; }
+		MetaRecord(void)			{}
 		virtual ~MetaRecord(void)	{}
 
 		// Serializable
@@ -84,7 +84,7 @@ public:
 
 		String 		name;
 		String		type;
-		int64_t		size;
+		int64_t		size = 0;
 	};
 
 	class IndexRecord : public MetaRecord
@@ -113,7 +113,7 @@ public:
 		bool deserialize(Serializer &s);
 
 		BinaryString	digest;
-		Time 		time;
+		Time 			time;
 	};
 
 	IndexRecord getIndexRecord(void) const;

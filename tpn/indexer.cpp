@@ -95,14 +95,26 @@ Indexer::Indexer(User *user) :
 		while(it != mDirectories.end())
 		{
 			String &path = it->second.path;
+			String &remote = it->second.remote;
+
+			// Filter invalid paths
 			if(path.empty() || path == "/")
 			{
 				mDirectories.erase(it++);
 				continue;
 			}
 
+			// Sanitize path and remote
 			if(path[path.size()-1] == '/')
 				path.resize(path.size()-1);
+			if(!remote.empty() && remote[remote.size()-1] == '/')
+				remote.resize(remote.size()-1);
+
+			// TODO: checks on remote
+
+			// Subscribe remote parent if specified
+			if(!remote.empty())
+				subscribe(remote.beforeLast('/'));
 
 			++it;
 		}
@@ -190,8 +202,14 @@ void Indexer::removeDirectory(const String &name, bool nocommit)
 {
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		if(mDirectories.contains(name))
-			mDirectories.erase(name);
+		auto it = mDirectories.find(name);
+		if(it != mDirectories.end())
+		{
+			const String &remote = it->second.remote;
+			if(!remote.empty())
+				unsubscribe(remote);
+			mDirectories.erase(it);
+		}
 	}
 
 	if(!nocommit)
@@ -420,7 +438,7 @@ bool Indexer::process(String path, Resource &resource)
 		Directory dir(realPath);
 		while(dir.nextFile())
 		{
-			String key = String(dir.fileIsDir() ? "0" : "1") + dir.fileName().toLower();
+			String key = String(dir.fileIsDirectory() ? "0" : "1") + dir.fileName().toLower();
 			sorted.insert(key, dir.fileName());
 		}
 
@@ -545,8 +563,6 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 
 bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
-	// Not synchronized
-
 	String cpath(path);
 	String match = cpath.cut('?');
 
@@ -557,6 +573,122 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 	q.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
 
 	return query(q, targets);
+}
+
+bool Indexer::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+{
+	if(path != "/")		// We want only top-level targets
+		return false;
+
+	// Fetch resource metadata
+	if(!fetch(link, prefix, path, target, false))	// don't fetch content
+		return false;
+
+	// Check resource, we expect a directory
+	Resource resource(target, true);	// local only
+	if(!resource.isDirectory())
+		return false;
+
+	// Now fetch resource content
+	if(!fetch(link, prefix, path, target, true))	// fetch content
+		return false;
+
+	// Find corresponding directories
+	for(auto it = mDirectories.begin(); it != mDirectories.end(); ++it)
+	{
+		const String &name = it->first;
+		const Entry &entry = it->second;
+
+		// Prefix is actually remote parent
+		if(entry.remote.beforeLast('/') == prefix)
+		{
+			String remoteName = entry.remote.substr(prefix.size()+1);
+
+			Resource::Reader reader(&resource);
+			Resource::DirectoryRecord record;
+			while(reader.readDirectory(record))
+			{
+				if(record.name == remoteName)
+				{
+					// We have a match, sync files
+					syncFiles(entry.path, record.digest, record.time);
+					update("/" + name);		// update directory
+					update("/");			// update root
+					break;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+void Indexer::syncFiles(const String &path, const BinaryString &target, Time time)
+{
+	Resource localResource;
+	Time localTime;
+	if(get(path, localResource, &localTime)
+		&& (localResource.digest() == target || localTime >= time))
+		return;
+
+	Resource resource(target);
+	Resource::Reader reader(&resource);
+
+	if(resource.isDirectory())
+	{
+		if(!Directory::Exist(path))
+			throw Exception("Directory to sync does not exist: "+path);
+
+		Map<String, Resource::DirectoryRecord> newFiles;
+		Resource::DirectoryRecord record;
+		while(reader.readDirectory(record))
+			newFiles.insert(record.name, record);
+
+		StringSet oldFiles;
+		Directory dir(path);
+		while(dir.nextFile())
+			oldFiles.insert(dir.fileName());
+		dir.close();
+
+		for(auto it = newFiles.begin(); it != newFiles.end(); ++it)
+		{
+			const Resource::DirectoryRecord &record = it->second;
+			oldFiles.erase(record.name);
+
+			String subpath = path + Directory::Separator + record.name;
+			if(record.type == "directory")
+			{
+				if(!Directory::Exist(subpath))
+				{
+					if(File::Exist(subpath))
+						File::Remove(subpath);
+
+					Directory::Create(subpath);
+				}
+
+				syncFiles(subpath, record.digest, record.time);
+			}
+			else {
+				if(Directory::Exist(subpath))
+					Directory::Remove(subpath);
+
+				syncFiles(subpath, record.digest, record.time);
+			}
+		}
+
+		// Remove deleted files
+		for(auto name : oldFiles)
+		{
+			String subpath = path + Directory::Separator + name;
+			if(Directory::Exist(subpath)) Directory::Remove(subpath);
+			else File::Remove(subpath);
+		}
+	}
+	else {
+		SafeWriteFile newFile(path);
+		newFile.write(reader);
+		newFile.close();
+	}
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)
@@ -704,7 +836,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 			Set<String> folders;
 			while(dir.nextFile())
-				if(dir.fileIsDir() && dir.fileName().at(0) != '.')
+				if(dir.fileIsDirectory() && dir.fileName().at(0) != '.')
 					folders.insert(dir.fileName());
 
 			Http::Response response(request, 200);
@@ -1371,7 +1503,8 @@ String Indexer::realPath(String path) const
 	if(path[0] == '/') path.ignore(1);
 
 	// Do not accept the parent directory symbol as a security protection
-	if(path.find("\\..") != String::NotFound || path.find("..\\") != String::NotFound) throw Exception("Invalid path: " + path);
+	if(path.find("\\..") != String::NotFound || path.find("..\\") != String::NotFound)
+		throw Exception("Invalid path: " + path);
 
 	String directory = path;
 	path = directory.cut('/');
@@ -1503,17 +1636,13 @@ void Indexer::Query::setFromSelf(bool isFromSelf)
 
 void Indexer::Query::serialize(Serializer &s) const
 {
-	Object object;
-	object.insert("path", mPath);
-	object.insert("match", mMatch);
-	object.insert("digest", mDigest);
-
-	if(mOffset > 0) object.insert("offset", mOffset);
-	if(mCount > 0)  object.insert("count", mCount);
-
-	object.insert("access", (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public")));
-
-	s << object;
+	s << Object()
+		.insert("path", mPath)
+		.insert("match", mMatch)
+		.insert("digest", mDigest)
+		.insert("offset", mOffset, mOffset > 0)
+		.insert("count", mCount, mCount > 0)
+		.insert("access", (mAccess == Resource::Personal ? "personal" : (mAccess == Resource::Private ? "private" : "public")));
 }
 
 bool Indexer::Query::deserialize(Serializer &s)
@@ -1525,16 +1654,16 @@ bool Indexer::Query::deserialize(Serializer &s)
 	mDigest.clear();
 	mOffset = 0;
 	mCount = 0;
+	mAccess = Resource::Public;
 
-	Object object;
-	object.insert("path", mPath);
-	object.insert("match", mMatch);
-	object.insert("digest", mDigest);
-	object.insert("offset", mOffset);
-	object.insert("count", mCount);
-	object.insert("access", strAccess);
-
-	if(!(s >> object)) return false;
+	if(!(s >> Object()
+		.insert("path", mPath)
+		.insert("match", mMatch)
+		.insert("digest", mDigest)
+		.insert("offset", mOffset)
+		.insert("count", mCount)
+		.insert("access", strAccess)))
+		return false;
 
 	if(strAccess== "personal") mAccess = Resource::Personal;
 	else if(strAccess == "private") mAccess = Resource::Private;
@@ -1568,6 +1697,7 @@ void Indexer::Entry::serialize(Serializer &s) const
 {
 	s << Object()
 		.insert("path", path)
+		.insert("remote", remote, !remote.empty())
 		.insert("access", String(access == Resource::Personal ? "personal" : (access == Resource::Private ? "private" : "public")));
 }
 
@@ -1579,6 +1709,7 @@ bool Indexer::Entry::deserialize(Serializer &s)
 
 	if(!(s >> Object()
 		.insert("path", path)
+		.insert("remote", remote)
 		.insert("access", strAccess)))
 		return false;
 

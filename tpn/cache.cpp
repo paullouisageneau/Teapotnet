@@ -115,7 +115,7 @@ int64_t Cache::freeSpace(const String &path, int64_t maxSize, int64_t space)
 		Directory dir(path);
 		while(dir.nextFile())
 		{
-			if(!dir.fileIsDir())
+			if(!dir.fileIsDirectory())
 			{
 				list.push_back(dir.fileName());
 				totalSize+= dir.fileSize();

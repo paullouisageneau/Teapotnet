@@ -183,63 +183,60 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			return false;
 	}
 
-	if(fetch(link, prefix, path, target, true))
-	{
-		try {
-			Resource resource(target, true);	// local only (already fetched)
-			if(resource.type() != "mail")
-				return false;
+	if(!fetch(link, prefix, path, target, true))
+		return false;
+	
+	try {
+		Resource resource(target, true);	// local only (already fetched)
+		if(resource.type() != "mail")
+			return false;
 
-			bool complete = false;
-			{
-				std::unique_lock<std::mutex> lock(mMutex);
-
-				Resource::Reader reader(&resource, mSecret);
-				BinarySerializer serializer(&reader);
-				Mail mail;
-				unsigned count = 0;
-				while(!!(serializer >> mail))
-				{
-					if(mail.empty())
-						continue;
-
-					if(!mMails.contains(mail))
-					{
-						auto it = mMails.insert(mail);
-						const Mail &m = *it.first;
-						mUnorderedMails.append(&m);
-
-						++mUnread;
-						mHasNew = true;
-					}
-
-					++count;
-				}
-
-				if(count == mMails.size())
-				{
-					mDigest = target;
-					complete = true;
-				}
-			}
-
-			if(!complete)
-			{
-				const String prefix = "/mail/" + mName;
-
-				process();
-				if(digest() != target)
-					publish(prefix);
-			}
-		}
-		catch(const Exception &e)
+		bool complete = false;
 		{
-			LogWarn("Board::incoming", e.what());
+			std::unique_lock<std::mutex> lock(mMutex);
+
+			Resource::Reader reader(&resource, mSecret);
+			BinarySerializer serializer(&reader);
+			Mail mail;
+			unsigned count = 0;
+			while(!!(serializer >> mail))
+			{
+				if(mail.empty())
+					continue;
+
+				if(!mMails.contains(mail))
+				{
+					auto it = mMails.insert(mail);
+					const Mail &m = *it.first;
+					mUnorderedMails.append(&m);
+					++mUnread;
+					mHasNew = true;
+				}
+
+				++count;
+			}
+
+			if(count == mMails.size())
+			{
+				mDigest = target;
+				complete = true;
+			}
 		}
 
-		mCondition.notify_all();
+		if(!complete)
+		{
+			const String prefix = "/mail/" + mName;
+			process();
+			if(digest() != target)
+				publish(prefix);
+		}
+	}
+	catch(const Exception &e)
+	{
+		LogWarn("Board::incoming", e.what());
 	}
 
+	mCondition.notify_all();
 	return true;
 }
 
