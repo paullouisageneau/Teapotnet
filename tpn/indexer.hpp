@@ -112,8 +112,8 @@ private:
 
 	void run(void);
 
-	void syncFiles(const String &path, const BinaryString &target, Time time);
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
+	void sync(String path, const BinaryString &target, Time time);
 	void update(String path = "/");
 	String realPath(String path) const;
 	bool isHiddenPath(String path) const;

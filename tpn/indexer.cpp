@@ -611,7 +611,7 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 				if(record.name == remoteName)
 				{
 					// We have a match, sync files
-					syncFiles(entry.path, record.digest, record.time);
+					sync("/" + name, record.digest, record.time);
 					update("/" + name);		// update directory
 					update("/");			// update root
 					break;
@@ -621,74 +621,6 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 	}
 
 	return true;
-}
-
-void Indexer::syncFiles(const String &path, const BinaryString &target, Time time)
-{
-	Resource localResource;
-	Time localTime;
-	if(get(path, localResource, &localTime)
-		&& (localResource.digest() == target || localTime >= time))
-		return;
-
-	Resource resource(target);
-	Resource::Reader reader(&resource);
-
-	if(resource.isDirectory())
-	{
-		if(!Directory::Exist(path))
-			throw Exception("Directory to sync does not exist: "+path);
-
-		Map<String, Resource::DirectoryRecord> newFiles;
-		Resource::DirectoryRecord record;
-		while(reader.readDirectory(record))
-			newFiles.insert(record.name, record);
-
-		StringSet oldFiles;
-		Directory dir(path);
-		while(dir.nextFile())
-			oldFiles.insert(dir.fileName());
-		dir.close();
-
-		for(auto it = newFiles.begin(); it != newFiles.end(); ++it)
-		{
-			const Resource::DirectoryRecord &record = it->second;
-			oldFiles.erase(record.name);
-
-			String subpath = path + Directory::Separator + record.name;
-			if(record.type == "directory")
-			{
-				if(!Directory::Exist(subpath))
-				{
-					if(File::Exist(subpath))
-						File::Remove(subpath);
-
-					Directory::Create(subpath);
-				}
-
-				syncFiles(subpath, record.digest, record.time);
-			}
-			else {
-				if(Directory::Exist(subpath))
-					Directory::Remove(subpath);
-
-				syncFiles(subpath, record.digest, record.time);
-			}
-		}
-
-		// Remove deleted files
-		for(auto name : oldFiles)
-		{
-			String subpath = path + Directory::Separator + name;
-			if(Directory::Exist(subpath)) Directory::Remove(subpath);
-			else File::Remove(subpath);
-		}
-	}
-	else {
-		SafeWriteFile newFile(path);
-		newFile.write(reader);
-		newFile.close();
-	}
 }
 
 void Indexer::http(const String &prefix, Http::Request &request)
@@ -1449,6 +1381,86 @@ bool Indexer::prepareQuery(Database::Statement &statement, const Query &query, c
 	return true;
 }
 
+void Indexer::sync(String path, const BinaryString &target, Time time)
+{
+	if(!path.empty() && path[path.size() - 1] == '/')
+		path.resize(path.size() - 1);
+	if(path.empty()) path = "/";
+
+	LogDebug("Indexer::sync", "Syncing: " + path);
+
+	// Check if update is necessary
+	Resource localResource;
+	Time localTime;
+	if(get(path, localResource, &localTime)
+		&& (localResource.digest() == target || localTime >= time))
+		return;
+
+	// Fetch resource
+	Resource resource(target);
+	Resource::Reader reader(&resource);
+
+	String realPath = this->realPath(path);
+
+	if(resource.isDirectory())
+	{
+		if(!Directory::Exist(realPath))
+			throw Exception("Directory to sync does not exist: "+realPath);
+
+		Map<String, Resource::DirectoryRecord> newFiles;
+		Resource::DirectoryRecord record;
+		while(reader.readDirectory(record))
+			newFiles.insert(record.name, record);
+
+		StringSet oldFiles;
+		Directory dir(realPath);
+		while(dir.nextFile())
+			oldFiles.insert(dir.fileName());
+		dir.close();
+
+		for(auto it = newFiles.begin(); it != newFiles.end(); ++it)
+		{
+			const Resource::DirectoryRecord &record = it->second;
+			oldFiles.erase(record.name);
+
+			String subPath = path + '/' + record.name;
+			String realSubPath = this->realPath(subPath);
+			if(record.type == "directory")
+			{
+				if(!Directory::Exist(realSubPath))
+				{
+					if(File::Exist(realSubPath))
+						File::Remove(realSubPath);
+
+					Directory::Create(realSubPath);
+				}
+
+				sync(subPath, record.digest, record.time);
+			}
+			else {
+				if(Directory::Exist(realSubPath))
+					Directory::Remove(realSubPath);
+
+				sync(subPath, record.digest, record.time);
+			}
+		}
+
+		// Remove deleted files
+		for(auto name : oldFiles)
+		{
+			String subPath = path + '/' + name;
+			String realSubPath = this->realPath(subPath);
+			if(Directory::Exist(realSubPath)) Directory::Remove(realSubPath);
+			else File::Remove(realSubPath);
+		}
+	}
+	else {
+		SafeWriteFile newFile(realPath);
+		newFile.write(reader);
+		newFile.close();
+	}
+}
+
 void Indexer::update(String path)
 {
 	if(!path.empty() && path[path.size() - 1] == '/')
@@ -1470,8 +1482,8 @@ void Indexer::update(String path)
 			// Iterate on directories
 			for(int i=0; i<names.size(); ++i)
 			{
-				String subpath = "/" + names[i];
-				update(subpath);
+				String subPath = "/" + names[i];
+				update(subPath);
 			}
 		}
 		else {
@@ -1482,8 +1494,8 @@ void Indexer::update(String path)
 				Directory dir(realPath);
 				while(dir.nextFile())
 				{
-					String subpath = path + '/' + dir.fileName();
-					update(subpath);
+					String subPath = path + '/' + dir.fileName();
+					update(subPath);
 				}
 			}
 		}
