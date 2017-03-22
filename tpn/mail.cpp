@@ -152,7 +152,6 @@ bool Mail::deserialize(Serializer &s)
 	mParent.clear();
 	mSignature.clear();
 	mTime = time_t(Time::Now());
-
 	mDigest.clear();
 
 	Object object;

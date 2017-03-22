@@ -398,7 +398,7 @@ a.button:hover
 	width: 38%;
 	height: 100%;
 	margin: 0;
-	padding: 1em;
+	padding: 0;
 	background : transparent;
 	border: none;
 	box-shadow: none;
@@ -416,9 +416,9 @@ a.button:hover
 
 #leftpage
 {
-	width: 80%;
+	width: 100%;
+	max-width: 40em;
 	height: 100%;
-	max-width: 70em;
 	margin-top: 0;
 	margin-bottom: 0.5em;
 	margin-left: auto;
@@ -431,7 +431,8 @@ a.button:hover
 	display: inline-block;
 	height: 100%;
 	min-height: 50em;
-	padding: 0.5em;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
 }
 
 #header .button
@@ -503,7 +504,7 @@ a.button:hover
 	margin-right: auto;
 	font-weight: bold;
 	border: 1px solid #B0B0B0;
-        border-radius: 4px;
+	border-radius: 4px;
 	background-color: #F5F5F5;
 	box-shadow: 1px 1px 3px #202020;
 	overflow: hidden;
@@ -640,87 +641,6 @@ a.button:hover
 	border: 0;
 	color: #000000;
 	background-color: #FFFFFF;
-}
-
-#newsfeed
-{
-	margin-top: 1em;
-}
-
-#newsfeed .message
-{
-	max-width: 85%;
-	width: 85%;
-	margin: 0;
-	margin-bottom: 0.5em;
-}
-
-#newsfeed .message .header
-{
-	display: block;
-
-}
-
-#newsfeed .message .header img.avatar
-{
-	width: 48px;
-	height: auto;
-	min-height: 48px;
-}
-
-#newsfeed .message .content
-{
-
-}
-
-#newsfeed .message .attachment .attached
-{
-	margin-top: -2.6em;
-	margin-right: -4em;
-}
-
-#optionsnewsfeed
-{
-	float: right;
-	margin: 0.25em;
-	margin-bottom: 1em;
-}
-
-#statuspanel
-{
-	display: block;
-	width: 100%;
-	overflow: hidden;
-}
-
-#statuspanel form
-{
-	display: block;
-	overflow: hidden;
-}
-
-#statuspanel .button
-{
-	float: left;
-	width: 4em;
-	height: 5em;
-	margin: 0;
-	margin-right: 0.5em;
-	box-sizing: border-box;
-	-moz-box-sizing: border-box;
-}
-
-#statuspanel .button img
-{
-	max-width: 4em;
-	max-height: 3.6em;
-}
-
-#statuspanel textarea
-{
-	width: 100%;
-	height: 5em;
-	margin: 0;
 }
 
 .attachedfile
@@ -943,7 +863,7 @@ img.avatar
 
 .replypanel textarea
 {
-        width: 100%;
+	width: 100%;
 	height: 5em;
 	margin: 0;
 }
@@ -1178,26 +1098,26 @@ img.preview
 
 td.actions
 {
-        width: 16px;
-        height: 16px;
-        padding-left: 0.5em;
-        text-align: left;
-        white-space: nowrap
+	width: 16px;
+	height: 16px;
+	padding-left: 0.5em;
+	text-align: left;
+	white-space: nowrap
 }
 
 td.actions a
 {
-        margin-right: 16px;
+	margin-right: 16px;
 }
 
 #files .button
 {
-        float: right;
+	float: right;
 }
 
 #contacts .button
 {
-        float: right;
+	float: right;
 }
 
 #instances tr
@@ -1260,15 +1180,11 @@ td.actions a
 .myself
 {
 	margin: 0;
-	/*background-color: #00E000;*/
 	background-color: #BBD2E1;
-	/*border: 1px solid black;*/
 }
 
 .online
 {
-	/*background-color: #00E000;*/
-	/*background-color: #FFDC0A;*/
 	margin: 0;
 	background-color: #BBD2E1;
 }
@@ -1369,35 +1285,6 @@ td.actions a
 	margin: 0 auto;
 }
 
-form #trackerlink
-{
-	margin-left: 1em;
-
-}
-
-#invitationmethods
-{
-	display: inline-block;
-	margin-left: auto;
-	margin-right: auto;
-	text-align: center;
-	margin-top: 1em;
-	width: 100%;
-}
-
-.invitationimg
-{
-	display: inline-block;
-	margin-right: 3em;
-	width: 110px;
-}
-
-.invitationimg img
-{
-	cursor: pointer;
-	margin: 2px;
-}
-
 .isvalid
 {
 	background-color: #80FF80 !important;
@@ -1406,32 +1293,6 @@ form #trackerlink
 .isinvalid
 {
 	background-color: #FF8080 !important;
-}
-
-#invitation
-{
-	text-align: center;
-}
-
-#invitation .code
-{
-	margin-top: 1em;
-	margin-bottom: 1em;
-	font-family: monospace;
-	font-size: 4em;
-}
-
-#howtotext
-{
-	margin-top: 1em;
-	margin-bottom: 1em;
-	margin-left: auto;
-	margin-right: auto;
-	width: 85%;
-	background-color: #FFF48D;
-	padding: 0.5em;
-	text-align: center;
-	border-radius: 4px;
 }
 
 /* Mobile version */
@@ -1447,6 +1308,7 @@ form #trackerlink
 	#page
 	{
 		width: 100%;
+		max-width: 100%;
 		margin: 0;
 		padding: 0;
 	}
@@ -1494,6 +1356,7 @@ form #trackerlink
 	#leftpage
 	{
 		width: 100%;
+		max-width: 100%;
 	}
 
 	#logo
@@ -1504,13 +1367,6 @@ form #trackerlink
 	#logo img
 	{
 		width: 64px;
-	}
-
-	#statuspanel textarea
-	{
-		width: 95%;
-		margin-left: auto;
-		margin-right: auto;
 	}
 
 	.box
@@ -1545,11 +1401,6 @@ form #trackerlink
 		display: none;
 	}
 
-	#statuspanel .button
-	{
-		margin-left: 0.5em;
-	}
-
 	.message .attachment
 	{
 		display: block;
@@ -1570,11 +1421,6 @@ form #trackerlink
 		box-shadow: none;
 		box-sizing: border-box;
 		-moz-box-sizing: border-box;
-	}
-
-	#newsfeed .message .attachment .attached
-	{
-		margin: 0;
 	}
 
 	.message .attachment .attached .filename
@@ -1601,30 +1447,6 @@ form #trackerlink
 		margin: 0.5em 0em 0.5em 0em;
 	}
 
-	#newsfeed .message
-	{
-		max-width: 100%;
-		width: 100%;
-	}
-
-	#newsfeed .childmessage
-	{
-		width: 90%;
-		margin-left: 10%;
-	}
-
-	#newsfeed .reply
-	{
-		width: 90%;
-		margin-left: 10%;
-	}
-
-	#newsfeed .morereplies
-	{
-		width: 90%;
-		margin-left: 10%;
-	}
-
 	.files td.actions a
 	{
 		margin: 0;
@@ -1638,38 +1460,3 @@ form #trackerlink
 }
 
 /* End of mobile version */
-
-/* Tablet version */
-
-@media screen and (min-width : 791px) and (max-width : 1024px)
-{
-	#wrapper
-	{
-		display: block;
-		width: 100%;
-		height: auto;
-		max-width: 1024px;
-		margin: 0;
-	}
-
-	#leftcolumn
-	{
-		display: block;
-		width: 100%;
-		height: auto;
-	}
-
-	#rightcolumn
-	{
-		display: block;
-		width: 100%;
-		height: auto;
-	}
-
-	#leftpage
-	{
-		width: 100%;
-	}
-}
-
-/* End of Tablet version */

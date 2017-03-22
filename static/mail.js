@@ -33,7 +33,6 @@ function setMailReceiverRec(url, object, period, next) {
 		var count = 0;
 		$.each(array, function(i, mail) {
 			next++;
-
 			$(object).find('p').remove();
 
 			var id = "message_" + mail.digest;
@@ -112,7 +111,6 @@ function setMailReceiverRec(url, object, period, next) {
 
 			// Reply form
 			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
-
 			$('#'+idReply).hide();
 			$('#'+idReply+' .attachedfile').hide();
 			$('#'+idReply+' form').ajaxForm(function() {
@@ -151,12 +149,10 @@ function setMailReceiverRec(url, object, period, next) {
 			$('#'+id+' .content').html(mail.content.escape().linkify().split("\n").join("<br>"));
 
 			if(mail.attachments && mail.attachments[0]) {
-
 				$('#'+id+' .header').after('<span class="attachment"></span>');
 				$('#'+id+' .attachment').html('<img class="icon" src="/static/smallpaperclip.png">Loading attachment...');
 
 				var url = '/file/'+mail.attachments[0];	// TODO
-
 				(function(id, url) {
 					var request = $.ajax({
 						type: "HEAD",
