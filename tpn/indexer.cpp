@@ -698,8 +698,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						page.open("td",".filename");
 						page.link(link, hrName);
 						page.close("td");
-						page.open("td",".add");
-						page.link(link+"&add=1", "share");
+						page.open("td",".actions");
+						page.openLink(link+"&share=1");
+						page.image("/static/add.png", "(share)");
+						page.closeLink();
 						page.close("td");
 						page.close("tr");
 					}
@@ -718,7 +720,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 			if(!Directory::Exist(path)) throw 404;
 
-			if(request.get.contains("add"))
+			if(request.get.contains("share"))
 			{
 				path.resize(path.size()-1);
 				String name = path.afterLast(Directory::Separator);
@@ -773,9 +775,9 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("Add directory");
 				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
-				page.label("name","Name"); page.input("text","name", name); page.br();
-				page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
-				page.label("add"); page.button("add","Add directory");
+				page.label("name", "Name"); page.input("text", "name", name); page.br();
+				page.label("access", "Access"); page.select("access", accessSelectMap, "public"); page.br();
+				page.label("add"); page.button("add", "Add directory");
 				page.closeFieldset();
 				page.closeForm();
 				page.footer();
@@ -826,8 +828,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						page.open("td",".filename");
 						page.link(link, name);
 						page.close("td");
-						page.open("td",".add");
-						page.link(link+"&add=1", "share");
+						page.open("td",".actions");
+						page.openLink(link+"&share=1");
+						page.image("/static/add.png", "(share)");
+						page.closeLink();
 						page.close("td");
 					}
 					else {
@@ -1005,13 +1009,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.close("td");
 				page.open("td",".access");
 				page.text("(");
-				//if(isHiddenUrl(directories[i])) page.text("Invisible");
-				//else {
-					Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
-					if(accessLevel == Resource::Personal) page.text("Personal");
-					else if(accessLevel == Resource::Private) page.text("Private");
-					else page.text("Public");
-				//}
+				Resource::AccessLevel accessLevel = directoryAccessLevel(directories[i]);
+				if(accessLevel == Resource::Personal) page.text("Personal");
+				else if(accessLevel == Resource::Private) page.text("Private");
+				else page.text("Public");
 				page.text(")");
 				page.close("td");
 				page.open("td",".filename");
@@ -1024,7 +1025,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				if(directories[i] != UploadDirectoryName)
 				{
 					page.openLink("#", ".deletelink");
-					page.image("/static/delete.png", "Delete");
+					page.image("/static/delete.png", "(delete)");
 					page.closeLink();
 				}
 				page.close("td");
@@ -1034,7 +1035,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.close("table");
 			page.close("div");
 
-			page.openForm(prefix+url, "post", "executeForm");
+			page.openForm(prefix + url, "post", "executeForm");
 			page.input("hidden", "token", user()->generateToken("directory"));
 			page.input("hidden", "command");
 			page.input("hidden", "argument");
@@ -1057,9 +1058,9 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.openForm(prefix+"/","post");
 			page.input("hidden", "token", user()->generateToken("directory"));
 			page.openFieldset("New directory");
-			page.label("name","Name"); page.input("text","name"); page.br();
-			page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
-			page.label("sync",""); page.checkbox("sync","Synchronize with directories of the same name on other instances"); page.br();
+			page.label("name", "Name"); page.input("text", "name"); page.br();
+			page.label("access", "Access"); page.select("access", accessSelectMap, "public"); page.br();
+			page.label("sync", ""); page.checkbox("sync", "Synchronize with directories of the same name on other instances"); page.br();
 			page.label("add"); page.button("add","Create directory"); page.br();
 			page.closeFieldset();
 			if(Config::Get("user_global_shares").toBool())
@@ -1294,7 +1295,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 						page.open("td",".actions");
 
 						page.openLink("#", ".linkdelete");
-						page.image("/static/delete.png", "Delete", ".deletelink");
+						page.image("/static/delete.png", "(delete)", ".deletelink");
 						page.closeLink();
 
 						if(info.get("type") != "directory")
