@@ -89,7 +89,7 @@ void ServerSocket::getLocalAddresses(Set<Address> &set) const
 	service << mPort;
 	if(getaddrinfo(hostname, service.c_str(), &aiHints, &aiList) != 0)
 	{
-		LogWarn("ServerSocket", "Local hostname is not resolvable !");
+		LogDebug("ServerSocket", "Local hostname is not resolvable");
 		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
 		{
 			set.insert(bindAddr);

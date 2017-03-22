@@ -274,7 +274,7 @@ private:
 	Alarm mRunAlarm;
 
 	mutable std::mutex mMutex;
-  mutable std::condition_variable mCondition;
+	mutable std::condition_variable mCondition;
 
 	mutable std::mutex mIncomingMutex;
 	mutable std::condition_variable mIncomingCondition;

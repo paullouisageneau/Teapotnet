@@ -66,9 +66,6 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 
 	Address bindAddr = getBindAddress();
 
-// getifaddrs() returns AF_PACKET addresses ?!
-#define NO_IFADDRS
-
 #ifdef NO_IFADDRS
 	// Retrieve hostname
 	char hostname[HOST_NAME_MAX];
@@ -87,7 +84,7 @@ void DatagramSocket::getLocalAddresses(Set<Address> &set) const
 	service << mPort;
 	if(getaddrinfo(hostname, service.c_str(), &aiHints, &aiList) != 0)
 	{
-		LogWarn("DatagramSocket", "Local hostname is not resolvable !");
+		LogDebug("DatagramSocket", "Local hostname is not resolvable");
 		if(getaddrinfo("localhost", service.c_str(), &aiHints, &aiList) != 0)
 		{
 			set.insert(bindAddr);
