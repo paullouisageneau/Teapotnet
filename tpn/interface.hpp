@@ -48,11 +48,10 @@ public:
 	static Interface *Instance;
 
 	Interface(int port);
-        ~Interface(void);
+	~Interface(void);
 
 	void add(const String &prefix, HttpInterfaceable *interfaceable);
 	void remove(const String &prefix, HttpInterfaceable *interfaceable = NULL);
-
 	void http(const String &prefix, Http::Request &request);
 
 private:
@@ -62,7 +61,7 @@ private:
 	Map<String,HttpInterfaceable*> mPrefixes;
 	std::mutex mMutex;
 
-  String mBadPasswordsString;
+	String mBadPasswordsString;
 };
 
 }

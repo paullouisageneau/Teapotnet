@@ -45,7 +45,7 @@ const String Indexer::UploadDirectoryName = "_upload";
 Indexer::Indexer(User *user) :
 	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
 	mUser(user),
-	mSyncPool(2),
+	mSyncPool(1),
 	mRunning(false)
 {
 	Assert(mUser);
@@ -901,7 +901,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					if(!name.empty() && name != UploadDirectoryName)
 					{
 						removeDirectory(name);
-						// TODO: delete files recursively
+						// TODO: delete files if local share
 					}
 				}
 				else if(request.post.contains("name"))
@@ -910,16 +910,19 @@ void Indexer::http(const String &prefix, Http::Request &request)
 					String remote = request.post["remote"];
 					String access = request.post["access"];
 
-					Resource::AccessLevel accessLevel;
-					if(access == "personal") accessLevel = Resource::Personal;
-					else if(access == "private") accessLevel = Resource::Private;
-					else accessLevel = Resource::Public;
-
 					try {
 						if(name.empty()
 							|| name.contains('/') || name.contains('\\')
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
+
+						if(remote.empty() && request.post["sync"].toBool())
+							remote = "/files/" + mUser->identifier().toString() + "/" + name;
+
+						Resource::AccessLevel accessLevel;
+						if(access == "personal") accessLevel = Resource::Personal;
+						else if(access == "private") accessLevel = Resource::Private;
+						else accessLevel = Resource::Public;
 
 						addDirectory(name, "", remote, accessLevel);
 					}
@@ -1017,7 +1020,6 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				if(!remote.empty()) page.text(" (synchronized)");
 				page.close("td");
 
-
 				page.open("td",".actions");
 				if(directories[i] != UploadDirectoryName)
 				{
@@ -1057,10 +1059,15 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.openFieldset("New directory");
 			page.label("name","Name"); page.input("text","name"); page.br();
 			page.label("access","Access"); page.select("access", accessSelectMap, "public"); page.br();
-			page.label("add"); page.button("add","Create directory");
-			page.label(""); page.link(mUser->urlPrefix()+"/explore/", "Add existing directory", ".button");
-			page.br();
+			page.label("sync",""); page.checkbox("sync","Synchronize with directories of the same name on other instances"); page.br();
+			page.label("add"); page.button("add","Create directory"); page.br();
 			page.closeFieldset();
+			if(Config::Get("user_global_shares").toBool())
+			{
+				page.openFieldset("Existing directory");
+				page.label(""); page.link(mUser->urlPrefix()+"/explore/", "Add existing directory", ".button"); page.br();
+				page.closeFieldset();
+			}
 			page.closeForm();
 
 			page.footer();

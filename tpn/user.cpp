@@ -717,13 +717,12 @@ void User::http(const String &prefix, Http::Request &request)
 					String directoryUrl = prefix + "/files/" + directory + "/";
 
 					page.open("div", ".filestr");
-
 					page.span("", ".icon");
 					page.image("/static/dir.png");
-
 					page.span("", ".filename");
 					page.link(directoryUrl, directory);
-
+					if(mIndexer && !mIndexer->directoryRemotePath(directory).empty())
+						page.text(" (synchronized)");
 					page.close("div");
 				}
 				page.close("div");
