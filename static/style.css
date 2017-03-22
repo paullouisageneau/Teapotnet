@@ -584,22 +584,12 @@ a.button:hover
 	margin-bottom: 2em;
 }
 
-#leftcolumn #search form
-{
-	display: block;
-	width: 80%;
-	max-width: 420px;
-	margin: 0;
-	padding: 0;
-	margin-left: auto;
-	margin-right: auto;
-}
-
 #leftcolumn #search input[type="text"]
 {
 	display: block;
-	width: 100%;
-	margin: 0;
+	width: 60%;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 #chat
