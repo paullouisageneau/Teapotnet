@@ -63,12 +63,28 @@ bool Directory::Exist(const String &path)
 
 bool Directory::Remove(const String &path, bool recursive)
 {
-	if(!recursive)
+	if(recursive)
 	{
-		return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
+		if(!Directory::Exist(path)) return false;
+
+		try {
+			Directory dir(path);
+			while(dir.nextFile())
+			{
+				Assert(dir.fileName() != "..");
+				if(dir.fileIsDirectory()) Directory::Remove(dir.filePath(), true);
+				else File::Remove(dir.filePath());
+			}
+		}
+		catch(...)
+		{
+
+		}
+
+		return Directory::Remove(path, false);
 	}
 	else {
-		throw Exception("TODO: recursive directory deletion");
+		return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
 	}
 }
 
