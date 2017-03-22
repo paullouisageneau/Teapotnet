@@ -278,7 +278,6 @@ function displayContacts(url, period, object) {
 		$(object).find('p').remove();
 		if(data != null) {
 			$.each(data.contacts, function(uname, contact) {
-
 				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
 
 				if ($('#contact_'+uname).length == 0) { // if div does not exist
@@ -288,7 +287,8 @@ function displayContacts(url, period, object) {
 				}
 
 				$('#contact_'+uname).attr('class', contact.status);
-				transition($('#contact_'+uname+' .status'), contact.status.capitalize());
+				if(isSelf && contact.status == "disconnected") transition($('#contact_'+uname+' .status'), "");
+				else transition($('#contact_'+uname+' .status'), contact.status.capitalize());
 
 				if($('#contactinfo_'+uname).html() == '') {
 					$('#contact_'+uname).click(function(event) {
