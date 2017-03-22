@@ -728,7 +728,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 				if(request.method == "POST")
 				{
-					if(!user()->checkToken(request.post["token"], "directory_add"))
+					if(!user()->checkToken(request.post["token"], "directory"))
 						throw 403;
 
 					String access;
@@ -746,7 +746,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
 
-						addDirectory(name, path, accessLevel);
+						addDirectory(name, path, "", accessLevel);
 					}
 					catch(const Exception &e)
 					{
