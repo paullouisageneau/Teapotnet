@@ -26,6 +26,7 @@
 
 #include "pla/http.hpp"
 #include "pla/map.hpp"
+#include "pla/set.hpp"
 
 namespace tpn
 {
@@ -58,8 +59,10 @@ private:
 	void process(Http::Request &request);
 	void generate(Stream &out, int code, const String &message);
 
-	Map<String,HttpInterfaceable*> mPrefixes;
+	Map<String, HttpInterfaceable*> mPrefixes;
+	Set<HttpInterfaceable*> mBusy;
 	std::mutex mMutex;
+	std::condition_variable mCondition;
 
 	String mBadPasswordsString;
 };

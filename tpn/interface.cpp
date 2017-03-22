@@ -68,15 +68,23 @@ void Interface::add(const String &prefix, HttpInterfaceable *interfaceable)
 void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	HttpInterfaceable *test = NULL;
-	if(mPrefixes.get(prefix, test) && (!interfaceable || test == interfaceable))
+	HttpInterfaceable *tmp = NULL;
+	if(mPrefixes.get(prefix, tmp) && (!interfaceable || tmp == interfaceable))
+	{
+		if(mBusy.contains(tmp))
+		{
+			mCondition.wait(lock, [this, tmp]() {
+				return !mBusy.contains(tmp);
+			});
+		}
+
 		mPrefixes.erase(prefix);
+	}
 }
 
 void Interface::http(const String &prefix, Http::Request &request)
 {
 	Assert(!request.url.empty());
-
 	if(!Network::Instance) throw 400;	// Network is not ready yet !
 
 	try {
@@ -230,9 +238,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.close("table");
 			page.closeForm();
 
-			for(StringMap::iterator it = request.cookies.begin();
-				it != request.cookies.end();
-				++it)
+			for(StringMap::iterator it = request.cookies.begin(); it != request.cookies.end(); ++it)
 			{
 				String cookieName = it->first;
 				String name = cookieName.cut('_');
@@ -376,7 +382,6 @@ void Interface::http(const String &prefix, Http::Request &request)
 
 				response.headers["Content-Name"] = resource.name();
 				response.headers["Accept-Ranges"] = "bytes";
-
 				response.headers["Content-Length"] << rangeSize;
 				if(hasRange) response.headers["Content-Range"] << "bytes " << rangeBegin << "-" << rangeEnd << "/" << resource.size();
 
@@ -541,14 +546,27 @@ void Interface::process(Http::Request &request)
 		if(it != mPrefixes.end())
 		{
 			HttpInterfaceable *interfaceable = it->second;
+			mBusy.insert(interfaceable);
 			lock.unlock();
+			try {
+				//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
+				request.url.ignore(prefix.size());
+				if(request.url.empty())
+					request.url = "/";
 
-			//LogDebug("Interface", "Matched prefix \""+prefix+"\"");
-			request.url.ignore(prefix.size());
-			if(request.url.empty())
-				request.url = "/";
+				interfaceable->http(prefix, request);
+			}
+			catch(...)
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				mBusy.erase(interfaceable);
+				mCondition.notify_all();
+				throw;
+			}
 
-			interfaceable->http(prefix, request);
+			std::unique_lock<std::mutex> lock(mMutex);
+			mBusy.erase(interfaceable);
+			mCondition.notify_all();
 			return;
 		}
 	}
