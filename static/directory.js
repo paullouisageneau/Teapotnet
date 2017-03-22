@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -19,31 +19,12 @@
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
 
-function listDirectory(url, object, showButtons) {
-
-	$(object).empty();
-	
-	/*
-	if(showButtons) {
-		var location = url.split('?')[0];
-		var parentLink = (location[location.length-1] == '/' ? '..' : '.');
-		$(object)
-			.append('<span class="button"> '+data.length+' files</span>')
-			.append('<a href="'+parentLink+'" class="button parentlink"><img src="/static/arrow_up.png" alt="Parent"></a>')
-			.append('<a href="#" class="button refreshlink"><img src="/static/arrow_refresh.png" alt="Refresh"></a>');
-			.find('a.refreshlink').click(function() {
-				listDirectory(url, object, showButtons);
-				return false;
-			});
-	}
-	*/
-	
-	$(object).append('<div class="gifloading"><img src="/static/loading.gif" alt="Loading..."></div>');
-	
-	listDirectoryRec(url, object, 0);
+function listDirectory(url, object, remotePath) {
+	$(object).empty().append('<div class="gifloading"><img src="/static/loading.gif" alt="Loading..."></div>');
+	listDirectoryRec(url, object, remotePath, 0);
 }
 
-function listDirectoryRec(url, object, next) {
+function listDirectoryRec(url, object, remotePath, next) {
 	$.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
@@ -52,24 +33,24 @@ function listDirectoryRec(url, object, next) {
 	.done(function(data) {
 		$(object).find('.gifloading').remove();
 		$(object).find('div.files').remove();
-		
+
 		if(data && data.length > 0) {
 			var table = $(object).find('table.files');
 			if(table.length == 0) {
 				$(object).append('<table class="files"></table>');
 				table = $(object).find('table.files');
 			}
-			
+
 			var referenceUrl = '';
 			if(window.location.href.indexOf("/files") >= 0) {
 				referenceUrl = window.location.href.split(/[?#]/)[0];
 				if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
 			}
-			
+
+			user = getAuthenticatedUser();
 			for(var i=0; i<data.length; i++) {
 				++next;
 				var resource = data[i];
-				
 				var existing = table.find("td.filename:contains('"+resource.name.escape()+"')").parent();
 				if(existing.length > 0) {
 					var time = parseInt(existing.find('td.time').text());
@@ -78,7 +59,7 @@ function listDirectoryRec(url, object, next) {
 						existing.hide();
 					}
 				}
-				
+
 				var link = "/file/" + resource.digest;
 				var line;
 				if(resource.type == "directory") {
@@ -89,14 +70,15 @@ function listDirectoryRec(url, object, next) {
 					line+= '<td class="size"></td>';
 					line+= '<td class="date">'+('time' in resource ? formatTime(resource.time).escape() : '')+'</td>';
 					line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
-					line+= '<td class="actions"></td>';
+					line+= '<td class="actions">';
+					if(user && remotePath) line+= '<a class="synclink" href="/user/'+user+'/sync/?remote='+encodeURIComponent(remotePath+resource.name)+'"><img src="/static/sync.png" alt="(sync)"></a>';
+					line+= '</td>';
 					line+= '</tr>';
 				}
 				else {
 					var pos = resource.name.escape().lastIndexOf('.');
 					var extension = (pos > 0 ? resource.name.escape().substring(pos+1,resource.name.escape().length) : '');
 					var isPlayable = (resource.type != "directory") && isPlayableResource(resource.name);
-					
 					line = '<tr class="file">';
 					line+= '<td class="icon"><img src="/static/file.png" alt="(file)"></td>';
 					line+= '<td class="filename"><span class="type">'+extension.toUpperCase()+' </span><a href="'+link.escape()+(isPlayable && deviceAgent.indexOf('android') < 0 ? '?play=1' : '')+'">'+resource.name.escape()+'</a></td>';
@@ -109,35 +91,35 @@ function listDirectoryRec(url, object, next) {
 					line+= '</tr>';
 				}
 				table.append(line);
-				
+
 				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
 					table.find('tr:last').hide();
 			}
-	
+
 			table.find('tr').css('cursor', 'pointer').click(function() {
 				window.location.href = $(this).find('a').attr('href');
 			});
-			
+
 			// Order files
 			table.html(table.find('tr').detach().sort(function(a, b) {
 				var da = $(a).hasClass("directory");
 				var db = $(b).hasClass("directory");
 				if(da && !db) return -1;
 				if(db && !da) return 1;
-				
+
 				var fa = $(a).find("td.filename a").text();
 				var fb = $(b).find("td.filename a").text();
 				if(fa < fb) return -1;
 				if(fa > fb) return 1;
-				
+
 				var ta = parseInt($(a).find("td.time").text());
 				var tb = parseInt($(b).find("td.time").text());
 				if(ta < tb) return -1;
 				if(ta > tb) return 1;
 				return 0;
 			}));
-			
-			listDirectoryRec(url, object, next);
+
+			listDirectoryRec(url, object, remotePath, next);
 		}
 		else {
 			if($(object).find('table.files tr').length == 0) {
@@ -147,7 +129,7 @@ function listDirectoryRec(url, object, next) {
 	})
 	.fail(function(jqXHR, textStatus) {
 		$(object).find('.gifloading').remove();
-		
+
 		if($(object).find('table.files tr').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
@@ -156,7 +138,6 @@ function listDirectoryRec(url, object, next) {
 
 function listFileSelector(url, object, input, inputName, parents) {
 	$(object).html('<h2>Select a file</h2>');
-		
 	if(parents.length > 0) {
 		$(object)
 			.append('<a href="#" class="button parentlink"><img src="/static/arrow_up.png" alt="Parent"></a>')
@@ -166,16 +147,15 @@ function listFileSelector(url, object, input, inputName, parents) {
 				return false;
 			});
 	}
-		
+
 	$(object)
 		.append('<a href="#" class="button refreshlink"><img src="/static/arrow_refresh.png" alt="Refresh"></a>')
 		.find('a.refreshlink').click(function() {
 			listFileSelector(url, object, input, inputName, parents);
 			return false;
 		});
-		
-	if(UrlUpload)
-	{
+
+	if(UrlUpload) {
 		$(object).append('<form class="uploadform" action="'+UrlUpload+'" method="post" enctype="mutipart/form-data"><input type="hidden" name="token" value="'+TokenDirectory+'"><input type="file" name="selector_file" size="30"></form>');
 		$(object).find('form.uploadform input[name="selector_file"]')
 			.css('visibility', 'hidden').css('display', 'inline').css('width', '0px').css('margin', '0px').css('padding', '0px')
@@ -183,12 +163,12 @@ function listFileSelector(url, object, input, inputName, parents) {
 			.change(function() {
 				$(object).children().hide();
 				$(object).append('<span>Please wait...</span>');
-				
+
 				$(object).find('form.uploadform').ajaxSubmit({
 					timeout: 600000,
 					dataType: 'json',
-					error: function() { 
-						alert('Unable to send the file.'); 
+					error: function() {
+						alert('Unable to send the file.');
 						$(inputName).val("").change();
 						$(input).val("").change();
 						$(object).remove();
@@ -214,22 +194,22 @@ function listFileSelector(url, object, input, inputName, parents) {
 			$(object).remove();
 			return false;
 		});
-	
+
 	$(object).append('<br>');
 	$(object).append('<span class="gifloading"><img src="/static/loading.gif" alt="Loading..."></span>');
-	
+
 	listFileSelectorRec(url, object, input, inputName, parents, 0);
 }
 
 function listFileSelectorRec(url, object, input, inputName, parents, next) {
-	
+
 	var lock_url = $(object).find('.lock_url');
 	if(lock_url.length == 0) {
 		$(object).append('<span class="lock_url" style="display:none"></span>');
 		lock_url = $(object).find('.lock_url');
 	}
 	lock_url.text(url);
-	
+
 	var xhr = $.ajax({
 		url: url.appendParam("next", next),
 		dataType: 'json',
@@ -239,27 +219,27 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		var lock_url = $(object).find('.lock_url');
 		if(lock_url.text() != url)
 			return;	// request is not valid anymore
-		
+
 		$(object).find('.gifloading').remove();
 		$(object).find('div.files').remove();
-		
+
 		if(data && data.length > 0) {
 			var table = $(object).find('table');
 			if(table.length == 0) {
 				$(object).append('<div class="fileselectorwindow"><table class="files"></table></div>');
 				table = $(object).find('table.files');
 			}
-		
+
 			var referenceUrl = '';
 			if(url.indexOf("/files") >= 0) {
 				referenceUrl = url.split('?')[0];
 				if(referenceUrl[referenceUrl.length-1] != '/') referenceUrl+= '/';
 			}
-		
+
 			for(var i=0; i<data.length; i++) {
 				++next;
 				var resource = data[i];
-			
+
 				if(resource.name.length > 0 && (resource.name[0] == '_' || resource.name[0] == '.'))
 					if(resource.name == "_upload") resource.name = "Sent files";
 					else return;
@@ -280,9 +260,9 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 						line = '<tr class="directory">';
 						line+= '<td class="icon"><img src="/static/dir.png" alt="(directory)"></td>';
 						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
-						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';	
+						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
 						line+= '</tr>';
-						
+
 						func = function() {
 							xhr.abort();
 							var link;
@@ -299,7 +279,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 						line+= '<td class="filename"><a href="#">'+resource.name.escape()+'</a></td>';
 						line+= '<td class="time" style="display:none">'+('time' in resource ? resource.time : 0)+'</td>';
 						line+= '</tr>';
-						
+
 						func = function() {
 							xhr.abort();
 							$(inputName).val(resource.name).change();
@@ -309,13 +289,13 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 						};
 					}
 				})(resource);
-				
+
 				table.append(line);
 
 				table.find('tr:last').click(func).css('cursor', 'pointer');
 				table.find('tr:last a').click(func);
 			}
-		
+
 			// Order files
 			table.html(table.find('tr').detach().sort(function(a, b) {
 				if($(a).hasClass("directory") && !$(b).hasClass("directory")) return false;
@@ -323,7 +303,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 				return $(a).find("td.filename a").text() > $(b).find("td.filename a").text()
 					|| ($(a).find("td.filename a").text() == $(b).find("td.filename a").text() && parseInt($(a).find("td.time").text()) < parseInt($(b).find("td.time").text()));
 				}));
-			
+
 			listFileSelectorRec(url, object, input, inputName, parents, next);
 		}
 		else {
@@ -336,44 +316,39 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		var lock_url = $(object).find('.lock_url');
 		if(lock_url.text() != url)
 			return;	// request is not valid anymore
-		
+
 		$(object).find('.gifloading').remove();
-		
+
 		if($(object).find('table.files tr:visible').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
 		}
 	});
 }
 
-function createFileSelector(url, object, input, inputName) 
-{
+function createFileSelector(url, object, input, inputName) {
 	if($(object).html()) {
 		$(object).html("");
 		$(inputName).val("").change();
 		$(input).val("").change();
 		return;
 	}
-	
+
 	$(object).show();
 	$(object).html('<div class="box"></div>');
 	var div = $(object).find('div');
-	listFileSelector(url, div, input, inputName, []);	
+	listFileSelector(url, div, input, inputName, []);
 }
 
-function isPlayableResource(fileName)
-{
+function isPlayableResource(fileName) {
 	return (isAudio(fileName) || isVideo(fileName));
 }
 
-function isAudio(fileName)
-{
+function isAudio(fileName) {
 	var regexp = new RegExp("(mp3|ogg|ogga|flac|wav|ape|aac|m4a|mp4a|wma)$","i");
 	return regexp.test(fileName);
 }
 
-function isVideo(fileName)
-{
+function isVideo(fileName) {
 	var regexp = new RegExp("(avi|mkv|ogv|ogx|ogm|wmv|asf|flv|mpg|mpeg|mp4|m4v|mov|3gp|3g2|divx|xvid|rm|rv)$","i");
 	return regexp.test(fileName);
 }
-

@@ -788,7 +788,7 @@ void User::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "list.box");
-				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+				page.javascript("listDirectory('"+reqPrefix+"', '#list', '');");
 			}
 
 			page.footer();

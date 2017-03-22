@@ -1078,18 +1078,6 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				});\n\
 			});");
 
-			// Recent files
-			/*page.open("div",".box");
-			page.open("h2");
-			page.text("Recent files");
-			page.close("h2");
-			page.div("", "recent");
-			page.close("div");
-
-			int maxAge = 60*60*24*7;	// 7 days
-			int count = 20;
-			page.javascript("listDirectory('"+prefix+"/search?json&maxage="+String::number(maxAge)+"&count="+String::number(count)+"','#recent',false,true);");
-			*/
 			page.footer();
 			return;
 		}
@@ -1135,7 +1123,8 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 				}
 			}
 
-			Request *req = new Request("/files/" + identifier().toString() + url, mAddressBook->user()->identifier(), identifier(), true);
+			String requestPath = "/files/" + identifier().toString() + url;
+			Request *req = new Request(requestPath, mAddressBook->user()->identifier(), identifier(), true);
 			if(!digest.empty()) req->addTarget(digest, true);	// finished after target
 			String reqPrefix = req->urlPrefix();
 			req->autoDelete();
@@ -1171,7 +1160,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			});");
 
 			page.div("","list.box");
-			page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+			page.javascript("listDirectory('"+reqPrefix+"', '#list', '"+requestPath+"');");
 			page.footer();
 			return;
 		}
@@ -1221,7 +1210,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 			if(!match.empty())
 			{
 				page.div("", "list.box");
-				page.javascript("listDirectory('"+reqPrefix+"','#list',true,true);");
+				page.javascript("listDirectory('"+reqPrefix+"', '#list', '');");
 			}
 
 			page.footer();
@@ -1279,7 +1268,6 @@ void AddressBook::Contact::serialize(Serializer &s) const
 	object.insert("identifier", mIdentifier);
 	object.insert("uname", mUniqueName);
 	object.insert("name", mName);
-
 
 	if(s.optionalOutputMode())
 	{

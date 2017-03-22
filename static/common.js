@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2013 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -28,8 +28,8 @@ if(!String.escape) {
 
 if(!String.appendParam) {
 	String.prototype.appendParam = function(key, value) {
-	    var sep = (this.indexOf('?') > -1) ? '&' : '?';
-	    return this + sep + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+		var sep = (this.indexOf('?') > -1) ? '&' : '?';
+		return this + sep + encodeURIComponent(key) + '=' + encodeURIComponent(value);
 	}
 }
 
@@ -50,15 +50,15 @@ if(!String.linkify) {
 		var youtubeFrame = '<iframe width="427" height="240" src="http://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe>';
 
 		return this
-		    .replace(youtubePattern, youtubeFrame)
-		    .replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
-		    .replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
-		    .replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
+			.replace(youtubePattern, youtubeFrame)
+			.replace(urlPattern, '$1<a target="_blank" href="$2">$2</a>$3')
+			.replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>$3')
+			.replace(emailAddressPattern, '$1<a href="mailto:$2">$2</a>$3')
 
-		    // Support for bold and italic
-		    .replace(/(^|\s)\*([^\/\*_<>]*)\*($|\s)/g,'$1<b>$2</b>$3')
-		    .replace(/(^|\s)_([^\/\*_<>]*)_($|\s)/g,'$1<i>$2</i>$3');
-      };
+			// Support for bold and italic
+			.replace(/(^|\s)\*([^\/\*_<>]*)\*($|\s)/g,'$1<b>$2</b>$3')
+			.replace(/(^|\s)_([^\/\*_<>]*)_($|\s)/g,'$1<i>$2</i>$3');
+		};
 }
 
 if(!String.capitalize) {
@@ -89,7 +89,6 @@ function formatBytes(bytes, decimals) {
 }
 
 function getBasePath(nbFolders) {
-
 	var pathArray = window.location.pathname.split('/');
 	if(nbFolders > pathArray.length) nbFolders = pathArray.length;
 	var basePath = '';
@@ -99,7 +98,6 @@ function getBasePath(nbFolders) {
 }
 
 function popup(url, redirect) {
-
 	w = window.open(url, "_blank", "status=0,toolbar=0,scrollbars=0,menubar=0,directories=0,resizeable=1,width=480,height=500");
 	if(window.focus) w.focus();
 	if(typeof redirect !== 'undefined') document.location.href = redirect;
@@ -107,20 +105,17 @@ function popup(url, redirect) {
 }
 
 function transition(selector, html) {
-
 	var elem = $(selector);
 	if(elem.html() == html) return elem;
 	return elem.fadeOut('slow', function() {
-	  	$(this).html(html);
+		$(this).html(html);
 		$(this).fadeIn('slow');
 	});
 }
 
 function resizeContent() {
-
 	var content = $('#content');
-	if(content.length)
-	{
+	if(content.length) {
 		var wh = $(window).height();
 		var ct = content.offset().top;
 		var h = Math.max(wh - ct - 40, 240);
@@ -131,16 +126,15 @@ function resizeContent() {
 	var boardinput = $('#board .input');
 	if(boardpanel.length && boardinput.length) {
 		boardinput.height(boardpanel.height()-10);
-        }
+	}
 
-        var boardmessages = $('#mail');
+	var boardmessages = $('#mail');
 	if(boardmessages.length) {
 		boardmessages.scrollTop(boardmessages[0].scrollHeight);
 	}
 }
 
-function displayLoading()
-{
+function displayLoading() {
 	if($(document.documentElement).hasClass('loading'))
 		$(document.documentElement).addClass('animloading');
 }
@@ -151,7 +145,6 @@ if (document.documentElement) {
 }
 
 $(document).ready( function() {
-
 	if($(document.documentElement).hasClass('loading')) {
 		$(document.documentElement).removeClass('loading');
 		if($(document.documentElement).hasClass('animloading')) {
@@ -196,8 +189,7 @@ function isPageHidden() {
 
 var MailSound = null;
 
-if(window.Audio)
-{
+if(window.Audio) {
 	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/static/message.ogg');
 	else MailSound = new Audio('/static/message.m4a');
 	if(MailSound != null) MailSound.load();
@@ -230,7 +222,6 @@ function notify(title, message, tag) {
 }
 
 function getAuthenticatedUser() {
-
 	var name = getCookie('name');
 	if(name && checkCookie('auth_'+name))
 		return name;
@@ -244,7 +235,6 @@ function getAuthenticatedUser() {
 }
 
 function setCallback(url, period, callback) {
-
 	$.ajax({
 		url: url,
 		dataType: 'json',
@@ -284,7 +274,6 @@ $(window).keydown(resetTitle);
 $(window).mousedown(resetTitle);
 
 function displayContacts(url, period, object) {
-
 	setCallback(url, period, function(data) {
 		$(object).find('p').remove();
 		if(data != null) {
@@ -337,11 +326,9 @@ function displayContacts(url, period, object) {
 			});
 		}
 	});
-
 }
 
-function setCookie(name,value,exdays)
-{
+function setCookie(name,value,exdays) {
 	if (exdays) {
 		var exdate = new Date();
 		exdate.setDate(exdate.getDate() + exdays);
@@ -351,8 +338,7 @@ function setCookie(name,value,exdays)
 	document.cookie = name + "=" + value + expires;
 }
 
-function getCookie(name)
-{
+function getCookie(name) {
 	var value = document.cookie;
 	var start = value.indexOf(' ' + name + '=');
 	if (start < 0) {
@@ -372,13 +358,11 @@ function getCookie(name)
 	return value;
 }
 
-function unsetCookie(name)
-{
+function unsetCookie(name) {
 	setCookie(name, "", -1);
 }
 
-function checkCookie(name)
-{
+function checkCookie(name) {
 	var value = getCookie(name);
 	if (value!=null && value!='')
 		return true;
@@ -386,10 +370,10 @@ function checkCookie(name)
 }
 
 function isJsonString(str) {
-    try {
-	JSON.parse(str);
-    } catch (e) {
-	return false;
-    }
-    return true;
+	try {
+		JSON.parse(str);
+	} catch (e) {
+		return false;
+	}
+	return true;
 }

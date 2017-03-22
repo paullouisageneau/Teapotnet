@@ -35,6 +35,7 @@
 #include "pla/array.hpp"
 #include "pla/list.hpp"
 #include "pla/alarm.hpp"
+#include "pla/threadpool.hpp"
 
 namespace tpn
 {
@@ -51,9 +52,10 @@ public:
 	String userName(void) const;
 	String prefix(void) const;
 
-	void addDirectory(const String &name, String path, Resource::AccessLevel access = Resource::Public, bool nocommit = false);
+	void addDirectory(const String &name, String path, String remote, Resource::AccessLevel access = Resource::Public, bool nocommit = false);
 	void removeDirectory(const String &name, bool nocommit = false);
 	void getDirectories(Array<String> &array) const;
+	String directoryRemotePath(const String &name) const;
 	Resource::AccessLevel directoryAccessLevel(const String &name) const;
 	bool moveFileToCache(String &fileName, String name = "");	// fileName is modified on success
 
@@ -124,7 +126,7 @@ private:
 	{
 	public:
 		Entry(void);
-		Entry(const String &path, Resource::AccessLevel access = Resource::Public);
+		Entry(const String &path, const String &remote, Resource::AccessLevel access = Resource::Public);
 		~Entry(void);
 
 		// Serializable
@@ -143,6 +145,7 @@ private:
 	String mBaseDirectory;
 	Map<String, Entry> mDirectories;
 	Alarm mRunAlarm;
+	ThreadPool mSyncPool;
 	bool mRunning;
 
 	mutable std::mutex mMutex;

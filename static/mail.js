@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of TeapotNet.                                     *
@@ -20,10 +20,9 @@
  *************************************************************************/
 
 function setMailReceiverRec(url, object, period, next) {
-
 	if(typeof this.messagesTimeout != 'undefined')
 		clearTimeout(this.messagesTimeout);
-	
+
 	$.ajax({
 		url: url + (url.contains('?') ? '&' : '?') + 'next=' + next + '&timeout=0',
 		dataType: 'json',
@@ -34,24 +33,24 @@ function setMailReceiverRec(url, object, period, next) {
 		var count = 0;
 		$.each(array, function(i, mail) {
 			next++;
-			
+
 			$(object).find('p').remove();
-			
+
 			var id = "message_" + mail.digest;
 			var idReply = "reply_" + mail.digest;
 			var idParent = (mail.parent ? "message_" + mail.parent : "");
 			var idParentReply = (mail.parent ? "reply_" + mail.parent : "");
 			var author = (mail.author ? mail.author : "Anonymous");
-			
+
 			if(idParent && $('#'+idParent).length == 0) return;	// Parent not found
 			$('#'+id).remove();
-			
+
 			var div = '<div id="'+id+'" class="message"><span class="header"><span class="author">'+author+'</span><span class="date">'+formatTime(mail.time).escape()+'</span><span class="time" style="display:none">'+mail.time+'</span></span><span class="content"></span></div>';
-			
+
 			if(!idParent) {
 				$(object).prepend('<div class="conversation">'+div+'</div>');
 				$('#'+id).append('<div class="buttonsbar"></div>');
-				
+
 				/*
 				if(!mail.passed)
 				{
@@ -72,7 +71,7 @@ function setMailReceiverRec(url, object, period, next) {
 					$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/static/arrow_passed.png"></span>');
 				}
 				*/
-				
+
 				$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img alt="Reply" src="/static/arrow_reply.png"></a>');
 				(function(idReply) {
 					$('#'+id+' .replylink').click(function() {
@@ -86,7 +85,7 @@ function setMailReceiverRec(url, object, period, next) {
 				$('#'+idParentReply).before(div);	// insert before parent reply
 				$('#'+id).addClass('childmessage');
 			}
-			
+
 			user = getAuthenticatedUser();
 			if(user && 'identifier' in mail) {
 				(function(id, identifier) {
@@ -110,10 +109,10 @@ function setMailReceiverRec(url, object, period, next) {
 					});
 				})(id, mail.identifier);
 			}
-			
+
 			// Reply form
 			$('#'+id).parent().append('<div id='+idReply+' class="reply"><div class="replypanel"><form name="replyform'+id+'" action="'+posturl+'" method="post" enctype="application/x-www-form-urlencoded"><textarea class="replyinput" name="message"></textarea><input type="hidden" name="attachment"><input type="hidden" name="attachmentname"><input type="hidden" name="parent" value="'+mail.digest+'"><input type="hidden" name="public" value="1"></form></div><div class="attachedfile"></div><div class="fileselector"></div></div>');
-			
+
 			$('#'+idReply).hide();
 			$('#'+idReply+' .attachedfile').hide();
 			$('#'+idReply+' form').ajaxForm(function() {
@@ -122,13 +121,13 @@ function setMailReceiverRec(url, object, period, next) {
 				$('#'+idReply+' .fileselector').html('');
 				$('#'+idReply).hide();
 			});
-			
+
 			if(typeof UrlSelector != 'undefined' && typeof TokenDirectory != 'undefined') {
 				$('#'+idReply+' .replypanel').prepend('<a class="button" href="#"><img alt="File" src="/static/paperclip.png"></a>');
-				
+
 				(function(idReply) {
 					$('#'+idReply+' .button').click(function() {
-						createFileSelector(UrlSelector, '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory); 
+						createFileSelector(UrlSelector, '#'+idReply+' .fileselector', '#'+idReply+' input[name="attachment"]', '#'+idReply+' input[name="attachmentname"]', TokenDirectory);
 						return false;
 					});
 					$('#'+idReply+' input[name="attachment"]').change(function() {
@@ -148,16 +147,16 @@ function setMailReceiverRec(url, object, period, next) {
 					});
 				})(idReply);
 			}
-			
+
 			$('#'+id+' .content').html(mail.content.escape().linkify().split("\n").join("<br>"));
-			
+
 			if(mail.attachments && mail.attachments[0]) {
-				
+
 				$('#'+id+' .header').after('<span class="attachment"></span>');
 				$('#'+id+' .attachment').html('<img class="icon" src="/static/smallpaperclip.png">Loading attachment...');
-				
+
 				var url = '/file/'+mail.attachments[0];	// TODO
-				
+
 				(function(id, url) {
 					var request = $.ajax({
 						type: "HEAD",
@@ -168,7 +167,7 @@ function setMailReceiverRec(url, object, period, next) {
 						var name = request.getResponseHeader('Content-Name');
 						var type = request.getResponseHeader('Content-Type');
 						var media = type.substr(0, type.indexOf('/'));
-					
+
 						var content = '';
 						if(media == 'image') {
 							content = '<a href="'+url+'" target="_blank"><img class="preview" src="'+url+'" alt="'+name.escape()+'"></a><img class="clip" src="/static/clip.png">';
@@ -180,48 +179,48 @@ function setMailReceiverRec(url, object, period, next) {
 						else {
 							content = '<span class="filename"><a href="'+url+'" target="_blank"><img class="icon" src="/static/file.png">'+name.escape()+'</a></span><img class="clip" src="/static/clip.png">';
 						}
-						
+
 						transition('#'+id+' .attachment', '<span class="attached">'+content+'</a>');
-						
-						setTimeout(function() { 
+
+						setTimeout(function() {
 							$(object).scrollTop($(object)[0].scrollHeight);
 						}, 10);
 					})
 					.fail(function(jqXHR, textStatus) {
 						$('#'+id+' .attachment').html('<img class="icon" src="/static/paperclip.png">Attachment not available');
 					});
-				
+
 				})(id, url);
 			}
-			
+
 			$('#'+id).append('<span class="footer"></span>');
-			
+
 			count++;
 		});
-		
+
 		// Order messages
 		if(count > 0) {
 			$(object).html($(object).children().detach().sort(function(a,b){
 				return $(a).find(".time").text() < $(b).find(".time").text();
 			}));
-			
+
 			if(isPageHidden()) {
 				NbNewMessages+= count;
 				top.document.title = '(' + NbNewMessages + ') ' + BaseTitle;
 				playMailSound();
 			}
 		}
-		
+
 		// Hide replies if they're too many
 		/*
 		$('.conversation').each(function() {
 			if($(this).find('.morereplies').length) return;
-			
+
 			var nReplies = $(this).find('.childmessage').length;
 			var nHiddenReplies = nReplies-5;
 			var object = this;
 			var showMoreReplies = false;
-			
+
 			if(nReplies >= 7) // We hide at least 2 replies
 			{
 				$(object).find('.childmessage').eq(0).before('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
@@ -257,7 +256,6 @@ function setMailReceiverRec(url, object, period, next) {
 		this.messagesTimeout = setTimeout(function() {
 			setMailReceiverRec(url, object, period, next);
 		}, period);
-
 	})
 	.fail(function(jqXHR, textStatus) {
 		this.messagesTimeout = setTimeout(function() {
@@ -267,6 +265,5 @@ function setMailReceiverRec(url, object, period, next) {
 }
 
 function setMailReceiver(url, object, period, next) {
-	
 	setMailReceiverRec(url, object, period, 0);
 }

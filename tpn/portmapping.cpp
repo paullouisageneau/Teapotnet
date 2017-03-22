@@ -65,9 +65,7 @@ void PortMapping::disable(void)
 	if(mProtocol)
 	{
 		for(auto it = mMap.begin(); it != mMap.end(); ++it)
-		{
 			mProtocol->remove(it->first.protocol, it->first.port, it->second.external);
-		}
 
 		mProtocol.reset();
 	}

@@ -45,6 +45,7 @@ const String Indexer::UploadDirectoryName = "_upload";
 Indexer::Indexer(User *user) :
 	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
 	mUser(user),
+	mSyncPool(2),
 	mRunning(false)
 {
 	Assert(mUser);
@@ -121,7 +122,7 @@ Indexer::Indexer(User *user) :
 	}
 
 	// Special upload directory
-	addDirectory(UploadDirectoryName, "", Resource::Personal, true);	// don't commit
+	addDirectory(UploadDirectoryName, "", "", Resource::Personal, true);	// don't commit
 
 	// Publisher
 	publish(prefix());
@@ -129,6 +130,7 @@ Indexer::Indexer(User *user) :
 
 	// Interface
 	Interface::Instance->add(mUser->urlPrefix()+"/files", this);
+	Interface::Instance->add(mUser->urlPrefix()+"/sync", this);
 	Interface::Instance->add(mUser->urlPrefix()+"/explore", this);
 
 	// Save and run
@@ -141,6 +143,7 @@ Indexer::~Indexer(void)
 	unpublish(prefix());
 
 	Interface::Instance->remove(mUser->urlPrefix()+"/files");
+	Interface::Instance->remove(mUser->urlPrefix()+"/sync");
 	Interface::Instance->remove(mUser->urlPrefix()+"/explore");
 }
 User *Indexer::user(void) const
@@ -158,7 +161,7 @@ String Indexer::prefix(void) const
 	return "/files/" + mUser->identifier().toString();
 }
 
-void Indexer::addDirectory(const String &name, String path, Resource::AccessLevel access, bool nocommit)
+void Indexer::addDirectory(const String &name, String path, String remote, Resource::AccessLevel access, bool nocommit)
 {
 	Assert(!name.empty());
 	Assert(!name.contains('/') && !name.contains('\\'));
@@ -172,7 +175,10 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 			path = mBaseDirectory + Directory::Separator + dirname;
 		}
 
-		if(path[path.size()-1] == Directory::Separator) path.ignore(1);
+		if(path[path.size()-1] == Directory::Separator)
+			path.resize(path.size()-1);
+		if(!remote.empty() && remote[remote.size()-1] == '/')
+			remote.resize(remote.size()-1);
 
 		if(!Directory::Exist(path))
 			Directory::Create(path);
@@ -184,10 +190,11 @@ void Indexer::addDirectory(const String &name, String path, Resource::AccessLeve
 		if(it != mDirectories.end())
 		{
 			it->second.path = path;
+			it->second.remote = remote;
 			it->second.access = access;
 		}
 		else {
-			mDirectories.insert(name, Entry(path, access));
+			mDirectories.insert(name, Entry(path, remote, access));
 		}
 	}
 
@@ -227,6 +234,13 @@ void Indexer::getDirectories(Array<String> &array) const
 	}
 
 	array.remove(UploadDirectoryName);
+}
+
+String Indexer::directoryRemotePath(const String &name) const
+{
+	Map<String, Entry>::const_iterator it = mDirectories.find(name);
+	if(it == mDirectories.end()) throw Exception("Unknown directory: " + name);
+	return it->second.remote;
 }
 
 Resource::AccessLevel Indexer::directoryAccessLevel(const String &name) const
@@ -577,7 +591,7 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 
 bool Indexer::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(path != "/")		// We want only top-level targets
+	if(link == Network::Link::Null || path != "/")		// We want only remote top-level targets
 		return false;
 
 	// Fetch resource metadata
@@ -611,9 +625,18 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 				if(record.name == remoteName)
 				{
 					// We have a match, sync files
-					sync("/" + name, record.digest, record.time);
-					update("/" + name);		// update directory
-					update("/");			// update root
+					mSyncPool.enqueue([this, name, record]()
+					{
+						try {
+							sync("/" + name, record.digest, record.time);
+							update("/" + name);		// update directory
+							update("/");			// update root
+						}
+						catch(const Exception &e)
+						{
+							LogWarn("Indexer::incoming", "Syncing failed for " + name + ": " + e.what());
+						}
+					});
 					break;
 				}
 			}
@@ -634,8 +657,10 @@ void Indexer::http(const String &prefix, Http::Request &request)
 	accessSelectMap["private"] = "Only contacts";
 	accessSelectMap["personal"] = "Only me";
 
+	String prefixLast = prefix.afterLast('/');
+
 	try {
-		if(prefix.afterLast('/') == "explore")
+		if(prefixLast == "explore")
 		{
 			if(url != "/") throw 404;
 
@@ -745,7 +770,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				Html page(response.stream);
 				page.header("Add directory");
 				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
-				page.input("hidden", "token", user()->generateToken("directory_add"));
+				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("Add directory");
 				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
 				page.label("name","Name"); page.input("text","name", name); page.br();
@@ -782,9 +807,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			else {
 				std::set<String> existingPathsSet;
 				for(auto it = mDirectories.begin(); it != mDirectories.end(); ++it)
-				{
 					existingPathsSet.insert(it->second.path);
-				}
 
 				page.open("table",".files");
 				for(auto it = folders.begin(); it != folders.end(); ++it)
@@ -823,7 +846,33 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.footer();
 			return;
 
-		} // prefix == "explore"
+		}
+		else if(prefixLast == "sync")
+		{
+			String remote = request.get["remote"];
+			if(remote.empty()) throw 400;
+
+			if(remote[remote.size()-1] == Directory::Separator)
+				remote.resize(remote.size()-1);
+
+			Http::Response response(request, 200);
+			response.send();
+
+			Html page(response.stream);
+			page.header("Add directory");
+			page.openForm(prefix.beforeLast('/') + "/files/", "post");
+			page.input("hidden", "token", user()->generateToken("directory"));
+			page.input("hidden", "remote", remote);
+			page.openFieldset("Synchronize directory");
+			page.label("", "Remote"); page.text(remote.afterLast('/')); page.br();
+			page.label("name", "Name"); page.input("text", "name", remote.afterLast('/')); page.br();
+			page.label("access", "Access"); page.select("access", accessSelectMap, "personal"); page.br();
+			page.label("add"); page.button("add", "Synchronize directory");
+			page.closeFieldset();
+			page.closeForm();
+			page.footer();
+			return;
+		}
 
 		if(request.method != "POST" && (request.get.contains("json")  || request.get.contains("playlist")))
 		{
@@ -858,6 +907,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				else if(request.post.contains("name"))
 				{
 					String name = request.post["name"];
+					String remote = request.post["remote"];
 					String access = request.post["access"];
 
 					Resource::AccessLevel accessLevel;
@@ -871,7 +921,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
 
-						addDirectory(name, "", accessLevel);
+						addDirectory(name, "", remote, accessLevel);
 					}
 					catch(const Exception &e)
 					{
@@ -963,6 +1013,8 @@ void Indexer::http(const String &prefix, Http::Request &request)
 				page.close("td");
 				page.open("td",".filename");
 				page.link(directories[i], name);
+				String remote = directoryRemotePath(directories[i]);
+				if(!remote.empty()) page.text(" (synchronized)");
 				page.close("td");
 
 
@@ -1694,9 +1746,10 @@ Indexer::Entry::Entry(void)
 	this->access = Resource::Public;
 }
 
-Indexer::Entry::Entry(const String &path, Resource::AccessLevel access)
+Indexer::Entry::Entry(const String &path, const String &remote, Resource::AccessLevel access)
 {
 	this->path = path;
+	this->remote = remote;
 	this->access = access;
 }
 
