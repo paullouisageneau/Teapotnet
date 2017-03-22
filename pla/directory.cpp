@@ -80,12 +80,9 @@ bool Directory::Remove(const String &path, bool recursive)
 		{
 
 		}
+	}
 
-		return Directory::Remove(path, false);
-	}
-	else {
-		return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
-	}
+	return (rmdir(fixPath(path).pathEncode().c_str()) == 0);
 }
 
 void Directory::Create(const String &path)
