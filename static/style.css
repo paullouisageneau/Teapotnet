@@ -166,7 +166,7 @@ fieldset
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 4px;
-	box-shadow: 0px 0px 8px 2px #404040;
+	box-shadow: 0px 0px 4px 1px #404040;
 	overflow: hidden;
 }
 
@@ -190,7 +190,7 @@ legend
 	background-color: #FFFFFF;
 	border: 2px solid #E0E0E0;
 	border-radius: 4px;
-	box-shadow: 0px 0px 8px 2px #404040;
+	box-shadow: 0px 0px 4px 1px #404040;
 }
 
 input
@@ -506,7 +506,7 @@ a.button:hover
 	border: 1px solid #B0B0B0;
 	border-radius: 4px;
 	background-color: #F5F5F5;
-	box-shadow: 1px 1px 3px #202020;
+	box-shadow: 0px 0px 4px 1px #202020;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
@@ -707,9 +707,8 @@ img.avatar
 	margin-right: 0.5em;
 	padding: 0.5em;
 	border: 1px solid #B0B0B0;
-        border-radius: 4px;
+	border-radius: 4px;
 	background-color: #F5F5F5;
-	box-shadow: 1px 1px 3px #202020;
 	word-wrap: break-word;
 }
 
@@ -757,8 +756,8 @@ img.avatar
 {
 	position: relative;
 	background-color: #FFFFFF;
-	border: 1px solid black;
-	box-shadow: 1px 1px 5px #202020;
+	border: 1px solid #808080;
+	box-shadow: 2px 2px 2px 1px #404040;
 	color: black;
 	text-overflow: ellipsis;
 }
@@ -814,7 +813,7 @@ img.avatar
 
 .newmessage
 {
-	box-shadow: 0px 0px 8px 4px #FFDC0A;
+	box-shadow: 0px 0px 4px 2px #FFDC0A;
 }
 
 .childmessage
@@ -920,7 +919,7 @@ img.preview
 	background-color: #FFFFFF;
 	border: 1px solid #E0E0E0;
 	border-radius: 4px;
-	box-shadow: 0px 0px 8px 2px #404040;
+	box-shadow: 0px 0px 4px 1px #404040;
 	overflow: hidden;
 }
 
