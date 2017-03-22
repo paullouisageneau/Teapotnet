@@ -735,6 +735,12 @@ void AddressBook::Contact::init(void)
 		{
 			if(!mBoard) mBoard = std::make_shared<Board>(mIdentifier.toString(), "", mName);	// Public board
 			mAddressBook->user()->mergeBoard(mBoard);
+			
+			if(!mPrivateBoard)
+			{
+				BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
+				mPrivateBoard = std::make_shared<Board>(boardId.toString(), secret().toString(), mName + " (Private)");
+			}
 		}
 
 		Interface::Instance->add(nUrlPrefix(), this);
@@ -1223,7 +1229,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		}
 		else if(directory == "board")
 		{
-			if(isSelf()) throw 404;
+			if(isSelf() || !mBoard) throw 404;
 
 			Http::Response response(request, 301);	// Moved permanently
 			if(mBoard) response.headers["Location"] = mBoard->urlPrefix();
@@ -1233,13 +1239,7 @@ void AddressBook::Contact::http(const String &prefix, Http::Request &request)
 		}
 		else if(directory == "chat")
 		{
-			if(isSelf()) throw 404;
-
-			if(!mPrivateBoard)
-			{
-				BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();
-				mPrivateBoard = std::make_shared<Board>(boardId.toString(), secret().toString(), name() + " (Private)");
-			}
+			if(isSelf() || !mPrivateBoard) throw 404;
 
 			Http::Response response(request, 301);	// Moved permanently
 			response.headers["Location"] = mPrivateBoard->urlPrefix();
