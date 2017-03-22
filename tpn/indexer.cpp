@@ -720,7 +720,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 			if(!Directory::Exist(path)) throw 404;
 
-			if(request.get.contains("share"))
+			if(request.get.contains("add") || request.get.contains("share"))
 			{
 				path.resize(path.size()-1);
 				String name = path.afterLast(Directory::Separator);
