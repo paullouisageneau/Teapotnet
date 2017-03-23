@@ -724,17 +724,20 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			{
 				path.resize(path.size()-1);
 				String name = path.afterLast(Directory::Separator);
-				name.remove(':');
 
 				if(request.method == "POST")
 				{
 					if(!user()->checkToken(request.post["token"], "directory"))
 						throw 403;
 
-					String access;
-					request.post.get("name", name);
-					request.post.get("access", access);
+					if(request.post.contains(name))
+						name = request.post["name"];
 
+					String remote;
+					if(request.post["sync"].toBool())
+						remote = "/files/" + mUser->identifier().toString() + "/" + name;
+
+					String access = request.post["access"];
 					Resource::AccessLevel accessLevel;
 					if(access == "personal") accessLevel = Resource::Personal;
 					else if(access == "private") accessLevel = Resource::Private;
@@ -746,7 +749,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 							|| name.find("..") != String::NotFound)
 								throw Exception("Invalid directory name");
 
-						addDirectory(name, path, "", accessLevel);
+						addDirectory(name, path, remote, accessLevel);
 					}
 					catch(const Exception &e)
 					{
@@ -771,12 +774,13 @@ void Indexer::http(const String &prefix, Http::Request &request)
 
 				Html page(response.stream);
 				page.header("Add directory");
-				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&add=1", "post");
+				page.openForm(prefix + url + "?path=" + path.urlEncode() + "&share=1", "post");
 				page.input("hidden", "token", user()->generateToken("directory"));
 				page.openFieldset("Add directory");
-				page.label("", "Path"); page.text(path + Directory::Separator); page.br();
+				page.label("path", "Path"); page.input("text", "path", path + Directory::Separator, true); page.br();
 				page.label("name", "Name"); page.input("text", "name", name); page.br();
-				page.label("access", "Access"); page.select("access", accessSelectMap, "public"); page.br();
+				page.label("access", "Access"); page.select("access", accessSelectMap, "private"); page.br();
+				page.label("sync", ""); page.checkbox("sync", "Synchronize with directories of the same name on other instances"); page.br();
 				page.label("add"); page.button("add", "Add directory");
 				page.closeFieldset();
 				page.closeForm();
@@ -868,7 +872,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", user()->generateToken("directory"));
 			page.input("hidden", "remote", remote);
 			page.openFieldset("Synchronize directory");
-			page.label("", "Remote"); page.text(remote.afterLast('/')); page.br();
+			page.label("remote_name", "Remote"); page.input("text", "remote_name", remote.afterLast('/'), true); page.br();
 			page.label("name", "Name"); page.input("text", "name", remote.afterLast('/')); page.br();
 			page.label("access", "Access"); page.select("access", accessSelectMap, "personal"); page.br();
 			page.label("add"); page.button("add", "Synchronize directory");
@@ -1059,7 +1063,7 @@ void Indexer::http(const String &prefix, Http::Request &request)
 			page.input("hidden", "token", user()->generateToken("directory"));
 			page.openFieldset("New directory");
 			page.label("name", "Name"); page.input("text", "name"); page.br();
-			page.label("access", "Access"); page.select("access", accessSelectMap, "public"); page.br();
+			page.label("access", "Access"); page.select("access", accessSelectMap, "private"); page.br();
 			page.label("sync", ""); page.checkbox("sync", "Synchronize with directories of the same name on other instances"); page.br();
 			page.label("add"); page.button("add","Create directory"); page.br();
 			page.closeFieldset();

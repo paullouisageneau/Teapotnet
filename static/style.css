@@ -117,7 +117,7 @@ h3
 {
 	margin: 0.25em;
 	padding: 0;
-        margin-bottom: 0.5em;
+	margin-bottom: 0.5em;
 	font-size: 1.1em;
 	font-weight: bold;
 }
@@ -174,7 +174,7 @@ label
 {
 	float: left;
 	clear: both;
-	width: 20%;
+	width: 10em;
 	margin-right: 0.5em;
 	padding-top: 0.4em;
 	text-align: right;
@@ -245,6 +245,7 @@ input[type="button"]:hover
 
 input[type="text"]
 {
+	width: 15em;
 	color: #000000;
 	background-color: #FFFFFF;
 }
@@ -274,7 +275,7 @@ textarea
 	resize: none;
 	overflow: auto;
 	padding: 0.5em;
-	border: 1px solid #000000;
+	border: 1px solid #606060;
 	border-radius: 4px;
 	color: #000000;
 	background-color: #FFFFFF;
@@ -282,6 +283,35 @@ textarea
 	font-size: inherit;
 	box-sizing: border-box;
 	-moz-box-sizing: border-box;
+}
+
+input[type="text"]:read-only {
+	color: #303030;
+	background-color: #D5D5D5;
+}
+
+input[type="text"]:-moz-read-only {
+	color: #303030;
+	background-color: #D5D5D5;
+}
+
+textarea:read-only {
+	color: #303030;
+	background-color: #D5D5D5;
+}
+
+textarea:-moz-read-only {
+	color: #303030;
+	background-color: #D5D5D5;
+}
+
+fieldset label {
+	width: 20%;
+}
+
+fieldset input[type="text"] {
+	width: 20em;
+	max-width: 70%;
 }
 
 .button
@@ -301,10 +331,10 @@ textarea
 
 a.button
 {
-        color: #000000;
-        cursor: pointer;
-        background-color: #FFDC0A;
-        border: 1px solid #E0BC00;
+	color: #000000;
+	cursor: pointer;
+	background-color: #FFDC0A;
+	border: 1px solid #E0BC00;
 }
 
 a.button:hover
@@ -327,17 +357,17 @@ a.button:hover
 
 .loading > body > *
 {
-    display: none;
+	display: none;
 }
 
 .loading body
 {
-    background: #F0F0F0;
+	background: #F0F0F0;
 }
 
 .animloading body
 {
-    background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
+	background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
 }
 
 #page

@@ -82,10 +82,10 @@ public:
 	void openFieldset(const String &legend);
 	void closeFieldset(void);
 	void label(const String &name, const String &label = "");
-	void input(const String &type, const String &name, const String &value = "", bool noautocomplete = false);
-	void checkbox(const String &name, const String &value, bool checked = false);
-	void textarea(const String &name, const String &value = "");
-	void select(const String &name, const StringMap &options, const String &def = "");
+	void input(const String &type, const String &name, const String &value = "", bool readonly = false, bool noautocomplete = false);
+	void checkbox(const String &name, const String &value, bool checked = false, bool readonly = false);
+	void textarea(const String &name, const String &value = "", bool readonly = false);
+	void select(const String &name, const StringMap &options, const String &def = "", bool readonly = false);
 	void button(const String &name, String text = "");
 	void file(const String &name, String text = "");
 

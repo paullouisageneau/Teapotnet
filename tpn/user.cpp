@@ -649,17 +649,16 @@ void User::http(const String &prefix, Http::Request &request)
 			page.closeForm();
 			//page.javascript("$(document).ready(function() { document.searchForm.query.focus(); });");	// really annoying with touchscreens
 			page.javascript("$(document).ready(function() {\n\
-					document.searchForm.query.style.color = 'grey';\n\
-				});\n\
-				$(document.searchForm.query).focus(function() {\n\
-					document.searchForm.query.value = '';\n\
-					document.searchForm.query.style.color = 'black';\n\
-				})\n\
-				$(document.searchForm.query).blur(function() {\n\
-					document.searchForm.query.style.color = 'grey';\n\
-					document.searchForm.query.value = 'Search for files...';\n\
-				})\n");
-			//page.br();
+	document.searchForm.query.style.color = 'grey';\n\
+});\n\
+$(document.searchForm.query).focus(function() {\n\
+	document.searchForm.query.value = '';\n\
+	document.searchForm.query.style.color = 'black';\n\
+});\n\
+$(document.searchForm.query).blur(function() {\n\
+	document.searchForm.query.style.color = 'grey';\n\
+	document.searchForm.query.value = 'Search for files...';\n\
+});");
 			page.close("div");
 
 			page.open("div", "header");
@@ -733,13 +732,10 @@ void User::http(const String &prefix, Http::Request &request)
 			page.close("div"); // leftcolumn
 
 			page.open("div", "rightcolumn");
-
 			page.raw("<iframe name=\"main\" src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
-
-			page.close("div");	// rightcolumn
-
 			page.close("div");
 
+			page.close("div");
 			page.footer();
 			return;
 		}

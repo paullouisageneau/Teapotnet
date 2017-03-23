@@ -204,7 +204,7 @@ void Html::image(const String &url,
 			String id)
 {
 	if(!id.empty() && id[0] == '#') id.ignore();
-  	String cl = id.cut('.');
+	String cl = id.cut('.');
 
 	*mStream<<"<img src=\""<<url<<"\"";
 	if(!alt.empty()) *mStream<<" alt=\""<<alt<<"\"";
@@ -262,7 +262,7 @@ void Html::openFieldset(const String &legend)
 
 void Html::closeFieldset(void)
 {
-  	close("fieldset");
+	close("fieldset");
 }
 
 void Html::label(const String &name, const String &label)
@@ -272,32 +272,30 @@ void Html::label(const String &name, const String &label)
 	*mStream<<">"<<label<<"</label>\n";
 }
 
-void Html::input(const String &type, const String &name, const String &value, bool noautocomplete)
+void Html::input(const String &type, const String &name, const String &value, bool readonly, bool noautocomplete)
 {
-	String t(type);
-	if(t == "button") t = "submit";
- 	*mStream<<"<input type=\""<<t<<"\" class=\""<<name<<"\" name=\""<<name<<"\" value=\""<<value<<"\"";
- 	if(noautocomplete) *mStream<<" autocomplete=\"off\"";
- 	*mStream<<">\n";
+	*mStream<<"<input type=\""<<(type == "button" ? "submit" : type)<<"\" name=\""<<name<<"\" value=\""<<value<<"\""<<(readonly ? " readonly" : "");
+	if(noautocomplete) *mStream<<" autocomplete=\"off\"";
+	*mStream<<">\n";
 }
 
-void Html::checkbox(const String &name, const String &value, bool checked)
+void Html::checkbox(const String &name, const String &value, bool checked, bool readonly)
 {
- 	*mStream<<"<span class=\""<<name<<"\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\" "<<(checked ? "checked" : "")<<">&nbsp;";
- 	text(value);
- 	*mStream<<"</span>\n";
+	*mStream<<"<span class=\"checkbox\"><input type=\"checkbox\" value=\"1\" name=\""<<name<<"\""<<(checked ? " checked" : "")<<(readonly ? " readonly" : "")<<">&nbsp;";
+	text(value);
+	*mStream<<"</span>\n";
 }
 
-void Html::textarea(const String &name, const String &value)
+void Html::textarea(const String &name, const String &value, bool readonly)
 {
-	*mStream<<"<textarea class=\""<<name<<"\" name=\""<<name<<"\">";
+	*mStream<<"<textarea name=\""<<name<<"\""<<(readonly ? " readonly" : "")<<">";
 	text(value);
 	*mStream<<"</textarea>\n";
 }
 
-void Html::select(const String &name, const StringMap &options, const String &def)
+void Html::select(const String &name, const StringMap &options, const String &def, bool readonly)
 {
-	*mStream<<"<select name=\""<<name<<"\">\n";
+	*mStream<<"<select name=\""<<name<<"\""<<(readonly ? " readonly" : "")<<">\n";
 	for(StringMap::const_iterator it=options.begin(); it!=options.end(); ++it)
 	{
 		*mStream<<"<option ";
