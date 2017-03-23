@@ -261,6 +261,11 @@ input[type="checkbox"]
 
 }
 
+span.checkbox
+{
+	display: inline-block;
+}
+
 select
 {
 	display: inline-block;
