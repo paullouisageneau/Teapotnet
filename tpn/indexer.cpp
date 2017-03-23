@@ -591,7 +591,7 @@ bool Indexer::anounce(const Network::Link &link, const String &prefix, const Str
 
 bool Indexer::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	if(link == Network::Link::Null || path != "/")		// We want only remote top-level targets
+	if(path != "/")		// We want only top-level targets
 		return false;
 
 	// Fetch resource metadata
@@ -624,6 +624,13 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 			{
 				if(record.name == remoteName)
 				{
+					// Check if update is necessary
+					Resource localResource;
+					Time localTime;
+					if(get("/" + name, localResource, &localTime)
+						&& (localResource.digest() == record.digest || localTime >= record.time))
+						break;
+
 					// We have a match, sync files
 					mSyncPool.enqueue([this, name, record]()
 					{
