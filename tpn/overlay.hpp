@@ -252,7 +252,7 @@ private:
 	void registerHandler(const BinaryString &node, const Address &addr, sptr<Handler> handler);
 	void unregisterHandler(const BinaryString &node, const Set<Address> &addrs, Handler *handler);
 
-	bool track(const String &tracker, Map<BinaryString, Set<Address> > &result);
+	bool track(const String &tracker, unsigned count, Map<BinaryString, Set<Address> > &result);
 
 	ThreadPool mPool;
 
@@ -272,6 +272,7 @@ private:
 	Set<BinaryString> mRetrievePending;
 
 	Alarm mRunAlarm;
+	bool mFirstRun;
 
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;

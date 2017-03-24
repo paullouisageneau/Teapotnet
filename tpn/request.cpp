@@ -149,7 +149,6 @@ void Request::addResult(const Resource::DirectoryRecord &record)
 
 		mResults.append(record);
 		mDigests.insert(record.digest);
-		lock.unlock();
 		mCondition.notify_all();
 	}
 }

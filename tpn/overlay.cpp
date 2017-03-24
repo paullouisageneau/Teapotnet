@@ -48,7 +48,8 @@ const int Overlay::StoreNeighbors = 3;
 const int Overlay::DefaultTtl = 16;
 
 Overlay::Overlay(int port) :
-		mPool(2 + 3)
+		mPool(2 + 3),
+		mFirstRun(true)
 {
 	mFileName = "keys";
 	load();
@@ -127,6 +128,7 @@ void Overlay::join(void)
 
 void Overlay::start(duration delay)
 {
+	mFirstRun = true;
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
 		run();
@@ -535,7 +537,6 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				if(mRetrievePending.contains(key))
 				{
 					mRetrievePending.erase(key);
-					lock.unlock();
 					mRetrieveCondition.notify_all();
 				}
 			}
@@ -564,7 +565,6 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 				if(mRetrievePending.contains(key))
 				{
 					mRetrievePending.erase(key);
-					lock.unlock();
 					mRetrieveCondition.notify_all();
 				}
 			}
@@ -809,7 +809,7 @@ void Overlay::unregisterHandler(const BinaryString &node, const Set<Address> &ad
 	mCondition.notify_all();
 }
 
-bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &result)
+bool Overlay::track(const String &tracker, unsigned count, Map<BinaryString, Set<Address> > &result)
 {
 	result.clear();
 	if(tracker.empty()) return false;
@@ -821,7 +821,7 @@ bool Overlay::track(const String &tracker, Map<BinaryString, Set<Address> > &res
 	LogDebug("Overlay::track", "Contacting tracker " + url);
 
 	try {
-		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet/tracker?id=" + localNode().toString();
+		url+= String(url[url.size()-1] == '/' ? "" : "/") + "teapotnet/tracker?id=" + localNode().toString() + "&count=" + String::number(count);
 
 		// Dirty hack to test if tracker is private or public
 		bool trackerIsPrivate = false;
@@ -929,7 +929,6 @@ void Overlay::run(void)
 		Set<Address> externalAddrs;
 		Config::GetExternalAddresses(externalAddrs);
 
-
 		if(connectionsCount() < minConnectionsCount)
 		{
 			Map<Address, BinaryString> peers;
@@ -941,11 +940,12 @@ void Overlay::run(void)
 			}
 
 			for(const auto &p : peers)
-				connect(p.first, p.second, false);	// sync
+				connect(p.first, p.second, mFirstRun);	// async only if first run
 		}
 
+		unsigned count = minConnectionsCount*2;
 		Map<BinaryString, Set<Address> > result;
-		if(track(Config::Get("tracker"), result) && connectionsCount() < minConnectionsCount)
+		if(track(Config::Get("tracker"), count, result))
 		{
 			for(const auto &p : result)
 			{
@@ -967,19 +967,25 @@ void Overlay::run(void)
 					}
 				}
 				else {
-					connect(p.second, p.first, false);	// sync
+					if(connectionsCount() < minConnectionsCount)
+						connect(p.second, p.first, false);	// sync
 				}
 			}
-		}
 
-		if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(Random().uniform(0.,120.)));	// avg 1 min
-		else mRunAlarm.schedule(seconds(600.));   // 10 min
+			if(connectionsCount() < minConnectionsCount) mRunAlarm.schedule(seconds(60.));	// 1 min
+			else mRunAlarm.schedule(seconds(Random().uniform(1140., 1260.)));   // ~10 min
+		}
+		else {
+			mRunAlarm.schedule(seconds(60.));	// 1 min
+		}
 	}
 	catch(const std::exception &e)
 	{
 		LogError("Overlay::run", e.what());
 		mRunAlarm.schedule(seconds(60.));   // 1 min
 	}
+
+	mFirstRun = false;
 }
 
 Overlay::Message::Message(void)
@@ -1551,7 +1557,6 @@ bool Overlay::Handler::Sender::push(const Message &message)
 	if(mQueue.size() < Overlay::MaxQueueSize)
 	{
 		mQueue.push(message);
-		lock.unlock();
 		mCondition.notify_all();
 		return true;
 	}
