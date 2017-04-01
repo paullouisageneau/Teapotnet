@@ -1,4 +1,4 @@
-Copyright (C) 2011-2013 by Paul-Louis Ageneau
+Copyright (C) 2011-2017 by Paul-Louis Ageneau
 paul-louis (at) ageneau (dot) org
 
 Media files contained in this directory are available under the 
