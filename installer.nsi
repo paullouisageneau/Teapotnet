@@ -11,7 +11,7 @@ RequestExecutionLevel admin ;Require admin rights on NT6+ (When UAC is turned on
 InstallDir "$PROGRAMFILES\${APPNAME}"
  
 # rtf or txt file - remember if it is txt, it must be in the DOS text format (\r\n)
-LicenseData "license.txt"
+LicenseData "LICENSE.txt"
 # This will be in the installer/uninstaller's title bar
 Name "${APPNAME}"
 Icon "teapotnet.ico"

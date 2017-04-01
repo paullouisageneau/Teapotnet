@@ -614,7 +614,7 @@ void Http::Response::recv(Stream *stream)
 			cookies.insert(cookie, value);
 		}
 		else {
-			headers.insert(line,value);
+			headers.insert(line, value);
 		}
 	}
 }
