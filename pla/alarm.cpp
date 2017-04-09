@@ -21,7 +21,7 @@
 
 #include "pla/alarm.hpp"
 
-namespace pla 
+namespace pla
 {
 
 thread_local bool Alarm::AutoDeleted = false;
@@ -33,19 +33,19 @@ Alarm::Alarm(void) : time(time_point::min()), stop(false)
 		while(true)
 		{
 			std::unique_lock<std::mutex> lock(mutex);
-			
+
 			if(!stop && time == time_point::min())
 				condition.wait(lock);
-			
+
 			if(stop) break;
-			
+
 			if(time > clock::now())
 			{
 				condition.wait_until(lock, time);
 			}
 			else {
 				time = time_point::min();
-				if(function) 
+				if(function)
 				{
 					std::function<void()> f = function;
 					lock.unlock();
@@ -69,7 +69,7 @@ void Alarm::schedule(time_point time)
 		if(stop) throw std::runtime_error("schedule on stopped Alarm");
 		this->time = time;
 	}
-	
+
 	condition.notify_all();
 }
 
@@ -84,7 +84,7 @@ void Alarm::cancel(void)
 		std::unique_lock<std::mutex> lock(mutex);
 		time = time_point::min();
 	}
-	
+
 	condition.notify_all();
 }
 
@@ -94,10 +94,10 @@ void Alarm::join(void)
 		std::unique_lock<std::mutex> lock(mutex);
 		stop = true;
 	}
-	
+
 	condition.notify_all();
-	
-	if(thread.get_id() == std::this_thread::get_id()) 
+
+	if(thread.get_id() == std::this_thread::get_id())
 	{
 		thread.detach();
 		AutoDeleted = true;

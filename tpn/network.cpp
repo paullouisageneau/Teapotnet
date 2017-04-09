@@ -2023,7 +2023,6 @@ void Network::Handler::timeout(void)
 	send(true);
 }
 
-
 bool Network::Handler::readRecord(String &type, String &record)
 {
 	if(mClosed) return false;
@@ -2124,7 +2123,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			// We need to lock since we are calling send()
 			std::unique_lock<std::mutex> lock(mMutex);
 
-			if(!send(false))
+			if(!send(false) && !mClosed)
 				mTimeoutAlarm.schedule(mTimeout*0.1);
 		}
 	}
