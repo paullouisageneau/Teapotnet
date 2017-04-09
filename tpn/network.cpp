@@ -1944,12 +1944,22 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 
 Network::Handler::~Handler(void)
 {
-	mTimeoutAlarm.join();
-	mStream->close();
+	Network::Instance->unregisterHandler(mLink, this); // should be done already
 
+	// Close stream
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mStream->close();
+		mClosed = true;
+	}
+
+	// Join threads
+	mTimeoutAlarm.join();
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
 
+	// Delete stream
+  std::unique_lock<std::mutex> lock(mMutex);
 	delete mStream;
 }
 
@@ -2350,7 +2360,6 @@ int Network::Handler::send(bool force)
 		catch(const std::exception &e)
 		{
 			LogWarn("Network::Handler::send", String("Sending failed: ") + e.what());
-			//mStream->close();
 			mClosed = true;
 			break;
 		}

@@ -1387,11 +1387,21 @@ Overlay::Handler::~Handler(void)
 {
 	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
 
-	stop();
+	// Close stream
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mStream->close();
+		mStop = true;
+		mSender.stop();
+	}
+
+	// Join threads
 	mSenderThread.join();
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
 
+	// Delete stream
+	std::unique_lock<std::mutex> lock(mMutex);
 	delete mStream;
 }
 
@@ -1459,7 +1469,6 @@ bool Overlay::Handler::recv(Message &message)
 
 bool Overlay::Handler::send(const Message &message)
 {
-	//std::unique_lock<std::mutex> lock(mMutex);
 	return mSender.push(message);
 }
 
@@ -1481,9 +1490,9 @@ void Overlay::Handler::start(void)
 void Overlay::Handler::stop(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
+	mStream->close();
 	mStop = true;
 	mSender.stop();
-	mStream->close();
 }
 
 void Overlay::Handler::addAddress(const Address &addr)

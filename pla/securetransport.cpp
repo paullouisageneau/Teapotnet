@@ -112,7 +112,7 @@ SecureTransport::~SecureTransport(void)
 	delete mStream;
 	delete mBuffer;
 
-	for(auto &c : mCredsToDelete)
+	for(auto c : mCredsToDelete)
 		delete c;
 }
 
