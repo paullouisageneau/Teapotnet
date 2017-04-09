@@ -1096,7 +1096,7 @@ void Overlay::Backend::run(void)
 				}
 				catch(const std::exception &e)
 				{
-					LogDebug("Overlay::Backend::run", e.what());
+					LogDebug("Overlay::Backend::run", String("Handshake failed: ") + e.what());
 				}
 			});
 		}

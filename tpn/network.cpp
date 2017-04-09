@@ -1929,6 +1929,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mKeepaliveTimeout(milliseconds(Config::Get("keepalive_timeout").toDouble())),	// so the tunnel should not time out
 	mClosed(false)
 {
+	Assert(mStream);
+
 	// Set timeout alarm
 	mTimeoutAlarm.set([this]()
 	{
