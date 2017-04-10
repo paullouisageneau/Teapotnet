@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2016 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -22,14 +22,15 @@
 #ifndef PLA_ALARM_H
 #define PLA_ALARM_H
 
-#include <thread>
+#include "pla/scheduler.hpp"
+
 #include <mutex>
 #include <condition_variable>
 #include <future>
 #include <functional>
 #include <stdexcept>
 
-namespace pla 
+namespace pla
 {
 
 class Alarm
@@ -38,38 +39,48 @@ public:
 	using clock = std::chrono::steady_clock;
 	typedef std::chrono::duration<double> duration;
 	typedef std::chrono::time_point<clock, duration> time_point;
-	
+
 	Alarm(void);
 	template<class F, class... Args> Alarm(F&& f, Args&&... args);
 	~Alarm(void);
-	
+
 	template<class F, class... Args>
 	auto set(F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
-	
+
 	template<class F, class... Args>
 	auto schedule(time_point time, F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
-	
+
 	template<class F, class... Args>
-	auto schedule(duration d, F&& f, Args&&... args)	
+	auto schedule(duration d, F&& f, Args&&... args)
 		-> std::future<typename std::result_of<F(Args...)>::type>;
-	
+
 	void schedule(time_point time);
 	void schedule(duration d);
+
 	void cancel(void);
 	void join(void);
-	
+
 private:
-	std::mutex mutex;
-	std::condition_variable condition;
-	std::thread thread;
+	static Scheduler scheduler;
+
 	std::function<void()> function;
-	time_point time;
-	bool stop;
-	
-	static thread_local bool AutoDeleted;
+	Scheduler::task_id taskid;
+	bool joining;
 };
+
+inline Alarm::Alarm(void) : joining(false)
+{
+
+}
+
+inline Alarm::~Alarm(void)
+{
+	joining = true;
+	cancel();
+	join();
+}
 
 template<class F, class... Args>
 Alarm::Alarm(F&& f, Args&&... args) : Alarm()
@@ -84,50 +95,63 @@ auto Alarm::set(F&& f, Args&&... args)
 	using type = typename std::result_of<F(Args...)>::type;
 
 	auto task = std::make_shared<std::packaged_task<type()> >(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-	std::future<type> result = task->get_future();	
+	std::future<type> result = task->get_future();
 
+	function = [task]()
 	{
-		std::unique_lock<std::mutex> lock(mutex);
-		this->function = [task]() 
-		{ 
-			(*task)();
-			task->reset();
-		};
-	}
-	
+		(*task)();
+		task->reset();
+	};
+
 	return result;
 }
 
 template<class F, class... Args>
-auto Alarm::schedule(time_point time, F&& f, Args&&... args) 
+auto Alarm::schedule(time_point time, F&& f, Args&&... args)
 	-> std::future<typename std::result_of<F(Args...)>::type>
 {
 	using type = typename std::result_of<F(Args...)>::type;
 
 	auto task = std::make_shared<std::packaged_task<type()> >(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-	std::future<type> result = task->get_future();	
+	std::future<type> result = task->get_future();
 
+	if(joining) throw std::runtime_error("schedule on joiningped Alarm");
+	scheduler.schedule(taskid, time, function = [task]()
 	{
-		std::unique_lock<std::mutex> lock(mutex);
-		if(this->stop) throw std::runtime_error("schedule on stopped Alarm");
-		this->time = time;
-		this->function = [task]() 
-		{
-			(*task)();
-			task->reset();
-		};
-	}
-	
-	condition.notify_all();
+		(*task)();
+		task->reset();
+	});
+
 	return result;
 }
 
-
 template<class F, class... Args>
-auto Alarm::schedule(duration d, F&& f, Args&&... args) 
+auto Alarm::schedule(duration d, F&& f, Args&&... args)
 	-> std::future<typename std::result_of<F(Args...)>::type>
 {
 	return schedule(clock::now() + d, std::forward<F>(f), std::forward<Args>(args)...);
+}
+
+inline void Alarm::schedule(time_point time)
+{
+	if(joining) throw std::runtime_error("schedule on closing Alarm");
+	scheduler.schedule(taskid, time, function);
+}
+
+inline void Alarm::schedule(duration d)
+{
+	schedule(clock::now() + d);
+}
+
+inline void Alarm::cancel(void)
+{
+	scheduler.cancel(taskid);
+}
+
+inline void Alarm::join(void)
+{
+	joining = true;
+	scheduler.wait(taskid);
 }
 
 }

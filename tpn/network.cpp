@@ -1956,7 +1956,6 @@ Network::Handler::~Handler(void)
 	}
 
 	// Join threads
-	mTimeoutAlarm.join();
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
 
