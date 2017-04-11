@@ -558,17 +558,14 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	Assert(handler);
 
 	sptr<Handler> currentHandler;
-
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
-
 		mHandlers.get(link, currentHandler);
 		mHandlers.insert(link, handler);
 	}
 
 	{
 		std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
-
 		mLinksFromNodes[link.node].push_back(link);
 	}
 
@@ -576,9 +573,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 		std::unique_lock<std::recursive_mutex> lock(mSubscribersMutex);
 
 		for(auto it = mSubscribers.begin(); it != mSubscribers.end(); ++it)
-		{
 			for(Subscriber *subscriber : it->second)
-			{
 				if(subscriber->link() == link)
 				{
 					send(link, "subscribe",
@@ -586,8 +581,6 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 							.insert("path", it->first));
 					break;
 				}
-			}
-		}
 	}
 
 	onConnected(link, true);
@@ -600,18 +593,15 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	Assert(!link.node.empty());
 
 	sptr<Handler> currentHandler;	// prevent handler deletion on erase (we need reference on link)
-
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
-
 		if(!mHandlers.get(link, currentHandler) || currentHandler.get() != handler)
 			return;
-
 		mHandlers.erase(link);
 	}
 
 	{
-                std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
+		std::unique_lock<std::mutex> lock(mLinksFromNodesMutex);
 
 		auto it = mLinksFromNodes.find(link.node);
 		if(it != mLinksFromNodes.end())
@@ -620,7 +610,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 			if(it->second.empty())
 				mLinksFromNodes.erase(it);
 		}
-        }
+	}
 
 	{
 		std::unique_lock<std::mutex> lock(mRemoteSubscribersMutex);
@@ -1502,7 +1492,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 	{
 		std::unique_lock<std::mutex> lock(mTunnelsMutex);
-
 		if(mPending.contains(node))
 			return false;
 	}
@@ -1516,7 +1505,6 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 		SecureTransport *transport = NULL;
 		{
 			std::unique_lock<std::mutex> lock(mTunnelsMutex);
-
 			if(mPending.contains(node))
 				return false;
 
@@ -1571,6 +1559,8 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 			mQueue.pop();
 		}
 
+		const BinaryString &node = message.source;
+
 		// Read tunnel ID
 		uint64_t tunnelId = 0;
 		if(!message.content.readBinary(tunnelId))
@@ -1591,11 +1581,16 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				tunnel->incoming(message);
 			}
 			else {
-				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + message.source.toString() + ": " + String::hexa(tunnelId));
+				if(mPending.contains(node))
+					continue;
+
+				mPending.insert(node);
+
+				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + node.toString() + ": " + String::hexa(tunnelId));
 
 				SecureTransport *transport = NULL;
 				try {
-					tunnel = new Tunneler::Tunnel(this, tunnelId, message.source);
+					tunnel = new Tunneler::Tunnel(this, tunnelId, node);
 					transport = new SecureTransportServer(tunnel, NULL, true);	// ask for certificate
 					mTunnels.insert(tunnel->id(), tunnel);
 				}
@@ -1604,12 +1599,13 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 					lock.unlock();	// tunnel will unregister
 					delete tunnel;
 					delete transport;
+					mPending.erase(node);
 					throw;
 				}
 
 				tunnel->incoming(message);
 
-				if(source) *source = message.source;
+				if(source) *source = node;
 				return transport;
 			}
 		}
@@ -1639,12 +1635,13 @@ void Network::Tunneler::registerTunnel(uint64_t id, Tunnel *tunnel)
 void Network::Tunneler::unregisterTunnel(uint64_t id)
 {
 	std::unique_lock<std::mutex> lock(mTunnelsMutex);
-	auto it = mTunnels.find(id);
-	if(it != mTunnels.end())
-	{
-		mPending.erase(it->second->node());
-		mTunnels.erase(it);
-	}
+	mTunnels.erase(id);
+}
+
+void Network::Tunneler::removePending(const BinaryString &node)
+{
+	std::unique_lock<std::mutex> lock(mTunnelsMutex);
+	mPending.erase(node);
 }
 
 bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
@@ -1701,7 +1698,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 	};
 
 	try {
-		mPool.enqueue([transport, link]()
+		mPool.enqueue([transport, link, this /* for removePending() */]()
 		{
 			//LogDebug("Network::Tunneler::handshake", "HandshakeTask starting...");
 
@@ -1735,6 +1732,8 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 				Link link(verifier.local, verifier.remote, verifier.node);
 				sptr<Handler> handler = std::make_shared<Handler>(transport, link);
 				Network::Instance->registerHandler(link, handler);
+
+				removePending(link.node);
 				return true;
 			}
 			catch(const Timeout &e)
@@ -1746,6 +1745,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 				LogInfo("Network::Tunneler::handshake", String("Handshake failed: ") + e.what());
 			}
 
+			removePending(link.node);
 			delete transport;
 			return false;
 		});
@@ -1755,6 +1755,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 	catch(const std::exception &e)
 	{
 		LogError("Network::Tunneler::handshake", e.what());
+		removePending(link.node);
 		delete transport;
 		return false;
 	}

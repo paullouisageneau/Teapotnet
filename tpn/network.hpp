@@ -280,13 +280,14 @@ private:
 
 		void registerTunnel(uint64_t id, Tunnel *tunnel);
 		void unregisterTunnel(uint64_t id);
+		void removePending(const BinaryString &node);
 
 		SecureTransport *listen(BinaryString *source);
 
 		bool handshake(SecureTransport *transport, const Link &link);
 
 		Map<uint64_t, Tunnel*> mTunnels;	// Tunnels
-		Set<BinaryString> mPending;		// Pending nodes
+		Set<BinaryString> mPending;			// Pending nodes
 
 		mutable std::mutex mTunnelsMutex;
 
