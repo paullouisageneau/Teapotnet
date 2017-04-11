@@ -286,8 +286,8 @@ private:
 
 		bool handshake(SecureTransport *transport, const Link &link);
 
-		Map<uint64_t, Tunnel*> mTunnels;	// Tunnels
-		Set<BinaryString> mPending;			// Pending nodes
+		Map<uint64_t, Tunnel*> mTunnels;		// Tunnels
+		Map<BinaryString, uint64_t> mPending;	// Pending nodes
 
 		mutable std::mutex mTunnelsMutex;
 

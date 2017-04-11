@@ -1513,7 +1513,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 			if(mPending.contains(node))
 				return false;
 
-			mPending.insert(node);
+			mPending.insert(node, tunnelId);
 
 			//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
 
@@ -1586,10 +1586,11 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 				tunnel->incoming(message);
 			}
 			else {
-				if(mPending.contains(node))
+				auto it = mPending.find(node);
+				if(it != mPending.end() && it->second >= tunnelId)
 					continue;
 
-				mPending.insert(node);
+				mPending.insert(node, tunnelId);
 
 				LogDebug("Network::Tunneler::listen", "Incoming tunnel from " + node.toString() + ": " + String::hexa(tunnelId));
 
