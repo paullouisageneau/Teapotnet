@@ -1500,7 +1500,12 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 	{
 		uint64_t tunnelId = 0;
 		Random().readBinary(tunnelId);	// Generate random tunnel ID
-		BinaryString local = user->identifier();
+
+		BinaryString local(user->identifier());
+		Link link(local, remote, node);
+
+		if(Network::Instance->hasLink(link))
+			return false;
 
 		SecureTransport *transport = NULL;
 		{
@@ -1535,7 +1540,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 			}
 		}
 
-		return handshake(transport, Link(local, remote, node));
+		return handshake(transport, link);
 	});
 
 	return true;
