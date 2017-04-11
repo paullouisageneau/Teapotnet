@@ -60,7 +60,7 @@ protected:
 
 inline ThreadPool::ThreadPool(size_t threads) : joining(false)
 {
-	for(size_t i = 0; i<threads; ++i)
+	for(size_t i=0; i<threads; ++i)
 	{
 		workers.emplace_back([this]
 		{
@@ -73,7 +73,6 @@ inline ThreadPool::ThreadPool(size_t threads) : joining(false)
 					condition.wait(lock, [this]() {
 						return !tasks.empty();
 					});
-					if(tasks.empty()) return;
 					task = std::move(tasks.front());
 					tasks.pop();
 				}
@@ -102,7 +101,15 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 
 	{
 		std::unique_lock<std::mutex> lock(mutex);
+
+		// Limit queue size
+		condition.wait(lock, [this]() {
+			return tasks.size() < workers.size()*2;
+		});
+
 		if(joining) throw std::runtime_error("enqueue on closing ThreadPool");
+
+		// Add task
 		tasks.emplace([task]()
 		{
 			(*task)();

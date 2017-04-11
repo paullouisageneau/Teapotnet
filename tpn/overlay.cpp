@@ -301,16 +301,13 @@ bool Overlay::waitConnection(void) const
 
 bool Overlay::waitConnection(duration timeout) const
 {
-	if(timeout <= duration(0))
+	if(timeout < duration::zero())
 		timeout = milliseconds(Config::Get("request_timeout").toDouble());
 
 	std::unique_lock<std::mutex> lock(mMutex);
-	if(!mHandlers.empty())
-		return true;
-	mCondition.wait_for(lock, timeout, [this]() {
+	return mCondition.wait_for(lock, timeout, [this]() {
 		return !mHandlers.empty();
 	});
-	return !mHandlers.empty();
 }
 
 int Overlay::connectionsCount(void) const
@@ -323,7 +320,7 @@ bool Overlay::recv(Message &message, duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mIncomingMutex);
 
-	if(mIncoming.empty() && timeout > duration::zero())
+	if(timeout > duration::zero())
 	{
 		mIncomingCondition.wait_for(lock, timeout, [this]() {
 			return !mIncoming.empty();
@@ -387,7 +384,7 @@ bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values)
 
 bool Overlay::retrieve(const BinaryString &key, Set<BinaryString> &values, duration timeout)
 {
-	if(timeout <= duration(0))
+	if(timeout < duration::zero())
 		timeout = milliseconds(Config::Get("request_timeout").toDouble());
 
   waitConnection(timeout);
@@ -1595,12 +1592,9 @@ void Overlay::Handler::Sender::run(void)
 		{
 			const duration timeout = milliseconds(Config::Get("keepalive_timeout").toDouble());
 
-			if(mQueue.empty())
-			{
-				mCondition.wait_for(lock, timeout, [this]() {
-					return !mQueue.empty() || mStop;
-				});
-			}
+			mCondition.wait_for(lock, timeout, [this]() {
+				return !mQueue.empty() || mStop;
+			});
 
 			if(mStop) break;
 

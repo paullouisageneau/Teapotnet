@@ -71,12 +71,9 @@ void Interface::remove(const String &prefix, HttpInterfaceable *interfaceable)
 	HttpInterfaceable *tmp = NULL;
 	if(mPrefixes.get(prefix, tmp) && (!interfaceable || tmp == interfaceable))
 	{
-		if(mBusy.contains(tmp))
-		{
-			mCondition.wait(lock, [this, tmp]() {
-				return !mBusy.contains(tmp);
-			});
-		}
+		mCondition.wait(lock, [this, tmp]() {
+			return !mBusy.contains(tmp);
+		});
 
 		mPrefixes.erase(prefix);
 	}

@@ -1561,12 +1561,9 @@ SecureTransport *Network::Tunneler::listen(BinaryString *source)
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
 
-			if(mQueue.empty() && !mStop)
-			{
-				mCondition.wait(lock, [this]() {
-					return !mQueue.empty() || mStop;
-				});
-			}
+			mCondition.wait(lock, [this]() {
+				return !mQueue.empty() || mStop;
+			});
 
 			if(mStop) break;
 
@@ -1833,12 +1830,9 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
-	if(!mClosed && mQueue.empty())
-	{
-		mCondition.wait_for(lock, mTimeout, [this]() {
-			return mClosed || !mQueue.empty();
-		});
-	}
+	mCondition.wait_for(lock, mTimeout, [this]() {
+		return mClosed || !mQueue.empty();
+	});
 
 	if(mClosed) return 0;
 	if(mQueue.empty()) throw Timeout();
@@ -1862,14 +1856,9 @@ bool Network::Tunneler::Tunnel::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
-	if(!mClosed && mQueue.empty())
-	{
-		mCondition.wait_for(lock, timeout, [this]() {
-			return mClosed || !mQueue.empty();
-		});
-	}
-
-	return (mClosed || !mQueue.empty());
+	return mCondition.wait_for(lock, timeout, [this]() {
+		return mClosed || !mQueue.empty();
+	});
 }
 
 bool Network::Tunneler::Tunnel::nextRead(void)
@@ -2478,12 +2467,9 @@ void Network::Pusher::run(void)
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
-		if(mTargets.empty())
-		{
-			mCondition.wait(lock, [this]() {
-				return !mTargets.empty();
-			});
-		}
+		mCondition.wait(lock, [this]() {
+			return !mTargets.empty();
+		});
 
 		bool congestion = false;	// local congestion
 		auto it = mTargets.begin();

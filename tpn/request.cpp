@@ -172,6 +172,9 @@ void Request::http(const String &prefix, Http::Request &request)
 {
 	std::unique_lock<std::mutex> lock(mMutex);	// Request::http() is synced !
 
+	// Cancel autodeletion
+	mAutoDeleter.cancel();
+
 	int next = 0;
 	if(request.get.contains("next"))
 		request.get["next"].extract(next);
@@ -180,15 +183,11 @@ void Request::http(const String &prefix, Http::Request &request)
 	if(request.get.contains("timeout"))
 		timeout = milliseconds(request.get["timeout"].toDouble());
 
-	if(int(mResults.size()) <= next && !mFinished)
-	{
-		mAutoDeleter.cancel();
+	mCondition.wait_for(lock, timeout, [this, next]() {
+		return int(mResults.size()) > next || mFinished;
+	});
 
-		mCondition.wait_for(lock, timeout, [this, next]() {
-			return int(mResults.size()) > next || mFinished;
-		});
-	}
-
+	// Reset autodeletion
 	if(mAutoDeleteTimeout >= duration::zero())
 		mAutoDeleter.schedule(timeout);
 

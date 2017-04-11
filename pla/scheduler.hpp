@@ -185,12 +185,9 @@ inline void Scheduler::wait(Scheduler::task_id id)
 	if(id.second)
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-		if(pending.find(id) == pending.end())
-		{
-			pendingCondition.wait(lock, [this, id]() {
-				return pending.find(id) == pending.end();
-			});
-		}
+		pendingCondition.wait(lock, [this, id]() {
+			return pending.find(id) == pending.end();
+		});
 	}
 }
 

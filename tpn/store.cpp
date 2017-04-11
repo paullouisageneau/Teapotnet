@@ -166,11 +166,10 @@ bool Store::waitBlock(const BinaryString &digest, duration timeout)
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
 
-			if(!hasBlock(digest))
-			{
-				if(!mCondition.wait_for(lock, timeout, [this, digest]() { return hasBlock(digest); }))
-					return false;
-			}
+			if(!mCondition.wait_for(lock, timeout, [this, digest]() {
+				return hasBlock(digest);
+			}))
+				return false;
 		}
 
 		LogDebug("Store::waitBlock", "Block is now available: " + digest.toString());

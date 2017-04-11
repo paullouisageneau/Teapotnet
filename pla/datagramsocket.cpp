@@ -562,14 +562,9 @@ bool DatagramStream::waitData(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
-	if(mSock && mIncoming.empty())
-	{
-		this->mCondition.wait_for(lock, timeout, [this]() {
-			return (!mSock || !this->mIncoming.empty());
-		});
-	}
-
-	return (!mSock || !mIncoming.empty());
+	return mCondition.wait_for(lock, timeout, [this]() {
+		return (!mSock || !this->mIncoming.empty());
+	});
 }
 
 bool DatagramStream::nextRead(void)

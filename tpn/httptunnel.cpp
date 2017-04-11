@@ -574,15 +574,12 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			mUpSock = NULL;
 		}
 
-		if(!mUpSock)
-		{
-			if(!mCondition.wait_for(lock, ReadTimeout, [this]() {
-				return mClosed || mUpSock;
-			}))
-				throw Timeout();
+		if(!mCondition.wait_for(lock, ReadTimeout, [this]() {
+			return mClosed || mUpSock;
+		}))
+			throw Timeout();
 
-			if(!mUpSock) continue;
-		}
+		if(!mUpSock) continue;
 
 		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
 		mUpSock->setTimeout(SockTimeout);
@@ -678,15 +675,12 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 
 		mFlusher.cancel();
 
-		if(!mDownSock)
-		{
-			if(!mCondition.wait_for(lock, ConnTimeout, [this]() {
-				return mClosed || mDownSock;
-			}))
-				throw Timeout();
+		if(!mCondition.wait_for(lock, ConnTimeout, [this]() {
+			return mClosed || mDownSock;
+		}))
+			throw Timeout();
 
-			if(!mDownSock) continue;
-		}
+		if(!mDownSock) continue;
 
 		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
 		Assert(mDownloadLeft >= 1);
