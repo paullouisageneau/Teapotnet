@@ -133,7 +133,7 @@ void Overlay::start(duration delay)
 	{
 		mPool.enqueue([this]()
 		{
-			run();
+			update();
 		});
 	});
 }
@@ -921,7 +921,7 @@ bool Overlay::deserialize(Serializer &s)
 	return true;
 }
 
-void Overlay::run(void)
+void Overlay::update(void)
 {
 	try {
 		const int minConnectionsCount = Config::Get("min_connections").toInt();

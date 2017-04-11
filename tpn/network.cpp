@@ -1810,13 +1810,13 @@ Network::Tunneler::Tunnel::~Tunnel(void)
 
 uint64_t Network::Tunneler::Tunnel::id(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mId;
 }
 
 BinaryString Network::Tunneler::Tunnel::node(void) const
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	//std::unique_lock<std::mutex> lock(mMutex);
 	return mNode;
 }
 
@@ -1842,7 +1842,7 @@ size_t Network::Tunneler::Tunnel::readData(char *buffer, size_t size)
 
 	size = std::min(size, size_t(message.content.size() - mOffset));
 	std::copy(message.content.data() + mOffset, message.content.data() + mOffset + size, buffer);
-        mOffset+= size;
+	mOffset+= size;
 	return size;
 }
 
@@ -1949,7 +1949,7 @@ Network::Handler::~Handler(void)
 	else if(mThread.joinable()) mThread.join();
 
 	// Delete stream
-  std::unique_lock<std::mutex> lock(mMutex);
+	std::unique_lock<std::mutex> lock(mMutex);
 	delete mStream;
 }
 
@@ -2356,9 +2356,13 @@ int Network::Handler::send(bool force)
 	}
 
 	// Reset timeout
-	duration timeout = mKeepaliveTimeout;
-	if(mSource.rank() >= 1 || !mTargets.empty()) timeout = std::min(timeout, mTimeout);
-	mTimeoutAlarm.schedule(timeout);
+	if(!mClosed)
+	{
+		duration timeout = mKeepaliveTimeout;
+		if(mSource.rank() >= 1 || !mTargets.empty())
+			timeout = std::min(timeout, mTimeout);
+		mTimeoutAlarm.schedule(timeout);
+	}
 
 	return count;
 }

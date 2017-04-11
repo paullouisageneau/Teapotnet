@@ -45,6 +45,7 @@ const String Indexer::UploadDirectoryName = "_upload";
 Indexer::Indexer(User *user) :
 	Publisher(Network::Link(user->identifier(), Identifier::Empty)),
 	mUser(user),
+	mPool(1),
 	mSyncPool(1),
 	mRunning(false)
 {
@@ -265,7 +266,33 @@ void Indexer::start(duration delay)
 	// TODO: do not reschedule if longer delay
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
-		run();
+		{
+			std::unique_lock<std::mutex> lock(mMutex);
+			if(mRunning) return;
+			mRunning = true;
+		}
+
+		mPool.enqueue([this]() {
+			try {
+				LogDebug("Indexer::run", "Indexation started");
+				mDatabase->execute("UPDATE resources SET seen=0");			// Invalidate
+				update("/");												// Update
+				mDatabase->execute("DELETE FROM resources WHERE seen=0");	// Clean
+				// TODO: also delete from names
+				LogDebug("Indexer::run", "Indexation finished");
+			}
+			catch(const std::exception &e)
+			{
+				LogWarn("Indexer::run", e.what());
+			}
+
+			{
+				std::unique_lock<std::mutex> lock(mMutex);
+				mRunning = false;
+			}
+		});
+
+		start(seconds(6*3600));
 	});
 }
 
@@ -1622,41 +1649,6 @@ Resource::AccessLevel Indexer::pathAccessLevel(String path) const
 		throw Exception("Invalid path: unknown directory: " + directory);
 
 	return entry.access;
-}
-
-void Indexer::run(void)
-{
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		if(mRunning) return;
-		mRunning = true;
-	}
-
-	try {
-		LogDebug("Indexer::run", "Indexation started");
-
-		// Invalidate all entries
-		mDatabase->execute("UPDATE resources SET seen=0");
-
-		// Update
-		update("/");
-
-		// Clean
-		mDatabase->execute("DELETE FROM resources WHERE seen=0");	// TODO: delete from names
-
-		LogDebug("Indexer::run", "Indexation finished");
-	}
-	catch(const std::exception &e)
-	{
-		LogWarn("Indexer::run", e.what());
-	}
-
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mRunning = false;
-	}
-
-	start(seconds(6*3600));
 }
 
 Indexer::Query::Query(const String &path) :

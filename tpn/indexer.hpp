@@ -112,8 +112,6 @@ private:
 	static const String CacheDirectoryName;
 	static const String UploadDirectoryName;
 
-	void run(void);
-
 	bool prepareQuery(Database::Statement &statement, const Query &query, const String &fields);
 	void sync(String path, const BinaryString &target, Time time);
 	void update(String path = "/");
@@ -145,7 +143,7 @@ private:
 	String mBaseDirectory;
 	Map<String, Entry> mDirectories;
 	Alarm mRunAlarm;
-	ThreadPool mSyncPool;
+	ThreadPool mPool, mSyncPool;
 	bool mRunning;
 
 	mutable std::mutex mMutex;

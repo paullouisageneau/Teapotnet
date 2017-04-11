@@ -140,7 +140,7 @@ private:
 	int getRoutes(const BinaryString &destination, int count, Array<BinaryString> &result);
 	int getNeighbors(const BinaryString &destination, Array<BinaryString> &result);
 
-	void run(void);
+	void update(void);
 
 	class Backend
 	{
