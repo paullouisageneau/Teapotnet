@@ -1522,7 +1522,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 			mPending.insert(node);
 
-			LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
+			//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
 
 			Tunneler::Tunnel *tunnel = NULL;
 			try {
