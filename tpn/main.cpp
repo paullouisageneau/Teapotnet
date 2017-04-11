@@ -374,17 +374,18 @@ int run(String &commandLine, StringMap &args)
 	Config::Default("external_port", "auto");
 	Config::Default("port_mapping_enabled", "true");
 	Config::Default("http_proxy", "auto");
-	Config::Default("http_timeout", "10000");
-	Config::Default("connect_timeout", "10000");
-	Config::Default("idle_timeout", "30000");
-	Config::Default("request_timeout", "30000");
-	Config::Default("keepalive_timeout", "10000");
-	Config::Default("retransmit_timeout", "200");
 	Config::Default("min_connections", "8");
 	Config::Default("max_connections", "256");
 	Config::Default("store_max_age", "21600");	// 6h
 	Config::Default("user_global_shares", "true");
 	Config::Default("force_http_tunnel", "false");
+
+	Config::Default("http_timeout", "10000");
+	Config::Default("connect_timeout", "10000");
+	Config::Put("request_timeout", "30000");
+	Config::Put("idle_timeout", "60000");
+	Config::Put("keepalive_timeout", "10000");
+	Config::Put("retransmit_timeout", "500");
 
 #ifdef ANDROID
 	Config::Default("cache_max_size", "200");		// MiB

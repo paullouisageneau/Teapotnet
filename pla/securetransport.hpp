@@ -96,7 +96,7 @@ public:
 	void addCredentials(Credentials *creds, bool mustDelete = false);	// creds will be deleted if mustDelete == true
 	void setHandshakeTimeout(duration timeout);
 	void setDatagramMtu(unsigned int mtu);	// ignored if not a datagram stream
-	void setDatagramTimeout(duration timeout, duration retransTimeout);	// ignored if not a datagram stream
+	void setDatagramTimeout(duration timeout, duration retransTimeout = duration(-1));	// ignored if not a datagram stream
 
 	void handshake(void);
 	void close(void);

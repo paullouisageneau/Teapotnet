@@ -2008,6 +2008,7 @@ void Network::Handler::timeout(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
+	//LogDebug("Network::Handler::timeout", "Triggered");
 	send(true);
 }
 

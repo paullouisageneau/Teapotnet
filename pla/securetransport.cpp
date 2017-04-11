@@ -130,12 +130,7 @@ void SecureTransport::setHandshakeTimeout(duration timeout)
 	if(!isHandshakeDone())
 	{
 		gnutls_handshake_set_timeout(mSession, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
-
-		if(mStream->isDatagram())
-		{
-			const int factor = 10;
-			setDatagramTimeout(timeout, timeout/factor);
-		}
+		setDatagramTimeout(timeout, seconds(1.));
 	}
 }
 
@@ -148,9 +143,11 @@ void SecureTransport::setDatagramMtu(unsigned int mtu)
 void SecureTransport::setDatagramTimeout(duration timeout, duration retransTimeout)
 {
 	if(mStream->isDatagram())
+	{
 		gnutls_dtls_set_timeouts(mSession,
 			std::chrono::duration_cast<std::chrono::milliseconds>(retransTimeout).count(),
 			std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+	}
 }
 
 void SecureTransport::handshake(void)
