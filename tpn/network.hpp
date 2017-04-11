@@ -118,7 +118,6 @@ public:
 	private:
 		Link mLink;
 		StringSet mSubscribedPrefixes;
-		ThreadPool mPool;
 	};
 
 	class Caller
@@ -379,7 +378,7 @@ private:
 
 	Overlay mOverlay;
 	Tunneler mTunneler;
-	Scheduler mScheduler;
+	ThreadPool mPool;
 
 	Map<Link, sptr<Handler> > mHandlers;
 	Map<String, Set<Publisher*> > mPublishers;
@@ -428,6 +427,7 @@ private:
 	Pusher mPusher;
 
 	friend class Handler;
+	friend class Subscriber;	// for access to threadpool
 };
 
 }

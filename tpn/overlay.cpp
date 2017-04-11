@@ -48,7 +48,7 @@ const int Overlay::StoreNeighbors = 3;
 const int Overlay::DefaultTtl = 16;
 
 Overlay::Overlay(int port) :
-		mPool(2 + 3),
+		mPool(2 + 5),
 		mFirstRun(true)
 {
 	mFileName = "keys";
@@ -131,7 +131,10 @@ void Overlay::start(duration delay)
 	mFirstRun = true;
 	mRunAlarm.schedule(Alarm::clock::now() + delay, [this]()
 	{
-		run();
+		mPool.enqueue([this]()
+		{
+			run();
+		});
 	});
 }
 

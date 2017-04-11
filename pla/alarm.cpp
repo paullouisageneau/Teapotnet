@@ -21,9 +21,13 @@
 
 #include "pla/alarm.hpp"
 
+#ifndef PLA_ALARM_THREADS
+#define PLA_ALARM_THREADS 2
+#endif
+
 namespace pla
 {
 
-Scheduler Alarm::scheduler(2);	// TODO
+Scheduler Alarm::scheduler(PLA_ALARM_THREADS);
 
 }

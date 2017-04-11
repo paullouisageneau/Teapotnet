@@ -49,7 +49,8 @@ Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
 
 Network::Network(int port) :
-		mOverlay(port)
+	mOverlay(port),
+	mPool(4)
 {
 	// Start network thread
 	mThread = std::thread([this]()
@@ -1227,8 +1228,7 @@ void Network::Publisher::issue(const String &prefix, const Mail &mail, const Str
 }
 
 Network::Subscriber::Subscriber(const Link &link) :
-	mLink(link),
-	mPool(2)
+	mLink(link)
 {
 
 }
@@ -1284,8 +1284,8 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 			return true;
 	}
 
-	// Enqueue fetch task
-	mPool.enqueue([this, link, prefix, path, target, fetchContent]()
+	// Schedule fetch task
+	Network::Instance->mPool.enqueue([this, link, prefix, path, target, fetchContent]()
 	{
 		try {
 			Resource resource(target);
@@ -1457,15 +1457,15 @@ void Network::Listener::ignore(const Identifier &local, const Identifier &remote
 void Network::Listener::ignore(void)
 {
 	for(auto it = mPairs.begin(); it != mPairs.end(); ++it)
-        {
-                Network::Instance->unregisterListener(it->second, it->first, this);
-        }
+	{
+		Network::Instance->unregisterListener(it->second, it->first, this);
+	}
 
 	mPairs.clear();
 }
 
 Network::Tunneler::Tunneler(void) :
-	mPool(10),
+	mPool(8),
 	mStop(false)
 {
 	mThread = std::thread([this]()
