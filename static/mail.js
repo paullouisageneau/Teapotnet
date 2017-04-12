@@ -97,6 +97,7 @@ function setMailReceiverRec(url, object, period, next) {
 							if(xhr.status == 404 && typeof TokenContact != 'undefined') {
 								$('#'+id+' .author').append('&nbsp;<form name="addform'+id+'" action="'+url+'" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="token" value="'+TokenContact+'"><input type="hidden" name="action" value="add"><input type="hidden" name="id" value="'+identifier+'"><input type="hidden" name="name" value="'+$('#'+id+' .author').text()+'"></form><a href="#" class="addlink"><img src="/static/add.png" alt="+"></a>');
 								$('#'+id+' .author .addlink').click(function() {
+									$(this).hide();
 									$('#'+id+' .author form').submit();
 									return false;
 								});
