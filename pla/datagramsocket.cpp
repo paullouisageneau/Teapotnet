@@ -438,12 +438,14 @@ int DatagramSocket::recv(char *buffer, size_t size, Address &sender, duration ti
 		{
 			DatagramStream *stream = *jt;
 			Assert(stream);
-			std::unique_lock<std::mutex> lock(stream->mMutex);
 
-			if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)
-				stream->mIncoming.push(tmp);
+			{
+				std::unique_lock<std::mutex> lock(stream->mMutex);
 
-			lock.unlock();
+				if(stream->mIncoming.size() < DatagramStream::MaxQueueSize)
+					stream->mIncoming.push(tmp);
+			}
+
 			stream->mCondition.notify_all();
 		}
 
@@ -493,7 +495,7 @@ void DatagramSocket::unregisterStream(DatagramStream *stream)
 		mStreams.erase(addr);
 }
 
-duration DatagramStream::DefaultTimeout = seconds(60.); // 1 min
+duration DatagramStream::DefaultTimeout = seconds(60.);
 int DatagramStream::MaxQueueSize = 100;
 
 DatagramStream::DatagramStream(void) :
@@ -538,11 +540,15 @@ void DatagramStream::setTimeout(duration timeout)
 
 size_t DatagramStream::readData(char *buffer, size_t size)
 {
-	if(!waitData(mTimeout)) throw Timeout();
-
 	std::unique_lock<std::mutex> lock(mMutex);
 
+	if(!mCondition.wait_for(lock, mTimeout, [this]() {
+		return (!mSock || !mIncoming.empty());
+	}))
+		throw Timeout();
+
 	if(mIncoming.empty()) return 0;
+
 	Assert(mOffset <= mIncoming.front().size());
 	size = std::min(size, size_t(mIncoming.front().size() - mOffset));
 	std::memcpy(buffer, mIncoming.front().data() + mOffset, size);
@@ -563,7 +569,7 @@ bool DatagramStream::waitData(duration timeout)
 	std::unique_lock<std::mutex> lock(mMutex);
 
 	return mCondition.wait_for(lock, timeout, [this]() {
-		return (!mSock || !this->mIncoming.empty());
+		return (!mSock || !mIncoming.empty());
 	});
 }
 
