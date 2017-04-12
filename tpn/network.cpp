@@ -2015,7 +2015,7 @@ void Network::Handler::timeout(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
-	LogDebug("Network::Handler::timeout", "Triggered");
+	//LogDebug("Network::Handler::timeout", "Triggered");
 	send(true);
 }
 
@@ -2123,7 +2123,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mTimeoutAlarm.schedule(mTimeout*0.1);
 		}
 		else {
-			LogDebug("Network::Handler::recvCombination", "Received null combination");
+			//LogDebug("Network::Handler::recvCombination", "Received null combination");
 		}
 	}
 
@@ -2132,9 +2132,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 
 void Network::Handler::writeData(const char *data, size_t size)
 {
-	if(mClosed) return;
-
-	mSourceBuffer.writeData(data, size);
+	if(!mClosed) mSourceBuffer.writeData(data, size);
 }
 
 void Network::Handler::flush(bool dontsend)
