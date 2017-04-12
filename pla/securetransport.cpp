@@ -381,13 +381,14 @@ ssize_t SecureTransport::WriteCallback(gnutls_transport_ptr_t ptr, const void* d
 	catch(const Timeout &timeout)
 	{
 		LogDebug("SecureTransport::WriteCallback", "Timeout");
+		gnutls_transport_set_errno(st->mSession, ETIMEDOUT);
 	}
 	catch(const std::exception &e)
 	{
 		LogDebug("SecureTransport::WriteCallback", e.what());
+		gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	}
 
-	gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	return -1;
 }
 
@@ -408,13 +409,14 @@ ssize_t SecureTransport::ReadCallback(gnutls_transport_ptr_t ptr, void* data, si
 	catch(const Timeout &timeout)
 	{
 		LogDebug("SecureTransport::ReadCallback", "Timeout");
+		gnutls_transport_set_errno(st->mSession, ETIMEDOUT);
 	}
 	catch(const std::exception &e)
 	{
 		LogDebug("SecureTransport::ReadCallback", e.what());
+		gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	}
 
-	gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	return -1;
 }
 
@@ -429,9 +431,9 @@ int SecureTransport::TimeoutCallback(gnutls_transport_ptr_t ptr, unsigned int ms
 	catch(const std::exception &e)
 	{
 		LogDebug("SecureTransport::TimeoutCallback", e.what());
+		gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	}
 
-	gnutls_transport_set_errno(st->mSession, ECONNRESET);
 	return -1;
 }
 
