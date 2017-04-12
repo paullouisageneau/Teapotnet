@@ -2122,6 +2122,9 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			if(!send(false) && !mClosed)
 				mTimeoutAlarm.schedule(mTimeout*0.1);
 		}
+		else {
+			LogDebug("Network::Handler::recvCombination", "Received null combination");
+		}
 	}
 
 	return count;
