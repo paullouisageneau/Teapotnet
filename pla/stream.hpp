@@ -97,19 +97,19 @@ public:
 	bool	read(BinaryString &str);
 	bool	read(String &str);
 
-	inline bool	read(char &c) 			{ return readData(&c,1); }
+	inline bool	read(char &c) 				{ return readData(&c,1); }
 	inline bool	read(signed char &i) 		{ return readStd(i); }
 	inline bool	read(signed short &i) 		{ return readStd(i); }
 	inline bool	read(signed int &i) 		{ return readStd(i); }
 	inline bool	read(signed long &i) 		{ return readStd(i); }
-	inline bool     read(signed long long &i)       { return readStd(i); }
+	inline bool	read(signed long long &i)	{ return readStd(i); }
 	inline bool	read(unsigned char &i) 		{ return readStd(i); }
 	inline bool	read(unsigned short &i) 	{ return readStd(i); }
 	inline bool	read(unsigned int &i) 		{ return readStd(i); }
 	inline bool	read(unsigned long &i) 		{ return readStd(i); }
-	inline bool	read(unsigned long long &i) 	{ return readStd(i); }
-	inline bool	read(float &f) 			{ return readStd(f); }
-	inline bool	read(double &f) 		{ return readStd(f); }
+	inline bool	read(unsigned long long &i) { return readStd(i); }
+	inline bool	read(float &f) 				{ return readStd(f); }
+	inline bool	read(double &f) 			{ return readStd(f); }
 
 	double	readDouble(void);
 	float 	readFloat(void);
@@ -128,19 +128,19 @@ public:
 	void	write(const BinaryString &str);
 	void	write(const String &str);
 
-	inline void	write(char c) 			{ writeData(&c,1); }
+	inline void	write(char c) 				{ writeData(&c,1); }
 	inline void	write(signed char i) 		{ writeStd(i); }
 	inline void	write(signed short i) 		{ writeStd(i); }
 	inline void	write(signed int i) 		{ writeStd(i); }
 	inline void	write(signed long i) 		{ writeStd(i); }
-	inline void     write(signed long long i)       { writeStd(i); }
+	inline void	write(signed long long i)	{ writeStd(i); }
 	inline void	write(unsigned char i) 		{ writeStd(i); }
 	inline void	write(unsigned short i) 	{ writeStd(i); }
 	inline void	write(unsigned int i) 		{ writeStd(i); }
 	inline void	write(unsigned long i) 		{ writeStd(i); }
-	inline void	write(unsigned long long i) 	{ writeStd(i); }
-	inline void	write(float f) 			{ writeStd(f); }
-	inline void	write(double f) 		{ writeStd(f); }
+	inline void	write(unsigned long long i) { writeStd(i); }
+	inline void	write(float f) 				{ writeStd(f); }
+	inline void	write(double f) 			{ writeStd(f); }
 
 	// Flow operators
 	template<typename T> Stream& operator>>(T &val);

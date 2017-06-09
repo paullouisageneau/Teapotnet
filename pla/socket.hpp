@@ -73,6 +73,7 @@ private:
 	Address mProxifiedAddr;
 
 	friend class ServerSocket;
+	friend class SocketSelect;
 };
 
 }

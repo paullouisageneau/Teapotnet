@@ -71,8 +71,9 @@ inline ThreadPool::ThreadPool(size_t threads) : joining(false)
 				{
 					std::unique_lock<std::mutex> lock(mutex);
 					condition.wait(lock, [this]() {
-						return !tasks.empty();
+						return !tasks.empty() || joining;
 					});
+					if(tasks.empty()) break;
 					task = std::move(tasks.front());
 					tasks.pop();
 				}
@@ -110,8 +111,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 		if(joining) throw std::runtime_error("enqueue on closing ThreadPool");
 
 		// Add task
-		tasks.emplace([task]()
-		{
+		tasks.emplace([task]() {
 			(*task)();
 		});
 	}

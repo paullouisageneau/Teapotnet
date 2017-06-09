@@ -177,10 +177,9 @@ void Address::set(const String &str)
 
 void Address::set(const sockaddr *addr, socklen_t addrlen)
 {
-	//std::memset(&mAddr, 0, sizeof(mAddr));
-
 	if(!addr || !addrlen)
 	{
+		std::memset(&mAddr, 0, sizeof(mAddr));
 		mAddrLen = 0;
 		return;
 	}
