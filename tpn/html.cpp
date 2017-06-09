@@ -84,9 +84,14 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/mail.js\"></script>\n";
 	*mStream<<"<base target=\"_parent\">\n";
 
+	// Load specific CSS on touch devices
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || deviceAgent.indexOf('iPad') >= 0)\n\
 	$('head').append('<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/touchscreen.css\">');");
+
+	// Register teapotnet handler
+	if(!blank) javascript("var handler = location.protocol + '//' + location.host + '/?url=%s';\n\
+navigator.registerProtocolHandler('teapotnet', handler, 'Teapotnet handler');");
 
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";

@@ -200,6 +200,18 @@ void Interface::http(const String &prefix, Http::Request &request)
 				return;
 			}
 
+			// Handle teapotnet urls
+			if(request.get.contains("url"))
+			{
+				String url = request.get["url"];
+				String file = url.cut(':');
+
+				Http::Response response(request, 302);
+				response.headers["Location"] = "/file/"+file;
+				response.send();
+				return;
+			}
+
 			Http::Response response(request, 200);
 			response.send();
 
