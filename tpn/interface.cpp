@@ -205,6 +205,8 @@ void Interface::http(const String &prefix, Http::Request &request)
 			{
 				String url = request.get["url"];
 				String file = url.cut(':');
+				while(!file.empty() && file[0] == '/')
+					file.ignore();
 
 				Http::Response response(request, 302);
 				response.headers["Location"] = "/file/"+file;
@@ -247,7 +249,7 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.close("table");
 			page.closeForm();
 
-			for(StringMap::iterator it = request.cookies.begin(); it != request.cookies.end(); ++it)
+			for(auto it = request.cookies.begin(); it != request.cookies.end(); ++it)
 			{
 				String cookieName = it->first;
 				String name = cookieName.cut('_');
@@ -286,6 +288,10 @@ void Interface::http(const String &prefix, Http::Request &request)
 			page.text(" - ");
 			page.link(BUGSLINK, "Report a bug", "", true);
 			page.close("div");
+
+			// Register teapotnet handler
+			page.javascript("var handler = location.protocol + '//' + location.host + '/?url=%s';\n\
+		navigator.registerProtocolHandler('teapotnet', handler, 'Teapotnet');");
 
 			page.footer();
 			return;
