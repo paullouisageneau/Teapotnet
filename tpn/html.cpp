@@ -91,7 +91,7 @@ if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || 
 
 	// Register teapotnet handler
 	if(!blank) javascript("var handler = location.protocol + '//' + location.host + '/?url=%s';\n\
-navigator.registerProtocolHandler('teapotnet', handler, 'Teapotnet handler');");
+navigator.registerProtocolHandler('teapotnet', handler, 'Teapotnet');");
 
 	*mStream<<"</head>\n";
 	*mStream<<"<body>\n";
