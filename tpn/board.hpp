@@ -47,10 +47,10 @@ public:
 	int  unread(void) const;
 	BinaryString digest(void) const;
 
-	bool add(const Mail &mail, bool noIssue = false);
+	void addSubBoard(sptr<Board> board);
+	void removeSubBoard(sptr<Board> board);
 
-	void addMergeUrl(const String &url);
-	void removeMergeUrl(const String &url);
+	bool add(const Mail &mail, bool noIssue = false);
 
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
@@ -64,15 +64,16 @@ public:
 
 private:
 	void process(void);
+	void notify(void);
 
 	String mName;
 	String mDisplayName;
 	String mSecret;
 	BinaryString mDigest;
 	Set<Mail> mMails;
-	Array<const Mail*> mUnorderedMails;
 
-	StringSet mMergeUrls;
+	Set<sptr<Board> > mSubBoards;
+	Set<Board*> mBoards;
 
 	mutable std::mutex mMutex;
 	mutable std::condition_variable mCondition;

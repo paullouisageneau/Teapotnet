@@ -64,6 +64,12 @@ Board::Board(const String &name, const String &secret, const String &displayName
 
 Board::~Board(void)
 {
+	for(auto board : mSubBoards)
+	{
+		std::unique_lock<std::mutex> lock(board->mMutex);
+		board->mBoards.erase(this);
+	}
+
 	Interface::Instance->remove(urlPrefix(), this);
 
 	const String prefix = "/mail/" + mName;
@@ -98,6 +104,32 @@ BinaryString Board::digest(void) const
 	return mDigest;
 }
 
+void Board::addSubBoard(sptr<Board> board)
+{
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mSubBoards.insert(board);
+	}
+
+	{
+		std::unique_lock<std::mutex> lock(board->mMutex);
+		board->mBoard.insert(this);
+	}
+}
+
+void Board::removeSubBoard(sptr<Board> board)
+{
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mSubBoards.erase(board);
+	}
+
+	{
+		std::unique_lock<std::mutex> lock(board->mMutex);
+		board->mBoard.erase(this);
+	}
+}
+
 bool Board::add(const Mail &mail, bool noIssue)
 {
 	{
@@ -116,21 +148,8 @@ bool Board::add(const Mail &mail, bool noIssue)
 	if(!noIssue) issue(prefix, mail);
 	process();
 	publish(prefix);
-
-	mCondition.notify_all();
+	notify();
 	return true;
-}
-
-void Board::addMergeUrl(const String &url)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	mMergeUrls.insert(url);
-}
-
-void Board::removeMergeUrl(const String &url)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	mMergeUrls.erase(url);
 }
 
 void Board::process(void)
@@ -163,6 +182,16 @@ void Board::process(void)
 	}
 }
 
+void Board::notify(void)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+
+	for(auto board : mBoards)
+		board->mCondition.notify_all();
+
+	mCondition.notify_all();
+}
+
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
@@ -185,7 +214,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 
 	if(!fetch(link, prefix, path, target, true))
 		return false;
-	
+
 	try {
 		Resource resource(target, true);	// local only (already fetched)
 		if(resource.type() != "mail")
@@ -236,7 +265,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		LogWarn("Board::incoming", e.what());
 	}
 
-	mCondition.notify_all();
+	notify();
 	return true;
 }
 
@@ -445,12 +474,6 @@ void Board::http(const String &prefix, Http::Request &request)
 
 			unsigned refreshPeriod = 2000;
 			page.javascript("setMailReceiver('"+Http::AppendParam(request.fullUrl, "json")+"','#mail', "+String::number(refreshPeriod)+");");
-
-			{
-				std::unique_lock<std::mutex> lock(mMutex);
-				for(auto &url : mMergeUrls)
-					page.javascript("setMailReceiver('"+Http::AppendParam(url, "json")+"','#mail', "+String::number(refreshPeriod)+");");
-			}
 
 			page.footer();
 			return;
