@@ -50,7 +50,8 @@ public:
 	void addSubBoard(sptr<Board> board);
 	void removeSubBoard(sptr<Board> board);
 
-	bool add(const Mail &mail, bool noIssue = false);
+	bool post(const List<Mail> &mails);
+	bool post(const Mail &mail);
 
 	// Publisher
 	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
@@ -63,14 +64,14 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	void process(void);
-	void notify(void);
+	bool add(const List<Mail> &mails);
+	void appendMails(const List<Mail> &mails);
 
 	String mName;
 	String mDisplayName;
 	String mSecret;
-	BinaryString mDigest;
-	Set<Mail> mMails;
+	Set<BinaryString> mDigests, mPreviousDigests, mProcessedDigests;
+	Array<Mail> mMails;
 
 	Set<sptr<Board> > mSubBoards;
 	Set<Board*> mBoards;

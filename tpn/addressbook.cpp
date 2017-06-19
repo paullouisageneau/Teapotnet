@@ -110,7 +110,11 @@ void AddressBook::save(void) const
 	if(self)
 	{
 		Resource resource;
-		resource.process(mFileName, "contacts", "contacts", self->secret());
+		Resource::Specs specs;
+		specs.name = "contacts";
+		specs.type = "contacts";
+		specs.secret = self->secret;
+		resource.process(mFileName, specs);
 
 		{
 			std::unique_lock<std::mutex> lock(mMutex);
@@ -735,7 +739,7 @@ void AddressBook::Contact::init(void)
 		{
 			if(!mBoard) mBoard = std::make_shared<Board>(mIdentifier.toString(), "", mName);	// Public board
 			mAddressBook->user()->mergeBoard(mBoard);
-			
+
 			if(!mPrivateBoard)
 			{
 				BinaryString boardId = mAddressBook->user()->identifier() ^ identifier();

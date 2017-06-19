@@ -280,7 +280,11 @@ void User::send(const String &password) const
 	Assert(!password.empty());
 
 	Resource resource;
-	resource.process(mFileName, "user", "user", password);
+	Resource::Specs specs;
+	specs.name = "user";
+	specs.type = "user";
+	specs.secret = password;
+	resource.process(mFileName, specs);
 
 	Network::Instance->storeValue(mAuthDigest, resource.digest());
 }

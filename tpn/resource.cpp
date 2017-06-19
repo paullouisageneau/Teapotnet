@@ -32,24 +32,18 @@ namespace tpn
 {
 
 Resource::Resource(void) :
-	mIndexBlock(NULL),
-	mIndexRecord(NULL),
 	mLocalOnly(false)
 {
 
 }
 
 Resource::Resource(const Resource &resource) :
-	mIndexBlock(NULL),
-	mIndexRecord(NULL),
 	mLocalOnly(false)
 {
 	*this = resource;
 }
 
 Resource::Resource(const BinaryString &digest, bool localOnly) :
-	mIndexBlock(NULL),
-	mIndexRecord(NULL),
 	mLocalOnly(false)
 {
 	fetch(digest, localOnly);
@@ -81,7 +75,7 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 		mIndexRecord = std::make_shared<IndexRecord>();
 		AssertIO(BinarySerializer(mIndexBlock.get()) >> mIndexRecord);
 
-		for(const BinaryString &digest : mIndexRecord->blockDigests)
+		for(const BinaryString &digest : mIndexRecord->blocks)
 			Store::Instance->hintBlock(digest, mIndexBlock->digest());
 	}
 	catch(const std::exception &e)
@@ -93,39 +87,41 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 
 }
 
-void Resource::process(const String &filename, const String &name, const String &type, const String &secret, bool cache)
+void Resource::process(const String &filename, const Specs &s, bool cache)
 {
 	BinaryString salt;
 
 	// If secret is not empty then this is an encrypted resource
-	if(!secret.empty())
+	if(!s.secret.empty())
 	{
 		// Generate salt from plaintext
 		// Because we need to be able to recognize data is identical even when encrypted
 		BinaryString digest;
 		File file(filename, File::Read);
 		Sha256().compute(file, digest);
-		Sha256().pbkdf2_hmac(digest, type, salt, 32, 100000);
+		Sha256().pbkdf2_hmac(digest, s.type, salt, 32, 100000);
 		Assert(!salt.empty());
 	}
 
 	// Fill index record
 	int64_t size = File::Size(filename);
 	mIndexRecord = std::make_shared<Resource::IndexRecord>();
-	mIndexRecord->name = name;
-	mIndexRecord->type = type;
+	mIndexRecord->name = s.name;
+	mIndexRecord->type = s.type;
 	mIndexRecord->size = size;
 	mIndexRecord->salt = salt;
-	mIndexRecord->blockDigests.reserve(size/Block::Size);
+	mIndexRecord->blocks.reserve(size/Block::Size + (size%BlockSize ? 0 : 1));
+	for(auto d : s.previous)
+		mIndexRecord.->previous.emplace_back(std::move(d));
 
 	// Process blocks
 	File file(filename, File::Read);
 	BinaryString blockDigest;
 
-	if(!secret.empty())
+	if(!s.secret.empty())
 	{
 		BinaryString key;
-		Sha256().pbkdf2_hmac(secret, salt, key, 32, 100000);
+		Sha256().pbkdf2_hmac(s.secret, salt, key, 32, 100000);
 
 		uint64_t i = 0;
 		while(true)
@@ -144,13 +140,13 @@ void Resource::process(const String &filename, const String &name, const String 
 			if(!Block::EncryptFile(file, subkey, iv, blockDigest))
 				break;
 
-			mIndexRecord->blockDigests.append(blockDigest);
+			mIndexRecord->blocks.append(blockDigest);
 			++i;
 		}
 	}
 	else {
 		while(Block::ProcessFile(file, blockDigest, cache))
-			mIndexRecord->blockDigests.append(blockDigest);
+			mIndexRecord->blocks.append(blockDigest);
 	}
 
 	// Create index
@@ -165,10 +161,10 @@ void Resource::process(const String &filename, const String &name, const String 
 	mIndexBlock = std::make_shared<Block>(indexFilePath);
 }
 
-void Resource::cache(const String &filename, const String &name, const String &type, const String &secret)
+void Resource::cache(const String &filename, const Specs &s)
 {
 	// Process in cache mode
-	process(filename, name, type, "", true);
+	process(filename, s, true);
 
 	// And remove the original file
 	File::Remove(filename);
@@ -182,7 +178,7 @@ BinaryString Resource::digest(void) const
 
 int Resource::blocksCount(void) const
 {
-	if(mIndexRecord) return int(mIndexRecord->blockDigests.size());
+	if(mIndexRecord) return int(mIndexRecord->blocks.size());
 	else return 0;
 }
 
@@ -197,10 +193,19 @@ int Resource::blockIndex(int64_t position, size_t *offset) const
 
 BinaryString Resource::blockDigest(int index) const
 {
-	if(!mIndexBlock || index < 0 || index >= mIndexRecord->blockDigests.size())
+	if(!mIndexBlock || index < 0 || index >= mIndexRecord->blocks.size())
 		throw OutOfBounds("Block index out of bounds");
 
-	return mIndexRecord->blockDigests.at(index);
+	return mIndexRecord->blocks.at(index);
+}
+
+int Resource::getPreviousDigests(List<BinaryString> &result) const
+{
+	result.clear();
+	if(!mIndexRecord) return 0;
+	for(auto d : mIndexRecord->previous)
+		result.emplace_back(std::move(d));
+	return result.size();
 }
 
 String Resource::name(void) const
@@ -236,9 +241,9 @@ bool Resource::isLocallyAvailable(void) const
 {
 	if(!mIndexRecord) return false;
 
-	for(int i=0; i<mIndexRecord->blockDigests.size(); ++i)
+	for(int i=0; i<mIndexRecord->blocks.size(); ++i)
 	{
-		if(!Store::Instance->hasBlock(mIndexRecord->blockDigests[i]))
+		if(!Store::Instance->hasBlock(mIndexRecord->blocks[i]))
 			return false;
 	}
 
@@ -330,8 +335,8 @@ Resource::DirectoryRecord Resource::getDirectoryRecord(Time recordTime) const
 Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck) :
 	mResource(resource),
 	mReadPosition(0),
-	mCurrentBlock(NULL),
-	mNextBlock(NULL)
+	mBlockIndex(0),
+	mBufferedCount(10)	// TODO: Default value
 {
 	Assert(mResource);
 
@@ -347,7 +352,7 @@ Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck)
 			throw Exception("Expected non-encrypted resource");
 	}
 
-	seekRead(0);	// Initialize positions
+	seekRead(0);	// Initialize blocks
 }
 
 Resource::Reader::~Reader(void)
@@ -357,12 +362,12 @@ Resource::Reader::~Reader(void)
 
 size_t Resource::Reader::readData(char *buffer, size_t size)
 {
-	if(!mCurrentBlock) return 0;	// EOF
+	if(mBlocks.empty()) return 0;	// EOF
 
-	if(!mKey.empty() && !mCurrentBlock->hasDecryption())
+	if(!mKey.empty() && !mBlocks.front()->hasDecryption())
 	{
 		BinaryString subsalt;
-		subsalt.writeBinary(uint64_t(mCurrentBlockIndex));
+		subsalt.writeBinary(uint64_t(mBlockIndex));
 
 		// Generate subkey
 		BinaryString subkey;
@@ -373,19 +378,20 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
 
 		// Initialize decryption process
-		mCurrentBlock->setDecryption(subkey, iv);
+		mBlocks.front()->setDecryption(subkey, iv);
 	}
 
 	size_t ret;
-	if((ret = mCurrentBlock->readData(buffer, size)))
+	if((ret = mBlocks.front()->readData(buffer, size)))
 	{
 		mReadPosition+= ret;
 		return ret;
 	}
 
-	++mCurrentBlockIndex;
-	mCurrentBlock = mNextBlock;
-	mNextBlock = createBlock(mCurrentBlockIndex + 1);
+	++mBlockIndex;
+	mBlocks.pop_front();
+	fillBlocks();
+
 	return readData(buffer, size);
 }
 
@@ -397,13 +403,14 @@ void Resource::Reader::writeData(const char *data, size_t size)
 void Resource::Reader::seekRead(int64_t position)
 {
 	size_t offset = 0;
-	mCurrentBlockIndex = mResource->blockIndex(position, &offset);
-	mCurrentBlock	= createBlock(mCurrentBlockIndex);
-	mNextBlock	= createBlock(mCurrentBlockIndex + 1);
-	mReadPosition	= position;
+	mBlockIndex = mResource->blockIndex(position, &offset);
+	mBlocks.clear();
+	fillBlocks();
 
-	if(mCurrentBlock)
-		mCurrentBlock->seekRead(offset);
+	if(!mBlocks.empty())
+		mBlocks.front()->seekRead(offset);
+
+	mReadPosition	= position;
 }
 
 void Resource::Reader::seekWrite(int64_t position)
@@ -442,6 +449,16 @@ sptr<Block> Resource::Reader::createBlock(int index)
 	return block;
 }
 
+void Resource::Reader::fillBlocks(void)
+{
+	while(mNextBlocks.size() < mBufferedCount)
+	{
+		sptr<Block> next = createBlock(mBlockIndex + mNextBlocks.size());
+		if(!next) break;
+		mNextBlocks.push_back(next);
+	}
+}
+
 void Resource::MetaRecord::serialize(Serializer &s) const
 {
 	s << Object()
@@ -469,7 +486,8 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 	object.insert("name", name)
 	      .insert("type", type)
 	      .insert("size", size)
-	      .insert("digests", blockDigests);
+				.insert("previous", previous)
+	      .insert("digests", blocks);
 
 	if(!signature.empty()) object.insert("signature", signature);
 	if(!salt.empty()) object.insert("salt", salt);
@@ -483,7 +501,8 @@ bool Resource::IndexRecord::deserialize(Serializer &s)
 		.insert("name", name)
 		.insert("type", type)
 		.insert("size", size)
-		.insert("digests", blockDigests)
+		.insert("previous", previous)
+		.insert("digests", blocks)
 		.insert("signature", signature)
 		.insert("salt", salt));
 }

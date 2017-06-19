@@ -2435,8 +2435,7 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 			{
 				List<Target> &list = it->second;
 
-				list.remove_if([target](const Target &t)
-				{
+				list.remove_if([target](const Target &t) {
 					return t.digest == target;
 				});
 
@@ -2450,13 +2449,9 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 
 			List<Target> &list = mTargets[destination];
 
-			auto jt = list.begin();
-			while(jt != list.end())
-			{
-				if(jt->digest == target)
-					break;
-				++jt;
-			}
+			auto jt = list.find_if([target](const Target &t) {
+				return (t.digest == target);
+			});
 
 			if(jt != list.end())
 			{

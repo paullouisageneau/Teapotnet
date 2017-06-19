@@ -28,6 +28,7 @@
 #include "pla/serializable.hpp"
 #include "pla/binarystring.hpp"
 #include "pla/string.hpp"
+#include "pla/list.hpp"
 #include "pla/file.hpp"
 #include "pla/crypto.hpp"
 
@@ -44,15 +45,28 @@ public:
 	Resource(const BinaryString &digest, bool localOnly = false);
 	~Resource(void);
 
+	struct Specs
+	{
+		Specs(String _name = "", String _type = "", String _secret = "") :
+			name(std::move(_name)), type(std::move(_type)), secret(std::move(_secret)) {}
+
+		String name;
+		String type;
+		String secret;
+		List<BinaryString> previousDigests;
+	};
+
 	void fetch(const BinaryString &digest, bool localOnly = false);
-	void process(const String &filename, const String &name, const String &type, const String &secret = "", bool cache = false);
-	void cache(const String &filename, const String &name, const String &type, const String &secret = "");
+	void process(const String &filename, const Specs &s, bool cache = false);
+	void cache(const String &filename, const Specs &s);
 
 	BinaryString digest(void) const;
 
 	int blocksCount(void) const;
 	int blockIndex(int64_t position, size_t *offset = NULL) const;
 	BinaryString blockDigest(int index) const;
+
+	int getPreviousDigests(List<BinaryString> &result) const;
 
 	String  name(void) const;
 	String  type(void) const;
@@ -97,7 +111,8 @@ public:
 		void serialize(Serializer &s) const;
 		bool deserialize(Serializer &s);
 
-		Array<BinaryString> blockDigests;
+		Array<BinaryString> blocks;
+		Array<BinaryString> previous;
 		BinaryString signature;
 		BinaryString salt;
 	};
@@ -113,7 +128,7 @@ public:
 		bool deserialize(Serializer &s);
 
 		BinaryString	digest;
-		Time 			time;
+		Time 					time;
 	};
 
 	IndexRecord getIndexRecord(void) const;
@@ -137,13 +152,13 @@ public:
 
 	private:
 		sptr<Block> createBlock(int index);
+		void fillBlocks(void);
 
 		Resource *mResource;
 		int64_t mReadPosition;
 
-		int mCurrentBlockIndex;
-		sptr<Block> mCurrentBlock;
-		sptr<Block> mNextBlock;
+		int mBlockIndex, mBufferedCount;
+		Queue<sptr<Block> > mBlocks;
 
 		BinaryString mKey;
 	};

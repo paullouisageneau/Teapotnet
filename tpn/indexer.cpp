@@ -336,6 +336,7 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 		tempFile.close();
 
 		Resource resource;
+		Resource::Specs specs("/", "directory");
 		resource.cache(tempFileName, "/", "directory");
 		targets.push_back(resource.digest());
 		return true;
@@ -520,7 +521,8 @@ bool Indexer::process(String path, Resource &resource)
 	{
 		LogInfo("Indexer::process", "Processing: " + path);
 
-		resource.process(realPath, name, (isDirectory ? "directory" : "file"));
+		Resource::Specs specs(name, (isDirectory ? "directory" : "file"));
+		resource.process(realPath, specs);
 		notify(path, resource, fileTime);
 
 		//LogDebug("Indexer::process", "Processed: digest is " + resource.digest().toString());

@@ -73,7 +73,6 @@ Board::~Board(void)
 	Interface::Instance->remove(urlPrefix(), this);
 
 	const String prefix = "/mail/" + mName;
-
 	unpublish(prefix);
 	unsubscribe(prefix);
 }
@@ -130,30 +129,30 @@ void Board::removeSubBoard(sptr<Board> board)
 	}
 }
 
-bool Board::add(const Mail &mail, bool noIssue)
+bool Board::post(const List<Mail> &mails)
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-
-		if(mail.empty() || mMails.contains(mail))
-			return false;
-
-		auto it = mMails.insert(mail);
-		const Mail &m = *it.first;
-		mUnorderedMails.append(&m);
-	}
-
 	const String prefix = "/mail/" + mName;
 
-	if(!noIssue) issue(prefix, mail);
-	process();
-	publish(prefix);
-	notify();
-	return true;
+	// Issue mails
+	for(const Mail &m : mails)
+		issue(prefix, m);
+
+	// Add to chain
+	return add(mails);
 }
 
-void Board::process(void)
+bool Board::post(const Mail &mail)
 {
+	List<Mail> tmp;
+	tmp.push_back(mail);
+	return post(tmp);
+}
+
+bool Board::add(const List<Mail> &mails)
+{
+	// First, append to list
+	appendMails(mails);
+
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
@@ -161,34 +160,48 @@ void Board::process(void)
 		String tempFileName = File::TempName();
 		File tempFile(tempFileName, File::Truncate);
 		BinarySerializer serializer(&tempFile);
-		for(auto it = mMails.begin(); it != mMails.end(); ++it)
-			serializer << *it;
+		for(const Mail &m : mails)
+			serializer << m;
 		tempFile.close();
 
 		// Move to cache
 		Resource resource;
-		resource.cache(tempFileName, mName, "mail", mSecret);
+		Resource::Specs specs;
+		specs.name = mName;
+		specs.type = "mail";
+		specs.secret = mSecret;
+		specs.previous = mDigests;	// chain other messages
+		resource.cache(tempFileName, specs);
 
 		// Retrieve digest and store it
 		const String prefix = "/mail/" + mName;
-		mDigest = resource.digest();
-		Store::Instance->storeValue(Store::Hash(prefix), mDigest, Store::Permanent);
+		BinaryString digest = resource.digest();
+		Store::Instance->storeValue(Store::Hash(prefix), digest, Store::Permanent);
 
-		LogDebug("Board::process", "Board processed: " + mDigest.toString());
+		// Update digests
+		mPreviousDigests.insertAll(mDigests);
+		mDigests.clear();
+		mDigests.insert(digest);
+		mProcessedDigests.insert(digest);
+
+		// Republish prefix
+		const String prefix = "/mail/" + mName;
+		publish(prefix);
+		return true;
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("Board::process", String("Board processing failed: ") + e.what());
+		LogWarn("Board::process", String("Board post failed: ") + e.what());
+		return false;
 	}
 }
 
-void Board::notify(void)
+void Board::appendMails(const List<Mail> &mails)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	for(const Mail &m : mails)
+		mMails.emplace_back(std::move(m));
 
-	for(auto board : mBoards)
-		board->mCondition.notify_all();
-
+	// Notify HTTP clients
 	mCondition.notify_all();
 }
 
@@ -196,12 +209,9 @@ bool Board::anounce(const Network::Link &link, const String &prefix, const Strin
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	targets.clear();
-
-	if(mDigest.empty())
-		return false;
-
-	targets.push_back(mDigest);
-	return true;
+	for(auto d : mDigests)
+		targets.emplace_back(std::move(d));
+	return !targets.empty();
 }
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
@@ -216,48 +226,40 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		return false;
 
 	try {
+		std::unique_lock<std::mutex> lock(mMutex);
+
 		Resource resource(target, true);	// local only (already fetched)
 		if(resource.type() != "mail")
 			return false;
 
-		bool complete = false;
-		{
-			std::unique_lock<std::mutex> lock(mMutex);
+		if(!mPreviousDigests.contains(target))
+			mDigests.insert(target);	// top-level
 
+		// Fetch previous
+		List<BinaryString> previous;
+		if(resource.getPreviousDigests(previous))
+			for(const BinaryString &d : previous)
+			{
+				mDigests.erase(d);
+				mPreviousDigests.insert(d);
+				fetch(link, prefix, path, d, true);
+			}
+
+		if(!mProcessedDigests.contains(target))
+		{
+			mProcessedDigests.insert(target);
+
+			List<Mails> tmp;
 			Resource::Reader reader(&resource, mSecret);
 			BinarySerializer serializer(&reader);
-			Mail mail;
-			unsigned count = 0;
-			while(!!(serializer >> mail))
+			Mail m;
+			while(!!(serializer >> m))
 			{
-				if(mail.empty())
-					continue;
-
-				if(!mMails.contains(mail))
-				{
-					auto it = mMails.insert(mail);
-					const Mail &m = *it.first;
-					mUnorderedMails.append(&m);
-					++mUnread;
-					mHasNew = true;
-				}
-
-				++count;
+				if(m.empty()) continue;
+				tmp.emplace_back(std::move(m));
 			}
 
-			if(count == mMails.size())
-			{
-				mDigest = target;
-				complete = true;
-			}
-		}
-
-		if(!complete)
-		{
-			const String prefix = "/mail/" + mName;
-			process();
-			if(digest() != target)
-				publish(prefix);
+			appendMails(tmp);
 		}
 	}
 	catch(const Exception &e)
@@ -265,20 +267,14 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		LogWarn("Board::incoming", e.what());
 	}
 
-	notify();
 	return true;
 }
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
 {
-	if(add(mail, true))
-	{
-		++mUnread;
-		mHasNew = true;
-		return true;
-	}
-
-	return false;
+	List<Mail> tmp;
+	tmp.push_back(mail);
+	return add(tmp);
 }
 
 void Board::http(const String &prefix, Http::Request &request)
@@ -322,7 +318,7 @@ void Board::http(const String &prefix, Http::Request &request)
 						}
 					}
 
-					add(mail);
+					post(mail);
 
 					Http::Response response(request, 200);
 					response.send();
