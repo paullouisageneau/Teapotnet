@@ -363,16 +363,16 @@ void User::invite(const Identifier &remote, const String &name)
 	mAddressBook->addInvitation(remote, name);
 }
 
-void User::mergeBoard(sptr<const Board> board)
+void User::mergeBoard(sptr<Board> board)
 {
 	if(!board) return;
-	mBoard->addMergeUrl(board->urlPrefix());
+	mBoard->addSubBoard(board);
 }
 
-void User::unmergeBoard(sptr<const Board> board)
+void User::unmergeBoard(sptr<Board> board)
 {
 	if(!board) return;
-	mBoard->removeMergeUrl(board->urlPrefix());
+	mBoard->removeSubBoard(board);
 }
 
 bool User::isOnline(void) const

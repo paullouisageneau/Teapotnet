@@ -337,7 +337,7 @@ bool Indexer::query(const Query &q, List<BinaryString> &targets)
 
 		Resource resource;
 		Resource::Specs specs("/", "directory");
-		resource.cache(tempFileName, "/", "directory");
+		resource.cache(tempFileName, specs);
 		targets.push_back(resource.digest());
 		return true;
 	}

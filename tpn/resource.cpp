@@ -110,9 +110,9 @@ void Resource::process(const String &filename, const Specs &s, bool cache)
 	mIndexRecord->type = s.type;
 	mIndexRecord->size = size;
 	mIndexRecord->salt = salt;
-	mIndexRecord->blocks.reserve(size/Block::Size + (size%BlockSize ? 0 : 1));
-	for(auto d : s.previous)
-		mIndexRecord.->previous.emplace_back(std::move(d));
+	mIndexRecord->blocks.reserve(size/Block::Size + (size%Block::Size ? 0 : 1));
+	for(auto d : s.previousDigests)
+		mIndexRecord->previous.emplace_back(std::move(d));
 
 	// Process blocks
 	File file(filename, File::Read);
@@ -389,7 +389,7 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 	}
 
 	++mBlockIndex;
-	mBlocks.pop_front();
+	mBlocks.pop();
 	fillBlocks();
 
 	return readData(buffer, size);
@@ -402,9 +402,12 @@ void Resource::Reader::writeData(const char *data, size_t size)
 
 void Resource::Reader::seekRead(int64_t position)
 {
+	while(!mBlocks.empty())
+		mBlocks.pop();
+
 	size_t offset = 0;
 	mBlockIndex = mResource->blockIndex(position, &offset);
-	mBlocks.clear();
+
 	fillBlocks();
 
 	if(!mBlocks.empty())
@@ -451,11 +454,11 @@ sptr<Block> Resource::Reader::createBlock(int index)
 
 void Resource::Reader::fillBlocks(void)
 {
-	while(mNextBlocks.size() < mBufferedCount)
+	while(mBlocks.size() < mBufferedCount)
 	{
-		sptr<Block> next = createBlock(mBlockIndex + mNextBlocks.size());
+		sptr<Block> next = createBlock(mBlockIndex + mBlocks.size());
 		if(!next) break;
-		mNextBlocks.push_back(next);
+		mBlocks.push(next);
 	}
 }
 

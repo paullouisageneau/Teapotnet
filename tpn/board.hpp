@@ -45,7 +45,6 @@ public:
 	String urlPrefix(void) const;
 	bool hasNew(void) const;
 	int  unread(void) const;
-	BinaryString digest(void) const;
 
 	void addSubBoard(sptr<Board> board);
 	void removeSubBoard(sptr<Board> board);

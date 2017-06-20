@@ -113,7 +113,7 @@ void AddressBook::save(void) const
 		Resource::Specs specs;
 		specs.name = "contacts";
 		specs.type = "contacts";
-		specs.secret = self->secret;
+		specs.secret = self->secret();
 		resource.process(mFileName, specs);
 
 		{

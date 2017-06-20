@@ -71,8 +71,8 @@ public:
 	sptr<Indexer> indexer(void) const;
 
 	void invite(const Identifier &remote, const String &name);
-	void mergeBoard(sptr<const Board> board);
-	void unmergeBoard(sptr<const Board> board);
+	void mergeBoard(sptr<Board> board);
+	void unmergeBoard(sptr<Board> board);
 
 	bool isOnline(void) const;
 	void setOnline(void);

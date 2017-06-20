@@ -97,36 +97,25 @@ int Board::unread(void) const
 	return 0;
 }
 
-BinaryString Board::digest(void) const
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	return mDigest;
-}
-
 void Board::addSubBoard(sptr<Board> board)
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mSubBoards.insert(board);
-	}
+	std::unique_lock<std::mutex> lock1(mMutex, std::defer_lock);
+	std::unique_lock<std::mutex> lock2(board->mMutex, std::defer_lock);
+	std::lock(lock1, lock2);
 
-	{
-		std::unique_lock<std::mutex> lock(board->mMutex);
-		board->mBoard.insert(this);
-	}
+	board->mBoards.insert(this);
+	mSubBoards.insert(board);
+	mMails.append(board->mMails);	// copy mails
 }
 
 void Board::removeSubBoard(sptr<Board> board)
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mSubBoards.erase(board);
-	}
+	std::unique_lock<std::mutex> lock1(mMutex, std::defer_lock);
+	std::unique_lock<std::mutex> lock2(board->mMutex, std::defer_lock);
+	std::lock(lock1, lock2);
 
-	{
-		std::unique_lock<std::mutex> lock(board->mMutex);
-		board->mBoard.erase(this);
-	}
+	board->mBoards.erase(this);
+	mSubBoards.erase(board);
 }
 
 bool Board::post(const List<Mail> &mails)
@@ -150,6 +139,8 @@ bool Board::post(const Mail &mail)
 
 bool Board::add(const List<Mail> &mails)
 {
+	const String prefix = "/mail/" + mName;
+
 	// First, append to list
 	appendMails(mails);
 
@@ -170,11 +161,11 @@ bool Board::add(const List<Mail> &mails)
 		specs.name = mName;
 		specs.type = "mail";
 		specs.secret = mSecret;
-		specs.previous = mDigests;	// chain other messages
+		for(auto d : mDigests)
+			specs.previousDigests.emplace_back(std::move(d));	// chain other messages
 		resource.cache(tempFileName, specs);
 
 		// Retrieve digest and store it
-		const String prefix = "/mail/" + mName;
 		BinaryString digest = resource.digest();
 		Store::Instance->storeValue(Store::Hash(prefix), digest, Store::Permanent);
 
@@ -185,7 +176,6 @@ bool Board::add(const List<Mail> &mails)
 		mProcessedDigests.insert(digest);
 
 		// Republish prefix
-		const String prefix = "/mail/" + mName;
 		publish(prefix);
 		return true;
 	}
@@ -198,13 +188,16 @@ bool Board::add(const List<Mail> &mails)
 
 void Board::appendMails(const List<Mail> &mails)
 {
+	std::unique_lock<std::mutex> lock(mMutex);
+
 	for(const Mail &m : mails)
 		mMails.emplace_back(std::move(m));
 
 	// Notify HTTP clients
 	mCondition.notify_all();
 
-	// TODO: mBoards
+	for(auto b : mBoards)
+		b->appendMails(mails);
 }
 
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
@@ -218,17 +211,14 @@ bool Board::anounce(const Network::Link &link, const String &prefix, const Strin
 
 bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
 {
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		if(target == mDigest)
-			return false;
-	}
-
 	if(!fetch(link, prefix, path, target, true))
 		return false;
 
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
+
+		if(mDigests.contains(target))
+			return false;
 
 		Resource resource(target, true);	// local only (already fetched)
 		if(resource.type() != "mail")
@@ -251,7 +241,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		{
 			mProcessedDigests.insert(target);
 
-			List<Mails> tmp;
+			List<Mail> tmp;
 			Resource::Reader reader(&resource, mSecret);
 			BinarySerializer serializer(&reader);
 			Mail m;
@@ -339,20 +329,19 @@ void Board::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("timeout"))
 					timeout = seconds(request.get["timeout"].toDouble());
 
-				decltype(mUnorderedMails) temp;
+				List<Mail*> tmp;
 				{
 					std::unique_lock<std::mutex> lock(mMutex);
 
-					if(next >= int(mUnorderedMails.size()))
+					if(next >= int(mMails.size()))
 					{
 						mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
-							return next < int(mUnorderedMails.size());
+							return next < int(mMails.size());
 						});
 					}
 
-					temp.reserve(int(mUnorderedMails.size() - next));
-					for(int i = next; i < int(mUnorderedMails.size()); ++i)
-						temp.push_back(mUnorderedMails[i]);
+					for(int i = next; i < int(mMails.size()); ++i)
+						tmp.push_back(&mMails[i]);
 
 					mUnread = 0;
 					mHasNew = false;
@@ -364,7 +353,7 @@ void Board::http(const String &prefix, Http::Request &request)
 
 				JsonSerializer json(response.stream);
 				json.setOptionalOutputMode(true);
-				json << temp;
+				json << tmp;
 				return;
 			}
 

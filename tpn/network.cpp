@@ -2449,7 +2449,7 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 
 			List<Target> &list = mTargets[destination];
 
-			auto jt = list.find_if([target](const Target &t) {
+			auto jt = find_if(list.begin(), list.end(), [target](const Target &t) {
 				return (t.digest == target);
 			});
 
