@@ -251,6 +251,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				tmp.emplace_back(std::move(m));
 			}
 
+			lock.unlock();
 			appendMails(tmp);
 		}
 	}
