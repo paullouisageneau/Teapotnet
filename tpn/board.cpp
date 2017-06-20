@@ -203,6 +203,8 @@ void Board::appendMails(const List<Mail> &mails)
 
 	// Notify HTTP clients
 	mCondition.notify_all();
+
+	// TODO: mBoards
 }
 
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
