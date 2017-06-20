@@ -245,7 +245,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			Resource::Reader reader(&resource, mSecret);
 			BinarySerializer serializer(&reader);
 			Mail m;
-			while(!!(serializer >> m))
+			while(serializer >> m)
 			{
 				if(m.empty()) continue;
 				tmp.emplace_back(std::move(m));

@@ -111,7 +111,7 @@ bool Database::retrieve(const String &table, int64_t id, Serializable &serializa
 
 	bool success = false;
 	if(statement.step())
-		success = !!(statement >> serializable);
+		success = (statement >> serializable);
 
 	statement.finalize();
 	return success;

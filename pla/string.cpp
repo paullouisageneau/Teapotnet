@@ -736,7 +736,7 @@ void String::serialize(Serializer &s) const
 
 bool String::deserialize(Serializer &s)
 {
-	return !!(s >> *static_cast<std::string*>(this));
+	return s >> *static_cast<std::string*>(this);
 }
 
 void String::serialize(Stream &s) const

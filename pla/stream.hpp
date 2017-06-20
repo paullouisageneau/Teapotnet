@@ -146,7 +146,8 @@ public:
 	template<typename T> Stream& operator>>(T &val);
 	template<typename T> Stream& operator<<(const T &val);
 	Stream &operator<<(Stream &s);
-	bool operator!(void) const { return mFailed; }
+	bool operator!(void) const 	{ return mFailed;  }
+	operator bool(void) const	{ return !mFailed; }
 
 	// Parsing
 	bool assertChar(char chr);

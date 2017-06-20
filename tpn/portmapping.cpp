@@ -807,11 +807,11 @@ bool PortMapping::FreeboxAPI::FreeboxResponse::deserialize(Serializer &s)
 	message.clear();
 	result.clear();
 
-	return !!(s >> Object()
+	return s >> Object()
 		.insert("success", success)
 		.insert("error_code", errorCode)
 		.insert("message", message)
-		.insert("result", result));
+		.insert("result", result);
 }
 
 bool PortMapping::FreeboxAPI::FreeboxResponse::isInlineSerializable(void) const

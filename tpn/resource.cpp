@@ -472,10 +472,10 @@ void Resource::MetaRecord::serialize(Serializer &s) const
 
 bool Resource::MetaRecord::deserialize(Serializer &s)
 {
-	return !!(s >> Object()
+	return s >> Object()
 		.insert("name", name)
 		.insert("type", type)
-		.insert("size", size));
+		.insert("size", size);
 }
 
 bool Resource::MetaRecord::isInlineSerializable(void) const
@@ -487,10 +487,10 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 {
 	Object object;
 	object.insert("name", name)
-	      .insert("type", type)
-	      .insert("size", size)
-				.insert("previous", previous)
-	      .insert("digests", blocks);
+		.insert("type", type)
+		.insert("size", size)
+		.insert("previous", previous)
+		.insert("digests", blocks);
 
 	if(!signature.empty()) object.insert("signature", signature);
 	if(!salt.empty()) object.insert("salt", salt);
@@ -500,14 +500,14 @@ void Resource::IndexRecord::serialize(Serializer &s) const
 
 bool Resource::IndexRecord::deserialize(Serializer &s)
 {
-	return !!(s >> Object()
+	return s >> Object()
 		.insert("name", name)
 		.insert("type", type)
 		.insert("size", size)
 		.insert("previous", previous)
 		.insert("digests", blocks)
 		.insert("signature", signature)
-		.insert("salt", salt));
+		.insert("salt", salt);
 }
 
 void Resource::DirectoryRecord::serialize(Serializer &s) const
@@ -525,12 +525,12 @@ void Resource::DirectoryRecord::serialize(Serializer &s) const
 
 bool Resource::DirectoryRecord::deserialize(Serializer &s)
 {
-	return !!(s >> Object()
+	return s >> Object()
 		.insert("name", name)
 		.insert("type", type)
 		.insert("size", size)
 		.insert("digest", digest)
-		.insert("time", time));
+		.insert("time", time);
 }
 
 Resource::ImportTask::ImportTask(Serializable *object,

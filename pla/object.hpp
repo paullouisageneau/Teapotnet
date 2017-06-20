@@ -38,7 +38,7 @@ private:
 	public:
 		Wrapper(T &v) : value(&v) {}
 		void serialize(Serializer &s) const { s << *value; }
-		bool deserialize(Serializer &s) { return !!(s >> *value); }
+		bool deserialize(Serializer &s) { return s >> *value; }
 
 	private:
 		T *value;
@@ -96,7 +96,7 @@ public:
 
 	bool deserialize(Serializer &s)
 	{
-		return !!(s >> *static_cast<std::map<std::string, sptr<Serializable> >*>(this));
+		return s >> *static_cast<std::map<std::string, sptr<Serializable> >*>(this);
 	}
 
 	bool isInlineSerializable(void) const

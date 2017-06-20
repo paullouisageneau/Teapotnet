@@ -38,6 +38,7 @@ public:
 	template<typename T> Serializer &operator<< (const T& value);
 	template<typename T> Serializer &operator>> (T& value);
 	bool operator!(void) const { return mReadFailed; }
+	operator bool(void) const { return !mReadFailed; }
 
 	virtual bool skip(void);
 

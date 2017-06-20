@@ -122,7 +122,7 @@ void ByteArray::serialize(Serializer &s) const
 bool ByteArray::deserialize(Serializer &s)
 {
 	// implemented in Serializer::input(BinaryString &)
-	return !!(s >> *this);
+	return s >> *this;
 }
 
 void ByteArray::serialize(Stream &s) const
