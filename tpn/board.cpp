@@ -263,6 +263,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 {
 	List<Mail> tmp;
 	tmp.push_back(mail);
+	mHasNew = true;
 	return add(tmp);
 }
 
