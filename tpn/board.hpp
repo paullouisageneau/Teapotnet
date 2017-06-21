@@ -62,14 +62,18 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	bool add(const List<Mail> &mails);
-	void appendMails(const List<Mail> &mails);
+	bool add(const List<Mail> &mails);	// locks
+	void appendMail(const Mail &mail);	// mutex must be locked first
 
 	String mName;
 	String mDisplayName;
 	String mSecret;
 	Set<BinaryString> mDigests, mPreviousDigests, mProcessedDigests;
-	Array<Mail> mMails;
+
+	Set<Mail> mMails;
+	Set<BinaryString> mMailDigests;
+	Map<BinaryString, List<const Mail*> > mOrphans;
+	Array<const Mail*> mListing;
 
 	Set<sptr<Board> > mSubBoards;
 	Set<Board*> mBoards;

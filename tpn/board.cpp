@@ -106,7 +106,10 @@ void Board::addSubBoard(sptr<Board> board)
 
 	board->mBoards.insert(this);
 	mSubBoards.insert(board);
-	mMails.append(board->mMails);	// copy mails
+
+	// Copy mails
+	for(const Mail *m : board->mListing)
+		appendMail(*m);
 }
 
 void Board::removeSubBoard(sptr<Board> board)
@@ -138,11 +141,12 @@ bool Board::add(const List<Mail> &mails)
 {
 	const String prefix = "/mail/" + mName;
 
-	// First, append to list
-	appendMails(mails);
-
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
+
+		// First, append to list
+		for(const Mail &m : mails)
+			appendMail(m);
 
 		// Write messages to temporary file
 		String tempFileName = File::TempName();
@@ -183,18 +187,47 @@ bool Board::add(const List<Mail> &mails)
 	return true;
 }
 
-void Board::appendMails(const List<Mail> &mails)
+void Board::appendMail(const Mail &mail)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	if(mMails.contains(mail))
+		return;
 
-	for(const Mail &m : mails)
-		mMails.emplace_back(std::move(m));
+	// Insert
+	const Mail *inserted = &*mMails.insert(mail).first;
+	mMailDigests.insert(mail.digest());
 
-	// Notify HTTP clients
-	mCondition.notify_all();
+	if(mail.parent().empty())
+	{
+		mListing.push_back(inserted);
 
-	for(auto b : mBoards)
-		b->appendMails(mails);
+		// Adopt orphans
+		auto it = mOrphans.find(mail.digest());
+		if(it != mOrphans.end())
+		{
+			for(const Mail *m : it->second)
+				mListing.push_back(m);
+
+			mOrphans.erase(it);
+		}
+
+		mCondition.notify_all();	// Notify HTTP clients
+		for(auto b : mBoards)
+			b->appendMail(mail);		// Propagate
+	}
+	else {
+		if(mMailDigests.contains(mail.parent()))
+		{
+			mListing.push_back(inserted);
+
+			mCondition.notify_all();	// Notify HTTP clients
+			for(auto b : mBoards)
+				b->appendMail(mail);		// Propagate
+		}
+		else {
+			// No parent for now...
+			mOrphans[mail.parent()].push_back(inserted);
+		}
+	}
 }
 
 bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
@@ -248,7 +281,10 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		mProcessedDigests.insert(target);
 
 		lock.unlock();
-		appendMails(mails);
+
+		// Finally, append
+		for(const Mail &m : mails)
+			appendMail(m);
 	}
 	catch(const Exception &e)
 	{
@@ -327,19 +363,19 @@ void Board::http(const String &prefix, Http::Request &request)
 				if(request.get.contains("timeout"))
 					timeout = seconds(request.get["timeout"].toDouble());
 
-				List<Mail*> tmp;
+				decltype(mListing) tmp;
 				{
 					std::unique_lock<std::mutex> lock(mMutex);
 
-					if(next >= int(mMails.size()))
+					if(next >= int(mListing.size()))
 					{
 						mCondition.wait_for(lock, std::chrono::duration<double>(timeout), [this, next]() {
-							return next < int(mMails.size());
+							return next < int(mListing.size());
 						});
 					}
 
-					for(int i = next; i < int(mMails.size()); ++i)
-						tmp.push_back(&mMails[i]);
+					for(int i = next; i < int(mListing.size()); ++i)
+						tmp.push_back(mListing[i]);
 
 					mUnread = 0;
 					mHasNew = false;
