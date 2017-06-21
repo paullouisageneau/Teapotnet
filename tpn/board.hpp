@@ -49,7 +49,6 @@ public:
 	void addSubBoard(sptr<Board> board);
 	void removeSubBoard(sptr<Board> board);
 
-	bool post(const List<Mail> &mails);
 	bool post(const Mail &mail);
 
 	// Publisher
@@ -63,7 +62,7 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	bool add(const List<Mail> &mails);
+	bool add(const List<Mail> &mail);
 	void appendMails(const List<Mail> &mails);
 
 	String mName;
