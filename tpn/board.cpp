@@ -73,6 +73,7 @@ Board::~Board(void)
 	Interface::Instance->remove(urlPrefix(), this);
 
 	const String prefix = "/mail/" + mName;
+
 	unpublish(prefix);
 	unsubscribe(prefix);
 }
@@ -118,26 +119,19 @@ void Board::removeSubBoard(sptr<Board> board)
 	mSubBoards.erase(board);
 }
 
-bool Board::post(const List<Mail> &mails)
+bool Board::post(const Mail &mail)
 {
 	const String prefix = "/mail/" + mName;
 
 	// Add to chain
-	if(!add(mails))
-		return false;
-
-	// Issue mails
-	for(const Mail &m : mails)
-		issue(prefix, m);
-
-	return true;
-}
-
-bool Board::post(const Mail &mail)
-{
 	List<Mail> tmp;
 	tmp.push_back(mail);
-	return post(tmp);
+	if(!add(tmp))
+		return false;
+
+	// Issue mail
+	issue(prefix, mail);
+	return true;
 }
 
 bool Board::add(const List<Mail> &mails)
