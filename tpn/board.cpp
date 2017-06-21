@@ -122,12 +122,15 @@ bool Board::post(const List<Mail> &mails)
 {
 	const String prefix = "/mail/" + mName;
 
+	// Add to chain
+	if(!add(mails))
+		return false;
+
 	// Issue mails
 	for(const Mail &m : mails)
 		issue(prefix, m);
 
-	// Add to chain
-	return add(mails);
+	return true;
 }
 
 bool Board::post(const Mail &mail)
@@ -174,16 +177,16 @@ bool Board::add(const List<Mail> &mails)
 		mDigests.clear();
 		mDigests.insert(digest);
 		mProcessedDigests.insert(digest);
-
-		// Republish prefix
-		publish(prefix);
-		return true;
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("Board::process", String("Board post failed: ") + e.what());
 		return false;
 	}
+
+	// Republish prefix
+	publish(prefix);
+	return true;
 }
 
 void Board::appendMails(const List<Mail> &mails)
@@ -217,7 +220,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
-		if(mDigests.contains(target))
+		if(mProcessedDigests.contains(target))
 			return false;
 
 		Resource resource(target, true);	// local only (already fetched)
@@ -237,27 +240,26 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 				fetch(link, prefix, path, d, true);
 			}
 
-		if(!mProcessedDigests.contains(target))
+		// Process
+		List<Mail> mails;
+		Resource::Reader reader(&resource, mSecret);
+		BinarySerializer serializer(&reader);
+		Mail m;
+		while(serializer >> m)
 		{
-			mProcessedDigests.insert(target);
-
-			List<Mail> tmp;
-			Resource::Reader reader(&resource, mSecret);
-			BinarySerializer serializer(&reader);
-			Mail m;
-			while(serializer >> m)
-			{
-				if(m.empty()) continue;
-				tmp.emplace_back(std::move(m));
-			}
-
-			lock.unlock();
-			appendMails(tmp);
+			if(m.empty()) continue;
+			mails.emplace_back(std::move(m));
 		}
+
+		mProcessedDigests.insert(target);
+
+		lock.unlock();
+		appendMails(mails);
 	}
 	catch(const Exception &e)
 	{
 		LogWarn("Board::incoming", e.what());
+		return true;
 	}
 
 	return true;
