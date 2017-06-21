@@ -62,7 +62,7 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	bool add(const List<Mail> &mail);
+	bool add(const List<Mail> &mails);
 	void appendMails(const List<Mail> &mails);
 
 	String mName;
