@@ -29,6 +29,8 @@ function setMailReceiverRec(url, object, period, next) {
 		timeout: 300000
 	})
 	.done(function(array) {
+		var user = getAuthenticatedUser();
+		var userIdentifier = getAuthenticatedUserIdentifier();
 		var posturl = url;
 		var count = 0;
 		$.each(array, function(i, mail) {
@@ -50,28 +52,22 @@ function setMailReceiverRec(url, object, period, next) {
 				$(object).prepend('<div class="conversation">'+div+'</div>');
 				$('#'+id).append('<div class="buttonsbar"></div>');
 
-				/*
-				if(!mail.passed)
-				{
+				if(userIdentifier && mail.identifier != userIdentifier && typeof TokenMail != 'undefined') {
 					$('#'+id+' .buttonsbar').append('<a href="#" class="button passlink"><img alt="Pass" src="/static/arrow_pass.png"></a>');
-					(function(id, stamp) {
+					(function(id, digest) {
 						$('#'+id+' .passlink').click(function() {
 							if(confirm('Do you want to pass this message to your contacts ?')) {
-								$.post(posturl, { stamp: stamp, action: "pass", token: TokenMail })
+								$.post(posturl, {action: "pass", digest: digest, token: TokenMail})
 								.done(function(data) {
 									$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/static/arrow_passed.png"></span>');
 								});
 							}
 							return false;
 						});
-					})(id, mail.stamp);
+					})(id, mail.digest);
 				}
-				else {
-					$('#'+id+' .buttonsbar').append('<span class="button"><img alt="Passed" src="/static/arrow_passed.png"></span>');
-				}
-				*/
 
-				$('#'+id+' .buttonsbar').append('<a href="#" class="button replylink"><img alt="Reply" src="/static/arrow_reply.png"></a>');
+				$('#'+id+' .buttonsbar').prepend('<a href="#" class="button replylink"><img alt="Reply" src="/static/arrow_reply.png"></a>');
 				(function(idReply) {
 					$('#'+id+' .replylink').click(function() {
 						$('#'+idReply).toggle();
@@ -85,28 +81,32 @@ function setMailReceiverRec(url, object, period, next) {
 				$('#'+id).addClass('childmessage');
 			}
 
-			user = getAuthenticatedUser();
 			if(user && 'identifier' in mail) {
 				(function(id, identifier) {
-					var url = '/user/'+user+'/contacts/';
-					$.ajax({
-						url: url+'?id='+identifier+'&json',
-						dataType: 'json',
-						timeout: 10000,
-						error: function (xhr) {
-							if(xhr.status == 404 && typeof TokenContact != 'undefined') {
-								$('#'+id+' .author').append('&nbsp;<form name="addform'+id+'" action="'+url+'" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="token" value="'+TokenContact+'"><input type="hidden" name="action" value="add"><input type="hidden" name="id" value="'+identifier+'"><input type="hidden" name="name" value="'+$('#'+id+' .author').text()+'"></form><a href="#" class="addlink"><img src="/static/add.png" alt="+"></a>');
-								$('#'+id+' .author .addlink').click(function() {
-									$(this).hide();
-									$('#'+id+' .author form').submit();
-									return false;
-								});
+					if(identifier == userIdentifier) {
+						$('#'+id+' .author').html('<a href="/user/'+user+'/myself/">'+user+'</a>');
+					}
+					else {
+						var url = '/user/'+user+'/contacts/';
+						$.ajax({
+							url: url+'?id='+identifier+'&json',
+							dataType: 'json',
+							timeout: 10000,
+							error: function (xhr) {
+								if(xhr.status == 404 && typeof TokenContact != 'undefined') {
+									$('#'+id+' .author').append('&nbsp;<form name="addform'+id+'" action="'+url+'" method="post" enctype="application/x-www-form-urlencoded"><input type="hidden" name="token" value="'+TokenContact+'"><input type="hidden" name="action" value="add"><input type="hidden" name="id" value="'+identifier+'"><input type="hidden" name="name" value="'+$('#'+id+' .author').text()+'"></form><a href="#" class="addlink"><img src="/static/add.png" alt="+"></a>');
+									$('#'+id+' .author .addlink').click(function() {
+										$(this).hide();
+										$('#'+id+' .author form').submit();
+										return false;
+									});
+								}
 							}
-						}
-					})
-					.done(function(contact) {
-						$('#'+id+' .author').html('<a href="'+contact.prefix+'/">'+contact.name+'</a>');
-					});
+						})
+						.done(function(contact) {
+							$('#'+id+' .author').html('<a href="'+contact.prefix+'/">'+contact.name+'</a>');
+						});
+					}
 				})(id, mail.identifier);
 			}
 

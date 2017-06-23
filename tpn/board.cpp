@@ -126,18 +126,21 @@ bool Board::post(const Mail &mail)
 {
 	const String prefix = "/mail/" + mName;
 
+	// Prevent double post
+	if(mMails.contains(mail.digest()))
+		return false;
+
 	// Add to chain
 	List<Mail> tmp;
 	tmp.push_back(mail);
-	if(!add(tmp))
-		return false;
+	add(tmp);
 
 	// Issue mail
 	issue(prefix, mail);
 	return true;
 }
 
-bool Board::add(const List<Mail> &mails)
+void Board::add(const List<Mail> &mails)
 {
 	const String prefix = "/mail/" + mName;
 
@@ -178,13 +181,11 @@ bool Board::add(const List<Mail> &mails)
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("Board::process", String("Board post failed: ") + e.what());
-		return false;
+		throw Exception(String("Board post failed: ") + e.what());
 	}
 
 	// Republish prefix
 	publish(prefix);
-	return true;
 }
 
 void Board::appendMail(const Mail &mail)
@@ -193,8 +194,8 @@ void Board::appendMail(const Mail &mail)
 		return;
 
 	// Insert
-	const Mail *inserted = &*mMails.insert(mail).first;
-	mMailDigests.insert(mail.digest());
+	auto it = mMails.insert(mail.digest(), mail);
+	const Mail *inserted = &it->second;
 
 	if(mail.parent().empty())
 	{
@@ -215,7 +216,7 @@ void Board::appendMail(const Mail &mail)
 			b->appendMail(mail);		// Propagate
 	}
 	else {
-		if(mMailDigests.contains(mail.parent()))
+		if(mMails.contains(mail.parent()))
 		{
 			mListing.push_back(inserted);
 
@@ -300,7 +301,8 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	List<Mail> tmp;
 	tmp.push_back(mail);
 	mHasNew = true;
-	return add(tmp);
+	add(tmp);
+	return true;
 }
 
 void Board::http(const String &prefix, Http::Request &request)
@@ -312,8 +314,14 @@ void Board::http(const String &prefix, Http::Request &request)
 		{
 			if(request.method == "POST")
 			{
-				if(request.post.contains("message") && !request.post["message"].empty())
+				String action = request.post.getOrDefault("action", "post");
+
+				if(action == "post")
 				{
+					if(!request.post.contains("message")
+						|| request.post["message"].empty())
+						throw 400;
+
 					Mail mail;
 					mail.setContent(request.post["message"]);
 
@@ -348,6 +356,35 @@ void Board::http(const String &prefix, Http::Request &request)
 
 					Http::Response response(request, 200);
 					response.send();
+					return;
+				}
+				else if(action == "pass")
+				{
+					VAR("PASS");
+					sptr<User> user = getAuthenticatedUser(request);
+					if(!user || !user->checkToken(request.post["token"], "mail"))
+						throw 403;
+
+					if(!request.post.contains("digest"))
+						throw 400;
+
+					BinaryString digest;
+					try {
+						request.post["digest"] >> digest;
+					}
+					catch(...) {
+						throw 404;
+					}
+
+					auto it = mMails.find(digest);
+					if(it != mMails.end())
+					{
+						user->board()->post(it->second);
+
+						Http::Response response(request, 200);
+						response.send();
+						return;
+					}
 				}
 
 				throw 400;

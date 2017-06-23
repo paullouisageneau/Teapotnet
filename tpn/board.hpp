@@ -62,7 +62,7 @@ public:
 	void http(const String &prefix, Http::Request &request);
 
 private:
-	bool add(const List<Mail> &mails);	// locks
+	void add(const List<Mail> &mails);	// locks
 	void appendMail(const Mail &mail);	// mutex must be locked first
 
 	String mName;
@@ -70,8 +70,7 @@ private:
 	String mSecret;
 	Set<BinaryString> mDigests, mPreviousDigests, mProcessedDigests;
 
-	Set<Mail> mMails;
-	Set<BinaryString> mMailDigests;
+	Map<BinaryString, Mail> mMails;
 	Map<BinaryString, List<const Mail*> > mOrphans;
 	Array<const Mail*> mListing;
 

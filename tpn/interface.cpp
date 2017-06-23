@@ -321,8 +321,12 @@ void Interface::http(const String &prefix, Http::Request &request)
 			if(tmp.empty() || tmp.contains('/')) throw 404;
 
 			BinaryString digest;
-			try { tmp >> digest; }
-			catch(...) { throw 404; }
+			try {
+				tmp >> digest;
+			}
+			catch(...) {
+				throw 404;
+			}
 
 			// Query resource
 			Resource resource;
@@ -611,7 +615,7 @@ void Interface::generate(Stream &out, int code, const String &message)
 sptr<User> HttpInterfaceable::getAuthenticatedUser(Http::Request &request, String name)
 {
 	if(name.empty())
-		request.cookies.get("name", name);
+		request.cookies.get("user_name", name);
 
 	if(!name.empty())
 	{
@@ -633,9 +637,7 @@ int HttpInterfaceable::getAuthenticatedUsers(Http::Request &request, Array<sptr<
 {
 	users.clear();
 
-	for(	StringMap::iterator it = request.cookies.begin();
-		it != request.cookies.end();
-		++it)
+	for(auto it = request.cookies.begin(); it != request.cookies.end(); ++it)
 	{
 		String key = it->first;
 		String name = key.cut('_');

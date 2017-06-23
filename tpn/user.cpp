@@ -592,7 +592,9 @@ void User::http(const String &prefix, Http::Request &request)
 				return;
 			}
 
-			Http::Response response(request,200);
+			Http::Response response(request, 200);
+			response.cookies["user_name"] = name();
+			response.cookies["user_identifier"] = identifier().toString();
 			response.send();
 
 			Html page(response.stream);
@@ -736,7 +738,7 @@ $(document.searchForm.query).blur(function() {\n\
 			page.close("div"); // leftcolumn
 
 			page.open("div", "rightcolumn");
-			page.raw("<iframe name=\"main\" src=\""+mBoard->urlPrefix()+"?frame\"></iframe>");
+			page.raw("<iframe name=\"main\" src=\""+board()->urlPrefix()+"?frame\"></iframe>");
 			page.close("div");
 
 			page.close("div");
@@ -800,9 +802,16 @@ $(document.searchForm.query).blur(function() {\n\
 			response.send();
 			return;
 		}*/
+		else if(directory == "board")
+		{
+			Http::Response response(request, 307);	// Temporary Redirect
+			response.headers["Location"] = board()->urlPrefix();
+			response.send();
+			return;
+		}
 		else if(directory == "myself")
 		{
-			Http::Response response(request, 303);	// See other
+			Http::Response response(request, 307);	// Temporary Redirect
 			response.headers["Location"] = prefix + "/files" + (request.get.contains("json") ? "?json" + (request.get.contains("next") ? "&next=" + request.get["next"] : "") : "");
 			response.send();
 			return;
