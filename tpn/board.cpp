@@ -54,8 +54,8 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	for(auto it = digests.begin(); it != digests.end(); ++it)
 	{
 		//LogDebug("Board", "Retrieved digest: " + it->toString());
-		if(fetch(Network::Link::Null, prefix, "/", *it, false))
-			incoming(Network::Link::Null, prefix, "/", *it);
+		if(fetch(Network::Locator(prefix), *it, false))
+			incoming(Network::Locator(prefix), *it);
 	}
 
 	publish(prefix);
@@ -166,7 +166,7 @@ void Board::add(const List<Mail> &mails)
 		specs.type = "mail";
 		specs.secret = mSecret;
 		for(auto d : mDigests)
-			specs.previousDigests.emplace_back(std::move(d));	// chain other messages
+			specs.previousDigests.push_back(std::move(d));	// chain other messages
 		resource.cache(tempFileName, specs);
 
 		// Retrieve digest and store it
@@ -231,28 +231,34 @@ void Board::appendMail(const Mail &mail)
 	}
 }
 
-bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Board::anounce(const Network::Locator &locator, List<BinaryString> &targets)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	targets.clear();
 	for(auto d : mDigests)
-		targets.emplace_back(std::move(d));
+		targets.push_back(std::move(d));
 	return !targets.empty();
 }
 
-bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Board::incoming(const Network::Locator &locator, const BinaryString &target)
 {
-	if(!fetch(link, prefix, path, target, true))
+	// Fetch resource metadata
+	if(!fetch(locator, target, false))	// don't fetch content
+		return false;
+
+	// Check resource
+	Resource resource(target, true);	// local only
+	if(resource.type() != "mail")
+		return false;
+
+	// Now fetch resource content
+	if(!fetch(locator, target, true))	// fetch content
 		return false;
 
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
 		if(mProcessedDigests.contains(target))
-			return false;
-
-		Resource resource(target, true);	// local only (already fetched)
-		if(resource.type() != "mail")
 			return false;
 
 		if(!mPreviousDigests.contains(target))
@@ -265,7 +271,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			{
 				mDigests.erase(d);
 				mPreviousDigests.insert(d);
-				fetch(link, prefix, path, d, true);
+				fetch(locator, d, true);
 			}
 
 		// Process
@@ -276,7 +282,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		while(serializer >> m)
 		{
 			if(m.empty()) continue;
-			mails.emplace_back(std::move(m));
+			mails.push_back(std::move(m));
 		}
 
 		mProcessedDigests.insert(target);
@@ -296,7 +302,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	return true;
 }
 
-bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
+bool Board::incoming(const Network::Locator &locator, const Mail &mail)
 {
 	List<Mail> tmp;
 	tmp.push_back(mail);

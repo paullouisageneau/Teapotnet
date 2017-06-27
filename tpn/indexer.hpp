@@ -67,10 +67,10 @@ public:
 	void notify(String path, const Resource &resource, const Time &time);
 
 	// Publisher
-	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
+	bool anounce(const Network::Locator &locator, List<BinaryString> &targets);
 
 	// Subscriber
-	virtual bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
+	virtual bool incoming(const Network::Locator &locator, const BinaryString &target);
 
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);

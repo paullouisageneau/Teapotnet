@@ -52,11 +52,11 @@ public:
 	bool post(const Mail &mail);
 
 	// Publisher
-	bool anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
+	bool anounce(const Network::Locator &locator, List<BinaryString> &targets);
 
 	// Subscriber
-	bool incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target);
-	bool incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail);
+	bool incoming(const Network::Locator &locator, const BinaryString &target);
+	bool incoming(const Network::Locator &locator, const Mail &mail);
 
 	// HttpInterfaceable
 	void http(const String &prefix, Http::Request &request);

@@ -61,12 +61,7 @@ public:
 		static const Link Null;
 
 		Link(void);
-		Link(const Identifier &local, const Identifier &remote, const Identifier &node = Identifier::Empty);
-		~Link(void);
-
-		Identifier local;
-		Identifier remote;
-		Identifier node;
+		Link(Identifier _local, Identifier _remote, Identifier _node = Identifier::Empty);
 
 		void setNull(void);
 		bool isNull(void) const;
@@ -75,6 +70,22 @@ public:
 		bool operator > (const Network::Link &l) const;
 		bool operator == (const Network::Link &l) const;
 		bool operator != (const Network::Link &l) const;
+
+		Identifier local;
+		Identifier remote;
+		Identifier node;
+	};
+
+	struct Locator
+	{
+		Locator(void);
+		Locator(String _prefix, String _path = "/", Link _link = Link::Null);
+
+		String fullPath(void) const;
+
+		Link link;
+		String prefix;
+		String path;
 	};
 
 	class Publisher
@@ -89,7 +100,7 @@ public:
 		void unpublish(const String &prefix);
 		void issue(const String &prefix, const Mail &mail, const String &path = "/");
 
-		virtual bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets) = 0;
+		virtual bool anounce(const Locator &locator, List<BinaryString> &targets) = 0;
 
 	private:
 		Link mLink;
@@ -108,12 +119,12 @@ public:
 		void unsubscribe(const String &prefix);
 		void unsubscribeAll(void);
 
-		virtual bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)	{ return false; }
-		virtual bool incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)		{ return false; }
+		virtual bool incoming(const Locator &locator, const BinaryString &target)	{ return false; }
+		virtual bool incoming(const Locator &locator, const Mail &mail)		{ return false; }
 		virtual bool localOnly(void) const;
 
 	protected:
-		bool fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent = false);
+		bool fetch(const Locator &locator, const BinaryString &target, bool fetchContent = false);
 
 	private:
 		Link mLink;
@@ -214,7 +225,7 @@ private:
 		RemotePublisher(const List<BinaryString> targets, const Link &link = Link::Null);
 		~RemotePublisher(void);
 
-		bool anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets);
+		bool anounce(const Locator &locator, List<BinaryString> &targets);
 
 	private:
 		List<BinaryString> mTargets;
@@ -226,8 +237,8 @@ private:
 		RemoteSubscriber(const Link &link = Link::Null);
 		~RemoteSubscriber(void);
 
-		bool incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target);
-		bool incoming(const Link &link, const String &prefix, const String &path, const Mail &mail);
+		bool incoming(const Locator &locator, const BinaryString &target);
+		bool incoming(const Locator &locator, const Mail &mail);
 		bool localOnly(void) const;
 	};
 
