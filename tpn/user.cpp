@@ -795,13 +795,6 @@ $(document.searchForm.query).blur(function() {\n\
 			page.footer();
 			return;
 		}
-		/*else if(directory == "avatar" || request.url == "/myself/avatar")
-		{
-			Http::Response response(request, 303);	// See other
-			response.headers["Location"] = profile()->avatarUrl();
-			response.send();
-			return;
-		}*/
 		else if(directory == "board")
 		{
 			Http::Response response(request, 307);	// Temporary Redirect
