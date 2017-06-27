@@ -805,14 +805,14 @@ $(document.searchForm.query).blur(function() {\n\
 		else if(directory == "board")
 		{
 			Http::Response response(request, 307);	// Temporary Redirect
-			response.headers["Location"] = board()->urlPrefix();
+			response.headers["Location"] = board()->urlPrefix() + "/" + (request.fullUrl.contains('?') ? "?"+request.fullUrl.after('?') : "");
 			response.send();
 			return;
 		}
 		else if(directory == "myself")
 		{
 			Http::Response response(request, 307);	// Temporary Redirect
-			response.headers["Location"] = prefix + "/files" + (request.get.contains("json") ? "?json" + (request.get.contains("next") ? "&next=" + request.get["next"] : "") : "");
+			response.headers["Location"] = prefix + "/files/" + (request.fullUrl.contains('?') ? "?"+request.fullUrl.after('?') : "");
 			response.send();
 			return;
 		}

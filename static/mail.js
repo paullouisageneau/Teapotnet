@@ -64,6 +64,14 @@ function setMailReceiverRec(url, object, period, next) {
 							}
 							return false;
 						});
+						$.ajax({
+							url: '/user/'+user+'/board/?json&digest='+digest,
+							dataType: 'json',
+							timeout: 10000
+						})
+						.done(function(contact) {
+							$('#'+id+' .passlink').replaceWith('<span class="button"><img alt="Passed" src="/static/arrow_passed.png"></span>');
+						});
 					})(id, mail.digest);
 				}
 
@@ -89,7 +97,7 @@ function setMailReceiverRec(url, object, period, next) {
 					else {
 						var url = '/user/'+user+'/contacts/';
 						$.ajax({
-							url: url+'?id='+identifier+'&json',
+							url: url+'?json&id='+identifier,
 							dataType: 'json',
 							timeout: 10000,
 							error: function (xhr) {

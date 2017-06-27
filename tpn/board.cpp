@@ -397,6 +397,30 @@ void Board::http(const String &prefix, Http::Request &request)
 
 			if(request.get.contains("json"))
 			{
+				if(request.get.contains("digest"))
+				{
+					BinaryString digest;
+					try {
+						request.get["digest"] >> digest;
+					}
+					catch(...) {
+						throw 404;
+					}
+
+					auto it = mMails.find(digest);
+					if(it == mMails.end())
+						throw 404;
+
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+
+					JsonSerializer json(response.stream);
+					json.setOptionalOutputMode(true);
+					json << it->second;
+					return;
+				}
+
 				int next = 0;
 				if(request.get.contains("next"))
 					request.get["next"].extract(next);
