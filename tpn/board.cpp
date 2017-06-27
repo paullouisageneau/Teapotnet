@@ -366,7 +366,6 @@ void Board::http(const String &prefix, Http::Request &request)
 				}
 				else if(action == "pass")
 				{
-					VAR("PASS");
 					sptr<User> user = getAuthenticatedUser(request);
 					if(!user || !user->checkToken(request.post["token"], "mail"))
 						throw 403;
