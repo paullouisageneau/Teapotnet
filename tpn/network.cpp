@@ -38,8 +38,8 @@ namespace tpn
 {
 
 const duration Network::CallerFallbackTimeout = seconds(10.);
-const unsigned Network::DefaultTokens = 8;
-const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
+const unsigned Network::DefaultTokens = 4;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*64;
 const unsigned Network::TunnelMtu = 1200;
 const unsigned Network::DefaultRedundantCount = 32;
 const double   Network::DefaultRedundancy = 1.20;
