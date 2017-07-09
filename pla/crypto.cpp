@@ -286,6 +286,100 @@ void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, B
 		iterations);
 }
 
+size_t Sha3_256::length(void) const
+{
+	return size_t(SHA3_256_DIGEST_SIZE);
+}
+
+void Sha3_256::init(void)
+{
+	sha3_256_init(&mCtx);
+}
+
+void Sha3_256::process(const char *data, size_t size)
+{
+	sha3_256_update(&mCtx, unsigned(size), reinterpret_cast<const uint8_t*>(data));
+}
+
+void Sha3_256::process(const BinaryString &str)
+{
+	process(str.data(), str.size());
+}
+
+void Sha3_256::finalize(char *digest)
+{
+	sha3_256_digest(&mCtx, unsigned(length()), reinterpret_cast<uint8_t*>(digest));
+}
+
+void Sha3_256::finalize(BinaryString &digest)
+{
+	digest.resize(length());
+	finalize(digest.ptr());
+}
+
+void Sha3_256::mac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
+{
+	init();
+	process(key, key_len);	// key first
+	process(message, len);
+	finalize(digest);
+}
+
+void Sha3_256::mac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
+{
+	digest.resize(length());
+	mac(message.data(), message.size(),
+		key.data(), key.size(),
+		digest.ptr());
+}
+
+size_t Sha3_512::length(void) const
+{
+	return size_t(SHA3_256_DIGEST_SIZE);
+}
+
+void Sha3_512::init(void)
+{
+	sha3_512_init(&mCtx);
+}
+
+void Sha3_512::process(const char *data, size_t size)
+{
+	sha3_512_update(&mCtx, unsigned(size), reinterpret_cast<const uint8_t*>(data));
+}
+
+void Sha3_512::process(const BinaryString &str)
+{
+	process(str.data(), str.size());
+}
+
+void Sha3_512::finalize(char *digest)
+{
+	sha3_512_digest(&mCtx, unsigned(length()), reinterpret_cast<uint8_t*>(digest));
+}
+
+void Sha3_512::finalize(BinaryString &digest)
+{
+	digest.resize(length());
+	finalize(digest.ptr());
+}
+
+void Sha3_512::mac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
+{
+	init();
+	process(key, key_len);	// key first
+	process(message, len);
+	finalize(digest);
+}
+
+void Sha3_512::mac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
+{
+	digest.resize(length());
+	mac(message.data(), message.size(),
+		key.data(), key.size(),
+		digest.ptr());
+}
+
 Cipher::Cipher(Stream *stream, bool mustDelete) :
 	mStream(stream),
 	mMustDelete(mustDelete),

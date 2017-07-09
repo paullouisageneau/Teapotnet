@@ -29,6 +29,7 @@
 
 #include <nettle/sha1.h>
 #include <nettle/sha2.h>
+#include <nettle/sha3.h>
 #include <nettle/aes.h>
 #include <nettle/ctr.h>
 #include <nettle/gcm.h>
@@ -126,13 +127,53 @@ public:
 	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
-	// PBKDF2-HMAC-SHA256
+	// PBKDF2-HMAC-SHA512
 	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
 	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
 	struct sha512_ctx mCtx;
 };
+
+// SHA3-256 hash function implementation
+class Sha3_256 : public Hash
+{
+public:
+	size_t length(void) const;
+	void init(void);
+	void process(const char *data, size_t size);
+	void process(const BinaryString &str);
+	void finalize(char *digest);
+	void finalize(BinaryString &digest);
+
+	// HMAC is useless for a sponge function hash like SHA-3
+	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
+	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+
+private:
+	struct sha3_256_ctx mCtx;
+};
+
+// SHA3-512 hash function implementation
+class Sha3_512 : public Hash
+{
+public:
+	size_t length(void) const;
+	void init(void);
+	void process(const char *data, size_t size);
+	void process(const BinaryString &str);
+	void finalize(char *digest);
+	void finalize(BinaryString &digest);
+
+  // HMAC is useless for a sponge function hash like SHA-3
+	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
+	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+
+private:
+	struct sha3_512_ctx mCtx;
+};
+
+typedef Sha3_256 Sha3;	// SHA3 defaults to SHA3-256
 
 class Cipher : public Stream
 {
