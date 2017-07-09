@@ -240,7 +240,7 @@ void Socket::connect(const Address &addr, bool noproxy)
 			if (ret < 0)
 				throw Exception("Unable to wait on socket");
 
-			if (ret ==  0 || ::send(mSock, NULL, 0, 0) != 0)
+			if (ret ==  0 || ::send(mSock, NULL, 0, MSG_NOSIGNAL) != 0)
 				throw NetException(String("Connection to ")+addr.toString()+" failed");
 
 			b = 0;
@@ -340,7 +340,7 @@ void Socket::sendData(const char *data, size_t size, int flags)
 				throw Timeout();
 		}
 
-		int count = ::send(mSock, data, size, flags);
+		int count = ::send(mSock, data, size, flags | MSG_NOSIGNAL);
 		if(count < 0)
 			throw NetException("Connection lost (error " + String::number(sockerrno) + ")");
 

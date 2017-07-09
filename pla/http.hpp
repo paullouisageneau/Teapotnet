@@ -63,7 +63,7 @@ public:
 		Map<String, TempFile*> files;	// Files posted with POST
 		Address remoteAddress;			// Remote address, set by Server
 
-		String fullUrl;		// URL with parameters, used only by recv
+		String fullUrl;		// URL with parameters
 		Stream *stream;		// Internal use for Response construction
 	};
 

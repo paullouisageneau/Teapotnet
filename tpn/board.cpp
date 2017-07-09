@@ -54,8 +54,8 @@ Board::Board(const String &name, const String &secret, const String &displayName
 	for(auto it = digests.begin(); it != digests.end(); ++it)
 	{
 		//LogDebug("Board", "Retrieved digest: " + it->toString());
-		if(fetch(Network::Link::Null, prefix, "/", *it, false))
-			incoming(Network::Link::Null, prefix, "/", *it);
+		if(fetch(Network::Locator(prefix), *it, false))
+			incoming(Network::Locator(prefix), *it);
 	}
 
 	publish(prefix);
@@ -126,18 +126,21 @@ bool Board::post(const Mail &mail)
 {
 	const String prefix = "/mail/" + mName;
 
+	// Prevent double post
+	if(mMails.contains(mail.digest()))
+		return false;
+
 	// Add to chain
 	List<Mail> tmp;
 	tmp.push_back(mail);
-	if(!add(tmp))
-		return false;
+	add(tmp);
 
 	// Issue mail
 	issue(prefix, mail);
 	return true;
 }
 
-bool Board::add(const List<Mail> &mails)
+void Board::add(const List<Mail> &mails)
 {
 	const String prefix = "/mail/" + mName;
 
@@ -163,7 +166,7 @@ bool Board::add(const List<Mail> &mails)
 		specs.type = "mail";
 		specs.secret = mSecret;
 		for(auto d : mDigests)
-			specs.previousDigests.emplace_back(std::move(d));	// chain other messages
+			specs.previousDigests.push_back(std::move(d));	// chain other messages
 		resource.cache(tempFileName, specs);
 
 		// Retrieve digest and store it
@@ -178,13 +181,11 @@ bool Board::add(const List<Mail> &mails)
 	}
 	catch(const Exception &e)
 	{
-		LogWarn("Board::process", String("Board post failed: ") + e.what());
-		return false;
+		throw Exception(String("Board post failed: ") + e.what());
 	}
 
 	// Republish prefix
 	publish(prefix);
-	return true;
 }
 
 void Board::appendMail(const Mail &mail)
@@ -193,8 +194,8 @@ void Board::appendMail(const Mail &mail)
 		return;
 
 	// Insert
-	const Mail *inserted = &*mMails.insert(mail).first;
-	mMailDigests.insert(mail.digest());
+	auto it = mMails.insert(mail.digest(), mail);
+	const Mail *inserted = &it->second;
 
 	if(mail.parent().empty())
 	{
@@ -215,7 +216,7 @@ void Board::appendMail(const Mail &mail)
 			b->appendMail(mail);		// Propagate
 	}
 	else {
-		if(mMailDigests.contains(mail.parent()))
+		if(mMails.contains(mail.parent()))
 		{
 			mListing.push_back(inserted);
 
@@ -230,28 +231,34 @@ void Board::appendMail(const Mail &mail)
 	}
 }
 
-bool Board::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Board::anounce(const Network::Locator &locator, List<BinaryString> &targets)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	targets.clear();
 	for(auto d : mDigests)
-		targets.emplace_back(std::move(d));
+		targets.push_back(std::move(d));
 	return !targets.empty();
 }
 
-bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Board::incoming(const Network::Locator &locator, const BinaryString &target)
 {
-	if(!fetch(link, prefix, path, target, true))
+	// Fetch resource metadata
+	if(!fetch(locator, target, false))	// don't fetch content
+		return false;
+
+	// Check resource
+	Resource resource(target, true);	// local only
+	if(resource.type() != "mail")
+		return false;
+
+	// Now fetch resource content
+	if(!fetch(locator, target, true))	// fetch content
 		return false;
 
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
 		if(mProcessedDigests.contains(target))
-			return false;
-
-		Resource resource(target, true);	// local only (already fetched)
-		if(resource.type() != "mail")
 			return false;
 
 		if(!mPreviousDigests.contains(target))
@@ -264,7 +271,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 			{
 				mDigests.erase(d);
 				mPreviousDigests.insert(d);
-				fetch(link, prefix, path, d, true);
+				fetch(locator, d, true);
 			}
 
 		// Process
@@ -275,7 +282,7 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 		while(serializer >> m)
 		{
 			if(m.empty()) continue;
-			mails.emplace_back(std::move(m));
+			mails.push_back(std::move(m));
 		}
 
 		mProcessedDigests.insert(target);
@@ -295,12 +302,13 @@ bool Board::incoming(const Network::Link &link, const String &prefix, const Stri
 	return true;
 }
 
-bool Board::incoming(const Network::Link &link, const String &prefix, const String &path, const Mail &mail)
+bool Board::incoming(const Network::Locator &locator, const Mail &mail)
 {
 	List<Mail> tmp;
 	tmp.push_back(mail);
 	mHasNew = true;
-	return add(tmp);
+	add(tmp);
+	return true;
 }
 
 void Board::http(const String &prefix, Http::Request &request)
@@ -312,8 +320,14 @@ void Board::http(const String &prefix, Http::Request &request)
 		{
 			if(request.method == "POST")
 			{
-				if(request.post.contains("message") && !request.post["message"].empty())
+				String action = request.post.getOrDefault("action", "post");
+
+				if(action == "post")
 				{
+					if(!request.post.contains("message")
+						|| request.post["message"].empty())
+						throw 400;
+
 					Mail mail;
 					mail.setContent(request.post["message"]);
 
@@ -348,6 +362,34 @@ void Board::http(const String &prefix, Http::Request &request)
 
 					Http::Response response(request, 200);
 					response.send();
+					return;
+				}
+				else if(action == "pass")
+				{
+					sptr<User> user = getAuthenticatedUser(request);
+					if(!user || !user->checkToken(request.post["token"], "mail"))
+						throw 403;
+
+					if(!request.post.contains("digest"))
+						throw 400;
+
+					BinaryString digest;
+					try {
+						request.post["digest"] >> digest;
+					}
+					catch(...) {
+						throw 404;
+					}
+
+					auto it = mMails.find(digest);
+					if(it != mMails.end())
+					{
+						user->board()->post(it->second);
+
+						Http::Response response(request, 200);
+						response.send();
+						return;
+					}
 				}
 
 				throw 400;
@@ -355,6 +397,30 @@ void Board::http(const String &prefix, Http::Request &request)
 
 			if(request.get.contains("json"))
 			{
+				if(request.get.contains("digest"))
+				{
+					BinaryString digest;
+					try {
+						request.get["digest"] >> digest;
+					}
+					catch(...) {
+						throw 404;
+					}
+
+					auto it = mMails.find(digest);
+					if(it == mMails.end())
+						throw 404;
+
+					Http::Response response(request, 200);
+					response.headers["Content-Type"] = "application/json";
+					response.send();
+
+					JsonSerializer json(response.stream);
+					json.setOptionalOutputMode(true);
+					json << it->second;
+					return;
+				}
+
 				int next = 0;
 				if(request.get.contains("next"))
 					request.get["next"].extract(next);

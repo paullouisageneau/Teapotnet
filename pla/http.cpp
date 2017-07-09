@@ -570,7 +570,7 @@ void Http::Response::send(Stream *stream)
 	}
 
 	for(StringMap::iterator it = cookies.begin(); it != cookies.end(); ++it)
-		buf<<"Set-Cookie: "<<it->first<<'='<<it->second<<"\r\n";
+		buf<<"Set-Cookie: "<<it->first<<'='<<it->second<<"; Path=/\r\n";
 
 	buf<<"\r\n";
 	*stream<<buf;

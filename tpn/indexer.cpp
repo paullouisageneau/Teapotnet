@@ -604,27 +604,28 @@ void Indexer::notify(String path, const Resource &resource, const Time &time)
 	publish(prefix(), path);
 }
 
-bool Indexer::anounce(const Network::Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Indexer::anounce(const Network::Locator &locator, List<BinaryString> &targets)
 {
-	String cpath(path);
-	String match = cpath.cut('?');
+	String cpath(locator.path);
+	String match(cpath.cut('?'));
+	Identifier remote(locator.link.remote);
 
 	Query q;
 	q.setPath(cpath);
 	q.setMatch(match);
-	q.setAccessLevel((!link.remote.empty() && mUser->addressBook()->hasIdentifier(link.remote) ? Resource::Private : Resource::Public));
-	q.setFromSelf(!link.remote.empty() && link.remote == mUser->identifier());
+	q.setAccessLevel((!remote.empty() && mUser->addressBook()->hasIdentifier(remote) ? Resource::Private : Resource::Public));
+	q.setFromSelf(!remote.empty() && remote == mUser->identifier());
 
 	return query(q, targets);
 }
 
-bool Indexer::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Indexer::incoming(const Network::Locator &locator, const BinaryString &target)
 {
-	if(path != "/")		// We want only top-level targets
+	if(locator.path != "/")		// We want only top-level targets
 		return false;
 
 	// Fetch resource metadata
-	if(!fetch(link, prefix, path, target, false))	// don't fetch content
+	if(!fetch(locator, target, false))	// don't fetch content
 		return false;
 
 	// Check resource, we expect a directory
@@ -633,7 +634,7 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 		return false;
 
 	// Now fetch resource content
-	if(!fetch(link, prefix, path, target, true))	// fetch content
+	if(!fetch(locator, target, true))	// fetch content
 		return false;
 
 	// Find corresponding directories
@@ -643,9 +644,9 @@ bool Indexer::incoming(const Network::Link &link, const String &prefix, const St
 		const Entry &entry = it->second;
 
 		// Prefix is actually remote parent
-		if(entry.remote.beforeLast('/') == prefix)
+		if(entry.remote.beforeLast('/') == locator.prefix)
 		{
-			String remoteName = entry.remote.substr(prefix.size()+1);
+			String remoteName = entry.remote.substr(locator.prefix.size()+1);
 
 			Resource::Reader reader(&resource);
 			Resource::DirectoryRecord record;

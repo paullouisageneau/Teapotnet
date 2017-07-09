@@ -222,7 +222,7 @@ function notify(title, message, tag) {
 }
 
 function getAuthenticatedUser() {
-	var name = getCookie('name');
+	var name = getCookie('user_name');
 	if(name && checkCookie('auth_'+name))
 		return name;
 
@@ -232,6 +232,12 @@ function getAuthenticatedUser() {
 	var end = document.cookie.indexOf('=', start);
 	if(end < 0) return null;
 	return unescape(document.cookie.substring(start, end));
+}
+
+function getAuthenticatedUserIdentifier() {
+	var name = getCookie('user_name');
+	if(name && checkCookie('auth_'+name))
+		return getCookie('user_identifier');
 }
 
 function setCallback(url, period, callback) {

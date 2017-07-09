@@ -102,7 +102,7 @@ bool Request::addTarget(const BinaryString &target, bool finished)
 
 	mFinishedAfterTarget|= finished;
 
-	return incoming(link(), prefix, "/", target);
+	return incoming(Network::Locator(prefix, "/", link()) , target);
 }
 
 String Request::urlPrefix(void) const
@@ -229,16 +229,17 @@ void Request::http(const String &prefix, Http::Request &request)
 	}
 }
 
-bool Request::incoming(const Network::Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Request::incoming(const Network::Locator &locator, const BinaryString &target)
 {
 	// Ignore subdirectories
-	if(mListDirectories && !mPath.empty() && prefix + path != mPath)
+	String path = locator.prefix + locator.path;
+	if(mListDirectories && !mPath.empty() && mPath != path)
 		return false;
 
-	if(fetch(link, prefix, path, target, false))	// no content
+	if(fetch(locator, target, false))	// no content
 	{
 		Resource resource(target, true);	// local only
-		if(!mListDirectories || !resource.isDirectory() || fetch(link, prefix, path, target, true))
+		if(!mListDirectories || !resource.isDirectory() || fetch(locator, target, true))
 			addResult(resource, mFinishedAfterTarget);
 	}
 

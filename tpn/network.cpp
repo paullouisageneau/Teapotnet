@@ -38,8 +38,8 @@ namespace tpn
 {
 
 const duration Network::CallerFallbackTimeout = seconds(10.);
-const unsigned Network::DefaultTokens = 8;
-const unsigned Network::DefaultThreshold = Network::DefaultTokens*128;
+const unsigned Network::DefaultTokens = 4;
+const unsigned Network::DefaultThreshold = Network::DefaultTokens*64;
 const unsigned Network::TunnelMtu = 1200;
 const unsigned Network::DefaultRedundantCount = 32;
 const double   Network::DefaultRedundancy = 1.20;
@@ -256,7 +256,7 @@ void Network::subscribe(String prefix, Subscriber *subscriber)
 		if(Store::Instance->retrieveValue(Store::Hash(prefix), targets))
 			for(auto t : targets)
 			{
-				subscriber->incoming(Link::Null, prefix, "/", t);
+				subscriber->incoming(Locator(prefix, "/"), t);
 			}
 	}
 }
@@ -284,33 +284,17 @@ void Network::unsubscribe(String prefix, Subscriber *subscriber)
 void Network::advertise(String prefix, const String &path, Publisher *publisher)
 {
 	Assert(publisher);
-
-	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	String fullPath(prefix + path);
-	if(fullPath[fullPath.size()-1] == '/')
-		fullPath.resize(fullPath.size()-1);
-
-	LogDebug("Network::publish", "Advertising " + fullPath);
-
-	matchSubscribers(fullPath, publisher->link(), publisher);
+	Locator locator(prefix, path);
+	LogDebug("Network::publish", "Advertising " + locator.fullPath());
+	matchSubscribers(locator.fullPath(), publisher->link(), publisher);
 }
 
 void Network::issue(String prefix, const String &path, Publisher *publisher, const Mail &mail)
 {
 	if(mail.empty()) return;
-
-	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
-		prefix.resize(prefix.size()-1);
-
-	String fullPath(prefix + path);
-	if(fullPath[fullPath.size()-1] == '/')
-		fullPath.resize(fullPath.size()-1);
-
+	Locator locator(prefix, path);
 	LogDebug("Network::issue", "Issuing " + mail.digest().toString());
-
-	matchSubscribers(fullPath, publisher->link(), mail);
+	matchSubscribers(locator.fullPath(), publisher->link(), mail);
 }
 
 void Network::addRemoteSubscriber(const Link &link, const String &path)
@@ -895,13 +879,13 @@ bool Network::matchPublishers(const String &path, const Link &link, Subscriber *
 					continue;
 
 				List<BinaryString> result;
-				if(publisher->anounce(link, prefix, truncatedPath, result))
+				if(publisher->anounce(Locator(prefix, truncatedPath, link), result))
 				{
 					Assert(!result.empty());
 					if(subscriber) 	// local
 					{
 						for(const auto &t : result)
-							subscriber->incoming(publisher->link(), prefix, truncatedPath, t);
+							subscriber->incoming(Locator(prefix, truncatedPath, publisher->link()), t);
 					}
 					else targets.splice(targets.end(), result);	// remote
 				}
@@ -956,12 +940,12 @@ bool Network::matchSubscribers(const String &path, const Link &link, Publisher *
 					continue;
 
 				List<BinaryString> targets;
-				if(publisher->anounce(link, prefix, truncatedPath, targets))
+				if(publisher->anounce(Locator(prefix, truncatedPath, link), targets))
 				{
 					for(const auto &t : targets)
 					{
 						// TODO: should prevent forwarding in case we want to republish another content
-						subscriber->incoming(publisher->link(), prefix, truncatedPath, t);
+						subscriber->incoming(Locator(prefix, truncatedPath, publisher->link()), t);
 					}
 				}
 			}
@@ -1004,7 +988,7 @@ bool Network::matchSubscribers(const String &path, const Link &link, const Mail 
 				if(subscriber->link() != link)
 					continue;
 
-				subscriber->incoming(link, prefix, truncatedPath, mail);
+				subscriber->incoming(Locator(prefix, truncatedPath, link), mail);
 			}
 		}
 
@@ -1123,14 +1107,10 @@ Network::Link::Link(void)
 
 }
 
-Network::Link::Link(const Identifier &local, const Identifier &remote, const Identifier &node)
-{
-	this->local = local;
-	this->remote = remote;
-	this->node = node;
-}
-
-Network::Link::~Link(void)
+Network::Link::Link(Identifier _local, Identifier _remote, Identifier _node) :
+	local(std::move(_local)),
+	remote(std::move(_remote)),
+	node(std::move(_node))
 {
 
 }
@@ -1171,6 +1151,28 @@ bool Network::Link::operator == (const Network::Link &l) const
 bool Network::Link::operator != (const Network::Link &l) const
 {
 	return !(*this == l);
+}
+
+Network::Locator::Locator(void)
+{
+
+}
+
+Network::Locator::Locator(String _prefix, String _path, Link _link) :
+	link(std::move(_link)),
+	prefix(std::move(_prefix)),
+	path(std::move(_path))
+{
+	if(prefix.size() >= 2 && prefix[prefix.size()-1] == '/')
+		prefix.resize(prefix.size()-1);
+}
+
+String Network::Locator::fullPath(void) const
+{
+	String fullPath(prefix + path);
+	if(fullPath[fullPath.size()-1] == '/')
+		fullPath.resize(fullPath.size()-1);
+	return fullPath;
 }
 
 Network::Publisher::Publisher(const Link &link) :
@@ -1264,7 +1266,7 @@ bool Network::Subscriber::localOnly(void) const
 	return false;
 }
 
-bool Network::Subscriber::fetch(const Link &link, const String &prefix, const String &path, const BinaryString &target, bool fetchContent)
+bool Network::Subscriber::fetch(const Locator &locator, const BinaryString &target, bool fetchContent)
 {
 	// Test local availability
 	if(Store::Instance->hasBlock(target))
@@ -1275,7 +1277,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 	}
 
 	// Schedule fetch task
-	Network::Instance->mPool.enqueue([this, link, prefix, path, target, fetchContent]()
+	Network::Instance->mPool.enqueue([this, locator, target, fetchContent]()
 	{
 		try {
 			Resource resource(target);
@@ -1286,7 +1288,7 @@ bool Network::Subscriber::fetch(const Link &link, const String &prefix, const St
 				reader.discard();				// read everything
 			}
 
-			incoming(link, prefix, path, target);
+			incoming(locator, target);
 		}
 		catch(const Exception &e)
 		{
@@ -1309,7 +1311,7 @@ Network::RemotePublisher::~RemotePublisher(void)
 
 }
 
-bool Network::RemotePublisher::anounce(const Link &link, const String &prefix, const String &path, List<BinaryString> &targets)
+bool Network::RemotePublisher::anounce(const Locator &locator, List<BinaryString> &targets)
 {
 	targets = mTargets;
 	return !targets.empty();
@@ -1326,47 +1328,35 @@ Network::RemoteSubscriber::~RemoteSubscriber(void)
 
 }
 
-bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const BinaryString &target)
+bool Network::RemoteSubscriber::incoming(const Locator &locator, const BinaryString &target)
 {
-	String fullPath(prefix + path);
-	if(fullPath[fullPath.size()-1] == '/')
-		fullPath.resize(fullPath.size()-1);
+	if(!locator.link.remote.empty() && locator.link == this->link())
+		return false;
 
-	if(link.remote.empty() || link != this->link())
-	{
-		//LogDebug("Network::RemoteSubscriber::incoming", "Publishing " + target.toString() + " for " + fullPath);
+	//LogDebug("Network::RemoteSubscriber::incoming", "Publishing " + target.toString() + " for " + fullPath);
 
-		Array<BinaryString> targets;
-		targets.append(target);
+	Array<BinaryString> targets;
+	targets.append(target);
 
-		Network::Instance->send(this->link(), "publish",
-			Object()
-				.insert("path", fullPath)
-				.insert("targets", targets));
+	Network::Instance->send(this->link(), "publish",
+		Object()
+			.insert("path", locator.fullPath())
+			.insert("targets", targets));
 
-		return true;
-	}
-
-	return false;
+	return true;
 }
 
-bool Network::RemoteSubscriber::incoming(const Link &link, const String &prefix, const String &path, const Mail &mail)
+bool Network::RemoteSubscriber::incoming(const Locator &locator, const Mail &mail)
 {
-	String fullPath(prefix + path);
-	if(fullPath[fullPath.size()-1] == '/')
-		fullPath.resize(fullPath.size()-1);
+	if(!locator.link.remote.empty() && locator.link == this->link())
+		return false;
 
-	if(link.remote.empty() || link != this->link())
-	{
-		Network::Instance->send(this->link(), "publish",
-			Object()
-				.insert("path", fullPath)
-				.insert("message", mail));
+	Network::Instance->send(this->link(), "publish",
+		Object()
+			.insert("path", locator.fullPath())
+			.insert("message", mail));
 
-		return true;
-	}
-
-	return false;
+	return true;
 }
 
 bool Network::RemoteSubscriber::localOnly(void) const
