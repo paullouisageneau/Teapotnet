@@ -318,6 +318,23 @@ private:
 	unsigned mBits;
 };
 
+// Argon2 password hashing
+class Argon2
+{
+public:
+	Argon2(void);
+	Argon2(unsigned tcost, unsigned mcost, unsigned parallelism);
+	~Argon2(void);
+
+	void compute(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len);
+	void compute(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len);
+
+private:
+	uint32_t mTimeCost;
+	uint32_t mMemoryCost;
+	uint32_t mParallelism;
+};
+
 // Add-on functions for custom mpz import/export
 void mpz_import_binary(mpz_t n, const BinaryString &bs);
 void mpz_export_binary(const mpz_t n, BinaryString &bs);

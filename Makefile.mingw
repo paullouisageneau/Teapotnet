@@ -6,7 +6,7 @@ RM=rm -f
 CCFLAGS=-O2 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -fno-var-tracking
 LDFLAGS=
-LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll
+LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll -largon2
 CROSSPATH=/usr/$(shell echo $(CROSS)|sed 's/.$$//')/bin/
 
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
@@ -19,11 +19,11 @@ include/sqlite3.o: include/sqlite3.c
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -I. -MMD -MP -o $@ -c $<
-	
+
 -include $(subst .o,.d,$(OBJS))
 
 teapotnet.exe: $(OBJS) include/sqlite3.o res.o
-	$(CXX) $(LDFLAGS) -static -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS) 
+	$(CXX) $(LDFLAGS) -static -mwindows -o teapotnet.exe $(OBJS) include/sqlite3.o res.o $(LDLIBS)
 	$(STRIP) teapotnet.exe
 	cp $(CROSSPATH)libgcc_*.dll .
 	cp $(CROSSPATH)libwinpthread-*.dll .
@@ -39,7 +39,7 @@ clean:
 	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d res.o
 	$(RM) res.rc
 	cd winupdater && make clean
-	
+
 dist-clean: clean
 	$(RM) teapotnet.exe winupdater.exe
 	$(RM) *.dll
@@ -64,4 +64,3 @@ test: all
 	mkdir -p ~/vmshare/teapotnet
 	cp *.exe ~/vmshare/teapotnet
 	cp -r static ~/vmshare/teapotnet
-

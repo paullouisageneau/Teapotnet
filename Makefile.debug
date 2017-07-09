@@ -9,7 +9,7 @@ RM=rm -f
 CCFLAGS=-O2 -fno-var-tracking -DDEBUG
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -g -fno-var-tracking -DDEBUG
 LDFLAGS=
-LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
+LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls -largon2
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -23,19 +23,18 @@ all: teapotnet
 
 include/sqlite3.o: include/sqlite3.c
 	$(CC) $(CCFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -o $*.o -c $*.c
-	
+
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -I. -MMD -MP -o $@ -c $<
-	
+
 -include $(subst .o,.d,$(OBJS))
-	
+
 teapotnet: $(OBJS) include/sqlite3.o
-	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS) 
-	
+	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS)
+
 clean:
 	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d
 
 dist-clean: clean
 	$(RM) teapotnet
 	$(RM) pla/*~ tpn/*~
-

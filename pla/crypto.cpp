@@ -28,6 +28,7 @@
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
 #include <gmp.h>
+#include <argon2.h>
 
 namespace pla
 {
@@ -989,6 +990,40 @@ void Rsa::SignCertificate(gnutls_x509_crt_t crt, gnutls_x509_crt_t issuer, gnutl
 	int ret = gnutls_x509_crt_sign2(crt, issuer, issuerKey, GNUTLS_DIG_SHA256, 0);
 	if(ret != GNUTLS_E_SUCCESS)
 		throw Exception(String("Unable to sign X509 certificate: ") + gnutls_strerror(ret));
+}
+
+Argon2::Argon2(void) :
+	mTimeCost(2),
+	mMemoryCost(1<<16),	// 64 MiB
+	mParallelism(1)
+{
+
+}
+
+Argon2::Argon2(unsigned tcost, unsigned mcost, unsigned parallelism) :
+	mTimeCost(uint32_t(tcost)),
+	mMemoryCost(uint32_t(mcost)),
+	mParallelism(uint32_t(parallelism))
+{
+
+}
+
+Argon2::~Argon2(void)
+{
+
+}
+
+void Argon2::compute(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len)
+{
+	if(argon2i_hash_raw(mTimeCost, mMemoryCost, mParallelism,
+		secret, len, salt, salt_len, key, key_len) != ARGON2_OK)
+		throw Exception("Argon2 password hashing failed");
+}
+
+void Argon2::compute(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len)
+{
+	key.resize(key_len);
+	compute(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size());
 }
 
 void mpz_import_binary(mpz_t n, const BinaryString &bs)

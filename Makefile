@@ -8,7 +8,7 @@ RM=rm -f
 CCFLAGS=-O3 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O3 -fno-var-tracking
 LDFLAGS=
-LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls
+LDLIBS=-lpthread -ldl -lnettle -lhogweed -lgmp -lgnutls -largon2
 
 SRCS=$(shell printf "%s " pla/*.cpp tpn/*.cpp)
 OBJS=$(subst .cpp,.o,$(SRCS))
@@ -17,15 +17,15 @@ all: teapotnet
 
 include/sqlite3.o: include/sqlite3.c
 	$(CC) $(CCFLAGS) -I. -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -o $*.o -c $*.c
-	
+
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -I. -MMD -MP -o $@ -c $<
-	
+
 -include $(subst .o,.d,$(OBJS))
-	
+
 teapotnet: $(OBJS) include/sqlite3.o
-	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS) 
-	
+	$(CXX) $(LDFLAGS) -o teapotnet $(OBJS) include/sqlite3.o $(LDLIBS)
+
 clean:
 	$(RM) include/*.o pla/*.o pla/*.d tpn/*.o tpn/*.d
 
@@ -47,4 +47,3 @@ uninstall:
 	rm -rf $(DESTDIR)$(prefix)/share/teapotnet
 	rm -f $(DESTDIR)/etc/teapotnet.conf
 	@if [ -z "$(DESTDIR)" ]; then bash -c "./daemon.sh uninstall $(prefix) $(TPROOT)"; fi
-
