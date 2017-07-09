@@ -90,7 +90,7 @@ String Cache::move(const String &filename, BinaryString *fileDigest)
 
 	BinaryString digest;
 	File file(filename);
-	Sha256().compute(file, digest);
+	Sha3_256().compute(file, digest);
 	file.close();
 
 	if(fileDigest) *fileDigest = digest;

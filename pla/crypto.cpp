@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -29,6 +29,10 @@
 #include <nettle/pbkdf2.h>
 #include <gmp.h>
 #include <argon2.h>
+
+#ifdef pbkdf2
+#undef pbkdf2
+#endif
 
 namespace pla
 {
@@ -130,7 +134,7 @@ void Sha1::finalize(BinaryString &digest)
 	finalize(digest.ptr());
 }
 
-void Sha1::hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
+void Sha1::mac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
 {
 	struct hmac_sha1_ctx ctx;
 	hmac_sha1_set_key(&ctx, key_len, reinterpret_cast<const uint8_t*>(key));
@@ -138,13 +142,13 @@ void Sha1::hmac(const char *message, size_t len, const char *key, size_t key_len
 	hmac_sha1_digest(&ctx, length(), reinterpret_cast<uint8_t*>(digest));
 }
 
-void Sha1::hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
+void Sha1::mac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
 {
 	digest.resize(length());
-	hmac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
+	mac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
 }
 
-void Sha1::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
+void Sha1::pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
 {
 	Assert(iterations != 0);
 	pbkdf2_hmac_sha1(len, reinterpret_cast<const uint8_t*>(secret),
@@ -153,10 +157,10 @@ void Sha1::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t 
 				key_len, reinterpret_cast<uint8_t*>(key));
 }
 
-void Sha1::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
+void Sha1::pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
 {
 	key.resize(key_len);
-	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
+	pbkdf2(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
 size_t Sha256::length(void) const
@@ -190,7 +194,7 @@ void Sha256::finalize(BinaryString &digest)
 	finalize(digest.ptr());
 }
 
-void Sha256::hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
+void Sha256::mac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
 {
 	struct hmac_sha256_ctx ctx;
 	hmac_sha256_set_key(&ctx, key_len, reinterpret_cast<const uint8_t*>(key));
@@ -198,13 +202,13 @@ void Sha256::hmac(const char *message, size_t len, const char *key, size_t key_l
 	hmac_sha256_digest(&ctx, length(), reinterpret_cast<uint8_t*>(digest));
 }
 
-void Sha256::hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
+void Sha256::mac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
 {
 	digest.resize(length());
-	hmac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
+	mac(message.data(), message.size(), key.data(), key.size(), digest.ptr());
 }
 
-void Sha256::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
+void Sha256::pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
 {
 	Assert(iterations != 0);
 	pbkdf2_hmac_sha256(len, reinterpret_cast<const uint8_t*>(secret),
@@ -213,10 +217,10 @@ void Sha256::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_
 				key_len, reinterpret_cast<uint8_t*>(key));
 }
 
-void Sha256::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
+void Sha256::pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
 {
 	key.resize(key_len);
-	pbkdf2_hmac(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
+	pbkdf2(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
 size_t Sha512::length(void) const
@@ -250,7 +254,7 @@ void Sha512::finalize(BinaryString &digest)
 	finalize(digest.ptr());
 }
 
-void Sha512::hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
+void Sha512::mac(const char *message, size_t len, const char *key, size_t key_len, char *digest)
 {
 	struct hmac_sha512_ctx ctx;
 	hmac_sha512_set_key(&ctx, key_len, reinterpret_cast<const uint8_t*>(key));
@@ -258,30 +262,32 @@ void Sha512::hmac(const char *message, size_t len, const char *key, size_t key_l
 	hmac_sha512_digest(&ctx, length(), reinterpret_cast<uint8_t*>(digest));
 }
 
-void Sha512::hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
+void Sha512::mac(const BinaryString &message, const BinaryString &key, BinaryString &digest)
 {
 	digest.resize(length());
-	hmac(message.data(), message.size(),
+	mac(message.data(), message.size(),
 		key.data(), key.size(),
 		digest.ptr());
 }
 
-void Sha512::pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
+void Sha512::pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations)
 {
 	Assert(iterations != 0);
 
 	struct hmac_sha512_ctx ctx;
 	hmac_sha512_set_key(&ctx, len, reinterpret_cast<const uint8_t*>(secret));
+	#define pbkdf2 nettle_pbkdf2	// fix name conflict with nettle
 	PBKDF2(&ctx, hmac_sha512_update, hmac_sha512_digest,
 		64, iterations,
 		salt_len, reinterpret_cast<const uint8_t*>(salt),
 		key_len, reinterpret_cast<uint8_t*>(key));
+	#undef pbkdf2
 }
 
-void Sha512::pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
+void Sha512::pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations)
 {
 	key.resize(key_len);
-	pbkdf2_hmac(secret.data(), secret.size(),
+	pbkdf2(secret.data(), secret.size(),
 		salt.data(), salt.size(),
 		key.ptr(), key.size(),
 		iterations);
@@ -992,18 +998,22 @@ void Rsa::SignCertificate(gnutls_x509_crt_t crt, gnutls_x509_crt_t issuer, gnutl
 		throw Exception(String("Unable to sign X509 certificate: ") + gnutls_strerror(ret));
 }
 
+unsigned Argon2::DefaultTimeCost = 2;
+unsigned Argon2::DefaultMemoryCost = 1<<16; // 64 MiB
+unsigned Argon2::DefaultParallelism = 1;
+
 Argon2::Argon2(void) :
-	mTimeCost(2),
-	mMemoryCost(1<<16),	// 64 MiB
-	mParallelism(1)
+	mTimeCost(DefaultTimeCost),
+	mMemoryCost(DefaultMemoryCost),
+	mParallelism(DefaultParallelism)
 {
 
 }
 
 Argon2::Argon2(unsigned tcost, unsigned mcost, unsigned parallelism) :
-	mTimeCost(uint32_t(tcost)),
-	mMemoryCost(uint32_t(mcost)),
-	mParallelism(uint32_t(parallelism))
+	mTimeCost(tcost),
+	mMemoryCost(mcost),
+	mParallelism(parallelism)
 {
 
 }
@@ -1015,7 +1025,7 @@ Argon2::~Argon2(void)
 
 void Argon2::compute(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len)
 {
-	if(argon2i_hash_raw(mTimeCost, mMemoryCost, mParallelism,
+	if(argon2i_hash_raw(uint32_t(mTimeCost), uint32_t(mMemoryCost), uint32_t(mParallelism),
 		secret, len, salt, salt_len, key, key_len) != ARGON2_OK)
 		throw Exception("Argon2 password hashing failed");
 }

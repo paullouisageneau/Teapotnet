@@ -29,6 +29,8 @@
 namespace pla
 {
 
+class String;
+
 class BinaryString : public std::string, public Stream, public Serializable
 {
 public:
@@ -54,14 +56,24 @@ public:
 	byte *bytes(void);
 	const byte *bytes(void) const;
 
+	// Concatenation
+	BinaryString &operator+= (const BinaryString &str);
+	BinaryString operator+ (const BinaryString &str) const;
+	BinaryString &operator+= (char chr);
+	BinaryString operator+ (char chr) const;
+
 	// Encoding
-	BinaryString base64Encode(bool safeMode = false) const;
-	BinaryString base64Decode(void) const;
+	String base64Encode(bool safeMode = false) const;
 
 	// Checksum
 	uint16_t checksum16(void) const { uint16_t i = 0; return checksum(i); }
 	uint32_t checksum32(void) const { uint32_t i = 0; return checksum(i); }
 	uint64_t checksum64(void) const { uint64_t i = 0; return checksum(i); }
+
+	// Stream
+	size_t readData(char *buffer, size_t size);
+	void writeData(const char *data, size_t size);
+	void clear(void);
 
 	// Serializable
 	virtual void serialize(Serializer &s) const;
@@ -70,11 +82,6 @@ public:
 	virtual bool deserialize(Stream &s);
 	virtual bool isNativeSerializable(void) const;
 	virtual bool isInlineSerializable(void) const;
-
-	// Stream
-	size_t readData(char *buffer, size_t size);
-	void writeData(const char *data, size_t size);
-	void clear(void);
 
 protected:
 	template<typename T> T checksum(T &result) const;

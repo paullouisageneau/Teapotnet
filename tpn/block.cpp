@@ -37,7 +37,7 @@ bool Block::ProcessFile(File &file, BinaryString &digest, bool cache)
 	if(!cache)
 	{
 		offset = file.tellRead();
-		size = Sha256().compute(file, Size, digest);
+		size = Sha3_256().compute(file, Size, digest);
 		fileName = file.name();
 	}
 	else {
@@ -146,8 +146,8 @@ Block::Block(const String &filename, int64_t offset, int64_t size) :
 	mOffset = offset;
 
 	mFile->seekRead(mOffset);
-	if(size >= 0) mSize = Sha256().compute(*mFile, size, mDigest);
-	else mSize = Sha256().compute(*mFile, mDigest);
+	if(size >= 0) mSize = Sha3_256().compute(*mFile, size, mDigest);
+	else mSize = Sha3_256().compute(*mFile, mDigest);
 
 	mFile->seekRead(mOffset);
 	notifyStore();

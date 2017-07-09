@@ -796,7 +796,7 @@ int64_t Fountain::Sink::dump(Stream &stream) const
 
 int64_t Fountain::Sink::hash(BinaryString &digest) const
 {
-	Sha256 hash;
+	Sha3_256 hash;
 	hash.init();
 
 	int64_t total = 0;

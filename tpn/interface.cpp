@@ -48,7 +48,7 @@ Interface::Interface(int port) :
 	if(File::Exist(badPasswordsFile))
 	{
 		File file(badPasswordsFile);
-		file.readBinary(mBadPasswordsString);
+		file.read(mBadPasswordsString);
 		file.close();
 	}
 }

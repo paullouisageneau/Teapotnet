@@ -1,5 +1,5 @@
 /*************************************************************************
- *   Copyright (C) 2011-2014 by Paul-Louis Ageneau                       *
+ *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
  *   This file is part of Plateform.                                     *
@@ -64,9 +64,9 @@ public:
 	int64_t compute(Stream &stream, int64_t max, BinaryString &digest);
 	BinaryString compute(const BinaryString &str);
 
-	// HMAC
-	virtual void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest) = 0;
-	virtual void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest) = 0;
+	// MAC
+	virtual void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest) = 0;
+	virtual void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest) = 0;
 };
 
 // SHA1 hash function implementation
@@ -80,12 +80,13 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
-	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+	// HMAC-SHA1
+	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
+	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
 	// PBKDF2-HMAC-SHA1
-	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
-	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
+	void pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
+	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
 	struct sha1_ctx mCtx;
@@ -102,12 +103,13 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
-	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+	// HMAC-SHA256
+	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
+	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
 	// PBKDF2-HMAC-SHA256
-	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
-	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
+	void pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
+	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
 	struct sha256_ctx mCtx;
@@ -124,12 +126,13 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-	void hmac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
-	void hmac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+	// HMAC-SHA512
+	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
+	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
 	// PBKDF2-HMAC-SHA512
-	void pbkdf2_hmac(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
-	void pbkdf2_hmac(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
+	void pbkdf2(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len, unsigned iterations);
+	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
 	struct sha512_ctx mCtx;
@@ -146,9 +149,14 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-	// HMAC is useless for a sponge function hash like SHA-3
+	// "Unlike SHA-1 and SHA-2, Keccak does not have the length-extension weakness,
+	// hence does not need the HMAC nested construction. Instead, MAC computation
+	// can be performed by simply prepending the message with the key."
+	// This is exactly what this function does. It's not standard!
 	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
+
+	// TODO: SHAKE and KMAC implementation
 
 private:
 	struct sha3_256_ctx mCtx;
@@ -165,7 +173,7 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-  // HMAC is useless for a sponge function hash like SHA-3
+	// See Sha3_256::mac()
 	void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest);
 	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
@@ -318,10 +326,14 @@ private:
 	unsigned mBits;
 };
 
-// Argon2 password hashing
+// Argon2 key derivation function for password hashing
 class Argon2
 {
 public:
+	static unsigned DefaultTimeCost;
+	static unsigned DefaultMemoryCost;
+	static unsigned DefaultParallelism;
+
 	Argon2(void);
 	Argon2(unsigned tcost, unsigned mcost, unsigned parallelism);
 	~Argon2(void);
@@ -330,9 +342,9 @@ public:
 	void compute(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len);
 
 private:
-	uint32_t mTimeCost;
-	uint32_t mMemoryCost;
-	uint32_t mParallelism;
+	unsigned mTimeCost;
+	unsigned mMemoryCost;
+	unsigned mParallelism;
 };
 
 // Add-on functions for custom mpz import/export

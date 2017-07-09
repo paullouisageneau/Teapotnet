@@ -35,7 +35,7 @@ Store *Store::Instance = NULL;
 
 BinaryString Store::Hash(const String &str)
 {
-	return Sha256().compute(str);
+	return Sha3_256().compute(str);
 }
 
 Store::Store(void) :

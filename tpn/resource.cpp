@@ -98,8 +98,8 @@ void Resource::process(const String &filename, const Specs &s, bool cache)
 		// Because we need to be able to recognize data is identical even when encrypted
 		BinaryString digest;
 		File file(filename, File::Read);
-		Sha256().compute(file, digest);
-		Sha256().pbkdf2_hmac(digest, s.type, salt, 32, 100000);
+		Sha3_256().compute(file, digest);
+		Argon2().compute(digest, s.type + ":" + s.name, salt, 32);
 		Assert(!salt.empty());
 	}
 
@@ -121,21 +121,26 @@ void Resource::process(const String &filename, const Specs &s, bool cache)
 	if(!s.secret.empty())
 	{
 		BinaryString key;
-		Sha256().pbkdf2_hmac(s.secret, salt, key, 32, 100000);
+		Argon2().compute(s.secret, salt, key, 32);
 
 		uint64_t i = 0;
 		while(true)
 		{
-			BinaryString subsalt;
-			subsalt.writeBinary(i);
+			Sha3_256 hash;
+
+			BinaryString num;
+			num.writeBinary(i);
 
 			// Generate subkey
+			// With SHA-3, we can derivate subkeys by prepending the key
 			BinaryString subkey;
-			Sha256().pbkdf2_hmac(key, subsalt, subkey, 32, 100);
+			BinaryString tmpkey = key + num;
+			hash.compute(tmpkey, subkey);
 
 			// Generate IV
 			BinaryString iv;
-			Sha256().pbkdf2_hmac(salt, subsalt, iv, 16, 100);
+			BinaryString tmpiv = salt + num;
+			hash.compute(tmpiv, iv);
 
 			if(!Block::EncryptFile(file, subkey, iv, blockDigest))
 				break;
@@ -345,7 +350,7 @@ Resource::Reader::Reader(Resource *resource, const String &secret, bool nocheck)
 		if(!nocheck && mResource->salt().empty())
 			throw Exception("Expected encrypted resource");
 
-		Sha256().pbkdf2_hmac(secret, mResource->salt(), mKey, 32, 100000);
+		Argon2().compute(secret, mResource->salt(), mKey, 32);
 	}
 	else {
 		if(!nocheck && !mResource->salt().empty())
@@ -366,16 +371,20 @@ size_t Resource::Reader::readData(char *buffer, size_t size)
 
 	if(!mKey.empty() && !mBlocks.front()->hasDecryption())
 	{
-		BinaryString subsalt;
-		subsalt.writeBinary(uint64_t(mBlockIndex));
+		BinaryString num;
+		num.writeBinary(uint64_t(mBlockIndex));
+
+		Sha3_256 hash;
 
 		// Generate subkey
 		BinaryString subkey;
-		Sha256().pbkdf2_hmac(mKey, subsalt, subkey, 32, 100);
+		BinaryString tmpkey = mKey + num;
+		hash.compute(tmpkey, subkey);
 
 		// Generate IV
 		BinaryString iv;
-		Sha256().pbkdf2_hmac(mResource->salt(), subsalt, iv, 16, 100);
+		BinaryString tmpiv = mResource->salt() + num;
+		hash.compute(tmpiv, iv);
 
 		// Initialize decryption process
 		mBlocks.front()->setDecryption(subkey, iv);

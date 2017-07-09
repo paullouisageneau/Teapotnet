@@ -90,9 +90,8 @@ sptr<User> User::GetByIdentifier(const Identifier &id)
 
 sptr<User> User::Authenticate(const String &name, const String &password)
 {
-	const unsigned iterations = 100000;
 	BinaryString auth;
-	Sha256().pbkdf2_hmac(password, name, auth, 32, iterations);
+	Argon2().compute(password, name, auth, 32);
 
 	std::lock_guard<std::mutex> lock(UsersMutex);
 	String uname;
@@ -130,8 +129,7 @@ User::User(const String &name, const String &password) :
 		}
 	}
 	else {
-		const unsigned iterations = 100000;
-		Sha256().pbkdf2_hmac(password, name, mAuthDigest, 32, iterations);
+		Argon2().compute(password, name, mAuthDigest, 32);
 	}
 
 	Assert(!mAuthDigest.empty());
@@ -414,7 +412,8 @@ BinaryString User::getSecretKey(const String &action) const
 	BinaryString key;
 	if(!mSecretKeysCache.get(action, key))
 	{
-		Sha256().pbkdf2_hmac(mSecret, action, key, 32, 100000);
+		BinaryString tmp = mSecret + BinaryString(action);
+		Sha3_256().compute(tmp, key);
 		mSecretKeysCache.insert(action, key);
 	}
 
@@ -440,7 +439,7 @@ String User::generateToken(const String &action) const
 	}
 
 	BinaryString digest;
-	Sha256().compute(plain, digest);
+	Sha3_256().compute(plain, digest);
 
 	BinaryString key;
 	digest.readBinary(key, 8);
@@ -485,7 +484,7 @@ bool User::checkToken(const String &token, const String &action) const
 			}
 
 			BinaryString digest;
-			Sha256().compute(plain, digest);
+			Sha3_256().compute(plain, digest);
 
 			BinaryString key;
 			digest.readBinary(key, 8);

@@ -119,43 +119,43 @@ String::String(void)
 }
 
 String::String(char chr) :
-	BinaryString(&chr, size_t(1))
+	std::string(&chr, size_t(1))
 {
 
 }
 
 String::String(const char *str) :
-	BinaryString(str)
+	std::string(str)
 {
 
 }
 
 String::String(const char *data, size_t size) :
-	BinaryString(data, size)
+	std::string(data, size)
 {
 
 }
 
 String::String(const std::string &str) :
-	BinaryString(str)
+	std::string(str)
 {
 
 }
 
 String::String(size_t n, char chr) :
-	BinaryString(n, chr)
+	std::string(n, chr)
 {
 
 }
 
 String::String(const String &str, int begin) :
-	BinaryString(str,begin)
+	std::string(str, begin)
 {
 
 }
 
 String::String(const String &str, int begin, int end) :
-	BinaryString(str,begin,end)
+	std::string(str, begin, end)
 {
 
 }
@@ -655,6 +655,46 @@ String String::lineDecode(void) const
 	return out;
 }
 
+BinaryString String::base64Decode(void) const
+{
+	BinaryString out;
+	int i = 0;
+	while(i < size())
+	{
+		unsigned char tab[4];
+		std::memset(tab, 0, 4);
+		int j = 0;
+		while(i < size() && j < 4)
+		{
+			char c = at(i);
+			if(c == '=') break;
+
+			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
+			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
+			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
+			else if (c == '+' || c == '-') tab[j] = 62;
+			else if (c == '/' || c == '_') tab[j] = 63;
+			else throw IOException("Invalid character");
+
+			++i; ++j;
+		}
+
+		if(j)
+		{
+			out+= (tab[0] << 2) | (tab[1] >> 4);
+			if (j > 2)
+			{
+				out+= (tab[1] << 4) | (tab[2] >> 2);
+				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
+			}
+		}
+
+		if(i < size() && at(i) == '=') break;
+	}
+
+	return out;
+}
+
 unsigned String::dottedToInt(unsigned base) const
 {
 	List<String> l;
@@ -729,6 +769,16 @@ const char &String::operator [](int pos) const
 	return this->at(pos);
 }
 
+char *String::ptr(void)
+{
+	return reinterpret_cast<char*>(&at(0));
+}
+
+const char *String::ptr(void) const
+{
+	return reinterpret_cast<const char*>(&at(0));
+}
+
 void String::serialize(Serializer &s) const
 {
 	s << *static_cast<const std::string*>(this);
@@ -776,6 +826,11 @@ String String::toString(void) const
 void String::fromString(String str)
 {
 	*this = str;
+}
+
+void String::clear(void)
+{
+	std::string::clear();
 }
 
 size_t String::readData(char *buffer, size_t size)

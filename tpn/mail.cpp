@@ -179,7 +179,7 @@ BinaryString Mail::computeDigest(void) const
 	serializer << *this;
 
 	BinaryString digest;
-	Sha256().compute(tmp, digest),
+	Sha3_256().compute(tmp, digest),
 
 	mSignature = signature;
 	return digest;

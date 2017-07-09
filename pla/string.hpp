@@ -35,7 +35,7 @@ template<typename T> class Array;
 template<typename T> class Set;
 template<typename K, typename V> class Map;
 
-class String : public BinaryString
+class String : public std::string, public Stream, public Serializable
 {
 public:
 	template<typename T> static String number(T n);
@@ -62,7 +62,7 @@ public:
 	String(const String &str, int begin = 0);
 	String(const String &str, int begin, int end);
 	String(const wchar_t *str);	// UTF-16
-	template <class InputIterator> String(InputIterator first, InputIterator last) : BinaryString(first, last) {}
+	template <class InputIterator> String(InputIterator first, InputIterator last) : std::string(first, last) {}
 	virtual ~String(void);
 
 	void explode(std::list<String> &strings, char separator) const;
@@ -111,6 +111,7 @@ public:
 	String pathDecode(void) const;
 	String lineEncode(void) const;
 	String lineDecode(void) const;
+	BinaryString base64Decode(void) const;
 	unsigned dottedToInt(unsigned base = 256) const;
 
 	double toDouble() const;
@@ -126,6 +127,11 @@ public:
 	char &operator [](int pos);
 	const char &operator [](int pos) const;
 
+	// Access
+	// Prefer data() for standard read-only access
+	char *ptr(void);
+	const char *ptr(void) const;
+
 	// Serializable
 	virtual void serialize(Serializer &s) const;
 	virtual bool deserialize(Serializer &s);
@@ -134,6 +140,8 @@ public:
 	virtual bool isNativeSerializable(void) const;
 	virtual String toString(void) const;
 	virtual void fromString(String str);
+
+	void clear(void);
 
 protected:
 	// Stream

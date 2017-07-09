@@ -59,13 +59,13 @@ BinaryString::BinaryString(size_t n, char chr) :
 
 
 BinaryString::BinaryString(const BinaryString &str, int begin) :
-		std::string(str,begin)
+		std::string(str, begin)
 {
 
 }
 
 BinaryString::BinaryString(const BinaryString &str, int begin, int end) :
-		std::string(str,begin,end)
+		std::string(str, begin, end)
 {
 
 }
@@ -95,7 +95,31 @@ const byte *BinaryString::bytes(void) const
 	return reinterpret_cast<const byte*>(&at(0));
 }
 
-BinaryString BinaryString::base64Encode(bool safeMode) const
+BinaryString &BinaryString::operator+= (const BinaryString &str)
+{
+	std::string::operator+=(str);
+	return *this;
+}
+
+BinaryString BinaryString::operator+ (const BinaryString &str) const
+{
+	BinaryString tmp(*this);
+	return tmp+= str;
+}
+
+BinaryString &BinaryString::operator+= (char chr)
+{
+	std::string::operator+=(chr);
+	return *this;
+}
+
+BinaryString BinaryString::operator+ (char chr) const
+{
+	BinaryString tmp(*this);
+	return tmp+= chr;
+}
+
+String BinaryString::base64Encode(bool safeMode) const
 {
 	// safeMode is RFC 4648 'base64url' encoding
 
@@ -128,46 +152,6 @@ BinaryString BinaryString::base64Encode(bool safeMode) const
 			out+= tab [(uint8_t(at(i+1)) & 0x0F) << 2];
 		}
 		if(!safeMode) out+= '=';
-	}
-
-	return out;
-}
-
-BinaryString BinaryString::base64Decode(void) const
-{
-	String out;
-	int i = 0;
-	while(i < size())
-	{
-		unsigned char tab[4];
-		std::memset(tab, 0, 4);
-		int j = 0;
-		while(i < size() && j < 4)
-		{
-			char c = at(i);
-			if(c == '=') break;
-
-			if ('A' <= c && c <= 'Z') tab[j] = c - 'A';
-			else if ('a' <= c && c <= 'z') tab[j] = c + 26 - 'a';
-			else if ('0' <= c && c <= '9') tab[j] = c + 52 - '0';
-			else if (c == '+' || c == '-') tab[j] = 62;
-			else if (c == '/' || c == '_') tab[j] = 63;
-			else throw IOException("Invalid character");
-
-			++i; ++j;
-		}
-
-		if(j)
-		{
-			out+= (tab[0] << 2) | (tab[1] >> 4);
-			if (j > 2)
-			{
-				out+= (tab[1] << 4) | (tab[2] >> 2);
-				if (j > 3) out+= (tab[2] << 6) | (tab[3]);
-			}
-		}
-
-		if(i < size() && at(i) == '=') break;
 	}
 
 	return out;
