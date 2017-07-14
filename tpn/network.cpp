@@ -37,13 +37,14 @@
 namespace tpn
 {
 
-const duration Network::CallerFallbackTimeout = seconds(10.);
 const unsigned Network::DefaultTokens = 4;
 const unsigned Network::DefaultThreshold = Network::DefaultTokens*64;
 const unsigned Network::TunnelMtu = 1200;
 const unsigned Network::DefaultRedundantCount = 32;
 const double   Network::DefaultRedundancy = 1.20;
+const double   Network::DefaultPacketRate = 1000.;	// Packets/second
 const duration Network::CallPeriod = seconds(1.);
+const duration Network::CallFallbackTimeout = seconds(10.);
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -495,7 +496,7 @@ void Network::sendCalls(void)
 
 			for(const Caller *caller : it->second)
 			{
-				if(caller->elapsed() >= CallerFallbackTimeout)
+				if(caller->elapsed() >= CallFallbackTimeout)
 				{
 					targets.insert(target);
 					break;
@@ -2198,7 +2199,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		unsigned received = flowReceived + sideReceived;
 
 		const double alpha = 2.;	// Slow start factor
-		const double beta  = 16.;	// Additive increase factor
+		const double beta  = 1.;	// Additive increase factor
 		const double gamma = 0.5;	// Multiplicative decrease factor
 		const unsigned trigger = 16;	// Congestion trigger
 
@@ -2400,7 +2401,8 @@ void Network::Handler::run(void)
 }
 
 Network::Pusher::Pusher(void) :
-	mRedundant(DefaultRedundantCount)
+	mRedundant(DefaultRedundantCount),
+	mPeriod(seconds(1.)/DefaultPacketRate)
 {
 	mThread = std::thread([this]()
 	{
@@ -2461,20 +2463,38 @@ void Network::Pusher::push(const BinaryString &target, const Identifier &destina
 
 void Network::Pusher::run(void)
 {
+	using clock = std::chrono::steady_clock;
+	auto currentTime = clock::now();
+	duration accumulator = seconds(0.);
+
 	while(true)
 	try {
 		std::unique_lock<std::mutex> lock(mMutex);
 
-		mCondition.wait(lock, [this]() {
-			return !mTargets.empty();
-		});
-
-		bool congestion = false;	// local congestion
-		auto it = mTargets.begin();
-		while(it != mTargets.end())
+		if(!mTargets.empty())
 		{
-			List<Target> &list = it->second;
+			mCondition.wait_for(lock, mPeriod);
+			if(mTargets.empty()) continue;
+		}
+		else {
+			mCondition.wait(lock, [this]() {
+					return !mTargets.empty();
+			});
+			currentTime = clock::now();
+			accumulator = mPeriod;
+		}
 
+		duration elapsed = clock::now() - currentTime;
+		accumulator+= elapsed;
+		currentTime = clock::now();
+
+		auto it = mTargets.begin();
+		std::advance(it, Random().uniform(0, int(mTargets.size())));	// first element is random
+		while(accumulator >= mPeriod && !mTargets.empty())
+		{
+			accumulator-= mPeriod;
+
+			List<Target> &list = it->second;
 			if(!list.empty())
 			{
 				const BinaryString &destination = it->first;
@@ -2494,7 +2514,7 @@ void Network::Pusher::run(void)
 					BinarySerializer(&data.content) << combination;
 					data.content.writeBinary(combination.data(), combination.codedSize());
 
-					congestion|= !Network::Instance->overlay()->send(data);
+					Network::Instance->overlay()->send(data);
 				}
 
 				if(!tokens) list.pop_front();
@@ -2502,12 +2522,7 @@ void Network::Pusher::run(void)
 
 			if(list.empty()) mTargets.erase(it++);
 			else ++it;
-		}
-
-		if(congestion)
-		{
-			lock.unlock();
-			std::this_thread::yield();
+			if(it == mTargets.end()) it = mTargets.begin();
 		}
 	}
 	catch(const std::exception &e)

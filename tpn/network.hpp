@@ -46,13 +46,14 @@ class User;
 class Network
 {
 public:
-	static const duration CallerFallbackTimeout;
 	static const unsigned DefaultTokens;
 	static const unsigned DefaultThreshold;
 	static const unsigned TunnelMtu;
 	static const unsigned DefaultRedundantCount;
 	static const double   DefaultRedundancy;
+	static const double   DefaultPacketRate;
 	static const duration CallPeriod;
+	static const duration CallFallbackTimeout;
 
 	static Network *Instance;
 
@@ -79,7 +80,7 @@ public:
 	struct Locator
 	{
 		Locator(void);
-		Locator(String _prefix, String _path = "/", Link _link = Link::Null);
+		Locator(String _prefix, String _path = "", Link _link = Link::Null);
 
 		String fullPath(void) const;
 
@@ -205,7 +206,7 @@ public:
 
 	// DHT
 	void storeValue(const BinaryString &key, const BinaryString &value);
-  bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
+	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values);
 	bool retrieveValue(const BinaryString &key, Set<BinaryString> &values, duration timeout);
 
 	// Links
@@ -429,6 +430,7 @@ private:
 
 		Map<BinaryString, List<Target> > mTargets;
 		unsigned mRedundant;
+		duration mPeriod;
 
 		mutable std::mutex mMutex;
 		mutable std::condition_variable mCondition;

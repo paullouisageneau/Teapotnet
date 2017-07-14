@@ -172,9 +172,9 @@ namespace pla
 {
 
 #ifdef WINDOWS
-typedef signed char		int8_t;		// 8 bits
+typedef signed char			int8_t;		// 8 bits
 typedef signed short		int16_t;	// 16 bits
-typedef signed int		int32_t;	// 32 bits
+typedef signed int			int32_t;	// 32 bits
 typedef signed long long	int64_t;	// 64 bits
 typedef unsigned char		uint8_t;	// 8 bits
 typedef unsigned short		uint16_t;	// 16 bits
@@ -205,7 +205,7 @@ inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
 
 #endif
 
-typedef unsigned char		byte;
+typedef unsigned char	byte;
 typedef float			float32_t;	// 32 bits float
 typedef double			float64_t;	// 64 bits float
 
@@ -225,8 +225,8 @@ typedef std::chrono::duration<double, std::nano>  nanoseconds;
 // Utility functions
 template<typename T> T bounds(T val, T val_min, T val_max)
 {
-    if(val_min > val_max) std::swap(val_min,val_max);
-    return std::min(val_max,std::max(val_min,val));
+	if(val_min > val_max) std::swap(val_min,val_max);
+	return std::min(val_max,std::max(val_min,val));
 }
 
 template<typename T> T sqr(T x)

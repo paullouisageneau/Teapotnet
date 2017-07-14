@@ -190,7 +190,7 @@ void Board::add(const List<Mail> &mails)
 
 void Board::appendMail(const Mail &mail)
 {
-	if(mMails.contains(mail))
+	if(mMails.contains(mail.digest()))
 		return;
 
 	// Insert
