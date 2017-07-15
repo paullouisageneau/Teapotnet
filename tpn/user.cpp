@@ -91,7 +91,7 @@ sptr<User> User::GetByIdentifier(const Identifier &id)
 sptr<User> User::Authenticate(const String &name, const String &password)
 {
 	BinaryString auth;
-	Argon2().compute(password, name, auth, 32);
+	Argon2().compute(password, String(APPNAME) + ":" + name, auth, 32);
 
 	std::lock_guard<std::mutex> lock(UsersMutex);
 	String uname;
@@ -119,7 +119,7 @@ User::User(const String &name, const String &password) :
 	if(password.empty())
 	{
 		try {
-			File file(profilePath()+"auth", File::Read);
+			File file(profilePath() + "auth", File::Read);
 			file.read(mAuthDigest);
 			file.close();
 		}
@@ -129,7 +129,7 @@ User::User(const String &name, const String &password) :
 		}
 	}
 	else {
-		Argon2().compute(password, name, mAuthDigest, 32);
+		Argon2().compute(password, String(APPNAME) + ":" + name, mAuthDigest, 32);
 	}
 
 	Assert(!mAuthDigest.empty());

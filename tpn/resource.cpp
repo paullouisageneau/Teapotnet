@@ -84,7 +84,6 @@ void Resource::fetch(const BinaryString &digest, bool localOnly)
 		mIndexBlock.reset();
 		throw Exception(String("Unable to fetch resource index block: ") + e.what());
 	}
-
 }
 
 void Resource::process(const String &filename, const Specs &s, bool cache)
