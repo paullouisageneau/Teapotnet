@@ -662,17 +662,26 @@ void Rsa::PublicKey::clear(void)
 	mDigest.clear();
 }
 
-const BinaryString &Rsa::PublicKey::digest(void) const
+const BinaryString &Rsa::PublicKey::digest(Hash &hash) const
 {
-	if(mDigest.empty() && !isNull())
+	if(isNull())
 	{
-		BinaryString tmp;
-		BinarySerializer serializer(&tmp);
-		serialize(serializer);
-		Sha256().compute(tmp, mDigest);
+		mDigest = "";
+	}
+	else if(mDigest.empty())
+	{
+		BinaryString der;
+		derEncode(der);
+		hash.compute(der, mDigest);
 	}
 
 	return mDigest;
+}
+
+const BinaryString &Rsa::PublicKey::digest(void) const
+{
+	Sha256 hash;
+	return digest(hash);
 }
 
 bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &signature) const
@@ -769,6 +778,32 @@ bool Rsa::PublicKey::deserialize(Stream &s)
 bool Rsa::PublicKey::isInlineSerializable(void) const
 {
 	return true;
+}
+
+void Rsa::PublicKey::derEncode(Stream &out) const
+{
+	if(isNull()) throw InvalidData("DER encode called on null RSA public key");
+
+	BinaryString e, n;
+	mpz_export_binary(mKey.e, e);
+	mpz_export_binary(mKey.n, n);
+	Assert(e.size() <= 127);
+	Assert(n.size() > 127 && n.size() <= 65535);
+
+	unsigned length = 2 + 2 + n.size() + 2 + e.size();
+
+	out.write(uint8_t(0x30));				// SEQUENCE
+	out.write(uint8_t(0x80) & uint8_t(2));	// long length (2 bytes)
+	out.write(uint16_t(length));			// 2 bytes length
+
+	out.write(uint8_t(0x02));				// INTEGER
+	out.write(uint8_t(0x80) & uint8_t(2));	// long length (2 bytes)
+	out.write(uint16_t(n.size()));			// 2 bytes length
+	out.write(n);							// value
+
+	out.write(uint8_t(0x02));				// INTEGER
+	out.write(uint8_t(e.size()));			// short length
+	out.write(e);							// value
 }
 
 Rsa::PrivateKey::PrivateKey(void)
@@ -1036,6 +1071,11 @@ void Argon2::compute(const BinaryString &secret, const BinaryString &salt, Binar
 	compute(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size());
 }
 
+size_t mpz_size_binary(const mpz_t n)
+{
+	return (mpz_sizeinbase(n, 2) + 7) / 8;
+}
+
 void mpz_import_binary(mpz_t n, const BinaryString &bs)
 {
 	mpz_import(n, bs.size(), 1, 1, 1, 0, bs.ptr());	// big endian
@@ -1043,7 +1083,7 @@ void mpz_import_binary(mpz_t n, const BinaryString &bs)
 
 void mpz_export_binary(const mpz_t n, BinaryString &bs)
 {
-	size_t size = (mpz_sizeinbase(n, 2) + 7) / 8;
+	size_t size = mpz_size_binary(n);
 	bs.resize(size);
 
 	size_t len = 0;

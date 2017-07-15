@@ -274,7 +274,9 @@ public:
 
 		bool isNull(void) const;
 		void clear(void);
+		const BinaryString &digest(Hash &hash) const;
 		const BinaryString &digest(void) const;
+		const BinaryString &fingerprint(void) const { return digest(); }
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 
 		// Serializable
@@ -285,6 +287,8 @@ public:
 		bool isInlineSerializable(void) const;
 
 	private:
+		void derEncode(Stream &out) const;	// used only to compute digest/fingerprint
+
 		struct rsa_public_key mKey;
 		mutable BinaryString mDigest;
 		friend class Rsa;
@@ -348,6 +352,7 @@ private:
 };
 
 // Add-on functions for custom mpz import/export
+size_t mpz_size_binary(const mpz_t n);
 void mpz_import_binary(mpz_t n, const BinaryString &bs);
 void mpz_export_binary(const mpz_t n, BinaryString &bs);
 void mpz_import_string(mpz_t n, const String &str);
