@@ -40,6 +40,8 @@
 namespace pla
 {
 
+class Rsa;
+
 // Hash function interface
 class Hash
 {
@@ -67,6 +69,13 @@ public:
 	// MAC
 	virtual void mac(const char *message, size_t len, const char *key, size_t key_len, char *digest) = 0;
 	virtual void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest) = 0;
+
+private:
+	// RSA signature
+	virtual bool rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature);
+	virtual bool rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature);
+
+	friend class Rsa;
 };
 
 // SHA1 hash function implementation
@@ -89,6 +98,9 @@ public:
 	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
+	bool rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature);
+	bool rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature);
+
 	struct sha1_ctx mCtx;
 };
 
@@ -112,6 +124,9 @@ public:
 	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
+	bool rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature);
+	bool rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature);
+
 	struct sha256_ctx mCtx;
 };
 
@@ -135,8 +150,13 @@ public:
 	void pbkdf2(const BinaryString &secret, const BinaryString &salt, BinaryString &key, size_t key_len, unsigned iterations);
 
 private:
+	bool rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature);
+	bool rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature);
+
 	struct sha512_ctx mCtx;
 };
+
+typedef Sha256 Sha2;	// SHA2 defaults to SHA256
 
 // SHA3-256 hash function implementation
 class Sha3_256 : public Hash
@@ -149,7 +169,7 @@ public:
 	void finalize(char *digest);
 	void finalize(BinaryString &digest);
 
-	// "Unlike SHA-1 and SHA-2, Keccak does not have the length-extension weakness,
+	// "Unlike SHA1 and SHA2, Keccak does not have the length-extension weakness,
 	// hence does not need the HMAC nested construction. Instead, MAC computation
 	// can be performed by simply prepending the message with the key."
 	// This is exactly what this function does. It's not standard!
@@ -159,6 +179,10 @@ public:
 	// TODO: SHAKE and KMAC implementation
 
 private:
+	// TODO: SHA3 signatures
+	//bool rsaVerify(const BinaryString &digest, struct rsa_public_key *key, const mpz_t signature);
+	//bool rsaSign(const BinaryString &digest, struct rsa_private_key *key, mpz_t signature);
+
 	struct sha3_256_ctx mCtx;
 };
 
@@ -178,6 +202,10 @@ public:
 	void mac(const BinaryString &message, const BinaryString &key, BinaryString &digest);
 
 private:
+	// TODO: SHA3 signatures
+	//bool rsaVerify(const BinaryString &digest, struct rsa_public_key *key, const mpz_t signature);
+	//bool rsaSign(const BinaryString &digest, struct rsa_private_key *key, mpz_t signature);
+
 	struct sha3_512_ctx mCtx;
 };
 
@@ -274,10 +302,16 @@ public:
 
 		bool isNull(void) const;
 		void clear(void);
-		const BinaryString &digest(Hash &hash) const;
-		const BinaryString &digest(void) const;			// Defaults to SHA256
-		const BinaryString &fingerprint(void) const { return digest(); }
-		bool verify(const BinaryString &digest, const BinaryString &signature) const;
+
+		// Fingerprint
+		BinaryString fingerprint(Hash &hash) const;
+		template<class H> BinaryString fingerprint(void) const
+			{ H hash; return fingerprint(hash); }
+
+		// Verification
+		bool verify(Hash &hash, const BinaryString &digest, const BinaryString &signature) const;
+		template<class H> bool verify(const BinaryString &digest, const BinaryString &signature) const
+			{ H hash; return verify(hash, digest, signature); }
 
 		// Serializable
 		void serialize(Serializer &s) const;
@@ -290,7 +324,6 @@ public:
 		void derEncode(Stream &out) const;	// used only to compute digest/fingerprint
 
 		struct rsa_public_key mKey;
-		mutable BinaryString mDigest;
 		friend class Rsa;
 	};
 
@@ -304,7 +337,11 @@ public:
 
 		bool isNull(void) const;
 		void clear(void);
-		void sign(const BinaryString &digest, BinaryString &signature) const;
+
+		// Signature
+		void sign(Hash &hash, const BinaryString &digest, BinaryString &signature) const;
+		template<class H> void sign(const BinaryString &digest, BinaryString &signature) const
+			{ H hash; sign(hash, digest, signature); }
 
 		// Serializable
 		void serialize(Serializer &s) const;

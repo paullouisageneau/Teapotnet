@@ -105,6 +105,7 @@ private:
 	sptr<Board> mBoard;
 	sptr<Indexer> mIndexer;
 
+	Identifier mIdentifier;
 	Rsa::PublicKey	mPublicKey;
 	Rsa::PrivateKey	mPrivateKey;
 	sptr<SecureTransport::Certificate> mCertificate;

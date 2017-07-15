@@ -154,11 +154,10 @@ User::User(const String &name, const String &password) :
 User::~User(void)
 {
 	// Unregister
-	Identifier identifier = mPublicKey.digest();
 	{
 		std::unique_lock<std::mutex> lock(UsersMutex);
 		UsersByAuth.erase(mAuthDigest);
-		UsersByIdentifier.erase(identifier);
+		UsersByIdentifier.erase(mIdentifier);
 	}
 
 	// Unregister interface
@@ -172,15 +171,16 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 	Assert(!pub.isNull());
 	Assert(!priv.isNull());
 
-	Identifier identifier = pub.digest();
+	Identifier identifier = pub.fingerprint<Sha3_256>();
 	Identifier oldIdentifier;
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
 
-		oldIdentifier = mPublicKey.digest();
-		if(identifier == oldIdentifier)
+		if(identifier == mIdentifier)
 			return;
 
+		oldIdentifier = mIdentifier;
+		mIdentifier = identifier;
 		mPublicKey = pub;
 		mPrivateKey = priv;
 		mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, identifier.toString());
@@ -198,7 +198,7 @@ void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)
 	// Re-register
 	{
 		std::lock_guard<std::mutex> lock(UsersMutex);
-		if(!oldIdentifier.empty()) UsersByIdentifier.erase(oldIdentifier);
+		UsersByIdentifier.erase(oldIdentifier);
 		UsersByIdentifier.insert(identifier, name());
 	}
 }
@@ -501,7 +501,7 @@ bool User::checkToken(const String &token, const String &action) const
 Identifier User::identifier(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
-	return mPublicKey.digest();
+	return mIdentifier;
 }
 
 Rsa::PublicKey User::publicKey(void) const

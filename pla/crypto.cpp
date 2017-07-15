@@ -103,6 +103,16 @@ BinaryString Hash::compute(const BinaryString &str)
 	return result;
 }
 
+bool Hash::rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature)
+{
+	throw Unsupported("Unable to use the specified hash for RSA verification");
+}
+
+bool Hash::rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature)
+{
+	throw Unsupported("Unable to use the specified hash for RSA signature");
+}
+
 size_t Sha1::length(void) const
 {
 	return size_t(SHA1_DIGEST_SIZE);
@@ -163,6 +173,18 @@ void Sha1::pbkdf2(const BinaryString &secret, const BinaryString &salt, BinarySt
 	pbkdf2(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
 }
 
+bool Sha1::rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha1_verify_digest(key, digest.bytes(), signature) != 0;
+}
+
+bool Sha1::rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha1_sign_digest(key, digest.bytes(), signature) != 0;
+}
+
 size_t Sha256::length(void) const
 {
 	return size_t(SHA256_DIGEST_SIZE);
@@ -221,6 +243,18 @@ void Sha256::pbkdf2(const BinaryString &secret, const BinaryString &salt, Binary
 {
 	key.resize(key_len);
 	pbkdf2(secret.data(), secret.size(), salt.data(), salt.size(), key.ptr(), key.size(), iterations);
+}
+
+bool Sha256::rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha256_verify_digest(key, digest.bytes(), signature) != 0;
+}
+
+bool Sha256::rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha256_sign_digest(key, digest.bytes(), signature) != 0;
 }
 
 size_t Sha512::length(void) const
@@ -291,6 +325,19 @@ void Sha512::pbkdf2(const BinaryString &secret, const BinaryString &salt, Binary
 		salt.data(), salt.size(),
 		key.ptr(), key.size(),
 		iterations);
+}
+
+
+bool Sha512::rsaVerify(const BinaryString &digest, const struct rsa_public_key *key, const mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha512_verify_digest(key, digest.bytes(), signature) != 0;
+}
+
+bool Sha512::rsaSign(const BinaryString &digest, const struct rsa_private_key *key, mpz_t signature)
+{
+	if(digest.size() != length()) return false;
+	return rsa_sha512_sign_digest(key, digest.bytes(), signature) != 0;
 }
 
 size_t Sha3_256::length(void) const
@@ -639,7 +686,6 @@ Rsa::PublicKey &Rsa::PublicKey::operator=(const Rsa::PublicKey &key)
 	mKey.size = key.mKey.size;
 	mpz_set(mKey.n, key.mKey.n);
 	mpz_set(mKey.e, key.mKey.e);
-	mDigest = key.mDigest;
 	return *this;
 }
 
@@ -658,50 +704,27 @@ void Rsa::PublicKey::clear(void)
 	rsa_public_key_clear(&mKey);
 	rsa_public_key_init(&mKey);
 	mKey.size = 0;
-
-	mDigest.clear();
 }
 
-const BinaryString &Rsa::PublicKey::digest(Hash &hash) const
+BinaryString Rsa::PublicKey::fingerprint(Hash &hash) const
 {
-	if(isNull())
-	{
-		mDigest = "";
-	}
-	else if(mDigest.empty())
-	{
-		BinaryString der;
-		derEncode(der);
-		hash.compute(der, mDigest);
-	}
-
-	return mDigest;
+	BinaryString der, digest;
+	derEncode(der);
+	hash.compute(der, digest);
+	return digest;
 }
 
-const BinaryString &Rsa::PublicKey::digest(void) const
-{
-	Sha256 hash;
-	return digest(hash);
-}
-
-bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &signature) const
+bool Rsa::PublicKey::verify(Hash &hash, const BinaryString &digest, const BinaryString &signature) const
 {
 	if(digest.empty())
 		throw Exception("Empty digest used for RSA verification");
 
 	mpz_t s;
 	mpz_init(s);
-
-	int ret = 0;
+	bool success = false;
 	try {
 		mpz_import_binary(s, signature);
-
-		switch(digest.size()*8)
-		{
-			case 256: ret = rsa_sha256_verify_digest(&mKey, digest.bytes(), s); break;
-			case 512: ret = rsa_sha512_verify_digest(&mKey, digest.bytes(), s); break;
-			default: throw Exception("Incompatible digest used for RSA signature"); break;
-		}
+		success = hash.rsaVerify(digest, &mKey, s);
 	}
 	catch(...)
 	{
@@ -710,7 +733,7 @@ bool Rsa::PublicKey::verify(const BinaryString &digest, const BinaryString &sign
 	}
 
 	mpz_clear(s);
-	return (ret != 0);
+	return success;
 }
 
 void Rsa::PublicKey::serialize(Serializer &s) const
@@ -849,7 +872,7 @@ void Rsa::PrivateKey::clear(void)
 	mKey.size = 0;
 }
 
-void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) const
+void Rsa::PrivateKey::sign(Hash &hash, const BinaryString &digest, BinaryString &signature) const
 {
 	if(digest.empty())
 		throw Exception("Empty digest used for RSA signature");
@@ -858,16 +881,8 @@ void Rsa::PrivateKey::sign(const BinaryString &digest, BinaryString &signature) 
 	mpz_init(s);
 
 	try {
-		int ret;
-		switch(digest.size()*8)
-		{
-			case 256: ret = rsa_sha256_sign_digest(&mKey, digest.bytes(), s); break;
-			case 512: ret = rsa_sha512_sign_digest(&mKey, digest.bytes(), s); break;
-			default: throw Exception("Incompatible digest used for RSA signature"); break;
-		}
-
-		if(!ret) throw Exception("RSA signature failed");
-
+		bool success = hash.rsaSign(digest, &mKey, s);
+		if(!success) throw Exception("RSA signature failed");
 		mpz_export_binary(s, signature);
 	}
 	catch(...)

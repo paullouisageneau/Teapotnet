@@ -967,7 +967,7 @@ bool AddressBook::Contact::recv(const Network::Link &link, const String &type, S
 bool AddressBook::Contact::auth(const Network::Link &link, const Rsa::PublicKey &pubKey)
 {
 	if(!mAddressBook) return false;
-	return (pubKey.digest() == identifier());
+	return (pubKey.fingerprint<Sha3_256>() == identifier());
 }
 
 void AddressBook::Contact::http(const String &prefix, Http::Request &request)

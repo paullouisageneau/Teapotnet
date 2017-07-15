@@ -64,7 +64,7 @@ Overlay::Overlay(int port) :
 	}
 
 	// Generate local node id
-	mLocalNode = mPublicKey.digest();
+	mLocalNode = mPublicKey.fingerprint<Sha3_256>();
 
 	// Create certificate
 	mCertificate = std::make_shared<SecureTransport::RsaCertificate>(mPublicKey, mPrivateKey, localNode().toString());
@@ -916,7 +916,7 @@ bool Overlay::deserialize(Serializer &s)
 
 	// TODO: Sanitize
 
-	mLocalNode = mPublicKey.digest();
+	mLocalNode = mPublicKey.fingerprint<Sha3_256>();
 	mKnownPeers.insertAll(peers);
 	return true;
 }
@@ -1060,7 +1060,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	transport->handshake();
 	Assert(transport->hasCertificate());
 
-	BinaryString identifier = verifier.publicKey.digest();
+	BinaryString identifier = verifier.publicKey.fingerprint<Sha3_256>();
 	if(remote.empty() || remote == identifier)
 	{
 		// Handshake succeeded

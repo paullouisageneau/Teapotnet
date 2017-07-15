@@ -110,12 +110,12 @@ void Mail::sign(const Identifier &identifier, const Rsa::PrivateKey &privKey)
 {
 	Assert(!identifier.empty());
 	mIdentifier = identifier;
-	privKey.sign(digest(), mSignature);
+	privKey.sign<Sha256>(digest(), mSignature);
 }
 
 bool Mail::check(const Rsa::PublicKey &pubKey) const
 {
-	return pubKey.verify(digest(), mSignature);
+	return pubKey.verify<Sha256>(digest(), mSignature);
 }
 
 bool Mail::isSigned(void) const
@@ -179,7 +179,7 @@ BinaryString Mail::computeDigest(void) const
 	serializer << *this;
 
 	BinaryString digest;
-	Sha3_256().compute(tmp, digest),
+	Sha256().compute(tmp, digest),
 
 	mSignature = signature;
 	return digest;

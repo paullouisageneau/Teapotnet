@@ -1680,7 +1680,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 		{
 			if(chain.empty()) return false;
 			publicKey = chain[0];
-			remote = Identifier(publicKey.digest());
+			remote = publicKey.fingerprint<Sha3_256>();
 
 			LogDebug("Network::Tunneler::handshake", String("Verifying remote certificate: ") + remote.toString());
 
