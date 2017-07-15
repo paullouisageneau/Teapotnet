@@ -54,7 +54,7 @@ include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := argon2
-LOCAL_SRC_FILES := $(HOME)/src/argon2/libargon2.a
+LOCAL_SRC_FILES := $(HOME)/src/argon2/build/$(CERBERO_ABI)/libargon2.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -63,5 +63,5 @@ LOCAL_CFLAGS    := -DHAVE_PTHREADS -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PAR
 LOCAL_SRC_FILES := $(wildcard $(LOCAL_PATH)/pla/*.cpp) $(wildcard $(LOCAL_PATH)/tpn/*.cpp) include/sqlite3.c
 LOCAL_C_INCLUDES := $(HOME)/cerbero/dist/$(CERBERO_ABI)/include $(HOME)/src/argon2/include
 LOCAL_LDLIBS    := -llog
-LOCAL_STATIC_LIBRARIES := gnutls nettle hogweed gmp tasn1 intl iconv z
+LOCAL_STATIC_LIBRARIES := gnutls nettle hogweed gmp tasn1 intl iconv z argon2
 include $(BUILD_SHARED_LIBRARY)
