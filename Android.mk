@@ -52,12 +52,16 @@ LOCAL_MODULE := z
 LOCAL_SRC_FILES := $(HOME)/cerbero/dist/$(CERBERO_ABI)/lib/libz.a
 include $(PREBUILT_STATIC_LIBRARY)
 
+include $(CLEAR_VARS)
+LOCAL_MODULE := argon2
+LOCAL_SRC_FILES := $(HOME)/src/argon2/libargon2.a
+include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE    := teapotnet
 LOCAL_CFLAGS    := -DHAVE_PTHREADS -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS
 LOCAL_SRC_FILES := $(wildcard $(LOCAL_PATH)/pla/*.cpp) $(wildcard $(LOCAL_PATH)/tpn/*.cpp) include/sqlite3.c
-LOCAL_C_INCLUDES := $(HOME)/cerbero/dist/$(CERBERO_ABI)/include
+LOCAL_C_INCLUDES := $(HOME)/cerbero/dist/$(CERBERO_ABI)/include $(HOME)/src/argon2/include
 LOCAL_LDLIBS    := -llog
 LOCAL_STATIC_LIBRARIES := gnutls nettle hogweed gmp tasn1 intl iconv z
 include $(BUILD_SHARED_LIBRARY)
