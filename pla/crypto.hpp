@@ -275,7 +275,7 @@ public:
 		bool isNull(void) const;
 		void clear(void);
 		const BinaryString &digest(Hash &hash) const;
-		const BinaryString &digest(void) const;
+		const BinaryString &digest(void) const;			// Defaults to SHA256
 		const BinaryString &fingerprint(void) const { return digest(); }
 		bool verify(const BinaryString &digest, const BinaryString &signature) const;
 
