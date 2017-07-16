@@ -1075,9 +1075,6 @@ Argon2::~Argon2(void)
 
 void Argon2::compute(const char *secret, size_t len, const char *salt, size_t salt_len, char *key, size_t key_len)
 {
-	VAR(len);
-	VAR(salt_len);
-	VAR(key_len);
 	if(argon2i_hash_raw(uint32_t(mTimeCost), uint32_t(mMemoryCost), uint32_t(mParallelism),
 		secret, len, salt, salt_len, key, key_len) != ARGON2_OK)
 		throw Exception("Argon2 password hashing failed");

@@ -273,11 +273,10 @@ bool Serializer::read(std::map<K, V> &container)
 		auto it = container.find(p.first); // check if key already exists
 		if(it != container.end())
 		{
-			AssertIO(read(it->second));
+			read(it->second);
 		}
 		else {
-			AssertIO(read(p.second));
-			container.emplace(p);
+			if(read(p.second)) container.emplace(p);
 		}
 	}
 
@@ -309,7 +308,7 @@ bool Serializer::read(std::pair<K, V> &pair)
 {
 	if(!readMapNext()) return false;
 	if(!read(pair.first)) return false;
-	AssertIO(read(pair.second));
+	read(pair.second);
 	return true;
 }
 
@@ -361,7 +360,7 @@ template<typename K, typename V> bool Serializer::readElement(std::pair<K, V> &p
 	if(i == 0 && !readMapBegin()) return false;
 	if(!readMapNext()) return false;
 	if(!read(pair.first)) return false;
-	AssertIO(read(pair.second));
+	if(!read(pair.second)) return false;
 	return true;
 }
 
