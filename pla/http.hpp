@@ -69,7 +69,7 @@ public:
 
 	struct Response
 	{
-		Response(void);
+		Response(int code = 200);
 		Response(const Request &request, int code = 200);
 
 		void send(void);

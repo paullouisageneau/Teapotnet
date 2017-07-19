@@ -105,7 +105,7 @@ SecureTransport::SecureTransport(Stream *stream, bool server) :
 
 SecureTransport::~SecureTransport(void)
 {
-	close(); // calls gnutls_bye() if necessary
+	NOEXCEPTION(close()); // calls gnutls_bye() if necessary
 
 	gnutls_deinit(mSession);
 

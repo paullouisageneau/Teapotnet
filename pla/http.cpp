@@ -475,9 +475,13 @@ bool Http::Request::extractRange(int64_t &rangeBegin, int64_t &rangeEnd, int64_t
 	return false;
 }
 
-Http::Response::Response(void)
+Http::Response::Response(int code)
 {
 	clear();
+
+	this->code = code;
+	if(code != 204)	// 204 No content
+		this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 
 Http::Response::Response(const Request &request, int code)
@@ -487,8 +491,7 @@ Http::Response::Response(const Request &request, int code)
 	this->code = code;
 	this->version = request.version;
 	this->stream = request.stream;
-
-	if(code != 204)
+	if(code != 204)	// 204 No content
 		this->headers["Content-Type"] = "text/html; charset=UTF-8";
 }
 

@@ -40,6 +40,8 @@ public:
 	class Server;
 
 	static Server *Incoming(Socket *sock);
+	static Socket *WaitServerUp(uint32_t session);
+	static Socket *WaitServerDown(uint32_t session);
 
 	class Client : public Stream
 	{
@@ -60,13 +62,12 @@ public:
 
 		Address mAddress;
 		String mReverse;
-		Socket *mUpSock, *mDownSock;
+		Socket mUpSock, mDownSock;
 		uint32_t mSession;
 		size_t mPostSize, mPostLeft;
 		duration mConnTimeout;
+		bool mClosed;
 		Alarm mFlusher;
-
-		std::mutex mMutex;
 	};
 
 	class Server : public Stream
@@ -85,15 +86,11 @@ public:
 		Server(uint32_t session);	// instanciated by Incoming() only
 
 		Socket *mUpSock, *mDownSock;
-		Http::Request mUpRequest;
 		uint32_t mSession;
 		size_t mPostBlockLeft;
 		size_t mDownloadLeft;
 		bool mClosed;
 		Alarm mFlusher;
-
-		std::mutex mMutex;
-		mutable std::condition_variable mCondition;
 
 		friend Server *HttpTunnel::Incoming(Socket *sock);
 	};
@@ -110,8 +107,15 @@ public:
 private:
 	HttpTunnel(void);
 
-	static std::map<uint32_t, Server*> Sessions;
+	struct SessionEntry {
+		Server *server = NULL;
+		Socket *upSock = NULL;
+		Socket *downSock = NULL;
+	};
+
+	static std::map<uint32_t, SessionEntry> Sessions;
 	static std::mutex SessionsMutex;
+	static std::condition_variable SessionsCondition;
 
 	static const uint8_t TunnelOpen			= 0x01;
 	static const uint8_t TunnelData			= 0x02;

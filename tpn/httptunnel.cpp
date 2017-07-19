@@ -44,27 +44,27 @@ duration HttpTunnel::SockTimeout = seconds(10.);
 duration HttpTunnel::FlushTimeout = seconds(0.2);
 duration HttpTunnel::ReadTimeout = seconds(60.);
 
-std::map<uint32_t, HttpTunnel::Server*> HttpTunnel::Sessions;
+std::map<uint32_t, HttpTunnel::SessionEntry> HttpTunnel::Sessions;
 std::mutex HttpTunnel::SessionsMutex;
+std::condition_variable HttpTunnel::SessionsCondition;
 
-HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
+HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 {
 	Http::Request request;
 	try {
+		sock->setTimeout(SockTimeout);
+		request.recv(sock, false); // POST content is not parsed
+
 		try {
-			sock->setTimeout(SockTimeout);
-			request.recv(sock, false); // POST content is not parsed
+			std::unique_lock<std::mutex> lock(SessionsMutex);
 
 			uint32_t session = 0;
 			String cookie;
-			if(request.cookies.get("session", cookie))
-				cookie.extract(session);
+			if(request.cookies.get("session", cookie)) cookie.extract(session);
 
 			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::hexa(session)+")");
 
-			Server *server = NULL;
-			bool isNew = false;
-			if(!session)
+			if(session == 0)
 			{
 				if(request.method != "GET")
 				{
@@ -72,25 +72,28 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 					throw 400;
 				}
 
-				{
-					std::lock_guard<std::mutex> lock(SessionsMutex);
-					while(!session || Sessions.find(session) != Sessions.end())
-						Random().readBinary(session);
+				// Find non-existent session
+				while(!session || Sessions.find(session) != Sessions.end())
+					Random().readBinary(session);
 
-					server = new Server(session);
-					Sessions.insert(std::make_pair(session, server));
-				}
+				SessionEntry entry;
+				entry.server = new Server(session);
+				Sessions.insert(std::make_pair(session, entry));
 
-				isNew = true;
+				Http::Response response(request, 200);
+				response.headers["Cache-Control"] = "no-cache";
+				response.headers["Content-Type"] = "text/html";
+				response.cookies["session"] << session;
+
+				// First response should be forced down the potential proxy as soon as possible
+				lock.unlock();
+				response.send(sock);
+				delete sock;
+				return entry.server;
 			}
-			else {
-				std::lock_guard<std::mutex> lock(SessionsMutex);
-				auto it = Sessions.find(session);
-				if(it != Sessions.end())
-					server = it->second;
-			}
 
-			if(!server)
+			auto it = Sessions.find(session);
+			if(it == Sessions.end())
 			{
 				// Unknown or closed session
 				LogDebug("HttpTunnel::Incoming", "Unknown or closed session: " + String::hexa(session));
@@ -99,36 +102,20 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 
 			if(request.method == "GET")
 			{
+				if(!it->second.server)  throw 400;	// Closed session
+				if(it->second.downSock) throw 409;	// Conflict
+
 				Http::Response response(request, 200);
 				response.headers["Cache-Control"] = "no-cache";
+				response.headers["Content-Type"] = "application/octet-stream";
 				response.cookies["session"] << session;
+				response.send(sock);
 
-				// First response should be forced down the potential proxy as soon as possible
-				if(isNew)
-				{
-					response.headers["Content-Type"] = "text/html";
-					response.send(sock);
-					delete sock;
-					return server;
-				}
-				else {
-					std::unique_lock<std::mutex> lock(server->mMutex);
-					if(server->mDownSock) throw 409;	// Conflict
-					if(server->mClosed) throw 400;		// Closed session
-
-					response.headers["Content-Type"] = "application/octet-stream";
-					response.send(sock);
-
-					server->mDownSock = sock;
-					server->mDownloadLeft = MaxDownloadSize;
-					server->mCondition.notify_all();
-					server->mFlusher.schedule(ReadTimeout*0.75);
-				}
+				it->second.downSock = sock;
+				SessionsCondition.notify_all();
 				return NULL;
 			}
-			else {
-				Assert(!isNew);
-
+			else {	// POST
 				uint8_t command;
 				if(!sock->readBinary(command))
 					throw NetException("Connection unexpectedly closed");
@@ -144,17 +131,11 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 				if(!sock->readBinary(len) || !sock->ignore(len))	// auth data ignored
 					throw NetException("Connection unexpectedly closed");
 
-				{
-					std::unique_lock<std::mutex> lock(server->mMutex);
-					if(server->mUpSock) throw 409;	// Conflict
-					if(server->mClosed) throw 400;	// Closed session
+				if(!it->second.server) throw 400;	// Closed session
+				if(it->second.upSock)  throw 409;	// Conflict
 
-					Assert(!server->mPostBlockLeft);
-					server->mUpSock = sock;
-					server->mUpRequest = request;
-				}
-
-				server->mCondition.notify_all();
+				it->second.upSock = sock;
+				SessionsCondition.notify_all();
 				return NULL;
 			}
 		}
@@ -189,17 +170,61 @@ HttpTunnel::Server* HttpTunnel::Incoming(Socket *sock)
 	return NULL;
 }
 
+Socket *HttpTunnel::WaitServerUp(uint32_t session)
+{
+	std::unique_lock<std::mutex> lock(SessionsMutex);
+
+	if(!SessionsCondition.wait_for(lock, ReadTimeout, [session]() {
+		auto it = Sessions.find(session);
+		if(it == Sessions.end()) return true;
+		return it->second.upSock != NULL;
+	}))
+		throw Timeout();
+
+	auto it = Sessions.find(session);
+	if(it == Sessions.end()) return NULL;
+
+	Socket *sock = NULL;
+	std::swap(it->second.upSock, sock);
+	return sock;
+}
+
+Socket *HttpTunnel::WaitServerDown(uint32_t session)
+{
+	std::unique_lock<std::mutex> lock(SessionsMutex);
+
+	if(!SessionsCondition.wait_for(lock, ReadTimeout, [session]() {
+		auto it = Sessions.find(session);
+		if(it == Sessions.end()) return true;
+		return it->second.downSock != NULL;
+	}))
+		throw Timeout();
+
+	auto it = Sessions.find(session);
+	if(it == Sessions.end()) return NULL;
+
+	Socket *sock = NULL;
+	std::swap(it->second.downSock, sock);
+	return sock;
+}
+
 HttpTunnel::Client::Client(const Address &addr, duration timeout) :
 	mAddress(addr),
 	mReverse(addr.reverse()),
-	mUpSock(NULL),
-	mDownSock(NULL),
 	mSession(0),
 	mPostSize(DefaultPostSize),
 	mPostLeft(0),
 	mConnTimeout(ConnTimeout),
-	mFlusher([this]() { this->flush(); })
+	mClosed(false)
 {
+	mFlusher.set([this]()
+	{
+		this->flush();
+	});
+
+	mUpSock.setTimeout(SockTimeout);
+	mDownSock.setTimeout(SockTimeout);
+
 	if(timeout >= duration::zero()) mConnTimeout = timeout;
 	readData(NULL, 0); 	// Connect mDownSock
 
@@ -217,19 +242,18 @@ HttpTunnel::Client::~Client(void)
 
 void HttpTunnel::Client::close(void)
 {
-	std::unique_lock<std::mutex>(mMutex);
-
 	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session: "+String::hexa(mSession));
 
+	mClosed = true;
 	mFlusher.cancel();
 
+	// Properly closes up stream
 	try {
-		if(mUpSock && mUpSock->isConnected() && mPostLeft)
+		if(mUpSock.isConnected() && mPostLeft)
 		{
 			writePaddingUntil(2);
-			if(mPostLeft >= 1) mUpSock->writeBinary(TunnelClose);
-			if(mPostLeft >= 2) mUpSock->writeBinary(TunnelDisconnect);
-			mPostLeft = 0;
+			if(mPostLeft >= 1) mUpSock.writeBinary(TunnelClose);
+			if(mPostLeft >= 2) mUpSock.writeBinary(TunnelDisconnect);
 		}
 	}
 	catch(const NetException &e)
@@ -237,34 +261,33 @@ void HttpTunnel::Client::close(void)
 		// Ignored
 	}
 
-	delete mDownSock; mDownSock = NULL;
-	delete mUpSock; mUpSock = NULL;
+	// Close sockets
+	try {
+		mUpSock.close();
+		mDownSock.close();
+	}
+	catch(const NetException &e)
+	{
+		// Ignored
+	}
 
+	// Reset state
+	mPostLeft = 0;
 	mSession = 0;
 }
 
 size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
-	if(!mDownSock)
-	{
-		mDownSock = new Socket;
-		mDownSock->setTimeout(SockTimeout);
-	}
-
 	using clock = std::chrono::steady_clock;
-	std::chrono::time_point<clock> end = clock::now() + std::chrono::duration_cast<clock::duration>(ReadTimeout);
+	auto end = clock::now() + ReadTimeout;
 
-	while(true)
+	while(clock::now() < end)
 	{
-		if(clock::now() >= end) throw Timeout();
+		if(mClosed) return 0;
 
-		bool freshConnection = false;
-		if(!mDownSock->isConnected())
+		bool reconnection = !mDownSock.isConnected();
+		if(reconnection)
 		{
-			freshConnection = true;
-
 			String url;
 			Assert(!mReverse.empty());
 			url<<"http://"<<mReverse<<"/"<<String::random(10);
@@ -275,29 +298,24 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			request.headers["User-Agent"] = UserAgent;
 			if(mSession) request.cookies["session"] << mSession;
 
-			Address addr = mAddress;
-			bool hasProxy = Proxy::GetProxyForUrl(url, addr);
+			bool hasProxy = Proxy::GetProxyForUrl(url, mAddress);
 			if(hasProxy) request.url = url;			// Full URL for proxy
 
 			try {
-				mDownSock->setConnectTimeout(mConnTimeout);
-
-				lock.unlock();
-				mDownSock->connect(addr, true);		// Connect without proxy
-				lock.lock();
-
-				request.send(mDownSock);
+				mDownSock.setConnectTimeout(mConnTimeout);
+				mDownSock.connect(mAddress, true);		// Connect without proxy
+				request.send(&mDownSock);
 			}
 			catch(const NetException &e)
 			{
+				if(mClosed) return 0;
 				if(hasProxy) LogWarn("HttpTunnel::Client", String("HTTP proxy error: ") + e.what());
 				throw;
 			}
 
-			mDownSock->setReadTimeout(SockTimeout);
-
 			Http::Response response;
-			response.recv(mDownSock);
+			mDownSock.setReadTimeout(SockTimeout);
+			response.recv(&mDownSock);
 
 			if(response.code != 200)
 			{
@@ -306,7 +324,7 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 					if(response.code == 400)	// Closed session
 					{
 						LogDebug("HttpTunnel::Client", "Session closed");
-						break;
+						return 0;
 					}
 					else if(response.code == 504)	// Proxy timeout
 					{
@@ -324,56 +342,42 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 			}
 
 			String cookie;
-			if(response.cookies.get("session", cookie))
-				cookie.extract(mSession);
-
-			if(!mSession)
-			{
-				throw NetException("HTTP transaction failed: Invalid cookie");
-			}
+			if(response.cookies.get("session", cookie)) cookie.extract(mSession);
+			if(!mSession) throw NetException("HTTP transaction failed: Invalid cookie");
 		}
 
 		if(!size) return 0;
-		mDownSock->setReadTimeout(ReadTimeout);
 
-		lock.unlock();
 		try {
-			size_t ret = mDownSock->readData(buffer, size);
+			mDownSock.setReadTimeout(ReadTimeout);
+			size_t ret = mDownSock.readData(buffer, size);
 			if(ret) return ret;
 		}
 		catch(const NetException &e)
 		{
-			if(!freshConnection)
+			if(!reconnection)
 			{
-				lock.lock();
-				mDownSock->close();
+				mDownSock.close();
 				throw;
 			}
 		}
-		lock.lock();
 
-		mDownSock->close();
+		mDownSock.close();
 	}
 
-	return 0;
+	throw Timeout();
 }
 
 void HttpTunnel::Client::writeData(const char *data, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
-	if(!mSession) readData(NULL, 0);	// ensure session is opened
-	if(!mUpSock)
-	{
-		mUpSock = new Socket;
-		mUpSock->setTimeout(SockTimeout);
-	}
-
 	mFlusher.cancel();
 
-	while(size)
+	while(size || mClosed)
 	{
-		if(!mUpSock->isConnected() || !mPostLeft)
+		if(mClosed) throw NetException("Connection closed");
+		if(!mSession) readData(NULL, 0);	// ensure session is opened
+
+		if(!mUpSock.isConnected() || !mPostLeft)
 		{
 			String url;
 			Assert(!mReverse.empty());
@@ -386,20 +390,13 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			request.headers["Content-Leng.hpp"] << mPostSize;
 			request.cookies["session"] << mSession;
 
-			Address addr = mAddress;
-			bool hasProxy = Proxy::GetProxyForUrl(url, addr);
+			bool hasProxy = Proxy::GetProxyForUrl(url, mAddress);
 			if(hasProxy) request.url = url; 	        // Full URL for proxy
 
 			try {
-				mUpSock->setConnectTimeout(mConnTimeout);
-
-				Socket *sock = mUpSock;	mUpSock = NULL; // Necessary because of the flushing
-				lock.unlock();
-				sock->connect(addr, true);	// Connect without proxy
-				lock.lock();
-
-				mUpSock = sock;
-				request.send(mUpSock);
+				mUpSock.setConnectTimeout(mConnTimeout);
+				mUpSock.connect(mAddress, true);	// Connect without proxy
+				request.send(&mUpSock);
 			}
 			catch(const NetException &e)
 			{
@@ -408,9 +405,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 			}
 
 			mPostLeft = mPostSize;
-
-			mUpSock->writeBinary(TunnelOpen);	// 1 byte
-			mUpSock->writeBinary(uint16_t(0));	// 2 bytes, no auth data
+			mUpSock.writeBinary(TunnelOpen);	// 1 byte
+			mUpSock.writeBinary(uint16_t(0));	// 2 bytes, no auth data
 			mPostLeft-= 3;
 		}
 
@@ -418,9 +414,9 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		{
 			size_t len = std::min(size, mPostLeft-4);
 			len = std::min(len, size_t(0xFFFF));
-			mUpSock->writeBinary(TunnelData);	// 1 byte
-			mUpSock->writeBinary(uint16_t(len));	// 2 bytes
-			mUpSock->writeData(data, len);		// len bytes
+			mUpSock.writeBinary(TunnelData);	// 1 byte
+			mUpSock.writeBinary(uint16_t(len));	// 2 bytes
+			mUpSock.writeData(data, len);		// len bytes
 			mPostLeft-= len + 3;
 			data+= len;
 			size-= len;
@@ -428,7 +424,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		else {
 			while(mPostLeft > 1)
 			{
-				mUpSock->writeBinary(TunnelPad);
+				mUpSock.writeBinary(TunnelPad);
 				mPostLeft-= 1;
 			}
 		}
@@ -436,14 +432,14 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		Assert(mPostLeft >= 1);
 		if(mPostLeft == 1)
 		{
-			mUpSock->writeBinary(TunnelDisconnect);
+			mUpSock.writeBinary(TunnelDisconnect);
 			mPostLeft = 0;
 			updatePostSize(0);
 
 			Http::Response response;
-			response.recv(mUpSock);
-			mUpSock->clear();
-			mUpSock->close();
+			response.recv(&mUpSock);
+			mUpSock.clear();
+			mUpSock.close();
 
 			if(response.code != 200 && response.code != 204)
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
@@ -455,17 +451,17 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
 void HttpTunnel::Client::flush(void)
 {
-	std::unique_lock<std::mutex>(mMutex);
+	if(mClosed) return;
 
 	try {
-		if(mUpSock && mUpSock->isConnected() && mPostLeft)
+		if(mUpSock.isConnected() && mPostLeft)
 		{
 			//LogDebug("HttpTunnel::Client::flush", "Flushing (padding "+String::number(std::max(int(mPostLeft)-1, 0))+" bytes)...");
 
 			try {
 				updatePostSize(mPostLeft);
 				writePaddingUntil(1);
-				mUpSock->writeBinary(TunnelDisconnect);
+				mUpSock.writeBinary(TunnelDisconnect);
 			}
 			catch(const NetException &e)
 			{
@@ -477,11 +473,12 @@ void HttpTunnel::Client::flush(void)
 			}
 
 			mPostLeft = 0;  // Reset mPostLeft
-			mUpSock->setTimeout(ReadTimeout);
+
+			mUpSock.setTimeout(ReadTimeout);
 			Http::Response response;
-			response.recv(mUpSock);
-			mUpSock->clear();
-			mUpSock->close();
+			response.recv(&mUpSock);
+			mUpSock.clear();
+			mUpSock.close();
 
 			if(response.code != 200 && response.code != 204)
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
@@ -495,23 +492,20 @@ void HttpTunnel::Client::flush(void)
 
 void HttpTunnel::Client::writePaddingUntil(size_t left)
 {
-	std::unique_lock<std::mutex>(mMutex);
-	Assert(mUpSock);
-
 	if(mPostLeft <= left) return;
 
 	while(mPostLeft > left + 3)
 	{
-		size_t len = std::min(mPostLeft-left-3, size_t(0xFFFF));
-		mUpSock->writeBinary(TunnelPadding);    // 1 byte
-		mUpSock->writeBinary(uint16_t(len));    // 2 bytes
-		mUpSock->writeZero(len);
+		size_t len = std::min(mPostLeft - (left + 3), size_t(0xFFFF));
+		mUpSock.writeBinary(TunnelPadding);    // 1 byte
+		mUpSock.writeBinary(uint16_t(len));    // 2 bytes
+		mUpSock.writeZero(len);
 		mPostLeft-= len + 3;
 	}
 
 	while(mPostLeft > left)
 	{
-		mUpSock->writeBinary(TunnelPad);
+		mUpSock.writeBinary(TunnelPad);
 		mPostLeft-= 1;
 	}
 
@@ -530,9 +524,13 @@ HttpTunnel::Server::Server(uint32_t session) :
 	mSession(session),
 	mPostBlockLeft(0),
 	mDownloadLeft(0),
-	mClosed(false),
-	mFlusher([this]() { this->flush(); })
+	mClosed(false)
 {
+	mFlusher.set([this]()
+	{
+		this->flush();
+	});
+
 	Assert(mSession);
 	LogDebug("HttpTunnel::Server", "Starting HTTP tunnel server session: "+String::hexa(mSession));
 }
@@ -540,30 +538,29 @@ HttpTunnel::Server::Server(uint32_t session) :
 HttpTunnel::Server::~Server(void)
 {
 	NOEXCEPTION(close());
+
+	delete mUpSock;
+	delete mDownSock;
+	mUpSock = NULL;
+	mDownSock = NULL;
 }
 
 void HttpTunnel::Server::close(void)
 {
 	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session: "+String::hexa(mSession));
 
-	{
-		std::unique_lock<std::mutex>(mMutex);
-		mFlusher.cancel();
-		delete mDownSock; mDownSock = NULL;
-		delete mUpSock; mUpSock = NULL;
-		mClosed = true;
-	}
+	mClosed = true;
+	mFlusher.cancel();
 
 	{
-		std::lock_guard<std::mutex> lock(SessionsMutex);
+		std::unique_lock<std::mutex> lock(SessionsMutex);
 		Sessions.erase(mSession);
+		SessionsCondition.notify_all();
 	}
 }
 
 size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	while(!mPostBlockLeft)
 	{
 		if(mClosed) return 0;
@@ -574,12 +571,11 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			mUpSock = NULL;
 		}
 
-		if(!mCondition.wait_for(lock, ReadTimeout, [this]() {
-			return mClosed || mUpSock;
-		}))
-			throw Timeout();
-
-		if(!mUpSock) continue;
+		if(!mUpSock)
+		{
+			mUpSock = WaitServerUp(mSession);
+			if(!mUpSock) return 0;
+		}
 
 		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
 		mUpSock->setTimeout(SockTimeout);
@@ -587,7 +583,6 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		uint8_t command;
 		uint16_t len = 0;
 
-		lock.unlock();
 		try {
 			if(!mUpSock->readBinary(command))
 				throw NetException("Connection unexpectedly closed");
@@ -600,68 +595,63 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 		{
 			throw NetException(String("Unable to read HTTP tunnel command: ") + e.what());
 		}
-		lock.lock();
 
 		//LogDebug("HttpTunnel::Server::readData", "Incoming command: " + String::hexa(command, 2) + " (length " + String::number(len) + ")");
 
 		switch(command)
 		{
-		case TunnelData:
-			mPostBlockLeft = len;
-			break;
+			case TunnelData:
+			{
+				mPostBlockLeft = len;
+				break;
+			}
 
-		case TunnelPadding:
-		{
-			lock.unlock();
-			if(!mUpSock->ignore(len))
-				throw NetException("Connection unexpectedly closed");
-			lock.lock();
-			break;
-		}
+			case TunnelPadding:
+			{
+				if(!mUpSock->ignore(len))
+					throw NetException("Connection unexpectedly closed");
+				break;
+			}
 
-		case TunnelPad:
-			// Do nothing
-			break;
+			case TunnelPad:
+			{
+				// Do nothing
+				break;
+			}
 
-		case TunnelClose:
-			mClosed = true;
-			break;
+			case TunnelClose:
+			{
+				mClosed = true;
+				break;
+			}
 
-		case TunnelDisconnect:
-		{
-			Http::Response response(mUpRequest, 204);	// no content
-			response.send(mUpSock);
-			mUpRequest.clear();
-			mUpSock->close();
-			break;
-		}
+			case TunnelDisconnect:
+			{
+				Http::Response response(204);	// no content
+				response.send(mUpSock);
+				mUpSock->close();
+				break;
+			}
 
-		default:
-			LogWarn("HttpTunnel::Server", "Unknown command: " + String::hexa(command));
-			lock.unlock();
-			if(!mUpSock->ignore(len))
-				throw NetException("Connection unexpectedly closed");
-			lock.lock();
-			break;
+			default:
+			{
+				LogWarn("HttpTunnel::Server", "Unknown command: " + String::hexa(command));
+				if(!mUpSock->ignore(len))
+					throw NetException("Connection unexpectedly closed");
+				break;
+			}
 		}
 	}
 
-	Assert(mUpSock);
-	Assert(mPostBlockLeft > 0);
-	mUpSock->setTimeout(SockTimeout);
-
-	lock.unlock();
 	size_t r = mUpSock->readData(buffer, std::min(size, mPostBlockLeft));
 	if(size && !r) throw NetException("Connection unexpectedly closed");
-	lock.lock();
-
 	mPostBlockLeft-= r;
 	return r;
 }
 
 void HttpTunnel::Server::writeData(const char *data, size_t size)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	mFlusher.cancel();
 
 	while(true)
 	{
@@ -673,17 +663,15 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 			mDownSock = NULL;
 		}
 
-		mFlusher.cancel();
-
-		if(!mCondition.wait_for(lock, ConnTimeout, [this]() {
-			return mClosed || mDownSock;
-		}))
-			throw Timeout();
-
-		if(!mDownSock) continue;
+		if(!mDownSock)
+		{
+			mDownSock = WaitServerUp(mSession);
+			if(!mDownSock) throw NetException("Session aborted");
+			mDownloadLeft = MaxDownloadSize;
+		}
 
 		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
-		Assert(mDownloadLeft >= 1);
+		Assert(mDownloadLeft > 0);
 		if(!size) break;
 
 		if(mDownloadLeft == MaxDownloadSize)    // if no data has already been sent
@@ -717,17 +705,21 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 
 void HttpTunnel::Server::flush(void)
 {
-	std::unique_lock<std::mutex>(mMutex);
+	if(mClosed) return;
 
-	if(mDownSock && mDownSock->isConnected())
-	{
-		//LogDebug("HttpTunnel::Server::flu.hpp", "Flushing...");
-		mDownSock->close();
+	try {
+		mDownloadLeft = 0;
+
+		if(mDownSock && mDownSock->isConnected())
+		{
+			//LogDebug("HttpTunnel::Server::flush", "Flushing...");
+			mDownSock->close();
+		}
 	}
-
-	delete mDownSock;
-	mDownSock = NULL;
-	mDownloadLeft = 0;
+	catch(const Exception &e)
+	{
+		//LogWarn("HttpTunnel::Client::flush", e.what());
+	}
 }
 
 }
