@@ -242,6 +242,7 @@ HttpTunnel::Client::~Client(void)
 
 void HttpTunnel::Client::close(void)
 {
+	if(mClosed) return;
 	LogDebug("HttpTunnel::Client", "Closing HTTP tunnel client session: "+String::hexa(mSession));
 
 	mClosed = true;
@@ -547,6 +548,7 @@ HttpTunnel::Server::~Server(void)
 
 void HttpTunnel::Server::close(void)
 {
+	if(mClosed) return;
 	LogDebug("HttpTunnel::Server", "Closing HTTP tunnel server session: "+String::hexa(mSession));
 
 	mClosed = true;
