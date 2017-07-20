@@ -342,11 +342,15 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
 			}
 
-			LogDebug("HttpTunnel::Client::readData", "Down stream connected");
-
-			String cookie;
-			if(response.cookies.get("session", cookie)) cookie.extract(mSession);
-			if(!mSession) throw NetException("HTTP transaction failed: Invalid cookie");
+			if(!mSession)
+			{
+				String cookie;
+				if(response.cookies.get("session", cookie)) cookie.extract(mSession);
+				if(!mSession) throw NetException("HTTP transaction failed: Invalid cookie");
+			}
+			else {
+				//LogDebug("HttpTunnel::Client::readData", "Down stream connected");
+			}
 		}
 
 		if(!size) return 0;
@@ -407,7 +411,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 				throw;
 			}
 
-			LogDebug("HttpTunnel::Client::writeData", "Up stream connected");
+			//LogDebug("HttpTunnel::Client::writeData", "Up stream connected");
 
 			mPostLeft = mPostSize;
 			mUpSock.writeBinary(TunnelOpen);	// 1 byte
@@ -579,11 +583,12 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 
 		if(!mUpSock)
 		{
+			//LogDebug("HttpTunnel::Server::readData", "Waiting for up stream...");
 			mUpSock = WaitServerUp(mSession);
 			if(!mUpSock) return 0;
 		}
 
-		LogDebug("HttpTunnel::Server::readData", "Up stream connected");
+		//LogDebug("HttpTunnel::Server::readData", "Up stream connected");
 		mUpSock->setTimeout(SockTimeout);
 
 		uint8_t command;
@@ -671,12 +676,13 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 
 		if(!mDownSock)
 		{
-			mDownSock = WaitServerUp(mSession);
+			//LogDebug("HttpTunnel::Server::readData", "Waiting for down stream...");
+			mDownSock = WaitServerDown(mSession);
 			if(!mDownSock) throw NetException("Session aborted");
 			mDownloadLeft = MaxDownloadSize;
 		}
 
-		LogDebug("HttpTunnel::Server::writeData", "Down stream connected");
+		//LogDebug("HttpTunnel::Server::writeData", "Down stream connected");
 		Assert(mDownloadLeft > 0);
 		if(!size) break;
 
