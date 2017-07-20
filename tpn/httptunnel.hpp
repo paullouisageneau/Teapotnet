@@ -39,9 +39,8 @@ public:
 	class Client;
 	class Server;
 
+	// Incoming connections
 	static Server *Incoming(Socket *sock);
-	static Socket *WaitServerUp(uint32_t session);
-	static Socket *WaitServerDown(uint32_t session);
 
 	class Client : public Stream
 	{
@@ -106,6 +105,9 @@ public:
 
 private:
 	HttpTunnel(void);
+
+	static Socket *WaitServerUp(uint32_t session);
+	static Socket *WaitServerDown(uint32_t session);
 
 	struct SessionEntry {
 		Server *server = NULL;
