@@ -111,7 +111,8 @@ private:
 	static Socket *WaitServerUp(uint32_t session);
 	static Socket *WaitServerDown(uint32_t session);
 
-	struct SessionEntry {
+	struct SessionEntry
+	{
 		Server *server = NULL;
 		Socket *upSock = NULL;
 		Socket *downSock = NULL;

@@ -1942,13 +1942,18 @@ Network::Handler::~Handler(void)
 		mClosed = true;
 	}
 
+	// Cancel alarm
+	mTimeoutAlarm.cancel();
+
 	// Join threads
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
 
 	// Delete stream
-	std::unique_lock<std::mutex> lock(mMutex);
-	delete mStream;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		delete mStream;
+	}
 }
 
 void Network::Handler::write(const String &type, const Serializable &content)
