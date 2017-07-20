@@ -360,21 +360,6 @@ a.button:hover
 	text-align: center;
 }
 
-.loading > body > *
-{
-	display: none;
-}
-
-.loading body
-{
-	background: #F0F0F0;
-}
-
-.animloading body
-{
-	background: #F0F0F0 url(/loading.png) no-repeat 50% 40%;
-}
-
 #page
 {
 	width: 100%;
@@ -1303,7 +1288,7 @@ td.actions a
 	color: gray;
 }
 
-.gifloading img
+.loading img
 {
 	display: block;
 	margin: 0 auto;

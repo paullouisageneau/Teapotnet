@@ -80,10 +80,11 @@ void Html::header(const String &title, bool blank, const String &redirect)
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/jquery.form.min.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/common.js\"></script>\n";
+	*mStream<<"<script type=\"text/javascript\" src=\"/static/contacts.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/directory.js\"></script>\n";
 	*mStream<<"<script type=\"text/javascript\" src=\"/static/mail.js\"></script>\n";
 	*mStream<<"<base target=\"_parent\">\n";
-	
+
 	// Load specific CSS on touch devices
 	javascript("var deviceAgent = navigator.userAgent.toLowerCase();\n\
 if(deviceAgent.indexOf('android') >= 0 || deviceAgent.indexOf('iPhone') >= 0 || deviceAgent.indexOf('iPad') >= 0)\n\

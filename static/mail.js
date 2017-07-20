@@ -2,7 +2,7 @@
  *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
  *   TeapotNet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
@@ -215,48 +215,6 @@ function setMailReceiverRec(url, object, period, next) {
 				playMailSound();
 			}
 		}
-
-		// Hide replies if they're too many
-		/*
-		$('.conversation').each(function() {
-			if($(this).find('.morereplies').length) return;
-
-			var nReplies = $(this).find('.childmessage').length;
-			var nHiddenReplies = nReplies-5;
-			var object = this;
-			var showMoreReplies = false;
-
-			if(nReplies >= 7) // We hide at least 2 replies
-			{
-				$(object).find('.childmessage').eq(0).before('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
-
-				for(i = 0; i < nReplies-5; i++){
-					$(object).find('.childmessage').eq(i).toggle();
-				}
-
-				function clickMoreReplies(){
-
-					for(i = 0; i < nReplies-5; i++){
-						$(object).find('.childmessage').eq(i).toggle();
-					}
-
-					if(!showMoreReplies)
-					{
-						$(object).find('.morereplies').replaceWith('<div class="morereplies">Hide first '+nHiddenReplies+' replies</div>');
-						showMoreReplies = true;
-					}
-					else
-					{
-						$(object).find('.morereplies').replaceWith('<div class="morereplies">Show first '+nHiddenReplies+' replies</div>');
-						showMoreReplies = false;
-					}
-					$(object).find('.morereplies').click(clickMoreReplies);
-				}
-
-				$(object).find('.morereplies').click(clickMoreReplies);
-			}
-		});
-		*/
 
 		this.messagesTimeout = setTimeout(function() {
 			setMailReceiverRec(url, object, period, next);

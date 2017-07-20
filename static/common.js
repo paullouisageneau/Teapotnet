@@ -2,7 +2,7 @@
  *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
  *   TeapotNet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
@@ -18,6 +18,8 @@
  *   License along with TeapotNet.                                       *
  *   If not, see <http://www.gnu.org/licenses/>.                         *
  *************************************************************************/
+
+// ==================== New prototypes ====================
 
 if(!String.escape) {
 	String.prototype.escape = function() {
@@ -73,6 +75,15 @@ if(!String.contains) {
 	};
 }
 
+var Notification = window.Notification || window.mozNotification || window.webkitNotification;
+if(Notification) {
+	Notification.requestPermission(function (permission) {
+		// console.log(permission);
+	});
+}
+
+// ==================== Helper functions ====================
+
 function formatTime(timestamp) {
 	var date = new Date(timestamp*1000);
 	//return date.toLocaleDateString() + " " + date.toLocaleTimeString();
@@ -113,98 +124,69 @@ function transition(selector, html) {
 	});
 }
 
-function resizeContent() {
-	var content = $('#content');
-	if(content.length) {
-		var wh = $(window).height();
-		var ct = content.offset().top;
-		var h = Math.max(wh - ct - 40, 240);
-		content.height(h);
-	}
-
-	var boardpanel = $('#board .panel');
-	var boardinput = $('#board .input');
-	if(boardpanel.length && boardinput.length) {
-		boardinput.height(boardpanel.height()-10);
-	}
-
-	var boardmessages = $('#mail');
-	if(boardmessages.length) {
-		boardmessages.scrollTop(boardmessages[0].scrollHeight);
-	}
-}
-
-function displayLoading() {
-	if($(document.documentElement).hasClass('loading'))
-		$(document.documentElement).addClass('animloading');
-}
-
-if (document.documentElement) {
-	$(document.documentElement).addClass('loading');
-	setTimeout(displayLoading, 250);
-}
-
-$(document).ready( function() {
-	if($(document.documentElement).hasClass('loading')) {
-		$(document.documentElement).removeClass('loading');
-		if($(document.documentElement).hasClass('animloading')) {
-			  $(document.documentElement).removeClass('animloading');
-			  $(document.body).hide();
-			  $(document.body).fadeIn(300);
-		}
-	}
-
-	resizeContent();
-
-	$('table.menu tr').css('cursor', 'pointer').click(function() {
-		window.location.href = $(this).find('a').attr('href');
-	});
-
-	$('.filestr').css('cursor', 'pointer').click(function() {
-		window.location.href = $(this).find('a').attr('href');
-	});
-
-	$('body').on('keypress','textarea', function (e) {
-		if (e.keyCode == 13 && !e.shiftKey) {
-			$(this).closest('form').submit();
-			return false;
-		}
-	});
-
-	var user = getAuthenticatedUser();
-	if(user) {
-		$('#logo a').attr('href', '/user/'+user);
-		$('#backlink').attr('href', '/user/'+user);
-	}
-});
-
-$(window).resize( function() {
-	resizeContent();
-});
-
 function isPageHidden() {
 	//return document.hidden || document.msHidden || document.webkitHidden;
 	return !top.document.hasFocus();
 }
 
+function setCookie(name,value,exdays) {
+	if (exdays) {
+		var exdate = new Date();
+		exdate.setDate(exdate.getDate() + exdays);
+		var expires = "; expires="+exdate.toUTCString();
+	}
+	else var expires = "";
+	document.cookie = name + "=" + value + expires;
+}
+
+function getCookie(name) {
+	var value = document.cookie;
+	var start = value.indexOf(' ' + name + '=');
+	if (start < 0) {
+		start = value.indexOf(name + '=');
+	}
+	if (start < 0) {
+		value = null;
+	}
+	else {
+		start = value.indexOf('=', start) + 1;
+		var end = value.indexOf(';', start);
+		if (end < 0) {
+			end = value.length;
+		}
+		value = unescape(value.substring(start, end));
+	}
+	return value;
+}
+
+function unsetCookie(name) {
+	setCookie(name, "", -1);
+}
+
+function checkCookie(name) {
+	var value = getCookie(name);
+	if (value!=null && value!='')
+		return true;
+	return false;
+}
+
+var OriginalTitle = top.document.title;
+
+function resetTitle() {
+	top.document.title = OriginalTitle;
+}
+
 var MailSound = null;
 
-if(window.Audio) {
-	if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/static/message.ogg');
-	else MailSound = new Audio('/static/message.m4a');
-	if(MailSound != null) MailSound.load();
-}
-
 function playMailSound() {
-	if(MailSound != null) MailSound.play();
-}
-
-var Notification = window.Notification || window.mozNotification || window.webkitNotification;
-if(Notification)
-{
-	Notification.requestPermission(function (permission) {
-		// console.log(permission);
-	});
+	if(window.Audio) {
+		if(MailSound == null) {
+			if((new Audio()).canPlayType('audio/ogg; codecs="vorbis"') != "") MailSound = new Audio('/static/message.ogg');
+			else MailSound = new Audio('/static/message.m4a');
+			MailSound.load();
+		}
+		MailSound.play();
+	}
 }
 
 function notify(title, message, tag) {
@@ -217,9 +199,10 @@ function notify(title, message, tag) {
 			}
 		);
 	}
-
 	return null;
 }
+
+// ==================== Teapotnet functions ====================
 
 function getAuthenticatedUser() {
 	var name = getCookie('user_name');
@@ -266,120 +249,33 @@ function setCallback(url, period, callback) {
 	});
 }
 
-var BaseTitle = top.document.title;
-var NbNewMessages = 0;
+// ==================== Document callbacks ====================
 
-function resetTitle() {
-	top.document.title = BaseTitle;
-	NbNewMessages = 0;
-}
+$(document).ready( function() {
+	$('table.menu tr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
 
+	$('.filestr').css('cursor', 'pointer').click(function() {
+		window.location.href = $(this).find('a').attr('href');
+	});
+
+	$('body').on('keypress','textarea', function (e) {
+		if (e.keyCode == 13 && !e.shiftKey) {
+			$(this).closest('form').submit();
+			return false;
+		}
+	});
+
+	var user = getAuthenticatedUser();
+	if(user) {
+		$('#logo a').attr('href', '/user/'+user);
+		$('#backlink').attr('href', '/user/'+user);
+	}
+});
+
+//$(window).resize(resizeContent());
 $(window).focus(resetTitle);
 $(window).blur(resetTitle);
 $(window).keydown(resetTitle);
 $(window).mousedown(resetTitle);
-
-function displayContacts(url, period, object) {
-	setCallback(url, period, function(data) {
-		$(object).find('p').remove();
-		if(data != null) {
-			$.each(data.contacts, function(uname, contact) {
-				var isSelf = (contact.prefix.substr(contact.prefix.length-6) == 'myself');
-
-				if ($('#contact_'+uname).length == 0) { // if div does not exist
-					var div = '<div class=\"contactstr\"><div id=\"contact_'+uname+'\"><a href=\"'+contact.prefix+'\">'+(isSelf ? "Myself" : uname)+'</a><span class=\"messagescount\"></span><span class=\"status\"></span></div><div id=\"contactinfo_'+uname+'\" class=\"contactinfo\"></div></div>';
-					if(isSelf) $(object).prepend(div);
-					else $(object).append(div);
-				}
-
-				$('#contact_'+uname).attr('class', contact.status);
-				if(isSelf && contact.status == "disconnected") transition($('#contact_'+uname+' .status'), "");
-				else transition($('#contact_'+uname+' .status'), contact.status.capitalize());
-
-				if($('#contactinfo_'+uname).html() == '') {
-					$('#contact_'+uname).click(function(event) {
-						if($(window).width() < 1024) $('#contactinfo_'+uname).toggle();
-						else $('#contactinfo_'+uname).slideToggle('fast');
-					});
-					$('#contact_'+uname+' a').click(function(event) {
-						event.stopPropagation(); // So the div contactinfo is not displayed when clicked on contact link
-					});
-					$('#contact_'+uname).hover(function () {
-						$(this).css('cursor','pointer');
-					});
-				}
-
-				$('#contactinfo_'+uname).html('<span class=\"linkfiles\"><a href=\"'+contact.prefix+'/files/\"><img src="/static/icon_files.png" alt="Files"/></a></span>');
-				if(!isSelf) {
-					$('#contactinfo_'+uname).append('<span class=\"linkboard\"><a href=\"'+contact.prefix+'/board/\"><img src="/static/icon_board.png" alt="Board"/></a></span>');
-					$('#contactinfo_'+uname).append('<span class=\"linkchat\"><a href=\"'+contact.prefix+'/chat/\"><img src="/static/icon_chat.png" alt="Messages"/></a></span>');
-
-					var count = parseInt(contact.messages);
-					var str = '';
-					if(count != 0) str = ' <a href=\"'+contact.prefix+'/chat/\">('+count+')</a>';
-					transition($('#contact_'+uname+' .messagescount'), str);
-
-					if(count > 0 && contact.newmessages)
-					{
-						play = true;
-
-						var notif = notify("New private message from " + uname, "(" + count + " unread messages)", "newmessage_"+uname);
-						notif.onclick = function() {
-							window.location.href = contact.prefix+'/chat/';
-						};
-					}
-				}
-			});
-		}
-	});
-}
-
-function setCookie(name,value,exdays) {
-	if (exdays) {
-		var exdate = new Date();
-		exdate.setDate(exdate.getDate() + exdays);
-		var expires = "; expires="+exdate.toUTCString();
-	}
-	else var expires = "";
-	document.cookie = name + "=" + value + expires;
-}
-
-function getCookie(name) {
-	var value = document.cookie;
-	var start = value.indexOf(' ' + name + '=');
-	if (start < 0) {
-		start = value.indexOf(name + '=');
-	}
-	if (start < 0) {
-		value = null;
-	}
-	else {
-		start = value.indexOf('=', start) + 1;
-		var end = value.indexOf(';', start);
-		if (end < 0) {
-			end = value.length;
-		}
-		value = unescape(value.substring(start, end));
-	}
-	return value;
-}
-
-function unsetCookie(name) {
-	setCookie(name, "", -1);
-}
-
-function checkCookie(name) {
-	var value = getCookie(name);
-	if (value!=null && value!='')
-		return true;
-	return false;
-}
-
-function isJsonString(str) {
-	try {
-		JSON.parse(str);
-	} catch (e) {
-		return false;
-	}
-	return true;
-}

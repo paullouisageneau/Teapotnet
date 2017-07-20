@@ -2,7 +2,7 @@
  *   Copyright (C) 2011-2017 by Paul-Louis Ageneau                       *
  *   paul-louis (at) ageneau (dot) org                                   *
  *                                                                       *
- *   This file is part of TeapotNet.                                     *
+ *   This file is part of Teapotnet.                                     *
  *                                                                       *
  *   TeapotNet is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU Affero General Public License as      *
@@ -20,7 +20,7 @@
  *************************************************************************/
 
 function listDirectory(url, object, remotePath) {
-	$(object).empty().append('<div class="gifloading"><img src="/static/loading.gif" alt="Loading..."></div>');
+	$(object).empty().append('<div class="loading"><img src="/static/loading.gif" alt="Loading..."></div>');
 	listDirectoryRec(url, object, remotePath, 0);
 }
 
@@ -31,7 +31,7 @@ function listDirectoryRec(url, object, remotePath, next) {
 		timeout: 300000
 	})
 	.done(function(data) {
-		$(object).find('.gifloading').remove();
+		$(object).find('.loading').remove();
 		$(object).find('div.files').remove();
 
 		if(data && data.length > 0) {
@@ -128,7 +128,7 @@ function listDirectoryRec(url, object, remotePath, next) {
 		}
 	})
 	.fail(function(jqXHR, textStatus) {
-		$(object).find('.gifloading').remove();
+		$(object).find('.loading').remove();
 
 		if($(object).find('table.files tr').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
@@ -196,7 +196,7 @@ function listFileSelector(url, object, input, inputName, parents) {
 		});
 
 	$(object).append('<br>');
-	$(object).append('<span class="gifloading"><img src="/static/loading.gif" alt="Loading..."></span>');
+	$(object).append('<span class="loading"><img src="/static/loading.gif" alt="Loading..."></span>');
 
 	listFileSelectorRec(url, object, input, inputName, parents, 0);
 }
@@ -220,7 +220,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		if(lock_url.text() != url)
 			return;	// request is not valid anymore
 
-		$(object).find('.gifloading').remove();
+		$(object).find('.loading').remove();
 		$(object).find('div.files').remove();
 
 		if(data && data.length > 0) {
@@ -317,7 +317,7 @@ function listFileSelectorRec(url, object, input, inputName, parents, next) {
 		if(lock_url.text() != url)
 			return;	// request is not valid anymore
 
-		$(object).find('.gifloading').remove();
+		$(object).find('.loading').remove();
 
 		if($(object).find('table.files tr:visible').length == 0) {
 			$(object).append('<div class="files">Unable to access files</div>');
