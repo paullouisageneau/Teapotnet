@@ -64,11 +64,11 @@ HttpTunnel::Server *HttpTunnel::Incoming(Socket *sock)
 
 			//LogDebug("HttpTunnel::Incoming", "Received " + request.method + " " + request.fullUrl + " (session="+String::hexa(session)+")");
 
-			if(session == 0)
+			if(!session)
 			{
 				if(request.method != "GET")
 				{
-					LogDebug("HttpTunnel::Incoming", "Missing session number in POST request");
+					LogDebug("HttpTunnel::Incoming", "Missing session number in request");
 					throw 400;
 				}
 
@@ -177,7 +177,7 @@ Socket *HttpTunnel::WaitServerUp(uint32_t session)
 	if(!SessionsCondition.wait_for(lock, ReadTimeout, [session]() {
 		auto it = Sessions.find(session);
 		if(it == Sessions.end()) return true;
-		return it->second.upSock != NULL;
+		return (it->second.upSock != NULL);
 	}))
 		throw Timeout();
 
@@ -196,7 +196,7 @@ Socket *HttpTunnel::WaitServerDown(uint32_t session)
 	if(!SessionsCondition.wait_for(lock, ReadTimeout, [session]() {
 		auto it = Sessions.find(session);
 		if(it == Sessions.end()) return true;
-		return it->second.downSock != NULL;
+		return (it->second.downSock != NULL);
 	}))
 		throw Timeout();
 
@@ -342,6 +342,8 @@ size_t HttpTunnel::Client::readData(char *buffer, size_t size)
 				throw NetException("HTTP transaction failed: " + String::number(response.code) + " " + response.message);
 			}
 
+			LogDebug("HttpTunnel::Client::readData", "Down stream connected");
+
 			String cookie;
 			if(response.cookies.get("session", cookie)) cookie.extract(mSession);
 			if(!mSession) throw NetException("HTTP transaction failed: Invalid cookie");
@@ -404,6 +406,8 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 				if(hasProxy) LogWarn("HttpTunnel::Client", String("HTTP proxy error: ") + e.what());
 				throw;
 			}
+
+			LogDebug("HttpTunnel::Client::writeData", "Up stream connected");
 
 			mPostLeft = mPostSize;
 			mUpSock.writeBinary(TunnelOpen);	// 1 byte
@@ -579,7 +583,7 @@ size_t HttpTunnel::Server::readData(char *buffer, size_t size)
 			if(!mUpSock) return 0;
 		}
 
-		//LogDebug("HttpTunnel::Server::readData", "Connection OK");
+		LogDebug("HttpTunnel::Server::readData", "Up stream connected");
 		mUpSock->setTimeout(SockTimeout);
 
 		uint8_t command;
@@ -672,7 +676,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 			mDownloadLeft = MaxDownloadSize;
 		}
 
-		//LogDebug("HttpTunnel::Server::writeData", "Connection OK");
+		LogDebug("HttpTunnel::Server::writeData", "Down stream connected");
 		Assert(mDownloadLeft > 0);
 		if(!size) break;
 
