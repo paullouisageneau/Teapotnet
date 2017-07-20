@@ -627,7 +627,6 @@ void Http::Response::clear(void)
 	code = 200;
 	version = "1.0";
 	message.clear();
-	version.clear();
 	cookies.clear();
 }
 
