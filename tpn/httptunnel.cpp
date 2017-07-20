@@ -238,6 +238,8 @@ HttpTunnel::Client::Client(const Address &addr, duration timeout) :
 HttpTunnel::Client::~Client(void)
 {
 	NOEXCEPTION(close());
+
+	mFlusher.cancel();
 }
 
 void HttpTunnel::Client::close(void)
@@ -455,7 +457,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 		}
 	}
 
-	mFlusher.schedule(FlushTimeout);
+	if(!mClosed) mFlusher.schedule(FlushTimeout);
 }
 
 void HttpTunnel::Client::flush(void)
@@ -547,6 +549,8 @@ HttpTunnel::Server::Server(uint32_t session) :
 HttpTunnel::Server::~Server(void)
 {
 	NOEXCEPTION(close());
+
+	mFlusher.cancel();
 
 	delete mUpSock;
 	delete mDownSock;
@@ -712,7 +716,7 @@ void HttpTunnel::Server::writeData(const char *data, size_t size)
 		mDownSock->close();
 	}
 
-	mFlusher.schedule(FlushTimeout);
+	if(!mClosed) mFlusher.schedule(FlushTimeout);
 }
 
 void HttpTunnel::Server::flush(void)
