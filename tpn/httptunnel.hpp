@@ -33,6 +33,7 @@
 namespace tpn
 {
 
+// Transfer a bidirectional Stream over a simulated HTTP session
 class HttpTunnel
 {
 public:
@@ -42,6 +43,7 @@ public:
 	// Incoming connections
 	static Server *Incoming(Socket *sock);
 
+	// HTTP client
 	class Client : public Stream
 	{
 	public:
@@ -50,7 +52,6 @@ public:
 
 		void close(void);
 
-		// Stream, Stream
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
@@ -69,6 +70,7 @@ public:
 		Alarm mFlusher;
 	};
 
+	// HTTP server
 	class Server : public Stream
 	{
 	public:
@@ -76,7 +78,6 @@ public:
 
 		void close(void);
 
-		// Stream, Stream
 		size_t readData(char *buffer, size_t size);
 		void writeData(const char *data, size_t size);
 		void flush(void);
@@ -91,6 +92,7 @@ public:
 		bool mClosed;
 		Alarm mFlusher;
 
+		// For Incoming()
 		friend Server *HttpTunnel::Incoming(Socket *sock);
 	};
 
@@ -119,12 +121,12 @@ private:
 	static std::mutex SessionsMutex;
 	static std::condition_variable SessionsCondition;
 
-	static const uint8_t TunnelOpen			= 0x01;
-	static const uint8_t TunnelData			= 0x02;
+	static const uint8_t TunnelOpen				= 0x01;
+	static const uint8_t TunnelData				= 0x02;
 	static const uint8_t TunnelPadding		= 0x03;
-	static const uint8_t TunnelError		= 0x04;
-	static const uint8_t TunnelPad			= 0x45;
-	static const uint8_t TunnelClose		= 0x46;
+	static const uint8_t TunnelError			= 0x04;
+	static const uint8_t TunnelPad				= 0x45;
+	static const uint8_t TunnelClose			= 0x46;
 	static const uint8_t TunnelDisconnect	= 0x47;
 };
 
