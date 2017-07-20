@@ -476,7 +476,7 @@ bool PortMapping::UPnP::add(Protocol protocol, uint16_t internal, uint16_t &exte
 </s:Body>\r\n\
 </s:Envelope>\r\n";
 
-		request.headers["Content-Leng.hpp"] << content.size();
+		request.headers["Content-Length"] << content.size();
 		request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 		request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#AddPortMapping";
 
@@ -566,7 +566,7 @@ bool PortMapping::UPnP::remove(Protocol protocol, uint16_t internal, uint16_t ex
 </s:Body>\r\n\
 </s:Envelope>\r\n";
 
-	request.headers["Content-Leng.hpp"] << content.size();
+	request.headers["Content-Length"] << content.size();
 	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#DeletePortMapping";
 
@@ -627,7 +627,7 @@ bool PortMapping::UPnP::parse(BinaryString &dgram)
 </s:Envelope>\r\n";
 
 	Http::Request request(mControlUrl, "POST");
-	request.headers["Content-Leng.hpp"] << content.size();
+	request.headers["Content-Length"] << content.size();
 	request.headers["Content-Type"] = "text/xml; charset=\"utf-8\"";
 	request.headers["Soapaction"] = "urn:schemas-upnp-org:service:WANIPConnection:1#GetExternalIPAddress";
 
@@ -769,7 +769,7 @@ bool PortMapping::FreeboxAPI::put(const String &url, Serializable &data, Freebox
 
 	String host;
 	request.headers.get("Host", host);
-	request.headers["Content-Leng.hpp"] << post.size();
+	request.headers["Content-Length"] << post.size();
 	request.headers["Content-Type"] = "application/json; charset=\"utf-8\"";
 
 	Socket sock;

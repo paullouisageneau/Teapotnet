@@ -437,7 +437,7 @@ int run(String &commandLine, StringMap &args)
 
 			CFURLRef executableURL = CFBundleCopyExecutableURL(mainBundle);
 			if(executableURL == NULL || !CFURLGetFileSystemRepresentation(executableURL, TRUE, (UInt8*)path, PATH_MAX))
-				throw Exception("Unable to find application executable pa.hpp");
+				throw Exception("Unable to find application executable path");
 
 			String executablePath(path);
 

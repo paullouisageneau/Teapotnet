@@ -394,7 +394,7 @@ void HttpTunnel::Client::writeData(const char *data, size_t size)
 
 			Http::Request request(url, "POST");
 			request.headers["User-Agent"] = UserAgent;
-			request.headers["Content-Leng.hpp"] << mPostSize;
+			request.headers["Content-Length"] << mPostSize;
 			request.cookies["session"] << mSession;
 
 			bool hasProxy = Proxy::GetProxyForUrl(url, mAddress);
