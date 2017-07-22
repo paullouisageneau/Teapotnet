@@ -39,7 +39,6 @@ namespace tpn
 {
 
 Map<String, sptr<User> > User::UsersByName;
-Map<BinaryString, String> User::UsersByAuth;
 Map<Identifier, String> User::UsersByIdentifier;
 std::mutex User::UsersMutex;
 
@@ -64,7 +63,6 @@ void User::Register(sptr<User> user)
 {
 	std::lock_guard<std::mutex> lock(UsersMutex);
 	UsersByName.insert(user->name(), user);
-	UsersByAuth.insert(user->authenticationDigest(), user->name());
 }
 
 sptr<User> User::Get(const String &name)
@@ -90,17 +88,10 @@ sptr<User> User::GetByIdentifier(const Identifier &id)
 
 sptr<User> User::Authenticate(const String &name, const String &password)
 {
-	BinaryString auth;
-	Argon2().compute(password, String(APPNAME) + ":" + name, auth, 32);
-
-	std::lock_guard<std::mutex> lock(UsersMutex);
-	String uname;
-	if(UsersByAuth.get(auth, uname) && uname == name)
-	{
-		sptr<User> user;
-		UsersByName.get(name, user);
+	sptr<User> user = Get(name);
+	if(user && user->authenticate(name, password))
 		return user;
-	}
+
 	LogWarn("User::Authenticate", "Authentication failed for \""+name+"\"");
 	return NULL;
 }
@@ -120,19 +111,22 @@ User::User(const String &name, const String &password) :
 	{
 		try {
 			File file(profilePath() + "auth", File::Read);
-			file.read(mAuthDigest);
-			file.close();
+			JsonSerializer serializer(&file);
+			serializer >> Object()
+				.insert("salt", mAuthSalt)
+				.insert("digest", mAuthDigest);
 		}
 		catch(...)
 		{
-			throw Exception("Missing password");
+			throw Exception("Missing password digest");
 		}
 	}
 	else {
-		Argon2().compute(password, String(APPNAME) + ":" + name, mAuthDigest, 32);
+		Random().read(mAuthSalt, 16);
+		Argon2().compute(password, mAuthSalt, mAuthDigest, 32);
 	}
 
-	Assert(!mAuthDigest.empty());
+	Assert(!mAuthSalt.empty() && !mAuthDigest.empty());
 
 	// Load from config file if it exists
 	mFileName = profilePath() + "keys";
@@ -156,7 +150,7 @@ User::~User(void)
 	// Unregister
 	{
 		std::unique_lock<std::mutex> lock(UsersMutex);
-		UsersByAuth.erase(mAuthDigest);
+		UsersByName.erase(mName);
 		UsersByIdentifier.erase(mIdentifier);
 	}
 
@@ -230,7 +224,10 @@ void User::save(void) const
 
 	// Save auth
 	SafeWriteFile authFile(profilePath()+"auth");
-	authFile.write(mAuthDigest);
+	JsonSerializer authSerializer(&authFile);
+	authSerializer << Object()
+		.insert("salt", mAuthSalt)
+		.insert("digest", mAuthDigest);
 	authFile.close();
 
 	// Save keys
@@ -287,6 +284,16 @@ void User::send(const String &password) const
 	Network::Instance->storeValue(mAuthDigest, resource.digest());
 }
 
+bool User::authenticate(const String &name, const String &password) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+
+	BinaryString digest;
+	Argon2().compute(password, mAuthSalt, digest, 32);
+
+	return mAuthDigest == digest;
+}
+
 void User::generateKeyPair(void)
 {
 	Rsa::PublicKey pub;
@@ -327,12 +334,6 @@ String User::urlPrefix(void) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	return String("/user/") + mName;
-}
-
-BinaryString User::authenticationDigest(void) const
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-	return mAuthDigest;
 }
 
 BinaryString User::secret(void) const

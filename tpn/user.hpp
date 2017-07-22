@@ -56,6 +56,7 @@ public:
 	void save(void) const;
 	bool recv(const String &password);
 	void send(const String &password = "") const;
+	bool authenticate(const String &name, const String &password) const;
 
   void generateKeyPair(void);
 
@@ -63,7 +64,6 @@ public:
 	String profilePath(void) const;
 	String fileName(void) const;
 	String urlPrefix(void) const;
-	BinaryString authenticationDigest(void) const;
 	BinaryString secret(void) const;
 
 	sptr<AddressBook> addressBook(void) const;
@@ -100,6 +100,7 @@ private:
 
 	String mName;
 	String mFileName;
+	BinaryString mAuthSalt;
 	BinaryString mAuthDigest;
 	sptr<AddressBook> mAddressBook;
 	sptr<Board> mBoard;
@@ -120,7 +121,6 @@ private:
 	mutable std::mutex mMutex;
 
 	static Map<String, sptr<User> >	UsersByName;
-	static Map<BinaryString, String>	UsersByAuth;
 	static Map<Identifier, String>	UsersByIdentifier;
 	static std::mutex		UsersMutex;
 };
