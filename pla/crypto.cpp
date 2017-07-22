@@ -1048,9 +1048,9 @@ void Rsa::SignCertificate(gnutls_x509_crt_t crt, gnutls_x509_crt_t issuer, gnutl
 		throw Exception(String("Unable to sign X509 certificate: ") + gnutls_strerror(ret));
 }
 
-unsigned Argon2::DefaultTimeCost = 2;
+unsigned Argon2::DefaultTimeCost = 3;				// 3 pass
 unsigned Argon2::DefaultMemoryCost = 1<<16; // 64 MiB
-unsigned Argon2::DefaultParallelism = 1;
+unsigned Argon2::DefaultParallelism = 2;		// 2 threads
 
 Argon2::Argon2(void) :
 	mTimeCost(DefaultTimeCost),
