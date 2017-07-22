@@ -2029,11 +2029,9 @@ bool Network::Handler::readRecord(String &type, String &record)
 	catch(std::exception &e)
 	{
 		LogDebug("Network::Handler::read", e.what());
-		mClosed = true;
 		throw Exception("Connection lost");
 	}
 
-	mClosed = true;
 	return false;
 }
 
@@ -2074,7 +2072,7 @@ void Network::Handler::writeString(const String &str)
 
 size_t Network::Handler::readData(char *buffer, size_t size)
 {
-	if(!size) return 0;
+	if(mClosed || !size) return 0;
 
 	size_t count = 0;
 	while(true)
@@ -2128,11 +2126,15 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 
 void Network::Handler::writeData(const char *data, size_t size)
 {
-	if(!mClosed) mSourceBuffer.writeData(data, size);
+	if(mClosed) return;
+
+	mSourceBuffer.writeData(data, size);
 }
 
 void Network::Handler::flush(bool dontsend)
 {
+	if(mClosed) return;
+
 	if(!mSourceBuffer.empty())
 	{
 		unsigned count = mSource.write(mSourceBuffer.data(), mSourceBuffer.size());
@@ -2311,7 +2313,7 @@ int Network::Handler::send(bool force)
 
 			if(!combination.isNull())
 			{
-				LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator) + ", tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
+				LogDebug("Network::Handler::send", "Sending flow combination (rank=" + String::number(mSource.rank()) + ", accumulator=" + String::number(mAccumulator) + ", tokens=" + String::number(unsigned(mTokens)) + ", available=" + String::number(unsigned(mAvailableTokens)) + ")");
 
 				mAccumulator = std::max(0., mAccumulator - 1.);
 			}
