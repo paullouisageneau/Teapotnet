@@ -322,7 +322,6 @@ private:
 		void write(const String &type, const Serializable &content);
 		void write(const String &type, const String &record);
 		void push(const BinaryString &target, unsigned tokens);
-		void timeout(void);
 
 	private:
 		bool readRecord(String &type, String &record);
@@ -346,6 +345,7 @@ private:
 		Stream *mStream;
 		Link mLink;
 		Alarm mTimeoutAlarm;
+		Alarm mAcknowledgeAlarm;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		BinaryString		mSourceBuffer;

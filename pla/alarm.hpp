@@ -62,6 +62,8 @@ public:
 	void cancel(void);
 	void join(void);
 
+	bool isScheduled(void) const;
+
 private:
 	static Scheduler scheduler;
 
@@ -152,6 +154,11 @@ inline void Alarm::join(void)
 {
 	joining = true;
 	scheduler.wait(taskid);
+}
+
+inline bool Alarm::isScheduled(void) const
+{
+	return scheduler.isScheduled(taskid);
 }
 
 }

@@ -64,6 +64,8 @@ public:
 	void wait(task_id id);
 	void cancel(task_id id);
 
+	bool isScheduled(task_id id);
+
 	void clear(void);
 	void join(void);
 
@@ -205,6 +207,19 @@ inline void Scheduler::cancel(Scheduler::task_id id)
 			pendingCondition.notify_all();
 		}
 	}
+}
+
+inline bool Scheduler::isScheduled(Scheduler::task_id id)
+{
+	if(id.second)
+	{
+		std::unique_lock<std::mutex> lock(mutex);
+		auto it = scheduling.find(id);
+		if(it != scheduling.end())
+			return true;
+	}
+
+	return false;
 }
 
 inline void Scheduler::clear(void)

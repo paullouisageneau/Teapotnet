@@ -1921,7 +1921,17 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	// Set timeout alarm
 	mTimeoutAlarm.set([this]()
 	{
-		timeout();
+		std::unique_lock<std::mutex> lock(mMutex);
+		//LogDebug("Network::Handler", "Triggered timeout");
+		send(true);
+	});
+
+	// Set acknowledge alarm
+	mAcknowledgeAlarm.set([this]()
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		//LogDebug("Network::Handler", "Triggered acknowledge");
+		send(true);
 	});
 
 	// Start handler thread
@@ -1942,8 +1952,9 @@ Network::Handler::~Handler(void)
 		mClosed = true;
 	}
 
-	// Cancel alarm
+	// Cancel alarms
 	mTimeoutAlarm.cancel();
+	mAcknowledgeAlarm.cancel();
 
 	// Join threads
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
@@ -2005,14 +2016,6 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	}
 
 	send(false);
-}
-
-void Network::Handler::timeout(void)
-{
-	std::unique_lock<std::mutex> lock(mMutex);
-
-	//LogDebug("Network::Handler::timeout", "Triggered");
-	send(true);
 }
 
 bool Network::Handler::readRecord(String &type, String &record)
@@ -2113,8 +2116,11 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			// We need to lock since we are calling send()
 			std::unique_lock<std::mutex> lock(mMutex);
 
-			if(!send(false) && !mClosed)
-				mTimeoutAlarm.schedule(mTimeout*0.1);
+			if(!send(false))
+			{
+				if(!mClosed && !mAcknowledgeAlarm.isScheduled())
+					mAcknowledgeAlarm.schedule(mTimeout*0.1);
+			}
 		}
 		else {
 			//LogDebug("Network::Handler::recvCombination", "Received null combination");
