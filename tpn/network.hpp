@@ -319,9 +319,14 @@ private:
 		Handler(Stream *stream, const Link &link);
 		~Handler(void);
 
+		void start(void);
+		void stop(void);
+
 		void write(const String &type, const Serializable &content);
 		void write(const String &type, const String &record);
 		void push(const BinaryString &target, unsigned tokens);
+
+		Link link(void) const;
 
 	private:
 		bool readRecord(String &type, String &record);
@@ -339,7 +344,6 @@ private:
 		void sendCombination(const BinaryString &target, const Fountain::Combination &combination);
 		int send(bool force = false);
 
-		void process(void);
 		void run(void);
 
 		Stream *mStream;

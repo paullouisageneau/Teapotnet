@@ -545,8 +545,12 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	sptr<Handler> currentHandler;
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
-		mHandlers.get(link, currentHandler);
+		
+		if(mHandlers.get(link, currentHandler))
+			currentHandler->stop();
+
 		mHandlers.insert(link, handler);
+		handler->start();
 	}
 
 	{
@@ -1922,7 +1926,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mTimeoutAlarm.set([this]()
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		//LogDebug("Network::Handler", "Triggered timeout");
+		LogDebug("Network::Handler", "Triggered timeout");
 		send(true);
 	});
 
@@ -1930,41 +1934,45 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mAcknowledgeAlarm.set([this]()
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		//LogDebug("Network::Handler", "Triggered acknowledge");
+		LogDebug("Network::Handler", "Triggered acknowledge");
 		send(true);
-	});
-
-	// Start handler thread
-	mThread = std::thread([this]()
-	{
-		run();
 	});
 }
 
 Network::Handler::~Handler(void)
 {
-	Network::Instance->unregisterHandler(mLink, this); // should be done already
-
 	// Close stream
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mStream->close();
-		mClosed = true;
-	}
+	stop();
 
 	// Cancel alarms
 	mTimeoutAlarm.cancel();
 	mAcknowledgeAlarm.cancel();
 
-	// Join threads
+	// Join thread
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();
 
 	// Delete stream
+	std::unique_lock<std::mutex> lock(mMutex);
+	delete mStream;
+}
+
+void Network::Handler::start(void)
+{
+	// Start handler thread
+	mThread = std::thread([this]()
 	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		delete mStream;
-	}
+		run();
+
+		Network::Instance->unregisterHandler(link(), this);
+	});
+}
+
+void Network::Handler::stop(void)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	mStream->close();
+	mClosed = true;
 }
 
 void Network::Handler::write(const String &type, const Serializable &content)
@@ -2016,6 +2024,12 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	}
 
 	send(false);
+}
+
+Network::Link Network::Handler::link(void) const
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mLink;
 }
 
 bool Network::Handler::readRecord(String &type, String &record)
@@ -2380,28 +2394,23 @@ int Network::Handler::send(bool force)
 	return count;
 }
 
-void Network::Handler::process(void)
-{
-	String type, record;
-	while(readRecord(type, record))
-	{
-		try {
-			JsonSerializer serializer(&record);
-			Network::Instance->incoming(mLink, type, serializer);
-		}
-		catch(const std::exception &e)
-		{
-			LogWarn("Network::Handler::process", "Unable to process command (type=\"" + type + "\"): " + e.what());
-		}
-	}
-}
-
 void Network::Handler::run(void)
 {
 	LogDebug("Network::Handler", "Starting handler");
 
 	try {
-		process();
+		String type, record;
+		while(readRecord(type, record))
+		{
+			try {
+				JsonSerializer serializer(&record);
+				Network::Instance->incoming(mLink, type, serializer);
+			}
+			catch(const std::exception &e)
+			{
+				LogWarn("Network::Handler", "Unable to process command (type=\"" + type + "\"): " + e.what());
+			}
+		}
 
 		LogDebug("Network::Handler", "Closing handler");
 	}
@@ -2409,8 +2418,6 @@ void Network::Handler::run(void)
 	{
 		LogWarn("Network::Handler", String("Closing handler: ") + e.what());
 	}
-
-	Network::Instance->unregisterHandler(mLink, this);
 }
 
 Network::Pusher::Pusher(void) :

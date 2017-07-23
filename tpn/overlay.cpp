@@ -1385,15 +1385,8 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 
 Overlay::Handler::~Handler(void)
 {
-	mOverlay->unregisterHandler(mNode, mAddrs, this);	// should be done already
-
 	// Close stream
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mStream->close();
-		mStop = true;
-		mSender.stop();
-	}
+	stop();
 
 	// Join threads
 	mSenderThread.join();
@@ -1474,11 +1467,13 @@ bool Overlay::Handler::send(const Message &message)
 
 void Overlay::Handler::start(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	mThread = std::thread([this]()
 	{
 		run();
+
+		Set<Address> addrs;
+		getAddresses(addrs);
+		mOverlay->unregisterHandler(node(), addrs, this);
 	});
 
 	mSenderThread = std::thread([this]()
@@ -1524,25 +1519,18 @@ void Overlay::Handler::run(void)
 	LogDebug("Overlay::Handler::run", "Starting handler");
 
 	try {
-		process();
+		Message message;
+		while(recv(message) && !mStop)
+		{
+			//LogDebug("Overlay::Handler", "Received message");
+			mOverlay->incoming(message, mNode);
+		}
 
 		LogDebug("Overlay::Handler::run", "Closing handler");
 	}
 	catch(const std::exception &e)
 	{
 		LogWarn("Overlay::Handler::run", String("Closing handler: ") + e.what());
-	}
-
-	mOverlay->unregisterHandler(mNode, mAddrs, this);
-}
-
-void Overlay::Handler::process(void)
-{
-	Message message;
-	while(recv(message) && !mStop)
-	{
-		//LogDebug("Overlay::Handler", "Received message");
-		mOverlay->incoming(message, mNode);
 	}
 }
 

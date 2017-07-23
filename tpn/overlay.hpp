@@ -197,11 +197,11 @@ private:
 		Handler(Overlay *overlay, Stream *stream, const BinaryString &node, const Address &addr);	// stream will be deleted
 		~Handler(void);
 
-		bool recv(Message &message);
-		bool send(const Message &message);
-
 		void start(void);
 		void stop(void);
+
+		bool recv(Message &message);
+		bool send(const Message &message);
 
 		void addAddress(const Address &addr);
 		void addAddresses(const Set<Address> &addrs);
