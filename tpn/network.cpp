@@ -545,7 +545,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	sptr<Handler> currentHandler;
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
-		
+
 		if(mHandlers.get(link, currentHandler))
 			currentHandler->stop();
 
@@ -1964,7 +1964,7 @@ void Network::Handler::start(void)
 	{
 		run();
 
-		Network::Instance->unregisterHandler(link(), this);
+		Network::Instance->unregisterHandler(mLink, this);
 	});
 }
 

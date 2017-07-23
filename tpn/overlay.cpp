@@ -1473,7 +1473,7 @@ void Overlay::Handler::start(void)
 
 		Set<Address> addrs;
 		getAddresses(addrs);
-		mOverlay->unregisterHandler(node(), addrs, this);
+		mOverlay->unregisterHandler(mNode, addrs, this);
 	});
 
 	mSenderThread = std::thread([this]()
