@@ -350,6 +350,7 @@ private:
 		Link mLink;
 		Alarm mTimeoutAlarm;
 		Alarm mAcknowledgeAlarm;
+		Alarm mIdleAlarm;
 		Fountain::DataSource 	mSource;
 		Fountain::Sink 		mSink;
 		BinaryString		mSourceBuffer;
@@ -365,7 +366,7 @@ private:
 		double mTokens, mAvailableTokens, mThreshold, mAccumulator, mLocalSideSequence, mRedundancy;
 		unsigned mLocalSideSeen, mLocalSideCount, mSideSeen, mSideCount;
 		bool mCongestion;
-		duration mTimeout, mKeepaliveTimeout;
+		duration mTimeout, mKeepaliveTimeout, mIdleTimeout;
 		bool mClosed;
 
 		std::thread mThread;

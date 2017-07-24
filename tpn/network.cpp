@@ -1510,7 +1510,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 			mPending.insert(node, tunnelId);
 
-			//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
+			LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
 
 			Tunneler::Tunnel *tunnel = NULL;
 			try {
@@ -1739,7 +1739,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 			}
 			catch(const Timeout &e)
 			{
-				//LogDebug("Network::Tunneler::handshake", String("Handshake failed: ") + e.what());
+				LogDebug("Network::Tunneler::handshake", "Handshake timeout");
 			}
 			catch(const std::exception &e)
 			{
@@ -1917,7 +1917,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	mSideCount(0),
 	mCongestion(false),
 	mTimeout(milliseconds(Config::Get("retransmit_timeout").toDouble())),
-	mKeepaliveTimeout(milliseconds(Config::Get("keepalive_timeout").toDouble())),	// so the tunnel should not time out
+	mKeepaliveTimeout(milliseconds(Config::Get("keepalive_timeout").toDouble())),
+	mIdleTimeout(milliseconds(Config::Get("idle_timeout").toDouble())),
 	mClosed(false)
 {
 	Assert(mStream);
@@ -1925,18 +1926,27 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	// Set timeout alarm
 	mTimeoutAlarm.set([this]()
 	{
+		//LogDebug("Network::Handler", "Triggered timeout");
 		std::unique_lock<std::mutex> lock(mMutex);
-		LogDebug("Network::Handler", "Triggered timeout");
 		send(true);
 	});
 
 	// Set acknowledge alarm
 	mAcknowledgeAlarm.set([this]()
 	{
+		//LogDebug("Network::Handler", "Triggered acknowledge");
 		std::unique_lock<std::mutex> lock(mMutex);
-		LogDebug("Network::Handler", "Triggered acknowledge");
 		send(true);
 	});
+
+	mIdleAlarm.set([this]()
+	{
+		//LogDebug("Network::Handler", "Triggered idle");
+		stop();
+	});
+
+	mTimeoutAlarm.schedule(mKeepaliveTimeout);
+	mIdleAlarm.schedule(mIdleTimeout);
 }
 
 Network::Handler::~Handler(void)
@@ -2040,6 +2050,7 @@ bool Network::Handler::readRecord(String &type, String &record)
 		if(readString(type))
 		{
 			AssertIO(readString(record));
+			mIdleAlarm.schedule(mIdleTimeout);
 			return true;
 		}
 	}

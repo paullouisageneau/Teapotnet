@@ -129,7 +129,8 @@ void SecureTransport::setHandshakeTimeout(duration timeout)
 {
 	if(!isHandshakeDone())
 	{
-		gnutls_handshake_set_timeout(mSession, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+		gnutls_handshake_set_timeout(mSession,
+			std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 		setDatagramTimeout(timeout, seconds(1.));
 	}
 }
