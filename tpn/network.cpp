@@ -1957,6 +1957,7 @@ Network::Handler::~Handler(void)
 	// Cancel alarms
 	mTimeoutAlarm.cancel();
 	mAcknowledgeAlarm.cancel();
+	mIdleAlarm.cancel();
 
 	// Join thread
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
