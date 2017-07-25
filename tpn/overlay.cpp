@@ -745,11 +745,8 @@ void Overlay::registerHandler(const BinaryString &node, const Address &addr, spt
 
 		if(mHandlers.get(node, currentHandler))
 		{
-			mHandlers.erase(node);
 			LogDebug("Overlay::registerHandler", "Replacing handler for " + node.toString());
-
 			currentHandler->getAddresses(currentAddrs);
-			currentHandler->stop();
 		}
 
 		mHandlers.insert(node, handler);
@@ -1489,7 +1486,7 @@ void Overlay::Handler::stop(void)
 		mStream->close();
 		mStop = true;
 	}
-	
+
 	mSender.stop();
 }
 

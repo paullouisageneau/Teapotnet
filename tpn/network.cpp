@@ -545,10 +545,7 @@ void Network::registerHandler(const Link &link, sptr<Handler> handler)
 	sptr<Handler> currentHandler;
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
-
-		if(mHandlers.get(link, currentHandler))
-			currentHandler->stop();
-
+		mHandlers.get(link, currentHandler);
 		mHandlers.insert(link, handler);
 		handler->start();
 	}
@@ -581,7 +578,7 @@ void Network::unregisterHandler(const Link &link, Handler *handler)
 	Assert(!link.remote.empty());
 	Assert(!link.node.empty());
 
-	sptr<Handler> currentHandler;	// prevent handler deletion on erase (we need reference on link)
+	sptr<Handler> currentHandler;	// prevent handler deletion on erase
 	{
 		std::unique_lock<std::recursive_mutex> lock(mHandlersMutex);
 		if(!mHandlers.get(link, currentHandler) || currentHandler.get() != handler)
