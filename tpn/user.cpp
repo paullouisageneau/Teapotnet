@@ -158,6 +158,7 @@ User::~User(void)
 	Interface::Instance->remove(urlPrefix(), this);
 
 	mOfflineAlarm.cancel();
+	mOfflineAlarm.join();
 }
 
 void User::setKeyPair(const Rsa::PublicKey &pub, const Rsa::PrivateKey &priv)

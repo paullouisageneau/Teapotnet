@@ -1951,6 +1951,11 @@ Network::Handler::~Handler(void)
 	// Close
 	stop();
 
+	// Join alarms
+	mTimeoutAlarm.join();
+	mAcknowledgeAlarm.join();
+	mIdleAlarm.join();
+
 	// Join thread
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
 	else if(mThread.joinable()) mThread.join();

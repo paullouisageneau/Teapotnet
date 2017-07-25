@@ -44,6 +44,8 @@ PortMapping::PortMapping(void) :
 PortMapping::~PortMapping(void)
 {
 	disable();
+
+	mAlarm.join();
 }
 
 void PortMapping::enable(void)
