@@ -1484,9 +1484,12 @@ void Overlay::Handler::start(void)
 
 void Overlay::Handler::stop(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	mStream->close();
-	mStop = true;
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mStream->close();
+		mStop = true;
+	}
+	
 	mSender.stop();
 }
 

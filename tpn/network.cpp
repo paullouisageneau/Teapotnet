@@ -1976,11 +1976,13 @@ void Network::Handler::start(void)
 
 void Network::Handler::stop(void)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
 
-	// Close stream
-	mStream->close();
-	mClosed = true;
+		// Close stream
+		mStream->close();
+		mClosed = true;
+	}
 
 	// Cancel alarms
 	mTimeoutAlarm.cancel();
