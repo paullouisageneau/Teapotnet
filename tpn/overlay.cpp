@@ -1385,7 +1385,7 @@ Overlay::Handler::Handler(Overlay *overlay, Stream *stream, const BinaryString &
 
 Overlay::Handler::~Handler(void)
 {
-	// Close stream
+	// Close
 	stop();
 
 	// Join threads

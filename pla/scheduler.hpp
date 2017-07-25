@@ -202,9 +202,15 @@ inline void Scheduler::cancel(Scheduler::task_id id)
 		if(it != scheduling.end())
 		{
 			scheduling.erase(it);
-			pending.erase(id);
 			schedulingCondition.notify_all();
+			pending.erase(id);
 			pendingCondition.notify_all();
+		}
+		else {
+			// Task is already started, wait for it to finish
+			pendingCondition.wait(lock, [this, id]() {
+				return pending.find(id) == pending.end();
+			});
 		}
 	}
 }

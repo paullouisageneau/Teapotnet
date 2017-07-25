@@ -1951,13 +1951,8 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 
 Network::Handler::~Handler(void)
 {
-	// Close stream
+	// Close
 	stop();
-
-	// Cancel alarms
-	mTimeoutAlarm.cancel();
-	mAcknowledgeAlarm.cancel();
-	mIdleAlarm.cancel();
 
 	// Join thread
 	if(mThread.get_id() == std::this_thread::get_id()) mThread.detach();
@@ -1982,8 +1977,15 @@ void Network::Handler::start(void)
 void Network::Handler::stop(void)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
+
+	// Close stream
 	mStream->close();
 	mClosed = true;
+
+	// Cancel alarms
+	mTimeoutAlarm.cancel();
+	mAcknowledgeAlarm.cancel();
+	mIdleAlarm.cancel();
 }
 
 void Network::Handler::write(const String &type, const Serializable &content)
