@@ -2057,7 +2057,6 @@ bool Network::Handler::readRecord(String &type, String &record)
 		if(readString(type))
 		{
 			AssertIO(readString(record));
-			mIdleAlarm.schedule(mIdleTimeout);
 			return true;
 		}
 	}
@@ -2287,6 +2286,8 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", tokens=" + String::number(unsigned(mTokens)) + ", available=" + String::number(unsigned(mAvailableTokens)) +", threshold=" + String::number(unsigned(mThreshold)) + ")");
 	}
 
+	// Reset idle timeout
+	mIdleAlarm.schedule(mIdleTimeout);
 	return true;
 }
 
