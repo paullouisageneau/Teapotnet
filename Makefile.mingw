@@ -5,7 +5,7 @@ STRIP=$(CROSS)strip
 RM=rm -f
 CCFLAGS=-O2 -fno-var-tracking
 CPPFLAGS=-std=c++11 -Wall -Wno-sign-compare -O2 -fno-var-tracking
-LDFLAGS=
+LDFLAGS=-Lwin32
 LDLIBS=-lws2_32 -lwininet -liphlpapi -lpthread -lnettle -lhogweed -lgmp.dll -lgnutls.dll -largon2
 CROSSPATH=/usr/$(shell echo $(CROSS)|sed 's/.$$//')/bin/
 

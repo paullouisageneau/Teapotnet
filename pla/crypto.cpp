@@ -28,7 +28,12 @@
 #include <nettle/hmac.h>
 #include <nettle/pbkdf2.h>
 #include <gmp.h>
+
+#ifdef WINDOWS
+#include "win32/argon2.h"
+#else
 #include <argon2.h>
+#endif
 
 #ifdef pbkdf2
 #undef pbkdf2

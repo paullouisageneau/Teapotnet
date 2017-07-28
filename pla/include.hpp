@@ -147,7 +147,6 @@ typedef int ctl_t;
 #define SEADDRINUSE	EADDRINUSE
 #define INVALID_SOCKET -1
 #define SOCK_TO_INT(x) (x)
-
 #define mkdirmod(d,m) mkdir(d,m)
 
 #endif
@@ -166,6 +165,10 @@ typedef int ctl_t;
 
 #ifndef AI_ADDRCONFIG
 #define AI_ADDRCONFIG 0
+#endif
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
 #endif
 
 namespace pla
