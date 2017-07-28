@@ -167,7 +167,7 @@ typedef int ctl_t;
 #define AI_ADDRCONFIG 0
 #endif
 
-#ifndef MSG_NOSIGNAL
+#ifndef LINUX
 #define MSG_NOSIGNAL 0
 #endif
 
@@ -175,13 +175,13 @@ namespace pla
 {
 
 #ifdef WINDOWS
-typedef signed char			int8_t;		// 8 bits
-typedef signed short		int16_t;	// 16 bits
-typedef signed int			int32_t;	// 32 bits
-typedef signed long long	int64_t;	// 64 bits
-typedef unsigned char		uint8_t;	// 8 bits
-typedef unsigned short		uint16_t;	// 16 bits
-typedef unsigned int		uint32_t;	// 32 bits
+typedef signed char					int8_t;		// 8 bits
+typedef signed short				int16_t;	// 16 bits
+typedef signed int					int32_t;	// 32 bits
+typedef signed long long		int64_t;	// 64 bits
+typedef unsigned char				uint8_t;	// 8 bits
+typedef unsigned short			uint16_t;	// 16 bits
+typedef unsigned int				uint32_t;	// 32 bits
 typedef unsigned long long	uint64_t;	// 64 bits
 
 typedef struct __stat64 stat_t;
@@ -194,9 +194,9 @@ typedef ::int16_t		int16_t;	// 16 bits
 typedef ::int32_t		int32_t;	// 32 bits
 typedef ::int64_t		int64_t;	// 64 bits
 typedef ::uint8_t		uint8_t;	// 8 bits
-typedef ::uint16_t		uint16_t;	// 16 bits
-typedef ::uint32_t		uint32_t;	// 32 bits
-typedef ::uint64_t		uint64_t;	// 64 bits
+typedef ::uint16_t	uint16_t;	// 16 bits
+typedef ::uint32_t	uint32_t;	// 32 bits
+typedef ::uint64_t	uint64_t;	// 64 bits
 
 #ifdef MACOSX
 typedef struct stat stat_t;
@@ -209,8 +209,8 @@ inline int stat(const char *path, stat_t *buf) { return ::stat64(path,buf); }
 #endif
 
 typedef unsigned char	byte;
-typedef float			float32_t;	// 32 bits float
-typedef double			float64_t;	// 64 bits float
+typedef float		float32_t;	// 32 bits float
+typedef double	float64_t;	// 64 bits float
 
 #define CONST64(n) n ## ULL	// 64 bits unsigned constant
 
