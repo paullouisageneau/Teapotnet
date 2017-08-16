@@ -636,13 +636,16 @@ bool Overlay::route(const Message &message, const BinaryString &from)
 
 	Array<BinaryString> neigh;
 	getNeighbors(message.destination, neigh);
+
+	int count = 2;
 	if(neigh.size() >= 2) neigh.remove(from);
+	if(neigh.size() > count) neigh.resize(count);
 
 	BinaryString route;
 	for(int i=0; i<neigh.size(); ++i)
 	{
 		route = neigh[i];
-		if(Random().uniformInt()%2 == 0) break;
+		if(Random().uniform(0, 2) == 0) break;
 	}
 
 	return sendTo(message, route);

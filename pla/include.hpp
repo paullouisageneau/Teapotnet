@@ -330,7 +330,7 @@ template<typename T> void LogImpl(const char *file, int line, int level, const c
 		case LEVEL_DEBUG:	strLevel = "Debug:";	break;
 		case LEVEL_INFO:	strLevel = "Info:";		break;
 		case LEVEL_WARN:	strLevel = "WARNING:";	break;
-		default:			strLevel = "ERROR:";	break;
+		default:					strLevel = "ERROR:";	break;
 	}
 
 	std::ostringstream oss;
