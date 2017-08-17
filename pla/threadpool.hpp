@@ -33,6 +33,8 @@
 #include <stdexcept>
 #include <chrono>
 
+#include "pla/include.hpp"
+
 namespace pla
 {
 
@@ -68,17 +70,23 @@ inline ThreadPool::ThreadPool(size_t threads) : joining(false)
 			{
 				std::function<void()> task;
 
-				{
-					std::unique_lock<std::mutex> lock(mutex);
-					condition.wait(lock, [this]() {
-						return !tasks.empty() || joining;
-					});
-					if(tasks.empty()) break;
-					task = std::move(tasks.front());
-					tasks.pop();
-				}
+				try {
+					{
+						std::unique_lock<std::mutex> lock(mutex);
+						condition.wait(lock, [this]() {
+							return !tasks.empty() || joining;
+						});
+						if(tasks.empty()) break;
+						task = std::move(tasks.front());
+						tasks.pop();
+					}
 
-				task();
+					task();
+				}
+				catch(const std::exception &e)
+				{
+					LogWarn("ThreadPool", std::string("Unhandled exception: ") + e.what());
+				}
 			}
 		});
 	}

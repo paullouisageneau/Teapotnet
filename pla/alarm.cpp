@@ -22,7 +22,7 @@
 #include "pla/alarm.hpp"
 
 #ifndef PLA_ALARM_THREADS
-#define PLA_ALARM_THREADS 4
+#define PLA_ALARM_THREADS 8
 #endif
 
 namespace pla

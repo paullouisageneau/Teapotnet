@@ -1924,7 +1924,7 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	// Set timeout alarm
 	mTimeoutAlarm.set([this]()
 	{
-		LogDebug("Network::Handler", "Triggered timeout");
+		//LogDebug("Network::Handler", "Triggered timeout");
 		std::unique_lock<std::mutex> lock(mMutex);
 		send(true);
 	});
@@ -1932,14 +1932,14 @@ Network::Handler::Handler(Stream *stream, const Link &link) :
 	// Set acknowledge alarm
 	mAcknowledgeAlarm.set([this]()
 	{
-		LogDebug("Network::Handler", "Triggered acknowledge");
+		//LogDebug("Network::Handler", "Triggered acknowledge");
 		std::unique_lock<std::mutex> lock(mMutex);
 		send(true);
 	});
 
 	mIdleAlarm.set([this]()
 	{
-		LogDebug("Network::Handler", "Triggered idle");
+		//LogDebug("Network::Handler", "Triggered idle");
 		stop();
 	});
 
@@ -2139,7 +2139,7 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 				mSink.solve(combination);
 			}
 			else {
-				LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
+				//LogDebug("Network::Handler::recvCombination", "Received side combination (target=" + target.toString() + ")");
 
 				if(Store::Instance->push(target, combination))
 					Network::Instance->unregisterAllCallers(target);
@@ -2151,11 +2151,14 @@ size_t Network::Handler::readData(char *buffer, size_t size)
 			if(!send(false))
 			{
 				if(!mClosed && !mAcknowledgeAlarm.isScheduled())
-					mAcknowledgeAlarm.schedule(mTimeout*0.1);
+				{
+					//LogDebug("Network::Handler::recvCombination", "Scheduling acknowledgement");
+					mAcknowledgeAlarm.schedule(mTimeout/10);
+				}
 			}
 		}
 		else {
-			LogDebug("Network::Handler::recvCombination", "Received null combination");
+			//LogDebug("Network::Handler::recvCombination", "Received null combination");
 		}
 	}
 
@@ -2362,7 +2365,7 @@ int Network::Handler::send(bool force)
 			}
 			else if(!mTargets.empty())
 			{
-				LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(mTokens) + ", available=" + String::number(mAvailableTokens) + ")");
+				//LogDebug("Network::Handler::send", "Sending side combination (tokens=" + String::number(unsigned(mTokens)) + ", available=" + String::number(unsigned(mAvailableTokens)) + ")");
 
 				target = mTargets.begin()->digest;
 				Assert(!target.empty());
