@@ -2285,6 +2285,9 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		mSideCount = std::max(mSideCount, sideCount);	// update remote side count
 
 		if(received) LogDebug("Network::Handler::recvCombination", "Acknowledged: flow="+String::number(nextSeen)+", side="+String::number(sideSeen)+" (received=" + String::number(flowReceived) + "+" + String::number(sideReceived) + ", tokens=" + String::number(unsigned(mTokens)) + ", available=" + String::number(unsigned(mAvailableTokens)) +", threshold=" + String::number(unsigned(mThreshold)) + ")");
+
+		// Try to send now, since we updated tokens
+		send(false);
 	}
 
 	// Reset idle timeout
