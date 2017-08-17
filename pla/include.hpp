@@ -24,10 +24,14 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#define WINDOWS
-	#define _WIN32_WINNT 0x0501
-	#define __MSVCRT_VERSION__ 0x0601
 	#ifdef __MINGW32__
 		#define MINGW
+	#endif
+	#ifndef _WIN32_WINNT
+		#define _WIN32_WINNT 0x0501
+	#endif
+	#ifndef __MSVCRT_VERSION__
+		#define __MSVCRT_VERSION__ 0x0601
 	#endif
 	#define NO_IFADDRS
 #endif
