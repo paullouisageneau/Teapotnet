@@ -44,7 +44,6 @@ const unsigned Network::DefaultRedundantCount = 32;
 const double   Network::DefaultRedundancy = 1.20;
 const double   Network::DefaultPacketRate = 1000.;	// Packets/second
 const duration Network::CallPeriod = seconds(1.);
-const duration Network::CallFallbackTimeout = seconds(10.);
 
 Network *Network::Instance = NULL;
 const Network::Link Network::Link::Null;
@@ -486,6 +485,8 @@ void Network::run(void)
 
 void Network::sendCalls(void)
 {
+	duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
+
 	Set<BinaryString> targets;
 	{
 		std::unique_lock<std::mutex> lock(mCallersMutex);
@@ -496,7 +497,7 @@ void Network::sendCalls(void)
 
 			for(const Caller *caller : it->second)
 			{
-				if(caller->elapsed() >= CallFallbackTimeout)
+				if(caller->elapsed() >= timeout)
 				{
 					targets.insert(target);
 					break;
@@ -2243,9 +2244,9 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		unsigned received = flowReceived + sideReceived;
 
 		const double alpha = 2.;	// Slow start factor
-		const double beta  = 1.;	// Additive increase factor
+		const double beta  = 2.;	// Additive increase factor
 		const double gamma = 0.5;	// Multiplicative decrease factor
-		const unsigned trigger = 16;	// Congestion trigger
+		const unsigned trigger = 8;	// Congestion trigger
 
 		double delta;
 		if(mTokens < mThreshold)
@@ -2375,6 +2376,8 @@ int Network::Handler::send(bool force)
 
 				if(!tokens)
 				{
+					LogDebug("Network::Handler::send", "Finished pushing " + target.toString());
+
 					writeRecord("push",
 						Object()
 							.insert("target", target),
