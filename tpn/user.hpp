@@ -100,7 +100,6 @@ private:
 
 	String mName;
 	String mFileName;
-	BinaryString mAuthSalt;
 	BinaryString mAuthDigest;
 	sptr<AddressBook> mAddressBook;
 	sptr<Board> mBoard;

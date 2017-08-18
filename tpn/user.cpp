@@ -111,10 +111,8 @@ User::User(const String &name, const String &password) :
 	{
 		try {
 			File file(profilePath() + "auth", File::Read);
-			JsonSerializer serializer(&file);
-			serializer >> Object()
-				.insert("salt", mAuthSalt)
-				.insert("digest", mAuthDigest);
+			file.read(mAuthDigest);
+			Assert(mAuthDigest.size() == 32);
 		}
 		catch(...)
 		{
@@ -122,11 +120,11 @@ User::User(const String &name, const String &password) :
 		}
 	}
 	else {
-		Random().read(mAuthSalt, 16);
-		Argon2().compute(password, mAuthSalt, mAuthDigest, 32);
+		BinaryString salt = String("teapotnet:") + name;
+		Argon2().compute(password, salt, mAuthDigest, 32);
 	}
 
-	Assert(!mAuthSalt.empty() && !mAuthDigest.empty());
+	Assert(!mAuthDigest.empty());
 
 	// Load from config file if it exists
 	mFileName = profilePath() + "keys";
@@ -224,11 +222,8 @@ void User::save(void) const
 	if(!Directory::Exist(profilePath())) Directory::Create(profilePath());
 
 	// Save auth
-	SafeWriteFile authFile(profilePath()+"auth");
-	JsonSerializer authSerializer(&authFile);
-	authSerializer << Object()
-		.insert("salt", mAuthSalt)
-		.insert("digest", mAuthDigest);
+	SafeWriteFile authFile(profilePath() + "auth");
+	authFile.write(mAuthDigest);
 	authFile.close();
 
 	// Save keys
@@ -241,8 +236,8 @@ void User::save(void) const
 bool User::recv(const String &password)
 {
 	Assert(!password.empty());
+	const duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
 
-	const duration timeout = seconds(60);
 	Set<BinaryString> values;
 	Network::Instance->retrieveValue(mAuthDigest, values, timeout);
 
@@ -289,8 +284,9 @@ bool User::authenticate(const String &name, const String &password) const
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 
+	BinaryString salt = String("teapotnet:") + name;
 	BinaryString digest;
-	Argon2().compute(password, mAuthSalt, digest, 32);
+	Argon2().compute(password, salt, digest, 32);
 
 	return mAuthDigest == digest;
 }
