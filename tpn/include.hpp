@@ -23,7 +23,7 @@
 #define TPN_INCLUDE_H
 
 #define APPNAME			"Teapotnet"
-#define APPVERSION	"0.11.2"
+#define APPVERSION	"0.11.3"
 #define APPMAGIC		 0x54504f54 // "TPOT"
 #define APPAUTHOR		"Paul-Louis Ageneau"
 #define APPLINK			"https://teapotnet.org/"
