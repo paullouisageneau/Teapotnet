@@ -2247,7 +2247,7 @@ bool Network::Handler::recvCombination(BinaryString &target, Fountain::Combinati
 		unsigned received = flowReceived + sideReceived;
 
 		const double alpha = 2.;	// Slow start factor
-		const double beta  = 2.;	// Additive increase factor
+		const double beta  = 10.;	// Additive increase factor
 		const double gamma = 0.5;	// Multiplicative decrease factor
 		const unsigned trigger = 8;	// Congestion trigger
 
