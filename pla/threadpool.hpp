@@ -68,9 +68,8 @@ inline ThreadPool::ThreadPool(size_t threads) : joining(false)
 		{
 			while(true)
 			{
-				std::function<void()> task;
-
 				try {
+					std::function<void()> task;
 					{
 						std::unique_lock<std::mutex> lock(mutex);
 						condition.wait(lock, [this]() {
@@ -110,21 +109,16 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
 
 	{
 		std::unique_lock<std::mutex> lock(mutex);
-
-		// Limit queue size
-		condition.wait(lock, [this]() {
-			return tasks.size() < workers.size()*2;
-		});
-
 		if(joining) throw std::runtime_error("enqueue on closing ThreadPool");
 
 		// Add task
 		tasks.emplace([task]() {
 			(*task)();
 		});
+
+		condition.notify_one();
 	}
 
-	condition.notify_one();
 	return result;
 }
 
@@ -132,11 +126,12 @@ inline void ThreadPool::clear(void)
 {
 	{
 		std::unique_lock<std::mutex> lock(mutex);
+
 		while(!tasks.empty())
 			tasks.pop();
-	}
 
-	condition.notify_all();
+		//condition.notify_all();	// useless
+	}
 }
 
 inline void ThreadPool::join(void)
