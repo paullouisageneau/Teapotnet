@@ -472,7 +472,7 @@ bool Overlay::incoming(Message &message, const BinaryString &from)
 		{
 			if(!isConnected(message.source))
 			{
-				LogDebug("Overlay::Incoming", "Suggest " + message.source.toString());
+				LogDebug("Overlay::incoming", "Suggest " + message.source.toString());
 
 				Set<Address> addrs;
 				BinarySerializer(&message.content) >> addrs;
@@ -1064,7 +1064,7 @@ bool Overlay::Backend::handshake(SecureTransport *transport, const Address &addr
 	if(remote.empty() || remote == identifier)
 	{
 		// Handshake succeeded
-		LogInfo("Overlay::Backend::handshake", String("Connected node: ") + identifier.toString());
+		LogInfo("Overlay::Backend::handshake", String("Node connected: ") + identifier.toString());
 
 		sptr<Handler> handler = std::make_shared<Handler>(mOverlay, transport, identifier, addr);
 		mOverlay->registerHandler(identifier, addr, handler);
