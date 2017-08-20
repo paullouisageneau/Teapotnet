@@ -2020,6 +2020,7 @@ void Network::Handler::push(const BinaryString &target, unsigned tokens)
 	}
 	else {
 		tokens = unsigned(std::ceil(double(tokens)*mRedundancy));
+		tokens = std::max(tokens, unsigned(2));
 
 		auto it = mTargets.begin();
 		while(it != mTargets.end())
