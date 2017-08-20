@@ -79,9 +79,8 @@ inline Alarm::Alarm(void) : joining(false)
 
 inline Alarm::~Alarm(void)
 {
-	joining = true;
 	cancel();
-	join();
+	// No join to allow alarm autodeletion
 }
 
 template<class F, class... Args>

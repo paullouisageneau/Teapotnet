@@ -187,6 +187,13 @@ inline void Scheduler::wait(Scheduler::task_id id)
 	if(id.second)
 	{
 		std::unique_lock<std::mutex> lock(mutex);
+
+		// Protect form deadlocks, especially on Alarm destruction
+		std::thread::id tid = std::this_thread::get_id();
+		for(const std::thread &t : workers)
+			if(t.get_id() == tid)
+				break;
+
 		pendingCondition.wait(lock, [this, id]() {
 			return pending.find(id) == pending.end();
 		});
