@@ -116,7 +116,7 @@ auto Alarm::schedule(time_point time, F&& f, Args&&... args)
 	auto task = std::make_shared<std::packaged_task<type()> >(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 	std::future<type> result = task->get_future();
 
-	if(joining) throw std::runtime_error("schedule on joiningped Alarm");
+	if(joining) throw std::runtime_error("schedule on closing Alarm");
 	scheduler.schedule(taskid, time, function = [task]()
 	{
 		(*task)();

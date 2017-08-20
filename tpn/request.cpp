@@ -29,39 +29,21 @@ namespace tpn
 {
 
 Request::Request(Resource &resource) :
-	mListDirectories(true),
-	mFinished(false),
-	mFinishedAfterTarget(false),
-	mAutoDeleteTimeout(-1.)
+	Request("", Network::Link::Null, true)
 {
-	mUrlPrefix = "/request/" + String::random(32);
-	Interface::Instance->add(mUrlPrefix, this);
 	addResult(resource, true);	// finished
 }
 
 Request::Request(const String &path, bool listDirectories) :
-	mPath(path),
-	mListDirectories(listDirectories),
-	mFinished(false),
-	mFinishedAfterTarget(false),
-	mAutoDeleteTimeout(-1.)
+	Request(path, Network::Link::Null, listDirectories)
 {
-	mUrlPrefix = "/request/" + String::random(32);
-	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(path);
+
 }
 
 Request::Request(const String &path, const Identifier &local, const Identifier &remote, bool listDirectories) :
-	Subscriber(Network::Link(local, remote)),
-	mPath(path),
-	mListDirectories(listDirectories),
-	mFinished(false),
-	mFinishedAfterTarget(false),
-	mAutoDeleteTimeout(-1.)
+	Request(path, Network::Link(local, remote), listDirectories)
 {
-	mUrlPrefix = "/request/" + String::random(32);
-	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(path);
+
 }
 
 Request::Request(const String &path, const Network::Link &link, bool listDirectories) :
@@ -74,22 +56,20 @@ Request::Request(const String &path, const Network::Link &link, bool listDirecto
 {
 	mUrlPrefix = "/request/" + String::random(32);
 	Interface::Instance->add(mUrlPrefix, this);
-	subscribe(path);
+
+	if(!path.empty())
+		subscribe(path);
 }
 
 Request::~Request(void)
 {
+	Interface::Instance->remove(mUrlPrefix, this);
 	unsubscribeAll();
 
 	{
 		std::unique_lock<std::mutex> lock(mMutex);
-		mAutoDeleteTimeout = seconds(-1.);
 		mAutoDeleter.cancel();
-		mFinished = true;
 	}
-
-	mCondition.notify_all();
-	Interface::Instance->remove(mUrlPrefix, this);
 }
 
 bool Request::addTarget(const BinaryString &target, bool finished)
@@ -164,6 +144,7 @@ void Request::autoDelete(duration timeout)
 {
 	std::unique_lock<std::mutex> lock(mMutex);
 	mAutoDeleteTimeout = timeout;
+
 	if(mAutoDeleteTimeout >= duration::zero())
 	{
 		mAutoDeleter.schedule(mAutoDeleteTimeout, [this]() {
@@ -177,63 +158,70 @@ void Request::autoDelete(duration timeout)
 
 void Request::http(const String &prefix, Http::Request &request)
 {
-	std::unique_lock<std::mutex> lock(mMutex);	// Request::http() is synced !
+	try {
+		std::unique_lock<std::mutex> lock(mMutex);	// Request::http() is synced !
 
-	// Cancel autodeletion
-	mAutoDeleter.cancel();
+		// Cancel autodeletion
+		mAutoDeleter.cancel();
 
-	int next = 0;
-	if(request.get.contains("next"))
-		request.get["next"].extract(next);
+		int next = 0;
+		if(request.get.contains("next"))
+			request.get["next"].extract(next);
 
-	duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
-	if(request.get.contains("timeout"))
-		timeout = milliseconds(request.get["timeout"].toDouble());
+		duration timeout = milliseconds(Config::Get("request_timeout").toDouble());
+		if(request.get.contains("timeout"))
+			timeout = milliseconds(request.get["timeout"].toDouble());
 
-	mCondition.wait_for(lock, timeout, [this, next]() {
-		return int(mResults.size()) > next || mFinished;
-	});
+		mCondition.wait_for(lock, timeout, [this, next]() {
+			return int(mResults.size()) > next || mFinished;
+		});
+
+		// Playlist
+		if(request.get.contains("playlist"))
+		{
+			int start = -1;
+			int stop  = -1;
+
+			String startParam;
+			if(request.get.get("start", startParam) || request.get.get("t", startParam))
+				start = timeParamToSeconds(startParam);
+
+			String stopParam;
+			if(request.get.get("stop", stopParam))
+				stop = timeParamToSeconds(stopParam);
+
+			Http::Response response(request, 200);
+			response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
+			response.headers["Content-Type"] = "audio/x-mpegurl";
+			response.send();
+
+			String host;
+			request.headers.get("Host", host);
+			createPlaylist(response.stream, host, start, stop);
+		}
+		else {
+			// JSON
+			Http::Response response(request, 200);
+			response.headers["Content-Type"] = "application/json";
+			response.send();
+
+			std::list<Resource::DirectoryRecord*> tmp;
+			if(int(mResults.size()) > next)
+				for(int i = next; i < int(mResults.size()); ++i)
+					tmp.push_back(&mResults[i]);
+
+			JsonSerializer(response.stream) << tmp;
+		}
+	}
+	catch(...)
+	{
+		// Reset autodeletion
+		autoDelete(mAutoDeleteTimeout);
+		throw;
+	}
 
 	// Reset autodeletion
-	if(mAutoDeleteTimeout >= duration::zero())
-		mAutoDeleter.schedule(timeout);
-
-	// Playlist
-	if(request.get.contains("playlist"))
-	{
-		int start = -1;
-		int stop  = -1;
-
-		String startParam;
-		if(request.get.get("start", startParam) || request.get.get("t", startParam))
-			start = timeParamToSeconds(startParam);
-
-		String stopParam;
-		if(request.get.get("stop", stopParam))
-			stop = timeParamToSeconds(stopParam);
-
-		Http::Response response(request, 200);
-		response.headers["Content-Disposition"] = "attachment; filename=\"playlist.m3u\"";
-		response.headers["Content-Type"] = "audio/x-mpegurl";
-		response.send();
-
-		String host;
-		request.headers.get("Host", host);
-		createPlaylist(response.stream, host, start, stop);
-	}
-	else {
-		// JSON
-		Http::Response response(request, 200);
-		response.headers["Content-Type"] = "application/json";
-		response.send();
-
-		std::list<Resource::DirectoryRecord*> tmp;
-		if(int(mResults.size()) > next)
-			for(int i = next; i < int(mResults.size()); ++i)
-				tmp.push_back(&mResults[i]);
-
-		JsonSerializer(response.stream) << tmp;
-	}
+	autoDelete(mAutoDeleteTimeout);
 }
 
 bool Request::incoming(const Network::Locator &locator, const BinaryString &target)

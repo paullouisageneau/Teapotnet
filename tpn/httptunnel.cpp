@@ -239,7 +239,7 @@ HttpTunnel::Client::~Client(void)
 {
 	NOEXCEPTION(close());
 
-	mFlusher.cancel();
+	mFlusher.join();
 }
 
 void HttpTunnel::Client::close(void)
@@ -550,7 +550,7 @@ HttpTunnel::Server::~Server(void)
 {
 	NOEXCEPTION(close());
 
-	mFlusher.cancel();
+	mFlusher.join();
 
 	delete mUpSock;
 	delete mDownSock;
