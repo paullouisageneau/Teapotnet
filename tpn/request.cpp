@@ -228,8 +228,19 @@ bool Request::incoming(const Network::Locator &locator, const BinaryString &targ
 {
 	// Ignore subdirectories
 	String path = locator.prefix + locator.path;
-	if(mListDirectories && !mPath.empty() && mPath != path)
-		return false;
+
+	if(!mPath.empty())
+	{
+		if(mListDirectories)
+		{
+			if(mPath != path)
+				return false;
+		}
+		else {
+			if(path.size() < mPath.size() || path.substr(0, mPath.size()) != mPath)
+				return false;
+		}
+	}
 
 	if(fetch(locator, target, false))	// no content
 	{
