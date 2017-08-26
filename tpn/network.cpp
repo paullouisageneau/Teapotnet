@@ -1508,7 +1508,7 @@ bool Network::Tunneler::open(const BinaryString &node, const Identifier &remote,
 
 			mPending.insert(node, tunnelId);
 
-			LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
+			//LogDebug("Network::Tunneler::open", "Opening tunnel to " + node.toString() + ": " + String::hexa(tunnelId));
 
 			Tunneler::Tunnel *tunnel = NULL;
 			try {
@@ -1737,7 +1737,7 @@ bool Network::Tunneler::handshake(SecureTransport *transport, const Link &link)
 			}
 			catch(const Timeout &e)
 			{
-				LogDebug("Network::Tunneler::handshake", "Handshake timeout");
+				//LogDebug("Network::Tunneler::handshake", "Handshake timeout");
 			}
 			catch(const std::exception &e)
 			{

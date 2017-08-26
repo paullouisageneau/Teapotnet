@@ -1082,11 +1082,18 @@ void Overlay::Backend::run(void)
 	while(true)
 	{
 		SecureTransport *transport = NULL;
+		Address addr;
 		try {
-			Address addr;
 			transport = listen(&addr);
 			if(!transport) break;
+		}
+		catch(const std::exception &e)
+		{
+			LogError("Overlay::Backend::run", e.what());	
+			break;
+		}
 
+		try {
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 
 			mOverlay->mPool.enqueue([this, transport, addr]()
@@ -1102,7 +1109,7 @@ void Overlay::Backend::run(void)
 		}
 		catch(const std::exception &e)
 		{
-			LogError("Overlay::Backend::run", e.what());
+			LogWarn("Overlay::Backend::run", e.what());
 			delete transport;
 		}
 	}
