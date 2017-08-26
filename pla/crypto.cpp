@@ -454,8 +454,8 @@ Cipher::Cipher(Stream *stream, bool mustDelete) :
 
 Cipher::~Cipher(void)
 {
-	delete mReadBlock;
-	delete mWriteBlock;
+	delete[] mReadBlock;
+	delete[] mWriteBlock;
 
 	if(mMustDelete)
 		delete mStream;

@@ -110,7 +110,7 @@ SecureTransport::~SecureTransport(void)
 	gnutls_deinit(mSession);
 
 	delete mStream;
-	delete mBuffer;
+	delete[] mBuffer;
 
 	for(auto c : mCredsToDelete)
 		delete c;
