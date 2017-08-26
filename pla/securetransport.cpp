@@ -259,7 +259,7 @@ size_t SecureTransport::readData(char *buffer, size_t size)
 			if(ret < 0) throw Exception(ErrorString(ret));
 			if(ret == 0)
 			{
-				delete mBuffer;
+				delete[] mBuffer;
 				mBuffer = NULL;
 				mBufferSize = 0;
 				mBufferOffset = 0;
@@ -942,8 +942,7 @@ SecureTransport *SecureTransportServer::Listen(DatagramSocket &sock, Address *re
 				SecureTransportServer *transport = NULL;
 				try {
 					stream = new DatagramStream(&sock, sender);
-					if(streamTimeout > duration::zero())
-						stream->setTimeout(streamTimeout);
+					if(streamTimeout > duration::zero()) stream->setTimeout(streamTimeout);
 					transport = new SecureTransportServer(stream, NULL, requestClientCertificate);
 				}
 				catch(...)
