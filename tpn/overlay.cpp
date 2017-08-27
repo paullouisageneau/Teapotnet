@@ -1086,14 +1086,7 @@ void Overlay::Backend::run(void)
 		try {
 			transport = listen(&addr);
 			if(!transport) break;
-		}
-		catch(const std::exception &e)
-		{
-			LogError("Overlay::Backend::run", e.what());	
-			break;
-		}
 
-		try {
 			LogDebug("Overlay::Backend::run", "Incoming connection from " + addr.toString());
 
 			mOverlay->mPool.enqueue([this, transport, addr]()
@@ -1104,13 +1097,15 @@ void Overlay::Backend::run(void)
 				catch(const std::exception &e)
 				{
 					LogDebug("Overlay::Backend::run", String("Handshake failed: ") + e.what());
+					delete transport;
 				}
 			});
 		}
 		catch(const std::exception &e)
 		{
-			LogWarn("Overlay::Backend::run", e.what());
+			LogError("Overlay::Backend::run", e.what());
 			delete transport;
+			break;
 		}
 	}
 
